@@ -38,6 +38,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.State
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -50,6 +51,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -275,7 +277,7 @@ fun GifSearchBar() {
 
 @Composable
 private fun SearchField(query: String, modifier: Modifier) {
-    val blink by rememberInfiniteTransition(label = "cursor").animateFloat(
+    val blink = rememberInfiniteTransition(label = "cursor").animateFloat(
         initialValue = 1f,
         targetValue = 0f,
         animationSpec = infiniteRepeatable(tween(durationMillis = 530), RepeatMode.Reverse),
@@ -291,11 +293,23 @@ private fun SearchField(query: String, modifier: Modifier) {
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (query.isEmpty()) {
-            Box(Modifier.width(2.dp).height(18.dp).alpha(blink).background(LocalContentColor.current))
+            Cursor(blink)
             Text("Search GIPHY", modifier = Modifier.padding(start = 4.dp).alpha(0.6f), maxLines = 1)
         } else {
             Text(query, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
-            Box(Modifier.width(2.dp).height(18.dp).alpha(blink).background(LocalContentColor.current))
+            Cursor(blink)
         }
     }
+}
+
+/** Reads [blink] while drawing, so the blink redraws this bar alone, not the whole field. */
+@Composable
+private fun Cursor(blink: State<Float>) {
+    Box(
+        Modifier
+            .width(2.dp)
+            .height(18.dp)
+            .graphicsLayer { alpha = blink.value }
+            .background(LocalContentColor.current),
+    )
 }
