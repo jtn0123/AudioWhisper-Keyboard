@@ -57,6 +57,19 @@ class ModelHolderTest {
     }
 
     @Test
+    fun `knows whether the next get has to load`() {
+        val holder = ModelHolder { Model() }
+        assertFalse(holder.isLoaded)
+        holder.get()
+        assertTrue(holder.isLoaded)
+        holder.close()
+        assertFalse(holder.isLoaded)
+        val failing = ModelHolder<Model> { throw OutOfMemoryError() }
+        assertFailsWith<ModelLoadException> { failing.get() }
+        assertFalse(failing.isLoaded)
+    }
+
+    @Test
     fun `an ended dictation explains itself only when nothing was typed`() {
         assertEquals(null, endingMessage(typedAny = true, failures = 0))
         assertEquals(null, endingMessage(typedAny = true, failures = 2))

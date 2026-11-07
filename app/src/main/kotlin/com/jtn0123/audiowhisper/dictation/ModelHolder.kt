@@ -26,6 +26,9 @@ class ModelHolder<T : AutoCloseable>(private val load: () -> T) {
         }
     }
 
+    /** [get] would hand back a model without loading one. */
+    val isLoaded: Boolean get() = model != null
+
     /** Forgets a failed load, so the next [get] tries again. */
     fun retry() {
         failure = null

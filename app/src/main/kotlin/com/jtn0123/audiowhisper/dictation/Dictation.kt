@@ -52,6 +52,9 @@ class Dictation(private val context: Context, private val editor: Editor) {
         /** Takes back the phrase dictation typed last, if nothing has changed since. */
         fun undoLastPhrase(): Boolean
         fun problem(message: String)
+
+        /** A key-press haptic, for letting go of the mic after a hold: the press had one, the release none. */
+        fun tick()
     }
 
     enum class Status { IDLE, LISTENING, FINISHING }
@@ -85,6 +88,10 @@ class Dictation(private val context: Context, private val editor: Editor) {
     fun releaseMic() {
         when (micKey.release()) {
             MicKey.Action.FINISH -> if (status.value == Status.LISTENING) finish()
+            MicKey.Action.END_HOLD -> if (status.value == Status.LISTENING) {
+                editor.tick()
+                finish()
+            }
             MicKey.Action.TOGGLE -> toggle()
             MicKey.Action.START, MicKey.Action.NONE -> Unit
         }
@@ -160,14 +167,21 @@ class Dictation(private val context: Context, private val editor: Editor) {
         return modelInstalled()
     }
 
-    /** Loads the model, if it was released, while the user starts talking; stops at once if it can't. */
+    /**
+     * Loads the model, if it was released, while the user starts talking; stops at once if it
+     * can't. While it loads the mic shows [warming], since the first phrase will be a little late.
+     */
     private fun preload(id: Int) = worker.execute {
         models.retry()
+        val loading = !models.isLoaded
+        if (loading) main.post { if (id == session && status.value != Status.IDLE) mutableWarming.value = true }
         try {
             models.get()
         } catch (e: ModelLoadException) {
             Log.e(TAG, "Could not load the model", e)
             main.post { if (id == session && status.value != Status.IDLE) modelFailed() }
+        } finally {
+            if (loading) main.post { mutableWarming.value = false }
         }
     }
 
@@ -263,6 +277,7 @@ class Dictation(private val context: Context, private val editor: Editor) {
     private fun idle() {
         mutableStatus.value = Status.IDLE
         mutableLevel.value = 0f
+        mutableWarming.value = false
         mutablePreview.value = ""
         main.removeCallbacks(unload)
         main.postDelayed(unload, KEEP_LOADED_MS)
@@ -331,6 +346,7 @@ class Dictation(private val context: Context, private val editor: Editor) {
         private val mutableStatus = MutableStateFlow(Status.IDLE)
         private val mutableLevel = MutableStateFlow(0f)
         private val mutablePreview = MutableStateFlow("")
+        private val mutableWarming = MutableStateFlow(false)
 
         /** What the mic button shows. */
         val status: StateFlow<Status> = mutableStatus.asStateFlow()
@@ -340,6 +356,9 @@ class Dictation(private val context: Context, private val editor: Editor) {
 
         /** The words of the phrase being spoken, as heard so far; empty when there is none. Never logged. */
         val preview: StateFlow<String> = mutablePreview.asStateFlow()
+
+        /** The model is loading for this dictation (about 2 s on a phone), so its first phrase comes late. */
+        val warming: StateFlow<Boolean> = mutableWarming.asStateFlow()
     }
 }
 

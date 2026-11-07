@@ -467,6 +467,10 @@ class FlorisImeService : LifecycleInputMethodService() {
         override fun problem(message: String) {
             Toast.makeText(this@FlorisImeService, message, Toast.LENGTH_SHORT).show()
         }
+
+        override fun tick() {
+            inputFeedbackController.keyPress()
+        }
     }
 
     override fun onEvaluateFullscreenMode(): Boolean {

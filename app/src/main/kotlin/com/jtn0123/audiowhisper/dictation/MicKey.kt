@@ -6,7 +6,15 @@ package com.jtn0123.audiowhisper.dictation
  * starts on the press, so the first words are heard and the model loads while they are spoken.
  */
 internal class MicKey(private val clock: () -> Long) {
-    enum class Action { NONE, START, FINISH, TOGGLE }
+    enum class Action {
+        NONE,
+        START,
+        FINISH,
+
+        /** Finish: the key was let go after holding it to talk. Unlike a tap, nothing else marked the moment. */
+        END_HOLD,
+        TOGGLE,
+    }
 
     private var pressedAt: Long? = null
     private var startedByPress = false
@@ -26,7 +34,7 @@ internal class MicKey(private val clock: () -> Long) {
         pressedAt = null
         return when {
             stopsOnRelease -> Action.FINISH
-            startedByPress && clock() - pressed >= HOLD_MS -> Action.FINISH
+            startedByPress && clock() - pressed >= HOLD_MS -> Action.END_HOLD
             else -> Action.NONE
         }
     }

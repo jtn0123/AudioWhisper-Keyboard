@@ -23,8 +23,8 @@ class MicKeyTest {
 
     @Test
     fun aHoldTalksUntilLetGo() {
-        assertEquals(Action.START to Action.FINISH, pressFor(MicKey.HOLD_MS, Status.IDLE))
-        assertEquals(Action.START to Action.FINISH, pressFor(4_000, Status.IDLE))
+        assertEquals(Action.START to Action.END_HOLD, pressFor(MicKey.HOLD_MS, Status.IDLE))
+        assertEquals(Action.START to Action.END_HOLD, pressFor(4_000, Status.IDLE))
         assertEquals(Action.START to Action.NONE, pressFor(MicKey.HOLD_MS - 1, Status.IDLE))
     }
 
