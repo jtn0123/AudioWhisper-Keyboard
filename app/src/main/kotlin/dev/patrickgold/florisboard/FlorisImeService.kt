@@ -342,6 +342,11 @@ class FlorisImeService : LifecycleInputMethodService() {
     override fun onStartInput(info: EditorInfo?, restarting: Boolean) {
         flogInfo { "restarting=$restarting info=${info?.debugSummarize()}" }
         super.onStartInput(info, restarting)
+        // AudioWhisper: input started again, perhaps in another field. Chrome reports a move
+        // between a page's fields as a restart of the same one, with nothing to tell them
+        // apart, so any start ends a dictation rather than let it type into the wrong field (a
+        // password, even). Typing and dictating don't restart input.
+        dictation?.abandon()
         if (info == null) return
         val editorInfo = FlorisEditorInfo.wrap(info)
         editorInstance.handleStartInput(editorInfo)
@@ -401,6 +406,9 @@ class FlorisImeService : LifecycleInputMethodService() {
         super.onFinishInput()
         editorInstance.handleFinishInput()
         NlpInlineAutofill.clearInlineSuggestions()
+        // AudioWhisper: the field is gone (another app, the screen off), so a phrase still
+        // being transcribed has nowhere to go.
+        dictation?.abandon()
     }
 
     override fun onWindowShown() {
@@ -424,8 +432,9 @@ class FlorisImeService : LifecycleInputMethodService() {
             flogInfo(LogTopic.IMS_EVENTS)
         }
         isWindowShown = false
-        // Minimised (back, home, the hide key, screen off): stop listening.
-        dictation?.abandon()
+        // Minimised (back, the hide key): stop listening, but still type what was said; the
+        // field is still connected. Leaving the field drops the rest (onFinishInput).
+        dictation?.stopListening()
         GifSearch.reset()
         activeState.batchEdit {
             activeState.imeUiMode = ImeUiMode.TEXT

@@ -19,7 +19,9 @@ import java.util.concurrent.Executors
 /**
  * Dictation inside the keyboard. The mic key toggles it; while it listens,
  * each phrase is typed as the user pauses and every key keeps working, so
- * the keyboard never goes away. Hiding the keyboard stops it.
+ * the keyboard never goes away. Hiding the keyboard stops it, and leaving
+ * the field drops whatever it hasn't typed yet: a dictation only ever types
+ * into the field it started in.
  *
  * Main thread only, apart from [worker], which owns the model: it loads,
  * runs and releases it, and keeps phrases in the order they were spoken.
@@ -63,7 +65,18 @@ class Dictation(private val context: Context, private val editor: Editor) {
         }
     }
 
-    /** The keyboard went away. Typed phrases stay; the unfinished one is dropped. */
+    /**
+     * The keyboard was hidden (back, the hide key) but its field is still there: stop
+     * listening and type what was said, as a tap on the mic would. No message, since the
+     * keyboard is gone; a dictation already finishing carries on.
+     */
+    fun stopListening() {
+        if (status.value != Status.LISTENING) return
+        explained = true
+        finish()
+    }
+
+    /** The field went away. Typed phrases stay; the rest, including the one being spoken, is dropped. */
     fun abandon() {
         if (status.value == Status.IDLE) return
         session++
