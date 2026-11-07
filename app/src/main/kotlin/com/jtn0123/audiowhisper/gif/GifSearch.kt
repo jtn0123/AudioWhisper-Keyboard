@@ -1,5 +1,6 @@
 package com.jtn0123.audiowhisper.gif
 
+import android.os.SystemClock
 import android.util.Log
 import dev.patrickgold.florisboard.BuildConfig
 import kotlinx.coroutines.CoroutineScope
@@ -43,6 +44,7 @@ object GifSearch {
     val available: Boolean get() = giphy != null
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private var loading: Job? = null
+    private val cache = GifResultCache(SystemClock::elapsedRealtime)
 
     /** The query when the current delete-key swipe began, so swiping back restores it. */
     private var beforeSwipe = ""
@@ -117,14 +119,27 @@ object GifSearch {
         load(query.value.trim().ifEmpty { TRENDING })
     }
 
+    /**
+     * Shows [search]'s GIFs. Each GIPHY call counts against 100 an hour, so the chip already
+     * showing (or loading) isn't fetched again, and a search made in the last 10 minutes comes
+     * from [cache]. A failed one is always tried again.
+     */
     fun load(search: String) {
-        mutableShown.value = search
         val giphy = giphy ?: return
+        val alreadyShowing = search == shown.value && (results.value is Results.Loaded || loading?.isActive == true)
+        if (alreadyShowing) return
+        mutableShown.value = search
         loading?.cancel()
+        cache.get(search)?.let { gifs ->
+            mutableResults.value = Results.Loaded(gifs)
+            return
+        }
         mutableResults.value = Results.Loading
         loading = scope.launch {
             mutableResults.value = try {
-                Results.Loaded(if (search == TRENDING) giphy.trending() else giphy.search(search))
+                val gifs = if (search == TRENDING) giphy.trending() else giphy.search(search)
+                cache.put(search, gifs)
+                Results.Loaded(gifs)
             } catch (e: IOException) {
                 Log.w(TAG, "Could not load GIFs", e)
                 Results.Failed(problem(e))
