@@ -68,6 +68,9 @@ class EditorInstance(context: Context) : AbstractEditorInstance(context) {
     val phantomSpace = PhantomSpaceState()
     val massSelection = MassSelectionState()
 
+    override val isSpacePending: Boolean
+        get() = phantomSpace.isActive
+
     /** AudioWhisper: the phrase dictation typed last, for [undoDictation]. */
     private var dictationUndo: DictationUndo? = null
 

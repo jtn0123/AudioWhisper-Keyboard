@@ -275,15 +275,19 @@ abstract class AbstractEditorInstance(context: Context) {
         )
     }
 
+    /**
+     * AudioWhisper: a space is due before the next letter (see EditorInstance's phantom space), so
+     * capitals are judged as if it were typed. Android capitalises after "family." only with a
+     * space after it, and dictation ends its text without one.
+     */
+    protected open val isSpacePending: Boolean
+        get() = false
+
     private fun EditorContent.cursorCapsMode(): InputAttributes.CapsMode {
-        return when {
-            localSelection.isNotValid -> InputAttributes.CapsMode.NONE
-            else -> {
-                InputAttributes.CapsMode.fromFlags(
-                    TextUtils.getCapsMode(text, localSelection.start, activeInfo.inputAttributes.raw)
-                )
-            }
-        }
+        if (localSelection.isNotValid) return InputAttributes.CapsMode.NONE
+        val cursor = localSelection.start
+        val (before, offset) = if (isSpacePending) "${text.subSequence(0, cursor)} " to cursor + 1 else text to cursor
+        return InputAttributes.CapsMode.fromFlags(TextUtils.getCapsMode(before, offset, activeInfo.inputAttributes.raw))
     }
 
     abstract fun determineComposingEnabled(): Boolean
