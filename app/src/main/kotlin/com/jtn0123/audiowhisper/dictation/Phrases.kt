@@ -1,19 +1,76 @@
 package com.jtn0123.audiowhisper.dictation
 
-/** Joining phrases that were transcribed separately. */
+/**
+ * Joining phrases that were transcribed separately.
+ *
+ * Each pause is transcribed on its own, so the model treats every phrase as a whole
+ * sentence: it capitalises the first word and usually ends with a full stop, even
+ * where the speaker only paused ("I need to talk to." "John about it.").
+ */
 object Phrases {
+    /** Delete [replacing] characters before the cursor (a full stop this dictation typed), then type [text]. */
+    data class Typing(val replacing: Int, val text: String)
+
     /**
-     * The model capitalises the start of every phrase, but a pause is not
-     * always the end of a sentence. When [before] (the text just typed)
-     * doesn't end one, lower-case the first letter of [text] — unless it is
-     * "I" or a word in capitals, like an acronym.
+     * How to type [phrase] after [before], the text up to the cursor. [lastPhrase] is what
+     * this dictation typed last: when the cursor is still right after it, its full stop is
+     * taken back if [phrase] carries the sentence on. [isName] says a capitalised word is
+     * a name ("John"), which keeps its capital mid-sentence.
      */
-    fun continueSentence(before: CharSequence?, text: String): String {
-        val last = before?.lastOrNull { !it.isWhitespace() } ?: return text
-        if (!last.isLetterOrDigit() && last != ',') return text
-        val word = text.substringBefore(' ')
-        val keepsCapital = word == "I" || word.startsWith("I'") ||
-            (word.length > 1 && word[1].isUpperCase())
-        return if (keepsCapital) text else text.replaceFirstChar { it.lowercaseChar() }
+    fun join(before: CharSequence?, lastPhrase: String?, phrase: String, isName: (String) -> Boolean): Typing {
+        val text = before?.toString().orEmpty()
+        val takesBackStop = lastPhrase != null && lastPhrase.endsWith('.') &&
+            isRightAfter(text, lastPhrase) && carriesOn(lastPhrase, phrase)
+        val kept = if (takesBackStop) text.dropLast(1) else text
+        val body = when {
+            continuesSentence(kept) -> lowerFirst(phrase, isName)
+            endsSentence(kept) -> phrase.replaceFirstChar { it.uppercaseChar() }
+            else -> phrase
+        }
+        val lead = if (kept.isEmpty() || kept.last().isWhitespace()) "" else " "
+        return Typing(if (takesBackStop) 1 else 0, lead + body)
     }
+
+    /** Only what the editor shows before the cursor can be compared, so match as much of [phrase] as that. */
+    private fun isRightAfter(text: String, phrase: String): Boolean =
+        text.isNotEmpty() && text.endsWith(phrase.takeLast(text.length))
+
+    /**
+     * The speaker paused mid-sentence: [last] stops on a word a sentence can't end on ("talk to."),
+     * the model wrote [next] in lower case (it heard a fragment), or [next] opens with "and" or the like.
+     */
+    private fun carriesOn(last: String, next: String): Boolean {
+        val lastWord = last.dropLast(1).substringAfterLast(' ').lowercase()
+        val firstWord = firstWord(next)
+        return lastWord in OPEN_ENDINGS || firstWord.firstOrNull()?.isLowerCase() == true ||
+            firstWord.lowercase() in JOINERS
+    }
+
+    private fun continuesSentence(text: String): Boolean {
+        val last = text.lastOrNull { !it.isWhitespace() } ?: return false
+        return last.isLetterOrDigit() || last == ',' || last == ';'
+    }
+
+    private fun endsSentence(text: String): Boolean = text.lastOrNull { !it.isWhitespace() } in SENTENCE_ENDS
+
+    /** Lower-cases the first word unless it is "I", an acronym, or a name. */
+    private fun lowerFirst(phrase: String, isName: (String) -> Boolean): String {
+        val word = firstWord(phrase)
+        val keepsCapital = word.isEmpty() || word == "I" || word.startsWith("I'") ||
+            (word.length > 1 && word[1].isUpperCase()) || isName(word)
+        return if (keepsCapital) phrase else phrase.replaceFirstChar { it.lowercaseChar() }
+    }
+
+    private fun firstWord(text: String): String = text.takeWhile { it.isLetter() || it == '\'' || it == '’' }
+
+    private val SENTENCE_ENDS = setOf('.', '!', '?')
+
+    /** Words a spoken sentence practically never ends on, so a full stop after one is a pause. */
+    private val OPEN_ENDINGS = setOf(
+        "a", "an", "the", "and", "or", "but", "nor", "of", "to", "for", "with", "about", "from",
+        "into", "onto", "at", "as", "than", "because", "if", "my", "your", "our", "their", "its", "i",
+    )
+
+    /** First words that join on to the sentence before even when the model capitalised them. */
+    private val JOINERS = setOf("and", "but", "or", "nor", "because")
 }

@@ -279,15 +279,17 @@ class EditorInstance(context: Context) : AbstractEditorInstance(context) {
      * AudioWhisper: commits a dictated phrase as finished text. No word of it is left composing,
      * so the next space can't auto-correct a dictated name, and the phantom space is set as after
      * a gesture, so a word typed next gets its own space instead of running into the phrase.
-     * [text] already carries any space it needs in front.
+     * [text] already carries any space it needs in front. [replacing] characters before the
+     * cursor are deleted first (a full stop dictation put at a pause); an editor that can't
+     * do that still gets the text.
      */
-    fun commitDictation(text: String): Boolean {
+    fun commitDictation(text: String, replacing: Int = 0): Boolean {
         if (text.isEmpty()) return false
         autoSpace.setInactive()
         phantomSpace.setActive(showComposingRegion = false)
-        return super.commitText(text).also {
-            if (it) updateLastCommitPosition() else phantomSpace.setInactive()
-        }
+        val committed = (replacing > 0 && replaceTextBeforeCursor(replacing, text)) || super.commitText(text)
+        if (committed) updateLastCommitPosition() else phantomSpace.setInactive()
+        return committed
     }
 
     /**

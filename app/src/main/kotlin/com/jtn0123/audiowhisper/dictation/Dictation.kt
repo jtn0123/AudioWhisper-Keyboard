@@ -37,7 +37,12 @@ class Dictation(private val context: Context, private val editor: Editor) {
         /** The field is one dictation may type into (see [DictationFields]). */
         fun allowsDictation(): Boolean
         fun textBeforeCursor(): CharSequence?
-        fun type(text: String)
+
+        /** Deletes [replacing] characters before the cursor, then types [text]. */
+        fun type(text: String, replacing: Int)
+
+        /** A capitalised word is usually written that way ("John"), so it keeps its capital mid-sentence. */
+        fun isName(word: String): Boolean
         fun problem(message: String)
     }
 
@@ -52,6 +57,9 @@ class Dictation(private val context: Context, private val editor: Editor) {
     private var session = 0
     private var typedAny = false
     private var failures = 0
+
+    /** What this dictation typed last, so a full stop it put at a pause can be taken back. */
+    private var lastPhrase: String? = null
 
     /** A message about this dictation has been shown, so its end needn't add one. */
     private var explained = false
@@ -108,6 +116,7 @@ class Dictation(private val context: Context, private val editor: Editor) {
         listener = next
         typedAny = false
         failures = 0
+        lastPhrase = null
         explained = false
         mutableStatus.value = Status.LISTENING
     }
@@ -215,7 +224,7 @@ class Dictation(private val context: Context, private val editor: Editor) {
         if (id != session) return
         result.onSuccess { text ->
             if (text.isNotBlank()) {
-                commit(text.trim(), continuing = typedAny)
+                commit(text.trim())
                 typedAny = true
             }
         }.onFailure { error ->
@@ -224,15 +233,11 @@ class Dictation(private val context: Context, private val editor: Editor) {
         }
     }
 
-    /**
-     * Types [text], adding a space if it would otherwise run into a word.
-     * [continuing] means an earlier phrase of this dictation was just typed.
-     */
-    private fun commit(text: String, continuing: Boolean) {
-        val before = editor.textBeforeCursor()
-        val lead = if (before.isNullOrEmpty() || before.last().isWhitespace()) "" else " "
-        val phrase = if (continuing) Phrases.continueSentence(before, text) else text
-        editor.type(lead + phrase)
+    /** Types [text], joined on to what is before the cursor (see [Phrases.join]). */
+    private fun commit(text: String) {
+        val typing = Phrases.join(editor.textBeforeCursor(), lastPhrase, text, editor::isName)
+        editor.type(typing.text, typing.replacing)
+        lastPhrase = typing.text
     }
 
     private fun timed(audio: FloatArray): String {

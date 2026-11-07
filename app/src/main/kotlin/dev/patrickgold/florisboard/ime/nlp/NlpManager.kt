@@ -281,6 +281,9 @@ class NlpManager(context: Context) {
     /** AudioWhisper: the user undid the auto-correction of [word]; leave it alone from now on. */
     fun keepAsTyped(word: String) = latinProvider.keepAsTyped(word)
 
+    /** AudioWhisper: see [LatinLanguageProvider.isName]. */
+    fun isName(word: String) = latinProvider.isName(word)
+
     fun removeSuggestion(subtype: Subtype, candidate: SuggestionCandidate): Boolean {
         return runBlocking { candidate.sourceProvider?.removeSuggestion(subtype, candidate) == true }.also { result ->
             if (result) {

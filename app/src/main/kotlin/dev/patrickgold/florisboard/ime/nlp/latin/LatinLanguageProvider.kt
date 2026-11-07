@@ -22,6 +22,7 @@ import android.util.Log
 import com.jtn0123.audiowhisper.suggest.ArrangedWord
 import com.jtn0123.audiowhisper.suggest.LatinDictionaryEngine
 import com.jtn0123.audiowhisper.suggest.LatinSuggester
+import com.jtn0123.audiowhisper.suggest.NOT_A_PROBABILITY
 import com.jtn0123.audiowhisper.suggest.TypingState
 import dev.patrickgold.florisboard.appContext
 import dev.patrickgold.florisboard.editorInstance
@@ -209,6 +210,21 @@ class LatinLanguageProvider(context: Context) : SpellingProvider, SuggestionProv
     /** AudioWhisper: see [keptAsTyped]. Held in memory only, never logged or saved. */
     fun keepAsTyped(word: String) {
         keptAsTyped.add(word.lowercase(Locale.ROOT))
+    }
+
+    /**
+     * AudioWhisper: [word], capitalised, is usually written that way ("John", but not "Maybe"),
+     * so dictation keeps its capital mid-sentence. A word the dictionary doesn't know is
+     * assumed to be a name; so is everything when no dictionary is loaded.
+     */
+    fun isName(word: String): Boolean {
+        val engine = engine ?: return true
+        val lower = word.lowercase(Locale.US)
+        if (lower == word) return false
+        val asWritten = engine.probability(word)
+        val lowered = engine.probability(lower)
+        if (asWritten == NOT_A_PROBABILITY && lowered == NOT_A_PROBABILITY) return true
+        return asWritten > lowered
     }
 
     private fun isKeptAsTyped(typed: String) = typed.lowercase(Locale.ROOT) in keptAsTyped

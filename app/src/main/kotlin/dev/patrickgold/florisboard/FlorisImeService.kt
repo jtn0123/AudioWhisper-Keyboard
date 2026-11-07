@@ -148,7 +148,7 @@ private var FlorisImeServiceReference = WeakReference<FlorisImeService?>(null)
 class FlorisImeService : LifecycleInputMethodService() {
     companion object {
         /** Characters dictation reads before the cursor to space and capitalise a phrase. */
-        private const val DICTATION_LOOK_BACK = 8
+        private const val DICTATION_LOOK_BACK = 48
 
         private val InlineSuggestionUiSmallestSize = Size(0, 0)
         private val InlineSuggestionUiBiggestSize = Size(Int.MAX_VALUE, Int.MAX_VALUE)
@@ -450,9 +450,11 @@ class FlorisImeService : LifecycleInputMethodService() {
         override fun textBeforeCursor(): CharSequence? =
             currentInputConnection?.getTextBeforeCursor(DICTATION_LOOK_BACK, 0)
 
-        override fun type(text: String) {
-            editorInstance.commitDictation(text)
+        override fun type(text: String, replacing: Int) {
+            editorInstance.commitDictation(text, replacing)
         }
+
+        override fun isName(word: String): Boolean = nlpManager.isName(word)
 
         override fun problem(message: String) {
             Toast.makeText(this@FlorisImeService, message, Toast.LENGTH_SHORT).show()
