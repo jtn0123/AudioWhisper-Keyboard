@@ -113,11 +113,14 @@ object GifSearch {
         GifImages.forgetPreviews()
     }
 
-    private fun problem(e: IOException) = when ((e as? GiphyException)?.status) {
-        null -> "Couldn't reach GIPHY. Check your connection."
-        401, 403 -> "GIPHY didn't accept the API key."
-        429 -> "GIPHY's hourly limit is used up. Try again later."
-        else -> "GIPHY isn't answering right now."
+    internal fun problem(e: IOException) = when (e) {
+        is GiphyFormatException -> "GIPHY sent something unreadable. Try again later."
+        is GiphyException -> when (e.status) {
+            401, 403 -> "GIPHY didn't accept the API key."
+            429 -> "GIPHY's hourly limit is used up. Try again later."
+            else -> "GIPHY isn't answering right now."
+        }
+        else -> "Couldn't reach GIPHY. Check your connection."
     }
 }
 

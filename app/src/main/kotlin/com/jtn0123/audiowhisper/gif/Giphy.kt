@@ -25,6 +25,9 @@ data class Gif(
 /** GIPHY refused or failed a request; [status] is the HTTP status. */
 class GiphyException(val status: Int) : IOException("GIPHY answered HTTP $status")
 
+/** GIPHY answered, but not with the JSON we expect. An [IOException] so callers handle it like any failed call. */
+class GiphyFormatException(cause: Throwable) : IOException("GIPHY sent an unreadable response", cause)
+
 /**
  * GIPHY's GIF API (https://developers.giphy.com/docs/api/endpoint). A beta key allows 100 calls an
  * hour, so the panel calls it only when the user asks for something: trending once, then a call
@@ -63,10 +66,22 @@ class Giphy(private val apiKey: String) {
 
         private val json = Json { ignoreUnknownKeys = true }
 
-        /** The GIFs in a search or trending response, skipping any without the renditions we need. */
-        fun parse(body: String): List<Gif> = json.decodeFromString<Response>(body).data.mapNotNull { it.toGif() }.distinctBy { it.id }
+        /**
+         * The GIFs in a search or trending response, skipping any without an id or the renditions we
+         * need. A body that isn't the expected JSON throws [GiphyFormatException].
+         */
+        fun parse(body: String): List<Gif> {
+            val response = try {
+                json.decodeFromString<Response>(body)
+            } catch (e: IllegalArgumentException) {
+                // kotlinx.serialization's SerializationException is an IllegalArgumentException.
+                throw GiphyFormatException(e)
+            }
+            return response.data.mapNotNull { it.toGif() }.distinctBy { it.id }
+        }
 
         private fun Item.toGif(): Gif? {
+            if (id.isBlank()) return null
             val preview = images.fixedWidth ?: return null
             val previewUrl = preview.webp ?: preview.url ?: return null
             val width = preview.width?.toFloatOrNull() ?: return null
@@ -80,7 +95,7 @@ class Giphy(private val apiKey: String) {
     private class Response(val data: List<Item> = emptyList())
 
     @Serializable
-    private class Item(val id: String, val title: String = "", val url: String = "", val images: Images)
+    private class Item(val id: String = "", val title: String = "", val url: String = "", val images: Images = Images())
 
     @Serializable
     private class Images(

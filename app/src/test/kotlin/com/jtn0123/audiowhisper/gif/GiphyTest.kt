@@ -1,7 +1,9 @@
 package com.jtn0123.audiowhisper.gif
 
+import java.io.IOException
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
 class GiphyTest {
@@ -53,5 +55,27 @@ class GiphyTest {
         val url = Giphy("KEY123").url("search", mapOf("q" to "thumbs up & ok"))
         assertTrue(url.startsWith("https://api.giphy.com/v1/gifs/search?q=thumbs+up+%26+ok&"), url)
         assertTrue(url.contains("api_key=KEY123") && url.contains("rating=pg-13") && url.contains("limit=30"), url)
+    }
+
+    @Test
+    fun `a body that isn't the expected JSON is a format error, not a crash`() {
+        val bodies = listOf("", "<html>502 Bad Gateway</html>", "null", """{"data":{}}""", """{"data":[1,2]}""", """{"data":[""")
+        for (body in bodies) assertFailsWith<GiphyFormatException>(body) { Giphy.parse(body) }
+    }
+
+    @Test
+    fun `skips GIFs with no id or no images instead of failing the whole page`() {
+        val body = """{"data":[{"title":"no id","images":{$fixedWidth}},{"id":"b"},${item("c", fixedWidth)}]}"""
+        assertEquals(listOf("c"), Giphy.parse(body).map { it.id })
+    }
+
+    @Test
+    fun `each kind of failure gets its own message`() {
+        assertEquals("GIPHY sent something unreadable. Try again later.", GifSearch.problem(GiphyFormatException(IllegalArgumentException())))
+        assertEquals("GIPHY didn't accept the API key.", GifSearch.problem(GiphyException(401)))
+        assertEquals("GIPHY didn't accept the API key.", GifSearch.problem(GiphyException(403)))
+        assertEquals("GIPHY's hourly limit is used up. Try again later.", GifSearch.problem(GiphyException(429)))
+        assertEquals("GIPHY isn't answering right now.", GifSearch.problem(GiphyException(500)))
+        assertEquals("Couldn't reach GIPHY. Check your connection.", GifSearch.problem(IOException("offline")))
     }
 }
