@@ -558,7 +558,6 @@
     <string name="ext__validation__enter_positive_number">Bonvolu enigi pozitivan nombron (&gt;=0)</string>
     <string name="ext__validation__enter_percent_size">Bonvolu enigi grandon je %</string>
     <string name="ext__validation__enter_number_between_0_100">Bonvolu enigi pozitivan nombron inter 0 kaj 100</string>
-    <string name="ext__update_box__internet_permission_hint">Tiu apo ne havas retpermeson, do instalitajn etendaĵojn ĝisdatigoj endas esti serĉataj mane.</string>
     <string name="ext__update_box__search_for_updates">Serĉi ĝisdatigojn</string>
     <string name="ext__addon_management_box__managing_placeholder">Administri la {extensions}</string>
     <string name="ext__addon_management_box__addon_manager_info">Ĉiuj taskoj rilataj al importado, eksportado, kreado, personecigo, kaj forigo etendaĵojn povas esti mastrumata per la centralizita etendaĵa mastrumilo.</string>

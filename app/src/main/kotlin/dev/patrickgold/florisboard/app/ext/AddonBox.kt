@@ -87,7 +87,7 @@ fun UpdateBox(extensionIndex: List<Extension>) {
     ) {
         Text(
             modifier = Modifier.padding(start = 16.dp, top = 8.dp, end = 16.dp, bottom = 4.dp),
-            text = stringRes(id = R.string.ext__update_box__internet_permission_hint),
+            text = stringRes(id = R.string.ext__update_box__manual_updates_hint),
             style = MaterialTheme.typography.bodySmall,
         )
         Row(
