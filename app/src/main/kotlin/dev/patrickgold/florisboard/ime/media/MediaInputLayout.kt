@@ -17,6 +17,7 @@
 package dev.patrickgold.florisboard.ime.media
 
 import android.annotation.SuppressLint
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.waitForUpOrCancellation
@@ -24,29 +25,35 @@ import androidx.compose.foundation.indication
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.PressInteraction
 import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Backspace
+import androidx.compose.material.icons.outlined.EmojiEmotions
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.LayoutDirection
+import com.jtn0123.audiowhisper.gif.GifPanel
+import com.jtn0123.audiowhisper.gif.GifSearch
 import dev.patrickgold.florisboard.ime.input.InputEventDispatcher
 import dev.patrickgold.florisboard.ime.input.LocalInputFeedbackController
 import dev.patrickgold.florisboard.ime.keyboard.FlorisImeSizing
@@ -70,6 +77,7 @@ fun MediaInputLayout(
     val keyboardManager by context.keyboardManager()
 
     var emojiLayoutDataMap by remember { mutableStateOf(EmojiData.Fallback) }
+    val showingGifs by GifSearch.showingGifs.collectAsState()
     LaunchedEffect(Unit) {
         emojiLayoutDataMap = EmojiData.get(context, "ime/media/emoji/root.txt")
     }
@@ -81,10 +89,14 @@ fun MediaInputLayout(
                 .fillMaxWidth()
                 .height(FlorisImeSizing.imeUiHeight()),
         ) {
-            EmojiPaletteView(
-                modifier = Modifier.weight(1f),
-                fullEmojiMappings = emojiLayoutDataMap,
-            )
+            if (showingGifs) {
+                GifPanel(modifier = Modifier.weight(1f))
+            } else {
+                EmojiPaletteView(
+                    modifier = Modifier.weight(1f),
+                    fullEmojiMappings = emojiLayoutDataMap,
+                )
+            }
             SnyggRow(
                 elementName = FlorisImeUi.MediaBottomRow.elementName,
                 modifier = Modifier
@@ -102,6 +114,12 @@ fun MediaInputLayout(
                         fontWeight = FontWeight.Bold,
                     )
                 }
+                MediaTab(selected = !showingGifs, onClick = { GifSearch.showGifs(false) }) {
+                    Icon(imageVector = Icons.Outlined.EmojiEmotions, contentDescription = "Emoji")
+                }
+                MediaTab(selected = showingGifs, onClick = { GifSearch.showGifs(true) }) {
+                    Text(text = "GIF", fontWeight = FontWeight.Bold)
+                }
                 Spacer(modifier = Modifier.weight(1f))
                 KeyboardLikeButton(
                     elementName = FlorisImeUi.MediaBottomRowButton.elementName,
@@ -115,6 +133,23 @@ fun MediaInputLayout(
         }
     }
 }
+
+/** AudioWhisper: the Emoji / GIF switch in the bottom row; the unselected one is dimmed. */
+@Composable
+private fun MediaTab(selected: Boolean, onClick: () -> Unit, content: @Composable () -> Unit) {
+    SnyggBox(
+        elementName = FlorisImeUi.MediaBottomRowButton.elementName,
+        modifier = Modifier.fillMaxHeight(),
+        clickAndSemanticsModifier = Modifier.clickable(onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Box(modifier = Modifier.alpha(if (selected) 1f else UNSELECTED_TAB_ALPHA)) {
+            content()
+        }
+    }
+}
+
+private const val UNSELECTED_TAB_ALPHA = 0.45f
 
 @Composable
 internal fun KeyboardLikeButton(

@@ -30,6 +30,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.LayoutDirection
+import com.jtn0123.audiowhisper.gif.GifSearch
+import com.jtn0123.audiowhisper.gif.GifSearchBar
 import dev.patrickgold.florisboard.R
 import dev.patrickgold.florisboard.app.FlorisPreferenceStore
 import dev.patrickgold.florisboard.ime.smartbar.IncognitoDisplayMode
@@ -62,7 +64,8 @@ fun TextInputLayout(
                 .fillMaxWidth()
                 .wrapContentHeight(),
         ) {
-            Smartbar()
+            val typingGifSearch by GifSearch.typing.collectAsState()
+            if (typingGifSearch) GifSearchBar() else Smartbar()
             if (state.isActionsOverflowVisible) {
                 QuickActionsOverflowPanel()
             } else {
