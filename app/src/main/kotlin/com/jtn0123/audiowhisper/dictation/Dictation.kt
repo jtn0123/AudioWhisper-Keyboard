@@ -25,6 +25,9 @@ import java.util.concurrent.Executors
  * runs and releases it, and keeps phrases in the order they were spoken.
  * The model takes about 800 MB, so it stays loaded for [KEEP_LOADED_MS]
  * after a dictation (the next one starts at once) and is then released.
+ *
+ * Every dictation that ends without typing anything says why: nothing was
+ * heard, the mic stopped, the model is broken, or transcription failed.
  */
 class Dictation(private val context: Context, private val editor: Editor) {
     /** Where dictation types. Called on the main thread. */
@@ -40,13 +43,16 @@ class Dictation(private val context: Context, private val editor: Editor) {
 
     private val main = Handler(Looper.getMainLooper())
     private val worker: ExecutorService = Executors.newSingleThreadExecutor()
-    private var transcriber: Transcriber? = null // worker thread only
+    private val models = ModelHolder(::loadModel) // worker thread only
     private var listener: PhraseListener? = null
 
-    /** Bumped to abandon a dictation; late phrases from it are dropped. */
+    /** Bumped for each dictation and to abandon one; late phrases from an old one are dropped. */
     private var session = 0
     private var typedAny = false
     private var failures = 0
+
+    /** A message about this dictation has been shown, so its end needn't add one. */
+    private var explained = false
 
     /** The mic key. */
     fun toggle() {
@@ -74,21 +80,9 @@ class Dictation(private val context: Context, private val editor: Editor) {
     }
 
     private fun start() {
-        // The mic is greyed out in these fields; this also covers a tap that raced the field change.
-        if (!editor.allowsDictation()) {
-            editor.problem("Dictation is off in password and number fields")
-            return
-        }
-        if (context.checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
-            editor.problem("Allow microphone access to dictate")
-            context.startActivity(appSettings())
-            return
-        }
-        if (!modelInstalled()) return
-        main.removeCallbacks(unload)
-        // Load (if it was released) while the user starts talking.
-        worker.execute { runCatching { model() }.onFailure { Log.e(TAG, "Could not load the model", it) } }
-        val next = newListener(session)
+        if (!mayStart()) return
+        val id = ++session
+        val next = newListener(id)
         try {
             next.start()
         } catch (e: IllegalStateException) {
@@ -96,10 +90,50 @@ class Dictation(private val context: Context, private val editor: Editor) {
             editor.problem("Microphone unavailable. Another app may be using it.")
             return
         }
+        main.removeCallbacks(unload)
+        preload(id)
         listener = next
         typedAny = false
         failures = 0
+        explained = false
         mutableStatus.value = Status.LISTENING
+    }
+
+    private fun mayStart(): Boolean {
+        // The mic is greyed out in these fields; this also covers a tap that raced the field change.
+        if (!editor.allowsDictation()) {
+            editor.problem("Dictation is off in password and number fields")
+            return false
+        }
+        if (context.checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+            editor.problem("Allow microphone access to dictate")
+            context.startActivity(appSettings())
+            return false
+        }
+        return modelInstalled()
+    }
+
+    /** Loads the model, if it was released, while the user starts talking; stops at once if it can't. */
+    private fun preload(id: Int) = worker.execute {
+        models.retry()
+        try {
+            models.get()
+        } catch (e: ModelLoadException) {
+            Log.e(TAG, "Could not load the model", e)
+            main.post { if (id == session && status.value != Status.IDLE) modelFailed() }
+        }
+    }
+
+    private fun modelFailed() {
+        editor.problem("Speech model missing or damaged")
+        abandon()
+    }
+
+    /** The mic failed mid-dictation. The words heard until then are still typed. */
+    private fun micStopped() {
+        editor.problem("The mic stopped. Another app may be using it.")
+        explained = true
+        finish()
     }
 
     private fun modelInstalled(): Boolean {
@@ -118,7 +152,11 @@ class Dictation(private val context: Context, private val editor: Editor) {
 
     private fun newListener(id: Int) = PhraseListener(
         context.assets,
-        onLevel = { level -> main.post { if (id == session) mutableLevel.value = level } },
+        onLevel = { level -> main.post { if (id == session && status.value == Status.LISTENING) mutableLevel.value = level } },
+        onMicError = { code ->
+            Log.e(TAG, "Microphone failed while recording: $code")
+            main.post { if (id == session && status.value == Status.LISTENING) micStopped() }
+        },
         onPhrase = { phrase ->
             worker.execute {
                 val result = runCatching { timed(phrase) }
@@ -138,7 +176,7 @@ class Dictation(private val context: Context, private val editor: Editor) {
     }
 
     private fun finished() {
-        if (failures > 0 && !typedAny) editor.problem("Transcription failed")
+        if (!explained) endingMessage(typedAny, failures)?.let(editor::problem)
         idle()
     }
 
@@ -175,26 +213,23 @@ class Dictation(private val context: Context, private val editor: Editor) {
 
     private fun timed(audio: FloatArray): String {
         val started = SystemClock.elapsedRealtime()
-        val text = model().transcribe(audio)
+        val text = models.get().transcribe(audio)
         val seconds = audio.size / Transcriber.SAMPLE_RATE.toFloat()
         Log.i(TAG, "Transcribed %.1f s phrase in %d ms".format(seconds, SystemClock.elapsedRealtime() - started))
         return text
     }
 
-    /** The loaded model, loading it on first use. Worker thread only. */
-    private fun model(): Transcriber = transcriber ?: run {
+    /** Worker thread only, through [models]. */
+    private fun loadModel(): Transcriber {
         val started = SystemClock.elapsedRealtime()
-        Transcriber(ModelFiles.dir(context)).also {
-            transcriber = it
+        return Transcriber(ModelFiles.dir(context)).also {
             Log.i(TAG, "Model loaded in ${SystemClock.elapsedRealtime() - started} ms")
         }
     }
 
     /** Worker thread only. */
     private fun closeModel() {
-        transcriber?.close() ?: return
-        transcriber = null
-        Log.i(TAG, "Model released")
+        if (models.close()) Log.i(TAG, "Model released")
     }
 
     private val unload = Runnable { worker.execute(::closeModel) }
@@ -214,4 +249,11 @@ class Dictation(private val context: Context, private val editor: Editor) {
         /** Loudness while listening, 0..1, for the mic's glow. */
         val level: StateFlow<Float> = mutableLevel.asStateFlow()
     }
+}
+
+/** What to say when a dictation ends without a message already shown, or null when it typed something. */
+internal fun endingMessage(typedAny: Boolean, failures: Int): String? = when {
+    typedAny -> null
+    failures > 0 -> "Transcription failed"
+    else -> "Didn't catch that"
 }

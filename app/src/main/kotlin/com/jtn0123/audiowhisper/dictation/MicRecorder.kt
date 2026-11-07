@@ -13,9 +13,14 @@ import kotlin.math.sqrt
  * 100 ms of audio to [onAudio] and its 0..1 loudness to [onLevel], both on
  * that thread. Keeps nothing itself, so a dictation can run as long as the
  * user likes. Single use.
+ *
+ * If the microphone fails while recording (another app takes it, or the
+ * permission is revoked), the thread ends and [onError] gets the
+ * `AudioRecord` error code, on that thread.
  */
 class MicRecorder(
     private val onLevel: (Float) -> Unit,
+    private val onError: (Int) -> Unit,
     private val onAudio: (FloatArray) -> Unit,
 ) {
     @Volatile private var running = false
@@ -30,12 +35,16 @@ class MicRecorder(
             AudioFormat.ENCODING_PCM_FLOAT,
             bufferBytes(),
         )
-        if (record.state != AudioRecord.STATE_INITIALIZED) {
+        try {
+            check(record.state == AudioRecord.STATE_INITIALIZED) { "The microphone could not be opened" }
+            record.startRecording()
+            // Not an exception when another app holds the mic: it just doesn't start.
+            check(record.recordingState == AudioRecord.RECORDSTATE_RECORDING) { "The microphone could not be started" }
+        } catch (e: IllegalStateException) {
             record.release()
-            throw IllegalStateException("The microphone could not be opened")
+            throw e
         }
         running = true
-        record.startRecording()
         worker = thread(name = "mic") { pump(record) }
     }
 
@@ -51,7 +60,10 @@ class MicRecorder(
         try {
             while (running) {
                 val n = record.read(buffer, 0, buffer.size, AudioRecord.READ_BLOCKING)
-                if (n < 0) break
+                if (n < 0) {
+                    if (running) onError(n)
+                    break
+                }
                 if (n == 0) continue
                 onAudio(buffer.copyOf(n))
                 onLevel(level(buffer, n))

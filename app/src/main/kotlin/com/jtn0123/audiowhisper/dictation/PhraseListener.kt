@@ -14,19 +14,22 @@ import com.k2fsa.sherpa.onnx.VadModelConfig
  * flat however long the dictation runs.
  *
  * [onPhrase] is called on the microphone thread while listening, and on
- * the caller's thread from [stop]. Single use.
+ * the caller's thread from [stop]. [onMicError] is called on the
+ * microphone thread if the mic fails; listening has stopped, and [stop]
+ * still hands over the words heard until then. Single use.
  *
  * Pauses are found by Silero VAD (MIT licence), bundled in assets.
  */
 class PhraseListener(
     assets: AssetManager,
     onLevel: (Float) -> Unit,
+    onMicError: (Int) -> Unit,
     private val onPhrase: (FloatArray) -> Unit,
 ) {
     // Used by the microphone thread, then by stop() after that thread has
     // ended, never by both at once.
     private val vad = Vad(assets, VadModelConfig(sileroVadModelConfig = SILERO, sampleRate = Transcriber.SAMPLE_RATE))
-    private val mic = MicRecorder(onLevel) { audio ->
+    private val mic = MicRecorder(onLevel, onMicError) { audio ->
         vad.acceptWaveform(audio)
         drain()
     }
