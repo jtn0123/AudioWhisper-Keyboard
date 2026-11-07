@@ -1,0 +1,163 @@
+package com.jtn0123.audiowhisper.suggest
+
+import java.util.Locale
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
+
+/**
+ * Policy tests against a fake decoder. Scores, kinds and probabilities are the ones the real
+ * engine produced for these words with the bundled en_US dictionary.
+ */
+class LatinSuggesterTest {
+    private val correction = RawSuggestion.KIND_CORRECTION or RawSuggestion.FLAG_APPROPRIATE_FOR_AUTO_CORRECTION
+    private val exact = correction or RawSuggestion.FLAG_EXACT_MATCH
+    private val whitelist = RawSuggestion.KIND_WHITELIST
+    private val whitelistScore = Int.MAX_VALUE - 1
+
+    private val decoder = FakeDecoder(
+        results = mapOf(
+            "teh" to listOf(RawSuggestion("the", 477_893, correction), RawSuggestion("ten", 400_787, correction)),
+            "teh2" to listOf(RawSuggestion("the", 477_893, correction)),
+            "im" to listOf(RawSuggestion("I'm", whitelistScore, whitelist), RawSuggestion("in", 571_761, correction)),
+            "form" to listOf(RawSuggestion("form", 1_819_619, exact), RawSuggestion("from", 422_604, correction)),
+            "fro" to listOf(RawSuggestion("fro", 1_536_913, exact), RawSuggestion("from", 471_045, correction)),
+            "ok" to listOf(RawSuggestion("OK", 1_740_557, exact), RawSuggestion("on", 521_841, correction)),
+            "london" to listOf(RawSuggestion("London", 1_801_319, exact)),
+            "yeah" to listOf(RawSuggestion("yeah", 1_753_136, exact), RawSuggestion("year", 235_587, correction)),
+            "lol" to listOf(RawSuggestion("oil", 227_445, correction)),
+            "u" to listOf(RawSuggestion("I", 484_164, correction)),
+            "nit" to listOf(
+                RawSuggestion("not", whitelistScore, whitelist),
+                RawSuggestion("nit", 1_493_598, exact),
+                RawSuggestion("not", 505_979, correction),
+            ),
+            "" to listOf(
+                RawSuggestion("you", 90, RawSuggestion.KIND_PREDICTION),
+                RawSuggestion("God", 80, RawSuggestion.KIND_PREDICTION),
+                RawSuggestion("you", 70, RawSuggestion.KIND_PREDICTION),
+            ),
+        ),
+        probabilities = mapOf("form" to 158, "from" to 191, "fro" to 73, "yeah" to 135, "nit" to 59),
+        ngrams = setOf("came" to "from"),
+    )
+    private val suggester = LatinSuggester(decoder, Locale.US)
+
+    private fun suggest(typed: String, before: String = "", after: String = "", max: Int = 8) =
+        suggester.suggest(TypingState.of(before, typed, after), max, blockOffensiveWords = true)
+
+    private fun autoCorrection(typed: String, before: String = "", after: String = "") =
+        suggest(typed, before, after).firstOrNull { it.isAutoCorrection }?.text
+
+    @Test
+    fun correctsATypoAndKeepsTheTypedWordTappable() {
+        val words = suggest("teh")
+        assertEquals(listOf("the", "teh", "ten"), words.map { it.text })
+        assertEquals(listOf(true, false, false), words.map { it.isAutoCorrection })
+        assertTrue(words[1].isTypedWord)
+    }
+
+    @Test
+    fun matchesTheCaseOfTheTypedWord() {
+        assertEquals("The", autoCorrection("Teh"))
+        assertEquals(listOf("THE", "TEH", "TEN").toSet(), suggest("TEH").map { it.text }.toSet())
+    }
+
+    @Test
+    fun neverAutoCorrectsMostlyCapsWords() {
+        assertEquals(null, autoCorrection("TEH"))
+    }
+
+    @Test
+    fun whitelistedWordsAreCorrectedEvenWhenCapitalized() {
+        assertEquals("I'm", autoCorrection("im"))
+        assertEquals("I'm", autoCorrection("Im"))
+    }
+
+    @Test
+    fun whitelistBeatsAValidTypedWord() {
+        assertEquals("not", autoCorrection("nit"))
+        assertEquals(listOf("not", "nit"), suggest("nit").map { it.text })
+    }
+
+    @Test
+    fun leavesValidWordsAlone() {
+        val words = suggest("form")
+        assertEquals(listOf("form", "from"), words.map { it.text })
+        assertFalse(words.any { it.isAutoCorrection })
+    }
+
+    @Test
+    fun correctsAValidWordThatIsMuchRarerInContext() {
+        assertEquals("from", autoCorrection("fro", before = "came "))
+        // Without an n-gram backing the suggestion, the valid word stays.
+        assertEquals(null, autoCorrection("fro", before = "and "))
+        assertEquals(null, autoCorrection("fro"))
+    }
+
+    @Test
+    fun capitalizesProperNounsButDoesNotTurnWordsIntoAcronyms() {
+        assertEquals("London", autoCorrection("london"))
+        assertEquals(null, autoCorrection("ok"))
+        assertEquals(listOf("ok", "OK", "on"), suggest("ok").map { it.text })
+    }
+
+    @Test
+    fun belowThresholdOffersButDoesNotCorrect() {
+        assertEquals(null, autoCorrection("yeah"))
+        assertEquals(listOf("lol", "oil"), suggest("lol").map { it.text })
+        assertEquals(null, autoCorrection("lol"))
+    }
+
+    @Test
+    fun singleLettersAreOnlyCorrectedByTheWhitelist() {
+        assertEquals(null, autoCorrection("u"))
+    }
+
+    @Test
+    fun noAutoCorrectionWithDigitsOrInsideAWord() {
+        assertEquals(null, autoCorrection("teh2"))
+        assertEquals(null, autoCorrection("teh", after = "re"))
+        assertEquals("the", autoCorrection("teh", after = " and"))
+    }
+
+    @Test
+    fun predictsTheNextWordWithoutAutoCorrecting() {
+        val words = suggest("", before = "thank ")
+        assertEquals(listOf("you", "God"), words.map { it.text })
+        assertFalse(words.any { it.isAutoCorrection || it.isTypedWord })
+        assertEquals(emptyList(), suggest("", before = "Hello, "))
+    }
+
+    @Test
+    fun respectsTheCandidateLimit() {
+        assertEquals(listOf("the"), suggest("teh", max = 1).map { it.text })
+        assertEquals(listOf("form"), suggest("form", max = 1).map { it.text })
+        assertEquals(emptyList(), suggest("teh", max = 0))
+    }
+
+    @Test
+    fun spellCheckFlagsTyposWithConfidence() {
+        assertEquals(SpellCheck(true, emptyList(), false), suggester.spell("form", 3, true))
+        assertEquals(SpellCheck(false, listOf("the", "ten"), true), suggester.spell("teh", 3, true))
+        assertEquals(SpellCheck(false, listOf("oil"), false), suggester.spell("lol", 3, true))
+    }
+
+    /** Decoder results by input; probabilities by word; n-grams as (previous word, word) pairs. */
+    private class FakeDecoder(
+        private val results: Map<String, List<RawSuggestion>>,
+        private val probabilities: Map<String, Int>,
+        private val ngrams: Set<Pair<String, String>>,
+    ) : TypingDecoder {
+        override fun decode(input: String, previous: PreviousWords, blockOffensiveWords: Boolean) =
+            results[input].orEmpty().sortedByDescending { it.score }
+
+        override fun probability(word: String) = probabilities[word] ?: NOT_A_PROBABILITY
+
+        override fun ngramProbability(previous: PreviousWords, word: String): Int {
+            val previousWord = previous.words.firstOrNull() ?: return NOT_A_PROBABILITY
+            return if (previousWord to word in ngrams) 194 else NOT_A_PROBABILITY
+        }
+    }
+}

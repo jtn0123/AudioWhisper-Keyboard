@@ -19,9 +19,12 @@ package dev.patrickgold.florisboard.ime.editor
 import android.content.ClipDescription
 import android.content.ContentUris
 import android.content.Context
+import android.net.Uri
 import android.view.KeyEvent
+import androidx.core.view.inputmethod.EditorInfoCompat
 import androidx.core.view.inputmethod.InputConnectionCompat
 import androidx.core.view.inputmethod.InputContentInfoCompat
+import com.jtn0123.audiowhisper.suggest.AutoCorrectionUndo
 import dev.patrickgold.florisboard.FlorisImeService
 import dev.patrickgold.florisboard.app.FlorisPreferenceStore
 import dev.patrickgold.florisboard.appContext
@@ -42,12 +45,14 @@ import dev.patrickgold.florisboard.lib.ext.ExtensionComponentName
 import dev.patrickgold.florisboard.nlpManager
 import dev.patrickgold.florisboard.subtypeManager
 import java.util.concurrent.atomic.AtomicInteger
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
-import org.florisboard.lib.android.showShortToastSync
+import org.florisboard.lib.android.showShortToast
 
 class EditorInstance(context: Context) : AbstractEditorInstance(context) {
     companion object {
         private const val SPACE = " "
+        private const val GIF_MIME_TYPE = "image/gif"
     }
 
     private val prefs by FlorisPreferenceStore
@@ -333,6 +338,29 @@ class EditorInstance(context: Context) : AbstractEditorInstance(context) {
         }
     }
 
+    /** AudioWhisper: true if the app being typed in takes GIF images (rich content). */
+    fun acceptsGifs(): Boolean =
+        EditorInfoCompat.getContentMimeTypes(activeInfo.base).any { ClipDescription.compareMimeTypes(GIF_MIME_TYPE, it) }
+
+    /** AudioWhisper: sends the GIF at [uri] (readable through our file provider) as rich content. */
+    fun commitGif(uri: Uri, description: String, link: Uri?): Boolean {
+        val ic = currentInputConnection() ?: return false
+        val info = InputContentInfoCompat(uri, ClipDescription(description, arrayOf(GIF_MIME_TYPE)), link)
+        ic.finishComposingText()
+        val flags = InputConnectionCompat.INPUT_CONTENT_GRANT_READ_URI_PERMISSION
+        return InputConnectionCompat.commitContent(ic, activeInfo.base, info, flags, null)
+    }
+
+    /**
+     * AudioWhisper: undoes an auto-correction (see [AutoCorrectionUndo]). The phantom space is set
+     * first so the restored word does not become a composing region and get corrected again.
+     */
+    fun revertAutoCorrection(revert: AutoCorrectionUndo.Revert): Boolean {
+        autoSpace.setInactive()
+        if (revert.phantomSpace) phantomSpace.setActive(showComposingRegion = false) else phantomSpace.setInactive()
+        return replaceTextBeforeCursor(revert.length, revert.text).also { if (!it) phantomSpace.setInactive() }
+    }
+
     /**
      * Executes a backward delete on this editor's text. If a text selection is active, all
      * characters inside this selection will be removed, else only the left-most character from
@@ -424,7 +452,7 @@ class EditorInstance(context: Context) : AbstractEditorInstance(context) {
         if (text != null) {
             clipboardManager.addNewPlaintext(text.toString())
         } else {
-            appContext.showShortToastSync("Failed to retrieve selected text requested to cut: Eiter selection state is invalid or an error occurred within the input connection.")
+            scope.launch { appContext.showShortToast("Failed to retrieve selected text requested to cut: Eiter selection state is invalid or an error occurred within the input connection.") }
         }
         return deleteBackwards(OperationUnit.CHARACTERS)
     }
@@ -442,7 +470,7 @@ class EditorInstance(context: Context) : AbstractEditorInstance(context) {
         if (text != null) {
             clipboardManager.addNewPlaintext(text.toString())
         } else {
-            appContext.showShortToastSync("Failed to retrieve selected text requested to copy: Eiter selection state is invalid or an error occurred within the input connection.")
+            scope.launch { appContext.showShortToast("Failed to retrieve selected text requested to copy: Eiter selection state is invalid or an error occurred within the input connection.") }
         }
         val activeSelection = activeContent.selection
         return setSelection(activeSelection.end, activeSelection.end)
@@ -459,7 +487,7 @@ class EditorInstance(context: Context) : AbstractEditorInstance(context) {
         phantomSpace.setInactive()
         return commitClipboardItem(clipboardManager.primaryClip).also { result ->
             if (!result) {
-                appContext.showShortToastSync("Failed to paste item.")
+                scope.launch { appContext.showShortToast("Failed to paste item.") }
             }
         }
     }

@@ -66,7 +66,7 @@ abstract class AbstractEditorInstance(context: Context) {
     private val keyboardManager by context.keyboardManager()
     private val subtypeManager by context.subtypeManager()
     private val nlpManager by context.nlpManager()
-    private val scope = MainScope()
+    protected val scope = MainScope()
     protected val breakIterators = BreakIteratorGroup()
 
     private val _activeInfoFlow = MutableStateFlow(FlorisEditorInfo.Unspecified)
@@ -435,6 +435,36 @@ abstract class AbstractEditorInstance(context: Context) {
             _lastCommitPosition.handleCommit(newContent.selection)
         }
         ic.endBatchEdit()
+        return true
+    }
+
+    /**
+     * AudioWhisper: replaces the [length] characters left of the cursor with [text] in one batch
+     * edit, so the editor reports a single selection update. Undoing an auto-correction relies on
+     * that to keep its phantom space.
+     */
+    protected fun replaceTextBeforeCursor(length: Int, text: String): Boolean {
+        val ic = currentInputConnection() ?: return false
+        val content = activeContent
+        val before = content.textBeforeSelection
+        if (activeInfo.isRawInputEditor || !content.selection.isCursorMode || before.length < length) return false
+        runBlocking {
+            val newContent = content.generateCopy(
+                selection = EditorRange.cursor(content.selection.start - length + text.length),
+                textBeforeSelection = buildString {
+                    append(before, 0, before.length - length)
+                    append(text)
+                },
+            )
+            expectedContentQueue.push(newContent)
+            ic.beginBatchEdit()
+            ic.finishComposingText()
+            ic.deleteSurroundingText(length, 0)
+            ic.commitText(text, 1)
+            ic.setComposingRegion(newContent.composing)
+            ic.endBatchEdit()
+            _lastCommitPosition.handleCommit(newContent.selection)
+        }
         return true
     }
 

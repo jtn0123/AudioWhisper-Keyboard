@@ -17,33 +17,84 @@
 package dev.patrickgold.florisboard.ime.nlp.latin
 
 import android.content.Context
+import android.os.SystemClock
+import android.util.Log
+import com.jtn0123.audiowhisper.suggest.ArrangedWord
+import com.jtn0123.audiowhisper.suggest.LatinDictionaryEngine
+import com.jtn0123.audiowhisper.suggest.LatinSuggester
+import com.jtn0123.audiowhisper.suggest.TypingState
 import dev.patrickgold.florisboard.appContext
+import dev.patrickgold.florisboard.editorInstance
 import dev.patrickgold.florisboard.ime.core.Subtype
 import dev.patrickgold.florisboard.ime.editor.EditorContent
+import dev.patrickgold.florisboard.ime.editor.InputAttributes
 import dev.patrickgold.florisboard.ime.nlp.SpellingProvider
 import dev.patrickgold.florisboard.ime.nlp.SpellingResult
 import dev.patrickgold.florisboard.ime.nlp.SuggestionCandidate
 import dev.patrickgold.florisboard.ime.nlp.SuggestionProvider
-import dev.patrickgold.florisboard.lib.devtools.flogDebug
+import dev.patrickgold.florisboard.ime.nlp.WordSuggestionCandidate
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.builtins.MapSerializer
 import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.json.Json
 import org.florisboard.lib.android.readText
 import org.florisboard.lib.kotlin.guardedByLock
+import org.florisboard.lib.kotlin.safeSubstring
+import java.io.IOException
+import java.util.Locale
+import java.util.concurrent.ConcurrentHashMap
 
+/**
+ * Word suggestions, auto-correction and next-word prediction from the AOSP LatinIME dictionary
+ * engine (English only), plus the glide-typing word list from `ime/dict/data.json`.
+ */
 class LatinLanguageProvider(context: Context) : SpellingProvider, SuggestionProvider {
     companion object {
         // Default user ID used for all subtypes, unless otherwise specified.
         // See `ime/core/Subtype.kt` Line 210 and 211 for the default usage
         const val ProviderId = "org.florisboard.nlp.providers.latin"
+
+        private const val TAG = "AWSuggest"
+
+        /** The AOSP en_US main dictionary, stored uncompressed so native code can mmap it from the APK. */
+        private const val DICTIONARY_ASSET = "dicts/main_en-US.dict"
+        private const val DICTIONARY_LOCALE = "en_US"
+        private const val DICTIONARY_LANGUAGE = "en"
+
+        /** Fields where suggestions would expose or mangle what is typed (AOSP hides them too). */
+        private val NO_SUGGESTION_VARIATIONS = setOf(
+            InputAttributes.Variation.PASSWORD,
+            InputAttributes.Variation.VISIBLE_PASSWORD,
+            InputAttributes.Variation.WEB_PASSWORD,
+        )
+
+        /** Fields that hold addresses, not prose: suggestions are fine, auto-correction is not. */
+        private val NO_AUTO_CORRECT_VARIATIONS = setOf(
+            InputAttributes.Variation.EMAIL_ADDRESS,
+            InputAttributes.Variation.WEB_EMAIL_ADDRESS,
+            InputAttributes.Variation.URI,
+        )
     }
 
     private val appContext by context.appContext()
+    private val editorInstance by context.editorInstance()
 
     private val wordData = guardedByLock { mutableMapOf<String, Int>() }
     private val wordDataSerializer = MapSerializer(String.serializer(), Int.serializer())
+
+    private val dictionaryLoadLock = Mutex()
+    @Volatile private var engine: LatinDictionaryEngine? = null
+    @Volatile private var suggester: LatinSuggester? = null
+
+    /** The input a suggest() call answered and the auto-correction it chose, if any. */
+    private class LastResult(val state: TypingState, val blockOffensiveWords: Boolean, val autoCorrection: SuggestionCandidate?)
+    @Volatile private var lastResult: LastResult? = null
+
+    /** Words whose auto-correction the user undid this session (lowercased); they are not corrected again. */
+    private val keptAsTyped: MutableSet<String> = ConcurrentHashMap.newKeySet()
 
     override val providerId = ProviderId
 
@@ -52,22 +103,7 @@ class LatinLanguageProvider(context: Context) : SpellingProvider, SuggestionProv
     }
 
     override suspend fun preload(subtype: Subtype) = withContext(Dispatchers.IO) {
-        // Here we have the chance to preload dictionaries and prepare a neural network for a specific language.
-        // Is kept in sync with the active keyboard subtype of the user, however a new preload does not necessary mean
-        // the previous language is not needed anymore (e.g. if the user constantly switches between two subtypes)
-
-        // To read a file from the APK assets the following methods can be used:
-        // appContext.assets.open()
-        // appContext.assets.reader()
-        // appContext.assets.bufferedReader()
-        // appContext.assets.readText()
-        // To copy an APK file/dir to the file system cache (appContext.cacheDir), the following methods are available:
-        // appContext.assets.copy()
-        // appContext.assets.copyRecursively()
-
-        // The subtype we get here contains a lot of data, however we are only interested in subtype.primaryLocale and
-        // subtype.secondaryLocales.
-
+        // Glide typing reads its word list from here, independently of the dictionary engine.
         wordData.withLock { wordData ->
             if (wordData.isEmpty()) {
                 // Here we use readText() because the test dictionary is a json dictionary
@@ -76,7 +112,38 @@ class LatinLanguageProvider(context: Context) : SpellingProvider, SuggestionProv
                 wordData.putAll(jsonData)
             }
         }
+        if (subtype.primaryLocale.language == DICTIONARY_LANGUAGE) loadDictionary()
     }
+
+    /** Opens the bundled dictionary on first use; later calls return at once. */
+    private suspend fun loadDictionary() {
+        dictionaryLoadLock.withLock {
+            if (engine == null) openDictionary()
+        }
+    }
+
+    private fun openDictionary() {
+        val started = SystemClock.elapsedRealtime()
+        val opened = openBundledDictionary() ?: return
+        engine = opened
+        suggester = LatinSuggester(opened, Locale.US)
+        Log.d(TAG, "Dictionary loaded in ${SystemClock.elapsedRealtime() - started} ms")
+    }
+
+    private fun openBundledDictionary(): LatinDictionaryEngine? = try {
+        appContext.assets.openFd(DICTIONARY_ASSET).use { fd ->
+            LatinDictionaryEngine.open(appContext.applicationInfo.sourceDir, fd.startOffset, fd.length, DICTIONARY_LOCALE)
+        }.also { if (it == null) Log.w(TAG, "The bundled dictionary is not a valid AOSP dictionary") }
+    } catch (e: IOException) {
+        Log.w(TAG, "Could not open the bundled dictionary", e)
+        null
+    } catch (e: LinkageError) {
+        Log.w(TAG, "Could not load the native dictionary library", e)
+        null
+    }
+
+    private fun suggesterFor(subtype: Subtype): LatinSuggester? =
+        suggester.takeIf { subtype.primaryLocale.language == DICTIONARY_LANGUAGE }
 
     override suspend fun spell(
         subtype: Subtype,
@@ -87,14 +154,14 @@ class LatinLanguageProvider(context: Context) : SpellingProvider, SuggestionProv
         allowPossiblyOffensive: Boolean,
         isPrivateSession: Boolean,
     ): SpellingResult {
-        return when (word.lowercase()) {
-            // Use typo for typing errors
-            "typo" -> SpellingResult.typo(arrayOf("typo1", "typo2", "typo3"))
-            // Use grammar error if the algorithm can detect this. On Android 11 and lower grammar errors are visually
-            // marked as typos due to a lack of support
-            "gerror" -> SpellingResult.grammarError(arrayOf("grammar1", "grammar2", "grammar3"))
-            // Use valid word for valid input
-            else -> SpellingResult.validWord()
+        if (subtype.primaryLocale.language != DICTIONARY_LANGUAGE) return SpellingResult.validWord()
+        if (word.none(Char::isLetter) || word.any(Char::isDigit)) return SpellingResult.validWord()
+        withContext(Dispatchers.IO) { loadDictionary() }
+        val suggester = suggester ?: return SpellingResult.validWord()
+        val check = suggester.spell(word, maxSuggestionCount, blockOffensiveWords = !allowPossiblyOffensive)
+        return when {
+            check.isValid -> SpellingResult.validWord()
+            else -> SpellingResult.typo(check.suggestions.toTypedArray(), check.isHighConfidence)
         }
     }
 
@@ -105,34 +172,91 @@ class LatinLanguageProvider(context: Context) : SpellingProvider, SuggestionProv
         allowPossiblyOffensive: Boolean,
         isPrivateSession: Boolean,
     ): List<SuggestionCandidate> {
-        return emptyList()
-        /*val word = content.composingText.ifBlank { "next" }
-        val suggestions = buildList {
-            for (n in 0 until maxCandidateCount) {
-                add(WordSuggestionCandidate(
-                    text = "$word$n",
-                    secondaryText = if (n % 2 == 1) "secondary" else null,
-                    confidence = 0.5,
-                    isEligibleForAutoCommit = false,//n == 0 && word.startsWith("auto"),
-                    // We set ourselves as the source provider so we can get notify events for our candidate
-                    sourceProvider = this@LatinLanguageProvider,
-                ))
-            }
-        }
-        return suggestions*/
+        val suggester = suggesterFor(subtype) ?: return emptyList()
+        val state = typingStateOf(content) ?: return emptyList()
+        val started = System.nanoTime()
+        val autoCorrectAllowed = isAutoCorrectAllowedInEditor() && !isKeptAsTyped(state.typed)
+        val candidates = suggester.suggest(state, maxCandidateCount, !allowPossiblyOffensive)
+            .map { it.toCandidate(autoCorrectAllowed) }
+        val autoCorrection = candidates.firstOrNull { it.isEligibleForAutoCommit }
+        lastResult = LastResult(state, !allowPossiblyOffensive, autoCorrection)
+        val elapsedMs = (System.nanoTime() - started) / 1_000_000.0
+        Log.d(TAG, "suggest: %d candidates, autocorrect=%b, %.2f ms".format(
+            Locale.ROOT, candidates.size, autoCorrection != null, elapsedMs,
+        ))
+        return candidates
     }
 
+    /**
+     * AudioWhisper: the auto-correction for the word at the cursor in [content] *now*. The
+     * candidate strip is filled asynchronously and can be a keystroke behind, so the cached result
+     * is used only when it was computed for exactly this input; otherwise it is recomputed here.
+     */
+    fun autoCommitCandidateFor(subtype: Subtype, content: EditorContent, allowPossiblyOffensive: Boolean): SuggestionCandidate? {
+        val suggester = suggesterFor(subtype) ?: return null
+        if (!isAutoCorrectAllowedInEditor() || editorInstance.phantomSpace.isActive) return null
+        val state = typingStateOf(content)?.takeIf { it.typed.isNotEmpty() && !isKeptAsTyped(it.typed) } ?: return null
+        val blockOffensiveWords = !allowPossiblyOffensive
+        val cached = lastResult
+        if (cached != null && cached.state == state && cached.blockOffensiveWords == blockOffensiveWords) {
+            return cached.autoCorrection
+        }
+        return suggester.suggest(state, maxCount = 1, blockOffensiveWords)
+            .firstOrNull { it.isAutoCorrection }
+            ?.toCandidate(autoCorrectAllowed = true)
+    }
+
+    /** AudioWhisper: see [keptAsTyped]. Held in memory only, never logged or saved. */
+    fun keepAsTyped(word: String) {
+        keptAsTyped.add(word.lowercase(Locale.ROOT))
+    }
+
+    private fun isKeptAsTyped(typed: String) = typed.lowercase(Locale.ROOT) in keptAsTyped
+
+    /**
+     * The word left of the cursor and its context, or null when there is nothing to suggest for:
+     * a selection, a field that must not get suggestions, or an emoji search like ":smile".
+     */
+    private fun typingStateOf(content: EditorContent): TypingState? {
+        if (!content.localSelection.isValid || content.localSelection.isSelectionMode) return null
+        if (!areSuggestionsAllowedInEditor()) return null
+        val typed = content.composingText
+        if (typed.isNotEmpty() && !typed.first().isLetterOrDigit()) return null
+        if (typed.isNotEmpty()) {
+            val textBefore = content.text.safeSubstring(0, content.localComposing.start)
+            return TypingState.of(textBefore, typed, content.textAfterSelection)
+        }
+        // After a tapped candidate the separating space is still pending (phantom space).
+        val textBefore = content.textBeforeSelection.let { if (it.lastOrNull()?.isLetterOrDigit() == true) "$it " else it }
+        return TypingState.of(textBefore, "", content.textAfterSelection)
+    }
+
+    private fun areSuggestionsAllowedInEditor(): Boolean {
+        val attributes = editorInstance.activeInfo.inputAttributes
+        return !attributes.flagTextNoSuggestions && attributes.variation !in NO_SUGGESTION_VARIATIONS
+    }
+
+    private fun isAutoCorrectAllowedInEditor(): Boolean =
+        editorInstance.activeInfo.inputAttributes.variation !in NO_AUTO_CORRECT_VARIATIONS
+
+    private fun ArrangedWord.toCandidate(autoCorrectAllowed: Boolean) = WordSuggestionCandidate(
+        text = text,
+        isEligibleForAutoCommit = isAutoCorrection && autoCorrectAllowed,
+        // The dictionary is read-only, so there is nothing for a long-press to remove.
+        isEligibleForUserRemoval = false,
+        // We set ourselves as the source provider so we can get notify events for our candidate
+        sourceProvider = this@LatinLanguageProvider,
+    )
+
     override suspend fun notifySuggestionAccepted(subtype: Subtype, candidate: SuggestionCandidate) {
-        // We can use flogDebug, flogInfo, flogWarning and flogError for debug logging, which is a wrapper for Logcat
-        flogDebug { candidate.toString() }
+        // Nothing to learn: the dictionary is read-only. (Candidate text is never logged.)
     }
 
     override suspend fun notifySuggestionReverted(subtype: Subtype, candidate: SuggestionCandidate) {
-        flogDebug { candidate.toString() }
+        // Nothing to unlearn, see notifySuggestionAccepted.
     }
 
     override suspend fun removeSuggestion(subtype: Subtype, candidate: SuggestionCandidate): Boolean {
-        flogDebug { candidate.toString() }
         return false
     }
 
@@ -145,7 +269,11 @@ class LatinLanguageProvider(context: Context) : SpellingProvider, SuggestionProv
     }
 
     override suspend fun destroy() {
-        // Here we have the chance to de-allocate memory and finish our work. However this might never be called if
-        // the app process is killed (which will most likely always be the case).
+        // Might never be called: the app process is usually killed instead.
+        dictionaryLoadLock.withLock {
+            suggester = null
+            engine?.close()
+            engine = null
+        }
     }
 }

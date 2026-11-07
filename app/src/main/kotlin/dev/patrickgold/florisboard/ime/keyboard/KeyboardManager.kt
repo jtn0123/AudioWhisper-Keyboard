@@ -24,6 +24,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.MutableLiveData
+import com.jtn0123.audiowhisper.gif.GifSearch
+import com.jtn0123.audiowhisper.suggest.AutoCorrectionUndo
 import dev.patrickgold.florisboard.FlorisImeService
 import dev.patrickgold.florisboard.R
 import dev.patrickgold.florisboard.app.FlorisPreferenceStore
@@ -76,8 +78,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import org.florisboard.lib.android.AndroidKeyguardManager
 import org.florisboard.lib.android.showLongToast
-import org.florisboard.lib.android.showLongToastSync
-import org.florisboard.lib.android.showShortToastSync
+import org.florisboard.lib.android.showShortToast
 import org.florisboard.lib.android.systemService
 import org.florisboard.lib.kotlin.collectIn
 import org.florisboard.lib.kotlin.collectLatestIn
@@ -101,6 +102,9 @@ class KeyboardManager(context: Context) : InputKeyEventReceiver {
     val activeState = ObservableKeyboardState.new()
     var smartbarVisibleDynamicActionsCount by mutableIntStateOf(0)
     private var lastToastReference = WeakReference<Toast>(null)
+
+    /** AudioWhisper: the auto-correction a backspace typed straight after it would undo. */
+    private var autoCorrectionUndo: AutoCorrectionUndo? = null
 
     private val activeEvaluatorGuard = Mutex(locked = false)
     private var activeEvaluatorVersion = AtomicInteger(0)
@@ -297,7 +301,35 @@ class KeyboardManager(context: Context) : InputKeyEventReceiver {
     }
 
     fun commitGesture(word: String) {
+        if (GifSearch.typing.value) return GifSearch.typeWord(fixCase(word))
         editorInstance.commitGesture(fixCase(word))
+    }
+
+    /**
+     * AudioWhisper: while the GIF search field is open, typing goes into it rather than the app.
+     * Returns false for keys it leaves alone (shift, layout switches), which work as usual.
+     */
+    private fun typeIntoGifSearch(data: KeyData): Boolean {
+        when (data.code) {
+            KeyCode.DELETE -> GifSearch.deleteLast()
+            KeyCode.SPACE -> GifSearch.type(" ")
+            KeyCode.ENTER -> {
+                GifSearch.submit()
+                activeState.imeUiMode = ImeUiMode.MEDIA
+            }
+            KeyCode.IME_UI_MODE_MEDIA, KeyCode.IME_UI_MODE_CLIPBOARD -> {
+                GifSearch.stopTyping()
+                return false
+            }
+            else -> {
+                if (data.type != KeyType.CHARACTER && data.type != KeyType.NUMERIC) return false
+                GifSearch.type(data.asString(isForDisplay = false))
+                if (activeState.inputShiftState != InputShiftState.CAPS_LOCK && !inputEventDispatcher.isPressed(KeyCode.SHIFT)) {
+                    activeState.inputShiftState = InputShiftState.UNSHIFTED
+                }
+            }
+        }
+        return true
     }
 
     /**
@@ -427,8 +459,38 @@ class KeyboardManager(context: Context) : InputKeyEventReceiver {
             it.isManualSelectionModeStart = false
             it.isManualSelectionModeEnd = false
         }
+        if (unit == OperationUnit.CHARACTERS && undoAutoCorrection()) return
         revertPreviouslyAcceptedCandidate()
         editorInstance.deleteBackwards(unit)
+    }
+
+    /**
+     * AudioWhisper: commits the auto-correction for the word being typed, if there is one, and
+     * remembers it so that a backspace straight after can undo it.
+     */
+    private fun autoCorrect(triggerCodePoint: Int? = null): SuggestionCandidate? {
+        val content = editorInstance.activeContent
+        val typed = content.composingText
+        val start = content.composing.start
+        val candidate = nlpManager.getAutoCommitCandidate(triggerCodePoint) ?: return null
+        commitCandidate(candidate)
+        val corrected = candidate.text.toString()
+        if (typed.isNotEmpty() && start >= 0 && corrected != typed) {
+            autoCorrectionUndo = AutoCorrectionUndo(typed, corrected, start)
+        }
+        return candidate
+    }
+
+    /** AudioWhisper: puts back what was typed if the last key auto-corrected it. */
+    private fun undoAutoCorrection(): Boolean {
+        val undo = autoCorrectionUndo ?: return false
+        autoCorrectionUndo = null
+        val content = editorInstance.activeContent
+        if (!content.selection.isCursorMode) return false
+        val revert = undo.revertAt(content.selection.start, content.textBeforeSelection) ?: return false
+        // Not corrected again this session if the user goes back into the word and finishes it.
+        nlpManager.keepAsTyped(undo.typed)
+        return editorInstance.revertAutoCorrection(revert)
     }
 
     /**
@@ -539,8 +601,7 @@ class KeyboardManager(context: Context) : InputKeyEventReceiver {
      * but skips handling changing to characters keyboard and double space periods.
      */
     fun handleHardwareKeyboardSpace() {
-        val candidate = nlpManager.getAutoCommitCandidate()
-        candidate?.let { commitCandidate(it) }
+        val candidate = autoCorrect()
         // Skip handling changing to characters keyboard and double space periods
         // TODO: this is whether we commit space after selecting candidate. Should be determined by SuggestionProvider
         if (!subtypeManager.activeSubtype.primaryLocale.supportsAutoSpace &&
@@ -554,8 +615,7 @@ class KeyboardManager(context: Context) : InputKeyEventReceiver {
      * enabled by the user.
      */
     private fun handleSpace(data: KeyData) {
-        val candidate = nlpManager.getAutoCommitCandidate()
-        candidate?.let { commitCandidate(it) }
+        val candidate = autoCorrect()
         if (prefs.keyboard.spaceBarSwitchesToCharacters.get()) {
             when (activeState.keyboardMode) {
                 KeyboardMode.NUMERIC_ADVANCED,
@@ -611,9 +671,11 @@ class KeyboardManager(context: Context) : InputKeyEventReceiver {
      */
     private fun handleToggleAutocorrect() {
         lastToastReference.get()?.cancel()
-        lastToastReference = WeakReference(
-            appContext.showLongToastSync("Autocorrect toggle is a placeholder and not yet implemented")
-        )
+        scope.launch {
+            lastToastReference = WeakReference(
+                appContext.showLongToast("Autocorrect toggle is a placeholder and not yet implemented")
+            )
+        }
     }
 
     /**
@@ -694,6 +756,9 @@ class KeyboardManager(context: Context) : InputKeyEventReceiver {
     }
 
     override fun onInputKeyUp(data: KeyData) = activeState.batchEdit {
+        // Only a backspace straight after an auto-correction undoes it.
+        if (data.code != KeyCode.DELETE) autoCorrectionUndo = null
+        if (GifSearch.typing.value && typeIntoGifSearch(data)) return@batchEdit
         when (data.code) {
             KeyCode.ARROW_DOWN,
             KeyCode.ARROW_LEFT,
@@ -722,7 +787,7 @@ class KeyboardManager(context: Context) : InputKeyEventReceiver {
                     clipboardManager.primaryClip?.let { clipboardManager.deleteClip(it, onlyIfUnpinned = true) }
                 }
                 clipboardManager.updatePrimaryClip(null)
-                appContext.showShortToastSync(R.string.clipboard__cleared_primary_clip)
+                scope.launch { appContext.showShortToast(R.string.clipboard__cleared_primary_clip) }
             }
             KeyCode.TOGGLE_COMPACT_LAYOUT -> scope.launch { toggleOneHandedMode() }
             KeyCode.COMPACT_LAYOUT_TO_LEFT -> scope.launch {
@@ -745,7 +810,7 @@ class KeyboardManager(context: Context) : InputKeyEventReceiver {
             KeyCode.IME_UI_MODE_TEXT -> activeState.imeUiMode = ImeUiMode.TEXT
             KeyCode.IME_UI_MODE_MEDIA -> activeState.imeUiMode = ImeUiMode.MEDIA
             KeyCode.IME_UI_MODE_CLIPBOARD -> activeState.imeUiMode = ImeUiMode.CLIPBOARD
-            KeyCode.VOICE_INPUT -> FlorisImeService.switchToVoiceInputMethod()
+            KeyCode.VOICE_INPUT -> FlorisImeService.toggleDictation()
             KeyCode.KANA_SWITCHER -> handleKanaSwitch()
             KeyCode.KANA_HIRA -> handleKanaHira()
             KeyCode.KANA_KATA -> handleKanaKata()
@@ -782,7 +847,7 @@ class KeyboardManager(context: Context) : InputKeyEventReceiver {
             KeyCode.VIEW_SYMBOLS2 -> activeState.keyboardMode = KeyboardMode.SYMBOLS2
             else -> {
                 if (activeState.imeUiMode == ImeUiMode.MEDIA) {
-                    nlpManager.getAutoCommitCandidate()?.let { commitCandidate(it) }
+                    autoCorrect()
                     editorInstance.commitText(data.asString(isForDisplay = false))
                     return@batchEdit
                 }
@@ -807,8 +872,9 @@ class KeyboardManager(context: Context) : InputKeyEventReceiver {
                     else -> when (data.type) {
                         KeyType.CHARACTER, KeyType.NUMERIC ->{
                             val text = data.asString(isForDisplay = false)
-                            if (!UCharacter.isUAlphabetic(UCharacter.codePointAt(text, 0))) {
-                                nlpManager.getAutoCommitCandidate()?.let { commitCandidate(it) }
+                            val codePoint = UCharacter.codePointAt(text, 0)
+                            if (!UCharacter.isUAlphabetic(codePoint)) {
+                                autoCorrect(triggerCodePoint = codePoint)
                             }
                             editorInstance.commitChar(text)
                         }

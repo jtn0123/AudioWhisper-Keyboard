@@ -19,6 +19,7 @@ package dev.patrickgold.florisboard.ime.nlp
 import android.content.Context
 import android.os.SystemClock
 import android.util.LruCache
+import com.jtn0123.audiowhisper.suggest.WordCharacters
 import androidx.lifecycle.MutableLiveData
 import dev.patrickgold.florisboard.app.FlorisPreferenceStore
 import dev.patrickgold.florisboard.clipboardManager
@@ -63,9 +64,12 @@ class NlpManager(context: Context) {
     private val scope = CoroutineScope(Dispatchers.Default + SupervisorJob())
     private val clipboardSuggestionProvider = ClipboardSuggestionProvider(context)
     private val emojiSuggestionProvider = EmojiSuggestionProvider(context)
+    // AudioWhisper: kept directly so auto-correction can reach it without taking the providers lock,
+    // which preload() holds while the dictionary loads.
+    private val latinProvider = LatinLanguageProvider(context)
     private val providers = guardedByLock {
         mapOf(
-            LatinLanguageProvider.ProviderId to ProviderInstanceWrapper(LatinLanguageProvider(context)),
+            LatinLanguageProvider.ProviderId to ProviderInstanceWrapper(latinProvider),
             HanShapeBasedLanguageProvider.ProviderId to ProviderInstanceWrapper(HanShapeBasedLanguageProvider(context)),
         )
     }
@@ -250,9 +254,32 @@ class NlpManager(context: Context) {
         }
     }
 
-    fun getAutoCommitCandidate(): SuggestionCandidate? {
-        return activeCandidates.firstOrNull { it.isEligibleForAutoCommit }
+    /**
+     * The candidate to commit before [triggerCodePoint] (null for space) is inserted, if any.
+     *
+     * AudioWhisper: for the Latin provider the answer is computed for the word at the cursor right
+     * now rather than read from [activeCandidates], which can be a keystroke behind; and digits,
+     * apostrophes, hyphens and `@` continue a word instead of ending it (see [WordCharacters]).
+     */
+    fun getAutoCommitCandidate(triggerCodePoint: Int? = null): SuggestionCandidate? {
+        val subtype = subtypeManager.activeSubtype
+        if (subtype.nlpProviders.suggestion != LatinLanguageProvider.ProviderId) {
+            return activeCandidates.firstOrNull { it.isEligibleForAutoCommit }
+        }
+        if (!prefs.suggestion.enabled.get()) return null
+        if (triggerCodePoint != null && WordCharacters.continuesWord(triggerCodePoint)) return null
+        // Clipboard or emoji candidates have replaced the word suggestions: nothing visible to commit.
+        val shown = activeCandidates
+        if (shown.isNotEmpty() && shown.none { it.sourceProvider === latinProvider }) return null
+        return latinProvider.autoCommitCandidateFor(
+            subtype = subtype,
+            content = editorInstance.activeContent,
+            allowPossiblyOffensive = !prefs.suggestion.blockPossiblyOffensive.get(),
+        )
     }
+
+    /** AudioWhisper: the user undid the auto-correction of [word]; leave it alone from now on. */
+    fun keepAsTyped(word: String) = latinProvider.keepAsTyped(word)
 
     fun removeSuggestion(subtype: Subtype, candidate: SuggestionCandidate): Boolean {
         return runBlocking { candidate.sourceProvider?.removeSuggestion(subtype, candidate) == true }.also { result ->
