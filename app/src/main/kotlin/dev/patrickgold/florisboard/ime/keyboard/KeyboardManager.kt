@@ -736,6 +736,7 @@ class KeyboardManager(context: Context) : InputKeyEventReceiver {
                 editorInstance.massSelection.begin()
             }
             KeyCode.SHIFT -> handleShiftDown(data)
+            KeyCode.VOICE_INPUT -> FlorisImeService.pressMic()
         }
     }
 
@@ -796,7 +797,7 @@ class KeyboardManager(context: Context) : InputKeyEventReceiver {
             KeyCode.IME_UI_MODE_TEXT -> activeState.imeUiMode = ImeUiMode.TEXT
             KeyCode.IME_UI_MODE_MEDIA -> activeState.imeUiMode = ImeUiMode.MEDIA
             KeyCode.IME_UI_MODE_CLIPBOARD -> activeState.imeUiMode = ImeUiMode.CLIPBOARD
-            KeyCode.VOICE_INPUT -> FlorisImeService.toggleDictation()
+            KeyCode.VOICE_INPUT -> FlorisImeService.releaseMic()
             KeyCode.KANA_SWITCHER -> handleKanaSwitch()
             KeyCode.KANA_HIRA -> handleKanaHira()
             KeyCode.KANA_KATA -> handleKanaKata()
@@ -890,6 +891,7 @@ class KeyboardManager(context: Context) : InputKeyEventReceiver {
                 editorInstance.massSelection.end()
             }
             KeyCode.SHIFT -> handleShiftCancel()
+            KeyCode.VOICE_INPUT -> FlorisImeService.releaseMic()
         }
     }
 

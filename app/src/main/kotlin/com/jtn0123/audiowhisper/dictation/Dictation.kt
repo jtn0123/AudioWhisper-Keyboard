@@ -17,7 +17,8 @@ import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
 /**
- * Dictation inside the keyboard. The mic key toggles it; while it listens,
+ * Dictation inside the keyboard. A tap on the mic key toggles it and a hold talks until
+ * it is let go (see [MicKey]); while it listens,
  * each phrase is typed as the user pauses and every key keeps working, so
  * the keyboard never goes away. Hiding the keyboard stops it, and leaving
  * the field drops whatever it hasn't typed yet: a dictation only ever types
@@ -55,6 +56,7 @@ class Dictation(private val context: Context, private val editor: Editor) {
     private val worker: ExecutorService = Executors.newSingleThreadExecutor()
     private val models = ModelHolder(::loadModel) // worker thread only
     private var listener: PhraseListener? = null
+    private val micKey = MicKey(SystemClock::uptimeMillis)
 
     /** Bumped for each dictation and to abandon one; late phrases from an old one are dropped. */
     private var session = 0
@@ -67,8 +69,21 @@ class Dictation(private val context: Context, private val editor: Editor) {
     /** A message about this dictation has been shown, so its end needn't add one. */
     private var explained = false
 
-    /** The mic key. */
-    fun toggle() {
+    /** The mic key went down. */
+    fun pressMic() {
+        if (micKey.press(status.value) == MicKey.Action.START) start()
+    }
+
+    /** The mic key came up, or the finger slid off it. */
+    fun releaseMic() {
+        when (micKey.release()) {
+            MicKey.Action.FINISH -> if (status.value == Status.LISTENING) finish()
+            MicKey.Action.TOGGLE -> toggle()
+            MicKey.Action.START, MicKey.Action.NONE -> Unit
+        }
+    }
+
+    private fun toggle() {
         when (status.value) {
             Status.IDLE -> start()
             Status.LISTENING -> finish()

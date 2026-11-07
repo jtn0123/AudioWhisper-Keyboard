@@ -236,8 +236,12 @@ class FlorisImeService : LifecycleInputMethodService() {
         }
 
         /** The mic key: start or finish dictating, without leaving the keyboard. */
-        fun toggleDictation() {
-            FlorisImeServiceReference.get()?.dictation?.toggle()
+        fun pressMic() {
+            FlorisImeServiceReference.get()?.dictation?.pressMic()
+        }
+
+        fun releaseMic() {
+            FlorisImeServiceReference.get()?.dictation?.releaseMic()
         }
     }
 
