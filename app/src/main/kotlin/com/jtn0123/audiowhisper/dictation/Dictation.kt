@@ -29,6 +29,8 @@ import java.util.concurrent.Executors
 class Dictation(private val context: Context, private val editor: Editor) {
     /** Where dictation types. Called on the main thread. */
     interface Editor {
+        /** The field is one dictation may type into (see [DictationFields]). */
+        fun allowsDictation(): Boolean
         fun textBeforeCursor(): CharSequence?
         fun type(text: String)
         fun problem(message: String)
@@ -72,6 +74,11 @@ class Dictation(private val context: Context, private val editor: Editor) {
     }
 
     private fun start() {
+        // The mic is greyed out in these fields; this also covers a tap that raced the field change.
+        if (!editor.allowsDictation()) {
+            editor.problem("Dictation is off in password and number fields")
+            return
+        }
         if (context.checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
             editor.problem("Allow microphone access to dictate")
             context.startActivity(appSettings())

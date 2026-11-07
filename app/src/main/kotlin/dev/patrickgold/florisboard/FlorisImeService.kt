@@ -76,6 +76,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.view.WindowCompat
 import androidx.lifecycle.lifecycleScope
 import com.jtn0123.audiowhisper.dictation.Dictation
+import com.jtn0123.audiowhisper.dictation.DictationFields
 import com.jtn0123.audiowhisper.gif.GifSearch
 import dev.patrickgold.florisboard.app.FlorisAppActivity
 import dev.patrickgold.florisboard.app.FlorisPreferenceStore
@@ -435,6 +436,8 @@ class FlorisImeService : LifecycleInputMethodService() {
 
     /** Dictation types through the editor, which keeps its view of the text in step. */
     private val dictationEditor = object : Dictation.Editor {
+        override fun allowsDictation(): Boolean = DictationFields.allows(editorInstance.activeInfo.inputAttributes)
+
         override fun textBeforeCursor(): CharSequence? =
             currentInputConnection?.getTextBeforeCursor(DICTATION_LOOK_BACK, 0)
 

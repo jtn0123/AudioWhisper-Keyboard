@@ -24,6 +24,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.MutableLiveData
+import com.jtn0123.audiowhisper.dictation.DictationFields
 import com.jtn0123.audiowhisper.gif.GifSearch
 import com.jtn0123.audiowhisper.suggest.AutoCorrectionUndo
 import dev.patrickgold.florisboard.FlorisImeService
@@ -1065,6 +1066,8 @@ class KeyboardManager(context: Context) : InputKeyEventReceiver {
                 KeyCode.LANGUAGE_SWITCH -> {
                     subtypeManager.subtypes.size > 1
                 }
+                // AudioWhisper: no dictating a password, PIN or number.
+                KeyCode.VOICE_INPUT -> DictationFields.allows(editorInfo.inputAttributes)
                 else -> true
             }
         }
