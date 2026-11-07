@@ -442,7 +442,7 @@ class KeyboardManager(context: Context) : InputKeyEventReceiver {
             it.isManualSelectionModeStart = false
             it.isManualSelectionModeEnd = false
         }
-        if (unit == OperationUnit.CHARACTERS && undoAutoCorrection()) return
+        if (unit == OperationUnit.CHARACTERS && (undoAutoCorrection() || editorInstance.undoDictation())) return
         revertPreviouslyAcceptedCandidate()
         editorInstance.deleteBackwards(unit)
     }
@@ -740,8 +740,10 @@ class KeyboardManager(context: Context) : InputKeyEventReceiver {
     }
 
     override fun onInputKeyUp(data: KeyData) = activeState.batchEdit {
-        // Only a backspace straight after an auto-correction undoes it.
+        // Only a backspace straight after an auto-correction or a dictated phrase undoes it.
+        // The mic key is let through: stopping dictation types the last phrase after it.
         if (data.code != KeyCode.DELETE) autoCorrectionUndo = null
+        if (data.code != KeyCode.DELETE && data.code != KeyCode.VOICE_INPUT) editorInstance.forgetDictation()
         if (isTypingIntoGifSearch && typeIntoGifSearch(data)) return@batchEdit
         when (data.code) {
             KeyCode.ARROW_DOWN,

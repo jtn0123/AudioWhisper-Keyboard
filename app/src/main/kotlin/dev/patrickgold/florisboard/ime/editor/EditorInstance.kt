@@ -24,6 +24,7 @@ import android.view.KeyEvent
 import androidx.core.view.inputmethod.EditorInfoCompat
 import androidx.core.view.inputmethod.InputConnectionCompat
 import androidx.core.view.inputmethod.InputContentInfoCompat
+import com.jtn0123.audiowhisper.dictation.DictationUndo
 import com.jtn0123.audiowhisper.suggest.AutoCorrectionUndo
 import dev.patrickgold.florisboard.FlorisImeService
 import dev.patrickgold.florisboard.app.FlorisPreferenceStore
@@ -66,6 +67,9 @@ class EditorInstance(context: Context) : AbstractEditorInstance(context) {
     val autoSpace = AutoSpaceState()
     val phantomSpace = PhantomSpaceState()
     val massSelection = MassSelectionState()
+
+    /** AudioWhisper: the phrase dictation typed last, for [undoDictation]. */
+    private var dictationUndo: DictationUndo? = null
 
     private fun currentInputConnection() = FlorisImeService.currentInputConnection()
 
@@ -285,11 +289,40 @@ class EditorInstance(context: Context) : AbstractEditorInstance(context) {
      */
     fun commitDictation(text: String, replacing: Int = 0): Boolean {
         if (text.isEmpty()) return false
+        val content = activeContent
         autoSpace.setInactive()
         phantomSpace.setActive(showComposingRegion = false)
-        val committed = (replacing > 0 && replaceTextBeforeCursor(replacing, text)) || super.commitText(text)
-        if (committed) updateLastCommitPosition() else phantomSpace.setInactive()
-        return committed
+        val replaced = replacing > 0 && replaceTextBeforeCursor(replacing, text)
+        val committed = replaced || super.commitText(text)
+        if (!committed) {
+            phantomSpace.setInactive()
+            return false
+        }
+        updateLastCommitPosition()
+        val restore = if (replaced) content.textBeforeSelection.takeLast(replacing).toString() else ""
+        val start = content.selection.start - restore.length
+        dictationUndo = DictationUndo(text, start, restore).takeIf { content.selection.isCursorMode && start >= 0 }
+        return true
+    }
+
+    /**
+     * AudioWhisper: a backspace straight after a dictated phrase takes the whole phrase back
+     * (and puts back a full stop joining it took). False if there is none to take back.
+     */
+    fun undoDictation(): Boolean {
+        val undo = dictationUndo ?: return false
+        dictationUndo = null
+        val content = activeContent
+        if (!content.selection.isCursorMode) return false
+        val revert = undo.revertAt(content.selection.start, content.textBeforeSelection) ?: return false
+        autoSpace.setInactive()
+        phantomSpace.setInactive()
+        return replaceTextBeforeCursor(revert.length, revert.text)
+    }
+
+    /** AudioWhisper: another key was pressed, so a backspace no longer takes back the last phrase. */
+    fun forgetDictation() {
+        dictationUndo = null
     }
 
     /**
@@ -591,6 +624,7 @@ class EditorInstance(context: Context) : AbstractEditorInstance(context) {
         autoSpace.setInactive()
         phantomSpace.setInactive()
         massSelection.reset()
+        dictationUndo = null
     }
 
     private fun PhantomSpaceState.determine(text: String, forceActive: Boolean = false): Boolean {
