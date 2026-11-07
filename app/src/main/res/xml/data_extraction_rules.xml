@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Backup rules for Android 12 and later (the manifest's dataExtractionRules). The older
+    backup_rules.xml can't serve here: Android 12+ only accepts this format and, given the old
+    one, aborts the app's backup without saving anything.
+
+    Saved: settings, installed themes and layouts, and the personal dictionary. Left out: the
+    650 MB speech model (files/models, over Google backup's 25 MB limit; it is copied in over
+    adb) and clipboard history (private, and only useful on the phone it was copied on).
+-->
+<data-extraction-rules>
+    <cloud-backup>
+        <include domain="root" path="jetpref_datastore/"/>
+        <include domain="file" path="ime/"/>
+        <include domain="database" path="floris_user_dictionary"/>
+    </cloud-backup>
+    <device-transfer>
+        <include domain="root" path="jetpref_datastore/"/>
+        <include domain="file" path="ime/"/>
+        <include domain="database" path="floris_user_dictionary"/>
+    </device-transfer>
+</data-extraction-rules>

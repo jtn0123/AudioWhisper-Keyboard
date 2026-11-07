@@ -4,6 +4,10 @@
 
     <!-- Permission needed to vibrate if the user has key press vibration enabled -->
     <uses-permission android:name="android.permission.VIBRATE"/>
+    <!-- Dictation: the mic key transcribes on the device; audio never leaves it. -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO"/>
+    <!-- AudioWhisper: GIF search (GIPHY), used only while the GIF panel is open -->
+    <uses-permission android:name="android.permission.INTERNET"/>
 
     <!-- Permission needed to create notifications on devices running Android 13+ -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
@@ -24,7 +28,7 @@
     <application
         android:name="dev.patrickgold.florisboard.FlorisApplication"
         android:allowBackup="true"
-        android:dataExtractionRules="@xml/backup_rules"
+        android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
         android:icon="@mipmap/floris_app_icon"
         android:label="@string/floris_app_name"

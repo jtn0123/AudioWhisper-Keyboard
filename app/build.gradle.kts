@@ -15,6 +15,7 @@
  */
 
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import java.util.Properties
 
 plugins {
     alias(libs.plugins.agp.application)
@@ -37,6 +38,16 @@ val projectVersionNameSuffix = projectVersionName.substringAfter("-", "").let { 
         suffix
     }
 }
+
+// AudioWhisper: GIF search needs a GIPHY API key. It is read from local.properties
+// (giphy.apiKey=...) or the GIPHY_API_KEY environment variable, never committed;
+// without one the GIF panel says a key is needed.
+val giphyApiKey: String = rootProject.file("local.properties")
+    .takeIf { it.exists() }
+    ?.let { file -> Properties().apply { file.inputStream().use { load(it) } }.getProperty("giphy.apiKey") }
+    ?: System.getenv("GIPHY_API_KEY")
+    ?: ""
+require(giphyApiKey.all { it.isLetterOrDigit() }) { "giphy.apiKey must be letters and digits only" }
 
 kotlin {
     compilerOptions {
@@ -67,8 +78,12 @@ android {
     }
 
     defaultConfig {
-        applicationId = "dev.patrickgold.florisboard"
-        minSdk = projectMinSdk.toInt()
+        // AudioWhisper Keyboard: a personal fork, installed next to stock FlorisBoard.
+        applicationId = "com.jtn0123.audiowhisper.keyboard"
+        // Built for one phone (Android 17), so the app needs Android 16 (API 36): that is what
+        // lets it use Locale.of and drop window colours and haptic settings Android has retired.
+        // The library modules keep the upstream minimum.
+        minSdk = 36
         targetSdk = projectTargetSdk.toInt()
         versionCode = projectVersionCode.toInt()
         versionName = projectVersionName.substringBefore("-")
@@ -78,6 +93,11 @@ android {
         buildConfigField("String", "BUILD_COMMIT_HASH", "\"${getGitCommitHash().get()}\"")
         buildConfigField("String", "FLADDONS_API_VERSION", "\"v~draft2\"")
         buildConfigField("String", "FLADDONS_STORE_URL", "\"beta.addons.florisboard.org\"")
+        buildConfigField("String", "GIPHY_API_KEY", "\"$giphyApiKey\"")
+
+        // The phone is arm64; the other ABIs in the sherpa-onnx AAR would
+        // only add size.
+        ndk { abiFilters += "arm64-v8a" }
 
         sourceSets {
             maybeCreate("main").apply {
@@ -107,7 +127,6 @@ android {
 
     buildTypes {
         named("debug") {
-            applicationIdSuffix = ".debug"
             versionNameSuffix = "-debug+${getGitCommitHash(short = true).get()}"
 
             isDebuggable = true
@@ -116,7 +135,7 @@ android {
             resValue("mipmap", "floris_app_icon", "@mipmap/ic_app_icon_debug")
             resValue("mipmap", "floris_app_icon_round", "@mipmap/ic_app_icon_debug_round")
             resValue("drawable", "floris_app_icon_foreground", "@drawable/ic_app_icon_debug_foreground")
-            resValue("string", "floris_app_name", "FlorisBoard Debug")
+            resValue("string", "floris_app_name", "AudioWhisper Keyboard")
         }
 
         create("beta") {
@@ -163,6 +182,12 @@ android {
         baseline = file("lint.xml")
     }
 
+    // The AOSP dictionary engine mmaps assets/dicts/*.dict straight out of the APK,
+    // which needs the entries stored uncompressed.
+    androidResources {
+        noCompress += "dict"
+    }
+
     testOptions {
         unitTests {
             isIncludeAndroidResources = true
@@ -184,6 +209,9 @@ dependencies {
     // androidTestImplementation(composeBom)
 
     implementation(libs.androidx.activity.compose)
+    // sherpa-onnx 2.0.1 (Apache-2.0): on-device speech recognition for
+    // dictation. Vendored AAR from github.com/k2-fsa/sherpa-onnx releases.
+    implementation(files("libs/sherpa-onnx-2.0.1.aar"))
     implementation(libs.androidx.activity.ktx)
     implementation(libs.androidx.autofill)
     implementation(libs.androidx.collection.ktx)
@@ -217,6 +245,8 @@ dependencies {
     implementation(projects.lib.color)
     implementation(projects.lib.compose)
     implementation(projects.lib.kotlin)
+    // AOSP LatinIME dictionary engine (Apache-2.0): word suggestions and autocorrect.
+    implementation(projects.lib.latinime)
     implementation(projects.lib.native)
     implementation(projects.lib.snygg)
 
