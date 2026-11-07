@@ -17,6 +17,7 @@
 package org.florisboard.lib.android
 
 import android.content.Context
+import android.os.VibrationAttributes
 import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
@@ -30,7 +31,11 @@ fun Context.systemVibratorOrNull(): Vibrator? {
     }?.takeIf { it.hasVibrator() }
 }
 
-fun Vibrator.vibrate(duration: Int, strength: Int, factor: Double = 1.0) {
+/**
+ * Vibrates once. A [touchFeedback] vibration is tagged as touch feedback, which the system drops
+ * while the user has touch feedback turned off (Android 13+); otherwise it plays regardless.
+ */
+fun Vibrator.vibrate(duration: Int, strength: Int, factor: Double = 1.0, touchFeedback: Boolean = false) {
     if (duration == 0 || strength == 0) return
     val effectiveDuration = (duration * factor).toLong().coerceAtLeast(1L)
     val effectiveStrength = when {
@@ -39,5 +44,9 @@ fun Vibrator.vibrate(duration: Int, strength: Int, factor: Double = 1.0) {
     }
     Log.d("Vibrator", "Perform haptic with duration=$effectiveDuration and strength=$effectiveStrength")
     val effect = VibrationEffect.createOneShot(effectiveDuration, effectiveStrength)
-    this.vibrate(effect)
+    if (touchFeedback && AndroidVersion.ATLEAST_API33_T) {
+        this.vibrate(effect, VibrationAttributes.createForUsage(VibrationAttributes.USAGE_TOUCH))
+    } else {
+        this.vibrate(effect)
+    }
 }

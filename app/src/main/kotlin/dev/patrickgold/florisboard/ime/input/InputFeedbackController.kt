@@ -54,11 +54,13 @@ class InputFeedbackController private constructor(private val ims: InputMethodSe
     private val scope = CoroutineScope(Dispatchers.Default + SupervisorJob())
 
     private var systemAudioEnabled: Boolean = false
-    private var systemHapticEnabled: Boolean = false
 
+    /**
+     * Android no longer exposes the touch-feedback setting to apps; haptics instead ask the system
+     * to apply it (see [performHapticFeedback]).
+     */
     fun updateSystemPrefsState() {
         systemAudioEnabled = systemPref(Settings.System.SOUND_EFFECTS_ENABLED)
-        systemHapticEnabled = systemPref(Settings.System.HAPTIC_FEEDBACK_ENABLED)
     }
 
     fun keyPress(data: KeyData = TextKeyData.UNSPECIFIED) {
@@ -115,8 +117,10 @@ class InputFeedbackController private constructor(private val ims: InputMethodSe
     private fun performHapticFeedback(data: KeyData, factor: Double) {
         if (vibrator == null) return
         if (!prefs.inputFeedback.hapticEnabled.get()) return
-        if (prefs.inputFeedback.hapticActivationMode.get() ==
-            InputFeedbackActivationMode.RESPECT_SYSTEM_SETTINGS && !systemHapticEnabled) return
+        // Respecting the system means tagging the vibration as touch feedback, which the system
+        // drops while the user has touch feedback off.
+        val respectSystem = prefs.inputFeedback.hapticActivationMode.get() ==
+            InputFeedbackActivationMode.RESPECT_SYSTEM_SETTINGS
 
         scope.launch {
             if (prefs.inputFeedback.hapticVibrationMode.get() == HapticVibrationMode.USE_HAPTIC_FEEDBACK_INTERFACE) {
@@ -126,10 +130,9 @@ class InputFeedbackController private constructor(private val ims: InputMethodSe
                 } else {
                     HapticFeedbackConstants.KEYBOARD_TAP
                 }
-                val didPerform = view.performHapticFeedback(hfc,
-                    HapticFeedbackConstants.FLAG_IGNORE_VIEW_SETTING or
-                        HapticFeedbackConstants.FLAG_IGNORE_GLOBAL_SETTING
-                )
+                // No FLAG_IGNORE_GLOBAL_SETTING: since API 33 only privileged apps may ignore the user's
+                // touch-feedback setting. If the system declines, the vibrator fallback below still runs.
+                val didPerform = view.performHapticFeedback(hfc, HapticFeedbackConstants.FLAG_IGNORE_VIEW_SETTING)
                 if (didPerform) return@launch
                 // If not performed fall back to using the vibrator directly
             }
@@ -138,6 +141,7 @@ class InputFeedbackController private constructor(private val ims: InputMethodSe
                 duration = prefs.inputFeedback.hapticVibrationDuration.get(),
                 strength = prefs.inputFeedback.hapticVibrationStrength.get(),
                 factor = factor,
+                touchFeedback = respectSystem,
             )
         }
     }
