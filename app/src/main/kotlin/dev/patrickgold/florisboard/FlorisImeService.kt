@@ -38,6 +38,7 @@ import android.view.inputmethod.InputMethodInfo
 import android.view.inputmethod.InputMethodManager
 import android.widget.FrameLayout
 import android.widget.LinearLayout
+import android.widget.Toast
 import android.widget.inline.InlinePresentationSpec
 import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.Box
@@ -74,6 +75,8 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.view.WindowCompat
 import androidx.lifecycle.lifecycleScope
+import com.jtn0123.audiowhisper.dictation.Dictation
+import com.jtn0123.audiowhisper.gif.GifSearch
 import dev.patrickgold.florisboard.app.FlorisAppActivity
 import dev.patrickgold.florisboard.app.FlorisPreferenceStore
 import dev.patrickgold.florisboard.app.devtools.DevtoolsOverlay
@@ -118,7 +121,6 @@ import org.florisboard.lib.android.AndroidInternalR
 import org.florisboard.lib.android.AndroidVersion
 import org.florisboard.lib.android.isOrientationLandscape
 import org.florisboard.lib.android.isOrientationPortrait
-import org.florisboard.lib.android.showShortToastSync
 import org.florisboard.lib.android.systemServiceOrNull
 import org.florisboard.lib.compose.ProvideLocalizedResources
 import org.florisboard.lib.kotlin.collectIn
@@ -144,6 +146,9 @@ private var FlorisImeServiceReference = WeakReference<FlorisImeService?>(null)
  */
 class FlorisImeService : LifecycleInputMethodService() {
     companion object {
+        /** Characters dictation reads before the cursor to space and capitalise a phrase. */
+        private const val DICTATION_LOOK_BACK = 8
+
         private val InlineSuggestionUiSmallestSize = Size(0, 0)
         private val InlineSuggestionUiBiggestSize = Size(Int.MAX_VALUE, Int.MAX_VALUE)
 
@@ -229,27 +234,9 @@ class FlorisImeService : LifecycleInputMethodService() {
             return false
         }
 
-        fun switchToVoiceInputMethod(): Boolean {
-            val ims = FlorisImeServiceReference.get() ?: return false
-            val imm = ims.systemServiceOrNull(InputMethodManager::class) ?: return false
-            val list: List<InputMethodInfo> = imm.enabledInputMethodList
-            for (el in list) {
-                for (i in 0 until el.subtypeCount) {
-                    if (el.getSubtypeAt(i).mode != "voice") continue
-                    if (AndroidVersion.ATLEAST_API28_P) {
-                        ims.switchInputMethod(el.id, el.getSubtypeAt(i))
-                        return true
-                    } else {
-                        ims.window.window?.let { window ->
-                            @Suppress("DEPRECATION")
-                            imm.setInputMethod(window.attributes.token, el.id)
-                            return true
-                        }
-                    }
-                }
-            }
-            ims.showShortToastSync("Failed to find voice IME, do you have one installed?")
-            return false
+        /** The mic key: start or finish dictating, without leaving the keyboard. */
+        fun toggleDictation() {
+            FlorisImeServiceReference.get()?.dictation?.toggle()
         }
     }
 
@@ -271,6 +258,8 @@ class FlorisImeService : LifecycleInputMethodService() {
 
     private val wallpaperChangeReceiver = WallpaperChangeReceiver()
 
+    private var dictation: Dictation? = null
+
     init {
         setTheme(R.style.FlorisImeTheme)
     }
@@ -279,6 +268,7 @@ class FlorisImeService : LifecycleInputMethodService() {
         super.onCreate()
         FlorisImeServiceReference = WeakReference(this)
         WindowCompat.setDecorFitsSystemWindows(window.window!!, false)
+        dictation = Dictation(this, dictationEditor)
         subtypeManager.activeSubtypeFlow.collectIn(lifecycleScope) { subtype ->
             val config = Configuration(resources.configuration)
             if (prefs.localization.displayKeyboardLabelsInSubtypeLanguage.get()) {
@@ -340,6 +330,8 @@ class FlorisImeService : LifecycleInputMethodService() {
     }
 
     override fun onDestroy() {
+        dictation?.release()
+        dictation = null
         super.onDestroy()
         unregisterReceiver(wallpaperChangeReceiver)
         FlorisImeServiceReference = WeakReference(null)
@@ -359,6 +351,8 @@ class FlorisImeService : LifecycleInputMethodService() {
         super.onStartInputView(info, restarting)
         if (info == null) return
         val editorInfo = FlorisEditorInfo.wrap(info)
+        // AudioWhisper: a new field starts on its own text, not a half-typed GIF search.
+        if (!restarting) GifSearch.stopTyping()
         activeState.batchEdit {
             if (activeState.imeUiMode != ImeUiMode.CLIPBOARD || prefs.clipboard.historyHideOnNextTextField.get()) {
                 activeState.imeUiMode = ImeUiMode.TEXT
@@ -429,10 +423,27 @@ class FlorisImeService : LifecycleInputMethodService() {
             flogInfo(LogTopic.IMS_EVENTS)
         }
         isWindowShown = false
+        // Minimised (back, home, the hide key, screen off): stop listening.
+        dictation?.abandon()
+        GifSearch.reset()
         activeState.batchEdit {
             activeState.imeUiMode = ImeUiMode.TEXT
             activeState.isActionsOverflowVisible = false
             activeState.isActionsEditorVisible = false
+        }
+    }
+
+    /** Dictation types through the editor, which keeps its view of the text in step. */
+    private val dictationEditor = object : Dictation.Editor {
+        override fun textBeforeCursor(): CharSequence? =
+            currentInputConnection?.getTextBeforeCursor(DICTATION_LOOK_BACK, 0)
+
+        override fun type(text: String) {
+            editorInstance.commitText(text)
+        }
+
+        override fun problem(message: String) {
+            Toast.makeText(this@FlorisImeService, message, Toast.LENGTH_SHORT).show()
         }
     }
 
