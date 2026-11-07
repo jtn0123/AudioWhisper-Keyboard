@@ -43,6 +43,9 @@ class Dictation(private val context: Context, private val editor: Editor) {
 
         /** A capitalised word is usually written that way ("John"), so it keeps its capital mid-sentence. */
         fun isName(word: String): Boolean
+
+        /** Takes back the phrase dictation typed last, if nothing has changed since. */
+        fun undoLastPhrase(): Boolean
         fun problem(message: String)
     }
 
@@ -224,7 +227,7 @@ class Dictation(private val context: Context, private val editor: Editor) {
         if (id != session) return
         result.onSuccess { text ->
             if (text.isNotBlank()) {
-                commit(text.trim())
+                Spoken.parse(text).forEach(::act)
                 typedAny = true
             }
         }.onFailure { error ->
@@ -233,9 +236,19 @@ class Dictation(private val context: Context, private val editor: Editor) {
         }
     }
 
-    /** Types [text], joined on to what is before the cursor (see [Phrases.join]). */
-    private fun commit(text: String) {
-        val typing = Phrases.join(editor.textBeforeCursor(), lastPhrase, text, editor::isName)
+    private fun act(spoken: Spoken) {
+        when (spoken) {
+            is Spoken.Words -> insert(Phrases.join(editor.textBeforeCursor(), lastPhrase, spoken.text, editor::isName))
+            is Spoken.Mark -> insert(Phrases.punctuate(editor.textBeforeCursor(), lastPhrase, spoken.mark))
+            is Spoken.Break -> insert(Phrases.Typing(0, spoken.text))
+            Spoken.ScratchThat -> {
+                if (!editor.undoLastPhrase()) Log.i(TAG, "Nothing to scratch")
+                lastPhrase = null
+            }
+        }
+    }
+
+    private fun insert(typing: Phrases.Typing) {
         editor.type(typing.text, typing.replacing)
         lastPhrase = typing.text
     }

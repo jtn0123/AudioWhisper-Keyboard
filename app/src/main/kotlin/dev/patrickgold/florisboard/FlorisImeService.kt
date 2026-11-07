@@ -456,6 +456,8 @@ class FlorisImeService : LifecycleInputMethodService() {
 
         override fun isName(word: String): Boolean = nlpManager.isName(word)
 
+        override fun undoLastPhrase(): Boolean = editorInstance.undoDictation()
+
         override fun problem(message: String) {
             Toast.makeText(this@FlorisImeService, message, Toast.LENGTH_SHORT).show()
         }

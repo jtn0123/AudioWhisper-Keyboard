@@ -19,16 +19,28 @@ object Phrases {
      */
     fun join(before: CharSequence?, lastPhrase: String?, phrase: String, isName: (String) -> Boolean): Typing {
         val text = before?.toString().orEmpty()
-        val takesBackStop = lastPhrase != null && lastPhrase.endsWith('.') &&
+        // A full stop said out loud ("period") has no words with it, and is never taken back.
+        val takesBackStop = lastPhrase != null && lastPhrase.endsWith('.') && lastPhrase.any(Char::isLetterOrDigit) &&
             isRightAfter(text, lastPhrase) && carriesOn(lastPhrase, phrase)
         val kept = if (takesBackStop) text.dropLast(1) else text
         val body = when {
+            startsLine(kept) || endsSentence(kept) -> phrase.replaceFirstChar { it.uppercaseChar() }
             continuesSentence(kept) -> lowerFirst(phrase, isName)
-            endsSentence(kept) -> phrase.replaceFirstChar { it.uppercaseChar() }
             else -> phrase
         }
         val lead = if (kept.isEmpty() || kept.last().isWhitespace()) "" else " "
         return Typing(if (takesBackStop) 1 else 0, lead + body)
+    }
+
+    /**
+     * How to type a spoken punctuation [mark] ("question mark"): in place of the punctuation
+     * that ends [lastPhrase] if the cursor is still right after it ("See you soon." → "See you
+     * soon?"), otherwise straight after the text.
+     */
+    fun punctuate(before: CharSequence?, lastPhrase: String?, mark: Char): Typing {
+        val text = before?.toString().orEmpty()
+        val replaces = lastPhrase != null && lastPhrase.lastOrNull() in MARKS && isRightAfter(text, lastPhrase)
+        return Typing(if (replaces) 1 else 0, mark.toString())
     }
 
     /** Only what the editor shows before the cursor can be compared, so match as much of [phrase] as that. */
@@ -45,6 +57,9 @@ object Phrases {
         return lastWord in OPEN_ENDINGS || firstWord.firstOrNull()?.isLowerCase() == true ||
             firstWord.lowercase() in JOINERS
     }
+
+    /** The cursor is at the start of a line below text ("new line"); the empty field is left to the model. */
+    private fun startsLine(text: String): Boolean = '\n' in text && text.substringAfterLast('\n').isBlank()
 
     private fun continuesSentence(text: String): Boolean {
         val last = text.lastOrNull { !it.isWhitespace() } ?: return false
@@ -64,6 +79,9 @@ object Phrases {
     private fun firstWord(text: String): String = text.takeWhile { it.isLetter() || it == '\'' || it == '’' }
 
     private val SENTENCE_ENDS = setOf('.', '!', '?')
+
+    /** Punctuation the model ends a phrase with, which a spoken mark replaces. */
+    private val MARKS = setOf('.', ',', ';', ':', '!', '?')
 
     /** Words a spoken sentence practically never ends on, so a full stop after one is a pause. */
     private val OPEN_ENDINGS = setOf(
