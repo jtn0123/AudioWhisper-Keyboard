@@ -342,7 +342,7 @@ abstract class FlorisPreferenceModel : PreferenceModel() {
     inner class Glide {
         val enabled = boolean(
             key = "glide__enabled",
-            default = false,
+            default = true,
         )
         val showTrail = boolean(
             key = "glide__show_trail",
@@ -415,11 +415,11 @@ abstract class FlorisPreferenceModel : PreferenceModel() {
         )
         val hapticVibrationDuration = int(
             key = "input_feedback__haptic_vibration_duration",
-            default = 50,
+            default = 15,
         )
         val hapticVibrationStrength = int(
             key = "input_feedback__haptic_vibration_strength",
-            default = 50,
+            default = 15,
         )
         val hapticFeatKeyPress = boolean(
             key = "input_feedback__haptic_feat_key_press",
@@ -493,9 +493,11 @@ abstract class FlorisPreferenceModel : PreferenceModel() {
             key = "keyboard__hinted_symbols_mode",
             default = KeyHintMode.SMART_PRIORITY,
         )
+        // Off so the space bar is wider: emoji has its own button in the suggestion bar instead
+        // (see Smartbar.kt). Turning it back on brings back the emoji/language key beside the space bar.
         val utilityKeyEnabled = boolean(
             key = "keyboard__utility_key_enabled",
-            default = true,
+            default = false,
         )
         val utilityKeyAction = enum(
             key = "keyboard__utility_key_action",
@@ -678,18 +680,15 @@ abstract class FlorisPreferenceModel : PreferenceModel() {
             default = QuickActionArrangement.Default,
             serializer = QuickActionArrangement.Serializer,
         )
+        // Flipped so the pinned mic (the sticky action) sits at the left end of the suggestion bar and
+        // the quick-actions arrow at the right.
         val flipToggles = boolean(
             key = "smartbar__flip_toggles",
-            default = false,
+            default = true,
         )
         val sharedActionsExpanded = boolean(
             key = "smartbar__shared_actions_expanded",
             default = false,
-        )
-        @Deprecated("Always enabled due to UX issues")
-        val sharedActionsAutoExpandCollapse = boolean(
-            key = "smartbar__shared_actions_auto_expand_collapse",
-            default = true,
         )
         val sharedActionsExpandWithAnimation = boolean(
             key = "smartbar__shared_actions_expand_with_animation",
@@ -729,7 +728,8 @@ abstract class FlorisPreferenceModel : PreferenceModel() {
         )
         val enabled = boolean(
             key = "suggestion__enabled",
-            default = false,
+            // AudioWhisper: on by default now that the Latin provider has a real dictionary.
+            default = true,
         )
         val displayMode = enum(
             key = "suggestion__display_mode",

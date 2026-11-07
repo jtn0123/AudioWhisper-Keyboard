@@ -28,17 +28,21 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import com.jtn0123.audiowhisper.dictation.Dictation
+import com.jtn0123.audiowhisper.dictation.LitMic
 import dev.patrickgold.compose.tooltip.PlainTooltip
 import dev.patrickgold.florisboard.FlorisImeService
 import dev.patrickgold.florisboard.ime.keyboard.ComputingEvaluator
 import dev.patrickgold.florisboard.ime.keyboard.computeImageVector
 import dev.patrickgold.florisboard.ime.keyboard.computeLabel
+import dev.patrickgold.florisboard.ime.text.key.KeyCode
 import dev.patrickgold.florisboard.ime.text.keyboard.TextKeyData
 import dev.patrickgold.florisboard.ime.theme.FlorisImeUi
 import org.florisboard.lib.snygg.SnyggSelector
@@ -71,6 +75,10 @@ fun QuickActionButton(
         QuickActionBarType.EDITOR_TILE -> FlorisImeUi.SmartbarActionsEditorTile
     }.elementName
     val attributes = mapOf(FlorisImeUi.Attr.Code to action.keyData().code)
+    val dictation by Dictation.status.collectAsState()
+    val litMic = type == QuickActionBarType.INTERACTIVE_BUTTON &&
+        action.keyData().code == KeyCode.VOICE_INPUT &&
+        dictation != Dictation.Status.IDLE
     val selector = when {
         isPressed -> SnyggSelector.PRESSED
         !isEnabled -> SnyggSelector.DISABLED
@@ -126,7 +134,9 @@ fun QuickActionButton(
                         val (imageVector, label) = remember(action, evaluator) {
                             evaluator.computeImageVector(action.data) to evaluator.computeLabel(action.data)
                         }
-                        if (imageVector != null) {
+                        if (imageVector != null && litMic) {
+                            LitMic(imageVector)
+                        } else if (imageVector != null) {
                             SnyggBox(
                                 elementName = "$elementName-icon",
                                 attributes = attributes,
