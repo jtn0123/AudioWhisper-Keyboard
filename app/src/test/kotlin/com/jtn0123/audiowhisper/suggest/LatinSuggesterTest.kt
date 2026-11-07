@@ -27,6 +27,13 @@ class LatinSuggesterTest {
             "london" to listOf(RawSuggestion("London", 1_801_319, exact)),
             "yeah" to listOf(RawSuggestion("yeah", 1_753_136, exact), RawSuggestion("year", 235_587, correction)),
             "lol" to listOf(RawSuggestion("oil", 227_445, correction)),
+            "wor" to listOf(
+                RawSuggestion("work", 600_000, correction),
+                RawSuggestion("WOR", 590_000, correction),
+                RawSuggestion("word", 580_000, correction),
+            ),
+            "jello" to listOf(RawSuggestion("jello", 1_500_000, exact), RawSuggestion("Jello", 1_400_000, correction)),
+            "jelo" to listOf(RawSuggestion("Jello", 600_000, correction), RawSuggestion("jello", 590_000, correction)),
             "u" to listOf(RawSuggestion("I", 484_164, correction)),
             "nit" to listOf(
                 RawSuggestion("not", whitelistScore, whitelist),
@@ -39,7 +46,7 @@ class LatinSuggesterTest {
                 RawSuggestion("you", 70, RawSuggestion.KIND_PREDICTION),
             ),
         ),
-        probabilities = mapOf("form" to 158, "from" to 191, "fro" to 73, "yeah" to 135, "nit" to 59),
+        probabilities = mapOf("jello" to 120, "form" to 158, "from" to 191, "fro" to 73, "yeah" to 135, "nit" to 59),
         ngrams = setOf("came" to "from"),
     )
     private val suggester = LatinSuggester(decoder, Locale.US)
@@ -101,6 +108,18 @@ class LatinSuggesterTest {
         assertEquals("London", autoCorrection("london"))
         assertEquals(null, autoCorrection("ok"))
         assertEquals(listOf("ok", "OK", "on"), suggest("ok").map { it.text })
+    }
+
+    @Test
+    fun offersEachWordOnceInOneSpelling() {
+        // A typed word that is itself a word isn't offered again capitalized.
+        assertEquals(listOf("jello"), suggest("jello").map { it.text })
+        // Two spellings of the same suggestion collapse to the lower-case one, in the better slot.
+        val jelo = suggest("jelo").map { it.text }
+        assertEquals(listOf("jello"), jelo.filter { it.equals("jello", ignoreCase = true) })
+        // Acronyms only when they are the best match: "wor" doesn't offer "WOR"; "ok" still offers "OK".
+        assertEquals(listOf("work", "word"), suggest("wor").map { it.text }.filter { it != "wor" })
+        assertTrue("OK" in suggest("ok").map { it.text })
     }
 
     @Test

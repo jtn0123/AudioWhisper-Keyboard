@@ -85,11 +85,38 @@ class LatinSuggester(
     /** Case-matched, de-duplicated results, best first. */
     private fun rank(typed: String, results: List<RawSuggestion>): List<Ranked> {
         val case = WordCase.of(typed)
-        return results.asSequence()
+        val ranked = results.asSequence()
             .filter { it.word.isNotEmpty() }
             .map { Ranked(it, case.apply(it.word, locale)) }
             .distinctBy { it.display }
             .toList()
+        // Capitalized or all-caps typing already gave every result the same case.
+        return if (typed.any(Char::isUpperCase)) ranked else oneSpellingPerWord(typed, ranked)
+    }
+
+    /**
+     * For a word typed in lower case, where results keep the dictionary's spelling: no second
+     * spelling of a typed word that is itself a word ("jello" doesn't also offer "Jello"), no
+     * acronym unless it is the best result ("wor" doesn't offer "WOR", "ok" still offers "OK"),
+     * and one spelling per word, lower case preferred ("jelo" offers "jello", not both).
+     */
+    private fun oneSpellingPerWord(typed: String, ranked: List<Ranked>): List<Ranked> {
+        val typedIsWord = ranked.any { it.display == typed } || decoder.probability(typed) != NOT_A_PROBABILITY
+        val kept = ranked.filterIndexed { index, it ->
+            when {
+                it.display == typed -> true
+                typedIsWord && it.display.equals(typed, ignoreCase = true) -> false
+                else -> index == 0 || !isAcronym(it.display)
+            }
+        }
+        return kept.groupBy { it.display.lowercase(locale) }.values.map { spellings ->
+            spellings.firstOrNull { it.display.none(Char::isUpperCase) } ?: spellings.first()
+        }
+    }
+
+    private fun isAcronym(word: String): Boolean {
+        val letters = word.filter(Char::isLetter)
+        return letters.length > 1 && letters.none(Char::isLowerCase)
     }
 
     /** The typed word is a dictionary word (in the case the user typed, or with the first letter lowered). */
