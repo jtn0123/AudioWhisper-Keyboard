@@ -38,6 +38,9 @@ object GifSearch {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private var loading: Job? = null
 
+    /** The query when the current delete-key swipe began, so swiping back restores it. */
+    private var beforeSwipe = ""
+
     private val mutableShowingGifs = MutableStateFlow(false)
     private val mutableTyping = MutableStateFlow(false)
     private val mutableQuery = MutableStateFlow("")
@@ -83,6 +86,23 @@ object GifSearch {
 
     fun deleteLast() {
         mutableQuery.value = SearchText.deleteLast(query.value)
+    }
+
+    fun deleteWord() {
+        mutableQuery.value = SearchText.deleteWords(query.value, 1)
+    }
+
+    /**
+     * A delete-key swipe has reached [swipe] back from where it began ([starts]: it just
+     * began). The query shrinks as it goes and grows back if the swipe returns.
+     */
+    fun deleteSwiped(swipe: GifSearchKeys.SwipeDelete, starts: Boolean) {
+        if (starts) beforeSwipe = query.value
+        mutableQuery.value = if (swipe.words) {
+            SearchText.deleteWords(beforeSwipe, swipe.count)
+        } else {
+            SearchText.deleteLast(beforeSwipe, swipe.count)
+        }
     }
 
     /** Searches for what was typed (trending if nothing was) and closes the field. */
@@ -139,5 +159,18 @@ internal object SearchText {
         if (query.isEmpty()) return query
         val end = if (query.length >= 2 && Character.isSurrogatePair(query[query.length - 2], query.last())) 2 else 1
         return query.dropLast(end)
+    }
+
+    fun deleteLast(query: String, count: Int): String {
+        var left = query
+        repeat(count) { left = deleteLast(left) }
+        return left
+    }
+
+    /** Deletes [count] words from the end, and the spaces after them; the space before stays. */
+    fun deleteWords(query: String, count: Int): String {
+        var left = query
+        repeat(count) { left = left.trimEnd().dropLastWhile { !it.isWhitespace() } }
+        return left
     }
 }

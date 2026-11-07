@@ -26,6 +26,7 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.MutableLiveData
 import com.jtn0123.audiowhisper.dictation.DictationFields
 import com.jtn0123.audiowhisper.gif.GifSearch
+import com.jtn0123.audiowhisper.gif.GifSearchKeys
 import com.jtn0123.audiowhisper.suggest.AutoCorrectionUndo
 import dev.patrickgold.florisboard.FlorisImeService
 import dev.patrickgold.florisboard.R
@@ -54,6 +55,7 @@ import dev.patrickgold.florisboard.ime.onehanded.OneHandedMode
 import dev.patrickgold.florisboard.ime.popup.PopupMappingComponent
 import dev.patrickgold.florisboard.ime.text.composing.Composer
 import dev.patrickgold.florisboard.ime.text.gestures.SwipeAction
+import dev.patrickgold.florisboard.ime.text.gestures.keyData
 import dev.patrickgold.florisboard.ime.text.key.KeyCode
 import dev.patrickgold.florisboard.ime.text.key.KeyType
 import dev.patrickgold.florisboard.ime.text.key.UtilityKeyAction
@@ -249,46 +251,7 @@ class KeyboardManager(context: Context) : InputKeyEventReceiver {
     }
 
     fun executeSwipeAction(swipeAction: SwipeAction) {
-        val keyData = when (swipeAction) {
-            SwipeAction.CYCLE_TO_PREVIOUS_KEYBOARD_MODE -> when (activeState.keyboardMode) {
-                KeyboardMode.CHARACTERS -> TextKeyData.VIEW_NUMERIC_ADVANCED
-                KeyboardMode.NUMERIC_ADVANCED -> TextKeyData.VIEW_SYMBOLS2
-                KeyboardMode.SYMBOLS2 -> TextKeyData.VIEW_SYMBOLS
-                else -> TextKeyData.VIEW_CHARACTERS
-            }
-            SwipeAction.CYCLE_TO_NEXT_KEYBOARD_MODE -> when (activeState.keyboardMode) {
-                KeyboardMode.CHARACTERS -> TextKeyData.VIEW_SYMBOLS
-                KeyboardMode.SYMBOLS -> TextKeyData.VIEW_SYMBOLS2
-                KeyboardMode.SYMBOLS2 -> TextKeyData.VIEW_NUMERIC_ADVANCED
-                else -> TextKeyData.VIEW_CHARACTERS
-            }
-            SwipeAction.DELETE_WORD -> TextKeyData.DELETE_WORD
-            SwipeAction.HIDE_KEYBOARD -> TextKeyData.IME_HIDE_UI
-            SwipeAction.INSERT_SPACE -> TextKeyData.SPACE
-            SwipeAction.MOVE_CURSOR_DOWN -> TextKeyData.ARROW_DOWN
-            SwipeAction.MOVE_CURSOR_UP -> TextKeyData.ARROW_UP
-            SwipeAction.MOVE_CURSOR_LEFT -> TextKeyData.ARROW_LEFT
-            SwipeAction.MOVE_CURSOR_RIGHT -> TextKeyData.ARROW_RIGHT
-            SwipeAction.MOVE_CURSOR_START_OF_LINE -> TextKeyData.MOVE_START_OF_LINE
-            SwipeAction.MOVE_CURSOR_END_OF_LINE -> TextKeyData.MOVE_END_OF_LINE
-            SwipeAction.MOVE_CURSOR_START_OF_PAGE -> TextKeyData.MOVE_START_OF_PAGE
-            SwipeAction.MOVE_CURSOR_END_OF_PAGE -> TextKeyData.MOVE_END_OF_PAGE
-            SwipeAction.SHIFT -> TextKeyData.SHIFT
-            SwipeAction.REDO -> TextKeyData.REDO
-            SwipeAction.UNDO -> TextKeyData.UNDO
-            SwipeAction.SHOW_INPUT_METHOD_PICKER -> TextKeyData.SYSTEM_INPUT_METHOD_PICKER
-            SwipeAction.SHOW_SUBTYPE_PICKER -> TextKeyData.SHOW_SUBTYPE_PICKER
-            SwipeAction.SWITCH_TO_CLIPBOARD_CONTEXT -> TextKeyData.IME_UI_MODE_CLIPBOARD
-            SwipeAction.SWITCH_TO_MEDIA_CONTEXT -> TextKeyData.IME_UI_MODE_MEDIA
-            SwipeAction.SWITCH_TO_PREV_SUBTYPE -> TextKeyData.IME_PREV_SUBTYPE
-            SwipeAction.SWITCH_TO_NEXT_SUBTYPE -> TextKeyData.IME_NEXT_SUBTYPE
-            SwipeAction.SWITCH_TO_PREV_KEYBOARD -> TextKeyData.SYSTEM_PREV_INPUT_METHOD
-            SwipeAction.TOGGLE_SMARTBAR_VISIBILITY -> TextKeyData.TOGGLE_SMARTBAR_VISIBILITY
-            else -> null
-        }
-        if (keyData != null) {
-            inputEventDispatcher.sendDownUp(keyData)
-        }
+        swipeAction.keyData(activeState.keyboardMode)?.let { inputEventDispatcher.sendDownUp(it) }
     }
 
     fun commitCandidate(candidate: SuggestionCandidate) {
@@ -302,35 +265,54 @@ class KeyboardManager(context: Context) : InputKeyEventReceiver {
     }
 
     fun commitGesture(word: String) {
-        if (GifSearch.typing.value) return GifSearch.typeWord(fixCase(word))
+        if (isTypingIntoGifSearch) return GifSearch.typeWord(fixCase(word))
         editorInstance.commitGesture(fixCase(word))
     }
 
     /**
-     * AudioWhisper: while the GIF search field is open, typing goes into it rather than the app.
-     * Returns false for keys it leaves alone (shift, layout switches), which work as usual.
+     * AudioWhisper: the GIF search box is open, so the app's field behind it must not change.
+     * Keys go through [typeIntoGifSearch]; the touch code checks this before its swipes.
+     */
+    val isTypingIntoGifSearch: Boolean get() = GifSearch.typing.value
+
+    /** AudioWhisper: [data] is a key the GIF search box takes or blocks, not one for the keyboard. */
+    private fun heldByGifSearch(data: KeyData): Boolean =
+        isTypingIntoGifSearch && GifSearchKeys.route(data.code, data.type) != GifSearchKeys.Route.KEYBOARD
+
+    /**
+     * AudioWhisper: while the GIF search field is open, typing goes into it and keys that would
+     * edit the app do nothing. Returns false for keys it leaves to the keyboard (shift, layouts).
      */
     private fun typeIntoGifSearch(data: KeyData): Boolean {
+        when (GifSearchKeys.route(data.code, data.type)) {
+            GifSearchKeys.Route.SEARCH -> editGifSearch(data)
+            GifSearchKeys.Route.IGNORE -> Unit
+            GifSearchKeys.Route.KEYBOARD -> {
+                if (data.code == KeyCode.IME_UI_MODE_MEDIA || data.code == KeyCode.IME_UI_MODE_CLIPBOARD) {
+                    GifSearch.stopTyping()
+                }
+                return false
+            }
+        }
+        return true
+    }
+
+    private fun editGifSearch(data: KeyData) {
         when (data.code) {
             KeyCode.DELETE -> GifSearch.deleteLast()
-            KeyCode.SPACE -> GifSearch.type(" ")
+            KeyCode.DELETE_WORD -> GifSearch.deleteWord()
+            KeyCode.SPACE, KeyCode.CJK_SPACE -> GifSearch.type(" ")
             KeyCode.ENTER -> {
                 GifSearch.submit()
                 activeState.imeUiMode = ImeUiMode.MEDIA
             }
-            KeyCode.IME_UI_MODE_MEDIA, KeyCode.IME_UI_MODE_CLIPBOARD -> {
-                GifSearch.stopTyping()
-                return false
-            }
             else -> {
-                if (data.type != KeyType.CHARACTER && data.type != KeyType.NUMERIC) return false
                 GifSearch.type(data.asString(isForDisplay = false))
                 if (activeState.inputShiftState != InputShiftState.CAPS_LOCK && !inputEventDispatcher.isPressed(KeyCode.SHIFT)) {
                     activeState.inputShiftState = InputShiftState.UNSHIFTED
                 }
             }
         }
-        return true
     }
 
     /**
@@ -741,6 +723,7 @@ class KeyboardManager(context: Context) : InputKeyEventReceiver {
     }
 
     override fun onInputKeyDown(data: KeyData) {
+        if (heldByGifSearch(data)) return
         when (data.code) {
             KeyCode.ARROW_DOWN,
             KeyCode.ARROW_LEFT,
@@ -759,7 +742,7 @@ class KeyboardManager(context: Context) : InputKeyEventReceiver {
     override fun onInputKeyUp(data: KeyData) = activeState.batchEdit {
         // Only a backspace straight after an auto-correction undoes it.
         if (data.code != KeyCode.DELETE) autoCorrectionUndo = null
-        if (GifSearch.typing.value && typeIntoGifSearch(data)) return@batchEdit
+        if (isTypingIntoGifSearch && typeIntoGifSearch(data)) return@batchEdit
         when (data.code) {
             KeyCode.ARROW_DOWN,
             KeyCode.ARROW_LEFT,
@@ -892,6 +875,7 @@ class KeyboardManager(context: Context) : InputKeyEventReceiver {
     }
 
     override fun onInputKeyCancel(data: KeyData) {
+        if (heldByGifSearch(data)) return
         when (data.code) {
             KeyCode.ARROW_DOWN,
             KeyCode.ARROW_LEFT,
@@ -909,6 +893,8 @@ class KeyboardManager(context: Context) : InputKeyEventReceiver {
 
     override fun onInputKeyRepeat(data: KeyData) {
         FlorisImeService.inputFeedbackController()?.keyRepeatedAction(data)
+        // AudioWhisper: a held arrow would move the app's cursor; onInputKeyUp asks the GIF search.
+        if (heldByGifSearch(data)) return onInputKeyUp(data)
         when (data.code) {
             KeyCode.ARROW_DOWN,
             KeyCode.ARROW_LEFT,

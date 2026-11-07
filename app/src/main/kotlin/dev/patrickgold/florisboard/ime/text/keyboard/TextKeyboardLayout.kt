@@ -55,6 +55,8 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.toSize
+import com.jtn0123.audiowhisper.gif.GifSearch
+import com.jtn0123.audiowhisper.gif.GifSearchKeys
 import dev.patrickgold.florisboard.FlorisImeService
 import dev.patrickgold.florisboard.app.FlorisPreferenceStore
 import dev.patrickgold.florisboard.editorInstance
@@ -498,10 +500,7 @@ private class TextKeyboardLayoutController(
                     pointer.index = pointerIndex
                     if (swipeGestureDetector.onTouchUp(event, pointer) || pointer.hasTriggeredGestureMove) {
                         if (pointer.hasTriggeredGestureMove && pointer.initialKey?.computedData?.code == KeyCode.DELETE) {
-                            val selection = editorInstance.activeContent.selection
-                            if (selection.isSelectionMode) {
-                                editorInstance.deleteBackwards(OperationUnit.CHARACTERS)
-                            }
+                            deleteSwipedSelection()
                         }
                         onTouchCancelInternal(event, pointer)
                     } else {
@@ -521,10 +520,7 @@ private class TextKeyboardLayoutController(
                                 pointer.initialKey?.computedData?.code == KeyCode.DELETE &&
                                 prefs.gestures.deleteKeySwipeLeft.get() != SwipeAction.SELECT_CHARACTERS_PRECISELY &&
                                 prefs.gestures.deleteKeySwipeLeft.get() != SwipeAction.SELECT_WORDS_PRECISELY) {
-                                val selection = editorInstance.activeContent.selection
-                                if (selection.isSelectionMode) {
-                                    editorInstance.deleteBackwards(OperationUnit.CHARACTERS)
-                                }
+                                deleteSwipedSelection()
                             }
                             onTouchCancelInternal(event, pointer)
                         } else {
@@ -756,7 +752,32 @@ private class TextKeyboardLayoutController(
         }
     }
 
+    /** A delete-key swipe ended: delete what it selected. */
+    private fun deleteSwipedSelection() {
+        // AudioWhisper: the GIF search box deleted as the swipe went, and the app's selection must stay.
+        if (keyboardManager.isTypingIntoGifSearch) return
+        val selection = editorInstance.activeContent.selection
+        if (selection.isSelectionMode) {
+            editorInstance.deleteBackwards(OperationUnit.CHARACTERS)
+        }
+    }
+
+    /** AudioWhisper: in the GIF search box a delete swipe shrinks the query as it goes; swiping back restores it. */
+    private fun deleteSwipeInGifSearch(event: SwipeGesture.Event): Boolean {
+        val swipe = GifSearchKeys.swipeDelete(prefs.gestures.deleteKeySwipeLeft.get(), event.absUnitCountX) ?: return false
+        if (abs(event.relUnitCountX) > 0) {
+            inputFeedbackController?.gestureMovingSwipe(TextKeyData.DELETE)
+        }
+        val starts = pointerMap.findById(event.pointerId)?.hasTriggeredGestureMove != true
+        GifSearch.deleteSwiped(swipe, starts)
+        return true
+    }
+
     private fun handleDeleteSwipe(event: SwipeGesture.Event): Boolean {
+        // AudioWhisper: the swipe's end goes through executeSwipeAction, which the GIF search gates.
+        if (keyboardManager.isTypingIntoGifSearch && event.type == SwipeGesture.Type.TOUCH_MOVE) {
+            return deleteSwipeInGifSearch(event)
+        }
         if (editorInstance.activeInfo.isRawInputEditor) return false
 
         return when (event.type) {
@@ -826,6 +847,9 @@ private class TextKeyboardLayoutController(
 
     private fun handleSpaceSwipe(event: SwipeGesture.Event): Boolean {
         val pointer = pointerMap.findById(event.pointerId) ?: return false
+        // AudioWhisper: the GIF search box has no cursor to move, and the app's must stay put.
+        // Taking the move also keeps the swipe from typing a space; its end is gated as a key.
+        if (keyboardManager.isTypingIntoGifSearch && event.type == SwipeGesture.Type.TOUCH_MOVE) return true
 
         return when (event.type) {
             SwipeGesture.Type.TOUCH_MOVE -> when (event.direction) {
