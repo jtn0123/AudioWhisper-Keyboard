@@ -451,7 +451,7 @@ class FlorisImeService : LifecycleInputMethodService() {
             currentInputConnection?.getTextBeforeCursor(DICTATION_LOOK_BACK, 0)
 
         override fun type(text: String) {
-            editorInstance.commitText(text)
+            editorInstance.commitDictation(text)
         }
 
         override fun problem(message: String) {
