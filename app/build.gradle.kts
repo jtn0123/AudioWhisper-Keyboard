@@ -165,6 +165,16 @@ android {
             resValue("string", "floris_app_name", "AudioWhisper Keyboard")
         }
 
+        // AudioWhisper: the build to use every day. Release's shrinking and optimising, not
+        // debuggable, and signed with the debug key so it installs over the debug build (and
+        // back) keeping the app's data. run-as doesn't work on it: see scripts/install-dev.sh.
+        create("personal") {
+            initWith(getByName("release"))
+            versionNameSuffix = "-personal+${getGitCommitHash(short = true).get()}"
+            signingConfig = signingConfigs.getByName("debug")
+            matchingFallbacks += listOf("release")
+        }
+
         create("benchmark") {
             initWith(getByName("release"))
             signingConfig = signingConfigs.getByName("debug")

@@ -5,9 +5,11 @@ import java.io.File
 
 /**
  * Where on-device models live: the app's private files directory. Until
- * there is an in-app download, they are copied in over adb with run-as
- * (debug builds only). Not shared storage: files adb writes there are owned
- * by the shell user and hidden from the app.
+ * there is an in-app download, they are copied in over adb with run-as,
+ * which needs the debug build; the personal build installs over it and keeps
+ * them (scripts/install-dev.sh). Not shared storage, even the app's own
+ * Android/data folder: files adb writes there are owned by the shell user and
+ * hidden from the app.
  */
 object ModelFiles {
     /** Parakeet TDT 0.6B v2, int8: the most accurate model that fits the phone. */

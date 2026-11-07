@@ -27,3 +27,8 @@
 
 # @Serializable and @Polymorphic are used at runtime for polymorphic serialization.
 -keepattributes RuntimeVisibleAnnotations,AnnotationDefault
+
+# sherpa-onnx (dictation): its native code reads the config classes' fields and builds the
+# result classes by name, and the AAR ships no rules of its own. Without this R8 strips the
+# fields only native reads, and the recognizer fails to start.
+-keep class com.k2fsa.sherpa.onnx.** { *; }
