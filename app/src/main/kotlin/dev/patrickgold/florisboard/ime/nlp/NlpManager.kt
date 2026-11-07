@@ -278,8 +278,16 @@ class NlpManager(context: Context) {
         )
     }
 
-    /** AudioWhisper: the user undid the auto-correction of [word]; leave it alone from now on. */
-    fun keepAsTyped(word: String) = latinProvider.keepAsTyped(word)
+    /**
+     * AudioWhisper: the user undid the auto-correction of [word]; leave it alone from now on,
+     * remembered across restarts unless the field or the user asked for incognito.
+     */
+    fun keepAsTyped(word: String) {
+        val remember = !keyboardManager.activeState.isIncognitoMode
+        if (latinProvider.keepAsTyped(word, remember)) {
+            scope.launch(Dispatchers.IO) { latinProvider.saveKeptWords() }
+        }
+    }
 
     /** AudioWhisper: see [LatinLanguageProvider.isName]. */
     fun isName(word: String) = latinProvider.isName(word)

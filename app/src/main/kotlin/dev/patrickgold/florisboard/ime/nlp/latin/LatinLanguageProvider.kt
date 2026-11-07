@@ -21,6 +21,7 @@ import android.database.sqlite.SQLiteException
 import android.os.SystemClock
 import android.util.Log
 import com.jtn0123.audiowhisper.suggest.ArrangedWord
+import com.jtn0123.audiowhisper.suggest.KeptWords
 import com.jtn0123.audiowhisper.suggest.LatinDictionaryEngine
 import com.jtn0123.audiowhisper.suggest.LatinSuggester
 import com.jtn0123.audiowhisper.suggest.NOT_A_PROBABILITY
@@ -48,9 +49,9 @@ import kotlinx.serialization.json.Json
 import org.florisboard.lib.android.readText
 import org.florisboard.lib.kotlin.guardedByLock
 import org.florisboard.lib.kotlin.safeSubstring
+import java.io.File
 import java.io.IOException
 import java.util.Locale
-import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Word suggestions, auto-correction and next-word prediction from the AOSP LatinIME dictionary
@@ -68,6 +69,9 @@ class LatinLanguageProvider(context: Context) : SpellingProvider, SuggestionProv
         private const val DICTIONARY_ASSET = "dicts/main_en-US.dict"
         private const val DICTIONARY_LOCALE = "en_US"
         private const val DICTIONARY_LANGUAGE = "en"
+
+        /** In filesDir, outside the backup rules' include list, so it never leaves the phone. */
+        private const val KEPT_WORDS_FILE = "kept-as-typed.txt"
 
         /** Fields where suggestions would expose or mangle what is typed (AOSP hides them too). */
         private val NO_SUGGESTION_VARIATIONS = setOf(
@@ -101,8 +105,9 @@ class LatinLanguageProvider(context: Context) : SpellingProvider, SuggestionProv
     /** The personal dictionaries, re-read by [refreshPersonalWords] each time the keyboard shows. */
     @Volatile private var personalWords = PersonalWords.NONE
 
-    /** Words whose auto-correction the user undid this session (lowercased); they are not corrected again. */
-    private val keptAsTyped: MutableSet<String> = ConcurrentHashMap.newKeySet()
+    /** Words whose auto-correction the user undid; they are not corrected again. Loaded by [preload]. */
+    private val keptAsTyped by lazy { KeptWords(File(appContext.filesDir, KEPT_WORDS_FILE)) }
+    @Volatile private var keptWordsLoaded = false
 
     override val providerId = ProviderId
 
@@ -121,6 +126,10 @@ class LatinLanguageProvider(context: Context) : SpellingProvider, SuggestionProv
             }
         }
         if (subtype.primaryLocale.language == DICTIONARY_LANGUAGE) loadDictionary()
+        if (!keptWordsLoaded) {
+            keptAsTyped.load()
+            keptWordsLoaded = true
+        }
     }
 
     /** Opens the bundled dictionary on first use; later calls return at once. */
@@ -214,9 +223,15 @@ class LatinLanguageProvider(context: Context) : SpellingProvider, SuggestionProv
             ?.toCandidate(autoCorrectAllowed = true)
     }
 
-    /** AudioWhisper: see [keptAsTyped]. Held in memory only, never logged or saved. */
-    fun keepAsTyped(word: String) {
-        keptAsTyped.add(word.lowercase(Locale.ROOT))
+    /**
+     * AudioWhisper: see [keptAsTyped]. Never logged. With [remember] false (incognito) it lasts
+     * until the keyboard restarts; otherwise it returns true and [saveKeptWords] should follow.
+     */
+    fun keepAsTyped(word: String, remember: Boolean): Boolean = keptAsTyped.add(word, remember)
+
+    /** AudioWhisper: writes [keptAsTyped] to filesDir. Blocking; call off the main thread. */
+    fun saveKeptWords() {
+        if (!keptAsTyped.save()) Log.w(TAG, "Could not save the words kept as typed")
     }
 
     /**
@@ -259,7 +274,7 @@ class LatinLanguageProvider(context: Context) : SpellingProvider, SuggestionProv
         emptyList()
     }
 
-    private fun isKeptAsTyped(typed: String) = typed.lowercase(Locale.ROOT) in keptAsTyped
+    private fun isKeptAsTyped(typed: String) = typed in keptAsTyped
 
     /**
      * The word left of the cursor and its context, or null when there is nothing to suggest for:
