@@ -19,8 +19,10 @@ class LearnedWordsTest {
         learned.add("Zorblax", previous = null)
         assertNull(learned.spellingOf("zorblax"))
         assertEquals(emptyList(), learned.completions("zor", 2))
+        assertEquals(emptyList(), learned.knownSpellings())
         learned.add("Zorblax", previous = null)
         assertEquals("Zorblax", learned.spellingOf("zorblax"))
+        assertEquals(listOf("Zorblax"), learned.knownSpellings())
         assertEquals(listOf("Zorblax"), learned.completions("zor", 2))
         assertEquals(emptyList(), learned.completions("zorblax", 2), "only longer words complete")
     }

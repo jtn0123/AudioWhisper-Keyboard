@@ -17,6 +17,9 @@ class PersonalWords(entries: List<Entry>, private val locale: Locale = Locale.US
 
     val isEmpty get() = byFrequency.isEmpty()
 
+    /** Every entry with a word, most frequent first. */
+    val entries: List<Entry> get() = byFrequency
+
     /** How the user spells [word]: [word] itself if they wrote it that way, else their spelling ignoring case, else null. */
     fun spellingOf(word: String): String? =
         if (word in spellings) word else byLowerCase[word.lowercase(locale)]

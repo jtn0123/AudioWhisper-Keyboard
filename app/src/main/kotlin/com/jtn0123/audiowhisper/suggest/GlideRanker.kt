@@ -18,10 +18,10 @@ data class GlideGuess(val word: String, val cost: Float)
  * A missing pair says little, so neither ever makes a guess worse.
  *
  * The bonuses are small on purpose: together at most [MAX_BONUS]. The classifier's own costs are
- * close together (its word frequencies are squeezed into 128-255): words with the same path
- * ("to", "too") differ by about 0.01, and even a clean swipe beats a neighbouring key's word
- * ("am", "an") by only 0.1-0.5. So context settles those, but not a swipe that clearly traces a
- * different word ("you" over "thou": 1.4-2.2).
+ * close together (common words get the same frequency, see [SwipeWords.frequencyOf]): words
+ * with the same path ("to", "too") differ by about 0.07, and a neighbouring key's word is
+ * within 0.1-0.5 of a clean swipe ("an" even beats "am" by 0.14). So context settles those, but
+ * not a swipe that clearly traces a different word ("you" over "thou": 1.4-2.2).
  */
 class GlideRanker(private val history: TypingHistory, private val lookup: WordLookup?) {
     /** [guesses], best first in [previous]'s context. Ties keep the classifier's order. */

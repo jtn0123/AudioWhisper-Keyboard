@@ -42,6 +42,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -377,6 +378,9 @@ class NlpManager(context: Context) {
 
     /** AudioWhisper: see [LatinLanguageProvider.isName]. */
     fun isName(word: String) = latinProvider.isName(word)
+
+    /** AudioWhisper: goes up when glide typing's word list changes (see [getListOfWords]). */
+    val swipeWordsVersion: StateFlow<Int> get() = latinProvider.swipeWordsVersion
 
     /** AudioWhisper: picks up words added to the personal dictionaries since the keyboard last showed. */
     fun refreshPersonalWords() {

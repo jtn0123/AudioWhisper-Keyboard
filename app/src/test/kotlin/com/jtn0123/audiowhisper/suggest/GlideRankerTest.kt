@@ -3,7 +3,10 @@ package com.jtn0123.audiowhisper.suggest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
-/** Costs are the classifier's for clean swipes on the emulator. */
+/**
+ * Costs are the classifier's for clean swipes on the emulator's layout, with the dictionary's
+ * words and [SwipeWords.frequencyOf].
+ */
 class GlideRankerTest {
     private val history = LearnedWords(null)
 
@@ -25,36 +28,44 @@ class GlideRankerTest {
     )
     private val ranker = GlideRanker(history, lookup)
 
-    private val toPath = listOf(GlideGuess("to", 3.29f), GlideGuess("too", 3.30f), GlideGuess("rio", 3.59f))
-    private val ofPath = listOf(GlideGuess("of", 3.29f), GlideGuess("off", 3.30f), GlideGuess("if", 3.46f))
-    private val youPath = listOf(GlideGuess("you", 3.29f), GlideGuess("tou", 4.19f), GlideGuess("thou", 5.50f))
+    private val toPath = listOf(GlideGuess("to", 3.28f), GlideGuess("too", 3.35f), GlideGuess("top", 3.54f))
+    private val ofPath = listOf(GlideGuess("of", 3.28f), GlideGuess("off", 3.36f), GlideGuess("odd", 3.80f))
+    private val youPath = listOf(GlideGuess("you", 3.28f), GlideGuess("Tupi", 4.89f), GlideGuess("thou", 5.48f))
+    private val amPath = listOf(GlideGuess("an", 3.43f), GlideGuess("am", 3.57f), GlideGuess("Sam", 3.96f))
 
     private fun after(text: String) = PreviousWords.from(text)
 
     @Test
     fun withoutContextTheClassifiersOrderStands() {
         history.add("too", "me")
-        assertEquals(listOf("to", "too", "rio"), ranker.rank(toPath, PreviousWords.NONE))
-        assertEquals(listOf("to", "too", "rio"), ranker.rank(toPath, after("going ")))
+        assertEquals(listOf("to", "too", "top"), ranker.rank(toPath, PreviousWords.NONE))
+        assertEquals(listOf("to", "too", "top"), ranker.rank(toPath, after("going ")))
     }
 
     @Test
     fun aHabitSettlesWordsWithTheSamePath() {
         history.add("too", "me")
-        assertEquals(listOf("too", "to", "rio"), ranker.rank(toPath, after("me ")))
-        assertEquals(listOf("too", "to", "rio"), ranker.rank(toPath, after("You and Me ")))
+        assertEquals(listOf("too", "to", "top"), ranker.rank(toPath, after("me ")))
+        assertEquals(listOf("too", "to", "top"), ranker.rank(toPath, after("You and Me ")))
+    }
+
+    @Test
+    fun aHabitTipsANeighbouringKeysCommonerWord() {
+        assertEquals(listOf("an", "am", "Sam"), ranker.rank(amPath, after("I ")))
+        history.add("am", "I")
+        assertEquals(listOf("am", "an", "Sam"), ranker.rank(amPath, after("I ")))
     }
 
     @Test
     fun aDictionaryNgramSettlesThemToo() {
-        assertEquals(listOf("off", "of", "if"), ranker.rank(ofPath, after("turn ")))
-        assertEquals(listOf("of", "off", "if"), ranker.rank(ofPath, after("out ")))
+        assertEquals(listOf("off", "of", "odd"), ranker.rank(ofPath, after("turn ")))
+        assertEquals(listOf("of", "off", "odd"), ranker.rank(ofPath, after("out ")))
     }
 
     @Test
     fun contextNeverOverridesASwipeThatClearlyTracesAnotherWord() {
         repeat(1000) { history.add("thou", "thank") }
-        assertEquals(listOf("you", "tou", "thou"), ranker.rank(youPath, after("thank ")))
+        assertEquals(listOf("you", "thou", "Tupi"), ranker.rank(youPath, after("thank ")), "up, but not past the word swiped")
     }
 
     @Test
@@ -81,7 +92,7 @@ class GlideRankerTest {
     @Test
     fun worksWithoutADictionary() {
         history.add("off", "turn")
-        assertEquals(listOf("off", "of", "if"), GlideRanker(history, lookup = null).rank(ofPath, after("turn ")))
-        assertEquals(listOf("of", "off", "if"), GlideRanker(TypingHistory.NONE, lookup = null).rank(ofPath, after("turn ")))
+        assertEquals(listOf("off", "of", "odd"), GlideRanker(history, lookup = null).rank(ofPath, after("turn ")))
+        assertEquals(listOf("of", "off", "odd"), GlideRanker(TypingHistory.NONE, lookup = null).rank(ofPath, after("turn ")))
     }
 }

@@ -50,6 +50,15 @@ class GlideTypingManager(context: Context) : GlideTypingGesture.Listener {
     private var glideTypingClassifier = StatisticalGlideTypingClassifier(context)
     private var lastTime = System.currentTimeMillis()
 
+    init {
+        // AudioWhisper: the words change once the dictionary has loaded, and with the user's (B18).
+        scope.launch(Dispatchers.Main) {
+            nlpManager.swipeWordsVersion.collect {
+                glideTypingClassifier.setWordData(subtypeManager.activeSubtype)
+            }
+        }
+    }
+
     override fun onGlideComplete(data: GlideTypingGesture.Detector.PointerData) {
         updateSuggestionsAsync(MAX_SUGGESTION_COUNT, true) {
             glideTypingClassifier.clear()

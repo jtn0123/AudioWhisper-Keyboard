@@ -14,6 +14,8 @@ class LatinDictionaryEngine private constructor(
     private val session: DicTraverseSession,
     private val proximityInfo: ProximityInfo,
 ) : TypingDecoder, Closeable {
+    /** Held for a whole [words] walk. */
+    private val walkLock = Any()
 
     @Synchronized
     override fun decode(
@@ -55,6 +57,31 @@ class LatinDictionaryEngine private constructor(
         return dictionary.getNgramProbability(slots.codePoints, slots.isBeginningOfSentence, word.codePoints().toArray())
     }
 
+    /**
+     * Every word the dictionary has a probability for (about 160,000), in dictionary order;
+     * entries that are only shortcuts, and the sentence-start marker, are left out. Takes a few
+     * hundred ms. Typing isn't held up meanwhile, since each step takes the engine on its own,
+     * but only one walk runs at a time: native keeps its place between steps.
+     */
+    fun words(): List<String> = synchronized(walkLock) {
+        val words = ArrayList<String>(EXPECTED_WORD_COUNT)
+        val codePoints = IntArray(BinaryDictionary.MAX_WORD_LENGTH)
+        val isBeginningOfSentence = BooleanArray(1)
+        var token = 0
+        do {
+            val word = synchronized(this) {
+                codePoints.fill(0)
+                token = dictionary.getNextWord(token, codePoints, isBeginningOfSentence)
+                val length = codePoints.indexOf(0).let { if (it < 0) codePoints.size else it }
+                val isWord = length > 0 && !isBeginningOfSentence[0] &&
+                    dictionary.getProbability(codePoints.copyOf(length)) != NOT_A_PROBABILITY
+                if (isWord) String(codePoints, 0, length) else null
+            }
+            word?.let(words::add)
+        } while (token != 0)
+        words
+    }
+
     @Synchronized
     override fun close() {
         session.close()
@@ -92,6 +119,9 @@ class LatinDictionaryEngine private constructor(
     }
 
     companion object {
+        /** The bundled dictionary's word count, rounded up, so the list is sized once. */
+        private const val EXPECTED_WORD_COUNT = 170_000
+
         /**
          * Opens the dictionary stored at [offset]..[offset] + [length] in [path] (a plain file or
          * an uncompressed APK entry). Returns null if the file is not a usable dictionary.

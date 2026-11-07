@@ -84,6 +84,19 @@ public final class BinaryDictionary {
     }
 
     /**
+     * One step of iterating every entry in the dictionary: writes the entry at {@code token} into
+     * {@code outCodePoints} (length {@link #MAX_WORD_LENGTH}, not null-terminated, so clear it
+     * first) and returns the next token, or 0 after the last entry. Pass 0 to start; one
+     * iteration at a time per dictionary, as native keeps its position list between calls.
+     * {@code outIsBeginningOfSentence[0]} is set for the sentence-start marker entry.
+     */
+    public int getNextWord(final int token, final int[] outCodePoints,
+            final boolean[] outIsBeginningOfSentence) {
+        if (!isValid()) return 0;
+        return getNextWordNative(mNativeDict, token, outCodePoints, outIsBeginningOfSentence);
+    }
+
+    /**
      * Runs the typing decoder (or, with {@code inputSize == 0}, next-word prediction) and writes
      * the results into {@code session}'s output buffers.
      */

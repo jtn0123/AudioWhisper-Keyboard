@@ -30,6 +30,7 @@ import com.jtn0123.audiowhisper.suggest.LatinSuggester
 import com.jtn0123.audiowhisper.suggest.NOT_A_PROBABILITY
 import com.jtn0123.audiowhisper.suggest.PersonalWords
 import com.jtn0123.audiowhisper.suggest.PreviousWords
+import com.jtn0123.audiowhisper.suggest.SwipeWords
 import com.jtn0123.audiowhisper.suggest.TapTrail
 import com.jtn0123.audiowhisper.suggest.TypingHistory
 import com.jtn0123.audiowhisper.suggest.TypingState
@@ -48,6 +49,10 @@ import dev.patrickgold.florisboard.ime.nlp.SuggestionCandidate
 import dev.patrickgold.florisboard.ime.nlp.SuggestionProvider
 import dev.patrickgold.florisboard.ime.nlp.WordSuggestionCandidate
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -63,7 +68,8 @@ import java.util.Locale
 
 /**
  * Word suggestions, auto-correction and next-word prediction from the AOSP LatinIME dictionary
- * engine (English only), plus the glide-typing word list from `ime/dict/data.json`.
+ * engine (English only), and swipe typing's words: the dictionary's in English, upstream's test
+ * list (`ime/dict/data.json`) in other languages.
  */
 class LatinLanguageProvider(context: Context) : SpellingProvider, SuggestionProvider {
     companion object {
@@ -103,8 +109,19 @@ class LatinLanguageProvider(context: Context) : SpellingProvider, SuggestionProv
     private val appContext by context.appContext()
     private val editorInstance by context.editorInstance()
 
+    /** Upstream's glide word list, for languages the dictionary doesn't cover; [testWords] is its words. */
     private val wordData = guardedByLock { mutableMapOf<String, Int>() }
     private val wordDataSerializer = MapSerializer(String.serializer(), Int.serializer())
+    @Volatile private var testWords: List<String> = emptyList()
+
+    /** English swipe typing's words (B18): the dictionary's once [preload] has read them, plus the user's. */
+    @Volatile private var swipeWords = SwipeWords.NONE
+    @Volatile private var swipeWordsFromDictionary = false
+    private val swipeWordsLock = Any()
+    private val mutableSwipeWordsVersion = MutableStateFlow(0)
+
+    /** Goes up each time [getListOfWords] would return a new list, so glide typing re-indexes. */
+    val swipeWordsVersion: StateFlow<Int> = mutableSwipeWordsVersion.asStateFlow()
 
     private val dictionaryLoadLock = Mutex()
     @Volatile private var engine: LatinDictionaryEngine? = null
@@ -136,16 +153,8 @@ class LatinLanguageProvider(context: Context) : SpellingProvider, SuggestionProv
     }
 
     override suspend fun preload(subtype: Subtype) = withContext(Dispatchers.IO) {
-        // Glide typing reads its word list from here, independently of the dictionary engine.
-        wordData.withLock { wordData ->
-            if (wordData.isEmpty()) {
-                // Here we use readText() because the test dictionary is a json dictionary
-                val rawData = appContext.assets.readText("ime/dict/data.json")
-                val jsonData = Json.decodeFromString(wordDataSerializer, rawData)
-                wordData.putAll(jsonData)
-            }
-        }
-        if (subtype.primaryLocale.language == DICTIONARY_LANGUAGE) loadDictionary()
+        val english = usesDictionary(subtype)
+        if (english) loadDictionary() else loadTestWords()
         if (!keptWordsLoaded) {
             keptAsTyped.load()
             keptWordsLoaded = true
@@ -154,6 +163,52 @@ class LatinLanguageProvider(context: Context) : SpellingProvider, SuggestionProv
             learnedWords.load()
             learnedWordsLoaded = true
         }
+        if (english) loadSwipeWords()
+    }
+
+    private fun usesDictionary(subtype: Subtype) = subtype.primaryLocale.language == DICTIONARY_LANGUAGE
+
+    /** Upstream's glide word list, for a language the dictionary doesn't cover. */
+    private suspend fun loadTestWords() {
+        val loaded = wordData.withLock { wordData ->
+            if (wordData.isNotEmpty()) return@withLock false
+            // Here we use readText() because the test dictionary is a json dictionary
+            val rawData = appContext.assets.readText("ime/dict/data.json")
+            wordData.putAll(Json.decodeFromString(wordDataSerializer, rawData))
+            testWords = wordData.keys.toList()
+            true
+        }
+        if (loaded) mutableSwipeWordsVersion.update { it + 1 }
+    }
+
+    /** Reads swipe typing's words from the dictionary, once: about 160,000 against upstream's 50,000. */
+    private suspend fun loadSwipeWords() {
+        dictionaryLoadLock.withLock {
+            val engine = engine
+            if (swipeWordsFromDictionary || engine == null) return@withLock
+            val started = SystemClock.elapsedRealtime()
+            val fromDictionary = SwipeWords.fromDictionary(engine.words(), engine::probability)
+            synchronized(swipeWordsLock) {
+                swipeWords = fromDictionary.withUserWords(userSwipeWords())
+                swipeWordsFromDictionary = true
+            }
+            mutableSwipeWordsVersion.update { it + 1 }
+            Log.d(TAG, "${fromDictionary.words.size} swipe words in ${SystemClock.elapsedRealtime() - started} ms")
+        }
+    }
+
+    /** Makes the user's current personal and learned words swipeable, and forgotten ones not. */
+    private fun refreshSwipeWords() {
+        val changed = synchronized(swipeWordsLock) {
+            val updated = swipeWords.withUserWords(userSwipeWords())
+            (updated !== swipeWords).also { swipeWords = updated }
+        }
+        if (changed) mutableSwipeWordsVersion.update { it + 1 }
+    }
+
+    private fun userSwipeWords(): Map<String, Int> {
+        val learned = if (prefs.suggestion.learnFromTyping.get()) learnedWords.knownSpellings() else emptyList()
+        return SwipeWords.userWords(personalWords.entries, learned)
     }
 
     /** Opens the bundled dictionary on first use; later calls return at once. */
@@ -184,7 +239,7 @@ class LatinLanguageProvider(context: Context) : SpellingProvider, SuggestionProv
     }
 
     private fun suggesterFor(subtype: Subtype): LatinSuggester? =
-        suggester.takeIf { subtype.primaryLocale.language == DICTIONARY_LANGUAGE }
+        suggester.takeIf { usesDictionary(subtype) }
 
     override suspend fun spell(
         subtype: Subtype,
@@ -286,6 +341,7 @@ class LatinLanguageProvider(context: Context) : SpellingProvider, SuggestionProv
             .filter { PersonalWords.appliesTo(it.locale, DICTIONARY_LANGUAGE) }
             .map { PersonalWords.Entry(it.word, it.freq, it.shortcut) }
         personalWords = PersonalWords(entries, Locale.US)
+        refreshSwipeWords()
     }
 
     private fun readPersonalDictionary(dao: UserDictionaryDao) = try {
@@ -333,6 +389,7 @@ class LatinLanguageProvider(context: Context) : SpellingProvider, SuggestionProv
     fun forgetLearnedWords() {
         learnedWords.clear()
         saveLearnedWords()
+        refreshSwipeWords()
     }
 
     /**
@@ -391,11 +448,13 @@ class LatinLanguageProvider(context: Context) : SpellingProvider, SuggestionProv
         return false
     }
 
+    /** The same list until [swipeWordsVersion] goes up. */
     override suspend fun getListOfWords(subtype: Subtype): List<String> {
-        return wordData.withLock { it.keys.toList() }
+        return if (usesDictionary(subtype)) swipeWords.words else testWords
     }
 
     override suspend fun getFrequencyForWord(subtype: Subtype, word: String): Double {
+        if (usesDictionary(subtype)) return swipeWords.frequency(word)
         return wordData.withLock { it.getOrDefault(word, 0) / 255.0 }
     }
 
@@ -403,6 +462,11 @@ class LatinLanguageProvider(context: Context) : SpellingProvider, SuggestionProv
         // Might never be called: the app process is usually killed instead.
         dictionaryLoadLock.withLock {
             suggester = null
+            synchronized(swipeWordsLock) {
+                swipeWords = SwipeWords.NONE
+                swipeWordsFromDictionary = false
+            }
+            mutableSwipeWordsVersion.update { it + 1 }
             engine?.close()
             engine = null
         }

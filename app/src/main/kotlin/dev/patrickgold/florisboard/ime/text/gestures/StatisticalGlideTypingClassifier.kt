@@ -26,6 +26,12 @@ import dev.patrickgold.florisboard.ime.keyboard.KeyData
 import dev.patrickgold.florisboard.ime.text.key.KeyCode
 import dev.patrickgold.florisboard.ime.text.keyboard.TextKey
 import dev.patrickgold.florisboard.nlpManager
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.text.Normalizer
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
@@ -61,6 +67,13 @@ class StatisticalGlideTypingClassifier(context: Context) : GlideTypingClassifier
     val ready: Boolean
         get() = currentSubtype == layoutSubtype && wordDataSubtype == layoutSubtype && wordDataSubtype != null
     private val prunerCache = LruCache<Subtype, Pruner>(PRUNER_CACHE_SIZE)
+
+    /**
+     * AudioWhisper: builds a [Pruner] off the main thread, as indexing the dictionary's 160,000
+     * words takes a while (B18). Until it's done the previous one keeps working.
+     */
+    private val prunerScope = CoroutineScope(Dispatchers.Default + SupervisorJob())
+    private var prunerBuild: Job? = null
 
     /**
      * The minimum distance between points to be added to a gesture.
@@ -119,7 +132,8 @@ class StatisticalGlideTypingClassifier(context: Context) : GlideTypingClassifier
     }
 
     override fun setLayout(keyViews: List<TextKey>, subtype: Subtype) {
-        setWordData(subtype)
+        // AudioWhisper: a change of words for the same subtype arrives through setWordData (B18).
+        if (wordDataSubtype != subtype) setWordData(subtype)
         // stop duplicate calls
         if (layoutSubtype == subtype && keys == keyViews) {
             return
@@ -147,12 +161,14 @@ class StatisticalGlideTypingClassifier(context: Context) : GlideTypingClassifier
     }
 
     override fun setWordData(subtype: Subtype) {
-        // stop duplicate calls..
-        if (wordDataSubtype == subtype) {
+        // AudioWhisper: called again whenever the word list changes (B18); the provider returns
+        // the same list until then, so the same list needs no new index.
+        val words = nlpManager.getListOfWords(subtype)
+        if (wordDataSubtype == subtype && words === this.words) {
             return
         }
 
-        this.words = nlpManager.getListOfWords(subtype)
+        this.words = words
 
         this.wordDataSubtype = subtype
         if (wordDataSubtype == layoutSubtype) {
@@ -166,17 +182,32 @@ class StatisticalGlideTypingClassifier(context: Context) : GlideTypingClassifier
      */
     private fun initializePruner(invalidateCache: Boolean) {
         val currentSubtype = this.layoutSubtype!!
+        val words = this.words
         val cached = when {
             invalidateCache -> null
-            else -> prunerCache.get(currentSubtype)
+            else -> prunerCache.get(currentSubtype)?.takeIf { it.words === words }
         }
+        prunerBuild?.cancel()
         if (cached == null) {
-            this.pruner = Pruner(PRUNING_LENGTH_THRESHOLD, this.words, keysByCharacter)
-            prunerCache.put(currentSubtype, this.pruner)
+            buildPruner(currentSubtype, words)
         } else {
             this.pruner = cached
+            this.currentSubtype = currentSubtype
         }
-        this.currentSubtype = currentSubtype
+    }
+
+    /** AudioWhisper: see [prunerScope]. Only the latest build is used; any older one is dropped. */
+    private fun buildPruner(subtype: Subtype, words: List<String>) {
+        val keys = keysByCharacter.clone()
+        prunerBuild = prunerScope.launch {
+            val built = Pruner(PRUNING_LENGTH_THRESHOLD, words, keys)
+            withContext(Dispatchers.Main) {
+                if (layoutSubtype != subtype || this@StatisticalGlideTypingClassifier.words !== words) return@withContext
+                pruner = built
+                prunerCache.put(subtype, built)
+                currentSubtype = subtype
+            }
+        }
     }
 
     override fun initGestureFromPointerData(pointerData: GlideTypingGesture.Detector.PointerData) {
@@ -301,7 +332,8 @@ class StatisticalGlideTypingClassifier(context: Context) : GlideTypingClassifier
          * be pruned.
          */
         private val lengthThreshold: Double,
-        words: List<String>,
+        /** AudioWhisper: kept to tell whether this index is for the current word list. */
+        val words: List<String>,
         keysByCharacter: SparseArrayCompat<TextKey>,
     ) {
 
@@ -380,8 +412,9 @@ class StatisticalGlideTypingClassifier(context: Context) : GlideTypingClassifier
                 word: String,
                 keysByCharacter: SparseArrayCompat<TextKey>,
             ): Pair<Int, Int>? {
-                val firstLetter = word[0]
-                val lastLetter = word[word.length - 1]
+                // AudioWhisper: lower-cased, so the dictionary's "I'm" and "London" have keys (B18).
+                val firstLetter = Character.toLowerCase(word[0])
+                val lastLetter = Character.toLowerCase(word[word.length - 1])
                 val firstBaseChar = Normalizer.normalize(firstLetter.toString(), Normalizer.Form.NFD)[0]
                 val lastBaseChar = Normalizer.normalize(lastLetter.toString(), Normalizer.Form.NFD)[0]
                 return when {

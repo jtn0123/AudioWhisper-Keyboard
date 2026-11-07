@@ -67,6 +67,11 @@ class LearnedWords(
         pairs.clear()
     }
 
+    /** How the user spells each word they have used [TypingHistory.KNOWN_AFTER] times. */
+    @Synchronized
+    fun knownSpellings(): List<String> =
+        words.values.filter { it.count >= TypingHistory.KNOWN_AFTER }.map { it.spelling }
+
     @Synchronized
     override fun spellingOf(word: String): String? =
         words[key(word)]?.takeIf { it.count >= TypingHistory.KNOWN_AFTER }?.spelling
