@@ -207,9 +207,18 @@ class Dictation(private val context: Context, private val editor: Editor) {
         return true
     }
 
-    /** The mic, or in a debug build a recording copied in for testing (see [MicAudio.Replay]). */
+    /**
+     * The mic, or in a debug build a recording copied in for testing (see [MicAudio.Replay]).
+     * [mayStart] asked for the permission already; checked again here, where the mic opens, in
+     * case it was revoked since, which [start] then explains like any mic that won't open.
+     */
     private fun openAudio(): MicAudio {
-        val replay = MicAudio.Replay.file(context) ?: return MicAudio.Mic.open()
+        val replay = MicAudio.Replay.file(context)
+        if (replay == null) {
+            val granted = context.checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
+            check(granted) { "No microphone permission" }
+            return MicAudio.Mic.open()
+        }
         Log.i(TAG, "Listening to ${replay.name} instead of the mic")
         return try {
             MicAudio.Replay.open(replay)
