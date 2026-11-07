@@ -214,6 +214,9 @@
     "background": "var(--surface)",
     "foreground": "var(--on-background)"
   },
+  "smartbar-candidate-word-text[auto-commit=1]": {
+    "font-weight": "bold"
+  },
   "smartbar-candidate-word-secondary-text": {
     "font-size": "8sp",
     "margin": "0dp 2dp 0dp 0dp"
