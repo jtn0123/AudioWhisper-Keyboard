@@ -97,7 +97,7 @@ class Dictation(private val context: Context, private val editor: Editor) {
         val id = ++session
         val next = newListener(id)
         try {
-            next.start()
+            next.start(::openAudio)
         } catch (e: IllegalStateException) {
             Log.e(TAG, "Could not start recording", e)
             editor.problem("Microphone unavailable. Another app may be using it.")
@@ -157,6 +157,17 @@ class Dictation(private val context: Context, private val editor: Editor) {
             return false
         }
         return true
+    }
+
+    /** The mic, or in a debug build a recording copied in for testing (see [MicAudio.Replay]). */
+    private fun openAudio(): MicAudio {
+        val replay = MicAudio.Replay.file(context) ?: return MicAudio.Mic.open()
+        Log.i(TAG, "Listening to ${replay.name} instead of the mic")
+        return try {
+            MicAudio.Replay.open(replay)
+        } catch (e: IllegalArgumentException) {
+            throw IllegalStateException("Could not read ${replay.name}", e)
+        }
     }
 
     private fun appSettings() = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)

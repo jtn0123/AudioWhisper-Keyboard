@@ -1,8 +1,6 @@
 package com.jtn0123.audiowhisper.dictation
 
-import android.Manifest
 import android.content.res.AssetManager
-import androidx.annotation.RequiresPermission
 import com.k2fsa.sherpa.onnx.SileroVadModelConfig
 import com.k2fsa.sherpa.onnx.Vad
 import com.k2fsa.sherpa.onnx.VadModelConfig
@@ -34,10 +32,10 @@ class PhraseListener(
         drain()
     }
 
-    @RequiresPermission(Manifest.permission.RECORD_AUDIO)
-    fun start() {
+    /** Starts listening to the audio [open] opens; throws IllegalStateException if it can't. */
+    fun start(open: () -> MicAudio) {
         try {
-            mic.start()
+            mic.start(open)
         } catch (e: IllegalStateException) {
             vad.release()
             throw e

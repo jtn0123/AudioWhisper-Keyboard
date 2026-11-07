@@ -1,10 +1,5 @@
 package com.jtn0123.audiowhisper.dictation
 
-import android.Manifest
-import android.media.AudioFormat
-import android.media.AudioRecord
-import android.media.MediaRecorder
-import androidx.annotation.RequiresPermission
 import kotlin.concurrent.thread
 import kotlin.math.sqrt
 
@@ -26,26 +21,11 @@ class MicRecorder(
     @Volatile private var running = false
     private var worker: Thread? = null
 
-    @RequiresPermission(Manifest.permission.RECORD_AUDIO)
-    fun start() {
-        val record = AudioRecord(
-            MediaRecorder.AudioSource.VOICE_RECOGNITION,
-            Transcriber.SAMPLE_RATE,
-            AudioFormat.CHANNEL_IN_MONO,
-            AudioFormat.ENCODING_PCM_FLOAT,
-            bufferBytes(),
-        )
-        try {
-            check(record.state == AudioRecord.STATE_INITIALIZED) { "The microphone could not be opened" }
-            record.startRecording()
-            // Not an exception when another app holds the mic: it just doesn't start.
-            check(record.recordingState == AudioRecord.RECORDSTATE_RECORDING) { "The microphone could not be started" }
-        } catch (e: IllegalStateException) {
-            record.release()
-            throw e
-        }
+    /** Starts recording from the audio [open] opens, which throws IllegalStateException if it can't. */
+    fun start(open: () -> MicAudio) {
+        val audio = open()
         running = true
-        worker = thread(name = "mic") { pump(record) }
+        worker = thread(name = "mic") { pump(audio) }
     }
 
     /** Stops recording; every [onAudio] call has returned when this does. */
@@ -55,11 +35,11 @@ class MicRecorder(
         worker = null
     }
 
-    private fun pump(record: AudioRecord) {
+    private fun pump(audio: MicAudio) {
         val buffer = FloatArray(Transcriber.SAMPLE_RATE / 10)
         try {
             while (running) {
-                val n = record.read(buffer, 0, buffer.size, AudioRecord.READ_BLOCKING)
+                val n = audio.read(buffer)
                 if (n < 0) {
                     if (running) onError(n)
                     break
@@ -69,19 +49,9 @@ class MicRecorder(
                 onLevel(level(buffer, n))
             }
         } finally {
-            record.stop()
-            record.release()
+            audio.close()
         }
     }
-
-    private fun bufferBytes(): Int = maxOf(
-        AudioRecord.getMinBufferSize(
-            Transcriber.SAMPLE_RATE,
-            AudioFormat.CHANNEL_IN_MONO,
-            AudioFormat.ENCODING_PCM_FLOAT,
-        ),
-        Transcriber.SAMPLE_RATE * Float.SIZE_BYTES / 2,
-    )
 
     /** RMS scaled so ordinary speech fills most of the meter. */
     private fun level(buffer: FloatArray, n: Int): Float {
