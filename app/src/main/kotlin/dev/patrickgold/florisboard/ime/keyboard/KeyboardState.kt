@@ -16,12 +16,18 @@
 
 package dev.patrickgold.florisboard.ime.keyboard
 
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.State
+import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.unit.LayoutDirection
 import dev.patrickgold.florisboard.ime.ImeUiMode
 import dev.patrickgold.florisboard.ime.input.InputShiftState
 import dev.patrickgold.florisboard.ime.text.key.KeyVariation
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import org.florisboard.lib.kotlin.collectLatestIn
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.contracts.InvocationKind
 import kotlin.contracts.contract
@@ -219,12 +225,24 @@ open class KeyboardState protected constructor(open var rawValue: ULong) {
 class ObservableKeyboardState private constructor(
     initValue: ULong,
     private val dispatchFlow: MutableStateFlow<KeyboardState> = MutableStateFlow(KeyboardState.new(initValue)),
-) : KeyboardState(initValue), StateFlow<KeyboardState> by dispatchFlow {
+) : KeyboardState(initValue) {
 
     companion object {
         const val BATCH_ZERO: Int = 0
 
         fun new(value: ULong = STATE_ALL_ZERO) = ObservableKeyboardState(value)
+    }
+
+    /**
+     * Snapshots of this state, emitted whenever it changes outside of a batch edit.
+     */
+    val flow: StateFlow<KeyboardState> = dispatchFlow.asStateFlow()
+
+    @Composable
+    fun collectAsState(): State<KeyboardState> = flow.collectAsState()
+
+    fun collectLatestIn(scope: CoroutineScope, action: suspend (value: KeyboardState) -> Unit) {
+        flow.collectLatestIn(scope, action)
     }
 
     override var rawValue by Delegates.observable(initValue) { _, old, new -> if (old != new) dispatchState() }

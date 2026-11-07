@@ -78,9 +78,10 @@ enum class ItemType(val value: Int) {
  * If type == ItemType.IMAGE there must be a uri set
  * if type == ItemType.TEXT there must be a text set
  */
+@OptIn(ExperimentalSerializationApi::class)
 @Serializable
 @Entity(tableName = CLIPBOARD_HISTORY_TABLE)
-data class ClipboardItem @OptIn(ExperimentalSerializationApi::class) constructor(
+data class ClipboardItem(
     @PrimaryKey(autoGenerate = true)
     @ColumnInfo(name = BaseColumns._ID, index = true)
     var id: Long = 0,
@@ -187,7 +188,7 @@ data class ClipboardItem @OptIn(ExperimentalSerializationApi::class) constructor
     }
 
     @Composable
-    inline fun displayText(): String {
+    fun displayText(): String {
         val context = LocalContext.current
         return displayText(context)
     }
@@ -247,8 +248,8 @@ class Converters {
     }
 
     @TypeConverter
-    fun stringFromUri(value: Uri?): String {
-        return value.toString()
+    fun stringFromUri(value: Uri?): String? {
+        return value?.toString()
     }
 
     @TypeConverter
@@ -342,7 +343,7 @@ abstract class ClipboardHistoryDatabase : RoomDatabase() {
                 .databaseBuilder(
                     context, ClipboardHistoryDatabase::class.java, CLIPBOARD_HISTORY_TABLE,
                 )
-                .fallbackToDestructiveMigration()
+                .fallbackToDestructiveMigration(dropAllTables = false)
                 .build()
         }
     }
@@ -390,7 +391,7 @@ abstract class ClipboardFilesDatabase : RoomDatabase() {
                 .databaseBuilder(
                     context, ClipboardFilesDatabase::class.java, CLIPBOARD_FILES_TABLE,
                 )
-                .fallbackToDestructiveMigration()
+                .fallbackToDestructiveMigration(dropAllTables = false)
                 .build()
         }
     }

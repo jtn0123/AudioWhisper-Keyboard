@@ -70,7 +70,7 @@ class FlorisLocale private constructor(val base: Locale) {
          *
          * @return A new [FlorisLocale].
          */
-        fun from(language: String) = from(Locale(language))
+        fun from(language: String) = from(Locale.of(language))
 
         /**
          * Constructs a new [FlorisLocale] with given [language] and [country].
@@ -80,7 +80,7 @@ class FlorisLocale private constructor(val base: Locale) {
          *
          * @return A new [FlorisLocale].
          */
-        fun from(language: String, country: String) = from(Locale(language, country))
+        fun from(language: String, country: String) = from(Locale.of(language, country))
 
         /**
          * Constructs a new [FlorisLocale] with given [language], [country] and [variant].
@@ -91,7 +91,7 @@ class FlorisLocale private constructor(val base: Locale) {
          *
          * @return A new [FlorisLocale].
          */
-        fun from(language: String, country: String, variant: String) = from(Locale(language, country, variant))
+        fun from(language: String, country: String, variant: String) = from(Locale.of(language, country, variant))
 
         /**
          * Constructs a new [FlorisLocale] from given [str].

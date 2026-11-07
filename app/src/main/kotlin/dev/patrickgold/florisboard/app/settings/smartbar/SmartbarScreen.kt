@@ -16,8 +16,11 @@
 
 package dev.patrickgold.florisboard.app.settings.smartbar
 
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.Switch
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.SideEffect
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalViewConfiguration
 import dev.patrickgold.florisboard.R
 import dev.patrickgold.florisboard.app.enumDisplayEntriesOf
 import dev.patrickgold.florisboard.ime.smartbar.CandidatesDisplayMode
@@ -25,6 +28,7 @@ import dev.patrickgold.florisboard.ime.smartbar.ExtendedActionsPlacement
 import dev.patrickgold.florisboard.ime.smartbar.SmartbarLayout
 import dev.patrickgold.florisboard.lib.compose.FlorisScreen
 import dev.patrickgold.jetpref.datastore.ui.ListPreference
+import dev.patrickgold.jetpref.datastore.ui.Preference
 import dev.patrickgold.jetpref.datastore.ui.PreferenceGroup
 import dev.patrickgold.jetpref.datastore.ui.SwitchPreference
 import org.florisboard.lib.compose.stringRes
@@ -65,15 +69,19 @@ fun SmartbarScreen() = FlorisScreen {
                         prefs.smartbar.layout isEqualTo SmartbarLayout.SUGGESTIONS_ACTIONS_EXTENDED
                 },
             )
-            // TODO: schedule to remove this preference in the future, but keep it for now so users
-            //  know why the setting is not available anymore. Also force enable it for UI display.
-            SideEffect {
-                // prefs.smartbar.sharedActionsAutoExpandCollapse.set(true)
-            }
-            SwitchPreference(
-                prefs.smartbar.sharedActionsAutoExpandCollapse,
+            // TODO: schedule to remove this row in the future, but keep it for now so users know why
+            //  the setting is not available anymore. The preference itself is gone, so show it as always on.
+            Preference(
                 title = stringRes(R.string.pref__smartbar__shared_actions_auto_expand_collapse__label),
                 summary = "[Since v0.4.1] Always enabled due to UX issues",
+                trailing = {
+                    Switch(
+                        checked = true,
+                        onCheckedChange = null,
+                        modifier = Modifier.size(LocalViewConfiguration.current.minimumTouchTargetSize),
+                        enabled = false,
+                    )
+                },
                 enabledIf = { false },
                 visibleIf = { prefs.smartbar.layout isEqualTo SmartbarLayout.SUGGESTIONS_ACTIONS_SHARED },
             )

@@ -79,6 +79,14 @@ data class UserDictionaryEntry(
     val shortcut: String?,
 )
 
+/**
+ * A row of [UserDictionaryDao.queryLanguageList]. A null [locale] means the words apply to all languages.
+ */
+data class UserDictionaryLanguage(
+    @ColumnInfo(name = UserDictionary.Words.LOCALE)
+    val locale: FlorisLocale?,
+)
+
 @Dao
 interface UserDictionaryDao {
     companion object {
@@ -116,7 +124,7 @@ interface UserDictionaryDao {
     fun queryExactFuzzyLocale(word: String, locale: FlorisLocale?): List<UserDictionaryEntry>
 
     @Query("SELECT DISTINCT ${UserDictionary.Words.LOCALE} FROM $WORDS_TABLE")
-    fun queryLanguageList(): List<FlorisLocale?>
+    fun queryLanguageList(): List<UserDictionaryLanguage>
 
     @Insert
     fun insert(entry: UserDictionaryEntry)
@@ -366,7 +374,7 @@ class SystemUserDictionaryDatabase(context: Context) : UserDictionaryDatabase {
             }
         }
 
-        override fun queryLanguageList(): List<FlorisLocale?> {
+        override fun queryLanguageList(): List<UserDictionaryLanguage> {
             val resolver = applicationContext.get()?.contentResolver ?: return listOf()
             val cursor = resolver.query(
                 UserDictionary.Words.CONTENT_URI,
@@ -379,13 +387,13 @@ class SystemUserDictionaryDatabase(context: Context) : UserDictionaryDatabase {
                 return listOf()
             }
             val localeIndex = cursor.getColumnIndex(UserDictionary.Words.LOCALE)
-            val retList = mutableSetOf<FlorisLocale?>()
+            val retList = mutableSetOf<UserDictionaryLanguage>()
             while (cursor.moveToNext()) {
                 val localeStr = cursor.getString(localeIndex)
                 if (localeStr == null) {
-                    retList.add(null)
+                    retList.add(UserDictionaryLanguage(null))
                 } else {
-                    retList.add(FlorisLocale.fromTag(localeStr))
+                    retList.add(UserDictionaryLanguage(FlorisLocale.fromTag(localeStr)))
                 }
             }
             cursor.close()

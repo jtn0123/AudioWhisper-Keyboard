@@ -19,6 +19,7 @@ package dev.patrickgold.florisboard.app.ext
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.platform.LocalContext
 import dev.patrickgold.florisboard.R
 import dev.patrickgold.florisboard.app.LocalNavController
@@ -27,7 +28,8 @@ import org.florisboard.lib.android.showLongToast
 import dev.patrickgold.florisboard.lib.compose.FlorisScreen
 import dev.patrickgold.florisboard.lib.ext.Extension
 import dev.patrickgold.florisboard.lib.ext.ExtensionDefaults
-import org.florisboard.lib.android.showLongToastSync
+import dev.patrickgold.florisboard.lib.io.FileRegistry
+import kotlinx.coroutines.launch
 
 @Composable
 fun ExtensionExportScreen(id: String) {
@@ -50,9 +52,10 @@ private fun ExportScreen(ext: Extension) = FlorisScreen {
     val navController = LocalNavController.current
     val context = LocalContext.current
     val extensionManager by context.extensionManager()
+    val scope = rememberCoroutineScope()
 
     val exportLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.CreateDocument(),
+        contract = ActivityResultContracts.CreateDocument(FileRegistry.FlexExtension.mediaType),
         onResult = { uri ->
             // If uri is null it indicates that the selection activity
             //  was cancelled (mostly by pressing the back button), so
@@ -61,12 +64,15 @@ private fun ExportScreen(ext: Extension) = FlorisScreen {
                 navController.popBackStack()
                 return@rememberLauncherForActivityResult
             }
-            runCatching { extensionManager.export(ext, uri) }.onSuccess {
-                context.showLongToastSync(R.string.ext__export__success)
-            }.onFailure { error ->
-                context.showLongToastSync(R.string.ext__export__failure, "error_message" to error.localizedMessage)
+            val result = runCatching { extensionManager.export(ext, uri) }
+            scope.launch {
+                result.onSuccess {
+                    context.showLongToast(R.string.ext__export__success)
+                }.onFailure { error ->
+                    context.showLongToast(R.string.ext__export__failure, "error_message" to error.localizedMessage)
+                }
+                navController.popBackStack()
             }
-            navController.popBackStack()
         },
     )
 

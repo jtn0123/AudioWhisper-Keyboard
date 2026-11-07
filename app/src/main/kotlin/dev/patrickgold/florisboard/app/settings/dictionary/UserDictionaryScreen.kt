@@ -65,7 +65,6 @@ import dev.patrickgold.jetpref.material.ui.JetPrefTextField
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.florisboard.lib.android.showLongToast
-import org.florisboard.lib.android.showLongToastSync
 import org.florisboard.lib.android.stringRes
 import org.florisboard.lib.compose.FlorisIconButton
 import org.florisboard.lib.compose.rippleClickable
@@ -127,6 +126,7 @@ fun UserDictionaryScreen(type: UserDictionaryType) = FlorisScreen {
             //subtitle = null
             languageList = userDictionaryDao()
                 ?.queryLanguageList()
+                ?.map { it.locale }
                 ?.sortedBy { it?.displayLanguage() }
                 ?.map { it ?: AllLanguagesLocale }
                 ?: emptyList()
@@ -144,22 +144,22 @@ fun UserDictionaryScreen(type: UserDictionaryType) = FlorisScreen {
                 UserDictionaryType.SYSTEM -> dictionaryManager.systemUserDictionaryDatabase()
             }
             if (db == null) {
-                context.showLongToastSync("Database handle is null, failed to import")
+                scope.launch { context.showLongToast("Database handle is null, failed to import") }
                 return@rememberLauncherForActivityResult
             }
             runCatching {
                 db.importCombinedList(context, uri)
             }.onSuccess {
                 buildUi()
-                context.showLongToastSync(R.string.settings__udm__dictionary_import_success)
+                scope.launch { context.showLongToast(R.string.settings__udm__dictionary_import_success) }
             }.onFailure { error ->
-                context.showLongToastSync("Error: ${error.localizedMessage}")
+                scope.launch { context.showLongToast("Error: ${error.localizedMessage}") }
             }
         },
     )
 
     val exportDictionary = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.CreateDocument(),
+        contract = ActivityResultContracts.CreateDocument("application/octet-stream"),
         onResult = { uri ->
             // If uri is null it indicates that the selection activity was cancelled (mostly
             // by pressing the back button), so we don't display an error message here.
@@ -169,15 +169,15 @@ fun UserDictionaryScreen(type: UserDictionaryType) = FlorisScreen {
                 UserDictionaryType.SYSTEM -> dictionaryManager.systemUserDictionaryDatabase()
             }
             if (db == null) {
-                context.showLongToastSync("Database handle is null, failed to export")
+                scope.launch { context.showLongToast("Database handle is null, failed to export") }
                 return@rememberLauncherForActivityResult
             }
             runCatching {
                 db.exportCombinedList(context, uri)
             }.onSuccess {
-                context.showLongToastSync(R.string.settings__udm__dictionary_export_success)
+                scope.launch { context.showLongToast(R.string.settings__udm__dictionary_export_success) }
             }.onFailure { error ->
-                context.showLongToastSync("Error: ${error.localizedMessage}")
+                scope.launch { context.showLongToast("Error: ${error.localizedMessage}") }
             }
         },
     )
