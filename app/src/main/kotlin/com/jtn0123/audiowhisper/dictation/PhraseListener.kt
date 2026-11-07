@@ -27,7 +27,9 @@ class PhraseListener(
     // Used by the microphone thread, then by stop() after that thread has
     // ended, never by both at once.
     private val vad = Vad(assets, VadModelConfig(sileroVadModelConfig = SILERO, sampleRate = Transcriber.SAMPLE_RATE))
+    private val history = AudioHistory(HISTORY_SAMPLES)
     private val mic = MicRecorder(onLevel, onMicError) { audio ->
+        history.add(audio)
         vad.acceptWaveform(audio)
         drain()
     }
@@ -54,7 +56,8 @@ class PhraseListener(
 
     private fun drain() {
         while (!vad.empty()) {
-            onPhrase(vad.front().samples)
+            val segment = vad.front()
+            onPhrase(history.slice(segment.start - LEAD_IN_SAMPLES, segment.start) + segment.samples)
             vad.pop()
         }
     }
@@ -63,11 +66,21 @@ class PhraseListener(
         val SILERO = SileroVadModelConfig(
             model = "silero_vad.onnx",
             // Long enough that a breath mid-sentence doesn't split it.
-            minSilenceDuration = 0.6f,
+            minSilenceDuration = MIN_SILENCE_SECONDS,
             minSpeechDuration = 0.25f,
             // Past this, the VAD splits at the next brief dip instead of
             // waiting for a real pause, so no phrase grows without bound.
-            maxSpeechDuration = 20f,
+            maxSpeechDuration = MAX_SPEECH_SECONDS,
         )
+        const val MIN_SILENCE_SECONDS = 0.6f
+        const val MAX_SPEECH_SECONDS = 20f
+
+        // The VAD starts a phrase late enough to cut a short first word ("I", the "J" of
+        // "John"); 0.3 s brought them back in testing. It stays inside the pause before, which
+        // is at least MIN_SILENCE_SECONDS, so it never repeats the end of the last phrase.
+        const val LEAD_IN_SAMPLES = Transcriber.SAMPLE_RATE * 3 / 10
+
+        // Back as far as the start of the longest phrase, with room to spare.
+        const val HISTORY_SAMPLES = Transcriber.SAMPLE_RATE * (MAX_SPEECH_SECONDS.toInt() + 5)
     }
 }
