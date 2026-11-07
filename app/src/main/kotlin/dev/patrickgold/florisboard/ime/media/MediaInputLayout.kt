@@ -114,11 +114,14 @@ fun MediaInputLayout(
                         fontWeight = FontWeight.Bold,
                     )
                 }
-                MediaTab(selected = !showingGifs, onClick = { GifSearch.showGifs(false) }) {
-                    Icon(imageVector = Icons.Outlined.EmojiEmotions, contentDescription = "Emoji")
-                }
-                MediaTab(selected = showingGifs, onClick = { GifSearch.showGifs(true) }) {
-                    Text(text = "GIF", fontWeight = FontWeight.Bold)
+                // With no GIPHY key there are only emoji, so there is nothing to switch between.
+                if (GifSearch.available) {
+                    MediaTab(selected = !showingGifs, onClick = { GifSearch.showGifs(false) }) {
+                        Icon(imageVector = Icons.Outlined.EmojiEmotions, contentDescription = "Emoji")
+                    }
+                    MediaTab(selected = showingGifs, onClick = { GifSearch.showGifs(true) }) {
+                        Text(text = "GIF", fontWeight = FontWeight.Bold)
+                    }
                 }
                 Spacer(modifier = Modifier.weight(1f))
                 KeyboardLikeButton(

@@ -87,7 +87,6 @@ fun GifPanel(modifier: Modifier = Modifier) {
         Box(modifier = Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
             when (val result = results) {
                 GifSearch.Results.Loading -> CircularProgressIndicator(Modifier.size(28.dp), strokeWidth = 2.dp)
-                GifSearch.Results.NeedsKey -> Message("GIF search needs a GIPHY API key.")
                 is GifSearch.Results.Failed -> Message("${result.message} Tap to try again.") { GifSearch.load(shown) }
                 is GifSearch.Results.Loaded -> when {
                     result.gifs.isEmpty() -> Message("No GIFs for “$shown”.")

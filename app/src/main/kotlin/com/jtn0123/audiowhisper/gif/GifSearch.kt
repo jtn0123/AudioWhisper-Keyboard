@@ -24,7 +24,6 @@ object GifSearch {
         data object Loading : Results
         data class Loaded(val gifs: List<Gif>) : Results
         data class Failed(val message: String) : Results
-        data object NeedsKey : Results
     }
 
     /** The quick searches under the search field; "Trending" is GIPHY's trending list. */
@@ -35,6 +34,13 @@ object GifSearch {
     const val TRENDING = "Trending"
 
     private val giphy = BuildConfig.GIPHY_API_KEY.takeIf { it.isNotBlank() }?.let { Giphy(it) }
+
+    /**
+     * A GIPHY key was built in. Without one there is no GIF tab: nothing on the phone could
+     * supply the key, so the tab could only ever say it was missing. See `giphy.apiKey` in
+     * app/build.gradle.kts.
+     */
+    val available: Boolean get() = giphy != null
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private var loading: Job? = null
 
@@ -62,7 +68,7 @@ object GifSearch {
     val results: StateFlow<Results> = mutableResults.asStateFlow()
 
     fun showGifs(show: Boolean) {
-        mutableShowingGifs.value = show
+        mutableShowingGifs.value = show && available
         if (show && results.value !is Results.Loaded) load(shown.value)
     }
 
@@ -113,7 +119,7 @@ object GifSearch {
 
     fun load(search: String) {
         mutableShown.value = search
-        val giphy = giphy ?: run { mutableResults.value = Results.NeedsKey; return }
+        val giphy = giphy ?: return
         loading?.cancel()
         mutableResults.value = Results.Loading
         loading = scope.launch {

@@ -41,7 +41,7 @@ val projectVersionNameSuffix = projectVersionName.substringAfter("-", "").let { 
 
 // AudioWhisper: GIF search needs a GIPHY API key. It is read from local.properties
 // (giphy.apiKey=...) or the GIPHY_API_KEY environment variable, never committed;
-// without one the GIF panel says a key is needed.
+// without one the keyboard has no GIF tab.
 val giphyApiKey: String = rootProject.file("local.properties")
     .takeIf { it.exists() }
     ?.let { file -> Properties().apply { file.inputStream().use { load(it) } }.getProperty("giphy.apiKey") }
