@@ -1,6 +1,7 @@
 <resources>
     <string name="florisboard__repo_url" translatable="false">https://github.com/florisboard/florisboard</string>
-    <string name="florisboard__issue_tracker_url" translatable="false">https://github.com/florisboard/florisboard/issues</string>
+    <!-- Crash reports from this fork belong to the fork, not upstream. -->
+    <string name="florisboard__issue_tracker_url" translatable="false">https://github.com/jtn0123/AudioWhisper-Keyboard/issues</string>
     <string name="florisboard__privacy_policy_url" translatable="false">https://florisboard.org/legal/privacy/</string>
     <string name="florisboard__changelog_url" translatable="false">https://github.com/florisboard/florisboard/releases/v{version}</string>
     <string name="florisboard__commit_by_hash_url" translatable="false">https://github.com/florisboard/florisboard/commit/{hash}</string>

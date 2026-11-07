@@ -616,7 +616,7 @@ class FlorisImeService : LifecycleInputMethodService() {
     private fun ImeUiWrapper() {
         ProvideLocalizedResources(
             resourcesContext,
-            appName = R.string.app_name,
+            appName = R.string.floris_app_name,
         ) {
             ProvideKeyboardRowBaseHeight {
                 CompositionLocalProvider(LocalInputFeedbackController provides inputFeedbackController) {
@@ -769,7 +769,7 @@ class FlorisImeService : LifecycleInputMethodService() {
 
             ProvideLocalizedResources(
                 resourcesContext,
-                appName = R.string.app_name,
+                appName = R.string.floris_app_name,
                 forceLayoutDirection = LayoutDirection.Ltr,
             ) {
                 FlorisImeTheme {
@@ -825,7 +825,7 @@ class FlorisImeService : LifecycleInputMethodService() {
         fun Content() {
             ProvideLocalizedResources(
                 resourcesContext,
-                appName = R.string.app_name,
+                appName = R.string.floris_app_name,
                 forceLayoutDirection = LayoutDirection.Ltr,
             ) {
                 FlorisImeTheme {
