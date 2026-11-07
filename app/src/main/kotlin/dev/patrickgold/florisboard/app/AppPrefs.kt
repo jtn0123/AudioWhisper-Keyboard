@@ -733,7 +733,9 @@ abstract class FlorisPreferenceModel : PreferenceModel() {
         )
         val displayMode = enum(
             key = "suggestion__display_mode",
-            default = CandidatesDisplayMode.DYNAMIC_SCROLLABLE,
+            // AudioWhisper: three equal slots. The scrolling strip showed five or more words and cut
+            // the last one off at the pinned emoji button.
+            default = CandidatesDisplayMode.CLASSIC,
         )
         val blockPossiblyOffensive = boolean(
             key = "suggestion__block_possibly_offensive",
