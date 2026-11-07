@@ -53,6 +53,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.unit.dp
+import com.jtn0123.audiowhisper.dictation.Dictation
 import dev.patrickgold.florisboard.R
 import dev.patrickgold.florisboard.app.FlorisPreferenceStore
 import dev.patrickgold.florisboard.ime.keyboard.FlorisImeSizing
@@ -152,7 +153,11 @@ private fun SmartbarMainRow(modifier: Modifier = Modifier) {
     LaunchedEffect(inlineSuggestions) {
         nlpManager.autoExpandCollapseSmartbarActions(null, inlineSuggestions)
     }
-    val shouldShowInlineSuggestionsUi = AndroidVersion.ATLEAST_API30_R && inlineSuggestions.isNotEmpty()
+    // AudioWhisper: the words being dictated show where the suggestions go (see CandidatesRow),
+    // ahead of autofill chips and the expanded actions.
+    val dictationPreview by Dictation.preview.collectAsState()
+    val shouldShowInlineSuggestionsUi = AndroidVersion.ATLEAST_API30_R && inlineSuggestions.isNotEmpty() &&
+        dictationPreview.isEmpty()
 
     val smartbarLayout by prefs.smartbar.layout.observeAsState()
     val flipToggles by prefs.smartbar.flipToggles.observeAsState()
@@ -209,7 +214,8 @@ private fun SmartbarMainRow(modifier: Modifier = Modifier) {
 
     @Composable
     fun RowScope.CenterContent() {
-        val expanded = sharedActionsExpanded && smartbarLayout == SmartbarLayout.SUGGESTIONS_ACTIONS_SHARED
+        val expanded = sharedActionsExpanded && smartbarLayout == SmartbarLayout.SUGGESTIONS_ACTIONS_SHARED &&
+            dictationPreview.isEmpty()
         Box(
             modifier = Modifier
                 .weight(1f)

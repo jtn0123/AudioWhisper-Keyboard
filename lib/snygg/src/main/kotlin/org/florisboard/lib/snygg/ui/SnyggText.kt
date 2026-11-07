@@ -43,6 +43,8 @@ import org.florisboard.lib.snygg.SnyggStylesheet
  * @param selector A specific SnyggSelector to query the style for.
  * @param modifier The modifier to be applied to the Text.
  * @param text The text of the element.
+ * @param maxLines Overrides the style's line limit when not `null` (AudioWhisper).
+ * @param overflow Overrides the style's overflow when not `null` (AudioWhisper).
  *
  * @since 0.5.0-alpha01
  *
@@ -55,6 +57,8 @@ fun SnyggText(
     selector: SnyggSelector? = null,
     modifier: Modifier = Modifier,
     text: String,
+    maxLines: Int? = null,
+    overflow: TextOverflow? = null,
 ) {
     ProvideSnyggStyle(elementName, attributes, selector) { style ->
         Text(
@@ -74,8 +78,8 @@ fun SnyggText(
             lineHeight = style.lineHeight(),
             textAlign = style.textAlign(),
             textDecoration = style.textDecorationLine(),
-            maxLines = style.textMaxLines(),
-            overflow = style.textOverflow(),
+            maxLines = maxLines ?: style.textMaxLines(),
+            overflow = overflow ?: style.textOverflow(),
         )
     }
 }

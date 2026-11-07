@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * Dictation inside the keyboard. A tap on the mic key toggles it and a hold talks until
@@ -31,6 +32,9 @@ import java.util.concurrent.Executors
  *
  * Every dictation that ends without typing anything says why: nothing was
  * heard, the mic stopped, the model is broken, or transcription failed.
+ *
+ * While a phrase is being spoken its words so far are shown in [preview]. Previews share
+ * [worker] with the phrases, in order, so the text typed never waits for more than one.
  */
 class Dictation(private val context: Context, private val editor: Editor) {
     /** Where dictation types. Called on the main thread. */
@@ -57,6 +61,9 @@ class Dictation(private val context: Context, private val editor: Editor) {
     private val models = ModelHolder(::loadModel) // worker thread only
     private var listener: PhraseListener? = null
     private val micKey = MicKey(SystemClock::uptimeMillis)
+
+    /** A preview is queued or running; another isn't queued behind it. */
+    private val previewing = AtomicBoolean(false)
 
     /** Bumped for each dictation and to abandon one; late phrases from an old one are dropped. */
     private var session = 0
@@ -214,7 +221,29 @@ class Dictation(private val context: Context, private val editor: Editor) {
                 main.post { type(id, result) }
             }
         },
+        onPreview = { phrase -> preview(id, phrase) },
     )
+
+    /** Microphone thread. Skipped while the last preview is unfinished, so they never pile up. */
+    private fun preview(id: Int, phrase: FloatArray) {
+        if (!previewing.compareAndSet(false, true)) return
+        worker.execute {
+            val started = SystemClock.elapsedRealtime()
+            val text = try {
+                runCatching { models.get().transcribe(phrase) }.getOrNull()
+            } finally {
+                previewing.set(false)
+            }
+            val seconds = phrase.size / Transcriber.SAMPLE_RATE.toFloat()
+            Log.d(TAG, "Previewed %.1f s in %d ms".format(seconds, SystemClock.elapsedRealtime() - started))
+            if (text != null) main.post { showPreview(id, text) }
+        }
+    }
+
+    /** Shown until the phrase itself is typed; one that comes after the mic stopped is dropped. */
+    private fun showPreview(id: Int, text: String) {
+        if (id == session && status.value == Status.LISTENING) mutablePreview.value = text.trim()
+    }
 
     private fun finish() {
         val id = session
@@ -234,12 +263,14 @@ class Dictation(private val context: Context, private val editor: Editor) {
     private fun idle() {
         mutableStatus.value = Status.IDLE
         mutableLevel.value = 0f
+        mutablePreview.value = ""
         main.removeCallbacks(unload)
         main.postDelayed(unload, KEEP_LOADED_MS)
     }
 
     private fun type(id: Int, result: Result<String>) {
         if (id != session) return
+        mutablePreview.value = ""
         result.onSuccess { text ->
             if (text.isNotBlank()) {
                 Spoken.parse(text).forEach(::act)
@@ -299,12 +330,16 @@ class Dictation(private val context: Context, private val editor: Editor) {
         // without holding on to the service.
         private val mutableStatus = MutableStateFlow(Status.IDLE)
         private val mutableLevel = MutableStateFlow(0f)
+        private val mutablePreview = MutableStateFlow("")
 
         /** What the mic button shows. */
         val status: StateFlow<Status> = mutableStatus.asStateFlow()
 
         /** Loudness while listening, 0..1, for the mic's glow. */
         val level: StateFlow<Float> = mutableLevel.asStateFlow()
+
+        /** The words of the phrase being spoken, as heard so far; empty when there is none. Never logged. */
+        val preview: StateFlow<String> = mutablePreview.asStateFlow()
     }
 }
 

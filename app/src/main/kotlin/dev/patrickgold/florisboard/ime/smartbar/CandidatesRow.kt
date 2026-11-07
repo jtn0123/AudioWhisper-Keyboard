@@ -39,6 +39,8 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
+import com.jtn0123.audiowhisper.dictation.Dictation
+import com.jtn0123.audiowhisper.dictation.DictationPreview
 import dev.patrickgold.florisboard.app.FlorisPreferenceStore
 import dev.patrickgold.florisboard.ime.nlp.ClipboardSuggestionCandidate
 import dev.patrickgold.florisboard.ime.nlp.SuggestionCandidate
@@ -69,6 +71,12 @@ fun CandidatesRow(modifier: Modifier = Modifier) {
 
     val displayMode by prefs.suggestion.displayMode.observeAsState()
     val candidates by nlpManager.activeCandidatesFlow.collectAsState()
+    // AudioWhisper: while a phrase is being dictated, its words take the suggestions' place.
+    val dictationPreview by Dictation.preview.collectAsState()
+    if (dictationPreview.isNotEmpty()) {
+        DictationPreview(dictationPreview, modifier)
+        return
+    }
 
     SnyggRow(
         elementName = FlorisImeUi.SmartbarCandidatesRow.elementName,
