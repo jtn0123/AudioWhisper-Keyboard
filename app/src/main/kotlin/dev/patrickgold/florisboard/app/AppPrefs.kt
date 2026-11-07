@@ -745,6 +745,11 @@ abstract class FlorisPreferenceModel : PreferenceModel() {
             key = "suggestion__incognito_mode",
             default = IncognitoMode.DYNAMIC_ON_OFF,
         )
+        // AudioWhisper: words and phrases learned from typing (never in incognito), see WordLearner.
+        val learnFromTyping = boolean(
+            key = "suggestion__learn_from_typing",
+            default = true,
+        )
         // Internal pref
         val forceIncognitoModeFromDynamic = boolean(
             key = "suggestion__force_incognito_mode_from_dynamic",

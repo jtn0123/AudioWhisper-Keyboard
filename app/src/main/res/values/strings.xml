@@ -479,6 +479,13 @@
     <string name="pref__suggestion__api30_inline_suggestions_enabled__label" comment="Preference title">System autofill suggestions</string>
     <string name="pref__suggestion__api30_inline_suggestions_enabled__summary" comment="Preference summary">Show inline suggestions provided by autofill services</string>
     <string name="pref__suggestion__incognito_mode__label" comment="Label of Incognito mode preference in Typing">Incognito mode</string>
+    <!-- AudioWhisper: learning from typing (WordLearner) -->
+    <string name="pref__suggestion__learn_from_typing__label">Learn from your typing</string>
+    <string name="pref__suggestion__learn_from_typing__summary">Suggest the words and phrases you use. Never in incognito or password fields; kept on this phone and left out of backups</string>
+    <string name="pref__suggestion__forget_learned__label">Forget learned words</string>
+    <string name="pref__suggestion__forget_learned__summary">Erase everything learned from your typing</string>
+    <string name="pref__suggestion__forget_learned__confirm">Erase all the words and phrases learned from your typing? This cannot be undone.</string>
+    <string name="pref__suggestion__forget_learned__done">Learned words erased</string>
     <string name="pref__correction__title" comment="Preference group title">Corrections</string>
     <string name="pref__correction__auto_capitalization__label" comment="Preference title">Auto-capitalization</string>
     <string name="pref__correction__auto_capitalization__summary" comment="Preference summary">Capitalize words based on the current input context</string>

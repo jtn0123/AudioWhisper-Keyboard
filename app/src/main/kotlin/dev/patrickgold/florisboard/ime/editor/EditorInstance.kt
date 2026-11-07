@@ -83,6 +83,8 @@ class EditorInstance(context: Context) : AbstractEditorInstance(context) {
         activeState.isActionsOverflowVisible = false
         activeState.isActionsEditorVisible = false
         super.handleStartInputView(editorInfo, isRestart)
+        // AudioWhisper: editor positions the word learner kept belong to the previous field.
+        nlpManager.resetLearning()
         val keyboardMode = when (editorInfo.inputAttributes.type) {
             InputAttributes.Type.NUMBER -> {
                 activeState.keyVariation = KeyVariation.NORMAL

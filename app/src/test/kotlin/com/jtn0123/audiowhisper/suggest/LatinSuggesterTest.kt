@@ -201,6 +201,44 @@ class LatinSuggesterTest {
         assertEquals(listOf("Form", "Formica", "From"), suggestPersonal("Form").map { it.text })
     }
 
+    private val learned = LearnedWords(null)
+    private val learningSuggester = LatinSuggester(decoder, Locale.US, history = { learned })
+
+    private fun learn(word: String, previous: String? = null, times: Int = TypingHistory.KNOWN_AFTER) =
+        repeat(times) { learned.add(word, previous) }
+
+    @Test
+    fun offersUsedWordsTheDictionaryLacks() {
+        learn("wordle")
+        learn("word")
+        learn("wormhole", times = 1)
+        // "word" is the dictionary's to rank; "wormhole" isn't the user's word yet.
+        assertEquals(listOf("wo", "wordle"), learningSuggester.suggest(TypingState.of("", "wo", ""), 8, true).map { it.text })
+    }
+
+    @Test
+    fun neverCorrectsAWordTheUserKeepsTyping() {
+        learn("teh")
+        val words = learningSuggester.suggest(TypingState.of("", "teh", ""), 8, true)
+        assertFalse(words.any { it.isAutoCorrection })
+        assertEquals(SpellCheck(true, emptyList(), false), learningSuggester.spell("teh", 3, true))
+        // Typed once, it is still a typo.
+        learned.clear()
+        learn("teh", times = 1)
+        assertEquals("the", learningSuggester.suggest(TypingState.of("", "teh", ""), 8, true).first().text)
+    }
+
+    @Test
+    fun predictsTheUsersHabitsFirst() {
+        learn("later", "you")
+        learn("there", "you", times = 1)
+        learn("You", "thank", times = 1)
+        val words = learningSuggester.suggest(TypingState.of("see you ", "", ""), 8, true).map { it.text }
+        assertEquals(listOf("later", "you", "God", "there"), words)
+        // One spelling per word: the dictionary's "you" stands for the learned "You".
+        assertEquals(listOf("you", "God"), learningSuggester.suggest(TypingState.of("thank ", "", ""), 8, true).map { it.text })
+    }
+
     /** Decoder results by input; probabilities by word; n-grams as (previous word, word) pairs. */
     private class FakeDecoder(
         private val results: Map<String, List<RawSuggestion>>,

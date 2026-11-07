@@ -51,6 +51,7 @@ import dev.patrickgold.florisboard.ime.input.InputShiftState
 import dev.patrickgold.florisboard.ime.nlp.ClipboardSuggestionCandidate
 import dev.patrickgold.florisboard.ime.nlp.PunctuationRule
 import dev.patrickgold.florisboard.ime.nlp.SuggestionCandidate
+import dev.patrickgold.florisboard.ime.nlp.WordSuggestionCandidate
 import dev.patrickgold.florisboard.ime.onehanded.OneHandedMode
 import dev.patrickgold.florisboard.ime.popup.PopupMappingComponent
 import dev.patrickgold.florisboard.ime.text.composing.Composer
@@ -260,12 +261,19 @@ class KeyboardManager(context: Context) : InputKeyEventReceiver {
         }
         when (candidate) {
             is ClipboardSuggestionCandidate -> editorInstance.commitClipboardItem(candidate.clipboardItem)
-            else -> editorInstance.commitCompletion(candidate)
+            else -> {
+                // AudioWhisper: a tapped (or auto-corrected) word is a finished word.
+                if (candidate is WordSuggestionCandidate) {
+                    nlpManager.learnCandidate(candidate.text.toString(), editorInstance.activeContent)
+                }
+                editorInstance.commitCompletion(candidate)
+            }
         }
     }
 
     fun commitGesture(word: String) {
         if (isTypingIntoGifSearch) return GifSearch.typeWord(fixCase(word))
+        nlpManager.learnSwipedWord(fixCase(word), editorInstance.activeContent)
         editorInstance.commitGesture(fixCase(word))
     }
 
@@ -437,6 +445,7 @@ class KeyboardManager(context: Context) : InputKeyEventReceiver {
         if (inputEventDispatcher.isPressed(KeyCode.SHIFT)) {
             return handleForwardDelete(unit)
         }
+        nlpManager.dropSwipedWord()
         activeState.batchEdit {
             it.isManualSelectionMode = false
             it.isManualSelectionModeStart = false
@@ -455,7 +464,11 @@ class KeyboardManager(context: Context) : InputKeyEventReceiver {
         val content = editorInstance.activeContent
         val typed = content.composingText
         val start = content.composing.start
-        val candidate = nlpManager.getAutoCommitCandidate(triggerCodePoint) ?: return null
+        val candidate = nlpManager.getAutoCommitCandidate(triggerCodePoint)
+        if (candidate == null) {
+            nlpManager.learnTypedWord(content, triggerCodePoint)
+            return null
+        }
         commitCandidate(candidate)
         val corrected = candidate.text.toString()
         if (typed.isNotEmpty() && start >= 0 && corrected != typed) {
@@ -473,6 +486,7 @@ class KeyboardManager(context: Context) : InputKeyEventReceiver {
         val revert = undo.revertAt(content.selection.start, content.textBeforeSelection) ?: return false
         // Not corrected again this session if the user goes back into the word and finishes it.
         nlpManager.keepAsTyped(undo.typed)
+        nlpManager.unlearnAutoCorrection(undo.start)
         return editorInstance.revertAutoCorrection(revert)
     }
 
@@ -493,6 +507,7 @@ class KeyboardManager(context: Context) : InputKeyEventReceiver {
      * Handles a [KeyCode.ENTER] event.
      */
     private fun handleEnter() {
+        nlpManager.learnTypedWord(editorInstance.activeContent)
         val info = editorInstance.activeInfo
         val isShiftPressed = inputEventDispatcher.isPressed(KeyCode.SHIFT)
         if (editorInstance.tryPerformEnterCommitRaw()) {

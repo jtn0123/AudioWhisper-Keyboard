@@ -29,8 +29,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.unit.dp
 import dev.patrickgold.florisboard.R
@@ -41,13 +44,17 @@ import dev.patrickgold.florisboard.ime.keyboard.IncognitoMode
 import dev.patrickgold.florisboard.ime.nlp.SpellingLanguageMode
 import dev.patrickgold.florisboard.lib.compose.FlorisHyperlinkText
 import dev.patrickgold.florisboard.lib.compose.FlorisScreen
+import dev.patrickgold.florisboard.nlpManager
 import dev.patrickgold.jetpref.datastore.model.observeAsState
 import dev.patrickgold.jetpref.datastore.ui.ExperimentalJetPrefDatastoreUi
 import dev.patrickgold.jetpref.datastore.ui.ListPreference
 import dev.patrickgold.jetpref.datastore.ui.Preference
 import dev.patrickgold.jetpref.datastore.ui.PreferenceGroup
 import dev.patrickgold.jetpref.datastore.ui.SwitchPreference
+import dev.patrickgold.jetpref.material.ui.JetPrefAlertDialog
+import kotlinx.coroutines.launch
 import org.florisboard.lib.android.AndroidVersion
+import org.florisboard.lib.android.showShortToast
 import org.florisboard.lib.compose.FlorisErrorCard
 import org.florisboard.lib.compose.stringRes
 
@@ -58,6 +65,7 @@ fun TypingScreen() = FlorisScreen {
     previewFieldVisible = true
 
     val navController = LocalNavController.current
+    var confirmForgetLearned by remember { mutableStateOf(false) }
 
     content {
         // This card is temporary and is therefore not using a string resource (not so temporary as we thought...)
@@ -93,6 +101,21 @@ fun TypingScreen() = FlorisScreen {
                 title = stringRes(R.string.pref__suggestion__incognito_mode__label),
                 entries = enumDisplayEntriesOf(IncognitoMode::class),
             )
+            // AudioWhisper: learning from typing.
+            SwitchPreference(
+                prefs.suggestion.learnFromTyping,
+                title = stringRes(R.string.pref__suggestion__learn_from_typing__label),
+                summary = stringRes(R.string.pref__suggestion__learn_from_typing__summary),
+                enabledIf = { prefs.suggestion.enabled isEqualTo true },
+            )
+            Preference(
+                title = stringRes(R.string.pref__suggestion__forget_learned__label),
+                summary = stringRes(R.string.pref__suggestion__forget_learned__summary),
+                onClick = { confirmForgetLearned = true },
+            )
+        }
+        if (confirmForgetLearned) {
+            ForgetLearnedWordsDialog(onDismiss = { confirmForgetLearned = false })
         }
 
         PreferenceGroup(title = stringRes(R.string.pref__correction__title)) {
@@ -172,5 +195,26 @@ fun TypingScreen() = FlorisScreen {
                 onClick = { navController.navigate(Routes.Settings.Dictionary) },
             )
         }
+    }
+}
+
+/** AudioWhisper: asks before erasing what the keyboard learned from typing, then erases it. */
+@Composable
+private fun ForgetLearnedWordsDialog(onDismiss: () -> Unit) {
+    val context = LocalContext.current
+    val nlpManager by context.nlpManager()
+    val scope = rememberCoroutineScope()
+    JetPrefAlertDialog(
+        title = stringRes(R.string.pref__suggestion__forget_learned__label),
+        confirmLabel = stringRes(R.string.action__delete),
+        dismissLabel = stringRes(R.string.action__cancel),
+        onDismiss = onDismiss,
+        onConfirm = {
+            nlpManager.forgetLearnedWords()
+            onDismiss()
+            scope.launch { context.showShortToast(R.string.pref__suggestion__forget_learned__done) }
+        },
+    ) {
+        Text(stringRes(R.string.pref__suggestion__forget_learned__confirm))
     }
 }

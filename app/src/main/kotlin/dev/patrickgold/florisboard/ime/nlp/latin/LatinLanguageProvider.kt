@@ -23,10 +23,14 @@ import android.util.Log
 import com.jtn0123.audiowhisper.suggest.ArrangedWord
 import com.jtn0123.audiowhisper.suggest.KeptWords
 import com.jtn0123.audiowhisper.suggest.LatinDictionaryEngine
+import com.jtn0123.audiowhisper.suggest.LearnedWords
 import com.jtn0123.audiowhisper.suggest.LatinSuggester
 import com.jtn0123.audiowhisper.suggest.NOT_A_PROBABILITY
 import com.jtn0123.audiowhisper.suggest.PersonalWords
+import com.jtn0123.audiowhisper.suggest.TypingHistory
 import com.jtn0123.audiowhisper.suggest.TypingState
+import com.jtn0123.audiowhisper.suggest.WordLearner
+import dev.patrickgold.florisboard.app.FlorisPreferenceStore
 import dev.patrickgold.florisboard.appContext
 import dev.patrickgold.florisboard.editorInstance
 import dev.patrickgold.florisboard.ime.core.Subtype
@@ -73,6 +77,9 @@ class LatinLanguageProvider(context: Context) : SpellingProvider, SuggestionProv
         /** In filesDir, outside the backup rules' include list, so it never leaves the phone. */
         private const val KEPT_WORDS_FILE = "kept-as-typed.txt"
 
+        /** What the keyboard learned from typing; like [KEPT_WORDS_FILE], never backed up. */
+        private const val LEARNED_WORDS_FILE = "learned-words.txt"
+
         /** Fields where suggestions would expose or mangle what is typed (AOSP hides them too). */
         private val NO_SUGGESTION_VARIATIONS = setOf(
             InputAttributes.Variation.PASSWORD,
@@ -88,6 +95,7 @@ class LatinLanguageProvider(context: Context) : SpellingProvider, SuggestionProv
         )
     }
 
+    private val prefs by FlorisPreferenceStore
     private val appContext by context.appContext()
     private val editorInstance by context.editorInstance()
 
@@ -108,6 +116,11 @@ class LatinLanguageProvider(context: Context) : SpellingProvider, SuggestionProv
     /** Words whose auto-correction the user undid; they are not corrected again. Loaded by [preload]. */
     private val keptAsTyped by lazy { KeptWords(File(appContext.filesDir, KEPT_WORDS_FILE)) }
     @Volatile private var keptWordsLoaded = false
+
+    /** What the user has typed (see [WordLearner]). Loaded by [preload], saved by [saveLearnedWords]. */
+    private val learnedWords by lazy { LearnedWords(File(appContext.filesDir, LEARNED_WORDS_FILE)) }
+    private val learner by lazy { WordLearner(learnedWords, lookup = { engine }, locale = Locale.US) }
+    @Volatile private var learnedWordsLoaded = false
 
     override val providerId = ProviderId
 
@@ -130,6 +143,10 @@ class LatinLanguageProvider(context: Context) : SpellingProvider, SuggestionProv
             keptAsTyped.load()
             keptWordsLoaded = true
         }
+        if (!learnedWordsLoaded) {
+            learnedWords.load()
+            learnedWordsLoaded = true
+        }
     }
 
     /** Opens the bundled dictionary on first use; later calls return at once. */
@@ -143,7 +160,7 @@ class LatinLanguageProvider(context: Context) : SpellingProvider, SuggestionProv
         val started = SystemClock.elapsedRealtime()
         val opened = openBundledDictionary() ?: return
         engine = opened
-        suggester = LatinSuggester(opened, Locale.US, personalWords = { personalWords })
+        suggester = LatinSuggester(opened, Locale.US, personalWords = { personalWords }, history = ::typingHistory)
         Log.d(TAG, "Dictionary loaded in ${SystemClock.elapsedRealtime() - started} ms")
     }
 
@@ -275,6 +292,38 @@ class LatinLanguageProvider(context: Context) : SpellingProvider, SuggestionProv
     }
 
     private fun isKeptAsTyped(typed: String) = typed in keptAsTyped
+
+    /** AudioWhisper: what suggestions may draw on from the user's typing. */
+    private fun typingHistory(): TypingHistory =
+        if (prefs.suggestion.learnFromTyping.get()) learnedWords else TypingHistory.NONE
+
+    /**
+     * AudioWhisper: the [WordLearner], if what is typed in this field now may be learned: the
+     * setting is on, the language is English, and the field takes prose with suggestions (not a
+     * password, e-mail address or URL). Incognito is checked by the caller.
+     */
+    fun learnerFor(subtype: Subtype): WordLearner? {
+        if (!prefs.suggestion.learnFromTyping.get() || suggesterFor(subtype) == null) return null
+        if (!areSuggestionsAllowedInEditor() || !isAutoCorrectAllowedInEditor()) return null
+        return learner.takeIf { !editorInstance.activeInfo.isRawInputEditor }
+    }
+
+    /** AudioWhisper: a new field started; see [WordLearner.reset]. */
+    fun resetLearning() = learner.reset()
+
+    /** AudioWhisper: see [WordLearner.dropSwiped]. */
+    fun dropSwipedWord() = learner.dropSwiped()
+
+    /** AudioWhisper: writes [learnedWords] to filesDir. Blocking; call off the main thread. */
+    fun saveLearnedWords() {
+        if (!learnedWords.save()) Log.w(TAG, "Could not save the learned words")
+    }
+
+    /** AudioWhisper: forgets everything learned from typing, on disk too. Blocking. */
+    fun forgetLearnedWords() {
+        learnedWords.clear()
+        saveLearnedWords()
+    }
 
     /**
      * The word left of the cursor and its context, or null when there is nothing to suggest for:

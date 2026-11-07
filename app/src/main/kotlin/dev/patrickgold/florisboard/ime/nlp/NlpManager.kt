@@ -19,8 +19,9 @@ package dev.patrickgold.florisboard.ime.nlp
 import android.content.Context
 import android.os.SystemClock
 import android.util.LruCache
-import com.jtn0123.audiowhisper.suggest.WordCharacters
 import androidx.lifecycle.MutableLiveData
+import com.jtn0123.audiowhisper.suggest.WordCharacters
+import com.jtn0123.audiowhisper.suggest.WordLearner
 import dev.patrickgold.florisboard.app.FlorisPreferenceStore
 import dev.patrickgold.florisboard.clipboardManager
 import dev.patrickgold.florisboard.editorInstance
@@ -38,6 +39,7 @@ import dev.patrickgold.florisboard.subtypeManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
@@ -46,11 +48,15 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import org.florisboard.lib.kotlin.guardedByLock
 import org.florisboard.lib.kotlin.collectLatestIn
+import org.florisboard.lib.kotlin.safeSubstring
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.properties.Delegates
 
 private const val BLANK_STR_PATTERN = "^\\s*$"
+
+/** AudioWhisper: how long after the first unsaved learned word the learned words are saved. */
+private const val LEARNED_SAVE_DELAY_MS = 5_000L
 
 class NlpManager(context: Context) {
     private val blankStrRegex = Regex(BLANK_STR_PATTERN)
@@ -288,6 +294,75 @@ class NlpManager(context: Context) {
             scope.launch(Dispatchers.IO) { latinProvider.saveKeptWords() }
         }
     }
+
+    /** AudioWhisper: a save of the learned words is scheduled (see [saveLearnedWordsSoon]). */
+    private val learnedSavePending = AtomicBoolean(false)
+
+    /**
+     * AudioWhisper: the word being composed in [content] was finished by [triggerCodePoint] (null
+     * for a space or Enter) and stays as typed. See [WordLearner.finished].
+     */
+    fun learnTypedWord(content: EditorContent, triggerCodePoint: Int? = null) {
+        if (triggerCodePoint != null && WordCharacters.continuesWord(triggerCodePoint)) return
+        val word = content.composingText
+        if (word.isEmpty() || !content.localComposing.isValid) return
+        val textBefore = content.text.safeSubstring(0, content.localComposing.start)
+        learn { it.finished(word, textBefore, content.composing.start) }
+    }
+
+    /** AudioWhisper: the candidate [text] is about to replace the word composed in [content], or follow it. */
+    fun learnCandidate(text: String, content: EditorContent) {
+        latinProvider.dropSwipedWord()
+        val replacesWord = content.composingText.isNotEmpty() && content.localComposing.isValid
+        if (replacesWord) {
+            val textBefore = content.text.safeSubstring(0, content.localComposing.start)
+            learn { it.finished(text, textBefore, content.composing.start) }
+        } else {
+            learn { it.finished(text, beforeNextWord(content.textBeforeSelection), content.selection.start) }
+        }
+    }
+
+    /** AudioWhisper: the swiped [word] is about to go in at the cursor in [content]. */
+    fun learnSwipedWord(word: String, content: EditorContent) {
+        learn { it.swiped(word, beforeNextWord(content.textBeforeSelection)) }
+    }
+
+    /** AudioWhisper: a backspace; a swiped word waiting to be learned is being taken out. */
+    fun dropSwipedWord() = latinProvider.dropSwipedWord()
+
+    /** AudioWhisper: the auto-correction that started at [start] was undone; what it taught goes too. */
+    fun unlearnAutoCorrection(start: Int) {
+        learn { it.undo(start) }
+    }
+
+    /** AudioWhisper: input moved to another field. */
+    fun resetLearning() = latinProvider.resetLearning()
+
+    /** AudioWhisper: erases everything learned from typing, on the phone too. */
+    fun forgetLearnedWords() {
+        scope.launch(Dispatchers.IO) { latinProvider.forgetLearnedWords() }
+    }
+
+    /** Applies [change] to the learner unless incognito or the field rules learning out. */
+    private inline fun learn(change: (WordLearner) -> Boolean) {
+        if (keyboardManager.activeState.isIncognitoMode) return
+        val learner = latinProvider.learnerFor(subtypeManager.activeSubtype) ?: return
+        if (change(learner)) saveLearnedWordsSoon()
+    }
+
+    /** One write for a burst of typing, a few seconds after its first word. */
+    private fun saveLearnedWordsSoon() {
+        if (!learnedSavePending.compareAndSet(false, true)) return
+        scope.launch(Dispatchers.IO) {
+            delay(LEARNED_SAVE_DELAY_MS)
+            learnedSavePending.set(false)
+            latinProvider.saveLearnedWords()
+        }
+    }
+
+    /** [textBefore] as the next word will see it: a word right before the cursor gets its space first. */
+    private fun beforeNextWord(textBefore: String): String =
+        if (textBefore.isNotEmpty() && !textBefore.last().isWhitespace()) "$textBefore " else textBefore
 
     /** AudioWhisper: see [LatinLanguageProvider.isName]. */
     fun isName(word: String) = latinProvider.isName(word)

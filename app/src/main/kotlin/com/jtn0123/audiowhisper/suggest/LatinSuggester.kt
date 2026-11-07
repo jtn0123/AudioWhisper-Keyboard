@@ -42,6 +42,8 @@ class LatinSuggester(
     private val threshold: Float = AutoCorrection.MODEST_THRESHOLD,
     /** The user's personal dictionaries as they stand now (read on every call, so it can be swapped). */
     private val personalWords: () -> PersonalWords = { PersonalWords.NONE },
+    /** What the user has typed before ([LearnedWords]), or [TypingHistory.NONE] if not learning. */
+    private val history: () -> TypingHistory = { TypingHistory.NONE },
 ) {
     /** A decoder result and how it is shown, after matching the typed word's case. */
     private data class Ranked(val raw: RawSuggestion, val display: String)
@@ -51,12 +53,14 @@ class LatinSuggester(
         if (maxCount <= 0) return emptyList()
         if (state.typed.isEmpty()) return predictions(state.previousWords, maxCount, blockOffensiveWords)
         val personal = personalWords()
+        val history = history()
         val input = WordCase.decoderInput(state.typed, locale)
         val ranked = rank(state.typed, decoder.decode(input, state.previousWords, blockOffensiveWords))
         val corrections = ranked.filter { it.display != state.typed }
-        val autoCorrection = autoCorrectionFor(state, input, ranked, personal.spellingOf(state.typed))
+        val ownSpelling = personal.spellingOf(state.typed) ?: learnedSpellingOf(history, state.typed)
+        val autoCorrection = autoCorrectionFor(state, input, ranked, ownSpelling)
         val case = WordCase.of(state.typed)
-        val ownWords = personal.completions(state.typed, PersonalWords.MAX_IN_STRIP).map { case.apply(it, locale) }
+        val ownWords = ownCompletions(personal, history, state.typed).map { case.apply(it, locale) }
         return buildList {
             if (autoCorrection != null) add(ArrangedWord(autoCorrection, isAutoCorrection = true))
             add(ArrangedWord(state.typed, isTypedWord = true))
@@ -66,9 +70,26 @@ class LatinSuggester(
     }
 
     /**
-     * What [state]'s word is auto-corrected to, if anything. A personal word is never corrected
-     * away; typed in another case ("iphone") and unknown to the dictionary, it takes the user's
-     * spelling ("iPhone").
+     * The user's own words that continue [typed]: personal dictionary entries first, then words
+     * they have used that the dictionary lacks (it already offers its own, ranked by frequency).
+     */
+    private fun ownCompletions(personal: PersonalWords, history: TypingHistory, typed: String): List<String> {
+        val listed = personal.completions(typed, PersonalWords.MAX_IN_STRIP)
+        val learned = history.completions(typed, PersonalWords.MAX_IN_STRIP, accept = ::isUnknown)
+        return (listed + learned).distinctBy { it.lowercase(locale) }.take(PersonalWords.MAX_IN_STRIP)
+    }
+
+    /** A learned spelling counts only for a word the dictionary lacks: it knows its own words better. */
+    private fun learnedSpellingOf(history: TypingHistory, typed: String): String? =
+        history.spellingOf(typed)?.takeIf(::isUnknown)
+
+    private fun isUnknown(word: String): Boolean =
+        decoder.probability(word) == NOT_A_PROBABILITY && decoder.probability(word.lowercase(locale)) == NOT_A_PROBABILITY
+
+    /**
+     * What [state]'s word is auto-corrected to, if anything. One of the user's own words is never
+     * corrected away; typed in another case ("iphone") and unknown to the dictionary, it takes the
+     * user's spelling ("iPhone").
      */
     private fun autoCorrectionFor(state: TypingState, input: String, ranked: List<Ranked>, ownSpelling: String?): String? {
         val isTypedValid = isValid(state.typed, input, ranked)
@@ -82,7 +103,9 @@ class LatinSuggester(
 
     /** Spell-checks [word] with no context. */
     fun spell(word: String, maxCount: Int, blockOffensiveWords: Boolean): SpellCheck {
-        if (personalWords().spellingOf(word) != null) return SpellCheck(true, emptyList(), false)
+        if (personalWords().spellingOf(word) != null || learnedSpellingOf(history(), word) != null) {
+            return SpellCheck(true, emptyList(), false)
+        }
         val input = WordCase.decoderInput(word, locale)
         val ranked = rank(word, decoder.decode(input, PreviousWords.NONE, blockOffensiveWords))
         if (isValid(word, input, ranked)) return SpellCheck(true, emptyList(), false)
@@ -92,13 +115,17 @@ class LatinSuggester(
         return SpellCheck(false, corrections.take(maxCount).map { it.display }, confident)
     }
 
+    /**
+     * Next words after [previous]: those the user has typed there more than once, then the
+     * dictionary's (it knows at most three per word), then those typed there once.
+     */
     private fun predictions(previous: PreviousWords, maxCount: Int, blockOffensiveWords: Boolean): List<ArrangedWord> {
         if (previous.slotCount == 0) return emptyList()
-        return decoder.decode("", previous, blockOffensiveWords)
-            .map { it.word }
-            .distinct()
-            .take(maxCount)
-            .map { ArrangedWord(it) }
+        val history = history()
+        val habits = history.followers(previous, TypingHistory.KNOWN_AFTER, maxCount)
+        val dictionary = decoder.decode("", previous, blockOffensiveWords).map { it.word }
+        val once = history.followers(previous, minCount = 1, maxCount)
+        return (habits + dictionary + once).distinctBy { it.lowercase(locale) }.take(maxCount).map { ArrangedWord(it) }
     }
 
     /** Case-matched, de-duplicated results, best first. */
