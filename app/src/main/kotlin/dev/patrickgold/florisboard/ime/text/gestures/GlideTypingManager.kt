@@ -18,6 +18,7 @@ package dev.patrickgold.florisboard.ime.text.gestures
 
 import android.content.Context
 import dev.patrickgold.florisboard.app.FlorisPreferenceStore
+import dev.patrickgold.florisboard.editorInstance
 import dev.patrickgold.florisboard.ime.nlp.WordSuggestionCandidate
 import dev.patrickgold.florisboard.ime.text.keyboard.TextKey
 import dev.patrickgold.florisboard.keyboardManager
@@ -40,6 +41,7 @@ class GlideTypingManager(context: Context) : GlideTypingGesture.Listener {
     }
 
     private val prefs by FlorisPreferenceStore
+    private val editorInstance by context.editorInstance()
     private val keyboardManager by context.keyboardManager()
     private val nlpManager by context.nlpManager()
     private val subtypeManager by context.subtypeManager()
@@ -93,8 +95,11 @@ class GlideTypingManager(context: Context) : GlideTypingGesture.Listener {
             return
         }
 
+        // AudioWhisper: the words before the cursor re-rank the guesses (B14). Read here, on the main thread.
+        val textBefore = editorInstance.activeContent.textBeforeSelection
         scope.launch(Dispatchers.Default) {
-            val suggestions = glideTypingClassifier.getSuggestions(MAX_SUGGESTION_COUNT, true)
+            val guesses = glideTypingClassifier.getScoredSuggestions(MAX_SUGGESTION_COUNT)
+            val suggestions = nlpManager.rankGlideGuesses(guesses, textBefore)
 
             withContext(Dispatchers.Main) {
                 val suggestionList = buildList {

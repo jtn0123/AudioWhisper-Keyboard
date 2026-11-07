@@ -20,6 +20,7 @@ import android.content.Context
 import androidx.collection.LruCache
 import androidx.collection.SparseArrayCompat
 import androidx.collection.set
+import com.jtn0123.audiowhisper.suggest.GlideGuess
 import dev.patrickgold.florisboard.ime.core.Subtype
 import dev.patrickgold.florisboard.ime.keyboard.KeyData
 import dev.patrickgold.florisboard.ime.text.key.KeyCode
@@ -31,6 +32,7 @@ import java.util.concurrent.ConcurrentHashMap
 import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.exp
+import kotlin.math.ln
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.pow
@@ -183,8 +185,13 @@ class StatisticalGlideTypingClassifier(context: Context) : GlideTypingClassifier
         }
     }
 
-    private val lruSuggestionCache = LruCache<Pair<Gesture, Int>, List<String>>(SUGGESTION_CACHE_SIZE)
+    private val lruSuggestionCache = LruCache<Pair<Gesture, Int>, List<GlideGuess>>(SUGGESTION_CACHE_SIZE)
     override fun getSuggestions(maxSuggestionCount: Int, gestureCompleted: Boolean): List<String> {
+        return getScoredSuggestions(maxSuggestionCount).map { it.word }
+    }
+
+    /** AudioWhisper: the suggestions with their costs, so the words before them can re-rank them. */
+    fun getScoredSuggestions(maxSuggestionCount: Int): List<GlideGuess> {
         return when (val cached = lruSuggestionCache.get(Pair(this.gesture, maxSuggestionCount))) {
             null -> {
                 val suggestions = unCachedGetSuggestions(maxSuggestionCount)
@@ -198,7 +205,7 @@ class StatisticalGlideTypingClassifier(context: Context) : GlideTypingClassifier
         }
     }
 
-    private fun unCachedGetSuggestions(maxSuggestionCount: Int): List<String> {
+    private fun unCachedGetSuggestions(maxSuggestionCount: Int): List<GlideGuess> {
         val candidates = arrayListOf<String>()
         val candidateWeights = arrayListOf<Float>()
         val key = keys.firstOrNull() ?: return listOf()
@@ -247,7 +254,7 @@ class StatisticalGlideTypingClassifier(context: Context) : GlideTypingClassifier
             }
         }
 
-        return candidates
+        return candidates.mapIndexed { index, word -> GlideGuess(word, ln(candidateWeights[index])) }
     }
 
     override fun clear() {

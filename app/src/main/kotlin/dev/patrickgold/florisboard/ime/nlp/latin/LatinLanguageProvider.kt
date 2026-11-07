@@ -21,12 +21,15 @@ import android.database.sqlite.SQLiteException
 import android.os.SystemClock
 import android.util.Log
 import com.jtn0123.audiowhisper.suggest.ArrangedWord
+import com.jtn0123.audiowhisper.suggest.GlideGuess
+import com.jtn0123.audiowhisper.suggest.GlideRanker
 import com.jtn0123.audiowhisper.suggest.KeptWords
 import com.jtn0123.audiowhisper.suggest.LatinDictionaryEngine
 import com.jtn0123.audiowhisper.suggest.LearnedWords
 import com.jtn0123.audiowhisper.suggest.LatinSuggester
 import com.jtn0123.audiowhisper.suggest.NOT_A_PROBABILITY
 import com.jtn0123.audiowhisper.suggest.PersonalWords
+import com.jtn0123.audiowhisper.suggest.PreviousWords
 import com.jtn0123.audiowhisper.suggest.TypingHistory
 import com.jtn0123.audiowhisper.suggest.TypingState
 import com.jtn0123.audiowhisper.suggest.WordLearner
@@ -323,6 +326,15 @@ class LatinLanguageProvider(context: Context) : SpellingProvider, SuggestionProv
     fun forgetLearnedWords() {
         learnedWords.clear()
         saveLearnedWords()
+    }
+
+    /**
+     * AudioWhisper: the swipe [guesses] for a word right after [textBefore], best first once the
+     * words before it are counted (see [GlideRanker]). Other languages keep the classifier's order.
+     */
+    fun rankGlideGuesses(subtype: Subtype, guesses: List<GlideGuess>, textBefore: String): List<String> {
+        if (suggesterFor(subtype) == null) return guesses.map { it.word }
+        return GlideRanker(typingHistory(), engine).rank(guesses, PreviousWords.from(textBefore))
     }
 
     /**

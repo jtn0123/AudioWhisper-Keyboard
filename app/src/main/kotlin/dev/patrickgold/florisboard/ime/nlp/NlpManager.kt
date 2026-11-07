@@ -20,6 +20,7 @@ import android.content.Context
 import android.os.SystemClock
 import android.util.LruCache
 import androidx.lifecycle.MutableLiveData
+import com.jtn0123.audiowhisper.suggest.GlideGuess
 import com.jtn0123.audiowhisper.suggest.WordCharacters
 import com.jtn0123.audiowhisper.suggest.WordLearner
 import dev.patrickgold.florisboard.app.FlorisPreferenceStore
@@ -359,6 +360,13 @@ class NlpManager(context: Context) {
             latinProvider.saveLearnedWords()
         }
     }
+
+    /**
+     * AudioWhisper: the swipe [guesses] in order for the cursor after [textBefore], which a swiped
+     * word follows with a space (see [LatinLanguageProvider.rankGlideGuesses]). Any thread.
+     */
+    fun rankGlideGuesses(guesses: List<GlideGuess>, textBefore: String): List<String> =
+        latinProvider.rankGlideGuesses(subtypeManager.activeSubtype, guesses, beforeNextWord(textBefore))
 
     /** [textBefore] as the next word will see it: a word right before the cursor gets its space first. */
     private fun beforeNextWord(textBefore: String): String =
