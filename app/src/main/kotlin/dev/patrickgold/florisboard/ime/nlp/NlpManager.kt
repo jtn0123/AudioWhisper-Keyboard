@@ -339,6 +339,9 @@ class NlpManager(context: Context) {
     /** AudioWhisper: input moved to another field. */
     fun resetLearning() = latinProvider.resetLearning()
 
+    /** AudioWhisper: where the letters being typed were tapped (see [LatinLanguageProvider.tapTrail]). */
+    val tapTrail get() = latinProvider.tapTrail
+
     /** AudioWhisper: erases everything learned from typing, on the phone too. */
     fun forgetLearnedWords() {
         scope.launch(Dispatchers.IO) { latinProvider.forgetLearnedWords() }

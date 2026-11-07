@@ -239,14 +239,26 @@ class LatinSuggesterTest {
         assertEquals(listOf("you", "God"), learningSuggester.suggest(TypingState.of("thank ", "", ""), 8, true).map { it.text })
     }
 
+    @Test
+    fun passesWhereEachLetterWasTappedToTheDecoder() {
+        val taps = listOf(TapOffset(0f, 0f), null, TapOffset(0.45f, -0.1f))
+        suggester.suggest(TypingState.of("", "teh", "").copy(taps = taps), 8, true)
+        assertEquals(taps, decoder.lastTaps)
+    }
+
     /** Decoder results by input; probabilities by word; n-grams as (previous word, word) pairs. */
     private class FakeDecoder(
         private val results: Map<String, List<RawSuggestion>>,
         private val probabilities: Map<String, Int>,
         private val ngrams: Set<Pair<String, String>>,
     ) : TypingDecoder {
-        override fun decode(input: String, previous: PreviousWords, blockOffensiveWords: Boolean) =
-            results[input].orEmpty().sortedByDescending { it.score }
+        /** The taps the last [decode] was given. */
+        var lastTaps: List<TapOffset?> = emptyList()
+
+        override fun decode(input: String, previous: PreviousWords, blockOffensiveWords: Boolean, taps: List<TapOffset?>): List<RawSuggestion> {
+            lastTaps = taps
+            return results[input].orEmpty().sortedByDescending { it.score }
+        }
 
         override fun probability(word: String) = probabilities[word] ?: NOT_A_PROBABILITY
 

@@ -57,6 +57,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.toSize
 import com.jtn0123.audiowhisper.gif.GifSearch
 import com.jtn0123.audiowhisper.gif.GifSearchKeys
+import com.jtn0123.audiowhisper.suggest.TapOffset
 import dev.patrickgold.florisboard.FlorisImeService
 import dev.patrickgold.florisboard.app.FlorisPreferenceStore
 import dev.patrickgold.florisboard.editorInstance
@@ -86,6 +87,7 @@ import dev.patrickgold.florisboard.lib.devtools.LogTopic
 import dev.patrickgold.florisboard.lib.devtools.flogDebug
 import dev.patrickgold.florisboard.lib.observeAsTransformingState
 import dev.patrickgold.florisboard.lib.toIntOffset
+import dev.patrickgold.florisboard.nlpManager
 import dev.patrickgold.jetpref.datastore.model.observeAsState
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.onFailure
@@ -392,6 +394,7 @@ private class TextKeyboardLayoutController(
     private val prefs by FlorisPreferenceStore
     private val editorInstance by context.editorInstance()
     private val keyboardManager by context.keyboardManager()
+    private val nlpManager by context.nlpManager()
 
     private val inputEventDispatcher get() = keyboardManager.inputEventDispatcher
     private val inputFeedbackController get() = FlorisImeService.inputFeedbackController()
@@ -549,6 +552,7 @@ private class TextKeyboardLayoutController(
         val key = keyboard.getKeyForPos(event.getX(pointer.index), event.getY(pointer.index))
         if (key != null && key.isEnabled) {
             key.computedDataOnDown = key.computedData
+            noteTapPosition(key, event.getX(pointer.index), event.getY(pointer.index))
             pointer.pressedKeyInfo = inputEventDispatcher.sendDown(
                 data = key.computedData,
                 onLongPress = onLongPress@ {
@@ -606,6 +610,14 @@ private class TextKeyboardLayoutController(
         } else {
             pointer.activeKey = null
         }
+    }
+
+    /** AudioWhisper: where in [key] the tap landed, for the decoder (B13). */
+    private fun noteTapPosition(key: TextKey, x: Float, y: Float) {
+        val bounds = key.visibleBounds
+        val center = bounds.center
+        val offset = TapOffset.of(x, y, center.x, center.y, bounds.width, bounds.height)
+        nlpManager.tapTrail.pressed(key.computedData.code, offset)
     }
 
     private fun onTouchMoveInternal(event: MotionEvent, pointer: TouchPointer) {

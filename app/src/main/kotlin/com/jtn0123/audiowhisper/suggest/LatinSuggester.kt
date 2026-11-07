@@ -9,6 +9,8 @@ data class TypingState(
     val previousWords: PreviousWords,
     /** The cursor sits inside a word (letters follow it); AOSP never auto-corrects then. */
     val isCursorMidWord: Boolean,
+    /** Where each character of [typed] was tapped, if known ([TapTrail.offsetsFor]). */
+    val taps: List<TapOffset?> = emptyList(),
 ) {
     companion object {
         /** The state for [typed], which starts right after [textBeforeWord] and ends at the cursor. */
@@ -55,7 +57,7 @@ class LatinSuggester(
         val personal = personalWords()
         val history = history()
         val input = WordCase.decoderInput(state.typed, locale)
-        val ranked = rank(state.typed, decoder.decode(input, state.previousWords, blockOffensiveWords))
+        val ranked = rank(state.typed, decoder.decode(input, state.previousWords, blockOffensiveWords, state.taps))
         val corrections = ranked.filter { it.display != state.typed }
         val ownSpelling = personal.spellingOf(state.typed) ?: learnedSpellingOf(history, state.typed)
         val autoCorrection = autoCorrectionFor(state, input, ranked, ownSpelling)

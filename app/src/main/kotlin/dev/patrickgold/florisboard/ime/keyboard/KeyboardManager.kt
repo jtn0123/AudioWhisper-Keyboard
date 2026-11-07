@@ -453,6 +453,10 @@ class KeyboardManager(context: Context) : InputKeyEventReceiver {
         }
         if (unit == OperationUnit.CHARACTERS && (undoAutoCorrection() || editorInstance.undoDictation())) return
         revertPreviouslyAcceptedCandidate()
+        // AudioWhisper: a letter of the word being typed goes; so does where it was tapped.
+        if (unit == OperationUnit.CHARACTERS && editorInstance.activeContent.composingText.isNotEmpty()) {
+            nlpManager.tapTrail.deleted()
+        }
         editorInstance.deleteBackwards(unit)
     }
 
@@ -878,6 +882,7 @@ class KeyboardManager(context: Context) : InputKeyEventReceiver {
                             if (!UCharacter.isUAlphabetic(codePoint)) {
                                 autoCorrect(triggerCodePoint = codePoint)
                             }
+                            nlpManager.tapTrail.typed(text)
                             editorInstance.commitChar(text)
                         }
                         else -> {

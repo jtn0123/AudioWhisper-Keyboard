@@ -30,6 +30,7 @@ import com.jtn0123.audiowhisper.suggest.LatinSuggester
 import com.jtn0123.audiowhisper.suggest.NOT_A_PROBABILITY
 import com.jtn0123.audiowhisper.suggest.PersonalWords
 import com.jtn0123.audiowhisper.suggest.PreviousWords
+import com.jtn0123.audiowhisper.suggest.TapTrail
 import com.jtn0123.audiowhisper.suggest.TypingHistory
 import com.jtn0123.audiowhisper.suggest.TypingState
 import com.jtn0123.audiowhisper.suggest.WordLearner
@@ -124,6 +125,9 @@ class LatinLanguageProvider(context: Context) : SpellingProvider, SuggestionProv
     private val learnedWords by lazy { LearnedWords(File(appContext.filesDir, LEARNED_WORDS_FILE)) }
     private val learner by lazy { WordLearner(learnedWords, lookup = { engine }, locale = Locale.US) }
     @Volatile private var learnedWordsLoaded = false
+
+    /** AudioWhisper: where the letters being typed were tapped, for the decoder (B13). */
+    val tapTrail = TapTrail()
 
     override val providerId = ProviderId
 
@@ -311,8 +315,11 @@ class LatinLanguageProvider(context: Context) : SpellingProvider, SuggestionProv
         return learner.takeIf { !editorInstance.activeInfo.isRawInputEditor }
     }
 
-    /** AudioWhisper: a new field started; see [WordLearner.reset]. */
-    fun resetLearning() = learner.reset()
+    /** AudioWhisper: a new field started; see [WordLearner.reset]. Tap positions there are unrelated too. */
+    fun resetLearning() {
+        learner.reset()
+        tapTrail.clear()
+    }
 
     /** AudioWhisper: see [WordLearner.dropSwiped]. */
     fun dropSwipedWord() = learner.dropSwiped()
@@ -348,7 +355,7 @@ class LatinLanguageProvider(context: Context) : SpellingProvider, SuggestionProv
         if (typed.isNotEmpty() && !typed.first().isLetterOrDigit()) return null
         if (typed.isNotEmpty()) {
             val textBefore = content.text.safeSubstring(0, content.localComposing.start)
-            return TypingState.of(textBefore, typed, content.textAfterSelection)
+            return TypingState.of(textBefore, typed, content.textAfterSelection).copy(taps = tapTrail.offsetsFor(typed))
         }
         // After a tapped candidate the separating space is still pending (phantom space).
         val textBefore = content.textBeforeSelection.let { if (it.lastOrNull()?.isLetterOrDigit() == true) "$it " else it }

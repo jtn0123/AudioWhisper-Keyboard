@@ -22,6 +22,17 @@ class QwertyGeometryTest {
     }
 
     @Test
+    fun aTapLandsAtTheSameSpotInTheKey() {
+        assertEquals(QwertyGeometry.keyCenter('o'.code), QwertyGeometry.touchPoint('o'.code, null))
+        // Half a key right of O's centre is the O/P border; a quarter key up is above centre.
+        assertEquals(Pair(900, 38), QwertyGeometry.touchPoint('o'.code, TapOffset(0.5f, -0.25f)))
+        // Never off the keyboard.
+        assertEquals(Pair(999, 0), QwertyGeometry.touchPoint('p'.code, TapOffset(0.6f, -0.6f)))
+        assertEquals(Pair(40, 449), QwertyGeometry.touchPoint('a'.code, TapOffset(-0.6f, 5f)))
+        assertNull(QwertyGeometry.touchPoint('\''.code, TapOffset(0f, 0f)))
+    }
+
+    @Test
     fun proximityGridListsTheNeighborsOfEachCell() {
         val grid = QwertyGeometry.proximityGrid()
         assertEquals(QwertyGeometry.GRID_WIDTH * QwertyGeometry.GRID_HEIGHT * QwertyGeometry.MAX_PROXIMITY_CHARS, grid.size)

@@ -16,13 +16,19 @@ class LatinDictionaryEngine private constructor(
 ) : TypingDecoder, Closeable {
 
     @Synchronized
-    override fun decode(input: String, previous: PreviousWords, blockOffensiveWords: Boolean): List<RawSuggestion> {
+    override fun decode(
+        input: String,
+        previous: PreviousWords,
+        blockOffensiveWords: Boolean,
+        taps: List<TapOffset?>,
+    ): List<RawSuggestion> {
         val codePoints = input.codePoints().toArray()
         if (codePoints.size > BinaryDictionary.MAX_WORD_LENGTH) return emptyList()
+        val knownTaps = taps.takeIf { it.size == codePoints.size }
         session.resetForTyping(blockOffensiveWords)
         codePoints.forEachIndexed { index, codePoint ->
             session.mInputCodePoints[index] = codePoint
-            QwertyGeometry.keyCenter(codePoint)?.let { (x, y) ->
+            QwertyGeometry.touchPoint(codePoint, knownTaps?.get(index))?.let { (x, y) ->
                 session.mXCoordinates[index] = x
                 session.mYCoordinates[index] = y
             }

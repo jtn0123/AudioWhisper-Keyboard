@@ -50,7 +50,13 @@ interface WordLookup {
 interface TypingDecoder : WordLookup {
     /**
      * Corrections and completions for [input] (or next-word predictions when it is empty), sorted
-     * by score, highest first.
+     * by score, highest first. [taps] says where each of [input]'s characters was tapped, if known
+     * (one per code point; otherwise each is taken as its key's centre).
      */
-    fun decode(input: String, previous: PreviousWords, blockOffensiveWords: Boolean): List<RawSuggestion>
+    fun decode(
+        input: String,
+        previous: PreviousWords,
+        blockOffensiveWords: Boolean,
+        taps: List<TapOffset?> = emptyList(),
+    ): List<RawSuggestion>
 }
