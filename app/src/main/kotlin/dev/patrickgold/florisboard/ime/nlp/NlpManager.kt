@@ -284,6 +284,11 @@ class NlpManager(context: Context) {
     /** AudioWhisper: see [LatinLanguageProvider.isName]. */
     fun isName(word: String) = latinProvider.isName(word)
 
+    /** AudioWhisper: picks up words added to the personal dictionaries since the keyboard last showed. */
+    fun refreshPersonalWords() {
+        scope.launch(Dispatchers.IO) { latinProvider.refreshPersonalWords() }
+    }
+
     fun removeSuggestion(subtype: Subtype, candidate: SuggestionCandidate): Boolean {
         return runBlocking { candidate.sourceProvider?.removeSuggestion(subtype, candidate) == true }.also { result ->
             if (result) {

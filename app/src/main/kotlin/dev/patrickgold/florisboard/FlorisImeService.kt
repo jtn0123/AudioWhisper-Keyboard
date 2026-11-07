@@ -421,6 +421,8 @@ class FlorisImeService : LifecycleInputMethodService() {
         }
         isWindowShown = true
         inputFeedbackController.updateSystemPrefsState()
+        // AudioWhisper: a word added to the personal dictionary counts from the next keystroke.
+        nlpManager.refreshPersonalWords()
     }
 
     override fun onWindowHidden() {

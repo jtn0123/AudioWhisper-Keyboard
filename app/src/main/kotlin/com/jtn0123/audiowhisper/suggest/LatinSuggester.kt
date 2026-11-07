@@ -40,6 +40,8 @@ class LatinSuggester(
     private val decoder: TypingDecoder,
     private val locale: Locale,
     private val threshold: Float = AutoCorrection.MODEST_THRESHOLD,
+    /** The user's personal dictionaries as they stand now (read on every call, so it can be swapped). */
+    private val personalWords: () -> PersonalWords = { PersonalWords.NONE },
 ) {
     /** A decoder result and how it is shown, after matching the typed word's case. */
     private data class Ranked(val raw: RawSuggestion, val display: String)
@@ -48,22 +50,39 @@ class LatinSuggester(
     fun suggest(state: TypingState, maxCount: Int, blockOffensiveWords: Boolean): List<ArrangedWord> {
         if (maxCount <= 0) return emptyList()
         if (state.typed.isEmpty()) return predictions(state.previousWords, maxCount, blockOffensiveWords)
+        val personal = personalWords()
         val input = WordCase.decoderInput(state.typed, locale)
         val ranked = rank(state.typed, decoder.decode(input, state.previousWords, blockOffensiveWords))
         val corrections = ranked.filter { it.display != state.typed }
-        val autoCorrection = corrections.firstOrNull()
-            ?.takeIf { shouldAutoCorrect(state, input, it, isValid(state.typed, input, ranked)) }
+        val autoCorrection = autoCorrectionFor(state, input, ranked, personal.spellingOf(state.typed))
+        val case = WordCase.of(state.typed)
+        val ownWords = personal.completions(state.typed, PersonalWords.MAX_IN_STRIP).map { case.apply(it, locale) }
         return buildList {
-            if (autoCorrection != null) add(ArrangedWord(autoCorrection.display, isAutoCorrection = true))
+            if (autoCorrection != null) add(ArrangedWord(autoCorrection, isAutoCorrection = true))
             add(ArrangedWord(state.typed, isTypedWord = true))
-            for (correction in acronymAfterCompletions(state.typed, corrections)) {
-                if (correction !== autoCorrection) add(ArrangedWord(correction.display))
-            }
-        }.take(maxCount)
+            for (word in ownWords) add(ArrangedWord(word))
+            for (correction in acronymAfterCompletions(state.typed, corrections)) add(ArrangedWord(correction.display))
+        }.distinctBy { it.text }.take(maxCount)
+    }
+
+    /**
+     * What [state]'s word is auto-corrected to, if anything. A personal word is never corrected
+     * away; typed in another case ("iphone") and unknown to the dictionary, it takes the user's
+     * spelling ("iPhone").
+     */
+    private fun autoCorrectionFor(state: TypingState, input: String, ranked: List<Ranked>, ownSpelling: String?): String? {
+        val isTypedValid = isValid(state.typed, input, ranked)
+        if (ownSpelling != null) {
+            return ownSpelling.takeIf { it != state.typed && !isTypedValid && isCorrectable(state) }
+        }
+        return ranked.firstOrNull { it.display != state.typed }
+            ?.takeIf { shouldAutoCorrect(state, input, it, isTypedValid) }
+            ?.display
     }
 
     /** Spell-checks [word] with no context. */
     fun spell(word: String, maxCount: Int, blockOffensiveWords: Boolean): SpellCheck {
+        if (personalWords().spellingOf(word) != null) return SpellCheck(true, emptyList(), false)
         val input = WordCase.decoderInput(word, locale)
         val ranked = rank(word, decoder.decode(input, PreviousWords.NONE, blockOffensiveWords))
         if (isValid(word, input, ranked)) return SpellCheck(true, emptyList(), false)
@@ -138,8 +157,7 @@ class LatinSuggester(
 
     /** AOSP's gates (no correction mid-word, with digits, in mostly-caps words, to predictions or shortcuts). */
     private fun shouldAutoCorrect(state: TypingState, input: String, top: Ranked, isTypedValid: Boolean): Boolean {
-        val typed = state.typed
-        if (state.isCursorMidWord || typed.any(Char::isDigit) || WordCase.isMostlyCaps(typed)) return false
+        if (!isCorrectable(state)) return false
         if (top.raw.isPrediction || top.raw.isShortcut) return false
         return isAllowedToAutoCorrect(state, input, top, isTypedValid) &&
             AutoCorrection.suggestionExceedsThreshold(top.raw, input, threshold)
@@ -171,6 +189,10 @@ class LatinSuggester(
         val typedProbability = decoder.probability(input).coerceAtLeast(0)
         return decoder.probability(suggestion.word) - typedProbability >= RARER_BY
     }
+
+    /** AOSP never auto-corrects mid-word, a word with digits, or a mostly-caps word. */
+    private fun isCorrectable(state: TypingState): Boolean =
+        !state.isCursorMidWord && state.typed.none(Char::isDigit) && !WordCase.isMostlyCaps(state.typed)
 
     private fun isCaseOnlyAcronym(typed: String, display: String): Boolean =
         display.equals(typed, ignoreCase = true) && display.none(Char::isLowerCase) && typed.any(Char::isLowerCase)

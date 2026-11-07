@@ -17,16 +17,20 @@
 package dev.patrickgold.florisboard.ime.nlp.latin
 
 import android.content.Context
+import android.database.sqlite.SQLiteException
 import android.os.SystemClock
 import android.util.Log
 import com.jtn0123.audiowhisper.suggest.ArrangedWord
 import com.jtn0123.audiowhisper.suggest.LatinDictionaryEngine
 import com.jtn0123.audiowhisper.suggest.LatinSuggester
 import com.jtn0123.audiowhisper.suggest.NOT_A_PROBABILITY
+import com.jtn0123.audiowhisper.suggest.PersonalWords
 import com.jtn0123.audiowhisper.suggest.TypingState
 import dev.patrickgold.florisboard.appContext
 import dev.patrickgold.florisboard.editorInstance
 import dev.patrickgold.florisboard.ime.core.Subtype
+import dev.patrickgold.florisboard.ime.dictionary.DictionaryManager
+import dev.patrickgold.florisboard.ime.dictionary.UserDictionaryDao
 import dev.patrickgold.florisboard.ime.editor.EditorContent
 import dev.patrickgold.florisboard.ime.editor.InputAttributes
 import dev.patrickgold.florisboard.ime.nlp.SpellingProvider
@@ -94,6 +98,9 @@ class LatinLanguageProvider(context: Context) : SpellingProvider, SuggestionProv
     private class LastResult(val state: TypingState, val blockOffensiveWords: Boolean, val autoCorrection: SuggestionCandidate?)
     @Volatile private var lastResult: LastResult? = null
 
+    /** The personal dictionaries, re-read by [refreshPersonalWords] each time the keyboard shows. */
+    @Volatile private var personalWords = PersonalWords.NONE
+
     /** Words whose auto-correction the user undid this session (lowercased); they are not corrected again. */
     private val keptAsTyped: MutableSet<String> = ConcurrentHashMap.newKeySet()
 
@@ -127,7 +134,7 @@ class LatinLanguageProvider(context: Context) : SpellingProvider, SuggestionProv
         val started = SystemClock.elapsedRealtime()
         val opened = openBundledDictionary() ?: return
         engine = opened
-        suggester = LatinSuggester(opened, Locale.US)
+        suggester = LatinSuggester(opened, Locale.US, personalWords = { personalWords })
         Log.d(TAG, "Dictionary loaded in ${SystemClock.elapsedRealtime() - started} ms")
     }
 
@@ -218,13 +225,38 @@ class LatinLanguageProvider(context: Context) : SpellingProvider, SuggestionProv
      * assumed to be a name; so is everything when no dictionary is loaded.
      */
     fun isName(word: String): Boolean {
-        val engine = engine ?: return true
         val lower = word.lowercase(Locale.US)
         if (lower == word) return false
+        personalWords.spellingOf(word)?.let { return it.first().isUpperCase() }
+        val engine = engine ?: return true
         val asWritten = engine.probability(word)
         val lowered = engine.probability(lower)
         if (asWritten == NOT_A_PROBABILITY && lowered == NOT_A_PROBABILITY) return true
         return asWritten > lowered
+    }
+
+    /**
+     * AudioWhisper: re-reads the Floris and system personal dictionaries (those the settings
+     * enable), so a word added since counts from the next keystroke. Blocking; call off the main thread.
+     */
+    fun refreshPersonalWords() {
+        val manager = DictionaryManager.default()
+        manager.loadUserDictionariesIfNecessary()
+        val entries = listOfNotNull(manager.florisUserDictionaryDao(), manager.systemUserDictionaryDao())
+            .flatMap(::readPersonalDictionary)
+            .filter { PersonalWords.appliesTo(it.locale, DICTIONARY_LANGUAGE) }
+            .map { PersonalWords.Entry(it.word, it.freq, it.shortcut) }
+        personalWords = PersonalWords(entries, Locale.US)
+    }
+
+    private fun readPersonalDictionary(dao: UserDictionaryDao) = try {
+        dao.queryAll()
+    } catch (e: SecurityException) {
+        Log.w(TAG, "Not allowed to read a personal dictionary", e)
+        emptyList()
+    } catch (e: SQLiteException) {
+        Log.w(TAG, "Could not read a personal dictionary", e)
+        emptyList()
     }
 
     private fun isKeptAsTyped(typed: String) = typed.lowercase(Locale.ROOT) in keptAsTyped

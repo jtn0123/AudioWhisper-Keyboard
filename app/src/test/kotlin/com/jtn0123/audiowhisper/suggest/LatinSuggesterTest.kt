@@ -172,6 +172,35 @@ class LatinSuggesterTest {
         assertEquals(SpellCheck(false, listOf("oil"), false), suggester.spell("lol", 3, true))
     }
 
+    private val personal = PersonalWords(
+        listOf(PersonalWords.Entry("teh", 200), PersonalWords.Entry("iPhone", 250), PersonalWords.Entry("formica", 120)),
+    )
+    private val personalSuggester = LatinSuggester(decoder, Locale.US, personalWords = { personal })
+
+    private fun suggestPersonal(typed: String, after: String = "") =
+        personalSuggester.suggest(TypingState.of("", typed, after), 8, blockOffensiveWords = true)
+
+    @Test
+    fun neverCorrectsAPersonalWordAway() {
+        val words = suggestPersonal("teh")
+        assertFalse(words.any { it.isAutoCorrection })
+        assertEquals(listOf("teh", "the", "ten"), words.map { it.text })
+        assertEquals(SpellCheck(true, emptyList(), false), personalSuggester.spell("teh", 3, true))
+    }
+
+    @Test
+    fun givesAPersonalWordTheUsersSpelling() {
+        // The fake decoder knows no "iphone", so only the personal dictionary has it.
+        assertEquals("iPhone", suggestPersonal("iphone").first { it.isAutoCorrection }.text)
+        assertFalse(suggestPersonal("iphone", after = "s").any { it.isAutoCorrection })
+    }
+
+    @Test
+    fun offersPersonalCompletionsAfterTheTypedWord() {
+        assertEquals(listOf("form", "formica", "from"), suggestPersonal("form").map { it.text })
+        assertEquals(listOf("Form", "Formica", "From"), suggestPersonal("Form").map { it.text })
+    }
+
     /** Decoder results by input; probabilities by word; n-grams as (previous word, word) pairs. */
     private class FakeDecoder(
         private val results: Map<String, List<RawSuggestion>>,
