@@ -10,7 +10,8 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.net.URLEncoder
 
-/** One GIF: a small animated preview for the panel, and the GIF that gets sent. */
+/** One GIF: a small animated preview for the panel, and the GIF that gets sent. Saved in [GifRecents]. */
+@Serializable
 data class Gif(
     val id: String,
     val title: String,

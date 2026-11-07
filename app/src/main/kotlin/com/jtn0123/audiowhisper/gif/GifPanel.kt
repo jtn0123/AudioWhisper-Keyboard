@@ -38,6 +38,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.State
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -79,8 +80,10 @@ private const val MAX_ASPECT = 2.5f
 /** The GIF tab of the media panel: a search field, quick searches and a grid of GIFs. */
 @Composable
 fun GifPanel(modifier: Modifier = Modifier) {
+    val editorInstance by LocalContext.current.editorInstance()
     val results by GifSearch.results.collectAsState()
     val shown by GifSearch.shown.collectAsState()
+    LaunchedEffect(Unit) { GifSearch.offerTypedWord(editorInstance.activeContent.textBeforeSelection) }
     Column(modifier = modifier.fillMaxWidth()) {
         GifHeader(shown)
         GifCategories(shown)
@@ -141,12 +144,13 @@ private fun GifHeader(shown: String) {
 
 @Composable
 private fun GifCategories(shown: String) {
+    val chips by GifSearch.chips.collectAsState()
     SnyggRow(
         elementName = FlorisImeUi.ClipboardFilterRow.elementName,
         modifier = Modifier.fillMaxWidth(),
         clickAndSemanticsModifier = Modifier.florisHorizontalScroll(),
     ) {
-        for (category in GifSearch.categories) {
+        for (category in chips) {
             SnyggChip(
                 elementName = FlorisImeUi.ClipboardFilterChip.elementName,
                 attributes = mapOf("state" to if (category == shown) "active" else "inactive"),
@@ -179,6 +183,9 @@ private fun GifGrid(gifs: List<Gif>) {
                 scope.launch {
                     val outcome = GifSender.send(context, editorInstance, gif)
                     sending = null
+                    if (outcome != GifSender.Outcome.FAILED) {
+                        GifSearch.sent(gif, incognito = keyboardManager.activeState.isIncognitoMode)
+                    }
                     outcome.message()?.let { Toast.makeText(context, it, Toast.LENGTH_SHORT).show() }
                     if (outcome != GifSender.Outcome.FAILED) keyboardManager.activeState.imeUiMode = ImeUiMode.TEXT
                 }

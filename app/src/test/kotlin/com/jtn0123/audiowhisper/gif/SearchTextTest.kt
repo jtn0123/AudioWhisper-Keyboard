@@ -2,6 +2,7 @@ package com.jtn0123.audiowhisper.gif
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 
 class SearchTextTest {
     @Test
@@ -42,5 +43,24 @@ class SearchTextTest {
     fun `the query stops at GIPHY's limit`() {
         val long = "a".repeat(SearchText.MAX_LENGTH)
         assertEquals(long, SearchText.type(long, "b"))
+    }
+
+    @Test
+    fun `the word just typed is offered as a search`() {
+        assertEquals("congrats", SearchText.lastWord("Big congrats! "))
+        assertEquals("Congrats", SearchText.lastWord("Congrats"))
+        assertEquals("don't", SearchText.lastWord("I don't"))
+        assertEquals("café", SearchText.lastWord("at the café."))
+    }
+
+    @Test
+    fun `nothing is offered without a word at the end`() {
+        assertNull(SearchText.lastWord(null))
+        assertNull(SearchText.lastWord(""))
+        assertNull(SearchText.lastWord("   "))
+        assertNull(SearchText.lastWord("a"), "too short")
+        assertNull(SearchText.lastWord("call 555"))
+        assertNull(SearchText.lastWord("see 😀"))
+        assertNull(SearchText.lastWord("x".repeat(31)))
     }
 }

@@ -7,7 +7,8 @@
     Saved: settings, installed themes and layouts, and the personal dictionary. Left out: the
     650 MB speech model (files/models, over Google backup's 25 MB limit; it is copied in over
     adb), clipboard history (private, and only useful on the phone it was copied on), and what
-    the keyboard learned from typing (files/learned-words.txt, files/kept-as-typed.txt: private).
+    the keyboard learned from typing (files/learned-words.txt, files/kept-as-typed.txt: private),
+    and the GIFs sent recently (files/gif-recents.json: private).
 -->
 <data-extraction-rules>
     <cloud-backup>

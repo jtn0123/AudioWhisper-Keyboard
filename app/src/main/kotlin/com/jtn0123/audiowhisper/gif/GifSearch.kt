@@ -11,6 +11,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.io.File
 import java.io.IOException
 
 /**
@@ -34,6 +36,9 @@ object GifSearch {
     )
     const val TRENDING = "Trending"
 
+    /** The GIFs sent before ([GifRecents]): a chip that needs no GIPHY call. */
+    const val RECENTS = "Recents"
+
     private val giphy = BuildConfig.GIPHY_API_KEY.takeIf { it.isNotBlank() }?.let { Giphy(it) }
 
     /**
@@ -45,6 +50,7 @@ object GifSearch {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private var loading: Job? = null
     private val cache = GifResultCache(SystemClock::elapsedRealtime)
+    private var recents = GifRecents(file = null)
 
     /** The query when the current delete-key swipe began, so swiping back restores it. */
     private var beforeSwipe = ""
@@ -54,6 +60,8 @@ object GifSearch {
     private val mutableQuery = MutableStateFlow("")
     private val mutableShown = MutableStateFlow(TRENDING)
     private val mutableResults = MutableStateFlow<Results>(Results.Loading)
+    private val mutableChips = MutableStateFlow(chips(typedWord = null, hasRecents = false))
+    private var typedWord: String? = null
 
     /** The media panel shows GIFs rather than emoji. */
     val showingGifs: StateFlow<Boolean> = mutableShowingGifs.asStateFlow()
@@ -69,9 +77,60 @@ object GifSearch {
 
     val results: StateFlow<Results> = mutableResults.asStateFlow()
 
+    /** The quick searches to offer: the word just typed, Recents once a GIF was sent, then [categories]. */
+    val chips: StateFlow<List<String>> = mutableChips.asStateFlow()
+
+    /** The keyboard started: read the GIFs sent before from [filesDir]. Main thread. */
+    fun attach(filesDir: File) {
+        val file = File(filesDir, RECENTS_FILE)
+        if (recents.isStoredIn(file)) return
+        recents = GifRecents(file).also { loaded ->
+            scope.launch {
+                withContext(Dispatchers.IO) { loaded.load() }
+                updateChips()
+            }
+        }
+    }
+
+    /**
+     * The first time it opens, the panel shows Recents if there are any (no GIPHY call), else
+     * trending.
+     */
     fun showGifs(show: Boolean) {
         mutableShowingGifs.value = show && available
-        if (show && results.value !is Results.Loaded) load(shown.value)
+        if (!show || results.value is Results.Loaded) return
+        val first = shown.value == TRENDING && recents.all().isNotEmpty()
+        load(if (first) RECENTS else shown.value)
+    }
+
+    /** The panel opened after [textBefore]: offer its last word as a search ("congrats"). */
+    fun offerTypedWord(textBefore: CharSequence?) {
+        typedWord = SearchText.lastWord(textBefore)
+        updateChips()
+    }
+
+    /** [gif] was sent. In incognito it isn't remembered. */
+    fun sent(gif: Gif, incognito: Boolean) {
+        if (incognito) return
+        recents.add(gif)
+        updateChips()
+        val toSave = recents
+        scope.launch(Dispatchers.IO) { toSave.save() }
+    }
+
+    private fun updateChips() {
+        mutableChips.value = chips(typedWord, hasRecents = recents.all().isNotEmpty())
+    }
+
+    /**
+     * [typedWord] goes first, unless it is one of the chips already, which then moves first
+     * instead ("congrats" brings Congrats forward).
+     */
+    internal fun chips(typedWord: String?, hasRecents: Boolean): List<String> {
+        val rest = (if (hasRecents) listOf(RECENTS) else emptyList()) + categories
+        if (typedWord == null) return rest
+        val same = rest.firstOrNull { it.equals(typedWord, ignoreCase = true) }
+        return if (same != null) listOf(same) + (rest - same) else listOf(typedWord) + rest
     }
 
     fun startTyping() {
@@ -126,6 +185,7 @@ object GifSearch {
      */
     fun load(search: String) {
         val giphy = giphy ?: return
+        if (search == RECENTS) return showRecents()
         val alreadyShowing = search == shown.value && (results.value is Results.Loaded || loading?.isActive == true)
         if (alreadyShowing) return
         mutableShown.value = search
@@ -147,12 +207,20 @@ object GifSearch {
         }
     }
 
+    private fun showRecents() {
+        loading?.cancel()
+        mutableShown.value = RECENTS
+        mutableResults.value = Results.Loaded(recents.all())
+    }
+
     /** The keyboard went away: next time it opens on the keyboard, not a half-typed search. */
     fun reset() {
         stopTyping()
         mutableShowingGifs.value = false
         GifImages.forgetPreviews()
     }
+
+    private const val RECENTS_FILE = "gif-recents.json"
 
     internal fun problem(e: IOException) = when (e) {
         is GiphyFormatException -> "GIPHY sent something unreadable. Try again later."
@@ -194,4 +262,17 @@ internal object SearchText {
         repeat(count) { left = left.trimEnd().dropLastWhile { !it.isWhitespace() } }
         return left
     }
+
+    /**
+     * The word just typed before the cursor, to offer as a GIF search: "congrats" from "Big
+     * congrats! ". Null when the text doesn't end in a word of [MIN_WORD]-[MAX_WORD] letters.
+     */
+    fun lastWord(text: CharSequence?): String? {
+        val end = text?.toString()?.trimEnd { it.isWhitespace() || it in ".,!?;:" } ?: return null
+        val word = end.takeLastWhile { it.isLetter() || it == '\'' }.trim('\'')
+        return word.takeIf { it.length in MIN_WORD..MAX_WORD }
+    }
+
+    private const val MIN_WORD = 2
+    private const val MAX_WORD = 30
 }
