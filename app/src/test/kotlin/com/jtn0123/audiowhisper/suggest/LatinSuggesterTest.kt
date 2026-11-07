@@ -27,10 +27,12 @@ class LatinSuggesterTest {
             "london" to listOf(RawSuggestion("London", 1_801_319, exact)),
             "yeah" to listOf(RawSuggestion("yeah", 1_753_136, exact), RawSuggestion("year", 235_587, correction)),
             "lol" to listOf(RawSuggestion("oil", 227_445, correction)),
+            // The real decoder ranks the case-only match first.
             "wor" to listOf(
+                RawSuggestion("WOR", 1_600_000, exact),
                 RawSuggestion("work", 600_000, correction),
-                RawSuggestion("WOR", 590_000, correction),
                 RawSuggestion("word", 580_000, correction),
+                RawSuggestion("worn", 570_000, correction),
             ),
             "jello" to listOf(RawSuggestion("jello", 1_500_000, exact), RawSuggestion("Jello", 1_400_000, correction)),
             "jelo" to listOf(RawSuggestion("Jello", 600_000, correction), RawSuggestion("jello", 590_000, correction)),
@@ -46,7 +48,7 @@ class LatinSuggesterTest {
                 RawSuggestion("you", 70, RawSuggestion.KIND_PREDICTION),
             ),
         ),
-        probabilities = mapOf("jello" to 120, "form" to 158, "from" to 191, "fro" to 73, "yeah" to 135, "nit" to 59),
+        probabilities = mapOf("jello" to 120, "WOR" to 79, "work" to 200, "word" to 190, "worn" to 60, "OK" to 150, "on" to 220, "form" to 158, "from" to 191, "fro" to 73, "yeah" to 135, "nit" to 59),
         ngrams = setOf("came" to "from"),
     )
     private val suggester = LatinSuggester(decoder, Locale.US)
@@ -117,9 +119,16 @@ class LatinSuggesterTest {
         // Two spellings of the same suggestion collapse to the lower-case one, in the better slot.
         val jelo = suggest("jelo").map { it.text }
         assertEquals(listOf("jello"), jelo.filter { it.equals("jello", ignoreCase = true) })
-        // Acronyms only when they are the best match: "wor" doesn't offer "WOR"; "ok" still offers "OK".
-        assertEquals(listOf("work", "word"), suggest("wor").map { it.text }.filter { it != "wor" })
-        assertTrue("OK" in suggest("ok").map { it.text })
+    }
+
+    @Test
+    fun anAcronymOfTheTypedLettersGoesAfterTheWordsBeingTyped() {
+        // Behind the more frequent words that continue "wor", ahead of the rarer "worn".
+        assertEquals(listOf("wor", "work", "word", "WOR", "worn"), suggest("wor").map { it.text })
+        // Still not an auto-correction target, so "wor" isn't corrected either.
+        assertEquals(null, autoCorrection("wor"))
+        // "on" doesn't continue "ok", so "OK" keeps its slot.
+        assertEquals(listOf("ok", "OK", "on"), suggest("ok").map { it.text })
     }
 
     @Test

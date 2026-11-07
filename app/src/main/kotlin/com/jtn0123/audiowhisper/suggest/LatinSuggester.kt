@@ -56,7 +56,7 @@ class LatinSuggester(
         return buildList {
             if (autoCorrection != null) add(ArrangedWord(autoCorrection.display, isAutoCorrection = true))
             add(ArrangedWord(state.typed, isTypedWord = true))
-            for (correction in corrections) {
+            for (correction in acronymAfterCompletions(state.typed, corrections)) {
                 if (correction !== autoCorrection) add(ArrangedWord(correction.display))
             }
         }.take(maxCount)
@@ -96,22 +96,33 @@ class LatinSuggester(
 
     /**
      * For a word typed in lower case, where results keep the dictionary's spelling: no second
-     * spelling of a typed word that is itself a word ("jello" doesn't also offer "Jello"), no
-     * acronym unless it is the best result ("wor" doesn't offer "WOR", "ok" still offers "OK"),
-     * and one spelling per word, lower case preferred ("jelo" offers "jello", not both).
+     * spelling of a typed word that is itself a word ("jello" doesn't also offer "Jello"), and one
+     * spelling per word, lower case preferred ("jelo" offers "jello", not both).
      */
     private fun oneSpellingPerWord(typed: String, ranked: List<Ranked>): List<Ranked> {
         val typedIsWord = ranked.any { it.display == typed } || decoder.probability(typed) != NOT_A_PROBABILITY
-        val kept = ranked.filterIndexed { index, it ->
-            when {
-                it.display == typed -> true
-                typedIsWord && it.display.equals(typed, ignoreCase = true) -> false
-                else -> index == 0 || !isAcronym(it.display)
-            }
-        }
+        val kept = ranked.filter { it.display == typed || !(typedIsWord && it.display.equals(typed, ignoreCase = true)) }
         return kept.groupBy { it.display.lowercase(locale) }.values.map { spellings ->
             spellings.firstOrNull { it.display.none(Char::isUpperCase) } ?: spellings.first()
         }
+    }
+
+    /**
+     * Strip order only (auto-correction is decided first): an acronym spelled with exactly the
+     * typed letters goes after the more frequent words that continue them, so "wor" shows "work"
+     * and "word" before "WOR". With nothing like that ahead of it, it stays ("ok" still offers "OK").
+     */
+    private fun acronymAfterCompletions(typed: String, corrections: List<Ranked>): List<Ranked> {
+        val acronym = corrections.firstOrNull { it.display.equals(typed, ignoreCase = true) && isAcronym(it.display) }
+            ?: return corrections
+        val frequency = decoder.probability(acronym.raw.word)
+        val rest = corrections.filter { it !== acronym }
+        val lastAhead = rest.indexOfLast {
+            it.display.startsWith(typed, ignoreCase = true) && decoder.probability(it.raw.word) > frequency
+        }
+        // Already behind all of them (or nothing to go behind): leave the order alone.
+        if (lastAhead < corrections.indexOf(acronym)) return corrections
+        return rest.toMutableList().apply { add(lastAhead + 1, acronym) }
     }
 
     private fun isAcronym(word: String): Boolean {
