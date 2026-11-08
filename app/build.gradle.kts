@@ -169,10 +169,6 @@ android {
         }
     }
 
-    lint {
-        baseline = file("lint.xml")
-    }
-
     androidResources {
         // The AOSP dictionary engine mmaps assets/dicts/*.dict straight out of the APK,
         // which needs the entries stored uncompressed.
