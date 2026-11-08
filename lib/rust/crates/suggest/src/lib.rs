@@ -10,6 +10,11 @@
 
 pub mod auto_correction;
 pub mod java;
+pub mod kept_words;
+pub mod learned_words;
+mod lines;
+mod ordered;
+pub mod personal_words;
 pub mod previous_words;
 pub mod qwerty;
 pub mod raw;

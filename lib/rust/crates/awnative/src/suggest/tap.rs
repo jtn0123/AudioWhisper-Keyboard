@@ -3,13 +3,13 @@
 //! the main thread and reads it while suggesting.
 
 use std::ptr;
-use std::sync::{Mutex, MutexGuard};
+use std::sync::Mutex;
 
 use jni_sys::{JNIEnv, jboolean, jclass, jfloat, jfloatArray, jint, jintArray, jlong, jstring};
 use suggest::qwerty;
 use suggest::tap::{TapOffset, TapTrail};
 
-use crate::handle::{free, into_handle, object};
+use crate::handle::{free, into_handle, with_locked};
 use crate::jni::{self, Env, Result, illegal};
 
 /// How far beside a key a tap still counts for it (`TapOffset::LIMIT`).
@@ -85,24 +85,11 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_SuggestNative_freeTapT
     unsafe { free::<Mutex<TapTrail>>(trail) }
 }
 
-/// The trail behind `handle`, locked.
-///
-/// # Safety
-/// `handle` must be a trail that hasn't been freed: its Kotlin owner is still reachable.
-unsafe fn locked<'a>(handle: jlong) -> Result<MutexGuard<'a, TapTrail>> {
-    // SAFETY: as the caller promises.
-    let trail = unsafe { object::<Mutex<TapTrail>>(handle, "tap trail")? };
-    // A panic aborts, so no lock is ever poisoned; take it back if one somehow were.
-    Ok(trail
-        .lock()
-        .unwrap_or_else(|poisoned| poisoned.into_inner()))
-}
-
 /// Runs `body` on the trail behind `handle`, locked.
 ///
 /// # Safety
 /// `env` must be the environment the JVM passed to this call, and `handle` a trail that hasn't been
-/// freed.
+/// freed: its Kotlin owner is still reachable.
 unsafe fn with_trail<T>(
     env: *mut JNIEnv,
     handle: jlong,
@@ -110,7 +97,7 @@ unsafe fn with_trail<T>(
     body: impl FnOnce(&mut TapTrail, &Env) -> Result<T>,
 ) -> T {
     // SAFETY: as the caller promises.
-    unsafe { jni::run(env, fallback, |env| body(&mut *locked(handle)?, env)) }
+    unsafe { with_locked(env, handle, "tap trail", fallback, body) }
 }
 
 /// A key for `codePoint` went down, at (`dx`, `dy`) if `hasOffset`.

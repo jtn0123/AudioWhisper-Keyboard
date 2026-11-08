@@ -147,8 +147,35 @@ impl Env {
         Ok(string)
     }
 
+    /// The strings in a `String[]`, `None` for each null; `name` says which argument was null, if
+    /// the array was.
+    pub fn read_strings(
+        &self,
+        array: jobjectArray,
+        name: &'static str,
+    ) -> Result<Vec<Option<Vec<u16>>>> {
+        let len = self.length(array, name)?;
+        let mut strings = Vec::with_capacity(len);
+        // The index fits in a jsize, as the length does.
+        for i in 0..len {
+            let string = jni_call!(self, GetObjectArrayElement, array, i as jsize);
+            self.check()?;
+            let units = self.read_nullable_string(string);
+            if !string.is_null() {
+                self.delete_local(string);
+            }
+            strings.push(units?);
+        }
+        Ok(strings)
+    }
+
+    /// A new Java string of these UTF-16 units, or null for `None`.
+    pub fn make_nullable_string(&self, units: Option<&[u16]>) -> Result<jstring> {
+        units.map_or(Ok(ptr::null_mut()), |units| self.make_string(units))
+    }
+
     /// A new `String[]` of these strings.
-    pub fn make_strings(&self, strings: &[Vec<u16>]) -> Result<jobjectArray> {
+    pub fn make_strings<S: AsRef<[u16]>>(&self, strings: &[S]) -> Result<jobjectArray> {
         let len = jsize::try_from(strings.len()).map_err(|_| illegal("array too long"))?;
         let class = jni_call!(self, FindClass, c"java/lang/String".as_ptr());
         if class.is_null() {
@@ -161,7 +188,7 @@ impl Env {
         }
         // The index fits in a jsize, as the length does.
         for (i, units) in strings.iter().enumerate() {
-            let string = self.make_string(units)?;
+            let string = self.make_string(units.as_ref())?;
             jni_call!(self, SetObjectArrayElement, array, i as jsize, string);
             self.delete_local(string);
             self.check()?;

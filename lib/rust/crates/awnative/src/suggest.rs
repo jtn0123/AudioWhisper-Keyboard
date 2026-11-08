@@ -2,6 +2,9 @@
 //! `SuggestNative` in lib/rust's Kotlin. Results that aren't one value come back packed, as each
 //! function says; `SuggestRules` unpacks them.
 
+mod kept_words;
+mod learned_words;
+mod personal_words;
 mod tap;
 
 use std::ptr;

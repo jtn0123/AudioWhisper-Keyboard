@@ -2,9 +2,11 @@
 //! wrapper frees it once, with a `java.lang.ref.Cleaner` when nothing can reach the wrapper, or
 //! on closing it.
 
-use jni_sys::jlong;
+use std::sync::{Mutex, MutexGuard, PoisonError};
 
-use crate::jni::{Result, illegal};
+use jni_sys::{JNIEnv, jlong};
+
+use crate::jni::{self, Env, Result, illegal};
 
 /// Boxes `value` for Kotlin to hold.
 pub fn into_handle<T>(value: T) -> jlong {
@@ -31,4 +33,32 @@ pub unsafe fn free<T>(handle: jlong) {
         // SAFETY: as the caller promises.
         drop(unsafe { Box::from_raw(handle as *mut T) });
     }
+}
+
+/// The `T` behind a handle to a `Mutex<T>`, locked: Kotlin may call from several threads.
+///
+/// # Safety
+/// As for [`object`]: `handle` must be 0 or come from [`into_handle`] of a `Mutex<T>` that hasn't
+/// been freed.
+pub unsafe fn locked<'a, T>(handle: jlong, what: &str) -> Result<MutexGuard<'a, T>> {
+    // SAFETY: as the caller promises.
+    let object = unsafe { object::<Mutex<T>>(handle, what)? };
+    // A panic aborts, so no lock is ever poisoned; take it back if one somehow were.
+    Ok(object.lock().unwrap_or_else(PoisonError::into_inner))
+}
+
+/// Runs an entry point's `body` on the `T` behind a handle to a `Mutex<T>`, locked (see
+/// [`jni::run`]).
+///
+/// # Safety
+/// `env` must be the environment the JVM passed to this call, and `handle` as for [`locked`].
+pub unsafe fn with_locked<T, R>(
+    env: *mut JNIEnv,
+    handle: jlong,
+    what: &str,
+    fallback: R,
+    body: impl FnOnce(&mut T, &Env) -> Result<R>,
+) -> R {
+    // SAFETY: as the caller promises.
+    unsafe { jni::run(env, fallback, |env| body(&mut *locked(handle, what)?, env)) }
 }
