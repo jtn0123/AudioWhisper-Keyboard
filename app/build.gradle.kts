@@ -238,7 +238,6 @@ dependencies {
     implementation(projects.lib.kotlin)
     // AOSP LatinIME dictionary engine (Apache-2.0): word suggestions and autocorrect.
     implementation(projects.lib.latinime)
-    implementation(projects.lib.native)
     implementation(projects.lib.snygg)
 
     testImplementation(libs.kotlin.test.junit5)

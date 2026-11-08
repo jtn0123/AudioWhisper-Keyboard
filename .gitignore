@@ -56,11 +56,5 @@ crowdin.properties
 # VSCode
 .vscode/
 
-# Rust
-debug/
-target/
-**/*.rs.bk
-*.pdb
-
 # Phone settings copied by scripts/install-dev.sh (personal: dictionary words, settings)
 .device-backup/

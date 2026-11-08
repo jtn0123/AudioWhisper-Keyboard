@@ -53,7 +53,6 @@ If you are overwhelmed by the code don't hesitate to ask for help in the [dev ch
   - CMake 3.22+
   - Clang 15+
   - Git
-  - [Rust](https://www.rust-lang.org/tools/install)
 - Utilities (optional)
   - Python 3.10+
   - Bash, realpath, grep, ...
