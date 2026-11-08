@@ -22,7 +22,6 @@ import android.graphics.Bitmap
 import android.graphics.ImageDecoder
 import android.net.Uri
 import android.os.Bundle
-import android.provider.MediaStore
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.Image
@@ -51,7 +50,6 @@ import dev.patrickgold.florisboard.app.FlorisPreferenceStore
 import dev.patrickgold.florisboard.app.apptheme.FlorisAppTheme
 import dev.patrickgold.jetpref.datastore.model.observeAsState
 import org.florisboard.lib.android.AndroidClipboardManager
-import org.florisboard.lib.android.AndroidVersion
 import org.florisboard.lib.android.stringRes
 import org.florisboard.lib.android.systemService
 import org.florisboard.lib.compose.ProvideLocalizedResources
@@ -106,13 +104,7 @@ class FlorisCopyToClipboardActivity : ComponentActivity() {
             return
         }
 
-        val uri: Uri? =
-            if (AndroidVersion.ATLEAST_API33_T) {
-                intent.getParcelableExtra(Intent.EXTRA_STREAM, Uri::class.java)
-            } else {
-                @Suppress("DEPRECATION")
-                intent.getParcelableExtra(Intent.EXTRA_STREAM)
-            }
+        val uri: Uri? = intent.getParcelableExtra(Intent.EXTRA_STREAM, Uri::class.java)
 
         if (uri == null) {
             error = CopyToClipboardError.TYPE_NOT_SUPPORTED_ERROR
@@ -124,13 +116,8 @@ class FlorisCopyToClipboardActivity : ComponentActivity() {
     private fun uriToBitmap(uri: Uri): Bitmap {
         val clip = ClipData.newUri(contentResolver, "image", uri)
         clipboardManager.setPrimaryClip(clip)
-        return if (AndroidVersion.ATLEAST_API28_P) {
-            val source = ImageDecoder.createSource(contentResolver, uri)
-            ImageDecoder.decodeBitmap(source)
-        } else {
-            @Suppress("DEPRECATION")
-            MediaStore.Images.Media.getBitmap(contentResolver, uri)
-        }
+        val source = ImageDecoder.createSource(contentResolver, uri)
+        return ImageDecoder.decodeBitmap(source)
     }
 
     @Composable

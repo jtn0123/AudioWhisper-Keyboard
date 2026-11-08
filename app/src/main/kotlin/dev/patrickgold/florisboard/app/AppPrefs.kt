@@ -68,9 +68,7 @@ import dev.patrickgold.jetpref.datastore.model.PreferenceType
 import dev.patrickgold.jetpref.datastore.model.observeAsState
 import dev.patrickgold.jetpref.material.ui.ColorRepresentation
 import kotlinx.serialization.json.Json
-import org.florisboard.lib.android.AndroidVersion
 import org.florisboard.lib.android.isOrientationPortrait
-import org.florisboard.lib.color.DEFAULT_GREEN
 
 val FlorisPreferenceStore = jetprefDataStoreOf(FlorisPreferenceModel::class)
 
@@ -641,15 +639,8 @@ abstract class FlorisPreferenceModel : PreferenceModel() {
         )
         val accentColor = custom(
             key = "other__accent_color",
-            default = when (AndroidVersion.ATLEAST_API31_S) {
-                true -> Color.Unspecified
-                false -> DEFAULT_GREEN
-            },
+            default = Color.Unspecified,
             serializer = ColorPreferenceSerializer,
-        )
-        val showAppIcon = boolean(
-            key = "other__show_app_icon",
-            default = true,
         )
     }
 
@@ -776,10 +767,7 @@ abstract class FlorisPreferenceModel : PreferenceModel() {
         )
         val accentColor = custom(
             key = "theme__accent_color",
-            default = when (AndroidVersion.ATLEAST_API31_S) {
-                true -> Color.Unspecified
-                false -> DEFAULT_GREEN
-            },
+            default = Color.Unspecified,
             serializer = ColorPreferenceSerializer,
         )
         val sunriseTime = localTime(
@@ -833,8 +821,9 @@ abstract class FlorisPreferenceModel : PreferenceModel() {
             "advanced__settings_language", "other__settings_language" -> {
                 entry.reset()
             }
-            "advanced__show_app_icon" -> {
-                entry.transform(key = "other__show_app_icon")
+            // AudioWhisper: Android always shows the app icon, so there is nothing to choose.
+            "advanced__show_app_icon", "other__show_app_icon" -> {
+                entry.reset()
             }
             "advanced__incognito_mode" -> {
                 entry.transform(key = "suggestion__incognito_mode")

@@ -27,7 +27,6 @@ import dev.patrickgold.jetpref.datastore.ui.ExperimentalJetPrefDatastoreUi
 import dev.patrickgold.jetpref.datastore.ui.ListPreference
 import dev.patrickgold.jetpref.datastore.ui.PreferenceGroup
 import dev.patrickgold.jetpref.datastore.ui.SwitchPreference
-import org.florisboard.lib.android.AndroidVersion
 import org.florisboard.lib.compose.pluralsRes
 import org.florisboard.lib.compose.stringRes
 
@@ -115,7 +114,6 @@ fun ClipboardScreen() = FlorisScreen {
                 prefs.clipboard.historyAutoCleanSensitiveEnabled,
                 title = stringRes(R.string.pref__clipboard__auto_clean_sensitive__label),
                 enabledIf = { prefs.clipboard.historyEnabled isEqualTo true },
-                visibleIf = { AndroidVersion.ATLEAST_API33_T },
             )
             DialogSliderPreference(
                 prefs.clipboard.historyAutoCleanSensitiveAfter,
@@ -125,7 +123,6 @@ fun ClipboardScreen() = FlorisScreen {
                 max = 300,
                 stepIncrement = 10,
                 enabledIf = { prefs.clipboard.historyEnabled isEqualTo true && prefs.clipboard.historyAutoCleanSensitiveEnabled isEqualTo true },
-                visibleIf = { AndroidVersion.ATLEAST_API33_T },
             )
             SwitchPreference(
                 prefs.clipboard.historySizeLimitEnabled,

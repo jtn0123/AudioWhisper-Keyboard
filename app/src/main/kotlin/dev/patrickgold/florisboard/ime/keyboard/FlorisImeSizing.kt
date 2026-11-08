@@ -18,9 +18,7 @@ package dev.patrickgold.florisboard.ime.keyboard
 
 import android.content.Context
 import android.content.res.Resources
-import android.os.Build
 import android.view.WindowManager
-import androidx.annotation.RequiresApi
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.ReadOnlyComposable
@@ -44,7 +42,6 @@ import dev.patrickgold.florisboard.keyboardManager
 import dev.patrickgold.florisboard.lib.observeAsTransformingState
 import dev.patrickgold.florisboard.lib.util.ViewUtils
 import dev.patrickgold.jetpref.datastore.model.observeAsState
-import org.florisboard.lib.android.AndroidVersion
 import org.florisboard.lib.android.isOrientationLandscape
 
 private val LocalKeyboardRowBaseHeight = staticCompositionLocalOf { 65.dp }
@@ -121,12 +118,8 @@ fun ProvideKeyboardRowBaseHeight(content: @Composable () -> Unit) {
     val oneHandedMode by prefs.keyboard.oneHandedModeEnabled.observeAsState()
     val oneHandedModeScaleFactor by prefs.keyboard.oneHandedModeScaleFactor.observeAsTransformingState { it.toFloat() / 100f }
 
-    // Only set systemBarHeights on api 35 or later because https://developer.android.com/about/versions/15/behavior-changes-15#stable-configuration
-    val systemBarHeights = if (AndroidVersion.ATLEAST_API35_V) {
-        systemBarHeights()
-    } else {
-        0
-    }
+    // See https://developer.android.com/about/versions/15/behavior-changes-15#stable-configuration
+    val systemBarHeights = systemBarHeights()
     val baseRowHeight = remember(
         configuration, resources, heightFactorPortrait, heightFactorLandscape,
         oneHandedMode, oneHandedModeScaleFactor, systemBarHeights,
@@ -151,7 +144,6 @@ fun ProvideKeyboardRowBaseHeight(content: @Composable () -> Unit) {
     }
 }
 
-@RequiresApi(Build.VERSION_CODES.R)
 @Composable
 fun systemBarHeights(): Int {
     val view = LocalView.current

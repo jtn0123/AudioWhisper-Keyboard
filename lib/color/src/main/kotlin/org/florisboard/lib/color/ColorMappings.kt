@@ -16,8 +16,6 @@
 
 package org.florisboard.lib.color
 
-import android.os.Build
-import androidx.annotation.RequiresApi
 import androidx.compose.material3.ColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
@@ -29,7 +27,6 @@ import com.materialkolor.PaletteStyle
 import com.materialkolor.dynamicColorScheme
 import com.materialkolor.dynamiccolor.ColorSpec
 import com.materialkolor.scheme.DynamicScheme
-import org.florisboard.lib.android.AndroidVersion
 
 val DEFAULT_GREEN = Color(0xFF4CAF50)
 
@@ -59,7 +56,6 @@ object ColorMappings {
 }
 
 @Composable
-@RequiresApi(Build.VERSION_CODES.S)
 fun getSystemAccent(): Color {
     val context = LocalContext.current
     val resources = LocalResources.current
@@ -69,7 +65,7 @@ fun getSystemAccent(): Color {
 
 @Composable
 fun systemAccentOrDefault(default: Color): Color {
-    return if (default.isUnspecified && AndroidVersion.ATLEAST_API31_S) {
+    return if (default.isUnspecified) {
         getSystemAccent()
     } else {
         default

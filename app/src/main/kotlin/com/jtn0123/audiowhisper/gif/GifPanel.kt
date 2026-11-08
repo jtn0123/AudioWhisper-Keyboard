@@ -202,8 +202,7 @@ private fun GifSender.Outcome.message(): String? = when (this) {
 
 @Composable
 private fun GifTile(gif: Gif, sending: Boolean, onClick: () -> Unit) {
-    val resources = LocalContext.current.resources
-    val image by produceState<Drawable?>(null, gif.previewUrl) { value = GifImages.preview(gif.previewUrl, resources) }
+    val image by produceState<Drawable?>(null, gif.previewUrl) { value = GifImages.preview(gif.previewUrl) }
     Box(
         modifier = Modifier
             .fillMaxWidth()

@@ -150,8 +150,7 @@ class HanShapeBasedLanguageProvider(val context: Context) : SpellingProvider, Su
         return when (word.lowercase()) {
             // Use typo for typing errors
             "typo" -> SpellingResult.typo(arrayOf("typo1", "typo2", "typo3"))
-            // Use grammar error if the algorithm can detect this. On Android 11 and lower grammar errors are visually
-            // marked as typos due to a lack of support
+            // Use grammar error if the algorithm can detect this
             "gerror" -> SpellingResult.grammarError(arrayOf("grammar1", "grammar2", "grammar3"))
             // Use valid word for valid input
             else -> SpellingResult.validWord()

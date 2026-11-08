@@ -17,7 +17,6 @@
 package dev.patrickgold.florisboard.ime.nlp
 
 import android.view.textservice.SuggestionsInfo
-import org.florisboard.lib.android.AndroidVersion
 
 /**
  * Inline value class wrapping the Android spelling [SuggestionsInfo] class with helpers.
@@ -49,13 +48,11 @@ value class SpellingResult(val suggestionsInfo: SuggestionsInfo) {
         get() = suggestionsInfo.suggestionsAttributes and SuggestionsInfo.RESULT_ATTR_LOOKS_LIKE_TYPO != 0
 
     /**
-     * Returns true if the original string is a grammar error (Android 12+ only). Visually in the target editor field
-     * this means that it will be underlined in blue and upon clicking the word a popup window appears with the
-     * provided corrections.
+     * Returns true if the original string is a grammar error. Visually in the target editor field this means that it
+     * will be underlined in blue and upon clicking the word a popup window appears with the provided corrections.
      */
     val isGrammarError: Boolean
-        get() = AndroidVersion.ATLEAST_API31_S &&
-            suggestionsInfo.suggestionsAttributes and SuggestionsInfo.RESULT_ATTR_LOOKS_LIKE_GRAMMAR_ERROR != 0
+        get() = suggestionsInfo.suggestionsAttributes and SuggestionsInfo.RESULT_ATTR_LOOKS_LIKE_GRAMMAR_ERROR != 0
 
     /**
      * Returns the suggestions info corrections as a newly constructed array.
@@ -102,8 +99,7 @@ value class SpellingResult(val suggestionsInfo: SuggestionsInfo) {
         }
 
         /**
-         * Constructs a new result for a grammar error input. See [isGrammarError] for details. If invoked on Android
-         * 11 or older, this method returns a typo.
+         * Constructs a new result for a grammar error input. See [isGrammarError] for details.
          *
          * @param suggestions The array of suggested corrections. May be empty if the word is identified as a grammar
          *  error but fails to generate correction suggestions.
@@ -114,11 +110,8 @@ value class SpellingResult(val suggestionsInfo: SuggestionsInfo) {
          *  caller in the service.
          */
         fun grammarError(suggestions: Array<out String>, isHighConfidenceResult: Boolean = false): SpellingResult {
-            val attributes = if (AndroidVersion.ATLEAST_API31_S) {
-                SuggestionsInfo.RESULT_ATTR_LOOKS_LIKE_GRAMMAR_ERROR
-            } else {
-                SuggestionsInfo.RESULT_ATTR_LOOKS_LIKE_TYPO
-            } or (if (isHighConfidenceResult) SuggestionsInfo.RESULT_ATTR_HAS_RECOMMENDED_SUGGESTIONS else 0)
+            val attributes = SuggestionsInfo.RESULT_ATTR_LOOKS_LIKE_GRAMMAR_ERROR or
+                (if (isHighConfidenceResult) SuggestionsInfo.RESULT_ATTR_HAS_RECOMMENDED_SUGGESTIONS else 0)
             return SpellingResult(SuggestionsInfo(attributes, suggestions))
         }
     }

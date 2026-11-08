@@ -24,16 +24,12 @@ import android.os.VibratorManager
 import android.util.Log
 
 fun Context.systemVibratorOrNull(): Vibrator? {
-    return if (AndroidVersion.ATLEAST_API31_S) {
-        this.systemServiceOrNull(VibratorManager::class)?.defaultVibrator
-    } else {
-        this.systemServiceOrNull(Vibrator::class)
-    }?.takeIf { it.hasVibrator() }
+    return this.systemServiceOrNull(VibratorManager::class)?.defaultVibrator?.takeIf { it.hasVibrator() }
 }
 
 /**
  * Vibrates once. A [touchFeedback] vibration is tagged as touch feedback, which the system drops
- * while the user has touch feedback turned off (Android 13+); otherwise it plays regardless.
+ * while the user has touch feedback turned off; otherwise it plays regardless.
  */
 fun Vibrator.vibrate(duration: Int, strength: Int, factor: Double = 1.0, touchFeedback: Boolean = false) {
     if (duration == 0 || strength == 0) return
@@ -44,7 +40,7 @@ fun Vibrator.vibrate(duration: Int, strength: Int, factor: Double = 1.0, touchFe
     }
     Log.d("Vibrator", "Perform haptic with duration=$effectiveDuration and strength=$effectiveStrength")
     val effect = VibrationEffect.createOneShot(effectiveDuration, effectiveStrength)
-    if (touchFeedback && AndroidVersion.ATLEAST_API33_T) {
+    if (touchFeedback) {
         this.vibrate(effect, VibrationAttributes.createForUsage(VibrationAttributes.USAGE_TOUCH))
     } else {
         this.vibrate(effect)

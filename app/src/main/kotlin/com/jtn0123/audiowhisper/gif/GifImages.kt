@@ -1,11 +1,7 @@
 package com.jtn0123.audiowhisper.gif
 
-import android.content.res.Resources
-import android.graphics.BitmapFactory
 import android.graphics.ImageDecoder
-import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
-import android.os.Build
 import android.util.LruCache
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -33,10 +29,10 @@ object GifImages {
     }
 
     /** The animated preview at [url], or null if it could not be fetched or decoded. */
-    suspend fun preview(url: String, resources: Resources): Drawable? = withContext(Dispatchers.IO) {
+    suspend fun preview(url: String): Drawable? = withContext(Dispatchers.IO) {
         try {
             val bytes = previews.get(url) ?: download(url, MAX_PREVIEW_BYTES).also { previews.put(url, it) }
-            decode(bytes, resources)
+            decode(bytes)
         } catch (e: IOException) {
             null
         }
@@ -78,11 +74,7 @@ object GifImages {
         }
     }
 
-    /** Animated where the platform can (Android 9+), otherwise the first frame. */
-    private fun decode(bytes: ByteArray, resources: Resources): Drawable? =
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-            ImageDecoder.decodeDrawable(ImageDecoder.createSource(ByteBuffer.wrap(bytes)))
-        } else {
-            BitmapFactory.decodeByteArray(bytes, 0, bytes.size)?.let { BitmapDrawable(resources, it) }
-        }
+    /** Decodes [bytes] to a drawable, animated when the GIF is. */
+    private fun decode(bytes: ByteArray): Drawable =
+        ImageDecoder.decodeDrawable(ImageDecoder.createSource(ByteBuffer.wrap(bytes)))
 }

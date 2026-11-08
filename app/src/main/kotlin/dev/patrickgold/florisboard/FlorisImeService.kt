@@ -21,7 +21,6 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.content.res.Configuration
 import android.inputmethodservice.ExtractEditText
-import android.os.Build
 import android.os.Bundle
 import android.util.Size
 import android.util.TypedValue
@@ -40,7 +39,6 @@ import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.Toast
 import android.widget.inline.InlinePresentationSpec
-import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -119,7 +117,6 @@ import dev.patrickgold.jetpref.datastore.model.observeAsState
 import java.lang.ref.WeakReference
 import kotlinx.coroutines.flow.update
 import org.florisboard.lib.android.AndroidInternalR
-import org.florisboard.lib.android.AndroidVersion
 import org.florisboard.lib.android.isOrientationLandscape
 import org.florisboard.lib.android.isOrientationPortrait
 import org.florisboard.lib.android.systemServiceOrNull
@@ -176,24 +173,12 @@ class FlorisImeService : LifecycleInputMethodService() {
 
         fun showUi() {
             val ims = FlorisImeServiceReference.get() ?: return
-            if (AndroidVersion.ATLEAST_API28_P) {
-                ims.requestShowSelf(0)
-            } else {
-                @Suppress("DEPRECATION")
-                ims.systemServiceOrNull(InputMethodManager::class)
-                    ?.showSoftInputFromInputMethod(ims.currentInputBinding.connectionToken, 0)
-            }
+            ims.requestShowSelf(0)
         }
 
         fun hideUi() {
             val ims = FlorisImeServiceReference.get() ?: return
-            if (AndroidVersion.ATLEAST_API28_P) {
-                ims.requestHideSelf(0)
-            } else {
-                @Suppress("DEPRECATION")
-                ims.systemServiceOrNull(InputMethodManager::class)
-                    ?.hideSoftInputFromInputMethod(ims.currentInputBinding.connectionToken, 0)
-            }
+            ims.requestHideSelf(0)
             FlorisImeServiceReference.get()?.requestHideSelf(0)
         }
 
@@ -201,14 +186,7 @@ class FlorisImeService : LifecycleInputMethodService() {
             val ims = FlorisImeServiceReference.get() ?: return false
             val imm = ims.systemServiceOrNull(InputMethodManager::class)
             try {
-                if (AndroidVersion.ATLEAST_API28_P) {
-                    return ims.switchToPreviousInputMethod()
-                } else {
-                    ims.window.window?.let { window ->
-                        @Suppress("DEPRECATION")
-                        return imm?.switchToLastInputMethod(window.attributes.token) == true
-                    }
-                }
+                return ims.switchToPreviousInputMethod()
             } catch (e: Exception) {
                 flogError { "Unable to switch to the previous IME" }
                 imm?.showInputMethodPicker()
@@ -220,14 +198,7 @@ class FlorisImeService : LifecycleInputMethodService() {
             val ims = FlorisImeServiceReference.get() ?: return false
             val imm = ims.systemServiceOrNull(InputMethodManager::class)
             try {
-                if (AndroidVersion.ATLEAST_API28_P) {
-                    return ims.switchToNextInputMethod(false)
-                } else {
-                    ims.window.window?.let { window ->
-                        @Suppress("DEPRECATION")
-                        return imm?.switchToNextInputMethod(window.attributes.token, false) == true
-                    }
-                }
+                return ims.switchToNextInputMethod(false)
             } catch (e: Exception) {
                 flogError { "Unable to switch to the next IME" }
                 imm?.showInputMethodPicker()
@@ -513,7 +484,6 @@ class FlorisImeService : LifecycleInputMethodService() {
         isExtractUiShown = shown
     }
 
-    @RequiresApi(Build.VERSION_CODES.R)
     override fun onCreateInlineSuggestionsRequest(uiExtras: Bundle): InlineSuggestionsRequest? {
         if (!prefs.smartbar.enabled.get() || !prefs.suggestion.api30InlineSuggestionsEnabled.get()) {
             flogInfo(LogTopic.IMS_EVENTS) {
@@ -542,7 +512,6 @@ class FlorisImeService : LifecycleInputMethodService() {
         }
     }
 
-    @RequiresApi(Build.VERSION_CODES.R)
     override fun onInlineSuggestionsResponse(response: InlineSuggestionsResponse): Boolean {
         val inlineSuggestions = response.inlineSuggestions
         flogInfo(LogTopic.IMS_EVENTS) {
@@ -672,19 +641,14 @@ class FlorisImeService : LifecycleInputMethodService() {
                 clickAndSemanticsModifier = Modifier
                     // Do not remove below line or touch input may get stuck
                     .pointerInteropFilter { false },
-                supportsBackgroundImage = !AndroidVersion.ATLEAST_API30_R,
                 allowClip = false,
             ) {
-                // The SurfaceView is used to render the background image under inline-autofill chips. These are only
-                // available on Android >=11, and SurfaceView causes trouble on Android 8/9, thus we render the image
-                // in the SurfaceView for Android >=11, and in the Compose View Tree for Android <=10.
-                if (AndroidVersion.ATLEAST_API30_R) {
-                    SnyggSurfaceView(
-                        elementName = FlorisImeUi.Window.elementName,
-                        attributes = attributes,
-                        modifier = Modifier.matchParentSize(),
-                    )
-                }
+                // The background image is drawn in a SurfaceView, so it can sit under the inline-autofill chips.
+                SnyggSurfaceView(
+                    elementName = FlorisImeUi.Window.elementName,
+                    attributes = attributes,
+                    modifier = Modifier.matchParentSize(),
+                )
                 val configuration = LocalConfiguration.current
                 val bottomOffset by if (configuration.isOrientationPortrait()) {
                     prefs.keyboard.bottomOffsetPortrait

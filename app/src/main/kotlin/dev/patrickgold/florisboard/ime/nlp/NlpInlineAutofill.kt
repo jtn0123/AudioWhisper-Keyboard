@@ -17,13 +17,11 @@
 package dev.patrickgold.florisboard.ime.nlp
 
 import android.content.Context
-import android.os.Build
 import android.util.Size
 import android.view.ViewGroup
 import android.view.inputmethod.InlineSuggestion
 import android.view.inputmethod.InlineSuggestionInfo
 import android.widget.inline.InlineContentView
-import androidx.annotation.RequiresApi
 import dev.patrickgold.florisboard.ime.keyboard.FlorisImeSizing
 import dev.patrickgold.florisboard.lib.devtools.flogInfo
 import dev.patrickgold.florisboard.lib.devtools.flogWarning
@@ -51,7 +49,6 @@ object NlpInlineAutofill {
     private val _suggestions = MutableStateFlow<List<NlpInlineAutofillSuggestion>>(emptyList())
     val suggestions = _suggestions
 
-    @RequiresApi(Build.VERSION_CODES.R)
     fun showInlineSuggestions(context: Context, rawSuggestions: List<InlineSuggestion>): Boolean {
         val sequenceId = generateSequenceId()
 

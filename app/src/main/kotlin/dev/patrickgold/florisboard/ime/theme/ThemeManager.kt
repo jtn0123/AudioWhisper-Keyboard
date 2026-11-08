@@ -25,11 +25,9 @@ import android.graphics.drawable.GradientDrawable
 import android.graphics.drawable.Icon
 import android.graphics.drawable.LayerDrawable
 import android.graphics.drawable.RippleDrawable
-import android.os.Build
 import android.os.Bundle
 import android.util.TypedValue
 import androidx.annotation.AttrRes
-import androidx.annotation.RequiresApi
 import androidx.autofill.inline.UiVersions
 import androidx.autofill.inline.common.ImageViewStyle
 import androidx.autofill.inline.common.TextViewStyle
@@ -206,7 +204,6 @@ class ThemeManager(context: Context) {
      * @return A bundle containing all necessary attributes for the inline suggestion views to properly display.
      */
     @SuppressLint("RestrictedApi")
-    @RequiresApi(Build.VERSION_CODES.R)
     fun createInlineSuggestionUiStyleBundle(context: Context): Bundle? {
         val styleSet = CachedInlineSuggestionsChipStyleSet ?: return null
         val bgColor = styleSet.background(default = Color.White)
@@ -320,7 +317,6 @@ class ThemeManager(context: Context) {
         }
     }
 
-    @RequiresApi(Build.VERSION_CODES.R)
     private fun autofillChipBackgroundOf(
         bgColor: Color,
         rippleColor: Color,

@@ -16,9 +16,7 @@
 
 package dev.patrickgold.florisboard.ime.smartbar
 
-import android.os.Build
 import android.view.View
-import androidx.annotation.RequiresApi
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.rememberScrollState
@@ -52,7 +50,6 @@ fun InlineSuggestionsStyleCache() {
     }
 }
 
-@RequiresApi(Build.VERSION_CODES.R)
 @Composable
 fun InlineSuggestionsUi(
     inlineSuggestions: List<NlpInlineAutofillSuggestion>,

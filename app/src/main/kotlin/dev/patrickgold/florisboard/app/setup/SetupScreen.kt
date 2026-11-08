@@ -56,7 +56,6 @@ import dev.patrickgold.jetpref.datastore.ui.PreferenceUiScope
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import org.florisboard.lib.android.AndroidVersion
 import org.florisboard.lib.compose.FlorisBulletSpacer
 import org.florisboard.lib.compose.FlorisStep
 import org.florisboard.lib.compose.FlorisStepLayout
@@ -75,8 +74,8 @@ fun SetupScreen() = FlorisScreen {
     val prefs by FlorisPreferenceStore
     val scope = rememberCoroutineScope()
 
-    val isFlorisBoardEnabled by InputMethodUtils.observeIsFlorisboardEnabled(foregroundOnly = true)
-    val isFlorisBoardSelected by InputMethodUtils.observeIsFlorisboardSelected(foregroundOnly = true)
+    val isFlorisBoardEnabled by InputMethodUtils.observeIsFlorisboardEnabled()
+    val isFlorisBoardSelected by InputMethodUtils.observeIsFlorisboardSelected()
     val hasNotificationPermission by prefs.internal.notificationPermissionState.observeAsState()
 
     val requestNotification =
@@ -116,7 +115,7 @@ private fun FlorisScreenScope.content(
         val initStep = when {
             !isFlorisBoardEnabled -> Steps.EnableIme.id
             !isFlorisBoardSelected -> Steps.SelectIme.id
-            hasNotificationPermission == NotificationPermissionState.NOT_SET && AndroidVersion.ATLEAST_API33_T -> Steps.SelectNotification.id
+            hasNotificationPermission == NotificationPermissionState.NOT_SET -> Steps.SelectNotification.id
             else -> Steps.FinishUp.id
         }
         FlorisStepState.new(init = initStep)
@@ -128,7 +127,7 @@ private fun FlorisScreenScope.content(
                 when {
                     !isFlorisBoardEnabled -> Steps.EnableIme.id
                     !isFlorisBoardSelected -> Steps.SelectIme.id
-                    hasNotificationPermission == NotificationPermissionState.NOT_SET && AndroidVersion.ATLEAST_API33_T -> Steps.SelectNotification.id
+                    hasNotificationPermission == NotificationPermissionState.NOT_SET -> Steps.SelectNotification.id
                     else -> Steps.FinishUp.id
                 }
             )
@@ -203,7 +202,7 @@ private fun PreferenceUiScope<FlorisPreferenceModel>.steps(
     scope: CoroutineScope,
 ): List<FlorisStep> {
 
-    return listOfNotNull(
+    return listOf(
         FlorisStep(
             id = Steps.EnableIme.id,
             title = stringRes(R.string.setup__enable_ime__title),
@@ -222,17 +221,15 @@ private fun PreferenceUiScope<FlorisPreferenceModel>.steps(
                 InputMethodUtils.showImePicker(context)
             }
         },
-        if (AndroidVersion.ATLEAST_API33_T) {
-            FlorisStep(
-                id = Steps.SelectNotification.id,
-                title = stringRes(R.string.setup__grant_notification_permission__title),
-            ) {
-                StepText(stringRes(R.string.setup__grant_notification_permission__description))
-                StepButton(stringRes(R.string.setup__grant_notification_permission__btn)) {
-                    requestNotification.launch(android.Manifest.permission.POST_NOTIFICATIONS)
-                }
+        FlorisStep(
+            id = Steps.SelectNotification.id,
+            title = stringRes(R.string.setup__grant_notification_permission__title),
+        ) {
+            StepText(stringRes(R.string.setup__grant_notification_permission__description))
+            StepButton(stringRes(R.string.setup__grant_notification_permission__btn)) {
+                requestNotification.launch(android.Manifest.permission.POST_NOTIFICATIONS)
             }
-        } else null,
+        },
         FlorisStep(
             id = Steps.FinishUp.id,
             title = stringRes(R.string.setup__finish_up__title),

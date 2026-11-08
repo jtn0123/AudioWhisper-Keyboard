@@ -81,9 +81,9 @@ android {
         // AudioWhisper Keyboard: a personal fork, installed next to stock FlorisBoard.
         applicationId = "com.jtn0123.audiowhisper.keyboard"
         // Built for one phone (Android 17), so the app needs Android 16 (API 36): that is what
-        // lets it use Locale.of and drop window colours and haptic settings Android has retired.
-        // The library modules keep the upstream minimum.
-        minSdk = 36
+        // lets it use Locale.of and drop window colours, haptic settings and version checks for
+        // Android it never runs on. See projectMinSdk in gradle.properties.
+        minSdk = projectMinSdk.toInt()
         targetSdk = projectTargetSdk.toInt()
         versionCode = projectVersionCode.toInt()
         versionName = projectVersionName.substringBefore("-")

@@ -21,7 +21,6 @@ import androidx.compose.material.icons.filled.Adb
 import androidx.compose.material.icons.filled.Archive
 import androidx.compose.material.icons.filled.FormatColorFill
 import androidx.compose.material.icons.filled.Palette
-import androidx.compose.material.icons.filled.Preview
 import androidx.compose.material.icons.filled.SettingsBackupRestore
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
@@ -38,9 +37,7 @@ import dev.patrickgold.jetpref.datastore.ui.ColorPickerPreference
 import dev.patrickgold.jetpref.datastore.ui.ListPreference
 import dev.patrickgold.jetpref.datastore.ui.Preference
 import dev.patrickgold.jetpref.datastore.ui.PreferenceGroup
-import dev.patrickgold.jetpref.datastore.ui.SwitchPreference
 import dev.patrickgold.jetpref.datastore.ui.isMaterialYou
-import org.florisboard.lib.android.AndroidVersion
 import org.florisboard.lib.color.ColorMappings
 import org.florisboard.lib.compose.stringRes
 
@@ -75,16 +72,6 @@ fun OtherScreen() = FlorisScreen {
                     it
                 }
             }
-        )
-        SwitchPreference(
-            prefs.other.showAppIcon,
-            icon = Icons.Default.Preview,
-            title = stringRes(R.string.pref__other__show_app_icon__label),
-            summary = when {
-                AndroidVersion.ATLEAST_API29_Q -> stringRes(R.string.pref__other__show_app_icon__summary_atleast_q)
-                else -> null
-            },
-            enabledIf = { AndroidVersion.ATMOST_API28_P },
         )
         Preference(
             icon = ImageVector.vectorResource(R.drawable.ic_keyboard_keys),

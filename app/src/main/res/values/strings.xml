@@ -575,8 +575,6 @@
     <string name="pref__other__settings_accent_color__label" comment="Label of accent color preference in Other">
         Settings accent color
     </string>
-    <string name="pref__other__show_app_icon__label" comment="Label of Show app icon preference in Other">Show app icon in launcher</string>
-    <string name="pref__other__show_app_icon__summary_atleast_q" comment="Summary of Show app icon preference in Other for Android 10+">Always enabled on Android 10+ due to restrictions of the system</string>
 
     <!-- About UI strings -->
     <string name="about__title" comment="Title of About activity">About</string>

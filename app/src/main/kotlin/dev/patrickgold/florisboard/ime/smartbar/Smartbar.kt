@@ -68,7 +68,6 @@ import dev.patrickgold.florisboard.keyboardManager
 import dev.patrickgold.florisboard.nlpManager
 import dev.patrickgold.jetpref.datastore.model.observeAsState
 import kotlinx.coroutines.launch
-import org.florisboard.lib.android.AndroidVersion
 import org.florisboard.lib.compose.horizontalTween
 import org.florisboard.lib.compose.verticalTween
 import org.florisboard.lib.snygg.ui.SnyggBox
@@ -156,8 +155,7 @@ private fun SmartbarMainRow(modifier: Modifier = Modifier) {
     // AudioWhisper: the words being dictated show where the suggestions go (see CandidatesRow),
     // ahead of autofill chips and the expanded actions.
     val dictationPreview by Dictation.preview.collectAsState()
-    val shouldShowInlineSuggestionsUi = AndroidVersion.ATLEAST_API30_R && inlineSuggestions.isNotEmpty() &&
-        dictationPreview.isEmpty()
+    val shouldShowInlineSuggestionsUi = inlineSuggestions.isNotEmpty() && dictationPreview.isEmpty()
 
     val smartbarLayout by prefs.smartbar.layout.observeAsState()
     val flipToggles by prefs.smartbar.flipToggles.observeAsState()

@@ -8,7 +8,7 @@ plugins {
     alias(libs.plugins.agp.library)
 }
 
-val projectMinSdk: String by project
+val projectNativeMinSdk: String by project
 val projectCompileSdk: String by project
 
 android {
@@ -17,7 +17,7 @@ android {
     ndkVersion = tools.versions.ndk.get()
 
     defaultConfig {
-        minSdk = projectMinSdk.toInt()
+        minSdk = projectNativeMinSdk.toInt()
         consumerProguardFiles("consumer-rules.pro")
 
         externalNativeBuild {

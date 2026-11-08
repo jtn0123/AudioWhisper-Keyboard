@@ -21,7 +21,7 @@ plugins {
     alias(libs.plugins.kotlin.android)
 }
 
-val projectMinSdk: String by project
+val projectNativeMinSdk: String by project
 val projectCompileSdk: String by project
 
 kotlin {
@@ -36,7 +36,7 @@ android {
     ndkVersion = tools.versions.ndk.get()
 
     defaultConfig {
-        minSdk = projectMinSdk.toInt()
+        minSdk = projectNativeMinSdk.toInt()
 
         externalNativeBuild {
             cmake {

@@ -37,7 +37,6 @@ import dev.patrickgold.jetpref.datastore.ui.PreferenceGroup
 import dev.patrickgold.jetpref.datastore.ui.SwitchPreference
 import org.florisboard.lib.android.AndroidSettings
 import kotlinx.coroutines.launch
-import org.florisboard.lib.android.AndroidVersion
 import org.florisboard.lib.android.showLongToast
 import org.florisboard.lib.compose.stringRes
 
@@ -88,7 +87,6 @@ fun DevtoolsScreen() = FlorisScreen {
                 title = stringRes(R.string.devtools__show_inline_autofill_overlay__label),
                 summary = stringRes(R.string.devtools__show_inline_autofill_overlay__summary),
                 enabledIf = { prefs.devtools.enabled isEqualTo true },
-                visibleIf = { AndroidVersion.ATLEAST_API30_R },
             )
             SwitchPreference(
                 prefs.devtools.showKeyTouchBoundaries,

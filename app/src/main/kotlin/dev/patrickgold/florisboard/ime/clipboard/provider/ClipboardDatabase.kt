@@ -50,7 +50,6 @@ import dev.patrickgold.florisboard.R
 import kotlinx.serialization.EncodeDefault
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.Serializable
-import org.florisboard.lib.android.AndroidVersion
 import org.florisboard.lib.android.UriSerializer
 import org.florisboard.lib.android.query
 import org.florisboard.lib.android.stringRes
@@ -133,17 +132,8 @@ data class ClipboardItem(
                 else -> ItemType.TEXT
             }
 
-            val isSensitive = if (AndroidVersion.ATLEAST_API33_T) {
-                data.description?.extras?.getBoolean(EXTRA_IS_SENSITIVE) ?: false
-            } else {
-                false
-            }
-
-            val isRemoteDevice = if (AndroidVersion.ATLEAST_API34_U) {
-                data.description?.extras?.getBoolean(EXTRA_IS_REMOTE_DEVICE) ?: false
-            } else {
-                false
-            }
+            val isSensitive = data.description?.extras?.getBoolean(EXTRA_IS_SENSITIVE) ?: false
+            val isRemoteDevice = data.description?.extras?.getBoolean(EXTRA_IS_REMOTE_DEVICE) ?: false
 
             val uri = if (type == ItemType.IMAGE || type == ItemType.VIDEO) {
                 if (dataItem.uri.authority == ClipboardMediaProvider.AUTHORITY || !cloneUri) {

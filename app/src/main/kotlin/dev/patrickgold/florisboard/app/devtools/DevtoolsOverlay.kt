@@ -16,8 +16,6 @@
 
 package dev.patrickgold.florisboard.app.devtools
 
-import android.os.Build
-import androidx.annotation.RequiresApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -55,7 +53,6 @@ import dev.patrickgold.florisboard.themeManager
 import dev.patrickgold.jetpref.datastore.model.observeAsState
 import java.text.SimpleDateFormat
 import java.util.*
-import org.florisboard.lib.android.AndroidVersion
 import org.florisboard.lib.snygg.SnyggMissingSchemaException
 
 private val CardBackground = Color.Black.copy(0.6f)
@@ -96,7 +93,7 @@ fun DevtoolsOverlay(modifier: Modifier = Modifier) {
             if (devtoolsEnabled && showSpellingOverlay) {
                 DevtoolsSpellingOverlay()
             }
-            if (devtoolsEnabled && showInlineAutofillOverlay && AndroidVersion.ATLEAST_API30_R) {
+            if (devtoolsEnabled && showInlineAutofillOverlay) {
                 DevtoolsInlineAutofillOverlay()
             }
             val loadFailure = themeInfo.loadFailure
@@ -218,7 +215,6 @@ private fun DevtoolsSpellingOverlay() {
     }
 }
 
-@RequiresApi(Build.VERSION_CODES.R)
 @Composable
 private fun DevtoolsInlineAutofillOverlay() {
     val inlineSuggestions by NlpInlineAutofill.suggestions.collectAsState()

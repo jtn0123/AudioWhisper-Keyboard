@@ -53,9 +53,6 @@ import dev.patrickgold.florisboard.lib.compose.rememberPreviewFieldController
 import dev.patrickgold.florisboard.lib.util.AppVersionUtils
 import dev.patrickgold.jetpref.datastore.model.observeAsState
 import dev.patrickgold.jetpref.datastore.ui.ProvideDefaultDialogPrefStrings
-import org.florisboard.lib.android.AndroidVersion
-import org.florisboard.lib.android.hideAppIcon
-import org.florisboard.lib.android.showAppIcon
 import org.florisboard.lib.compose.ProvideLocalizedResources
 import org.florisboard.lib.compose.conditional
 import org.florisboard.lib.compose.stringRes
@@ -79,7 +76,6 @@ class FlorisAppActivity : ComponentActivity() {
     private val appContext by appContext()
     private val cacheManager by cacheManager()
     private var appTheme by mutableStateOf(AppTheme.AUTO)
-    private var showAppIcon = true
     private var intentToBeHandled by mutableStateOf<Intent?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -93,20 +89,13 @@ class FlorisAppActivity : ComponentActivity() {
         prefs.other.settingsTheme.asFlow().collectIn(lifecycleScope) {
             appTheme = it
         }
-        if (AndroidVersion.ATMOST_API28_P) {
-            prefs.other.showAppIcon.asFlow().collectIn(lifecycleScope) {
-                showAppIcon = it
-            }
-        }
 
         // We defer the setContent call until the datastore model is loaded, until then the splash screen stays drawn
         val isModelLoaded = AtomicBoolean(false)
         appContext.preferenceStoreLoaded.collectIn(lifecycleScope) { loaded ->
             if (!loaded || isModelLoaded.getAndSet(true)) return@collectIn
-            // Check if android 13+ is running and the NotificationPermission is not set
-            if (AndroidVersion.ATLEAST_API33_T &&
-                prefs.internal.notificationPermissionState.get() == NotificationPermissionState.NOT_SET
-            ) {
+            // Check if the NotificationPermission is not set
+            if (prefs.internal.notificationPermissionState.get() == NotificationPermissionState.NOT_SET) {
                 // update pref value to show the setup screen again
                 prefs.internal.isImeSetUp.set(false)
             }
@@ -124,20 +113,6 @@ class FlorisAppActivity : ComponentActivity() {
                 }
             }
             onNewIntent(intent)
-        }
-    }
-
-    override fun onPause() {
-        super.onPause()
-
-        // App icon visibility control was restricted in Android 10.
-        // See https://developer.android.com/reference/android/content/pm/LauncherApps#getActivityList(java.lang.String,%20android.os.UserHandle)
-        if (AndroidVersion.ATMOST_API28_P) {
-            if (showAppIcon) {
-                this.showAppIcon()
-            } else {
-                this.hideAppIcon()
-            }
         }
     }
 

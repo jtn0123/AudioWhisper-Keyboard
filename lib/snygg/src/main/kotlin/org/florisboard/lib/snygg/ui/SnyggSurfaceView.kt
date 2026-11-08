@@ -55,7 +55,6 @@ import coil3.request.allowHardware
 import coil3.toBitmap
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
-import org.florisboard.lib.android.AndroidVersion
 import org.florisboard.lib.snygg.SnyggQueryAttributes
 import org.florisboard.lib.snygg.SnyggSelector
 
@@ -129,9 +128,7 @@ fun SnyggSurfaceView(
         val surfaceView = remember {
             Log.d("SnyggSurfaceView", "creating new instance")
             SurfaceView(context).apply {
-                if (AndroidVersion.ATLEAST_API34_U) {
-                    setSurfaceLifecycle(SurfaceView.SURFACE_LIFECYCLE_FOLLOWS_ATTACHMENT)
-                }
+                setSurfaceLifecycle(SurfaceView.SURFACE_LIFECYCLE_FOLLOWS_ATTACHMENT)
                 setZOrderOnTop(false)
                 holder.setFormat(PixelFormat.TRANSPARENT)
             }

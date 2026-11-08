@@ -27,7 +27,6 @@ import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowInsetsControllerCompat
 import dev.patrickgold.florisboard.ime.theme.FlorisImeUi
-import org.florisboard.lib.android.AndroidVersion
 import org.florisboard.lib.snygg.ui.rememberSnyggThemeQuery
 import org.florisboard.lib.snygg.ui.uriOrNull
 
@@ -50,9 +49,7 @@ fun SystemUiIme() {
 
     LaunchedEffect(useDarkIcons, hasBackgroundImage) {
         windowInsetsController.isAppearanceLightNavigationBars = useDarkIcons
-        if (AndroidVersion.ATLEAST_API29_Q) {
-            window.isNavigationBarContrastEnforced = hasBackgroundImage
-        }
+        window.isNavigationBarContrastEnforced = hasBackgroundImage
     }
 }
 

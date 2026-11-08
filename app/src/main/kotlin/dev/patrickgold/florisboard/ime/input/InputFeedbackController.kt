@@ -25,7 +25,6 @@ import dev.patrickgold.florisboard.app.FlorisPreferenceStore
 import dev.patrickgold.florisboard.ime.keyboard.KeyData
 import dev.patrickgold.florisboard.ime.text.key.KeyCode
 import dev.patrickgold.florisboard.ime.text.keyboard.TextKeyData
-import org.florisboard.lib.android.AndroidVersion
 import org.florisboard.lib.android.systemServiceOrNull
 import org.florisboard.lib.android.systemVibratorOrNull
 import org.florisboard.lib.android.vibrate
@@ -125,7 +124,7 @@ class InputFeedbackController private constructor(private val ims: InputMethodSe
         scope.launch {
             if (prefs.inputFeedback.hapticVibrationMode.get() == HapticVibrationMode.USE_HAPTIC_FEEDBACK_INTERFACE) {
                 val view = ims.window?.window?.decorView ?: return@launch
-                val hfc = if (factor < 1.0 && AndroidVersion.ATLEAST_API27_O_MR1) {
+                val hfc = if (factor < 1.0) {
                     HapticFeedbackConstants.TEXT_HANDLE_MOVE
                 } else {
                     HapticFeedbackConstants.KEYBOARD_TAP

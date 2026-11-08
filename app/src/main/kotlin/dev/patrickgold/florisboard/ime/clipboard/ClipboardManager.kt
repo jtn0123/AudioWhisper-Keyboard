@@ -39,7 +39,6 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import org.florisboard.lib.android.AndroidClipboardManager
 import org.florisboard.lib.android.AndroidClipboardManager_OnPrimaryClipChangedListener
-import org.florisboard.lib.android.clearPrimaryClipAnyApi
 import org.florisboard.lib.android.setOrClearPrimaryClip
 import org.florisboard.lib.android.showShortToast
 import org.florisboard.lib.android.systemService
@@ -154,7 +153,7 @@ class ClipboardManager(
             if (clipData != null && syncBehavior.shouldSyncSet) {
                 systemClipboardManager.setPrimaryClip(clipData)
             } else if (clipData == null && syncBehavior.shouldSyncClear) {
-                systemClipboardManager.clearPrimaryClipAnyApi()
+                systemClipboardManager.clearPrimaryClip()
             }
         } else {
             systemClipboardManager.setOrClearPrimaryClip(item?.toClipData(appContext))
