@@ -8,11 +8,12 @@
 
 use std::cmp::Reverse;
 
+use chars::lowercase;
 use chars::text::to_int_or_null;
-use chars::{is_letter, lowercase};
 
 use crate::lines::lines;
 use crate::ordered::Ordered;
+use crate::word_characters::is_word;
 
 /// The previous "word" of the first word in a sentence.
 pub const SENTENCE_START: &[u16] = &[];
@@ -28,18 +29,14 @@ pub const PAIR_CAPACITY: i32 = 20_000;
 pub const MAX_WORD_LENGTH: usize = 48;
 
 const HEADER: &str = "# AudioWhisper learned words, v1";
-const CONNECTORS: [u16; 3] = [b'\'' as u16, 0x2019, b'-' as u16];
 const TAB: u16 = b'\t' as u16;
 const WORD_LINE: &[u16] = &[b'w' as u16];
 const PAIR_LINE: &[u16] = &[b'p' as u16];
 
-/// Letters, with apostrophes or hyphens inside: no digits, spaces, tabs or symbols.
+/// A word ([`is_word`]: letters, with apostrophes or hyphens inside) of at most
+/// [`MAX_WORD_LENGTH`].
 pub fn is_storable(word: &[u16]) -> bool {
-    (1..=MAX_WORD_LENGTH).contains(&word.len())
-        && word.iter().any(|&u| is_letter(u))
-        && word
-            .iter()
-            .all(|&u| is_letter(u) || CONNECTORS.contains(&u))
+    (1..=MAX_WORD_LENGTH).contains(&word.len()) && is_word(word)
 }
 
 /// The word before the next one: the last word typed (`first_word`, the context's most recent),

@@ -5,6 +5,7 @@
 mod kept_words;
 mod learned_words;
 mod personal_words;
+mod swipe;
 mod tap;
 
 use std::ptr;

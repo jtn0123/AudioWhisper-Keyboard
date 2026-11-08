@@ -23,6 +23,25 @@ pub fn illegal(message: impl Into<String>) -> Error {
     Error::IllegalArgument(message.into())
 }
 
+/// `text` cut into pieces of these `lengths`, in order: how a long list of strings crosses JNI as
+/// one string, rather than several calls a string. The lengths must cover `text` exactly.
+pub fn cut<'a>(text: &'a [u16], lengths: &[i32]) -> Result<Vec<&'a [u16]>> {
+    let mut rest = text;
+    let mut pieces = Vec::with_capacity(lengths.len());
+    for &length in lengths {
+        let length = usize::try_from(length).map_err(|_| illegal("a negative length"))?;
+        let (piece, after) = rest
+            .split_at_checked(length)
+            .ok_or_else(|| illegal("the lengths run past the text"))?;
+        pieces.push(piece);
+        rest = after;
+    }
+    if !rest.is_empty() {
+        return Err(illegal("the lengths stop short of the text"));
+    }
+    Ok(pieces)
+}
+
 /// The JNI environment of the current native call.
 #[derive(Debug)]
 pub struct Env {
@@ -260,5 +279,21 @@ pub unsafe fn run<T>(raw: *mut JNIEnv, fallback: T, body: impl FnOnce(&Env) -> R
             env.throw(error);
             fallback
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn cuts_text_at_the_lengths() {
+        let text: Vec<u16> = "toofab".encode_utf16().collect();
+        let pieces = cut(&text, &[3, 0, 3]).ok();
+        assert_eq!(pieces, Some(vec![&text[..3], &text[3..3], &text[3..]]));
+        assert_eq!(cut(&[], &[]).ok(), Some(vec![]));
+        assert!(cut(&text, &[3, 2]).is_err());
+        assert!(cut(&text, &[3, 4]).is_err());
+        assert!(cut(&text, &[7, -1]).is_err());
     }
 }

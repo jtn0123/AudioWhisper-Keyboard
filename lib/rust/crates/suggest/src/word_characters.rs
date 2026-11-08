@@ -1,12 +1,24 @@
 //! Which typed characters end a word, and so may trigger auto-correcting it. Was Kotlin's
 //! `WordCharacters`.
 
-use chars::code_point;
+use chars::{code_point, is_letter};
 
 /// AOSP's word connectors (`'` and `-`, plus the typographic apostrophe) and `@`, which continue
 /// the word being typed: "don't" and "e-mail" aren't corrected halfway through, and the name part
 /// of an e-mail address is left alone.
 const CONTINUING_PUNCTUATION: [u32; 4] = ['\'' as u32, '’' as u32, '-' as u32, '@' as u32];
+
+/// The apostrophes and the hyphen, which a word may have inside it.
+const CONNECTORS: [u16; 3] = [b'\'' as u16, 0x2019, b'-' as u16];
+
+/// Whether `word` is letters, with apostrophes or hyphens inside: no digits, spaces, tabs or
+/// symbols. Such a word can be learned, and spelled by a swipe, which skips over the connectors.
+pub fn is_word(word: &[u16]) -> bool {
+    word.iter().any(|&u| is_letter(u))
+        && word
+            .iter()
+            .all(|&u| is_letter(u) || CONNECTORS.contains(&u))
+}
 
 /// Whether typing `code_point` right after a word continues it rather than ending it: a digit of
 /// any script (so "mp3" isn't corrected), or one of [`CONTINUING_PUNCTUATION`].

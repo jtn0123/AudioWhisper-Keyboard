@@ -1,5 +1,7 @@
 //! Java's arithmetic, where Rust's differs.
 
+use std::cmp::Ordering;
+
 use chars::code_point;
 
 /// Kotlin's `Float.roundToInt()`: `Math.round`, which rounds halves up and saturates, or `None`
@@ -24,6 +26,40 @@ pub fn round_to_int(value: f32) -> Option<i32> {
         // Too small to round up, or a whole number already: Java's (int) cast, which saturates.
         Some(value as i32)
     }
+}
+
+/// `Float.floatToIntBits` of any NaN.
+const CANONICAL_NAN: i32 = 0x7FC0_0000;
+
+/// Java's `Float.compare`, by which Kotlin sorts floats: -0 before +0, and NaN after everything
+/// else and equal to any other NaN.
+pub fn compare_f32(a: f32, b: f32) -> Ordering {
+    if a < b {
+        Ordering::Less
+    } else if a > b {
+        Ordering::Greater
+    } else {
+        // Equal, or a NaN: Java compares `floatToIntBits`, which gives every NaN the same bits.
+        let bits = |x: f32| {
+            if x.is_nan() {
+                CANONICAL_NAN
+            } else {
+                x.to_bits() as i32
+            }
+        };
+        bits(a).cmp(&bits(b))
+    }
+}
+
+/// Java's `Math.min` for floats: NaN wins, and -0 is less than +0.
+pub fn min_f32(a: f32, b: f32) -> f32 {
+    if a.is_nan() {
+        return a;
+    }
+    if a == 0.0 && b == 0.0 && b.is_sign_negative() {
+        return b;
+    }
+    if a <= b { a } else { b }
 }
 
 /// `Character.toLowerCase(codePoint)` of any `Int`: one that isn't a code point stays as it is.
@@ -67,6 +103,36 @@ mod tests {
             assert_eq!(round_to_int(value), Some(rounded), "{value}");
         }
         assert_eq!(round_to_int(f32::NAN), None);
+    }
+
+    #[test]
+    fn compares_floats_as_java_does() {
+        let nan = f32::from_bits(0xFFC0_0001);
+        let sorted = [
+            f32::NEG_INFINITY,
+            -1.0,
+            -0.0,
+            0.0,
+            1e-45,
+            f32::INFINITY,
+            f32::NAN,
+        ];
+        for (i, &a) in sorted.iter().enumerate() {
+            for (j, &b) in sorted.iter().enumerate() {
+                assert_eq!(compare_f32(a, b), i.cmp(&j), "{a} {b}");
+            }
+        }
+        assert_eq!(compare_f32(nan, f32::NAN), Ordering::Equal);
+        assert_eq!(compare_f32(nan, f32::INFINITY), Ordering::Greater);
+    }
+
+    #[test]
+    fn takes_the_minimum_as_java_does() {
+        assert_eq!(min_f32(1.0, 2.0), 1.0);
+        assert!(min_f32(f32::NAN, 1.0).is_nan());
+        assert!(min_f32(1.0, f32::NAN).is_nan());
+        assert!(min_f32(0.0, -0.0).is_sign_negative());
+        assert!(min_f32(-0.0, 0.0).is_sign_negative());
     }
 
     #[test]
