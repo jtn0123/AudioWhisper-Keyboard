@@ -51,7 +51,7 @@ crowdin.properties
 
 # Nix stuff
 .direnv/
-result
+/result
 
 # VSCode
 .vscode/
