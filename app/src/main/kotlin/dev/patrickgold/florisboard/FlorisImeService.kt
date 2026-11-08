@@ -18,7 +18,6 @@ package dev.patrickgold.florisboard
 
 import android.content.Context
 import android.content.Intent
-import android.content.IntentFilter
 import android.content.res.Configuration
 import android.inputmethodservice.ExtractEditText
 import android.os.Bundle
@@ -103,7 +102,6 @@ import dev.patrickgold.florisboard.ime.smartbar.quickaction.QuickActionsEditorPa
 import dev.patrickgold.florisboard.ime.text.TextInputLayout
 import dev.patrickgold.florisboard.ime.theme.FlorisImeTheme
 import dev.patrickgold.florisboard.ime.theme.FlorisImeUi
-import dev.patrickgold.florisboard.ime.theme.WallpaperChangeReceiver
 import dev.patrickgold.florisboard.lib.compose.SystemUiIme
 import dev.patrickgold.florisboard.lib.devtools.LogTopic
 import dev.patrickgold.florisboard.lib.devtools.flogError
@@ -237,8 +235,6 @@ class FlorisImeService : LifecycleInputMethodService() {
     private var isExtractUiShown by mutableStateOf(false)
     private var resourcesContext by mutableStateOf(this as Context)
 
-    private val wallpaperChangeReceiver = WallpaperChangeReceiver()
-
     private var dictation: Dictation? = null
 
     init {
@@ -268,8 +264,6 @@ class FlorisImeService : LifecycleInputMethodService() {
         prefs.physicalKeyboard.showOnScreenKeyboard.asFlow().collectIn(lifecycleScope) {
             updateInputViewShown()
         }
-        @Suppress("DEPRECATION") // We do not retrieve the wallpaper but only listen to changes
-        registerReceiver(wallpaperChangeReceiver, IntentFilter(Intent.ACTION_WALLPAPER_CHANGED))
     }
 
     override fun onCreateInputView(): View {
@@ -315,7 +309,6 @@ class FlorisImeService : LifecycleInputMethodService() {
         dictation?.release()
         dictation = null
         super.onDestroy()
-        unregisterReceiver(wallpaperChangeReceiver)
         FlorisImeServiceReference = WeakReference(null)
         inputWindowView = null
     }
