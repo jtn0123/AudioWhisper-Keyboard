@@ -16,7 +16,6 @@
 
 package dev.patrickgold.florisboard.ime.media.emoji
 
-import android.annotation.SuppressLint
 import android.content.Context
 import androidx.emoji2.text.DefaultEmojiCompatConfig
 import androidx.emoji2.text.EmojiCompat
@@ -27,101 +26,55 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 /**
- * Helper object which manages two separate EmojiCompat instances, something EmojiCompat by default does not want us
- * to do for unknown reasons. Additionally we implement a proper loaded callback and a state flow, so the UI can always
- * receive the EmojiCompat instance as soon as it is loaded. This helper still uses the default config and thus relies
- * either on a system font with emoji or Google GMS services with their downloadable font provider.
+ * Loads the app's one EmojiCompat instance and publishes it once it is ready, so the UI can draw with it as soon as it
+ * loads. It uses the default config and thus relies either on a system font with emoji or Google GMS services with
+ * their downloadable font provider; without either, the palette falls back to querying the system painter.
  *
- * TODO: investigate how AOSP-like ROMs without any GMS services installed handle backwards emoji compatibility. Same
- *  goes for newer Huawei devices, which are subjected to no Google services. (Probably these devices rely on the good
- *  old method of just querying the system painter, which we already use as a fallback in the palette logic).
- *
- * TODO: investigate if having two instances of EmojiCompat has significant memory impact. Based on the docs one
- *  instance has ~300kB, so two should have ~600kB, which should not cause issues.
- *
- * TODO: investigate if having two instances of EmojiCompat causes other logic issues or if there's a better way of
- *  achieving the same result than the current implementation does.
+ * AudioWhisper: upstream kept two instances, one replacing every emoji and one only those the system font lacks, made
+ * with EmojiCompat.reset(), an API restricted to the library, and swapped the default instance between them. One
+ * instance does both: the replace strategy is chosen per call to [EmojiCompat.process], see [EmojiFont]. That loads
+ * the emoji metadata once instead of twice.
  */
 object FlorisEmojiCompat {
-    private lateinit var instanceNoReplace: InstanceHandler
-    private lateinit var instanceReplaceAll: InstanceHandler
-
     private val scope = CoroutineScope(Dispatchers.Default + SupervisorJob())
+    private val published = MutableStateFlow<EmojiCompat?>(null)
 
-    /**
-     * Initialize this helper and its EmojiCompat instances with given [context]. Immediately begins loading the emoji
-     * metadata in a background thread. After this method has been called, it is safe to call [getAsFlow].
-     */
+    /** The EmojiCompat instance once it has loaded; null while it loads, or if it failed. */
+    val instance: StateFlow<EmojiCompat?> = published.asStateFlow()
+
+    /** Starts loading the emoji metadata on a background thread. */
     fun init(context: Context) {
-        instanceNoReplace = InstanceHandler(context, replaceAll = false)
-        instanceReplaceAll = InstanceHandler(context, replaceAll = true)
-
-        scope.launch {
-            instanceNoReplace.load()
-        }
-        scope.launch {
-            instanceReplaceAll.load()
-        }
-    }
-
-    /**
-     * Gets the current EmojiCompat instance based on [replaceAll] and sets it as the default instance if
-     * [setAsDefaultInstance] is true. Calling this method before [init] will cause an exception to be thrown.
-     *
-     * @return A state flow providing the latest EmojiCompat instance for given args. The flow may provide null if
-     *  EmojiCompat is still loading or if it has failed.
-     */
-    @SuppressLint("RestrictedApi")
-    fun getAsFlow(replaceAll: Boolean, setAsDefaultInstance: Boolean = true): StateFlow<EmojiCompat?> {
-        val instanceFlow = if (replaceAll) {
-            instanceReplaceAll.publishedInstanceFlow
-        } else {
-            instanceNoReplace.publishedInstanceFlow
-        }
-        val instance = instanceFlow.value
-        if (setAsDefaultInstance && instance != null) {
-            flogInfo { "Set default EmojiCompat instance to $instance(replaceAll=$replaceAll)" }
-            // This API is not really supposed to be used by third-party apps, but it is really handy and does
-            // exactly what we need, so we suppress the restriction here
-            EmojiCompat.reset(instance)
-        }
-        return instanceFlow
-    }
-
-    private class InstanceHandler(context: Context, replaceAll: Boolean = false) {
-        private val initCallback: EmojiCompat.InitCallback = object : EmojiCompat.InitCallback() {
+        val config = DefaultEmojiCompatConfig.create(context) ?: return flogError { "No emoji font provider found" }
+        config.setMetadataLoadStrategy(EmojiCompat.LOAD_STRATEGY_MANUAL)
+        config.registerInitCallback(object : EmojiCompat.InitCallback() {
             override fun onInitialized() {
-                super.onInitialized()
-                flogInfo { "EmojiCompat(replaceAll=$replaceAll) successfully loaded!" }
-                publishedInstanceFlow.value = instance
+                flogInfo { "EmojiCompat successfully loaded!" }
+                published.value = EmojiCompat.get()
             }
 
             override fun onFailed(throwable: Throwable?) {
-                super.onFailed(throwable)
-                flogError { "EmojiCompat(replaceAll=$replaceAll) failed to load: $throwable" }
+                flogError { "EmojiCompat failed to load: $throwable" }
             }
-        }
-
-        private val config: EmojiCompat.Config? = DefaultEmojiCompatConfig.create(context)?.apply {
-            setReplaceAll(replaceAll)
-            setMetadataLoadStrategy(EmojiCompat.LOAD_STRATEGY_MANUAL)
-            registerInitCallback(initCallback)
-        }
-
-        // Despite its name, `EmojiCompat.reset()` actually creates a new instance, exactly what we need
-        private val instance: EmojiCompat? = if (config != null) EmojiCompat.reset(config) else null
-        val publishedInstanceFlow = MutableStateFlow<EmojiCompat?>(null)
-
-        /**
-         * Manually loads the EmojiCompat instance. Call this method on a background thread to avoid blocking main.
-         *
-         * @see EmojiCompat.load
-         */
-        fun load() {
-            instance?.load()
-        }
+        })
+        val emojiCompat = EmojiCompat.init(config)
+        scope.launch { emojiCompat.load() }
     }
+}
+
+/**
+ * Draws emojis with EmojiCompat's font: every emoji if the app being typed in asked for that (its editor sets
+ * [EmojiCompat.EDITOR_INFO_REPLACE_ALL_KEY]), otherwise only those the system font can't draw.
+ */
+class EmojiFont(private val emojiCompat: EmojiCompat, replaceAll: Boolean) {
+    private val strategy = if (replaceAll) EmojiCompat.REPLACE_STRATEGY_ALL else EmojiCompat.REPLACE_STRATEGY_NON_EXISTENT
+
+    fun process(text: String): CharSequence =
+        emojiCompat.process(text, 0, text.length, Int.MAX_VALUE, strategy) ?: text
+
+    fun isSupported(emoji: String, metadataVersion: Int): Boolean =
+        emojiCompat.getEmojiMatch(emoji, metadataVersion) == EmojiCompat.EMOJI_SUPPORTED
 }

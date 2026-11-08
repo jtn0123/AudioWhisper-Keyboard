@@ -80,8 +80,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Popup
-import androidx.emoji2.text.EmojiCompat
-import androidx.emoji2.widget.EmojiTextView
 import dev.patrickgold.florisboard.R
 import dev.patrickgold.florisboard.app.FlorisPreferenceStore
 import dev.patrickgold.florisboard.editorInstance
@@ -146,12 +144,13 @@ fun EmojiPaletteView(
     }
     val metadataVersion = activeEditorInfo.emojiCompatMetadataVersion
     val replaceAll = activeEditorInfo.emojiCompatReplaceAll
-    val emojiCompatInstance by FlorisEmojiCompat.getAsFlow(replaceAll).collectAsState()
-    val emojiMappings = remember(emojiCompatInstance, fullEmojiMappings, metadataVersion, systemFontPaint) {
+    val emojiCompat by FlorisEmojiCompat.instance.collectAsState()
+    val emojiFont = remember(emojiCompat, replaceAll) { emojiCompat?.let { EmojiFont(it, replaceAll) } }
+    val emojiMappings = remember(emojiFont, fullEmojiMappings, metadataVersion, systemFontPaint) {
         fullEmojiMappings.byCategory.mapValues { (_, emojiSetList) ->
             emojiSetList.mapNotNull { emojiSet ->
                 emojiSet.emojis.filter { emoji ->
-                    emojiCompatInstance?.getEmojiMatch(emoji.value, metadataVersion) == EmojiCompat.EMOJI_SUPPORTED ||
+                    emojiFont?.isSupported(emoji.value, metadataVersion) == true ||
                         systemFontPaint.hasGlyph(emoji.value)
                 }.let { if (it.isEmpty()) null else EmojiSet(it) }
             }
@@ -190,7 +189,7 @@ fun EmojiPaletteView(
     ) {
         EmojiKey(
             emojiSet = emojiSet,
-            emojiCompatInstance = emojiCompatInstance,
+            emojiFont = emojiFont,
             preferredSkinTone = preferredSkinTone,
             isPinned = isPinned,
             isRecent = isRecent,
@@ -399,7 +398,7 @@ fun EmojiPaletteView(
 @Composable
 private fun EmojiKey(
     emojiSet: EmojiSet,
-    emojiCompatInstance: EmojiCompat?,
+    emojiFont: EmojiFont?,
     preferredSkinTone: EmojiSkinTone,
     isPinned: Boolean,
     isRecent: Boolean,
@@ -434,7 +433,7 @@ private fun EmojiKey(
         EmojiText(
             modifier = Modifier.align(Alignment.Center),
             text = base.value,
-            emojiCompatInstance = emojiCompatInstance,
+            emojiFont = emojiFont,
         )
         if (variations.isNotEmpty() || isPinned || isRecent) {
             val style = rememberSnyggThemeQuery(FlorisImeUi.MediaEmojiKeyPopupExtendedIndicator.elementName)
@@ -468,7 +467,7 @@ private fun EmojiKey(
             EmojiVariationsPopup(
                 variations = variations,
                 visible = showVariantsBox,
-                emojiCompatInstance = emojiCompatInstance,
+                emojiFont = emojiFont,
                 onEmojiTap = { emoji ->
                     onEmojiInput(emoji)
                     showVariantsBox = false
@@ -486,7 +485,7 @@ private fun EmojiKey(
 private fun EmojiVariationsPopup(
     variations: List<Emoji>,
     visible: Boolean,
-    emojiCompatInstance: EmojiCompat?,
+    emojiFont: EmojiFont?,
     onEmojiTap: (Emoji) -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -519,7 +518,7 @@ private fun EmojiVariationsPopup(
                         EmojiText(
                             modifier = Modifier.align(Alignment.Center),
                             text = emoji.value,
-                            emojiCompatInstance = emojiCompatInstance,
+                            emojiFont = emojiFont,
                         )
                     }
                 }
@@ -633,36 +632,21 @@ private fun EmojiHistoryPopup(
 @Composable
 fun EmojiText(
     text: String,
-    emojiCompatInstance: EmojiCompat?,
+    emojiFont: EmojiFont?,
     modifier: Modifier = Modifier,
     color: Color = Color.Black,
     fontSize: TextUnit = EmojiDefaultFontSize,
 ) {
-    if (emojiCompatInstance != null) {
-        AndroidView(
-            modifier = modifier,
-            factory = { context ->
-                EmojiTextView(context).also {
-                    it.setTextSize(TypedValue.COMPLEX_UNIT_SP, fontSize.value)
-                    it.setTextColor(color.toArgb())
-                }
-            },
-            update = { view ->
-                view.text = text
-            },
-        )
-    } else {
-        AndroidView(
-            modifier = modifier,
-            factory = { context ->
-                TextView(context).also {
-                    it.setTextSize(TypedValue.COMPLEX_UNIT_SP, fontSize.value)
-                    it.setTextColor(color.toArgb())
-                }
-            },
-            update = { view ->
-                view.text = text
-            },
-        )
-    }
+    AndroidView(
+        modifier = modifier,
+        factory = { context ->
+            TextView(context).also {
+                it.setTextSize(TypedValue.COMPLEX_UNIT_SP, fontSize.value)
+                it.setTextColor(color.toArgb())
+            }
+        },
+        update = { view ->
+            view.text = emojiFont?.process(text) ?: text
+        },
+    )
 }
