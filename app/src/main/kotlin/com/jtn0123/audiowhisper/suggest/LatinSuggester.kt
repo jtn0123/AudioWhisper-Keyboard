@@ -56,13 +56,13 @@ class LatinSuggester(
         if (state.typed.isEmpty()) return predictions(state.previousWords, maxCount, blockOffensiveWords)
         val personal = personalWords()
         val history = history()
-        val input = WordCase.decoderInput(state.typed, locale)
+        val input = WordCase.decoderInput(state.typed)
         val ranked = rank(state.typed, decoder.decode(input, state.previousWords, blockOffensiveWords, state.taps))
         val corrections = ranked.filter { it.display != state.typed }
         val ownSpelling = personal.spellingOf(state.typed) ?: learnedSpellingOf(history, state.typed)
         val autoCorrection = autoCorrectionFor(state, input, ranked, ownSpelling)
         val case = WordCase.of(state.typed)
-        val ownWords = ownCompletions(personal, history, state.typed).map { case.apply(it, locale) }
+        val ownWords = ownCompletions(personal, history, state.typed).map { case.apply(it) }
         return buildList {
             if (autoCorrection != null) add(ArrangedWord(autoCorrection, isAutoCorrection = true))
             add(ArrangedWord(state.typed, isTypedWord = true))
@@ -108,7 +108,7 @@ class LatinSuggester(
         if (personalWords().spellingOf(word) != null || learnedSpellingOf(history(), word) != null) {
             return SpellCheck(true, emptyList(), false)
         }
-        val input = WordCase.decoderInput(word, locale)
+        val input = WordCase.decoderInput(word)
         val ranked = rank(word, decoder.decode(input, PreviousWords.NONE, blockOffensiveWords))
         if (isValid(word, input, ranked)) return SpellCheck(true, emptyList(), false)
         val corrections = ranked.filter { it.display != word }
@@ -135,7 +135,7 @@ class LatinSuggester(
         val case = WordCase.of(typed)
         val ranked = results.asSequence()
             .filter { it.word.isNotEmpty() }
-            .map { Ranked(it, case.apply(it.word, locale)) }
+            .map { Ranked(it, case.apply(it.word)) }
             .distinctBy { it.display }
             .toList()
         // Capitalized or all-caps typing already gave every result the same case.

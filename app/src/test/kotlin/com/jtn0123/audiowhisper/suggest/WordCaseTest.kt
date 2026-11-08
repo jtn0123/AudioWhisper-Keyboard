@@ -1,14 +1,11 @@
 package com.jtn0123.audiowhisper.suggest
 
-import java.util.Locale
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class WordCaseTest {
-    private val us = Locale.US
-
     @Test
     fun detectsTheThreeCases() {
         assertEquals(WordCase.AS_TYPED, WordCase.of("teh"))
@@ -22,21 +19,21 @@ class WordCaseTest {
 
     @Test
     fun appliesTheCaseToSuggestions() {
-        assertEquals("the", WordCase.AS_TYPED.apply("the", us))
-        assertEquals("NASA", WordCase.AS_TYPED.apply("NASA", us))
-        assertEquals("The", WordCase.CAPITALIZED.apply("the", us))
-        assertEquals("I'm", WordCase.CAPITALIZED.apply("I'm", us))
-        assertEquals("IPhone", WordCase.CAPITALIZED.apply("iPhone", us))
-        assertEquals("THE", WordCase.ALL_CAPS.apply("the", us))
-        assertEquals("", WordCase.CAPITALIZED.apply("", us))
+        assertEquals("the", WordCase.AS_TYPED.apply("the"))
+        assertEquals("NASA", WordCase.AS_TYPED.apply("NASA"))
+        assertEquals("The", WordCase.CAPITALIZED.apply("the"))
+        assertEquals("I'm", WordCase.CAPITALIZED.apply("I'm"))
+        assertEquals("IPhone", WordCase.CAPITALIZED.apply("iPhone"))
+        assertEquals("THE", WordCase.ALL_CAPS.apply("the"))
+        assertEquals("", WordCase.CAPITALIZED.apply(""))
     }
 
     @Test
     fun decoderInputDropsOnlyCapitalsTheDecoderShouldIgnore() {
-        assertEquals("im", WordCase.decoderInput("Im", us))
-        assertEquals("teh", WordCase.decoderInput("TEH", us))
-        assertEquals("iPhone", WordCase.decoderInput("iPhone", us))
-        assertEquals("teh", WordCase.decoderInput("teh", us))
+        assertEquals("im", WordCase.decoderInput("Im"))
+        assertEquals("teh", WordCase.decoderInput("TEH"))
+        assertEquals("iPhone", WordCase.decoderInput("iPhone"))
+        assertEquals("teh", WordCase.decoderInput("teh"))
     }
 
     @Test

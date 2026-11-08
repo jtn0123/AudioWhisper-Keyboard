@@ -10,9 +10,11 @@ runs both, and has been checked on the emulator.
 |---|---|---|---|
 | Glide typing's scorer: pruning a swipe's candidate words and ranking them | `crates/glide` | `StatisticalGlideTypingClassifier`'s `Pruner`, ideal gestures and scoring | `SwipeIndexTest` against `ReferenceGlideClassifier`; on the emulator, 512 of 512 scorings were identical |
 | Dictation's text rules: spoken commands, joining phrases transcribed separately, and taking back the last one | `crates/dictation` | `Spoken.parse`, `Phrases.join` and `punctuate`, `DictationUndo.revertAt` | `DictationRulesMatchTest` against `ReferenceDictation`: every UTF-16 unit through each rule, and 100,000 random phrases. The same cases on the emulator: none of 1,579,648 differed. Dictated recordings typed the same text |
+| Typing suggestions' smaller rules: a word's case, the words before it, which characters continue a word, whether a correction is sure enough to make by itself, undoing one, and where taps land on the decoder's QWERTY layout | `crates/suggest` | `WordCase`, `PreviousWords`, `WordCharacters`, `AutoCorrection`, `AutoCorrectionUndo`, `TapOffset`, `TapTrail` and `QwertyGeometry`, now wrappers | `SuggestRulesMatchTest` against `ReferenceSuggest`: every code point and every UTF-16 unit through each rule, 200,000 random words and corrections, 200,000 taps and 20,000 tap trails. The same on the emulator: none of 15,586,581 differed. Typing the same keys on both builds gave the same text |
 
-Next, roughly in order: the suggestion logic, the reader and GIF logic, then upstream
-FlorisBoard's pure logic. The LatinIME C++ (`lib/latinime`) and sharing a core
+Next, roughly in order: the rest of the suggestion logic (its word stores, glide typing's
+ranking and the suggester itself), the reader and GIF logic, then upstream FlorisBoard's pure
+logic. The LatinIME C++ (`lib/latinime`) and sharing a core
 with the Mac app come last.
 
 ## Layout
@@ -26,6 +28,7 @@ lib/rust/
   .cargo/config.toml          16 KB page alignment for Android; cargo's output in build/cargo
   crates/glide/               glide typing's scorer: plain Rust, no unsafe, no JNI
   crates/dictation/           dictation's text rules
+  crates/suggest/             typing suggestions' rules
   crates/chars/               Kotlin's character rules, for crates that judge text as Kotlin did
   crates/awnative/            libawnative.so: the JNI functions Kotlin calls, and nothing else
   tools/                      generates crates/chars' tables (generate-char-tables.sh)
@@ -100,7 +103,11 @@ Or, from `lib/rust`, plain `cargo test`, `cargo clippy --all-targets -- -D warni
   emulator: a temporary patch runs the test's cases there and logs only how many differ.
 - **Write down every difference that's on purpose**, in the Rust and in the test. The glide
   scorer has two: equally near keys keep layout order (Kotlin used hash order, which changed
-  from run to run), and an empty swipe gives nothing (Kotlin scored stale storage).
+  from run to run), and an empty swipe gives nothing (Kotlin scored stale storage). A tap trail
+  can't be made with a negative capacity (Kotlin's took one, then threw on the first character
+  typed into it).
+- **One copy of each number.** A Kotlin wrapper reads the rule's numbers (the QWERTY layout's
+  sizes, the correction threshold) from Rust rather than repeating them, so the two can't drift.
 - **No warnings, and none silenced.** Clippy runs with `-D warnings`; fix what it says rather than
   adding `#[allow]`.
 - **Unsafe stays in `awnative`**, and each `unsafe` block says why it is sound (`// SAFETY:`).
