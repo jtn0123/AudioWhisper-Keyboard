@@ -11,6 +11,7 @@ mod glide;
 mod handle;
 mod jni;
 mod panic;
+mod suggest;
 mod text;
 
 /// Called once when Java loads the library.
