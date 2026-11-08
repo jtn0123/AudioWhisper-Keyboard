@@ -10,6 +10,7 @@ mod dictation;
 mod glide;
 mod jni;
 mod panic;
+mod text;
 
 /// Called once when Java loads the library.
 #[unsafe(no_mangle)]

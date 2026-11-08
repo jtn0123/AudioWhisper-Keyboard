@@ -86,6 +86,13 @@ Or, from `lib/rust`, plain `cargo test`, `cargo clippy --all-targets -- -D warni
   Android uses Android's, and the one the JVM tests load uses the JVM's. They are Unicode 16 (JDK
   24, Android 16). After moving to a JDK or an Android with a newer Unicode, run
   `ANDROID_SERIAL=<emulator> tools/generate-char-tables.sh` in `lib/rust`.
+  The same goes for strings: `lowercase()`, `uppercase()`, `equals`/`startsWith(ignoreCase)`,
+  `toIntOrNull()` and code points are `chars::case`, `chars::text` and `chars::code_point`, which
+  copy each platform's way of doing them (Android compares `ignoreCase` char by char; the JVM, code
+  point by code point). `JavaTextTest` holds them up against Java on every character, every code
+  point and random strings of the hardest ones; on the emulator, none of 17,792,939 comparisons
+  differed. One difference is on purpose: Rust decides whether Σ ends a word (ς) by ICU's rule,
+  as Android does, which the JVM's `toLowerCase` doesn't, so the JVM tests count ς and σ as one.
 - **Prove it with a differential test.** Before deleting Kotlin, copy it into the tests as a
   reference (as `ReferenceGlideClassifier`) and compare the two over real data and odd cases.
   Make sure the test fails when the Rust is changed slightly, so it isn't passing for nothing.

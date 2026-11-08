@@ -11,6 +11,7 @@ rust-version.workspace = true
 crate-type = ["cdylib"]
 
 [dependencies]
+chars = { path = "../chars" }
 dictation = { path = "../dictation" }
 glide = { path = "../glide" }
 # jni.h as Rust declarations, nothing more. 0.3.0 has no dependencies of its own.
