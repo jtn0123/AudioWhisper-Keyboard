@@ -9,6 +9,7 @@ use std::ptr;
 use glide::{CharKeys, Gesture, GlideIndex, Key, Layout};
 use jni_sys::{JNIEnv, jcharArray, jclass, jfloatArray, jint, jintArray, jlong};
 
+use crate::handle::{free, into_handle, object};
 use crate::jni::{self, Env, Result, illegal};
 
 /// One swipe against an index.
@@ -17,28 +18,6 @@ struct Query {
     index: *const GlideIndex,
     swipe: Gesture,
     keys: Vec<Key>,
-}
-
-/// The object behind a handle.
-///
-/// # Safety
-/// `handle` must be 0 or come from `Box::into_raw` of a `T` that hasn't been freed. The Kotlin
-/// side frees an index only once nothing can reach it, so no call is still using it, and a query
-/// only once it is closed, which its other calls check under the same lock.
-unsafe fn object<'a, T>(handle: jlong, what: &str) -> Result<&'a T> {
-    // SAFETY: as the caller promises, a non-zero handle points to a live `T`.
-    unsafe { (handle as *const T).as_ref() }.ok_or_else(|| illegal(format!("the {what} is closed")))
-}
-
-/// Frees what a handle from `Box::into_raw` holds.
-///
-/// # Safety
-/// `handle` must be 0, or come from `Box::into_raw` of a `T`, and not be used again.
-unsafe fn free<T>(handle: jlong) {
-    if handle != 0 {
-        // SAFETY: as the caller promises.
-        drop(unsafe { Box::from_raw(handle as *mut T) });
-    }
 }
 
 /// The layout's keys from their codes and bounds: centre x, centre y, width and height for each.
@@ -117,7 +96,7 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_GlideNative_build(
                 .collect();
             let index =
                 GlideIndex::build(&chars, &starts, &table).map_err(|e| illegal(e.to_string()))?;
-            Ok(Box::into_raw(Box::new(index)) as jlong)
+            Ok(into_handle(index))
         })
     }
 }
@@ -156,7 +135,7 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_GlideNative_query(
                 swipe: Gesture::from_points(&xs, &ys),
                 keys: keys(env, key_codes, key_bounds)?,
             };
-            Ok(Box::into_raw(Box::new(query)) as jlong)
+            Ok(into_handle(query))
         })
     }
 }
