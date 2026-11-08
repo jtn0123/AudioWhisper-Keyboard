@@ -43,8 +43,14 @@ tasks {
             "-opt-in=kotlin.contracts.ExperimentalContracts",
         )
     }
+    // JUnit 6 requires Java 17, so the tests (and with them the test classpaths, which Gradle
+    // matches to compileTestJava's target) move to 17. The library itself still targets Java 11.
+    compileTestJava {
+        sourceCompatibility = "17"
+        targetCompatibility = "17"
+    }
     compileTestKotlin {
-        compilerOptions.jvmTarget = JvmTarget.JVM_11
+        compilerOptions.jvmTarget = JvmTarget.JVM_17
     }
 }
 
