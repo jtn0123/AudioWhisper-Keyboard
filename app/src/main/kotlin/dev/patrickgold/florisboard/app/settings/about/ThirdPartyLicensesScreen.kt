@@ -25,8 +25,9 @@ import androidx.compose.ui.Modifier
 import com.mikepenz.aboutlibraries.ui.compose.LibraryDefaults
 import com.mikepenz.aboutlibraries.ui.compose.android.produceLibraries
 import com.mikepenz.aboutlibraries.ui.compose.m3.LibrariesContainer
-import com.mikepenz.aboutlibraries.ui.compose.m3.chipColors
 import com.mikepenz.aboutlibraries.ui.compose.m3.libraryColors
+import com.mikepenz.aboutlibraries.ui.compose.m3.style.m3VariantColors
+import com.mikepenz.aboutlibraries.ui.compose.style.LicenseHueResolver
 import dev.patrickgold.florisboard.R
 import dev.patrickgold.florisboard.lib.compose.FlorisScreen
 import org.florisboard.lib.compose.florisScrollbar
@@ -47,14 +48,20 @@ fun ThirdPartyLicensesScreen() = FlorisScreen {
             modifier = Modifier
                 .fillMaxSize()
                 .florisScrollbar(lazyListState, isVertical = true),
+            // Since AboutLibraries 15, colors only covers the list background and the license dialog.
             colors = LibraryDefaults.libraryColors(
                 libraryBackgroundColor = MaterialTheme.colorScheme.background,
-                licenseChipColors = LibraryDefaults.chipColors(
-                    MaterialTheme.colorScheme.primaryContainer,
-                    MaterialTheme.colorScheme.onPrimaryContainer,
-                ),
                 libraryContentColor = MaterialTheme.colorScheme.onBackground,
                 dialogConfirmButtonColor = MaterialTheme.colorScheme.primary,
+            ),
+            // The rows are styled here: plain rows on the background and every license badge in
+            // primaryContainer, as before, rather than the new per-license hues.
+            variantColors = LibraryDefaults.m3VariantColors(
+                rowBackground = MaterialTheme.colorScheme.background,
+                rowOnBackground = MaterialTheme.colorScheme.onBackground,
+                licenseHueResolver = LicenseHueResolver.None,
+                licenseBadgeContainer = MaterialTheme.colorScheme.primaryContainer,
+                licenseBadgeContent = MaterialTheme.colorScheme.onPrimaryContainer,
             ),
             lazyListState = lazyListState,
         )
