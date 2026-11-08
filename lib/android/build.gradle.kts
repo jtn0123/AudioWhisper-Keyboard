@@ -29,7 +29,6 @@ kotlin {
         jvmTarget.set(JvmTarget.JVM_11)
         freeCompilerArgs.set(listOf(
             "-opt-in=kotlin.contracts.ExperimentalContracts",
-            "-Xwhen-guards",
         ))
     }
 }

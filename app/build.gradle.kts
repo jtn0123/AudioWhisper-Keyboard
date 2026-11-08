@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import org.jetbrains.kotlin.gradle.dsl.JvmDefaultMode
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import java.util.Properties
 
@@ -51,10 +52,10 @@ require(giphyApiKey.all { it.isLetterOrDigit() }) { "giphy.apiKey must be letter
 kotlin {
     compilerOptions {
         jvmTarget.set(JvmTarget.JVM_11)
+        // Replaces the deprecated -Xjvm-default=all-compatibility.
+        jvmDefault.set(JvmDefaultMode.ENABLE)
         freeCompilerArgs.set(listOf(
             "-opt-in=kotlin.contracts.ExperimentalContracts",
-            "-Xjvm-default=all-compatibility",
-            "-Xwhen-guards",
         ))
     }
 }

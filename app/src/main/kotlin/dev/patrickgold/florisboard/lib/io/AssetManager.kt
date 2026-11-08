@@ -79,7 +79,7 @@ fun FlorisRef.hasAsset(context: Context): Boolean {
         isAssets -> {
             try {
                 val file = File(relativePath)
-                val list = context.assets.list(file.parent?.toString() ?: "")
+                val list = context.assets.list(file.parent ?: "")
                 list?.contains(file.name) == true
             } catch (e: Exception) {
                 false

@@ -142,7 +142,6 @@ data class ClipboardItem(
                     var displayName = when (type) {
                         ItemType.IMAGE -> "Image"
                         ItemType.VIDEO -> "Video"
-                        else -> "Unknown"
                     }
                     tryOrNull {
                         context.contentResolver.query(dataItem.uri, MEDIA_PROJECTION)?.use { cursor ->
@@ -160,7 +159,6 @@ data class ClipboardItem(
                     context.contentResolver.insert(when (type) {
                         ItemType.IMAGE -> ClipboardMediaProvider.IMAGE_CLIPS_URI
                         ItemType.VIDEO -> ClipboardMediaProvider.VIDEO_CLIPS_URI
-                        else -> error("Impossible.")
                     }, values)
                 }
             } else { null }

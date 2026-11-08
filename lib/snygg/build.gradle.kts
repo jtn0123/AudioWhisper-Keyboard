@@ -33,7 +33,6 @@ kotlin {
         jvmTarget.set(JvmTarget.JVM_11)
         freeCompilerArgs.set(listOf(
             "-Xconsistent-data-class-copy-visibility",
-            "-Xwhen-guards",
         ))
     }
 }

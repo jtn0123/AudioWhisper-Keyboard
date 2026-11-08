@@ -304,7 +304,7 @@ class EditorInstance(context: Context) : AbstractEditorInstance(context) {
             return false
         }
         updateLastCommitPosition()
-        val restore = if (replaced) content.textBeforeSelection.takeLast(replacing).toString() else ""
+        val restore = if (replaced) content.textBeforeSelection.takeLast(replacing) else ""
         val start = content.selection.start - restore.length
         dictationUndo = DictationUndo(text, start, restore).takeIf { content.selection.isCursorMode && start >= 0 }
         return true

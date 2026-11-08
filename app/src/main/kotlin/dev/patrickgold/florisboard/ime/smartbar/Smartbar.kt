@@ -197,7 +197,7 @@ private fun SmartbarMainRow(modifier: Modifier = Modifier) {
             val isIncognitoMode = keyboardManager.activeState.isIncognitoMode
             val icon = if (isIncognitoMode) {
                 when (incognitoDisplayMode.value) {
-                    IncognitoDisplayMode.REPLACE_SHARED_ACTIONS_TOGGLE -> incognitoIcon!!
+                    IncognitoDisplayMode.REPLACE_SHARED_ACTIONS_TOGGLE -> incognitoIcon
                     IncognitoDisplayMode.DISPLAY_BEHIND_KEYBOARD -> arrowIcon
                 }
             } else {

@@ -15,6 +15,7 @@
  */
 
 import org.gradle.api.tasks.testing.logging.TestLogEvent
+import org.jetbrains.kotlin.gradle.dsl.JvmDefaultMode
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
@@ -36,9 +37,10 @@ sourceSets {
 tasks {
     compileKotlin {
         compilerOptions.jvmTarget = JvmTarget.JVM_11
+        // Replaces the deprecated -Xjvm-default=all-compatibility.
+        compilerOptions.jvmDefault = JvmDefaultMode.ENABLE
         compilerOptions.freeCompilerArgs = listOf(
             "-opt-in=kotlin.contracts.ExperimentalContracts",
-            "-Xjvm-default=all-compatibility",
         )
     }
     compileTestKotlin {

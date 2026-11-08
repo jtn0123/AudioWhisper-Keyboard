@@ -67,8 +67,6 @@ fun InlineSuggestionsUi(
                 scrollbarHeight = CandidatesRowScrollbarHeight,
             ),
     ) {
-        val xMin = scrollState.value
-        val xMax = scrollState.value + scrollState.viewportSize
         for (inlineSuggestion in inlineSuggestions) {
             if (inlineSuggestion.view == null) {
                 continue
@@ -77,7 +75,11 @@ fun InlineSuggestionsUi(
             AndroidView(
                 modifier = Modifier.onGloballyPositioned { chipPos = it.positionInParent().toIntOffset() },
                 factory = { inlineSuggestion.view },
+                // The scroll position is read here rather than in composition: update re-runs when
+                // the state it reads changes, so scrolling no longer recomposes the whole row.
                 update = { view ->
+                    val xMin = scrollState.value
+                    val xMax = xMin + scrollState.viewportSize
                     view.isZOrderedOnTop = isZOrderedOnTop
                     view.clipBounds = android.graphics.Rect(
                         (xMin - chipPos.x).coerceAtLeast(0),
