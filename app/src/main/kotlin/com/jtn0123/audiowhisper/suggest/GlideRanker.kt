@@ -1,7 +1,6 @@
 package com.jtn0123.audiowhisper.suggest
 
-import kotlin.math.ln
-import kotlin.math.min
+import com.jtn0123.audiowhisper.rust.SwipeRules
 
 /**
  * A swipe-typing guess: [word] and how badly the swipe fits it, in nats (the glide classifier's
@@ -15,52 +14,37 @@ data class GlideGuess(val word: String, val cost: Float)
  * for it:
  *  - the user's habit: how often they typed it after that word ([TypingHistory.pairCount]);
  *  - the dictionary's n-gram, which the bundled one has for at most three next words a word.
- * A missing pair says little, so neither ever makes a guess worse.
+ * A missing pair says little, so neither ever makes a guess worse, and together they take off at
+ * most [MAX_BONUS]: enough to settle words with the same path ("to", "too"), not to override a
+ * swipe that clearly traces another word.
  *
- * The bonuses are small on purpose: together at most [MAX_BONUS]. The classifier's own costs are
- * close together (common words get the same frequency, see [SwipeWords.frequencyOf]): words
- * with the same path ("to", "too") differ by about 0.07, and a neighbouring key's word is
- * within 0.1-0.5 of a clean swipe ("an" even beats "am" by 0.14). So context settles those, but
- * not a swipe that clearly traces a different word ("you" over "thou": 1.4-2.2).
+ * The rules and their numbers are in Rust ([SwipeRules], lib/rust/crates/suggest/src/
+ * glide_ranker.rs); this asks the learned words and the dictionary what they know of each guess.
  */
 class GlideRanker(private val history: TypingHistory, private val lookup: WordLookup?) {
     /** [guesses], best first in [previous]'s context. Ties keep the classifier's order. */
     fun rank(guesses: List<GlideGuess>, previous: PreviousWords): List<String> {
         if (guesses.size < 2 || previous.slotCount == 0) return guesses.map { it.word }
-        return guesses.map { it to it.cost - bonus(it.word, previous) }
-            .sortedBy { it.second }
-            .map { it.first.word }
+        val costs = FloatArray(guesses.size) { guesses[it].cost }
+        val order = SwipeRules.rankGlide(costs, guesses.map { context(it.word, previous) })
+        return order.map { guesses[it].word }
     }
 
     /** How much [previous] favours [word], in nats. */
-    fun bonus(word: String, previous: PreviousWords): Float =
-        habitBonus(history.pairCount(previous, word)) + dictionaryBonus(word, previous)
+    fun bonus(word: String, previous: PreviousWords): Float {
+        val context = context(word, previous)
+        return SwipeRules.glideBonus(context.pairCount, context.ngram, context.probability)
+    }
 
-    private fun habitBonus(count: Int): Float =
-        if (count <= 0) 0f else min(HABIT_WEIGHT * ln(1f + count), MAX_HABIT_BONUS)
-
-    /**
-     * An n-gram is the word's own 0-255 probability raised towards 255 by how often it follows
-     * [previous]. That it exists at all is most of the evidence, given how few there are.
-     */
-    private fun dictionaryBonus(word: String, previous: PreviousWords): Float {
-        val lookup = lookup ?: return 0f
-        val ngram = lookup.ngramProbability(previous, word)
-        if (ngram == NOT_A_PROBABILITY) return 0f
-        val rise = (ngram - lookup.probability(word).coerceAtLeast(0)).coerceAtLeast(0)
-        return min(NGRAM_BONUS + rise * NGRAM_BONUS_PER_STEP, MAX_NGRAM_BONUS)
+    /** What [previous] says for [word]: the user's habit, and any n-gram with the word's own probability. */
+    private fun context(word: String, previous: PreviousWords): SwipeRules.Context {
+        val ngram = lookup?.ngramProbability(previous, word) ?: NOT_A_PROBABILITY
+        val probability = if (ngram == NOT_A_PROBABILITY) NOT_A_PROBABILITY else lookup?.probability(word) ?: NOT_A_PROBABILITY
+        return SwipeRules.Context(history.pairCount(previous, word), ngram, probability)
     }
 
     companion object {
-        /** Per ln(1 + uses): 0.31 for one use, 0.49 for two, 1.0 (the most) from about ten. */
-        const val HABIT_WEIGHT = 0.45f
-        const val MAX_HABIT_BONUS = 1f
-
-        /** For a dictionary n-gram, plus a little per step it rises above the word alone. */
-        const val NGRAM_BONUS = 0.25f
-        const val NGRAM_BONUS_PER_STEP = 0.01f
-        const val MAX_NGRAM_BONUS = 0.6f
-
-        const val MAX_BONUS = MAX_HABIT_BONUS + MAX_NGRAM_BONUS
+        /** The most the words before a guess can take off its cost, in nats. */
+        val MAX_BONUS: Float = SwipeRules.maxGlideBonus
     }
 }

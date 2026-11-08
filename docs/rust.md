@@ -12,10 +12,11 @@ runs both, and has been checked on the emulator.
 | Dictation's text rules: spoken commands, joining phrases transcribed separately, and taking back the last one | `crates/dictation` | `Spoken.parse`, `Phrases.join` and `punctuate`, `DictationUndo.revertAt` | `DictationRulesMatchTest` against `ReferenceDictation`: every UTF-16 unit through each rule, and 100,000 random phrases. The same cases on the emulator: none of 1,579,648 differed. Dictated recordings typed the same text |
 | Typing suggestions' smaller rules: a word's case, the words before it, which characters continue a word, whether a correction is sure enough to make by itself, undoing one, and where taps land on the decoder's QWERTY layout | `crates/suggest` | `WordCase`, `PreviousWords`, `WordCharacters`, `AutoCorrection`, `AutoCorrectionUndo`, `TapOffset`, `TapTrail` and `QwertyGeometry`, now wrappers | `SuggestRulesMatchTest` against `ReferenceSuggest`: every code point and every UTF-16 unit through each rule, 200,000 random words and corrections, 200,000 taps and 20,000 tap trails. The same on the emulator: none of 15,586,581 differed. Typing the same keys on both builds gave the same text |
 | The words typing learns and keeps: words and word pairs the user has typed, words whose correction they undid, and their personal dictionary's words and shortcuts. Kotlin still reads and writes the files; Rust parses and writes their text | `crates/suggest` | `LearnedWords`, `KeptWords` and `PersonalWords`, now wrappers | `WordStoresMatchTest` against `ReferenceStores`: 2,000 random runs of learning, undoing, saving and loading damaged files on each kind of store, asking both the same questions after every step, and 100,000 random personal dictionaries. The same on the emulator: none of 5,647,957 differed. Typing the same keys on both builds gave the same text and saved the same files, before and after a restart |
+| Swipe typing's word list and ranking: which words a swipe can spell, how strongly the glide classifier favours each, and how the words before a swipe re-rank its guesses. Kotlin still asks the dictionary and the learned words what they know of each word | `crates/suggest` | `GlideRanker` and `SwipeWords`' rules, now wrappers | `SwipeRulesMatchTest` against `ReferenceSwipe`: every bonus for pair counts up to a million and for every n-gram and probability from -260 to 520, 100,000 random rankings (some longer than 20 guesses, where a sort that isn't stable would show), every frequency, every UTF-16 unit and 100,000 random words, and 20,000 random dictionaries with the user's words. The same on the emulator: none of 5,798,258 differed, frequencies to the bit. Swiping the same words on both builds, with and without a typing habit and a learned word, gave the same text. Building the 160,000-word list takes 12-15 ms, against Kotlin's 14-17 |
 
-Next, roughly in order: the rest of the suggestion logic (glide typing's ranking and the
-suggester itself), the reader and GIF logic, then upstream FlorisBoard's pure logic. The LatinIME
-C++ (`lib/latinime`) and sharing a core with the Mac app come last.
+Next, roughly in order: the rest of the suggestion logic (the suggester itself, and what typing
+learns from each word), the reader and GIF logic, then upstream FlorisBoard's pure logic. The
+LatinIME C++ (`lib/latinime`) and sharing a core with the Mac app come last.
 
 ## Layout
 
@@ -52,6 +53,10 @@ behind a `Mutex` (`handle::with_locked`).
 Files stay in Kotlin. A store's wrapper reads its file and hands Rust the text, and writes the text
 Rust gives back, so Rust never touches the disk and the file's format is in one place.
 
+A long list of strings, such as a dictionary's words, crosses as one string and their lengths
+(`jni::cut`). A `String[]` costs several JNI calls a string: 160,000 words that way took longer
+than the Kotlin being replaced took to do the work.
+
 ## Building
 
 `./gradlew assembleDebug` builds the Rust too; nothing else is needed but
@@ -83,8 +88,12 @@ Or, from `lib/rust`, plain `cargo test`, `cargo clippy --all-targets -- -D warni
 
 - **Same results as the Kotlin.** A port keeps the Kotlin's arithmetic: `Float` stays `f32`,
   `Double` stays `f64`, operations happen in the same order, and Java's `Math.max`/`min`
-  (NaN wins; -0 is less than +0) are written out by hand, since Rust's `max`/`min` differ. On the
-  phone both use bionic's `exp`, so costs match to the bit.
+  (NaN wins; -0 is less than +0) are written out by hand, since Rust's `max`/`min` differ, as is
+  Java's `Float.compare` for sorting (-0 before +0, NaN last). On the phone both use bionic's
+  `exp`, so costs match to the bit. On a computer the JVM's `Math.exp` can differ from the
+  system's in the last bit, so the JVM tests let a swipe word's frequency be one unit in the last
+  place off as long as the `Float` the classifier takes of it is the same; the emulator check
+  allows none.
 - **Judge characters as Kotlin does.** Text crosses JNI as UTF-16 (`&[u16]`), and anything that
   asks what a character is (`isLetter`, `isWhitespace`, `uppercaseChar`, a regex's `\s`) asks
   `crates/chars`, never Rust's `char` methods, which answer differently for some characters.
