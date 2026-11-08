@@ -41,7 +41,6 @@ import kotlin.math.exp
 import kotlin.math.ln
 import kotlin.math.max
 import kotlin.math.min
-import kotlin.math.pow
 import kotlin.math.sqrt
 
 private fun TextKey.baseCode(): Int {
@@ -241,51 +240,59 @@ class StatisticalGlideTypingClassifier(context: Context) : GlideTypingClassifier
         val candidateWeights = arrayListOf<Float>()
         val key = keys.firstOrNull() ?: return listOf()
         val radius = min(key.visibleBounds.height, key.visibleBounds.width)
-        var remainingWords = pruner.pruneByExtremities(gesture, this.keys)
+        val remainingWords = pruner.pruneByExtremities(gesture, this.keys)
         val userGesture = gesture.resample(SAMPLING_POINTS)
         val normalizedUserGesture: Gesture = userGesture.normalizeByBoxSide()
-        remainingWords = pruner.pruneByLength(gesture, remainingWords, keysByCharacter, keys)
+        val words = pruner.pruneByLength(gesture, remainingWords, keysByCharacter, keys)
 
-        for (i in remainingWords.indices) {
-            val word = remainingWords[i]
-            val idealGestures = Gesture.generateIdealGestures(word, keysByCharacter)
-
-            for (idealGesture in idealGestures) {
-                val wordGesture = idealGesture.resample(SAMPLING_POINTS)
-                val normalizedGesture: Gesture = wordGesture.normalizeByBoxSide()
+        // AudioWhisper: one set of buffers for every word. Allocating four 500-point gestures per
+        // word, for thousands of words per swipe, made garbage collection most of a swipe's cost.
+        val idealGestures = IdealGestures()
+        val wordGesture = Gesture(SAMPLING_POINTS + 2)
+        val normalizedGesture = Gesture(SAMPLING_POINTS + 2)
+        for (word in words) {
+            val gestureCount = idealGestures.generate(word, keysByCharacter)
+            val frequency = 255f * nlpManager.getFrequencyForWord(currentSubtype!!, word).toFloat()
+            for (g in 0 until gestureCount) {
+                idealGestures[g].resampleInto(SAMPLING_POINTS, wordGesture)
+                wordGesture.normalizeByBoxSideInto(normalizedGesture)
                 val shapeDistance = calcShapeDistance(normalizedGesture, normalizedUserGesture)
                 val locationDistance = calcLocationDistance(wordGesture, userGesture)
                 val shapeProbability = calcGaussianProbability(shapeDistance, 0.0f, SHAPE_STD)
                 val locationProbability = calcGaussianProbability(locationDistance, 0.0f, LOCATION_STD * radius)
-                val frequency = 255f * nlpManager.getFrequencyForWord(currentSubtype!!, word).toFloat()
                 val confidence = 1.0f / (shapeProbability * locationProbability * frequency)
-
-                var candidateDistanceSortedIndex = 0
-                var duplicateIndex = Int.MAX_VALUE
-
-                while (candidateDistanceSortedIndex < candidateWeights.size
-                    && candidateWeights[candidateDistanceSortedIndex] <= confidence
-                ) {
-                    if (candidates[candidateDistanceSortedIndex].contentEquals(word)) duplicateIndex =
-                        candidateDistanceSortedIndex
-                    candidateDistanceSortedIndex++
-                }
-                if (candidateDistanceSortedIndex < maxSuggestionCount && candidateDistanceSortedIndex <= duplicateIndex) {
-                    if (duplicateIndex < Int.MAX_VALUE) {
-                        candidateWeights.removeAt(duplicateIndex)
-                        candidates.removeAt(duplicateIndex)
-                    }
-                    candidateWeights.add(candidateDistanceSortedIndex, confidence)
-                    candidates.add(candidateDistanceSortedIndex, word)
-                    if (candidateWeights.size > maxSuggestionCount) {
-                        candidateWeights.removeAt(maxSuggestionCount)
-                        candidates.removeAt(maxSuggestionCount)
-                    }
-                }
+                insertByConfidence(candidates, candidateWeights, word, confidence, maxSuggestionCount)
             }
         }
 
         return candidates.mapIndexed { index, word -> GlideGuess(word, ln(candidateWeights[index])) }
+    }
+
+    /** Keeps [candidates] sorted by [weights], lowest (most likely) first, and at most [max] long. */
+    private fun insertByConfidence(
+        candidates: ArrayList<String>,
+        weights: ArrayList<Float>,
+        word: String,
+        confidence: Float,
+        max: Int,
+    ) {
+        var sortedIndex = 0
+        var duplicateIndex = Int.MAX_VALUE
+        while (sortedIndex < weights.size && weights[sortedIndex] <= confidence) {
+            if (candidates[sortedIndex].contentEquals(word)) duplicateIndex = sortedIndex
+            sortedIndex++
+        }
+        if (sortedIndex >= max || sortedIndex > duplicateIndex) return
+        if (duplicateIndex < Int.MAX_VALUE) {
+            weights.removeAt(duplicateIndex)
+            candidates.removeAt(duplicateIndex)
+        }
+        weights.add(sortedIndex, confidence)
+        candidates.add(sortedIndex, word)
+        if (weights.size > max) {
+            weights.removeAt(max)
+            candidates.removeAt(max)
+        }
     }
 
     override fun clear() {
@@ -307,7 +314,8 @@ class StatisticalGlideTypingClassifier(context: Context) : GlideTypingClassifier
 
     private fun calcGaussianProbability(value: Float, mean: Float, standardDeviation: Float): Float {
         val factor = 1.0 / (standardDeviation * sqrt(2 * PI))
-        val exponent = ((value - mean) / standardDeviation).toDouble().pow(2.0)
+        val z = ((value - mean) / standardDeviation).toDouble()
+        val exponent = z * z
         val probability = factor * exp(-1.0 / 2 * exponent)
         return probability.toFloat()
     }
@@ -390,22 +398,31 @@ class StatisticalGlideTypingClassifier(context: Context) : GlideTypingClassifier
             val key = keys.firstOrNull() ?: return arrayListOf()
             val radius = min(key.visibleBounds.height, key.visibleBounds.width)
             val userLength = userGesture.getLength()
+            val idealGestures = IdealGestures()
             for (word in words) {
-                val idealGestures = Gesture.generateIdealGestures(word, keysByCharacter)
-                for (idealGesture in idealGestures) {
-                    val wordIdealLength = getCachedIdealLength(word, idealGesture)
-                    if (abs(userLength - wordIdealLength) < lengthThreshold * radius) {
-                        remainingWords.add(word)
-                    }
+                // AudioWhisper: the cache is checked before building the word's gesture, not after.
+                // A word with doubled letters is kept once, not once per gesture: scoring it twice
+                // never changed the result.
+                val wordIdealLength = cachedIdealLength[word]
+                    ?: idealLength(word, keysByCharacter, idealGestures).also { cachedIdealLength[word] = it }
+                if (abs(userLength - wordIdealLength) < lengthThreshold * radius) {
+                    remainingWords.add(word)
                 }
             }
             return remainingWords
         }
 
-        private val cachedIdealLength = ConcurrentHashMap<String, Float>()
-        private fun getCachedIdealLength(word: String, idealGesture: Gesture): Float {
-            return cachedIdealLength.getOrPut(word) { idealGesture.getLength() }
+        /** The length of [word]'s gesture without loops on doubled letters. */
+        private fun idealLength(
+            word: String,
+            keysByCharacter: SparseArrayCompat<TextKey>,
+            idealGestures: IdealGestures,
+        ): Float {
+            idealGestures.generate(word, keysByCharacter)
+            return idealGestures[0].getLength()
         }
+
+        private val cachedIdealLength = ConcurrentHashMap<String, Float>()
 
         companion object {
             private fun getFirstKeyLastKey(
@@ -474,84 +491,85 @@ class StatisticalGlideTypingClassifier(context: Context) : GlideTypingClassifier
         }
     }
 
-    class Gesture(
-        private val xs: FloatArray = FloatArray(MAX_SIZE),
-        private val ys: FloatArray = FloatArray(MAX_SIZE),
-        private var size: Int = 0,
+    /**
+     * AudioWhisper: the ideal gestures for one word at a time, reusing the same two gestures for
+     * every word: a plain one, and one with a loop on each doubled letter.
+     */
+    class IdealGestures {
+        private val plain = Gesture(INITIAL_CAPACITY)
+        private val withLoops = Gesture(INITIAL_CAPACITY)
+
+        /** The gesture at [index]: 0 is the plain one, 1 the one with loops. */
+        operator fun get(index: Int): Gesture = if (index == 0) plain else withLoops
+
+        /**
+         * Builds [word]'s ideal gestures, replacing the last word's.
+         *
+         * @return How many there are: 2 if the word has a doubled letter, 1 if not.
+         */
+        fun generate(word: String, keysByCharacter: SparseArrayCompat<TextKey>): Int {
+            plain.clear()
+            withLoops.clear()
+            var previousLetter = '\u0000'
+            var hasLoops = false
+
+            // Add points for each key
+            for (c in word) {
+                val lc = Character.toLowerCase(c)
+                val key = keyFor(lc, keysByCharacter) ?: continue
+                val center = key.visibleBounds.center
+
+                // We add a little loop on the key for duplicate letters
+                // so that we can differentiate words like pool and poll, lull and lul, etc...
+                if (previousLetter == lc) {
+                    val dx = key.visibleBounds.width / 4.0f
+                    val dy = key.visibleBounds.height / 4.0f
+                    withLoops.addPoint(center.x + dx, center.y + dy) // bottom right
+                    withLoops.addPoint(center.x + dx, center.y - dy) // top right
+                    withLoops.addPoint(center.x - dx, center.y - dy) // top left
+                    withLoops.addPoint(center.x - dx, center.y + dy) // bottom left
+                    hasLoops = true
+                } else {
+                    withLoops.addPoint(center.x, center.y)
+                }
+                plain.addPoint(center.x, center.y)
+                previousLetter = lc
+            }
+            return if (hasLoops) 2 else 1
+        }
+
+        private fun keyFor(lc: Char, keysByCharacter: SparseArrayCompat<TextKey>): TextKey? {
+            // Try the base character too, e.g. the "e" key for "é"
+            return keysByCharacter[lc.code]
+                ?: keysByCharacter[Normalizer.normalize(lc.toString(), Normalizer.Form.NFD)[0].code]
+        }
+
+        private companion object {
+            /** Enough for most words; longer ones grow the gestures once. */
+            const val INITIAL_CAPACITY = 32
+        }
+    }
+
+    /**
+     * A gesture's points. AudioWhisper: the storage grows as points are added, up to [MAX_SIZE],
+     * instead of every gesture taking 500 points of memory. The `*Into` functions write their result
+     * into a gesture the caller reuses.
+     */
+    class Gesture private constructor(
+        private var xs: FloatArray,
+        private var ys: FloatArray,
+        private var size: Int,
     ) {
+        constructor(capacity: Int = MAX_SIZE) : this(FloatArray(capacity), FloatArray(capacity), 0)
+
         companion object {
             // TODO: Find out optimal max size
             private const val MAX_SIZE = 500
 
-            fun generateIdealGestures(word: String, keysByCharacter: SparseArrayCompat<TextKey>): List<Gesture> {
-                val idealGesture = Gesture()
-                val idealGestureWithLoops = Gesture()
-                var previousLetter = '\u0000'
-                var hasLoops = false
-
-                // Add points for each key
-                for (c in word) {
-                    val lc = Character.toLowerCase(c)
-                    var key = keysByCharacter[lc.code]
-                    if (key == null) {
-                        // Try finding the base character instead, e.g., the "e" key instead of "é"
-                        val baseCharacter: Char = Normalizer.normalize(lc.toString(), Normalizer.Form.NFD)[0]
-                        key = keysByCharacter[baseCharacter.code]
-                        if (key == null) {
-                            continue
-                        }
-                    }
-                    val visibleBoundsCenter = key.visibleBounds.center
-
-                    // We adda little loop on  the key for duplicate letters
-                    // so that we can differentiate words like pool and poll, lull and lul, etc...
-                    if (previousLetter == lc) {
-                        // bottom right
-                        idealGestureWithLoops.addPoint(
-                            visibleBoundsCenter.x + key.visibleBounds.width / 4.0f,
-                            visibleBoundsCenter.y + key.visibleBounds.height / 4.0f
-                        )
-                        // top right
-                        idealGestureWithLoops.addPoint(
-                            visibleBoundsCenter.x + key.visibleBounds.width / 4.0f,
-                            visibleBoundsCenter.y - key.visibleBounds.height / 4.0f
-                        )
-                        // top left
-                        idealGestureWithLoops.addPoint(
-                            visibleBoundsCenter.x - key.visibleBounds.width / 4.0f,
-                            visibleBoundsCenter.y - key.visibleBounds.height / 4.0f
-                        )
-                        // bottom left
-                        idealGestureWithLoops.addPoint(
-                            visibleBoundsCenter.x - key.visibleBounds.width / 4.0f,
-                            visibleBoundsCenter.y + key.visibleBounds.height / 4.0f
-                        )
-                        hasLoops = true
-
-                        idealGesture.addPoint(
-                            visibleBoundsCenter.x,
-                            visibleBoundsCenter.y
-                        )
-                    } else {
-                        idealGesture.addPoint(
-                            visibleBoundsCenter.x,
-                            visibleBoundsCenter.y
-                        )
-                        idealGestureWithLoops.addPoint(
-                            visibleBoundsCenter.x,
-                            visibleBoundsCenter.y
-                        )
-                    }
-                    previousLetter = lc
-                }
-                return when (hasLoops) {
-                    true -> listOf(idealGesture, idealGestureWithLoops)
-                    false -> listOf(idealGesture)
-                }
-            }
-
             fun distance(x1: Float, y1: Float, x2: Float, y2: Float): Float {
-                return sqrt((x1 - x2).pow(2) + (y1 - y2).pow(2))
+                val dx = x1 - x2
+                val dy = y1 - y2
+                return sqrt(dx * dx + dy * dy)
             }
         }
 
@@ -561,6 +579,11 @@ class StatisticalGlideTypingClassifier(context: Context) : GlideTypingClassifier
         fun addPoint(x: Float, y: Float) {
             if (size >= MAX_SIZE) {
                 return
+            }
+            if (size == xs.size) {
+                val capacity = min(MAX_SIZE, max(xs.size * 2, 8))
+                xs = xs.copyOf(capacity)
+                ys = ys.copyOf(capacity)
             }
             xs[size] = x
             ys[size] = y
@@ -575,29 +598,27 @@ class StatisticalGlideTypingClassifier(context: Context) : GlideTypingClassifier
          * the number of points in the current gesture.
          * @return An oversampled copy of the gesture.
          */
-        fun resample(numPoints: Int): Gesture {
-            val interpointDistance = (getLength() / numPoints)
-            val resampledGesture = Gesture()
-            resampledGesture.addPoint(xs[0], ys[0])
-            var lastX = xs[0]
-            var lastY = ys[0]
-            var newX: Float
-            var newY: Float
-            var cumulativeError = 0.0f
+        fun resample(numPoints: Int): Gesture = Gesture(numPoints + 2).also { resampleInto(numPoints, it) }
 
+        /** [resample], into [target] instead of a new gesture. */
+        fun resampleInto(numPoints: Int, target: Gesture) {
+            target.clear()
+            target.addPoint(xs[0], ys[0])
             // otherwise nothing happens if size is only 1:
             if (this.size == 1) {
-                for (i in 0 until SAMPLING_POINTS) {
-                    resampledGesture.addPoint(xs[0], ys[0])
-                }
+                repeat(SAMPLING_POINTS) { target.addPoint(xs[0], ys[0]) }
+                return
             }
-
+            val interpointDistance = (getLength() / numPoints)
+            var lastX = xs[0]
+            var lastY = ys[0]
+            var cumulativeError = 0.0f
             for (i in 0 until size - 1) {
                 // We calculate the unit vector from the two points we're between in the actual
                 // gesture
                 var dx = xs[i + 1] - xs[i]
                 var dy = ys[i + 1] - ys[i]
-                val norm = sqrt(dx.pow(2.0f) + dy.pow(2.0f))
+                val norm = sqrt(dx * dx + dy * dy)
                 dx /= norm
                 dy /= norm
 
@@ -613,19 +634,19 @@ class StatisticalGlideTypingClassifier(context: Context) : GlideTypingClassifier
                     numNewPoints = (numNewPoints.toInt() + cumulativeError.toInt()).toFloat()
                     cumulativeError %= 1
                 }
-                for (j in 0 until numNewPoints.toInt()) {
-                    newX = lastX + dx * interpointDistance
-                    newY = lastY + dy * interpointDistance
-                    lastX = newX
-                    lastY = newY
-                    resampledGesture.addPoint(newX, newY)
+                repeat(numNewPoints.toInt()) {
+                    lastX += dx * interpointDistance
+                    lastY += dy * interpointDistance
+                    target.addPoint(lastX, lastY)
                 }
             }
-            return resampledGesture
         }
 
-        fun normalizeByBoxSide(): Gesture {
-            val normalizedGesture = Gesture()
+        fun normalizeByBoxSide(): Gesture = Gesture(size).also { normalizeByBoxSideInto(it) }
+
+        /** [normalizeByBoxSide], into [target] instead of a new gesture. */
+        fun normalizeByBoxSideInto(target: Gesture) {
+            target.clear()
 
             var maxX = -1.0f
             var maxY = -1.0f
@@ -649,10 +670,8 @@ class StatisticalGlideTypingClassifier(context: Context) : GlideTypingClassifier
             for (i in 0 until size) {
                 val x = xs[i] / longestSide - centroidX
                 val y = ys[i] / longestSide - centroidY
-                normalizedGesture.addPoint(x, y)
+                target.addPoint(x, y)
             }
-
-            return normalizedGesture
         }
 
         fun getFirstX(): Float = xs.getOrElse(0) { 0f }
@@ -677,11 +696,12 @@ class StatisticalGlideTypingClassifier(context: Context) : GlideTypingClassifier
             this.size = 0
         }
 
-        fun getX(i: Int): Float = xs.getOrElse(i) { 0f }
-        fun getY(i: Int): Float = ys.getOrElse(i) { 0f }
+        /** The point's coordinates, or 0 past the end, as a new gesture's empty storage gave. */
+        fun getX(i: Int): Float = if (i in 0 until size) xs[i] else 0f
+        fun getY(i: Int): Float = if (i in 0 until size) ys[i] else 0f
 
         fun clone(): Gesture {
-            return Gesture(xs.clone(), ys.clone(), size)
+            return Gesture(xs.copyOf(size), ys.copyOf(size), size)
         }
 
         override fun equals(other: Any?): Boolean {
@@ -699,10 +719,14 @@ class StatisticalGlideTypingClassifier(context: Context) : GlideTypingClassifier
             return true
         }
 
+        // AudioWhisper: only the points in the gesture, as equals compares. Hashing the whole
+        // storage gave equal gestures different hashes whenever old points were left past the end.
         override fun hashCode(): Int {
-            var result = xs.contentHashCode()
-            result = 31 * result + ys.contentHashCode()
-            result = 31 * result + size
+            var result = size
+            for (i in 0 until size) {
+                result = 31 * result + xs[i].hashCode()
+                result = 31 * result + ys[i].hashCode()
+            }
             return result
         }
     }
