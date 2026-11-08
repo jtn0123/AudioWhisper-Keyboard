@@ -21,9 +21,10 @@ import android.graphics.drawable.Drawable
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.Image
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.core.content.res.ResourcesCompat
 import androidx.core.graphics.createBitmap
 
@@ -33,11 +34,8 @@ fun FlorisCanvasIcon(
     modifier: Modifier = Modifier,
     contentDescription: String? = null,
 ) {
-    ResourcesCompat.getDrawable(
-        LocalContext.current.resources,
-        iconId,
-        null,
-    )?.let { drawable ->
+    val resources = LocalResources.current
+    remember(resources, iconId) { ResourcesCompat.getDrawable(resources, iconId, null) }?.let { drawable ->
         FlorisCanvasIcon(
             drawable = drawable,
             modifier = modifier,
@@ -52,16 +50,17 @@ fun FlorisCanvasIcon(
     modifier: Modifier = Modifier,
     contentDescription: String? = null,
 ) {
-    val bitmap = createBitmap(
-        width = drawable.intrinsicWidth,
-        height = drawable.intrinsicHeight,
-    )
-    val canvas = Canvas(bitmap)
-    drawable.setBounds(0, 0, canvas.width, canvas.height)
-    drawable.draw(canvas)
+    // Drawn once per drawable, not on every recomposition.
+    val bitmap = remember(drawable) {
+        createBitmap(width = drawable.intrinsicWidth, height = drawable.intrinsicHeight).also { target ->
+            val canvas = Canvas(target)
+            drawable.setBounds(0, 0, canvas.width, canvas.height)
+            drawable.draw(canvas)
+        }.asImageBitmap()
+    }
     Image(
         modifier = modifier,
-        bitmap = bitmap.asImageBitmap(),
+        bitmap = bitmap,
         contentDescription = contentDescription,
     )
 }
