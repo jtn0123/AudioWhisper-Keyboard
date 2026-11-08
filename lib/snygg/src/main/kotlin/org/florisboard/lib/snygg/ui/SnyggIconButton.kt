@@ -54,9 +54,9 @@ import org.florisboard.lib.snygg.SnyggStylesheet
  */
 @Composable
 fun SnyggIconButton(
+    modifier: Modifier = Modifier,
     elementName: String? = null,
     attributes: SnyggQueryAttributes = emptyMap(),
-    modifier: Modifier = Modifier,
     onClick: () -> Unit,
     enabled: Boolean = true,
     interactionSource: MutableInteractionSource? = null,
@@ -110,13 +110,13 @@ private fun SimpleSnyggIconButton() {
     val theme = rememberSnyggTheme(stylesheet)
 
     ProvideSnyggTheme(theme) {
-        SnyggColumn("preview-column") {
-            SnyggText("preview-text", text = "blue text")
+        SnyggColumn(elementName = "preview-column") {
+            SnyggText(elementName = "preview-text", text = "blue text")
             SnyggIconButton(
-                "preview-icon",
+                elementName = "preview-icon",
                 onClick = {},
             ) {
-                SnyggIcon("preview-icon", imageVector = Icons.Default.Search)
+                SnyggIcon(elementName = "preview-icon", imageVector = Icons.Default.Search)
             }
         }
     }

@@ -804,7 +804,7 @@ class FlorisImeService : LifecycleInputMethodService() {
             ) {
                 FlorisImeTheme {
                     val activeEditorInfo by editorInstance.activeInfoFlow.collectAsState()
-                    SnyggBox(FlorisImeUi.ExtractedLandscapeInputLayout.elementName) {
+                    SnyggBox(elementName = FlorisImeUi.ExtractedLandscapeInputLayout.elementName) {
                         SnyggRow(
                             modifier = Modifier.fillMaxSize(),
                             verticalAlignment = Alignment.CenterVertically,
@@ -833,7 +833,7 @@ class FlorisImeService : LifecycleInputMethodService() {
                                 )
                             }
                             SnyggButton(
-                                FlorisImeUi.ExtractedLandscapeInputAction.elementName,
+                                elementName = FlorisImeUi.ExtractedLandscapeInputAction.elementName,
                                 onClick = {
                                     if (activeEditorInfo.extractedActionId != 0) {
                                         currentInputConnection?.performEditorAction(activeEditorInfo.extractedActionId)

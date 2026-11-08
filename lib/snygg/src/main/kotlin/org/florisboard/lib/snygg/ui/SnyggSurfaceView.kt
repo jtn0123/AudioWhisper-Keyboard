@@ -77,10 +77,10 @@ import org.florisboard.lib.snygg.SnyggSelector
  */
 @Composable
 fun SnyggSurfaceView(
+    modifier: Modifier = Modifier,
     elementName: String? = null,
     attributes: SnyggQueryAttributes = emptyMap(),
     selector: SnyggSelector? = null,
-    modifier: Modifier = Modifier,
     backgroundImageDescription: String? = null,
 ) {
     ProvideSnyggStyle(elementName, attributes, selector) { style ->

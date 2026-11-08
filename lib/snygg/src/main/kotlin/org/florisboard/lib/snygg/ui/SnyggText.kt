@@ -52,10 +52,10 @@ import org.florisboard.lib.snygg.SnyggStylesheet
  */
 @Composable
 fun SnyggText(
+    modifier: Modifier = Modifier,
     elementName: String? = null,
     attributes: SnyggQueryAttributes = emptyMap(),
     selector: SnyggSelector? = null,
-    modifier: Modifier = Modifier,
     text: String,
     maxLines: Int? = null,
     overflow: TextOverflow? = null,
@@ -121,10 +121,10 @@ private fun SimpleSnyggText() {
     val theme = rememberSnyggTheme(stylesheet)
 
     ProvideSnyggTheme(theme) {
-        SnyggColumn("preview-column", modifier = Modifier.widthIn(max = 150.dp)) {
-            SnyggText("preview-text", text = "black text")
-            SnyggText("preview-text", mapOf("attr" to 1), text = "red text")
-            SnyggText("preview-text", mapOf("long" to 1),
+        SnyggColumn(elementName = "preview-column", modifier = Modifier.widthIn(max = 150.dp)) {
+            SnyggText(elementName = "preview-text", text = "black text")
+            SnyggText(elementName = "preview-text", attributes = mapOf("attr" to 1), text = "red text")
+            SnyggText(elementName = "preview-text", attributes = mapOf("long" to 1),
                 text = "this is a very long paragraph that will definitely not fit")
         }
     }
