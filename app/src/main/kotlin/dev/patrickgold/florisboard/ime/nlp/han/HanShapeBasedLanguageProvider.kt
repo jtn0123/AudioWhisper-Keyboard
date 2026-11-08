@@ -175,23 +175,23 @@ class HanShapeBasedLanguageProvider(val context: Context) : SpellingProvider, Su
         val layout: String = languagePackItem.hanShapeBasedTable
         try {
             val database = languagePackExtension.hanShapeBasedSQLiteDatabase
-            val cur = database.query(layout, arrayOf ( "code", "text" ), "code LIKE ? || '%'", arrayOf(content.composingText), "", "", "code ASC, weight DESC", "$maxCandidateCount");
-            cur.moveToFirst();
-            val rowCount = cur.getCount();
-            flogDebug { "Query was '${content.composingText}'" }
-            val suggestions = buildList {
-                for (n in 0 until rowCount) {
-                    val code = cur.getString(0);
-                    val word = cur.getString(1);
-                    cur.moveToNext();
-                    add(WordSuggestionCandidate(
-                        text = "$word",
-                        secondaryText = code,
-                        confidence = 0.5,
-                        isEligibleForAutoCommit = n == 0,
-                        // We set ourselves as the source provider so we can get notify events for our candidate
-                        sourceProvider = this@HanShapeBasedLanguageProvider,
-                    ))
+            // AudioWhisper: the cursor is closed once read (lint: Recycle), and what was typed stays out of the log.
+            val suggestions = database.query(
+                layout, arrayOf("code", "text"), "code LIKE ? || '%'", arrayOf(content.composingText),
+                "", "", "code ASC, weight DESC", "$maxCandidateCount",
+            ).use { cur ->
+                buildList {
+                    var n = 0
+                    while (cur.moveToNext()) {
+                        add(WordSuggestionCandidate(
+                            text = cur.getString(1).orEmpty(),
+                            secondaryText = cur.getString(0),
+                            confidence = 0.5,
+                            isEligibleForAutoCommit = n++ == 0,
+                            // We set ourselves as the source provider so we can get notify events for our candidate
+                            sourceProvider = this@HanShapeBasedLanguageProvider,
+                        ))
+                    }
                 }
             }
             return suggestions
@@ -199,7 +199,7 @@ class HanShapeBasedLanguageProvider(val context: Context) : SpellingProvider, Su
             flogError { "Invalid layout '${layout}' not found" }
             return emptyList();
         } catch (e: SQLiteException) {
-            flogError { "SQLiteException: layout=$layout, composing=${content.composingText}, error='${e}'" }
+            flogError { "SQLiteException: layout=$layout, error='${e}'" }
             return emptyList();
         }
     }

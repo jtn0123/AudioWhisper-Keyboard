@@ -16,8 +16,8 @@
 
 package dev.patrickgold.florisboard.ime.keyboard
 
-import android.content.Context
 import android.content.res.Resources
+import android.view.WindowInsets
 import android.view.WindowManager
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -155,9 +155,9 @@ fun systemBarHeights(): Int {
     val navigationBarHeight = insets.getInsets(WindowInsetsCompat.Type.navigationBars()).bottom
 
     // Use windowManager because the IME ui does not have statusBars insets
-    val windowManager = context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
+    val windowManager = context.getSystemService(WindowManager::class.java)
     val metrics = windowManager.currentWindowMetrics
-    val statusBarHeight = metrics.windowInsets.getInsets(WindowInsetsCompat.Type.statusBars()).top
+    val statusBarHeight = metrics.windowInsets.getInsets(WindowInsets.Type.statusBars()).top
 
     return navigationBarHeight + statusBarHeight
 }

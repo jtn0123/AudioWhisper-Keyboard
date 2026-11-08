@@ -203,13 +203,16 @@ class ThemeManager(context: Context) {
      *
      * @return A bundle containing all necessary attributes for the inline suggestion views to properly display.
      */
+    // A lint false positive, kept narrow: setBackground, setPadding and setLayoutMargin are the public style builders'
+    // own methods, inherited from a base class the library marks restricted. They are the only way to style inline
+    // autofill suggestions.
     @SuppressLint("RestrictedApi")
     fun createInlineSuggestionUiStyleBundle(context: Context): Bundle? {
         val styleSet = CachedInlineSuggestionsChipStyleSet ?: return null
         val bgColor = styleSet.background(default = Color.White)
         val fgColor = styleSet.foreground(default = Color.Black)
 
-        val bgDrawableId = androidx.autofill.R.drawable.autofill_inline_suggestion_chip_background
+        val bgDrawableId = R.drawable.inline_suggestion_chip_background
         val bgDrawable = Icon.createWithResource(context, bgDrawableId).apply {
             setTint(bgColor.toArgb())
         }
