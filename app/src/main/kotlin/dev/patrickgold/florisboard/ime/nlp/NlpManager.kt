@@ -72,8 +72,7 @@ class NlpManager(context: Context) {
     private val scope = CoroutineScope(Dispatchers.Default + SupervisorJob())
     private val clipboardSuggestionProvider = ClipboardSuggestionProvider(context)
     private val emojiSuggestionProvider = EmojiSuggestionProvider(context)
-    // AudioWhisper: kept directly so auto-correction can reach it without taking the providers lock,
-    // which preload() holds while the dictionary loads.
+    // AudioWhisper: kept directly so auto-correction and learning reach it without the providers map.
     private val latinProvider = LatinLanguageProvider(context)
     private val providers = guardedByLock {
         mapOf(
@@ -83,6 +82,7 @@ class NlpManager(context: Context) {
     }
     // lock unnecessary because values constant
     private val providersForceSuggestionOn = mutableMapOf<String, Boolean>()
+    private val preloadLock = Mutex()
 
     private val internalSuggestionsGuard = Mutex()
     private var internalSuggestions by Delegates.observable(SystemClock.uptimeMillis() to listOf<SuggestionCandidate>()) { _, _, _ ->
@@ -153,12 +153,17 @@ class NlpManager(context: Context) {
     fun preload(subtype: Subtype) {
         scope.launch {
             emojiSuggestionProvider.preload(subtype)
-            providers.withLock { providers ->
-                subtype.nlpProviders.forEach { _, providerId ->
-                    providers[providerId]?.let { provider ->
-                        provider.createIfNecessary()
-                        provider.preload(subtype)
-                    }
+            // AudioWhisper: the map's lock is held only to read the map. Loading the dictionary under
+            // it made every provider lookup wait seconds for the load, including the ones the keyboard
+            // makes on the main thread: touching a key while it started froze it (an ANR). Loads
+            // still run one at a time, under their own lock.
+            val wrappers = providers.withLock { providers ->
+                buildList { subtype.nlpProviders.forEach { _, providerId -> providers[providerId]?.let(::add) } }
+            }
+            preloadLock.withLock {
+                wrappers.forEach { provider ->
+                    provider.createIfNecessary()
+                    provider.preload(subtype)
                 }
             }
         }
