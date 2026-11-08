@@ -38,7 +38,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -99,7 +99,7 @@ fun ExtensionListScreen(type: ExtensionListScreenType, showUpdate: Boolean) = Fl
     val extensionIndex by type.getExtensionIndex(extensionManager).observeAsNonNullState()
 
     var fabHeight by remember {
-        mutableStateOf(0)
+        mutableIntStateOf(0)
     }
     val fabHeightDp = with(LocalDensity.current) { fabHeight.toDp()+16.dp }
     val listState = rememberLazyListState()

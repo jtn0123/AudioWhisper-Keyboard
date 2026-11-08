@@ -89,7 +89,7 @@ fun SetupScreen() = FlorisScreen {
             }
         }
 
-    content(
+    SetupContent(
         isFlorisBoardEnabled,
         isFlorisBoardSelected,
         context,
@@ -101,7 +101,7 @@ fun SetupScreen() = FlorisScreen {
 }
 
 @Composable
-private fun FlorisScreenScope.content(
+private fun FlorisScreenScope.SetupContent(
     isFlorisBoardEnabled: Boolean,
     isFlorisBoardSelected: Boolean,
     context: Context,
@@ -167,14 +167,14 @@ private fun FlorisScreenScope.content(
                 context, navController, requestNotification, scope
             ),
             footer = {
-                footer(context)
+                SetupFooter(context)
             },
         )
     }
 }
 
 @Composable
-private fun footer(context: Context) {
+private fun SetupFooter(context: Context) {
     Spacer(modifier = Modifier.height(16.dp))
     Row(
         modifier = Modifier
