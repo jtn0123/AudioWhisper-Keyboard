@@ -1,0 +1,19 @@
+[package]
+name = "awnative"
+version = "0.1.0"
+description = "The keyboard's native library: JNI entry points for the crates beside it"
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+rust-version.workspace = true
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+glide = { path = "../glide" }
+# jni.h as Rust declarations, nothing more. 0.3.0 has no dependencies of its own.
+jni-sys = "=0.3.0"
+
+[lints]
+workspace = true

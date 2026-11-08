@@ -1,0 +1,25 @@
+# AudioWhisper Keyboard's native code in Rust, built into one library, libawnative.so.
+# Gradle runs cargo (see build.gradle.kts); docs/rust.md explains the layout and the rules.
+[workspace]
+members = ["crates/*"]
+resolver = "3"
+
+[workspace.package]
+edition = "2024"
+license = "Apache-2.0"
+publish = false
+rust-version = "1.98"
+
+[workspace.lints.rust]
+unsafe_op_in_unsafe_fn = "deny"
+missing_debug_implementations = "warn"
+
+[workspace.lints.clippy]
+undocumented_unsafe_blocks = "warn"
+
+[profile.release]
+codegen-units = 1
+lto = true
+# A panic aborts the process rather than unwinding into the JVM; the panic hook logs it first.
+panic = "abort"
+strip = true

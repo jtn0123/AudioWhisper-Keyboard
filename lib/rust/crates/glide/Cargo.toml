@@ -1,0 +1,11 @@
+[package]
+name = "glide"
+version = "0.1.0"
+description = "Swipe typing's word scorer, ported from FlorisBoard's StatisticalGlideTypingClassifier"
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+rust-version.workspace = true
+
+[lints]
+workspace = true

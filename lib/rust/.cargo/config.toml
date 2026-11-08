@@ -1,0 +1,9 @@
+# Gradle supplies the NDK linker through CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER, since its path
+# depends on the machine. 16 KB pages: Android 15+ devices may use them, and Play requires it.
+[target.aarch64-linux-android]
+rustflags = ["-C", "link-arg=-Wl,-z,max-page-size=16384"]
+
+# Under Gradle's build directory, so `gradlew clean` and .gitignore cover it, whether cargo runs
+# from Gradle or by hand.
+[build]
+target-dir = "build/cargo"
