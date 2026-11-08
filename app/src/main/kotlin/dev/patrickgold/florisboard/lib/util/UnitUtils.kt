@@ -16,17 +16,21 @@
 
 package dev.patrickgold.florisboard.lib.util
 
+import java.util.Locale
+
 object UnitUtils {
     private const val KiB = (1024).toFloat()
     private const val MiB = (1024 * 1024).toFloat()
     private const val GiB = (1024 * 1024 * 1024).toFloat()
 
+    // AudioWhisper: formatted in Locale.ROOT, as these go to the debug log; and the bytes case
+    // passes its number, which it didn't (a size under 1 KiB threw MissingFormatArgumentException).
     fun formatMemorySize(sizeBytes: Long): String {
         return when {
-            sizeBytes >= GiB -> String.format("%.2f GiB", sizeBytes / GiB)
-            sizeBytes >= MiB -> String.format("%.2f MiB", sizeBytes / MiB)
-            sizeBytes >= KiB -> String.format("%.2f KiB", sizeBytes / KiB)
-            else -> String.format("%d bytes")
+            sizeBytes >= GiB -> "%.2f GiB".format(Locale.ROOT, sizeBytes / GiB)
+            sizeBytes >= MiB -> "%.2f MiB".format(Locale.ROOT, sizeBytes / MiB)
+            sizeBytes >= KiB -> "%.2f KiB".format(Locale.ROOT, sizeBytes / KiB)
+            else -> "$sizeBytes bytes"
         }
     }
 }
