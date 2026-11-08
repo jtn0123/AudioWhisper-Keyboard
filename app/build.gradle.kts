@@ -122,6 +122,14 @@ android {
             isDebuggable = true
             isJniDebuggable = false
 
+            // AudioWhisper: the debug build is the one on the phone day to day, so it is shrunk
+            // like release. Names aren't obfuscated (proguard-rules.pro), and R8 compiles a
+            // debuggable build in its debug mode, keeping line numbers and locals for the
+            // debugger.
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            isMinifyEnabled = true
+            isShrinkResources = true
+
             resValue("string", "floris_app_name", "AudioWhisper Keyboard")
         }
 
