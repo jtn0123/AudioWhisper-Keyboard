@@ -27,6 +27,7 @@ import androidx.lifecycle.MutableLiveData
 import com.jtn0123.audiowhisper.dictation.DictationFields
 import com.jtn0123.audiowhisper.gif.GifSearch
 import com.jtn0123.audiowhisper.gif.GifSearchKeys
+import com.jtn0123.audiowhisper.reader.ReadAloud
 import com.jtn0123.audiowhisper.suggest.AutoCorrectionUndo
 import dev.patrickgold.florisboard.FlorisImeService
 import dev.patrickgold.florisboard.R
@@ -755,7 +756,15 @@ class KeyboardManager(context: Context) : InputKeyEventReceiver {
                 editorInstance.massSelection.begin()
             }
             KeyCode.SHIFT -> handleShiftDown(data)
-            KeyCode.VOICE_INPUT -> FlorisImeService.pressMic()
+            // AudioWhisper: dictating and reading aloud never overlap; starting one ends the other.
+            KeyCode.VOICE_INPUT -> {
+                ReadAloud.stop()
+                FlorisImeService.pressMic()
+            }
+            KeyCode.READ_ALOUD -> {
+                FlorisImeService.stopDictating()
+                ReadAloud.keyDown()
+            }
         }
     }
 
@@ -817,6 +826,7 @@ class KeyboardManager(context: Context) : InputKeyEventReceiver {
             KeyCode.IME_UI_MODE_MEDIA -> activeState.imeUiMode = ImeUiMode.MEDIA
             KeyCode.IME_UI_MODE_CLIPBOARD -> activeState.imeUiMode = ImeUiMode.CLIPBOARD
             KeyCode.VOICE_INPUT -> FlorisImeService.releaseMic()
+            KeyCode.READ_ALOUD -> ReadAloud.keyUp(appContext)
             KeyCode.KANA_SWITCHER -> handleKanaSwitch()
             KeyCode.KANA_HIRA -> handleKanaHira()
             KeyCode.KANA_KATA -> handleKanaKata()
@@ -912,6 +922,7 @@ class KeyboardManager(context: Context) : InputKeyEventReceiver {
             }
             KeyCode.SHIFT -> handleShiftCancel()
             KeyCode.VOICE_INPUT -> FlorisImeService.releaseMic()
+            KeyCode.READ_ALOUD -> ReadAloud.keyCancel()
         }
     }
 

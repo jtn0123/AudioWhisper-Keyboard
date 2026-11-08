@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    No event types and no flags beyond reading windows: the service asks for nothing while idle and
+    walks the screen only when a reading starts (see ReadAloudService).
+-->
+<accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
+    android:accessibilityFeedbackType="feedbackSpoken"
+    android:accessibilityFlags="flagRetrieveInteractiveWindows"
+    android:canRetrieveWindowContent="true"
+    android:description="@string/read_aloud__service_description"
+    android:isAccessibilityTool="true"
+    android:notificationTimeout="0"
+    android:summary="@string/read_aloud__service_summary"/>

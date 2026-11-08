@@ -25,6 +25,7 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardReturn
 import androidx.compose.material.icons.automirrored.filled.Redo
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.automirrored.filled.Undo
+import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.automirrored.outlined.Assignment
 import androidx.compose.material.icons.automirrored.outlined.Backspace
 import androidx.compose.material.icons.filled.Close
@@ -214,6 +215,9 @@ fun ComputingEvaluator.computeImageVector(data: KeyData): ImageVector? {
         }
         KeyCode.VOICE_INPUT -> {
             Icons.Default.KeyboardVoice
+        }
+        KeyCode.READ_ALOUD -> {
+            Icons.AutoMirrored.Filled.VolumeUp
         }
         KeyCode.IME_HIDE_UI -> {
             Icons.Default.KeyboardHide

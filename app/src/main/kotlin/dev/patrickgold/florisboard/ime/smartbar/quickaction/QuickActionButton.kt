@@ -37,6 +37,8 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import com.jtn0123.audiowhisper.dictation.Dictation
 import com.jtn0123.audiowhisper.dictation.LitMic
+import com.jtn0123.audiowhisper.reader.LitSpeaker
+import com.jtn0123.audiowhisper.reader.ReadAloud
 import dev.patrickgold.compose.tooltip.PlainTooltip
 import dev.patrickgold.florisboard.FlorisImeService
 import dev.patrickgold.florisboard.ime.keyboard.ComputingEvaluator
@@ -79,6 +81,9 @@ fun QuickActionButton(
     val litMic = type == QuickActionBarType.INTERACTIVE_BUTTON &&
         action.keyData().code == KeyCode.VOICE_INPUT &&
         dictation != Dictation.Status.IDLE
+    val reading by ReadAloud.status.collectAsState()
+    val isSpeaker = action.keyData().code == KeyCode.READ_ALOUD
+    val litSpeaker = type == QuickActionBarType.INTERACTIVE_BUTTON && isSpeaker && reading == ReadAloud.Status.READING
     val selector = when {
         isPressed -> SnyggSelector.PRESSED
         !isEnabled -> SnyggSelector.DISABLED
@@ -95,7 +100,8 @@ fun QuickActionButton(
         }
     }
 
-    PlainTooltip(action.computeTooltip(evaluator), enabled = type == QuickActionBarType.INTERACTIVE_BUTTON) {
+    // Holding the speaker reads from the top of the page; a tooltip would take the hold and cancel the press.
+    PlainTooltip(action.computeTooltip(evaluator), enabled = type == QuickActionBarType.INTERACTIVE_BUTTON && !isSpeaker) {
         SnyggBox(
             elementName = elementName,
             attributes = attributes,
@@ -136,6 +142,8 @@ fun QuickActionButton(
                         }
                         if (imageVector != null && litMic) {
                             LitMic(imageVector)
+                        } else if (litSpeaker) {
+                            LitSpeaker()
                         } else if (imageVector != null) {
                             SnyggBox(
                                 elementName = "$elementName-icon",

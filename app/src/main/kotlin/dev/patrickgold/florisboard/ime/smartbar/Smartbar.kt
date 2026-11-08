@@ -352,9 +352,11 @@ private fun SmartbarMainRow(modifier: Modifier = Modifier) {
                     SharedActionsToggle()
                     CenterContent()
                     PinnedEmojiAction()
+                    PinnedReadAloudAction()
                     StickyAction()
                 } else {
                     StickyAction()
+                    PinnedReadAloudAction()
                     CenterContent()
                     PinnedEmojiAction()
                     SharedActionsToggle()
@@ -366,9 +368,11 @@ private fun SmartbarMainRow(modifier: Modifier = Modifier) {
                     ExtendedActionsToggle()
                     CenterContent()
                     PinnedEmojiAction()
+                    PinnedReadAloudAction()
                     StickyAction()
                 } else {
                     StickyAction()
+                    PinnedReadAloudAction()
                     CenterContent()
                     PinnedEmojiAction()
                     ExtendedActionsToggle()
@@ -391,6 +395,26 @@ private fun PinnedEmojiAction() {
     QuickActionButton(
         modifier = Modifier.padding(horizontal = 4.dp),
         action = PinnedEmoji,
+        evaluator = evaluator,
+    )
+}
+
+private val PinnedReadAloud = QuickAction.InsertKey(TextKeyData.READ_ALOUD)
+
+/**
+ * The speaker beside the mic, which reads the screen aloud: a tap from the top of the screen, a hold
+ * from the top of the page. It can be turned off in the Smartbar settings.
+ */
+@Composable
+private fun PinnedReadAloudAction() {
+    val prefs by FlorisPreferenceStore
+    val shown by prefs.smartbar.showReadAloud.observeAsState()
+    if (!shown) return
+    val keyboardManager by LocalContext.current.keyboardManager()
+    val evaluator by keyboardManager.activeSmartbarEvaluator.collectAsState()
+    QuickActionButton(
+        modifier = Modifier.padding(horizontal = 4.dp),
+        action = PinnedReadAloud,
         evaluator = evaluator,
     )
 }

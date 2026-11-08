@@ -95,6 +95,8 @@
     <string name="quick_action__toggle_autocorrect__tooltip">Toggle autocorrect</string>
     <string name="quick_action__voice_input" comment="Please mind the limited available space for the quick action strings">Voice input</string>
     <string name="quick_action__voice_input__tooltip" comment="IME stands for Input Method Editor and is indirectly equivalent to 'keyboard'.">Open voice input provider</string>
+    <string name="quick_action__read_aloud">Read aloud</string>
+    <string name="quick_action__read_aloud__tooltip">Read the screen aloud. Hold to start from the top of the page</string>
     <string name="quick_action__one_handed_mode" comment="Please mind the limited available space for the quick action strings">One-handed</string>
     <string name="quick_action__one_handed_mode__tooltip">Toggle one-handed mode</string>
     <string name="quick_action__drag_marker" comment="This action is only used as a placeholder in the actions editor drag and drop screen and only visible in debug mode">Drag marker</string>
@@ -462,6 +464,8 @@
     <string name="pref__smartbar__enabled__summary" comment="Preference summary">Will show on top of the keyboard</string>
     <string name="pref__smartbar__layout__label" comment="Preference title">Layout</string>
     <string name="pref__smartbar__group_layout_specific__label" comment="Preference group title">Layout-specific options</string>
+    <string name="pref__smartbar__show_read_aloud__label">Read-aloud button</string>
+    <string name="pref__smartbar__show_read_aloud__summary">A speaker beside the mic that reads the screen to you</string>
     <string name="pref__smartbar__flip_toggles__label" comment="Preference title">Flip toggle buttons</string>
     <string name="pref__smartbar__flip_toggles__summary" comment="Preference summary">Flips action row toggles</string>
     <string name="pref__smartbar__shared_actions_auto_expand_collapse__label" comment="Preference title">Auto-expand/collapse</string>
@@ -1150,4 +1154,15 @@
         <item quantity="other">{v} candidates</item>
     </plurals>
 
+
+    <!-- AudioWhisper: reading the screen aloud (com.jtn0123.audiowhisper.reader) -->
+    <string name="read_aloud__service_label">AudioWhisper Read aloud</string>
+    <string name="read_aloud__service_summary">Reads the screen to you from the keyboard\'s speaker button</string>
+    <string name="read_aloud__service_description">Tap the speaker beside the keyboard\'s mic to hear the screen read from the top down, scrolling on to the end of the page. Hold it to start from the top of the page, or select text and choose Read from here.\n\nIt looks at the screen only while it reads, and nothing it reads is saved or sent anywhere.</string>
+    <string name="read_aloud__from_here">Read from here</string>
+    <string name="read_aloud__stop">Stop reading</string>
+    <string name="read_aloud__turn_on">Turn on AudioWhisper Read aloud to have the screen read to you</string>
+    <string name="read_aloud__starting">Read aloud is starting</string>
+    <string name="read_aloud__no_engine">No text-to-speech engine is set up on this phone</string>
+    <string name="read_aloud__nothing">Found no text on the screen to read</string>
 </resources>

@@ -54,12 +54,7 @@ fun LitMic(imageVector: ImageVector, modifier: Modifier = Modifier) {
     val warming by Dictation.warming.collectAsState()
     val glow by animateFloatAsState(level, animationSpec = tween(GLOW_MS), label = "mic glow")
     val discAlpha = if (status == Dictation.Status.LISTENING) 1f else FINISHING_ALPHA
-    val enterKey = rememberSnyggThemeQuery(
-        FlorisImeUi.Key.elementName,
-        attributes = mapOf(FlorisImeUi.Attr.Code to KeyCode.ENTER),
-    )
-    val accent = enterKey.background(default = FallbackAccent).takeIf { it.alpha > 0f } ?: FallbackAccent
-    val iconTint = enterKey.foreground(default = Color.White)
+    val (accent, iconTint) = keyAccent()
     Box(
         modifier = modifier
             .fillMaxSize()
@@ -74,6 +69,17 @@ fun LitMic(imageVector: ImageVector, modifier: Modifier = Modifier) {
         if (warming) WarmingRing(accent)
         Icon(imageVector = imageVector, contentDescription = "Stop dictating", tint = iconTint)
     }
+}
+
+/** A lit key's colour and the colour drawn on it: the Enter key's, which every bundled theme sets to its accent. */
+@Composable
+fun keyAccent(): Pair<Color, Color> {
+    val enterKey = rememberSnyggThemeQuery(
+        FlorisImeUi.Key.elementName,
+        attributes = mapOf(FlorisImeUi.Attr.Code to KeyCode.ENTER),
+    )
+    val accent = enterKey.background(default = FallbackAccent).takeIf { it.alpha > 0f } ?: FallbackAccent
+    return accent to enterKey.foreground(default = Color.White)
 }
 
 /** An arc turning around the mic's edge. The angle is read while drawing, so only the ring redraws. */

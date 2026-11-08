@@ -243,6 +243,11 @@ class FlorisImeService : LifecycleInputMethodService() {
         fun releaseMic() {
             FlorisImeServiceReference.get()?.dictation?.releaseMic()
         }
+
+        /** Stops listening (what was said is still typed), as reading aloud starts. */
+        fun stopDictating() {
+            FlorisImeServiceReference.get()?.dictation?.stopListening()
+        }
     }
 
     private val prefs by FlorisPreferenceStore

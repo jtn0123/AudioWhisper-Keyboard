@@ -686,6 +686,11 @@ abstract class FlorisPreferenceModel : PreferenceModel() {
             key = "smartbar__flip_toggles",
             default = true,
         )
+        // AudioWhisper: the speaker beside the mic that reads the screen aloud.
+        val showReadAloud = boolean(
+            key = "smartbar__show_read_aloud",
+            default = true,
+        )
         val sharedActionsExpanded = boolean(
             key = "smartbar__shared_actions_expanded",
             default = false,
