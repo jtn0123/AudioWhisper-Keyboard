@@ -1,6 +1,6 @@
 [versions]
 # Main
-android-gradle-plugin = "8.12.0"
+android-gradle-plugin = "9.5.1"
 androidx-activity = "1.11.0"
 androidx-autofill = "1.3.0"
 androidx-collection = "1.5.0"
@@ -17,9 +17,9 @@ coil = "3.3.0"
 kotlin = "2.2.20"
 kotlinx-coroutines = "1.10.2"
 kotlinx-serialization-json = "1.9.0"
-ksp = "2.2.20-2.0.3"
+ksp = "2.3.13"
 material-kolor = "4.0.5"
-mikepenz-aboutlibraries = "13.1.0"
+mikepenz-aboutlibraries = "14.2.1"
 patrickgold-compose-tooltip = "0.2.0-rc02"
 patrickgold-jetpref = "20251119T222500Z-SNAPSHOT"
 
@@ -84,7 +84,6 @@ kotlin-test-junit5 = { module = "org.jetbrains.kotlin:kotlin-test-junit5", versi
 agp-application = { id = "com.android.application", version.ref = "android-gradle-plugin" }
 agp-library = { id = "com.android.library", version.ref = "android-gradle-plugin" }
 agp-test = { id = "com.android.test", version.ref = "android-gradle-plugin" }
-kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 kotlin-plugin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }

@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    AboutLibraries loads its generated aboutlibraries.json by name, which R8's optimized
+    resource shrinking (on by default since AGP 9) cannot see, so it would drop the file.
+    See the "Optimized Resource Shrinking / AGP 9.0" section of the AboutLibraries README.
+-->
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:keep="@raw/aboutlibraries" />

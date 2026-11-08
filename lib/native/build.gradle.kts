@@ -18,11 +18,10 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
     alias(libs.plugins.agp.library)
-    alias(libs.plugins.kotlin.android)
 }
 
-val projectNativeMinSdk: String by project
-val projectCompileSdk: String by project
+val projectNativeMinSdk = providers.gradleProperty("projectNativeMinSdk").get()
+val projectCompileSdk = providers.gradleProperty("projectCompileSdk").get()
 
 kotlin {
     compilerOptions {
@@ -69,14 +68,6 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
-    }
-
-    sourceSets {
-        maybeCreate("main").apply {
-            java {
-                srcDirs("src/main/kotlin")
-            }
-        }
     }
 
     externalNativeBuild {

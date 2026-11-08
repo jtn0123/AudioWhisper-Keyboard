@@ -1,5 +1,6 @@
 import org.gradle.api.tasks.testing.logging.TestLogEvent
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 /*
  * Copyright (C) 2025 The FlorisBoard Contributors
@@ -19,14 +20,13 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
     alias(libs.plugins.agp.library)
-    alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.plugin.compose)
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.kotlinx.kover)
 }
 
-val projectMinSdk: String by project
-val projectCompileSdk: String by project
+val projectMinSdk = providers.gradleProperty("projectMinSdk").get()
+val projectCompileSdk = providers.gradleProperty("projectCompileSdk").get()
 
 kotlin {
     compilerOptions {
@@ -107,16 +107,22 @@ dependencies {
     testImplementation(libs.kotlin.test.junit5)
 }
 
-tasks.register<JavaExec>("generateJsonSchema") {
+val generateJsonSchema = tasks.register<JavaExec>("generateJsonSchema") {
     dependsOn("build")
     mainClass.set("org.florisboard.lib.snygg.SnyggJsonSchemaGenerator")
-    val debugVariant = android.libraryVariants.first { it.name == "debug" }
-    classpath = files(
-        debugVariant.javaCompileProvider.get().classpath.map { it.absolutePath },
-    )
     args = listOf("schemas/stylesheet.schema.json")
     workingDir = projectDir
     standardOutput = System.out
+}
+
+// The generator runs on the debug variant's compiled classes plus its compile classpath.
+androidComponents {
+    onVariants(selector().withName("debug")) { variant ->
+        generateJsonSchema.configure {
+            val kotlinCompile = tasks.named<KotlinCompile>("compileDebugKotlin")
+            classpath = files(variant.compileClasspath, kotlinCompile.flatMap { it.destinationDirectory })
+        }
+    }
 }
 
 tasks["build"].finalizedBy("generateJsonSchema")

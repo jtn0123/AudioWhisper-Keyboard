@@ -19,18 +19,17 @@ import java.util.Properties
 
 plugins {
     alias(libs.plugins.agp.application)
-    alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.plugin.compose)
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.ksp)
     alias(libs.plugins.mikepenz.aboutlibraries)
 }
 
-val projectMinSdk: String by project
-val projectTargetSdk: String by project
-val projectCompileSdk: String by project
-val projectVersionCode: String by project
-val projectVersionName: String by project
+val projectMinSdk = providers.gradleProperty("projectMinSdk").get()
+val projectTargetSdk = providers.gradleProperty("projectTargetSdk").get()
+val projectCompileSdk = providers.gradleProperty("projectCompileSdk").get()
+val projectVersionCode = providers.gradleProperty("projectVersionCode").get()
+val projectVersionName = providers.gradleProperty("projectVersionName").get()
 val projectVersionNameSuffix = projectVersionName.substringAfter("-", "").let { suffix ->
     if (suffix.isNotEmpty()) {
         "-$suffix"
@@ -98,17 +97,6 @@ android {
         // The phone is arm64; the other ABIs in the sherpa-onnx AAR would
         // only add size.
         ndk { abiFilters += "arm64-v8a" }
-
-        sourceSets {
-            maybeCreate("main").apply {
-                assets {
-                    srcDirs("src/main/assets")
-                }
-                java {
-                    srcDirs("src/main/kotlin")
-                }
-            }
-        }
     }
 
     bundle {
@@ -123,6 +111,7 @@ android {
     buildFeatures {
         buildConfig = true
         compose = true
+        resValues = true
     }
 
     buildTypes {

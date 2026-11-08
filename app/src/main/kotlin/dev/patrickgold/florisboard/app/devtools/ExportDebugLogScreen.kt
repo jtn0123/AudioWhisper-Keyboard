@@ -60,6 +60,7 @@ fun ExportDebugLogScreen() = FlorisScreen {
     val context = LocalContext.current
     val clipboardManager by context.clipboardManager()
     val scope = rememberCoroutineScope()
+    val copiedToClipboard = stringRes(R.string.devtools__debuglog__copied_to_clipboard)
 
     var debugLog by remember { mutableStateOf<List<String>?>(null) }
     var formattedDebugLog by remember { mutableStateOf<List<String>?>(null) }
@@ -77,7 +78,7 @@ fun ExportDebugLogScreen() = FlorisScreen {
             FlorisButton(
                 onClick = {
                     clipboardManager.addNewPlaintext(debugLog!!.joinToString("\n"))
-                    scope.launch { context.showShortToast(context.getString(R.string.devtools__debuglog__copied_to_clipboard)) }
+                    scope.launch { context.showShortToast(copiedToClipboard) }
                 },
                 modifier = Modifier,
                 text = stringRes(R.string.devtools__debuglog__copy_log),
@@ -86,7 +87,7 @@ fun ExportDebugLogScreen() = FlorisScreen {
             FlorisButton(
                 onClick = {
                     clipboardManager.addNewPlaintext(formattedDebugLog!!.joinToString("\n"))
-                    scope.launch { context.showShortToast(context.getString(R.string.devtools__debuglog__copied_to_clipboard)) }
+                    scope.launch { context.showShortToast(copiedToClipboard) }
                 },
                 text = stringRes(R.string.devtools__debuglog__copy_for_github),
                 enabled = debugLog != null,

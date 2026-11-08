@@ -22,10 +22,6 @@ plugins {
     alias(libs.plugins.kotlinx.kover)
 }
 
-val projectGroupId: String by project
-val artifactId = "florisboard-lib-kotlin"
-val projectVersion: String by project
-
 java {
     sourceCompatibility = JavaVersion.VERSION_11
     targetCompatibility = JavaVersion.VERSION_11

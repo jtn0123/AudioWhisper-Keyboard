@@ -24,6 +24,7 @@ import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.annotation.WorkerThread
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -39,16 +40,22 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.lifecycleScope
 import dev.patrickgold.florisboard.R
 import dev.patrickgold.florisboard.app.FlorisPreferenceStore
 import dev.patrickgold.florisboard.app.apptheme.FlorisAppTheme
 import dev.patrickgold.jetpref.datastore.model.observeAsState
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.florisboard.lib.android.AndroidClipboardManager
 import org.florisboard.lib.android.stringRes
 import org.florisboard.lib.android.systemService
@@ -57,8 +64,8 @@ import org.florisboard.lib.compose.stringRes
 import org.florisboard.lib.kotlin.mimeTypeFilterOf
 
 class FlorisCopyToClipboardActivity : ComponentActivity() {
-    private var error: CopyToClipboardError? = null
-    private var bitmap: Bitmap? = null
+    private var error by mutableStateOf<CopyToClipboardError?>(null)
+    private var bitmap by mutableStateOf<Bitmap?>(null)
     private val clipboardManager by lazy { systemService(AndroidClipboardManager::class) }
     private val filter = mimeTypeFilterOf("image/*")
 
@@ -110,12 +117,16 @@ class FlorisCopyToClipboardActivity : ComponentActivity() {
             error = CopyToClipboardError.TYPE_NOT_SUPPORTED_ERROR
             return
         }
-        bitmap = uriToBitmap(uri)
-    }
-
-    private fun uriToBitmap(uri: Uri): Bitmap {
         val clip = ClipData.newUri(contentResolver, "image", uri)
         clipboardManager.setPrimaryClip(clip)
+        // The preview is decoded off the main thread: a large image would stall it.
+        lifecycleScope.launch {
+            bitmap = withContext(Dispatchers.IO) { decodeBitmap(uri) }
+        }
+    }
+
+    @WorkerThread
+    private fun decodeBitmap(uri: Uri): Bitmap {
         val source = ImageDecoder.createSource(contentResolver, uri)
         return ImageDecoder.decodeBitmap(source)
     }
@@ -133,9 +144,9 @@ class FlorisCopyToClipboardActivity : ComponentActivity() {
                 BottomSheet {
                     Row {
                         Text(
+                            // Without an error the image is already on the clipboard; the preview may still be decoding.
                             text = error?.showError()
-                                ?: bitmap?.let { stringRes(id = R.string.send_to_clipboard__description__copied_image_to_clipboard) }
-                                ?: stringRes(R.string.send_to_clipboard__unknown_error),
+                                ?: stringRes(id = R.string.send_to_clipboard__description__copied_image_to_clipboard),
                             textAlign = TextAlign.Center,
                             modifier = Modifier.weight(1f),
                         )
@@ -145,7 +156,7 @@ class FlorisCopyToClipboardActivity : ComponentActivity() {
                             Image(
                                 modifier = Modifier
                                     .padding(start = 64.dp, end = 64.dp, top = 32.dp, bottom = 8.dp),
-                                bitmap = bitmap!!.asImageBitmap(),
+                                bitmap = it.asImageBitmap(),
                                 contentDescription = null
                             )
                         }

@@ -8,13 +8,15 @@ plugins {
     alias(libs.plugins.agp.library)
 }
 
-val projectNativeMinSdk: String by project
-val projectCompileSdk: String by project
+val projectNativeMinSdk = providers.gradleProperty("projectNativeMinSdk").get()
+val projectCompileSdk = providers.gradleProperty("projectCompileSdk").get()
 
 android {
     namespace = "com.android.inputmethod.latinime"
     compileSdk = projectCompileSdk.toInt()
     ndkVersion = tools.versions.ndk.get()
+    // Java and C++ only: no Kotlin compile task, no kotlin-stdlib dependency.
+    enableKotlin = false
 
     defaultConfig {
         minSdk = projectNativeMinSdk.toInt()

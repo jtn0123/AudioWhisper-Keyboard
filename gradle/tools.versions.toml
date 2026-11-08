@@ -1,5 +1,5 @@
 [versions]
-buildTools = "35.0.0"
+buildTools = "36.0.0"
 cmake = "3.22.1"
 jdk = "17"
 ndk = "28.1.13356709"
