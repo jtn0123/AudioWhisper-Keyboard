@@ -205,6 +205,13 @@ android {
 
 tasks.withType<Test> {
     useJUnitPlatform()
+    // Tests that reach Rust load the computer's build of libawnative (see lib/rust). It's an
+    // input, so changing the Rust runs them again.
+    val rustHost = rootDir.resolve("lib/rust/build/rust/host")
+    dependsOn(":lib:rust:cargoBuildHost")
+    inputs.dir(rustHost).withPropertyName("rustHostLibrary").withPathSensitivity(PathSensitivity.RELATIVE)
+    systemProperty("java.library.path", rustHost.path)
+    jvmArgs("--enable-native-access=ALL-UNNAMED")
 }
 
 dependencies {
@@ -253,6 +260,8 @@ dependencies {
     implementation(projects.lib.kotlin)
     // AOSP LatinIME dictionary engine (Apache-2.0): word suggestions and autocorrect.
     implementation(projects.lib.latinime)
+    // The keyboard's Rust code (libawnative): glide typing's scorer.
+    implementation(projects.lib.rust)
     implementation(projects.lib.snygg)
 
     testImplementation(libs.kotlin.test.junit5)

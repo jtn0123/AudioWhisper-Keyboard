@@ -2,12 +2,15 @@ package dev.patrickgold.florisboard.ime.text.gestures
 
 import dev.patrickgold.florisboard.ime.text.gestures.StatisticalGlideTypingClassifier.Gesture
 import kotlin.test.Test
+import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertNotSame
+import kotlin.test.assertTrue
 
 /**
- * The classifier reuses gestures across words, so a reused one must give exactly what a new one
- * did: the same points, and 0 past its end where a new gesture's storage was still empty.
+ * The swipe as the classifier collects it. Its storage is reused and grows, so what it hands the
+ * scorer ([Gesture.xs], [Gesture.ys]) and how it compares (the suggestion cache's key) must see only
+ * the points in it now. The scoring itself is tested in lib/rust and by [SwipeIndexTest].
  */
 class GestureTest {
     private fun gestureOf(vararg points: Pair<Float, Float>, capacity: Int = 500) =
@@ -16,42 +19,16 @@ class GestureTest {
     private fun zigzag(points: Int) = Array(points) { i -> (i * 37f) to (if (i % 2 == 0) 100f else 260f) }
 
     @Test
-    fun aReusedTargetMatchesANewGesture() {
-        val word = gestureOf(*zigzag(6))
-        // A target that grew from 8 points and still holds 300 different ones.
-        val target = gestureOf(*zigzag(300), capacity = 8)
-
-        word.resampleInto(SAMPLES, target)
-
-        val fresh = word.resample(SAMPLES)
-        assertEquals(fresh, target)
-        for (i in 0 until 310) {
-            assertEquals(fresh.getX(i), target.getX(i), "x at $i")
-            assertEquals(fresh.getY(i), target.getY(i), "y at $i")
-        }
-    }
-
-    @Test
-    fun aReusedNormalizeTargetMatchesANewGesture() {
-        val resampled = gestureOf(*zigzag(9)).resample(SAMPLES)
-        val target = gestureOf(*zigzag(300))
-
-        resampled.normalizeByBoxSideInto(target)
-
-        assertEquals(resampled.normalizeByBoxSide(), target)
-        assertEquals(0f, target.getX(250))
-    }
-
-    @Test
-    fun pointsPastTheEndReadAsZero() {
+    fun aClearedGestureHandsOverOnlyItsNewPoints() {
         val gesture = gestureOf(1f to 2f, 3f to 4f, 5f to 6f)
         gesture.clear()
+        assertTrue(gesture.isEmpty)
         gesture.addPoint(7f, 8f)
 
-        assertEquals(7f, gesture.getX(0))
-        assertEquals(0f, gesture.getX(1))
-        assertEquals(0f, gesture.getY(2))
-        assertEquals(0f, gesture.getX(-1))
+        assertContentEquals(floatArrayOf(7f), gesture.xs())
+        assertContentEquals(floatArrayOf(8f), gesture.ys())
+        assertEquals(7f, gesture.getLastX())
+        assertEquals(8f, gesture.getLastY())
     }
 
     @Test
@@ -60,8 +37,8 @@ class GestureTest {
         for (i in 0 until 600) gesture.addPoint(i.toFloat(), 0f)
 
         assertEquals(499f, gesture.getLastX())
-        assertEquals(499f, gesture.getLength())
-        assertEquals(0f, gesture.getX(500))
+        assertContentEquals(FloatArray(500) { it.toFloat() }, gesture.xs())
+        assertEquals(500, gesture.ys().size)
     }
 
     @Test
@@ -86,19 +63,7 @@ class GestureTest {
         assertEquals(gesture.hashCode(), clone.hashCode())
 
         clone.addPoint(1f, 1f)
-        assertEquals(5, (0 until 10).count { gesture.getX(it) != 0f || gesture.getY(it) != 0f })
-    }
-
-    @Test
-    fun aSinglePointResamplesToItselfRepeated() {
-        val resampled = gestureOf(5f to 9f).resample(SAMPLES)
-
-        // The point, then the classifier's 200 samples of it.
-        for (i in 0..200) assertEquals(5f, resampled.getX(i), "x at $i")
-        assertEquals(0f, resampled.getX(201))
-    }
-
-    private companion object {
-        const val SAMPLES = 200
+        assertEquals(5, gesture.xs().size)
+        assertEquals(6, clone.xs().size)
     }
 }
