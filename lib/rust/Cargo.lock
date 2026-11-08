@@ -6,6 +6,7 @@ version = 4
 name = "awnative"
 version = "0.1.0"
 dependencies = [
+ "dictation",
  "glide",
  "jni-sys",
 ]
@@ -13,6 +14,13 @@ dependencies = [
 [[package]]
 name = "chars"
 version = "0.1.0"
+
+[[package]]
+name = "dictation"
+version = "0.1.0"
+dependencies = [
+ "chars",
+]
 
 [[package]]
 name = "glide"

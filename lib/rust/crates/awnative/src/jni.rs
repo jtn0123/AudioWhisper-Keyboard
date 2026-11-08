@@ -1,9 +1,11 @@
-//! Just enough JNI for the entry points: copying Java arrays into Rust, writing results back, and
-//! throwing. Everything is copied in and out, so no Java memory is held while Rust works on it.
+//! Just enough JNI for the entry points: copying Java arrays and strings into Rust, writing
+//! results back, calling a Kotlin method back, and throwing. Everything is copied in and out, so
+//! no Java memory is held while Rust works on it.
 
 use std::ffi::{CStr, CString};
+use std::ptr;
 
-use jni_sys::{JNIEnv, jarray, jsize};
+use jni_sys::{JNIEnv, jarray, jobject, jobjectArray, jsize, jstring, jvalue};
 
 /// Why an entry point gave up: a Java exception to throw, or one the JVM already raised.
 #[derive(Debug)]
@@ -116,6 +118,87 @@ impl Env {
         self.check()
     }
 
+    /// The string's UTF-16 units; `name` says which argument was null, if it was.
+    pub fn read_string(&self, string: jstring, name: &'static str) -> Result<Vec<u16>> {
+        self.read_nullable_string(string)?
+            .ok_or(Error::NullPointer(name))
+    }
+
+    /// The string's UTF-16 units, or `None` if it is null.
+    pub fn read_nullable_string(&self, string: jstring) -> Result<Option<Vec<u16>>> {
+        if string.is_null() {
+            return Ok(None);
+        }
+        let len = jni_call!(self, GetStringLength, string);
+        let mut units = vec![0; len.max(0) as usize];
+        jni_call!(self, GetStringRegion, string, 0, len, units.as_mut_ptr());
+        self.check()?;
+        Ok(Some(units))
+    }
+
+    /// A new Java string of these UTF-16 units, as they are: they needn't be valid UTF-16, as a
+    /// Kotlin String needn't.
+    pub fn make_string(&self, units: &[u16]) -> Result<jstring> {
+        let len = jsize::try_from(units.len()).map_err(|_| illegal("string too long"))?;
+        let string = jni_call!(self, NewString, units.as_ptr(), len);
+        if string.is_null() {
+            return Err(Error::Pending);
+        }
+        Ok(string)
+    }
+
+    /// A new `String[]` of these strings.
+    pub fn make_strings(&self, strings: &[Vec<u16>]) -> Result<jobjectArray> {
+        let len = jsize::try_from(strings.len()).map_err(|_| illegal("array too long"))?;
+        let class = jni_call!(self, FindClass, c"java/lang/String".as_ptr());
+        if class.is_null() {
+            return Err(Error::Pending);
+        }
+        let array = jni_call!(self, NewObjectArray, len, class, ptr::null_mut());
+        self.delete_local(class);
+        if array.is_null() {
+            return Err(Error::Pending);
+        }
+        // The index fits in a jsize, as the length does.
+        for (i, units) in strings.iter().enumerate() {
+            let string = self.make_string(units)?;
+            jni_call!(self, SetObjectArrayElement, array, i as jsize, string);
+            self.delete_local(string);
+            self.check()?;
+        }
+        Ok(array)
+    }
+
+    /// Calls `object`'s method `name`, whose `signature` takes one object and returns a boolean,
+    /// with `argument`; `what` says which argument `object` is, if it is null. R8 must keep the
+    /// method's name (see lib/rust/consumer-rules.pro).
+    pub fn call_boolean(
+        &self,
+        object: jobject,
+        what: &'static str,
+        (name, signature): (&CStr, &CStr),
+        argument: jobject,
+    ) -> Result<bool> {
+        if object.is_null() {
+            return Err(Error::NullPointer(what));
+        }
+        let class = jni_call!(self, GetObjectClass, object);
+        let method = jni_call!(self, GetMethodID, class, name.as_ptr(), signature.as_ptr());
+        self.delete_local(class);
+        if method.is_null() {
+            return Err(Error::Pending); // GetMethodID raised NoSuchMethodError.
+        }
+        let arguments = [jvalue { l: argument }];
+        let result = jni_call!(self, CallBooleanMethodA, object, method, arguments.as_ptr());
+        self.check()?;
+        Ok(result != 0)
+    }
+
+    /// Frees a local reference this call made, before it returns.
+    pub fn delete_local(&self, object: jobject) {
+        jni_call!(self, DeleteLocalRef, object);
+    }
+
     fn throw(&self, error: Error) {
         let (class, message) = match error {
             Error::Pending => return,
@@ -134,7 +217,7 @@ impl Env {
         }
         let message = CString::new(message.replace('\0', "")).unwrap_or_default();
         jni_call!(self, ThrowNew, class, message.as_ptr());
-        jni_call!(self, DeleteLocalRef, class);
+        self.delete_local(class);
     }
 }
 

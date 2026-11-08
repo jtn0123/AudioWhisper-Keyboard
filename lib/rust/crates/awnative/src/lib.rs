@@ -6,6 +6,7 @@ use std::ffi::c_void;
 
 use jni_sys::{JNI_VERSION_1_6, JavaVM, jint};
 
+mod dictation;
 mod glide;
 mod jni;
 mod panic;
