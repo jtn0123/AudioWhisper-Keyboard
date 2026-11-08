@@ -197,7 +197,9 @@ tasks.withType<Test> {
 }
 
 dependencies {
-    val composeBom = platform(libs.androidx.compose.bom)
+    // Enforced so the BOM's stable Compose versions win over transitive pre-releases: material-kolor 5
+    // asks for material3 1.5.0-alpha22, and every material3 API it calls already exists in the BOM's 1.4.0.
+    val composeBom = enforcedPlatform(libs.androidx.compose.bom)
     implementation(composeBom)
     // testImplementation(composeBom)
     // androidTestImplementation(composeBom)
