@@ -28,6 +28,7 @@ import com.mikepenz.aboutlibraries.ui.compose.m3.LibrariesContainer
 import com.mikepenz.aboutlibraries.ui.compose.m3.libraryColors
 import com.mikepenz.aboutlibraries.ui.compose.m3.style.m3VariantColors
 import com.mikepenz.aboutlibraries.ui.compose.style.LicenseHueResolver
+import com.mikepenz.aboutlibraries.ui.compose.variant.LibraryDetailMode
 import dev.patrickgold.florisboard.R
 import dev.patrickgold.florisboard.lib.compose.FlorisScreen
 import org.florisboard.lib.compose.florisScrollbar
@@ -63,6 +64,9 @@ fun ThirdPartyLicensesScreen() = FlorisScreen {
                 licenseBadgeContainer = MaterialTheme.colorScheme.primaryContainer,
                 licenseBadgeContent = MaterialTheme.colorScheme.onPrimaryContainer,
             ),
+            // A tap shows the license text bundled in the app, as before AboutLibraries 15, rather
+            // than a row of links whose "View license" leaves for the browser.
+            detailMode = LibraryDetailMode.Dialog,
             lazyListState = lazyListState,
         )
     }
