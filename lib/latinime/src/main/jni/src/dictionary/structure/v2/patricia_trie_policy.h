@@ -146,6 +146,8 @@ class PatriciaTriePolicy : public DictionaryStructureWithBufferPolicy {
     int getNextWordAndNextToken(const int token, int *const outCodePoints,
             int *const outCodePointCount);
 
+    bool iterateWords(WordListener *const listener) const;
+
     bool isCorrupted() const {
         return mIsCorrupted;
     }
@@ -175,6 +177,8 @@ class PatriciaTriePolicy : public DictionaryStructureWithBufferPolicy {
     const WordAttributes getWordAttributes(const int probability,
             const PtNodeParams &ptNodeParams) const;
     bool isValidPos(const int pos) const;
+    bool iterateWordsInPtNodeArray(const int ptNodeArrayPos, int *const codePoints,
+            const int prefixLength, WordListener *const listener) const;
 };
 } // namespace latinime
 #endif // LATINIME_PATRICIA_TRIE_POLICY_H

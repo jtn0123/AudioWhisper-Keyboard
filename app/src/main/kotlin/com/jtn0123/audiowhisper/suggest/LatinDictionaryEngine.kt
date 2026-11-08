@@ -14,9 +14,6 @@ class LatinDictionaryEngine private constructor(
     private val session: DicTraverseSession,
     private val proximityInfo: ProximityInfo,
 ) : TypingDecoder, Closeable {
-    /** Held for a whole [words] walk. */
-    private val walkLock = Any()
-
     @Synchronized
     override fun decode(
         input: String,
@@ -59,28 +56,11 @@ class LatinDictionaryEngine private constructor(
 
     /**
      * Every word the dictionary has a probability for (about 160,000), in dictionary order;
-     * entries that are only shortcuts, and the sentence-start marker, are left out. Takes a few
-     * hundred ms. Typing isn't held up meanwhile, since each step takes the engine on its own,
-     * but only one walk runs at a time: native keeps its place between steps.
+     * entries that are only shortcuts, and the sentence-start marker, are left out. One native
+     * walk of the dictionary: under 100 ms on the emulator, splitting included, where stepping
+     * through it word by word took 1.2 s. Typing waits for the native part.
      */
-    fun words(): List<String> = synchronized(walkLock) {
-        val words = ArrayList<String>(EXPECTED_WORD_COUNT)
-        val codePoints = IntArray(BinaryDictionary.MAX_WORD_LENGTH)
-        val isBeginningOfSentence = BooleanArray(1)
-        var token = 0
-        do {
-            val word = synchronized(this) {
-                codePoints.fill(0)
-                token = dictionary.getNextWord(token, codePoints, isBeginningOfSentence)
-                val length = codePoints.indexOf(0).let { if (it < 0) codePoints.size else it }
-                val isWord = length > 0 && !isBeginningOfSentence[0] &&
-                    dictionary.getProbability(codePoints.copyOf(length)) != NOT_A_PROBABILITY
-                if (isWord) String(codePoints, 0, length) else null
-            }
-            word?.let(words::add)
-        } while (token != 0)
-        words
-    }
+    fun words(): List<String> = splitWords(synchronized(this) { dictionary.words })
 
     @Synchronized
     override fun close() {
@@ -120,7 +100,7 @@ class LatinDictionaryEngine private constructor(
 
     companion object {
         /** The bundled dictionary's word count, rounded up, so the list is sized once. */
-        private const val EXPECTED_WORD_COUNT = 170_000
+        internal const val EXPECTED_WORD_COUNT = 170_000
 
         /**
          * Opens the dictionary stored at [offset]..[offset] + [length] in [path] (a plain file or
@@ -149,4 +129,16 @@ class LatinDictionaryEngine private constructor(
             )
         }
     }
+}
+
+/** [BinaryDictionary.getWords]'s text as words: each one is followed by a newline. */
+internal fun splitWords(text: String): List<String> {
+    val words = ArrayList<String>(LatinDictionaryEngine.EXPECTED_WORD_COUNT)
+    var start = 0
+    while (start < text.length) {
+        val end = text.indexOf('\n', start).let { if (it < 0) text.length else it }
+        if (end > start) words += text.substring(start, end)
+        start = end + 1
+    }
+    return words
 }

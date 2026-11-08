@@ -16,10 +16,13 @@
 
 #include "dictionary/structure/v2/patricia_trie_policy.h"
 
+#include <cstring>
+
 #include "defines.h"
 #include "suggest/core/dicnode/dic_node.h"
 #include "suggest/core/dicnode/dic_node_vector.h"
 #include "dictionary/interface/ngram_listener.h"
+#include "dictionary/interface/word_listener.h"
 #include "dictionary/property/ngram_context.h"
 #include "dictionary/structure/pt_common/dynamic_pt_reading_helper.h"
 #include "dictionary/structure/pt_common/patricia_trie_reading_utils.h"
@@ -509,6 +512,55 @@ int PatriciaTriePolicy::getNextWordAndNextToken(const int token, int *const outC
         return 0;
     }
     return nextToken;
+}
+
+// Walks the trie once, carrying each word's prefix down, where getNextWordAndNextToken finds every
+// word again from the root: for the 160,000-word English dictionary that is milliseconds against
+// seconds. Visits PtNodes in the same post-order as getNextWordAndNextToken (children, then the
+// PtNode itself), so the words come out in the same order.
+// A broken dictionary ends the walk early, with mIsCorrupted set.
+bool PatriciaTriePolicy::iterateWords(WordListener *const listener) const {
+    int codePoints[MAX_WORD_LENGTH];
+    iterateWordsInPtNodeArray(getRootPosition(), codePoints, 0 /* prefixLength */, listener);
+    return true;
+}
+
+// Returns false if the dictionary turned out to be broken, which ends the walk.
+bool PatriciaTriePolicy::iterateWordsInPtNodeArray(const int ptNodeArrayPos,
+        int *const codePoints, const int prefixLength, WordListener *const listener) const {
+    int ptNodeCount = 0;
+    int ptNodePos = NOT_A_DICT_POS;
+    if (!mPtNodeArrayReader.readPtNodeArrayInfoAndReturnIfValid(ptNodeArrayPos, &ptNodeCount,
+            &ptNodePos)) {
+        mIsCorrupted = true;
+        return false;
+    }
+    for (int i = 0; i < ptNodeCount; ++i) {
+        const PtNodeParams ptNodeParams =
+                mPtNodeReader.fetchPtNodeParamsInBufferFromPtNodePos(ptNodePos);
+        if (!ptNodeParams.isValid()) {
+            mIsCorrupted = true;
+            return false;
+        }
+        const int length = prefixLength + ptNodeParams.getCodePointCount();
+        // A longer word couldn't be looked up, nor could anything below it.
+        if (length <= MAX_WORD_LENGTH) {
+            memcpy(codePoints + prefixLength, ptNodeParams.getCodePoints(),
+                    sizeof(int) * ptNodeParams.getCodePointCount());
+            if (ptNodeParams.hasChildren() && !iterateWordsInPtNodeArray(
+                    ptNodeParams.getChildrenPos(), codePoints, length, listener)) {
+                return false;
+            }
+            // As getProbabilityOfWord has it, with no previous words.
+            if (ptNodeParams.isTerminal() && !ptNodeParams.isNotAWord()
+                    && getProbability(ptNodeParams.getProbability(), NOT_A_PROBABILITY)
+                            != NOT_A_PROBABILITY) {
+                listener->onVisitWord(CodePointArrayView(codePoints, length));
+            }
+        }
+        ptNodePos = ptNodeParams.getSiblingNodePos();
+    }
+    return true;
 }
 
 int PatriciaTriePolicy::getWordIdFromTerminalPtNodePos(const int ptNodePos) const {

@@ -35,6 +35,7 @@ class MultiBigramMap;
 class NgramListener;
 class NgramContext;
 class UnigramProperty;
+class WordListener;
 
 /*
  * This class abstracts the structure of dictionaries.
@@ -111,6 +112,12 @@ class DictionaryStructureWithBufferPolicy {
     // starts iterating the dictionary.
     virtual int getNextWordAndNextToken(const int token, int *const outCodePoints,
             int *const outCodePointCount) = 0;
+
+    // Gives the listener every entry that has a probability (not shortcut-only entries or the
+    // sentence-start marker), in the order getNextWordAndNextToken visits them, in one walk.
+    // Returns false for a format that has no such walk; Dictionary::iterateWords then looks each
+    // entry up instead.
+    virtual bool iterateWords(WordListener *const /* listener */) const { return false; }
 
     virtual bool isCorrupted() const = 0;
 

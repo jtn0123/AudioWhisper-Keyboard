@@ -24,6 +24,7 @@
 #include "dictionary/interface/dictionary_header_structure_policy.h"
 #include "dictionary/interface/dictionary_structure_with_buffer_policy.h"
 #include "dictionary/interface/ngram_listener.h"
+#include "dictionary/interface/word_listener.h"
 #include "dictionary/property/historical_info.h"
 #include "dictionary/property/word_property.h"
 #include "suggest/core/suggest_interface.h"
@@ -111,6 +112,10 @@ class Dictionary {
     // starts iterating the dictionary.
     int getNextWordAndNextToken(const int token, int *const outCodePoints,
             int *const outCodePointCount);
+
+    // Gives the listener every word that has a probability, in getNextWordAndNextToken's order;
+    // shortcut-only entries and the sentence-start marker are left out.
+    void iterateWords(WordListener *const listener);
 
     const DictionaryStructureWithBufferPolicy *getDictionaryStructurePolicy() const {
         return mDictionaryStructureWithBufferPolicy.get();

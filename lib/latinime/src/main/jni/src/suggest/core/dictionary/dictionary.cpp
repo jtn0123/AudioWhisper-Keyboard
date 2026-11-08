@@ -196,6 +196,23 @@ int Dictionary::getNextWordAndNextToken(const int token, int *const outCodePoint
             token, outCodePoints, outCodePointCount);
 }
 
+void Dictionary::iterateWords(WordListener *const listener) {
+    if (mDictionaryStructureWithBufferPolicy->iterateWords(listener)) return;
+    // The format has no walk of its own: look every entry up, which finds each word again from
+    // the root.
+    int codePoints[MAX_WORD_LENGTH];
+    int codePointCount = 0;
+    int token = 0;
+    do {
+        token = getNextWordAndNextToken(token, codePoints, &codePointCount);
+        const CodePointArrayView word(codePoints, codePointCount);
+        if (codePointCount > 0 && codePoints[0] != CODE_POINT_BEGINNING_OF_SENTENCE
+                && getProbability(word) != NOT_A_PROBABILITY) {
+            listener->onVisitWord(word);
+        }
+    } while (token != 0);
+}
+
 void Dictionary::logDictionaryInfo(JNIEnv *const env) const {
     int dictionaryIdCodePointBuffer[HEADER_ATTRIBUTE_BUFFER_SIZE];
     int versionStringCodePointBuffer[HEADER_ATTRIBUTE_BUFFER_SIZE];

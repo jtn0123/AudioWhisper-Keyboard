@@ -22,6 +22,7 @@
 #include <vector>
 
 #include "defines.h"
+#include "dictionary/interface/word_listener.h"
 #include "dictionary/property/unigram_property.h"
 #include "dictionary/property/ngram_context.h"
 #include "dictionary/property/word_property.h"
@@ -313,33 +314,49 @@ static jint latinime_BinaryDictionary_getNgramProbability(JNIEnv *env, jclass /*
             CodePointArrayView(wordCodePoints, wordLength));
 }
 
-// Method to iterate all words in the dictionary for makedict.
-// If token is 0, this method newly starts iterating the dictionary. This method returns 0 when
-// the dictionary does not have a next word.
-static jint latinime_BinaryDictionary_getNextWord(JNIEnv *env, jclass /* clazz */,
-        jlong dict, jint token, jintArray outCodePoints, jbooleanArray outIsBeginningOfSentence) {
+namespace {
+// Collects a walk's words as UTF-16 text, each followed by '\n'. A word with a control character
+// or a code point outside Unicode is left out: it couldn't be one line, and the Java side could
+// never have looked it up again (outputCodePoints writes those as U+FFFD).
+class WordCollector : public WordListener {
+ public:
+    WordCollector() : mChars() {}
+
+    void onVisitWord(const CodePointArrayView word) {
+        for (const int codePoint : word) {
+            if (codePoint < ' ' || !CharUtils::isInUnicodeSpace(codePoint)) return;
+        }
+        for (const int codePoint : word) {
+            if (codePoint < 0x10000) {
+                mChars.push_back(static_cast<jchar>(codePoint));
+            } else {
+                const int offset = codePoint - 0x10000;
+                mChars.push_back(static_cast<jchar>(0xD800 + (offset >> 10)));
+                mChars.push_back(static_cast<jchar>(0xDC00 + (offset & 0x3FF)));
+            }
+        }
+        mChars.push_back('\n');
+    }
+
+    jstring toJavaString(JNIEnv *env) const {
+        return env->NewString(mChars.data(), static_cast<jsize>(mChars.size()));
+    }
+
+ private:
+    DISALLOW_COPY_AND_ASSIGN(WordCollector);
+
+    std::vector<jchar> mChars;
+};
+} // namespace
+
+// Every word that has a probability, each followed by '\n', in one call: stepping through them from
+// Java took two JNI calls and a search from the root per word.
+static jstring latinime_BinaryDictionary_getWords(JNIEnv *env, jclass /* clazz */, jlong dict) {
     Dictionary *dictionary = reinterpret_cast<Dictionary *>(dict);
-    if (!dictionary) return 0;
-    const jsize codePointBufSize = env->GetArrayLength(outCodePoints);
-    if (codePointBufSize != MAX_WORD_LENGTH) {
-        AKLOGE("Invalid outCodePointsLength: %d", codePointBufSize);
-        ASSERT(false);
-        return 0;
-    }
-    int wordCodePoints[MAX_WORD_LENGTH];
-    int wordCodePointCount = 0;
-    const int nextToken = dictionary->getNextWordAndNextToken(token, wordCodePoints,
-            &wordCodePointCount);
-    JniDataUtils::outputCodePoints(env, outCodePoints, 0 /* start */,
-            MAX_WORD_LENGTH /* maxLength */, wordCodePoints, wordCodePointCount,
-            false /* needsNullTermination */);
-    bool isBeginningOfSentence = false;
-    if (wordCodePointCount > 0 && wordCodePoints[0] == CODE_POINT_BEGINNING_OF_SENTENCE) {
-        isBeginningOfSentence = true;
-    }
-    JniDataUtils::putBooleanToArray(env, outIsBeginningOfSentence, 0 /* index */,
-            isBeginningOfSentence);
-    return nextToken;
+    if (!dictionary) return nullptr;
+    WordCollector collector;
+    dictionary->iterateWords(&collector);
+    return collector.toJavaString(env);
 }
 
 static void latinime_BinaryDictionary_getWordProperty(JNIEnv *env, jclass /* clazz */,
@@ -711,9 +728,9 @@ static const JNINativeMethod sMethods[] = {
         reinterpret_cast<void *>(latinime_BinaryDictionary_getWordProperty)
     },
     {
-        const_cast<char *>("getNextWordNative"),
-        const_cast<char *>("(JI[I[Z)I"),
-        reinterpret_cast<void *>(latinime_BinaryDictionary_getNextWord)
+        const_cast<char *>("getWordsNative"),
+        const_cast<char *>("(J)Ljava/lang/String;"),
+        reinterpret_cast<void *>(latinime_BinaryDictionary_getWords)
     },
     {
         const_cast<char *>("addUnigramEntryNative"),
