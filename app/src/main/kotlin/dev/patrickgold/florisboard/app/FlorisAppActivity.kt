@@ -16,7 +16,6 @@
 
 package dev.patrickgold.florisboard.app
 
-import android.content.Context
 import android.content.Intent
 import android.content.res.Configuration
 import android.os.Bundle
@@ -48,7 +47,6 @@ import dev.patrickgold.florisboard.app.ext.ExtensionImportScreenType
 import dev.patrickgold.florisboard.app.setup.NotificationPermissionState
 import dev.patrickgold.florisboard.appContext
 import dev.patrickgold.florisboard.cacheManager
-import dev.patrickgold.florisboard.lib.FlorisLocale
 import dev.patrickgold.florisboard.lib.compose.LocalPreviewFieldController
 import dev.patrickgold.florisboard.lib.compose.PreviewKeyboardField
 import dev.patrickgold.florisboard.lib.compose.rememberPreviewFieldController
@@ -82,7 +80,6 @@ class FlorisAppActivity : ComponentActivity() {
     private val cacheManager by cacheManager()
     private var appTheme by mutableStateOf(AppTheme.AUTO)
     private var showAppIcon = true
-    private var resourcesContext by mutableStateOf(this as Context)
     private var intentToBeHandled by mutableStateOf<Intent?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -95,12 +92,6 @@ class FlorisAppActivity : ComponentActivity() {
 
         prefs.other.settingsTheme.asFlow().collectIn(lifecycleScope) {
             appTheme = it
-        }
-        prefs.other.settingsLanguage.asFlow().collectIn(lifecycleScope) {
-            val config = Configuration(resources.configuration)
-            val locale = if (it == "auto") FlorisLocale.default() else FlorisLocale.fromTag(it)
-            config.setLocale(locale.base)
-            resourcesContext = createConfigurationContext(config)
         }
         if (AndroidVersion.ATMOST_API28_P) {
             prefs.other.showAppIcon.asFlow().collectIn(lifecycleScope) {
@@ -122,7 +113,7 @@ class FlorisAppActivity : ComponentActivity() {
             AppVersionUtils.updateVersionOnInstallAndLastUse(this, prefs)
             setContent {
                 ProvideLocalizedResources(
-                    resourcesContext,
+                    this,
                     appName = R.string.floris_app_name,
                 ) {
                     FlorisAppTheme(theme = appTheme) {

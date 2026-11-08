@@ -647,10 +647,6 @@ abstract class FlorisPreferenceModel : PreferenceModel() {
             },
             serializer = ColorPreferenceSerializer,
         )
-        val settingsLanguage = string(
-            key = "other__settings_language",
-            default = "auto",
-        )
         val showAppIcon = boolean(
             key = "other__show_app_icon",
             default = true,
@@ -833,8 +829,9 @@ abstract class FlorisPreferenceModel : PreferenceModel() {
             "advanced__accent_color" -> {
                 entry.transform(key = "other__accent_color")
             }
-            "advanced__settings_language" -> {
-                entry.transform(key = "other__settings_language")
+            // AudioWhisper: the settings are English only, so there is no language to pick.
+            "advanced__settings_language", "other__settings_language" -> {
+                entry.reset()
             }
             "advanced__show_app_icon" -> {
                 entry.transform(key = "other__show_app_icon")

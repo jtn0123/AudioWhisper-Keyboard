@@ -192,10 +192,13 @@ android {
         baseline = file("lint.xml")
     }
 
-    // The AOSP dictionary engine mmaps assets/dicts/*.dict straight out of the APK,
-    // which needs the entries stored uncompressed.
     androidResources {
+        // The AOSP dictionary engine mmaps assets/dicts/*.dict straight out of the APK,
+        // which needs the entries stored uncompressed.
         noCompress += "dict"
+        // The app is English only; this also leaves out the libraries' translations.
+        // Typing languages are unaffected: layouts and dictionaries are assets.
+        localeFilters += "en"
     }
 
     testOptions {
