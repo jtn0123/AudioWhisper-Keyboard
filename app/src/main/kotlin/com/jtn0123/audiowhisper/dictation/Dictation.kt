@@ -27,8 +27,9 @@ import java.util.concurrent.atomic.AtomicBoolean
  *
  * Main thread only, apart from [worker], which owns the model: it loads,
  * runs and releases it, and keeps phrases in the order they were spoken.
- * The model takes about 800 MB, so it stays loaded for [KEEP_LOADED_MS]
- * after a dictation (the next one starts at once) and is then released.
+ * The model takes about 750 MB, so it stays loaded for [KEEP_LOADED_MS]
+ * after a dictation (the next one starts at once) and is then released; once
+ * the keyboard is out of sight, within [KEEP_LOADED_HIDDEN_MS] (see [releaseAt]).
  *
  * Every dictation that ends without typing anything says why: nothing was
  * heard, the mic stopped, the model is broken, or transcription failed.
@@ -79,6 +80,10 @@ class Dictation(private val context: Context, private val editor: Editor) {
     /** A message about this dictation has been shown, so its end needn't add one. */
     private var explained = false
 
+    /** When the last dictation ended, in uptime; 0 before the first, when no model was loaded. */
+    private var idleSince = 0L
+    private var keyboardShown = true
+
     /** The mic key went down. */
     fun pressMic() {
         if (micKey.press(status.value) == MicKey.Action.START) start()
@@ -123,6 +128,12 @@ class Dictation(private val context: Context, private val editor: Editor) {
         listener?.stop(keepLastPhrase = false)
         listener = null
         idle()
+    }
+
+    /** The keyboard came into sight or went out of it, which sets how long an idle model is kept. */
+    fun keyboardVisible(visible: Boolean) {
+        keyboardShown = visible
+        if (status.value == Status.IDLE && idleSince != 0L) scheduleRelease()
     }
 
     fun release() {
@@ -288,8 +299,13 @@ class Dictation(private val context: Context, private val editor: Editor) {
         mutableLevel.value = 0f
         mutableWarming.value = false
         mutablePreview.value = ""
+        idleSince = SystemClock.uptimeMillis()
+        scheduleRelease()
+    }
+
+    private fun scheduleRelease() {
         main.removeCallbacks(unload)
-        main.postDelayed(unload, KEEP_LOADED_MS)
+        main.postAtTime(unload, releaseAt(idleSince, SystemClock.uptimeMillis(), keyboardShown))
     }
 
     private fun type(id: Int, result: Result<String>) {
@@ -348,7 +364,10 @@ class Dictation(private val context: Context, private val editor: Editor) {
 
     companion object {
         private const val TAG = "AWDictation"
-        private const val KEEP_LOADED_MS = 5 * 60 * 1000L
+        internal const val KEEP_LOADED_MS = 5 * 60 * 1000L
+
+        /** Long enough to switch to another app and dictate there without loading it again. */
+        internal const val KEEP_LOADED_HIDDEN_MS = 60 * 1000L
 
         // One keyboard per process, so the mic button can watch these
         // without holding on to the service.
@@ -369,6 +388,16 @@ class Dictation(private val context: Context, private val editor: Editor) {
         /** The model is loading for this dictation (about 2 s on a phone), so its first phrase comes late. */
         val warming: StateFlow<Boolean> = mutableWarming.asStateFlow()
     }
+}
+
+/**
+ * When to release the model (uptime): [Dictation.KEEP_LOADED_MS] after the last dictation ended
+ * at [idleSince], or, with the keyboard out of sight, [Dictation.KEEP_LOADED_HIDDEN_MS] from [now]
+ * if that comes first.
+ */
+internal fun releaseAt(idleSince: Long, now: Long, keyboardShown: Boolean): Long {
+    val kept = idleSince + Dictation.KEEP_LOADED_MS
+    return if (keyboardShown) kept else minOf(kept, now + Dictation.KEEP_LOADED_HIDDEN_MS)
 }
 
 /** What to say when a dictation ends without a message already shown, or null when it typed something. */

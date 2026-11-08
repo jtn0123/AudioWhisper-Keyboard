@@ -404,6 +404,7 @@ class FlorisImeService : LifecycleInputMethodService() {
         inputFeedbackController.updateSystemPrefsState()
         // AudioWhisper: a word added to the personal dictionary counts from the next keystroke.
         nlpManager.refreshPersonalWords()
+        dictation?.keyboardVisible(true)
     }
 
     override fun onWindowHidden() {
@@ -418,6 +419,7 @@ class FlorisImeService : LifecycleInputMethodService() {
         // Minimised (back, the hide key): stop listening, but still type what was said; the
         // field is still connected. Leaving the field drops the rest (onFinishInput).
         dictation?.stopListening()
+        dictation?.keyboardVisible(false)
         GifSearch.reset()
         activeState.batchEdit {
             activeState.imeUiMode = ImeUiMode.TEXT
