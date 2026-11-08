@@ -11,11 +11,11 @@ runs both, and has been checked on the emulator.
 | Glide typing's scorer: pruning a swipe's candidate words and ranking them | `crates/glide` | `StatisticalGlideTypingClassifier`'s `Pruner`, ideal gestures and scoring | `SwipeIndexTest` against `ReferenceGlideClassifier`; on the emulator, 512 of 512 scorings were identical |
 | Dictation's text rules: spoken commands, joining phrases transcribed separately, and taking back the last one | `crates/dictation` | `Spoken.parse`, `Phrases.join` and `punctuate`, `DictationUndo.revertAt` | `DictationRulesMatchTest` against `ReferenceDictation`: every UTF-16 unit through each rule, and 100,000 random phrases. The same cases on the emulator: none of 1,579,648 differed. Dictated recordings typed the same text |
 | Typing suggestions' smaller rules: a word's case, the words before it, which characters continue a word, whether a correction is sure enough to make by itself, undoing one, and where taps land on the decoder's QWERTY layout | `crates/suggest` | `WordCase`, `PreviousWords`, `WordCharacters`, `AutoCorrection`, `AutoCorrectionUndo`, `TapOffset`, `TapTrail` and `QwertyGeometry`, now wrappers | `SuggestRulesMatchTest` against `ReferenceSuggest`: every code point and every UTF-16 unit through each rule, 200,000 random words and corrections, 200,000 taps and 20,000 tap trails. The same on the emulator: none of 15,586,581 differed. Typing the same keys on both builds gave the same text |
+| The words typing learns and keeps: words and word pairs the user has typed, words whose correction they undid, and their personal dictionary's words and shortcuts. Kotlin still reads and writes the files; Rust parses and writes their text | `crates/suggest` | `LearnedWords`, `KeptWords` and `PersonalWords`, now wrappers | `WordStoresMatchTest` against `ReferenceStores`: 2,000 random runs of learning, undoing, saving and loading damaged files on each kind of store, asking both the same questions after every step, and 100,000 random personal dictionaries. The same on the emulator: none of 5,647,957 differed. Typing the same keys on both builds gave the same text and saved the same files, before and after a restart |
 
-Next, roughly in order: the rest of the suggestion logic (its word stores, glide typing's
-ranking and the suggester itself), the reader and GIF logic, then upstream FlorisBoard's pure
-logic. The LatinIME C++ (`lib/latinime`) and sharing a core
-with the Mac app come last.
+Next, roughly in order: the rest of the suggestion logic (glide typing's ranking and the
+suggester itself), the reader and GIF logic, then upstream FlorisBoard's pure logic. The LatinIME
+C++ (`lib/latinime`) and sharing a core with the Mac app come last.
 
 ## Layout
 
@@ -28,7 +28,7 @@ lib/rust/
   .cargo/config.toml          16 KB page alignment for Android; cargo's output in build/cargo
   crates/glide/               glide typing's scorer: plain Rust, no unsafe, no JNI
   crates/dictation/           dictation's text rules
-  crates/suggest/             typing suggestions' rules
+  crates/suggest/             typing suggestions' rules and the words they learn
   crates/chars/               Kotlin's character rules, for crates that judge text as Kotlin did
   crates/awnative/            libawnative.so: the JNI functions Kotlin calls, and nothing else
   tools/                      generates crates/chars' tables (generate-char-tables.sh)
@@ -43,9 +43,14 @@ the JVM, so it is tested with plain `cargo test`. `awnative` is the only crate w
 converts JNI arrays to slices, calls the logic crate, and turns bad input into a Java exception
 instead of a crash.
 
-Native objects (an index, a query) cross JNI as a `Long` handle. The Kotlin wrapper frees each one
-with a `java.lang.ref.Cleaner` once it is unreachable; a query is also `AutoCloseable`, and using
-one after `close()` throws rather than touching freed memory.
+Native objects (an index, a query, a word store) cross JNI as a `Long` handle. The Kotlin wrapper
+frees each one with a `java.lang.ref.Cleaner` once it is unreachable; a query is also
+`AutoCloseable`, and using one after `close()` throws rather than touching freed memory. An object
+that changes and is used from more than one thread (a tap trail, the learned and kept words) sits
+behind a `Mutex` (`handle::with_locked`).
+
+Files stay in Kotlin. A store's wrapper reads its file and hands Rust the text, and writes the text
+Rust gives back, so Rust never touches the disk and the file's format is in one place.
 
 ## Building
 

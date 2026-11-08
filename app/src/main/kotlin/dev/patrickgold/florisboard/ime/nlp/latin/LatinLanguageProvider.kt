@@ -340,7 +340,7 @@ class LatinLanguageProvider(context: Context) : SpellingProvider, SuggestionProv
             .flatMap(::readPersonalDictionary)
             .filter { PersonalWords.appliesTo(it.locale, DICTIONARY_LANGUAGE) }
             .map { PersonalWords.Entry(it.word, it.freq, it.shortcut) }
-        personalWords = PersonalWords(entries, Locale.US)
+        personalWords = PersonalWords(entries)
         refreshSwipeWords()
     }
 

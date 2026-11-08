@@ -1,5 +1,7 @@
 package com.jtn0123.audiowhisper.suggest
 
+import com.jtn0123.audiowhisper.rust.WordStoreRules
+
 /** The words and word pairs the user has typed, as suggestions read them. Kept by [LearnedWords]. */
 interface TypingHistory {
     /** How the user spells [word] (ignoring case), once they have used it [KNOWN_AFTER] times. */
@@ -19,7 +21,7 @@ interface TypingHistory {
 
     companion object {
         /** A word typed this many times is one of the user's words. */
-        const val KNOWN_AFTER = 2
+        val KNOWN_AFTER: Int = WordStoreRules.knownAfter
 
         val NONE: TypingHistory = object : TypingHistory {
             override fun spellingOf(word: String): String? = null
