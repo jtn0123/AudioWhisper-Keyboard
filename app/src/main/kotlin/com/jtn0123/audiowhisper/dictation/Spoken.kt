@@ -1,5 +1,8 @@
 package com.jtn0123.audiowhisper.dictation
 
+import com.jtn0123.audiowhisper.rust.DictationRules
+import com.jtn0123.audiowhisper.rust.DictationRules.Kind
+
 /** What part of a dictated phrase asks for: words to type, or a spoken command. */
 sealed interface Spoken {
     data class Words(val text: String) : Spoken
@@ -17,40 +20,16 @@ sealed interface Spoken {
         /**
          * Splits [phrase] into words and commands. A command counts only as a sentence of its
          * own ("Hello there. New line. How are you?"), never inside one ("I said new line"),
-         * because the model only writes it that way when the speaker says it on its own.
+         * because the model only writes it that way when the speaker says it on its own. The
+         * rules and the list of commands are in Rust: lib/rust/crates/dictation/src/spoken.rs.
          */
-        fun parse(phrase: String): List<Spoken> {
-            val parts = ArrayList<Spoken>()
-            val words = ArrayList<String>()
-            fun flushWords() {
-                if (words.isNotEmpty()) parts += Words(words.joinToString(" "))
-                words.clear()
+        fun parse(phrase: String): List<Spoken> = DictationRules.parse(phrase).map { part ->
+            when (part.kind) {
+                Kind.WORDS -> Words(part.text)
+                Kind.MARK -> Mark(part.text.single())
+                Kind.BREAK -> Break(part.text)
+                Kind.SCRATCH_THAT -> ScratchThat
             }
-            for (sentence in phrase.trim().split(SENTENCE_BREAK)) {
-                val command = COMMANDS[key(sentence)]
-                if (command == null) {
-                    if (sentence.isNotBlank()) words += sentence
-                } else {
-                    flushWords()
-                    parts += command
-                }
-            }
-            flushWords()
-            return parts
         }
-
-        private fun key(sentence: String) =
-            sentence.trim().trimEnd('.', '!', '?', ',').trim().lowercase().replace(Regex("\\s+"), " ")
-
-        private val SENTENCE_BREAK = Regex("(?<=[.!?])\\s+")
-
-        private val COMMANDS: Map<String, Spoken> = mapOf(
-            "new line" to Break("\n"), "newline" to Break("\n"), "next line" to Break("\n"),
-            "new paragraph" to Break("\n\n"),
-            "scratch that" to ScratchThat, "delete that" to ScratchThat,
-            "period" to Mark('.'), "full stop" to Mark('.'), "comma" to Mark(','),
-            "question mark" to Mark('?'), "exclamation mark" to Mark('!'), "exclamation point" to Mark('!'),
-            "colon" to Mark(':'), "semicolon" to Mark(';'),
-        )
     }
 }
