@@ -11,6 +11,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "chars"
+version = "0.1.0"
+
+[[package]]
 name = "glide"
 version = "0.1.0"
 
