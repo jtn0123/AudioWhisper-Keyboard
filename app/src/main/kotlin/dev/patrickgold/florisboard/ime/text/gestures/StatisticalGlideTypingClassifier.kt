@@ -406,6 +406,14 @@ class StatisticalGlideTypingClassifier(context: Context) : GlideTypingClassifier
             val key = keys.firstOrNull() ?: return arrayListOf()
             val radius = min(key.visibleBounds.height, key.visibleBounds.width)
             val userLength = userGesture.getLength()
+            // AudioWhisper: the cached lengths are in pixels, for the keys' size when measured.
+            // Rotating the screen resizes the same keys without a new layout, so a new size starts
+            // the cache over; it used to keep portrait lengths in landscape and the other way round.
+            val geometry = KeyGeometry.of(keys)
+            if (geometry != lengthsMeasuredOn) {
+                cachedIdealLength.clear()
+                lengthsMeasuredOn = geometry
+            }
             val idealGestures = IdealGestures()
             for (word in words) {
                 // AudioWhisper: the cache is checked before building the word's gesture, not after.
@@ -431,6 +439,25 @@ class StatisticalGlideTypingClassifier(context: Context) : GlideTypingClassifier
         }
 
         private val cachedIdealLength = ConcurrentHashMap<String, Float>()
+
+        /** What [cachedIdealLength] was measured on. */
+        @Volatile private var lengthsMeasuredOn: KeyGeometry? = null
+
+        /** The keys' size and spread: what a word's ideal length depends on. */
+        private data class KeyGeometry(val width: Float, val height: Float, val spanX: Float, val spanY: Float) {
+            companion object {
+                fun of(keys: List<TextKey>): KeyGeometry {
+                    val first = keys.first().visibleBounds
+                    val last = keys.last().visibleBounds
+                    return KeyGeometry(
+                        width = first.width,
+                        height = first.height,
+                        spanX = last.center.x - first.center.x,
+                        spanY = last.center.y - first.center.y,
+                    )
+                }
+            }
+        }
 
         companion object {
             private fun getFirstKeyLastKey(
