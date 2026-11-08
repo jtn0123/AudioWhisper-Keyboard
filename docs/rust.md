@@ -1,0 +1,97 @@
+# Rust in the keyboard
+
+AudioWhisper Keyboard is moving its own logic from Kotlin to Rust, one piece at a time. Each
+piece lands only when it gives the same results as the Kotlin it replaces, proven by a test that
+runs both, and has been checked on the emulator.
+
+## What is in Rust
+
+| Piece | Rust | Replaced | Proof it matches |
+|---|---|---|---|
+| Glide typing's scorer: pruning a swipe's candidate words and ranking them | `crates/glide` | `StatisticalGlideTypingClassifier`'s `Pruner`, ideal gestures and scoring | `SwipeIndexTest` against `ReferenceGlideClassifier`; on the emulator, 512 of 512 scorings were identical |
+
+Next, roughly in order: dictation's text rules, the suggestion logic, the reader and GIF logic,
+then upstream FlorisBoard's pure logic. The LatinIME C++ (`lib/latinime`) and sharing a core
+with the Mac app come last.
+
+## Layout
+
+Everything lives in `lib/rust`, one Gradle module that is also a cargo workspace:
+
+```
+lib/rust/
+  Cargo.toml, Cargo.lock      the workspace; release builds use LTO and abort on panic
+  rust-toolchain.toml         the pinned Rust version, with the Android target
+  .cargo/config.toml          16 KB page alignment for Android; cargo's output in build/cargo
+  crates/glide/               glide typing's scorer: plain Rust, no unsafe, no JNI
+  crates/awnative/            libawnative.so: the JNI functions Kotlin calls, and nothing else
+  src/main/kotlin/            the Kotlin side: loads the library and wraps each handle
+  src/test/kotlin/            JVM tests that go through JNI
+  build.gradle.kts            runs cargo
+```
+
+There is one native library, `libawnative.so`, however many crates there are. Each area of logic
+is its own crate with no unsafe code (`#![forbid(unsafe_code)]`) and no knowledge of Android or
+the JVM, so it is tested with plain `cargo test`. `awnative` is the only crate with `unsafe`: it
+converts JNI arrays to slices, calls the logic crate, and turns bad input into a Java exception
+instead of a crash.
+
+Native objects (an index, a query) cross JNI as a `Long` handle. The Kotlin wrapper frees each one
+with a `java.lang.ref.Cleaner` once it is unreachable; a query is also `AutoCloseable`, and using
+one after `close()` throws rather than touching freed memory.
+
+## Building
+
+`./gradlew assembleDebug` builds the Rust too; nothing else is needed but
+[rustup](https://rustup.rs). The first build installs the pinned toolchain and the Android target
+from `rust-toolchain.toml`. If your rustup doesn't install them automatically, run
+`rustup toolchain install` in `lib/rust`.
+
+Gradle runs cargo twice:
+
+- `:lib:rust:cargoBuildAndroid` builds `libawnative.so` for arm64 Android, linked with the NDK's
+  clang, and packages it as the module's native library.
+- `:lib:rust:cargoBuildHost` builds it for this computer, which the JVM unit tests (in `lib/rust`
+  and `app`) load. It is an input of those tests, so changing the Rust runs them again.
+
+Gradle finds cargo in `$CARGO_HOME/bin` or `~/.cargo/bin`, because Android Studio doesn't see
+the shell's `PATH`.
+
+## Checks
+
+```bash
+./gradlew :lib:rust:check   # cargo test, clippy with warnings as errors, rustfmt --check
+./gradlew test              # every JVM test, including those that go through JNI
+```
+
+Or, from `lib/rust`, plain `cargo test`, `cargo clippy --all-targets -- -D warnings` and
+`cargo fmt`.
+
+## Rules
+
+- **Same results as the Kotlin.** A port keeps the Kotlin's arithmetic: `Float` stays `f32`,
+  `Double` stays `f64`, operations happen in the same order, and Java's `Math.max`/`min`
+  (NaN wins; -0 is less than +0) are written out by hand, since Rust's `max`/`min` differ. On the
+  phone both use bionic's `exp`, so costs match to the bit.
+- **Prove it with a differential test.** Before deleting Kotlin, copy it into the tests as a
+  reference (as `ReferenceGlideClassifier`) and compare the two over real data and odd cases.
+  Make sure the test fails when the Rust is changed slightly, so it isn't passing for nothing.
+- **Write down every difference that's on purpose**, in the Rust and in the test. The glide
+  scorer has two: equally near keys keep layout order (Kotlin used hash order, which changed
+  from run to run), and an empty swipe gives nothing (Kotlin scored stale storage).
+- **No warnings, and none silenced.** Clippy runs with `-D warnings`; fix what it says rather than
+  adding `#[allow]`.
+- **Unsafe stays in `awnative`**, and each `unsafe` block says why it is sound (`// SAFETY:`).
+- **A panic is a bug.** Release builds abort on panic and the panic hook writes it to logcat
+  (tag `awnative`) first. Bad input from Kotlin is an exception, not a panic.
+- **Never log what the user types.** Timings and counts only, as everywhere else.
+
+## Adding a piece
+
+1. Add a crate under `crates/` with the logic and its tests; no JNI, no unsafe.
+2. Add its JNI functions to `awnative` (a new module, named after the crate) and the `external`
+   declarations and wrapper in `src/main/kotlin`.
+3. Copy the Kotlin it replaces into the app's tests as a reference and write the differential
+   test. Run it, and make it fail once on purpose.
+4. Switch the app over, delete the Kotlin, and check it on the emulator.
+5. Add it to the table above.

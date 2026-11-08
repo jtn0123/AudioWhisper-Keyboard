@@ -52,6 +52,7 @@ If you are overwhelmed by the code don't hesitate to ask for help in the [dev ch
   - Java 17
   - CMake 3.22+
   - Clang 15+
+  - [rustup](https://rustup.rs), for the keyboard's Rust code (see [docs/rust.md](docs/rust.md))
   - Git
 - Utilities (optional)
   - Python 3.10+
