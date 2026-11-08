@@ -50,6 +50,9 @@ class GlideTypingManager(context: Context) : GlideTypingGesture.Listener {
     private var glideTypingClassifier = StatisticalGlideTypingClassifier(context)
     private var lastTime = System.currentTimeMillis()
 
+    /** AudioWhisper: counts suggestion requests, so a preview overtaken by a later one is dropped. */
+    private var requests = 0
+
     init {
         // AudioWhisper: the words change once the dictionary has loaded, and with the user's (B18).
         scope.launch(Dispatchers.Main) {
@@ -60,9 +63,10 @@ class GlideTypingManager(context: Context) : GlideTypingGesture.Listener {
     }
 
     override fun onGlideComplete(data: GlideTypingGesture.Detector.PointerData) {
-        updateSuggestionsAsync(MAX_SUGGESTION_COUNT, true) {
-            glideTypingClassifier.clear()
-        }
+        updateSuggestionsAsync(MAX_SUGGESTION_COUNT, true)
+        // AudioWhisper: cleared now, not once the words arrive: it is scored from a copy, and a quick
+        // next swipe added its first points to this gesture and then lost them to the late clear.
+        glideTypingClassifier.clear()
     }
 
     override fun onGlideCancelled() {
@@ -76,7 +80,7 @@ class GlideTypingManager(context: Context) : GlideTypingGesture.Listener {
 
         val time = System.currentTimeMillis()
         if (prefs.glide.showPreview.get() && time - lastTime > prefs.glide.previewRefreshDelay.get()) {
-            updateSuggestionsAsync(1, false) {}
+            updateSuggestionsAsync(1, false)
             lastTime = time
         }
     }
@@ -94,23 +98,22 @@ class GlideTypingManager(context: Context) : GlideTypingGesture.Listener {
      * Asks gesture classifier for suggestions and then passes that on to the smartbar.
      * Also commits the most confident suggestion if [commit] is set. All happens on an async executor.
      * NB: only fetches [MAX_SUGGESTION_COUNT] suggestions.
-     *
-     * @param callback Called when this function completes. Takes a boolean, which indicates if suggestions
-     * were successfully set.
      */
-    private fun updateSuggestionsAsync(maxSuggestionsToShow: Int, commit: Boolean, callback: (Boolean) -> Unit) {
-        if (!glideTypingClassifier.ready) {
-            callback.invoke(false)
-            return
-        }
+    private fun updateSuggestionsAsync(maxSuggestionsToShow: Int, commit: Boolean) {
+        if (!glideTypingClassifier.ready) return
 
-        // AudioWhisper: the words before the cursor re-rank the guesses (B14). Read here, on the main thread.
+        // AudioWhisper: the gesture so far, and the words before the cursor that re-rank the guesses
+        // (B14), both read here on the main thread.
+        val swipe = glideTypingClassifier.snapshot()
         val textBefore = editorInstance.activeContent.textBeforeSelection
+        val request = ++requests
         scope.launch(Dispatchers.Default) {
-            val guesses = glideTypingClassifier.getScoredSuggestions(MAX_SUGGESTION_COUNT)
+            val guesses = glideTypingClassifier.getScoredSuggestions(swipe, MAX_SUGGESTION_COUNT)
             val suggestions = nlpManager.rankGlideGuesses(guesses, textBefore)
 
             withContext(Dispatchers.Main) {
+                // A preview finishing after a later request would show a word for less of the swipe.
+                if (!commit && request != requests) return@withContext
                 val suggestionList = buildList {
                     suggestions.subList(
                         1.coerceAtMost(min(commit.compareTo(false), suggestions.size)),
@@ -124,7 +127,6 @@ class GlideTypingManager(context: Context) : GlideTypingGesture.Listener {
                 if (commit && suggestions.isNotEmpty()) {
                     keyboardManager.commitGesture(suggestions.first())
                 }
-                callback.invoke(true)
             }
         }
     }

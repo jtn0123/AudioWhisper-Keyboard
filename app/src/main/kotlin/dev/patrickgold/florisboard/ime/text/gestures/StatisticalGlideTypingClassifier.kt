@@ -217,33 +217,35 @@ class StatisticalGlideTypingClassifier(context: Context) : GlideTypingClassifier
 
     private val lruSuggestionCache = LruCache<Pair<Gesture, Int>, List<GlideGuess>>(SUGGESTION_CACHE_SIZE)
     override fun getSuggestions(maxSuggestionCount: Int, gestureCompleted: Boolean): List<String> {
-        return getScoredSuggestions(maxSuggestionCount).map { it.word }
+        return getScoredSuggestions(snapshot(), maxSuggestionCount).map { it.word }
     }
 
-    /** AudioWhisper: the suggestions with their costs, so the words before them can re-rank them. */
-    fun getScoredSuggestions(maxSuggestionCount: Int): List<GlideGuess> {
-        return when (val cached = lruSuggestionCache.get(Pair(this.gesture, maxSuggestionCount))) {
-            null -> {
-                val suggestions = unCachedGetSuggestions(maxSuggestionCount)
-                lruSuggestionCache.put(Pair(this.gesture.clone(), maxSuggestionCount), suggestions)
+    /**
+     * AudioWhisper: a copy of the gesture so far, to score off the main thread. Scoring the live
+     * gesture while the main thread added points gave results for part of the swipe, cached under
+     * the whole of it, so lifting the finger could commit a word for less than was drawn.
+     */
+    fun snapshot(): Gesture = gesture.clone()
 
-                suggestions
-            }
-            else -> {
-                cached
-            }
-        }
+    /**
+     * AudioWhisper: the suggestions for [swipe], a [snapshot] nothing changes any more, with their
+     * costs, so the words before them can re-rank them.
+     */
+    fun getScoredSuggestions(swipe: Gesture, maxSuggestionCount: Int): List<GlideGuess> {
+        val key = Pair(swipe, maxSuggestionCount)
+        return lruSuggestionCache.get(key)
+            ?: unCachedGetSuggestions(swipe, maxSuggestionCount).also { lruSuggestionCache.put(key, it) }
     }
 
-    private fun unCachedGetSuggestions(maxSuggestionCount: Int): List<GlideGuess> {
+    private fun unCachedGetSuggestions(swipe: Gesture, maxSuggestionCount: Int): List<GlideGuess> {
         val candidates = arrayListOf<String>()
         val candidateWeights = arrayListOf<Float>()
         val key = keys.firstOrNull() ?: return listOf()
         val radius = min(key.visibleBounds.height, key.visibleBounds.width)
-        val remainingWords = pruner.pruneByExtremities(gesture, this.keys)
-        val userGesture = gesture.resample(SAMPLING_POINTS)
+        val remainingWords = pruner.pruneByExtremities(swipe, this.keys)
+        val userGesture = swipe.resample(SAMPLING_POINTS)
         val normalizedUserGesture: Gesture = userGesture.normalizeByBoxSide()
-        val words = pruner.pruneByLength(gesture, remainingWords, keysByCharacter, keys)
+        val words = pruner.pruneByLength(swipe, remainingWords, keysByCharacter, keys)
 
         // AudioWhisper: one set of buffers for every word. Allocating four 500-point gestures per
         // word, for thousands of words per swipe, made garbage collection most of a swipe's cost.
