@@ -115,6 +115,39 @@ class StatisticalGlideTypingClassifier(context: Context) : GlideTypingClassifier
          * For multiple subtypes, the pruner is cached.
          */
         private const val PRUNER_CACHE_SIZE = 5
+
+        /**
+         * Adds [word] to [candidates], kept sorted by [weights], lowest (most likely) first, and at
+         * most [max] long. A word is in once, at its best weight.
+         */
+        internal fun insertByConfidence(
+            candidates: ArrayList<String>,
+            weights: ArrayList<Float>,
+            word: String,
+            confidence: Float,
+            max: Int,
+        ) {
+            var sortedIndex = 0
+            while (sortedIndex < weights.size && weights[sortedIndex] <= confidence) {
+                if (candidates[sortedIndex] == word) return
+                sortedIndex++
+            }
+            if (sortedIndex >= max) return
+            // AudioWhisper: a word with doubled letters is scored twice, with and without loops. The
+            // search above stops before a less likely copy, so that copy is removed here; it used to
+            // stay, and the word showed twice.
+            val duplicateIndex = candidates.indexOf(word)
+            if (duplicateIndex >= 0) {
+                weights.removeAt(duplicateIndex)
+                candidates.removeAt(duplicateIndex)
+            }
+            weights.add(sortedIndex, confidence)
+            candidates.add(sortedIndex, word)
+            if (weights.size > max) {
+                weights.removeAt(max)
+                candidates.removeAt(max)
+            }
+        }
     }
 
     override fun addGesturePoint(position: GlideTypingGesture.Detector.Position) {
@@ -268,33 +301,6 @@ class StatisticalGlideTypingClassifier(context: Context) : GlideTypingClassifier
         }
 
         return candidates.mapIndexed { index, word -> GlideGuess(word, ln(candidateWeights[index])) }
-    }
-
-    /** Keeps [candidates] sorted by [weights], lowest (most likely) first, and at most [max] long. */
-    private fun insertByConfidence(
-        candidates: ArrayList<String>,
-        weights: ArrayList<Float>,
-        word: String,
-        confidence: Float,
-        max: Int,
-    ) {
-        var sortedIndex = 0
-        var duplicateIndex = Int.MAX_VALUE
-        while (sortedIndex < weights.size && weights[sortedIndex] <= confidence) {
-            if (candidates[sortedIndex].contentEquals(word)) duplicateIndex = sortedIndex
-            sortedIndex++
-        }
-        if (sortedIndex >= max || sortedIndex > duplicateIndex) return
-        if (duplicateIndex < Int.MAX_VALUE) {
-            weights.removeAt(duplicateIndex)
-            candidates.removeAt(duplicateIndex)
-        }
-        weights.add(sortedIndex, confidence)
-        candidates.add(sortedIndex, word)
-        if (weights.size > max) {
-            weights.removeAt(max)
-            candidates.removeAt(max)
-        }
     }
 
     override fun clear() {
