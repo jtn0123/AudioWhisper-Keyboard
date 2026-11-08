@@ -21,21 +21,24 @@ import com.k2fsa.sherpa.onnx.VadModelConfig
  * Pauses are found by Silero VAD (MIT licence), bundled in assets.
  */
 class PhraseListener(
-    assets: AssetManager,
+    private val assets: AssetManager,
     onLevel: (Float) -> Unit,
     onMicError: (Int) -> Unit,
     private val onPhrase: (FloatArray) -> Unit,
     private val onPreview: (FloatArray) -> Unit = {},
 ) {
     // Used by the microphone thread, then by stop() after that thread has
-    // ended, never by both at once.
-    private val vad = Vad(assets, VadModelConfig(sileroVadModelConfig = SILERO, sampleRate = Transcriber.SAMPLE_RATE))
+    // ended, never by both at once. Made by that thread on its first audio, so
+    // the tap that starts dictation doesn't wait the 10-30 ms it takes; the
+    // mic's half-second buffer holds what is said meanwhile.
+    private var vad: Vad? = null
     private val history = AudioHistory(HISTORY_SAMPLES)
     private val mic = MicRecorder(onLevel, onMicError) { audio ->
+        val vad = this.vad ?: newVad().also { this.vad = it }
         history.add(audio)
         vad.acceptWaveform(audio)
-        drain()
-        preview()
+        drain(vad)
+        preview(vad)
     }
 
     /** Where the phrase being spoken starts, roughly, or null between phrases. */
@@ -44,26 +47,22 @@ class PhraseListener(
     private var lastPhraseEnd = 0L
 
     /** Starts listening to the audio [open] opens; throws IllegalStateException if it can't. */
-    fun start(open: () -> MicAudio) {
-        try {
-            mic.start(open)
-        } catch (e: IllegalStateException) {
-            vad.release()
-            throw e
-        }
-    }
+    fun start(open: () -> MicAudio) = mic.start(open)
 
     /** Stops listening. With [keepLastPhrase], the words since the last pause are handed over too. */
     fun stop(keepLastPhrase: Boolean) {
         mic.stop()
+        val vad = this.vad ?: return
         if (keepLastPhrase) {
             vad.flush()
-            drain()
+            drain(vad)
         }
         vad.release()
     }
 
-    private fun drain() {
+    private fun newVad() = Vad(assets, VadModelConfig(sileroVadModelConfig = SILERO, sampleRate = Transcriber.SAMPLE_RATE))
+
+    private fun drain(vad: Vad) {
         while (!vad.empty()) {
             val segment = vad.front()
             onPhrase(history.slice(segment.start - LEAD_IN_SAMPLES, segment.start) + segment.samples)
@@ -74,7 +73,7 @@ class PhraseListener(
     }
 
     /** Hands over the phrase in progress, at most its last [PREVIEW_MAX_SAMPLES], every [PREVIEW_EVERY_SAMPLES]. */
-    private fun preview() {
+    private fun preview(vad: Vad) {
         if (!vad.isSpeechDetected()) {
             speechFrom = null
             return

@@ -10,15 +10,26 @@ import dev.patrickgold.florisboard.BuildConfig
 import java.io.File
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 
 /** Where [MicRecorder] gets its 16 kHz mono audio. */
 interface MicAudio : AutoCloseable {
     /** Fills [buffer] (blocking for about its length); the count read, or a negative error code. */
     fun read(buffer: FloatArray): Int
 
+    /**
+     * Stops listening from another thread: a [read] blocked there returns at once with what it
+     * has (maybe 0), and later ones return 0 or an error. Never called after [close].
+     */
+    fun stop()
+
     /** The phone's microphone. */
     class Mic private constructor(private val record: AudioRecord) : MicAudio {
         override fun read(buffer: FloatArray): Int = record.read(buffer, 0, buffer.size, AudioRecord.READ_BLOCKING)
+
+        // AudioRecord.stop interrupts a blocking read in progress.
+        override fun stop() = record.stop()
 
         override fun close() {
             record.stop()
@@ -61,15 +72,18 @@ interface MicAudio : AutoCloseable {
      */
     class Replay(private val samples: FloatArray) : MicAudio {
         private var position = 0
+        private val stopped = CountDownLatch(1)
 
         override fun read(buffer: FloatArray): Int {
-            Thread.sleep(buffer.size * 1000L / Transcriber.SAMPLE_RATE)
+            if (stopped.await(buffer.size * 1000L / Transcriber.SAMPLE_RATE, TimeUnit.MILLISECONDS)) return 0
             val n = (samples.size - position).coerceIn(0, buffer.size)
             samples.copyInto(buffer, 0, position, position + n)
             buffer.fill(0f, n)
             position += n
             return buffer.size
         }
+
+        override fun stop() = stopped.countDown()
 
         override fun close() = Unit
 

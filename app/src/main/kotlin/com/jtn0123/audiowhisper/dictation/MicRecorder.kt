@@ -21,16 +21,27 @@ class MicRecorder(
     @Volatile private var running = false
     private var worker: Thread? = null
 
+    private val audioLock = Any()
+
+    /** The audio being recorded, until the recording thread closes it. Guarded by [audioLock]. */
+    private var audio: MicAudio? = null
+
     /** Starts recording from the audio [open] opens, which throws IllegalStateException if it can't. */
     fun start(open: () -> MicAudio) {
         val audio = open()
+        synchronized(audioLock) { this.audio = audio }
         running = true
         worker = thread(name = "mic") { pump(audio) }
     }
 
-    /** Stops recording; every [onAudio] call has returned when this does. */
+    /**
+     * Stops recording; every [onAudio] call has returned when this does. The read in progress is
+     * cut short, so on the main thread this takes milliseconds rather than up to a 100 ms read.
+     */
     fun stop() {
         running = false
+        // Locked so the recording thread, ending after a mic error, can't close the audio meanwhile.
+        synchronized(audioLock) { audio?.stop() }
         worker?.join()
         worker = null
     }
@@ -49,7 +60,10 @@ class MicRecorder(
                 onLevel(level(buffer, n))
             }
         } finally {
-            audio.close()
+            synchronized(audioLock) {
+                this.audio = null
+                audio.close()
+            }
         }
     }
 
