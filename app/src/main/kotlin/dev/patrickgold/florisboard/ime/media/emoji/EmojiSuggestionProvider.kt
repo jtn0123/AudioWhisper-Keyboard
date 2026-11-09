@@ -17,6 +17,8 @@
 package dev.patrickgold.florisboard.ime.media.emoji
 
 import android.content.Context
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import com.jtn0123.audiowhisper.rust.EmojiRules
 import dev.patrickgold.florisboard.app.FlorisPreferenceStore
 import dev.patrickgold.florisboard.ime.core.Subtype
@@ -66,8 +68,11 @@ class EmojiSuggestionProvider(private val context: Context) : SuggestionProvider
         val prefix = prefs.emoji.suggestionType.get().prefix
         val minLength = prefs.emoji.suggestionQueryMinLength.get()
         val data = cachedEmojiData.get(subtype.primaryLocale)
-        // One call into Rust, a fraction of a millisecond, so no longer moved to Dispatchers.Default.
-        return suggestEmojis(data, content.composingText, prefix, minLength, preferredSkinTone, maxCandidateCount).map { emoji ->
+        // Scoring scans every emoji (about 0.75 ms on the emulator), so it stays off the calling thread.
+        val emojis = withContext(Dispatchers.Default) {
+            suggestEmojis(data, content.composingText, prefix, minLength, preferredSkinTone, maxCandidateCount)
+        }
+        return emojis.map { emoji ->
             EmojiSuggestionCandidate(
                 emoji = emoji,
                 showName = showName,
