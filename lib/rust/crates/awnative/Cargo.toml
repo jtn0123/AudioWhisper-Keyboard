@@ -13,6 +13,7 @@ crate-type = ["cdylib"]
 [dependencies]
 chars = { path = "../chars" }
 dictation = { path = "../dictation" }
+emoji = { path = "../emoji" }
 gestures = { path = "../gestures" }
 gif = { path = "../gif" }
 glide = { path = "../glide" }

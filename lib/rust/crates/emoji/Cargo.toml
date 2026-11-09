@@ -1,0 +1,14 @@
+[package]
+name = "emoji"
+version = "0.1.0"
+description = "Emoji data and suggestions: the bundled emoji files parsed, skin tones and hair styles, and the emoji a typed name suggests"
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+chars = { path = "../chars" }
+
+[lints]
+workspace = true
