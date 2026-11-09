@@ -33,6 +33,7 @@ lib/rust/
   crates/dictation/           dictation's text rules
   crates/suggest/             typing suggestions, auto-correction, the spell checker, what typing learns
   crates/reader/              reading a page aloud: blocks, selections, scrolls, speech, the speaker key, the screen walk's decisions
+  crates/gif/                 the GIF panel: its search field, chips, keys, result cache and recents
   crates/chars/               Kotlin's character rules, for crates that judge text as Kotlin did
   crates/awnative/            libawnative.so: the JNI functions Kotlin calls, and nothing else
   tools/                      generates crates/chars' tables (generate-char-tables.sh)
