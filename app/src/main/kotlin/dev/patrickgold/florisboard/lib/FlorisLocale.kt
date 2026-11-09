@@ -17,6 +17,7 @@
 package dev.patrickgold.florisboard.lib
 
 import android.content.Context
+import com.jtn0123.audiowhisper.rust.SpacingRules
 import dev.patrickgold.florisboard.extensionManager
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
@@ -222,14 +223,12 @@ class FlorisLocale private constructor(val base: Locale) {
         }
 
     /**
-     * Returns true if suggestions in this language should have spaces added after, false otherwise.
+     * Returns true if suggestions in this language should have spaces added after, false otherwise. Decided in
+     * Rust (lib/rust/crates/spacing/src/spaces.rs), which keeps upstream's "jp" for Japanese, whose code is "ja".
      * TODO: this is absolutely not exhaustive and hard-coded, find solution based on ICU or system
      */
     val supportsAutoSpace: Boolean
-        get() = when (language) {
-            "zh", "ko", "jp", "th" -> false
-            else -> true
-        }
+        get() = SpacingRules.supportsAutoSpace(language)
 
     /**
      * Generates the language tag for this locale in the format `xx`,

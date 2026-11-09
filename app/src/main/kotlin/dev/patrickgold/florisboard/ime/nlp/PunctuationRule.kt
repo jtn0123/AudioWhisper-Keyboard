@@ -16,6 +16,7 @@
 
 package dev.patrickgold.florisboard.ime.nlp
 
+import com.jtn0123.audiowhisper.rust.SpacingRules
 import dev.patrickgold.florisboard.lib.ext.ExtensionComponent
 import kotlinx.serialization.Serializable
 
@@ -68,15 +69,20 @@ data class PunctuationRule(
 ) : ExtensionComponent {
 
     companion object {
-        /** Fallback rule which does bare bone matching for spaces in case a proper punctuation rule is not found. */
-        val Fallback = PunctuationRule(
-            id = "fallback",
-            label = "Fallback",
-            symbolsPrecedingAutoSpace = ".,?!",
-            symbolsFollowingAutoSpace = "",
-            symbolsPrecedingPhantomSpace = ".,?!",
-            symbolsFollowingPhantomSpace = "",
-            symbolsTerminatingSentence = ".?!",
-        )
+        /**
+         * Fallback rule which does bare bone matching for spaces in case a proper punctuation rule is not found.
+         * Its symbols come from Rust (lib/rust/crates/spacing/src/rule.rs), which matches them.
+         */
+        val Fallback = SpacingRules.fallbackRule.let { rule ->
+            PunctuationRule(
+                id = rule[0],
+                label = rule[1],
+                symbolsPrecedingAutoSpace = rule[2],
+                symbolsFollowingAutoSpace = rule[3],
+                symbolsPrecedingPhantomSpace = rule[4],
+                symbolsFollowingPhantomSpace = rule[5],
+                symbolsTerminatingSentence = rule[6],
+            )
+        }
     }
 }

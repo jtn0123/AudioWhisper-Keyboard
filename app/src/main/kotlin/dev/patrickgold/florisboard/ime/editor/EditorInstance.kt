@@ -25,6 +25,7 @@ import androidx.core.view.inputmethod.EditorInfoCompat
 import androidx.core.view.inputmethod.InputConnectionCompat
 import androidx.core.view.inputmethod.InputContentInfoCompat
 import com.jtn0123.audiowhisper.dictation.DictationUndo
+import com.jtn0123.audiowhisper.rust.SpacingRules
 import com.jtn0123.audiowhisper.suggest.AutoCorrectionUndo
 import dev.patrickgold.florisboard.FlorisImeService
 import dev.patrickgold.florisboard.app.FlorisPreferenceStore
@@ -37,11 +38,13 @@ import dev.patrickgold.florisboard.ime.clipboard.provider.ItemType
 import dev.patrickgold.florisboard.ime.input.InputShiftState
 import dev.patrickgold.florisboard.ime.keyboard.IncognitoMode
 import dev.patrickgold.florisboard.ime.keyboard.KeyboardMode
+import dev.patrickgold.florisboard.ime.nlp.PunctuationRule
 import dev.patrickgold.florisboard.ime.nlp.SuggestionCandidate
 import dev.patrickgold.florisboard.ime.text.composing.Appender
 import dev.patrickgold.florisboard.ime.text.composing.Composer
 import dev.patrickgold.florisboard.ime.text.key.KeyVariation
 import dev.patrickgold.florisboard.keyboardManager
+import dev.patrickgold.florisboard.lib.FlorisLocale
 import dev.patrickgold.florisboard.lib.ext.ExtensionComponentName
 import dev.patrickgold.florisboard.nlpManager
 import dev.patrickgold.florisboard.subtypeManager
@@ -180,52 +183,25 @@ class EditorInstance(context: Context) : AbstractEditorInstance(context) {
         return super.setSelection(selection)
     }
 
-    private fun shouldInsertAutoSpaceBefore(text: String): Boolean {
-        if (!prefs.correction.autoSpacePunctuation.get() || text.isEmpty()) return false
-        if (activeInfo.isRawInputEditor) return false
-        if (activeState.keyVariation != KeyVariation.NORMAL) return false
-
-        val punctuationRule = nlpManager.getActivePunctuationRule()
-        val textBefore = activeContent.getTextBeforeCursor(1)
-        return textBefore.isNotEmpty() && !textBefore.last().isWhitespace() &&
-            punctuationRule.symbolsFollowingAutoSpace.contains(text.first())
-    }
-
-    private fun shouldInsertAutoSpaceAfter(text: String): Boolean {
-        if (!prefs.correction.autoSpacePunctuation.get() || text.isEmpty()) return false
-        if (activeInfo.isRawInputEditor) return false
-        if (activeState.keyVariation != KeyVariation.NORMAL) return false
-
-        val punctuationRule = nlpManager.getActivePunctuationRule()
-        val content = activeContent
-        val textBefore = content.getTextBeforeCursor(3).let { textBefore ->
-            if (autoSpace.isActive && textBefore.isNotEmpty() && textBefore.last() == ' ') {
-                textBefore.dropLast(1)
-            } else {
-                textBefore
-            }
-        }
-        return textBefore.isNotEmpty() && !textBefore.last().isWhitespace() &&
-            content.currentWordText.all { !it.isDigit() } &&
-            punctuationRule.symbolsPrecedingAutoSpace.contains(text.first())
+    /** What the spacing rules ([Spacing]) look up, when they need it. */
+    private val spacingEditor = object : SpacingEditor {
+        override val autoSpacePunctuation: Boolean get() = prefs.correction.autoSpacePunctuation.get()
+        override val isRawInputEditor: Boolean get() = activeInfo.isRawInputEditor
+        override val keyVariation: KeyVariation get() = activeState.keyVariation
+        override val selection: EditorRange get() = activeContent.selection
+        override val locale: FlorisLocale get() = subtypeManager.activeSubtype.primaryLocale
+        override val punctuationRule: PunctuationRule get() = nlpManager.getActivePunctuationRule()
+        override fun textBeforeCursor(n: Int): String = activeContent.getTextBeforeCursor(n)
+        override val currentWordText: String get() = activeContent.currentWordText
     }
 
     override fun commitChar(char: String): Boolean {
-        val isInsertAutoSpaceBeforeChar = shouldInsertAutoSpaceBefore(char)
-        val isInsertAutoSpaceAfterChar = shouldInsertAutoSpaceAfter(char)
-        val isDeletePreviousSpace = isInsertAutoSpaceAfterChar && autoSpace.isActive
-        if (isInsertAutoSpaceAfterChar) {
-            autoSpace.setActive()
-        } else {
-            autoSpace.setInactive()
-        }
-        val isPhantomSpaceActive = phantomSpace.determine(char)
-        phantomSpace.setInactive()
+        val spaces = Spacing.commitChar(char, spacingEditor, autoSpace, phantomSpace)
         return super.commitChar(
             char = char,
-            deletePreviousSpace = isDeletePreviousSpace,
-            insertSpaceBeforeChar = isInsertAutoSpaceBeforeChar || isPhantomSpaceActive,
-            insertSpaceAfterChar = isInsertAutoSpaceAfterChar,
+            deletePreviousSpace = spaces.deletePreviousSpace,
+            insertSpaceBeforeChar = spaces.insertSpaceBeforeChar,
+            insertSpaceAfterChar = spaces.insertSpaceAfterChar,
         )
     }
 
@@ -632,91 +608,80 @@ class EditorInstance(context: Context) : AbstractEditorInstance(context) {
         dictationUndo = null
     }
 
-    private fun PhantomSpaceState.determine(text: String, forceActive: Boolean = false): Boolean {
-         val content = activeContent
-         val selection = content.selection
-         if (!(isActive || forceActive) || selection.isNotValid || selection.start <= 0 || text.isEmpty()) return false
-         val textBefore = content.getTextBeforeCursor(1)
-         val punctuationRule = nlpManager.getActivePunctuationRule()
-         if (!subtypeManager.activeSubtype.primaryLocale.supportsAutoSpace) return false;
-         return textBefore.isNotEmpty() &&
-             (punctuationRule.symbolsPrecedingPhantomSpace.contains(textBefore[textBefore.length - 1]) ||
-                 textBefore[textBefore.length - 1].isLetterOrDigit()) &&
-             (punctuationRule.symbolsFollowingPhantomSpace.contains(text[0]) || text[0].isLetterOrDigit())
-    }
+    private fun PhantomSpaceState.determine(text: String, forceActive: Boolean = false): Boolean =
+        Spacing.phantomSpaceBefore(this, text, forceActive, spacingEditor)
 
+    /** Whether an auto-space was typed after punctuation; its rules are in Rust ([SpacingRules]). */
     class AutoSpaceState {
-        companion object {
-            private const val F_IS_ACTIVE = 0x1
-            private const val F_STAY_ACTIVE_NEXT_UPDATE = 0x4
-        }
+        private val state = AtomicInteger(SpacingRules.INACTIVE)
 
-        private val state = AtomicInteger(0)
+        /** The state as Rust reads it. */
+        internal var bits: Int
+            get() = state.get()
+            set(value) = state.set(value)
 
         val isActive: Boolean
-            get() = state.get() and F_IS_ACTIVE != 0
+            get() = SpacingRules.isActive(state.get())
 
         val isInactive: Boolean
             get() = !isActive
 
         fun setActive(stayActiveNextUpdate: Boolean = true) {
-            state.set(F_IS_ACTIVE or (if (stayActiveNextUpdate) F_STAY_ACTIVE_NEXT_UPDATE else 0))
+            state.set(SpacingRules.autoSpaceActive(stayActiveNextUpdate))
         }
 
         fun setInactive() {
-            state.set(0)
+            state.set(SpacingRules.INACTIVE)
         }
 
         fun setInactiveFromUpdate() {
-            state.updateAndGet { state ->
-                if ((state and F_STAY_ACTIVE_NEXT_UPDATE) != 0) (state and F_STAY_ACTIVE_NEXT_UPDATE.inv()) else 0
-            }
+            state.updateAndGet { SpacingRules.afterUpdate(it) }
         }
     }
 
+    /** Whether a phantom space is owed, and the suggestion it came from; its rules are in Rust ([SpacingRules]). */
     class PhantomSpaceState {
-        companion object {
-            private const val F_IS_ACTIVE = 0x1
-            private const val F_SHOW_COMPOSING_REGION = 0x2
-            private const val F_STAY_ACTIVE_NEXT_UPDATE = 0x4
-        }
-
-        private val state = AtomicInteger(0)
+        private val state = AtomicInteger(SpacingRules.INACTIVE)
         var candidateForRevert: SuggestionCandidate? = null
             private set
 
+        /** The state as Rust reads it. Setting it leaves [candidateForRevert] as it is. */
+        internal var bits: Int
+            get() = state.get()
+            set(value) = state.set(value)
+
         val isActive: Boolean
-            get() = state.get() and F_IS_ACTIVE != 0
+            get() = SpacingRules.isActive(state.get())
 
         val isInactive: Boolean
             get() = !isActive
 
         val showComposingRegion: Boolean
-            get() = state.get() and F_SHOW_COMPOSING_REGION != 0
+            get() = SpacingRules.showsComposingRegion(state.get())
 
         fun setActive(
             showComposingRegion: Boolean,
             stayActiveNextUpdate: Boolean = true,
             candidate: SuggestionCandidate? = null,
         ) {
-            state.set(
-                F_IS_ACTIVE
-                    or (if (showComposingRegion) F_SHOW_COMPOSING_REGION else 0)
-                    or (if (stayActiveNextUpdate) F_STAY_ACTIVE_NEXT_UPDATE else 0)
-            )
+            state.set(SpacingRules.phantomSpaceActive(showComposingRegion, stayActiveNextUpdate))
             candidateForRevert = candidate
         }
 
         fun setInactive() {
-            state.set(0)
+            state.set(SpacingRules.INACTIVE)
+            candidateForRevert = null
+        }
+
+        /** Sets the state Rust gave, which no suggestion goes with. */
+        internal fun reset(bits: Int) {
+            state.set(bits)
             candidateForRevert = null
         }
 
         fun setInactiveFromUpdate() {
-            val prevStateValue = state.getAndUpdate { state ->
-                if ((state and F_STAY_ACTIVE_NEXT_UPDATE) != 0) (state and F_STAY_ACTIVE_NEXT_UPDATE.inv()) else 0
-            }
-            if ((prevStateValue and F_STAY_ACTIVE_NEXT_UPDATE) == 0) {
+            val prevStateValue = state.getAndUpdate { SpacingRules.afterUpdate(it) }
+            if (!SpacingRules.keepsCandidate(prevStateValue)) {
                 candidateForRevert = null
             }
         }
