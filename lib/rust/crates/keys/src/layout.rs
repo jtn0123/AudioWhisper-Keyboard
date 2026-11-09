@@ -31,7 +31,7 @@ pub fn layout(
     keyboard_height: f32,
     extend_down: bool,
 ) -> Option<Vec<Bounds>> {
-    // Kotlin also returned first without rows, which lays nothing out either way.
+    // The Kotlin returned first without rows too; laying none out gives nothing either way.
     if desired_touch.is_empty() || desired_visible.is_empty() {
         return None;
     }
