@@ -3,6 +3,7 @@ package com.jtn0123.audiowhisper.reader
 import android.graphics.Rect
 import android.view.accessibility.AccessibilityNodeInfo
 import android.view.accessibility.AccessibilityNodeInfo.AccessibilityAction
+import com.jtn0123.audiowhisper.rust.ReaderRules
 import kotlinx.coroutines.delay
 
 /**
@@ -60,8 +61,7 @@ internal class FollowAlong(private val scroller: AccessibilityNodeInfo?, private
          * A piece spanning [span] fits in a view from [top] to [bottom] when all of it shows, or, if
          * it is taller than the view, once it starts in the top half.
          */
-        fun fits(span: IntRange, top: Int, bottom: Int): Boolean =
-            span.first >= top && (span.last <= bottom || span.first < (top + bottom) / 2)
+        fun fits(span: IntRange, top: Int, bottom: Int): Boolean = ReaderRules.fits(span.first, span.last, top, bottom)
 
         /** Where a web page's piece really is, out of sight too; null for an app's own views. */
         private fun span(node: AccessibilityNodeInfo): IntRange? {

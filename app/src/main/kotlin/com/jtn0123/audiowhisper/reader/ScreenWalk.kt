@@ -19,7 +19,7 @@ internal class Screen(
     val web: Boolean,
 ) {
     /** Every block is in sight: a short page, or a web page whose tree is still being built. */
-    val allShown: Boolean get() = blocks.all { it.isShown(visibleTop, visibleBottom) }
+    val allShown: Boolean get() = PageText.allShown(blocks, visibleTop, visibleBottom)
 }
 
 /**
