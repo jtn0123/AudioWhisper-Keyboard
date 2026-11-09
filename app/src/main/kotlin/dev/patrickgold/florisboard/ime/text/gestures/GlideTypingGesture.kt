@@ -17,11 +17,11 @@
 package dev.patrickgold.florisboard.ime.text.gestures
 
 import android.content.Context
+import android.content.res.Resources
 import android.view.MotionEvent
+import com.jtn0123.audiowhisper.rust.GlideDetector
 import dev.patrickgold.florisboard.R
-import dev.patrickgold.florisboard.ime.text.key.KeyCode
 import dev.patrickgold.florisboard.ime.text.keyboard.TextKey
-import dev.patrickgold.florisboard.lib.devtools.flogDebug
 import dev.patrickgold.florisboard.lib.util.ViewUtils
 import kotlin.math.pow
 import kotlin.math.sqrt
@@ -33,18 +33,23 @@ class GlideTypingGesture {
     /**
      * Class which detects swipes based on given [MotionEvent]s. Only supports single-finger swipes
      * and ignores additional pointers provided, if any.
+     *
+     * AudioWhisper: whether a touch is a glide, and which of its points the listeners hear of, is
+     * decided in Rust (lib/rust/crates/gestures/src/glide_start.rs); this reads the events, keeps
+     * the points and calls the listeners. [clock] is in milliseconds, read once an event.
      */
-    class Detector(context: Context) {
-        private var pointerData: PointerData = PointerData(mutableListOf(), 0)
-        private val keySize = ViewUtils.px2dp(context.resources.getDimension(R.dimen.key_width))
-        private val listeners: ArrayList<Listener> = arrayListOf()
-        private var pointerId: Int = -1
+    class Detector internal constructor(keySize: Float, private val clock: () -> Long) {
+        constructor(context: Context) : this(
+            ViewUtils.px2dp(context.resources.getDimension(R.dimen.key_width)),
+            System::currentTimeMillis,
+        )
 
-        companion object {
-            private const val MAX_DETECT_TIME = 500
-            private const val VELOCITY_THRESHOLD = 0.10 // dp per ms
-            private val SWIPE_GESTURE_KEYS = arrayOf(KeyCode.DELETE, KeyCode.SHIFT, KeyCode.SPACE, KeyCode.CJK_SPACE)
-        }
+        private val pointerData: PointerData = PointerData(mutableListOf(), 0)
+        private val listeners: ArrayList<Listener> = arrayListOf()
+        private val detector = GlideDetector(keySize)
+
+        /** The event's points for the detector: x, y, x, y, … */
+        private var points = FloatArray(POINTS)
 
         /**
          * Method which evaluates if a given [event] is a gesture.
@@ -52,84 +57,53 @@ class GlideTypingGesture {
          * @return whether or not the event was interpreted as part of a gesture.
          */
         fun onTouchEvent(event: MotionEvent, initialKey: TextKey?): Boolean {
-            when (event.actionMasked) {
-                MotionEvent.ACTION_DOWN,
-                MotionEvent.ACTION_POINTER_DOWN -> {
-                    if (event.actionMasked == MotionEvent.ACTION_DOWN) {
-                        resetState()
-                    }
-                    if (pointerId != -1) {
-                        // if we already have another pointer, we don't care
-                        return false
-                    }
-                    val pointerIndex = event.actionIndex
-                    pointerId = event.getPointerId(pointerIndex)
-                    pointerData.apply {
-                        positions.add(Position(event.getX(pointerIndex), event.getY(pointerIndex)))
-                        startTime = System.currentTimeMillis()
-                    }
-                    return false
-                }
+            val index = event.actionIndex
+            val count = when (event.actionMasked) {
+                MotionEvent.ACTION_DOWN, MotionEvent.ACTION_POINTER_DOWN -> point(0, event.getX(index), event.getY(index))
                 MotionEvent.ACTION_MOVE -> {
-                    if (pointerId != event.getPointerId(event.actionIndex)) {
-                        // not our pointer.
-                        return false
-                    }
-
-                    val pointerIndex = event.findPointerIndex(pointerId)
-                    for (i in 0..event.historySize) {
-                        val pos = when (i) {
-                            event.historySize -> Position(event.getX(pointerIndex), event.getY(pointerIndex))
-                            else -> Position(event.getHistoricalX(pointerIndex, i), event.getHistoricalY(pointerIndex, i))
-                        }
-                        pointerData.positions.add(pos)
-                        if (pointerData.isActuallyGesture == null) {
-                            // evaluate whether is actually a gesture
-                            val dist = ViewUtils.px2dp(pointerData.positions[0].dist(pos))
-                            val time = (System.currentTimeMillis() - pointerData.startTime) + 1
-                            flogDebug { "Distance glided: $dist dp with velocity: ${dist / time} dp/ms" }
-                            if (dist > keySize && (dist / time) > VELOCITY_THRESHOLD && (initialKey?.computedData?.code !in SWIPE_GESTURE_KEYS)) {
-                                pointerData.isActuallyGesture = true
-                                // Let listener know all those points need to be added.
-                                pointerData.positions.take(pointerData.positions.size - 1).forEach { point ->
-                                    listeners.forEach {
-                                        it.onGlideAddPoint(point)
-                                    }
-                                }
-                            } else if (time > MAX_DETECT_TIME) {
-                                pointerData.isActuallyGesture = false
-                            }
-
-                        }
-
-                        if (pointerData.isActuallyGesture == true) {
-                            pointerData.positions.last()
-                                .let { point -> listeners.forEach { it.onGlideAddPoint(point) } }
-                        }
-                    }
-                    return pointerData.isActuallyGesture ?: false
+                    val history = event.historySize
+                    for (i in 0 until history) point(i, event.getHistoricalX(index, i), event.getHistoricalY(index, i))
+                    point(history, event.getX(index), event.getY(index))
                 }
-                MotionEvent.ACTION_UP,
-                MotionEvent.ACTION_POINTER_UP -> {
-                    if (pointerId != event.getPointerId(event.actionIndex)) {
-                        // not our pointer.
-                        return false
-                    }
-                    if (pointerData.isActuallyGesture == true) {
-                        listeners.forEach { listener -> listener.onGlideComplete(pointerData) }
-                    }
-                    resetState()
-                    return false
-                }
-                MotionEvent.ACTION_CANCEL -> {
-                    if (pointerData.isActuallyGesture == true) {
-                        listeners.forEach { it.onGlideCancelled() }
-                    }
-                    resetState()
-                }
-                else -> return false
+                else -> 0
             }
-            return false
+            val density = Resources.getSystem().displayMetrics.density
+            return touch(event.actionMasked, event.getPointerId(index), points, count, density, initialKey?.computedData?.code)
+        }
+
+        /** Puts the [i]th point in [points], growing it if needed: how many floats it now holds. */
+        private fun point(i: Int, x: Float, y: Float): Int {
+            if (points.size < 2 * i + 2) points = points.copyOf(2 * points.size.coerceAtLeast(i + 1))
+            points[2 * i] = x
+            points[2 * i + 1] = y
+            return 2 * i + 2
+        }
+
+        /**
+         * A touch event: its masked [action], the pointer [id] at its action index and that
+         * pointer's first [count] floats of [points] (pixels), from a touch that began on the key
+         * with [initialKeyCode]. Whether it is part of a glide.
+         */
+        internal fun touch(action: Int, id: Int, points: FloatArray, count: Int, density: Float, initialKeyCode: Int?): Boolean {
+            val now = clock()
+            val outcome = detector.touch(action, id, points, count, now, density, initialKeyCode)
+            val data = pointerData
+            if (outcome.clearedBefore) resetState()
+            if (outcome.took) {
+                for (i in 0 until count / 2) data.positions.add(Position(points[2 * i], points[2 * i + 1]))
+                if (outcome.started) data.startTime = now
+            }
+            if (!outcome.clearedAfter) data.isActuallyGesture = outcome.decision
+            if (outcome.emitFrom >= 0) {
+                for (i in outcome.emitFrom until data.positions.size) {
+                    val point = data.positions[i]
+                    listeners.forEach { it.onGlideAddPoint(point) }
+                }
+            }
+            if (outcome.complete) listeners.forEach { listener -> listener.onGlideComplete(data) }
+            if (outcome.cancelled) listeners.forEach { it.onGlideCancelled() }
+            if (outcome.clearedAfter) resetState()
+            return outcome.gesture
         }
 
         fun registerListener(listener: Listener) {
@@ -146,7 +120,11 @@ class GlideTypingGesture {
                 startTime = 0
                 isActuallyGesture = null
             }
-            pointerId = -1
+        }
+
+        private companion object {
+            /** Room for this many floats at first: a move's history is seldom longer. */
+            const val POINTS = 32
         }
 
         data class PointerData(
