@@ -1,15 +1,19 @@
-//! JNI entry points for dictation's text rules, called by `DictationNative` in lib/rust's Kotlin.
+//! JNI entry points for dictation's text rules and its mic key, called by `DictationNative` in
+//! lib/rust's Kotlin.
 //!
 //! Results that aren't a boolean come back as strings: a typing as one string whose first
 //! character's code is how many characters to delete, followed by the text to type; the parts of
 //! a phrase as one string each, whose first character says what the part is.
 
 use std::ptr;
+use std::sync::Mutex;
 
+use dictation::mic_key::{self, Action, MicKey, Status};
 use dictation::{Spoken, Typing};
-use jni_sys::{JNI_FALSE, JNIEnv, jboolean, jchar, jclass, jint, jobject};
+use jni_sys::{JNI_FALSE, JNIEnv, jboolean, jchar, jclass, jint, jlong, jobject};
 use jni_sys::{jobjectArray, jstring, jvalue};
 
+use crate::handle::{free, into_handle, with_locked};
 use crate::jni::{self, Env, Result};
 
 /// The part tags `DictationNative` reads.
@@ -137,6 +141,89 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_DictationNative_revert
             let text = env.read_string(text_before_cursor, "textBeforeCursor")?;
             let reverts = dictation::reverts_at(&typed, start, cursor, &text);
             Ok(jni::boolean(reverts))
+        })
+    }
+}
+
+/// A press this long, in milliseconds, is a hold (`mic_key::HOLD_MS`).
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_DictationNative_holdMs(
+    _: *mut JNIEnv,
+    _: jclass,
+) -> jlong {
+    mic_key::HOLD_MS
+}
+
+/// A new mic key, not pressed.
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_DictationNative_newMicKey(
+    _: *mut JNIEnv,
+    _: jclass,
+) -> jlong {
+    into_handle(Mutex::new(MicKey::default()))
+}
+
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_DictationNative_freeMicKey(
+    _: *mut JNIEnv,
+    _: jclass,
+    key: jlong,
+) {
+    // SAFETY: the Kotlin side frees each key once, when nothing can reach it.
+    unsafe { free::<Mutex<MicKey>>(key) }
+}
+
+/// An action's number, as `MicKeyState.Action` orders them.
+fn action(action: Action) -> jint {
+    match action {
+        Action::Nothing => 0,
+        Action::Start => 1,
+        Action::Finish => 2,
+        Action::EndHold => 3,
+        Action::Toggle => 4,
+    }
+}
+
+/// The status numbered as `MicKeyState.Status` orders them.
+fn status(number: jint) -> Result<Status> {
+    match number {
+        0 => Ok(Status::Idle),
+        1 => Ok(Status::Listening),
+        2 => Ok(Status::Finishing),
+        _ => Err(jni::illegal("status")),
+    }
+}
+
+/// The key behind `key` went down at `now` while dictation was `status` (`MicKey::press`): what
+/// that asks for.
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_DictationNative_micKeyPress(
+    env: *mut JNIEnv,
+    _: jclass,
+    key: jlong,
+    status_number: jint,
+    now: jlong,
+) -> jint {
+    // SAFETY: the JVM passes its environment; Kotlin holds the key while it calls.
+    unsafe {
+        with_locked(env, key, "mic key", 0, |key: &mut MicKey, _| {
+            Ok(action(key.press(status(status_number)?, now)))
+        })
+    }
+}
+
+/// The key behind `key` came up at `now` (`MicKey::release`): what that asks for.
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_DictationNative_micKeyRelease(
+    env: *mut JNIEnv,
+    _: jclass,
+    key: jlong,
+    now: jlong,
+) -> jint {
+    // SAFETY: the JVM passes its environment; Kotlin holds the key while it calls.
+    unsafe {
+        with_locked(env, key, "mic key", 0, |key: &mut MicKey, _| {
+            Ok(action(key.release(now)))
         })
     }
 }

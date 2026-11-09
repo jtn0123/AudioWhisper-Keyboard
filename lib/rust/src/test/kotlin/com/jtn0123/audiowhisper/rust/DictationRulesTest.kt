@@ -72,4 +72,19 @@ class DictationRulesTest {
         assertFalse(DictationRules.revertsAt(" to John.", 8, 16, "I talked to John."))
         assertFalse(DictationRules.revertsAt("", 0, 0, ""))
     }
+
+    @Test
+    fun micKeyTellsTapsFromHolds() {
+        assertEquals(300L, MicKeyState.holdMs)
+        val key = MicKeyState()
+        assertEquals(MicKeyState.Action.TOGGLE, key.release(0))
+        assertEquals(MicKeyState.Action.START, key.press(MicKeyState.Status.IDLE, 1_000))
+        assertEquals(MicKeyState.Action.NONE, key.release(1_299))
+        key.press(MicKeyState.Status.IDLE, 1_000)
+        assertEquals(MicKeyState.Action.END_HOLD, key.release(1_300))
+        assertEquals(MicKeyState.Action.NONE, key.press(MicKeyState.Status.LISTENING, 0))
+        assertEquals(MicKeyState.Action.FINISH, key.release(1))
+        assertEquals(MicKeyState.Action.NONE, key.press(MicKeyState.Status.FINISHING, 0))
+        assertEquals(MicKeyState.Action.NONE, key.release(Long.MIN_VALUE))
+    }
 }

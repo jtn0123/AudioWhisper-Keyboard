@@ -1,5 +1,7 @@
 package com.jtn0123.audiowhisper.rust
 
+import java.lang.ref.Reference
+
 /**
  * Says whether a capitalised word is a name ("John"), which keeps its capital mid-sentence. The
  * Rust calls [isName] by name, so lib/rust's consumer rules keep it through R8.
@@ -55,4 +57,40 @@ object DictationRules {
         DictationNative.revertsAt(typed, start, cursor, textBeforeCursor)
 
     private fun typing(packed: String) = Typing(packed[0].code, packed.substring(1))
+}
+
+/**
+ * The mic key between a press and its release, in Rust: a tap toggles dictation, and a hold of
+ * [holdMs] or more dictates until it is let go. Each press and release says when it came, in
+ * milliseconds. Safe to use from any thread. Its native memory is freed once nothing can reach it.
+ */
+class MicKeyState {
+    /** What dictation is doing when the key goes down. */
+    enum class Status { IDLE, LISTENING, FINISHING }
+
+    /** What a press or a release asks dictation to do. */
+    enum class Action { NONE, START, FINISH, END_HOLD, TOGGLE }
+
+    private val handle = DictationNative.newMicKey()
+
+    init {
+        RustLibrary.cleaner.register(this, Free(handle))
+    }
+
+    /** The press, at [now], while dictation is [status]: [Action.START] if it was idle. */
+    fun press(status: Status, now: Long): Action =
+        Action.entries[DictationNative.micKeyPress(handle, status.ordinal, now)].also { Reference.reachabilityFence(this) }
+
+    /** The release, at [now]; [Action.TOGGLE] if no press was seen. */
+    fun release(now: Long): Action =
+        Action.entries[DictationNative.micKeyRelease(handle, now)].also { Reference.reachabilityFence(this) }
+
+    private class Free(private val handle: Long) : Runnable {
+        override fun run() = DictationNative.freeMicKey(handle)
+    }
+
+    companion object {
+        /** A press this long, in milliseconds, is a hold. */
+        val holdMs: Long = DictationNative.holdMs()
+    }
 }

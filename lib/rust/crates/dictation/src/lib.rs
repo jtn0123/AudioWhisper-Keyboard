@@ -1,13 +1,15 @@
 //! Dictation's text rules: finding spoken commands in a transcribed phrase ([`parse`]), joining
 //! phrases transcribed separately ([`join`], [`punctuate`]), and whether a backspace can still
-//! take back the phrase typed last ([`reverts_at`]).
+//! take back the phrase typed last ([`reverts_at`]), and what a press of the mic key does
+//! ([`mic_key`]).
 //!
-//! A port of the keyboard's `Spoken`, `Phrases` and `DictationUndo` that gives exactly the same
+//! A port of the keyboard's `Spoken`, `Phrases`, `DictationUndo` and `MicKey` that gives exactly the same
 //! text; the keyboard's tests compare the two (see docs/rust.md). Text is UTF-16, as Kotlin
 //! stores it, and characters are judged by Kotlin's rules (the `chars` crate).
 
 #![forbid(unsafe_code)]
 
+pub mod mic_key;
 mod phrases;
 mod spoken;
 mod undo;
