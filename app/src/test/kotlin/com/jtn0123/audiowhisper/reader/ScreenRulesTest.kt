@@ -1,12 +1,12 @@
 package com.jtn0123.audiowhisper.reader
 
-import com.jtn0123.audiowhisper.reader.ScreenRules.AfterTurn
-import com.jtn0123.audiowhisper.reader.ScreenRules.Move
 import com.jtn0123.audiowhisper.reader.ScreenRules.NONE
+import com.jtn0123.audiowhisper.rust.ScreenWalkRules.AfterTurn
+import com.jtn0123.audiowhisper.rust.ScreenWalkRules.Move
 import kotlin.test.Test
+import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
-import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class ScreenRulesTest {
@@ -31,11 +31,11 @@ class ScreenRulesTest {
 
     @Test
     fun boxesOverlapAsRectIntersectSays() {
-        assertEquals(Box(0, 100, 500, 400), ScreenRules.intersect(Box(-20, 50, 500, 400), screen))
+        assertEquals(Box(0, 100, 500, 400), ScreenRules.visiblePart(Box(-20, 50, 500, 400), screen))
         // Touching edges don't overlap. A box with no height inside does, as Android has it, with
         // no area.
-        assertNull(ScreenRules.intersect(Box(0, 1500, 1080, 1600), screen))
-        assertEquals(Box(0, 300, 1080, 300), ScreenRules.intersect(Box(0, 300, 1080, 300), screen))
+        assertEquals(screen, ScreenRules.visiblePart(Box(0, 1500, 1080, 1600), screen))
+        assertEquals(Box(0, 300, 1080, 300), ScreenRules.visiblePart(Box(0, 300, 1080, 300), screen))
         assertEquals(0L, ScreenRules.visibleArea(Box(0, 300, 1080, 300), screen))
     }
 
@@ -62,12 +62,9 @@ class ScreenRulesTest {
     @Test
     fun textInsideTheListIsInIt() {
         val parents = intArrayOf(NONE, 0, 1, NONE)
-        assertTrue(ScreenRules.isWithin(parents, 2, 1))
-        assertTrue(ScreenRules.isWithin(parents, 1, 1))
-        assertFalse(ScreenRules.isWithin(parents, 0, 1))
-        assertFalse(ScreenRules.isWithin(parents, 3, 1))
-        assertFalse(ScreenRules.isWithin(parents, NONE, 1))
-        assertFalse(ScreenRules.isWithin(parents, 2, NONE))
+        val pieces = intArrayOf(2, 1, 0, 3, NONE)
+        assertContentEquals(booleanArrayOf(true, true, false, false, false), ScreenRules.inList(pieces, parents, 1))
+        assertContentEquals(BooleanArray(pieces.size), ScreenRules.inList(pieces, parents, NONE))
     }
 
     @Test

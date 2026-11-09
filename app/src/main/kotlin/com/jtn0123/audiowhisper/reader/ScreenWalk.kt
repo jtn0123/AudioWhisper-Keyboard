@@ -43,14 +43,15 @@ internal class ScreenWalk(private val visible: Rect) {
     fun walk(root: AccessibilityNodeInfo): Screen {
         visit(root, scroller = NONE, sideways = false, depth = 0)
         val areas = LongArray(scrollers.size) { scrollers[it].area }
-        val main = ScreenRules.mainScroller(IntArray(pieces.size) { pieces[it].scroller }, areas)
+        val scrollerOf = IntArray(pieces.size) { pieces[it].scroller }
+        val main = ScreenRules.mainScroller(scrollerOf, areas)
         val parents = IntArray(scrollers.size) { scrollers[it].parent }
         val list = scrollers.getOrNull(main)?.node
         val follow = FollowAlong(list, list?.let(::visiblePart) ?: visible)
-        val blocks = PageText.blocks(pieces.map { piece ->
-            val inList = ScreenRules.isWithin(parents, piece.scroller, main)
-            TextBlock(piece.text, piece.bounds.top, piece.bounds.bottom, inList) {
-                if (inList) follow.show(piece.node)
+        val inList = ScreenRules.inList(scrollerOf, parents, main)
+        val blocks = PageText.blocks(pieces.mapIndexed { index, piece ->
+            TextBlock(piece.text, piece.bounds.top, piece.bounds.bottom, inList[index]) {
+                if (inList[index]) follow.show(piece.node)
             }
         })
         return Screen(root.packageName?.toString(), blocks, list, visible.top, visible.bottom, nodes, web)
