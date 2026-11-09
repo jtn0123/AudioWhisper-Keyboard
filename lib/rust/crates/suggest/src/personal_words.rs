@@ -7,6 +7,10 @@ use std::collections::{HashMap, HashSet};
 
 use chars::{equals_ignore_case, is_blank, lowercase, starts_with_ignore_case};
 
+/// How many of the user's own words the candidate strip shows at most, so dictionary words still
+/// get room.
+pub const MAX_IN_STRIP: i32 = 2;
+
 /// A personal dictionary row: `frequency` is 0-255, and `shortcut` types `word` when tapped.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Entry {

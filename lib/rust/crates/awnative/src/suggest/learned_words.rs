@@ -6,11 +6,11 @@ use std::ptr;
 use std::sync::Mutex;
 
 use jni_sys::{JNIEnv, jboolean, jclass, jint, jlong, jobjectArray, jstring};
-use suggest::learned_words::{self, LearnedWords, NegativeCount, Saved};
+use suggest::learned_words::{self, LearnedWords, Saved};
 
 use super::boolean;
 use crate::handle::{free, into_handle, locked, with_locked};
-use crate::jni::{self, Env, Result, illegal};
+use crate::jni::{self, Env, Result};
 
 /// The previous "word" of a sentence's first word (`learned_words::SENTENCE_START`).
 #[unsafe(no_mangle)]
@@ -258,18 +258,12 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_WordStoresNative_learn
     unsafe {
         with_store(env, store, ptr::null_mut(), |store, env| {
             let first_word = env.read_nullable_string(first_word)?;
-            let followers = store
-                .followers(
-                    first_word.as_deref(),
-                    is_beginning_of_sentence != 0,
-                    min_count,
-                    max_count,
-                )
-                .map_err(|NegativeCount(count)| {
-                    illegal(format!(
-                        "Requested element count {count} is less than zero."
-                    ))
-                })?;
+            let followers = store.followers(
+                first_word.as_deref(),
+                is_beginning_of_sentence != 0,
+                min_count,
+                max_count,
+            )?;
             env.make_strings(&followers)
         })
     }

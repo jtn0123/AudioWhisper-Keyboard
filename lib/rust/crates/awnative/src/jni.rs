@@ -5,7 +5,7 @@
 use std::ffi::{CStr, CString};
 use std::ptr;
 
-use jni_sys::{JNIEnv, jarray, jobject, jobjectArray, jsize, jstring, jvalue};
+use jni_sys::{JNIEnv, jarray, jmethodID, jobject, jobjectArray, jsize, jstring, jvalue};
 
 /// Why an entry point gave up: a Java exception to throw, or one the JVM already raised.
 #[derive(Debug)]
@@ -40,6 +40,14 @@ pub fn cut<'a>(text: &'a [u16], lengths: &[i32]) -> Result<Vec<&'a [u16]>> {
         return Err(illegal("the lengths stop short of the text"));
     }
     Ok(pieces)
+}
+
+/// A Kotlin object's method, found by [`Env::method`], to call back during the native call that
+/// found it.
+#[derive(Clone, Copy, Debug)]
+pub struct Method {
+    object: jobject,
+    id: jmethodID,
 }
 
 /// The JNI environment of the current native call.
@@ -215,29 +223,67 @@ impl Env {
         Ok(array)
     }
 
-    /// Calls `object`'s method `name`, whose `signature` takes one object and returns a boolean,
-    /// with `argument`; `what` says which argument `object` is, if it is null. R8 must keep the
-    /// method's name (see lib/rust/consumer-rules.pro).
-    pub fn call_boolean(
+    /// `object`'s method `name`, whose JNI `signature` is this, to call back; `what` says which
+    /// argument `object` is, if it is null. R8 must keep the method's name (see
+    /// lib/rust/consumer-rules.pro).
+    pub fn method(
         &self,
         object: jobject,
         what: &'static str,
         (name, signature): (&CStr, &CStr),
-        argument: jobject,
-    ) -> Result<bool> {
+    ) -> Result<Method> {
         if object.is_null() {
             return Err(Error::NullPointer(what));
         }
         let class = jni_call!(self, GetObjectClass, object);
-        let method = jni_call!(self, GetMethodID, class, name.as_ptr(), signature.as_ptr());
+        let id = jni_call!(self, GetMethodID, class, name.as_ptr(), signature.as_ptr());
         self.delete_local(class);
-        if method.is_null() {
+        if id.is_null() {
             return Err(Error::Pending); // GetMethodID raised NoSuchMethodError.
         }
-        let arguments = [jvalue { l: argument }];
-        let result = jni_call!(self, CallBooleanMethodA, object, method, arguments.as_ptr());
+        Ok(Method { object, id })
+    }
+
+    /// Calls `method`, which returns a boolean, with `arguments`, as its signature has them.
+    pub fn call_boolean(&self, method: Method, arguments: &[jvalue]) -> Result<bool> {
+        let (object, id) = (method.object, method.id);
+        let result = jni_call!(self, CallBooleanMethodA, object, id, arguments.as_ptr());
         self.check()?;
         Ok(result != 0)
+    }
+
+    /// Calls `method`, which returns an int, with `arguments`, as its signature has them.
+    pub fn call_int(&self, method: Method, arguments: &[jvalue]) -> Result<i32> {
+        let (object, id) = (method.object, method.id);
+        let result = jni_call!(self, CallIntMethodA, object, id, arguments.as_ptr());
+        self.check()?;
+        Ok(result)
+    }
+
+    /// Calls `method`, which returns an object, with `arguments`, as its signature has them: a
+    /// local reference for the caller to free, or null.
+    pub fn call_object(&self, method: Method, arguments: &[jvalue]) -> Result<jobject> {
+        let (object, id) = (method.object, method.id);
+        let result = jni_call!(self, CallObjectMethodA, object, id, arguments.as_ptr());
+        if let Err(error) = self.check() {
+            if !result.is_null() {
+                self.delete_local(result);
+            }
+            return Err(error);
+        }
+        Ok(result)
+    }
+
+    /// What `call` gives a new Java string of these UTF-16 units, freeing the string after.
+    pub fn with_string<R>(
+        &self,
+        units: &[u16],
+        call: impl FnOnce(jstring) -> Result<R>,
+    ) -> Result<R> {
+        let string = self.make_string(units)?;
+        let result = call(string);
+        self.delete_local(string);
+        result
     }
 
     /// Frees a local reference this call made, before it returns.

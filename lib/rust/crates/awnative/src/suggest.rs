@@ -5,21 +5,41 @@
 mod kept_words;
 mod learned_words;
 mod personal_words;
+mod suggester;
 mod swipe;
 mod tap;
+mod word_learner;
 
 use std::ptr;
 
 use jni_sys::{JNI_FALSE, JNI_TRUE, JNIEnv, jboolean, jclass, jfloat, jint, jintArray};
 use jni_sys::{jobjectArray, jstring};
+use suggest::learned_words::NegativeCount;
 use suggest::raw::RawSuggestion;
 use suggest::word_case::{self, WordCase};
 use suggest::{auto_correction, previous_words, undo, word_characters};
 
-use crate::jni::{self, Result, illegal};
+use crate::jni::{self, Error, Result, illegal};
 
 fn boolean(value: bool) -> jboolean {
     if value { JNI_TRUE } else { JNI_FALSE }
+}
+
+/// The strings of a `String[]` that may hold no null.
+fn non_null(strings: Vec<Option<Vec<u16>>>) -> Result<Vec<Vec<u16>>> {
+    strings
+        .into_iter()
+        .map(|string| string.ok_or(Error::NullPointer("a word")))
+        .collect()
+}
+
+/// Kotlin's `take` of a negative count throws this.
+impl From<NegativeCount> for Error {
+    fn from(NegativeCount(count): NegativeCount) -> Error {
+        illegal(format!(
+            "Requested element count {count} is less than zero."
+        ))
+    }
 }
 
 /// The cases' numbers, as `SuggestRules.Case` orders them.

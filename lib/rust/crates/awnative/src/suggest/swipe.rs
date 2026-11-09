@@ -9,8 +9,8 @@ use jni_sys::{jobjectArray, jstring};
 use suggest::glide_ranker::{self, Context};
 use suggest::swipe_words;
 
-use super::boolean;
-use crate::jni::{self, Env, Error, Result, illegal};
+use super::{boolean, non_null};
+use crate::jni::{self, Env, Result, illegal};
 
 /// The most a guess's context can take off its cost (`glide_ranker::MAX_BONUS`).
 #[unsafe(no_mangle)]
@@ -209,11 +209,4 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_SwipeNative_userWords(
             env.make(&packed)
         })
     }
-}
-
-fn non_null(strings: Vec<Option<Vec<u16>>>) -> Result<Vec<Vec<u16>>> {
-    strings
-        .into_iter()
-        .map(|string| string.ok_or(Error::NullPointer("a word")))
-        .collect()
 }

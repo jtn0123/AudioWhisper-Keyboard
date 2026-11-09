@@ -9,6 +9,7 @@
 #![forbid(unsafe_code)]
 
 pub mod auto_correction;
+pub mod dictionary;
 pub mod glide_ranker;
 pub mod java;
 pub mod kept_words;
@@ -19,8 +20,10 @@ pub mod personal_words;
 pub mod previous_words;
 pub mod qwerty;
 pub mod raw;
+pub mod suggester;
 pub mod swipe_words;
 pub mod tap;
 pub mod undo;
 pub mod word_case;
 pub mod word_characters;
+pub mod word_learner;

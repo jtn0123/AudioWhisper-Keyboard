@@ -11,3 +11,19 @@
 -keepclassmembers class * implements com.jtn0123.audiowhisper.rust.DictationNames {
     boolean isName(java.lang.String);
 }
+
+# The Rust calls the dictionary back by name (crates/awnative/src/suggest/suggester.rs).
+-keep interface com.jtn0123.audiowhisper.rust.WordProbabilities {
+    int probability(java.lang.String);
+}
+-keepclassmembers class * implements com.jtn0123.audiowhisper.rust.WordProbabilities {
+    int probability(java.lang.String);
+}
+-keep interface com.jtn0123.audiowhisper.rust.SuggestDictionary {
+    int ngramProbability(java.lang.String);
+    int[] decode(java.lang.String, boolean, boolean);
+}
+-keepclassmembers class * implements com.jtn0123.audiowhisper.rust.SuggestDictionary {
+    int ngramProbability(java.lang.String);
+    int[] decode(java.lang.String, boolean, boolean);
+}

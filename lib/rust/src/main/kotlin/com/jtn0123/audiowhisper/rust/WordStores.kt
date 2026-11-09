@@ -50,7 +50,7 @@ class LearnedWordStore(
     wordCapacity: Int = WordStoreRules.learnedWordCapacity,
     pairCapacity: Int = WordStoreRules.learnedPairCapacity,
 ) {
-    private val handle = WordStoresNative.newLearnedWords(wordCapacity, pairCapacity)
+    internal val handle = WordStoresNative.newLearnedWords(wordCapacity, pairCapacity)
 
     init {
         RustLibrary.cleaner.register(this, Free(handle))
@@ -151,7 +151,7 @@ class KeptWordStore(capacity: Int = WordStoreRules.keptCapacity) {
  * nothing can reach it.
  */
 class PersonalWordStore(words: List<String>, frequencies: IntArray, shortcuts: List<String?>) {
-    private val handle = WordStoresNative.newPersonalWords(words.toTypedArray(), frequencies, shortcuts.toTypedArray())
+    internal val handle = WordStoresNative.newPersonalWords(words.toTypedArray(), frequencies, shortcuts.toTypedArray())
 
     init {
         RustLibrary.cleaner.register(this, Free(handle))

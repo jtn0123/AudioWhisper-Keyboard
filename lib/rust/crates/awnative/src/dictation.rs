@@ -8,7 +8,7 @@ use std::ptr;
 
 use dictation::{Spoken, Typing};
 use jni_sys::{JNI_FALSE, JNI_TRUE, JNIEnv, jboolean, jchar, jclass, jint, jobject};
-use jni_sys::{jobjectArray, jstring};
+use jni_sys::{jobjectArray, jstring, jvalue};
 
 use crate::jni::{self, Env, Result};
 
@@ -92,10 +92,10 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_DictationNative_join(
 
 /// Asks Kotlin whether `word` is a name.
 fn is_name(env: &Env, names: jobject, word: &[u16]) -> Result<bool> {
-    let word = env.make_string(word)?;
-    let answer = env.call_boolean(names, "names", (c"isName", c"(Ljava/lang/String;)Z"), word);
-    env.delete_local(word);
-    answer
+    let is_name = env.method(names, "names", (c"isName", c"(Ljava/lang/String;)Z"))?;
+    env.with_string(word, |word| {
+        env.call_boolean(is_name, &[jvalue { l: word }])
+    })
 }
 
 /// How to type the spoken `mark` after `before` (see `dictation::punctuate`).
