@@ -12,6 +12,7 @@ mod giphy;
 mod glide;
 mod handle;
 mod jni;
+mod keys;
 mod panic;
 mod reader;
 mod screen;

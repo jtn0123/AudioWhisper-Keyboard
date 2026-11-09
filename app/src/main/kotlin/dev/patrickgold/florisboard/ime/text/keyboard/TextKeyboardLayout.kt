@@ -225,20 +225,9 @@ fun TextKeyboardLayout(
             keyboardRowBaseHeight, evaluator
         ) {
             TextKey(data = TextKeyData.UNSPECIFIED).also { desiredKey ->
-                desiredKey.touchBounds.apply {
-                    width = keyboardWidth / 10f
-                    height = when (keyboard.mode) {
-                        KeyboardMode.CHARACTERS,
-                        KeyboardMode.NUMERIC_ADVANCED,
-                        KeyboardMode.SYMBOLS,
-                        KeyboardMode.SYMBOLS2 -> {
-                            (keyboardHeight / keyboard.rowCount)
-                                .coerceAtMost(keyboardRowBaseHeight.toPx() * 1.12f)
-                        }
-                        else -> keyboardRowBaseHeight.toPx()
-                    }
-                }
-                desiredKey.visibleBounds.applyFrom(desiredKey.touchBounds).deflateBy(keyMarginH, keyMarginV)
+                keyboard.sizeDesiredKey(
+                    desiredKey, keyboardWidth, keyboardHeight, keyboardRowBaseHeight.toPx(), keyMarginH, keyMarginV,
+                )
                 keyboard.layout(keyboardWidth, keyboardHeight, desiredKey, true)
             }
         }
