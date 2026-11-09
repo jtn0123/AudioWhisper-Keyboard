@@ -20,7 +20,7 @@ class LearnedWords(
     wordCapacity: Int = WORD_CAPACITY,
     pairCapacity: Int = PAIR_CAPACITY,
 ) : TypingHistory {
-    private val store = LearnedWordStore(wordCapacity, pairCapacity)
+    internal val store = LearnedWordStore(wordCapacity, pairCapacity)
 
     /** Two saves at once would write the same temporary file. */
     private val saveLock = Any()

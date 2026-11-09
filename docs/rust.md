@@ -13,9 +13,9 @@ runs both, and has been checked on the emulator.
 | Typing suggestions' smaller rules: a word's case, the words before it, which characters continue a word, whether a correction is sure enough to make by itself, undoing one, and where taps land on the decoder's QWERTY layout | `crates/suggest` | `WordCase`, `PreviousWords`, `WordCharacters`, `AutoCorrection`, `AutoCorrectionUndo`, `TapOffset`, `TapTrail` and `QwertyGeometry`, now wrappers | `SuggestRulesMatchTest` against `ReferenceSuggest`: every code point and every UTF-16 unit through each rule, 200,000 random words and corrections, 200,000 taps and 20,000 tap trails. The same on the emulator: none of 15,586,581 differed. Typing the same keys on both builds gave the same text |
 | The words typing learns and keeps: words and word pairs the user has typed, words whose correction they undid, and their personal dictionary's words and shortcuts. Kotlin still reads and writes the files; Rust parses and writes their text | `crates/suggest` | `LearnedWords`, `KeptWords` and `PersonalWords`, now wrappers | `WordStoresMatchTest` against `ReferenceStores`: 2,000 random runs of learning, undoing, saving and loading damaged files on each kind of store, asking both the same questions after every step, and 100,000 random personal dictionaries. The same on the emulator: none of 5,647,957 differed. Typing the same keys on both builds gave the same text and saved the same files, before and after a restart |
 | Swipe typing's word list and ranking: which words a swipe can spell, how strongly the glide classifier favours each, and how the words before a swipe re-rank its guesses. Kotlin still asks the dictionary and the learned words what they know of each word | `crates/suggest` | `GlideRanker` and `SwipeWords`' rules, now wrappers | `SwipeRulesMatchTest` against `ReferenceSwipe`: every bonus for pair counts up to a million and for every n-gram and probability from -260 to 520, 100,000 random rankings (some longer than 20 guesses, where a sort that isn't stable would show), every frequency, every UTF-16 unit and 100,000 random words, and 20,000 random dictionaries with the user's words. The same on the emulator: none of 5,798,258 differed, frequencies to the bit. Swiping the same words on both builds, with and without a typing habit and a learned word, gave the same text. Building the 160,000-word list takes 12-15 ms, against Kotlin's 14-17 |
+| The suggester and what typing learns: which corrections, completions and the user's own words the strip shows and in what order, whether to auto-correct, the spell checker, next-word predictions, and which spelling of each finished word is learned and when it is taken back. Kotlin still runs the C++ decoder, which Rust asks through a callback | `crates/suggest` | `LatinSuggester` and `WordLearner`, now wrappers | `LatinRulesMatchTest` against `ReferenceLatin`: 40,000 random strips and spell checks over a made-up dictionary whose every answer is a pure function of the question, with random personal and learned words, thresholds and taps, and 1,500 random runs of finished, swiped and undone words on two learners, comparing what each stored. It fails for each of 60 small breaks in the Rust, the JNI and the wrappers. The same on the emulator: none of 246,648 differed; and over the bundled dictionary, none of 4,000 typing states once both saw the same answers from it (see below). Typing the same keys on both builds (corrections and their undo, "came fro", a made-up word learned, suggestions and predictions tapped, a swipe) gave the same text and saved the same files, before and after a restart. A suggestion takes 7.4 ms either way, nearly all of it the C++ decoder |
 
-Next, roughly in order: the rest of the suggestion logic (the suggester itself, and what typing
-learns from each word), the reader and GIF logic, then upstream FlorisBoard's pure logic. The
+Next, roughly in order: the reader and GIF logic, then upstream FlorisBoard's pure logic. The
 LatinIME C++ (`lib/latinime`) and sharing a core with the Mac app come last.
 
 ## Layout
@@ -29,7 +29,7 @@ lib/rust/
   .cargo/config.toml          16 KB page alignment for Android; cargo's output in build/cargo
   crates/glide/               glide typing's scorer: plain Rust, no unsafe, no JNI
   crates/dictation/           dictation's text rules
-  crates/suggest/             typing suggestions' rules and the words they learn
+  crates/suggest/             typing suggestions, auto-correction, the spell checker, what typing learns
   crates/chars/               Kotlin's character rules, for crates that judge text as Kotlin did
   crates/awnative/            libawnative.so: the JNI functions Kotlin calls, and nothing else
   tools/                      generates crates/chars' tables (generate-char-tables.sh)
@@ -115,6 +115,12 @@ Or, from `lib/rust`, plain `cargo test`, `cargo clippy --all-targets -- -D warni
   Make sure the test fails when the Rust is changed slightly, so it isn't passing for nothing.
   The JVM tests see the JVM's character rules, so where those matter, also compare the two on the
   emulator: a temporary patch runs the test's cases there and logs only how many differ.
+  Where the code asks something outside it, as the suggester asks the C++ decoder, give both the
+  same answers: the test's made-up dictionary answers each question by hashing it, so it doesn't
+  matter how often or in what order each side asks. The real decoder isn't so steady: asked for the
+  same strip twice, it gave a different one 3 times in 4,000 on the emulator (odd words such as
+  "vis-a-vis"), so a comparison over the bundled dictionary remembers each of its answers and hands
+  both sides the same ones.
 - **Write down every difference that's on purpose**, in the Rust and in the test. The glide
   scorer has two: equally near keys keep layout order (Kotlin used hash order, which changed
   from run to run), and an empty swipe gives nothing (Kotlin scored stale storage). A tap trail
@@ -125,6 +131,9 @@ Or, from `lib/rust`, plain `cargo test`, `cargo clippy --all-targets -- -D warni
 - **No warnings, and none silenced.** Clippy runs with `-D warnings`; fix what it says rather than
   adding `#[allow]`.
 - **Unsafe stays in `awnative`**, and each `unsafe` block says why it is sound (`// SAFETY:`).
+- **Never hold a lock across a call back into Kotlin.** The suggester locks the learned words
+  only for each read, not while it waits on the decoder, so a callback can't deadlock against
+  another thread learning a word.
 - **Kotlin that Rust calls back is kept by name.** R8 shrinks the debug build too, and deletes or
   renames what it doesn't see Kotlin call. Rust finds a callback (such as `DictationNames.isName`)
   by name, so `consumer-rules.pro` keeps it.

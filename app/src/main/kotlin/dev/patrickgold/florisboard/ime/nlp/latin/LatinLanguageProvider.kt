@@ -140,7 +140,7 @@ class LatinLanguageProvider(context: Context) : SpellingProvider, SuggestionProv
 
     /** What the user has typed (see [WordLearner]). Loaded by [preload], saved by [saveLearnedWords]. */
     private val learnedWords by lazy { LearnedWords(File(appContext.filesDir, LEARNED_WORDS_FILE)) }
-    private val learner by lazy { WordLearner(learnedWords, lookup = { engine }, locale = Locale.US) }
+    private val learner by lazy { WordLearner(learnedWords, lookup = { engine }) }
     @Volatile private var learnedWordsLoaded = false
 
     /** AudioWhisper: where the letters being typed were tapped, for the decoder (B13). */
@@ -222,7 +222,7 @@ class LatinLanguageProvider(context: Context) : SpellingProvider, SuggestionProv
         val started = SystemClock.elapsedRealtime()
         val opened = openBundledDictionary() ?: return
         engine = opened
-        suggester = LatinSuggester(opened, Locale.US, personalWords = { personalWords }, history = ::typingHistory)
+        suggester = LatinSuggester(opened, personalWords = { personalWords }, history = ::learnedHistory)
         Log.d(TAG, "Dictionary loaded in ${SystemClock.elapsedRealtime() - started} ms")
     }
 
@@ -356,9 +356,11 @@ class LatinLanguageProvider(context: Context) : SpellingProvider, SuggestionProv
 
     private fun isKeptAsTyped(typed: String) = typed in keptAsTyped
 
-    /** AudioWhisper: what suggestions may draw on from the user's typing. */
-    private fun typingHistory(): TypingHistory =
-        if (prefs.suggestion.learnFromTyping.get()) learnedWords else TypingHistory.NONE
+    /** AudioWhisper: what suggestions may draw on from the user's typing, or null if learning is off. */
+    private fun learnedHistory(): LearnedWords? = learnedWords.takeIf { prefs.suggestion.learnFromTyping.get() }
+
+    /** AudioWhisper: [learnedHistory] for the swipe ranker, which takes [TypingHistory.NONE] for none. */
+    private fun typingHistory(): TypingHistory = learnedHistory() ?: TypingHistory.NONE
 
     /**
      * AudioWhisper: the [WordLearner], if what is typed in this field now may be learned: the

@@ -13,7 +13,7 @@ class PersonalWords(entries: List<Entry>) {
     /** A personal dictionary row: [frequency] is 0-255, [shortcut] types [word] when tapped. */
     data class Entry(val word: String, val frequency: Int, val shortcut: String? = null)
 
-    private val store = PersonalWordStore(
+    internal val store = PersonalWordStore(
         entries.map { it.word },
         entries.map { it.frequency }.toIntArray(),
         entries.map { it.shortcut },
@@ -35,9 +35,6 @@ class PersonalWords(entries: List<Entry>) {
 
     companion object {
         val NONE = PersonalWords(emptyList())
-
-        /** How many personal words the strip shows at most, so dictionary words still get room. */
-        const val MAX_IN_STRIP = 2
 
         /** Whether a row tagged [tag] ("en", "en_US", null for every language) applies to [language]. */
         fun appliesTo(tag: String?, language: String): Boolean = WordStoreRules.appliesTo(tag, language)
