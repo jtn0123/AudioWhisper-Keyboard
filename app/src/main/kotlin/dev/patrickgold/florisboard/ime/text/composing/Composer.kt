@@ -16,6 +16,7 @@
 
 package dev.patrickgold.florisboard.ime.text.composing
 
+import com.jtn0123.audiowhisper.rust.ComposingRules
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
@@ -69,15 +70,10 @@ class WithRules(
 
     @Transient val ruleOrder = rules.keys.toList().sortedBy { it.length }.reversed()
 
+    /** The rules in Rust (lib/rust/crates/composing/src/rules.rs), in [ruleOrder], made when first typed with. */
+    private val composing by lazy { ComposingRules(ruleOrder.map { it to rules.getValue(it) }) }
+
     override fun getActions(precedingText: String, toInsert: String): Pair<Int, String> {
-        val str = precedingText + toInsert
-        for (key in ruleOrder) {
-            if (str.lowercase().endsWith(key)) {
-                val value = rules.getValue(key)
-                val firstOfKey = str.takeLast(key.length).take(1)
-                return (key.length - 1) to (if (firstOfKey.uppercase() == firstOfKey) value.uppercase() else value)
-            }
-        }
-        return 0 to toInsert
+        return composing.actions(precedingText, toInsert)
     }
 }

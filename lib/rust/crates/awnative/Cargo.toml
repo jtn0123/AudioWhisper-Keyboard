@@ -12,6 +12,7 @@ crate-type = ["cdylib"]
 
 [dependencies]
 chars = { path = "../chars" }
+composing = { path = "../composing" }
 dictation = { path = "../dictation" }
 gestures = { path = "../gestures" }
 gif = { path = "../gif" }
