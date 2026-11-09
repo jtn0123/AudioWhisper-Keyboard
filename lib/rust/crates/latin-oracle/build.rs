@@ -1,6 +1,6 @@
 //! Compiles LatinIME's C++ from `lib/latinime` (every source file there, so it is always the code
-//! the app ships) with `cpp/fake_jni.cpp`, for this computer. Nothing is built for Android: the
-//! oracle only runs in host tests.
+//! the app ships) with `cpp/` (the fake JNI environment and the hooks), for this computer. Nothing
+//! is built for Android: the oracle only runs in host tests.
 
 use std::env;
 use std::fs;
@@ -21,7 +21,8 @@ fn main() {
     let mut sources = cpp_files(&jni, false);
     sources.extend(cpp_files(&jni.join("src"), true));
     sources.sort();
-    sources.push(manifest.join("cpp/fake_jni.cpp"));
+    // fake_jni.cpp, and the hooks (cpp/hooks/*.cpp) that reach the C++ below its JNI methods.
+    sources.extend(cpp_files(&manifest.join("cpp"), true));
 
     cc::Build::new()
         .cpp(true)

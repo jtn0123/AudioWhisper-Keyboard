@@ -1,0 +1,15 @@
+[package]
+name = "latin"
+version = "0.1.0"
+description = "The typing decoder: LatinIME's dictionary reading and suggestion search, ported from its C++"
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+rust-version.workspace = true
+
+# The C++ itself, to compare with; it is only built for the computer running the tests.
+[target.'cfg(not(target_os = "android"))'.dev-dependencies]
+latin-oracle = { path = "../latin-oracle" }
+
+[lints]
+workspace = true

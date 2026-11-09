@@ -89,6 +89,13 @@ name = "keys"
 version = "0.1.0"
 
 [[package]]
+name = "latin"
+version = "0.1.0"
+dependencies = [
+ "latin-oracle",
+]
+
+[[package]]
 name = "latin-oracle"
 version = "0.1.0"
 dependencies = [

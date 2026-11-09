@@ -18,6 +18,7 @@ use std::sync::{Mutex, MutexGuard, OnceLock};
 use suggest::qwerty;
 
 pub mod cli;
+pub mod hooks;
 pub mod queries;
 
 /// The native MAX_WORD_LENGTH: the longest word, and the input arrays' size.
@@ -104,7 +105,7 @@ unsafe extern "C" {
 }
 
 /// The one lock every call into the C++ holds, taken after JNI_OnLoad has registered the natives.
-fn lock() -> MutexGuard<'static, ()> {
+pub(crate) fn lock() -> MutexGuard<'static, ()> {
     static LOCK: Mutex<()> = Mutex::new(());
     static LOADED: OnceLock<i32> = OnceLock::new();
     let guard = LOCK.lock().unwrap_or_else(|it| it.into_inner());
