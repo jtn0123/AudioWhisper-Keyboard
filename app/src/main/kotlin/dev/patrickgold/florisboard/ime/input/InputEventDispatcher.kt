@@ -23,6 +23,7 @@ import androidx.collection.isNotEmpty
 import androidx.collection.set
 import dev.patrickgold.florisboard.app.FlorisPreferenceStore
 import dev.patrickgold.florisboard.ime.keyboard.KeyData
+import dev.patrickgold.florisboard.ime.keyboard.ShiftLogic
 import dev.patrickgold.florisboard.ime.text.gestures.SwipeAction
 import dev.patrickgold.florisboard.ime.text.key.KeyCode
 import dev.patrickgold.florisboard.ime.text.keyboard.TextKeyData
@@ -193,14 +194,15 @@ class InputEventDispatcher private constructor(private val repeatableKeyCodes: I
         pressedKeys.withLock { it.isNotEmpty() }
     }
 
+    // AudioWhisper: the double-tap rule is in Rust (lib/rust/crates/shift).
     fun isConsecutiveDown(data: KeyData): Boolean {
         val event = lastKeyEventDown
-        return event.data.code == data.code && (SystemClock.uptimeMillis() - event.time) < DoubleTapTimeout
+        return ShiftLogic.isConsecutive(event.data.code, event.time, data.code, SystemClock.uptimeMillis(), DoubleTapTimeout)
     }
 
     fun isConsecutiveUp(data: KeyData): Boolean {
         val event = lastKeyEventUp
-        return event.data.code == data.code && (SystemClock.uptimeMillis() - event.time) < DoubleTapTimeout
+        return ShiftLogic.isConsecutive(event.data.code, event.time, data.code, SystemClock.uptimeMillis(), DoubleTapTimeout)
     }
 
     fun isUninterruptedEventSequence(data: KeyData): Boolean {

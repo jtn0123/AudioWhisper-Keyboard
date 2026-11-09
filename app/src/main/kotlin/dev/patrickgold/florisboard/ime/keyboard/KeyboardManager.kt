@@ -43,9 +43,7 @@ import dev.patrickgold.florisboard.ime.core.SubtypePreset
 import dev.patrickgold.florisboard.ime.editor.EditorContent
 import dev.patrickgold.florisboard.ime.editor.FlorisEditorInfo
 import dev.patrickgold.florisboard.ime.editor.ImeOptions
-import dev.patrickgold.florisboard.ime.editor.InputAttributes
 import dev.patrickgold.florisboard.ime.editor.OperationUnit
-import dev.patrickgold.florisboard.ime.input.CapitalizationBehavior
 import dev.patrickgold.florisboard.ime.input.InputEventDispatcher
 import dev.patrickgold.florisboard.ime.input.InputKeyEventReceiver
 import dev.patrickgold.florisboard.ime.input.InputShiftState
@@ -87,8 +85,6 @@ import org.florisboard.lib.android.showShortToast
 import org.florisboard.lib.android.systemService
 import org.florisboard.lib.kotlin.collectIn
 import org.florisboard.lib.kotlin.collectLatestIn
-
-private val DoubleSpacePeriodMatcher = """([^.!?‽\s]\s)""".toRegex()
 
 class KeyboardManager(context: Context) : InputKeyEventReceiver {
     private val prefs by FlorisPreferenceStore
@@ -222,15 +218,14 @@ class KeyboardManager(context: Context) : InputKeyEventReceiver {
     }
 
     fun reevaluateInputShiftState() {
-        if (activeState.inputShiftState != InputShiftState.CAPS_LOCK && !inputEventDispatcher.isPressed(KeyCode.SHIFT)) {
-            val shift = prefs.correction.autoCapitalization.get()
-                && subtypeManager.activeSubtype.primaryLocale.supportsCapitalization
-                && editorInstance.activeCursorCapsMode != InputAttributes.CapsMode.NONE
-            activeState.inputShiftState = when {
-                shift -> InputShiftState.SHIFTED_AUTOMATIC
-                else -> InputShiftState.UNSHIFTED
-            }
-        }
+        // AudioWhisper: the decision is in Rust (ShiftLogic); setting an unchanged state does nothing.
+        activeState.inputShiftState = ShiftLogic.reevaluate(
+            activeState.inputShiftState,
+            shiftPressed = inputEventDispatcher.isPressed(KeyCode.SHIFT),
+            autoCapitalization = prefs.correction.autoCapitalization.get(),
+            localeCapitalizes = subtypeManager.activeSubtype.primaryLocale.supportsCapitalization,
+            capsMode = editorInstance.activeCursorCapsMode,
+        )
     }
 
     fun resetSuggestions(content: EditorContent) {
@@ -317,9 +312,9 @@ class KeyboardManager(context: Context) : InputKeyEventReceiver {
             }
             else -> {
                 GifSearch.type(data.asString(isForDisplay = false))
-                if (activeState.inputShiftState != InputShiftState.CAPS_LOCK && !inputEventDispatcher.isPressed(KeyCode.SHIFT)) {
-                    activeState.inputShiftState = InputShiftState.UNSHIFTED
-                }
+                activeState.inputShiftState = ShiftLogic.keyTyped(
+                    activeState.inputShiftState, shiftPressed = inputEventDispatcher.isPressed(KeyCode.SHIFT),
+                )
             }
         }
     }
@@ -551,52 +546,36 @@ class KeyboardManager(context: Context) : InputKeyEventReceiver {
      * Handles a [KeyCode.SHIFT] down event.
      */
     private fun handleShiftDown(data: KeyData) {
-        val prefs = prefs.keyboard.capitalizationBehavior
-        when (prefs.get()) {
-            CapitalizationBehavior.CAPSLOCK_BY_DOUBLE_TAP -> {
-                if (inputEventDispatcher.isConsecutiveDown(data)) {
-                    activeState.inputShiftState = InputShiftState.CAPS_LOCK
-                } else {
-                    if (activeState.inputShiftState == InputShiftState.UNSHIFTED) {
-                        activeState.inputShiftState = InputShiftState.SHIFTED_MANUAL
-                    } else {
-                        activeState.inputShiftState = InputShiftState.UNSHIFTED
-                    }
-                }
-            }
-            CapitalizationBehavior.CAPSLOCK_BY_CYCLE -> {
-                activeState.inputShiftState = when (activeState.inputShiftState) {
-                    InputShiftState.UNSHIFTED -> InputShiftState.SHIFTED_MANUAL
-                    InputShiftState.SHIFTED_MANUAL -> InputShiftState.CAPS_LOCK
-                    InputShiftState.SHIFTED_AUTOMATIC -> InputShiftState.UNSHIFTED
-                    InputShiftState.CAPS_LOCK -> InputShiftState.UNSHIFTED
-                }
-            }
-        }
+        activeState.inputShiftState = ShiftLogic.shiftDown(
+            activeState.inputShiftState,
+            prefs.keyboard.capitalizationBehavior.get(),
+            consecutiveDown = inputEventDispatcher.isConsecutiveDown(data),
+        )
     }
 
     /**
      * Handles a [KeyCode.SHIFT] up event.
      */
     private fun handleShiftUp(data: KeyData) {
-        if (activeState.inputShiftState != InputShiftState.CAPS_LOCK && !inputEventDispatcher.isAnyPressed() &&
-            !inputEventDispatcher.isUninterruptedEventSequence(data)) {
-            activeState.inputShiftState = InputShiftState.UNSHIFTED
-        }
+        activeState.inputShiftState = ShiftLogic.shiftUp(
+            activeState.inputShiftState,
+            anyPressed = inputEventDispatcher.isAnyPressed(),
+            uninterrupted = inputEventDispatcher.isUninterruptedEventSequence(data),
+        )
     }
 
     /**
      * Handles a [KeyCode.CAPS_LOCK] event.
      */
     private fun handleCapsLock() {
-        activeState.inputShiftState = InputShiftState.CAPS_LOCK
+        activeState.inputShiftState = ShiftLogic.capsLock(activeState.inputShiftState)
     }
 
     /**
      * Handles a [KeyCode.SHIFT] cancel event.
      */
     private fun handleShiftCancel() {
-        activeState.inputShiftState = InputShiftState.UNSHIFTED
+        activeState.inputShiftState = ShiftLogic.shiftCancel(activeState.inputShiftState)
     }
 
     /**
@@ -632,7 +611,7 @@ class KeyboardManager(context: Context) : InputKeyEventReceiver {
         if (prefs.correction.doubleSpacePeriod.get()) {
             if (inputEventDispatcher.isConsecutiveUp(data)) {
                 val text = editorInstance.run { activeContent.getTextBeforeCursor(2) }
-                if (text.length == 2 && DoubleSpacePeriodMatcher.matches(text)) {
+                if (ShiftLogic.isDoubleSpacePeriod(text)) {
                     editorInstance.deleteBackwards(OperationUnit.CHARACTERS)
                     editorInstance.commitText(". ")
                     return
@@ -900,9 +879,9 @@ class KeyboardManager(context: Context) : InputKeyEventReceiver {
                         }
                     }
                 }
-                if (activeState.inputShiftState != InputShiftState.CAPS_LOCK && !inputEventDispatcher.isPressed(KeyCode.SHIFT)) {
-                    activeState.inputShiftState = InputShiftState.UNSHIFTED
-                }
+                activeState.inputShiftState = ShiftLogic.keyTyped(
+                    activeState.inputShiftState, shiftPressed = inputEventDispatcher.isPressed(KeyCode.SHIFT),
+                )
             }
         }
     }

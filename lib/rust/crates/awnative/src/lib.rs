@@ -15,6 +15,7 @@ mod jni;
 mod panic;
 mod reader;
 mod screen;
+mod shift;
 mod suggest;
 mod text;
 
