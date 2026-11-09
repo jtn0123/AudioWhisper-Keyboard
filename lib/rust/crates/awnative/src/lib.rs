@@ -8,6 +8,7 @@ use jni_sys::{JNI_VERSION_1_6, JavaVM, jint};
 
 mod composing;
 mod dictation;
+mod emoji;
 mod gestures;
 mod gif;
 mod giphy;

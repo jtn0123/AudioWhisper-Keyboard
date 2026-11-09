@@ -16,10 +16,8 @@
 
 package dev.patrickgold.florisboard.ime.media.emoji
 
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
-import java.util.stream.Collectors
 import android.content.Context
+import com.jtn0123.audiowhisper.rust.EmojiRules
 import dev.patrickgold.florisboard.app.FlorisPreferenceStore
 import dev.patrickgold.florisboard.ime.core.Subtype
 import dev.patrickgold.florisboard.ime.editor.EditorContent
@@ -42,17 +40,16 @@ class EmojiSuggestionProvider(private val context: Context) : SuggestionProvider
     override val providerId = "org.florisboard.nlp.providers.emoji"
 
     private val prefs by FlorisPreferenceStore
-    private val lettersRegex = "^[A-Za-z]*$".toRegex()
 
-    private val cachedEmojiMappings = Cache.Builder<FlorisLocale, EmojiDataBySkinTone>().build()
+    private val cachedEmojiData = Cache.Builder<FlorisLocale, EmojiData>().build()
 
     override suspend fun create() {
     }
 
     override suspend fun preload(subtype: Subtype) {
         subtype.locales().forEach { locale ->
-            cachedEmojiMappings.get(locale) {
-                EmojiData.get(context, locale).bySkinTone
+            cachedEmojiData.get(locale) {
+                EmojiData.get(context, locale)
             }
         }
     }
@@ -66,30 +63,17 @@ class EmojiSuggestionProvider(private val context: Context) : SuggestionProvider
     ): List<SuggestionCandidate> {
         val preferredSkinTone = prefs.emoji.preferredSkinTone.get()
         val showName = prefs.emoji.suggestionCandidateShowName.get()
-        val query = validateInputQuery(content.composingText) ?: return emptyList()
-        val emojis = cachedEmojiMappings.get(subtype.primaryLocale)?.get(preferredSkinTone) ?: emptyList()
-        val candidates = withContext(Dispatchers.Default) {
-            emojis.parallelStream()
-                .map { emoji ->
-                    val nameWeight = emoji.name.containsWeighted(query, ignoreCase = true)
-                    val keywordWeight = emoji.keywords
-                        .any { it.contains(query, ignoreCase = true) }
-                        .let { if (it) 1.0 else 0.0 }
-                    emoji to (nameWeight * 0.7 + keywordWeight * 0.3)
-                }
-                .sorted { (_, a), (_, b) -> b.compareTo(a) }
-                .limit(maxCandidateCount.toLong())
-                .filter { (_, a) -> a > 0 }
-                .map { (emoji, _) ->
-                    EmojiSuggestionCandidate(
-                        emoji = emoji,
-                        showName = showName,
-                        sourceProvider = this@EmojiSuggestionProvider,
-                    )
-                }
-                .collect(Collectors.toList())
+        val prefix = prefs.emoji.suggestionType.get().prefix
+        val minLength = prefs.emoji.suggestionQueryMinLength.get()
+        val data = cachedEmojiData.get(subtype.primaryLocale)
+        // One call into Rust, a fraction of a millisecond, so no longer moved to Dispatchers.Default.
+        return suggestEmojis(data, content.composingText, prefix, minLength, preferredSkinTone, maxCandidateCount).map { emoji ->
+            EmojiSuggestionCandidate(
+                emoji = emoji,
+                showName = showName,
+                sourceProvider = this@EmojiSuggestionProvider,
+            )
         }
-        return candidates
     }
 
     override suspend fun notifySuggestionAccepted(subtype: Subtype, candidate: SuggestionCandidate) {
@@ -111,33 +95,33 @@ class EmojiSuggestionProvider(private val context: Context) : SuggestionProvider
     override suspend fun getFrequencyForWord(subtype: Subtype, word: String) = 0.0
 
     override suspend fun destroy() {
-        cachedEmojiMappings.invalidateAll()
+        cachedEmojiData.invalidateAll()
     }
 
-    /**
-     * Validates the user input query for emoji suggestions.
-     */
-    private fun validateInputQuery(composingText: CharSequence): String? {
-        val prefix = prefs.emoji.suggestionType.get().prefix
-        val queryMinLength = prefs.emoji.suggestionQueryMinLength.get() + prefix.length
-        if (prefix.isNotEmpty() && !composingText.startsWith(prefix)) {
-            return null
+    companion object {
+        /**
+         * The emoji [data] suggests for the [composingText], best first, at most [maxCandidateCount]: none unless
+         * the text is the prefix and then a query of at least [minLength] ASCII letters (`validateInputQuery`), else
+         * those shown for [skinTone] whose name or keywords hold the query, scored and sorted in Rust (see
+         * EmojiRules.validateQuery and EmojiTable.suggest).
+         */
+        internal fun suggestEmojis(
+            data: EmojiData?,
+            composingText: CharSequence,
+            prefix: String,
+            minLength: Int,
+            skinTone: EmojiSkinTone,
+            maxCandidateCount: Int,
+        ): List<Emoji> {
+            val query = EmojiRules.validateQuery(composingText.toString(), prefix, minLength) ?: return emptyList()
+            val table = data?.table
+            if (data == null || table == null) {
+                // No emoji to search; a negative count still throws, as Java's Stream.limit did.
+                require(maxCandidateCount >= 0) { maxCandidateCount.toString() }
+                return emptyList()
+            }
+            val emojis = data.bySkinTone.getValue(skinTone)
+            return table.suggest(query, skinTone.ordinal, maxCandidateCount).map { emojis[it] }
         }
-        if (composingText.length < queryMinLength) {
-            return null
-        }
-        val emojiPartialName = composingText.substring(prefix.length)
-        if (!lettersRegex.matches(emojiPartialName)) {
-            return null
-        }
-        return emojiPartialName
-    }
-}
-
-private fun String.containsWeighted(other: String, ignoreCase: Boolean = false): Double = let { str ->
-    if (str.contains(other, ignoreCase = ignoreCase)) {
-        other.length.toDouble() / str.length.toDouble()
-    } else {
-        0.0
     }
 }

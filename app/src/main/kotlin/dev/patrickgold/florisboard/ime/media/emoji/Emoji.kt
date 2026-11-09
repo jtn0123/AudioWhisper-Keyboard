@@ -16,6 +16,8 @@
 
 package dev.patrickgold.florisboard.ime.media.emoji
 
+import com.jtn0123.audiowhisper.rust.EmojiRules
+import com.jtn0123.audiowhisper.rust.EmojiTones
 import dev.patrickgold.florisboard.ime.keyboard.AbstractKeyData
 import dev.patrickgold.florisboard.ime.keyboard.ComputingEvaluator
 import dev.patrickgold.florisboard.ime.keyboard.KeyData
@@ -28,7 +30,6 @@ import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
 import java.util.stream.IntStream
-import kotlin.streams.toList
 
 enum class EmojiSkinTone(val id: Int) {
     DEFAULT(0x0),
@@ -47,25 +48,31 @@ enum class EmojiHairStyle(val id: Int) {
     BALD(0x1F9B3);
 }
 
-class Emoji(val value: String, val name: String, val keywords: List<String>) : KeyData {
+/**
+ * An emoji. Its [skinTone] and [hairStyle] are the first of each enum's entries whose id is one of
+ * its code points, else `DEFAULT`, as Rust finds them (lib/rust/crates/emoji, `EmojiRules.tones`);
+ * an emoji parsed from a file arrives with them found.
+ */
+class Emoji internal constructor(
+    val value: String,
+    val name: String,
+    val keywords: List<String>,
+    val skinTone: EmojiSkinTone,
+    val hairStyle: EmojiHairStyle,
+) : KeyData {
+    constructor(value: String, name: String, keywords: List<String>) : this(value, name, keywords, EmojiRules.tones(value))
+
+    private constructor(value: String, name: String, keywords: List<String>, tones: EmojiTones) :
+        this(value, name, keywords, EmojiSkinTone.entries[tones.skinTone], EmojiHairStyle.entries[tones.hairStyle])
+
     override val type = KeyType.CHARACTER
     override val code = KeyCode.UNSPECIFIED
     override val label = value
     override val groupId = 0
     override val popup: PopupSet<AbstractKeyData>? = null
 
-    val skinTone: EmojiSkinTone
-
-    val hairStyle: EmojiHairStyle
-
     val codePoints: IntStream
         get() = value.codePoints()
-
-    init {
-        val codePoints = value.codePoints().toList()
-        skinTone = EmojiSkinTone.entries.firstOrNull { codePoints.contains(it.id) } ?: EmojiSkinTone.DEFAULT
-        hairStyle = EmojiHairStyle.entries.firstOrNull { codePoints.contains(it.id) } ?: EmojiHairStyle.DEFAULT
-    }
 
     override fun compute(evaluator: ComputingEvaluator): KeyData {
         return this

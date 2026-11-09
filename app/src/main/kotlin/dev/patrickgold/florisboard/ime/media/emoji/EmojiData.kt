@@ -17,8 +17,10 @@
 package dev.patrickgold.florisboard.ime.media.emoji
 
 import android.content.Context
+import com.jtn0123.audiowhisper.rust.EmojiRules
+import com.jtn0123.audiowhisper.rust.EmojiTable
 import dev.patrickgold.florisboard.lib.FlorisLocale
-import org.florisboard.lib.android.bufferedReader
+import org.florisboard.lib.android.readText
 import io.github.reactivecircus.cache4k.Cache
 import java.util.*
 
@@ -31,6 +33,15 @@ data class EmojiData(
     val byCategory: EmojiDataByCategory,
     val bySkinTone: EmojiDataBySkinTone,
 ) {
+    /** The file parsed in Rust, which emoji suggestions search; null for data not read from a file. */
+    internal var table: EmojiTable? = null
+        private set
+
+    private constructor(byCategory: EmojiDataByCategory, bySkinTone: EmojiDataBySkinTone, table: EmojiTable) :
+        this(byCategory, bySkinTone) {
+        this.table = table
+    }
+
     companion object {
         private val cache = Cache.Builder<String, EmojiData>().build()
         val Fallback = empty()
@@ -67,68 +78,27 @@ data class EmojiData(
         }
 
         private fun loadEmojiDataMap(context: Context, path: String): EmojiData {
+            return parse(context.assets.readText(path))
+        }
+
+        /**
+         * Parses an emoji file's [text] in Rust (lib/rust/crates/emoji, which documents the
+         * format), and makes an [Emoji] of each emoji in it.
+         */
+        internal fun parse(text: String): EmojiData {
+            val table = EmojiTable.parse(text, EmojiCategory.entries.map { it.id })
+            val emojis = table.entries.map {
+                Emoji(it.value, it.name, it.keywords, EmojiSkinTone.entries[it.skinTone], EmojiHairStyle.entries[it.hairStyle])
+            }
             val byCategory = newByCategory()
+            for (set in table.sets) {
+                byCategory[EmojiCategory.entries[set.category]]!!.add(EmojiSet(emojis.subList(set.start, set.start + set.size)))
+            }
             val bySkinTone = newBySkinTone()
-
-            var ec: EmojiCategory? = null
-            var emojiEditorList: MutableList<Emoji>? = null
-
-            fun commitEmojiEditorList() {
-                emojiEditorList?.let { byCategory[ec]!!.add(EmojiSet(it)) }
-                emojiEditorList = null
+            for (skinTone in EmojiSkinTone.entries) {
+                table.bySkinTone[skinTone.ordinal].mapTo(bySkinTone[skinTone]!!) { emojis[it] }
             }
-
-            context.assets.bufferedReader(path).useLines { lines ->
-                for (line in lines) {
-                    if (line.startsWith("#")) {
-                        // Comment line
-                    } else if (line.startsWith("[")) {
-                        commitEmojiEditorList()
-                        ec = EmojiCategory.entries.find { it.id == line.slice(1 until (line.length - 1)) }
-                    } else if (line.trim().isEmpty() || ec == null) {
-                        // Empty line
-                        continue
-                    } else {
-                        if (!line.startsWith("\t")) {
-                            commitEmojiEditorList()
-                        }
-                        // Assume it is a data line
-                        val data = line.split(";")
-                        if (data.size == 3) {
-                            val base = emojiEditorList?.first()
-                            val emoji = Emoji(
-                                value = data[0].trim(),
-                                name = base?.name ?: data[1].trim(),
-                                keywords = data[2].split("|").map { it.trim() },
-                            )
-                            if (emojiEditorList != null) {
-                                emojiEditorList!!.add(emoji)
-                            } else {
-                                emojiEditorList = mutableListOf(emoji)
-                            }
-                        }
-                    }
-                }
-                commitEmojiEditorList()
-            }
-
-            for (category in byCategory.keys) {
-                for (emojiSet in byCategory[category]!!) {
-                    if (emojiSet.emojis.size == 1) {
-                        // No variations provided, we fallback to using the base for all skin tones
-                        val base = emojiSet.emojis.first()
-                        for (skinTone in EmojiSkinTone.entries) {
-                            bySkinTone[skinTone]!!.add(base)
-                        }
-                        continue
-                    }
-                    for (emoji in emojiSet.emojis) {
-                        bySkinTone[emoji.skinTone]!!.add(emoji)
-                    }
-                }
-            }
-
-            return EmojiData(byCategory, bySkinTone)
+            return EmojiData(byCategory, bySkinTone, table)
         }
 
         /**
@@ -155,22 +125,13 @@ data class EmojiData(
          */
         private fun resolveEmojiAssetPath(context: Context, locale: FlorisLocale): String? {
             val emojiAssets = context.assets.list("ime/media/emoji/")!!.toList()
-            val makePath = { file: String -> "ime/media/emoji/$file" }
-            val language = locale.language.lowercase()
-            val country = locale.country.takeIf { it.isNotBlank() }
-            val variant = locale.variant.takeIf { it.isNotBlank() }
-            if (variant != null && country != null) {
-                "${language}_${country}_${variant}.txt".takeIf { emojiAssets.contains(it) }?.let {
-                    return makePath(it)
-                }
-            }
-            if (country != null) {
-                "${language}_${country}.txt".takeIf { emojiAssets.contains(it) }?.let { return makePath(it) }
-            }
-            "${language}.txt".takeIf { emojiAssets.contains(it) }?.let {
-                return makePath(it)
-            }
-            return null
+            return resolveEmojiAssetPath(emojiAssets, locale.language, locale.country, locale.variant)
+        }
+
+        /** [resolveEmojiAssetPath] among the files [emojiAssets], for a locale's parts, chosen in Rust. */
+        internal fun resolveEmojiAssetPath(emojiAssets: List<String>, language: String, country: String, variant: String): String? {
+            val found = EmojiRules.resolveAsset(emojiAssets, language, country, variant)
+            return if (found == EmojiRules.NO_ASSET) null else "ime/media/emoji/${emojiAssets[found]}"
         }
     }
 }

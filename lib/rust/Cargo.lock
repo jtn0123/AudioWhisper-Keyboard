@@ -9,6 +9,7 @@ dependencies = [
  "chars",
  "composing",
  "dictation",
+ "emoji",
  "gestures",
  "gif",
  "glide",
@@ -34,6 +35,13 @@ dependencies = [
 
 [[package]]
 name = "dictation"
+version = "0.1.0"
+dependencies = [
+ "chars",
+]
+
+[[package]]
+name = "emoji"
 version = "0.1.0"
 dependencies = [
  "chars",
