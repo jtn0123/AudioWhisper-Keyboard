@@ -18,6 +18,7 @@ mod panic;
 mod popup;
 mod reader;
 mod screen;
+mod shift;
 mod spacing;
 mod suggest;
 mod text;

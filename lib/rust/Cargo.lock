@@ -15,6 +15,7 @@ dependencies = [
  "keys",
  "popup",
  "reader",
+ "shift",
  "spacing",
  "suggest",
 ]
@@ -61,6 +62,13 @@ version = "0.1.0"
 
 [[package]]
 name = "reader"
+version = "0.1.0"
+dependencies = [
+ "chars",
+]
+
+[[package]]
+name = "shift"
 version = "0.1.0"
 dependencies = [
  "chars",
