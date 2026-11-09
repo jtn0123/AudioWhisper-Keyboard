@@ -14,6 +14,7 @@ dependencies = [
  "jni-sys",
  "keys",
  "reader",
+ "spacing",
  "suggest",
 ]
 
@@ -55,6 +56,13 @@ version = "0.1.0"
 
 [[package]]
 name = "reader"
+version = "0.1.0"
+dependencies = [
+ "chars",
+]
+
+[[package]]
+name = "spacing"
 version = "0.1.0"
 dependencies = [
  "chars",

@@ -17,6 +17,7 @@ mod keys;
 mod panic;
 mod reader;
 mod screen;
+mod spacing;
 mod suggest;
 mod text;
 
