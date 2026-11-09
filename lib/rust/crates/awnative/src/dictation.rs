@@ -7,7 +7,7 @@
 use std::ptr;
 
 use dictation::{Spoken, Typing};
-use jni_sys::{JNI_FALSE, JNI_TRUE, JNIEnv, jboolean, jchar, jclass, jint, jobject};
+use jni_sys::{JNI_FALSE, JNIEnv, jboolean, jchar, jclass, jint, jobject};
 use jni_sys::{jobjectArray, jstring, jvalue};
 
 use crate::jni::{self, Env, Result};
@@ -136,7 +136,7 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_DictationNative_revert
             let typed = env.read_string(typed, "typed")?;
             let text = env.read_string(text_before_cursor, "textBeforeCursor")?;
             let reverts = dictation::reverts_at(&typed, start, cursor, &text);
-            Ok(if reverts { JNI_TRUE } else { JNI_FALSE })
+            Ok(jni::boolean(reverts))
         })
     }
 }

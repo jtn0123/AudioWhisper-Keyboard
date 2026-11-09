@@ -5,7 +5,8 @@
 use std::ffi::{CStr, CString};
 use std::ptr;
 
-use jni_sys::{JNIEnv, jarray, jmethodID, jobject, jobjectArray, jsize, jstring, jvalue};
+use jni_sys::{JNI_FALSE, JNI_TRUE, JNIEnv, jarray, jboolean, jmethodID, jobject, jobjectArray};
+use jni_sys::{jsize, jstring, jvalue};
 
 /// Why an entry point gave up: a Java exception to throw, or one the JVM already raised.
 #[derive(Debug)]
@@ -21,6 +22,11 @@ pub type Result<T> = std::result::Result<T, Error>;
 /// Shorthand for an [`Error::IllegalArgument`].
 pub fn illegal(message: impl Into<String>) -> Error {
     Error::IllegalArgument(message.into())
+}
+
+/// A Rust `bool` as a Java `boolean`.
+pub fn boolean(value: bool) -> jboolean {
+    if value { JNI_TRUE } else { JNI_FALSE }
 }
 
 /// `text` cut into pieces of these `lengths`, in order: how a long list of strings crosses JNI as
@@ -94,6 +100,12 @@ macro_rules! element {
     };
 }
 
+element!(
+    jboolean,
+    GetBooleanArrayRegion,
+    NewBooleanArray,
+    SetBooleanArrayRegion
+);
 element!(u16, GetCharArrayRegion, NewCharArray, SetCharArrayRegion);
 element!(i32, GetIntArrayRegion, NewIntArray, SetIntArrayRegion);
 element!(f32, GetFloatArrayRegion, NewFloatArray, SetFloatArrayRegion);

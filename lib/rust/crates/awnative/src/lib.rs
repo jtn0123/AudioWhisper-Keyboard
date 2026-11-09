@@ -11,6 +11,7 @@ mod glide;
 mod handle;
 mod jni;
 mod panic;
+mod reader;
 mod suggest;
 mod text;
 

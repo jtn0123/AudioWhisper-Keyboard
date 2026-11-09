@@ -12,18 +12,14 @@ mod word_learner;
 
 use std::ptr;
 
-use jni_sys::{JNI_FALSE, JNI_TRUE, JNIEnv, jboolean, jclass, jfloat, jint, jintArray};
+use jni_sys::{JNI_FALSE, JNIEnv, jboolean, jclass, jfloat, jint, jintArray};
 use jni_sys::{jobjectArray, jstring};
 use suggest::learned_words::NegativeCount;
 use suggest::raw::RawSuggestion;
 use suggest::word_case::{self, WordCase};
 use suggest::{auto_correction, previous_words, undo, word_characters};
 
-use crate::jni::{self, Error, Result, illegal};
-
-fn boolean(value: bool) -> jboolean {
-    if value { JNI_TRUE } else { JNI_FALSE }
-}
+use crate::jni::{self, Error, Result, boolean, illegal};
 
 /// The strings of a `String[]` that may hold no null.
 fn non_null(strings: Vec<Option<Vec<u16>>>) -> Result<Vec<Vec<u16>>> {

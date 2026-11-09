@@ -6,9 +6,9 @@
 use std::ptr;
 
 use jni_sys::jstring;
-use jni_sys::{JNI_FALSE, JNI_TRUE, JNIEnv, jboolean, jchar, jclass, jint, jintArray, jlong};
+use jni_sys::{JNI_FALSE, JNIEnv, jboolean, jchar, jclass, jint, jintArray, jlong};
 
-use crate::jni::{self, Env, Result};
+use crate::jni::{self, Env, Result, boolean};
 
 // The bits of `unitFacts`' first value, which `JavaTextNative` reads.
 const LETTER: jint = 1;
@@ -22,10 +22,6 @@ const REGEX_SPACE: jint = 128;
 
 /// What `toIntOrNull` returns for null: no `Int` is `Long.MIN_VALUE`.
 const NO_INT: jlong = jlong::MIN;
-
-fn boolean(value: bool) -> jboolean {
-    if value { JNI_TRUE } else { JNI_FALSE }
-}
 
 /// `unit`'s `Char` predicates, as bits, then its `uppercaseChar()`, its `lowercaseChar()` and
 /// the first code point of its NFD.
