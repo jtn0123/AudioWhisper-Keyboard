@@ -15,6 +15,7 @@ chars = { path = "../chars" }
 dictation = { path = "../dictation" }
 gif = { path = "../gif" }
 glide = { path = "../glide" }
+keys = { path = "../keys" }
 reader = { path = "../reader" }
 suggest = { path = "../suggest" }
 # jni.h as Rust declarations, nothing more. 0.3.0 has no dependencies of its own.

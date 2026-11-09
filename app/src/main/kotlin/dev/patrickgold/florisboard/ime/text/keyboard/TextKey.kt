@@ -16,6 +16,7 @@
 
 package dev.patrickgold.florisboard.ime.text.keyboard
 
+import com.jtn0123.audiowhisper.rust.KeyGeometry
 import dev.patrickgold.florisboard.app.FlorisPreferenceStore
 import dev.patrickgold.florisboard.ime.keyboard.AbstractKeyData
 import dev.patrickgold.florisboard.ime.keyboard.ComputingEvaluator
@@ -121,54 +122,19 @@ class TextKey(override val data: AbstractKeyData) : Key(data) {
             isEnabled = evaluator.evaluateEnabled(computed)
             isVisible = true
 
-            flayShrink = when (keyboardMode) {
-                KeyboardMode.NUMERIC,
-                KeyboardMode.NUMERIC_ADVANCED,
-                KeyboardMode.PHONE,
-                KeyboardMode.PHONE2 -> 1.0f
-                else -> when (computed.code) {
-                    KeyCode.SHIFT,
-                    KeyCode.DELETE -> 1.5f
-                    KeyCode.VIEW_CHARACTERS,
-                    KeyCode.VIEW_SYMBOLS,
-                    KeyCode.VIEW_SYMBOLS2,
-                    KeyCode.ENTER -> 0.0f
-                    else -> 1.0f
-                }
-            }
-            flayGrow = when (keyboardMode) {
-                KeyboardMode.NUMERIC,
-                KeyboardMode.PHONE,
-                KeyboardMode.PHONE2 -> 0.0f
-                KeyboardMode.NUMERIC_ADVANCED -> when (computed.type) {
-                    KeyType.NUMERIC -> 1.0f
-                    else -> 0.0f
-                }
-                else -> when (computed.code) {
-                    KeyCode.SPACE, KeyCode.CJK_SPACE -> 1.0f
-                    else -> 0.0f
-                }
-            }
-            flayWidthFactor = when (keyboardMode) {
-                KeyboardMode.NUMERIC,
-                KeyboardMode.PHONE,
-                KeyboardMode.PHONE2 -> 2.68f
-                KeyboardMode.NUMERIC_ADVANCED -> when (computed.code) {
-                    44, 46 -> 1.00f
-                    KeyCode.VIEW_SYMBOLS, 61 -> 1.26f
-                    else -> 1.56f
-                }
-                else -> when (computed.code) {
-                    KeyCode.SHIFT,
-                    KeyCode.DELETE -> 1.56f
-                    KeyCode.VIEW_CHARACTERS,
-                    KeyCode.VIEW_SYMBOLS,
-                    KeyCode.VIEW_SYMBOLS2,
-                    KeyCode.ENTER -> 1.56f
-                    else -> 1.00f
-                }
-            }
+            applyFlex(keyboardMode, computed.code, computed.type)
         }
+    }
+
+    /**
+     * Sets the flex factors of this visible key, with [code] and [type] on a keyboard of
+     * [keyboardMode], from the table in Rust (lib/rust/crates/keys).
+     */
+    internal fun applyFlex(keyboardMode: KeyboardMode, code: Int, type: KeyType) {
+        val flex = KeyGeometry.flex(keyboardMode.value, code, type == KeyType.NUMERIC)
+        flayShrink = flex.shrink
+        flayGrow = flex.grow
+        flayWidthFactor = flex.widthFactor
     }
 
     inline fun setPressed(state: Boolean, blockIfChanged: () -> Unit) {

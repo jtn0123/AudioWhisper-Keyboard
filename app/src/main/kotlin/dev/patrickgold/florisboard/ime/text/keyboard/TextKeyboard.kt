@@ -16,11 +16,12 @@
 
 package dev.patrickgold.florisboard.ime.text.keyboard
 
+import com.jtn0123.audiowhisper.rust.KeyGeometry
 import dev.patrickgold.florisboard.ime.keyboard.Key
 import dev.patrickgold.florisboard.ime.keyboard.Keyboard
 import dev.patrickgold.florisboard.ime.keyboard.KeyboardMode
 import dev.patrickgold.florisboard.ime.popup.PopupMapping
-import kotlin.math.abs
+import dev.patrickgold.florisboard.lib.FlorisRect
 
 class TextKeyboard(
     val arrangement: Array<Array<TextKey>>,
@@ -34,121 +35,84 @@ class TextKeyboard(
     val keyCount: Int
         get() = arrangement.sumOf { it.size }
 
+    /** The keys in row order, and how many each row has: how [KeyGeometry] takes them. */
+    private val flatKeys: Array<TextKey> = arrangement.flatten().toTypedArray()
+    private val rowSizes = IntArray(arrangement.size) { arrangement[it].size }
+
+    /** Each key's touch bounds as of the last [layout], four Floats a key, for [getKeyForPos]. */
+    @Volatile
+    private var touchBounds = FloatArray(4 * flatKeys.size)
+
+    /** The first key whose touch bounds hold the pointer, in Rust (lib/rust/crates/keys). */
     override fun getKeyForPos(pointerX: Float, pointerY: Float): TextKey? {
-        for (key in keys()) {
-            if (key.touchBounds.contains(pointerX, pointerY)) {
-                return key
-            }
-        }
-        return null
+        val index = KeyGeometry.keyAt(rowSizes, touchBounds, pointerX, pointerY)
+        return if (index < 0) null else flatKeys[index]
     }
 
+    /**
+     * Lays the keys out from [desiredKey] in Rust (lib/rust/crates/keys): each row's keys grow or
+     * shrink by their flex factors to fill the width, the rows spread down the height, and the end
+     * keys' touch bounds reach the keyboard's edges.
+     */
     override fun layout(
         keyboardWidth: Float,
         keyboardHeight: Float,
         desiredKey: Key,
         extendTouchBoundariesDownwards: Boolean,
     ) {
-        if (arrangement.isEmpty()) return
-
-        val desiredTouchBounds = desiredKey.touchBounds
-        val desiredVisibleBounds = desiredKey.visibleBounds
-        if (desiredTouchBounds.isEmpty() || desiredVisibleBounds.isEmpty()) return
-        if (keyboardWidth.isNaN() || keyboardHeight.isNaN()) return
-        val rowMarginH = abs(desiredTouchBounds.width - desiredVisibleBounds.width)
-        val rowMarginV = (keyboardHeight - desiredTouchBounds.height * rowCount.toFloat()) / (rowCount - 1).coerceAtLeast(1).toFloat()
-
-        for ((r, row) in rows().withIndex()) {
-            val posY = (desiredTouchBounds.height + rowMarginV) * r
-            val availableWidth = (keyboardWidth - rowMarginH) / desiredTouchBounds.width
-            var requestedWidth = 0.0f
-            var shrinkSum = 0.0f
-            var growSum = 0.0f
-            for (key in row) {
-                requestedWidth += key.flayWidthFactor
-                shrinkSum += key.flayShrink
-                growSum += key.flayGrow
-            }
-            if (requestedWidth <= availableWidth) {
-                // Requested with is smaller or equal to the available with, so we can grow
-                val additionalWidth = availableWidth - requestedWidth
-                var posX = rowMarginH / 2.0f
-                for ((k, key) in row.withIndex()) {
-                    val keyWidth = desiredTouchBounds.width * when (growSum) {
-                        0.0f -> when (k) {
-                            0, row.size - 1 -> key.flayWidthFactor + additionalWidth / 2.0f
-                            else -> key.flayWidthFactor
-                        }
-                        else -> key.flayWidthFactor + additionalWidth * (key.flayGrow / growSum)
-                    }
-                    key.touchBounds.apply {
-                        left = posX
-                        top = posY
-                        right = posX + keyWidth
-                        bottom = posY + desiredTouchBounds.height
-                    }
-                    key.visibleBounds.apply {
-                        left = key.touchBounds.left + abs(desiredTouchBounds.left - desiredVisibleBounds.left) + when {
-                            growSum == 0.0f && k == 0 -> ((additionalWidth / 2.0f) * desiredTouchBounds.width)
-                            else -> 0.0f
-                        }
-                        top = key.touchBounds.top + abs(desiredTouchBounds.top - desiredVisibleBounds.top)
-                        right = key.touchBounds.right - abs(desiredTouchBounds.right - desiredVisibleBounds.right) - when {
-                            growSum == 0.0f && k == row.size - 1 -> ((additionalWidth / 2.0f) * desiredTouchBounds.width)
-                            else -> 0.0f
-                        }
-                        bottom = key.touchBounds.bottom - abs(desiredTouchBounds.bottom - desiredVisibleBounds.bottom)
-                    }
-                    posX += keyWidth
-                    // After-adjust touch bounds for the row margin
-                    key.touchBounds.apply {
-                        if (k == 0) {
-                            left = 0.0f
-                        } else if (k == row.size - 1) {
-                            right = keyboardWidth
-                        }
-                        if (extendTouchBoundariesDownwards && r + 1 == arrangement.size) {
-                            bottom += height
-                        }
-                    }
-                }
-            } else {
-                // Requested size too big, must shrink.
-                val clippingWidth = requestedWidth - availableWidth
-                var posX = rowMarginH / 2.0f
-                for ((k, key) in row.withIndex()) {
-                    val keyWidth = desiredTouchBounds.width * if (key.flayShrink == 0.0f) {
-                        key.flayWidthFactor
-                    } else {
-                        key.flayWidthFactor - clippingWidth * (key.flayShrink / shrinkSum)
-                    }
-                    key.touchBounds.apply {
-                        left = posX
-                        top = posY
-                        right = posX + keyWidth
-                        bottom = posY + desiredTouchBounds.height
-                    }
-                    key.visibleBounds.apply {
-                        left = key.touchBounds.left + abs(desiredTouchBounds.left - desiredVisibleBounds.left)
-                        top = key.touchBounds.top + abs(desiredTouchBounds.top - desiredVisibleBounds.top)
-                        right = key.touchBounds.right - abs(desiredTouchBounds.right - desiredVisibleBounds.right)
-                        bottom = key.touchBounds.bottom - abs(desiredTouchBounds.bottom - desiredVisibleBounds.bottom)
-                    }
-                    posX += keyWidth
-                    // After-adjust touch bounds for the row margin
-                    key.touchBounds.apply {
-                        if (k == 0) {
-                            left = 0.0f
-                        } else if (k == row.size - 1) {
-                            right = keyboardWidth
-                        }
-                        if (extendTouchBoundariesDownwards && r + 1 == arrangement.size) {
-                            bottom += height
-                        }
-                    }
-                }
-            }
+        val flex = FloatArray(3 * flatKeys.size)
+        for ((i, key) in flatKeys.withIndex()) {
+            flex[3 * i] = key.flayWidthFactor
+            flex[3 * i + 1] = key.flayShrink
+            flex[3 * i + 2] = key.flayGrow
         }
+        val desired = FloatArray(8)
+        desiredKey.touchBounds.writeTo(desired, 0)
+        desiredKey.visibleBounds.writeTo(desired, 4)
+        val bounds = KeyGeometry.layout(
+            rowSizes, flex, desired, keyboardWidth, keyboardHeight, extendTouchBoundariesDownwards,
+        ) ?: return
+        val touch = FloatArray(4 * flatKeys.size)
+        for ((i, key) in flatKeys.withIndex()) {
+            key.touchBounds.readFrom(bounds, 8 * i)
+            key.visibleBounds.readFrom(bounds, 8 * i + 4)
+            bounds.copyInto(touch, 4 * i, 8 * i, 8 * i + 4)
+        }
+        touchBounds = touch
+    }
+
+    /**
+     * Sizes [desiredKey], a new key, as the one to lay this keyboard out with, in Rust
+     * (lib/rust/crates/keys): a tenth of [keyboardWidth] wide and a row high, with its visible
+     * bounds inside the key margins. [rowBaseHeight] and the margins are in pixels.
+     */
+    fun sizeDesiredKey(
+        desiredKey: Key,
+        keyboardWidth: Float,
+        keyboardHeight: Float,
+        rowBaseHeight: Float,
+        keyMarginH: Float,
+        keyMarginV: Float,
+    ) {
+        val bounds = KeyGeometry.desiredKey(
+            mode.value, keyboardWidth, keyboardHeight, rowCount, rowBaseHeight, keyMarginH, keyMarginV,
+        )
+        desiredKey.touchBounds.readFrom(bounds, 0)
+        desiredKey.visibleBounds.readFrom(bounds, 4)
+    }
+
+    private fun FlorisRect.writeTo(values: FloatArray, at: Int) {
+        values[at] = left
+        values[at + 1] = top
+        values[at + 2] = right
+        values[at + 3] = bottom
+    }
+
+    private fun FlorisRect.readFrom(values: FloatArray, at: Int) {
+        left = values[at]
+        top = values[at + 1]
+        right = values[at + 2]
+        bottom = values[at + 3]
     }
 
     override fun keys(): Iterator<TextKey> {
