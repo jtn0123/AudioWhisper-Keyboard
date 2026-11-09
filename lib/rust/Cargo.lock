@@ -13,6 +13,7 @@ dependencies = [
  "glide",
  "jni-sys",
  "keys",
+ "popup",
  "reader",
  "spacing",
  "suggest",
@@ -52,6 +53,10 @@ checksum = "8eaf4bc02d17cbdd7ff4c7438cafcdf7fb9a4613313ad11b4f8fefe7d3fa0130"
 
 [[package]]
 name = "keys"
+version = "0.1.0"
+
+[[package]]
+name = "popup"
 version = "0.1.0"
 
 [[package]]

@@ -15,6 +15,7 @@ mod handle;
 mod jni;
 mod keys;
 mod panic;
+mod popup;
 mod reader;
 mod screen;
 mod spacing;

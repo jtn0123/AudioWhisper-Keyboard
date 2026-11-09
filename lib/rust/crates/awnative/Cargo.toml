@@ -17,6 +17,7 @@ gestures = { path = "../gestures" }
 gif = { path = "../gif" }
 glide = { path = "../glide" }
 keys = { path = "../keys" }
+popup = { path = "../popup" }
 reader = { path = "../reader" }
 spacing = { path = "../spacing" }
 suggest = { path = "../suggest" }
