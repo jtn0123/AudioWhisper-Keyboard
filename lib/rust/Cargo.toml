@@ -23,3 +23,11 @@ lto = true
 # A panic aborts the process rather than unwinding into the JVM; the panic hook logs it first.
 panic = "abort"
 strip = true
+
+# The differential tests put hundreds of thousands of questions to the port and to LatinIME's C++;
+# unoptimised, the C++ alone took over a minute. Overflow checks and debug assertions stay on.
+[profile.dev.package.latin]
+opt-level = 2
+
+[profile.dev.package.latin-oracle]
+opt-level = 2
