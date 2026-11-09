@@ -105,7 +105,7 @@ unsafe extern "C" {
 }
 
 /// The one lock every call into the C++ holds, taken after JNI_OnLoad has registered the natives.
-pub(crate) fn lock() -> MutexGuard<'static, ()> {
+pub fn lock() -> MutexGuard<'static, ()> {
     static LOCK: Mutex<()> = Mutex::new(());
     static LOADED: OnceLock<i32> = OnceLock::new();
     let guard = LOCK.lock().unwrap_or_else(|it| it.into_inner());
@@ -152,6 +152,12 @@ pub struct Dictionary {
 }
 
 impl Dictionary {
+    /// The C++ object (a `latinime::Dictionary *`) as a number, for hooks that reach below the JNI methods.
+    /// Call the hook holding [`hooks::lock`].
+    pub fn address(&self) -> i64 {
+        self.handle
+    }
+
     /// The `size` bytes at `offset` in `path`, or `None` if they aren't a usable dictionary.
     pub fn open(path: &Path, offset: i64, size: i64) -> Option<Self> {
         let path = CString::new(path.to_str().expect("ASCII path")).expect("no NUL in path");
@@ -245,6 +251,12 @@ pub struct Proximity {
 }
 
 impl Proximity {
+    /// The C++ object (a `latinime::ProximityInfo *`) as a number, for hooks that reach below the JNI methods.
+    /// Call the hook holding [`hooks::lock`].
+    pub fn address(&self) -> i64 {
+        self.handle
+    }
+
     pub fn qwerty() -> Self {
         let keys: Vec<qwerty::Key> = qwerty::keys().collect();
         let column = |f: &dyn Fn(&qwerty::Key) -> i32| keys.iter().map(f).collect::<Vec<i32>>();
@@ -295,6 +307,12 @@ pub struct Session {
 }
 
 impl Session {
+    /// The C++ object (a `latinime::DicTraverseSession *`) as a number, for hooks that reach below the JNI methods.
+    /// Call the hook holding [`hooks::lock`].
+    pub fn address(&self) -> i64 {
+        self.handle
+    }
+
     pub fn new(locale: &str, dictionary: &Dictionary) -> Self {
         let locale = CString::new(locale).expect("no NUL in locale");
         let _lock = lock();

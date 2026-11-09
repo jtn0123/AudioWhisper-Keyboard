@@ -2,6 +2,8 @@
 //! `cpp/hooks/<area>.cpp`) so that area of the Rust port can be compared with it on its own,
 //! before the whole decoder is.
 
+pub use crate::lock;
+
 pub mod bytes;
 pub mod chars;
 pub mod header;
