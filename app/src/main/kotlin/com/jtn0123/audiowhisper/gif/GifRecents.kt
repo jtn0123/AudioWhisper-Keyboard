@@ -1,12 +1,14 @@
 package com.jtn0123.audiowhisper.gif
 
+import com.jtn0123.audiowhisper.rust.GifRules
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
 import java.io.File
 import java.io.IOException
 
 /**
- * The GIFs the user sent, newest first, so they can be sent again without a GIPHY call.
+ * The GIFs the user sent, newest first, so they can be sent again without a GIPHY call. Their
+ * order is decided in Rust ([GifRules.recentsAdd]).
  * Stored in [file] (files/gif-recents.json, never backed up), never logged, and not added to
  * in incognito. Loaded on a background thread and used on the main one, hence the locking.
  */
@@ -21,9 +23,10 @@ internal class GifRecents(private val file: File?, private val capacity: Int = C
     /** [gif] was sent: it goes first, once. */
     @Synchronized
     fun add(gif: Gif) {
-        gifs.removeAll { it.id == gif.id }
-        gifs.add(0, gif)
-        while (gifs.size > capacity) gifs.removeAt(gifs.lastIndex)
+        val before = gifs.toList()
+        val order = GifRules.recentsAdd(before.map { it.id }, gif.id, capacity)
+        gifs.clear()
+        order.mapTo(gifs) { if (GifRules.isSent(it)) gif else before[it] }
     }
 
     /** Reads [file], keeping anything sent before it finished. A missing or damaged file is no GIFs. */
@@ -37,9 +40,9 @@ internal class GifRecents(private val file: File?, private val capacity: Int = C
         } ?: return
         synchronized(this) {
             val sentMeanwhile = gifs.toList()
+            val order = GifRules.recentsLoad(saved.map { it.id }, sentMeanwhile.map { it.id }, capacity)
             gifs.clear()
-            gifs.addAll(saved.take(capacity))
-            sentMeanwhile.asReversed().forEach(::add)
+            order.mapTo(gifs) { if (GifRules.isSent(it)) sentMeanwhile[GifRules.index(it)] else saved[it] }
         }
     }
 
@@ -57,7 +60,7 @@ internal class GifRecents(private val file: File?, private val capacity: Int = C
     }
 
     companion object {
-        const val CAPACITY = 30
+        val CAPACITY: Int = GifRules.recentsCapacity
         private val json = Json { ignoreUnknownKeys = true }
     }
 }

@@ -2,6 +2,7 @@ package com.jtn0123.audiowhisper.gif
 
 import android.os.SystemClock
 import android.util.Log
+import com.jtn0123.audiowhisper.rust.GifRules
 import dev.patrickgold.florisboard.BuildConfig
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -29,15 +30,12 @@ object GifSearch {
         data class Failed(val message: String) : Results
     }
 
-    /** The quick searches under the search field; "Trending" is GIPHY's trending list. */
-    val categories = listOf(
-        "Trending", "Haha", "Yes", "No", "Thank you", "Love", "Wow", "Sad",
-        "Hi", "Bye", "Congrats", "Dance", "Facepalm", "OK",
-    )
-    const val TRENDING = "Trending"
+    /** The quick searches under the search field; [TRENDING] is GIPHY's trending list. */
+    val categories: List<String> = GifRules.categories
+    val TRENDING: String = GifRules.trending
 
     /** The GIFs sent before ([GifRecents]): a chip that needs no GIPHY call. */
-    const val RECENTS = "Recents"
+    val RECENTS: String = GifRules.recents
 
     private val giphy = BuildConfig.GIPHY_API_KEY.takeIf { it.isNotBlank() }?.let { Giphy(it) }
 
@@ -126,12 +124,7 @@ object GifSearch {
      * [typedWord] goes first, unless it is one of the chips already, which then moves first
      * instead ("congrats" brings Congrats forward).
      */
-    internal fun chips(typedWord: String?, hasRecents: Boolean): List<String> {
-        val rest = (if (hasRecents) listOf(RECENTS) else emptyList()) + categories
-        if (typedWord == null) return rest
-        val same = rest.firstOrNull { it.equals(typedWord, ignoreCase = true) }
-        return if (same != null) listOf(same) + (rest - same) else listOf(typedWord) + rest
-    }
+    internal fun chips(typedWord: String?, hasRecents: Boolean): List<String> = GifRules.chips(typedWord, hasRecents)
 
     fun startTyping() {
         mutableQuery.value = if (shown.value == TRENDING) "" else shown.value
@@ -222,57 +215,36 @@ object GifSearch {
 
     private const val RECENTS_FILE = "gif-recents.json"
 
-    internal fun problem(e: IOException) = when (e) {
-        is GiphyFormatException -> "GIPHY sent something unreadable. Try again later."
-        is GiphyException -> when (e.status) {
-            401, 403 -> "GIPHY didn't accept the API key."
-            429 -> "GIPHY's hourly limit is used up. Try again later."
-            else -> "GIPHY isn't answering right now."
-        }
-        else -> "Couldn't reach GIPHY. Check your connection."
+    internal fun problem(e: IOException): String = when (e) {
+        is GiphyFormatException -> GifRules.problem(GifRules.Failure.UNREADABLE)
+        is GiphyException -> GifRules.problem(GifRules.Failure.STATUS, e.status)
+        else -> GifRules.problem(GifRules.Failure.UNREACHABLE)
     }
 }
 
-/** Editing the search field, kept free of Android so it can be unit tested. */
+/** Editing the search field, in Rust (lib/rust/crates/gif), kept free of Android so it can be unit tested. */
 internal object SearchText {
-    const val MAX_LENGTH = 50
+    /** The longest query, in UTF-16 units: GIPHY's limit. */
+    val MAX_LENGTH: Int = GifRules.maxLength
 
-    fun type(query: String, text: String): String = (query + text).take(MAX_LENGTH)
+    /** [query] with [text] typed after it, cut at [MAX_LENGTH]. */
+    fun type(query: String, text: String): String = GifRules.type(query, text)
 
-    fun typeWord(query: String, word: String): String {
-        val separator = if (query.isEmpty() || query.endsWith(' ')) "" else " "
-        return type(query, separator + word)
-    }
+    /** A glide-typed [word], spaced from the one before. */
+    fun typeWord(query: String, word: String): String = GifRules.typeWord(query, word)
 
-    fun deleteLast(query: String): String {
-        if (query.isEmpty()) return query
-        val end = if (query.length >= 2 && Character.isSurrogatePair(query[query.length - 2], query.last())) 2 else 1
-        return query.dropLast(end)
-    }
+    /** [query] without its last character, an emoji counting as one. */
+    fun deleteLast(query: String): String = deleteLast(query, 1)
 
-    fun deleteLast(query: String, count: Int): String {
-        var left = query
-        repeat(count) { left = deleteLast(left) }
-        return left
-    }
+    /** [query] without its last [count] characters. */
+    fun deleteLast(query: String, count: Int): String = GifRules.deleteLast(query, count)
 
     /** Deletes [count] words from the end, and the spaces after them; the space before stays. */
-    fun deleteWords(query: String, count: Int): String {
-        var left = query
-        repeat(count) { left = left.trimEnd().dropLastWhile { !it.isWhitespace() } }
-        return left
-    }
+    fun deleteWords(query: String, count: Int): String = GifRules.deleteWords(query, count)
 
     /**
      * The word just typed before the cursor, to offer as a GIF search: "congrats" from "Big
-     * congrats! ". Null when the text doesn't end in a word of [MIN_WORD]-[MAX_WORD] letters.
+     * congrats! ". Null when the text doesn't end in a word of 2 to 30 letters.
      */
-    fun lastWord(text: CharSequence?): String? {
-        val end = text?.toString()?.trimEnd { it.isWhitespace() || it in ".,!?;:" } ?: return null
-        val word = end.takeLastWhile { it.isLetter() || it == '\'' }.trim('\'')
-        return word.takeIf { it.length in MIN_WORD..MAX_WORD }
-    }
-
-    private const val MIN_WORD = 2
-    private const val MAX_WORD = 30
+    fun lastWord(text: CharSequence?): String? = GifRules.lastWord(text)
 }
