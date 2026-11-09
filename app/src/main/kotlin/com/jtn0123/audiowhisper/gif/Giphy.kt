@@ -1,14 +1,12 @@
 package com.jtn0123.audiowhisper.gif
 
+import com.jtn0123.audiowhisper.rust.GiphyRules
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.Json
 import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
-import java.net.URLEncoder
 
 /** One GIF: a small animated preview for the panel, and the GIF that gets sent. Saved in [GifRecents]. */
 @Serializable
@@ -33,17 +31,21 @@ class GiphyFormatException(cause: Throwable) : IOException("GIPHY sent an unread
  * GIPHY's GIF API (https://developers.giphy.com/docs/api/endpoint). A beta key allows 100 calls an
  * hour, so the panel calls it only when the user asks for something: trending once, then a call
  * per search or category. Previews and sent GIFs come from GIPHY's media servers, which don't count.
+ *
+ * The URLs and the reading of GIPHY's answers are in Rust ([GiphyRules]); this makes the call.
  */
 class Giphy(private val apiKey: String) {
-    suspend fun trending(): List<Gif> = fetch(url("trending", emptyMap()))
+    suspend fun trending(): List<Gif> = fetch(trendingUrl())
 
-    suspend fun search(query: String): List<Gif> = fetch(url("search", mapOf("q" to query.take(MAX_QUERY_LENGTH))))
+    /** Searches for [query], cut to GIPHY's 50-character limit. */
+    suspend fun search(query: String): List<Gif> = fetch(searchUrl(query))
 
-    internal fun url(endpoint: String, params: Map<String, String>): String {
-        val query = (params + mapOf("api_key" to apiKey, "limit" to "$LIMIT", "rating" to RATING, "lang" to "en"))
-            .entries.joinToString("&") { (name, value) -> "$name=${URLEncoder.encode(value, "UTF-8")}" }
-        return "$BASE_URL/$endpoint?$query"
-    }
+    internal fun trendingUrl(): String = GiphyRules.trendingUrl(apiKey)
+
+    internal fun searchUrl(query: String): String = GiphyRules.searchUrl(apiKey, query)
+
+    /** The URL that asks [endpoint] with [params], then the key, a limit of 30, rating pg-13 and English. */
+    internal fun url(endpoint: String, params: Map<String, String>): String = GiphyRules.url(apiKey, endpoint, params)
 
     private suspend fun fetch(url: String): List<Gif> = withContext(Dispatchers.IO) {
         val connection = URL(url).openConnection() as HttpURLConnection
@@ -59,57 +61,17 @@ class Giphy(private val apiKey: String) {
     }
 
     companion object {
-        private const val BASE_URL = "https://api.giphy.com/v1/gifs"
-        private const val LIMIT = 30
-        private const val RATING = "pg-13"
-        private const val MAX_QUERY_LENGTH = 50
         private const val TIMEOUT_MS = 10_000
-
-        private val json = Json { ignoreUnknownKeys = true }
 
         /**
          * The GIFs in a search or trending response, skipping any without an id or the renditions we
-         * need. A body that isn't the expected JSON throws [GiphyFormatException].
+         * need, and repeats of an id. A body that isn't the expected JSON throws [GiphyFormatException].
+         * Read as kotlinx.serialization (`ignoreUnknownKeys`) and `toFloatOrNull` read it.
          */
-        fun parse(body: String): List<Gif> {
-            val response = try {
-                json.decodeFromString<Response>(body)
-            } catch (e: IllegalArgumentException) {
-                // kotlinx.serialization's SerializationException is an IllegalArgumentException.
-                throw GiphyFormatException(e)
-            }
-            return response.data.mapNotNull { it.toGif() }.distinctBy { it.id }
-        }
-
-        private fun Item.toGif(): Gif? {
-            if (id.isBlank()) return null
-            val preview = images.fixedWidth ?: return null
-            val previewUrl = preview.webp ?: preview.url ?: return null
-            val width = preview.width?.toFloatOrNull() ?: return null
-            val height = preview.height?.toFloatOrNull()?.takeIf { it > 0f } ?: return null
-            val sendUrl = images.downsized?.url ?: preview.url ?: return null
-            return Gif(id, title, previewUrl, width / height, sendUrl, url)
+        fun parse(body: String): List<Gif> = try {
+            GiphyRules.parse(body, ::Gif)
+        } catch (e: IllegalArgumentException) {
+            throw GiphyFormatException(e)
         }
     }
-
-    @Serializable
-    private class Response(val data: List<Item> = emptyList())
-
-    @Serializable
-    private class Item(val id: String = "", val title: String = "", val url: String = "", val images: Images = Images())
-
-    @Serializable
-    private class Images(
-        @SerialName("fixed_width") val fixedWidth: Rendition? = null,
-        val downsized: Rendition? = null,
-    )
-
-    /** GIPHY sends sizes as strings. */
-    @Serializable
-    private class Rendition(
-        val url: String? = null,
-        val webp: String? = null,
-        val width: String? = null,
-        val height: String? = null,
-    )
 }
