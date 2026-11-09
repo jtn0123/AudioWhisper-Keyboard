@@ -19,10 +19,10 @@ internal class FollowAlong(private val scroller: AccessibilityNodeInfo?, private
     suspend fun show(node: AccessibilityNodeInfo) {
         if (!node.refresh()) return
         val span = span(node) ?: return showOwnView(node)
-        when {
-            fits(span) -> Unit
-            span.first < view.top || scroller == null -> node.performAction(SHOW_ON_SCREEN)
-            else -> turnPages(node, scroller)
+        when (ScreenRules.move(span.first, span.last, view.top, view.bottom, canTurn = scroller != null)) {
+            ScreenRules.Move.STAY -> Unit
+            ScreenRules.Move.SHOW_ON_SCREEN -> node.performAction(SHOW_ON_SCREEN)
+            ScreenRules.Move.TURN_PAGES -> turnPages(node, checkNotNull(scroller))
         }
     }
 
@@ -31,22 +31,22 @@ internal class FollowAlong(private val scroller: AccessibilityNodeInfo?, private
             if (!scroller.performAction(AccessibilityAction.ACTION_SCROLL_FORWARD.id)) return
             delay(TURN_MS)
             val span = node.takeIf { it.refresh() }?.let(::span) ?: return
-            if (span.first < view.top) {
-                node.performAction(SHOW_ON_SCREEN)
-                return
+            when (ScreenRules.afterTurn(span.first, span.last, view.top, view.bottom)) {
+                ScreenRules.AfterTurn.SHOW_ON_SCREEN -> {
+                    node.performAction(SHOW_ON_SCREEN)
+                    return
+                }
+                ScreenRules.AfterTurn.DONE -> return
+                ScreenRules.AfterTurn.TURN_AGAIN -> Unit
             }
-            if (fits(span)) return
         }
     }
 
     /** A view cut off by an edge, or gone past it, is moved back; one well inside is left alone. */
     private fun showOwnView(node: AccessibilityNodeInfo) {
         val bounds = Rect().also(node::getBoundsInScreen)
-        val inside = bounds.height() > 0 && bounds.top > view.top && bounds.bottom < view.bottom
-        if (!inside) node.performAction(SHOW_ON_SCREEN)
+        if (!ScreenRules.isInside(bounds.top, bounds.bottom, view.top, view.bottom)) node.performAction(SHOW_ON_SCREEN)
     }
-
-    private fun fits(span: IntRange): Boolean = fits(span, view.top, view.bottom)
 
     internal companion object {
         private const val SHOW_ON_SCREEN = android.R.id.accessibilityActionShowOnScreen

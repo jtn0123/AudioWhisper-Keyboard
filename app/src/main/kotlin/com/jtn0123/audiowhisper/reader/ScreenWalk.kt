@@ -42,11 +42,13 @@ internal class ScreenWalk(private val visible: Rect) {
 
     fun walk(root: AccessibilityNodeInfo): Screen {
         visit(root, scroller = NONE, sideways = false, depth = 0)
-        val main = mainScroller()
+        val areas = LongArray(scrollers.size) { scrollers[it].area }
+        val main = ScreenRules.mainScroller(IntArray(pieces.size) { pieces[it].scroller }, areas)
+        val parents = IntArray(scrollers.size) { scrollers[it].parent }
         val list = scrollers.getOrNull(main)?.node
         val follow = FollowAlong(list, list?.let(::visiblePart) ?: visible)
         val blocks = PageText.blocks(pieces.map { piece ->
-            val inList = isWithin(piece.scroller, main)
+            val inList = ScreenRules.isWithin(parents, piece.scroller, main)
             TextBlock(piece.text, piece.bounds.top, piece.bounds.bottom, inList) {
                 if (inList) follow.show(piece.node)
             }
@@ -67,7 +69,7 @@ internal class ScreenWalk(private val visible: Rect) {
             if (isSideways(node)) {
                 across = true
             } else {
-                scrollers += Scroller(node, scroller, visibleArea(bounds))
+                scrollers += Scroller(node, scroller, ScreenRules.visibleArea(bounds.box(), visible.box()))
                 inner = scrollers.lastIndex
             }
         }
@@ -79,41 +81,16 @@ internal class ScreenWalk(private val visible: Rect) {
         if (pieces.size == before && !text.isNullOrBlank()) pieces += Piece(text.toString(), node, bounds, scroller)
     }
 
-    /**
-     * The list: the scroller in sight that holds the most text itself. Not simply the biggest — a
-     * settings page wraps its list in a scroll view whose only travel is folding the title away.
-     */
-    private fun mainScroller(): Int {
-        val holds = IntArray(scrollers.size)
-        for (piece in pieces) if (piece.scroller != NONE) holds[piece.scroller]++
-        return scrollers.indices
-            .filter { scrollers[it].area > 0 }
-            .maxWithOrNull(compareBy<Int>({ holds[it] }, { scrollers[it].area })) ?: NONE
-    }
-
-    private fun isWithin(scroller: Int, main: Int): Boolean {
-        if (main == NONE) return false
-        var at = scroller
-        while (at != NONE) {
-            if (at == main) return true
-            at = scrollers[at].parent
-        }
-        return false
-    }
-
-    private fun visibleArea(bounds: Rect): Long {
-        val shown = Rect(bounds)
-        return if (shown.intersect(visible)) shown.width().toLong() * shown.height() else 0L
-    }
-
     /** The part of [node] the app shows above the keyboard. */
     private fun visiblePart(node: AccessibilityNodeInfo): Rect {
-        val shown = Rect().also(node::getBoundsInScreen)
-        return if (shown.intersect(visible)) shown else Rect(visible)
+        val part = ScreenRules.visiblePart(Rect().also(node::getBoundsInScreen).box(), visible.box())
+        return Rect(part.left, part.top, part.right, part.bottom)
     }
 
+    private fun Rect.box() = Box(left, top, right, bottom)
+
     private companion object {
-        const val NONE = -1
+        const val NONE = ScreenRules.NONE
         const val WEB_VIEW = "android.webkit.WebView"
 
         /** A long web page is a few thousand nodes; this keeps a runaway tree from taking seconds. */
@@ -131,12 +108,14 @@ internal class ScreenWalk(private val visible: Rect) {
 
         fun isSideways(node: AccessibilityNodeInfo): Boolean {
             val collection = node.collectionInfo
-            if (collection != null && collection.rowCount == 1 && collection.columnCount > 1) return true
             val actions = node.actionList.map { it.id }
-            val upDown = actions.any { it in UP_DOWN }
-            if (!upDown && actions.any { it in ACROSS }) return true
-            val name = node.className?.toString().orEmpty()
-            return !upDown && (name.endsWith("HorizontalScrollView") || name.contains("ViewPager"))
+            return ScreenRules.isSideways(
+                rows = collection?.rowCount ?: 0,
+                columns = collection?.columnCount ?: 0,
+                upDown = actions.any { it in UP_DOWN },
+                across = actions.any { it in ACROSS },
+                className = node.className?.toString().orEmpty(),
+            )
         }
     }
 }
