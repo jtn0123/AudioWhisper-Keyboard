@@ -13,6 +13,7 @@ mod glide;
 mod handle;
 mod jni;
 mod panic;
+mod popup;
 mod reader;
 mod screen;
 mod suggest;
