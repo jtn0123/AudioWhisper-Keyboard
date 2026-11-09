@@ -131,6 +131,8 @@ Or, from `lib/rust`, plain `cargo test`, `cargo clippy --all-targets -- -D warni
   forever for 0 and threw `StringIndexOutOfBoundsException` for less); the app only asks for 3,900.
 - **One copy of each number.** A Kotlin wrapper reads the rule's numbers (the QWERTY layout's
   sizes, the correction threshold) from Rust rather than repeating them, so the two can't drift.
+- **No file over 500 lines**, generated tables aside. A crate's tests go in `<module>/tests.rs`
+  (`#[cfg(test)] mod tests;`) rather than inline once a file grows past that.
 - **No warnings, and none silenced.** Clippy runs with `-D warnings`; fix what it says rather than
   adding `#[allow]`.
 - **Unsafe stays in `awnative`**, and each `unsafe` block says why it is sound (`// SAFETY:`).
