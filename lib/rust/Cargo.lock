@@ -8,6 +8,7 @@ version = "0.1.0"
 dependencies = [
  "chars",
  "dictation",
+ "gestures",
  "gif",
  "glide",
  "jni-sys",
@@ -25,6 +26,10 @@ version = "0.1.0"
 dependencies = [
  "chars",
 ]
+
+[[package]]
+name = "gestures"
+version = "0.1.0"
 
 [[package]]
 name = "gif"

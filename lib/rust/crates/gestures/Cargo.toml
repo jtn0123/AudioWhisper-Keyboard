@@ -1,0 +1,11 @@
+[package]
+name = "gestures"
+version = "0.1.0"
+description = "Swipe gestures and the start of a glide, ported from FlorisBoard's SwipeGesture and GlideTypingGesture"
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+rust-version.workspace = true
+
+[lints]
+workspace = true
