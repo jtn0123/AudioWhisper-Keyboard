@@ -49,8 +49,7 @@ class PatriciaTriePolicy : public DictionaryStructureWithBufferPolicy {
               mBigramListPolicy(mBuffer), mShortcutListPolicy(mBuffer),
               mPtNodeReader(mBuffer, &mBigramListPolicy, &mShortcutListPolicy,
                       mHeaderPolicy.getCodePointTable()),
-              mPtNodeArrayReader(mBuffer), mTerminalPtNodePositionsForIteratingWords(),
-              mIsCorrupted(false) {}
+              mPtNodeArrayReader(mBuffer) {}
 
     AK_FORCE_INLINE int getRootPosition() const {
         return 0;
@@ -80,77 +79,7 @@ class PatriciaTriePolicy : public DictionaryStructureWithBufferPolicy {
         return &mHeaderPolicy;
     }
 
-    bool addUnigramEntry(const CodePointArrayView /* wordCodePoints */,
-            const UnigramProperty *const /* unigramProperty */) {
-        // This method should not be called for non-updatable dictionary.
-        AKLOGI("Warning: addUnigramEntry() is called for non-updatable dictionary.");
-        return false;
-    }
-
-    bool removeUnigramEntry(const CodePointArrayView /* wordCodePoints */) {
-        // This method should not be called for non-updatable dictionary.
-        AKLOGI("Warning: removeUnigramEntry() is called for non-updatable dictionary.");
-        return false;
-    }
-
-    bool addNgramEntry(const NgramProperty *const /* ngramProperty */) {
-        // This method should not be called for non-updatable dictionary.
-        AKLOGI("Warning: addNgramEntry() is called for non-updatable dictionary.");
-        return false;
-    }
-
-    bool removeNgramEntry(const NgramContext *const /* ngramContext */,
-            const CodePointArrayView /* wordCodePoints */) {
-        // This method should not be called for non-updatable dictionary.
-        AKLOGI("Warning: removeNgramEntry() is called for non-updatable dictionary.");
-        return false;
-    }
-
-    bool updateEntriesForWordWithNgramContext(const NgramContext *const /* ngramContext */,
-            const CodePointArrayView /* wordCodePoints */, const bool /* isValidWord */,
-            const HistoricalInfo /* historicalInfo */) {
-        // This method should not be called for non-updatable dictionary.
-        AKLOGI("Warning: updateEntriesForWordWithNgramContext() is called for non-updatable "
-                "dictionary.");
-        return false;
-    }
-
-    bool flush(const char *const /* filePath */) {
-        // This method should not be called for non-updatable dictionary.
-        AKLOGI("Warning: flush() is called for non-updatable dictionary.");
-        return false;
-    }
-
-    bool flushWithGC(const char *const /* filePath */) {
-        // This method should not be called for non-updatable dictionary.
-        AKLOGI("Warning: flushWithGC() is called for non-updatable dictionary.");
-        return false;
-    }
-
-    bool needsToRunGC(const bool /* mindsBlockByGC */) const {
-        // This method should not be called for non-updatable dictionary.
-        AKLOGI("Warning: needsToRunGC() is called for non-updatable dictionary.");
-        return false;
-    }
-
-    void getProperty(const char *const /* query */, const int /* queryLength */,
-            char *const outResult, const int maxResultLength) {
-        // getProperty is not supported for this class.
-        if (maxResultLength > 0) {
-            outResult[0] = '\0';
-        }
-    }
-
-    const WordProperty getWordProperty(const CodePointArrayView wordCodePoints) const;
-
-    int getNextWordAndNextToken(const int token, int *const outCodePoints,
-            int *const outCodePointCount);
-
-    bool iterateWords(WordListener *const listener) const;
-
-    bool isCorrupted() const {
-        return mIsCorrupted;
-    }
+    void iterateWords(WordListener *const listener) const;
 
  private:
     DISALLOW_IMPLICIT_CONSTRUCTORS(PatriciaTriePolicy);
@@ -162,8 +91,6 @@ class PatriciaTriePolicy : public DictionaryStructureWithBufferPolicy {
     const ShortcutListPolicy mShortcutListPolicy;
     const Ver2ParticiaTrieNodeReader mPtNodeReader;
     const Ver2PtNodeArrayReader mPtNodeArrayReader;
-    std::vector<int> mTerminalPtNodePositionsForIteratingWords;
-    mutable bool mIsCorrupted;
 
     int getCodePointsAndProbabilityAndReturnCodePointCount(const int wordId,
             const int maxCodePointCount, int *const outCodePoints,

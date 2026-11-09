@@ -23,8 +23,6 @@
 #include <sys/mman.h>
 #include <unistd.h>
 
-#include "dictionary/utils/file_utils.h"
-
 namespace latinime {
 
 /* static */ MmappedBuffer::MmappedBufferPtr MmappedBuffer::openBuffer(
@@ -55,30 +53,6 @@ namespace latinime {
     }
     return MmappedBufferPtr(new MmappedBuffer(buffer, bufferSize, mmappedBuffer, alignedSize,
             mmapFd, isUpdatable));
-}
-
-/* static */ MmappedBuffer::MmappedBufferPtr MmappedBuffer::openBuffer(
-        const char *const path, const bool isUpdatable) {
-    const int fileSize = FileUtils::getFileSize(path);
-    if (fileSize == -1) {
-        return nullptr;
-    } else if (fileSize == 0) {
-        return MmappedBufferPtr(new MmappedBuffer(isUpdatable));
-    } else {
-        return openBuffer(path, 0 /* bufferOffset */, fileSize, isUpdatable);
-    }
-}
-
-/* static */ MmappedBuffer::MmappedBufferPtr MmappedBuffer::openBuffer(
-        const char *const dirPath, const char *const fileName, const bool isUpdatable) {
-    const int filePathBufferSize = PATH_MAX + 1 /* terminator */;
-    char filePath[filePathBufferSize];
-    const int filePathLength = snprintf(filePath, filePathBufferSize, "%s%s", dirPath,
-            fileName);
-    if (filePathLength >= filePathBufferSize) {
-        return nullptr;
-    }
-    return openBuffer(filePath, isUpdatable);
 }
 
 MmappedBuffer::~MmappedBuffer() {

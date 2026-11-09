@@ -77,43 +77,10 @@ class Dictionary {
 
     int getProbability(const CodePointArrayView codePoints) const;
 
-    int getMaxProbabilityOfExactMatches(const CodePointArrayView codePoints) const;
-
     int getNgramProbability(const NgramContext *const ngramContext,
             const CodePointArrayView codePoints) const;
 
-    bool addUnigramEntry(const CodePointArrayView codePoints,
-            const UnigramProperty *const unigramProperty);
-
-    bool removeUnigramEntry(const CodePointArrayView codePoints);
-
-    bool addNgramEntry(const NgramProperty *const ngramProperty);
-
-    bool removeNgramEntry(const NgramContext *const ngramContext,
-            const CodePointArrayView codePoints);
-
-    bool updateEntriesForWordWithNgramContext(const NgramContext *const ngramContext,
-            const CodePointArrayView codePoints, const bool isValidWord,
-            const HistoricalInfo historicalInfo);
-
-    bool flush(const char *const filePath);
-
-    bool flushWithGC(const char *const filePath);
-
-    bool needsToRunGC(const bool mindsBlockByGC);
-
-    void getProperty(const char *const query, const int queryLength, char *const outResult,
-            const int maxResultLength);
-
-    const WordProperty getWordProperty(const CodePointArrayView codePoints);
-
-    // Method to iterate all words in the dictionary.
-    // The returned token has to be used to get the next word. If token is 0, this method newly
-    // starts iterating the dictionary.
-    int getNextWordAndNextToken(const int token, int *const outCodePoints,
-            int *const outCodePointCount);
-
-    // Gives the listener every word that has a probability, in getNextWordAndNextToken's order;
+    // Gives the listener every word that has a probability, in one walk of the trie;
     // shortcut-only entries and the sentence-start marker are left out.
     void iterateWords(WordListener *const listener);
 

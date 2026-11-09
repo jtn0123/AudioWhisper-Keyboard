@@ -25,8 +25,6 @@
 
 namespace latinime {
 
-class BufferWithExtendableBuffer;
-
 class BigramListReadWriteUtils {
 public:
    typedef uint8_t BigramFlags;

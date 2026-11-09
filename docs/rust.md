@@ -31,6 +31,23 @@ Next, roughly in order: the LatinIME C++ (`lib/latinime`), then sharing a core w
 the Mac app. The larger pieces of upstream FlorisBoard's pure logic are done; most
 of what stays in Kotlin draws, reads settings or talks to Android.
 
+### The LatinIME port (in progress)
+
+The C++ is ported against itself rather than a Kotlin copy. `crates/latin-oracle` builds
+LatinIME's own sources for the computer running the tests (with the NDK's `jni.h` and a fake JNI
+environment that runs the production `JNI_OnLoad`), so a test can put the same question to the
+C++ and to the Rust: open the bundled dictionary, a word's probability, an n-gram's, its word
+list, and a typing decode with taps and previous words. `cargo run --release -p latin-oracle
+--example oracle -- gen 20000 20261109` writes seeded questions shaped like the keyboard's, and
+`oracle run` answers them.
+
+First, everything the keyboard never calls was deleted: the writable dictionary formats (v4 and
+v402) and their writers, the dictionary-building and GC code, `BinaryDictionaryUtils`, and every
+native method of `BinaryDictionary` but open, close, suggestions, the two probabilities and the
+word list. The 20,000 questions got byte-identical answers before and after, and the comparison
+caught a changed scoring constant (1,864 of the first 2,000 answers differed). What is left is
+about 11,600 lines of code (16,800 with comments) in 138 files.
+
 ## Layout
 
 Everything lives in `lib/rust`, one Gradle module that is also a cargo workspace:
@@ -54,17 +71,18 @@ lib/rust/
   crates/gif/                 the GIF panel: its search field, chips, keys, result cache, recents and GIPHY's JSON and URLs
   crates/chars/               Kotlin's character rules, for crates that judge text as Kotlin did
   crates/awnative/            libawnative.so: the JNI functions Kotlin calls, and nothing else
+  crates/latin-oracle/        test-only: LatinIME's C++ built for this computer, to compare the port with
   tools/                      generates crates/chars' tables (generate-char-tables.sh)
   src/main/kotlin/            the Kotlin side: loads the library and wraps each handle
   src/test/kotlin/            JVM tests that go through JNI
   build.gradle.kts            runs cargo
 ```
 
-There is one native library, `libawnative.so`, however many crates there are. Each area of logic
-is its own crate with no unsafe code (`#![forbid(unsafe_code)]`) and no knowledge of Android or
-the JVM, so it is tested with plain `cargo test`. `awnative` is the only crate with `unsafe`: it
-converts JNI arrays to slices, calls the logic crate, and turns bad input into a Java exception
-instead of a crash.
+There is one native library, `libawnative.so`, however many crates there are. Each area of logic is
+its own crate with no unsafe code (`#![forbid(unsafe_code)]`) and no knowledge of Android or the
+JVM, so it is tested with plain `cargo test`. `awnative` is the only shipped crate with `unsafe`
+(the test-only `latin-oracle` calls C++): it converts JNI arrays to slices, calls the logic crate,
+and turns bad input into a Java exception instead of a crash.
 
 Native objects (an index, a query, a word store) cross JNI as a `Long` handle. The Kotlin wrapper
 frees each one with a `java.lang.ref.Cleaner` once it is unreachable; a query is also

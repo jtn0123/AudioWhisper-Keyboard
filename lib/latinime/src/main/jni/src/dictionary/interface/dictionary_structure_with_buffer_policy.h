@@ -73,53 +73,9 @@ class DictionaryStructureWithBufferPolicy {
 
     virtual const DictionaryHeaderStructurePolicy *getHeaderStructurePolicy() const = 0;
 
-    // Returns whether the update was success or not.
-    virtual bool addUnigramEntry(const CodePointArrayView wordCodePoints,
-            const UnigramProperty *const unigramProperty) = 0;
-
-    // Returns whether the update was success or not.
-    virtual bool removeUnigramEntry(const CodePointArrayView wordCodePoints) = 0;
-
-    // Returns whether the update was success or not.
-    virtual bool addNgramEntry(const NgramProperty *const ngramProperty) = 0;
-
-    // Returns whether the update was success or not.
-    virtual bool removeNgramEntry(const NgramContext *const ngramContext,
-            const CodePointArrayView wordCodePoints) = 0;
-
-    // Returns whether the update was success or not.
-    virtual bool updateEntriesForWordWithNgramContext(const NgramContext *const ngramContext,
-            const CodePointArrayView wordCodePoints, const bool isValidWord,
-            const HistoricalInfo historicalInfo) = 0;
-
-    // Returns whether the flush was success or not.
-    virtual bool flush(const char *const filePath) = 0;
-
-    // Returns whether the GC and flush were success or not.
-    virtual bool flushWithGC(const char *const filePath) = 0;
-
-    virtual bool needsToRunGC(const bool mindsBlockByGC) const = 0;
-
-    // Currently, this method is used only for testing. You may want to consider creating new
-    // dedicated method instead of this if you want to use this in the production.
-    virtual void getProperty(const char *const query, const int queryLength, char *const outResult,
-            const int maxResultLength) = 0;
-
-    virtual const WordProperty getWordProperty(const CodePointArrayView wordCodePoints) const = 0;
-
-    // Method to iterate all words in the dictionary.
-    // The returned token has to be used to get the next word. If token is 0, this method newly
-    // starts iterating the dictionary.
-    virtual int getNextWordAndNextToken(const int token, int *const outCodePoints,
-            int *const outCodePointCount) = 0;
-
     // Gives the listener every entry that has a probability (not shortcut-only entries or the
-    // sentence-start marker), in the order getNextWordAndNextToken visits them, in one walk.
-    // Returns false for a format that has no such walk; Dictionary::iterateWords then looks each
-    // entry up instead.
-    virtual bool iterateWords(WordListener *const /* listener */) const { return false; }
-
-    virtual bool isCorrupted() const = 0;
+    // sentence-start marker), in one walk of the trie: a node's children, then the node.
+    virtual void iterateWords(WordListener *const listener) const = 0;
 
  protected:
     DictionaryStructureWithBufferPolicy() {}

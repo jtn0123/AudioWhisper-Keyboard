@@ -42,7 +42,6 @@ void PatriciaTriePolicy::createAndGetAllChildDicNodes(const DicNode *const dicNo
     if (!isValidPos(nextPos)) {
         AKLOGE("Children PtNode array position is invalid. pos: %d, dict size: %zd",
                 nextPos, mBuffer.size());
-        mIsCorrupted = true;
         ASSERT(false);
         return;
     }
@@ -52,7 +51,6 @@ void PatriciaTriePolicy::createAndGetAllChildDicNodes(const DicNode *const dicNo
         if (!isValidPos(nextPos)) {
             AKLOGE("Child PtNode position is invalid. pos: %d, dict size: %zd, childCount: %d / %d",
                     nextPos, mBuffer.size(), i, childCount);
-            mIsCorrupted = true;
             ASSERT(false);
             return;
         }
@@ -105,7 +103,6 @@ int PatriciaTriePolicy::getCodePointsAndProbabilityAndReturnCodePointCount(
         if (!isValidPos(pos)) {
             AKLOGE("PtNode array position is invalid. pos: %d, dict size: %zd",
                     pos, mBuffer.size());
-            mIsCorrupted = true;
             ASSERT(false);
             return 0;
         }
@@ -114,7 +111,6 @@ int PatriciaTriePolicy::getCodePointsAndProbabilityAndReturnCodePointCount(
             const int startPos = pos;
             if (!isValidPos(pos)) {
                 AKLOGE("PtNode position is invalid. pos: %d, dict size: %zd", pos, mBuffer.size());
-                mIsCorrupted = true;
                 ASSERT(false);
                 return 0;
             }
@@ -242,7 +238,6 @@ int PatriciaTriePolicy::getCodePointsAndProbabilityAndReturnCodePointCount(
                         if (!mBigramListPolicy.skipAllBigrams(&pos)) {
                             AKLOGE("Cannot skip bigrams. BufSize: %zd, pos: %d.", mBuffer.size(),
                                     pos);
-                            mIsCorrupted = true;
                             ASSERT(false);
                             return 0;
                         }
@@ -264,7 +259,6 @@ int PatriciaTriePolicy::getCodePointsAndProbabilityAndReturnCodePointCount(
                 if (PatriciaTrieReadingUtils::hasBigrams(flags)) {
                     if (!mBigramListPolicy.skipAllBigrams(&pos)) {
                         AKLOGE("Cannot skip bigrams. BufSize: %zd, pos: %d.", mBuffer.size(), pos);
-                        mIsCorrupted = true;
                         ASSERT(false);
                         return 0;
                     }
@@ -287,7 +281,6 @@ int PatriciaTriePolicy::getWordId(const CodePointArrayView wordCodePoints,
     const int ptNodePos = readingHelper.getTerminalPtNodePositionOfWord(wordCodePoints.data(),
             wordCodePoints.size(), forceLowerCaseSearch);
     if (readingHelper.isError()) {
-        mIsCorrupted = true;
         AKLOGE("Dictionary reading error in getWordId().");
     }
     return getWordIdFromTerminalPtNodePos(ptNodePos);
@@ -426,103 +419,12 @@ int PatriciaTriePolicy::createAndGetLeavingChildNode(const DicNode *const dicNod
     return siblingPos;
 }
 
-const WordProperty PatriciaTriePolicy::getWordProperty(
-        const CodePointArrayView wordCodePoints) const {
-    const int wordId = getWordId(wordCodePoints, false /* forceLowerCaseSearch */);
-    if (wordId == NOT_A_WORD_ID) {
-        AKLOGE("getWordProperty was called for invalid word.");
-        return WordProperty();
-    }
-    const int ptNodePos = getTerminalPtNodePosFromWordId(wordId);
-    const PtNodeParams ptNodeParams =
-            mPtNodeReader.fetchPtNodeParamsInBufferFromPtNodePos(ptNodePos);
-    // Fetch bigram information.
-    std::vector<NgramProperty> ngrams;
-    const int bigramListPos = getBigramsPositionOfPtNode(ptNodePos);
-    int bigramWord1CodePoints[MAX_WORD_LENGTH];
-    BinaryDictionaryBigramsIterator bigramsIt(&mBigramListPolicy, bigramListPos);
-    while (bigramsIt.hasNext()) {
-        // Fetch the next bigram information and forward the iterator.
-        bigramsIt.next();
-        // Skip the entry if the entry has been deleted. This never happens for ver2 dicts.
-        if (bigramsIt.getBigramPos() != NOT_A_DICT_POS) {
-            int word1Probability = NOT_A_PROBABILITY;
-            const int word1CodePointCount = getCodePointsAndProbabilityAndReturnCodePointCount(
-                    getWordIdFromTerminalPtNodePos(bigramsIt.getBigramPos()), MAX_WORD_LENGTH,
-                    bigramWord1CodePoints, &word1Probability);
-            const int probability = getProbability(word1Probability, bigramsIt.getProbability());
-            ngrams.emplace_back(
-                    NgramContext(wordCodePoints.data(), wordCodePoints.size(),
-                            ptNodeParams.representsBeginningOfSentence()),
-                    CodePointArrayView(bigramWord1CodePoints, word1CodePointCount).toVector(),
-                    probability, HistoricalInfo());
-        }
-    }
-    // Fetch shortcut information.
-    std::vector<UnigramProperty::ShortcutProperty> shortcuts;
-    int shortcutPos = getShortcutPositionOfPtNode(ptNodePos);
-    if (shortcutPos != NOT_A_DICT_POS) {
-        int shortcutTargetCodePoints[MAX_WORD_LENGTH];
-        ShortcutListReadingUtils::getShortcutListSizeAndForwardPointer(mBuffer, &shortcutPos);
-        bool hasNext = true;
-        while (hasNext) {
-            const ShortcutListReadingUtils::ShortcutFlags shortcutFlags =
-                    ShortcutListReadingUtils::getFlagsAndForwardPointer(mBuffer, &shortcutPos);
-            hasNext = ShortcutListReadingUtils::hasNext(shortcutFlags);
-            const int shortcutTargetLength = ShortcutListReadingUtils::readShortcutTarget(
-                    mBuffer, MAX_WORD_LENGTH, shortcutTargetCodePoints, &shortcutPos);
-            const int shortcutProbability =
-                    ShortcutListReadingUtils::getProbabilityFromFlags(shortcutFlags);
-            shortcuts.emplace_back(
-                    CodePointArrayView(shortcutTargetCodePoints, shortcutTargetLength).toVector(),
-                    shortcutProbability);
-        }
-    }
-    const UnigramProperty unigramProperty(ptNodeParams.representsBeginningOfSentence(),
-            ptNodeParams.isNotAWord(), ptNodeParams.isPossiblyOffensive(),
-            ptNodeParams.getProbability(), HistoricalInfo(), std::move(shortcuts));
-    return WordProperty(wordCodePoints.toVector(), unigramProperty, ngrams);
-}
-
-int PatriciaTriePolicy::getNextWordAndNextToken(const int token, int *const outCodePoints,
-        int *const outCodePointCount) {
-    *outCodePointCount = 0;
-    if (token == 0) {
-        // Start iterating the dictionary.
-        mTerminalPtNodePositionsForIteratingWords.clear();
-        DynamicPtReadingHelper::TraversePolicyToGetAllTerminalPtNodePositions traversePolicy(
-                &mTerminalPtNodePositionsForIteratingWords);
-        DynamicPtReadingHelper readingHelper(&mPtNodeReader, &mPtNodeArrayReader);
-        readingHelper.initWithPtNodeArrayPos(getRootPosition());
-        readingHelper.traverseAllPtNodesInPostorderDepthFirstManner(&traversePolicy);
-    }
-    const int terminalPtNodePositionsVectorSize =
-            static_cast<int>(mTerminalPtNodePositionsForIteratingWords.size());
-    if (token < 0 || token >= terminalPtNodePositionsVectorSize) {
-        AKLOGE("Given token %d is invalid.", token);
-        return 0;
-    }
-    const int terminalPtNodePos = mTerminalPtNodePositionsForIteratingWords[token];
-    *outCodePointCount = getCodePointsAndReturnCodePointCount(
-            getWordIdFromTerminalPtNodePos(terminalPtNodePos), MAX_WORD_LENGTH, outCodePoints);
-    const int nextToken = token + 1;
-    if (nextToken >= terminalPtNodePositionsVectorSize) {
-        // All words have been iterated.
-        mTerminalPtNodePositionsForIteratingWords.clear();
-        return 0;
-    }
-    return nextToken;
-}
-
-// Walks the trie once, carrying each word's prefix down, where getNextWordAndNextToken finds every
-// word again from the root: for the 160,000-word English dictionary that is milliseconds against
-// seconds. Visits PtNodes in the same post-order as getNextWordAndNextToken (children, then the
-// PtNode itself), so the words come out in the same order.
-// A broken dictionary ends the walk early, with mIsCorrupted set.
-bool PatriciaTriePolicy::iterateWords(WordListener *const listener) const {
+// Walks the trie once, carrying each word's prefix down, so no word is looked up again from the
+// root: for the 160,000-word English dictionary that is milliseconds rather than seconds. Visits
+// a PtNode's children before the PtNode itself. A broken dictionary ends the walk early.
+void PatriciaTriePolicy::iterateWords(WordListener *const listener) const {
     int codePoints[MAX_WORD_LENGTH];
     iterateWordsInPtNodeArray(getRootPosition(), codePoints, 0 /* prefixLength */, listener);
-    return true;
 }
 
 // Returns false if the dictionary turned out to be broken, which ends the walk.
@@ -532,14 +434,12 @@ bool PatriciaTriePolicy::iterateWordsInPtNodeArray(const int ptNodeArrayPos,
     int ptNodePos = NOT_A_DICT_POS;
     if (!mPtNodeArrayReader.readPtNodeArrayInfoAndReturnIfValid(ptNodeArrayPos, &ptNodeCount,
             &ptNodePos)) {
-        mIsCorrupted = true;
         return false;
     }
     for (int i = 0; i < ptNodeCount; ++i) {
         const PtNodeParams ptNodeParams =
                 mPtNodeReader.fetchPtNodeParamsInBufferFromPtNodePos(ptNodePos);
         if (!ptNodeParams.isValid()) {
-            mIsCorrupted = true;
             return false;
         }
         const int length = prefixLength + ptNodeParams.getCodePointCount();

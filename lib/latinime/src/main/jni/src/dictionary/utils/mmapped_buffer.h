@@ -32,12 +32,6 @@ class MmappedBuffer {
     static MmappedBufferPtr openBuffer(const char *const path,
             const int bufferOffset, const int bufferSize, const bool isUpdatable);
 
-    // Mmap entire file.
-    static MmappedBufferPtr openBuffer(const char *const path, const bool isUpdatable);
-
-    static MmappedBufferPtr openBuffer(const char *const dirPath, const char *const fileName,
-            const bool isUpdatable);
-
     ~MmappedBuffer();
 
     ReadWriteByteArrayView getReadWriteByteArrayView() const {

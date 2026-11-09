@@ -56,56 +56,6 @@ class HeaderPolicy : public DictionaryHeaderStructurePolicy {
                       DEFAULT_FORGETTING_CURVE_PROBABILITY_VALUES_TABLE_ID)),
               mCodePointTable(HeaderReadWriteUtils::readCodePointTable(&mAttributeMap)) {}
 
-    // Constructs header information using an attribute map.
-    HeaderPolicy(const FormatUtils::FORMAT_VERSION dictFormatVersion,
-            const std::vector<int> &locale,
-            const DictionaryHeaderStructurePolicy::AttributeMap *const attributeMap)
-            : mDictFormatVersion(dictFormatVersion),
-              mDictionaryFlags(HeaderReadWriteUtils::createAndGetDictionaryFlagsUsingAttributeMap(
-                      attributeMap)), mSize(0), mAttributeMap(*attributeMap), mLocale(locale),
-              mMultiWordCostMultiplier(readMultipleWordCostMultiplier()),
-              mRequiresGermanUmlautProcessing(readRequiresGermanUmlautProcessing()),
-              mIsDecayingDict(HeaderReadWriteUtils::readBoolAttributeValue(&mAttributeMap,
-                      IS_DECAYING_DICT_KEY, false /* defaultValue */)),
-              mDate(HeaderReadWriteUtils::readIntAttributeValue(&mAttributeMap,
-                      DATE_KEY, TimeKeeper::peekCurrentTime() /* defaultValue */)),
-              mLastDecayedTime(HeaderReadWriteUtils::readIntAttributeValue(&mAttributeMap,
-                      DATE_KEY, TimeKeeper::peekCurrentTime() /* defaultValue */)),
-              mNgramCounts(readNgramCounts()), mMaxNgramCounts(readMaxNgramCounts()),
-              mExtendedRegionSize(0),
-              mHasHistoricalInfoOfWords(HeaderReadWriteUtils::readBoolAttributeValue(
-                      &mAttributeMap, HAS_HISTORICAL_INFO_KEY, false /* defaultValue */)),
-              mForgettingCurveProbabilityValuesTableId(HeaderReadWriteUtils::readIntAttributeValue(
-                      &mAttributeMap, FORGETTING_CURVE_PROBABILITY_VALUES_TABLE_ID_KEY,
-                      DEFAULT_FORGETTING_CURVE_PROBABILITY_VALUES_TABLE_ID)),
-              mCodePointTable(HeaderReadWriteUtils::readCodePointTable(&mAttributeMap)) {}
-
-    // Copy header information
-    HeaderPolicy(const HeaderPolicy *const headerPolicy)
-            : mDictFormatVersion(headerPolicy->mDictFormatVersion),
-              mDictionaryFlags(headerPolicy->mDictionaryFlags), mSize(headerPolicy->mSize),
-              mAttributeMap(headerPolicy->mAttributeMap), mLocale(headerPolicy->mLocale),
-              mMultiWordCostMultiplier(headerPolicy->mMultiWordCostMultiplier),
-              mRequiresGermanUmlautProcessing(headerPolicy->mRequiresGermanUmlautProcessing),
-              mIsDecayingDict(headerPolicy->mIsDecayingDict),
-              mDate(headerPolicy->mDate), mLastDecayedTime(headerPolicy->mLastDecayedTime),
-              mNgramCounts(headerPolicy->mNgramCounts),
-              mMaxNgramCounts(headerPolicy->mMaxNgramCounts),
-              mExtendedRegionSize(headerPolicy->mExtendedRegionSize),
-              mHasHistoricalInfoOfWords(headerPolicy->mHasHistoricalInfoOfWords),
-              mForgettingCurveProbabilityValuesTableId(
-                      headerPolicy->mForgettingCurveProbabilityValuesTableId),
-              mCodePointTable(headerPolicy->mCodePointTable) {}
-
-    // Temporary dummy header.
-    HeaderPolicy()
-            : mDictFormatVersion(FormatUtils::UNKNOWN_VERSION), mDictionaryFlags(0), mSize(0),
-              mAttributeMap(), mLocale(CharUtils::EMPTY_STRING), mMultiWordCostMultiplier(0.0f),
-              mRequiresGermanUmlautProcessing(false), mIsDecayingDict(false),
-              mDate(0), mLastDecayedTime(0), mNgramCounts(), mMaxNgramCounts(),
-              mExtendedRegionSize(0), mHasHistoricalInfoOfWords(false),
-              mForgettingCurveProbabilityValuesTableId(0), mCodePointTable(nullptr) {}
-
     ~HeaderPolicy() {}
 
     virtual int getFormatVersionNumber() const {
@@ -197,14 +147,6 @@ class HeaderPolicy : public DictionaryHeaderStructurePolicy {
 
     void readHeaderValueOrQuestionMark(const char *const key,
             int *outValue, int outValueSize) const;
-
-    bool fillInAndWriteHeaderToBuffer(const bool updatesLastDecayedTime,
-            const EntryCounts &entryCounts, const int extendedRegionSize,
-            BufferWithExtendableBuffer *const outBuffer) const;
-
-    void fillInHeader(const bool updatesLastDecayedTime, const EntryCounts &entryCounts,
-            const int extendedRegionSize,
-            DictionaryHeaderStructurePolicy::AttributeMap *outAttributeMap) const;
 
     AK_FORCE_INLINE const std::vector<int> *getLocale() const {
         return &mLocale;

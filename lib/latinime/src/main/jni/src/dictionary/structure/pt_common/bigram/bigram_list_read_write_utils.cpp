@@ -17,7 +17,6 @@
 #include "dictionary/structure/pt_common/bigram/bigram_list_read_write_utils.h"
 
 #include "dictionary/utils/byte_array_utils.h"
-#include "dictionary/utils/buffer_with_extendable_buffer.h"
 
 namespace latinime {
 

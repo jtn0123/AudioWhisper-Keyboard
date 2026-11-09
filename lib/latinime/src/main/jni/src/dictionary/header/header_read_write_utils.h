@@ -25,8 +25,6 @@
 
 namespace latinime {
 
-class BufferWithExtendableBuffer;
-
 class HeaderReadWriteUtils {
  public:
     typedef uint16_t DictionaryFlags;
@@ -40,43 +38,15 @@ class HeaderReadWriteUtils {
                 + HEADER_SIZE_FIELD_SIZE;
     }
 
-    static DictionaryFlags createAndGetDictionaryFlagsUsingAttributeMap(
-            const DictionaryHeaderStructurePolicy::AttributeMap *const attributeMap);
-
     static void fetchAllHeaderAttributes(const uint8_t *const dictBuf,
             DictionaryHeaderStructurePolicy::AttributeMap *const headerAttributes);
 
     static const int *readCodePointTable(
             DictionaryHeaderStructurePolicy::AttributeMap *const headerAttributes);
 
-    static bool writeDictionaryVersion(BufferWithExtendableBuffer *const buffer,
-            const FormatUtils::FORMAT_VERSION version, int *const writingPos);
-
-    static bool writeDictionaryFlags(BufferWithExtendableBuffer *const buffer,
-            const DictionaryFlags flags, int *const writingPos);
-
-    static bool writeDictionaryHeaderSize(BufferWithExtendableBuffer *const buffer,
-            const int size, int *const writingPos);
-
-    static bool writeHeaderAttributes(BufferWithExtendableBuffer *const buffer,
-            const DictionaryHeaderStructurePolicy::AttributeMap *const headerAttributes,
-            int *const writingPos);
-
     /**
      * Methods for header attributes.
      */
-    static void setCodePointVectorAttribute(
-            DictionaryHeaderStructurePolicy::AttributeMap *const headerAttributes,
-            const char *const key, const std::vector<int> &value);
-
-    static void setBoolAttribute(
-            DictionaryHeaderStructurePolicy::AttributeMap *const headerAttributes,
-            const char *const key, const bool value);
-
-    static void setIntAttribute(
-            DictionaryHeaderStructurePolicy::AttributeMap *const headerAttributes,
-            const char *const key, const int value);
-
     static const std::vector<int> readCodePointVectorAttributeValue(
             const DictionaryHeaderStructurePolicy::AttributeMap *const headerAttributes,
             const char *const key);
@@ -95,7 +65,6 @@ class HeaderReadWriteUtils {
  private:
     DISALLOW_IMPLICIT_CONSTRUCTORS(HeaderReadWriteUtils);
 
-    static const int LARGEST_INT_DIGIT_COUNT;
     static const int MAX_ATTRIBUTE_KEY_LENGTH;
     static const int MAX_ATTRIBUTE_VALUE_LENGTH;
 
@@ -105,14 +74,6 @@ class HeaderReadWriteUtils {
     static const int HEADER_SIZE_FIELD_SIZE;
 
     static const char *const CODE_POINT_TABLE_KEY;
-
-    // Value for the "flags" field. It's unused at the moment.
-    static const DictionaryFlags NO_FLAGS;
-
-    static void setIntAttributeInner(
-            DictionaryHeaderStructurePolicy::AttributeMap *const headerAttributes,
-            const DictionaryHeaderStructurePolicy::AttributeMap::key_type *const key,
-            const int value);
 
     static int readIntAttributeValueInner(
             const DictionaryHeaderStructurePolicy::AttributeMap *const headerAttributes,

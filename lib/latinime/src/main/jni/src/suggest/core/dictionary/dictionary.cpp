@@ -21,7 +21,6 @@
 #include "defines.h"
 #include "dictionary/interface/dictionary_header_structure_policy.h"
 #include "dictionary/property/ngram_context.h"
-#include "suggest/core/dictionary/dictionary_utils.h"
 #include "suggest/core/result/suggestion_results.h"
 #include "suggest/core/session/dic_traverse_session.h"
 #include "suggest/core/suggest.h"
@@ -104,12 +103,6 @@ int Dictionary::getProbability(const CodePointArrayView codePoints) const {
     return getNgramProbability(nullptr /* ngramContext */, codePoints);
 }
 
-int Dictionary::getMaxProbabilityOfExactMatches(const CodePointArrayView codePoints) const {
-    TimeKeeper::setCurrentTime();
-    return DictionaryUtils::getMaxProbabilityOfExactMatches(
-            mDictionaryStructureWithBufferPolicy.get(), codePoints);
-}
-
 int Dictionary::getNgramProbability(const NgramContext *const ngramContext,
         const CodePointArrayView codePoints) const {
     TimeKeeper::setCurrentTime();
@@ -126,91 +119,8 @@ int Dictionary::getNgramProbability(const NgramContext *const ngramContext,
     return getDictionaryStructurePolicy()->getProbabilityOfWord(prevWordIds, wordId);
 }
 
-bool Dictionary::addUnigramEntry(const CodePointArrayView codePoints,
-        const UnigramProperty *const unigramProperty) {
-    if (unigramProperty->representsBeginningOfSentence()
-            && !mDictionaryStructureWithBufferPolicy->getHeaderStructurePolicy()
-                    ->supportsBeginningOfSentence()) {
-        AKLOGE("The dictionary doesn't support Beginning-of-Sentence.");
-        return false;
-    }
-    TimeKeeper::setCurrentTime();
-    return mDictionaryStructureWithBufferPolicy->addUnigramEntry(codePoints, unigramProperty);
-}
-
-bool Dictionary::removeUnigramEntry(const CodePointArrayView codePoints) {
-    TimeKeeper::setCurrentTime();
-    return mDictionaryStructureWithBufferPolicy->removeUnigramEntry(codePoints);
-}
-
-bool Dictionary::addNgramEntry(const NgramProperty *const ngramProperty) {
-    TimeKeeper::setCurrentTime();
-    return mDictionaryStructureWithBufferPolicy->addNgramEntry(ngramProperty);
-}
-
-bool Dictionary::removeNgramEntry(const NgramContext *const ngramContext,
-        const CodePointArrayView codePoints) {
-    TimeKeeper::setCurrentTime();
-    return mDictionaryStructureWithBufferPolicy->removeNgramEntry(ngramContext, codePoints);
-}
-
-bool Dictionary::updateEntriesForWordWithNgramContext(const NgramContext *const ngramContext,
-        const CodePointArrayView codePoints, const bool isValidWord,
-        const HistoricalInfo historicalInfo) {
-    TimeKeeper::setCurrentTime();
-    return mDictionaryStructureWithBufferPolicy->updateEntriesForWordWithNgramContext(ngramContext,
-            codePoints, isValidWord, historicalInfo);
-}
-
-bool Dictionary::flush(const char *const filePath) {
-    TimeKeeper::setCurrentTime();
-    return mDictionaryStructureWithBufferPolicy->flush(filePath);
-}
-
-bool Dictionary::flushWithGC(const char *const filePath) {
-    TimeKeeper::setCurrentTime();
-    return mDictionaryStructureWithBufferPolicy->flushWithGC(filePath);
-}
-
-bool Dictionary::needsToRunGC(const bool mindsBlockByGC) {
-    TimeKeeper::setCurrentTime();
-    return mDictionaryStructureWithBufferPolicy->needsToRunGC(mindsBlockByGC);
-}
-
-void Dictionary::getProperty(const char *const query, const int queryLength, char *const outResult,
-        const int maxResultLength) {
-    TimeKeeper::setCurrentTime();
-    return mDictionaryStructureWithBufferPolicy->getProperty(query, queryLength, outResult,
-            maxResultLength);
-}
-
-const WordProperty Dictionary::getWordProperty(const CodePointArrayView codePoints) {
-    TimeKeeper::setCurrentTime();
-    return mDictionaryStructureWithBufferPolicy->getWordProperty(codePoints);
-}
-
-int Dictionary::getNextWordAndNextToken(const int token, int *const outCodePoints,
-        int *const outCodePointCount) {
-    TimeKeeper::setCurrentTime();
-    return mDictionaryStructureWithBufferPolicy->getNextWordAndNextToken(
-            token, outCodePoints, outCodePointCount);
-}
-
 void Dictionary::iterateWords(WordListener *const listener) {
-    if (mDictionaryStructureWithBufferPolicy->iterateWords(listener)) return;
-    // The format has no walk of its own: look every entry up, which finds each word again from
-    // the root.
-    int codePoints[MAX_WORD_LENGTH];
-    int codePointCount = 0;
-    int token = 0;
-    do {
-        token = getNextWordAndNextToken(token, codePoints, &codePointCount);
-        const CodePointArrayView word(codePoints, codePointCount);
-        if (codePointCount > 0 && codePoints[0] != CODE_POINT_BEGINNING_OF_SENTENCE
-                && getProbability(word) != NOT_A_PROBABILITY) {
-            listener->onVisitWord(word);
-        }
-    } while (token != 0);
+    mDictionaryStructureWithBufferPolicy->iterateWords(listener);
 }
 
 void Dictionary::logDictionaryInfo(JNIEnv *const env) const {

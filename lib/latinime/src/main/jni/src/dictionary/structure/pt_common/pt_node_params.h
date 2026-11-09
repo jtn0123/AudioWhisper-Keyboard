@@ -20,9 +20,7 @@
 #include <cstring>
 
 #include "defines.h"
-#include "dictionary/structure/pt_common/dynamic_pt_reading_utils.h"
 #include "dictionary/structure/pt_common/patricia_trie_reading_utils.h"
-#include "dictionary/structure/v4/ver4_dict_constants.h"
 #include "utils/char_utils.h"
 #include "utils/int_array_view.h"
 
@@ -31,10 +29,12 @@ namespace latinime {
 // This class has information of a PtNode. This class is immutable.
 class PtNodeParams {
  public:
+    static const int NOT_A_TERMINAL_ID = -1;
+
     // Invalid PtNode.
-    PtNodeParams() : mHeadPos(NOT_A_DICT_POS), mFlags(0), mHasMovedFlag(false),
+    PtNodeParams() : mHeadPos(NOT_A_DICT_POS), mFlags(0),
             mParentPos(NOT_A_DICT_POS), mCodePointCount(0), mCodePoints(),
-            mTerminalIdFieldPos(NOT_A_DICT_POS), mTerminalId(Ver4DictConstants::NOT_A_TERMINAL_ID),
+            mTerminalIdFieldPos(NOT_A_DICT_POS), mTerminalId(NOT_A_TERMINAL_ID),
             mProbabilityFieldPos(NOT_A_DICT_POS), mProbability(NOT_A_PROBABILITY),
             mChildrenPosFieldPos(NOT_A_DICT_POS), mChildrenPos(NOT_A_DICT_POS),
             mBigramLinkedNodePos(NOT_A_DICT_POS), mShortcutPos(NOT_A_DICT_POS),
@@ -42,7 +42,7 @@ class PtNodeParams {
 
     PtNodeParams(const PtNodeParams& ptNodeParams)
             : mHeadPos(ptNodeParams.mHeadPos), mFlags(ptNodeParams.mFlags),
-              mHasMovedFlag(ptNodeParams.mHasMovedFlag), mParentPos(ptNodeParams.mParentPos),
+              mParentPos(ptNodeParams.mParentPos),
               mCodePointCount(ptNodeParams.mCodePointCount), mCodePoints(),
               mTerminalIdFieldPos(ptNodeParams.mTerminalIdFieldPos),
               mTerminalId(ptNodeParams.mTerminalId),
@@ -61,61 +61,14 @@ class PtNodeParams {
             const int codePointCount, const int *const codePoints, const int probability,
             const int childrenPos, const int shortcutPos, const int bigramPos,
             const int siblingPos)
-            : mHeadPos(headPos), mFlags(flags), mHasMovedFlag(false), mParentPos(NOT_A_DICT_POS),
+            : mHeadPos(headPos), mFlags(flags), mParentPos(NOT_A_DICT_POS),
               mCodePointCount(codePointCount), mCodePoints(), mTerminalIdFieldPos(NOT_A_DICT_POS),
-              mTerminalId(Ver4DictConstants::NOT_A_TERMINAL_ID),
+              mTerminalId(NOT_A_TERMINAL_ID),
               mProbabilityFieldPos(NOT_A_DICT_POS), mProbability(probability),
               mChildrenPosFieldPos(NOT_A_DICT_POS), mChildrenPos(childrenPos),
               mBigramLinkedNodePos(NOT_A_DICT_POS), mShortcutPos(shortcutPos),
               mBigramPos(bigramPos), mSiblingPos(siblingPos) {
         memcpy(mCodePoints, codePoints, sizeof(int) * mCodePointCount);
-    }
-
-    // PtNode with a terminal id.
-    PtNodeParams(const int headPos, const PatriciaTrieReadingUtils::NodeFlags flags,
-            const int parentPos, const int codePointCount, const int *const codePoints,
-            const int terminalIdFieldPos, const int terminalId, const int probability,
-            const int childrenPosFieldPos, const int childrenPos, const int siblingPos)
-            : mHeadPos(headPos), mFlags(flags), mHasMovedFlag(true), mParentPos(parentPos),
-              mCodePointCount(codePointCount), mCodePoints(),
-              mTerminalIdFieldPos(terminalIdFieldPos), mTerminalId(terminalId),
-              mProbabilityFieldPos(NOT_A_DICT_POS), mProbability(probability),
-              mChildrenPosFieldPos(childrenPosFieldPos), mChildrenPos(childrenPos),
-              mBigramLinkedNodePos(NOT_A_DICT_POS), mShortcutPos(terminalId),
-              mBigramPos(terminalId), mSiblingPos(siblingPos) {
-        memcpy(mCodePoints, codePoints, sizeof(int) * mCodePointCount);
-    }
-
-    // Construct new params by updating existing PtNode params.
-    PtNodeParams(const PtNodeParams *const ptNodeParams,
-            const PatriciaTrieReadingUtils::NodeFlags flags, const int parentPos,
-            const CodePointArrayView codePoints, const int probability)
-            : mHeadPos(ptNodeParams->getHeadPos()), mFlags(flags), mHasMovedFlag(true),
-              mParentPos(parentPos), mCodePointCount(codePoints.size()), mCodePoints(),
-              mTerminalIdFieldPos(ptNodeParams->getTerminalIdFieldPos()),
-              mTerminalId(ptNodeParams->getTerminalId()),
-              mProbabilityFieldPos(ptNodeParams->getProbabilityFieldPos()),
-              mProbability(probability),
-              mChildrenPosFieldPos(ptNodeParams->getChildrenPosFieldPos()),
-              mChildrenPos(ptNodeParams->getChildrenPos()),
-              mBigramLinkedNodePos(ptNodeParams->getBigramLinkedNodePos()),
-              mShortcutPos(ptNodeParams->getShortcutPos()),
-              mBigramPos(ptNodeParams->getBigramsPos()),
-              mSiblingPos(ptNodeParams->getSiblingNodePos()) {
-        memcpy(mCodePoints, codePoints.data(), sizeof(int) * mCodePointCount);
-    }
-
-    PtNodeParams(const PatriciaTrieReadingUtils::NodeFlags flags, const int parentPos,
-            const CodePointArrayView codePoints, const int probability)
-            : mHeadPos(NOT_A_DICT_POS), mFlags(flags), mHasMovedFlag(true), mParentPos(parentPos),
-              mCodePointCount(codePoints.size()), mCodePoints(),
-              mTerminalIdFieldPos(NOT_A_DICT_POS),
-              mTerminalId(Ver4DictConstants::NOT_A_TERMINAL_ID),
-              mProbabilityFieldPos(NOT_A_DICT_POS), mProbability(probability),
-              mChildrenPosFieldPos(NOT_A_DICT_POS), mChildrenPos(NOT_A_DICT_POS),
-              mBigramLinkedNodePos(NOT_A_DICT_POS), mShortcutPos(NOT_A_DICT_POS),
-              mBigramPos(NOT_A_DICT_POS), mSiblingPos(NOT_A_DICT_POS) {
-        memcpy(mCodePoints, codePoints.data(), sizeof(int) * mCodePointCount);
     }
 
     AK_FORCE_INLINE bool isValid() const {
@@ -128,14 +81,6 @@ class PtNodeParams {
     }
 
     // Flags
-    AK_FORCE_INLINE bool isDeleted() const {
-        return mHasMovedFlag && DynamicPtReadingUtils::isDeleted(mFlags);
-    }
-
-    AK_FORCE_INLINE bool willBecomeNonTerminal() const {
-        return mHasMovedFlag && DynamicPtReadingUtils::willBecomeNonTerminal(mFlags);
-    }
-
     AK_FORCE_INLINE bool hasChildren() const {
         return mChildrenPos != NOT_A_DICT_POS;
     }
@@ -243,7 +188,6 @@ class PtNodeParams {
 
     const int mHeadPos;
     const PatriciaTrieReadingUtils::NodeFlags mFlags;
-    const bool mHasMovedFlag;
     const int mParentPos;
     const uint8_t mCodePointCount;
     int mCodePoints[MAX_WORD_LENGTH];

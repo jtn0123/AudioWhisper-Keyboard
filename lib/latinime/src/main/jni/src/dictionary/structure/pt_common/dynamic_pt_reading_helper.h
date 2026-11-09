@@ -18,7 +18,6 @@
 #define LATINIME_DYNAMIC_PT_READING_HELPER_H
 
 #include <cstddef>
-#include <vector>
 
 #include "defines.h"
 #include "dictionary/structure/pt_common/pt_node_params.h"
@@ -35,48 +34,10 @@ class PtNodeArrayReader;
  */
 class DynamicPtReadingHelper {
  public:
-    class TraversingEventListener {
-     public:
-        virtual ~TraversingEventListener() {};
-
-        // Returns whether the event handling was succeeded or not.
-        virtual bool onAscend() = 0;
-
-        // Returns whether the event handling was succeeded or not.
-        virtual bool onDescend(const int ptNodeArrayPos) = 0;
-
-        // Returns whether the event handling was succeeded or not.
-        virtual bool onReadingPtNodeArrayTail() = 0;
-
-        // Returns whether the event handling was succeeded or not.
-        virtual bool onVisitingPtNode(const PtNodeParams *const node) = 0;
-
-     protected:
-        TraversingEventListener() {};
-
-     private:
-        DISALLOW_COPY_AND_ASSIGN(TraversingEventListener);
-    };
-
-    class TraversePolicyToGetAllTerminalPtNodePositions : public TraversingEventListener {
-     public:
-        TraversePolicyToGetAllTerminalPtNodePositions(std::vector<int> *const terminalPositions)
-                : mTerminalPositions(terminalPositions) {}
-        bool onAscend() { return true; }
-        bool onDescend(const int /* ptNodeArrayPos */) { return true; }
-        bool onReadingPtNodeArrayTail() { return true; }
-        bool onVisitingPtNode(const PtNodeParams *const ptNodeParams);
-
-     private:
-        DISALLOW_IMPLICIT_CONSTRUCTORS(TraversePolicyToGetAllTerminalPtNodePositions);
-
-        std::vector<int> *const mTerminalPositions;
-    };
-
     DynamicPtReadingHelper(const PtNodeReader *const ptNodeReader,
             const PtNodeArrayReader *const ptNodeArrayReader)
             : mIsError(false), mReadingState(), mPtNodeReader(ptNodeReader),
-              mPtNodeArrayReader(ptNodeArrayReader), mReadingStateStack() {}
+              mPtNodeArrayReader(ptNodeArrayReader) {}
 
     ~DynamicPtReadingHelper() {}
 
@@ -98,8 +59,6 @@ class DynamicPtReadingHelper {
             mReadingState.mTotalCodePointCountSinceInitialization = 0;
             mReadingState.mTotalPtNodeIndexInThisArrayChain = 0;
             mReadingState.mPtNodeArrayIndexInThisArrayChain = 0;
-            mReadingState.mPosOfLastForwardLinkField = NOT_A_DICT_POS;
-            mReadingStateStack.clear();
             nextPtNodeArray();
         }
     }
@@ -115,9 +74,6 @@ class DynamicPtReadingHelper {
             mReadingState.mTotalCodePointCountSinceInitialization = 0;
             mReadingState.mTotalPtNodeIndexInThisArrayChain = 1;
             mReadingState.mPtNodeArrayIndexInThisArrayChain = 1;
-            mReadingState.mPosOfLastForwardLinkField = NOT_A_DICT_POS;
-            mReadingState.mPosOfThisPtNodeArrayHead = NOT_A_DICT_POS;
-            mReadingStateStack.clear();
         }
     }
 
@@ -129,7 +85,7 @@ class DynamicPtReadingHelper {
     }
 
     AK_FORCE_INLINE bool isValidTerminalNode(const PtNodeParams &ptNodeParams) const {
-        return !isEnd() && !ptNodeParams.isDeleted() && ptNodeParams.isTerminal();
+        return !isEnd() && ptNodeParams.isTerminal();
     }
 
     AK_FORCE_INLINE bool isMatchedCodePoint(const PtNodeParams &ptNodeParams, const int index,
@@ -174,44 +130,12 @@ class DynamicPtReadingHelper {
             mReadingState.mTotalPtNodeIndexInThisArrayChain = 0;
             mReadingState.mPtNodeArrayIndexInThisArrayChain = 0;
             mReadingState.mPos = ptNodeParams.getChildrenPos();
-            mReadingState.mPosOfLastForwardLinkField = NOT_A_DICT_POS;
             // Read children node array.
             nextPtNodeArray();
         } else {
             mReadingState.mPos = NOT_A_DICT_POS;
         }
     }
-
-    // Read the parent node of the current node.
-    AK_FORCE_INLINE void readParentNode(const PtNodeParams &ptNodeParams) {
-        if (ptNodeParams.getParentPos() != NOT_A_DICT_POS) {
-            mReadingState.mTotalCodePointCountSinceInitialization +=
-                    ptNodeParams.getCodePointCount();
-            mReadingState.mTotalPtNodeIndexInThisArrayChain = 1;
-            mReadingState.mPtNodeArrayIndexInThisArrayChain = 1;
-            mReadingState.mRemainingPtNodeCountInThisArray = 1;
-            mReadingState.mPos = ptNodeParams.getParentPos();
-            mReadingState.mPosOfLastForwardLinkField = NOT_A_DICT_POS;
-            mReadingState.mPosOfThisPtNodeArrayHead = NOT_A_DICT_POS;
-        } else {
-            mReadingState.mPos = NOT_A_DICT_POS;
-        }
-    }
-
-    AK_FORCE_INLINE int getPosOfLastForwardLinkField() const {
-        return mReadingState.mPosOfLastForwardLinkField;
-    }
-
-    AK_FORCE_INLINE int getPosOfLastPtNodeArrayHead() const {
-        return mReadingState.mPosOfThisPtNodeArrayHead;
-    }
-
-    bool traverseAllPtNodesInPostorderDepthFirstManner(TraversingEventListener *const listener);
-
-    bool traverseAllPtNodesInPtNodeArrayLevelPreorderDepthFirstManner(
-            TraversingEventListener *const listener);
-
-    int getCodePointsAndReturnCodePointCount(const int maxCodePointCount, int *const outCodePoints);
 
     int getTerminalPtNodePositionOfWord(const int *const inWord, const size_t length,
             const bool forceLowerCaseSearch);
@@ -223,12 +147,9 @@ class DynamicPtReadingHelper {
     // specific PtNode in the dictionary.
     class PtNodeReadingState {
      public:
-        // Note that copy constructor and assignment operator are used for this class to use
-        // std::vector.
         PtNodeReadingState() : mPos(NOT_A_DICT_POS), mRemainingPtNodeCountInThisArray(0),
                 mTotalCodePointCountSinceInitialization(0), mTotalPtNodeIndexInThisArrayChain(0),
-                mPtNodeArrayIndexInThisArrayChain(0), mPosOfLastForwardLinkField(NOT_A_DICT_POS),
-                mPosOfThisPtNodeArrayHead(NOT_A_DICT_POS) {}
+                mPtNodeArrayIndexInThisArrayChain(0) {}
 
         int mPos;
         // Remaining node count in the current array.
@@ -239,44 +160,21 @@ class DynamicPtReadingHelper {
         // Counter of PtNode arrays used to avoid infinite loops caused by cyclic links of empty
         // PtNode arrays.
         int mPtNodeArrayIndexInThisArrayChain;
-        int mPosOfLastForwardLinkField;
-        int mPosOfThisPtNodeArrayHead;
     };
 
     static const int MAX_CHILD_COUNT_TO_AVOID_INFINITE_LOOP;
     static const int MAX_PT_NODE_ARRAY_COUNT_TO_AVOID_INFINITE_LOOP;
-    static const size_t MAX_READING_STATE_STACK_SIZE;
 
     // TODO: Introduce error code to track what caused the error.
     bool mIsError;
     PtNodeReadingState mReadingState;
     const PtNodeReader *const mPtNodeReader;
     const PtNodeArrayReader *const mPtNodeArrayReader;
-    std::vector<PtNodeReadingState> mReadingStateStack;
 
     void nextPtNodeArray();
 
     void followForwardLink();
 
-    AK_FORCE_INLINE void pushReadingStateToStack() {
-        if (mReadingStateStack.size() > MAX_READING_STATE_STACK_SIZE) {
-            AKLOGI("Reading state stack overflow. Max size: %zd", MAX_READING_STATE_STACK_SIZE);
-            ASSERT(false);
-            mIsError = true;
-            mReadingState.mPos = NOT_A_DICT_POS;
-        } else {
-            mReadingStateStack.push_back(mReadingState);
-        }
-    }
-
-    AK_FORCE_INLINE void popReadingStateFromStack() {
-        if (mReadingStateStack.empty()) {
-            mReadingState.mPos = NOT_A_DICT_POS;
-        } else {
-            mReadingState = mReadingStateStack.back();
-            mReadingStateStack.pop_back();
-        }
-    }
 };
 } // namespace latinime
 #endif /* LATINIME_DYNAMIC_PT_READING_HELPER_H */

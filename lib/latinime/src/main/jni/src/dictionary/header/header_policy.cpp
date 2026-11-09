@@ -91,38 +91,6 @@ bool HeaderPolicy::readRequiresGermanUmlautProcessing() const {
             REQUIRES_GERMAN_UMLAUT_PROCESSING_KEY, false);
 }
 
-bool HeaderPolicy::fillInAndWriteHeaderToBuffer(const bool updatesLastDecayedTime,
-        const EntryCounts &entryCounts, const int extendedRegionSize,
-        BufferWithExtendableBuffer *const outBuffer) const {
-    int writingPos = 0;
-    DictionaryHeaderStructurePolicy::AttributeMap attributeMapToWrite(mAttributeMap);
-    fillInHeader(updatesLastDecayedTime, entryCounts, extendedRegionSize, &attributeMapToWrite);
-    if (!HeaderReadWriteUtils::writeDictionaryVersion(outBuffer, mDictFormatVersion,
-            &writingPos)) {
-        return false;
-    }
-    if (!HeaderReadWriteUtils::writeDictionaryFlags(outBuffer, mDictionaryFlags,
-            &writingPos)) {
-        return false;
-    }
-    // Temporarily writes a dummy header size.
-    int headerSizeFieldPos = writingPos;
-    if (!HeaderReadWriteUtils::writeDictionaryHeaderSize(outBuffer, 0 /* size */,
-            &writingPos)) {
-        return false;
-    }
-    if (!HeaderReadWriteUtils::writeHeaderAttributes(outBuffer, &attributeMapToWrite,
-            &writingPos)) {
-        return false;
-    }
-    // Writes the actual header size.
-    if (!HeaderReadWriteUtils::writeDictionaryHeaderSize(outBuffer, writingPos,
-            &headerSizeFieldPos)) {
-        return false;
-    }
-    return true;
-}
-
 namespace {
 
 int getIndexFromNgramType(const NgramType ngramType) {
@@ -130,27 +98,6 @@ int getIndexFromNgramType(const NgramType ngramType) {
 }
 
 } // namespace
-
-void HeaderPolicy::fillInHeader(const bool updatesLastDecayedTime,
-        const EntryCounts &entryCounts, const int extendedRegionSize,
-        DictionaryHeaderStructurePolicy::AttributeMap *outAttributeMap) const {
-    for (const auto ngramType : AllNgramTypes::ASCENDING) {
-        HeaderReadWriteUtils::setIntAttribute(outAttributeMap,
-                NGRAM_COUNT_KEYS[getIndexFromNgramType(ngramType)],
-                entryCounts.getNgramCount(ngramType));
-    }
-    HeaderReadWriteUtils::setIntAttribute(outAttributeMap, EXTENDED_REGION_SIZE_KEY,
-            extendedRegionSize);
-    // Set the current time as the generation time.
-    HeaderReadWriteUtils::setIntAttribute(outAttributeMap, DATE_KEY,
-            TimeKeeper::peekCurrentTime());
-    HeaderReadWriteUtils::setCodePointVectorAttribute(outAttributeMap, LOCALE_KEY, mLocale);
-    if (updatesLastDecayedTime) {
-        // Set current time as the last updated time.
-        HeaderReadWriteUtils::setIntAttribute(outAttributeMap, LAST_DECAYED_TIME_KEY,
-                TimeKeeper::peekCurrentTime());
-    }
-}
 
 /* static */ DictionaryHeaderStructurePolicy::AttributeMap
         HeaderPolicy::createAttributeMapAndReadAllAttributes(const uint8_t *const dictBuf) {
