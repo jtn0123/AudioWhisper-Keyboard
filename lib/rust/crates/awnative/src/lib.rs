@@ -8,6 +8,7 @@ use jni_sys::{JNI_VERSION_1_6, JavaVM, jint};
 
 mod dictation;
 mod gif;
+mod giphy;
 mod glide;
 mod handle;
 mod jni;

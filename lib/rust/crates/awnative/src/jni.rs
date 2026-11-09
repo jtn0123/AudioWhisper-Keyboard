@@ -214,10 +214,15 @@ impl Env {
         units.map_or(Ok(ptr::null_mut()), |units| self.make_string(units))
     }
 
-    /// A new `String[]` of these strings.
-    pub fn make_strings<S: AsRef<[u16]>>(&self, strings: &[S]) -> Result<jobjectArray> {
-        let len = jsize::try_from(strings.len()).map_err(|_| illegal("array too long"))?;
-        let class = jni_call!(self, FindClass, c"java/lang/String".as_ptr());
+    /// A new array of `class` (a JNI class name) holding what `make` makes of each item.
+    fn make_array<T>(
+        &self,
+        class: &CStr,
+        items: &[T],
+        make: impl Fn(&T) -> Result<jobject>,
+    ) -> Result<jobjectArray> {
+        let len = jsize::try_from(items.len()).map_err(|_| illegal("array too long"))?;
+        let class = jni_call!(self, FindClass, class.as_ptr());
         if class.is_null() {
             return Err(Error::Pending);
         }
@@ -227,13 +232,25 @@ impl Env {
             return Err(Error::Pending);
         }
         // The index fits in a jsize, as the length does.
-        for (i, units) in strings.iter().enumerate() {
-            let string = self.make_string(units.as_ref())?;
-            jni_call!(self, SetObjectArrayElement, array, i as jsize, string);
-            self.delete_local(string);
+        for (i, item) in items.iter().enumerate() {
+            let object = make(item)?;
+            jni_call!(self, SetObjectArrayElement, array, i as jsize, object);
+            self.delete_local(object);
             self.check()?;
         }
         Ok(array)
+    }
+
+    /// A new `String[]` of these strings.
+    pub fn make_strings<S: AsRef<[u16]>>(&self, strings: &[S]) -> Result<jobjectArray> {
+        self.make_array(c"java/lang/String", strings, |it| {
+            self.make_string(it.as_ref())
+        })
+    }
+
+    /// A new `Object[]` of what each of `makers` makes, such as arrays of different types.
+    pub fn make_objects(&self, makers: &[&dyn Fn() -> Result<jobject>]) -> Result<jobjectArray> {
+        self.make_array(c"java/lang/Object", makers, |make| make())
     }
 
     /// `object`'s method `name`, whose JNI `signature` is this, to call back; `what` says which
