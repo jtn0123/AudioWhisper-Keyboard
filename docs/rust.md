@@ -27,11 +27,10 @@ runs both, and has been checked on the emulator.
 | The composers for Korean, Japanese kana and rule tables such as Vietnamese Telex: what a keystroke deletes and types given the text before it. Kotlin keeps the composers' settings and hands Telex's 2,866 rules over once | `crates/composing` | `HangulUnicode`, `KanaUnicode` and `Composer.WithRules`' `getActions`, now wrappers | `ComposingMatchTest` against copies of the three: 160,000 Hangul and 160,000 kana keystrokes, 80,000 Telex keystrokes with the real rules, 4,000 random rule tables (ß, İ, ǅ, ﬁ, final sigma, lone surrogates) and every UTF-16 unit typed and before the cursor. It fails for each of 39 small breaks. On the emulator, comparing Android's own casing, none of 867,976 differed. A Telex keystroke takes 5 µs against Kotlin's 485; Hangul and kana 0.6 µs against 0.25. Not tried by hand: these layouts aren't the English default |
 | Emoji: reading the bundled emoji files (categories, skin-tone sets, the by-tone lists), an emoji's skin tone and hair style, which locale's file to load, and the `:` suggestions, scored, sorted and cut to size. Kotlin still reads the files and settings and builds the emoji it shows; the parsed file stays in Rust so each keystroke is one call | `crates/emoji` | `EmojiData`'s parsing, `Emoji`'s tone and hair style, `EmojiSuggestionProvider`'s query check and scoring, now wrappers | `EmojiMatchTest` against `ReferenceEmoji`: every bundled file, 2,000 damaged copies of them, and 20,000 random queries, tones and locales each. It fails for each of 40 small breaks. On the emulator none of 163,808 differed (17,463 file, 58,883 damaged-file and 87,462 query checks). Reading a file takes 3.5 ms against 11; a `:` keystroke's suggestions about 0.75 ms against 0.8, still off the main thread. Typing `:smi` offered ☺️ 😏 😼 on the emulator |
 
-Next, roughly in order: the LatinIME C++ (`lib/latinime`), then sharing a core with
-the Mac app. The larger pieces of upstream FlorisBoard's pure logic are done; most
+Next: sharing a core with the Mac app. The larger pieces of upstream FlorisBoard's pure logic are done; most
 of what stays in Kotlin draws, reads settings or talks to Android.
 
-### The LatinIME port (in progress)
+### The LatinIME port
 
 The C++ is ported against itself rather than a Kotlin copy. `crates/latin-oracle` builds
 LatinIME's own sources for the computer running the tests (with the NDK's `jni.h` and a fake JNI
@@ -47,6 +46,26 @@ native method of `BinaryDictionary` but open, close, suggestions, the two probab
 word list. The 20,000 questions got byte-identical answers before and after, and the comparison
 caught a changed scoring constant (1,864 of the first 2,000 answers differed). What is left is
 about 11,600 lines of code (16,800 with comments) in 138 files.
+
+That remainder is now ported, in `crates/latin`, one module per area of the C++: `chars` and
+`bytes` (character rules, integers and code points), `header` (the dictionary's header and its
+attributes), `trie` (the version 2 trie: words, probabilities, word pairs, shortcuts and the word
+list), `layout` (the keyboard and the taps on it) and `search` (the typing search, its node cache
+and its scoring). The port keeps the C++'s types and order of operations, so its answers match to
+the bit. Each module is tested against the C++ through the oracle, and each was broken on purpose,
+one change at a time, to show the tests notice; the few changes they could not notice are ones no
+input can tell apart.
+
+The app runs on the port. `crates/awnative/src/latinime.rs` holds the eleven natives of
+`BinaryDictionary`, `DicTraverseSession` and `ProximityInfo`, which Java finds by their JNI names;
+`NativeLibrary` loads libawnative, and libjni_latinime.so is no longer built or shipped. A closed
+handle gets the C++'s answers; input the C++ would read through a null pointer or past an array
+throws instead. On the emulator, 4,000 seeded questions (typos, prefixes, predictions, previous
+words, tap offsets) got byte-identical answers from the C++ build and the Rust build: every output
+array, including the slots a call leaves alone, the weight, both probabilities and the whole word
+list. Typing "helo" on the emulator offers help, helo and hell.
+
+`lib/latinime/src/main/jni` stays only as the reference `latin-oracle` compiles for the tests.
 
 ## Layout
 
@@ -69,6 +88,7 @@ lib/rust/
   crates/composing/           Hangul, kana and rule-table composers
   crates/emoji/               emoji files, skin tones and `:` suggestions
   crates/gif/                 the GIF panel: its search field, chips, keys, result cache, recents and GIPHY's JSON and URLs
+  crates/latin/               LatinIME's dictionary and typing search, ported from its C++
   crates/chars/               Kotlin's character rules, for crates that judge text as Kotlin did
   crates/awnative/            libawnative.so: the JNI functions Kotlin calls, and nothing else
   crates/latin-oracle/        test-only: LatinIME's C++ built for this computer, to compare the port with
