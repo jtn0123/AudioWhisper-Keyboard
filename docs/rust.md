@@ -47,6 +47,11 @@ filler words and vocabulary; bump the `rev` to take a newer core. The keyboard k
 commands, joining and capitals: they were written for phrases transcribed one at a time as the user
 speaks, where the Mac's rules see a whole dictation at once, so neither set replaces the other.
 
+That is where the Mac's port stops (2026-11-10). What is left of its Swift is Apple-framework glue
+(AudioToolbox file reading, Accelerate's FFT, which beats plain Rust, SwiftUI and AppKit), the realtime
+audio buffer, where a call into Rust on every audio callback would add risk for nothing, and prompt text
+only the Mac uses. None of it is shared or faster in Rust.
+
 ### The LatinIME port
 
 The C++ is ported against itself rather than a Kotlin copy. `crates/latin-oracle` builds
