@@ -32,3 +32,6 @@
 # result classes by name, and the AAR ships no rules of its own. Without this R8 strips the
 # fields only native reads, and the recognizer fails to start.
 -keep class com.k2fsa.sherpa.onnx.** { *; }
+
+# The read-aloud voice's callback, which that native code finds by its method's signature.
+-keep class com.jtn0123.audiowhisper.reader.VoiceEngine$AudioCallback { *; }

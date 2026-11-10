@@ -128,6 +128,12 @@ dev.patrickgold.florisboard.beta<br>
   [Kotlin](https://github.com/Kotlin)
 * [KotlinX serialization library](https://github.com/Kotlin/kotlinx.serialization) by
   [Kotlin](https://github.com/Kotlin)
+* [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx) by [k2-fsa](https://github.com/k2-fsa), for
+  dictation and the read-aloud voice
+* [Pocket TTS](https://github.com/kyutai-labs/pocket-tts) by [Kyutai](https://github.com/kyutai-labs),
+  the read-aloud voice (copied onto the phone, not shipped in the app; CC-BY 4.0, ONNX export by
+  [KevinAHM](https://huggingface.co/KevinAHM/pocket-tts-onnx)), speaking in the voice of the "Loona"
+  sample from [delayed-streams-modeling](https://github.com/kyutai-labs/delayed-streams-modeling)
 
 Many thanks to [Nikolay Anzarov](https://www.behance.net/nikolayanzarov) ([@BloodRaven0](https://github.com/BloodRaven0)) for designing and providing the main app icons to this project!
 

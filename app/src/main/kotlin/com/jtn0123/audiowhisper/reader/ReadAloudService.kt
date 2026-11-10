@@ -23,10 +23,12 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 
 /**
- * Reads the app in front aloud, from its accessibility tree, with the phone's text-to-speech.
+ * Reads the app in front aloud, from its accessibility tree, with the built-in neural voice when
+ * it is installed ([VoiceEngine]) and the phone's own text-to-speech otherwise.
  *
  * It costs nothing while idle: it asks for no events and keeps no cache, so apps aren't asked to
  * report anything to it, and it looks at the screen only when a reading starts. While one is on
@@ -38,6 +40,7 @@ import kotlinx.coroutines.withContext
 class ReadAloudService : AccessibilityService() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default.limitedParallelism(1))
     private val stopButton by lazy { StopButton(this, ::stopReading) }
+    private val voices by lazy { LoadedVoice(this, scope) }
 
     @Volatile
     private var reading: Job? = null
@@ -54,6 +57,7 @@ class ReadAloudService : AccessibilityService() {
     override fun onUnbind(intent: Intent?): Boolean {
         ReadAloud.detach(this)
         scope.cancel()
+        runBlocking { voices.close() }
         return super.onUnbind(intent)
     }
 
@@ -73,14 +77,18 @@ class ReadAloudService : AccessibilityService() {
     private suspend fun session(from: ReadAloud.From) {
         ReadAloud.reading(true)
         setCacheEnabled(true)
-        val speaker = withContext(Dispatchers.Main) {
-            stopButton.show()
-            Speaker(this@ReadAloudService, onFocusLost = ::stopReading)
-        }
+        var speaker: Voice? = null
         try {
+            withContext(Dispatchers.Main) { stopButton.show() }
+            val engine = voices.take()
+            // Kept inside the block: a cancelled withContext throws as it returns, which would lose it.
+            val voice = withContext(Dispatchers.Main) {
+                (engine?.let { NeuralVoice(this@ReadAloudService, it, onFocusLost = ::stopReading) }
+                    ?: Speaker(this@ReadAloudService, onFocusLost = ::stopReading)).also { speaker = it }
+            }
             when {
-                !speaker.isReady() -> tell(R.string.read_aloud__no_engine)
-                speaker.begin() -> readFrom(from, speaker)
+                !voice.isReady() -> tell(R.string.read_aloud__no_engine)
+                voice.begin() -> readFrom(from, voice)
             }
         } finally {
             // Before the switch to Main: a cancelled coroutine throws as that returns, even out of
@@ -88,13 +96,14 @@ class ReadAloudService : AccessibilityService() {
             setCacheEnabled(false)
             ReadAloud.reading(false)
             withContext(NonCancellable + Dispatchers.Main) {
-                speaker.shutdown()
+                speaker?.shutdown()
                 stopButton.hide()
+                voices.idle()
             }
         }
     }
 
-    private suspend fun readFrom(from: ReadAloud.From, speaker: Speaker) {
+    private suspend fun readFrom(from: ReadAloud.From, speaker: Voice) {
         var screen = look(waitForApp = from is ReadAloud.From.Selection) ?: return tell(R.string.read_aloud__nothing)
         val start = when (from) {
             ReadAloud.From.Screen -> PageText.firstOnScreen(screen.blocks, screen.visibleTop, screen.visibleBottom) ?: Start(0)
@@ -113,7 +122,7 @@ class ReadAloudService : AccessibilityService() {
      * pause between them, and the list scrolled on once they run out. Each block is brought into
      * sight as it starts; if two start while the page is still moving, only the later one is.
      */
-    private suspend fun readOn(speaker: Speaker, first: Screen, start: Start) = coroutineScope {
+    private suspend fun readOn(speaker: Voice, first: Screen, start: Start) = coroutineScope {
         val inSight = Channel<TextBlock>(Channel.CONFLATED)
         val follower = launch { for (block in inSight) block.reveal() }
         val read = ArrayDeque<String>()
@@ -170,7 +179,7 @@ class ReadAloudService : AccessibilityService() {
         return look(waitForApp = false) ?: screen
     }
 
-    private suspend fun speakOnly(text: String, speaker: Speaker) {
+    private suspend fun speakOnly(text: String, speaker: Voice) {
         speaker.queue(text)
         speaker.awaitBlocks(0)
     }
