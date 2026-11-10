@@ -17,10 +17,10 @@
 package com.android.inputmethod.latin;
 
 /**
- * Minimal read-only glue for the AOSP native dictionary in libjni_latinime.so.
+ * Minimal read-only glue for the AOSP dictionary engine, ported to Rust in libawnative.so.
  *
- * <p>The library's JNI_OnLoad registers every native below by name and signature, and refuses
- * to load if any one is missing; it registers only these, the ones the keyboard calls.
+ * <p>Java finds each native below by its JNI name (lib/rust/crates/awnative/src/latinime.rs), so
+ * the class and method names must not change.
  */
 public final class BinaryDictionary {
     /** Must equal MAX_WORD_LENGTH in native defines.h. */

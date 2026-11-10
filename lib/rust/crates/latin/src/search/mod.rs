@@ -2,8 +2,9 @@
 //! typing decoder that turns taps (and the words before them) into suggestions.
 //!
 //! The public surface is small: [`suggest`] (the app's call, shaped like the JNI method
-//! `getSuggestionsNative`), [`suggest_with`] (any options array and weight), [`Query`], [`Output`]
-//! and [`DicTraverseSession`], which a caller keeps between calls so that the node cache continues
+//! `getSuggestionsNative`), [`suggest_with`] (any options array and weight), [`suggest_into`] (into
+//! arrays the caller keeps, as the JNI method writes Java's), [`Query`], [`Output`] and
+//! [`DicTraverseSession`], which a caller keeps between calls so that the node cache continues
 //! from keystroke to keystroke. Everything else is private to the module.
 //!
 //! # What is ported
@@ -68,7 +69,7 @@ mod suggest_options;
 mod suggest_process;
 mod typing;
 
-pub use jni::{Output, Query, suggest, suggest_with};
+pub use jni::{Output, Query, suggest, suggest_into, suggest_with};
 pub use session::DicTraverseSession;
 
 #[cfg(all(test, not(target_os = "android")))]

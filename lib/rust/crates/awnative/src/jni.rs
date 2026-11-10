@@ -209,6 +209,30 @@ impl Env {
         Ok(strings)
     }
 
+    /// The arrays in an array of arrays such as `int[][]`, `None` for each null; `name` says which
+    /// argument was null, if the outer array was.
+    pub fn read_arrays<T: Element>(
+        &self,
+        array: jobjectArray,
+        name: &'static str,
+    ) -> Result<Vec<Option<Vec<T>>>> {
+        let len = self.length(array, name)?;
+        let mut arrays = Vec::with_capacity(len);
+        // The index fits in a jsize, as the length does.
+        for i in 0..len {
+            let inner = jni_call!(self, GetObjectArrayElement, array, i as jsize);
+            self.check()?;
+            if inner.is_null() {
+                arrays.push(None);
+                continue;
+            }
+            let values = self.read(inner, name);
+            self.delete_local(inner);
+            arrays.push(Some(values?));
+        }
+        Ok(arrays)
+    }
+
     /// A new Java string of these UTF-16 units, or null for `None`.
     pub fn make_nullable_string(&self, units: Option<&[u16]>) -> Result<jstring> {
         units.map_or(Ok(ptr::null_mut()), |units| self.make_string(units))

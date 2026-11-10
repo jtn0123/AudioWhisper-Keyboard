@@ -63,7 +63,7 @@ pub struct Output {
 
 impl Output {
     /// The arrays as Java allocates them: all zero, the weight at its input.
-    fn new(weight: f32) -> Self {
+    pub fn new(weight: f32) -> Self {
         Self {
             count: 0,
             code_points: vec![0; MAX_WORD_LENGTH * MAX_RESULTS],
@@ -108,9 +108,28 @@ pub fn suggest_with(
     weight: f32,
 ) -> Output {
     let mut output = Output::new(weight);
+    suggest_into(dictionary, Some(info), session, query, options, &mut output);
+    output
+}
+
+/// [`suggest_with`] writing into arrays the caller holds, as the JNI method writes into Java's:
+/// what the C++ doesn't write (past the last suggestion, past each word's terminator, the
+/// confidence when there is no suggestion) keeps its value. `output.weight` is the weight in.
+///
+/// Without a keyboard (a null `proximityInfo`), only predictions run: the C++ reads through the
+/// null pointer for typed input, so this leaves `output` as it is instead.
+pub fn suggest_into(
+    dictionary: &Dictionary,
+    info: Option<&ProximityInfo>,
+    session: &mut DicTraverseSession,
+    query: &Query,
+    options: &[i32],
+    output: &mut Output,
+) {
+    output.count = 0;
     let suggest_options = SuggestOptions::new(options);
     if suggest_options.is_gesture() {
-        return output;
+        return;
     }
     let size = query
         .code_points
@@ -125,6 +144,9 @@ pub fn suggest_with(
     }
     let ngram_context = NgramContext::new(&prev[..prev_count], &query.beginning_of_sentence);
     if size > 0 {
+        let Some(info) = info else {
+            return;
+        };
         let mut xs = [NOT_A_COORDINATE; MAX_WORD_LENGTH];
         let mut ys = [NOT_A_COORDINATE; MAX_WORD_LENGTH];
         for (index, point) in query.points.iter().take(size).enumerate() {
@@ -147,14 +169,13 @@ pub fn suggest_with(
             &input,
             &ngram_context,
             suggest_options,
-            weight,
+            output.weight,
         );
     } else {
         session.results.clear();
         get_predictions(dictionary.policy(), &ngram_context, &mut session.results);
     }
-    write_output(session, &mut output);
-    output
+    write_output(session, output);
 }
 
 /// `SuggestionResults::outputSuggestions`: pops the results worst first into the arrays, so the

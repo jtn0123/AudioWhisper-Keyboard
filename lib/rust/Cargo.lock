@@ -15,6 +15,7 @@ dependencies = [
  "glide",
  "jni-sys",
  "keys",
+ "latin",
  "popup",
  "reader",
  "shift",

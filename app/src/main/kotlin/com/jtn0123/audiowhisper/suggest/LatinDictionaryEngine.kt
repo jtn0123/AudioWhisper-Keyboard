@@ -6,7 +6,7 @@ import com.android.inputmethod.latin.DicTraverseSession
 import java.io.Closeable
 
 /**
- * The AOSP native dictionary (libjni_latinime.so) behind [TypingDecoder]. One decoder session is
+ * The AOSP dictionary engine (ported to Rust, in libawnative.so) behind [TypingDecoder]. One decoder session is
  * shared, so every call is serialized on this object; a call takes a few milliseconds.
  */
 class LatinDictionaryEngine private constructor(

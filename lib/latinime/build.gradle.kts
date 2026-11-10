@@ -1,37 +1,27 @@
 /*
- * AudioWhisper Keyboard: the AOSP LatinIME native dictionary engine
- * (libjni_latinime.so) plus the minimal Java glue whose class and method names
- * the library registers its JNI methods on. Apache-2.0, see the file headers.
+ * AudioWhisper Keyboard: the minimal Java glue for the AOSP LatinIME dictionary engine, whose
+ * natives are now the Rust port's (lib/rust/crates/latin, entry points in awnative's latinime.rs,
+ * found by their JNI names). Apache-2.0, see the file headers. src/main/jni keeps LatinIME's C++
+ * as the reference the Rust tests compare against (lib/rust/crates/latin-oracle); the app no
+ * longer builds or ships it.
  */
 
 plugins {
     alias(libs.plugins.agp.library)
 }
 
-val projectNativeMinSdk = providers.gradleProperty("projectNativeMinSdk").get()
+val projectMinSdk = providers.gradleProperty("projectMinSdk").get()
 val projectCompileSdk = providers.gradleProperty("projectCompileSdk").get()
 
 android {
     namespace = "com.android.inputmethod.latinime"
     compileSdk = projectCompileSdk.toInt()
-    ndkVersion = tools.versions.ndk.get()
-    // Java and C++ only: no Kotlin compile task, no kotlin-stdlib dependency.
+    // Java only: no Kotlin compile task, no kotlin-stdlib dependency.
     enableKotlin = false
 
     defaultConfig {
-        minSdk = projectNativeMinSdk.toInt()
+        minSdk = projectMinSdk.toInt()
         consumerProguardFiles("consumer-rules.pro")
-
-        externalNativeBuild {
-            ndkBuild {
-                arguments("-j${Runtime.getRuntime().availableProcessors()}")
-            }
-        }
-
-        // The phone is arm64 (S24 Ultra); other ABIs would only add build time and size.
-        ndk {
-            abiFilters += listOf("arm64-v8a")
-        }
     }
 
     buildTypes {
@@ -46,11 +36,5 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
-    }
-
-    externalNativeBuild {
-        ndkBuild {
-            path("src/main/jni/Android.mk")
-        }
     }
 }

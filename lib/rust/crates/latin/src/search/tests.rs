@@ -6,6 +6,7 @@
 
 mod cases;
 mod digraphs;
+mod into;
 mod options;
 mod output;
 mod robustness;

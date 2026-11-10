@@ -34,7 +34,7 @@ class AutoCorrectionTest {
 
     @Test
     fun normalizedScoreMatchesTheNativeFormula() {
-        // Values measured from libjni_latinime: "teh" -> "the" scored 477893, normalized 0.319.
+        // Values measured from the LatinIME engine (the C++, which the Rust port matches): "teh" -> "the" scored 477893, normalized 0.319.
         assertEquals(0.3186f, AutoCorrection.normalizedScore("teh", "the", 477_893), 0.0005f)
         assertEquals(0.6377f, AutoCorrection.normalizedScore("dont", "don't", 797_125), 0.0005f)
     }

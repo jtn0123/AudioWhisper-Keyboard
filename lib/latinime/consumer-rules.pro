@@ -1,5 +1,4 @@
-# libjni_latinime.so registers its methods on these exact class, method and
-# field names (JNI_OnLoad -> RegisterNatives). Registration fails, and the
-# library refuses to load, if R8 renames or strips any of them, including the
-# natives the app never calls.
+# libawnative.so's LatinIME entry points are found by their JNI names, which
+# spell out these exact class and method names (Java_com_android_inputmethod_...).
+# A native whose class or method R8 renames can no longer be found.
 -keep class com.android.inputmethod.** { *; }

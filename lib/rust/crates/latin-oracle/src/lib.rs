@@ -1,5 +1,6 @@
-//! Test-only: LatinIME's real C++, the decoder the app ships in `libjni_latinime.so`, built for
-//! this computer so the Rust port can be compared with it in `cargo test`.
+//! Test-only: LatinIME's real C++, the decoder the app shipped in `libjni_latinime.so` until the
+//! Rust port replaced it, built for this computer so the port can be compared with it in
+//! `cargo test`.
 //!
 //! `build.rs` compiles every C++ file in `lib/latinime` with `cpp/fake_jni.cpp`, a JNI
 //! environment just big enough for LatinIME's own JNI glue. Calls here go through that glue's

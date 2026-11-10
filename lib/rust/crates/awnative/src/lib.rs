@@ -16,6 +16,7 @@ mod glide;
 mod handle;
 mod jni;
 mod keys;
+mod latinime;
 mod panic;
 mod popup;
 mod reader;

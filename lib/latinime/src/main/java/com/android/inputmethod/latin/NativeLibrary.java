@@ -16,9 +16,13 @@
 
 package com.android.inputmethod.latin;
 
-/** Loads libjni_latinime once; its JNI_OnLoad registers the natives of every glue class. */
+/**
+ * Loads libawnative once: the keyboard's Rust library (lib/rust), which holds the natives of
+ * every glue class here under their JNI names, ported from LatinIME's C++ (lib/rust/crates/latin).
+ * The app packages it through lib/rust.
+ */
 public final class NativeLibrary {
-    private static final String LIBRARY_NAME = "jni_latinime";
+    private static final String LIBRARY_NAME = "awnative";
     private static boolean sLoaded;
 
     private NativeLibrary() {
