@@ -96,7 +96,11 @@ android {
         buildConfigField("String", "GIPHY_API_KEY", "\"$giphyApiKey\"")
 
         // The phone is arm64; the other ABIs in the sherpa-onnx AAR would
-        // only add size.
+        // only add size. Lint's ChromeOsAbiSupport warning is expected and
+        // left showing (warnings aren't suppressed here): x86_64 would mean
+        // building the Rust, LatinIME's C++ and sherpa-onnx twice and about
+        // 30 MB more APK for devices this app isn't for (even the emulators
+        // used for testing are arm64).
         ndk { abiFilters += "arm64-v8a" }
     }
 
