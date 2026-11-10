@@ -51,6 +51,9 @@ internal class NeuralVoice(context: Context, private val engine: VoiceEngine, on
     @Volatile
     private var written = 0L
 
+    /** Time the worker has spent waiting for room in [track]'s buffer, in ms. */
+    private var waited = 0L
+
     init {
         scope.launch { follow() }
     }
@@ -88,14 +91,17 @@ internal class NeuralVoice(context: Context, private val engine: VoiceEngine, on
         plays.begins(block, written)
         val began = SystemClock.elapsedRealtime()
         val from = written
+        val waitedBefore = waited
         for (piece in pieces) {
             if (stopped) return
             runCatching { engine.speak(piece, ::write) }
                 .onFailure { Log.w(TAG, "A sentence failed: ${it.javaClass.simpleName}") }
         }
         plays.ends(block, written)
+        // Generation only: writing waits while the buffer is full, which says nothing about speed.
+        val generating = SystemClock.elapsedRealtime() - began - (waited - waitedBefore)
         val seconds = (written - from).toDouble() / engine.sampleRate
-        Log.d(TAG, "%.1f s of speech in %.1f s".format(seconds, (SystemClock.elapsedRealtime() - began) / 1000.0))
+        Log.d(TAG, "Generated %.1f s of speech in %.1f s".format(seconds, generating / 1000.0))
     }
 
     /** Sends [samples] to the speaker, waiting while its buffer is full; false once stopped. */
@@ -103,13 +109,18 @@ internal class NeuralVoice(context: Context, private val engine: VoiceEngine, on
         if (stopped) return false
         if (track.playState != AudioTrack.PLAYSTATE_PLAYING) track.play()
         var offset = 0
-        while (offset < samples.size) {
-            val count = track.write(samples, offset, samples.size - offset, AudioTrack.WRITE_BLOCKING)
-            if (count <= 0 || stopped) return false
-            offset += count
-            written += count
+        val started = SystemClock.elapsedRealtime()
+        try {
+            while (offset < samples.size) {
+                val count = track.write(samples, offset, samples.size - offset, AudioTrack.WRITE_BLOCKING)
+                if (count <= 0 || stopped) return false
+                offset += count
+                written += count
+            }
+            return true
+        } finally {
+            waited += SystemClock.elapsedRealtime() - started
         }
-        return true
     }
 
     /** Follows the output, telling [PlayQueue] how far it has played. */
