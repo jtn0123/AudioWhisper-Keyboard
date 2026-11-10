@@ -22,6 +22,8 @@
 #include <utility>
 #include <vector>
 
+#include "utils/time_keeper.h"
+
 namespace {
 
 enum class Kind { IntArray, FloatArray, BooleanArray, ObjectArray, String, Class };
@@ -254,6 +256,22 @@ extern "C" jint JNI_OnLoad(JavaVM *vm, void *reserved);
 extern "C" {
 
 int32_t aw_oracle_load() { return JNI_OnLoad(&VM, nullptr); }
+
+/**
+ * TimeKeeper held at the current time, in test mode, so Dictionary::getSuggestions's
+ * setCurrentTime only reads its statics while searches run on several threads; and released,
+ * back on the clock as a lone getSuggestions would leave it. Called with no other call running.
+ */
+void aw_oracle_hold_time() {
+    latinime::TimeKeeper::setCurrentTime();
+    latinime::TimeKeeper::startTestModeWithForceCurrentTime(
+            latinime::TimeKeeper::peekCurrentTime());
+}
+
+void aw_oracle_release_time() {
+    latinime::TimeKeeper::stopTestMode();
+    latinime::TimeKeeper::setCurrentTime();
+}
 
 int64_t aw_oracle_open(const char *path, int64_t offset, int64_t size) {
     String source(path);

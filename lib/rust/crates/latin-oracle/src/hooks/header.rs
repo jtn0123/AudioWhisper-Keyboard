@@ -124,7 +124,7 @@ impl Policy {
     /// `now` as the time `TimeKeeper` reports for a missing date. Holds the C++ lock, since
     /// `TimeKeeper` is global.
     pub fn new(buffer: &[u8], version: i32, now: i32) -> Self {
-        let _guard = super::lock();
+        let _guard = crate::exclusive_lock();
         let copy = padded(buffer);
         // SAFETY: `copy` holds the buffer and PADDING zeros after it, enough for every read the
         // constructor makes. The handle is freed by `drop`.

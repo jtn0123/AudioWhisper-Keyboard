@@ -7,19 +7,25 @@
 //! `DicTraverseSession`, `ProximityInfo`) and the app's `LatinDictionaryEngine` shape them, so the
 //! oracle answers as the app's decoder does.
 //!
-//! The C++ isn't known to be safe to call from several threads, so every call takes one lock.
+//! Every call into the C++ takes the lock in [`locking`]: shared, so tests can run the C++ on
+//! several threads at once, except for the few calls that write a global.
+//!
 //! This crate and `awnative` are the only ones with `unsafe`; this one never ships.
 #![cfg(not(target_os = "android"))]
 
 use std::ffi::{CString, c_void};
 use std::path::{Path, PathBuf};
-use std::sync::{Mutex, MutexGuard, OnceLock};
+use std::sync::Mutex;
 
 use suggest::qwerty;
 
 pub mod cli;
 pub mod hooks;
+pub mod locking;
 pub mod queries;
+
+use locking::search_lock;
+pub use locking::{exclusive_lock, lock};
 
 /// The native MAX_WORD_LENGTH: the longest word, and the input arrays' size.
 pub const MAX_WORD_LENGTH: usize = 48;
@@ -42,6 +48,8 @@ type Sink = extern "C" fn(*mut c_void, *const u16, usize);
 // SAFETY: these are the functions cpp/fake_jni.cpp defines, with the same C signatures.
 unsafe extern "C" {
     fn aw_oracle_load() -> i32;
+    fn aw_oracle_hold_time();
+    fn aw_oracle_release_time();
     fn aw_oracle_open(path: *const i8, offset: i64, size: i64) -> i64;
     fn aw_oracle_close(dictionary: i64);
     fn aw_oracle_probability(dictionary: i64, word: *const i32, length: i32) -> i32;
@@ -102,17 +110,6 @@ unsafe extern "C" {
         out_auto_commit: *mut i32,
         in_out_weight: *mut f32,
     );
-}
-
-/// The one lock every call into the C++ holds, taken after JNI_OnLoad has registered the natives.
-pub fn lock() -> MutexGuard<'static, ()> {
-    static LOCK: Mutex<()> = Mutex::new(());
-    static LOADED: OnceLock<i32> = OnceLock::new();
-    let guard = LOCK.lock().unwrap_or_else(|it| it.into_inner());
-    // SAFETY: JNI_OnLoad only registers natives into the fake environment; it runs once, locked.
-    let version = *LOADED.get_or_init(|| unsafe { aw_oracle_load() });
-    assert!(version > 0, "LatinIME's JNI_OnLoad failed");
-    guard
 }
 
 fn length(slice: &[i32]) -> i32 {
@@ -304,6 +301,8 @@ impl Drop for Proximity {
 #[derive(Debug)]
 pub struct Session {
     handle: i64,
+    /// Held by a search on this session, so two never run on it at once.
+    busy: Mutex<()>,
 }
 
 impl Session {
@@ -319,7 +318,10 @@ impl Session {
         // SAFETY: `locale` is NUL-terminated and outlives the call; the dictionary is open.
         let handle =
             unsafe { aw_oracle_session(locale.as_ptr(), dictionary.handle, dictionary.size) };
-        Self { handle }
+        Self {
+            handle,
+            busy: Mutex::new(()),
+        }
     }
 }
 
@@ -424,7 +426,7 @@ pub fn suggest(
         auto_commit_confidence: 0,
         weight: NOT_A_WEIGHT,
     };
-    let _lock = lock();
+    let _lock = search_lock(session);
     // SAFETY: every array is valid for the length passed with it, the outputs are writable for
     // theirs, and the handles are open until their owners drop.
     unsafe {
