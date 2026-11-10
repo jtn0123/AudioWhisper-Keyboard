@@ -696,6 +696,21 @@ abstract class FlorisPreferenceModel : PreferenceModel() {
         )
     }
 
+    // AudioWhisper: how dictated phrases are tidied before they are typed, by the Mac app's rules.
+    val dictation = DictationText()
+    inner class DictationText {
+        // On by default, as on the Mac.
+        val removeFillers = boolean(
+            key = "dictation__remove_fillers",
+            default = true,
+        )
+        // One entry per line, as on the Mac: a word to spell exactly, or "heard -> written".
+        val vocabulary = string(
+            key = "dictation__vocabulary",
+            default = "",
+        )
+    }
+
     val spelling = Spelling()
     inner class Spelling {
         val languageMode = enum(

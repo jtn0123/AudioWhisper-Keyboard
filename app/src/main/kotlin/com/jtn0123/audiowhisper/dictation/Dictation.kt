@@ -50,6 +50,9 @@ class Dictation(private val context: Context, private val editor: Editor) {
         /** A capitalised word is usually written that way ("John"), so it keeps its capital mid-sentence. */
         fun isName(word: String): Boolean
 
+        /** [phrase] as the user's settings tidy it before it is typed: filler words, vocabulary. */
+        fun tidy(phrase: String): String
+
         /** Takes back the phrase dictation typed last, if nothing has changed since. */
         fun undoLastPhrase(): Boolean
         fun problem(message: String)
@@ -313,7 +316,7 @@ class Dictation(private val context: Context, private val editor: Editor) {
         mutablePreview.value = ""
         result.onSuccess { text ->
             if (text.isNotBlank()) {
-                Spoken.parse(text).forEach(::act)
+                Spoken.parse(editor.tidy(text)).forEach(::act)
                 typedAny = true
             }
         }.onFailure { error ->

@@ -227,3 +227,35 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_DictationNative_micKey
         })
     }
 }
+
+/// `phrase` with filler words removed (when `remove_fillers`) and `vocabulary` applied: the Mac
+/// app's rules, from AudioWhisper-Core's `transcript`. `vocabulary` is its text, one entry per line
+/// (see `transcript::vocabulary`). A phrase that isn't valid UTF-16 comes back as it was.
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_DictationNative_format(
+    env: *mut JNIEnv,
+    _: jclass,
+    phrase: jstring,
+    vocabulary: jstring,
+    remove_fillers: jboolean,
+) -> jstring {
+    // SAFETY: the JVM passes its environment for this call.
+    unsafe {
+        jni::run(env, ptr::null_mut(), |env| {
+            let units = env.read_string(phrase, "phrase")?;
+            let vocabulary = env.read_string(vocabulary, "vocabulary")?;
+            let (Ok(text), Ok(vocabulary)) =
+                (String::from_utf16(&units), String::from_utf16(&vocabulary))
+            else {
+                return env.make_string(&units);
+            };
+            let options = transcript::Options {
+                vocabulary: transcript::Vocabulary::parse(&vocabulary),
+                remove_fillers: remove_fillers != 0,
+                spoken_punctuation: false,
+            };
+            let formatted: Vec<u16> = transcript::format(&text, &options).encode_utf16().collect();
+            env.make_string(&formatted)
+        })
+    }
+}

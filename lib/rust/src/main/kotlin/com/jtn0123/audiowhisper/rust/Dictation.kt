@@ -26,6 +26,14 @@ object DictationRules {
     /** Delete [replacing] characters before the cursor, then type [text]. */
     class Typing(val replacing: Int, val text: String)
 
+    /**
+     * [phrase] tidied by the Mac app's rules, shared through AudioWhisper-Core: filler words ("uh",
+     * "um,") removed if [removeFillers], then [vocabulary] applied. [vocabulary] is one entry per
+     * line, as on the Mac: a word to spell exactly ("Kubernetes"), or `heard -> written`.
+     */
+    fun format(phrase: String, vocabulary: String, removeFillers: Boolean): String =
+        if (vocabulary.isBlank() && !removeFillers) phrase else DictationNative.format(phrase, vocabulary, removeFillers)
+
     /** [phrase]'s words and commands, in order. */
     fun parse(phrase: String): List<Part> = DictationNative.parse(phrase).map { part ->
         val kind = when (part[0]) {

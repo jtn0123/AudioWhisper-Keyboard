@@ -16,6 +16,21 @@ class DictationRulesTest {
     private fun parts(phrase: String) = DictationRules.parse(phrase).map { it.kind to it.text }
 
     @Test
+    fun formatRemovesFillersAndAppliesTheVocabularyAsTheMacDoes() {
+        val vocabulary = "Kubernetes\n# a comment\npost gress -> Postgres\nAudioWhisper"
+        assertEquals("So I deployed Kubernetes.", DictationRules.format("Um, so I deployed kubernetes.", vocabulary, true))
+        assertEquals("Postgres and AudioWhisper uh", DictationRules.format("post gress and audio whisper uh", vocabulary, false))
+        assertEquals("Postgres and AudioWhisper", DictationRules.format("post gress and audio whisper uh", vocabulary, true))
+    }
+
+    @Test
+    fun formatLeavesThePhraseAloneWithNothingToDo() {
+        assertEquals("Um, so.", DictationRules.format("Um, so.", " ", false))
+        // Not valid UTF-16 (a lone surrogate): the Rust can't read it as text, so it is left alone.
+        assertEquals("a \uD800 uh", DictationRules.format("a \uD800 uh", "", true))
+    }
+
+    @Test
     fun parseGivesEveryKindOfPart() {
         assertEquals(
             listOf(

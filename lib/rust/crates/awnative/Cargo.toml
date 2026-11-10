@@ -25,6 +25,9 @@ reader = { path = "../reader" }
 shift = { path = "../shift" }
 spacing = { path = "../spacing" }
 suggest = { path = "../suggest" }
+# The Mac app's transcript rules (filler words, custom vocabulary), from AudioWhisper-Core, the
+# Rust both apps share. Pinned to a commit; bump the rev to take a newer core.
+transcript = { git = "https://github.com/jtn0123/AudioWhisper-Core", rev = "eb7c4057ee016fca71e50c051f51339caf5b5295" }
 # jni.h as Rust declarations, nothing more. 0.3.0 has no dependencies of its own.
 jni-sys = "=0.3.0"
 

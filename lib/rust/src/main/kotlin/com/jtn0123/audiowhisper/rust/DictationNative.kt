@@ -18,6 +18,8 @@ internal object DictationNative {
 
     @JvmStatic external fun revertsAt(typed: String, start: Int, cursor: Int, textBeforeCursor: String): Boolean
 
+    @JvmStatic external fun format(phrase: String, vocabulary: String, removeFillers: Boolean): String
+
     @JvmStatic external fun holdMs(): Long
 
     @JvmStatic external fun newMicKey(): Long

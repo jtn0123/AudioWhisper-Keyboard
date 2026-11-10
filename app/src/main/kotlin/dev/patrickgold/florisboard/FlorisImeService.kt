@@ -75,6 +75,7 @@ import androidx.lifecycle.lifecycleScope
 import com.jtn0123.audiowhisper.dictation.Dictation
 import com.jtn0123.audiowhisper.dictation.DictationFields
 import com.jtn0123.audiowhisper.gif.GifSearch
+import com.jtn0123.audiowhisper.rust.DictationRules
 import dev.patrickgold.florisboard.app.FlorisAppActivity
 import dev.patrickgold.florisboard.app.FlorisPreferenceStore
 import dev.patrickgold.florisboard.app.devtools.DevtoolsOverlay
@@ -433,6 +434,9 @@ class FlorisImeService : LifecycleInputMethodService() {
         }
 
         override fun isName(word: String): Boolean = nlpManager.isName(word)
+
+        override fun tidy(phrase: String): String =
+            DictationRules.format(phrase, prefs.dictation.vocabulary.get(), prefs.dictation.removeFillers.get())
 
         override fun undoLastPhrase(): Boolean = editorInstance.undoDictation()
 

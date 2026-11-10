@@ -36,6 +36,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navDeepLink
 import androidx.navigation.toRoute
+import com.jtn0123.audiowhisper.dictation.DictationScreen
 import dev.patrickgold.florisboard.app.devtools.AndroidLocalesScreen
 import dev.patrickgold.florisboard.app.devtools.AndroidSettingsScreen
 import dev.patrickgold.florisboard.app.devtools.DevtoolsScreen
@@ -147,6 +148,11 @@ object Routes {
         @Serializable
         @Deeplink("settings/smartbar")
         object Smartbar
+
+        // AudioWhisper: filler words and vocabulary for dictation.
+        @Serializable
+        @Deeplink("settings/dictation")
+        object Dictation
 
         @Serializable
         @Deeplink("settings/typing")
@@ -299,6 +305,7 @@ object Routes {
             composableWithDeepLink(Settings.InputFeedback::class) { InputFeedbackScreen() }
 
             composableWithDeepLink(Settings.Smartbar::class) { SmartbarScreen() }
+            composableWithDeepLink(Settings.Dictation::class) { DictationScreen() }
 
             composableWithDeepLink(Settings.Typing::class) { TypingScreen() }
 

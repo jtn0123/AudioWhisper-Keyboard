@@ -432,6 +432,13 @@
     <string name="pref__keyboard__incognito_indicator__label" comment="Preference title">Incognito indicator</string>
 
     <!-- Smartbar strings -->
+    <!-- AudioWhisper: dictation settings -->
+    <string name="settings__dictation__title">Dictation</string>
+    <string name="pref__dictation__remove_fillers__label">Remove filler words</string>
+    <string name="pref__dictation__remove_fillers__summary">Leaves out “uh”, “um” and the like, as the Mac app does</string>
+    <string name="pref__dictation__vocabulary__label">Custom vocabulary</string>
+    <string name="pref__dictation__vocabulary__summary">One per line, as on the Mac: a word to always spell this way, or “heard -&gt; written” to replace a phrase. Lines starting with # are ignored.</string>
+    <string name="pref__dictation__vocabulary__placeholder">Kubernetes\npost gress -&gt; Postgres</string>
     <string name="settings__smartbar__title" comment="Title of Smartbar screen">Smartbar</string>
     <string name="pref__smartbar__enabled__label" comment="Preference title">Enable Smartbar</string>
     <string name="pref__smartbar__enabled__summary" comment="Preference summary">Will show on top of the keyboard</string>
