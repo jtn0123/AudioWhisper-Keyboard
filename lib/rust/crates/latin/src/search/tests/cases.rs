@@ -5,7 +5,7 @@ use std::time::Instant;
 
 use latin_oracle::queries::{self, Random};
 
-use super::support::{Pair, in_chunks, new_session};
+use super::support::{Pair, in_chunks, new_session, tap};
 use crate::defines::NOT_A_FIRST_WORD_CONFIDENCE;
 use crate::search::dictionary::{KIND_PREDICTION, KIND_SHORTCUT, KIND_WHITELIST};
 
@@ -253,4 +253,44 @@ fn missing_coordinates_match_the_cpp() {
         "{} of {calls}",
         coverage.non_empty
     );
+}
+
+/// The longest input the app sends, 48 taps (it drops anything longer), and 47 beside it: words
+/// run together until they fill it, half the time with a typo, with taps or without.
+#[test]
+fn the_longest_inputs_match_the_cpp() {
+    let pair = Pair::shared();
+    let mut random = Random::new(48);
+    let inputs: Vec<_> = (0..400)
+        .map(|round| {
+            let length = 48 - round % 2;
+            let mut code_points = Vec::with_capacity(length + 48);
+            while code_points.len() < length {
+                let word = &pair.words[random.below(pair.words.len())];
+                code_points.extend(word.iter().map(|&c| c as i32));
+            }
+            code_points.truncate(length);
+            if random.below(2) == 0 {
+                code_points[random.below(length)] = i32::from(b'a') + random.below(26) as i32;
+            }
+            let tapped = random.below(2) == 0;
+            let points = code_points
+                .iter()
+                .map(|&c| if tapped { tap(&mut random, c) } else { None })
+                .collect();
+            latin_oracle::Query {
+                code_points,
+                points,
+                block_offensive_words: false,
+                previous: Vec::new(),
+                beginning_of_sentence: Vec::new(),
+            }
+        })
+        .collect();
+    let outputs = in_chunks(
+        &inputs,
+        || (),
+        |(), round, query| fresh(pair, query, &format!("longest {round}")),
+    );
+    assert_eq!(outputs.len(), 400);
 }
