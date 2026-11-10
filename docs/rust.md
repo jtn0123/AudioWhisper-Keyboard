@@ -28,8 +28,24 @@ runs both, and has been checked on the emulator.
 | The composers for Korean, Japanese kana and rule tables such as Vietnamese Telex: what a keystroke deletes and types given the text before it. Kotlin keeps the composers' settings and hands Telex's 2,866 rules over once | `crates/composing` | `HangulUnicode`, `KanaUnicode` and `Composer.WithRules`' `getActions`, now wrappers | `ComposingMatchTest` against copies of the three: 160,000 Hangul and 160,000 kana keystrokes, 80,000 Telex keystrokes with the real rules, 4,000 random rule tables (ß, İ, ǅ, ﬁ, final sigma, lone surrogates) and every UTF-16 unit typed and before the cursor. It fails for each of 39 small breaks. On the emulator, comparing Android's own casing, none of 867,976 differed. A Telex keystroke takes 5 µs against Kotlin's 485; Hangul and kana 0.6 µs against 0.25. Not tried by hand: these layouts aren't the English default |
 | Emoji: reading the bundled emoji files (categories, skin-tone sets, the by-tone lists), an emoji's skin tone and hair style, which locale's file to load, and the `:` suggestions, scored, sorted and cut to size. Kotlin still reads the files and settings and builds the emoji it shows; the parsed file stays in Rust so each keystroke is one call | `crates/emoji` | `EmojiData`'s parsing, `Emoji`'s tone and hair style, `EmojiSuggestionProvider`'s query check and scoring, now wrappers | `EmojiMatchTest` against `ReferenceEmoji`: every bundled file, 2,000 damaged copies of them, and 20,000 random queries, tones and locales each. It fails for each of 40 small breaks. On the emulator none of 163,808 differed (17,463 file, 58,883 damaged-file and 87,462 query checks). Reading a file takes 3.5 ms against 11; a `:` keystroke's suggestions about 0.75 ms against 0.8, still off the main thread. Typing `:smi` offered ☺️ 😏 😼 on the emulator |
 
-Next: sharing a core with the Mac app. The larger pieces of upstream FlorisBoard's pure logic are done; most
-of what stays in Kotlin draws, reads settings or talks to Android.
+The larger pieces of upstream FlorisBoard's pure logic are done; most of what stays in Kotlin draws,
+reads settings or talks to Android.
+
+### Sharing a core with the Mac app
+
+The Mac app's text rules are Rust too, in [AudioWhisper-Core](https://github.com/jtn0123/AudioWhisper-Core)
+(public), which the Mac app builds as a submodule:
+
+- `transcript`: spoken punctuation, filler words, custom vocabulary, fitting a phrase to the text before
+  the cursor. Merged into the Mac app in AudioWhisper PR #59.
+- `apple-text`: the Swift and Foundation text semantics and ICU regular expressions those rules need.
+- `correction`: the safety gate that rejects a model's "correction" that changed too much (PR #60).
+
+Each was ported against the Mac's Swift with a differential test and a mutation check, as here. The
+keyboard takes `transcript` as a git dependency pinned to a commit (`crates/awnative/Cargo.toml`) for its
+filler words and vocabulary; bump the `rev` to take a newer core. The keyboard keeps its own spoken
+commands, joining and capitals: they were written for phrases transcribed one at a time as the user
+speaks, where the Mac's rules see a whole dictation at once, so neither set replaces the other.
 
 ### The LatinIME port
 
