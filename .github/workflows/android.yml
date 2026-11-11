@@ -51,6 +51,12 @@ jobs:
           java-version: 24
           distribution: temurin
 
+      - name: Install the pinned NDK
+        # The Rust task links with the NDK's clang before anything else would download it.
+        run: |
+          ndk=$(sed -n 's/^ndk = "\(.*\)"$/\1/p' gradle/tools.versions.toml)
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "ndk;$ndk" > /dev/null
+
       - name: Set up CMake and Ninja
         uses: lukka/get-cmake@v4.0.2
 
