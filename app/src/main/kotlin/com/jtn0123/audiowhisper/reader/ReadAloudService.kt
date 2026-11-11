@@ -23,7 +23,6 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 
 /**
@@ -45,6 +44,9 @@ class ReadAloudService : AccessibilityService() {
     @Volatile
     private var reading: Job? = null
 
+    /** The voice reading now; only touched on the main thread. */
+    private var speaking: Voice? = null
+
     override fun onServiceConnected() {
         setCacheEnabled(false)
         ReadAloud.attach(this)
@@ -54,10 +56,16 @@ class ReadAloudService : AccessibilityService() {
 
     override fun onInterrupt() = stopReading()
 
+    /**
+     * Turned off, perhaps mid-sentence. The reading's voice stops first, so its worker makes no
+     * new sentence; then the neural voice is freed off the main thread, after the sentence in
+     * progress (which stops at its next piece of audio), so the main thread never waits on it.
+     */
     override fun onUnbind(intent: Intent?): Boolean {
         ReadAloud.detach(this)
+        stopSpeaking()
         scope.cancel()
-        runBlocking { voices.close() }
+        CoroutineScope(Dispatchers.IO).launch { voices.close() }
         return super.onUnbind(intent)
     }
 
@@ -77,14 +85,13 @@ class ReadAloudService : AccessibilityService() {
     private suspend fun session(from: ReadAloud.From) {
         ReadAloud.reading(true)
         setCacheEnabled(true)
-        var speaker: Voice? = null
         try {
             withContext(Dispatchers.Main) { stopButton.show() }
             val engine = voices.take()
             // Kept inside the block: a cancelled withContext throws as it returns, which would lose it.
             val voice = withContext(Dispatchers.Main) {
                 (engine?.let { NeuralVoice(this@ReadAloudService, it, onFocusLost = ::stopReading) }
-                    ?: Speaker(this@ReadAloudService, onFocusLost = ::stopReading)).also { speaker = it }
+                    ?: Speaker(this@ReadAloudService, onFocusLost = ::stopReading)).also { speaking = it }
             }
             when {
                 !voice.isReady() -> tell(R.string.read_aloud__no_engine)
@@ -96,11 +103,17 @@ class ReadAloudService : AccessibilityService() {
             setCacheEnabled(false)
             ReadAloud.reading(false)
             withContext(NonCancellable + Dispatchers.Main) {
-                speaker?.shutdown()
+                stopSpeaking()
                 stopButton.hide()
                 voices.idle()
             }
         }
+    }
+
+    /** Main thread only: ends the reading's voice for good, once. */
+    private fun stopSpeaking() {
+        speaking?.shutdown()
+        speaking = null
     }
 
     private suspend fun readFrom(from: ReadAloud.From, speaker: Voice) {

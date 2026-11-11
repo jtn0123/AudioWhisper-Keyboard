@@ -28,18 +28,18 @@ import java.io.File
  * One sentence is generated at a time; [speak] may be called from any thread, one at a time.
  */
 internal class VoiceEngine private constructor(
-    private val tts: OfflineTts,
+    tts: OfflineTts,
     private val config: GenerationConfig,
 ) : AutoCloseable {
     val sampleRate: Int = tts.sampleRate()
-    private val lock = Any()
+    private val tts = ReleasedOnce(tts) { it.release() }
 
     /**
      * Speaks [text], handing its audio to [onAudio] as it is made; generation stops early when
-     * [onAudio] returns false.
+     * [onAudio] returns false. Does nothing once the voice is [close]d.
      */
     fun speak(text: String, onAudio: (FloatArray) -> Boolean) {
-        synchronized(lock) { tts.generateWithConfigAndCallback(text, config, AudioCallback(onAudio)) }
+        tts.use { it.generateWithConfigAndCallback(text, config, AudioCallback(onAudio)) }
     }
 
     /**
@@ -52,7 +52,8 @@ internal class VoiceEngine private constructor(
         override fun invoke(samples: FloatArray): Int = if (onAudio(samples)) 1 else 0
     }
 
-    override fun close() = synchronized(lock) { tts.release() }
+    /** Frees the voice once the sentence being made, if any, is done. */
+    override fun close() = tts.close()
 
     companion object {
         const val POCKET = "sherpa-onnx-pocket-tts-int8-2026-01-26"
