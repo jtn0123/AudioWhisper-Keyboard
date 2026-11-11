@@ -9,9 +9,13 @@
     adb), clipboard history (private, and only useful on the phone it was copied on), and what
     the keyboard learned from typing (files/learned-words.txt, files/kept-as-typed.txt: private),
     and the GIFs sent recently (files/gif-recents.json: private).
+
+    Cloud backup happens only when it is end-to-end encrypted (a screen lock is set), so the
+    personal dictionary is never stored where Google could read it. Device-to-device transfer
+    is direct, so it needs no such condition.
 -->
 <data-extraction-rules>
-    <cloud-backup>
+    <cloud-backup disableIfNoEncryptionCapabilities="true">
         <include domain="root" path="jetpref_datastore/"/>
         <include domain="file" path="ime/"/>
         <include domain="database" path="floris_user_dictionary"/>
