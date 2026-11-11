@@ -442,11 +442,11 @@
     <string name="dictation__models__voice">Reading voice (read aloud)</string>
     <string name="dictation__models__checking">Checking the files…</string>
     <string name="dictation__models__speech_ready">Installed: Parakeet, running on the phone</string>
-    <string name="dictation__models__speech_missing">Not installed, so dictation is off. Copy it in from a computer with scripts/install-dev.sh (see the README).</string>
-    <string name="dictation__models__speech_damaged">Damaged (%1$s), so dictation is off. Copy it in again with scripts/install-dev.sh.</string>
+    <string name="dictation__models__speech_missing">Not installed, so dictation is off. Copy it in with install-dev.sh.</string>
+    <string name="dictation__models__speech_damaged">Damaged (%1$s), so dictation is off. Copy it in again.</string>
     <string name="dictation__models__voice_ready">The built-in neural voice</string>
-    <string name="dictation__models__voice_missing">The phone\'s own voice. For the built-in neural voice, copy it in from a computer with scripts/install-voice.sh.</string>
-    <string name="dictation__models__voice_damaged">The phone\'s own voice: the neural voice is damaged (%1$s). Copy it in again with scripts/install-voice.sh.</string>
+    <string name="dictation__models__voice_missing">The phone\'s own voice. Copy the neural voice in with install-voice.sh.</string>
+    <string name="dictation__models__voice_damaged">The phone\'s own voice: the neural voice is damaged (%1$s).</string>
     <string name="read_aloud__voice_failed">The built-in voice wouldn\'t load, so the phone\'s voice is reading. Settings › Dictation has more.</string>
     <!-- AudioWhisper: dictation settings -->
     <string name="settings__dictation__title">Dictation</string>

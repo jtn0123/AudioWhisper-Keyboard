@@ -228,7 +228,10 @@ class Dictation(private val context: Context, private val editor: Editor) {
     private fun modelHelp(message: Int): Boolean {
         editor.problem(context.getString(message))
         context.startActivity(
+            // BROWSABLE is what FlorisAppActivity takes as a deep link; without it, it would
+            // treat the link as an extension file to import.
             Intent(Intent.ACTION_VIEW, Uri.parse(DICTATION_SETTINGS))
+                .addCategory(Intent.CATEGORY_BROWSABLE)
                 .setPackage(context.packageName)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
         )
