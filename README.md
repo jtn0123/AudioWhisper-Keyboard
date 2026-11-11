@@ -1,7 +1,92 @@
 <img align="left" width="80" height="80"
 src=".github/repo_icon.png" alt="App icon">
 
-# FlorisBoard [![Crowdin](https://badges.crowdin.net/florisboard/localized.svg)](https://crowdin.florisboard.org) [![Matrix badge](https://img.shields.io/badge/chat-%23florisboard%3amatrix.org-blue)](https://matrix.to/#/#florisboard:matrix.org) [![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg)](CODE_OF_CONDUCT.md) [![FlorisBoard CI](https://github.com/florisboard/florisboard/actions/workflows/android.yml/badge.svg?event=push)](https://github.com/florisboard/florisboard/actions/workflows/android.yml)
+# AudioWhisper Keyboard [![CI](https://github.com/jtn0123/AudioWhisper-Keyboard/actions/workflows/android.yml/badge.svg?branch=main)](https://github.com/jtn0123/AudioWhisper-Keyboard/actions/workflows/android.yml)
+
+A personal, sideloaded fork of [FlorisBoard](https://github.com/florisboard/florisboard) v0.5.2,
+the Android companion to the AudioWhisper Mac app. It installs next to stock FlorisBoard as
+`com.jtn0123.audiowhisper.keyboard`. What it adds:
+
+- **Dictation**, on the phone: NVIDIA's Parakeet TDT 0.6B v2 through sherpa-onnx. Filler words
+  are removed and a custom vocabulary applied, by the Mac app's rules.
+- **Read aloud**: a speaker beside the mic reads the screen, in a built-in neural voice (Kyutai's
+  Pocket TTS) or the phone's own.
+- **Autocorrect and predictions** from AOSP LatinIME, with the typing rules rewritten in Rust
+  (`lib/rust`, see [docs/rust.md](docs/rust.md)).
+- **GIF search** through GIPHY.
+
+Our code is under `app/src/main/kotlin/com/jtn0123/audiowhisper` and `lib/rust`. Changes to
+upstream files are marked `AudioWhisper:`.
+
+## Building
+
+You need:
+
+- **JDK 24.** The Rust character tables are checked against the JVM's, which follow its Unicode
+  version.
+- **The Android SDK with NDK 28.1.13356709**, pinned in `gradle/tools.versions.toml`.
+- **[rustup](https://rustup.rs).** The first build installs the Rust release and Android target
+  pinned in `lib/rust/rust-toolchain.toml`.
+- **Git LFS**, for `app/libs/sherpa-onnx-*.aar`.
+
+Nothing else comes from your machine. jetpref, a snapshot Sonatype no longer serves, is kept in
+`third_party/m2`.
+
+```bash
+./gradlew assembleDebug                               # the debug build, used day to day
+./gradlew assemblePersonal                            # shrunk and optimised, not debuggable
+./gradlew test :app:lintDebug :lib:rust:check assembleDebug   # everything CI runs
+```
+
+**GIPHY** needs a key, as `giphy.apiKey=...` in `local.properties` (never committed) or the
+`GIPHY_API_KEY` environment variable. Without one the build works and GIF search finds nothing.
+
+## Installing on a phone
+
+```bash
+scripts/install-dev.sh [--personal] [adb-serial]
+```
+
+It installs as an update, so settings and the models survive. It backs settings up to
+`.device-backup/` first and makes this the default keyboard. See the script's header for the
+details.
+
+The models aren't in the APK. They are copied into the app's private files over adb with
+`run-as`, which needs the **debug** build on the phone. Install the personal build over it
+afterwards; it keeps them.
+
+- **Speech model** (about 660 MB). Get `sherpa-onnx-nemo-parakeet-tdt-0.6b-v2-int8` from
+  sherpa-onnx's releases (asr-models) and unpack it. Then copy `encoder.int8.onnx`,
+  `decoder.int8.onnx`, `joiner.int8.onnx` and `tokens.txt` to
+  `files/models/sherpa-onnx-nemo-parakeet-tdt-0.6b-v2-int8/`:
+  ```bash
+  adb push <folder>/<file> /data/local/tmp/
+  adb shell run-as com.jtn0123.audiowhisper.keyboard sh -c \
+    "mkdir -p files/models/sherpa-onnx-nemo-parakeet-tdt-0.6b-v2-int8 && cp /data/local/tmp/<file> files/models/sherpa-onnx-nemo-parakeet-tdt-0.6b-v2-int8/"
+  ```
+- **Neural voice** (about 190 MB): `scripts/install-voice.sh <unpacked-pocket-tts-folder>`.
+
+Settings › Dictation shows whether each model is installed and whole. Each file is checked
+against the size and SHA-256 in `ModelFiles.kt` and `VoiceEngine.kt`.
+
+## Testing on an emulator
+
+The `aw_keyboard` AVD is an arm64 Pixel image, so the phone's native libraries run as they are.
+[tools/voice-bench/README.md](tools/voice-bench/README.md) describes `s24_like`, which matches the
+S24 Ultra's cores, memory and screen, and how to time the voice with `scripts/bench-voice.sh`.
+
+## More
+
+- [docs/rust.md](docs/rust.md): the Rust rewrite, its checks, and how it is compared with the
+  code it replaced.
+- [third_party/m2/README.md](third_party/m2/README.md): the kept copy of jetpref, and how to
+  update it.
+
+---
+
+*The upstream FlorisBoard README follows.*
+
+<h2>FlorisBoard</h2>
 
 **FlorisBoard** is a free and open-source keyboard for Android 8.0+
 devices. It aims at being modern, user-friendly and customizable while
