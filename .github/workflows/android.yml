@@ -27,7 +27,11 @@ concurrency:
 
 jobs:
   check:
-    runs-on: ubuntu-latest
+    # Apple silicon, like the development Mac: the Rust typing code is compared bit for bit with
+    # the C++ it replaced, and both fuse multiply-adds only on arm64 (lib/rust/crates/latin/src/
+    # search/mod.rs). On x86-64 the C++ rounds those differently, by design. Linux arm64 runners
+    # can't build Android: the SDK's build tools and the NDK are x86-64 only on Linux.
+    runs-on: macos-15
     timeout-minutes: 60
 
     steps:
