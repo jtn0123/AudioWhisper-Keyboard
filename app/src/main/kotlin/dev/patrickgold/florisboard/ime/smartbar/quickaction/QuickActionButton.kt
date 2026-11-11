@@ -35,12 +35,22 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.disabled
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import com.jtn0123.audiowhisper.dictation.Dictation
 import com.jtn0123.audiowhisper.dictation.LitMic
 import com.jtn0123.audiowhisper.reader.LitSpeaker
 import com.jtn0123.audiowhisper.reader.ReadAloud
 import dev.patrickgold.compose.tooltip.PlainTooltip
 import dev.patrickgold.florisboard.FlorisImeService
+import dev.patrickgold.florisboard.R
 import dev.patrickgold.florisboard.ime.keyboard.ComputingEvaluator
 import dev.patrickgold.florisboard.ime.keyboard.computeImageVector
 import dev.patrickgold.florisboard.ime.keyboard.computeLabel
@@ -90,6 +100,16 @@ fun QuickActionButton(
         else -> null
     }
 
+    // AudioWhisper: the press handling below sees raw touches only, so TalkBack is told what the
+    // button is and given a click (and, for the speaker, the hold's "from the top") to perform.
+    val spokenName = when {
+        litMic -> stringResource(R.string.dictation__stop)
+        litSpeaker -> stringResource(R.string.read_aloud__stop)
+        else -> action.computeDisplayName(evaluator = evaluator)
+    }
+    val readFromTop = stringResource(R.string.quick_action__read_aloud__from_top)
+    val pressable = isEnabled && type != QuickActionBarType.EDITOR_TILE
+
     // Need to manually cancel an action if this composable suddenly leaves the composition to prevent the key from
     // being stuck in the pressed state
     DisposableEffect(action, isEnabled) {
@@ -108,13 +128,34 @@ fun QuickActionButton(
             selector = selector,
             modifier = modifier,
             clickAndSemanticsModifier = Modifier
+                .semantics(mergeDescendants = true) {
+                    role = Role.Button
+                    // Tiles show their name as text, which TalkBack already reads.
+                    if (type == QuickActionBarType.INTERACTIVE_BUTTON) contentDescription = spokenName
+                    if (!isEnabled) disabled()
+                    if (pressable) {
+                        onClick {
+                            action.onPointerDown(context)
+                            action.onPointerUp(context)
+                            true
+                        }
+                    }
+                    if (pressable && isSpeaker && !litSpeaker) {
+                        customActions = listOf(
+                            CustomAccessibilityAction(readFromTop) {
+                                ReadAloud.read(context, ReadAloud.From.Top)
+                                true
+                            },
+                        )
+                    }
+                }
                 .aspectRatio(1f)
                 .indication(interactionSource, LocalIndication.current)
                 .pointerInput(action, isEnabled) {
                     awaitEachGesture {
                         val down = awaitFirstDown()
                         down.consume()
-                        if (isEnabled && type != QuickActionBarType.EDITOR_TILE) {
+                        if (pressable) {
                             val press = PressInteraction.Press(down.position)
                             inputFeedbackController?.keyPress(TextKeyData.UNSPECIFIED)
                             interactionSource.tryEmit(press)

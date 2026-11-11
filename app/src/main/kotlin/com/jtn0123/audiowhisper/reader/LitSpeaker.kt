@@ -12,8 +12,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.unit.dp
 import com.jtn0123.audiowhisper.dictation.keyAccent
-import dev.patrickgold.florisboard.R
-import org.florisboard.lib.compose.stringRes
 
 private const val DISC = 0.85f
 
@@ -28,6 +26,7 @@ fun LitSpeaker(modifier: Modifier = Modifier) {
             .drawBehind { drawCircle(accent, radius = size.minDimension / 2 * DISC) },
         contentAlignment = Alignment.Center,
     ) {
-        Icon(imageVector = Icons.Default.Stop, contentDescription = stringRes(R.string.read_aloud__stop), tint = iconTint)
+        // The button around it says "Stop reading" to TalkBack (QuickActionButton).
+        Icon(imageVector = Icons.Default.Stop, contentDescription = null, tint = iconTint)
     }
 }

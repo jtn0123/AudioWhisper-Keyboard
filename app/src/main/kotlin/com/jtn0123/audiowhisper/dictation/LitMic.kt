@@ -67,7 +67,8 @@ fun LitMic(imageVector: ImageVector, modifier: Modifier = Modifier) {
         contentAlignment = Alignment.Center,
     ) {
         if (warming) WarmingRing(accent)
-        Icon(imageVector = imageVector, contentDescription = "Stop dictating", tint = iconTint)
+        // The button around it says "Stop dictating" to TalkBack (QuickActionButton).
+        Icon(imageVector = imageVector, contentDescription = null, tint = iconTint)
     }
 }
 
