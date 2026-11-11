@@ -35,6 +35,7 @@ import com.jtn0123.audiowhisper.suggest.TapTrail
 import com.jtn0123.audiowhisper.suggest.TypingHistory
 import com.jtn0123.audiowhisper.suggest.TypingState
 import com.jtn0123.audiowhisper.suggest.WordLearner
+import dev.patrickgold.florisboard.BuildConfig
 import dev.patrickgold.florisboard.app.FlorisPreferenceStore
 import dev.patrickgold.florisboard.appContext
 import dev.patrickgold.florisboard.editorInstance
@@ -276,10 +277,13 @@ class LatinLanguageProvider(context: Context) : SpellingProvider, SuggestionProv
             .map { it.toCandidate(autoCorrectAllowed) }
         val autoCorrection = candidates.firstOrNull { it.isEligibleForAutoCommit }
         lastResult = LastResult(state, !allowPossiblyOffensive, autoCorrection)
-        val elapsedMs = (System.nanoTime() - started) / 1_000_000.0
-        Log.d(TAG, "suggest: %d candidates, autocorrect=%b, %.2f ms".format(
-            Locale.ROOT, candidates.size, autoCorrection != null, elapsedMs,
-        ))
+        // Runs on every keystroke, so the line isn't even built outside debug builds.
+        if (BuildConfig.DEBUG) {
+            val elapsedMs = (System.nanoTime() - started) / 1_000_000.0
+            Log.d(TAG, "suggest: %d candidates, autocorrect=%b, %.2f ms".format(
+                Locale.ROOT, candidates.size, autoCorrection != null, elapsedMs,
+            ))
+        }
         return candidates
     }
 
