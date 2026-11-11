@@ -211,14 +211,18 @@ class Dictation(private val context: Context, private val editor: Editor) {
         finish()
     }
 
-    private fun modelInstalled(): Boolean {
-        val missing = ModelFiles.missing(context)
-        if (missing.isNotEmpty()) {
-            Log.w(TAG, "Missing model files: $missing in ${ModelFiles.dir(context)}")
+    private fun modelInstalled(): Boolean = when (val state = ModelFiles.quickState(context)) {
+        ModelState.Ready -> true
+        is ModelState.Missing -> {
+            Log.w(TAG, "Missing model files: ${state.files} in ${ModelFiles.dir(context)}")
             editor.problem("Speech model not installed")
-            return false
+            false
         }
-        return true
+        is ModelState.Damaged -> {
+            Log.w(TAG, "Model files of the wrong size: ${state.files}")
+            editor.problem("Speech model missing or damaged")
+            false
+        }
     }
 
     /**
@@ -353,6 +357,10 @@ class Dictation(private val context: Context, private val editor: Editor) {
     /** Worker thread only, through [models]. */
     private fun loadModel(): Transcriber {
         val started = SystemClock.elapsedRealtime()
+        // A cut-short or wrong file makes the native loader fail vaguely, or worse, so the
+        // files are checked first (hashed once each; see ModelCheck).
+        val state = ModelFiles.fullState(context)
+        check(state == ModelState.Ready) { "Model files not as expected: $state" }
         return Transcriber(ModelFiles.dir(context)).also {
             Log.i(TAG, "Model loaded in ${SystemClock.elapsedRealtime() - started} ms")
         }
