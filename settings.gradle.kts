@@ -28,10 +28,13 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
-        // Uncomment the following if testing snapshots from Maven Central
-        maven("https://central.sonatype.com/repository/maven-snapshots/")
-        // Uncomment the following if testing snapshots from Maven Local
-        mavenLocal()
+        // AudioWhisper: jetpref is a snapshot that Sonatype no longer serves, so a copy is kept in
+        // the repo (third_party/m2/README.md) and is the only place jetpref is looked for. Nothing
+        // else resolves from it, and nothing resolves from ~/.m2, so every machine builds alike.
+        exclusiveContent {
+            forRepository { maven(rootDir.resolve("third_party/m2")) { name = "jetprefCopy" } }
+            filter { includeGroup("dev.patrickgold.jetpref") }
+        }
     }
 
     versionCatalogs {

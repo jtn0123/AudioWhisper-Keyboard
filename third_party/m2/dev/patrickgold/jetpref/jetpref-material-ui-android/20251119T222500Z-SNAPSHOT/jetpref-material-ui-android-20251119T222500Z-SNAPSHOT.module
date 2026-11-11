@@ -1,0 +1,198 @@
+{
+  "formatVersion": "1.1",
+  "component": {
+    "url": "../../jetpref-material-ui/20251119T222500Z-SNAPSHOT/jetpref-material-ui-20251119T222500Z-SNAPSHOT.module",
+    "group": "dev.patrickgold.jetpref",
+    "module": "jetpref-material-ui",
+    "version": "20251119T222500Z-SNAPSHOT",
+    "attributes": {
+      "org.gradle.status": "integration"
+    }
+  },
+  "createdBy": {
+    "gradle": {
+      "version": "9.2.0"
+    }
+  },
+  "variants": [
+    {
+      "name": "releaseApiElements-published",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.jvm.environment": "android",
+        "org.gradle.usage": "java-api",
+        "org.jetbrains.kotlin.platform.type": "androidJvm"
+      },
+      "dependencies": [
+        {
+          "group": "org.jetbrains.kotlin",
+          "module": "kotlin-stdlib",
+          "version": {
+            "requires": "2.2.20"
+          }
+        }
+      ],
+      "files": [
+        {
+          "name": "material-ui-release.aar",
+          "url": "jetpref-material-ui-android-20251119T222500Z-SNAPSHOT.aar",
+          "size": 129181,
+          "sha512": "723615631105bdf980c893098e42b5feba8a98e9ac69d94b2e9f13330f27893ebd04022bbf1f88a11ccec70ea8723f3bfe13a351c4e7fb2bc8594163b68be271",
+          "sha256": "17242b876ed117cbbf8daf9efb489c9329ef411d34a0583e6d58ece21d08daa8",
+          "sha1": "82cf67c1e124b0e875a849fa8f2776dadac9d2bc",
+          "md5": "02ec2d7ff8f74e7cd7298c64d2fdca7d"
+        }
+      ]
+    },
+    {
+      "name": "releaseRuntimeElements-published",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.jvm.environment": "android",
+        "org.gradle.usage": "java-runtime",
+        "org.jetbrains.kotlin.platform.type": "androidJvm"
+      },
+      "dependencies": [
+        {
+          "group": "org.jetbrains.compose.material3",
+          "module": "material3",
+          "version": {
+            "requires": "1.9.0-beta03"
+          },
+          "excludes": [
+            {
+              "group": "org.jetbrains.kotlin",
+              "module": "kotlin-stdlib-common"
+            },
+            {
+              "group": "org.jetbrains.kotlin",
+              "module": "kotlin-test-common"
+            },
+            {
+              "group": "org.jetbrains.kotlin",
+              "module": "kotlin-test-annotations-common"
+            }
+          ]
+        },
+        {
+          "group": "org.jetbrains.compose.material",
+          "module": "material-icons-extended",
+          "version": {
+            "requires": "1.7.3"
+          },
+          "excludes": [
+            {
+              "group": "org.jetbrains.kotlin",
+              "module": "kotlin-stdlib-common"
+            },
+            {
+              "group": "org.jetbrains.kotlin",
+              "module": "kotlin-test-common"
+            },
+            {
+              "group": "org.jetbrains.kotlin",
+              "module": "kotlin-test-annotations-common"
+            }
+          ]
+        },
+        {
+          "group": "org.jetbrains.compose.runtime",
+          "module": "runtime",
+          "version": {
+            "requires": "1.9.3"
+          },
+          "excludes": [
+            {
+              "group": "org.jetbrains.kotlin",
+              "module": "kotlin-stdlib-common"
+            },
+            {
+              "group": "org.jetbrains.kotlin",
+              "module": "kotlin-test-common"
+            },
+            {
+              "group": "org.jetbrains.kotlin",
+              "module": "kotlin-test-annotations-common"
+            }
+          ]
+        },
+        {
+          "group": "org.jetbrains.compose.ui",
+          "module": "ui",
+          "version": {
+            "requires": "1.9.3"
+          },
+          "excludes": [
+            {
+              "group": "org.jetbrains.kotlin",
+              "module": "kotlin-stdlib-common"
+            },
+            {
+              "group": "org.jetbrains.kotlin",
+              "module": "kotlin-test-common"
+            },
+            {
+              "group": "org.jetbrains.kotlin",
+              "module": "kotlin-test-annotations-common"
+            }
+          ]
+        },
+        {
+          "group": "org.jetbrains.kotlin",
+          "module": "kotlin-stdlib",
+          "version": {
+            "requires": "2.2.20"
+          },
+          "excludes": [
+            {
+              "group": "org.jetbrains.kotlin",
+              "module": "kotlin-stdlib-common"
+            },
+            {
+              "group": "org.jetbrains.kotlin",
+              "module": "kotlin-test-common"
+            },
+            {
+              "group": "org.jetbrains.kotlin",
+              "module": "kotlin-test-annotations-common"
+            }
+          ]
+        }
+      ],
+      "files": [
+        {
+          "name": "material-ui-release.aar",
+          "url": "jetpref-material-ui-android-20251119T222500Z-SNAPSHOT.aar",
+          "size": 129181,
+          "sha512": "723615631105bdf980c893098e42b5feba8a98e9ac69d94b2e9f13330f27893ebd04022bbf1f88a11ccec70ea8723f3bfe13a351c4e7fb2bc8594163b68be271",
+          "sha256": "17242b876ed117cbbf8daf9efb489c9329ef411d34a0583e6d58ece21d08daa8",
+          "sha1": "82cf67c1e124b0e875a849fa8f2776dadac9d2bc",
+          "md5": "02ec2d7ff8f74e7cd7298c64d2fdca7d"
+        }
+      ]
+    },
+    {
+      "name": "releaseSourcesElements-published",
+      "attributes": {
+        "org.gradle.category": "documentation",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.docstype": "sources",
+        "org.gradle.jvm.environment": "android",
+        "org.gradle.libraryelements": "jar",
+        "org.gradle.usage": "java-runtime",
+        "org.jetbrains.kotlin.platform.type": "androidJvm"
+      },
+      "files": [
+        {
+          "name": "material-ui-android-sources.jar",
+          "url": "jetpref-material-ui-android-20251119T222500Z-SNAPSHOT-sources.jar",
+          "size": 18623,
+          "sha512": "164c05d2d664a27af7fe1d4752908cb94496003c38458c1263594e9da2a46f4bf670b744d236a37f0743ce511db4e888fba00a0e254234eea8901d6ed937d509",
+          "sha256": "c9ae863582321725fbee3b9901bcc9ed8581e248c65f3fc1da8e69d9c0fbe3d1",
+          "sha1": "7b0bdb3ac049ed7ef0f70180227fbbf6291e5175",
+          "md5": "c8179afdb30492c5541ccd018c783f57"
+        }
+      ]
+    }
+  ]
+}

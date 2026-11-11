@@ -1,0 +1,109 @@
+{
+  "formatVersion": "1.1",
+  "component": {
+    "url": "../../jetpref-datastore-model-processor/20251119T222500Z-SNAPSHOT/jetpref-datastore-model-processor-20251119T222500Z-SNAPSHOT.module",
+    "group": "dev.patrickgold.jetpref",
+    "module": "jetpref-datastore-model-processor",
+    "version": "20251119T222500Z-SNAPSHOT",
+    "attributes": {
+      "org.gradle.status": "integration"
+    }
+  },
+  "createdBy": {
+    "gradle": {
+      "version": "9.2.0"
+    }
+  },
+  "variants": [
+    {
+      "name": "jvmApiElements-published",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.jvm.environment": "standard-jvm",
+        "org.gradle.libraryelements": "jar",
+        "org.gradle.usage": "java-api",
+        "org.jetbrains.kotlin.platform.type": "jvm"
+      },
+      "dependencies": [
+        {
+          "group": "org.jetbrains.kotlin",
+          "module": "kotlin-stdlib",
+          "version": {
+            "requires": "2.2.20"
+          }
+        }
+      ],
+      "files": [
+        {
+          "name": "datastore-model-processor-jvm.jar",
+          "url": "jetpref-datastore-model-processor-jvm-20251119T222500Z-SNAPSHOT.jar",
+          "size": 10411,
+          "sha512": "c0f146e44a61e5f16c7e01664dbb5d7df09c16de61a915ab2c6d137e590373653699612b4c22964671e1be09f19fe4cebb9bff31a26a71c776aba3d40a489a0e",
+          "sha256": "e2c97849253fb8ad284c7b14753a7e4fa3a7b7682ebbc86a28eed8383ad80f6e",
+          "sha1": "380cb75083f799b239ce566212c7c9cc87be2525",
+          "md5": "37ad4c2621cb29f5ed8009b643e4001e"
+        }
+      ]
+    },
+    {
+      "name": "jvmRuntimeElements-published",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.jvm.environment": "standard-jvm",
+        "org.gradle.libraryelements": "jar",
+        "org.gradle.usage": "java-runtime",
+        "org.jetbrains.kotlin.platform.type": "jvm"
+      },
+      "dependencies": [
+        {
+          "group": "org.jetbrains.kotlin",
+          "module": "kotlin-stdlib",
+          "version": {
+            "requires": "2.2.20"
+          }
+        },
+        {
+          "group": "com.google.devtools.ksp",
+          "module": "symbol-processing-api",
+          "version": {
+            "requires": "2.2.20-2.0.3"
+          }
+        }
+      ],
+      "files": [
+        {
+          "name": "datastore-model-processor-jvm.jar",
+          "url": "jetpref-datastore-model-processor-jvm-20251119T222500Z-SNAPSHOT.jar",
+          "size": 10411,
+          "sha512": "c0f146e44a61e5f16c7e01664dbb5d7df09c16de61a915ab2c6d137e590373653699612b4c22964671e1be09f19fe4cebb9bff31a26a71c776aba3d40a489a0e",
+          "sha256": "e2c97849253fb8ad284c7b14753a7e4fa3a7b7682ebbc86a28eed8383ad80f6e",
+          "sha1": "380cb75083f799b239ce566212c7c9cc87be2525",
+          "md5": "37ad4c2621cb29f5ed8009b643e4001e"
+        }
+      ]
+    },
+    {
+      "name": "jvmSourcesElements-published",
+      "attributes": {
+        "org.gradle.category": "documentation",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.docstype": "sources",
+        "org.gradle.jvm.environment": "standard-jvm",
+        "org.gradle.libraryelements": "jar",
+        "org.gradle.usage": "java-runtime",
+        "org.jetbrains.kotlin.platform.type": "jvm"
+      },
+      "files": [
+        {
+          "name": "datastore-model-processor-jvm-sources.jar",
+          "url": "jetpref-datastore-model-processor-jvm-20251119T222500Z-SNAPSHOT-sources.jar",
+          "size": 3015,
+          "sha512": "293d941e8000c816f78b547bc53d82f25ef6c8fa3f8017e7a7ee91bd29fc90e388fb893ac5adb18fdabed5c73e6ac618d21d93c30a88e6c82f1b433c0a1f191b",
+          "sha256": "d23799ca568684812aa0b05ca9745247f9f187418ee02d019adfb43d488638dd",
+          "sha1": "43e451b988a1ca84ff018ce5dbc589803876ca7b",
+          "md5": "45dc3d37fb6b3ae01f704b94fee62066"
+        }
+      ]
+    }
+  ]
+}

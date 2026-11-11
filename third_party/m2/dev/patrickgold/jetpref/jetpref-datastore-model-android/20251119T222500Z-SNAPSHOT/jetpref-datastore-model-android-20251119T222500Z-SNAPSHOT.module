@@ -1,0 +1,135 @@
+{
+  "formatVersion": "1.1",
+  "component": {
+    "url": "../../jetpref-datastore-model/20251119T222500Z-SNAPSHOT/jetpref-datastore-model-20251119T222500Z-SNAPSHOT.module",
+    "group": "dev.patrickgold.jetpref",
+    "module": "jetpref-datastore-model",
+    "version": "20251119T222500Z-SNAPSHOT",
+    "attributes": {
+      "org.gradle.status": "integration"
+    }
+  },
+  "createdBy": {
+    "gradle": {
+      "version": "9.2.0"
+    }
+  },
+  "variants": [
+    {
+      "name": "releaseApiElements-published",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.jvm.environment": "android",
+        "org.gradle.usage": "java-api",
+        "org.jetbrains.kotlin.platform.type": "androidJvm"
+      },
+      "dependencies": [
+        {
+          "group": "org.jetbrains.kotlin",
+          "module": "kotlin-stdlib",
+          "version": {
+            "requires": "2.2.20"
+          }
+        }
+      ],
+      "files": [
+        {
+          "name": "datastore-model-release.aar",
+          "url": "jetpref-datastore-model-android-20251119T222500Z-SNAPSHOT.aar",
+          "size": 98721,
+          "sha512": "7640d36f366a3b008b3082cde4d9c7f3fe9e56b3906cd3264a808ca8c0ac3f4af4c09b4dc53e136a474bd8be390963cac252335bb2aea046fa45086e07503e15",
+          "sha256": "3f37abb4cb25daa8c17a2d71c079b50119f9129a8f26319b05885943de64cc9f",
+          "sha1": "724234316e2647a87d30d5e1c7f35a9dac9289f8",
+          "md5": "d7fd24594798dee814ca6edd5f10e304"
+        }
+      ]
+    },
+    {
+      "name": "releaseRuntimeElements-published",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.jvm.environment": "android",
+        "org.gradle.usage": "java-runtime",
+        "org.jetbrains.kotlin.platform.type": "androidJvm"
+      },
+      "dependencies": [
+        {
+          "group": "org.jetbrains.kotlin",
+          "module": "kotlin-stdlib",
+          "version": {
+            "requires": "2.2.20"
+          },
+          "excludes": [
+            {
+              "group": "org.jetbrains.kotlin",
+              "module": "kotlin-stdlib-common"
+            },
+            {
+              "group": "org.jetbrains.kotlin",
+              "module": "kotlin-test-common"
+            },
+            {
+              "group": "org.jetbrains.kotlin",
+              "module": "kotlin-test-annotations-common"
+            }
+          ]
+        },
+        {
+          "group": "org.jetbrains.kotlinx",
+          "module": "kotlinx-coroutines-core",
+          "version": {
+            "requires": "1.10.2"
+          },
+          "excludes": [
+            {
+              "group": "org.jetbrains.kotlin",
+              "module": "kotlin-stdlib-common"
+            },
+            {
+              "group": "org.jetbrains.kotlin",
+              "module": "kotlin-test-common"
+            },
+            {
+              "group": "org.jetbrains.kotlin",
+              "module": "kotlin-test-annotations-common"
+            }
+          ]
+        }
+      ],
+      "files": [
+        {
+          "name": "datastore-model-release.aar",
+          "url": "jetpref-datastore-model-android-20251119T222500Z-SNAPSHOT.aar",
+          "size": 98721,
+          "sha512": "7640d36f366a3b008b3082cde4d9c7f3fe9e56b3906cd3264a808ca8c0ac3f4af4c09b4dc53e136a474bd8be390963cac252335bb2aea046fa45086e07503e15",
+          "sha256": "3f37abb4cb25daa8c17a2d71c079b50119f9129a8f26319b05885943de64cc9f",
+          "sha1": "724234316e2647a87d30d5e1c7f35a9dac9289f8",
+          "md5": "d7fd24594798dee814ca6edd5f10e304"
+        }
+      ]
+    },
+    {
+      "name": "releaseSourcesElements-published",
+      "attributes": {
+        "org.gradle.category": "documentation",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.docstype": "sources",
+        "org.gradle.jvm.environment": "android",
+        "org.gradle.libraryelements": "jar",
+        "org.gradle.usage": "java-runtime",
+        "org.jetbrains.kotlin.platform.type": "androidJvm"
+      },
+      "files": [
+        {
+          "name": "datastore-model-android-sources.jar",
+          "url": "jetpref-datastore-model-android-20251119T222500Z-SNAPSHOT-sources.jar",
+          "size": 26947,
+          "sha512": "81c680f9209d2e38c7868f584981f989b6c597fc255e9c182a560bdcc39031686e0872ed87ad03f5f9565067dd1328e2fe30c2c552d79451c98ca00fe64960db",
+          "sha256": "a0c8c785a0b4023b47ad7190645bbbfc1b98ff518cdee076ec5d45378fff4843",
+          "sha1": "e99f4a69408ee70ecb7c8d8a5c9f01613776b69d",
+          "md5": "9c4a3debf5964bdfa368da0de5d7d70c"
+        }
+      ]
+    }
+  ]
+}
