@@ -10,6 +10,7 @@ import android.os.Looper
 import android.os.SystemClock
 import android.provider.Settings
 import android.util.Log
+import dev.patrickgold.florisboard.R
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -215,14 +216,23 @@ class Dictation(private val context: Context, private val editor: Editor) {
         ModelState.Ready -> true
         is ModelState.Missing -> {
             Log.w(TAG, "Missing model files: ${state.files} in ${ModelFiles.dir(context)}")
-            editor.problem("Speech model not installed")
-            false
+            modelHelp(R.string.dictation__not_installed)
         }
         is ModelState.Damaged -> {
             Log.w(TAG, "Model files of the wrong size: ${state.files}")
-            editor.problem("Speech model missing or damaged")
-            false
+            modelHelp(R.string.dictation__damaged)
         }
+    }
+
+    /** Says what's wrong, and opens Settings › Dictation, which says how to fix it. False. */
+    private fun modelHelp(message: Int): Boolean {
+        editor.problem(context.getString(message))
+        context.startActivity(
+            Intent(Intent.ACTION_VIEW, Uri.parse(DICTATION_SETTINGS))
+                .setPackage(context.packageName)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+        )
+        return false
     }
 
     /**
@@ -375,6 +385,7 @@ class Dictation(private val context: Context, private val editor: Editor) {
 
     companion object {
         private const val TAG = "AWDictation"
+        private const val DICTATION_SETTINGS = "ui://florisboard/settings/dictation"
         internal const val KEEP_LOADED_MS = 5 * 60 * 1000L
 
         /** Long enough to switch to another app and dictate there without loading it again. */

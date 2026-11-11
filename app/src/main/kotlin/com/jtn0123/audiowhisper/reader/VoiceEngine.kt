@@ -90,13 +90,17 @@ internal class VoiceEngine private constructor(
         /** Names and sizes only, so cheap enough for the main thread. */
         fun quickState(context: Context): ModelState = ModelCheck.quick(dir(context), EXPECTED)
 
+        /** Also checks each file's SHA-256, once per file. Blocking: off the main thread only. */
+        fun fullState(context: Context): ModelState =
+            ModelCheck.full(dir(context), EXPECTED, ModelCheck.verifiedFiles(context))
+
         /**
          * Loads the voice; null if it isn't installed or fails to load. Takes a second or two, and
          * the first time, a second more to check the files' SHA-256.
          */
         fun load(context: Context): VoiceEngine? {
             if (quickState(context) is ModelState.Missing) return null
-            val state = ModelCheck.full(dir(context), EXPECTED, ModelCheck.verifiedFiles(context))
+            val state = fullState(context)
             if (state != ModelState.Ready) {
                 Log.w(TAG, "Voice files not as expected: $state")
                 return null
@@ -142,6 +146,7 @@ internal class LoadedVoice(private val context: Context, private val scope: Coro
      * the service restarts, so each reading doesn't retry a load of hundreds of MB first.
      */
     private var failed = false
+    private var justFailed = false
 
     /** The voice, loading it if need be; null if it isn't installed or won't load. */
     suspend fun take(): VoiceEngine? = mutex.withLock {
@@ -149,8 +154,11 @@ internal class LoadedVoice(private val context: Context, private val scope: Coro
         engine?.let { return@withLock it }
         if (failed || VoiceEngine.quickState(context) is ModelState.Missing) return@withLock null
         withContext(Dispatchers.IO) { VoiceEngine.load(context) }
-            .also { engine = it; failed = it == null }
+            .also { engine = it; failed = it == null; justFailed = failed }
     }
+
+    /** Whether the last [take] found the voice won't load; true once per failure, to say so once. */
+    suspend fun failedJustNow(): Boolean = mutex.withLock { justFailed.also { justFailed = false } }
 
     /** A reading is over: free the voice unless another starts soon. */
     suspend fun idle() {

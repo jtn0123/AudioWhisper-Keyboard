@@ -88,6 +88,7 @@ class ReadAloudService : AccessibilityService() {
         try {
             withContext(Dispatchers.Main) { stopButton.show() }
             val engine = voices.take()
+            if (voices.failedJustNow()) tell(R.string.read_aloud__voice_failed)
             // Kept inside the block: a cancelled withContext throws as it returns, which would lose it.
             val voice = withContext(Dispatchers.Main) {
                 (engine?.let { NeuralVoice(this@ReadAloudService, it, onFocusLost = ::stopReading) }

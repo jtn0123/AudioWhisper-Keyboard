@@ -22,8 +22,9 @@ import kotlinx.coroutines.launch
 import org.florisboard.lib.compose.stringRes
 
 /**
- * How dictated phrases are tidied before they are typed, by the Mac app's rules: filler words and
- * the user's vocabulary (see `DictationRules.format`).
+ * Whether the models are on the phone ([ModelStatus]), and how dictated phrases are tidied before
+ * they are typed, by the Mac app's rules: filler words and the user's vocabulary (see
+ * `DictationRules.format`).
  */
 @Composable
 fun DictationScreen() = FlorisScreen {
@@ -31,6 +32,7 @@ fun DictationScreen() = FlorisScreen {
     previewFieldVisible = true
 
     content {
+        ModelStatus()
         SwitchPreference(
             prefs.dictation.removeFillers,
             title = stringRes(R.string.pref__dictation__remove_fillers__label),
