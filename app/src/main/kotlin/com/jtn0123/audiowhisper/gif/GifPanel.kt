@@ -59,6 +59,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
+import com.jtn0123.audiowhisper.dictation.DictationFields
 import dev.patrickgold.florisboard.editorInstance
 import dev.patrickgold.florisboard.ime.ImeUiMode
 import dev.patrickgold.florisboard.ime.keyboard.FlorisImeSizing
@@ -83,7 +84,12 @@ fun GifPanel(modifier: Modifier = Modifier) {
     val editorInstance by LocalContext.current.editorInstance()
     val results by GifSearch.results.collectAsState()
     val shown by GifSearch.shown.collectAsState()
-    LaunchedEffect(Unit) { GifSearch.offerTypedWord(editorInstance.activeContent.textBeforeSelection) }
+    val keyboardManager by LocalContext.current.keyboardManager()
+    LaunchedEffect(Unit) {
+        val private = keyboardManager.activeState.isIncognitoMode ||
+            DictationFields.isSecret(editorInstance.activeInfo.inputAttributes.variation)
+        GifSearch.offerTypedWord(editorInstance.activeContent.textBeforeSelection, private)
+    }
     Column(modifier = modifier.fillMaxWidth()) {
         GifHeader(shown)
         GifCategories(shown)

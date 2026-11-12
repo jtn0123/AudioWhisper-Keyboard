@@ -13,7 +13,10 @@ object DictationFields {
     private val SECRET = setOf(Variation.PASSWORD, Variation.VISIBLE_PASSWORD, Variation.WEB_PASSWORD)
 
     fun allows(type: Type, variation: Variation): Boolean =
-        (type == Type.TEXT || type == Type.NULL) && variation !in SECRET
+        (type == Type.TEXT || type == Type.NULL) && !isSecret(variation)
+
+    /** A password or PIN field, whose text must not leave the keyboard. */
+    fun isSecret(variation: Variation): Boolean = variation in SECRET
 
     fun allows(field: InputAttributes): Boolean = allows(field.type, field.variation)
 }

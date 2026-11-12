@@ -23,4 +23,10 @@ class GifChipsTest {
         assertEquals(listOf("Congrats") + (categories - "Congrats"), chips)
         assertEquals(categories.size, chips.size)
     }
+
+    @Test
+    fun aPrivateFieldOffersNoTypedWord() {
+        assertEquals("congrats", GifSearch.typedWordFor("well done, congrats", private = false))
+        assertEquals(null, GifSearch.typedWordFor("hunter2", private = true))
+    }
 }

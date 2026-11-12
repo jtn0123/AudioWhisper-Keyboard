@@ -19,7 +19,9 @@ class DictationFieldsTest {
     fun `never dictates a password, visible or not`() {
         for (variation in listOf(Variation.PASSWORD, Variation.VISIBLE_PASSWORD, Variation.WEB_PASSWORD)) {
             assertFalse(DictationFields.allows(Type.TEXT, variation), "$variation")
+            assertTrue(DictationFields.isSecret(variation), "$variation")
         }
+        assertFalse(DictationFields.isSecret(Variation.NORMAL))
     }
 
     @Test

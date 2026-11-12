@@ -101,11 +101,17 @@ object GifSearch {
         load(if (first) RECENTS else shown.value)
     }
 
-    /** The panel opened after [textBefore]: offer its last word as a search ("congrats"). */
-    fun offerTypedWord(textBefore: CharSequence?) {
-        typedWord = SearchText.lastWord(textBefore)
+    /**
+     * The panel opened after [textBefore]: offer its last word as a search ("congrats"). Not in a
+     * [private] field (incognito, or a password), where tapping the chip would send it to GIPHY.
+     */
+    fun offerTypedWord(textBefore: CharSequence?, private: Boolean) {
+        typedWord = typedWordFor(textBefore, private)
         updateChips()
     }
+
+    internal fun typedWordFor(textBefore: CharSequence?, private: Boolean): String? =
+        if (private) null else SearchText.lastWord(textBefore)
 
     /** [gif] was sent. In incognito it isn't remembered. */
     fun sent(gif: Gif, incognito: Boolean) {
