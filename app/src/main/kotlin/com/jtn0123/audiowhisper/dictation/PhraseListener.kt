@@ -20,13 +20,13 @@ import com.k2fsa.sherpa.onnx.VadModelConfig
  *
  * Pauses are found by Silero VAD (MIT licence), bundled in assets.
  */
-class PhraseListener(
+internal class PhraseListener(
     private val assets: AssetManager,
     onLevel: (Float) -> Unit,
     onMicError: (Int) -> Unit,
     private val onPhrase: (FloatArray) -> Unit,
     private val onPreview: (FloatArray) -> Unit = {},
-) {
+) : DictationSession.Listening {
     // Used by the microphone thread, then by stop() after that thread has
     // ended, never by both at once. Made by that thread on its first audio, so
     // the tap that starts dictation doesn't wait the 10-30 ms it takes; the
@@ -50,7 +50,7 @@ class PhraseListener(
     fun start(open: () -> MicAudio) = mic.start(open)
 
     /** Stops listening. With [keepLastPhrase], the words since the last pause are handed over too. */
-    fun stop(keepLastPhrase: Boolean) {
+    override fun stop(keepLastPhrase: Boolean) {
         mic.stop()
         val vad = this.vad ?: return
         if (keepLastPhrase) {

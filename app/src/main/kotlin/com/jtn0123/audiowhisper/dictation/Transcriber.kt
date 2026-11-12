@@ -14,10 +14,10 @@ import java.io.File
  *
  * Not thread-safe: create, use and close it on one worker thread.
  */
-class Transcriber(modelDir: File) : AutoCloseable {
+internal class Transcriber(modelDir: File) : DictationSession.SpeechModel {
     private val recognizer = OfflineRecognizer(config = config(modelDir))
 
-    fun transcribe(samples: FloatArray): String {
+    override fun transcribe(samples: FloatArray): String {
         val stream = recognizer.createStream()
         try {
             stream.acceptWaveform(samples, SAMPLE_RATE)
