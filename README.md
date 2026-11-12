@@ -77,6 +77,8 @@ S24 Ultra's cores, memory and screen, and how to time the voice with `scripts/be
 
 ## More
 
+- [docs/decisions.md](docs/decisions.md): why Android 16, GIPHY, arm64 only, Rust, the
+  neural voice's settings, and the debug and personal builds, and what would change each.
 - [docs/rust.md](docs/rust.md): the Rust rewrite, its checks, and how it is compared with the
   code it replaced.
 - [third_party/m2/README.md](third_party/m2/README.md): the kept copy of jetpref, and how to
