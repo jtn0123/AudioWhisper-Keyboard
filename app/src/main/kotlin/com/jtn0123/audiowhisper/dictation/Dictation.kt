@@ -10,13 +10,14 @@ import android.os.Looper
 import android.os.SystemClock
 import android.provider.Settings
 import android.util.Log
+import androidx.annotation.StringRes
 import dev.patrickgold.florisboard.R
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 
 /**
  * Dictation inside the keyboard. A tap on the mic key toggles it and a hold talks until
@@ -56,7 +57,7 @@ class Dictation(private val context: Context, private val editor: Editor) {
 
         /** Takes back the phrase dictation typed last, if nothing has changed since. */
         fun undoLastPhrase(): Boolean
-        fun problem(message: String)
+        fun problem(@StringRes message: Int)
 
         /** A key-press haptic, for letting go of the mic after a hold: the press had one, the release none. */
         fun tick()
@@ -160,7 +161,7 @@ class Dictation(private val context: Context, private val editor: Editor) {
             next.start(::openAudio)
         } catch (e: IllegalStateException) {
             Log.e(TAG, "Could not start recording", e)
-            editor.problem("Microphone unavailable. Another app may be using it.")
+            editor.problem(R.string.dictation__mic_busy)
             return
         }
         main.removeCallbacks(unload)
@@ -176,11 +177,11 @@ class Dictation(private val context: Context, private val editor: Editor) {
     private fun mayStart(): Boolean {
         // The mic is greyed out in these fields; this also covers a tap that raced the field change.
         if (!editor.allowsDictation()) {
-            editor.problem("Dictation is off in password and number fields")
+            editor.problem(R.string.dictation__field_off)
             return false
         }
         if (context.checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
-            editor.problem("Allow microphone access to dictate")
+            editor.problem(R.string.dictation__allow_mic)
             context.startActivity(appSettings())
             return false
         }
@@ -206,13 +207,13 @@ class Dictation(private val context: Context, private val editor: Editor) {
     }
 
     private fun modelFailed() {
-        editor.problem("Speech model missing or damaged")
+        editor.problem(R.string.dictation__model_failed)
         abandon()
     }
 
     /** The mic failed mid-dictation. The words heard until then are still typed. */
     private fun micStopped() {
-        editor.problem("The mic stopped. Another app may be using it.")
+        editor.problem(R.string.dictation__mic_stopped)
         explained = true
         finish()
     }
@@ -231,7 +232,7 @@ class Dictation(private val context: Context, private val editor: Editor) {
 
     /** Says what's wrong, and opens Settings › Dictation, which says how to fix it. False. */
     private fun modelHelp(message: Int): Boolean {
-        editor.problem(context.getString(message))
+        editor.problem(message)
         context.startActivity(
             // BROWSABLE is what FlorisAppActivity takes as a deep link; without it, it would
             // treat the link as an extension file to import.
@@ -441,8 +442,9 @@ internal fun releaseAt(idleSince: Long, now: Long, keyboardShown: Boolean): Long
 }
 
 /** What to say when a dictation ends without a message already shown, or null when it typed something. */
-internal fun endingMessage(typedAny: Boolean, failures: Int): String? = when {
+@StringRes
+internal fun endingMessage(typedAny: Boolean, failures: Int): Int? = when {
     typedAny -> null
-    failures > 0 -> "Transcription failed"
-    else -> "Didn't catch that"
+    failures > 0 -> R.string.dictation__failed
+    else -> R.string.dictation__not_caught
 }

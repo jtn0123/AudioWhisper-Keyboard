@@ -440,7 +440,7 @@ class FlorisImeService : LifecycleInputMethodService() {
 
         override fun undoLastPhrase(): Boolean = editorInstance.undoDictation()
 
-        override fun problem(message: String) {
+        override fun problem(message: Int) {
             Toast.makeText(this@FlorisImeService, message, Toast.LENGTH_SHORT).show()
         }
 

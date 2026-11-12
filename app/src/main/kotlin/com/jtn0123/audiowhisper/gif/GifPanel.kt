@@ -4,6 +4,7 @@ import android.graphics.drawable.Animatable
 import android.graphics.drawable.Drawable
 import android.widget.ImageView
 import android.widget.Toast
+import androidx.annotation.StringRes
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
@@ -60,6 +61,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.jtn0123.audiowhisper.dictation.DictationFields
+import dev.patrickgold.florisboard.R
 import dev.patrickgold.florisboard.editorInstance
 import dev.patrickgold.florisboard.ime.ImeUiMode
 import dev.patrickgold.florisboard.ime.keyboard.FlorisImeSizing
@@ -67,6 +69,7 @@ import dev.patrickgold.florisboard.ime.theme.FlorisImeUi
 import dev.patrickgold.florisboard.keyboardManager
 import kotlinx.coroutines.launch
 import org.florisboard.lib.compose.florisHorizontalScroll
+import org.florisboard.lib.compose.stringRes
 import org.florisboard.lib.snygg.ui.SnyggChip
 import org.florisboard.lib.snygg.ui.SnyggIcon
 import org.florisboard.lib.snygg.ui.SnyggIconButton
@@ -96,9 +99,9 @@ fun GifPanel(modifier: Modifier = Modifier) {
         Box(modifier = Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
             when (val result = results) {
                 GifSearch.Results.Loading -> CircularProgressIndicator(Modifier.size(28.dp), strokeWidth = 2.dp)
-                is GifSearch.Results.Failed -> Message("${result.message} Tap to try again.") { GifSearch.load(shown) }
+                is GifSearch.Results.Failed -> Message(stringRes(R.string.gif__try_again, "problem" to result.message)) { GifSearch.load(shown) }
                 is GifSearch.Results.Loaded -> when {
-                    result.gifs.isEmpty() -> Message("No GIFs for “$shown”.")
+                    result.gifs.isEmpty() -> Message(stringRes(R.string.gif__none_for, "query" to shown))
                     else -> GifGrid(result.gifs)
                 }
             }
@@ -130,7 +133,7 @@ private fun GifHeader(shown: String) {
         ) {
             Icon(Icons.Default.Search, contentDescription = null, modifier = Modifier.size(18.dp))
             Text(
-                text = if (searched) shown else "Search GIPHY",
+                text = if (searched) shown else stringRes(R.string.gif__search_giphy),
                 modifier = Modifier.weight(1f).padding(start = 8.dp).alpha(if (searched) 1f else 0.6f),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -138,13 +141,13 @@ private fun GifHeader(shown: String) {
             if (searched) {
                 Icon(
                     Icons.Default.Close,
-                    contentDescription = "Back to trending GIFs",
+                    contentDescription = stringRes(R.string.gif__back_to_trending),
                     modifier = Modifier.size(18.dp).clickable { GifSearch.load(GifSearch.TRENDING) },
                 )
             }
         }
         // GIPHY's terms ask for this to be shown wherever its GIFs are.
-        Text("Powered by GIPHY", modifier = Modifier.padding(start = 8.dp).alpha(0.6f), fontSize = 11.sp)
+        Text(stringRes(R.string.gif__powered_by), modifier = Modifier.padding(start = 8.dp).alpha(0.6f), fontSize = 11.sp)
     }
 }
 
@@ -200,10 +203,11 @@ private fun GifGrid(gifs: List<Gif>) {
     }
 }
 
-private fun GifSender.Outcome.message(): String? = when (this) {
+@StringRes
+private fun GifSender.Outcome.message(): Int? = when (this) {
     GifSender.Outcome.SENT -> null
-    GifSender.Outcome.LINKED -> "This app can't take GIFs, so its link was typed instead"
-    GifSender.Outcome.FAILED -> "Couldn't send that GIF"
+    GifSender.Outcome.LINKED -> R.string.gif__linked
+    GifSender.Outcome.FAILED -> R.string.gif__send_failed
 }
 
 @Composable
@@ -227,7 +231,8 @@ private fun GifTile(gif: Gif, sending: Boolean, onClick: () -> Unit) {
             )
         }
         // On top of the image view, so the tap reaches Compose.
-        Box(Modifier.matchParentSize().clickable(onClickLabel = gif.title.ifBlank { "Send GIF" }, onClick = onClick))
+        val label = gif.title.ifBlank { stringRes(R.string.gif__send) }
+        Box(Modifier.matchParentSize().clickable(onClickLabel = label, onClick = onClick))
         if (sending) {
             Box(Modifier.matchParentSize().background(Color.Black.copy(alpha = 0.5f)), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator(Modifier.size(24.dp), color = Color.White, strokeWidth = 2.dp)
@@ -270,7 +275,7 @@ fun GifSearchBar() {
             },
             modifier = buttonSize,
         ) {
-            SnyggIcon(imageVector = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back to GIFs")
+            SnyggIcon(imageVector = Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringRes(R.string.gif__back))
         }
         SearchField(query, Modifier.weight(1f))
         SnyggIconButton(
@@ -281,7 +286,7 @@ fun GifSearchBar() {
             },
             modifier = buttonSize,
         ) {
-            SnyggIcon(imageVector = Icons.Default.Search, contentDescription = "Search GIFs")
+            SnyggIcon(imageVector = Icons.Default.Search, contentDescription = stringRes(R.string.gif__search))
         }
     }
 }
@@ -305,7 +310,7 @@ private fun SearchField(query: String, modifier: Modifier) {
     ) {
         if (query.isEmpty()) {
             Cursor(blink)
-            Text("Search GIPHY", modifier = Modifier.padding(start = 4.dp).alpha(0.6f), maxLines = 1)
+            Text(stringRes(R.string.gif__search_giphy), modifier = Modifier.padding(start = 4.dp).alpha(0.6f), maxLines = 1)
         } else {
             Text(query, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
             Cursor(blink)

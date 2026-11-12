@@ -1,5 +1,6 @@
 package com.jtn0123.audiowhisper.dictation
 
+import dev.patrickgold.florisboard.R
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -73,7 +74,7 @@ class ModelHolderTest {
     fun `an ended dictation explains itself only when nothing was typed`() {
         assertEquals(null, endingMessage(typedAny = true, failures = 0))
         assertEquals(null, endingMessage(typedAny = true, failures = 2))
-        assertEquals("Didn't catch that", endingMessage(typedAny = false, failures = 0))
-        assertEquals("Transcription failed", endingMessage(typedAny = false, failures = 1))
+        assertEquals(R.string.dictation__not_caught, endingMessage(typedAny = false, failures = 0))
+        assertEquals(R.string.dictation__failed, endingMessage(typedAny = false, failures = 1))
     }
 }

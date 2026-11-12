@@ -435,6 +435,23 @@
     <!-- Smartbar strings -->
     <!-- AudioWhisper: dictation -->
     <string name="dictation__stop">Stop dictating</string>
+    <string name="dictation__mic_busy">Microphone unavailable. Another app may be using it.</string>
+    <string name="dictation__field_off">Dictation is off in password and number fields</string>
+    <string name="dictation__allow_mic">Allow microphone access to dictate</string>
+    <string name="dictation__model_failed">Speech model missing or damaged</string>
+    <string name="dictation__mic_stopped">The mic stopped. Another app may be using it.</string>
+    <string name="dictation__failed">Transcription failed</string>
+    <string name="dictation__not_caught">Didn\'t catch that</string>
+    <string name="gif__try_again">{problem} Tap to try again.</string>
+    <string name="gif__none_for">No GIFs for “{query}”.</string>
+    <string name="gif__search_giphy">Search GIPHY</string>
+    <string name="gif__search">Search GIFs</string>
+    <string name="gif__back">Back to GIFs</string>
+    <string name="gif__back_to_trending">Back to trending GIFs</string>
+    <string name="gif__powered_by">Powered by GIPHY</string>
+    <string name="gif__send">Send GIF</string>
+    <string name="gif__linked">This app can\'t take GIFs, so its link was typed instead</string>
+    <string name="gif__send_failed">Couldn\'t send that GIF</string>
     <string name="dictation__not_installed">Speech model not installed. Settings › Dictation says how to copy it in.</string>
     <string name="dictation__damaged">Speech model damaged. Settings › Dictation says how to copy it in again.</string>
     <string name="dictation__models__title">Models on this phone</string>
