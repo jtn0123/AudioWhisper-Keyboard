@@ -23,9 +23,9 @@ struct Outputs {
 }
 
 impl Outputs {
-    /// What the arrays hold now, which the search overwrites only in part; `None` if an array's
-    /// length isn't what the C++ checks for, in which case it writes nothing more.
-    fn read(&self, env: &Env) -> Result<Option<Output>> {
+    /// What the arrays hold now, which the search overwrites only in part. Reject malformed
+    /// lengths before running the search or writing any result buffers.
+    fn read(&self, env: &Env) -> Result<Output> {
         let code_points = env.read::<i32>(self.code_points, "outputCodePoints")?;
         let scores = env.read::<i32>(self.scores, "outputScores")?;
         let confidence = env.read::<i32>(self.auto_commit_confidence, "outputAutoCommit")?;
@@ -33,7 +33,7 @@ impl Outputs {
             || scores.len() != MAX_RESULTS
             || confidence.len() != 1
         {
-            return Ok(None);
+            return Err(illegal("an output array has an invalid length"));
         }
         let space_indices = env.read::<i32>(self.space_indices, "outputIndices")?;
         let types = env.read::<i32>(self.types, "outputTypes")?;
@@ -44,7 +44,7 @@ impl Outputs {
         let Some(&weight) = weight.first() else {
             return Err(illegal("inOutWeight is empty"));
         };
-        Ok(Some(Output {
+        Ok(Output {
             count: 0,
             code_points,
             scores,
@@ -52,7 +52,7 @@ impl Outputs {
             types,
             auto_commit_confidence: confidence[0],
             weight,
-        }))
+        })
     }
 
     fn write(&self, env: &Env, output: &Output) -> Result<()> {
@@ -118,9 +118,9 @@ impl Inputs {
     }
 }
 
-/// `BinaryDictionary.getSuggestionsNative`. The count is 0 first, and stays 0 for a closed
-/// dictionary or session. The times and pointer ids are ignored: the app passes zeros, which is
-/// what the search uses.
+/// `BinaryDictionary.getSuggestionsNative`. The count is 0 first; closed dictionaries and
+/// sessions throw. The times and pointer ids are ignored: the app passes zeros, which is what
+/// the search uses.
 #[unsafe(no_mangle)]
 pub extern "system" fn Java_com_android_inputmethod_latin_BinaryDictionary_getSuggestionsNative(
     env: *mut JNIEnv,
@@ -169,13 +169,14 @@ pub extern "system" fn Java_com_android_inputmethod_latin_BinaryDictionary_getSu
     unsafe {
         jni::run(env, (), |env| {
             env.write(outputs.count, &[0], "outputSuggestionCount")?;
-            if dict == 0 || session == 0 {
-                return Ok(());
+            if dict == 0 {
+                return Err(illegal("the dictionary is closed"));
+            }
+            if session == 0 {
+                return Err(illegal("the session is closed"));
             }
             let options = env.read::<i32>(options, "suggestOptions")?;
-            let Some(mut output) = outputs.read(env)? else {
-                return Ok(());
-            };
+            let mut output = outputs.read(env)?;
             let query = inputs.read(env)?;
             let dictionary = object::<Dictionary>(dict, "dictionary")?;
             let info = match proximity_info {

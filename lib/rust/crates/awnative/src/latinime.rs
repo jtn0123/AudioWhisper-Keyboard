@@ -1,8 +1,7 @@
 //! JNI entry points for LatinIME's dictionary engine, ported to Rust (the `latin` crate). They
 //! stand in for libjni_latinime.so's: the same Java classes (`BinaryDictionary`,
-//! `DicTraverseSession` and `ProximityInfo` in lib/latinime) and the same answers, including for
-//! a closed (0) handle. Where the C++ would read through a null pointer or past an array, these
-//! throw instead.
+//! `DicTraverseSession` and `ProximityInfo` in lib/latinime) and the same answers for valid calls.
+//! Closed (0) dictionaries and sessions and malformed arrays throw Java exceptions instead.
 
 mod suggestions;
 
@@ -82,22 +81,19 @@ pub extern "system" fn Java_com_android_inputmethod_latin_BinaryDictionary_close
     unsafe { free::<Dictionary>(dict) }
 }
 
-/// Runs `body` on the dictionary behind `dict`, or returns `closed` without calling it for 0. If
-/// `body` throws, `closed` is returned too, and Java ignores it.
+/// Runs `body` on the dictionary behind `dict`, throwing for a closed handle. On an error,
+/// `fallback` is returned and Java observes the exception instead.
 ///
 /// # Safety
 /// `env` must be this call's environment, and `dict` 0 or a live handle from `openNative`.
 unsafe fn with_dictionary<R: Copy>(
     env: *mut JNIEnv,
     dict: jlong,
-    closed: R,
+    fallback: R,
     body: impl FnOnce(&Dictionary, &Env) -> Result<R>,
 ) -> R {
-    if dict == 0 {
-        return closed;
-    }
     // SAFETY: as the caller promises.
-    unsafe { jni::run(env, closed, |env| body(object(dict, "dictionary")?, env)) }
+    unsafe { jni::run(env, fallback, |env| body(object(dict, "dictionary")?, env)) }
 }
 
 /// `BinaryDictionary.getProbabilityNative`: the word's probability, or `NOT_A_PROBABILITY`.
@@ -117,8 +113,7 @@ pub extern "system" fn Java_com_android_inputmethod_latin_BinaryDictionary_getPr
 }
 
 /// `BinaryDictionary.getNgramProbabilityNative`: the word's probability after the previous words
-/// (most recent first, one per element of the arrays). A closed dictionary answers 0, as the C++
-/// does (it returns `JNI_FALSE`).
+/// (most recent first, one per element of the arrays).
 #[unsafe(no_mangle)]
 pub extern "system" fn Java_com_android_inputmethod_latin_BinaryDictionary_getNgramProbabilityNative(
     env: *mut JNIEnv,
@@ -175,8 +170,7 @@ fn flags(
         .collect()
 }
 
-/// `BinaryDictionary.getWordsNative`: every word, each followed by a newline, or null for a
-/// closed dictionary.
+/// `BinaryDictionary.getWordsNative`: every word, each followed by a newline.
 #[unsafe(no_mangle)]
 pub extern "system" fn Java_com_android_inputmethod_latin_BinaryDictionary_getWordsNative(
     env: *mut JNIEnv,
