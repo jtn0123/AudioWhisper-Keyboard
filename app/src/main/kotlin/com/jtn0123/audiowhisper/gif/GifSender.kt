@@ -19,6 +19,11 @@ object GifSender {
     /** Sent GIFs are kept this long, so the receiving app can still read one it hasn't sent yet. */
     private const val KEEP_MS = 24 * 60 * 60 * 1000L
 
+    private const val PART = ".part"
+
+    /** Longer than a download can take: two 15-second timeouts. */
+    private const val PART_STALE_MS = 60_000L
+
     enum class Outcome { SENT, LINKED, FAILED }
 
     /** Sends [gif] as an image if the app takes GIFs, else types its link. */
@@ -39,21 +44,41 @@ object GifSender {
 
     private suspend fun download(context: Context, gif: Gif): File = withContext(Dispatchers.IO) {
         val dir = File(context.cacheDir, DIR).apply { mkdirs() }
-        prune(dir)
+        val now = System.currentTimeMillis()
+        prune(dir, now)
         val file = File(dir, "${gif.id.filter(Char::isLetterOrDigit).ifEmpty { "gif" }}.gif")
-        if (!file.exists()) {
-            try {
-                GifImages.save(gif.sendUrl, file, MAX_BYTES)
-            } catch (e: IOException) {
-                file.delete()
-                throw e
-            }
-        }
+        fetchInto(file, now) { GifImages.save(gif.sendUrl, it, MAX_BYTES) }
         file
     }
 
-    private fun prune(dir: File) {
-        val cutoff = System.currentTimeMillis() - KEEP_MS
-        dir.listFiles()?.filter { it.lastModified() < cutoff }?.forEach { it.delete() }
+    /**
+     * Makes [file] hold the whole GIF. A new one is written to a `.part` file by [save] and renamed
+     * only once complete, so a download cut off by a crash is never mistaken for a cached GIF. A
+     * reused file is touched to [now], so [prune] counts its 24 hours from this send.
+     */
+    internal suspend fun fetchInto(file: File, now: Long, save: suspend (File) -> Unit) {
+        if (file.exists()) {
+            file.setLastModified(now)
+            return
+        }
+        val part = File(file.parentFile, file.name + PART)
+        try {
+            save(part)
+            if (!part.renameTo(file)) throw IOException("Could not keep the downloaded GIF")
+        } catch (e: IOException) {
+            part.delete()
+            throw e
+        }
+    }
+
+    /**
+     * Deletes GIFs sent more than a day before [now], and `.part` files left by a download that
+     * stopped: one older than [PART_STALE_MS] can't still be in progress.
+     */
+    internal fun prune(dir: File, now: Long) {
+        dir.listFiles()?.filter {
+            val age = now - it.lastModified()
+            if (it.name.endsWith(PART)) age > PART_STALE_MS else age > KEEP_MS
+        }?.forEach { it.delete() }
     }
 }
