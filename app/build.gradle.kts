@@ -104,6 +104,15 @@ android {
         ndk { abiFilters += "arm64-v8a" }
     }
 
+    packaging {
+        jniLibs {
+            // sherpa-onnx's Kotlin API loads only libsherpa-onnx-jni.so, which links against the
+            // system libraries and libonnxruntime.so. Its C and C++ API libraries (about 4.5 MB)
+            // are for apps calling sherpa-onnx from their own native code, which this one doesn't.
+            excludes += listOf("**/libsherpa-onnx-c-api.so", "**/libsherpa-onnx-cxx-api.so")
+        }
+    }
+
     bundle {
         language {
             // We disable language split because FlorisBoard does not use
