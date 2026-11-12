@@ -4,6 +4,7 @@ import android.content.Context
 import android.os.SystemClock
 import android.util.Log
 import com.jtn0123.audiowhisper.dictation.ExpectedFile
+import com.jtn0123.audiowhisper.dictation.LargeModels
 import com.jtn0123.audiowhisper.dictation.ModelCheck
 import com.jtn0123.audiowhisper.dictation.ModelFiles
 import com.jtn0123.audiowhisper.dictation.ModelState
@@ -148,11 +149,16 @@ internal class LoadedVoice(private val context: Context, private val scope: Coro
     private var failed = false
     private var justFailed = false
 
+    init {
+        LargeModels.register(LargeModels.Kind.VOICE) { scope.launch { mutex.withLock { if (!inUse) free() } } }
+    }
+
     /** The voice, loading it if need be; null if it isn't installed or won't load. */
     suspend fun take(): VoiceEngine? = mutex.withLock {
         inUse = true
         engine?.let { return@withLock it }
         if (failed || VoiceEngine.quickState(context) is ModelState.Missing) return@withLock null
+        LargeModels.loading(LargeModels.Kind.VOICE)
         withContext(Dispatchers.IO) { VoiceEngine.load(context) }
             .also { engine = it; failed = it == null; justFailed = failed }
     }
@@ -170,7 +176,10 @@ internal class LoadedVoice(private val context: Context, private val scope: Coro
         }
     }
 
-    suspend fun close() = mutex.withLock { free() }
+    suspend fun close() {
+        LargeModels.unregister(LargeModels.Kind.VOICE)
+        mutex.withLock { free() }
+    }
 
     private fun free() {
         engine?.close()

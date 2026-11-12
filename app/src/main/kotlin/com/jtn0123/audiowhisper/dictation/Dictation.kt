@@ -88,6 +88,10 @@ class Dictation(private val context: Context, private val editor: Editor) {
     private var idleSince = 0L
     private var keyboardShown = true
 
+    init {
+        LargeModels.register(LargeModels.Kind.DICTATION, ::freeIfIdle)
+    }
+
     /** The mic key went down. */
     fun pressMic() {
         if (micKey.press(status.value) == MicKey.Action.START) start()
@@ -141,6 +145,7 @@ class Dictation(private val context: Context, private val editor: Editor) {
     }
 
     fun release() {
+        LargeModels.unregister(LargeModels.Kind.DICTATION)
         abandon()
         main.removeCallbacks(unload)
         worker.execute(::closeModel)
@@ -374,6 +379,7 @@ class Dictation(private val context: Context, private val editor: Editor) {
         // files are checked first (hashed once each; see ModelCheck).
         val state = ModelFiles.fullState(context)
         check(state == ModelState.Ready) { "Model files not as expected: $state" }
+        LargeModels.loading(LargeModels.Kind.DICTATION)
         return Transcriber(ModelFiles.dir(context)).also {
             Log.i(TAG, "Model loaded in ${SystemClock.elapsedRealtime() - started} ms")
         }
@@ -385,6 +391,15 @@ class Dictation(private val context: Context, private val editor: Editor) {
     }
 
     private val unload = Runnable { worker.execute(::closeModel) }
+
+    /** The voice is about to load: free the model now if no dictation is using it. Any thread. */
+    private fun freeIfIdle() {
+        main.post {
+            if (status.value != Status.IDLE) return@post
+            main.removeCallbacks(unload)
+            unload.run()
+        }
+    }
 
     companion object {
         private const val TAG = "AWDictation"
