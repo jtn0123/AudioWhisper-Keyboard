@@ -5,11 +5,9 @@ import android.graphics.drawable.Drawable
 import android.util.LruCache
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.IOException
 import java.io.InputStream
-import java.io.OutputStream
 import java.net.HttpURLConnection
 import java.net.URL
 import java.nio.ByteBuffer
@@ -45,9 +43,7 @@ object GifImages {
         open(url) { input -> file.outputStream().use { copyLimited(input, it, maxBytes) } }
     }
 
-    private fun download(url: String, maxBytes: Int): ByteArray = open(url) { input ->
-        ByteArrayOutputStream().also { copyLimited(input, it, maxBytes) }.toByteArray()
-    }
+    private fun download(url: String, maxBytes: Int): ByteArray = open(url) { readLimited(it, maxBytes) }
 
     private fun <T> open(url: String, read: (InputStream) -> T): T {
         val connection = URL(url).openConnection() as HttpURLConnection
@@ -59,18 +55,6 @@ object GifImages {
             return connection.inputStream.use(read)
         } finally {
             connection.disconnect()
-        }
-    }
-
-    private fun copyLimited(input: InputStream, output: OutputStream, maxBytes: Int) {
-        val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
-        var total = 0
-        while (true) {
-            val read = input.read(buffer)
-            if (read < 0) return
-            total += read
-            if (total > maxBytes) throw IOException("GIF is larger than $maxBytes bytes")
-            output.write(buffer, 0, read)
         }
     }
 

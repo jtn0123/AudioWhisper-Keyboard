@@ -5,6 +5,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import java.io.IOException
+import java.io.InputStream
 import java.net.HttpURLConnection
 import java.net.URL
 
@@ -54,7 +55,7 @@ class Giphy(private val apiKey: String) {
         try {
             val status = connection.responseCode
             if (status != HttpURLConnection.HTTP_OK) throw GiphyException(status)
-            parse(connection.inputStream.bufferedReader().use { it.readText() })
+            parse(connection.inputStream.use(::readReply))
         } finally {
             connection.disconnect()
         }
@@ -62,6 +63,16 @@ class Giphy(private val apiKey: String) {
 
     companion object {
         private const val TIMEOUT_MS = 10_000
+
+        /** A page of 30 results is about 100 KB; anything past this isn't a reply we can use. */
+        internal const val MAX_REPLY_BYTES = 2 * 1024 * 1024
+
+        /** The reply as text, refusing one longer than [MAX_REPLY_BYTES] rather than holding it all. */
+        internal fun readReply(input: InputStream): String = try {
+            readLimited(input, MAX_REPLY_BYTES).decodeToString()
+        } catch (e: TooLargeException) {
+            throw GiphyFormatException(e)
+        }
 
         /**
          * The GIFs in a search or trending response, skipping any without an id or the renditions we
