@@ -29,6 +29,7 @@ pub struct Popup {
 
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Scene {
+    pub keyboard_height: f32,
     pub watermark: Option<crate::ime_decorations::Watermark>,
     pub preview: Option<crate::panels::Panel>,
     pub search: Option<crate::panels::Panel>,
@@ -120,6 +121,7 @@ impl Scene {
             || self.panel != next.panel
             || self.width != next.width
             || self.height != next.height
+            || self.keyboard_height != next.keyboard_height
             || self.strip != next.strip
             || self.background != next.background
             || self.strip_style != next.strip_style

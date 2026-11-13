@@ -29,6 +29,7 @@ mod velocity;
 
 pub mod arrangement;
 
+pub mod modal_scene;
 mod panel_layout;
 mod panel_raster;
 pub mod panel_scroll;

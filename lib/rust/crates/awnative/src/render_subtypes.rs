@@ -68,3 +68,24 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_SubtypeRules_rows(
         })
     }
 }
+
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_SubtypeRules_geometry(
+    env: *mut JNIEnv,
+    _: jclass,
+    config: jni_sys::jfloatArray,
+) -> jni_sys::jfloatArray {
+    // SAFETY: the JVM local input is copied; the result is a fresh primitive array.
+    unsafe {
+        crate::jni::run(env, std::ptr::null_mut(), |env| {
+            let c = env.read::<f32>(config, "subtype geometry")?;
+            if c.len() != 6 || c.iter().any(|v| !v.is_finite() || *v < 0.0) {
+                return Err(illegal("subtype geometry"));
+            }
+            env.make(&[
+                render::subtype_panel::sheet_start(c[0], c[1], c[2], c[3] as usize),
+                render::modal_scene::offset(c[0], c[4], c[5]),
+            ])
+        })
+    }
+}

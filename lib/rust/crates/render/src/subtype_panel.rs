@@ -22,6 +22,10 @@ pub fn rows(ids: &[i64], labels: &[String], selected: i64) -> Vec<(i64, String, 
         .collect()
 }
 
+pub fn sheet_start(height: f32, header: f32, row: f32, count: usize) -> f32 {
+    (height - header - row * count as f32).max(0.0)
+}
+
 impl Panel {
     pub fn measure_subtypes(
         &mut self,
@@ -47,7 +51,7 @@ impl Panel {
     }
     pub fn layout_subtypes(&mut self, width: f32, height: f32) {
         let Some(s) = &self.subtypes else { return };
-        let start = (height - s.header_height - s.row_height * s.ids.len() as f32).max(0.0);
+        let start = sheet_start(height, s.header_height, s.row_height, s.ids.len());
         let area = rect(0.0, start, width, height - start);
         self.max_scroll =
             (s.row_height * s.ids.len() as f32 - (height - start - s.header_height)).max(0.0);
@@ -113,7 +117,15 @@ impl Panel {
         if self.kind != 7 {
             return;
         }
+        let root = theme.style(&r.element("subtype-panel", 0));
         for i in &mut self.items {
+            if i.element == "subtype-panel-header" {
+                for style in &mut i.styles {
+                    style.shape = root.shape;
+                    style.corners = [root.corners[0], root.corners[1], 0.0, 0.0];
+                    style.percent = root.percent;
+                }
+            }
             if i.element == "subtype-scrim" {
                 for s in &mut i.styles {
                     s.background = 0x52000000;

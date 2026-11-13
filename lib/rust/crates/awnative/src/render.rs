@@ -109,7 +109,7 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_update(
             let g = env.read::<f32>(geometry, "geometry")?;
             let labels = strings(env, labels)?;
             let candidates = strings(env, candidates)?;
-            if ![3, 5].contains(&d.len())
+            if ![3, 5, 6].contains(&d.len())
                 || d.iter().any(|v| !v.is_finite())
                 || !(1.0..=8192.0).contains(&d[0])
                 || !(1.0..=8192.0).contains(&d[1])
@@ -146,9 +146,10 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_update(
                     hints: Default::default(),
                 })
                 .collect();
-            if d.len() == 5 {
+            if d.len() >= 5 {
                 session.scene.desired_key = [d[3], d[4]];
             }
+            session.scene.keyboard_height = if d.len() == 6 { d[5] } else { d[1] - d[2] };
             session.scene.width = d[0] as u16;
             session.scene.height = d[1] as u16;
             session.scene.strip = d[2];

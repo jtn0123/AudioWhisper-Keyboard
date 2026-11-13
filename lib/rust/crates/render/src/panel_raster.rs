@@ -43,6 +43,7 @@ impl Raster {
                 if item.id == -14
                     || item.id == -15
                     || item.element == "clipboard-scrim"
+                    || item.element == "subtype-scrim"
                     || matches!(item.command, crate::panels::Command::Gif(11, _))
                 {
                     self.context.pop_clip();

@@ -12,6 +12,15 @@ private object ReferenceSubtypePanel {
         ids.indices.flatMap { listOf(ids[it].toString(), labels[it], (selected == ids[it]).toString()) }.toTypedArray()
 }
 class SubtypeMatchTest {
+    /** Frozen bottom-aligned sheet Column plus the unchanged bottom-aligned input-view spacer. */
+    @Test fun sheetAndUnderlyingKeyboardRemainBottomAligned() {
+        for (height in listOf(100f,400f,800f)) for (header in listOf(40f,48f,60f))
+            for (row in listOf(48f,56f,72f)) for (count in 0..20) {
+                val c=floatArrayOf(height,header,row,count.toFloat(),48f,200f)
+                val expected=floatArrayOf(maxOf(0f,height-header-row*count),maxOf(0f,height-48f-200f))
+                assertContentEquals(expected,SubtypeRules.geometry(c))
+            }
+    }
     @Test fun configuredOrderLocalizedNamesAndSelectedIdentity() {
         val random = Random(80)
         val names = listOf("English (United States)", "English (United Kingdom)", "español", "Tiếng Việt", "français", "😀", "")

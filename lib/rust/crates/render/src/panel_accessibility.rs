@@ -31,7 +31,7 @@ pub fn nodes(panel: &Panel) -> Vec<Node> {
                 "button",
                 Target::Panel(index),
             );
-            n.enabled = i.enabled;
+            n.enabled = i.enabled && i.element != "subtype-panel-header";
             n.selected = i.selected;
             n.pressed = panel.pressed == Some(i.id);
             if matches!(i.command, Command::None) {

@@ -101,6 +101,8 @@ impl Raster {
         self.context.set_paint(color(
             if scene.panel.as_ref().is_some_and(|p| p.kind == 3) {
                 0x52000000
+            } else if scene.panel.as_ref().is_some_and(|p| p.kind == 7) {
+                0
             } else {
                 scene.background
             },
@@ -111,14 +113,35 @@ impl Raster {
             scene.width as f64,
             scene.height as f64,
         ));
-        if let Some(w) = &scene.watermark {
+        let modal = crate::modal_scene::content(scene);
+        let content = modal.as_ref().unwrap_or(scene);
+        let content_top = if modal.is_some() {
+            crate::modal_scene::offset(scene.height as f32, scene.strip, scene.keyboard_height)
+        } else {
+            0.0
+        };
+        if modal.is_some() {
+            self.box_at(
+                Rect {
+                    left: 0.0,
+                    top: content_top,
+                    right: scene.width as f32,
+                    bottom: scene.height as f32,
+                },
+                &Style {
+                    background: scene.background,
+                    ..Default::default()
+                },
+            );
+        }
+        if let Some(w) = &content.watermark {
             self.icon(&w.icon, &w.style, w.bounds)?;
         }
-        for (i, key) in scene
+        for (i, key) in content
             .keys
             .iter()
             .enumerate()
-            .filter(|_| scene.panel.is_none())
+            .filter(|_| content.panel.is_none())
         {
             let r = key.bounds.visible;
             if r.is_empty() {
@@ -128,8 +151,8 @@ impl Raster {
             let r = Rect {
                 left: r.left.trunc(),
                 right: r.left.trunc() + r.width().round(),
-                top: r.top.trunc() + scene.strip,
-                bottom: r.top.trunc() + r.height().round() + scene.strip,
+                top: r.top.trunc() + content.strip,
+                bottom: r.top.trunc() + r.height().round() + content.strip,
             };
             let margin = key.styles.iter().map(|s| s.shadow).fold(0.0, f32::max) * 6.0;
             if r.right + margin < damage.left
@@ -139,13 +162,13 @@ impl Raster {
             {
                 continue;
             }
-            let pressed = usize::from(scene.pressed.contains(&i));
+            let pressed = usize::from(content.pressed.contains(&i));
             let style = &key.styles[pressed];
             let hint = &key.hints[pressed];
             let r = crate::smartbar::inset(r, style.margin);
             self.shadow(r, style);
             self.box_at(r, style);
-            let telpad = scene.telpad.get(i) == Some(&true);
+            let telpad = content.telpad.get(i) == Some(&true);
             let label_bounds = if telpad {
                 crate::key_content::phone_label(
                     r,
@@ -210,46 +233,46 @@ impl Raster {
                 )?;
             }
         }
-        if damage.top < scene.strip && scene.panel.as_ref().is_none_or(|p| p.kind == 2) {
+        if damage.top < content.strip && content.panel.as_ref().is_none_or(|p| p.kind == 2) {
             self.box_at(
                 Rect {
                     left: 0.0,
-                    top: 0.0,
-                    right: scene.width as f32,
-                    bottom: scene.strip,
+                    top: content_top,
+                    right: content.width as f32,
+                    bottom: content.strip,
                 },
-                &scene.strip_style,
+                &content.strip_style,
             );
         }
-        if damage.top < scene.strip && scene.panel.as_ref().is_none_or(|p| p.kind == 2) {
-            self.smartbar(scene)?;
+        if damage.top < content.strip && content.panel.as_ref().is_none_or(|p| p.kind == 2) {
+            self.smartbar(content)?;
         }
         // Colour glyph preparation is substantial work even when all of its pixels are clipped.
         // A key-only update must not rebuild the unchanged COLR/CBDT candidate strip.
-        for (i, candidate) in scene
+        for (i, candidate) in content
             .candidates
             .iter()
             .enumerate()
-            .filter(|_| damage.top < scene.strip && scene.smartbar.is_none())
+            .filter(|_| damage.top < content.strip && content.smartbar.is_none())
         {
-            let width = scene.width as f32 / scene.candidates.len() as f32;
+            let width = content.width as f32 / content.candidates.len() as f32;
             self.context.push_clip_rect(&vello_cpu::kurbo::Rect::new(
                 (i as f32 * width) as f64,
                 0.0,
                 ((i + 1) as f32 * width) as f64,
-                scene.strip as f64,
+                content.strip as f64,
             ));
             let default = crate::scene::CandidateStyle::default();
-            let style = scene
+            let style = content
                 .candidate_styles
                 .get(i)
-                .map(|s| &s[usize::from(scene.candidate_pressed.contains(&i))])
+                .map(|s| &s[usize::from(content.candidate_pressed.contains(&i))])
                 .unwrap_or(&default);
             let r = Rect {
                 left: i as f32 * width,
                 right: (i + 1) as f32 * width,
                 top: 0.0,
-                bottom: scene.strip,
+                bottom: content.strip,
             };
             self.box_at(r, &style.container);
             self.label(
@@ -262,17 +285,17 @@ impl Raster {
             )?;
             self.context.pop_clip();
         }
-        if let (Some(popup), Some(bounds)) = (&scene.popup, scene.popup_bounds()) {
-            self.box_at(bounds, &scene.popup_style);
+        if let (Some(popup), Some(bounds)) = (&content.popup, content.popup_bounds()) {
+            self.box_at(bounds, &content.popup_style);
             for (i, label) in popup.labels.iter().enumerate() {
-                let r = scene
+                let r = content
                     .popup_choice_bounds(i)
                     .ok_or("missing popup choice bounds")?;
-                let style = scene
+                let style = content
                     .popup_styles
                     .get(i)
                     .map(|s| &s[usize::from(i == popup.selected)])
-                    .unwrap_or(&scene.popup_style);
+                    .unwrap_or(&content.popup_style);
                 self.box_at(r, style);
                 self.label(
                     label,
@@ -298,6 +321,15 @@ impl Raster {
         self.context.pop_clip();
         self.profile.encode_ns = elapsed(encode);
         let raster = self.profiling.then(Instant::now);
+        let width = self.pixmap.width() as usize;
+        let left = damage.left.max(0.0).min(width as f32) as usize;
+        let right = damage.right.max(0.0).min(width as f32) as usize;
+        let top = damage.top.max(0.0).min(self.pixmap.height() as f32) as usize;
+        let bottom = damage.bottom.max(0.0).min(self.pixmap.height() as f32) as usize;
+        for y in top..bottom {
+            self.pixmap.data_as_u8_slice_mut()[(y * width + left) * 4..(y * width + right) * 4]
+                .fill(0);
+        }
         self.context.render(&mut self.pixmap);
         self.profile.raster_ns = elapsed(raster);
         Ok(())

@@ -157,7 +157,7 @@ class RustKeyboardView(context: Context) : FrameLayout(context), SurfaceHolder.C
         }.toIntArray()
         native.smartbar(s.smartbar.config, s.smartbar.codes, s.smartbar.labels + s.candidates.flatMap { listOf(it.icon?.let(::iconPath) ?: "", it.secondaryText?.toString() ?: "") })
         manager.smartbarVisibleDynamicActionsCount = s.smartbar.measure(width.toFloat())[2].toInt()
-        native.update(floatArrayOf(width.toFloat(), height.toFloat(), s.stripHeight, desired.visibleBounds.width, desired.visibleBounds.height),
+        native.update(floatArrayOf(width.toFloat(), height.toFloat(), s.stripHeight, desired.visibleBounds.width, desired.visibleBounds.height, s.keyboardHeight),
             metadata.toTypedArray(), flags, geometry, labels.toTypedArray(), candidates.toTypedArray())
         native.panels(floatArrayOf(s.panels.kind.toFloat(), s.theme.density,
             s.smartbar.config[11], manager.smartbarVisibleDynamicActionsCount.toFloat(), android.view.ViewConfiguration.getKeyRepeatDelay().toFloat() * 1_000_000,
