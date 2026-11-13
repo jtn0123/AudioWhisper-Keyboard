@@ -16,6 +16,12 @@ the Android companion to the AudioWhisper Mac app. It installs next to stock Flo
   (`lib/rust`, see [docs/rust.md](docs/rust.md)).
 - **GIF search** through GIPHY.
 
+The target is 90%+ Rust, including keyboard drawing and settings models. Today Compose still
+draws the keyboard; the planned Rust renderer must pass behaviour, accessibility and phone
+performance checks before replacing it. Kotlin will retain the Android service/API bridges,
+draw surface, touch forwarding and accessible settings controls. See [the staged plan](docs/rust.md)
+and [the decision](docs/decisions.md).
+
 Our code is under `app/src/main/kotlin/com/jtn0123/audiowhisper` and `lib/rust`. Changes to
 upstream files are marked `AudioWhisper:`.
 
@@ -36,7 +42,7 @@ Nothing else comes from your machine. jetpref, a snapshot Sonatype no longer ser
 ```bash
 ./gradlew assembleDebug                               # the debug build, used day to day
 ./gradlew assemblePersonal                            # shrunk and optimised, not debuggable
-./gradlew test :app:lintDebug :lib:rust:check assembleDebug   # everything CI runs
+./gradlew --stacktrace test :app:lintDebug :lib:rust:check :lib:rust:oracleCheck assembleDebug
 ```
 
 **GIPHY** needs a key, as `giphy.apiKey=...` in `local.properties` (never committed) or the

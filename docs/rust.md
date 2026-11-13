@@ -4,6 +4,99 @@ AudioWhisper Keyboard is moving its own logic from Kotlin to Rust, one piece at 
 piece lands only when it gives the same results as the Kotlin it replaces, proven by a test that
 runs both, and has been checked on the emulator.
 
+## The 90% target (decided 2026-11-12)
+
+The target is at least 90% Rust in our main source, because stopping at logic leaves most of
+this keyboard in Compose and settings. Count non-blank lines of tracked `.kt`, `.java` and
+`.rs` files; exclude paths containing `/test/`, `/tests/`, `/androidTest/` or `benchmark/`,
+`*Test.kt`, `*_test.rs`, `*_tests.rs`, `tests.rs`, and generated tables
+(`latin/src/chars/tables.rs`, `chars/src/tables/*`). Dependencies' native source is not ours
+and does not count, including sherpa-onnx, onnxruntime and a renderer's dependencies.
+The planning snapshot was about 25.8k Rust, 55.8k Kotlin and 0.6k Java (31% Rust).
+After stage 1, the tracked-source recount on 2026-11-12 is 25,306 Rust, 53,808 Kotlin and
+627 Java: 31.7% Rust. Recount after ports; never add Rust or remove tests just to improve a ratio.
+
+### Stage 1: remove features we do not use (done)
+
+Developer tools and non-Latin input were removed, including the Han provider and pack,
+non-Latin composers, layouts, popup mappings and presets. This makes the next ports smaller,
+but moves the percentage only to about 32%. Latin-script layouts, accented letters,
+Vietnamese Telex, numeric/symbol/phone layouts, emoji, add-ons and the theme editor stay.
+
+### Stage 2: remaining logic (roughly 50% Rust)
+
+Port these packages in order, retaining a test-only Kotlin reference for each. Package sizes
+are planning estimates, not delivery dates. Android ICU segmentation and locale casing stay
+until a replacement matches Android. Keep Android work at the edge and avoid redundant JNI
+wrappers: the point is to remove Kotlin decisions, not translate each line through a call.
+
+1. Key/domain models: selectors, codes/types, currency slots, keyboard state and text-key evaluation.
+2. Layout assembly/cache: arrangements, merging, hints and cache keys; compare every retained layout's evaluated keys.
+3. Snygg rules and stylesheet grammar: parsing, ordering and schema/version errors.
+4. Snygg values: dimensions, colours, fonts, padding, shapes and variables.
+5. Snygg compilation/editor model: cascade, inheritance, matching, editor operations and the live schema generator.
+6. A1: let the Rust suggester call the Rust decoder through a native session; remove production LatinIME Java glue, keeping the C++ oracle.
+7. Emoji history and quick-action arrangement.
+8. Clipboard ordering, duplicate/expiry/limit/pinning and MIME policy; keep Room and the Android clipboard in Kotlin.
+9. Extension metadata/import policy: identifiers, maintainers, validation and archive-entry decisions.
+10. Dictation session state machine, compared with the existing schedules.
+11. ASR and VAD through sherpa-onnx 2.0.1's exact C API; restore its excluded C library and preserve audio/decoder/VAD settings and flushing.
+12. Pocket TTS through that C API: Loona, four threads, cancellation and stop-before-free; remove sherpa JNI only when unused.
+13. Input dispatch and KeyboardManager routing: press/release/repeat and actions.
+14. Editor state/reconciliation: expected text, selection/composing and UTF-16.
+15. Editor operation plans: deletion, replacement and commits over a fake InputConnection.
+16. NLP orchestration: provider eligibility, candidate state and stale-result rejection.
+17. Subtype/settings defaults, validation, migration and active subtype.
+18. Backup/restore manifests, conflicts and error classes.
+19. Remaining utility rules: MIME matching, formatting and validation.
+20. Consolidate engine boundaries, removing Kotlin–Rust callback chains and redundant wrappers.
+
+### Stage 3: Rust draws the keyboard (roughly 68–76% Rust)
+
+Kotlin hosts a SurfaceView in a FrameLayout under the IME service, maintains insets and
+touchable regions, and forwards complete packed MotionEvents: action, pointer ids, coordinates,
+history, timestamps and cancel. It keeps inline autofill views, GIF fetching/decoding and an
+AccessibilityNodeProvider. Rust supplies the TalkBack semantic snapshot (stable ids, bounds,
+labels, roles and actions), following AOSP LatinIME's accessibility delegate.
+
+Rust takes ANativeWindow through JNI, owns a render thread with surface-generation ids, and
+renders only dirty or animating frames using Choreographer timestamps. It owns the scene,
+hit testing, keys, smartbar, candidates, panels, glide trail and popups inside an enlarged
+surface. Existing Snygg JSON themes remain the input; density, font scale and Material You
+colours come from Android. The theme editor hosts the same renderer through AndroidView and
+passes draft snapshots, so previews and the keyboard use the same rules.
+
+Try Vello (hybrid over wgpu/Vulkan or CPU, chosen by measurements), Parley and Skrifa first.
+Keep system fonts and emoji, loaded through public APIs. First inspect the emulator and S24
+fonts' CBDT/CBLC or COLRv1 format; prove bitmap/colour emoji, ZWJ families, flags, skin tones,
+keycaps and VS15/VS16 work. skia-safe is the fallback if pure Rust cannot match appearance or
+speed; it brings Skia C++ and an estimated 15–35 MiB, so measure its actual cost before choosing.
+
+The prototype stays behind a setting with Compose as fallback. It must show QWERTY normal,
+pressed and shifted labels, a suggestion strip with colour emoji, long-press e accents, a
+glide trail, one bundled light and dark theme and a live theme-editor change. Exercise surface
+recreation, rotation, cancel and a minimal TalkBack key list. Accept only identical committed
+text and action traces from recorded input, plus reviewed visual pairs within anti-aliasing
+tolerances. Target warm CPU scene p95 <= 2 ms and GPU p95 <= 3 ms. Use Perfetto FrameTimeline
+for touch-to-present, missed frames, memory and idle power; measure added native-library size.
+Alternate Compose/Rust trials first on the emulator, then on the S24 Ultra at 120 Hz. Only
+after phone acceptance remove the Compose keyboard, smartbar/candidates/popups, media/emoji/
+clipboard panels and Snygg UI; this prevents the fallback becoming permanent duplicate code.
+
+### Stage 4: smaller settings (to 90%+)
+
+At roughly 55–64k Rust lines, Kotlin and Java together must be around 6k. Settings, extensions
+and the theme editor alone were about 13k at planning time. Rebuild them as a few data-driven
+Compose screens: Rust describes settings/properties and owns validation, editing models and
+workflows; accessible Compose controls stay. Slim the service shell and JNI declarations too,
+then recount. Stage 4 is part of the decision, because drawing the keyboard alone cannot reach 90%.
+
+The user chose 90% including settings, removal of developer tools and non-Latin input,
+retention of add-ons and the theme editor, and pure Rust rendering first with Skia as fallback.
+The implementation defaults are system fonts/emoji, exact behaviour with reviewed pixel
+variation, deleting Compose after phone acceptance, and a 120 Hz S24 test before default-on.
+The differential tests, deliberate mutation check and emulator checks below apply to every port.
+
 ## What is in Rust
 
 | Piece | Rust | Replaced | Proof it matches |
@@ -28,8 +121,8 @@ runs both, and has been checked on the emulator.
 | Generic rule-table composing, including Vietnamese Telex: what a keystroke deletes and types given the text before it | `crates/composing` | `Composer.WithRules.getActions`, through `ComposingRules` | `ComposingMatchTest` against `ReferenceWithRules`: the bundled Telex rules, random rule tables, case changes, lone surrogates and every UTF-16 unit. Hangul, kana and their feature-only tests were removed from the Latin-only keyboard |
 | Emoji: reading the bundled emoji files (categories, skin-tone sets, the by-tone lists), an emoji's skin tone and hair style, which locale's file to load, and the `:` suggestions, scored, sorted and cut to size. Kotlin still reads the files and settings and builds the emoji it shows; the parsed file stays in Rust so each keystroke is one call | `crates/emoji` | `EmojiData`'s parsing, `Emoji`'s tone and hair style, `EmojiSuggestionProvider`'s query check and scoring, now wrappers | `EmojiMatchTest` against `ReferenceEmoji`: every bundled file, 2,000 damaged copies of them, and 20,000 random queries, tones and locales each. It fails for each of 40 small breaks. On the emulator none of 163,808 differed (17,463 file, 58,883 damaged-file and 87,462 query checks). Reading a file takes 3.5 ms against 11; a `:` keystroke's suggestions about 0.75 ms against 0.8, still off the main thread. Typing `:smi` offered ☺️ 😏 😼 on the emulator |
 
-The larger pieces of upstream FlorisBoard's pure logic are done; most of what stays in Kotlin draws,
-reads settings or talks to Android.
+Many large pure-logic pieces are in Rust. The next stages move the remaining decisions, then
+the keyboard drawing and settings models, so Kotlin becomes a small Android shell.
 
 ### Sharing a core with the Mac app
 

@@ -33,18 +33,32 @@ the two round alike only where both fuse multiply-adds, which is arm64 (see
 `.github/workflows/android.yml`). **Would change if** the keyboard needs to run on an x86-64
 device; that would also need the oracle tests to accept a last-bit difference there.
 
-## Rust by default for new logic
+## 90% Rust, including keyboard drawing
 
-Decided on 2026-11-08: as much of the keyboard as practical is written in Rust, in one
-library (`lib/rust`, one `.so`, since each Rust library carries about 270 KB of runtime).
-The point isn't safety, since Kotlin is already memory-safe; only the C++ it replaces gains
-that. It is speed, mostly in the debug build, and a text core shared with the Mac app
-(AudioWhisper-Core). What stays in Kotlin is what touches Android: the input-method
-service, Compose UI, settings, the accessibility reader and file I/O. Each port is held to
-the Kotlin it replaced by JVM tests that compare the two over large random inputs.
-`docs/rust.md` tracks the pieces. **Would change if** JNI overhead outweighs the speed-up
-on a hot path (measure first; bulk string arrays across JNI were slower until packed into
-one string), or if sharing with the Mac app is dropped.
+Decided on 2026-11-12, replacing the 2026-11-08 logic-only decision: aim for at least 90% of
+our non-blank main-source lines in Rust, including the keyboard renderer and settings models.
+Keep one library (`lib/rust`, one `.so`), with JNI only in `awnative`. Kotlin keeps the IME
+service shell, a draw surface and touch forwarding, the TalkBack bridge, microphone,
+text-to-speech, accessibility-service and other Android APIs, and a slim settings app with
+accessible Compose controls. This removes duplicated policy and shares text rules with the
+Mac app; Kotlin is already memory-safe, so safety alone is not the reason. Try pure Rust
+Vello + Parley + Skrifa/Fontations first to avoid another large C++ dependency. Use skia-safe
+only if the prototype cannot match the look or speed; Skia's compatibility then justifies
+its estimated 15–35 MiB. Keep the phone's fonts and emoji, exact behaviour and reviewed
+anti-aliasing tolerances. Delete the Compose keyboard after phone acceptance, including
+120 Hz trials on the S24 Ultra. `docs/rust.md` defines the stages and acceptance gate.
+**Would change if** measured rendering, accessibility, system-font/emoji compatibility or
+JNI costs cannot meet that gate; revise the boundary or renderer from measurements before
+switching the default, rather than preserving two complete keyboards indefinitely.
+
+## Latin-script input and no developer tools
+
+Decided on 2026-11-12: remove FlorisBoard's developer tools and non-Latin input because the
+user types only Latin-script languages. Keep accented Latin layouts, Vietnamese Telex,
+numeric, symbol and phone layouts, emoji, the add-on/extension system and the theme editor.
+Removing unused providers, packs, composers, layouts and presets reduces the code to port
+and maintain. **Would change if** the user needs a non-Latin language or a specific diagnostic
+tool; restore that feature deliberately with its tests rather than carrying every upstream tool.
 
 ## Pocket TTS on 4 threads for read-aloud
 
