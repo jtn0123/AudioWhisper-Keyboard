@@ -166,7 +166,7 @@ impl Raster {
         }
         // Android elevation has a centered ambient lobe and an offset, tighter spot lobe.
         // Values are physical pixels; damage reserves six elevations around the original box.
-        for (alpha, offset, sigma) in [(0x18000000, 0.0, 0.65), (0x30000000, 0.60, 0.45)] {
+        for (alpha, offset, sigma) in [(0x18000000, 0.0, 1.50), (0x2a000000, 0.60, 1.00)] {
             self.context.set_paint(color(alpha));
             let y = style.shadow * offset;
             self.context.fill_blurred_rounded_rect(

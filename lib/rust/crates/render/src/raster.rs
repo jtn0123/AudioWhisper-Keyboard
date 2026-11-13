@@ -110,10 +110,12 @@ impl Raster {
             if r.is_empty() {
                 continue;
             }
+            // Compose uses truncated absolute offsets and independently rounded required sizes.
             let r = Rect {
-                top: r.top + scene.strip,
-                bottom: r.bottom + scene.strip,
-                ..r
+                left: r.left.trunc(),
+                right: r.left.trunc() + r.width().round(),
+                top: r.top.trunc() + scene.strip,
+                bottom: r.top.trunc() + r.height().round() + scene.strip,
             };
             let margin = key.styles.iter().map(|s| s.shadow).fold(0.0, f32::max) * 6.0;
             if r.right + margin < damage.left
@@ -126,6 +128,7 @@ impl Raster {
             let pressed = usize::from(scene.pressed.contains(&i));
             let style = &key.styles[pressed];
             let hint = &key.hints[pressed];
+            let r = crate::smartbar::inset(r, style.margin);
             self.shadow(r, style);
             self.box_at(r, style);
             self.label(
