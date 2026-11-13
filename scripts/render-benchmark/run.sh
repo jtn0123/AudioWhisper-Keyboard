@@ -8,6 +8,14 @@ case "$renderer" in compose|rust|hybrid) ;; *) echo "Expected compose, rust or h
 : "${ANDROID_SERIAL:?Set ANDROID_SERIAL to the device_open emulator serial}"
 output="${3:-$PWD/build/stage3a-evidence}"
 mkdir -p "$output"
+# Reject an unfocused/configuration-recreated editor before sending a trial.
+adb shell dumpsys input_method | grep -q 'mInputShown=true'
+adb shell run-as com.jtn0123.renderprobe cat files/digest.json > "$output/$renderer-initial-digest.json"
+python3 -I - "$output/$renderer-initial-digest.json" <<'CHECK'
+import json, sys
+if json.load(open(sys.argv[1]))["utf16_units"] != 0:
+    raise SystemExit("Clear the benchmark editor before running a trial")
+CHECK
 for stream in 1 2 3 5; do
     adb shell cmd media_session volume --stream "$stream" --set 0
 done > "$output/host-muting.log" 2>&1
@@ -36,4 +44,13 @@ if grep -Eq 'FATAL|AndroidRuntime' "$output/$renderer-timing.log"; then
     echo "Runtime failure; inspect $output/$renderer-timing.log" >&2
     exit 1
 fi
+python3 -I - "$output/$renderer-typing-digest.json" "$output/$renderer-popup-final-digest.json" <<'CHECK'
+import json, sys
+expected = [(300, "809d588bf48a1e900159a2692fc202c6a7d10d95dfdcc48767851aaa041ef7d3"),
+            (308, "c14d19d26f290a2478c424ae4fb4a4f28f538a5677f12491d526554126cbc555")]
+for path, (length, digest) in zip(sys.argv[1:], expected):
+    actual = json.load(open(path))
+    if actual != {"utf16_units": length, "sha256": digest}:
+        raise SystemExit("Benchmark digest mismatch: " + path)
+CHECK
 printf 'Recorded %s: 300 key presses and 8 popup holds.\n' "$renderer"
