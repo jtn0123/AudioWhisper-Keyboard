@@ -38,10 +38,21 @@ pub struct Action(pub i32, pub i32, pub i32);
 pub struct Touch {
     pointers: BTreeMap<i32, usize>,
     bar: crate::smartbar_touch::BarTouch,
+    pub long_press_delay: i64,
 }
 const OUTSIDE: usize = usize::MAX;
 
 impl Touch {
+    pub fn next_deadline(&self) -> Option<i64> {
+        self.bar.next_deadline()
+    }
+    pub fn tick(&mut self, scene: &mut Scene, now: i64) -> Vec<Action> {
+        self.bar.tick(scene, now)
+    }
+    pub fn invalidate_bar(&mut self, scene: &mut Scene, slots: &[i32]) -> Vec<Action> {
+        self.bar.invalidate(scene, slots)
+    }
+
     pub fn candidate_long_press(&mut self, scene: &mut Scene, pointer: i32) {
         self.bar.candidate_long_press(scene, pointer);
     }
@@ -72,7 +83,15 @@ impl Touch {
         if event.action == 0 {
             actions.extend(self.cancel(scene));
         }
-        actions.extend(self.bar.event(scene, event));
+        actions.extend(self.bar.event(
+            scene,
+            event,
+            if self.long_press_delay > 0 {
+                self.long_press_delay
+            } else {
+                300_000_000
+            },
+        ));
         let current = event.coords.len() - event.ids.len() * 2;
         let id = event.ids[event.index];
         let x = event.coords[current + event.index * 2];

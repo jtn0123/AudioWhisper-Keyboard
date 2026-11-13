@@ -19,6 +19,26 @@ val projectMinSdk = providers.gradleProperty("projectMinSdk").get()
 val projectNativeMinSdk = providers.gradleProperty("projectNativeMinSdk").get()
 val projectCompileSdk = providers.gradleProperty("projectCompileSdk").get()
 
+// One definition is compiled by Rust and generates the Java constants used by both Kotlin modules.
+abstract class GenerateRenderProtocol : DefaultTask() {
+    @get:InputFile abstract val source: RegularFileProperty
+    @get:OutputDirectory abstract val outputDir: DirectoryProperty
+    @TaskAction fun generate() {
+        val constants = Regex("pub const ([A-Z_0-9]+): i32 = (-?[0-9]+);")
+            .findAll(source.get().asFile.readText()).map { match ->
+                "    public static final int ${match.groupValues[1]} = ${match.groupValues[2]};"
+            }.joinToString("\n")
+        val output = outputDir.get().file("com/jtn0123/audiowhisper/rust/RenderProtocol.java").asFile
+        output.parentFile.mkdirs()
+        output.writeText("// Generated from render/src/protocol.rs.\npackage com.jtn0123.audiowhisper.rust;\n" +
+            "public final class RenderProtocol {\n    private RenderProtocol() {}\n$constants\n}\n")
+    }
+}
+val generateRenderProtocol = tasks.register<GenerateRenderProtocol>("generateRenderProtocol") {
+    source.set(layout.projectDirectory.file("crates/render/src/protocol.rs"))
+    outputDir.set(layout.buildDirectory.dir("generated/renderProtocol"))
+}
+
 kotlin {
     compilerOptions {
         jvmTarget.set(JvmTarget.JVM_11)
@@ -56,6 +76,7 @@ android {
         }
     }
 }
+
 
 dependencies {
     testImplementation(libs.kotlin.test.junit5)
@@ -208,6 +229,7 @@ tasks.register("oracleCheck") {
 
 androidComponents {
     onVariants { variant ->
+        variant.sources.java?.addGeneratedSourceDirectory(generateRenderProtocol, GenerateRenderProtocol::outputDir)
         variant.sources.jniLibs?.addGeneratedSourceDirectory(cargoBuildAndroid, CargoBuild::outputDir)
     }
 }

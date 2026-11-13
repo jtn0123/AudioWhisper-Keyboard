@@ -1,0 +1,27 @@
+//! Canonical wire constants. Gradle generates RenderProtocol.java from these declarations.
+pub const KEY_DOWN: i32 = 0;
+pub const KEY_UP: i32 = 1;
+pub const KEY_CANCEL: i32 = 2;
+pub const POPUP_SELECT: i32 = 3;
+pub const CANDIDATE_COMMIT: i32 = 4;
+pub const BAR_DOWN: i32 = 5;
+pub const BAR_UP: i32 = 6;
+pub const BAR_CANCEL: i32 = 7;
+pub const CANDIDATE_DOWN: i32 = 8;
+pub const CANDIDATE_UP: i32 = 9;
+pub const CANDIDATE_CANCEL: i32 = 10;
+pub const TOOLTIP_SHOW: i32 = 11;
+pub const BAR_TOGGLE: i32 = 12;
+pub const CANDIDATE_HOLD: i32 = 13;
+pub const TOOLTIP_UP: i32 = 14;
+pub const TOOLTIP_CLEAR: i32 = 15;
+pub const BAR_ENABLED: i32 = 1;
+pub const BAR_DICTATING: i32 = 2;
+pub const BAR_READING: i32 = 4;
+pub const BAR_WARMING: i32 = 8;
+pub const BAR_FINISHING: i32 = 16;
+pub const BAR_LEVEL_SHIFT: i32 = 8;
+pub const BAR_LEVEL_MASK: i32 = 255;
+pub const BAR_TOGGLE_INDEX: i32 = 4;
+pub const CANDIDATE_AUTO_COMMIT: i32 = 1;
+pub const CANDIDATE_CLIPBOARD: i32 = 2;

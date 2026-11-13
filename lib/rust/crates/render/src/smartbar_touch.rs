@@ -1,5 +1,6 @@
 //! Smartbar pointer ownership: no sliding from a key into a toolbar action.
 use crate::{
+    protocol::*,
     scene::Scene,
     touch::{Action, Motion},
 };
@@ -15,19 +16,31 @@ struct Pointer {
     x: f32,
     scrolling: bool,
     highlighted: bool,
+    deadline: Option<i64>,
+    held: bool,
 }
 impl BarTouch {
     pub fn cancel(&mut self, scene: &mut Scene) -> Vec<Action> {
         let actions = self
             .pointers
             .iter()
-            .map(|(&p, t)| Action(if t.action { 7 } else { 10 }, t.id as i32, p))
+            .map(|(&p, t)| {
+                Action(
+                    if t.action {
+                        BAR_CANCEL
+                    } else {
+                        CANDIDATE_CANCEL
+                    },
+                    t.id as i32,
+                    p,
+                )
+            })
             .collect();
         self.pointers.clear();
         self.mark(scene);
         actions
     }
-    pub fn event(&mut self, scene: &mut Scene, event: &Motion) -> Vec<Action> {
+    pub fn event(&mut self, scene: &mut Scene, event: &Motion, delay: i64) -> Vec<Action> {
         let Some(bar) = &mut scene.smartbar else {
             return Vec::new();
         };
@@ -47,9 +60,30 @@ impl BarTouch {
                             x,
                             scrolling: false,
                             highlighted: true,
+                            deadline: ((!action || target != BAR_TOGGLE_INDEX as usize)
+                                && (!action
+                                    || bar
+                                        .actions
+                                        .get(target)
+                                        .is_some_and(|a| a.code != keys::codes::READ_ALOUD)))
+                            .then(|| {
+                                event
+                                    .times
+                                    .last()
+                                    .copied()
+                                    .unwrap_or(0)
+                                    .saturating_add(delay)
+                            }),
+                            held: false,
                         },
                     );
-                    actions.push(Action(if action { 5 } else { 8 }, target as i32, id));
+                    if !action || target != BAR_TOGGLE_INDEX as usize {
+                        actions.push(Action(
+                            if action { BAR_DOWN } else { CANDIDATE_DOWN },
+                            target as i32,
+                            id,
+                        ));
+                    }
                 }
             }
             2 => {
@@ -62,9 +96,10 @@ impl BarTouch {
                             && (nx - t.x).abs() > 8.0 * bar.config.density
                         {
                             if !t.scrolling {
-                                actions.push(Action(10, t.id as i32, id));
+                                actions.push(Action(CANDIDATE_CANCEL, t.id as i32, id));
                             }
                             t.scrolling = true;
+                            t.deadline = None;
                         }
                         if t.scrolling {
                             let max =
@@ -74,7 +109,15 @@ impl BarTouch {
                             t.x = nx;
                         } else if bar.layout.hit(nx, ny) != Some((t.action, t.id)) {
                             let t = self.pointers.remove(&id).expect("owned pointer");
-                            actions.push(Action(if t.action { 7 } else { 10 }, t.id as i32, id));
+                            actions.push(Action(
+                                if t.action {
+                                    BAR_CANCEL
+                                } else {
+                                    CANDIDATE_CANCEL
+                                },
+                                t.id as i32,
+                                id,
+                            ));
                         }
                     }
                 }
@@ -84,11 +127,17 @@ impl BarTouch {
                     let valid = !t.scrolling && bar.layout.hit(x, y) == Some((t.action, t.id));
                     actions.push(Action(
                         if t.action {
-                            if valid { 6 } else { 7 }
-                        } else if valid {
-                            9
+                            if valid && t.id == BAR_TOGGLE_INDEX as usize {
+                                BAR_TOGGLE
+                            } else if valid && !t.held {
+                                BAR_UP
+                            } else {
+                                BAR_CANCEL
+                            }
+                        } else if valid && !t.held {
+                            CANDIDATE_UP
                         } else {
-                            10
+                            CANDIDATE_CANCEL
                         },
                         t.id as i32,
                         id,
@@ -96,6 +145,45 @@ impl BarTouch {
                 }
             }
             _ => {}
+        }
+        self.mark(scene);
+        actions
+    }
+    pub fn next_deadline(&self) -> Option<i64> {
+        self.pointers.values().filter_map(|p| p.deadline).min()
+    }
+    pub fn tick(&mut self, scene: &mut Scene, now: i64) -> Vec<Action> {
+        let mut actions = Vec::new();
+        for (&id, p) in &mut self.pointers {
+            if p.deadline.is_some_and(|d| now >= d) {
+                p.deadline = None;
+                p.held = true;
+                actions.push(Action(
+                    if p.action {
+                        TOOLTIP_SHOW
+                    } else {
+                        CANDIDATE_HOLD
+                    },
+                    p.id as i32,
+                    id,
+                ));
+            }
+        }
+        self.mark(scene);
+        actions
+    }
+    pub fn invalidate(&mut self, scene: &mut Scene, slots: &[i32]) -> Vec<Action> {
+        let ids: Vec<_> = self
+            .pointers
+            .iter()
+            .filter(|(_, p)| p.action && slots.contains(&(p.id as i32)))
+            .map(|(&id, _)| id)
+            .collect();
+        let mut actions = Vec::new();
+        for id in ids {
+            if let Some(p) = self.pointers.remove(&id) {
+                actions.push(Action(BAR_CANCEL, p.id as i32, id));
+            }
         }
         self.mark(scene);
         actions

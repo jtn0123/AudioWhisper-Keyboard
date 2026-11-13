@@ -18,6 +18,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.vectorResource
 import com.jtn0123.audiowhisper.rust.SmartbarRules
+import com.jtn0123.audiowhisper.rust.RenderProtocol.*
 import dev.patrickgold.florisboard.R
 import dev.patrickgold.florisboard.app.FlorisPreferenceStore
 import dev.patrickgold.florisboard.ime.keyboard.computeImageVector
@@ -80,12 +81,12 @@ internal fun rendererSmartbar(preview: Boolean): RendererSmartbar = with(LocalDe
         ImageVector.vectorResource(R.drawable.ic_incognito)
     } else arrow
     val codes = actions.flatMap { action -> listOf(action?.keyData()?.code ?: 0,
-        (if (action == null || evaluator.evaluateEnabled(action.keyData())) 1 else 0) or
-            (if (action?.keyData()?.code == KeyCode.VOICE_INPUT && dictation != Dictation.Status.IDLE) 2 else 0) or
-            (if (action?.keyData()?.code == KeyCode.READ_ALOUD && reading == ReadAloud.Status.READING) 4 else 0) or
+        (if (action == null || evaluator.evaluateEnabled(action.keyData())) BAR_ENABLED else 0) or
+            (if (action?.keyData()?.code == KeyCode.VOICE_INPUT && dictation != Dictation.Status.IDLE) BAR_DICTATING else 0) or
+            (if (action?.keyData()?.code == KeyCode.READ_ALOUD && reading == ReadAloud.Status.READING) BAR_READING else 0) or
             (if (action?.keyData()?.code == KeyCode.VOICE_INPUT) {
-                (if (warming) 8 else 0) or (if (dictation != Dictation.Status.LISTENING) 16 else 0) or
-                    ((level.coerceIn(0f,1f)*255).toInt() shl 8)
+                (if (warming) BAR_WARMING else 0) or (if (dictation != Dictation.Status.LISTENING) BAR_FINISHING else 0) or
+                    ((level.coerceIn(0f,1f)*BAR_LEVEL_MASK).toInt() shl BAR_LEVEL_SHIFT)
             } else 0)) }.toIntArray()
     val tooltips = actions.map { it?.computeTooltip(evaluator) ?: "" }
     val labels = actions.flatMap { action ->

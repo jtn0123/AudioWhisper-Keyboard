@@ -1,5 +1,6 @@
 //! Materialized smartbar inputs and measurement, shared by rendering and touch dispatch.
 use crate::{
+    protocol::*,
     scene::Scene,
     smartbar::{self, Config, Layout},
     style::Style,
@@ -64,7 +65,7 @@ impl Smartbar {
         };
         bar.spacer = theme.style(&base.element("smartbar-candidate-spacer", 0));
         for (id, action) in bar.actions.iter_mut().enumerate() {
-            let name = if id == 4 {
+            let name = if id == BAR_TOGGLE_INDEX as usize {
                 if bar.config.layout == 3 {
                     "smartbar-extended-actions-toggle"
                 } else {
@@ -102,7 +103,7 @@ impl Smartbar {
         bar.secondary.clear();
         bar.icons.clear();
         for i in 0..scene.candidates.len() {
-            let auto_commit = flags.get(i).is_some_and(|f| f & 1 != 0);
+            let auto_commit = flags.get(i).is_some_and(|f| f & CANDIDATE_AUTO_COMMIT != 0);
             let name = if bar.aux.get(i).is_some_and(|a| !a.0.is_empty()) {
                 "smartbar-candidate-clip"
             } else {

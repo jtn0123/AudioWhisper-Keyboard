@@ -4,6 +4,7 @@ use crate::{
     jni::{self, illegal},
 };
 use jni_sys::{JNIEnv, jclass, jfloatArray, jintArray, jlong, jobjectArray};
+use render::protocol::*;
 use render::{
     smartbar::{self, Config},
     smartbar_scene::{Action, Smartbar},
@@ -40,17 +41,17 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_smartbar(
                 .enumerate()
                 .map(|(i, c)| Action {
                     code: c[0],
-                    enabled: c[1] & 1 != 0,
-                    lit: if c[1] & 2 != 0 {
+                    enabled: c[1] & BAR_ENABLED != 0,
+                    lit: if c[1] & BAR_DICTATING != 0 {
                         1
-                    } else if c[1] & 4 != 0 {
+                    } else if c[1] & BAR_READING != 0 {
                         2
                     } else {
                         0
                     },
-                    level: (c[1] >> 8 & 255) as f32 / 255.0,
-                    warming: c[1] & 8 != 0,
-                    finishing: c[1] & 16 != 0,
+                    level: (c[1] >> BAR_LEVEL_SHIFT & BAR_LEVEL_MASK) as f32 / 255.0,
+                    warming: c[1] & BAR_WARMING != 0,
+                    finishing: c[1] & BAR_FINISHING != 0,
                     icon: labels[i * 2].clone(),
                     label: labels[i * 2 + 1].clone(),
                     styles: Default::default(),
@@ -125,5 +126,75 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_candidate
             s.touch.candidate_long_press(&mut s.scene, pointer);
             Ok(())
         });
+    }
+}
+
+/// Deadlines use the MotionEvent uptime clock; the host schedules one wakeup, not idle frames.
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_tick(
+    env: *mut JNIEnv,
+    _: jclass,
+    native: jlong,
+    now: jlong,
+) -> jintArray {
+    // SAFETY: the synchronized owner keeps the handle alive; the returned array belongs to the JVM.
+    unsafe {
+        handle::with_locked::<crate::render::Session, _>(
+            env,
+            native,
+            "renderer",
+            ptr::null_mut(),
+            |s, env| {
+                let actions: Vec<_> = s
+                    .touch
+                    .tick(&mut s.scene, now)
+                    .into_iter()
+                    .flat_map(|a| [a.0, a.1, a.2])
+                    .collect();
+                env.make(&actions)
+            },
+        )
+    }
+}
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_nextDeadline(
+    env: *mut JNIEnv,
+    _: jclass,
+    native: jlong,
+) -> jlong {
+    // SAFETY: the synchronized owner keeps the handle alive.
+    unsafe {
+        handle::with_locked::<crate::render::Session, _>(env, native, "renderer", -1, |s, _| {
+            Ok(s.touch.next_deadline().unwrap_or(-1))
+        })
+    }
+}
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_barSettings(
+    env: *mut JNIEnv,
+    _: jclass,
+    native: jlong,
+    delay: jlong,
+    slots: jintArray,
+) -> jintArray {
+    // SAFETY: the synchronized owner keeps the handle and local array alive.
+    unsafe {
+        handle::with_locked::<crate::render::Session, _>(
+            env,
+            native,
+            "renderer",
+            ptr::null_mut(),
+            |s, env| {
+                s.touch.long_press_delay = delay;
+                let slots = env.read::<i32>(slots, "changed slots")?;
+                let actions: Vec<_> = s
+                    .touch
+                    .invalidate_bar(&mut s.scene, &slots)
+                    .into_iter()
+                    .flat_map(|a| [a.0, a.1, a.2])
+                    .collect();
+                env.make(&actions)
+            },
+        )
     }
 }

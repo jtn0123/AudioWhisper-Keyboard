@@ -4,6 +4,7 @@
 mod backend;
 pub mod hybrid;
 pub mod profile;
+pub mod protocol;
 pub mod raster;
 pub mod scene;
 pub mod smartbar;

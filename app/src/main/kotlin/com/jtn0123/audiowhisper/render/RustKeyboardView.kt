@@ -1,6 +1,8 @@
 package com.jtn0123.audiowhisper.render
 
 import android.content.Context
+import android.os.SystemClock
+import com.jtn0123.audiowhisper.rust.RenderProtocol.*
 import android.util.Log
 import android.graphics.fonts.SystemFonts
 import android.view.Choreographer
@@ -58,6 +60,11 @@ class RustKeyboardView(context: Context) : FrameLayout(context), SurfaceHolder.C
         native.candidateLongPress(pointer)
         invalidateFrame()
     }
+    private val deadlineWakeup = Runnable {
+        dispatchActions(native.tick(SystemClock.uptimeNanos()))
+        scheduleDeadline()
+        invalidateFrame()
+    }
     private val prefs by FlorisPreferenceStore
 
     init {
@@ -79,7 +86,14 @@ class RustKeyboardView(context: Context) : FrameLayout(context), SurfaceHolder.C
             native.theme(value.theme.json, value.theme.paletteNames.toTypedArray(), value.theme.paletteColors.toIntArray(),
                 floatArrayOf(value.theme.density, value.theme.fontScale, value.theme.fontMultiplier))
         }
-        smartbarTouch.sync(value)
+        snapshot?.let { old ->
+            val changed = old.smartbar.actions.indices.filter { i ->
+                old.smartbar.actions[i] != value.smartbar.actions.getOrNull(i) ||
+                    (old.smartbar.codes[i * 2 + 1] and BAR_ENABLED != 0 &&
+                        value.smartbar.codes.getOrNull(i * 2 + 1)?.and(BAR_ENABLED) != BAR_ENABLED)
+            }.toIntArray()
+            dispatchActions(native.barSettings(prefs.keyboard.longPressDelay.get().toLong() * 1_000_000, changed))
+        }
         snapshot = value
         if (width > 0 && height > 0) updateScene()
     }
@@ -104,7 +118,7 @@ class RustKeyboardView(context: Context) : FrameLayout(context), SurfaceHolder.C
         }
         val candidates = s.candidates.map { it.text.toString() }.ifEmpty { if (s.preview) emptyList() else rendererEmojiSamples() }
         val flags = if (s.candidates.isEmpty()) IntArray(candidates.size) else s.candidates.map {
-            (if (it.isEligibleForAutoCommit) 1 else 0) or (if (it is ClipboardSuggestionCandidate) 2 else 0)
+            (if (it.isEligibleForAutoCommit) CANDIDATE_AUTO_COMMIT else 0) or (if (it is ClipboardSuggestionCandidate) CANDIDATE_CLIPBOARD else 0)
         }.toIntArray()
         native.smartbar(s.smartbar.config, s.smartbar.codes, s.smartbar.labels + s.candidates.flatMap { listOf(it.icon?.let(::iconPath) ?: "", it.secondaryText?.toString() ?: "") })
         manager.smartbarVisibleDynamicActionsCount = s.smartbar.measure(width.toFloat())[2].toInt()
@@ -185,7 +199,8 @@ class RustKeyboardView(context: Context) : FrameLayout(context), SurfaceHolder.C
             }
         }
         val actions = native.touch(metadata, times, coords)
-        for (a in actions.indices step 3) dispatch(actions[a], actions[a + 1], actions[a + 2], event)
+        dispatchActions(actions, event)
+        scheduleDeadline()
         invalidateFrame()
         if (event.actionMasked == MotionEvent.ACTION_UP) performClick()
         return true
@@ -193,17 +208,26 @@ class RustKeyboardView(context: Context) : FrameLayout(context), SurfaceHolder.C
 
     override fun performClick(): Boolean { super.performClick(); return true }
 
-    private fun dispatch(action: Int, index: Int, pointer: Int, event: MotionEvent) {
+    private fun scheduleDeadline() {
+        removeCallbacks(deadlineWakeup)
+        val deadline = native.nextDeadline()
+        if (!released && deadline >= 0) postDelayed(deadlineWakeup,
+            ((deadline - SystemClock.uptimeNanos() + 999_999) / 1_000_000).coerceAtLeast(0))
+    }
+    private fun dispatchActions(actions: IntArray, event: MotionEvent? = null) {
+        for (a in actions.indices step 3) dispatch(actions[a], actions[a + 1], actions[a + 2], event)
+    }
+    private fun dispatch(action: Int, index: Int, pointer: Int, event: MotionEvent?) {
         val s = snapshot ?: return
         val dispatcher = manager.inputEventDispatcher
-        if (action >= 5) { smartbarTouch.dispatch(action, index, pointer, s); return }
+        if (action >= BAR_DOWN) { smartbarTouch.dispatch(action, index, pointer, s); return }
         when (action) {
-            0 -> {
+            KEY_DOWN -> {
                 val key = s.keys[index]
                 val data = key.computedData
                 pressed[pointer] = data
-                val p = event.findPointerIndex(pointer)
-                if (p >= 0) {
+                val p = event?.findPointerIndex(pointer) ?: -1
+                if (p >= 0 && event != null) {
                     val v = key.visibleBounds
                     nlp.tapTrail.pressed(data.code, TapOffset.of(event.getX(p), event.getY(p) - s.stripHeight,
                         v.center.x, v.center.y, v.width, v.height))
@@ -218,22 +242,24 @@ class RustKeyboardView(context: Context) : FrameLayout(context), SurfaceHolder.C
                     } else false
                 })
             }
-            1 -> pressed.remove(pointer)?.let { down ->
+            KEY_UP -> pressed.remove(pointer)?.let { down ->
                 val current = s.keys[index].computedData
                 if (down == current) dispatcher.sendUp(down)
                 else { dispatcher.sendCancel(down); dispatcher.sendDownUp(current) }
                 popupChoices.remove(pointer)
             }
-            2 -> { pressed.remove(pointer)?.let(dispatcher::sendCancel); popupChoices.remove(pointer) }
-            3 -> {
+            KEY_CANCEL -> { pressed.remove(pointer)?.let(dispatcher::sendCancel); popupChoices.remove(pointer) }
+            POPUP_SELECT -> {
                 pressed.remove(pointer)?.let(dispatcher::sendCancel)
                 popupChoices.remove(pointer)?.getOrNull(index)?.let(dispatcher::sendDownUp)
             }
-            4 -> s.candidates.getOrNull(index)?.let(manager::commitCandidate)
+            CANDIDATE_COMMIT -> s.candidates.getOrNull(index)?.let(manager::commitCandidate)
         }
     }
 
     private fun cancelInput() {
+        removeCallbacks(deadlineWakeup)
+        dispatchActions(native.touch(intArrayOf(MotionEvent.ACTION_CANCEL, 0), longArrayOf(), floatArrayOf()))
         smartbarTouch.cancel()
         for (data in pressed.values) manager.inputEventDispatcher.sendCancel(data)
         pressed.clear()
