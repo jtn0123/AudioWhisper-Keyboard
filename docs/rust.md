@@ -34,7 +34,7 @@ wrappers: the point is to remove Kotlin decisions, not translate each line throu
 2. Layout assembly/cache: arrangements, merging, hints and cache keys (done; stage 2.2 below).
 3. Snygg rules and stylesheet grammar: parsing, ordering and schema/version errors (done; stage 2.3 below).
 4. Snygg values: dimensions, colours, fonts, padding, shapes and variables (implemented; stage 2.4 below, emulator acceptance blocked).
-5. Snygg compilation/editor model: cascade, inheritance, matching, editor operations and the live schema generator.
+5. Snygg compilation/editor model: cascade, inheritance, matching and editor operations (done; stage 2.5 below). The extensible JVM schema DSL/generator stays at the Kotlin boundary.
 6. A1: let the Rust suggester call the Rust decoder through a native session; remove production LatinIME Java glue, keeping the C++ oracle.
 7. Emoji history and quick-action arrangement.
 8. Clipboard ordering, duplicate/expiry/limit/pinning and MIME policy; keep Room and the Android clipboard in Kotlin.
@@ -132,6 +132,7 @@ The differential tests, deliberate mutation check and emulator checks below appl
 
 | Piece | Rust | Replaced | Proof it matches |
 |---|---|---|---|
+| Snygg compilation, cascade and editor model | `crates/snygg` (`resolve`, `editor`, `spec`, `json`) | `SnyggTheme` compilation/querying, property application/inheritance, built-in declarations and the theme editor's rule ordering/rename policy | JVM reference matches: 868,680 bundled-theme queries, 30,000 seeded queries and 7,200 editor steps; native JSON-to-style light/dark prototype oracle. Reversing cascade traversal fails. Five visual pairs are identical and editor edits persist; see stage 2.5 |
 | Snygg values, specs and ordered property decoding | `crates/snygg` (`value`, `value_spec`, `value_codec`, `value_uri`, `properties`) | All 28 built-in encoders, defaults, validation, canonical formatting, encoder choice and property decoding policy | Three JVM value match suites against test-only `ReferenceSnygg*`, all 12 bundled themes and 28 inline documents, seeded/mutated and every UTF-16 unit cases; dividing percentages by 99 fails. Emulator acceptance is blocked by the device helper; see stage 2.4 |
 | Snygg rules, selectors, attributes and ordered stylesheet structure | `crates/snygg` | `SnyggRule` and `SnyggStylesheet` grammar/formatting/comparison/schema policy, behind the same managed API | `SnyggGrammarMatchTest` and `SnyggStylesheetMatchTest` against test-only `ReferenceSnygg*`: all 12 bundled files, 28 inline fixtures, every configuration flag combination, UTF-16 and seeded/mutated cases. Reversing selector comparison fails. See stage 2.3 below |
 | Layout selection and assembly: subtype/mode load plans, explicit modifier types, arrangement insertion, number/symbol hint alignment and computed-keyboard cache keys/invalidation | `crates/keys` (`assembly`) | `LayoutManager`'s decisions and merge/hint loops, plus `TextKeyboardCache`'s policy | `LayoutAssemblyMatchTest` against `ReferenceLayoutAssembly` and `ReferenceTextKeyboardCache`: every bundled layout, mode and retained preset, complete evaluated key/popup/hint lists and bit-exact geometry, seeded malformed/missing references and cache histories. Changing the insertion marker from code 0 to code 1 fails both layout tests. See stage 2.2 below |
@@ -426,6 +427,95 @@ setting was never toggled. Android-specific differential and visual acceptance r
 Using the plan's non-blank tracked-main-source count, this package removes 317 net Kotlin lines
 and adds 1,574 Rust lines including JNI; Java is unchanged. Totals: 53,068 Kotlin, 30,745 Rust,
 627 Java (36.41% Rust versus 35.07% at `93876574`). Tests and generated tables are excluded.
+
+### Stage 2.5: Snygg compiler, resolution and editor boundary (2026-11-12)
+
+The Java-free `snygg` crate owns stable per-element cascade ordering, selector/attribute
+matching, single-pass variable substitution (including missing variables and unresolved
+aliases/cycles), explicit/implicit inheritance, undefined/unset handling, font scaling and
+named light/dark palette resolution. Built-in property declarations and inheritance flags
+live in `spec`. `editor` supplies ordered property edits, rule add/rename/conflict decisions,
+remove/copy snapshots and the editor's known-element display order. `awnative` only transfers
+UTF-16 data and opaque managed-object tokens; there are no callbacks or native handles.
+
+For milestone B, use `resolve::CompiledTheme<Value>::from_json(stylesheet_json)` and
+`resolve(&Query { element, attributes, selector }, parent_properties, font_multiplier)`.
+`resolve_with_palette` also takes light/dark property maps of named plain colour values.
+The compiled model retains font source sets for the renderer to load. `Properties`,
+`PropertySets`, `Stylesheet`, `Query`, and `CompiledTheme` are ordinary Rust data; no JVM is
+needed. The standalone JSON entry point uses ordered serde JSON for valid v2 documents;
+Kotlin continues using its existing kotlinx codec and exact diagnostics. The `render` crate
+and its existing managed handoff are unchanged.
+
+Kotlin retains the public models/signatures, map/list identities and allocation, typed
+Compose factories/conversion (including wide-gamut colours, unspecified and em TextUnits),
+Material You palette materialization, Android asset/font loading and the `ui/` composables.
+The editor's public mutable property map uses native slot plans while preserving insertion
+order, live entries and iterator removal. The public TreeMap/custom comparator API remains;
+the application's named-element comparator and rename/add decisions now call Rust. Android
+workspace/file operations and extension metadata validation remain Android/app concerns.
+
+The generic `SnyggSpecDecl` DSL and `SnyggJsonSchemaGenerator` stay in Kotlin: they accept
+caller-supplied JVM regexes, encoder/spec objects and builder callbacks, and the generator
+uses runtime class-derived definition IDs plus the existing kotlinx pretty writer. Moving
+that extensibility/codec here would duplicate the allowed JVM boundary. The built-in DSL
+is now an adapter over Rust declarations. A separate `:lib:snygg:generateJsonSchema` run
+exited 0 and `cmp` confirmed byte-identical tracked schema output.
+
+Test-only `ReferenceSnyggTheme`, `ReferenceSnyggPropertySetEditor`,
+`ReferenceSnyggStylesheetEditor` and `ReferenceSnyggSpec` retain the replaced implementations.
+The compiler/property references use ordinary managed maps and frozen inheritance policy.
+The differential suites cover:
+
+- Every one of the 12 bundled stylesheets, all 82 application elements, all 12 keyboard
+  modes, four shift states and five selectors. There are 868,680 direct queries, including
+  every concrete app attribute-domain value and complete Cartesian products of each rule's
+  attribute predicates (including absent/unmatched classes). Values in a predicate class
+  have identical membership in every selector rule; root/window inherited contexts are
+  compared for every mode/shift/selector combination.
+- 1,000 seeded programmatic stylesheets and 30,000 queries/parent transitions, including
+  missing/cyclic/one-level variables, empty attributes, duplicate attribute values, undefined,
+  inherit, all built-in value defaults, non-sRGB colours, em/unspecified units and non-finite
+  or signed-zero font multipliers. The tests caught and fixed an em-to-sp transport bug.
+- 120 seeded editor histories, 7,200 operations: add/rename/conflict/missing/no-op, remove,
+  independent copy, set/unset, multi-font-set edits, iterator removal and reverse reinsertion.
+  Every step compares ordered stylesheets, compact/pretty serialization, reloads, and exact
+  validation exception classes/messages. Display ordering is compared independently too.
+- The native integration test loads the actual bundled light/dark JSON and compares key,
+  pressed-key, candidate, popup, focus, window and hint styles to a frozen oracle exported by
+  the Kotlin reference along the current prototype query path. The JVM test also verifies
+  this fixture. All 12 bundled files decode and resolve directly in Rust.
+
+The deliberate mutation traversed compiled rules in reverse during resolution. The bundled
+JVM match test failed on a pressed key's background and Gradle exited 1. Restoring forward
+traversal restored the suite. The final command `./gradlew --stacktrace test :app:lintDebug
+:lib:rust:check :lib:rust:oracleCheck assembleDebug` exited **0**. Lint has zero errors and
+exactly AndroidGradlePluginVersion, NewerVersionAvailable and ChromeOsAbiSupport warnings.
+
+On `aw_keyboard` (`local`, runtime `emulator-5556`), the before/after Floris Day, Floris Night,
+Floris Day Borderless and Floris Day Material You keyboard regions are pixel-identical,
+as is the unmodified Day-copy editor region. All pairs use Always day and system night mode
+on; the Rust renderer prototype stays off. Keyboard comparisons cover `(0,1563)-(1080,2288)`;
+the editor comparison covers `(0,300)-(1080,2170)`. Clock/caret/navigation differences are
+outside these regions. Pressed/shifted captures were not added; those states are covered by
+the resolver tests. Screenshots are ignored `build/stage25/screenshots/{before,after}-{day,
+night,borderless,material,editor}.png`; comparison code/results are in the same ignored
+`build/stage25` directory.
+
+The Day stylesheet was copied into a temporary custom extension. Through the actual theme
+editor, `key[code=97]` was added with `rgba(242,10,10,1)` background and a 24sp font override.
+The preview changed colour and size (403 glyph-region pixels changed for the size alone).
+Saving and reopening preserved both properties in the extension archive and produced a
+pixel-identical keyboard preview. The temporary extension was deleted through the UI;
+Always day + Floris Day was restored. `adb logcat -d` contained no FATAL or AndroidRuntime
+matches. The runtime device was closed with shutdown enabled. Only `scripts/install-dev.sh`
+installed the build. A stale-ref helper rejection recovered after the advised fresh snapshot.
+
+The planning source measure removes 671 and adds 677 non-blank main Kotlin lines, **net +6**
+(the API/transport/collection facade and splitting the editor UI into files offset the deleted
+logic). It adds **794 Rust lines**, including JNI and the native JSON consumer. Totals are
+53,074 Kotlin, 31,539 Rust and 627 Java: **37.00% Rust**, from 36.41% at `9f917ec1`.
+No tests/generated tables are counted. New/changed source files stay at or below 500 lines.
 
 ### Sharing a core with the Mac app
 
