@@ -57,3 +57,13 @@ mod render_emoji;
 mod panel_oracle;
 
 mod clipboard;
+
+mod render_clipboard;
+
+mod render_media;
+
+mod render_gif;
+
+mod render_search;
+
+mod media_oracle;

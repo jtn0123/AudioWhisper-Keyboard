@@ -17,6 +17,8 @@ pub struct Entry {
 #[derive(Clone, Debug, PartialEq)]
 pub enum Command {
     Emoji(usize),
+    Clipboard(i32, usize),
+    Gif(i32, usize),
     Category(i32),
     History(i32, usize),
     Dismiss,
@@ -29,6 +31,9 @@ pub enum Command {
 #[derive(Clone, Debug, PartialEq)]
 pub struct Item {
     pub id: i32,
+    pub media: Option<i64>,
+    pub multiline: bool,
+    pub key_type: String,
     pub bounds: Rect,
     pub clip: Rect,
     pub label: String,
@@ -47,6 +52,9 @@ impl Item {
     pub fn new(id: i32, bounds: Rect, label: String, element: &str, command: Command) -> Self {
         Self {
             id,
+            media: None,
+            multiline: false,
+            key_type: String::new(),
             bounds,
             clip: bounds,
             label,
@@ -67,6 +75,10 @@ impl Item {
 pub struct Panel {
     /// 2 overflow, 3 action editor. Emoji uses 1.
     pub kind: i32,
+    pub media: crate::media_cache::MediaCache,
+    pub search: Option<crate::gif_search::Search>,
+    pub gif: Option<crate::gif_panel::GifPanel>,
+    pub clipboard: Option<crate::clipboard_panel::ClipboardPanel>,
     pub emoji: Option<crate::emoji_panel::EmojiPanel>,
     pub density: f32,
     pub row: f32,
@@ -105,6 +117,7 @@ impl Panel {
             } else {
                 0.0
             };
+            self.media = Default::default();
             self.pressed = None;
             self.kind = kind;
             if kind == 3 {

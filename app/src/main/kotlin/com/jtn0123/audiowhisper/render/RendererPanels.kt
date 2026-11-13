@@ -14,7 +14,7 @@ import dev.patrickgold.jetpref.datastore.model.observeAsState
 import org.florisboard.lib.compose.stringRes
 
 internal data class RendererPanels(val kind: Int, val actions: List<QuickAction>, val arrangement: QuickActionArrangement,
-    val data: IntArray, val labels: Array<String>, val emoji: RendererEmoji)
+    val data: IntArray, val labels: Array<String>, val emoji: RendererEmoji, val clipboard: RendererClipboard)
 
 /** Android resources/evaluator and unchanged preference values; no grid or drag decisions. */
 @Composable
@@ -43,6 +43,6 @@ internal fun rendererPanels(): RendererPanels {
             is QuickAction.InsertText -> action.data.firstOrNull().toString().ifBlank { "?" }
         }, icon?.let(::iconPath) ?: "")
     }
-    return RendererPanels(if (state.isActionsEditorVisible) 3 else if (state.isActionsOverflowVisible) 2 else if (state.imeUiMode == dev.patrickgold.florisboard.ime.ImeUiMode.MEDIA) 1 else 0,
-        actions, arrangement, data.toIntArray(), (titles + labels).toTypedArray(), rendererEmoji())
+    return RendererPanels(if (state.isActionsEditorVisible) 3 else if (state.isActionsOverflowVisible) 2 else if (state.imeUiMode == dev.patrickgold.florisboard.ime.ImeUiMode.CLIPBOARD) 4 else if (state.imeUiMode == dev.patrickgold.florisboard.ime.ImeUiMode.MEDIA) 1 else 0,
+        actions, arrangement, data.toIntArray(), (titles + labels).toTypedArray(), rendererEmoji(), rendererClipboard())
 }

@@ -1554,6 +1554,7 @@ dependencies = [
  "serde_json",
  "snygg",
  "unicode-segmentation",
+ "vello_common 0.2.0",
  "vello_cpu",
  "vello_hybrid",
  "wgpu",

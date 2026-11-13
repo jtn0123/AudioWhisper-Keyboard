@@ -59,6 +59,13 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_ClipboardNative_plan(
                 dup.map_or(vec![-1, 0], |(i, p)| vec![i as i32, i32::from(p)]),
             ))
             .collect();
+            let mut out = out;
+            out.push(
+                policy::unpinned(&clips)
+                    .into_iter()
+                    .map(|i| i as i32)
+                    .collect(),
+            );
             let makers: Vec<Box<dyn Fn() -> Result<jni_sys::jobject> + '_>> = out
                 .iter()
                 .map(|a| {

@@ -4,117 +4,197 @@ use parley::{Alignment, AlignmentOptions, PositionedLayoutItem};
 use vello_cpu::kurbo::{Affine, Rect};
 impl Raster {
     pub(crate) fn panel(&mut self, scene: &Scene) -> Result<(), String> {
-        let Some(panel) = &scene.panel else {
-            return Ok(());
-        };
-        for item in &panel.items {
-            let clip = crate::panel_layout::intersection(item.bounds, item.clip);
-            if clip.is_empty() {
-                continue;
-            }
-            self.context.push_clip_rect(&Rect::new(
-                clip.left as f64,
-                clip.top as f64,
-                clip.right as f64,
-                clip.bottom as f64,
-            ));
-            let style = &item.styles[usize::from(panel.pressed == Some(item.id))];
-            let r = inset(item.bounds, style.margin);
-            self.shadow(r, style);
-            self.box_at(r, style);
-            let mut r = inset(r, style.padding);
-            if item.element.ends_with("-tile") && !item.label.is_empty() {
-                let label = self.panel_text_layout(&item.label, &item.text, r.width(), true);
-                let label_height = label.height().min(item.text.size * 2.4);
-                let total = item.icon_style.size + item.icon_style.margin[3] + label_height;
-                let top = r.top + (r.height() - total) / 2.0;
-                let label_bounds = keys::Rect {
-                    top: top + item.icon_style.size + item.icon_style.margin[3],
-                    bottom: top + total,
-                    ..r
-                };
-                self.panel_text(&item.label, &item.text, label_bounds, true)?;
-                r.top = top;
-                r.bottom = top + item.icon_style.size;
-            }
-            if item.id == -14 || item.id == -15 {
+        for panel in scene.panel.iter().chain(scene.search.iter()) {
+            for item in &panel.items {
+                let clip = crate::panel_layout::intersection(item.bounds, item.clip);
+                if clip.is_empty() {
+                    continue;
+                }
+                self.context.push_clip_rect(&Rect::new(
+                    clip.left as f64,
+                    clip.top as f64,
+                    clip.right as f64,
+                    clip.bottom as f64,
+                ));
+                let style = &item.styles[usize::from(panel.pressed == Some(item.id))];
+                let r = inset(item.bounds, style.margin);
+                self.shadow(r, style);
+                self.box_at(r, style);
+                let mut r = inset(r, style.padding);
+                if item.element.ends_with("-tile") && !item.label.is_empty() {
+                    let label = self.panel_text_layout(&item.label, &item.text, r.width(), true);
+                    let label_height = label.height().min(item.text.size * 2.4);
+                    let total = item.icon_style.size + item.icon_style.margin[3] + label_height;
+                    let top = r.top + (r.height() - total) / 2.0;
+                    let label_bounds = keys::Rect {
+                        top: top + item.icon_style.size + item.icon_style.margin[3],
+                        bottom: top + total,
+                        ..r
+                    };
+                    self.panel_text(&item.label, &item.text, label_bounds, true)?;
+                    r.top = top;
+                    r.bottom = top + item.icon_style.size;
+                }
+                if item.id == -14 || item.id == -15 {
+                    self.context.pop_clip();
+                    continue;
+                }
+                if item.id == -11 {
+                    r.left += 48.0 * panel.density;
+                    r.right -= 48.0 * panel.density;
+                    r.top += (r.height()
+                        - self.text.height(
+                            &item.label,
+                            item.text.size,
+                            item.text.mono,
+                            item.text.weight,
+                        ))
+                        / 2.0;
+                    self.panel_text(
+                        if item.glyph.is_empty() {
+                            &item.label
+                        } else {
+                            &item.glyph
+                        },
+                        &item.text,
+                        r,
+                        false,
+                    )?;
+                    self.context.pop_clip();
+                    continue;
+                }
+                if let Some(frame) = item.media.and_then(|id| panel.media.frame(id)) {
+                    self.context.image(frame, r);
+                    if let crate::panels::Command::Gif(3, index) = item.command
+                        && let Some(g) = &panel.gif
+                        && g.sending == Some(index)
+                    {
+                        self.context.set_paint(crate::raster::color(0x80000000));
+                        self.context.fill_rect(&Rect::new(
+                            r.left as f64,
+                            r.top as f64,
+                            r.right as f64,
+                            r.bottom as f64,
+                        ));
+                        let size = 24.0 * panel.density;
+                        self.media_spinner(
+                            crate::panels::rect(
+                                r.left + (r.width() - size) / 2.0,
+                                r.top + (r.height() - size) / 2.0,
+                                size,
+                                size,
+                            ),
+                            g.phase,
+                            0xffffffff,
+                        );
+                    }
+                    self.context.pop_clip();
+                    continue;
+                }
+                if item.element == "gif-spinner" {
+                    self.media_spinner(
+                        r,
+                        panel.gif.as_ref().map_or(0.0, |g| g.phase),
+                        style.foreground,
+                    );
+                    self.context.pop_clip();
+                    continue;
+                }
+                if item.element == "gif-tile" {
+                    self.context.pop_clip();
+                    continue;
+                }
+                if item.multiline {
+                    self.panel_text(&item.label, &item.text, r, false)?;
+                    self.context.pop_clip();
+                    continue;
+                }
+                if item.element.ends_with("subheader") || item.id == -36 || item.id == -42 {
+                    self.panel_text(&item.label, &item.text, r, false)?;
+                    self.context.pop_clip();
+                    continue;
+                }
+                if !item.icon.is_empty() {
+                    self.icon(&item.icon, &item.icon_style, r)?;
+                } else {
+                    self.label(
+                        if item.glyph.is_empty() {
+                            &item.label
+                        } else {
+                            &item.glyph
+                        },
+                        style.size,
+                        style.foreground,
+                        r,
+                        style.mono,
+                        style.weight,
+                    )?;
+                }
+                if item.element == "media-emoji-tab" && item.selected {
+                    let w = 24.0 * panel.density;
+                    let h = 4.0 * panel.density;
+                    self.box_at(
+                        keys::Rect {
+                            left: item.bounds.left + (item.bounds.width() - w) / 2.0,
+                            right: item.bounds.left + (item.bounds.width() + w) / 2.0,
+                            top: item.bounds.bottom - h,
+                            bottom: item.bounds.bottom,
+                        },
+                        &crate::style::Style {
+                            background: item.icon_style.foreground,
+                            ..Default::default()
+                        },
+                    );
+                }
+                if let crate::panels::Command::Emoji(index) = item.command
+                    && item.id < 400_000
+                    && panel
+                        .emoji
+                        .as_ref()
+                        .is_some_and(|e| e.category == 0 || !e.variants(index).is_empty())
+                {
+                    let d = 4.0 * panel.density;
+                    let x = item.bounds.right - d;
+                    let y = item.bounds.bottom - d;
+                    let mut triangle = vello_cpu::kurbo::BezPath::new();
+                    triangle.move_to((x as f64, (y - d) as f64));
+                    triangle.line_to((x as f64, y as f64));
+                    triangle.line_to(((x - d) as f64, y as f64));
+                    triangle.close_path();
+                    self.context
+                        .set_paint(crate::raster::color(panel.indicator.foreground));
+                    self.context.fill_path(&triangle);
+                }
                 self.context.pop_clip();
-                continue;
             }
-            if item.id == -11 {
-                r.left += 48.0 * panel.density;
-                r.right -= 48.0 * panel.density;
-                r.top += (r.height()
-                    - self.text.height(
-                        &item.label,
-                        item.text.size,
-                        item.text.mono,
-                        item.text.weight,
-                    ))
-                    / 2.0;
-                self.panel_text(&item.label, &item.text, r, false)?;
-                self.context.pop_clip();
-                continue;
-            }
-            if item.element.ends_with("subheader") || item.id == -36 || item.id == -42 {
-                self.panel_text(&item.label, &item.text, r, false)?;
-                self.context.pop_clip();
-                continue;
-            }
-            if !item.icon.is_empty() {
-                self.icon(&item.icon, &item.icon_style, r)?;
-            } else {
-                self.label(
-                    if item.glyph.is_empty() {
-                        &item.label
-                    } else {
-                        &item.glyph
-                    },
-                    style.size,
-                    style.foreground,
-                    r,
-                    style.mono,
-                    style.weight,
-                )?;
-            }
-            if item.element == "media-emoji-tab" && item.selected {
-                let w = 24.0 * panel.density;
-                let h = 4.0 * panel.density;
-                self.box_at(
-                    keys::Rect {
-                        left: item.bounds.left + (item.bounds.width() - w) / 2.0,
-                        right: item.bounds.left + (item.bounds.width() + w) / 2.0,
-                        top: item.bounds.bottom - h,
-                        bottom: item.bounds.bottom,
-                    },
-                    &crate::style::Style {
-                        background: item.icon_style.foreground,
-                        ..Default::default()
-                    },
-                );
-            }
-            if let crate::panels::Command::Emoji(index) = item.command
-                && item.id < 400_000
-                && panel
-                    .emoji
-                    .as_ref()
-                    .is_some_and(|e| e.category == 0 || !e.variants(index).is_empty())
-            {
-                let d = 4.0 * panel.density;
-                let x = item.bounds.right - d;
-                let y = item.bounds.bottom - d;
-                let mut triangle = vello_cpu::kurbo::BezPath::new();
-                triangle.move_to((x as f64, (y - d) as f64));
-                triangle.line_to((x as f64, y as f64));
-                triangle.line_to(((x - d) as f64, y as f64));
-                triangle.close_path();
-                self.context
-                    .set_paint(crate::raster::color(panel.indicator.foreground));
-                self.context.fill_path(&triangle);
-            }
-            self.context.pop_clip();
         }
         Ok(())
+    }
+    fn media_spinner(&mut self, r: keys::Rect, phase: f32, color: u32) {
+        let mut path = vello_cpu::kurbo::BezPath::new();
+        let center = (
+            (r.left + r.right) as f64 / 2.0,
+            (r.top + r.bottom) as f64 / 2.0,
+        );
+        let radius = r.width() as f64 / 2.0;
+        let inner = radius * 0.85;
+        let start = phase as f64 * std::f64::consts::TAU;
+        for n in 0..=32 {
+            let a = start + n as f64 / 32.0 * std::f64::consts::TAU * 0.75;
+            let p = (center.0 + radius * a.cos(), center.1 + radius * a.sin());
+            if n == 0 {
+                path.move_to(p);
+            } else {
+                path.line_to(p);
+            }
+        }
+        for n in (0..=32).rev() {
+            let a = start + n as f64 / 32.0 * std::f64::consts::TAU * 0.75;
+            path.line_to((center.0 + inner * a.cos(), center.1 + inner * a.sin()));
+        }
+        path.close_path();
+        self.context.set_paint(crate::raster::color(color));
+        self.context.fill_path(&path);
     }
     fn panel_text(
         &mut self,

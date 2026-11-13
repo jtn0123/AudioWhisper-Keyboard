@@ -27,5 +27,5 @@ data class ClipboardHistory(val all: List<ClipboardItem>) {
     val pinned = groups[1].map(all::get)
     val recent = groups[2].map(all::get)
     val other = groups[3].map(all::get)
-    val unpinned = recent + other
+    val unpinned = groups[7].map(all::get)
 }

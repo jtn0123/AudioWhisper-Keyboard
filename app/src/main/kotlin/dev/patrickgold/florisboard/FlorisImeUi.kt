@@ -149,7 +149,7 @@ private fun FlorisImeService.ImeUi() {
                             .weight(keyboardWeight)
                             .wrapContentHeight(),
                     ) {
-                        if (rustPrototype && !typingGif && !showingGif && state.imeUiMode != ImeUiMode.CLIPBOARD) {
+                        if (rustPrototype && !typingGif && !showingGif) {
                             com.jtn0123.audiowhisper.render.RustKeyboardLayout(evaluator)
                         } else when (state.imeUiMode) {
                             ImeUiMode.TEXT -> TextInputLayout()

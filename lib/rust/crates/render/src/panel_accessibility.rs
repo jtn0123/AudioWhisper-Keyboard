@@ -53,6 +53,9 @@ pub fn nodes(panel: &Panel) -> Vec<Node> {
                     n.role = "popup item";
                 }
             }
+            if matches!(i.command, Command::Clipboard(5, _)) {
+                n.actions.push(ACCESS_LONG_CLICK);
+            }
             if !n.enabled {
                 n.actions.clear();
             }
@@ -73,6 +76,11 @@ pub fn activate(panel: &mut Panel, index: usize, action: i32) -> Vec<Action> {
             })
         .clamp(0.0, panel.max_scroll);
         return vec![Action(PANEL_CHANGED, 0, 0)];
+    }
+    if action == ACCESS_LONG_CLICK
+        && let Command::Clipboard(5, index) = i.command
+    {
+        return panel.clipboard_activate(6, index);
     }
     if action == ACCESS_LONG_CLICK
         && let Command::Emoji(index) = i.command

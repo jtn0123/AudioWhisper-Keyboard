@@ -12,6 +12,7 @@ use render::{
 use std::ptr;
 impl Session {
     pub(crate) fn prepare_panel(&mut self) {
+        self.prepare_search();
         let Some(p) = &mut self.scene.panel else {
             return;
         };
@@ -33,6 +34,13 @@ impl Session {
             self.scene.height as f32,
             self.scene.strip,
         );
+        let visible = p
+            .items
+            .iter()
+            .filter(|i| i.bounds.bottom > i.clip.top && i.bounds.top < i.clip.bottom)
+            .filter_map(|i| i.media)
+            .collect();
+        p.media.visibility(visible, self.touch_time);
         if let Some(theme) = &mut self.theme {
             p.style(theme, &request);
         }
@@ -57,6 +65,9 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_panels(
                 return Err(illegal("panel payload"));
             }
             let kind = c[0] as i32;
+            if s.scene.panel.as_ref().is_some_and(|p| p.kind != kind) {
+                s.touch.cancel(&mut s.scene);
+            }
             if kind == 0 {
                 s.scene.panel = None;
                 return Ok(());

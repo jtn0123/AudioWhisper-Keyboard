@@ -14,6 +14,20 @@ class KeyboardRenderer(fontPaths: Array<String>) : AutoCloseable {
         RenderNative.update(handle, dimensions, metadata, candidateFlags, geometry, labels, candidates)
 
     @Synchronized
+    fun search(density: Float, labels: Array<String>, now: Long) = RenderNative.search(handle,density,labels,now)
+    @Synchronized
+    fun gifSent() = RenderNative.gifSent(handle)
+    @Synchronized
+    fun gifs(config: FloatArray, labels: Array<String>, chips: Int, ids: LongArray) = RenderNative.gifs(handle,config,labels,chips,ids)
+    @Synchronized
+    fun mediaRequests(): LongArray = RenderNative.mediaRequests(handle)
+    @Synchronized
+    fun mediaUpload(id: Long, index: Int, width: Int, height: Int, delay: Long, last: Boolean, pixels: IntArray): Boolean =
+        RenderNative.mediaUpload(handle,id,index,width,height,delay,last,pixels)
+    @Synchronized
+    fun clipboard(config: LongArray, records: LongArray, labels: Array<String>) = RenderNative.clipboard(handle,config,records,labels)
+
+    @Synchronized
     fun emoji(config: IntArray, groups: IntArray, values: Array<String>, history: IntArray, labels: Array<String>) = RenderNative.emoji(handle, config, groups, values, history, labels)
     @Synchronized
     fun panels(config: FloatArray, data: IntArray, labels: Array<String>) = RenderNative.panels(handle, config, data, labels)
@@ -89,6 +103,12 @@ internal object RenderNative {
     external fun create(fontPaths: Array<String>): Long
     external fun theme(handle: Long, json: String, names: Array<String>, colors: IntArray, scale: FloatArray)
     external fun update(handle: Long, dimensions: FloatArray, metadata: Array<String>, candidateFlags: IntArray, geometry: FloatArray, labels: Array<String>, candidates: Array<String>)
+    external fun search(handle: Long, density: Float, labels: Array<String>, now: Long)
+    external fun gifSent(handle: Long)
+    external fun gifs(handle: Long, config: FloatArray, labels: Array<String>, chips: Int, ids: LongArray)
+    external fun mediaRequests(handle: Long): LongArray
+    external fun mediaUpload(handle: Long, id: Long, index: Int, width: Int, height: Int, delay: Long, last: Boolean, pixels: IntArray): Boolean
+    external fun clipboard(handle: Long, config: LongArray, records: LongArray, labels: Array<String>)
     external fun emoji(handle: Long, config: IntArray, groups: IntArray, values: Array<String>, history: IntArray, labels: Array<String>)
     external fun panels(handle: Long, config: FloatArray, data: IntArray, labels: Array<String>)
     external fun panelArrangement(handle: Long): Array<Any>

@@ -12,6 +12,26 @@ impl Panel {
         request: &Request,
         width: f32,
     ) {
+        if self.kind == 4 {
+            self.measure_clipboard(theme, text, request, width);
+            return;
+        }
+        if self.kind == 5
+            && let Some(g) = &mut self.gif
+        {
+            let style = theme.style(&request.element("clipboard-filter-chip", 0));
+            g.chip_widths = g
+                .chips
+                .iter()
+                .map(|label| {
+                    text.measure(label, style.size, style.mono, style.weight)
+                        + style.padding[0]
+                        + style.padding[2]
+                        + style.margin[0]
+                        + style.margin[2]
+                })
+                .collect();
+        }
         let style = theme.style(&request.element("smartbar-actions-editor-subheader", 0));
         for g in 0..3 {
             self.subheaders[g] =
@@ -75,6 +95,14 @@ impl Panel {
     pub fn layout(&mut self, width: f32, height: f32, strip: f32) {
         self.items.clear();
         if self.kind == 0 {
+            return;
+        }
+        if self.kind == 5 {
+            self.gif_layout(width, height);
+            return;
+        }
+        if self.kind == 4 {
+            self.clipboard_layout(width, height);
             return;
         }
         if self.kind == 1 {
@@ -308,6 +336,8 @@ impl Panel {
         for i in &mut self.items {
             let mut r = request.element(&i.element, 0);
             r.code = i.code;
+            r.key_type = i.key_type.clone();
+            r.auto_commit = i.selected;
             i.styles = [0, 1].map(|pressed| {
                 let mut r = r.clone();
                 r.selector = if !i.enabled {
@@ -336,6 +366,9 @@ impl Panel {
                     style.background = 0;
                 }
             }
+            if i.element == "clipboard-header-button" {
+                i.icon_style.size = 24.0 * self.density;
+            }
             if i.element == "media-bottom-row-button" {
                 i.icon_style = i.styles[0].clone();
                 i.icon_style.size = 24.0 * self.density;
@@ -363,6 +396,37 @@ impl Panel {
             }
             if matches!(i.command, Command::None) {
                 i.text = i.styles[0].clone();
+            }
+        }
+        if self.kind == 5 {
+            for i in &mut self.items {
+                if ["gif-search-field", "gif-tile"].contains(&i.element.as_str()) {
+                    for style in &mut i.styles {
+                        style.background = 0x33808080;
+                        style.corners = [6.0 * self.density; 4];
+                        style.shape = snygg::value::ShapeKind::Rounded;
+                    }
+                }
+                if i.element == "gif-attribution" {
+                    for style in &mut i.styles {
+                        style.size = 11.0 * self.density;
+                    }
+                }
+                if i.element == "gif-close" {
+                    i.glyph = "×".into();
+                }
+                if i.element == "gif-tile" {
+                    i.glyph.clear();
+                }
+            }
+        }
+        if self.kind == 4 {
+            for i in &mut self.items {
+                if i.element == "clipboard-scrim" {
+                    for s in &mut i.styles {
+                        s.background = 0xe0000000;
+                    }
+                }
             }
         }
         if self.kind == 3 {

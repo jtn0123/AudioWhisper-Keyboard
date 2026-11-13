@@ -29,6 +29,7 @@ pub struct Popup {
 
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Scene {
+    pub search: Option<crate::panels::Panel>,
     pub panel: Option<crate::panels::Panel>,
     pub width: u16,
     pub height: u16,
@@ -135,7 +136,8 @@ impl Scene {
             rects.extend(crate::trail::bounds(&self.trail));
             rects.extend(crate::trail::bounds(&next.trail));
         }
-        if self.candidates != next.candidates
+        if self.search != next.search
+            || self.candidates != next.candidates
             || self.candidate_pressed != next.candidate_pressed
             || self.smartbar != next.smartbar
             || self.candidate_styles != next.candidate_styles

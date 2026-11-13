@@ -154,6 +154,18 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_tick(
                     .flat_map(|a| [a.0, a.1, a.2])
                     .collect();
                 s.prepare_panel();
+                let mut actions = actions;
+                if s.scene
+                    .search
+                    .as_mut()
+                    .and_then(|p| p.search.as_mut())
+                    .is_some_and(|search| search.tick(now))
+                {
+                    actions.extend([render::protocol::PANEL_CHANGED, 0, 0]);
+                }
+                if s.scene.panel.as_mut().is_some_and(|p| p.media.tick(now)) {
+                    actions.extend([render::protocol::PANEL_CHANGED, 0, 0]);
+                }
                 env.make(&actions)
             },
         )
@@ -168,7 +180,19 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_nextDeadl
     // SAFETY: the synchronized owner keeps the handle alive.
     unsafe {
         handle::with_locked::<crate::render::Session, _>(env, native, "renderer", -1, |s, _| {
-            Ok(s.touch.next_deadline().unwrap_or(-1))
+            Ok(s.touch
+                .next_deadline()
+                .into_iter()
+                .chain(s.scene.panel.as_ref().and_then(|p| p.media.deadline()))
+                .chain(
+                    s.scene
+                        .search
+                        .as_ref()
+                        .and_then(|p| p.search.as_ref())
+                        .map(|search| search.deadline),
+                )
+                .min()
+                .unwrap_or(-1))
         })
     }
 }

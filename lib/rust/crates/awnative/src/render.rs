@@ -310,7 +310,13 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_frame(
     unsafe {
         handle::with_locked::<Session, _>(env, native, "renderer", 0, |s, _| {
             s.prepare_panel();
-            let animating = s.touch.animate(&mut s.scene, time);
+            let mut animating = s.touch.animate(&mut s.scene, time);
+            if let Some(g) = s.scene.panel.as_mut().and_then(|p| p.gif.as_mut())
+                && (g.status == 0 || g.sending.is_some())
+            {
+                g.phase = (time % 1_332_000_000) as f32 / 1_332_000_000.0;
+                animating = true;
+            }
             if let Some(bar) = &mut s.scene.smartbar
                 && bar.actions.iter().any(|a| a.warming)
             {

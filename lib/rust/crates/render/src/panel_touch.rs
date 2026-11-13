@@ -72,6 +72,11 @@ impl PanelTouch {
                         self.dragging = e.dragging.is_some();
                     }
                 }
+                Command::Clipboard(5, index) => {
+                    self.long_emoji = true;
+                    panel.clipboard_activate(6, index);
+                    return vec![Action(LONG_PRESS_FEEDBACK, 0, 0)];
+                }
                 Command::Emoji(index) => {
                     self.long_emoji = true;
                     panel.long_press_emoji(index);
@@ -123,7 +128,7 @@ impl PanelTouch {
                             );
                         }
                         Command::Emoji(..) if item.id >= 400_000 => {}
-                        Command::Drag(..) | Command::Emoji(..) => {
+                        Command::Drag(..) | Command::Emoji(..) | Command::Clipboard(5, _) => {
                             self.deadline = Some(
                                 event.times.last().copied().unwrap_or(0)
                                     + if panel.gesture_delay > 0 {
@@ -170,6 +175,16 @@ impl PanelTouch {
                         }
                     }
                     if self.scrolling
+                        && panel.kind == 5
+                        && self.origin[1] >= panel.row
+                        && self.origin[1] < panel.row + 36.0 * panel.density
+                        && let Some(g) = &mut panel.gif
+                    {
+                        let maximum = (g.chip_widths.iter().sum::<f32>()
+                            - panel.items.first().map_or(0.0, |i| i.bounds.width()))
+                        .max(0.0);
+                        g.chip_scroll = (g.chip_scroll + self.last[0] - pos[0]).clamp(0.0, maximum);
+                    } else if self.scrolling
                         && (panel.kind != 1
                             || (pos[1] - self.origin[1]).abs() >= (pos[0] - self.origin[0]).abs())
                     {

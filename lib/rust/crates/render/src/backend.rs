@@ -116,6 +116,26 @@ impl Backend {
             }
         }
     }
+    pub fn image(&mut self, frame: &crate::media_cache::Frame, bounds: keys::Rect) {
+        let w = frame.cpu.width() as f64;
+        let h = frame.cpu.height() as f64;
+        self.set_transform(
+            Affine::translate((bounds.left as f64, bounds.top as f64))
+                * Affine::scale_non_uniform(bounds.width() as f64 / w, bounds.height() as f64 / h),
+        );
+        match self {
+            Self::Cpu(c) => c.context.set_paint(vello_cpu::Image {
+                image: vello_cpu::ImageSource::Pixmap(frame.cpu.clone()),
+                sampler: Default::default(),
+            }),
+            Self::Hybrid(c) => c.context.set_paint(vello_common_hybrid::paint::Image {
+                image: vello_common_hybrid::paint::ImageSource::Pixmap(frame.hybrid.clone()),
+                sampler: Default::default(),
+            }),
+        }
+        self.fill_rect(&Rect::new(0.0, 0.0, w, h));
+        self.reset_transform();
+    }
     pub fn render(&mut self, pixmap: &mut Pixmap) {
         if let Self::Cpu(c) = self {
             c.context.render_with(

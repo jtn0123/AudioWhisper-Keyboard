@@ -13,6 +13,13 @@ pub fn order(clips: &[Clip]) -> Vec<usize> {
     indices.sort_by_key(|&i| std::cmp::Reverse(clips[i].timestamp));
     indices
 }
+pub fn unpinned(clips: &[Clip]) -> Vec<usize> {
+    clips
+        .iter()
+        .enumerate()
+        .filter_map(|(i, c)| (!c.pinned).then_some(i))
+        .collect()
+}
 pub fn group(clip: &Clip, now: i64) -> usize {
     if clip.pinned {
         0
@@ -123,7 +130,7 @@ mod tests {
             pinned: true,
             ..c.clone()
         };
-        assert!(expiry(&[p.clone()], 60_001, true, 1, false, 1).is_empty());
+        assert!(expiry(std::slice::from_ref(&p), 60_001, true, 1, false, 1).is_empty());
         assert_eq!(expiry(&[p], 1001, false, 1, true, 1), vec![0]);
         assert_eq!(duplicate(&[c], None, true), Some((0, false)));
     }

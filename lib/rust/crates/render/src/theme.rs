@@ -122,6 +122,34 @@ impl Theme {
             "smartbar-actions-editor-tile-icon" | "smartbar-actions-editor-tile-text" => {
                 Some("smartbar-actions-editor-tile")
             }
+            "clipboard-header" | "clipboard-content" => Some("window"),
+            "clipboard-header-button" | "clipboard-header-text" => Some("clipboard-header"),
+            "clipboard-filter-row"
+            | "clipboard-grid"
+            | "clipboard-subheader"
+            | "clipboard-history-disabled-title"
+            | "clipboard-history-disabled-message"
+            | "clipboard-history-disabled-button"
+            | "clipboard-history-locked-title"
+            | "clipboard-history-locked-message" => Some("clipboard-content"),
+            "clipboard-filter-chip" => Some("clipboard-filter-row"),
+            "clipboard-filter-chip-text" | "clipboard-filter-chip-icon" => {
+                Some("clipboard-filter-chip")
+            }
+            "clipboard-item" => Some("clipboard-grid"),
+            "clipboard-item-description" => Some("clipboard-item"),
+            "clipboard-item-popup"
+            | "clipboard-item-timestamp"
+            | "clipboard-item-actions"
+            | "clipboard-clear-all-dialog" => Some("clipboard-content"),
+            "clipboard-item-action" => Some("clipboard-item-actions"),
+            "clipboard-item-action-icon" | "clipboard-item-action-text" => {
+                Some("clipboard-item-action")
+            }
+            "clipboard-clear-all-dialog-message" | "clipboard-clear-all-dialog-buttons" => {
+                Some("clipboard-clear-all-dialog")
+            }
+            "clipboard-clear-all-dialog-button" => Some("clipboard-clear-all-dialog-buttons"),
             "key-popup-element" => Some("key-popup-box"),
             _ => Some("window"),
         };
@@ -151,6 +179,10 @@ impl Theme {
             (text("shiftstate"), text(&r.shift)),
             (text("code"), text(&r.code.to_string())),
             (text("type"), text(&r.key_type)),
+            (
+                text("state"),
+                text(if r.auto_commit { "active" } else { "inactive" }),
+            ),
             (
                 text("auto-commit"),
                 text(if r.auto_commit { "1" } else { "0" }),

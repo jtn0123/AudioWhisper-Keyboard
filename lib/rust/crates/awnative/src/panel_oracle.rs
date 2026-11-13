@@ -141,3 +141,29 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_PanelRules_overflowAnd
         })
     }
 }
+
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_PanelRules_clipboardGrid(
+    env: *mut JNIEnv,
+    _: jclass,
+    config: jfloatArray,
+) -> jfloatArray {
+    // SAFETY: JVM arrays are copied and the pure grid probe returns a fresh local primitive array.
+    unsafe {
+        jni::run(env, ptr::null_mut(), |env| {
+            let c = env.read::<f32>(config, "clipboard grid")?;
+            if c.len() < 3 || c.iter().any(|v| !v.is_finite()) || c[0] <= 0.0 || c[1] <= 0.0 {
+                return Err(illegal("clipboard grid"));
+            }
+            let n = render::clipboard_panel::columns(c[0], c[1], c[2].max(0.0) as usize);
+            let mut lanes = vec![0.0; n];
+            let mut out = vec![n as f32];
+            for &height in &c[3..] {
+                let lane = render::clipboard_panel::lane(&lanes);
+                out.extend([lane as f32, lanes[lane]]);
+                lanes[lane] += height;
+            }
+            env.make(&out)
+        })
+    }
+}

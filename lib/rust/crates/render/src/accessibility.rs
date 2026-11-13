@@ -15,6 +15,7 @@ pub struct Semantics {
 #[derive(Clone, Debug, PartialEq)]
 pub enum Target {
     Panel(usize),
+    Search(usize),
     Key(usize),
     Bar(usize),
     Candidate(usize),
@@ -242,6 +243,18 @@ impl Semantics {
         if let Some(panel) = &scene.panel {
             nodes.extend(crate::panel_accessibility::nodes(panel));
         }
+        if let Some(search) = &scene.search {
+            nodes.extend(
+                crate::panel_accessibility::nodes(search)
+                    .into_iter()
+                    .map(|mut n| {
+                        if let Target::Panel(i) = n.target {
+                            n.target = Target::Search(i);
+                        }
+                        n
+                    }),
+            );
+        }
         nodes
     }
     pub fn activate(
@@ -259,6 +272,11 @@ impl Semantics {
         }
         let mut out = Vec::new();
         match n.target {
+            Target::Search(i) => {
+                if let Some(p) = &mut scene.search {
+                    out.extend(crate::panel_accessibility::activate(p, i, action));
+                }
+            }
             Target::Panel(i) => {
                 if let Some(p) = &mut scene.panel {
                     out.extend(crate::panel_accessibility::activate(p, i, action));

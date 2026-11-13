@@ -86,3 +86,7 @@ pub const PANEL_CHANGED: i32 = 57;
 
 pub const ACCESS_SCROLL_FORWARD: i32 = 4;
 pub const ACCESS_SCROLL_BACKWARD: i32 = 5;
+
+pub const PANEL_CLIPBOARD: i32 = 58;
+
+pub const PANEL_GIF: i32 = 59;

@@ -38,6 +38,8 @@ pub struct Action(pub i32, pub i32, pub i32);
 
 #[derive(Debug)]
 pub struct Touch {
+    search: crate::panel_touch::PanelTouch,
+    search_active: bool,
     panel: crate::panel_touch::PanelTouch,
     keys: crate::keyboard_touch::KeyboardTouch,
     glide: crate::glide_touch::GlideTouch,
@@ -51,6 +53,8 @@ pub struct Touch {
 impl Default for Touch {
     fn default() -> Self {
         Self {
+            search: Default::default(),
+            search_active: false,
             panel: Default::default(),
             keys: Default::default(),
             glide: Default::default(),
@@ -120,6 +124,10 @@ impl Touch {
         if let Some(p) = &mut scene.panel {
             actions.extend(self.panel.cancel(p));
         }
+        if let Some(p) = &mut scene.search {
+            actions.extend(self.search.cancel(p));
+        }
+        self.search_active = false;
         actions.extend(self.keys.cancel(scene));
         actions.extend(self.bar.cancel(scene));
         self.candidates.clear();
@@ -136,6 +144,14 @@ impl Touch {
         let mut actions = Vec::new();
         if event.action == 0 {
             actions.extend(self.cancel(scene));
+        }
+        if let Some(p) = &mut scene.search
+            && (event.action == 0 && event.coords.last().copied().unwrap_or(f32::MAX) < scene.strip
+                || self.search_active)
+        {
+            self.search_active = event.action != 1 && event.action != 3;
+            actions.extend(self.search.event(p, event, self.long_press_delay));
+            return actions;
         }
         if let Some(p) = &mut scene.panel {
             actions.extend(self.panel.event(p, event, self.long_press_delay));

@@ -7,6 +7,14 @@ use crate::{
 impl Panel {
     pub fn activate(&mut self, command: Command) -> Vec<Action> {
         match command {
+            Command::Gif(op, index) => {
+                if self.kind == 6 {
+                    vec![Action(PANEL_GIF, op, index as i32)]
+                } else {
+                    self.gif_activate(op, index)
+                }
+            }
+            Command::Clipboard(op, index) => self.clipboard_activate(op, index),
             Command::Mode(kind) => vec![Action(PANEL_MODE, kind, 0)],
             Command::Emoji(index) => {
                 if let Some(e) = &mut self.emoji {
