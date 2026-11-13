@@ -102,6 +102,10 @@ impl Panel {
             .margin;
     }
     pub fn layout(&mut self, width: f32, height: f32, strip: f32) {
+        if self.chrome.is_some() {
+            self.layout_chrome(width, height);
+            return;
+        }
         self.items.clear();
         if self.kind == 7 {
             self.layout_subtypes(width, height);
@@ -412,6 +416,7 @@ impl Panel {
             }
             i.secondary_style = theme.style(&r.element("clipboard-item-description", 0));
         }
+        self.style_chrome(theme, request);
         self.style_subtypes(theme, request);
         if self.kind == 5 {
             for i in &mut self.items {

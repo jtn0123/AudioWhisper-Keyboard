@@ -17,6 +17,7 @@ pub struct Entry {
 #[derive(Clone, Debug, PartialEq)]
 pub enum Command {
     Subtype(Option<usize>),
+    Chrome(i32),
     Emoji(usize),
     Clipboard(i32, usize),
     Gif(i32, usize),
@@ -83,6 +84,7 @@ pub struct Panel {
     /// 2 overflow, 3 action editor. Emoji uses 1.
     pub kind: i32,
     pub subtypes: Option<crate::subtype_panel::Subtypes>,
+    pub chrome: Option<crate::ime_chrome::Chrome>,
     pub media: crate::media_cache::MediaCache,
     pub search: Option<crate::gif_search::Search>,
     pub gif: Option<crate::gif_panel::GifPanel>,

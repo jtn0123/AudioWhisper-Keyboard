@@ -84,6 +84,7 @@ pub const PANEL_HISTORY: i32 = 56;
 
 pub const PANEL_CHANGED: i32 = 57;
 pub const PANEL_SUBTYPE: i32 = 60;
+pub const IME_CHROME: i32 = 61;
 
 pub const ACCESS_SCROLL_FORWARD: i32 = 4;
 pub const ACCESS_SCROLL_BACKWARD: i32 = 5;

@@ -7,6 +7,7 @@ use crate::{
 impl Panel {
     pub fn activate(&mut self, command: Command) -> Vec<Action> {
         match command {
+            Command::Chrome(op) => vec![Action(IME_CHROME, op, 0)],
             Command::Subtype(id) => vec![Action(
                 PANEL_SUBTYPE,
                 id.unwrap_or(0) as i32,

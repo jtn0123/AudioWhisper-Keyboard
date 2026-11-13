@@ -57,4 +57,5 @@ pub mod gif_panel;
 pub mod gif_search;
 
 pub mod clipboard_dialog;
+pub mod ime_chrome;
 pub mod subtype_panel;
