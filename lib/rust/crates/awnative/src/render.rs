@@ -18,7 +18,7 @@ use std::{ptr, sync::Mutex};
 pub struct Session {
     pub(crate) scene: Scene,
     text: Option<render::text::Text>,
-    touch: Touch,
+    pub(crate) touch: Touch,
     fonts: Vec<Vec<u8>>,
     touch_time: i64,
     theme: Option<render::theme::Theme>,

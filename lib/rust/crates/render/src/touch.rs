@@ -42,6 +42,10 @@ pub struct Touch {
 const OUTSIDE: usize = usize::MAX;
 
 impl Touch {
+    pub fn candidate_long_press(&mut self, scene: &mut Scene, pointer: i32) {
+        self.bar.candidate_long_press(scene, pointer);
+    }
+
     pub fn cancel(&mut self, scene: &mut Scene) -> Vec<Action> {
         let mut result: Vec<_> = self
             .pointers

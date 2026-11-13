@@ -27,6 +27,23 @@ class KeyboardRendererTest {
     }
 
     @Test
+    fun candidateRemovalAcknowledgesTheHoldWithoutLosingItsRelease() {
+        KeyboardRenderer(emptyArray()).use { renderer ->
+            renderer.theme("""{"${'$'}schema":"https://schemas.florisboard.org/snygg/v2/stylesheet"}""",
+                emptyArray(), intArrayOf(), floatArrayOf(1f, 1f, 1f))
+            renderer.smartbar(floatArrayOf(1f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 0f, 1f, 40f),
+                IntArray(10), Array(10) { "" })
+            renderer.update(floatArrayOf(400f, 200f, 40f), arrayOf("characters", "unshifted"),
+                IntArray(3), floatArrayOf(), emptyArray(), arrayOf("one", "two", "three"))
+            assertContentEquals(intArrayOf(8, 0, 7), renderer.touch(intArrayOf(0, 0, 7),
+                longArrayOf(1, 2), floatArrayOf(50f, 20f)))
+            renderer.candidateLongPress(7)
+            assertContentEquals(intArrayOf(9, 0, 7), renderer.touch(intArrayOf(1, 0, 7),
+                longArrayOf(1, 500_000_000), floatArrayOf(50f, 20f)))
+        }
+    }
+
+    @Test
     fun closedHandleThrowsInsteadOfUsingFreedMemory() {
         val renderer = KeyboardRenderer(emptyArray())
         renderer.close()

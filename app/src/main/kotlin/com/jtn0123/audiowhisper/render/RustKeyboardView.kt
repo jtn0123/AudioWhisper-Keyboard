@@ -51,9 +51,13 @@ class RustKeyboardView(context: Context) : FrameLayout(context), SurfaceHolder.C
     private val popupChoices = mutableMapOf<Int, List<KeyData>>()
     private var snapshot: KeyboardSnapshot? = null
     private var liveSurface = false
+    private var surfaceReady = false
     private var framePending = false
     private var released = false
-    private val smartbarTouch = RendererSmartbarTouch(this)
+    private val smartbarTouch = RendererSmartbarTouch(this) { pointer ->
+        native.candidateLongPress(pointer)
+        invalidateFrame()
+    }
     private val prefs by FlorisPreferenceStore
 
     init {
@@ -106,7 +110,14 @@ class RustKeyboardView(context: Context) : FrameLayout(context), SurfaceHolder.C
         manager.smartbarVisibleDynamicActionsCount = s.smartbar.measure(width.toFloat())[2].toInt()
         native.update(floatArrayOf(width.toFloat(), height.toFloat(), s.stripHeight),
             metadata.toTypedArray(), flags, geometry, labels.toTypedArray(), candidates.toTypedArray())
+        attachIfReady()
         invalidateFrame()
+    }
+
+    private fun attachIfReady() {
+        if (released || liveSurface || !surfaceReady || snapshot == null || width <= 0 || height <= 0) return
+        native.attach(surface.holder.surface, hybrid = Log.isLoggable("aw-hybrid", Log.DEBUG))
+        liveSurface = true
     }
 
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
@@ -129,19 +140,24 @@ class RustKeyboardView(context: Context) : FrameLayout(context), SurfaceHolder.C
         }
     }
 
-    override fun surfaceCreated(holder: SurfaceHolder) { trace(SurfaceEvent.CREATED) }
+    override fun surfaceCreated(holder: SurfaceHolder) {
+        surfaceReady = true
+        trace(SurfaceEvent.CREATED)
+    }
     override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) {
         trace(SurfaceEvent.CHANGED)
-        if (released || snapshot == null) return
+        surfaceReady = true
+        if (released) return
         cancelInput()
-        updateScene()
-        native.attach(holder.surface, hybrid = Log.isLoggable("aw-hybrid", Log.DEBUG))
-        liveSurface = true
-        invalidateFrame()
+        if (liveSurface) native.detach()
+        liveSurface = false
+        // update() also attaches when the first snapshot arrives after this callback.
+        if (snapshot != null && width > 0 && height > 0) updateScene()
     }
 
     override fun surfaceDestroyed(holder: SurfaceHolder) {
         trace(SurfaceEvent.DESTROYED)
+        surfaceReady = false
         liveSurface = false
         cancelInput()
         choreographer.removeFrameCallback(this)
@@ -235,6 +251,14 @@ class RustKeyboardView(context: Context) : FrameLayout(context), SurfaceHolder.C
         }
     }
 
+    override fun onLayout(changed: Boolean, left: Int, top: Int, right: Int, bottom: Int) {
+        super.onLayout(changed, left, top, right, bottom)
+        if (!released && !surface.holder.surface.isValid) {
+            // A newly inserted AndroidView needs another traversal for SurfaceView's pre-draw.
+            surface.postInvalidateOnAnimation()
+        }
+    }
+
     override fun onAttachedToWindow() { super.onAttachedToWindow(); trace(SurfaceEvent.ATTACHED) }
     override fun onDetachedFromWindow() { super.onDetachedFromWindow(); trace(SurfaceEvent.DETACHED) }
 
@@ -246,6 +270,7 @@ class RustKeyboardView(context: Context) : FrameLayout(context), SurfaceHolder.C
         choreographer.removeFrameCallback(this)
         surface.holder.removeCallback(this)
         native.close()
+        surfaceReady = false
         released = true
     }
 }

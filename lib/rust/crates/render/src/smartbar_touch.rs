@@ -14,6 +14,7 @@ struct Pointer {
     id: usize,
     x: f32,
     scrolling: bool,
+    highlighted: bool,
 }
 impl BarTouch {
     pub fn cancel(&mut self, scene: &mut Scene) -> Vec<Action> {
@@ -47,6 +48,7 @@ impl BarTouch {
                             id: target,
                             x,
                             scrolling: false,
+                            highlighted: true,
                         },
                     );
                     actions.push(Action(if action { 5 } else { 8 }, target as i32, id));
@@ -100,6 +102,14 @@ impl BarTouch {
         self.mark(scene);
         actions
     }
+    pub fn candidate_long_press(&mut self, scene: &mut Scene, pointer: i32) {
+        if let Some(held) = self.pointers.get_mut(&pointer)
+            && !held.action
+        {
+            held.highlighted = false;
+        }
+        self.mark(scene);
+    }
     pub fn mark(&self, scene: &mut Scene) {
         if let Some(bar) = &mut scene.smartbar {
             bar.pressed = self
@@ -111,7 +121,7 @@ impl BarTouch {
             scene.candidate_pressed = self
                 .pointers
                 .values()
-                .filter(|t| !t.action && !t.scrolling)
+                .filter(|t| !t.action && !t.scrolling && t.highlighted)
                 .map(|t| t.id)
                 .collect();
         }

@@ -111,3 +111,19 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_SmartbarRules_ellipsis
         })
     }
 }
+
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_candidateLongPress(
+    env: *mut JNIEnv,
+    _: jclass,
+    native: jlong,
+    pointer: i32,
+) {
+    // SAFETY: the synchronized Kotlin owner keeps the session handle alive for this call.
+    unsafe {
+        handle::with_locked::<crate::render::Session, _>(env, native, "renderer", (), |s, _| {
+            s.touch.candidate_long_press(&mut s.scene, pointer);
+            Ok(())
+        });
+    }
+}

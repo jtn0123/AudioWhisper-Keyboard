@@ -12,7 +12,7 @@ import dev.patrickgold.florisboard.keyboardManager
 import dev.patrickgold.florisboard.subtypeManager
 
 /** Calls exactly the same QuickAction handlers as QuickActionButton, including cancellation. */
-internal class RendererSmartbarTouch(private val view: FrameLayout) {
+internal class RendererSmartbarTouch(private val view: FrameLayout, private val onCandidateRemoved: (Int) -> Unit) {
     private val context = view.context
     private val prefs by FlorisPreferenceStore
     private val manager by context.keyboardManager()
@@ -52,7 +52,9 @@ internal class RendererSmartbarTouch(private val view: FrameLayout) {
                 val candidate = s.candidates.getOrNull(index) ?: return
                 val timer = Runnable {
                     timedOut.add(pointer)
-                    if (candidate.isEligibleForUserRemoval) nlp.removeSuggestion(subtype.activeSubtype, candidate)
+                    if (candidate.isEligibleForUserRemoval && nlp.removeSuggestion(subtype.activeSubtype, candidate)) {
+                        onCandidateRemoved(pointer)
+                    }
                 }
                 candidateTimers.put(pointer, timer)?.let(view::removeCallbacks)
                 view.postDelayed(timer, prefs.keyboard.longPressDelay.get().toLong())

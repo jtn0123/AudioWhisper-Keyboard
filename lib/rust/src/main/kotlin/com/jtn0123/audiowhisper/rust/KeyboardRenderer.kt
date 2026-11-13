@@ -21,6 +21,9 @@ class KeyboardRenderer(fontPaths: Array<String>) : AutoCloseable {
         RenderNative.touch(handle, metadata, times, coords)
 
     @Synchronized
+    fun candidateLongPress(pointer: Int) = RenderNative.candidateLongPress(handle, pointer)
+
+    @Synchronized
     fun popup(key: Int, labels: Array<String>, codes: IntArray) = RenderNative.popup(handle, key, labels, codes)
 
     @Synchronized
@@ -50,6 +53,7 @@ internal object RenderNative {
     external fun update(handle: Long, dimensions: FloatArray, metadata: Array<String>, candidateFlags: IntArray, geometry: FloatArray, labels: Array<String>, candidates: Array<String>)
     external fun smartbar(handle: Long, config: FloatArray, codes: IntArray, labels: Array<String>)
     external fun touch(handle: Long, metadata: IntArray, times: LongArray, coords: FloatArray): IntArray
+    external fun candidateLongPress(handle: Long, pointer: Int)
     external fun popup(handle: Long, key: Int, labels: Array<String>, codes: IntArray)
     external fun attach(handle: Long, surface: Any, hybrid: Boolean)
     external fun frame(handle: Long, time: Long)

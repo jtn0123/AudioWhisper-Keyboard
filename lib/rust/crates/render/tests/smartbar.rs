@@ -156,3 +156,16 @@ fn fractional_density_and_row_height_do_not_add_an_extra_quick_action() {
     assert_eq!(l.center.width(), 562.0);
     assert_eq!(l.actions.len(), 8); // four pinned/toggle actions plus overflow and three dynamic.
 }
+
+#[test]
+fn removing_a_held_candidate_clears_highlight_but_keeps_release_ownership() {
+    let mut s = scene();
+    let mut t = Touch::default();
+    let bounds = s.smartbar.as_ref().unwrap().layout.candidates[0].bounds;
+    let x = (bounds.left + bounds.right) / 2.0;
+    assert_eq!(t.event(&mut s, &event(0, x, 20.0)), vec![Event(8, 0, 7)]);
+    assert_eq!(s.candidate_pressed, vec![0]);
+    t.candidate_long_press(&mut s, 7);
+    assert!(s.candidate_pressed.is_empty());
+    assert_eq!(t.event(&mut s, &event(1, x, 20.0)), vec![Event(9, 0, 7)]);
+}
