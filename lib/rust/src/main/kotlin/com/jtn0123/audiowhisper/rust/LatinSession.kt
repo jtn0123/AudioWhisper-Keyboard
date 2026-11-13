@@ -7,6 +7,11 @@ class LatinSession private constructor(private var handle: Long) : AutoCloseable
     private val cleanable = RustLibrary.cleaner.register(this, Free(handle))
     class Candidate(val word: String, val score: Int, val kindAndFlags: Int)
 
+    @Synchronized fun isName(personal: PersonalWordStore, word: String): Boolean {
+        check(handle != 0L) { "the session is closed" }
+        return NlpNative.isName(handle, personal.handle, word).also { Reference.reachabilityFence(personal) }
+    }
+    @Synchronized fun unknownWords(words: List<String>): List<String> = NlpNative.unknownWords(handle, words.toTypedArray()).asList()
     @Synchronized fun probability(word: String): Int = LatinSessionNative.probability(handle, word)
     @Synchronized fun ngram(word: String, previous: List<String>, sentenceStart: Boolean): Int =
         LatinSessionNative.ngram(handle, word, previous.toTypedArray(), sentenceStart)

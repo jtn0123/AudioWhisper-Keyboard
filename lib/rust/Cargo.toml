@@ -17,6 +17,7 @@ default-members = [
     "crates/keys",
     "crates/input",
     "crates/latin",
+    "crates/nlp",
     "crates/popup",
     "crates/reader",
     "crates/render",

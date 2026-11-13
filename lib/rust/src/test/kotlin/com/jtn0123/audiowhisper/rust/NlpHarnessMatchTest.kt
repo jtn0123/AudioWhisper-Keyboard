@@ -1,0 +1,54 @@
+package com.jtn0123.audiowhisper.rust
+
+import java.io.File
+import kotlin.test.Test
+import kotlin.test.assertEquals
+
+/** Real dictionary answers over public fixture prefix/editor snapshots; never a user's text. */
+class NlpHarnessMatchTest {
+    @Test fun everyPublicHarnessFixtureMatchesWithBundledDictionaryResults() {
+        val dictionary = File("../../app/src/main/assets/dicts/main_en-US.dict")
+        val personal = PersonalWordStore(emptyList(), IntArray(0), emptyList())
+        val rows = requireNotNull(javaClass.getResourceAsStream("/nlp/harness.tsv")).bufferedReader().readLines()
+        val names = mutableSetOf<String>()
+        var checkpoints = 0
+        requireNotNull(LatinSession.open(dictionary.readBytes())).use { decoder ->
+            NlpMatchTest.Pairing().use { p ->
+                for (row in rows) {
+                    val f = row.split('\t')
+                    names += f[0]
+                    val units = if (f[4] == "-") emptyList() else f[4].chunked(4).map { h -> (h.substring(0, 2).toInt(16) or (h.substring(2).toInt(16) shl 8)).toChar() }
+                    val content = units.joinToString("")
+                    // Prefixes exercise every request while typing; final cursor checkpoints cover moves.
+                    for (end in 0..content.length) {
+                        val text = content.take(end)
+                        val context = ReferenceNlp.context(text, f[1].toInt()).toMutableList().also {
+                            it[4] = f[3]; it[5] = f[3]; it[7] = "1"
+                            if (end == content.length) { it[10] = f[2]; it[11] = f[2] }
+                        }
+                        p.call("context", *context.toTypedArray())
+                        val generation = p.call("begin", checkpoints.toString())[0]
+                        p.call("ready", generation, (checkpoints + 8).toString())
+                        val typed = text.takeLastWhile { it.isLetterOrDigit() || it in "'-’" }
+                        val strip = decoder.suggest(personal, null, typed, emptyList(), true, false, true, FloatArray(0), 8, SuggestRules.modestThreshold)
+                        val flags = p.call("candidatePlan", *context.toTypedArray(), "0",
+                            *strip.words.indices.map { if (it == strip.autoCorrection) "1" else "0" }.toTypedArray())
+                        val values = strip.words.flatMapIndexed { i, word -> listOf("$checkpoints-$i", word, "0", flags[i]) }.toTypedArray()
+                        p.call("complete", generation, *values)
+                        p.call("auto", "-1", "0")
+                        if (checkpoints % 7 == 0) {
+                            val inline = p.call("inlineBegin", "2")[0]
+                            p.call("inlineComplete", inline, "regular", "0", "pinned", "1")
+                            p.call("inlineBegin", "0")
+                        }
+                        checkpoints++
+                    }
+                    p.call("field")
+                }
+            }
+        }
+        assertEquals(42, names.size)
+        assertEquals(1996, checkpoints)
+        println("NLP public fixture replay: ${names.size} traces, $checkpoints prefix/cursor checkpoints, zero differences")
+    }
+}

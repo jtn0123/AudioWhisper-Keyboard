@@ -27,6 +27,7 @@ glide = { path = "../glide" }
 input = { path = "../input" }
 keys = { path = "../keys" }
 latin = { path = "../latin" }
+nlp = { path = "../nlp" }
 popup = { path = "../popup" }
 reader = { path = "../reader" }
 render = { path = "../render" }
