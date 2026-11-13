@@ -1,0 +1,83 @@
+# Stage 3A local renderer comparison
+
+This disposable editor saves UTF-16 length and SHA-256 of UTF-8 text, never editor contents.
+Do not run it against personal text. It is not packaged with the keyboard.
+
+The editor never changes audio or Do Not Disturb. `run.sh` requests volume zero on
+streams 1–5 from the host with `cmd media_session volume` and saves the responses in
+`host-muting.log`. Android 16 on this AVD refuses zero for alarm stream 4 (minimum 1);
+that limitation is recorded, not worked around by enabling DND. Keyboard-relevant streams
+accept zero. Never enable DND as part of a trial.
+
+The final continuation stopped after device-name lookup failed twice. The current build
+was installed but a complete rerun and tail attribution were not obtained. Previous
+successful samples remain in the evidence root; incomplete continuation output is isolated
+in `before-compose-1/`. See `docs/stage3a-results.md` for the exact stop and missing checks.
+
+Open the chosen emulator with the T3 device tools and use the returned agent-device command
+for all UI actions. After boot, use the returned runtime device ID (for example,
+`emulator-5556`) for screenshot/close; the AVD name may no longer resolve. Set `ANDROID_SERIAL` to that emulator's serial for every adb command,
+installation and benchmark invocation. Never borrow another session's emulator.
+
+1. Run the full repository gate and `ANDROID_SERIAL=<serial> scripts/install-dev.sh`.
+2. Run `scripts/render-benchmark/build.sh`, then install `build/render-benchmark/probe.apk`
+   with targeted adb. Enable/select the keyboard's IME and mute the emulator's audio streams.
+3. With targeted adb, set `log.tag.aw-compose=DEBUG` for numeric Compose frame-commit timing
+   and `log.tag.aw-emoji=DEBUG` for a synthetic colour-emoji strip when candidates are empty.
+   `log.tag.aw-hybrid=DEBUG` selects the Vulkan experiment when a prototype surface is created;
+   otherwise the prototype uses Vello CPU. `log.tag.aw-profile=DEBUG` at surface creation
+   enables numeric CPU-tail attribution. Set these properties back to `INFO` afterwards.
+4. In keyboard settings, turn **Rust keyboard renderer (prototype)** off for Compose and on
+   for Rust. Open `com.jtn0123.renderprobe` through agent-device with `--no-test-ime` so the
+   helper does not replace the selected keyboard. Focus the editor, warm it with a few presses,
+   clear it, and wait for the candidate strip to settle before each run.
+5. On the tested 1080×2400 portrait AVD, run:
+
+   ```bash
+   ANDROID_SERIAL=<serial> scripts/render-benchmark/run.sh '<returned-agent-device-command>' compose
+   ANDROID_SERIAL=<serial> scripts/render-benchmark/run.sh '<returned-agent-device-command>' rust
+   ANDROID_SERIAL=<serial> scripts/render-benchmark/run.sh '<returned-agent-device-command>' hybrid
+   python3 -I scripts/render-benchmark/summarize.py \
+     --native build/stage3a-evidence/rust-timing.log \
+     --compose build/stage3a-evidence/compose-gfx-*.txt \
+     --compose-touch build/stage3a-evidence/compose-timing.log \
+     --profile build/stage3a-evidence/rust-timing.log
+   ```
+
+   Pass an optional third argument (output directory) to `run.sh` to preserve each trial,
+   e.g. `build/stage3a-evidence/before-compose-1`. Alternate Compose/Rust at least twice
+   each before and after any optimization; do not overwrite a prior sample.
+   Clear the editor between runs. Coordinates are specific to this AVD and layout. Each run
+   presses 300 keys (35 ms hold, 85 ms gap), then holds `e` eight times for 500 ms. Compare both
+   digest files between renderers. The default long-press selection is the number hint; inspect
+   and select the accent choices separately. This script does not prove general input parity.
+
+6. Capture light/dark screenshots through agent-device with an empty editor, then use
+   `swift scripts/render-benchmark/pair.swift COMPOSE.png RUST.png PAIR.png` to crop/join the
+   keyboard regions without redrawing their contents. The crop is specific to this AVD.
+7. Turn the prototype off, reset measurement properties, check targeted logcat for
+   `FATAL|AndroidRuntime`, uninstall `com.jtn0123.renderprobe`, then close/shut down only this
+   device through the device tools.
+
+All generated files go under ignored `build/`. Pull system fonts into a fresh external
+directory. From `lib/rust`, run `cargo run --release -p render --example emoji_probe --
+OUTPUT_DIR FONT...`; it records tables and verifies shaped/rasterized sequence coverage.
+The Samsung phone needs its own font inspection later.
+
+Native `draw_ns` measures CPU scene encoding+rasterization (CPU) or scene+GPU command encoding
+(Hybrid). `gpu_wait_ns` is submission-to-completion wall time including the driver wait, not
+a GPU timestamp query. Native `post_ns` follows unlock/post or Vulkan present submission.
+Compose's opt-in callback follows HWUI frame commit; gfxinfo reports app-wide HWUI recording
+and completion intervals. These are different measurement boundaries, and none is physical
+touch-to-display presentation. Deduplicate touch timestamps to take the first response to
+each event rather than later NLP updates. Use phone Perfetto FrameTimeline before acceptance.
+
+The `--profile` report groups frames over 2 ms by full/dirty region, case-change proxy,
+popup open/move/close, candidate change and shaping-cache miss. Groups overlap. It includes
+damage pixels and encoding/raster/shaping/glyph/allocation-site times. `cold_glyph_ns`
+means glyph calls for a newly shaped layout, not a private Vello atlas miss; `color_glyph_ns`
+covers calls using COLR/CBDT/sbix fonts. `profile_init_ns` covers backend/font initialization
+before the first frame. Explicit allocation-site counters cover our label-key strings,
+coordinate vectors and box paths, excluding library internals and JNI/scene allocation.
+These nested intervals must not be added together. Profiling itself adds overhead; compare
+only equally instrumented trials and retain separate uninstrumented acceptance trials.

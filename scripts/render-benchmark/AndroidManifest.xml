@@ -1,0 +1,12 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.jtn0123.renderprobe">
+    <uses-sdk android:minSdkVersion="36" android:targetSdkVersion="36" />
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+    <application android:theme="@android:style/Theme.Material.Light.NoActionBar" android:label="Renderer probe" android:debuggable="true" android:allowBackup="false">
+        <activity android:name=".ProbeActivity" android:exported="true" android:windowSoftInputMode="adjustResize" android:configChanges="">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>
