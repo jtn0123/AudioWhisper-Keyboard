@@ -18,6 +18,7 @@ mod jni;
 mod key_models;
 mod keys;
 mod latinime;
+mod layout_rules;
 mod panic;
 mod popup;
 mod reader;

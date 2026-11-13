@@ -7,6 +7,7 @@
 
 #![forbid(unsafe_code)]
 
+pub mod assembly;
 pub mod codes;
 mod desired;
 mod flex;
