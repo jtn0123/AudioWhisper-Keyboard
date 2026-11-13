@@ -1550,6 +1550,7 @@ dependencies = [
  "read-fonts 0.47.0",
  "serde_json",
  "snygg",
+ "unicode-segmentation",
  "vello_cpu",
  "vello_hybrid",
  "wgpu",

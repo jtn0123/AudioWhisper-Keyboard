@@ -16,7 +16,8 @@ use std::{ptr, sync::Mutex};
 
 #[derive(Debug, Default)]
 pub struct Session {
-    scene: Scene,
+    pub(crate) scene: Scene,
+    text: Option<render::text::Text>,
     touch: Touch,
     fonts: Vec<Vec<u8>>,
     touch_time: i64,
@@ -54,6 +55,7 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_create(
                 fonts.push(std::fs::read(path).map_err(|_| illegal("could not read system font"))?);
             }
             Ok(handle::into_handle(Mutex::new(Session {
+                text: Some(render::text::Text::new(fonts.clone())),
                 fonts,
                 ..Session::default()
             })))
@@ -160,6 +162,25 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_update(
                 &session.mode,
                 &session.shift,
                 &session.types,
+                &flags,
+            );
+            render::smartbar_scene::Smartbar::prepare(
+                &mut session.scene,
+                theme,
+                &render::theme::Request {
+                    element: String::new(),
+                    mode: session.mode.clone(),
+                    shift: session.shift.clone(),
+                    code: 0,
+                    key_type: String::new(),
+                    selector: 0,
+                    auto_commit: false,
+                    popup_source: None,
+                },
+                session
+                    .text
+                    .as_mut()
+                    .ok_or_else(|| illegal("missing system fonts"))?,
                 &flags,
             );
             if let Some(popup) = &session.scene.popup {
@@ -319,6 +340,11 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_frame(
     // SAFETY: synchronized wrapper owns the handle during the call.
     unsafe {
         handle::with_locked::<Session, _>(env, native, "renderer", (), |s, _| {
+            if let Some(bar) = &mut s.scene.smartbar
+                && bar.actions.iter().any(|a| a.warming)
+            {
+                bar.phase = (time % 900_000_000) as f32 / 900_000_000.0;
+            }
             #[cfg(target_os = "android")]
             if let Some(worker) = &s.worker {
                 worker.submit(s.scene.clone(), s.touch_time, time);

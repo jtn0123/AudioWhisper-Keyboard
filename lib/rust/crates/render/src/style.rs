@@ -15,6 +15,9 @@ pub struct Style {
     pub corners: [f32; 4],
     pub percent: bool,
     pub mono: bool,
+    pub weight: i32,
+    pub margin: [f32; 4],
+    pub padding: [f32; 4],
 }
 impl Default for Style {
     fn default() -> Self {
@@ -27,6 +30,9 @@ impl Default for Style {
             corners: [0.0; 4],
             percent: false,
             mono: false,
+            weight: 400,
+            margin: [0.0; 4],
+            padding: [0.0; 4],
         }
     }
 }
@@ -48,10 +54,20 @@ impl Style {
                 Some(Value::Dimension(Unit::Dp, n)) => (n * density).max(0.0),
                 _ => 0.0,
             },
-            // Only the platform sans/monospace regular faces are supplied today. Custom
-            // families and non-regular weights explicitly use system sans regular.
-            mono: matches!(value("font-family"), Some(Value::Enum(Encoder::GenericFont, n)) if *n == text("monospace"))
-                && !matches!(value("font-weight"), Some(Value::FontWeight(w)) if *w != 400),
+            // Fontique selects real system faces or variable-font weight instances.
+            mono: matches!(value("font-family"), Some(Value::Enum(Encoder::GenericFont, n)) if *n == text("monospace")),
+            weight: match value("font-weight") {
+                Some(Value::FontWeight(w)) => *w,
+                _ => 400,
+            },
+            margin: match value("margin") {
+                Some(Value::Padding(a)) => a.map(|v| (v * density).round()),
+                _ => [0.0; 4],
+            },
+            padding: match value("padding") {
+                Some(Value::Padding(a)) => a.map(|v| (v * density).round()),
+                _ => [0.0; 4],
+            },
             ..Self::default()
         };
         if let Some(Value::Shape(kind, corners)) = value("shape") {

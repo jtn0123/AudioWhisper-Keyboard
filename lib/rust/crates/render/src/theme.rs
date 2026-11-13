@@ -84,12 +84,21 @@ impl Theme {
             "root" => None,
             "window" => Some("root"),
             "key-hint" => Some("key"),
-            "smartbar-candidates-row" => Some("smartbar"),
+            "smartbar-candidates-row"
+            | "smartbar-shared-actions-toggle"
+            | "smartbar-extended-actions-toggle"
+            | "smartbar-shared-actions-row"
+            | "smartbar-extended-actions-row" => Some("smartbar"),
+            "smartbar-action-key" => Some("smartbar-shared-actions-row"),
+            "smartbar-action-key-icon" | "smartbar-action-key-text" => Some("smartbar-action-key"),
             "smartbar-candidate-word" | "smartbar-candidate-clip" => {
                 Some("smartbar-candidates-row")
             }
             "smartbar-candidate-word-text" => Some("smartbar-candidate-word"),
-            "smartbar-candidate-clip-text" => Some("smartbar-candidate-clip"),
+            "smartbar-candidate-clip-text"
+            | "smartbar-candidate-clip-icon"
+            | "smartbar-candidate-clip-secondary-text" => Some("smartbar-candidate-clip"),
+            "smartbar-candidate-word-secondary-text" => Some("smartbar-candidate-word"),
             "key-popup-element" => Some("key-popup-box"),
             _ => Some("window"),
         };

@@ -162,7 +162,7 @@ fn extension_source_replacement_and_stateful_geometry_use_resolved_styles() {
 }
 
 #[test]
-fn unsupported_fonts_explicitly_select_regular_system_sans() {
+fn unsupported_families_fall_back_but_weights_select_real_faces() {
     use snygg::value::Encoder;
     let mono = (
         text("font-family"),
@@ -175,14 +175,13 @@ fn unsupported_fonts_explicitly_select_regular_system_sans() {
     ] {
         assert!(!Style::from_properties(&vec![(text("font-family"), family)], 1.0, 1.0).mono);
     }
-    assert!(
-        !Style::from_properties(
-            &vec![mono, (text("font-weight"), Value::FontWeight(700))],
-            1.0,
-            1.0
-        )
-        .mono
+    let bold = Style::from_properties(
+        &vec![mono, (text("font-weight"), Value::FontWeight(700))],
+        1.0,
+        1.0,
     );
+    assert!(bold.mono);
+    assert_eq!(bold.weight, 700);
 }
 
 #[test]

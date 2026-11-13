@@ -20,6 +20,9 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.runtime.LaunchedEffect
+import dev.patrickgold.florisboard.ime.nlp.NlpInlineAutofill
+import dev.patrickgold.florisboard.nlpManager
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.collectAsState
@@ -59,6 +62,9 @@ fun TextInputLayout(
     val evaluator by keyboardManager.activeEvaluator.collectAsState()
     val rustPrototype by prefs.keyboard.rustRendererPrototype.observeAsState()
 
+    val inline by NlpInlineAutofill.suggestions.collectAsState()
+    val nlp by context.nlpManager()
+    LaunchedEffect(inline) { nlp.autoExpandCollapseSmartbarActions(null, inline) }
     InlineSuggestionsStyleCache()
 
     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
@@ -68,7 +74,7 @@ fun TextInputLayout(
                 .wrapContentHeight(),
         ) {
             val typingGifSearch by GifSearch.typing.collectAsState()
-            if (rustPrototype && evaluator.keyboard.mode == KeyboardMode.CHARACTERS && !typingGifSearch && !state.isActionsOverflowVisible) {
+            if (rustPrototype && evaluator.keyboard.mode == KeyboardMode.CHARACTERS && !typingGifSearch && !state.isActionsOverflowVisible && inline.isEmpty()) {
                 RustKeyboardLayout(evaluator)
             } else {
                 if (typingGifSearch) GifSearchBar() else Smartbar()

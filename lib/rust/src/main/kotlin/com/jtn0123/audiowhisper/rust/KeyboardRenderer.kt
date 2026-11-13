@@ -14,6 +14,9 @@ class KeyboardRenderer(fontPaths: Array<String>) : AutoCloseable {
         RenderNative.update(handle, dimensions, metadata, candidateFlags, geometry, labels, candidates)
 
     @Synchronized
+    fun smartbar(config: FloatArray, codes: IntArray, labels: Array<String>) = RenderNative.smartbar(handle, config, codes, labels)
+
+    @Synchronized
     fun touch(metadata: IntArray, times: LongArray, coords: FloatArray): IntArray =
         RenderNative.touch(handle, metadata, times, coords)
 
@@ -45,10 +48,18 @@ internal object RenderNative {
     external fun create(fontPaths: Array<String>): Long
     external fun theme(handle: Long, json: String, names: Array<String>, colors: IntArray, scale: FloatArray)
     external fun update(handle: Long, dimensions: FloatArray, metadata: Array<String>, candidateFlags: IntArray, geometry: FloatArray, labels: Array<String>, candidates: Array<String>)
+    external fun smartbar(handle: Long, config: FloatArray, codes: IntArray, labels: Array<String>)
     external fun touch(handle: Long, metadata: IntArray, times: LongArray, coords: FloatArray): IntArray
     external fun popup(handle: Long, key: Int, labels: Array<String>, codes: IntArray)
     external fun attach(handle: Long, surface: Any, hybrid: Boolean)
     external fun frame(handle: Long, time: Long)
     external fun detach(handle: Long)
     external fun close(handle: Long)
+}
+
+/** Compose-compatible measurement; values are physical pixels, ids are platform action handles. */
+object SmartbarRules {
+    init { RustLibrary.load() }
+    external fun layout(config: FloatArray, width: Float, intrinsic: FloatArray): FloatArray
+    external fun ellipsis(advances: FloatArray, width: Float): Int
 }

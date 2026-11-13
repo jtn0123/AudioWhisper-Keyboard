@@ -13,9 +13,9 @@ use vello_cpu::{
 };
 
 pub struct Raster {
-    text: Text,
-    layouts: HashMap<(String, u32, bool), Layout<()>>,
-    context: crate::backend::Backend,
+    pub(crate) text: Text,
+    layouts: HashMap<(String, u32, bool, i32), Layout<()>>,
+    pub(crate) context: crate::backend::Backend,
     pixmap: Pixmap,
     profiling: bool,
     profile: Profile,
@@ -115,7 +115,7 @@ impl Raster {
                 bottom: r.bottom + scene.strip,
                 ..r
             };
-            let margin = key.styles.iter().map(|s| s.shadow).fold(0.0, f32::max) * 4.0;
+            let margin = key.styles.iter().map(|s| s.shadow).fold(0.0, f32::max) * 6.0;
             if r.right + margin < damage.left
                 || r.left - margin > damage.right
                 || r.bottom + margin < damage.top
@@ -126,21 +126,16 @@ impl Raster {
             let pressed = usize::from(scene.pressed.contains(&i));
             let style = &key.styles[pressed];
             let hint = &key.hints[pressed];
-            if style.shadow > 0.0 {
-                self.context.set_paint(color(0x33000000));
-                self.context.fill_blurred_rounded_rect(
-                    &vello_cpu::kurbo::Rect::new(
-                        r.left as f64,
-                        (r.top + style.shadow * 0.5) as f64,
-                        r.right as f64,
-                        (r.bottom + style.shadow * 0.5) as f64,
-                    ),
-                    style.radii(r.width(), r.height())[0],
-                    style.shadow * 0.75,
-                );
-            }
+            self.shadow(r, style);
             self.box_at(r, style);
-            self.label(&key.label, style.size, style.foreground, r, style.mono)?;
+            self.label(
+                &key.label,
+                style.size,
+                style.foreground,
+                r,
+                style.mono,
+                style.weight,
+            )?;
             if !key.icon.is_empty() {
                 let path = vello_cpu::kurbo::BezPath::from_svg(&key.icon)
                     .map_err(|_| "invalid icon path".to_owned())?;
@@ -165,6 +160,7 @@ impl Raster {
                         ..r
                     },
                     hint.mono,
+                    hint.weight,
                 )?;
             }
         }
@@ -179,13 +175,16 @@ impl Raster {
                 &scene.strip_style,
             );
         }
+        if damage.top < scene.strip {
+            self.smartbar(scene)?;
+        }
         // Colour glyph preparation is substantial work even when all of its pixels are clipped.
         // A key-only update must not rebuild the unchanged COLR/CBDT candidate strip.
         for (i, candidate) in scene
             .candidates
             .iter()
             .enumerate()
-            .filter(|_| damage.top < scene.strip)
+            .filter(|_| damage.top < scene.strip && scene.smartbar.is_none())
         {
             let width = scene.width as f32 / scene.candidates.len() as f32;
             self.context.push_clip_rect(&vello_cpu::kurbo::Rect::new(
@@ -213,6 +212,7 @@ impl Raster {
                 style.text.foreground,
                 r,
                 style.text.mono,
+                style.text.weight,
             )?;
             self.context.pop_clip();
         }
@@ -231,7 +231,14 @@ impl Raster {
                     .map(|s| &s[usize::from(i == popup.selected)])
                     .unwrap_or(&scene.popup_style);
                 self.box_at(r, style);
-                self.label(label, style.size, style.foreground, r, style.mono)?;
+                self.label(
+                    label,
+                    style.size,
+                    style.foreground,
+                    r,
+                    style.mono,
+                    style.weight,
+                )?;
             }
         }
         self.context.pop_clip();
@@ -242,7 +249,7 @@ impl Raster {
         Ok(())
     }
 
-    fn box_at(&mut self, r: Rect, style: &Style) {
+    pub(crate) fn box_at(&mut self, r: Rect, style: &Style) {
         self.context.set_paint(color(style.background));
         let c = style.radii(r.width(), r.height());
         let shape = RoundedRect::new(
@@ -289,13 +296,14 @@ impl Raster {
         self.context.fill_path(&path);
     }
 
-    fn label(
+    pub(crate) fn label(
         &mut self,
         text: &str,
         size: f32,
         argb: u32,
         r: Rect,
         mono: bool,
+        weight: i32,
     ) -> Result<(), String> {
         if text.is_empty() {
             return Ok(());
@@ -305,14 +313,14 @@ impl Raster {
             self.layouts.clear();
         }
         let allocation = self.profiling.then(Instant::now);
-        let key = (text.to_owned(), size.to_bits(), mono);
+        let key = (text.to_owned(), size.to_bits(), mono, weight);
         self.profile.alloc_ns += elapsed(allocation);
         self.profile.alloc_sites += u32::from(self.profiling);
         let shape = self.profiling.then(Instant::now);
         let mut missed = false;
         let layout = self.layouts.entry(key).or_insert_with(|| {
             missed = true;
-            self.text.layout_style(text, size, mono)
+            self.text.layout_weight(text, size, mono, weight)
         });
         self.profile.shape_ns += elapsed(shape);
         self.profile.layout_misses += u32::from(missed && self.profiling);
@@ -361,7 +369,7 @@ impl Raster {
     }
 }
 
-fn color(argb: u32) -> AlphaColor<vello_cpu::peniko::color::Srgb> {
+pub(crate) fn color(argb: u32) -> AlphaColor<vello_cpu::peniko::color::Srgb> {
     AlphaColor::from_rgba8(
         (argb >> 16) as u8,
         (argb >> 8) as u8,

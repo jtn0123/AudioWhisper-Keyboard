@@ -23,6 +23,7 @@ mod panic;
 mod popup;
 mod reader;
 mod render;
+mod render_smartbar;
 mod render_theme;
 #[cfg(target_os = "android")]
 mod render_window;

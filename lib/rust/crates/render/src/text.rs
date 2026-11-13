@@ -5,6 +5,7 @@ use parley::{FontContext, Layout, LayoutContext, StyleProperty};
 /// Reused shaping resources, with fonts supplied by the platform host.
 pub struct Text {
     fonts: FontContext,
+    widths: std::collections::HashMap<(String, u32, bool, i32), f32>,
     context: LayoutContext<()>,
 }
 
@@ -63,21 +64,40 @@ impl Text {
         }
         Self {
             fonts: context,
+            widths: Default::default(),
             context: LayoutContext::new(),
         }
     }
 
+    pub fn measure(&mut self, text: &str, size: f32, mono: bool, weight: i32) -> f32 {
+        let key = (text.to_owned(), size.to_bits(), mono, weight);
+        if let Some(width) = self.widths.get(&key) {
+            return *width;
+        }
+        if self.widths.len() >= 256 {
+            self.widths.clear();
+        }
+        let width = self.layout_weight(text, size, mono, weight).width().ceil();
+        self.widths.insert(key, width);
+        width
+    }
     pub fn layout(&mut self, text: &str, size: f32) -> Layout<()> {
         self.layout_style(text, size, false)
     }
 
     pub fn layout_style(&mut self, text: &str, size: f32, mono: bool) -> Layout<()> {
+        self.layout_weight(text, size, mono, 400)
+    }
+
+    pub fn layout_weight(&mut self, text: &str, size: f32, mono: bool, weight: i32) -> Layout<()> {
         let mut builder = self
             .context
             .ranged_builder(&mut self.fonts, text, 1.0, true);
         builder.push_default(StyleProperty::FontSize(size));
-        // Unsupported theme families/weights have already selected the regular system
-        // fallback in Style; always request its public generic explicitly.
+        builder.push_default(StyleProperty::FontWeight(parley::FontWeight::new(
+            weight as f32,
+        )));
+        // Generic families contain Android-supplied real faces and variable fonts.
         builder.push_default(StyleProperty::FontFamily(parley::FontFamily::Source(
             if mono { "monospace" } else { "sans-serif" }.into(),
         )));

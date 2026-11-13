@@ -37,17 +37,19 @@ pub struct Action(pub i32, pub i32, pub i32);
 #[derive(Debug, Default)]
 pub struct Touch {
     pointers: BTreeMap<i32, usize>,
+    bar: crate::smartbar_touch::BarTouch,
 }
 const OUTSIDE: usize = usize::MAX;
 
 impl Touch {
     pub fn cancel(&mut self, scene: &mut Scene) -> Vec<Action> {
-        let result = self
+        let mut result: Vec<_> = self
             .pointers
             .iter()
             .filter(|(_, key)| **key < scene.keys.len())
             .map(|(&id, &key)| Action(2, key as i32, id))
             .collect();
+        result.extend(self.bar.cancel(scene));
         self.pointers.clear();
         scene.pressed.clear();
         scene.candidate_pressed.clear();
@@ -63,15 +65,17 @@ impl Touch {
         if !event.valid() {
             return self.cancel(scene);
         }
+        if event.action == 0 {
+            actions.extend(self.cancel(scene));
+        }
+        actions.extend(self.bar.event(scene, event));
         let current = event.coords.len() - event.ids.len() * 2;
         let id = event.ids[event.index];
         let x = event.coords[current + event.index * 2];
         let y = event.coords[current + event.index * 2 + 1];
         match event.action {
             0 | 5 => {
-                if event.action == 0 {
-                    actions.extend(self.cancel(scene));
-                } else {
+                if event.action != 0 {
                     // Compose commits active character keys before a rolling second finger
                     // goes down, while retaining held modifiers such as Shift.
                     let released: Vec<_> = self
@@ -99,7 +103,12 @@ impl Touch {
                         actions.push(Action(2, old as i32, id));
                     }
                     actions.push(Action(0, key as i32, id));
-                } else if let Some(choice) = scene.candidate_at(x, y) {
+                } else if scene.smartbar.is_some() && y < scene.strip {
+                    // Smartbar owns this gesture, even when it later leaves the strip.
+                } else if let Some(choice) = scene
+                    .candidate_at(x, y)
+                    .filter(|_| scene.smartbar.is_none())
+                {
                     // Keep the candidate identity from DOWN, rather than accepting an UP from outside.
                     self.pointers.insert(id, scene.keys.len() + choice);
                 } else {
@@ -184,6 +193,7 @@ impl Touch {
             .filter(|&&k| k >= scene.keys.len() && k != OUTSIDE)
             .map(|k| k - scene.keys.len())
             .collect();
+        self.bar.mark(scene);
         actions
     }
 }

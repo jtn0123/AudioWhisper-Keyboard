@@ -34,6 +34,7 @@ pub struct Scene {
     pub strip: f32,
     pub background: u32,
     pub strip_style: Style,
+    pub smartbar: Option<crate::smartbar_scene::Smartbar>,
     pub candidate_styles: Vec<[CandidateStyle; 2]>,
     pub candidate_pressed: Vec<usize>,
     pub popup_style: Style,
@@ -46,6 +47,12 @@ pub struct Scene {
 
 impl Scene {
     pub fn candidate_at(&self, x: f32, y: f32) -> Option<usize> {
+        if let Some(bar) = &self.smartbar {
+            return bar
+                .layout
+                .hit(x, y)
+                .and_then(|(action, id)| (!action).then_some(id));
+        }
         if self.candidates.is_empty()
             || x < 0.0
             || x >= self.width as f32
@@ -95,7 +102,6 @@ impl Scene {
             || self.strip != next.strip
             || self.background != next.background
             || self.strip_style != next.strip_style
-            || self.candidate_styles != next.candidate_styles
             || self.popup_style != next.popup_style
             || self.popup_styles != next.popup_styles
             || self.keys != next.keys
@@ -108,7 +114,11 @@ impl Scene {
             }];
         }
         let mut rects = Vec::new();
-        if self.candidates != next.candidates || self.candidate_pressed != next.candidate_pressed {
+        if self.candidates != next.candidates
+            || self.candidate_pressed != next.candidate_pressed
+            || self.smartbar != next.smartbar
+            || self.candidate_styles != next.candidate_styles
+        {
             rects.push(Rect {
                 left: 0.0,
                 top: 0.0,
@@ -122,7 +132,7 @@ impl Scene {
             }
             if let Some(key) = next.keys.get(i) {
                 let r = key.bounds.visible;
-                let margin = key.styles.iter().map(|s| s.shadow).fold(0.0, f32::max) * 4.0;
+                let margin = key.styles.iter().map(|s| s.shadow).fold(0.0, f32::max) * 6.0;
                 rects.push(Rect {
                     left: r.left - margin,
                     right: r.right + margin,

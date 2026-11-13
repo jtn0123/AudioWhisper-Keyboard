@@ -30,14 +30,14 @@ internal fun systemRendererFonts(): Array<String> {
         it.name.contains("Emoji") -> 1
         it.name.contains("Symbols") -> 2
         else -> 3
-    } }, { it.name })).filter { it.name == "Roboto-Regular.ttf" || it.name.contains("Emoji") || it.name.contains("Symbols") || it.name == "DroidSansMono.ttf" }
+    } }, { it.name })).filter { it.name.startsWith("Roboto") || it.name.contains("Emoji") || it.name.contains("Symbols") || it.name == "DroidSansMono.ttf" }
         .map { it.absolutePath }.toTypedArray()
 }
 
-data class KeyboardSnapshot(
+internal data class KeyboardSnapshot(
     val keyboard: TextKeyboard, val keys: List<TextKey>,
     val candidates: List<SuggestionCandidate>, val theme: RendererTheme, val shift: String,
-    val keyboardHeight: Float, val stripHeight: Float, val rowHeight: Float, val marginH: Float, val marginV: Float,
+    val keyboardHeight: Float, val stripHeight: Float, val rowHeight: Float, val marginH: Float, val marginV: Float, val smartbar: RendererSmartbar, val preview: Boolean,
 )
 
 /** A fresh native worker owns each surface generation. Destruction joins it before releasing its window. */
@@ -53,6 +53,7 @@ class RustKeyboardView(context: Context) : FrameLayout(context), SurfaceHolder.C
     private var liveSurface = false
     private var framePending = false
     private var released = false
+    private val smartbarTouch = RendererSmartbarTouch(this)
     private val prefs by FlorisPreferenceStore
 
     init {
@@ -64,7 +65,7 @@ class RustKeyboardView(context: Context) : FrameLayout(context), SurfaceHolder.C
         isClickable = true
     }
 
-    fun update(value: KeyboardSnapshot) {
+    internal fun update(value: KeyboardSnapshot) {
         if (released) { trace(SurfaceEvent.REJECTED_UPDATE); return }
         if (snapshot?.keyboard !== value.keyboard) {
             cancelInput()
@@ -74,6 +75,7 @@ class RustKeyboardView(context: Context) : FrameLayout(context), SurfaceHolder.C
             native.theme(value.theme.json, value.theme.paletteNames.toTypedArray(), value.theme.paletteColors.toIntArray(),
                 floatArrayOf(value.theme.density, value.theme.fontScale, value.theme.fontMultiplier))
         }
+        smartbarTouch.sync(value)
         snapshot = value
         if (width > 0 && height > 0) updateScene()
     }
@@ -96,10 +98,12 @@ class RustKeyboardView(context: Context) : FrameLayout(context), SurfaceHolder.C
             labels.add(key.hintedLabel ?: "")
             labels.add(key.foregroundImageVector?.let(::iconPath) ?: "")
         }
-        val candidates = s.candidates.map { it.text.toString() }.ifEmpty { rendererEmojiSamples() }
+        val candidates = s.candidates.map { it.text.toString() }.ifEmpty { if (s.preview) emptyList() else rendererEmojiSamples() }
         val flags = if (s.candidates.isEmpty()) IntArray(candidates.size) else s.candidates.map {
             (if (it.isEligibleForAutoCommit) 1 else 0) or (if (it is ClipboardSuggestionCandidate) 2 else 0)
         }.toIntArray()
+        native.smartbar(s.smartbar.config, s.smartbar.codes, s.smartbar.labels + s.candidates.flatMap { listOf(it.icon?.let(::iconPath) ?: "", it.secondaryText?.toString() ?: "") })
+        manager.smartbarVisibleDynamicActionsCount = s.smartbar.measure(width.toFloat())[2].toInt()
         native.update(floatArrayOf(width.toFloat(), height.toFloat(), s.stripHeight),
             metadata.toTypedArray(), flags, geometry, labels.toTypedArray(), candidates.toTypedArray())
         invalidateFrame()
@@ -119,7 +123,10 @@ class RustKeyboardView(context: Context) : FrameLayout(context), SurfaceHolder.C
 
     override fun doFrame(frameTimeNanos: Long) {
         framePending = false
-        if (!released && liveSurface) native.frame(frameTimeNanos)
+        if (!released && liveSurface) {
+            native.frame(frameTimeNanos)
+            if (snapshot?.smartbar?.animating == true) invalidateFrame()
+        }
     }
 
     override fun surfaceCreated(holder: SurfaceHolder) { trace(SurfaceEvent.CREATED) }
@@ -141,6 +148,8 @@ class RustKeyboardView(context: Context) : FrameLayout(context), SurfaceHolder.C
         framePending = false
         if (!released) native.detach()
     }
+
+    override fun dispatchTouchEvent(event: MotionEvent): Boolean = onTouchEvent(event)
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
         if (released || !liveSurface) { trace(SurfaceEvent.REJECTED_TOUCH); return false }
@@ -171,6 +180,7 @@ class RustKeyboardView(context: Context) : FrameLayout(context), SurfaceHolder.C
     private fun dispatch(action: Int, index: Int, pointer: Int, event: MotionEvent) {
         val s = snapshot ?: return
         val dispatcher = manager.inputEventDispatcher
+        if (action >= 5) { smartbarTouch.dispatch(action, index, pointer, s); return }
         when (action) {
             0 -> {
                 val key = s.keys[index]
@@ -208,6 +218,7 @@ class RustKeyboardView(context: Context) : FrameLayout(context), SurfaceHolder.C
     }
 
     private fun cancelInput() {
+        smartbarTouch.cancel()
         for (data in pressed.values) manager.inputEventDispatcher.sendCancel(data)
         pressed.clear()
         popupChoices.clear()
