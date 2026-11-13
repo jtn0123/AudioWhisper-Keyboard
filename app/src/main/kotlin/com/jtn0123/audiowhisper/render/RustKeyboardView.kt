@@ -10,6 +10,7 @@ import android.view.Choreographer
 import android.view.MotionEvent
 import android.view.SurfaceHolder
 import android.view.SurfaceView
+import android.view.accessibility.AccessibilityNodeProvider
 import android.widget.FrameLayout
 import com.jtn0123.audiowhisper.rust.KeyboardRenderer
 import com.jtn0123.audiowhisper.suggest.TapOffset
@@ -23,6 +24,8 @@ import dev.patrickgold.florisboard.ime.text.keyboard.TextKeyData
 import dev.patrickgold.florisboard.ime.text.keyboard.TextKeyboard
 import dev.patrickgold.florisboard.keyboardManager
 import dev.patrickgold.florisboard.nlpManager
+import dev.patrickgold.florisboard.ime.smartbar.quickaction.QuickAction
+import com.jtn0123.audiowhisper.reader.ReadAloud
 
 private const val PROFILE_LOG_TAG = "aw-profile"
 
@@ -42,6 +45,7 @@ internal data class KeyboardSnapshot(
     val keyboard: TextKeyboard, val keys: List<TextKey>,
     val candidates: List<SuggestionCandidate>, val theme: RendererTheme, val shift: String,
     val keyboardHeight: Float, val stripHeight: Float, val rowHeight: Float, val marginH: Float, val marginV: Float, val smartbar: RendererSmartbar, val preview: Boolean,
+    val editorOptions: IntArray,
 )
 
 /** A fresh native worker owns each surface generation. Destruction joins it before releasing its window. */
@@ -70,6 +74,13 @@ class RustKeyboardView(context: Context) : FrameLayout(context), SurfaceHolder.C
         invalidateFrame()
     }
     private val prefs by FlorisPreferenceStore
+    private val accessibilityResources = rendererAccessibilityResources(context)
+    private val accessibility = RendererAccessibility(this, native::semanticSnapshot, { id, action ->
+        val actions = native.semanticAction(id, action)
+        dispatchActions(actions)
+        invalidateFrame()
+        actions.isNotEmpty()
+    }, { dispatchActions(native.semanticCancel()); invalidateFrame() }, { prefs.keyboard.longPressDelay.get().toLong() })
 
     init {
         // Snygg draws the IME background in another SurfaceView at the default media layer.
@@ -78,6 +89,8 @@ class RustKeyboardView(context: Context) : FrameLayout(context), SurfaceHolder.C
         addView(surface, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
         surface.holder.addCallback(this)
         isClickable = true
+        importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_YES
+        surface.importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO
     }
 
     internal fun update(value: KeyboardSnapshot) {
@@ -130,6 +143,11 @@ class RustKeyboardView(context: Context) : FrameLayout(context), SurfaceHolder.C
         native.update(floatArrayOf(width.toFloat(), height.toFloat(), s.stripHeight, desired.visibleBounds.width, desired.visibleBounds.height),
             metadata.toTypedArray(), flags, geometry, labels.toTypedArray(), candidates.toTypedArray())
         candidateBindings.bind(native, s.candidates)
+        native.semanticConfig(accessibilityResources.first, accessibilityResources.second,
+            s.smartbar.actions.map { (it as? QuickAction.InsertText)?.data ?: "" }.toTypedArray(),
+            s.keys.map { if (it.computedPopups.getPopupKeys(prefs.keyboard.keyHintConfiguration()).isNotEmpty()) 1 else 0 }.toIntArray(),
+            s.candidates.map { if (it.isEligibleForUserRemoval) 1 else 0 }.toIntArray(), s.smartbar.checkedCodes, s.editorOptions)
+        accessibility.refresh()
         gestureHost.layout(s)
         attachIfReady()
         invalidateFrame()
@@ -147,6 +165,7 @@ class RustKeyboardView(context: Context) : FrameLayout(context), SurfaceHolder.C
     }
 
     private fun invalidateFrame() {
+        if (!released && snapshot != null) accessibility.refresh()
         if (!released && liveSurface && !framePending) {
             framePending = true
             choreographer.postFrameCallback(this)
@@ -187,9 +206,12 @@ class RustKeyboardView(context: Context) : FrameLayout(context), SurfaceHolder.C
     }
 
     override fun dispatchTouchEvent(event: MotionEvent): Boolean = onTouchEvent(event)
+    override fun getAccessibilityNodeProvider(): AccessibilityNodeProvider = accessibility
+    override fun dispatchHoverEvent(event: MotionEvent): Boolean = accessibility.hover(event) || super.dispatchHoverEvent(event)
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
         if (released || !liveSurface) { trace(SurfaceEvent.REJECTED_TOUCH); return false }
+        if (accessibility.touch(event)) return true
         val pointers = event.pointerCount
         val metadata = IntArray(2 + pointers)
         metadata[0] = event.actionMasked
@@ -228,6 +250,7 @@ class RustKeyboardView(context: Context) : FrameLayout(context), SurfaceHolder.C
     private fun dispatch(action: Int, index: Int, pointer: Int, event: MotionEvent?) {
         val s = snapshot ?: return
         val dispatcher = manager.inputEventDispatcher
+        if (action == ACCESS_READ_TOP) { ReadAloud.read(context, ReadAloud.From.Top); return }
         if (action >= GLIDE_POINT && action != OPEN_POPUP) { gestureHost.dispatch(action, index, pointer); return }
         if (action in BAR_DOWN until GLIDE_POINT) { smartbarTouch.dispatch(action, index, pointer, s); return }
         when (action) {
@@ -277,6 +300,8 @@ class RustKeyboardView(context: Context) : FrameLayout(context), SurfaceHolder.C
     }
 
     private fun cancelInput() {
+        accessibility.clear()
+        dispatchActions(native.semanticCancel())
         removeCallbacks(deadlineWakeup)
         dispatchActions(native.touch(intArrayOf(MotionEvent.ACTION_CANCEL, 0), longArrayOf(), floatArrayOf()))
         smartbarTouch.cancel()
@@ -311,6 +336,7 @@ class RustKeyboardView(context: Context) : FrameLayout(context), SurfaceHolder.C
         trace(SurfaceEvent.RELEASE)
         if (released) return
         cancelInput()
+        accessibility.release()
         liveSurface = false
         choreographer.removeFrameCallback(this)
         surface.holder.removeCallback(this)

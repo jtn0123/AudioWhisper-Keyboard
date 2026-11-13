@@ -41,6 +41,7 @@ internal data class RendererSmartbar(
     val labels: Array<String>,
     val tooltips: List<String>,
     val animating: Boolean,
+    val checkedCodes: IntArray,
     val toggle: () -> Unit,
 ) {
     fun measure(width: Float) = SmartbarRules.layout(config, width, floatArrayOf())
@@ -100,7 +101,9 @@ internal fun rendererSmartbar(preview: Boolean): RendererSmartbar = with(LocalDe
     RendererSmartbar(floatArrayOf(if (enabled) 1f else 0f, layout.ordinal.toFloat(), if (flip) 1f else 0f,
         if (shared && !preview) 1f else 0f, if (extended) 1f else 0f, placement.ordinal.toFloat(), if (speaker) 1f else 0f,
         if (arrangement.stickyAction != null) 1f else 0f, arrangement.dynamicActions.size.toFloat(),
-        display.ordinal.toFloat(), density, FlorisImeSizing.smartbarHeight.toPx()), actions, codes, labels, tooltips, warming) {
+        display.ordinal.toFloat(), density, FlorisImeSizing.smartbarHeight.toPx()), actions, codes, labels, tooltips, warming,
+        listOfNotNull(KeyCode.TOGGLE_INCOGNITO_MODE.takeIf { evaluator.state.isIncognitoMode },
+            KeyCode.TOGGLE_COMPACT_LAYOUT.takeIf { prefs.keyboard.oneHandedModeEnabled.get() }).toIntArray()) {
         if (expanded) manager.activeState.isActionsOverflowVisible = false
         scope.launch {
             if (layout == SmartbarLayout.SUGGESTIONS_ACTIONS_EXTENDED) prefs.smartbar.extendedActionsExpanded.set(!extended)

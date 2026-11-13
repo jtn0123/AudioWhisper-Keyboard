@@ -1,5 +1,140 @@
 # Stage 3B renderer results
 
+## Stage 3B package 4: accessibility implementation (2026-11-13)
+
+The default-off renderer now supplies a Rust semantic scene and an Android
+`AccessibilityNodeProvider`. **Runtime accessibility acceptance remains open.** The device
+command failed twice before installing this package, and device validation stopped under
+the requested failure rule. No Compose/Rust tree parity or TalkBack interaction result is
+claimed. Compose remains the default.
+
+### Semantic scene and host
+
+`render::accessibility` describes physical key slots, visible smartbar action slots,
+clipped candidates and open popup choices. Each node has a stable virtual ID, scene
+bounds, label/content description, role, enabled/pressed/selected/checked/locked state and
+supported actions. Key IDs survive casing and mode changes; bar IDs follow configured
+slots; candidate IDs use opaque object identity tokens, without hashing their text; popup
+IDs include the source slot and choice index. Candidate tokens are no longer recycled on
+surface recreation. Popup ordering/geometry comes from the existing popup grid and its
+UI-to-flat choice mapping. No-op layout spacers are not interactive nodes.
+
+Rust selects all names and action labels, including smartbar lit mic/speaker names and
+read-from-top, complete InsertText action text, expand/collapse names, shift/caps-lock
+states, spoken punctuation, keyboard modes and Enter's IME action. Android transports a
+static resource table and raw editor options; it contains no node labelling rules. Existing
+English resources remain the source for Compose smartbar names. The app is English-only;
+new fallback key strings are Android resources too. Existing autocorrect's placeholder
+handler remains a placeholder; its toggle does not invent an enabled state.
+
+The Compose source audit covered `TextKeyboardLayout`, `QuickActionButton`,
+`QuickAction.computeDisplayName`, `CandidatesRow`, `Smartbar` and the Snygg primitives.
+Key glyph/hint text can contribute text leaves, but keys have no merged key semantics or
+semantic activation action and their icons explicitly have null content descriptions.
+Smartbar buttons specify Role.Button and contentDescription, candidates supply primary
+and secondary text, and expansion controls have no explicit description. Rust uses those
+existing labels, with LatinIME-style fallbacks where descriptions are absent; it adds
+explicit key actions and toggle state. The fallback conventions were checked against
+[AOSP KeyCodeDescriptionMapper](https://android.googlesource.com/platform/packages/inputmethods/LatinIME/+/refs/heads/main/java/src/com/android/inputmethod/accessibility/KeyCodeDescriptionMapper.java).
+This source audit is not a measured tree comparison.
+
+The Android provider translates virtual nodes, accessibility focus/actions and hover/touch
+events. Explore-by-touch focuses a hovered node; a lift within that node activates it,
+while leaving the viewport cancels. Click and double-tap/hold route through Rust action
+packets into the existing InputEventDispatcher, QuickAction and candidate handlers, without
+starting glide recognition from hover. Popup choices support selection and dismissal;
+focus enters the selected choice and returns to the originating key, or the nearest
+surviving key/control when necessary. Only changed virtual nodes receive content events. Mode and
+shift state events use fixed native labels; content-change events carry no text. Candidate
+and key text is exposed for intentional focus/hover, never logged. Snapshot transport is
+inactive while accessibility is disabled, except for an explicit tree query. Released
+providers stop querying native handles.
+
+### Match tests and mutation
+
+`RendererAccessibilityMatchTest` compares the native labelling functions used by the scene
+with a frozen, test-only Kotlin transcription of Compose's smartbar rules and the agreed
+LatinIME key fallback. It visits all **132 retained keyboard JSON files**, including every
+retained layout and popup mapping: **5,659 key/popup leaves × four shift states = 22,636
+cases**. Auto-text leaves supply lower/upper display casing. This is leaf-label coverage,
+not a replay of every assembled keyboard's geometry or every selector combination. Separate
+cases compare all 25 Compose quick-action mappings, three lit states and complete InsertText
+labels, plus the real snapshot/action JNI path, localization, stable IDs and popup mapping.
+
+Four native tests cover shift on/locked, symbols, labels, roles, disabled/pressed/checked
+state, smartbar expansion, candidate identity across reordering, localization, exact popup
+grid bounds/choice ordering, popup dismissal, candidate clipping, mode labels and all Enter
+IME actions with multiline/no-enter overrides. Existing renderer/input tests remain enabled.
+
+The intentional mutation changed Rust's `Shift enabled` fallback to `Broken shift`.
+The JVM match suite failed at fixture 1586 in shifted_manual, with expected/actual labels
+and **Gradle exit 1**. It was restored. Evidence is under ignored `build/stage3b4/`:
+`mutation.log`, `mutation.exit`, `mutation-result.xml`, and the restored match/gate reports.
+
+### Device validation boundary
+
+Only `aw_keyboard`, runtime **emulator-5556**, was opened; emulator-5554 was not used.
+DND was turned off and streams 1/2/3/5 muted, with alarm stream 4 at minimum 1.
+Accessibility stream 10 rejected index 0 because its allowed range is 1–15. TalkBack
+**16.0.0.738667889** is installed, but it was never enabled and no speech was played.
+
+Opening TalkBack settings through the returned agent-device command failed with
+`Error (COMMAND_FAILED): adb exited with code 1`. Its suggested `--debug` retry failed
+again. Diagnostics show the command expanded the supplied activity into the nonexistent
+`com.google.android.marvin.talkback.com.android.talkback.TalkBackPreferencesActivity`
+(`Error type 3`). Device work stopped at that point as instructed; no alternate UI route
+or direct adb launch was attempted. The final APK has not been installed on this AVD.
+
+| Requested state | Compose tree | Rust tree | Node count / labels / roles / bounds |
+|---|---|---|---|
+| Letters | Not captured | Not captured | Unmeasured: device command failure. |
+| Shifted | Not captured | Not captured | Unmeasured: device command failure. |
+| Caps lock | Not captured | Not captured | Unmeasured: device command failure. |
+| Symbols | Not captured | Not captured | Unmeasured: device command failure. |
+| Smartbar expanded | Not captured | Not captured | Unmeasured: device command failure. |
+| Long-press popup | Not captured | Not captured | Unmeasured: device command failure. |
+
+TalkBack explore/lift word entry, shift, accent selection and smartbar activation were
+not exercised on either renderer. The fallback hover-injection checks and the fresh
+TalkBack-off 300-press/eight-hold replay are also missing. The expected existing digests
+remain `809d588bf48a1e900159a2692fc202c6a7d10d95dfdcc48767851aaa041ef7d3` and
+`c14d19d26f290a2478c424ae4fb4a4f28f538a5677f12491d526554126cbc555`;
+**neither was reverified for this package**.
+
+The pre-install logcat scan contained 11 AndroidRuntime shell startup/exit informational
+or debug lines and no FATAL or error-level AndroidRuntime entry. That is baseline evidence,
+not a runtime check of this implementation. Cleanup confirmed prototype false,
+`ALWAYS_DAY`, `org.florisboard.themes:floris_day`, accessibility services unchanged at
+`null` (TalkBack off), DND off, and no installed probe app. The runtime device was closed
+with `shutdown: true`. Local evidence: `device-cleanup.json`, `baseline-runtime-errors.txt`.
+
+### Local gate and source accounting
+
+The exact required command exited **0**, `BUILD SUCCESSFUL in 1m 27s`, with 345 tasks
+(22 executed, 323 up-to-date):
+
+```sh
+./gradlew --stacktrace test :app:lintDebug :lib:rust:check :lib:rust:oracleCheck assembleDebug
+```
+
+The shell recorded Gradle's own status without a pipe in `accepted-gate.exit`; output is
+`accepted-gate.log`. All JVM/native tests, rustfmt, clippy with `-D warnings`, C++ oracle
+checks, Android lint and assembly passed. Lint contains exactly AndroidGradlePluginVersion,
+NewerVersionAvailable and ChromeOsAbiSupport; the Rust module has no lint findings. Earlier
+full gates also passed; the accepted run follows the final provider lifecycle/focus fixes.
+
+Relative to `d7b21e29`, nonblank non-test production source removes **3 Kotlin lines**
+and adds **389** (net **+386**); Rust adds **608** and removes **2** (net **+606**).
+The platform accessibility bridge grows Kotlin; no Compose fallback is removed in this
+package. Totals under the plan's exclusions are 53,895 Kotlin, 35,348 Rust and 627 Java.
+All changed source files, including tests, are at most **377 lines**. No new suppressions,
+allow attributes, baselines, ignored/deleted tests, screenshots, dumps, build outputs or
+local settings are committed. Source accounting is in `source-count.json`.
+
+Hosted CI is blocked by the account billing limit before job steps start. Its new run's
+state is reported with the pushed implementation handoff; local Gradle is the acceptance
+gate authorized for this package. Device accessibility acceptance remains open above.
+
 ## Stage 3B package 3: touch parity and the glide trail (2026-11-13)
 
 The default-off prototype now recognizes keyboard and smartbar gestures in Rust. Kotlin

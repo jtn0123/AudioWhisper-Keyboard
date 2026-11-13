@@ -20,5 +20,6 @@ internal class RendererCandidateBindings {
         objects.keys.retainAll(retained)
         identities.entries.removeAll { it.value !in retained }
     }
-    fun clear() { objects.clear(); identities.clear(); next = 0 }
+    // Do not recycle a virtual candidate id after surface recreation while TalkBack retains it.
+    fun clear() { objects.clear(); identities.clear() }
 }

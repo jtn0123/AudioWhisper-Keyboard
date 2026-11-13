@@ -66,7 +66,7 @@ fun RustKeyboardLayout(evaluator: ComputingEvaluator) = with(LocalDensity.curren
             update = { view ->
                 view.update(KeyboardSnapshot(keyboard, keys, if (preview.isEmpty()) candidates else emptyList(), theme,
                     evaluator.state.inputShiftState.toString(), heightPx, stripPx, rowHeight, marginH, marginV,
-                    smartbar, preview.isNotEmpty()))
+                    smartbar, preview.isNotEmpty(), intArrayOf(evaluator.editorInfo.imeOptions.raw, evaluator.editorInfo.inputAttributes.raw)))
             },
         )
         if (preview.isNotEmpty()) {
