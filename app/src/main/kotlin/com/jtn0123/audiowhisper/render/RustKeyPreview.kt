@@ -31,6 +31,6 @@ internal fun RustKeyPreview(code: Int, type: String, label: String, icon: ImageV
             Bitmap.createBitmap(pixels.copyOfRange(2, pixels.size), pixels[0], pixels[1], Bitmap.Config.ARGB_8888).asImageBitmap()
         }
     }
-    Image(bitmap, contentDescription = null,
+    Image(bitmap, contentDescription = label.takeIf { icon == null && it.isNotEmpty() },
         modifier = Modifier.size((bitmap.width / density.density).dp, (bitmap.height / density.density).dp))
 }
