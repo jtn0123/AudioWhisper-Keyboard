@@ -1,3 +1,4 @@
+// Former JNI adapter retained solely for the existing spacing differential suites.
 package dev.patrickgold.florisboard.ime.editor
 
 import com.jtn0123.audiowhisper.rust.SpacingRules

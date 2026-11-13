@@ -10,6 +10,7 @@ default-members = [
     "crates/dictation",
     "crates/emoji",
     "crates/extensions",
+    "crates/editor",
     "crates/gestures",
     "crates/gif",
     "crates/glide",

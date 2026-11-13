@@ -17,6 +17,7 @@
 package dev.patrickgold.florisboard.ime.editor
 
 import android.text.InputType
+import com.jtn0123.audiowhisper.rust.EditorAttributes
 import android.view.inputmethod.EditorInfo
 
 /**
@@ -25,70 +26,18 @@ import android.view.inputmethod.EditorInfo
  *
  * @see EditorInfo.inputType for mask table
  */
-@JvmInline
-value class InputAttributes private constructor(val raw: Int) {
-    val type: Type
-        get() = Type.fromInt(raw and InputType.TYPE_MASK_CLASS)
-
-    val variation: Variation
-        get() = when (type) {
-            Type.DATETIME -> when (raw and InputType.TYPE_MASK_VARIATION) {
-                InputType.TYPE_DATETIME_VARIATION_DATE -> Variation.DATE
-                InputType.TYPE_DATETIME_VARIATION_NORMAL -> Variation.NORMAL
-                InputType.TYPE_DATETIME_VARIATION_TIME -> Variation.TIME
-                else -> Variation.NORMAL
-            }
-            Type.NUMBER -> when (raw and InputType.TYPE_MASK_VARIATION) {
-                InputType.TYPE_NUMBER_VARIATION_NORMAL -> Variation.NORMAL
-                InputType.TYPE_NUMBER_VARIATION_PASSWORD -> Variation.PASSWORD
-                else -> Variation.NORMAL
-            }
-            Type.TEXT -> when (raw and InputType.TYPE_MASK_VARIATION) {
-                InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS -> Variation.EMAIL_ADDRESS
-                InputType.TYPE_TEXT_VARIATION_EMAIL_SUBJECT -> Variation.EMAIL_SUBJECT
-                InputType.TYPE_TEXT_VARIATION_FILTER -> Variation.FILTER
-                InputType.TYPE_TEXT_VARIATION_LONG_MESSAGE -> Variation.LONG_MESSAGE
-                InputType.TYPE_TEXT_VARIATION_NORMAL -> Variation.NORMAL
-                InputType.TYPE_TEXT_VARIATION_PASSWORD -> Variation.PASSWORD
-                InputType.TYPE_TEXT_VARIATION_PERSON_NAME -> Variation.PERSON_NAME
-                InputType.TYPE_TEXT_VARIATION_PHONETIC -> Variation.PHONETIC
-                InputType.TYPE_TEXT_VARIATION_POSTAL_ADDRESS -> Variation.POSTAL_ADDRESS
-                InputType.TYPE_TEXT_VARIATION_SHORT_MESSAGE -> Variation.SHORT_MESSAGE
-                InputType.TYPE_TEXT_VARIATION_URI -> Variation.URI
-                InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD -> Variation.VISIBLE_PASSWORD
-                InputType.TYPE_TEXT_VARIATION_WEB_EDIT_TEXT -> Variation.WEB_EDIT_TEXT
-                InputType.TYPE_TEXT_VARIATION_WEB_EMAIL_ADDRESS -> Variation.WEB_EMAIL_ADDRESS
-                InputType.TYPE_TEXT_VARIATION_WEB_PASSWORD -> Variation.WEB_PASSWORD
-                else -> Variation.NORMAL
-            }
-            else -> Variation.NORMAL
-        }
-
-    val capsMode: CapsMode
-        get() = if (type == Type.TEXT) CapsMode.fromFlags(raw) else CapsMode.NONE
-
-    val flagNumberDecimal: Boolean
-        get() = type == Type.NUMBER && (raw and InputType.TYPE_NUMBER_FLAG_DECIMAL != 0)
-
-    val flagNumberSigned: Boolean
-        get() = type == Type.NUMBER && (raw and InputType.TYPE_NUMBER_FLAG_SIGNED != 0)
-
-    val flagTextAutoComplete: Boolean
-        get() = type == Type.TEXT && (raw and InputType.TYPE_TEXT_FLAG_AUTO_COMPLETE != 0)
-
-    val flagTextAutoCorrect: Boolean
-        get() = type == Type.TEXT && (raw and InputType.TYPE_TEXT_FLAG_AUTO_CORRECT != 0)
-
-    val flagTextImeMultiLine: Boolean
-        get() = type == Type.TEXT && (raw and InputType.TYPE_TEXT_FLAG_IME_MULTI_LINE != 0)
-
-    val flagTextMultiLine: Boolean
-        get() = type == Type.TEXT && (raw and InputType.TYPE_TEXT_FLAG_MULTI_LINE != 0)
-
-    val flagTextNoSuggestions: Boolean
-        get() = type == Type.TEXT && (raw and InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS != 0)
-
-
+data class InputAttributes private constructor(val raw: Int) {
+    private val decoded = EditorAttributes.input(raw)
+    val type: Type get() = Type.fromInt(decoded[0])
+    val variation: Variation get() = Variation.fromInt(decoded[1])
+    val capsMode: CapsMode get() = CapsMode.fromInt(decoded[2])
+    val flagNumberDecimal: Boolean get() = decoded[3] != 0
+    val flagNumberSigned: Boolean get() = decoded[4] != 0
+    val flagTextAutoComplete: Boolean get() = decoded[5] != 0
+    val flagTextAutoCorrect: Boolean get() = decoded[6] != 0
+    val flagTextImeMultiLine: Boolean get() = decoded[7] != 0
+    val flagTextMultiLine: Boolean get() = decoded[8] != 0
+    val flagTextNoSuggestions: Boolean get() = decoded[9] != 0
 
     companion object {
         fun wrap(inputType: Int) = InputAttributes(inputType)
@@ -141,26 +90,12 @@ value class InputAttributes private constructor(val raw: Int) {
         SENTENCES(3);
 
         companion object {
-            fun fromFlags(flags: Int): CapsMode {
-                return when {
-                    flags and InputType.TYPE_TEXT_FLAG_CAP_CHARACTERS != 0 -> ALL
-                    flags and InputType.TYPE_TEXT_FLAG_CAP_WORDS != 0 -> WORDS
-                    flags and InputType.TYPE_TEXT_FLAG_CAP_SENTENCES != 0 -> SENTENCES
-                    else -> NONE
-                }
-            }
+            fun fromFlags(flags: Int): CapsMode = fromInt(EditorAttributes.caps(flags))
 
             fun fromInt(int: Int) = entries.firstOrNull { it.value == int } ?: NONE
         }
 
-        fun toFlags(): Int {
-            return when (this) {
-                ALL -> InputType.TYPE_TEXT_FLAG_CAP_CHARACTERS
-                WORDS -> InputType.TYPE_TEXT_FLAG_CAP_WORDS
-                SENTENCES -> InputType.TYPE_TEXT_FLAG_CAP_SENTENCES
-                else -> 0
-            }
-        }
+        fun toFlags(): Int = EditorAttributes.capsFlags(value)
 
         fun toInt() = value
     }

@@ -45,32 +45,7 @@ internal fun KeyboardManager.handleArrow(code: Int, count: Int = 1) = editorInst
         if (activeState.isManualSelectionModeEnd) 1 else 0, selection.start, selection.end, code))
     activeState.isManualSelectionModeStart = plan[1] != 0
     activeState.isManualSelectionModeEnd = plan[2] != 0
-    when (code) {
-        KeyCode.ARROW_LEFT -> {
-            sendDownUpKeyEvent(KeyEvent.KEYCODE_DPAD_LEFT, meta(shift = isShiftPressed), count)
-        }
-        KeyCode.ARROW_RIGHT -> {
-            sendDownUpKeyEvent(KeyEvent.KEYCODE_DPAD_RIGHT, meta(shift = isShiftPressed), count)
-        }
-        KeyCode.ARROW_UP -> {
-            sendDownUpKeyEvent(KeyEvent.KEYCODE_DPAD_UP, meta(shift = isShiftPressed), count)
-        }
-        KeyCode.ARROW_DOWN -> {
-            sendDownUpKeyEvent(KeyEvent.KEYCODE_DPAD_DOWN, meta(shift = isShiftPressed), count)
-        }
-        KeyCode.MOVE_START_OF_PAGE -> {
-            sendDownUpKeyEvent(KeyEvent.KEYCODE_DPAD_UP, meta(alt = true, shift = isShiftPressed), count)
-        }
-        KeyCode.MOVE_END_OF_PAGE -> {
-            sendDownUpKeyEvent(KeyEvent.KEYCODE_DPAD_DOWN, meta(alt = true, shift = isShiftPressed), count)
-        }
-        KeyCode.MOVE_START_OF_LINE -> {
-            sendDownUpKeyEvent(KeyEvent.KEYCODE_DPAD_LEFT, meta(alt = true, shift = isShiftPressed), count)
-        }
-        KeyCode.MOVE_END_OF_LINE -> {
-            sendDownUpKeyEvent(KeyEvent.KEYCODE_DPAD_RIGHT, meta(alt = true, shift = isShiftPressed), count)
-        }
-    }
+    sendArrow(code, count, isShiftPressed)
 }
 
 /**
@@ -179,21 +154,10 @@ internal fun KeyboardManager.handleEnter() {
     if (editorInstance.tryPerformEnterCommitRaw()) {
         return
     }
-    if (info.imeOptions.flagNoEnterAction || info.inputAttributes.flagTextMultiLine && isShiftPressed) {
-        editorInstance.performEnter()
-    } else {
-        when (val action = info.imeOptions.action) {
-            ImeOptions.Action.DONE,
-            ImeOptions.Action.GO,
-            ImeOptions.Action.NEXT,
-            ImeOptions.Action.PREVIOUS,
-            ImeOptions.Action.SEARCH,
-            ImeOptions.Action.SEND -> {
-                editorInstance.performEnterAction(action)
-            }
-            else -> editorInstance.performEnter()
-        }
-    }
+    val action = com.jtn0123.audiowhisper.rust.EditorAttributes.enterAction(
+        info.inputAttributes.raw, info.imeOptions.raw, isShiftPressed)
+    if (action < 0) editorInstance.performEnter()
+    else editorInstance.performEnterAction(ImeOptions.Action.fromInt(action))
 }
 
 /**
@@ -278,8 +242,7 @@ internal fun KeyboardManager.handleSpace(data: KeyData) {
         if (inputEventDispatcher.isConsecutiveUp(data)) {
             val text = editorInstance.run { activeContent.getTextBeforeCursor(2) }
             if (ShiftLogic.isDoubleSpacePeriod(text)) {
-                editorInstance.deleteBackwards(OperationUnit.CHARACTERS)
-                editorInstance.commitText(". ")
+                editorInstance.commitDoubleSpacePeriod()
                 return
             }
         }

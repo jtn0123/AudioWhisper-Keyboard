@@ -179,7 +179,6 @@ class FlorisImeService : LifecycleInputMethodService() {
     init {
         setTheme(R.style.FlorisImeTheme)
     }
-
     override fun onCreate() {
         super.onCreate()
         FlorisImeServiceReference = WeakReference(this)
@@ -204,7 +203,6 @@ class FlorisImeService : LifecycleInputMethodService() {
             updateInputViewShown()
         }
     }
-
     override fun onCreateInputView(): View {
         val timingStart = com.jtn0123.audiowhisper.render.RendererHostTiming.start()
         super.installViewTreeOwners()
@@ -216,12 +214,10 @@ class FlorisImeService : LifecycleInputMethodService() {
         inputWindowView = composeView
         return com.jtn0123.audiowhisper.render.RendererHostTiming.created(composeView, timingStart, prefs.keyboard.rustRendererPrototype.get())
     }
-
     override fun onCreateCandidatesView(): View? {
         // Disable the default candidates view
         return null
     }
-
     override fun onCreateExtractTextView(): View {
         super.installViewTreeOwners()
         val defaultExtractView = super.onCreateExtractTextView()
@@ -236,12 +232,10 @@ class FlorisImeService : LifecycleInputMethodService() {
         }
         return defaultExtractView
     }
-
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
         themeManager.configurationChangeCounter.update { it + 1 }
     }
-
     override fun onDestroy() {
         dictation?.release()
         dictation = null
@@ -249,7 +243,6 @@ class FlorisImeService : LifecycleInputMethodService() {
         FlorisImeServiceReference = WeakReference(null)
         inputWindowView = null
     }
-
     override fun onStartInput(info: EditorInfo?, restarting: Boolean) {
         super.onStartInput(info, restarting)
         // AudioWhisper: input started again, perhaps in another field. Chrome reports a move
@@ -261,7 +254,6 @@ class FlorisImeService : LifecycleInputMethodService() {
         val editorInfo = FlorisEditorInfo.wrap(info)
         editorInstance.handleStartInput(editorInfo)
     }
-
     override fun onStartInputView(info: EditorInfo?, restarting: Boolean) {
         super.onStartInputView(info, restarting)
         if (info == null) return
@@ -276,14 +268,16 @@ class FlorisImeService : LifecycleInputMethodService() {
             editorInstance.handleStartInputView(editorInfo, isRestart = restarting)
         }
     }
-
     override fun onEvaluateInputViewShown(): Boolean {
         val config = resources.configuration
         return super.onEvaluateInputViewShown()
             || config.keyboard == Configuration.KEYBOARD_NOKEYS
             || prefs.physicalKeyboard.showOnScreenKeyboard.get()
     }
-
+    override fun onUpdateExtractedText(token: Int, text: android.view.inputmethod.ExtractedText) {
+        super.onUpdateExtractedText(token, text)
+        editorInstance.handleExtractedTextUpdate(text)
+    }
     override fun onUpdateSelection(
         oldSelStart: Int,
         oldSelEnd: Int,
@@ -303,13 +297,11 @@ class FlorisImeService : LifecycleInputMethodService() {
             )
         }
     }
-
     override fun onFinishInputView(finishingInput: Boolean) {
         flogInfo { "finishing=$finishingInput" }
         super.onFinishInputView(finishingInput)
         editorInstance.handleFinishInputView()
     }
-
     override fun onFinishInput() {
         flogInfo { "(no args)" }
         super.onFinishInput()
@@ -319,7 +311,6 @@ class FlorisImeService : LifecycleInputMethodService() {
         // being transcribed has nowhere to go.
         dictation?.abandon()
     }
-
     override fun onWindowShown() {
         super.onWindowShown()
         if (isWindowShown) {
@@ -334,7 +325,6 @@ class FlorisImeService : LifecycleInputMethodService() {
         nlpManager.refreshPersonalWords()
         dictation?.keyboardVisible(true)
     }
-
     override fun onWindowHidden() {
         super.onWindowHidden()
         if (!isWindowShown) {
@@ -382,7 +372,6 @@ class FlorisImeService : LifecycleInputMethodService() {
             inputFeedbackController.keyPress()
         }
     }
-
     override fun onEvaluateFullscreenMode(): Boolean {
         val config = resources.configuration
         if (config.orientation != Configuration.ORIENTATION_LANDSCAPE) {
@@ -394,13 +383,11 @@ class FlorisImeService : LifecycleInputMethodService() {
             LandscapeInputUiMode.ALWAYS_SHOW -> true
         }
     }
-
     override fun updateFullscreenMode() {
         super.updateFullscreenMode()
         isFullscreenUiMode = isFullscreenMode
         updateSoftInputWindowLayoutParameters()
     }
-
     override fun onUpdateExtractingVisibility(info: EditorInfo?) {
         if (info != null) {
             editorInstance.handleStartInputView(FlorisEditorInfo.wrap(info), isRestart = true)
@@ -411,16 +398,12 @@ class FlorisImeService : LifecycleInputMethodService() {
             LandscapeInputUiMode.ALWAYS_SHOW -> isExtractViewShown = true
         }
     }
-
     override fun setExtractViewShown(shown: Boolean) {
         super.setExtractViewShown(shown)
         isExtractUiShown = shown
     }
-
     override fun onCreateInlineSuggestionsRequest(uiExtras: Bundle) = createInlineSuggestionsRequest()
-
     override fun onInlineSuggestionsResponse(response: InlineSuggestionsResponse) = receiveInlineSuggestions(response)
-
     override fun onComputeInsets(outInsets: Insets?) {
         super.onComputeInsets(outInsets)
         if (outInsets == null) return
@@ -471,7 +454,6 @@ class FlorisImeService : LifecycleInputMethodService() {
         val inputWindowView = inputWindowView ?: return
         ViewUtils.updateLayoutHeightOf(inputWindowView, layoutHeight)
     }
-
     override fun getTextForImeAction(imeOptions: Int): String? {
         return try {
             when (imeOptions and EditorInfo.IME_MASK_ACTION) {
@@ -488,11 +470,9 @@ class FlorisImeService : LifecycleInputMethodService() {
             super.getTextForImeAction(imeOptions)?.toString()
         }
     }
-
     override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
         return keyboardManager.onHardwareKeyDown(keyCode, event) || super.onKeyDown(keyCode, event)
     }
-
     override fun onKeyUp(keyCode: Int, event: KeyEvent?): Boolean {
         return keyboardManager.onHardwareKeyUp(keyCode, event) || super.onKeyUp(keyCode, event)
     }

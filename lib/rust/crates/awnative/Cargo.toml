@@ -19,6 +19,7 @@ chars = { path = "../chars" }
 composing = { path = "../composing" }
 dictation = { path = "../dictation" }
 emoji = { path = "../emoji" }
+editor = { path = "../editor" }
 extensions = { path = "../extensions" }
 gestures = { path = "../gestures" }
 gif = { path = "../gif" }

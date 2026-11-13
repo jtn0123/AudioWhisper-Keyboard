@@ -24,7 +24,7 @@ import android.view.KeyEvent
 import androidx.core.view.inputmethod.EditorInfoCompat
 import androidx.core.view.inputmethod.InputConnectionCompat
 import androidx.core.view.inputmethod.InputContentInfoCompat
-import com.jtn0123.audiowhisper.dictation.DictationUndo
+import com.jtn0123.audiowhisper.rust.EditorAttributes
 import com.jtn0123.audiowhisper.rust.SpacingRules
 import com.jtn0123.audiowhisper.suggest.AutoCorrectionUndo
 import dev.patrickgold.florisboard.FlorisImeService
@@ -36,26 +36,21 @@ import dev.patrickgold.florisboard.ime.clipboard.provider.ClipboardFileStorage
 import dev.patrickgold.florisboard.ime.clipboard.provider.ClipboardItem
 import dev.patrickgold.florisboard.ime.clipboard.provider.ItemType
 import dev.patrickgold.florisboard.ime.input.InputShiftState
-import dev.patrickgold.florisboard.ime.keyboard.IncognitoMode
 import dev.patrickgold.florisboard.ime.keyboard.KeyboardMode
-import dev.patrickgold.florisboard.ime.nlp.PunctuationRule
 import dev.patrickgold.florisboard.ime.nlp.SuggestionCandidate
 import dev.patrickgold.florisboard.ime.text.composing.Appender
 import dev.patrickgold.florisboard.ime.text.composing.Composer
 import dev.patrickgold.florisboard.ime.text.key.KeyVariation
 import dev.patrickgold.florisboard.keyboardManager
-import dev.patrickgold.florisboard.lib.FlorisLocale
 import dev.patrickgold.florisboard.lib.ext.ExtensionComponentName
 import dev.patrickgold.florisboard.nlpManager
 import dev.patrickgold.florisboard.subtypeManager
 import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import org.florisboard.lib.android.showShortToast
 
 class EditorInstance(context: Context) : AbstractEditorInstance(context) {
     companion object {
-        private const val SPACE = " "
         private const val GIF_MIME_TYPE = "image/gif"
     }
 
@@ -74,8 +69,6 @@ class EditorInstance(context: Context) : AbstractEditorInstance(context) {
     override val isSpacePending: Boolean
         get() = phantomSpace.isActive
 
-    /** AudioWhisper: the phrase dictation typed last, for [undoDictation]. */
-    private var dictationUndo: DictationUndo? = null
 
     private fun currentInputConnection() = FlorisImeService.currentInputConnection()
 
@@ -85,73 +78,22 @@ class EditorInstance(context: Context) : AbstractEditorInstance(context) {
         }
         activeState.isActionsOverflowVisible = false
         activeState.isActionsEditorVisible = false
+        val plan = EditorAttributes.keyboard(editorInfo.inputAttributes.raw, editorInfo.imeOptions.raw,
+            prefs.suggestion.enabled.get(), prefs.suggestion.incognitoMode.get().ordinal,
+            prefs.suggestion.forceIncognitoModeFromDynamic.get())
+        activeState.keyboardMode = KeyboardMode.fromInt(plan[0])
+        activeState.keyVariation = KeyVariation.fromInt(plan[1])
+        activeState.isComposingEnabled = plan[2] != 0
+        activeState.isIncognitoMode = plan[3] != 0
         super.handleStartInputView(editorInfo, isRestart)
         // AudioWhisper: editor positions the word learner kept, and tap positions, belong to the previous field.
         nlpManager.resetLearning()
-        val keyboardMode = when (editorInfo.inputAttributes.type) {
-            InputAttributes.Type.NUMBER -> {
-                activeState.keyVariation = KeyVariation.NORMAL
-                KeyboardMode.NUMERIC
-            }
-            InputAttributes.Type.PHONE -> {
-                activeState.keyVariation = KeyVariation.NORMAL
-                KeyboardMode.PHONE
-            }
-            InputAttributes.Type.TEXT -> {
-                activeState.keyVariation = when (editorInfo.inputAttributes.variation) {
-                    InputAttributes.Variation.EMAIL_ADDRESS,
-                    InputAttributes.Variation.WEB_EMAIL_ADDRESS,
-                    -> {
-                        KeyVariation.EMAIL_ADDRESS
-                    }
-                    InputAttributes.Variation.PASSWORD,
-                    InputAttributes.Variation.VISIBLE_PASSWORD,
-                    InputAttributes.Variation.WEB_PASSWORD,
-                    -> {
-                        KeyVariation.PASSWORD
-                    }
-                    InputAttributes.Variation.URI -> {
-                        KeyVariation.URI
-                    }
-                    else -> {
-                        KeyVariation.NORMAL
-                    }
-                }
-                KeyboardMode.CHARACTERS
-            }
-            else -> {
-                activeState.keyVariation = KeyVariation.NORMAL
-                KeyboardMode.CHARACTERS
-            }
-        }
-        activeState.keyboardMode = keyboardMode
-        activeState.isComposingEnabled = when (keyboardMode) {
-            KeyboardMode.NUMERIC,
-            KeyboardMode.PHONE,
-            KeyboardMode.PHONE2,
-            -> false
-            else -> activeState.keyVariation != KeyVariation.PASSWORD &&
-                prefs.suggestion.enabled.get()// &&
-            //!instance.inputAttributes.flagTextAutoComplete &&
-            //!instance.inputAttributes.flagTextNoSuggestions
-        }
-        activeState.isIncognitoMode = when (prefs.suggestion.incognitoMode.get()) {
-            IncognitoMode.FORCE_OFF -> false
-            IncognitoMode.FORCE_ON -> true
-            IncognitoMode.DYNAMIC_ON_OFF -> {
-                editorInfo.imeOptions.flagNoPersonalizedLearning || prefs.suggestion.forceIncognitoModeFromDynamic.get()
-            }
-        }
     }
 
     override fun handleSelectionUpdate(oldSelection: EditorRange, newSelection: EditorRange, composing: EditorRange) {
         autoSpace.setInactiveFromUpdate()
         phantomSpace.setInactiveFromUpdate()
-        if (massSelection.isActive) {
-            super.handleMassSelectionUpdate(newSelection, composing)
-        } else {
-            super.handleSelectionUpdate(oldSelection, newSelection, composing)
-        }
+        super.handleSelectionUpdate(oldSelection, newSelection, composing)
     }
 
     override fun determineComposingEnabled(): Boolean {
@@ -167,15 +109,6 @@ class EditorInstance(context: Context) : AbstractEditorInstance(context) {
             (phantomSpace.isInactive || phantomSpace.showComposingRegion)
     }
 
-    /**
-     * Sets the selection of the input editor to the specified [start] and [end] values. This method does nothing if
-     * the input connection is not valid or if the input editor is raw.
-     *
-     * @param start The start of the selection (inclusive). May be any value ranging from -1 to positive infinity.
-     * @param end The end of the selection (exclusive). May be any value ranging from -1 to positive infinity.
-     *
-     * @return True on success or if the selection is already at specified position, false otherwise.
-     */
     fun setSelection(start: Int, end: Int): Boolean {
         autoSpace.setInactive()
         phantomSpace.setInactive()
@@ -183,161 +116,53 @@ class EditorInstance(context: Context) : AbstractEditorInstance(context) {
         return super.setSelection(selection)
     }
 
-    /** What the spacing rules ([Spacing]) look up, when they need it. */
-    private val spacingEditor = object : SpacingEditor {
-        override val autoSpacePunctuation: Boolean get() = prefs.correction.autoSpacePunctuation.get()
-        override val isRawInputEditor: Boolean get() = activeInfo.isRawInputEditor
-        override val keyVariation: KeyVariation get() = activeState.keyVariation
-        override val selection: EditorRange get() = activeContent.selection
-        override val locale: FlorisLocale get() = subtypeManager.activeSubtype.primaryLocale
-        override val punctuationRule: PunctuationRule get() = nlpManager.getActivePunctuationRule()
-        override fun textBeforeCursor(n: Int): String = activeContent.getTextBeforeCursor(n)
-        override val currentWordText: String get() = activeContent.currentWordText
+    private fun edit(operation: String, vararg fields: String, candidate: SuggestionCandidate? = null): Boolean {
+        val rule = nlpManager.getActivePunctuationRule()
+        editorSession.call("context", autoSpace.bits.toString(), phantomSpace.bits.toString(),
+            activeState.keyVariation.value.toString(), if (prefs.correction.autoSpacePunctuation.get()) "1" else "0",
+            subtypeManager.activeSubtype.primaryLocale.language, rule.symbolsPrecedingAutoSpace,
+            rule.symbolsFollowingAutoSpace, rule.symbolsPrecedingPhantomSpace, rule.symbolsFollowingPhantomSpace,
+            if (prefs.glide.immediateBackspaceDeletesWord.get()) "1" else "0")
+        val result = executeEditor(operation, *fields)
+        val spaces = editorSession.call("spaces")
+        autoSpace.bits = spaces[0].toInt()
+        when (spaces[2]) {
+            "0" -> phantomSpace.bits = spaces[1].toInt()
+            "1" -> phantomSpace.reset(spaces[1].toInt())
+            "2" -> phantomSpace.accept(spaces[1].toInt(), candidate)
+            else -> error("Unknown native candidate disposition")
+        }
+        return result
     }
 
     override fun commitChar(char: String): Boolean {
-        val spaces = Spacing.commitChar(char, spacingEditor, autoSpace, phantomSpace)
-        return super.commitChar(
-            char = char,
-            deletePreviousSpace = spaces.deletePreviousSpace,
-            insertSpaceBeforeChar = spaces.insertSpaceBeforeChar,
-            insertSpaceAfterChar = spaces.insertSpaceAfterChar,
-        )
+        return edit("typeChar", char)
     }
 
-    /**
-     * Commits the given [text] to this editor instance and adjusts both the cursor position and
-     * composing region, if any.
-     *
-     * This method overwrites any selected text and replaces it with given [text]. If there is no
-     * text selected (selection is in cursor mode), then this method will insert the [text] after
-     * the cursor, then set the cursor position to the first character after the inserted text.
-     *
-     * @param text The text to commit.
-     *
-     * @return True on success, false if an error occurred or the input connection is invalid.
-     */
     override fun commitText(text: String): Boolean {
-        val isPhantomSpaceActive = phantomSpace.determine(text)
-        autoSpace.setInactive()
-        phantomSpace.setInactive()
-        return if (isPhantomSpaceActive) {
-            super.commitText("$SPACE$text")
-        } else {
-            super.commitText(text)
-        }
+        return edit("typeText", text)
     }
 
-    /**
-     * Completes the given [candidate] in the current composing region. Does nothing if the current
-     * input editor is not rich or if the input connection is invalid.
-     *
-     * Current phantom space state is respected and a space char will be inserted accordingly.
-     * Phantom space will be activated if the text is committed.
-     *
-     * @param candidate The candidate to complete in this editor.
-     *
-     * @return True on success, false if an error occurred or the input connection is invalid.
-     */
     fun commitCompletion(candidate: SuggestionCandidate): Boolean {
-        val text = candidate.text.toString()
-        if (text.isEmpty() || activeInfo.isRawInputEditor) return false
-        val content = activeContent
-        return if (content.composing.isValid) {
-            phantomSpace.setActive(showComposingRegion = false, candidate = candidate)
-            super.finalizeComposingText(text)
-        } else {
-            val isPhantomSpaceActive = phantomSpace.determine(text)
-            phantomSpace.setActive(showComposingRegion = false, candidate = candidate)
-            return if (isPhantomSpaceActive) {
-                super.commitText("$SPACE$text")
-            } else {
-                super.commitText(text)
-            }.also {
-                // handled in finalizeComposingText if content.composing.isValid
-                updateLastCommitPosition()
-            }
-        }
+        return edit("completion", candidate.text.toString(), candidate = candidate)
     }
 
-    /**
-     * AudioWhisper: commits a dictated phrase as finished text. No word of it is left composing,
-     * so the next space can't auto-correct a dictated name, and the phantom space is set as after
-     * a gesture, so a word typed next gets its own space instead of running into the phrase.
-     * [text] already carries any space it needs in front. [replacing] characters before the
-     * cursor are deleted first (a full stop dictation put at a pause); an editor that can't
-     * do that still gets the text.
-     */
     fun commitDictation(text: String, replacing: Int = 0): Boolean {
-        if (text.isEmpty()) return false
-        val content = activeContent
-        autoSpace.setInactive()
-        phantomSpace.setActive(showComposingRegion = false)
-        val replaced = replacing > 0 && replaceTextBeforeCursor(replacing, text)
-        val committed = replaced || super.commitText(text)
-        if (!committed) {
-            phantomSpace.setInactive()
-            return false
-        }
-        updateLastCommitPosition()
-        val restore = if (replaced) content.textBeforeSelection.takeLast(replacing) else ""
-        val start = content.selection.start - restore.length
-        dictationUndo = DictationUndo(text, start, restore).takeIf { content.selection.isCursorMode && start >= 0 }
-        return true
+        return edit("dictation", text, replacing.toString())
     }
 
-    /**
-     * AudioWhisper: a backspace straight after a dictated phrase takes the whole phrase back
-     * (and puts back a full stop joining it took). False if there is none to take back.
-     */
     fun undoDictation(): Boolean {
-        val undo = dictationUndo ?: return false
-        dictationUndo = null
-        val content = activeContent
-        if (!content.selection.isCursorMode) return false
-        val revert = undo.revertAt(content.selection.start, content.textBeforeSelection) ?: return false
-        autoSpace.setInactive()
-        phantomSpace.setInactive()
-        return replaceTextBeforeCursor(revert.length, revert.text)
+        return edit("undoDictation")
     }
 
-    /** AudioWhisper: another key was pressed, so a backspace no longer takes back the last phrase. */
     fun forgetDictation() {
-        dictationUndo = null
+        editorSession.call("forgetDictation")
     }
 
-    /**
-     * Commit a word generated by a gesture.
-     *
-     * Ignores the current phantom space state and will insert a space depending on the character
-     * before selection start. Phantom space will be activated if the text is committed.
-     *
-     * @param text The text to commit in this editor.
-     *
-     * @return True on success, false if an error occurred or the input connection is invalid.
-     */
     fun commitGesture(text: String): Boolean {
-        if (text.isEmpty() || activeInfo.isRawInputEditor) return false
-        val isPhantomSpaceActive = phantomSpace.determine(text, forceActive = true)
-        phantomSpace.setActive(showComposingRegion = true)
-        return if (isPhantomSpaceActive) {
-            super.commitText("$SPACE$text")
-        } else {
-            super.commitText(text)
-        }.also {
-            updateLastCommitPosition()
-        }
+        return edit("gesture", text)
     }
 
-    /**
-     * Commits the given [ClipboardItem]. If the clip data is text (incl. HTML), it delegates to [commitText].
-     * If the item has a content URI (and the EditText supports it), the item is committed as rich data.
-     * This allows for committing (e.g) images.
-     *
-     * @param item The ClipboardItem to commit
-     *
-     * @return True on success, false if something went wrong.
-     */
     fun commitClipboardItem(item: ClipboardItem?): Boolean {
         if (item == null) return false
         val mimeTypes = item.mimeTypes
@@ -369,11 +194,9 @@ class EditorInstance(context: Context) : AbstractEditorInstance(context) {
         }
     }
 
-    /** AudioWhisper: true if the app being typed in takes GIF images (rich content). */
     fun acceptsGifs(): Boolean =
         EditorInfoCompat.getContentMimeTypes(activeInfo.base).any { ClipDescription.compareMimeTypes(GIF_MIME_TYPE, it) }
 
-    /** AudioWhisper: sends the GIF at [uri] (readable through our file provider) as rich content. */
     fun commitGif(uri: Uri, description: String, link: Uri?): Boolean {
         val ic = currentInputConnection() ?: return false
         val info = InputContentInfoCompat(uri, ClipDescription(description, arrayOf(GIF_MIME_TYPE)), link)
@@ -382,100 +205,22 @@ class EditorInstance(context: Context) : AbstractEditorInstance(context) {
         return InputConnectionCompat.commitContent(ic, activeInfo.base, info, flags, null)
     }
 
-    /**
-     * AudioWhisper: undoes an auto-correction (see [AutoCorrectionUndo]). The phantom space is set
-     * first so the restored word does not become a composing region and get corrected again.
-     */
     fun revertAutoCorrection(revert: AutoCorrectionUndo.Revert): Boolean {
-        autoSpace.setInactive()
-        if (revert.phantomSpace) phantomSpace.setActive(showComposingRegion = false) else phantomSpace.setInactive()
-        return replaceTextBeforeCursor(revert.length, revert.text).also { if (!it) phantomSpace.setInactive() }
+        return edit("revert", revert.length.toString(), revert.text, if (revert.phantomSpace) "1" else "0")
     }
 
-    /**
-     * Executes a backward delete on this editor's text. If a text selection is active, all
-     * characters inside this selection will be removed, else only the left-most character from
-     * the cursor's position.
-     *
-     * @return True on success, false if an error occurred or the input connection is invalid.
-     */
     fun deleteBackwards(unit: OperationUnit): Boolean {
-        val content = activeContent
-        if (unit == OperationUnit.CHARACTERS) {
-            if (phantomSpace.isActive && content.currentWord.isValid && prefs.glide.immediateBackspaceDeletesWord.get()) {
-                return deleteBackwards(OperationUnit.WORDS)
-            }
-        }
-        autoSpace.setInactive()
-        phantomSpace.setInactive()
-        return if (content.selection.isSelectionMode) {
-            commitText("")
-        } else runBlocking {
-            deleteAroundCursor(unit, OperationScope.BEFORE_CURSOR, n = 1)
-        }
+        return edit("backward", unit.ordinal.toString())
     }
 
-    /**
-     * Executes a backward delete on this editor's text. If a text selection is active, all
-     * characters inside this selection will be removed, else only the left-most character from
-     * the cursor's position.
-     *
-     * @return True on success, false if an error occurred or the input connection is invalid.
-     */
     fun deleteForwards(unit: OperationUnit): Boolean {
-        val content = activeContent
-        autoSpace.setInactive()
-        phantomSpace.setInactive()
-        return if (content.selection.isSelectionMode) {
-            commitText("")
-        } else runBlocking {
-            deleteAroundCursor(unit, OperationScope.AFTER_CURSOR, n = 1)
-        }
+        return edit("forward", unit.ordinal.toString())
     }
 
     fun setSelectionSurrounding(n: Int, unit: OperationUnit, scope: OperationScope): Boolean {
-        autoSpace.setInactive()
-        phantomSpace.setInactive()
-        val content = activeContent
-        val selection = content.selection
-        val safeEditorBounds = content.safeEditorBounds
-        if (selection.isNotValid) return false
-        when (scope) {
-            OperationScope.BEFORE_CURSOR -> {
-                if (n <= 0) {
-                    return setSelection(selection.end, selection.end)
-                }
-                val textToAnalyze = content.text.substring(0, content.localSelection.end)
-                val length = runBlocking {
-                    when (unit) {
-                        OperationUnit.CHARACTERS -> breakIterators.measureLastUChars(textToAnalyze, n)
-                        OperationUnit.WORDS -> breakIterators.measureLastUWords(textToAnalyze, n)
-                    }
-                }
-                return setSelection((selection.end - length).coerceAtLeast(safeEditorBounds.start), selection.end)
-            }
-            OperationScope.AFTER_CURSOR -> {
-                if (n <= 0) {
-                    return setSelection(selection.start, selection.start)
-                }
-                val textToAnalyze = content.text.substring(content.localSelection.start)
-                val length = runBlocking {
-                    when (unit) {
-                        OperationUnit.CHARACTERS -> breakIterators.measureUChars(textToAnalyze, n)
-                        OperationUnit.WORDS -> breakIterators.measureUWords(textToAnalyze, n)
-                    }
-                }
-                return setSelection(selection.start, (selection.start + length).coerceAtMost(safeEditorBounds.end))
-            }
-        }
+        return edit("selectAround", n.toString(), unit.ordinal.toString(), scope.ordinal.toString())
     }
 
-    /**
-     * Performs a cut command on this editor instance and adjusts both the cursor position and
-     * composing region, if any.
-     *
-     * @return True on success, false if an error occurred or the input connection is invalid.
-     */
     fun performClipboardCut(): Boolean {
         autoSpace.setInactive()
         phantomSpace.setInactive()
@@ -488,12 +233,6 @@ class EditorInstance(context: Context) : AbstractEditorInstance(context) {
         return deleteBackwards(OperationUnit.CHARACTERS)
     }
 
-    /**
-     * Performs a copy command on this editor instance and adjusts both the cursor position and
-     * composing region, if any.
-     *
-     * @return True on success, false if an error occurred or the input connection is invalid.
-     */
     fun performClipboardCopy(): Boolean {
         autoSpace.setInactive()
         phantomSpace.setInactive()
@@ -507,12 +246,6 @@ class EditorInstance(context: Context) : AbstractEditorInstance(context) {
         return setSelection(activeSelection.end, activeSelection.end)
     }
 
-    /**
-     * Performs a paste command on this editor instance and adjusts both the cursor position and
-     * composing region, if any.
-     *
-     * @return True on success, false if an error occurred or the input connection is invalid.
-     */
     fun performClipboardPaste(): Boolean {
         autoSpace.setInactive()
         phantomSpace.setInactive()
@@ -523,77 +256,28 @@ class EditorInstance(context: Context) : AbstractEditorInstance(context) {
         }
     }
 
-    /**
-     * Performs a select all on this editor instance and adjusts both the cursor position and
-     * composing region, if any.
-     *
-     * @return True on success, false if an error occurred or the input connection is invalid.
-     */
     fun performClipboardSelectAll(): Boolean {
-        autoSpace.setInactive()
-        phantomSpace.setInactive()
-        val ic = currentInputConnection() ?: return false
-        ic.finishComposingText()
-        return if (activeInfo.isRawInputEditor) {
-            sendDownUpKeyEvent(KeyEvent.KEYCODE_A, meta(ctrl = true))
-        } else {
-            ic.performContextMenuAction(android.R.id.selectAll)
-        }
+        return edit("selectAll")
     }
 
-    /**
-     * Performs an enter key press on the current input editor.
-     *
-     * @return True on success, false if an error occurred or the input connection is invalid.
-     */
     fun performEnter(): Boolean {
-        autoSpace.setInactive()
-        phantomSpace.setInactive()
-        return if (activeInfo.isRawInputEditor) {
-            sendDownUpKeyEvent(KeyEvent.KEYCODE_ENTER)
-        } else {
-            commitText("\n")
-        }
+        return edit("enter")
     }
 
-    fun tryPerformEnterCommitRaw(): Boolean {
-        return if (subtypeManager.activeSubtype.primaryLocale.language.startsWith("zh") && activeContent.composing.length > 0) {
-            finalizeComposingText(activeContent.composingText)
-        } else {
-            false
-        }
-    }
+    fun tryPerformEnterCommitRaw(): Boolean = edit("rawEnter", subtypeManager.activeSubtype.primaryLocale.language)
 
-    /**
-     * Performs a given [action] on the current input editor.
-     *
-     * @param action The action to be performed on this editor instance.
-     *
-     * @return True on success, false if an error occurred or the input connection is invalid.
-     */
     fun performEnterAction(action: ImeOptions.Action): Boolean {
         autoSpace.setInactive()
         phantomSpace.setInactive()
-        val ic = currentInputConnection() ?: return false
-        return ic.performEditorAction(action.toInt())
+        return executeEditor("action", action.toInt().toString())
     }
 
-    /**
-     * Undoes the last action.
-     *
-     * @return True on success, false if an error occurred or the input connection is invalid.
-     */
     fun performUndo(): Boolean {
         autoSpace.setInactive()
         phantomSpace.setInactive()
         return sendDownUpKeyEvent(KeyEvent.KEYCODE_Z, meta(ctrl = true))
     }
 
-    /**
-     * Redoes the last Undo action.
-     *
-     * @return True on success, false if an error occurred or the input connection is invalid.
-     */
     fun performRedo(): Boolean {
         autoSpace.setInactive()
         phantomSpace.setInactive()
@@ -605,18 +289,12 @@ class EditorInstance(context: Context) : AbstractEditorInstance(context) {
         autoSpace.setInactive()
         phantomSpace.setInactive()
         massSelection.reset()
-        dictationUndo = null
     }
 
-    private fun PhantomSpaceState.determine(text: String, forceActive: Boolean = false): Boolean =
-        Spacing.phantomSpaceBefore(this, text, forceActive, spacingEditor)
-
-    /** Whether an auto-space was typed after punctuation; its rules are in Rust ([SpacingRules]). */
     class AutoSpaceState {
         private val state = AtomicInteger(SpacingRules.INACTIVE)
 
-        /** The state as Rust reads it. */
-        internal var bits: Int
+            internal var bits: Int
             get() = state.get()
             set(value) = state.set(value)
 
@@ -639,14 +317,12 @@ class EditorInstance(context: Context) : AbstractEditorInstance(context) {
         }
     }
 
-    /** Whether a phantom space is owed, and the suggestion it came from; its rules are in Rust ([SpacingRules]). */
     class PhantomSpaceState {
         private val state = AtomicInteger(SpacingRules.INACTIVE)
         var candidateForRevert: SuggestionCandidate? = null
             private set
 
-        /** The state as Rust reads it. Setting it leaves [candidateForRevert] as it is. */
-        internal var bits: Int
+            internal var bits: Int
             get() = state.get()
             set(value) = state.set(value)
 
@@ -673,7 +349,11 @@ class EditorInstance(context: Context) : AbstractEditorInstance(context) {
             candidateForRevert = null
         }
 
-        /** Sets the state Rust gave, which no suggestion goes with. */
+            internal fun accept(bits: Int, candidate: SuggestionCandidate?) {
+            state.set(bits)
+            candidateForRevert = candidate
+        }
+
         internal fun reset(bits: Int) {
             state.set(bits)
             candidateForRevert = null
@@ -688,27 +368,15 @@ class EditorInstance(context: Context) : AbstractEditorInstance(context) {
     }
 
     inner class MassSelectionState {
-        private val state = AtomicInteger(0)
-
-        val isActive: Boolean
-            get() = state.get() > 0
-
-        val isInactive: Boolean
-            get() = !isActive
-
-        fun begin() {
-            state.incrementAndGet()
-        }
-
+        val isActive: Boolean get() = editorSession.call("massState")[0] == "1"
+        val isInactive: Boolean get() = !isActive
+        fun begin() { editorSession.call("massBegin") }
         fun end() {
-            if (state.decrementAndGet() == 0) {
-                // We need to emulate a selection update to update the content if mass selection has ended
+            if (editorSession.call("massEnd")[0] == "1") {
                 handleSelectionUpdate(EditorRange.Unspecified, activeContent.selection, EditorRange.Unspecified)
             }
         }
-
-        fun reset() {
-            state.set(0)
-        }
+        fun reset() { editorSession.call("massReset") }
     }
+    fun commitDoubleSpacePeriod(): Boolean = edit("doubleSpace")
 }

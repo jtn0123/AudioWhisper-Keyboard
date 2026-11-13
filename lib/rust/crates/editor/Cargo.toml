@@ -1,0 +1,17 @@
+[package]
+name = "editor"
+version = "0.1.0"
+description = "UTF-16 editor reconciliation and ordered InputConnection plans"
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+keys = { path = "../keys" }
+dictation = { path = "../dictation" }
+chars = { path = "../chars" }
+spacing = { path = "../spacing" }
+
+[lints]
+workspace = true

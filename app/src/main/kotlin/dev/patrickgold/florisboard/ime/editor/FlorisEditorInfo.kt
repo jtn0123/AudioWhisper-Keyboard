@@ -17,6 +17,7 @@
 package dev.patrickgold.florisboard.ime.editor
 
 import android.view.inputmethod.EditorInfo
+import com.jtn0123.audiowhisper.rust.EditorAttributes
 import androidx.core.view.inputmethod.EditorInfoCompat
 import androidx.emoji2.text.EmojiCompat
 
@@ -26,7 +27,7 @@ class FlorisEditorInfo private constructor(val base: EditorInfo) {
     val imeOptions = ImeOptions.wrap(base.imeOptions)
 
     val isRichInputEditor: Boolean
-        get() = inputAttributes.type != InputAttributes.Type.NULL || initialSelection.isValid
+        get() = EditorAttributes.rich(base.inputType, base.initialSelStart, base.initialSelEnd)
 
     val isRawInputEditor: Boolean
         get() = !isRichInputEditor

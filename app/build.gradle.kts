@@ -232,7 +232,7 @@ tasks.withType<Test> {
 // AndroidX Test needs two runtime annotations. The full Error Prone compiler-annotation
 // jar references javax.lang.model, which Android cannot supply to R8. Package only the
 // runtime annotation classes actually used by the test runner; no missing-class suppression.
-val fixtureAnnotationSource by configurations.creating
+val fixtureAnnotationSource = configurations.create("fixtureAnnotationSource")
 val fixtureAnnotations = tasks.register<Jar>("fixtureAnnotations") {
     from({ zipTree(fixtureAnnotationSource.singleFile) }) {
         include("com/google/errorprone/annotations/CanIgnoreReturnValue.class")
@@ -292,6 +292,7 @@ dependencies {
     implementation(projects.lib.snygg)
 
     testImplementation(libs.kotlin.test.junit5)
+    testImplementation("com.ibm.icu:icu4j:78.3")
     fixtureAnnotationSource(libs.errorprone.annotations)
     androidTestImplementation(files(fixtureAnnotations))
     androidTestImplementation(libs.androidx.test.ext)
