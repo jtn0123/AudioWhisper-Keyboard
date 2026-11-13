@@ -23,7 +23,6 @@ import android.view.inputmethod.InlineSuggestion
 import android.view.inputmethod.InlineSuggestionInfo
 import android.widget.inline.InlineContentView
 import dev.patrickgold.florisboard.ime.keyboard.FlorisImeSizing
-import dev.patrickgold.florisboard.lib.devtools.flogInfo
 import dev.patrickgold.florisboard.lib.devtools.flogWarning
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -62,7 +61,6 @@ object NlpInlineAutofill {
             val latch = CountDownLatch(rawSuggestions.size)
             val suggestionsArray = Array<NlpInlineAutofillSuggestion?>(rawSuggestions.size) { null }
 
-            flogInfo { "showInlineSuggestions: [${sequenceId}] start inflating suggestions" }
             for ((index, rawSuggestion) in rawSuggestions.withIndex()) {
                 rawSuggestion.inflate(context, size, context.mainExecutor) { view ->
                     suggestionsArray[index] = NlpInlineAutofillSuggestion(rawSuggestion.info, view)
@@ -78,10 +76,8 @@ object NlpInlineAutofill {
 
             val suggestions = suggestionsArray.filterNotNull().sortedByDescending { it.info.isPinned }
             setterGuard.lock()
-            flogInfo { "showInlineSuggestions: [${sequenceId}] successfully inflated " +
-                "${suggestions.count { it.view != null }} out of ${suggestions.size} suggestions" }
+
             if (currentSequenceId.get() == sequenceId) {
-                flogInfo { "showInlineSuggestions: [${sequenceId}] setting suggestions" }
                 _suggestions.value = suggestions
             } else {
                 flogWarning { "showInlineSuggestions: [${sequenceId}] seqId != current, skip setting suggestions" }
@@ -100,7 +96,6 @@ object NlpInlineAutofill {
     private fun clearInlineSuggestions(sequenceId: Int) {
         scope.launch {
             setterGuard.lock()
-            flogInfo { "clearInlineSuggestions: [${sequenceId}] clearing suggestions" }
             _suggestions.value = emptyList()
             setterGuard.unlock()
         }

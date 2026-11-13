@@ -19,8 +19,8 @@ package dev.patrickgold.florisboard.ime.input
 import android.os.SystemClock
 import android.view.ViewConfiguration
 import androidx.collection.SparseArrayCompat
-import androidx.collection.isNotEmpty
 import androidx.collection.set
+import androidx.collection.isNotEmpty
 import dev.patrickgold.florisboard.app.FlorisPreferenceStore
 import dev.patrickgold.florisboard.ime.keyboard.KeyData
 import dev.patrickgold.florisboard.ime.keyboard.ShiftLogic
@@ -28,7 +28,6 @@ import dev.patrickgold.florisboard.ime.text.gestures.SwipeAction
 import dev.patrickgold.florisboard.ime.text.key.KeyCode
 import dev.patrickgold.florisboard.ime.text.keyboard.TextKeyData
 import org.florisboard.lib.android.removeAndReturn
-import dev.patrickgold.florisboard.lib.devtools.flogDebug
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -99,7 +98,6 @@ class InputEventDispatcher private constructor(private val repeatableKeyCodes: I
         onLongPress: () -> Boolean = { false },
         onRepeat: () -> Boolean = { true },
     ) = runBlocking {
-        flogDebug { data.toString() }
         val eventTime = SystemClock.uptimeMillis()
         val result = pressedKeys.withLock { pressedKeys ->
             if (pressedKeys.containsKey(data.code)) return@withLock null
@@ -135,7 +133,6 @@ class InputEventDispatcher private constructor(private val repeatableKeyCodes: I
     }
 
     fun sendUp(data: KeyData) = runBlocking {
-        flogDebug { data.toString() }
         val (result, isBlocked) = pressedKeys.withLock { pressedKeys ->
             if (pressedKeys.containsKey(data.code)) {
                 val pressedKeyInfo = pressedKeys.removeAndReturn(data.code)?.also { it.cancelJobs() }
@@ -154,7 +151,6 @@ class InputEventDispatcher private constructor(private val repeatableKeyCodes: I
     }
 
     fun sendDownUp(data: KeyData) = runBlocking {
-        flogDebug { data.toString() }
         pressedKeys.withLock { pressedKeys ->
             pressedKeys.removeAndReturn(data.code)?.also { it.cancelJobs() }
         }
@@ -166,7 +162,6 @@ class InputEventDispatcher private constructor(private val repeatableKeyCodes: I
     }
 
     fun sendCancel(data: KeyData) = runBlocking {
-        flogDebug { data.toString() }
         val result = pressedKeys.withLock { pressedKeys ->
             if (pressedKeys.containsKey(data.code)) {
                 pressedKeys.removeAndReturn(data.code)?.also { it.cancelJobs() }

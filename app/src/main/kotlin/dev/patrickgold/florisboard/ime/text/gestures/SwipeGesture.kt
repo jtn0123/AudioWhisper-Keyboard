@@ -24,8 +24,6 @@ import com.jtn0123.audiowhisper.rust.SwipeDetector
 import com.jtn0123.audiowhisper.rust.SwipeDirection
 import dev.patrickgold.florisboard.app.FlorisPreferenceStore
 import dev.patrickgold.florisboard.lib.Pointer
-import dev.patrickgold.florisboard.lib.devtools.LogTopic
-import dev.patrickgold.florisboard.lib.devtools.flogDebug
 
 /**
  * Wrapper class which holds all enums, interfaces and classes for detecting a swipe gesture.
@@ -74,7 +72,6 @@ abstract class SwipeGesture {
             val velocityX = velocityTracker.getXVelocity(pointer.id)
             val velocityY = velocityTracker.getYVelocity(pointer.id)
             val density = density()
-            flogDebug(LogTopic.GESTURES) { "Velocity: ${velocityX / density} ${velocityY / density} dp/s" }
             return up(
                 pointer.id,
                 event.getX(pointer.index),

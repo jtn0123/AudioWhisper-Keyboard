@@ -81,7 +81,7 @@ class FlorisApplication : Application() {
                 context = this,
                 isFloggingEnabled = BuildConfig.DEBUG,
                 flogTopics = LogTopic.ALL,
-                flogLevels = Flog.LEVEL_ALL,
+                flogLevels = Flog.LEVEL_ERROR or Flog.LEVEL_WARNING,
                 flogOutputs = Flog.OUTPUT_CONSOLE,
             )
             CrashUtility.install(this)

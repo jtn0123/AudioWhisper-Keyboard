@@ -20,14 +20,10 @@ import androidx.collection.SparseArrayCompat
 import androidx.collection.set
 import dev.patrickgold.florisboard.ime.core.Subtype
 import dev.patrickgold.florisboard.ime.keyboard.KeyboardMode
-import dev.patrickgold.florisboard.lib.devtools.LogTopic
-import dev.patrickgold.florisboard.lib.devtools.flogDebug
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.async
 import kotlinx.coroutines.runBlocking
 import java.util.*
 import kotlin.contracts.InvocationKind
@@ -58,7 +54,6 @@ class TextKeyboardCache(ioDispatcher: CoroutineDispatcher = Dispatchers.IO) {
      * Clears all computed keyboards for all modes and all subtypes from this cache.
      */
     fun clear() {
-        flogDebug(LogTopic.TEXT_KEYBOARD_VIEW) { "Clear whole cache" }
         for (mode in KeyboardMode.entries) {
             cache[mode]!!.clear()
         }
@@ -70,7 +65,6 @@ class TextKeyboardCache(ioDispatcher: CoroutineDispatcher = Dispatchers.IO) {
      * @param mode The keyboard mode for which the computed keyboards should be cleared from the cache.
      */
     fun clear(mode: KeyboardMode) {
-        flogDebug(LogTopic.TEXT_KEYBOARD_VIEW) { "Clear cache for mode '$mode'" }
         cache[mode]!!.clear()
     }
 
@@ -80,7 +74,6 @@ class TextKeyboardCache(ioDispatcher: CoroutineDispatcher = Dispatchers.IO) {
      * @param subtype The subtype for which the computed keyboards should be cleared from the cache.
      */
     fun clear(subtype: Subtype) {
-        flogDebug(LogTopic.TEXT_KEYBOARD_VIEW) { "Clear cache for subtype '${subtype.toShortString()}'" }
         for (mode in KeyboardMode.entries) {
             cache[mode]!!.remove(subtype.hashCode())
         }
@@ -93,7 +86,6 @@ class TextKeyboardCache(ioDispatcher: CoroutineDispatcher = Dispatchers.IO) {
      * @param subtype The subtype for which the computed keyboards should be cleared from the cache.
      */
     fun clear(mode: KeyboardMode, subtype: Subtype) {
-        flogDebug(LogTopic.TEXT_KEYBOARD_VIEW) { "Clear cache for mode '$mode' and subtype '${subtype.toShortString()}'" }
         cache[mode]!!.remove(subtype.hashCode())
     }
 
@@ -108,7 +100,6 @@ class TextKeyboardCache(ioDispatcher: CoroutineDispatcher = Dispatchers.IO) {
      */
     fun getAsync(mode: KeyboardMode, subtype: Subtype): TextKeyboard? {
         return cache[mode]!![subtype.hashCode()].also {
-            flogDebug(LogTopic.TEXT_KEYBOARD_VIEW) { "Get keyboard '$mode ${subtype.toShortString()}'" }
         }
     }
 
@@ -145,7 +136,6 @@ class TextKeyboardCache(ioDispatcher: CoroutineDispatcher = Dispatchers.IO) {
      * @param keyboard The deferred computed keyboard to set for the given params.
      */
     fun set(mode: KeyboardMode, subtype: Subtype, keyboard: TextKeyboard) {
-        flogDebug(LogTopic.TEXT_KEYBOARD_VIEW) { "Set keyboard '$mode ${subtype.toShortString()}'" }
         cache[mode]!![subtype.hashCode()] = keyboard
     }
 }

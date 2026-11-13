@@ -42,7 +42,6 @@ import dev.patrickgold.florisboard.app.FlorisPreferenceStore
 import dev.patrickgold.florisboard.appContext
 import dev.patrickgold.florisboard.extensionManager
 import dev.patrickgold.florisboard.ime.smartbar.CachedInlineSuggestionsChipStyleSet
-import dev.patrickgold.florisboard.lib.devtools.flogInfo
 import dev.patrickgold.florisboard.lib.ext.ExtensionComponentName
 import dev.patrickgold.florisboard.lib.ext.ExtensionMeta
 import dev.patrickgold.florisboard.lib.io.ZipUtils
@@ -149,7 +148,6 @@ class ThemeManager(context: Context) {
             loadedDir.mkdirs()
             loadedDir.deleteContentsRecursively()
             ZipUtils.unzip(appContext, themeExtRef, loadedDir).getOrThrow()
-            flogInfo { "Loaded extension ${themeExt.meta.id} into $loadedDir" }
             val stylesheetFile = loadedDir.subFile(themeConfig.stylesheetPath())
             val stylesheetJson = stylesheetFile.readText()
             SnyggStylesheet.fromJson(stylesheetJson).getOrThrow()

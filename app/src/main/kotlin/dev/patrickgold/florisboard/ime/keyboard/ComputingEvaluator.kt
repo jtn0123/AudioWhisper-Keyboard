@@ -315,7 +315,7 @@ fun ComputingEvaluator.computeImageVector(data: KeyData): ImageVector? {
             this.context()?.vectorResource(R.drawable.ic_keyboard_char_width_switcher_half)
         }
         KeyCode.DRAG_MARKER -> {
-            if (evaluator.state.debugShowDragAndDropHelpers) Icons.Default.Close else null
+            null
         }
         KeyCode.NOOP -> {
             Icons.Default.Close

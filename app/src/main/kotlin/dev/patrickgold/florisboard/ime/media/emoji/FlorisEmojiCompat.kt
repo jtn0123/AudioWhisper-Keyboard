@@ -20,7 +20,6 @@ import android.content.Context
 import androidx.emoji2.text.DefaultEmojiCompatConfig
 import androidx.emoji2.text.EmojiCompat
 import dev.patrickgold.florisboard.lib.devtools.flogError
-import dev.patrickgold.florisboard.lib.devtools.flogInfo
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -52,7 +51,6 @@ object FlorisEmojiCompat {
         config.setMetadataLoadStrategy(EmojiCompat.LOAD_STRATEGY_MANUAL)
         config.registerInitCallback(object : EmojiCompat.InitCallback() {
             override fun onInitialized() {
-                flogInfo { "EmojiCompat successfully loaded!" }
                 published.value = EmojiCompat.get()
             }
 

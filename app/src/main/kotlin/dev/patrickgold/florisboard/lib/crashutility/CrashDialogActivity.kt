@@ -92,7 +92,7 @@ class CrashDialogActivity : ComponentActivity() {
             appendLine("#### Attached logs and stacktrace files")
             appendCollapsibleSection(
                 summary = "Detailed info (Debug log header)",
-                details = Devtools.generateDebugLog(this@CrashDialogActivity, prefs, includeLogcat = false),
+                details = Devtools.generateDebugLog(this@CrashDialogActivity, prefs),
             )
             appendLine()
             if (stacktraces.isNotEmpty()) {

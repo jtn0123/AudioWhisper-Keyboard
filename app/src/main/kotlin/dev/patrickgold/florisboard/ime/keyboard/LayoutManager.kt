@@ -29,7 +29,6 @@ import dev.patrickgold.florisboard.ime.text.keyboard.TextKeyData
 import dev.patrickgold.florisboard.ime.text.keyboard.TextKeyboard
 import dev.patrickgold.florisboard.keyboardManager
 import dev.patrickgold.florisboard.lib.devtools.LogTopic
-import dev.patrickgold.florisboard.lib.devtools.flogDebug
 import dev.patrickgold.florisboard.lib.devtools.flogWarning
 import dev.patrickgold.florisboard.lib.ext.ExtensionComponentName
 import dev.patrickgold.florisboard.lib.io.ZipUtils
@@ -40,7 +39,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import org.florisboard.lib.kotlin.DeferredResult
@@ -64,16 +62,6 @@ private data class CachedPopupMapping(
     val mapping: PopupMapping,
 )
 
-data class DebugLayoutComputationResult(
-    val main: Result<CachedLayout?>,
-    val mod: Result<CachedLayout?>,
-    val ext: Result<CachedLayout?>,
-) {
-    fun allLayoutsSuccess(): Boolean {
-        return main.isSuccess && mod.isSuccess && ext.isSuccess
-    }
-}
-
 /**
  * Class which manages layout loading and caching.
  */
@@ -88,8 +76,6 @@ class LayoutManager(context: Context) {
     private val popupMappingCache: HashMap<ExtensionComponentName, DeferredResult<CachedPopupMapping>> = hashMapOf()
     private val popupMappingCacheGuard: Mutex = Mutex(locked = false)
     private val ioScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
-
-    val debugLayoutComputationResultFlow = MutableStateFlow<DebugLayoutComputationResult?>(null)
 
     /**
      * Loads the layout for the specified type and name.
@@ -106,10 +92,8 @@ class LayoutManager(context: Context) {
         layoutCacheGuard.withLock {
             val cached = layoutCache[ltn]
             if (cached != null) {
-                flogDebug(LogTopic.LAYOUT_MANAGER) { "Using cache for '${ltn.name}'" }
                 return@withLock cached
             } else {
-                flogDebug(LogTopic.LAYOUT_MANAGER) { "Loading '${ltn.name}'" }
                 val meta = keyboardManager.resources.layouts.value?.get(ltn.type)?.get(ltn.name)
                     ?: error("No indexed entry found for ${ltn.type} - ${ltn.name}")
                 val ext = extensionManager.getExtensionById(ltn.name.extensionId)
@@ -133,10 +117,8 @@ class LayoutManager(context: Context) {
         popupMappingCacheGuard.withLock {
             val cached = popupMappingCache[name]
             if (cached != null) {
-                flogDebug(LogTopic.LAYOUT_MANAGER) { "Using cache for '$name'" }
                 return@withLock cached
             } else {
-                flogDebug(LogTopic.LAYOUT_MANAGER) { "Loading '$name'" }
                 val meta = keyboardManager.resources.popupMappings.value?.get(name)
                     ?: error("No indexed entry found for $name")
                 val ext = extensionManager.getExtensionById(name.extensionId)
@@ -209,12 +191,6 @@ class LayoutManager(context: Context) {
         val extensionLayout = extensionLayoutResult.onFailure {
             flogWarning { "$keyboardMode - ext - $it" }
         }.getOrNull()
-
-        debugLayoutComputationResultFlow.value = DebugLayoutComputationResult(
-            main = mainLayoutResult,
-            mod = modifierLayoutResult,
-            ext = extensionLayoutResult,
-        )
 
         val computedArrangement: ArrayList<Array<TextKey>> = arrayListOf()
 

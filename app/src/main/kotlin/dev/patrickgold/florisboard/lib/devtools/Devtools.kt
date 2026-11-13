@@ -16,33 +16,22 @@
 
 package dev.patrickgold.florisboard.lib.devtools
 
-import android.app.ActivityManager
 import android.content.Context
 import android.os.Build
-import android.os.Debug
 import dev.patrickgold.florisboard.BuildConfig
 import dev.patrickgold.florisboard.R
 import dev.patrickgold.florisboard.app.FlorisPreferenceModel
 import dev.patrickgold.florisboard.extensionManager
 import dev.patrickgold.florisboard.lib.titlecase
 import dev.patrickgold.florisboard.lib.util.TimeUtils
-import dev.patrickgold.florisboard.lib.util.UnitUtils
 import dev.patrickgold.florisboard.subtypeManager
-import org.florisboard.lib.android.systemService
-import java.io.BufferedReader
-import java.io.IOException
-import java.io.InputStreamReader
-import java.util.Locale
 
 @Suppress("MemberVisibilityCanBePrivate")
 object Devtools {
-    fun generateDebugLog(context: Context, prefs: FlorisPreferenceModel? = null, includeLogcat: Boolean = false): String {
+    fun generateDebugLog(context: Context, prefs: FlorisPreferenceModel? = null): String {
         return buildString {
             append(generateDebugLogHeader(context, prefs))
-            if (includeLogcat) {
-                appendLine()
-                append(generateLogcatDump())
-            }
+
         }
     }
 
@@ -62,30 +51,6 @@ object Devtools {
         }
     }
 
-    fun generateDebugLogForGithub(context: Context, prefs: FlorisPreferenceModel? = null, includeLogcat: Boolean = false): String {
-        return buildString {
-            appendLine("<details>")
-            appendLine("<summary>Detailed info (Debug log header)</summary>")
-            appendLine()
-            appendLine("```")
-            append(generateDebugLogHeader(context, prefs))
-            appendLine()
-            appendLine("```")
-            appendLine("</details>")
-            if (includeLogcat) {
-                appendLine()
-                appendLine("<details>")
-                appendLine("<summary>Debug log content</summary>")
-                appendLine()
-                appendLine("```")
-                append(generateLogcatDump())
-                appendLine()
-                appendLine("```")
-                appendLine("</details>")
-            }
-        }
-    }
-
     fun generateSystemInfoLog(context: Context, withTitle: Boolean = true): String {
         return buildString {
             if (withTitle) appendLine("======= SYSTEM INFO =======")
@@ -95,7 +60,6 @@ object Devtools {
             append("Product             : ").appendLine(Build.PRODUCT)
             append("Android             : ").appendLine(getAndroidVersion(includeOemBuildId = true))
             append("ABIs                : ").appendLine(Build.SUPPORTED_ABIS.contentToString())
-            append("Memory              : ").appendLine(getSystemMemoryUsage(context))
             append("Font scale          : ").appendLine(context.resources.configuration.fontScale)
             append("Locales             : ").appendLine(context.resources.configuration.locales.toLanguageTags())
         }
@@ -109,8 +73,6 @@ object Devtools {
             append("Version             : ").appendLine("${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})")
             append("Build type          : ").appendLine(BuildConfig.BUILD_TYPE)
             append("Build commit hash   : ").appendLine(BuildConfig.BUILD_COMMIT_HASH)
-            append("Java heap memory    : ").appendLine(getAppJavaHeapMemoryUsage())
-            append("Native heap memory  : ").appendLine(getAppNativeHeapMemoryUsage())
         }
     }
 
@@ -148,22 +110,6 @@ object Devtools {
                 }
             }
 
-        }
-    }
-
-    fun generateLogcatDump(withTitle: Boolean = true): String {
-        return buildString {
-            if (withTitle) appendLine("======= LOGCAT =======")
-            try {
-                val process = Runtime.getRuntime().exec("logcat -d")
-                val bufferedReader = BufferedReader(InputStreamReader(process.inputStream))
-                var line: String?
-                while (bufferedReader.readLine().also { line = it } != null) {
-                    appendLine(line)
-                }
-            } catch (_: IOException) {
-                appendLine("Failed to retrieve.")
-            }
         }
     }
 
@@ -206,68 +152,4 @@ object Devtools {
         }
     }
 
-    fun getSystemMemoryUsage(context: Context): String {
-        return buildString {
-            try {
-                //  Source: https://stackoverflow.com/a/19267315/6801193
-                val memoryInfo = ActivityManager.MemoryInfo()
-                context.systemService(ActivityManager::class).getMemoryInfo(memoryInfo)
-                val nativeHeapSize = memoryInfo.totalMem
-                val nativeHeapFreeSize = memoryInfo.availMem
-                val usedMemInBytes = nativeHeapSize - nativeHeapFreeSize
-                val usedMemInPercentage = usedMemInBytes * 100f / nativeHeapSize
-                append(UnitUtils.formatMemorySize(usedMemInBytes))
-                append(" (")
-                append("%.2f".format(Locale.ROOT, usedMemInPercentage))
-                append("% used, ")
-                append(UnitUtils.formatMemorySize(nativeHeapSize))
-                append(" max)")
-            } catch (e: Exception) {
-                append("Failed to retrieve memory usage: ")
-                append(e.message)
-            }
-        }
-    }
-
-    fun getAppJavaHeapMemoryUsage(): String {
-        return buildString {
-            try {
-                //  Source: https://stackoverflow.com/a/19267315/6801193
-                val runtime = Runtime.getRuntime()
-                val javaHeapSize = runtime.maxMemory()
-                val usedMemInBytes = runtime.totalMemory() - runtime.freeMemory()
-                val usedMemInPercentage = usedMemInBytes * 100f / javaHeapSize
-                append(UnitUtils.formatMemorySize(usedMemInBytes))
-                append(" (")
-                append("%.2f".format(Locale.ROOT, usedMemInPercentage))
-                append("% used, ")
-                append(UnitUtils.formatMemorySize(javaHeapSize))
-                append(" max)")
-            } catch (e: Exception) {
-                append("Failed to retrieve memory usage: ")
-                append(e.message)
-            }
-        }
-    }
-
-    fun getAppNativeHeapMemoryUsage(): String {
-        return buildString {
-            try {
-                //  Source: https://stackoverflow.com/a/19267315/6801193
-                val nativeHeapSize = Debug.getNativeHeapSize()
-                val nativeHeapFreeSize = Debug.getNativeHeapFreeSize()
-                val usedMemInBytes = nativeHeapSize - nativeHeapFreeSize
-                val usedMemInPercentage = usedMemInBytes * 100f / nativeHeapSize
-                append(UnitUtils.formatMemorySize(usedMemInBytes))
-                append(" (")
-                append("%.2f".format(Locale.ROOT, usedMemInPercentage))
-                append("% used, ")
-                append(UnitUtils.formatMemorySize(nativeHeapSize))
-                append(" max)")
-            } catch (e: Exception) {
-                append("Failed to retrieve memory usage: ")
-                append(e.message)
-            }
-        }
-    }
 }
