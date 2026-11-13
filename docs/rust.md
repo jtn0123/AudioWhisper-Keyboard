@@ -83,6 +83,33 @@ Alternate Compose/Rust trials first on the emulator, then on the S24 Ultra at 12
 after phone acceptance remove the Compose keyboard, smartbar/candidates/popups, media/emoji/
 clipboard panels and Snygg UI; this prevents the fallback becoming permanent duplicate code.
 
+#### Milestone A prototype (2026-11-12)
+
+The default-off **Rust keyboard renderer (prototype)** setting draws character keys,
+candidates and evaluated accent popups through Vello CPU. A Vulkan/Hybrid measurement path
+is opt-in. On `aw_keyboard` (Android 16, 60 Hz), Parley/Fontations rendered the system's
+COLRv1 emoji and CBDT/CBLC flags, including ZWJ, tone, keycap and VS16 sequences. Compose,
+CPU and Hybrid committed identical text in the retained pre-continuation
+300-press/eight-popup script. No complete trial was obtained after the device-tool stop.
+Retained CPU draw p50/p95/p99 was 0.689/7.765/12.367 ms; Hybrid CPU encoding was
+1.571/5.234/7.117 ms, with submission-to-completion wall time 5.709/8.070/9.641 ms
+on llvmpipe. **The 2/3 ms performance gate is not passed.** Compose stays the default.
+Milestone B needs Samsung font inspection, S24/120 Hz Perfetto and GPU timings, tail-cost
+profiling, broader action-trace parity and closer toolbar/candidate/popup/shadow matching.
+See [the full results and reproduction notes](stage3a-results.md) for boundaries and evidence.
+
+`rendererEmojiSamples()` in CandidatesRow and `traceComposeFrame()` in TextKeyboardLayout
+are temporary measurement scaffolding to remove with the Compose keyboard. With their
+`aw-emoji` and `aw-compose` log tags unset they supply no samples and register no frame
+callbacks; the default-off prototype leaves the existing Compose path in use. The emoji
+hook only supplies fixed synthetic samples when real candidates are absent and logs nothing.
+The frame hook logs numeric touch/commit timestamps only, never words or candidate text.
+`log.tag.aw-profile=DEBUG` at native surface creation opts into CPU attribution: damage
+area, full/dirty, case-change (shift) proxy, popup/candidate changes, shaping misses, glyph
+preparation, raster and explicit allocation-site timing. Those intervals overlap (shaping,
+glyphs and allocations are parts of encoding), and allocation counters do not cover library
+internals. No scene labels, candidate text or typed contents enter measurement logs.
+
 ### Stage 4: smaller settings (to 90%+)
 
 At roughly 55–64k Rust lines, Kotlin and Java together must be around 6k. Settings, extensions
