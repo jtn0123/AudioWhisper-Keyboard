@@ -16,8 +16,6 @@
 
 package org.florisboard.lib.snygg
 
-import kotlin.math.min
-
 /**
  * Base interface for all Snygg stylesheet rules. A rule in a stylesheet is a core component, acting as the key for a
  * property set map. There are two main rule categories, annotation and element rules.
@@ -66,11 +64,7 @@ sealed interface SnyggRule : Comparable<SnyggRule> {
          * @return A `SnyggRule` instance if the string matches any supported rule type, or `null` if no match is found.
          * @since 0.5.0-alpha01
          */
-        fun fromOrNull(str: String): SnyggRule? {
-            return SnyggAnnotationRule.Defines.fromOrNull(str)
-                ?: SnyggAnnotationRule.Font.fromOrNull(str)
-                ?: SnyggElementRule.fromOrNull(str)
-        }
+        fun fromOrNull(str: String): SnyggRule? = SnyggGrammarAdapter.parse(str)
     }
 }
 
@@ -86,21 +80,13 @@ sealed interface SnyggAnnotationRule : SnyggRule {
     data object Defines : SnyggAnnotationRule, SnyggSpecDecl.RuleDecl {
         override val name: String = "defines"
 
-        override val pattern = """^@$name$""".toRegex()
+        override val pattern = SnyggGrammarAdapter.metadata[0].toRegex()
 
         override fun decl() = this
 
-        override fun compareTo(other: SnyggRule): Int {
-            return when (other) {
-                is Defines -> 0 // same
-                is SnyggAnnotationRule -> decl().name.compareTo(other.decl().name)
-                is SnyggElementRule -> -1 // annotations always come first
-            }
-        }
+        override fun compareTo(other: SnyggRule): Int = SnyggGrammarAdapter.compare(this, other)
 
-        override fun toString(): String {
-            return "@defines"
-        }
+        override fun toString(): String = SnyggGrammarAdapter.format(this)
 
         /**
          * Attempts to parse the given string into a `defines` annotation rule instance, or `null` if the given string
@@ -111,30 +97,19 @@ sealed interface SnyggAnnotationRule : SnyggRule {
          *
          * @since 0.5.0-alpha01
          */
-        fun fromOrNull(str: String): Defines? {
-            pattern.matchEntire(str) ?: return null
-            return Defines
-        }
+        fun fromOrNull(str: String): Defines? = SnyggGrammarAdapter.parse(str, 1) as Defines?
     }
 
     data class Font(val fontName: String) : SnyggAnnotationRule {
         override fun decl() = Companion
 
-        override fun compareTo(other: SnyggRule): Int {
-            return when (other) {
-                is Font -> fontName.compareTo(other.fontName)
-                is SnyggAnnotationRule -> decl().name.compareTo(other.decl().name)
-                is SnyggElementRule -> -1 // annotations always come first
-            }
-        }
+        override fun compareTo(other: SnyggRule): Int = SnyggGrammarAdapter.compare(this, other)
 
-        override fun toString(): String {
-            return "@font `$fontName`"
-        }
+        override fun toString(): String = SnyggGrammarAdapter.format(this)
 
         companion object : SnyggSpecDecl.RuleDecl {
             override val name = "font"
-            override val pattern = """^@$name `(?<fontName>[a-zA-Z0-9\s-]+)`$""".toRegex()
+            override val pattern = SnyggGrammarAdapter.metadata[1].toRegex()
 
             /**
              * Attempts to parse the given string into a `font` annotation rule instance, or `null` if the given string
@@ -145,10 +120,7 @@ sealed interface SnyggAnnotationRule : SnyggRule {
              *
              * @since 0.5.0-alpha01
              */
-            fun fromOrNull(str: String): Font? {
-                val match = pattern.matchEntire(str) ?: return null
-                return Font(match.groups["fontName"]!!.value)
-            }
+            fun fromOrNull(str: String): Font? = SnyggGrammarAdapter.parse(str, 2) as Font?
         }
     }
 }
@@ -169,48 +141,18 @@ data class SnyggElementRule(
     val selector: SnyggSelector = SnyggSelector.NONE,
 ) : SnyggRule {
     init {
-        requireNotNull(ELEMENT_NAME_REGEX.matchEntire(elementName)) { "element name is invalid" }
+        require(SnyggGrammarAdapter.call(9, arrayOf(elementName)).single() == "1") { "element name is invalid" }
     }
 
     override fun decl() = Companion
 
-    override fun compareTo(other: SnyggRule): Int {
-        if (other !is SnyggElementRule) {
-            return 1 // annotations always come first
-        }
-        val elemDiff = elementName.compareTo(other.elementName)
-        if (elemDiff != 0) {
-            return elemDiff
-        }
-        if (selector != SnyggSelector.NONE || other.selector != SnyggSelector.NONE) {
-            if (selector == SnyggSelector.NONE) {
-                return -1
-            }
-            if (other.selector == SnyggSelector.NONE) {
-                return 1
-            }
-            val selectorDiff = selector.compareTo(other.selector)
-            if (selectorDiff != 0) {
-                return selectorDiff
-            }
-        }
-        val attrDiff = attributes.compareTo(other.attributes)
-        return attrDiff
-    }
+    override fun compareTo(other: SnyggRule): Int = SnyggGrammarAdapter.compare(this, other)
 
-    override fun toString() = buildString {
-        append(elementName)
-        append(attributes)
-        append(selector)
-    }
+    override fun toString() = SnyggGrammarAdapter.format(this)
 
     companion object : SnyggSpecDecl.RuleDecl {
         override val name = "element"
-        private val ELEMENT_NAME_REGEX = """(?<elementName>[a-zA-Z0-9-]+)""".toRegex()
-
-        private val ATTRIBUTES_REGEX = """(?<attributesRaw>(?:${SnyggAttributes.ATTRIBUTE_REGEX})+)?""".toRegex()
-        private val SELECTOR_REGEX = """(?<selectorRaw>:pressed|:focus|:hover|:disabled)?""".toRegex()
-        override val pattern = """^$ELEMENT_NAME_REGEX$ATTRIBUTES_REGEX$SELECTOR_REGEX$""".toRegex()
+        override val pattern = SnyggGrammarAdapter.metadata[3].toRegex()
 
         /**
          * Attempts to parse the given string into an element rule instance, or `null` if the given string
@@ -221,57 +163,14 @@ data class SnyggElementRule(
          *
          * @since 0.5.0-alpha01
          */
-        fun fromOrNull(str: String): SnyggElementRule? {
-            val result = pattern.matchEntire(str) ?: return null
-            val elementName = result.groups["elementName"]!!.value // cannot be null logically
-            val attributesRaw = result.groups["attributesRaw"]?.value
-            val selectorRaw = result.groups["selectorRaw"]?.value
-
-            return SnyggElementRule(
-                elementName = elementName,
-                attributes = SnyggAttributes.from(attributesRaw ?: ""),
-                selector = SnyggSelector.from(selectorRaw ?: ""),
-            )
-        }
+        fun fromOrNull(str: String): SnyggElementRule? = SnyggGrammarAdapter.parse(str, 3) as SnyggElementRule?
     }
 }
 
 data class SnyggAttributes internal constructor(
     private val attributes: Map<String, List<String>> = emptyMap(),
 ) : Map<String, List<String>> by attributes, Comparable<SnyggAttributes> {
-    override fun compareTo(other: SnyggAttributes): Int {
-        if (attributes.isEmpty() && other.attributes.isEmpty()) {
-            return 0
-        }
-        val sizeDiff = attributes.size.compareTo(other.attributes.size)
-        if (sizeDiff != 0) {
-            return sizeDiff
-        }
-        // both have attributes at this point and size matches
-        val attrs = attributes.entries.toList().sortedBy { it.key }
-        val otherAttrs = other.attributes.entries.toList().sortedBy { it.key }
-        for (attrIndex in 0..<min(attrs.size, otherAttrs.size)) {
-            val attr = attrs[attrIndex]
-            val otherAttr = otherAttrs[attrIndex]
-            val keyDiff = attr.key.compareTo(otherAttr.key)
-            if (keyDiff != 0) {
-                return keyDiff
-            }
-            for (valueIndex in 0..<min(attr.value.size, otherAttr.value.size)) {
-                val value = attr.value[valueIndex]
-                val otherValue = otherAttr.value[valueIndex]
-                val valueDiff = value.compareTo(otherValue)
-                if (valueDiff != 0) {
-                    return valueDiff
-                }
-            }
-            val valueSizeDiff = attr.value.size.compareTo(otherAttr.value.size)
-            if (valueSizeDiff != 0) {
-                return valueSizeDiff
-            }
-        }
-        return 0
-    }
+    override fun compareTo(other: SnyggAttributes): Int = SnyggGrammarAdapter.compare(this, other)
 
     /**
      * Serializes the attributes to a string.
@@ -280,57 +179,7 @@ data class SnyggAttributes internal constructor(
      *
      * @since 0.5.0-alpha01
      */
-    override fun toString() = buildString {
-        for ((key, values) in attributes.entries.sortedBy { it.key }) {
-            if (values.isEmpty()) {
-                continue
-            }
-            append(ATTRIBUTE_OPEN)
-            append(key)
-            append(ATTRIBUTE_ASSIGN)
-            val (ints, strings) = values.partition { value ->
-                value.toIntOrNull() != null
-            }
-            val serializedValues = buildList {
-                ints.sorted().fold(mutableListOf()) { acc, valueStr ->
-                    val value = valueStr.toInt()
-                    if (acc.isEmpty()) {
-                        acc.add(value..value)
-                    } else {
-                        val lastRange = acc.last()
-                        if (lastRange.last + 1 == value) {
-                            acc[acc.size - 1] = lastRange.first..value
-                        } else {
-                            acc.add(value..value)
-                        }
-                    }
-                    acc
-                }.forEach { range ->
-                    when (range.first) {
-                        range.last -> {
-                            add(range.first.toString())
-                        }
-                        range.last - 1 -> {
-                            add(range.first.toString())
-                            add((range.first + 1).toString())
-                        }
-                        else -> {
-                            add(range.toString())
-                        }
-                    }
-                }
-                addAll(strings.map { string ->
-                    buildString {
-                        append('`')
-                        append(string)
-                        append('`')
-                    }
-                }.sorted())
-            }
-            append(serializedValues.joinToString(ATTRIBUTE_VALUES_SEPARATOR))
-            append(ATTRIBUTE_CLOSE)
-        }
-    }
+    override fun toString() = SnyggGrammarAdapter.format(this)
 
     /**
      * Copies the attributes, including the given key-value pairs. Duplicate key-value pairs are ignored.
@@ -340,17 +189,7 @@ data class SnyggAttributes internal constructor(
      *
      * @since 0.5.0-alpha01
      */
-    fun including(vararg pairs: Pair<String, Any>): SnyggAttributes {
-        val copy = attributes.toMutableMap()
-        pairs.forEach { (key, anyValue) ->
-            val value = anyValue.toString()
-            copy[key] = buildSet {
-                addAll(copy[key].orEmpty())
-                add(value)
-            }.toList().sorted()
-        }
-        return SnyggAttributes(copy.toMap())
-    }
+    fun including(vararg pairs: Pair<String, Any>): SnyggAttributes = SnyggGrammarAdapter.edit(this, pairs, 0)
 
     /**
      * Copies the attributes, excluding the given key-value pairs. Ignores non-present pairs.
@@ -360,22 +199,7 @@ data class SnyggAttributes internal constructor(
      *
      * @since 0.5.0-alpha01
      */
-    fun excluding(vararg pairs: Pair<String, Any>): SnyggAttributes {
-        val copy = attributes.toMutableMap()
-        pairs.forEach { (key, anyValue) ->
-            val value = anyValue.toString()
-            val list = buildSet {
-                addAll(copy[key].orEmpty())
-                remove(value)
-            }.toList().sorted()
-            if (list.isNotEmpty()) {
-                copy[key] = list
-            } else {
-                copy.remove(key)
-            }
-        }
-        return SnyggAttributes(copy.toMap())
-    }
+    fun excluding(vararg pairs: Pair<String, Any>): SnyggAttributes = SnyggGrammarAdapter.edit(this, pairs, 1)
 
     /**
      * Copies the attributes, toggling the given key-value pairs. Existing key-value pairs will be removed,
@@ -386,73 +210,13 @@ data class SnyggAttributes internal constructor(
      *
      * @since 0.5.0-alpha01
      */
-    fun toggling(vararg pairs: Pair<String, Any>): SnyggAttributes {
-        val copy = attributes.toMutableMap()
-        pairs.forEach { (key, anyValue) ->
-            val value = anyValue.toString()
-            val list = buildSet {
-                addAll(copy[key].orEmpty())
-                if (contains(value)) {
-                    remove(value)
-                } else {
-                    add(value)
-                }
-            }.toList().sorted()
-            if (list.isNotEmpty()) {
-                copy[key] = list
-            } else {
-                copy.remove(key)
-            }
-        }
-        return SnyggAttributes(copy.toMap())
-    }
+    fun toggling(vararg pairs: Pair<String, Any>): SnyggAttributes = SnyggGrammarAdapter.edit(this, pairs, 2)
 
-    @Suppress("RegExpUnnecessaryNonCapturingGroup")
     companion object {
-        private const val ATTRIBUTE_OPEN = "["
-        private const val ATTRIBUTE_CLOSE = "]"
-        private const val ATTRIBUTE_ASSIGN = "="
-        private const val ATTRIBUTE_VALUES_SEPARATOR = ","
-
-        private val INT_PATTERN = """(?:0|-?[1-9][0-9]*)""".toRegex()
-        private val INT_RANGE_PATTERN = """$INT_PATTERN[.]{2}$INT_PATTERN""".toRegex()
-        private val STRING_PATTERN = """`[^`]+`""".toRegex()
-        private val ATTR_VALUE_PATTERN = """(?:$STRING_PATTERN|$INT_RANGE_PATTERN|$INT_PATTERN)""".toRegex()
-        internal val ATTRIBUTE_REGEX = """\[(?<attrKey>[a-zA-Z0-9-]+)=(?<attrRawValues>$ATTR_VALUE_PATTERN(?:,$ATTR_VALUE_PATTERN)*)]""".toRegex()
-
-        internal fun from(str: String): SnyggAttributes {
-            val attributes = mutableMapOf<String, List<String>>()
-            for (attrMatch in ATTRIBUTE_REGEX.findAll(str)) {
-                val key = attrMatch.groups["attrKey"]!!.value
-                val rawValues = attrMatch.groups["attrRawValues"]!!.value
-                attributes[key] = buildList {
-                    attributes[key]?.let { addAll(it) }
-                    for (attrValueMatch in ATTR_VALUE_PATTERN.findAll(rawValues)) {
-                        val rawValue = attrValueMatch.value
-                        if (STRING_PATTERN.matches(rawValue)) {
-                            add(rawValue.substring(1, rawValue.length - 1))
-                            continue
-                        }
-                        if (INT_RANGE_PATTERN.matches(rawValue)) {
-                            val (start, end) = rawValue.split("..").map { it.toInt() }
-                            addAll((start..end).map { it.toString() })
-                            continue
-                        }
-                        if (INT_PATTERN.matches(rawValue)) {
-                            add(rawValue)
-                            continue
-                        }
-                    }
-                    sort()
-                }.distinct()
-            }
-            return SnyggAttributes(attributes.toMap())
-        }
-
-        internal fun of(vararg pairs: Pair<String, List<Any>>) = SnyggAttributes(
-            mapOf(
-                *pairs.map { (key, values) -> key to values.map { it.toString() }.distinct() }.toTypedArray()
-            )
+        internal val ATTRIBUTE_REGEX = SnyggGrammarAdapter.metadata[2].toRegex()
+        internal fun from(str: String) = SnyggGrammarAdapter.attributes(SnyggGrammarAdapter.call(3, arrayOf(str)).iterator())
+        internal fun of(vararg pairs: Pair<String, List<Any>>) = SnyggGrammarAdapter.attributes(
+            SnyggGrammarAdapter.call(13, SnyggGrammarAdapter.pack(pairs.associate { (k, v) -> k to v.map { it.toString() } })).iterator(),
         )
     }
 }
@@ -509,25 +273,13 @@ enum class SnyggSelector(val id: String) {
      *
      * @since 0.5.0-alpha01
      */
-    override fun toString(): String {
-        if (this == NONE) {
-            return ""
-        }
-        return buildString {
-            append(SELECTOR_COLON)
-            append(id)
-        }
-    }
+    override fun toString(): String = SnyggGrammarAdapter.call(8, arrayOf(ordinal.toString())).single()
 
     companion object {
-        private const val SELECTOR_COLON = ":"
-
         internal fun from(str: String): SnyggSelector {
-            if (str.isNotEmpty()) {
-                val selector = str.substring(1)
-                return entries.first { it.id == selector }
-            }
-            return NONE
+            val result = SnyggGrammarAdapter.call(7, arrayOf(str))
+            if (result.isEmpty()) throw NoSuchElementException("Collection contains no element matching the predicate.")
+            return entries[result.single().toInt()]
         }
     }
 }

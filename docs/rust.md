@@ -32,7 +32,7 @@ wrappers: the point is to remove Kotlin decisions, not translate each line throu
 
 1. Key/domain models: selectors, codes/types, currency slots, keyboard state and text-key evaluation (done; stage 2.1 below).
 2. Layout assembly/cache: arrangements, merging, hints and cache keys (done; stage 2.2 below).
-3. Snygg rules and stylesheet grammar: parsing, ordering and schema/version errors.
+3. Snygg rules and stylesheet grammar: parsing, ordering and schema/version errors (done; stage 2.3 below).
 4. Snygg values: dimensions, colours, fonts, padding, shapes and variables.
 5. Snygg compilation/editor model: cascade, inheritance, matching, editor operations and the live schema generator.
 6. A1: let the Rust suggester call the Rust decoder through a native session; remove production LatinIME Java glue, keeping the C++ oracle.
@@ -132,6 +132,7 @@ The differential tests, deliberate mutation check and emulator checks below appl
 
 | Piece | Rust | Replaced | Proof it matches |
 |---|---|---|---|
+| Snygg rules, selectors, attributes and ordered stylesheet structure | `crates/snygg` | `SnyggRule` and `SnyggStylesheet` grammar/formatting/comparison/schema policy, behind the same managed API | `SnyggGrammarMatchTest` and `SnyggStylesheetMatchTest` against test-only `ReferenceSnygg*`: all 12 bundled files, 28 inline fixtures, every configuration flag combination, UTF-16 and seeded/mutated cases. Reversing selector comparison fails. See stage 2.3 below |
 | Layout selection and assembly: subtype/mode load plans, explicit modifier types, arrangement insertion, number/symbol hint alignment and computed-keyboard cache keys/invalidation | `crates/keys` (`assembly`) | `LayoutManager`'s decisions and merge/hint loops, plus `TextKeyboardCache`'s policy | `LayoutAssemblyMatchTest` against `ReferenceLayoutAssembly` and `ReferenceTextKeyboardCache`: every bundled layout, mode and retained preset, complete evaluated key/popup/hint lists and bit-exact geometry, seeded malformed/missing references and cache histories. Changing the insertion marker from code 0 to code 1 fails both layout tests. See stage 2.2 below |
 | Key/domain models: selector choices, canonical key codes and predefined types/labels, currency slots, state bits, key strings, popup-source precedence, phone hints and enabled/visible policy | `crates/keys` (`codes`, `model_data`, `models`) | `KeyData` selectors, `CurrencySet`, `KeyboardState` bits, `TextKeyData` tables/string rules, and the pure parts of `TextKey`/`ComputingEvaluatorImpl` | `KeyModelsMatchTest` and `KeySelectorsMatchTest` against the test-only `ReferenceKey*` and `ReferenceKeyboardState`; every bundled layout in all selector states, seeded nested selectors, raw registers and transitions, currency sets, key/string and popup/availability cases. Reversing the unshifted case choice in Rust failed both selector tests. See stage 2.1 below for counts and emulator proof |
 | Glide typing's scorer: pruning a swipe's candidate words and ranking them | `crates/glide` | `StatisticalGlideTypingClassifier`'s `Pruner`, ideal gestures and scoring | `SwipeIndexTest` against `ReferenceGlideClassifier`; on the emulator, 512 of 512 scorings were identical |
@@ -278,6 +279,76 @@ The tracked-main-source recount removes 151 non-blank Kotlin lines and adds 273 
 (including JNI), a net addition of 122 lines; Java is unchanged. Totals: 53,170 Kotlin,
 26,570 Rust and 627 Java, 33.06% Rust (previously 32.77%). Test references are excluded by the
 90% section's rules. Kotlin shrinks; this package does not claim the overall target is reached.
+
+### Stage 2.3: Snygg grammar boundary and proof (2026-11-12)
+
+The new Java-free `snygg` crate owns element/annotation parsing, attribute ranges and edits,
+selector parsing, exact comparison results, canonical rule formatting, schema/version policy
+and error messages, ordered document plans and serialized root keys. Models use UTF-16, so
+quoted values and even lone surrogates survive JNI. `awnative` only packs/unpacks these models;
+there are no callbacks, locks or native handles. The renderer can reuse `grammar::Rule`,
+`attributes::Attributes`, and `document::{schema, plan, serialized_keys}` without Java.
+
+Kotlin keeps the public Snygg class names, constructors and signatures, managed object allocation,
+the kotlinx JSON syntax codec and pretty printer, and property/value decoding. Keeping that codec
+preserves its exact malformed-JSON/root-shape/String-decoding exceptions. Rust receives the
+decoded ordered keys and schema, returning source indices and first-insertion slots: equal rules
+replace the value but retain the first key and position. Rule errors are deferred in the plan,
+so an earlier Kotlin property/value error still wins. The public compile-time `SCHEMA_V2` constant
+stays for source compatibility and is checked against the reference/native metadata.
+`SnyggSpecDecl`'s encoder/schema DSL stays in Kotlin; its `RuleDecl.pattern` values now come from
+Rust. The unchanged `SnyggJsonSchemaGenerator` receives byte-identical regex patterns.
+
+Package 4 still owns property sets, value syntax/encoders, dimensions, colours, fonts, padding,
+shapes and variables, including required/invalid-property/value errors. Package 5 still owns
+compilation, matching, inheritance/cascade, editor operations and schema-generation behaviour.
+Unknown element and attribute names remain syntactically accepted. Numeric attribute strings
+still sort lexically before range coalescing, descending ranges still become empty lists, and
+the original schema regex's unescaped dots still match a Unicode code point. There are no
+intentional behaviour changes.
+
+The two JVM match suites retain the replaced Kotlin in `ReferenceSnyggRule`,
+`ReferenceSnyggAttributes`, and `ReferenceSnyggStylesheet` (including independent grammar error
+messages). They compare parsed models, map/list order, exact comparator integers, serialization,
+round trips and exception classes/messages, covering:
+
+- All 12 bundled stylesheet files and all 28 existing inline stylesheet test documents.
+  Discovery scans tracked JSON and extension archives across the repository, not a fixed asset
+  list. Every file runs with all 64 configuration flag combinations; inline fixtures use strict
+  and fully lenient configurations. No other extension/test stylesheet files currently exist.
+- 12,000 seeded rules, 20,000 seeded comparison pairs, 4,000 attribute-edit histories with
+  40,000 operations, and every UTF-16 unit in font names and quoted attribute values (131,072
+  rule cases), including lone surrogates and the platform-specific regex whitespace table.
+- 4,000 seeded documents and 1,200 mutations of the real stylesheets, plus directed schema,
+  version, malformed JSON, unknown names, bad selectors, duplicate raw/canonical rules and
+  property-versus-grammar error-precedence cases under every configuration flag combination.
+
+The deliberate mutation reversed Rust's selector comparison. The JVM grammar match test failed
+on `key:disabled` versus `key:hover` (expected 1, got -1); restoring it restored the suite.
+A temporary Android-only reference probe checked the full 131,072 character-sensitive cases
+on `aw_keyboard` with zero mismatches, logging counts only. The probe and reference sources
+were removed from production before the final build.
+
+The final full command `./gradlew --stacktrace test :app:lintDebug :lib:rust:check
+:lib:rust:oracleCheck assembleDebug` exited 0. Lint has zero errors and only
+AndroidGradlePluginVersion, NewerVersionAvailable and ChromeOsAbiSupport warnings. A separate
+`:lib:snygg:generateJsonSchema` build exited 0 and reproduced the tracked schema byte for byte.
+
+Before and after builds were installed only through `scripts/install-dev.sh` on the muted
+`aw_keyboard` emulator (`local`, `emulator-5556`), with the keyboard enabled/selected and the
+Rust renderer prototype off. Captures cover Floris Day, Floris Night and Floris Pure Night in
+the same empty preview field, plus the editor on an unmodified temporary copy of bundled Floris
+Day (bundled extensions are read-only). All three keyboard regions and the editor are
+pixel-identical. Whole-screen PNGs differ in the system clock; the Pure Night pair also differs
+in 239 blinking-caret pixels outside the keyboard. The requested logcat search is empty.
+Screenshots live under ignored `build/stage23/screenshots/{before,after}-*.png`, not in git.
+The temporary extension was removed, original Follow system theme mode restored, and the
+emulator shut down after testing.
+
+Using the plan's non-blank tracked-main-source measure, this package removes 197 net Kotlin
+lines and adds 790 Rust lines including JNI. Totals are 53,385 Kotlin, 29,171 Rust and 627 Java:
+35.07% Rust, up from 34.36% at this checkout's starting commit. Tests and temporary probes are
+excluded; the public Kotlin API documentation remains in place.
 
 ### Sharing a core with the Mac app
 

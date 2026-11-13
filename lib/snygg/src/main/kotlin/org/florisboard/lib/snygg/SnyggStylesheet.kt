@@ -19,9 +19,6 @@ package org.florisboard.lib.snygg
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.decodeFromJsonElement
-import kotlinx.serialization.json.encodeToJsonElement
 
 data class SnyggStylesheet internal constructor(
     val schema: String,
@@ -34,22 +31,11 @@ data class SnyggStylesheet internal constructor(
     fun toJson(
         config: SnyggJsonConfiguration = SnyggJsonConfiguration.DEFAULT,
     ): Result<String> = runCatching {
-        val schemaElem = config.json.encodeToJsonElement(schema)
-        val ruleElems = rules.map { (rule, propertySet) ->
-            rule.toString() to propertySet.toJsonElement(rule, config)
-        }.toMap()
-        val jsonObject = JsonObject(
-            mapOf(
-                "\$schema" to schemaElem
-            ) + ruleElems
-        )
-        config.json.encodeToString(jsonObject)
+        SnyggGrammarAdapter.toJson(this, config)
     }
 
     companion object {
         const val SCHEMA_V2 = "https://schemas.florisboard.org/snygg/v2/stylesheet"
-
-        private val SCHEMA_PATTERN = """^https://schemas.florisboard.org/snygg/v[0-9]+/stylesheet$""".toRegex()
 
         fun v2(stylesheetBlock: SnyggStylesheetEditor.() -> Unit): SnyggStylesheet {
             val builder = SnyggStylesheetEditor(SCHEMA_V2)
@@ -61,46 +47,7 @@ data class SnyggStylesheet internal constructor(
             json: String,
             config: SnyggJsonConfiguration = SnyggJsonConfiguration.DEFAULT,
         ): Result<SnyggStylesheet> = runCatching {
-            val jsonObject = config.json.decodeFromString<JsonObject>(json)
-            var schema: String? = jsonObject["\$schema"]?.let { config.json.decodeFromJsonElement(it) }
-            if (schema == null) {
-                if (config.ignoreMissingSchema) {
-                    // assume schema
-                    schema = SCHEMA_V2
-                } else {
-                    throw SnyggMissingSchemaException()
-                }
-            } else {
-                val schemaMatch = SCHEMA_PATTERN.matchEntire(schema)
-                if (schemaMatch == null) {
-                    if (config.ignoreInvalidSchema) {
-                        // assume schema
-                        schema = SCHEMA_V2
-                    } else {
-                        throw SnyggInvalidSchemaException(schema)
-                    }
-                }
-                if (schema != SCHEMA_V2 && !config.ignoreUnsupportedSchema) {
-                    throw SnyggUnsupportedSchemaException(schema)
-                }
-            }
-            val ruleMap = mutableMapOf<SnyggRule, SnyggPropertySet>()
-            for ((key, jsonElement) in jsonObject.entries) {
-                if (key == "\$schema") {
-                    continue
-                } else {
-                    val rule = SnyggRule.fromOrNull(key)
-                    if (rule == null) {
-                        if (config.ignoreInvalidRules) {
-                            continue
-                        }
-                        throw SnyggInvalidRuleException(key)
-                    }
-                    val propertySet = SnyggPropertySet.fromJsonElement(rule, config, jsonElement)
-                    ruleMap[rule] = propertySet
-                }
-            }
-            SnyggStylesheet(schema, ruleMap)
+            SnyggGrammarAdapter.fromJson(json, config)
         }
     }
 }
@@ -147,15 +94,15 @@ data class SnyggJsonConfiguration private constructor(
 }
 
 class SnyggMissingSchemaException : SerializationException(
-    message = "Stylesheet is missing schema reference",
+    message = SnyggGrammarAdapter.errorMessage(0),
 )
 
 class SnyggInvalidSchemaException(schema: String) : SerializationException(
-    message = "Stylesheet references invalid schema '$schema'",
+    message = SnyggGrammarAdapter.errorMessage(1, schema),
 )
 
 class SnyggUnsupportedSchemaException(schema: String) : SerializationException(
-    message = "Stylesheet references unsupported schema '$schema'",
+    message = SnyggGrammarAdapter.errorMessage(2, schema),
 )
 
 class SnyggMissingRequiredPropertyException(rule: SnyggRule, property: String) : SerializationException(
@@ -163,7 +110,7 @@ class SnyggMissingRequiredPropertyException(rule: SnyggRule, property: String) :
 )
 
 class SnyggInvalidRuleException(ruleStr: String) : SerializationException(
-    message = "Invalid rule '$ruleStr'",
+    message = SnyggGrammarAdapter.errorMessage(3, ruleStr),
 )
 
 class SnyggInvalidPropertyException(rule: SnyggRule, property: String) : SerializationException(

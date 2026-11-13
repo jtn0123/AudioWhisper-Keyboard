@@ -19,6 +19,7 @@ default-members = [
     "crates/render",
     "crates/shift",
     "crates/spacing",
+    "crates/snygg",
     "crates/suggest",
 ]
 resolver = "3"

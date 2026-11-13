@@ -77,6 +77,16 @@ tasks.withType<Test> {
         events = setOf(TestLogEvent.FAILED, TestLogEvent.PASSED, TestLogEvent.SKIPPED)
     }
     useJUnitPlatform()
+    systemProperty("snygg.repoRoot", rootDir.path)
+    inputs.files(rootProject.fileTree(rootDir) {
+        include("**/*.json", "**/*.flex", "**/*.zip", "**/*.floris")
+        exclude("**/build/**", ".git/**", ".gradle/**", ".kotlin/**", ".device-backup/**")
+    }).withPropertyName("repoStylesheets")
+    val rustHost = rootDir.resolve("lib/rust/build/rust/host")
+    dependsOn(":lib:rust:cargoBuildHost")
+    inputs.dir(rustHost).withPropertyName("rustHostLibrary").withPathSensitivity(PathSensitivity.RELATIVE)
+    systemProperty("java.library.path", rustHost.path)
+    jvmArgs("--enable-native-access=ALL-UNNAMED")
 }
 
 kover {
@@ -87,6 +97,7 @@ dependencies {
     implementation(projects.lib.android)
     implementation(projects.lib.color)
     implementation(projects.lib.kotlin)
+    implementation(projects.lib.rust)
 
     val composeBom = platform(libs.androidx.compose.bom)
     implementation(composeBom)
@@ -107,7 +118,9 @@ dependencies {
 }
 
 val generateJsonSchema = tasks.register<JavaExec>("generateJsonSchema") {
-    dependsOn("build")
+    dependsOn("build", ":lib:rust:cargoBuildHost")
+    systemProperty("java.library.path", rootDir.resolve("lib/rust/build/rust/host").path)
+    jvmArgs("--enable-native-access=ALL-UNNAMED")
     mainClass.set("org.florisboard.lib.snygg.SnyggJsonSchemaGenerator")
     args = listOf("schemas/stylesheet.schema.json")
     workingDir = projectDir

@@ -27,6 +27,7 @@ mod render;
 mod render_window;
 mod screen;
 mod shift;
+mod snygg;
 mod spacing;
 mod suggest;
 mod text;
