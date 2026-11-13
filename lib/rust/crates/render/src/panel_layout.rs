@@ -12,6 +12,7 @@ impl Panel {
         request: &Request,
         width: f32,
     ) {
+        self.measure_chrome(theme, text, request);
         if self.kind == 7 {
             self.measure_subtypes(theme, text, request);
             return;
@@ -416,6 +417,7 @@ impl Panel {
             }
             i.secondary_style = theme.style(&r.element("clipboard-item-description", 0));
         }
+        self.extract_style();
         self.style_chrome(theme, request);
         self.style_subtypes(theme, request);
         if self.kind == 5 {

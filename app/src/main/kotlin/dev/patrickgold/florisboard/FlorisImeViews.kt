@@ -157,6 +157,12 @@ internal class ComposeExtractedLandscapeInputView @JvmOverloads constructor(
     @Composable
     fun Content() {
         val service = service ?: return
+        val prefs by dev.patrickgold.florisboard.app.FlorisPreferenceStore
+        val rustPrototype by prefs.keyboard.rustRendererPrototype.observeAsState()
+        if (rustPrototype) {
+            NativeExtractContent(service, extractEditText)
+            return
+        }
         ProvideLocalizedResources(
             service.resourcesContext,
             appName = R.string.floris_app_name,

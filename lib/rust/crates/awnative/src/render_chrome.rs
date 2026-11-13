@@ -40,6 +40,7 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_chrome(
                     kind: c[3] as i32,
                     labels: strings(env, labels)?,
                     icons: strings(env, icons)?,
+                    ..Default::default()
                 }),
                 ..Default::default()
             });
@@ -72,22 +73,7 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_pixels(
                     },
                 )
                 .map_err(|_| illegal("chrome raster failed"))?;
-            let pixels: Vec<i32> = raster
-                .pixels()
-                .chunks_exact(4)
-                .map(|p| {
-                    let a = p[3] as u32;
-                    let channel = |v: u8| {
-                        if a == 0 {
-                            0
-                        } else {
-                            ((v as u32 * 255 + a / 2) / a).min(255)
-                        }
-                    };
-                    ((a << 24) | (channel(p[0]) << 16) | (channel(p[1]) << 8) | channel(p[2]))
-                        as i32
-                })
-                .collect();
+            let pixels = argb(raster.pixels());
             env.make(&pixels)
         })
     }
@@ -136,3 +122,63 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_ImeChromeRules_sideBut
         })
     }
 }
+
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_chromeInfo(
+    env: *mut JNIEnv,
+    _: jclass,
+    native: jlong,
+) -> jfloatArray {
+    // SAFETY: synchronized JVM owner retains the session; output values are copied.
+    unsafe {
+        handle::with_locked::<Session, _>(env, native, "renderer", ptr::null_mut(), |s, env| {
+            let c = s
+                .scene
+                .panel
+                .as_ref()
+                .and_then(|p| p.chrome.as_ref())
+                .ok_or_else(|| illegal("chrome missing"))?;
+            env.make(&c.field)
+        })
+    }
+}
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_ImeChromeRules_extract(
+    env: *mut JNIEnv,
+    _: jclass,
+    config: jfloatArray,
+) -> jfloatArray {
+    // SAFETY: local input is copied; output is a new primitive array.
+    unsafe {
+        jni::run(env, ptr::null_mut(), |env| {
+            let c = env.read::<f32>(config, "extract config")?;
+            if c.len() != 5 || c.iter().any(|v| !v.is_finite() || *v < 0.0) {
+                return Err(illegal("extract config"));
+            }
+            env.make(
+                &render::extract_chrome::geometry(c[0], c[1], c[2], [c[3], c[4]])
+                    .iter()
+                    .flat_map(|r| [r.left, r.top, r.right, r.bottom])
+                    .collect::<Vec<_>>(),
+            )
+        })
+    }
+}
+
+pub(crate) fn argb(pixels: &[u8]) -> Vec<i32> {
+    pixels
+        .chunks_exact(4)
+        .map(|p| {
+            let a = p[3] as u32;
+            let channel = |v: u8| {
+                if a == 0 {
+                    0
+                } else {
+                    ((v as u32 * 255 + a / 2) / a).min(255)
+                }
+            };
+            ((a << 24) | (channel(p[0]) << 16) | (channel(p[1]) << 8) | channel(p[2])) as i32
+        })
+        .collect()
+}
+

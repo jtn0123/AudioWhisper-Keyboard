@@ -19,6 +19,7 @@ internal class RustChromeView(context: Context) : View(context) {
     private var labels = emptyArray<String>()
     private var icons = emptyArray<String>()
     var action: (Int) -> Unit = {}
+    var fieldLayout: (FloatArray) -> Unit = {}
     private val accessibility = RendererAccessibility(this, { native?.semanticSnapshot() ?: "{\"nodes\":[],\"mode\":\"\",\"shift\":\"\",\"popup\":false}" }, { id, op ->
         dispatch(native?.semanticAction(id, op) ?: intArrayOf()); redraw(); true
     }, { native?.semanticCancel(); redraw() })
@@ -36,6 +37,7 @@ internal class RustChromeView(context: Context) : View(context) {
         renderer.theme(theme.json, theme.paletteNames.toTypedArray(), theme.paletteColors.toIntArray(),
             floatArrayOf(theme.density, theme.fontScale, theme.fontMultiplier))
         renderer.chrome(floatArrayOf(width.toFloat(), height.toFloat(), theme.density, kind.toFloat()), labels, icons)
+        fieldLayout(renderer.chromeInfo())
         redraw()
     }
     private fun redraw() {

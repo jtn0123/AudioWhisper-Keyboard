@@ -9,6 +9,8 @@ pub struct Chrome {
     pub kind: i32,
     pub labels: Vec<String>,
     pub icons: Vec<String>,
+    pub button: [f32; 2],
+    pub field: [f32; 6],
 }
 
 /// Physical START/END follows the LTR outer IME row, including in RTL locales.
@@ -41,6 +43,10 @@ pub fn side_buttons(width: f32, height: f32) -> [keys::Rect; 2] {
 }
 impl Panel {
     pub fn layout_chrome(&mut self, width: f32, height: f32) {
+        if self.chrome.as_ref().is_some_and(|c| c.kind == 1) {
+            self.layout_extract(width, height);
+            return;
+        }
         let Some(c) = &self.chrome else { return };
         self.items.clear();
         let root = rect(0.0, 0.0, width, height);
@@ -64,6 +70,9 @@ impl Panel {
         }
     }
     pub fn style_chrome(&mut self, theme: &mut Theme, r: &Request) {
+        if self.chrome.as_ref().is_some_and(|c| c.kind == 1) {
+            return;
+        }
         if self.chrome.is_none() {
             return;
         }

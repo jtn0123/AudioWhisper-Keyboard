@@ -13,8 +13,11 @@ class KeyboardRenderer(fontPaths: Array<String>) : AutoCloseable {
     fun update(dimensions: FloatArray, metadata: Array<String>, candidateFlags: IntArray, geometry: FloatArray, labels: Array<String>, candidates: Array<String>) =
         RenderNative.update(handle, dimensions, metadata, candidateFlags, geometry, labels, candidates)
 
+
     @Synchronized
     fun chrome(config: FloatArray, labels: Array<String>, icons: Array<String>) = RenderNative.chrome(handle, config, labels, icons)
+    @Synchronized
+    fun chromeInfo(): FloatArray = RenderNative.chromeInfo(handle)
     @Synchronized
     fun pixels(): IntArray = RenderNative.pixels(handle)
 
@@ -114,6 +117,7 @@ internal object RenderNative {
     external fun theme(handle: Long, json: String, names: Array<String>, colors: IntArray, scale: FloatArray)
     external fun update(handle: Long, dimensions: FloatArray, metadata: Array<String>, candidateFlags: IntArray, geometry: FloatArray, labels: Array<String>, candidates: Array<String>)
     external fun chrome(handle: Long, config: FloatArray, labels: Array<String>, icons: Array<String>)
+    external fun chromeInfo(handle: Long): FloatArray
     external fun pixels(handle: Long): IntArray
     external fun subtypes(handle: Long, selected: Long, ids: LongArray, labels: Array<String>)
     external fun search(handle: Long, density: Float, labels: Array<String>, now: Long)
