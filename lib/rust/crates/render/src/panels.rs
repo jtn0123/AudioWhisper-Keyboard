@@ -143,7 +143,8 @@ impl Panel {
             item.command,
             Command::Clipboard(5, _) | Command::Clipboard(7..=9, _)
         ) || header
-            || item.element == "clipboard-clear-all-dialog-button";
+            || item.element == "clipboard-clear-all-dialog-button"
+            || item.element == "extracted-landscape-input-action";
         if minimum {
             let width = (48.0 * self.density).max(r.width());
             let height = (48.0 * self.density).max(r.height());

@@ -52,7 +52,7 @@ impl Panel {
             -81,
             field,
             String::new(),
-            "extracted-landscape-input-field",
+            "extracted-landscape-input-layout",
             Command::None,
         ));
         self.items.push(Item::new(
@@ -63,7 +63,7 @@ impl Panel {
             Command::Chrome(0),
         ));
     }
-    pub fn extract_style(&mut self) {
+    pub fn extract_style(&mut self, theme: &mut Theme, request: &Request) {
         let Some(c) = &mut self.chrome else { return };
         if c.kind != 1 {
             return;
@@ -73,13 +73,14 @@ impl Panel {
         };
         let style = &item.styles[0];
         let r = inset(inset(item.bounds, style.margin), style.padding);
+        let field_style = theme.style(&request.element("extracted-landscape-input-field", 0));
         c.field = [
             r.left,
             r.top,
             r.right,
             r.bottom,
-            f32::from_bits(style.foreground),
-            style.size,
+            f32::from_bits(field_style.foreground),
+            field_style.size,
         ];
     }
 }

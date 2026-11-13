@@ -7,11 +7,11 @@ import android.widget.FrameLayout
 import kotlin.math.roundToInt
 
 /** The real ExtractEditText remains in Android's IME protocol and accessibility tree. */
-internal class RustExtractView(context: Context, private val editor: ExtractEditText) : FrameLayout(context) {
+internal class RustExtractView @JvmOverloads constructor(context: Context, private val editor: ExtractEditText = ExtractEditText(context)) : FrameLayout(context) {
     private var field = FloatArray(6)
     private val chrome = RustChromeView(context).also { view ->
         view.fieldLayout = { next ->
-            if (!field.contentEquals(next)) {
+            if (field.indices.any { field[it].toRawBits() != next[it].toRawBits() }) {
                 field = next
                 editor.setTextColor(next[4].toRawBits())
                 val color = next[4].toRawBits()

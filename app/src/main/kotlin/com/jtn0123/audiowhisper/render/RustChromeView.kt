@@ -2,6 +2,7 @@ package com.jtn0123.audiowhisper.render
 
 import android.content.Context
 import android.graphics.Bitmap
+import androidx.core.graphics.createBitmap
 import android.graphics.Canvas
 import android.view.MotionEvent
 import android.view.View
@@ -44,7 +45,7 @@ internal class RustChromeView(context: Context) : View(context) {
         val native = native ?: return
         if (width <= 0 || height <= 0) return
         val image = bitmap?.takeIf { it.width == width && it.height == height }
-            ?: Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888).also { bitmap?.recycle(); bitmap = it }
+            ?: createBitmap(width, height, Bitmap.Config.ARGB_8888).also { bitmap?.recycle(); bitmap = it }
         image.setPixels(native.pixels(), 0, width, 0, 0, width, height)
         accessibility.refresh(); invalidate()
     }
