@@ -56,7 +56,6 @@ fun RustKeyboardLayout(evaluator: ComputingEvaluator) = with(LocalDensity.curren
     LaunchedEffect(inline) { nlp.autoExpandCollapseSmartbarActions(null, inline) }
     val search = rendererSearch()
     val panels = rendererPanels()
-    val subtypes = rendererSubtypes()
     val watermark = rendererWatermark(evaluator)
     val baseSmartbar = rendererSmartbar(preview.isNotEmpty(), inline.isNotEmpty())
     val smartbar = if(search.active) baseSmartbar.copy(config=gifSearchBarConfig(baseSmartbar.config,FlorisImeSizing.smartbarHeight.toPx()),animating=false) else baseSmartbar
@@ -70,7 +69,7 @@ fun RustKeyboardLayout(evaluator: ComputingEvaluator) = with(LocalDensity.curren
     val heightPx = keyboardHeight.toPx()
     val stripPx = stripHeight.toPx()
     val maxSurfaceHeight = resources.displayMetrics.heightPixels - dev.patrickgold.florisboard.ime.keyboard.systemBarHeights()
-    val surfaceHeight = if (panels.kind == 3 || panels.kind == 7) maxSurfaceHeight.toDp() else keyboardHeight + stripHeight
+    val surfaceHeight = if (panels.kind == 3) maxSurfaceHeight.toDp() else keyboardHeight + stripHeight
     Box(Modifier.fillMaxWidth().height(keyboardHeight + insetHeight).onSizeChanged { availableWidth = it.width.toFloat() }) {
         AndroidView(
             modifier = Modifier.fillMaxWidth().wrapContentHeight(Alignment.Bottom, unbounded = true).requiredHeight(surfaceHeight).align(Alignment.BottomStart),
@@ -79,7 +78,7 @@ fun RustKeyboardLayout(evaluator: ComputingEvaluator) = with(LocalDensity.curren
             update = { view ->
                 view.update(KeyboardSnapshot(keyboard, keys, if (preview.isEmpty() && !search.active) candidates else emptyList(), theme,
                     evaluator.state.inputShiftState.toString(), heightPx, stripPx, rowHeight, marginH, marginV,
-                    smartbar, preview.isNotEmpty(), panels, intArrayOf(evaluator.editorInfo.imeOptions.raw, evaluator.editorInfo.inputAttributes.raw), search, subtypes, watermark, preview))
+                    smartbar, preview.isNotEmpty(), panels, intArrayOf(evaluator.editorInfo.imeOptions.raw, evaluator.editorInfo.inputAttributes.raw), search, watermark, preview))
             },
         )
         // Kind 2 is the native reservation for Android's InlineContentViews. The AndroidView
@@ -98,4 +97,4 @@ fun RustKeyboardLayout(evaluator: ComputingEvaluator) = with(LocalDensity.curren
 }
 
 data class RendererTheme(val json: String, val paletteNames: List<String>, val paletteColors: List<Int>,
-    val density: Float, val fontScale: Float, val fontMultiplier: Float)
+    val density: Float, val fontScale: Float, val fontMultiplier: Float, val mode: String = "characters", val shift: String = "unshifted")

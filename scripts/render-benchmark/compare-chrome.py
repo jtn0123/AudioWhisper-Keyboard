@@ -13,11 +13,11 @@ SHEET={'Select subtype','English (United States)','English (United Kingdom)'}
 
 
 def compare(compose,rust,state):
-    names=SHEET if state=='subtypes' else SIDES if state.startswith('onehand') else set()
+    names=SHEET if state.startswith('subtypes') else SIDES if state.startswith('onehand') else set()
     if names:
         results=[]
         left=base['targets'](compose);right=base['targets'](rust)
-        expected=SHEET if state=='subtypes' else {n for n in SIDES if n in left}
+        expected=SHEET if state.startswith('subtypes') else {n for n in SIDES if n in left}
         if not expected:raise ValueError('Expected chrome controls absent from Compose')
         for name in expected:
             a=left.get(name);b=right.get(name);reasons=[]
@@ -30,7 +30,7 @@ def compare(compose,rust,state):
                         reasons.append('target center differs by more than 3px');break
             results.append({'target':name,'verdict':'bug' if reasons else 'matches','reason':'; '.join(reasons)})
         # The native sheet adds an explicit scrim dismissal target; all underlying keys are occluded.
-        if state=='subtypes':return {'bug_count':sum(x['verdict']=='bug' for x in results),'targets':results}
+        if state.startswith('subtypes'):return {'bug_count':sum(x['verdict']=='bug' for x in results),'targets':results}
     else:results=[]
     # Side labels are checked against their actionable containers above. Other virtual keys
     # retain the established punctuation, state, action and physical-key geometry comparison.
@@ -62,7 +62,7 @@ def main():
     parser=argparse.ArgumentParser();parser.add_argument('root');args=parser.parse_args();root=Path(args.root)
     result={}
     for theme in ('day','night'):
-        for state in ('subtypes','onehand-left','onehand-right','incognito','extract'):
+        for state in ('subtypes','subtypes-compact','onehand-left','onehand-right','incognito','extract'):
             paths=[root/(theme+'-'+r)/(state+'.json') for r in ('compose','rust')]
             if all(p.exists() for p in paths):result[theme+'-'+state]=compare(*(json.loads(p.read_text()) for p in paths),state)
     (root/'comparison.json').write_text(json.dumps(result,indent=2)+'\n')

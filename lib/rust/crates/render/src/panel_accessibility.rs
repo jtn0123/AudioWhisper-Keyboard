@@ -53,6 +53,10 @@ pub fn nodes(panel: &Panel) -> Vec<Node> {
                     n.role = "popup item";
                 }
             }
+            if matches!(i.command, Command::Subtype(Some(_))) {
+                n.actions.push(ACCESS_DISMISS);
+                n.role = "popup item";
+            }
             if matches!(i.command, Command::Clipboard(5, _)) {
                 n.actions.push(ACCESS_LONG_CLICK);
             }

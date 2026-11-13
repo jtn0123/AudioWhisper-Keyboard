@@ -17,7 +17,7 @@ class KeyboardRenderer(fontPaths: Array<String>) : AutoCloseable {
     fun decorations(labels: Array<String>, height: Float, flags: IntArray) = RenderNative.decorations(handle, labels, height, flags)
 
     @Synchronized
-    fun chrome(config: FloatArray, labels: Array<String>, icons: Array<String>) = RenderNative.chrome(handle, config, labels, icons)
+    fun chrome(config: FloatArray, labels: Array<String>, icons: Array<String>, metadata: Array<String> = arrayOf("characters", "unshifted")) = RenderNative.chrome(handle, config, labels, icons, metadata)
     @Synchronized
     fun keyPreview(code: Int, labels: Array<String>): IntArray = RenderNative.keyPreview(handle, code, labels)
     @Synchronized
@@ -121,7 +121,7 @@ internal object RenderNative {
     external fun theme(handle: Long, json: String, names: Array<String>, colors: IntArray, scale: FloatArray)
     external fun update(handle: Long, dimensions: FloatArray, metadata: Array<String>, candidateFlags: IntArray, geometry: FloatArray, labels: Array<String>, candidates: Array<String>)
     external fun decorations(handle: Long, labels: Array<String>, height: Float, flags: IntArray)
-    external fun chrome(handle: Long, config: FloatArray, labels: Array<String>, icons: Array<String>)
+    external fun chrome(handle: Long, config: FloatArray, labels: Array<String>, icons: Array<String>, metadata: Array<String>)
     external fun keyPreview(handle: Long, code: Int, labels: Array<String>): IntArray
     external fun chromeInfo(handle: Long): FloatArray
     external fun pixels(handle: Long): IntArray

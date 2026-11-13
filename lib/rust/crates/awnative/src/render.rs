@@ -149,6 +149,9 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_update(
             if d.len() >= 5 {
                 session.scene.desired_key = [d[3], d[4]];
             }
+            if session.scene.width != d[0] as u16 || session.scene.height != d[1] as u16 {
+                session.bitmap = None;
+            }
             session.scene.keyboard_height = if d.len() == 6 { d[5] } else { d[1] - d[2] };
             session.scene.width = d[0] as u16;
             session.scene.height = d[1] as u16;

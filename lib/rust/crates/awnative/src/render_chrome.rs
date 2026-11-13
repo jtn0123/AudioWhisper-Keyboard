@@ -14,11 +14,18 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_chrome(
     config: jfloatArray,
     labels: jobjectArray,
     icons: jobjectArray,
+    metadata: jobjectArray,
 ) {
     // SAFETY: synchronized JVM owner retains the session; inputs are copied before drawing.
     unsafe {
         handle::with_locked::<Session, _>(env, native, "renderer", (), |s, env| {
             let c = env.read::<f32>(config, "chrome config")?;
+            let metadata = strings(env, metadata)?;
+            if metadata.len() != 2 {
+                return Err(illegal("chrome metadata"));
+            }
+            s.mode = metadata[0].clone();
+            s.shift = metadata[1].clone();
             if c.len() != 4
                 || c.iter().any(|v| !v.is_finite())
                 || !(1.0..=8192.0).contains(&c[0])

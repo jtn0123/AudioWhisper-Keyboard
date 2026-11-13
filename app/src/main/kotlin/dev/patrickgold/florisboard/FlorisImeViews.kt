@@ -102,6 +102,10 @@ internal class FlorisBottomSheetHostUiView(context: Context) : AbstractComposeVi
             forceLayoutDirection = LayoutDirection.Ltr,
         ) {
             FlorisImeTheme {
+                if (rustPrototype) {
+                    if (state.isSubtypeSelectionShowing()) com.jtn0123.audiowhisper.render.RustSubtypeSheet()
+                    return@FlorisImeTheme
+                }
                 BottomSheetHostUi(
                     isShowing = !rustPrototype && (state.isBottomSheetShowing() || state.isSubtypeSelectionShowing()),
                     onHide = {

@@ -22,7 +22,6 @@ import dev.patrickgold.florisboard.ime.nlp.SuggestionCandidate
 import dev.patrickgold.florisboard.ime.text.keyboard.TextKey
 import dev.patrickgold.florisboard.ime.text.keyboard.TextKeyData
 import dev.patrickgold.florisboard.ime.text.keyboard.TextKeyboard
-import dev.patrickgold.florisboard.subtypeManager
 import dev.patrickgold.florisboard.keyboardManager
 import dev.patrickgold.florisboard.nlpManager
 import dev.patrickgold.florisboard.ime.smartbar.quickaction.QuickAction
@@ -49,7 +48,7 @@ internal data class KeyboardSnapshot(
     val keyboard: TextKeyboard, val keys: List<TextKey>,
     val candidates: List<SuggestionCandidate>, val theme: RendererTheme, val shift: String,
     val keyboardHeight: Float, val stripHeight: Float, val rowHeight: Float, val marginH: Float, val marginV: Float, val smartbar: RendererSmartbar, val preview: Boolean,
-    val panels: RendererPanels, val editorOptions: IntArray, val search: RendererSearch, val subtypes: RendererSubtypes, val watermark: Pair<String, IntArray>, val previewText: String,
+    val panels: RendererPanels, val editorOptions: IntArray, val search: RendererSearch, val watermark: Pair<String, IntArray>, val previewText: String,
 )
 
 /** A fresh native worker owns each surface generation. Destruction joins it before releasing its window. */
@@ -163,7 +162,6 @@ class RustKeyboardView(context: Context) : FrameLayout(context), SurfaceHolder.C
             s.smartbar.config[11], manager.smartbarVisibleDynamicActionsCount.toFloat(), android.view.ViewConfiguration.getKeyRepeatDelay().toFloat() * 1_000_000,
             if (prefs.gestures.deleteKeyLongPress.get() == dev.patrickgold.florisboard.ime.text.gestures.SwipeAction.DELETE_WORD) 1f else 0f,
             android.view.ViewConfiguration.getLongPressTimeout().toFloat() * 1_000_000), s.panels.data, s.panels.labels)
-        if (s.panels.kind == 7) native.subtypes(s.subtypes.selected, s.subtypes.ids, s.subtypes.labels)
         if (s.panels.kind == 5) s.panels.gif.bind(native)
         if (s.panels.kind == 4) s.panels.clipboard.bind(native)
         if (s.panels.kind == 1) { s.panels.emoji.bind(native, refreshEmojiHistory); refreshEmojiHistory = false }
@@ -241,23 +239,9 @@ class RustKeyboardView(context: Context) : FrameLayout(context), SurfaceHolder.C
     override fun onTouchEvent(event: MotionEvent): Boolean {
         if (released || !liveSurface) { trace(SurfaceEvent.REJECTED_TOUCH); return false }
         if (accessibility.touch(event)) return true
-        val pointers = event.pointerCount
-        val metadata = IntArray(2 + pointers)
-        metadata[0] = event.actionMasked
-        metadata[1] = event.actionIndex
-        for (p in 0 until pointers) metadata[2 + p] = event.getPointerId(p)
-        val times = LongArray(event.historySize + 2)
-        times[0] = event.downTime * 1_000_000
-        val coords = FloatArray((event.historySize + 1) * pointers * 2)
-        for (h in 0..event.historySize) {
-            times[h + 1] = if (h < event.historySize) event.getHistoricalEventTimeNanos(h) else event.eventTimeNanos
-            for (p in 0 until pointers) {
-                coords[(h * pointers + p) * 2] = if (h < event.historySize) event.getHistoricalX(p, h) else event.getX(p)
-                coords[(h * pointers + p) * 2 + 1] = if (h < event.historySize) event.getHistoricalY(p, h) else event.getY(p)
-            }
-        }
+        val packet = event.rendererPacket()
         snapshot?.let(gestureHost::configure)
-        val actions = native.touch(metadata, times, coords)
+        val actions = native.touch(packet.metadata, packet.times, packet.coords)
         dispatchActions(actions, event)
         scheduleDeadline()
         snapshot?.let { state -> mediaBuffers.update(state.panels.clipboard.takeIf { state.panels.kind==4 },state.panels.gif.takeIf { state.panels.kind==5 }) }
@@ -280,11 +264,6 @@ class RustKeyboardView(context: Context) : FrameLayout(context), SurfaceHolder.C
     private fun dispatch(action: Int, index: Int, pointer: Int, event: MotionEvent?) {
         val s = snapshot ?: return
         val dispatcher = manager.inputEventDispatcher
-        if (action == PANEL_SUBTYPE) {
-            if (pointer != 0) { val subtypes by context.subtypeManager(); s.subtypes.ids.getOrNull(index)?.let(subtypes::switchToSubtypeById) }
-            manager.activeState.isSubtypeSelectionVisible = false
-            return
-        }
         if (action == PANEL_GIF) {gifActions.dispatch(index,pointer,s.panels.gif);return}
         if (action == PANEL_CLIPBOARD) {
             clipboardActions.dispatch(index,pointer,s.panels.clipboard)

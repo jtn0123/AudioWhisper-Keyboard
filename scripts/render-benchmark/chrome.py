@@ -97,13 +97,16 @@ def workflow(device, original):
         panel['tap_name'](device,'English (United Kingdom)')
         device.wait(lambda:json.loads(device.prefs()['localization__active_subtype_id'])==8008,'Subtype selection did not persist')
         selected={k:v for k,v in device.prefs().items() if k in ('localization__subtypes','localization__active_subtype_id')}
+        prepare(device,renderer,original,side='END');sheet(device);panel['tap_name'](device,'English (United Kingdom)')
+        device.wait(lambda:json.loads(device.prefs()['localization__active_subtype_id'])==8008,'Compact subtype selection did not persist')
+        combined={k:v for k,v in device.prefs().items() if k in ('localization__active_subtype_id','keyboard__one_handed_mode','keyboard__one_handed_mode_enabled')}
         prepare(device,renderer,original,side='START')
         points=[panel['center'](panel['named'](device.tree()['nodes'],key)) for key in 'cat']
         panel['observer_off'](device)
         for point in points:device.tap(*point)
         digest=panel['digest'](device,'cat','one-handed')
         stored={k:v for k,v in device.prefs().items() if k.startswith('keyboard__one_handed')}
-        results[renderer]={'subtype':selected,'one_handed':stored,'digest':digest}
+        results[renderer]={'subtype':selected,'compact_subtype':combined,'one_handed':stored,'digest':digest}
         device.reset(True)
     device.output=root
     device.save('comparison.json',{'match':results['compose']==results['rust'],'results':results})
@@ -112,7 +115,7 @@ def workflow(device, original):
 
 def visuals(device,original,agent):
     root=device.output
-    names=('subtypes','onehand-left','onehand-right','incognito','extract')
+    names=('subtypes','subtypes-compact','onehand-left','onehand-right','incognito','extract')
     for theme in ('day','night'):
         for renderer in ('compose','rust'):
             device.output=root/(theme+'-'+renderer);device.output.mkdir(parents=True,exist_ok=True)
@@ -120,6 +123,7 @@ def visuals(device,original,agent):
             device.tap(540,1300)
             for side,name in (('START','onehand-left'),('END','onehand-right')):
                 prepare(device,renderer,original,theme,side);capture(device,agent,name)
+            sheet(device);capture(device,agent,'subtypes-compact');device.tap(540,1300)
             prepare(device,renderer,original,theme,incognito=True);capture(device,agent,'incognito')
             device.shell('settings','put','system','accelerometer_rotation',0)
             device.shell('settings','put','system','user_rotation',1)
