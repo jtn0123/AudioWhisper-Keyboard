@@ -19,7 +19,9 @@ impl Motion {
             && self.ids.len() <= 32
             && self.index < self.ids.len()
             && self.times.len() >= 2
-            && self.times.windows(2).all(|t| t[0] <= t[1])
+            // Injected MotionEvents can carry a fresh downTime alongside older batched samples.
+            // Compose reads the sample clock; downTime is metadata, not a sample-order guard.
+            && self.times[1..].windows(2).all(|t| t[0] <= t[1])
             && self.coords.len() == (self.times.len() - 1) * self.ids.len() * 2
             && self.coords.iter().all(|v| v.is_finite())
             && self
@@ -34,7 +36,7 @@ impl Motion {
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Action(pub i32, pub i32, pub i32);
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct Touch {
     keys: crate::keyboard_touch::KeyboardTouch,
     glide: crate::glide_touch::GlideTouch,
@@ -42,8 +44,35 @@ pub struct Touch {
     candidates: BTreeMap<i32, usize>,
     pub config: crate::gesture_config::GestureConfig,
     pub long_press_delay: i64,
+    trail: crate::trail::Trail,
+    trail_time: i64,
+}
+impl Default for Touch {
+    fn default() -> Self {
+        Self {
+            keys: Default::default(),
+            glide: Default::default(),
+            bar: Default::default(),
+            candidates: Default::default(),
+            config: Default::default(),
+            long_press_delay: 300_000_000,
+            trail: Default::default(),
+            trail_time: 0,
+        }
+    }
 }
 impl Touch {
+    pub fn animate(&mut self, scene: &mut Scene, now: i64) -> bool {
+        self.trail.frame(
+            scene,
+            now,
+            self.config.glide && self.config.show_trail,
+            self.config.trail_duration,
+        )
+    }
+    fn trail_actions(&mut self, actions: &[Action]) {
+        self.trail.actions(actions, self.trail_time);
+    }
     pub fn configure(&mut self, config: crate::gesture_config::GestureConfig) {
         self.keys.set_shift(config.shift_pressed);
         self.config = config;
@@ -85,8 +114,11 @@ impl Touch {
         actions
     }
     pub fn event(&mut self, scene: &mut Scene, event: &Motion) -> Vec<Action> {
+        self.trail_time = event.times.last().copied().unwrap_or(self.trail_time);
         if event.action == 3 || !event.valid() {
-            return self.cancel(scene);
+            let actions = self.cancel(scene);
+            self.trail_actions(&actions);
+            return actions;
         }
         let mut actions = Vec::new();
         if event.action == 0 {
@@ -100,23 +132,17 @@ impl Touch {
             if event.action == 1 {
                 actions.extend(self.keys.cancel(scene));
             }
+            self.trail_actions(&actions);
             return actions;
         }
-        actions.extend(self.bar.event(
-            scene,
-            event,
-            if self.long_press_delay > 0 {
-                self.long_press_delay
-            } else {
-                300_000_000
-            },
-        ));
+        actions.extend(self.bar.event(scene, event, self.long_press_delay.max(0)));
         actions.extend(self.keys.event(scene, event, &self.config));
         // Legacy candidate-only previews have no smartbar action table.
         if scene.smartbar.is_none() {
             self.candidate_event(scene, event, &mut actions);
         }
         self.bar.mark(scene);
+        self.trail_actions(&actions);
         actions
     }
     fn candidate_event(&mut self, scene: &mut Scene, event: &Motion, actions: &mut Vec<Action>) {

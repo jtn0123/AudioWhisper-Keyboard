@@ -1,5 +1,6 @@
 package com.jtn0123.audiowhisper.render
 
+import com.jtn0123.audiowhisper.rust.RenderProtocol.*
 import android.view.View
 import android.widget.FrameLayout
 import kotlin.math.roundToInt
@@ -13,17 +14,17 @@ internal class RendererActionTooltip(private val parent: FrameLayout) {
     fun show(index: Int, snapshot: KeyboardSnapshot): Boolean {
         clear()
         val packet = snapshot.smartbar.measure(parent.width.toFloat())
-        val slot = (8 until packet.size step 6).firstOrNull { packet[it] == 1f && packet[it+1].toInt() == index } ?: return false
+        val slot = (BAR_MEASUREMENT_HEADER until packet.size step BAR_SLOT_STRIDE).firstOrNull { packet[it] == BAR_SLOT_ACTION.toFloat() && packet[it+BAR_SLOT_ID].toInt() == index } ?: return false
         val text = snapshot.smartbar.tooltips.getOrNull(index)?.takeIf { it.isNotEmpty() } ?: return false
         val view = View(parent.context).apply {
             isHapticFeedbackEnabled = false
             tooltipText = text
             importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
         }
-        val params = FrameLayout.LayoutParams((packet[slot+4]-packet[slot+2]).roundToInt(),
-            (packet[slot+5]-packet[slot+3]).roundToInt()).apply {
-            leftMargin = packet[slot+2].roundToInt()
-            topMargin = packet[slot+3].roundToInt()
+        val params = FrameLayout.LayoutParams((packet[slot+BAR_SLOT_RIGHT]-packet[slot+BAR_SLOT_LEFT]).roundToInt(),
+            (packet[slot+BAR_SLOT_BOTTOM]-packet[slot+BAR_SLOT_TOP]).roundToInt()).apply {
+            leftMargin = packet[slot+BAR_SLOT_LEFT].roundToInt()
+            topMargin = packet[slot+BAR_SLOT_TOP].roundToInt()
         }
         parent.addView(view, params)
         anchor = view

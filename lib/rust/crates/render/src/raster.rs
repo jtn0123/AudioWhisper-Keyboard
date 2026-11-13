@@ -222,12 +222,9 @@ impl Raster {
         if let (Some(popup), Some(bounds)) = (&scene.popup, scene.popup_bounds()) {
             self.box_at(bounds, &scene.popup_style);
             for (i, label) in popup.labels.iter().enumerate() {
-                let width = bounds.width() / popup.labels.len() as f32;
-                let r = Rect {
-                    left: bounds.left + i as f32 * width,
-                    right: bounds.left + (i + 1) as f32 * width,
-                    ..bounds
-                };
+                let r = scene
+                    .popup_choice_bounds(i)
+                    .ok_or("missing popup choice bounds")?;
                 let style = scene
                     .popup_styles
                     .get(i)
@@ -243,6 +240,16 @@ impl Raster {
                     style.weight,
                 )?;
             }
+        }
+        self.context.set_paint(color(scene.trail_color));
+        for circle in &scene.trail {
+            self.context.fill_path(
+                &vello_cpu::kurbo::Circle::new(
+                    (circle.x as f64, circle.y as f64),
+                    circle.radius as f64,
+                )
+                .to_path(0.1),
+            );
         }
         self.context.pop_clip();
         self.profile.encode_ns = elapsed(encode);

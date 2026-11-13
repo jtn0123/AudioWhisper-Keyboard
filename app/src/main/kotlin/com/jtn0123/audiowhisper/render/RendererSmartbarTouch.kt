@@ -21,7 +21,7 @@ internal class RendererSmartbarTouch(view: FrameLayout, private val candidate: (
 
     fun dispatch(type: Int, index: Int, pointer: Int, s: KeyboardSnapshot) {
         val action = s.smartbar.actions.getOrNull(index)
-        val enabled = s.smartbar.codes.getOrNull(index * 2 + 1)?.and(BAR_ENABLED) == BAR_ENABLED
+        val enabled = s.smartbar.codes.getOrNull(index * BAR_ACTION_STRIDE + BAR_FLAGS_OFFSET)?.and(BAR_ENABLED) == BAR_ENABLED
         when (type) {
             BAR_DOWN -> {
                 if (action?.keyData()?.code != KeyCode.READ_ALOUD) tooltip.clear()

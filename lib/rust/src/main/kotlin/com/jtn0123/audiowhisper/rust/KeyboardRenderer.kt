@@ -42,6 +42,9 @@ class KeyboardRenderer(fontPaths: Array<String>) : AutoCloseable {
     fun candidateLongPress(pointer: Int) = RenderNative.candidateLongPress(handle, pointer)
 
     @Synchronized
+    fun popupGrid(prioritized: Int, landscape: Boolean) = RenderNative.popupGrid(handle, prioritized, landscape)
+
+    @Synchronized
     fun popup(key: Int, labels: Array<String>, codes: IntArray) = RenderNative.popup(handle, key, labels, codes)
 
     @Synchronized
@@ -79,9 +82,10 @@ internal object RenderNative {
     external fun nextDeadline(handle: Long): Long
     external fun barSettings(handle: Long, delay: Long, changed: IntArray): IntArray
     external fun candidateLongPress(handle: Long, pointer: Int)
+    external fun popupGrid(handle: Long, prioritized: Int, landscape: Boolean)
     external fun popup(handle: Long, key: Int, labels: Array<String>, codes: IntArray)
     external fun attach(handle: Long, surface: Any, hybrid: Boolean)
-    external fun frame(handle: Long, time: Long)
+    external fun frame(handle: Long, time: Long): Boolean
     external fun detach(handle: Long)
     external fun close(handle: Long)
 }

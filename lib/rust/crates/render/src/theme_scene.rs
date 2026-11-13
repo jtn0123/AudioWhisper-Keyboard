@@ -1,5 +1,6 @@
 //! Resolve the state cohort at scene/popup updates, before the render worker sees it.
 use crate::{
+    protocol::*,
     scene::{CandidateStyle, Scene},
     theme::{Request, Theme},
 };
@@ -22,6 +23,11 @@ impl Theme {
             selector: 0,
             auto_commit: false,
             popup_source: None,
+        };
+        let trail = self.properties(&base.element("glide-trail", 0));
+        scene.trail_color = match snygg::resolve::get(&trail, &snygg::text("foreground")) {
+            Some(snygg::value::Value::Color(c)) => crate::style::argb(*c),
+            _ => 0xff00ff00,
         };
         scene.background = self.style(&base).background;
         scene.strip_style = self.style(&base.element("smartbar-candidates-row", 0));
@@ -49,13 +55,13 @@ impl Theme {
             .enumerate()
             .map(|(i, _)| {
                 let flags = candidates.get(i).copied().unwrap_or(0);
-                let name = if flags & 2 != 0 {
+                let name = if flags & CANDIDATE_CLIPBOARD != 0 {
                     "smartbar-candidate-clip"
                 } else {
                     "smartbar-candidate-word"
                 };
                 let request = Request {
-                    auto_commit: flags & 1 != 0,
+                    auto_commit: flags & CANDIDATE_AUTO_COMMIT != 0,
                     ..base.clone()
                 };
                 std::array::from_fn(|state| CandidateStyle {

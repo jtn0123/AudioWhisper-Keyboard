@@ -107,7 +107,7 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_update(
             let g = env.read::<f32>(geometry, "geometry")?;
             let labels = strings(env, labels)?;
             let candidates = strings(env, candidates)?;
-            if d.len() != 3
+            if ![3, 5].contains(&d.len())
                 || d.iter().any(|v| !v.is_finite())
                 || !(1.0..=8192.0).contains(&d[0])
                 || !(1.0..=8192.0).contains(&d[1])
@@ -144,6 +144,9 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_update(
                     hints: Default::default(),
                 })
                 .collect();
+            if d.len() == 5 {
+                session.scene.desired_key = [d[3], d[4]];
+            }
             session.scene.width = d[0] as u16;
             session.scene.height = d[1] as u16;
             session.scene.strip = d[2];
@@ -252,6 +255,7 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_popup(
                 .ok_or_else(|| illegal("renderer theme not set"))?
                 .popup_styles(&mut s.scene, &request, &codes);
             s.popup_codes = codes;
+            s.scene.popup_geometry = None;
             s.scene.popup = Some(Popup {
                 key: key as usize,
                 labels,
@@ -300,10 +304,11 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_frame(
     _: jclass,
     native: jlong,
     time: jlong,
-) {
+) -> jboolean {
     // SAFETY: synchronized wrapper owns the handle during the call.
     unsafe {
-        handle::with_locked::<Session, _>(env, native, "renderer", (), |s, _| {
+        handle::with_locked::<Session, _>(env, native, "renderer", 0, |s, _| {
+            let animating = s.touch.animate(&mut s.scene, time);
             if let Some(bar) = &mut s.scene.smartbar
                 && bar.actions.iter().any(|a| a.warming)
             {
@@ -317,7 +322,7 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_frame(
             {
                 let _ = (s, time);
             }
-            Ok(())
+            Ok(u8::from(animating))
         })
     }
 }
@@ -348,5 +353,24 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_close(
     // SAFETY: the synchronized wrapper frees its handle once, then sets it to zero.
     unsafe {
         handle::free::<Mutex<Session>>(native);
+    }
+}
+
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_popupGrid(
+    env: *mut JNIEnv,
+    _: jclass,
+    native: jlong,
+    prioritized: jint,
+    landscape: jboolean,
+) {
+    // SAFETY: synchronized owner retains the native session and its prepared popup through this call.
+    unsafe {
+        handle::with_locked::<Session, _>(env, native, "renderer", (), |s, _| {
+            let order = render::popup_scene::configure(&mut s.scene, prioritized, landscape != 0)
+                .ok_or_else(|| illegal("invalid popup grid"))?;
+            s.popup_codes = order.iter().map(|&i| s.popup_codes[i]).collect();
+            Ok(())
+        });
     }
 }

@@ -4,7 +4,13 @@ import com.jtn0123.audiowhisper.rust.KeyboardRenderer
 import com.jtn0123.audiowhisper.rust.RenderProtocol.*
 import dev.patrickgold.florisboard.ime.text.gestures.SwipeAction
 import dev.patrickgold.florisboard.ime.text.key.KeyCode
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.long
 import kotlin.random.Random
+import kotlin.test.assertEquals
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 
@@ -15,22 +21,23 @@ class RendererTouchMatchTest {
     private val defaults=listOf(SwipeAction.SHIFT,SwipeAction.HIDE_KEYBOARD,SwipeAction.SWITCH_TO_NEXT_SUBTYPE,
         SwipeAction.SWITCH_TO_PREV_SUBTYPE,SwipeAction.NO_ACTION,SwipeAction.MOVE_CURSOR_LEFT,
         SwipeAction.MOVE_CURSOR_RIGHT,SwipeAction.SHOW_INPUT_METHOD_PICKER,SwipeAction.DELETE_CHARACTERS_PRECISELY)
-    private fun renderer()=KeyboardRenderer(emptyArray()).also {r ->
+    private fun renderer(keyCodes: IntArray=codes)=KeyboardRenderer(emptyArray()).also {r ->
         r.theme("""{"${'$'}schema":"https://schemas.florisboard.org/snygg/v2/stylesheet"}""",
             emptyArray(),intArrayOf(),floatArrayOf(1f,1f,1f))
-        val g=codes.flatMapIndexed {i,code -> listOf(i*100f,0f,(i+1)*100f,100f,i*100f,0f,(i+1)*100f,100f,1f,code.toFloat())}.toFloatArray()
-        r.update(floatArrayOf(900f,120f,20f),arrayOf("characters","unshifted")+Array(codes.size) {"character"},
-            intArrayOf(),g,Array(codes.size*3) {""},emptyArray())
+        val g=keyCodes.flatMapIndexed {i,code -> listOf(i*100f,0f,(i+1)*100f,100f,i*100f,0f,(i+1)*100f,100f,1f,code.toFloat())}.toFloatArray()
+        r.update(floatArrayOf(keyCodes.size*100f,120f,20f),arrayOf("characters","unshifted")+Array(keyCodes.size) {"character"},
+            intArrayOf(),g,Array(keyCodes.size*3) {""},emptyArray())
     }
     private class Trace(private val r: KeyboardRenderer,private val ref: ReferenceRendererTouch,
         private val actions: List<SwipeAction>) {
         var label="scripted"
         var time=1_000_000_000L
         var step=0
-        fun event(action: Int,ids: IntArray,xy: FloatArray,index: Int=0,dt: Long=16_000_000,history: Boolean=false) {
+        fun event(action: Int,ids: IntArray,xy: FloatArray,index: Int=0,dt: Long=16_000_000,history: Boolean=false, freshDownTime: Boolean=false, historical: FloatArray?=null) {
             time+=dt
             val times=if(history) longArrayOf(0,time-5_000_000,time) else longArrayOf(0,time)
-            val points=if(history) xy+xy else xy
+            if(freshDownTime) times[0]=time
+            val points=if(history) (historical ?: xy)+xy else xy
             val expected=ref.event(action,index,ids,times,points)
             val actual=r.touch(intArrayOf(action,index)+ids,times,points)
             compare(expected,actual,"step ${step++}, action $action")
@@ -45,10 +52,10 @@ class RendererTouchMatchTest {
             assertContentEquals(normalized(expected,false),normalized(actual,true),"$label $where")
         }
     }
-    private fun configured(r: KeyboardRenderer,actions: List<SwipeAction>,glide: Boolean,density: Float=1f,raw: Boolean=false,gif: Boolean=false): Trace {
+    private fun configured(r: KeyboardRenderer,actions: List<SwipeAction>,glide: Boolean,density: Float=1f,raw: Boolean=false,gif: Boolean=false,keyCodes: IntArray=codes): Trace {
         r.touch(intArrayOf(3,0),longArrayOf(),floatArrayOf())
         r.gestures(floatArrayOf(density,32f,if(glide) 1f else 0f,if(raw) 1f else 0f,if(gif) 1f else 0f,1f,200f,32f,1900f),actions.map {it.name}.toTypedArray())
-        return Trace(r,ReferenceRendererTouch(codes,actions,glide,density,raw,gif),actions)
+        return Trace(r,ReferenceRendererTouch(keyCodes,actions,glide,density,raw,gif),actions)
     }
     @Test fun scriptedGestureRegressionsAndEveryConfiguredActionMatch(): Unit = renderer().use {r ->
         // 300-press/e-hold event shape retained from the stage 3 benchmark, scaled to this fixture.
@@ -80,6 +87,41 @@ class RendererTouchMatchTest {
             event(0,intArrayOf(0),floatArrayOf(50f,70f));event(5,intArrayOf(0,7),floatArrayOf(50f,70f,150f,70f),1)
             event(6,intArrayOf(0,7),floatArrayOf(50f,70f,150f,70f));event(5,intArrayOf(7,14),floatArrayOf(150f,70f,50f,70f),1)
             event(3,intArrayOf(7,14),floatArrayOf(150f,70f,50f,70f))
+        }
+    }
+    @Test fun recordedAndroidBenchmarkTimestampsMatchCompose() {
+        // The fixed public benchmark targets are normalized to this fixture's 100 px cells.
+        // Only MotionEvent timestamps were retained from the device; no user paths or text.
+        val keyCodes="qwerasdfzxcv".map {it.code}.toIntArray()
+        val recording=checkNotNull(javaClass.getResource("/render/aw-keyboard-benchmark-timestamps.json")).readText()
+        val offsets=Json.parseToJsonElement(recording).jsonObject.getValue("touch_offsets_ns").jsonArray
+            .map {it.jsonPrimitive.long}
+        assertEquals(616,offsets.size)
+        renderer(keyCodes).use {r ->
+            val trace=configured(r,defaults,true,keyCodes=keyCodes)
+            trace.label="recorded Android 16 benchmark"
+            var previous=0L
+            for((index,offset) in offsets.withIndex()) {
+                val key=if(index<600) index/50 else 2
+                if(index>=600 && index%2==1) trace.hold(0,true)
+                trace.event(if(index%2==0) 0 else 1,intArrayOf(0),floatArrayOf(key*100f+50f,70f),dt=offset-previous)
+                previous=offset
+            }
+        }
+    }
+    @Test fun independentlyInjectedMoveDownTimeDoesNotCancelHistoricalGlideSamples(): Unit = renderer().use {r ->
+        configured(r,defaults,true).apply {
+            event(0,intArrayOf(0),floatArrayOf(50f,70f))
+            event(2,intArrayOf(0),floatArrayOf(150f,70f),history=true,freshDownTime=true)
+            event(1,intArrayOf(0),floatArrayOf(150f,70f))
+        }
+    }
+    @Test fun resampledOvershootWithInBoundsHistoryDoesNotCancelComposeGlide(): Unit = renderer().use {r ->
+        configured(r,defaults,true).apply {
+            event(0,intArrayOf(0),floatArrayOf(50f,70f))
+            event(2,intArrayOf(0),floatArrayOf(1100f,70f),history=true,historical=floatArrayOf(850f,70f))
+            event(2,intArrayOf(0),floatArrayOf(150f,70f))
+            event(1,intArrayOf(0),floatArrayOf(150f,70f))
         }
     }
     @Test fun seededMultiPointerSequencesMatchCompose()=renderer().use {r ->

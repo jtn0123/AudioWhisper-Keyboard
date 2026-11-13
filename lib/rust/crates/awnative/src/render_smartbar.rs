@@ -27,31 +27,33 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_smartbar(
                 .ok_or_else(|| illegal("invalid smartbar config"))?;
             let codes = env.read::<i32>(codes, "codes")?;
             let labels = crate::render::strings(env, labels)?;
-            if codes.len() % 2 != 0
+            if codes.len() % BAR_ACTION_STRIDE as usize != 0
                 || labels.len() < codes.len()
                 || (labels.len() - codes.len()) % 2 != 0
-                || codes.len() / 2 != 5 + config.dynamic
+                || codes.len() / BAR_ACTION_STRIDE as usize != 5 + config.dynamic
             {
                 return Err(illegal("invalid smartbar actions"));
             }
             let actions = codes
-                .as_chunks::<2>()
+                .as_chunks::<{ BAR_ACTION_STRIDE as usize }>()
                 .0
                 .iter()
                 .enumerate()
                 .map(|(i, c)| Action {
                     code: c[0],
-                    enabled: c[1] & BAR_ENABLED != 0,
-                    lit: if c[1] & BAR_DICTATING != 0 {
+                    enabled: c[BAR_FLAGS_OFFSET as usize] & BAR_ENABLED != 0,
+                    lit: if c[BAR_FLAGS_OFFSET as usize] & BAR_DICTATING != 0 {
                         1
-                    } else if c[1] & BAR_READING != 0 {
+                    } else if c[BAR_FLAGS_OFFSET as usize] & BAR_READING != 0 {
                         2
                     } else {
                         0
                     },
-                    level: (c[1] >> BAR_LEVEL_SHIFT & BAR_LEVEL_MASK) as f32 / 255.0,
-                    warming: c[1] & BAR_WARMING != 0,
-                    finishing: c[1] & BAR_FINISHING != 0,
+                    level: (c[BAR_FLAGS_OFFSET as usize] >> BAR_LEVEL_SHIFT & BAR_LEVEL_MASK)
+                        as f32
+                        / 255.0,
+                    warming: c[BAR_FLAGS_OFFSET as usize] & BAR_WARMING != 0,
+                    finishing: c[BAR_FLAGS_OFFSET as usize] & BAR_FINISHING != 0,
                     icon: labels[i * 2].clone(),
                     label: labels[i * 2 + 1].clone(),
                     styles: Default::default(),

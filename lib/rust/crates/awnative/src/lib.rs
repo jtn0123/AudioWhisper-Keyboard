@@ -26,6 +26,7 @@ mod render;
 mod render_input;
 mod render_smartbar;
 mod render_theme;
+mod render_trail;
 #[cfg(target_os = "android")]
 mod render_window;
 mod screen;

@@ -78,6 +78,22 @@ class KeyboardRendererTest {
     }
 
     @Test
+    fun frameContinuationEndsWhenTrailExpiresAndHonorsTheVisibilitySetting() {
+        for (show in listOf(false,true)) KeyboardRenderer(emptyArray()).use { r ->
+            r.theme("""{"${'$'}schema":"https://schemas.florisboard.org/snygg/v2/stylesheet"}""",emptyArray(),intArrayOf(),floatArrayOf(1f,1f,1f))
+            r.update(floatArrayOf(100f,80f,20f),arrayOf("characters","unshifted","character"),intArrayOf(),
+                floatArrayOf(0f,0f,100f,60f,0f,0f,100f,60f,1f,97f),arrayOf("a","",""),emptyArray())
+            r.gestures(floatArrayOf(1f,32f,1f,0f,0f,if(show) 1f else 0f,200f,32f,1900f),Array(9) {"NO_ACTION"})
+            r.touch(intArrayOf(0,0,0),longArrayOf(0,1_000_000),floatArrayOf(10f,40f))
+            r.touch(intArrayOf(2,0,0),longArrayOf(0,17_000_000),floatArrayOf(80f,40f))
+            kotlin.test.assertEquals(show,r.frame(20_000_000))
+            r.touch(intArrayOf(1,0,0),longArrayOf(0,33_000_000),floatArrayOf(80f,40f))
+            kotlin.test.assertFalse(r.frame(300_000_000))
+            kotlin.test.assertFalse(r.frame(2_300_000_000))
+        }
+    }
+
+    @Test
     fun closedHandleThrowsInsteadOfUsingFreedMemory() {
         val renderer = KeyboardRenderer(emptyArray())
         renderer.close()

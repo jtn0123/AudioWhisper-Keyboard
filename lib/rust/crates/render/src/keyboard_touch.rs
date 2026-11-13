@@ -295,12 +295,11 @@ impl KeyboardTouch {
             .as_ref()
             .is_some_and(|pop| Some(pop.key) == p.active)
         {
-            if let Some(bounds) = scene.popup_bounds() {
-                let popup = scene.popup.as_mut().expect("popup exists");
-                let selected = ((x - bounds.left) / bounds.width() * popup.labels.len() as f32)
-                    .floor()
-                    .max(0.0) as usize;
-                popup.selected = selected.min(popup.labels.len().saturating_sub(1));
+            if let Some(selected) = scene.popup_pointer(x, y) {
+                scene.popup.as_mut().expect("popup exists").selected = selected;
+            } else {
+                Self::release(scene, p, true, actions);
+                Self::down(p, scene.key_at(x, y), actions);
             }
         } else {
             let r = key.bounds.visible;
@@ -323,7 +322,11 @@ impl KeyboardTouch {
         if let Some(key) = p.active.take() {
             let popup = scene.popup.as_ref().filter(|pop| pop.key == key);
             if !cancel && let Some(popup) = popup {
-                actions.push(Action(POPUP_SELECT, popup.selected as i32, p.id));
+                actions.push(Action(
+                    POPUP_SELECT,
+                    scene.popup_choice_index(popup.selected) as i32,
+                    p.id,
+                ));
             } else {
                 actions.push(Action(
                     if cancel || p.moved {

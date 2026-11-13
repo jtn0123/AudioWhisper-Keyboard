@@ -1,5 +1,6 @@
 package com.jtn0123.audiowhisper.render
 
+import android.content.res.Configuration
 import android.content.Context
 import android.os.SystemClock
 import com.jtn0123.audiowhisper.rust.RenderProtocol.*
@@ -82,6 +83,7 @@ class RustKeyboardView(context: Context) : FrameLayout(context), SurfaceHolder.C
     internal fun update(value: KeyboardSnapshot) {
         if (released) { trace(SurfaceEvent.REJECTED_UPDATE); return }
         if (snapshot?.keyboard !== value.keyboard) {
+            trace(SurfaceEvent.KEYBOARD_REPLACED)
             cancelInput()
             native.touch(intArrayOf(MotionEvent.ACTION_CANCEL, 0), longArrayOf(), floatArrayOf())
         }
@@ -92,8 +94,8 @@ class RustKeyboardView(context: Context) : FrameLayout(context), SurfaceHolder.C
         val changed = snapshot?.let { old ->
             old.smartbar.actions.indices.filter { i ->
                 old.smartbar.actions[i] != value.smartbar.actions.getOrNull(i) ||
-                    (old.smartbar.codes[i * 2 + 1] and BAR_ENABLED != 0 &&
-                        value.smartbar.codes.getOrNull(i * 2 + 1)?.and(BAR_ENABLED) != BAR_ENABLED)
+                    (old.smartbar.codes[i * BAR_ACTION_STRIDE + BAR_FLAGS_OFFSET] and BAR_ENABLED != 0 &&
+                        value.smartbar.codes.getOrNull(i * BAR_ACTION_STRIDE + BAR_FLAGS_OFFSET)?.and(BAR_ENABLED) != BAR_ENABLED)
             }.toIntArray()
         } ?: intArrayOf()
         dispatchActions(native.barSettings(prefs.keyboard.longPressDelay.get().toLong() * 1_000_000, changed))
@@ -125,7 +127,7 @@ class RustKeyboardView(context: Context) : FrameLayout(context), SurfaceHolder.C
         }.toIntArray()
         native.smartbar(s.smartbar.config, s.smartbar.codes, s.smartbar.labels + s.candidates.flatMap { listOf(it.icon?.let(::iconPath) ?: "", it.secondaryText?.toString() ?: "") })
         manager.smartbarVisibleDynamicActionsCount = s.smartbar.measure(width.toFloat())[2].toInt()
-        native.update(floatArrayOf(width.toFloat(), height.toFloat(), s.stripHeight),
+        native.update(floatArrayOf(width.toFloat(), height.toFloat(), s.stripHeight, desired.visibleBounds.width, desired.visibleBounds.height),
             metadata.toTypedArray(), flags, geometry, labels.toTypedArray(), candidates.toTypedArray())
         candidateBindings.bind(native, s.candidates)
         gestureHost.layout(s)
@@ -154,8 +156,8 @@ class RustKeyboardView(context: Context) : FrameLayout(context), SurfaceHolder.C
     override fun doFrame(frameTimeNanos: Long) {
         framePending = false
         if (!released && liveSurface) {
-            native.frame(frameTimeNanos)
-            if (snapshot?.smartbar?.animating == true) invalidateFrame()
+            val trailVisible = native.frame(frameTimeNanos)
+            if (trailVisible || snapshot?.smartbar?.animating == true) invalidateFrame()
         }
     }
 
@@ -258,8 +260,10 @@ class RustKeyboardView(context: Context) : FrameLayout(context), SurfaceHolder.C
             OPEN_POPUP -> {
                 val key = s.keys[index]
                 popupSource = key
-                popupChoices = key.computedPopups.getPopupKeys(prefs.keyboard.keyHintConfiguration()).toList()
+                val choices = key.computedPopups.getPopupKeys(prefs.keyboard.keyHintConfiguration())
+                popupChoices = choices.toList()
                 native.popup(index, popupChoices.map { it.label }.toTypedArray(), popupChoices.map { it.code }.toIntArray())
+                native.popupGrid(choices.prioritized.size, resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE)
                 invalidateFrame()
             }
             POPUP_SELECT -> {
@@ -283,7 +287,7 @@ class RustKeyboardView(context: Context) : FrameLayout(context), SurfaceHolder.C
 
     private enum class SurfaceEvent(val code: Int) {
         CREATED(2), CHANGED(3), DESTROYED(4), RELEASE(5), ATTACHED(6), DETACHED(7),
-        REJECTED_TOUCH(10), REJECTED_UPDATE(11),
+        REJECTED_TOUCH(10), REJECTED_UPDATE(11), KEYBOARD_REPLACED(12),
     }
 
     private fun trace(event: SurfaceEvent) {

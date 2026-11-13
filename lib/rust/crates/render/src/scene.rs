@@ -44,6 +44,10 @@ pub struct Scene {
     pub candidate_tokens: Vec<i32>,
     pub pressed: Vec<usize>,
     pub popup: Option<Popup>,
+    pub popup_geometry: Option<crate::popup_scene::Geometry>,
+    pub desired_key: [f32; 2],
+    pub trail: Vec<crate::trail::Circle>,
+    pub trail_color: u32,
 }
 
 impl Scene {
@@ -75,6 +79,15 @@ impl Scene {
 
     pub fn popup_bounds(&self) -> Option<Rect> {
         let popup = self.popup.as_ref()?;
+        if let Some(grid) = &self.popup_geometry {
+            let r = grid.layout.bounds;
+            return Some(Rect {
+                left: r.left,
+                top: r.top + self.strip,
+                right: r.right,
+                bottom: r.bottom + self.strip,
+            });
+        }
         let key = self.keys.get(popup.key)?.bounds.visible;
         let width = (key.width() * popup.labels.len() as f32).min(self.width as f32);
         let left =
@@ -115,6 +128,10 @@ impl Scene {
             }];
         }
         let mut rects = Vec::new();
+        if self.trail != next.trail || self.trail_color != next.trail_color {
+            rects.extend(crate::trail::bounds(&self.trail));
+            rects.extend(crate::trail::bounds(&next.trail));
+        }
         if self.candidates != next.candidates
             || self.candidate_pressed != next.candidate_pressed
             || self.smartbar != next.smartbar
@@ -142,7 +159,7 @@ impl Scene {
                 });
             }
         }
-        if self.popup != next.popup {
+        if self.popup != next.popup || self.popup_geometry != next.popup_geometry {
             rects.extend(self.popup_bounds());
             rects.extend(next.popup_bounds());
         }

@@ -39,6 +39,11 @@ for _ in 1 2 3 4 5 6 7 8; do
 done
 adb shell dumpsys gfxinfo com.jtn0123.audiowhisper.keyboard framestats > "$output/$renderer-gfx-popup.txt"
 adb shell run-as com.jtn0123.renderprobe cat files/digest.json > "$output/$renderer-popup-final-digest.json"
+if [ "${4:-}" = glide ]; then
+    adb shell dumpsys gfxinfo com.jtn0123.audiowhisper.keyboard reset > /dev/null
+    python3 -I scripts/render-benchmark/gestures.py "$agent" "$output/glide" --glide-only
+    adb shell dumpsys gfxinfo com.jtn0123.audiowhisper.keyboard framestats > "$output/$renderer-gfx-glide.txt"
+fi
 adb logcat -d -s aw-render:D aw-compose:D aw-profile:D AndroidRuntime:E > "$output/$renderer-timing.log"
 if grep -Eq 'FATAL|AndroidRuntime' "$output/$renderer-timing.log"; then
     echo "Runtime failure; inspect $output/$renderer-timing.log" >&2

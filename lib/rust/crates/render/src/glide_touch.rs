@@ -13,6 +13,7 @@ pub(crate) struct GlideTouch {
     key_size: f32,
     points: Vec<(f32, f32)>,
     owns: bool,
+    tracked_id: i32,
     active: bool,
     cancelled_outside: bool,
 }
@@ -23,6 +24,7 @@ impl Default for GlideTouch {
             key_size: 32.0,
             points: Vec::new(),
             owns: false,
+            tracked_id: -1,
             active: false,
             cancelled_outside: false,
         }
@@ -61,6 +63,7 @@ impl GlideTouch {
         let y = event.coords[current + event.index * 2 + 1];
         if event.action == 0 {
             self.owns = scene.key_at(x, y).is_some();
+            self.tracked_id = event.ids[event.index];
             self.cancelled_outside = false;
         }
         if !self.owns {
@@ -68,15 +71,6 @@ impl GlideTouch {
         }
         if self.cancelled_outside {
             return (Vec::new(), true);
-        }
-        if self.active
-            && event.action == 2
-            && (x < 0.0 || x >= scene.width as f32 || y < scene.strip || y >= scene.height as f32)
-        {
-            let actions = self.cancel();
-            self.cancelled_outside = true;
-            self.owns = true;
-            return (actions, true);
         }
         let pointer = keys.pointers.iter().find(|p| p.id == 0);
         if pointer.is_some_and(|p| p.long) {
@@ -86,6 +80,31 @@ impl GlideTouch {
             .and_then(|p| p.initial)
             .and_then(|i| scene.keys.get(i))
             .map(|k| k.code);
+        // Android can extrapolate the current sample beyond the surface while the batch's
+        // genuine historical points remain inside. Compose continues that glide. Confirm an
+        // exit from an entirely outside MOVE batch, or an outside release of the tracked finger.
+        // Delete, Shift and space retain their own Compose swipe policies.
+        if event.ids[event.index] == self.tracked_id
+            && matches!(event.action, 1 | 2 | 6)
+            && !initial
+                .is_some_and(|code| gestures::glide_start::SWIPE_GESTURE_KEYS.contains(&code))
+            && event
+                .coords
+                .chunks_exact(event.ids.len() * 2)
+                .all(|sample| {
+                    let x = sample[event.index * 2];
+                    let y = sample[event.index * 2 + 1];
+                    x < 0.0
+                        || x >= scene.width as f32
+                        || y < scene.strip
+                        || y >= scene.height as f32
+                })
+        {
+            let actions = self.cancel();
+            self.cancelled_outside = true;
+            self.owns = true;
+            return (actions, true);
+        }
         let mut points = Vec::new();
         if matches!(event.action, 0 | 5) {
             points.extend([x, y - scene.strip]);

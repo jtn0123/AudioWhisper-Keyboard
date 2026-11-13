@@ -1548,6 +1548,7 @@ dependencies = [
  "keys",
  "parley",
  "pollster",
+ "popup",
  "read-fonts 0.47.0",
  "serde_json",
  "snygg",

@@ -99,3 +99,25 @@ codes are 2 created, 3 changed, 4 destroyed, 5 released, 6 attached, 7 detached,
 numeric; these events never include input contents. Use them with native acquired/released
 window generations when checking configuration changes. They add no logging to normal
 key/scene updates.
+
+## Package 3 gesture replay
+
+The probe also stores `selection_start`/`selection_end` UTF-16 offsets; it never stores text.
+With an empty, focused editor and the returned agent-device command, run:
+
+```bash
+ANDROID_SERIAL=<runtime-id> python3 -I scripts/render-benchmark/gestures.py \
+  '<agent-device-command>' build/stage3b3/gestures/compose
+```
+
+Repeat from an empty editor on Rust. `gestures.json` records the digest and selection after
+three fixed synthetic glides, a candidate pick, cursor and delete swipes, hold-repeat,
+double/held Shift, two-pointer rolling and a cancelled glide. The multi-segment paths and
+CANCEL use targeted `adb shell input motionevent`; agent-device handles taps and straight
+pans. No path is recorded from a person. Coordinates assume the same portrait AVD as above.
+Global configured swipe actions additionally require turning glide off in Gestures, replaying
+the four cardinal swipes, and turning glide back on. Never silently compare disabled actions.
+
+Pass `glide` as run.sh's fourth argument to include glide frames in an alternating timing
+trial. The exact 300-press/eight-hold digest files are captured before those extra gestures.
+Both native timing and Compose gfxinfo then include the additional glide/fade frames.
