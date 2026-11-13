@@ -311,6 +311,9 @@ the shell's `PATH`.
 ./gradlew test              # every JVM test, including those that go through JNI
 ```
 
+`./gradlew :lib:rust:oracleCheck` runs the LatinIME C++ comparison through `latin-oracle`; it
+needs a C++ toolchain, and CI runs it as its own task.
+
 Or, from `lib/rust`, plain `cargo test`, `cargo clippy --all-targets -- -D warnings` and
 `cargo fmt`.
 
