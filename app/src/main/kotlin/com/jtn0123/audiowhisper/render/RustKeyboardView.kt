@@ -20,6 +20,8 @@ import dev.patrickgold.florisboard.ime.text.keyboard.TextKeyboard
 import dev.patrickgold.florisboard.keyboardManager
 import dev.patrickgold.florisboard.nlpManager
 
+private const val PROFILE_LOG_TAG = "aw-profile"
+
 /** Font discovery uses Android's public API; XML paths are used only by the offline format probe. */
 internal fun systemRendererFonts(): Array<String> {
     val fonts = SystemFonts.getAvailableFonts().mapNotNull { it.file }.distinctBy { it.path }
@@ -63,7 +65,7 @@ class RustKeyboardView(context: Context) : FrameLayout(context), SurfaceHolder.C
     }
 
     fun update(value: KeyboardSnapshot) {
-        if (released) return
+        if (released) { trace(SurfaceEvent.REJECTED_UPDATE); return }
         if (snapshot?.keyboard !== value.keyboard) {
             cancelInput()
             native.touch(intArrayOf(MotionEvent.ACTION_CANCEL, 0), longArrayOf(), floatArrayOf())
@@ -115,8 +117,9 @@ class RustKeyboardView(context: Context) : FrameLayout(context), SurfaceHolder.C
         if (!released && liveSurface) native.frame(frameTimeNanos)
     }
 
-    override fun surfaceCreated(holder: SurfaceHolder) = Unit
+    override fun surfaceCreated(holder: SurfaceHolder) { trace(SurfaceEvent.CREATED) }
     override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) {
+        trace(SurfaceEvent.CHANGED)
         if (released || snapshot == null) return
         cancelInput()
         updateScene()
@@ -126,6 +129,7 @@ class RustKeyboardView(context: Context) : FrameLayout(context), SurfaceHolder.C
     }
 
     override fun surfaceDestroyed(holder: SurfaceHolder) {
+        trace(SurfaceEvent.DESTROYED)
         liveSurface = false
         cancelInput()
         choreographer.removeFrameCallback(this)
@@ -134,7 +138,7 @@ class RustKeyboardView(context: Context) : FrameLayout(context), SurfaceHolder.C
     }
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
-        if (released || !liveSurface) return false
+        if (released || !liveSurface) { trace(SurfaceEvent.REJECTED_TOUCH); return false }
         val pointers = event.pointerCount
         val metadata = IntArray(2 + pointers)
         metadata[0] = event.actionMasked
@@ -204,7 +208,22 @@ class RustKeyboardView(context: Context) : FrameLayout(context), SurfaceHolder.C
         popupChoices.clear()
     }
 
+    private enum class SurfaceEvent(val code: Int) {
+        CREATED(2), CHANGED(3), DESTROYED(4), RELEASE(5), ATTACHED(6), DETACHED(7),
+        REJECTED_TOUCH(10), REJECTED_UPDATE(11),
+    }
+
+    private fun trace(event: SurfaceEvent) {
+        if (Log.isLoggable(PROFILE_LOG_TAG, Log.DEBUG)) {
+            Log.d(PROFILE_LOG_TAG, "view event=${event.code} id=${System.identityHashCode(this)} live=${if (liveSurface) 1 else 0} released=${if (released) 1 else 0}")
+        }
+    }
+
+    override fun onAttachedToWindow() { super.onAttachedToWindow(); trace(SurfaceEvent.ATTACHED) }
+    override fun onDetachedFromWindow() { super.onDetachedFromWindow(); trace(SurfaceEvent.DETACHED) }
+
     fun release() {
+        trace(SurfaceEvent.RELEASE)
         if (released) return
         cancelInput()
         liveSurface = false

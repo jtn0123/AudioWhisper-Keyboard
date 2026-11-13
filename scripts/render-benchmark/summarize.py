@@ -77,9 +77,16 @@ def compose_touch(path):
 
 def profile(path):
     frames = []
+    was_open = False
     for line in Path(path).read_text().splitlines():
         if "profile draw_ns=" in line:
-            frames.append({k: int(v) for k, v in re.findall(r"(\w+)=(\d+)", line)})
+            frame = {k: int(v) for k, v in re.findall(r"(\w+)=(\d+)", line)}
+            opened = bool(frame["popup_open"])
+            frame["popup_event"] = (2 if was_open else 1) if opened else 3
+            if not frame["popup_change"]:
+                frame["popup_event"] = 0
+            was_open = opened
+            frames.append(frame)
     tails = [f for f in frames if f["draw_ns"] > 2_000_000]
     groups = {
         "all": frames, "over_2ms": tails,
@@ -91,6 +98,8 @@ def profile(path):
         "other": [f for f in tails if not any(f.get(k) for k in
                   ("press", "release", "recreate", "shift", "popup_change", "candidates"))],
         "shift": [f for f in tails if f["shift"]],
+        "popup_open": [f for f in tails if f["popup_event"] == 1],
+        "popup_move": [f for f in tails if f["popup_event"] == 2],
         "popup_open_or_move": [f for f in tails if f["popup_change"] and f["popup_open"]],
         "popup_close": [f for f in tails if f["popup_change"] and not f["popup_open"]],
         "candidate_change": [f for f in tails if f["candidates"]],

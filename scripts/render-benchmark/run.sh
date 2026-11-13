@@ -32,14 +32,14 @@ for position in "${positions[@]}"; do
     batch=$((batch + 1))
 done
 adb shell run-as com.jtn0123.renderprobe cat files/digest.json > "$output/$renderer-typing-digest.json"
-adb logcat -d -s aw-render:D aw-compose:D AndroidRuntime:E > "$output/$renderer-typing-timing.log"
+adb logcat -d -s aw-render:D aw-compose:D aw-profile:D AndroidRuntime:E > "$output/$renderer-typing-timing.log"
 adb shell dumpsys gfxinfo com.jtn0123.audiowhisper.keyboard reset > /dev/null
 for _ in 1 2 3 4 5 6 7 8; do
     "$agent" longpress 275 1750 500 > /dev/null
 done
 adb shell dumpsys gfxinfo com.jtn0123.audiowhisper.keyboard framestats > "$output/$renderer-gfx-popup.txt"
 adb shell run-as com.jtn0123.renderprobe cat files/digest.json > "$output/$renderer-popup-final-digest.json"
-adb logcat -d -s aw-render:D aw-compose:D AndroidRuntime:E > "$output/$renderer-timing.log"
+adb logcat -d -s aw-render:D aw-compose:D aw-profile:D AndroidRuntime:E > "$output/$renderer-timing.log"
 if grep -Eq 'FATAL|AndroidRuntime' "$output/$renderer-timing.log"; then
     echo "Runtime failure; inspect $output/$renderer-timing.log" >&2
     exit 1
