@@ -1,4 +1,4 @@
-"""Run four deliberate editor mutations through JVM differential tests, restoring every source.
+"""Run five deliberate editor mutations through JVM differential tests, restoring every source.
 
 Usage: python3 -I scripts/editor-mutations.py build/stage2-editor/mutations
 Run only with no other Gradle process using this checkout.
@@ -18,6 +18,9 @@ def main():
     output = ROOT / sys.argv[1]
     output.mkdir(parents=True, exist_ok=True)
     edits = [
+        ('invalid-finalize-batch', 'edit.rs',
+         'return self.done(false, vec![Op::simple("begin"), Op::simple("end")]);',
+         'return self.done(false, vec![Op::simple("begin")]);'),
         ('surrogate-offset', 'edit.rs',
          'let length = integer(fields, 0).max(0);',
          'let length = integer(fields, 0).max(0);\n'

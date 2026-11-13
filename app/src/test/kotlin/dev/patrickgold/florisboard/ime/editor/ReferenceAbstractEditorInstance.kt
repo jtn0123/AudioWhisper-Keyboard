@@ -104,6 +104,8 @@ open class ReferenceAbstractEditorInstance(ic: FakeInputConnection) : ReferenceE
         val composing = content.composing
         ic.beginBatchEdit()
         if (activeInfo.isRawInputEditor || composing.isNotValid) {
+            // Deliberate divergence: never leak the legacy invalid-finalize batch.
+            ic.endBatchEdit()
             return false
         } else runBlocking {
             val newSelection = ReferenceEditorRange.cursor(composing.end + (text.length - content.composingText.length))

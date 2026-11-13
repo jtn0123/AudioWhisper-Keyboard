@@ -86,26 +86,30 @@ Both were corrected. Inspection also found that out-of-window Kotlin `safeSubstr
 empty, rather than a clipped substring; the Rust model now follows that exact behavior, with
 a regression for a cursor jumping outside the cached window.
 
-Two legacy behaviors are deliberately preserved and tested: forward deletion advances the
-predicted cursor until the real selection notification reconciles it, and invalid low-level
-composing finalization emits `beginBatchEdit` before returning false without an end. Ordinary
-valid operation plans retain balanced batches. Changing these behaviors is separate from an
-exact operation-sequence port.
+Forward deletion still advances the predicted cursor until the real selection notification
+reconciles it. Invalid low-level composing finalization deliberately diverges from legacy
+FlorisBoard: it emits both `beginBatchEdit` and `endBatchEdit` before returning false. The
+legacy unmatched begin could suppress editor selection/extracted-text updates for the rest
+of the connection. The test-only reference includes this documented correction. Every plan
+in both seeded suites is independently checked for nonnegative nesting and zero final batch
+depth, including raw-editor and invalid-composing finalization. Dropping the new end is an
+additional deliberate mutation, restored after the invariant catches it.
 
 The seeded suites compared **201,611 InputConnection effects at 93,887 state checkpoints**:
 94,087 effects / 43,787 checkpoints in the low-level suite and 107,524 / 50,100 in editor flows.
 Their final restored runs have zero differences.
 
-Four deliberate mutations each failed actual JVM differential assertions, with Gradle exit 1:
+Five deliberate mutations each failed actual JVM differential assertions, with Gradle exit 1:
 
 | Mutation | Assertions failing | Restored |
 |---|---:|---|
+| Drop the end from invalid composing finalization | 1 | Yes |
 | Delete one UTF-16 unit instead of two at a surrogate-pair boundary | 3 | Yes |
 | Invert the pending phantom-space insertion rule | 2 | Yes |
 | Remove both begin/end effects from the commit plan | 5 | Yes |
 | Accept a matching selection with the wrong composing region | 3 | Yes |
 
-All editor tests passed after restoration. `scripts/editor-mutations.py` reproduces the four
+All editor tests passed after restoration. `scripts/editor-mutations.py` reproduces the five
 edits, verifies failures and restores sources in `finally`; evidence stays in ignored build output.
 
 ## Reproduction

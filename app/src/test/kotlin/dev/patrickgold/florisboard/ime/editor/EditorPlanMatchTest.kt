@@ -115,7 +115,7 @@ class EditorPlanMatchTest {
         println("editor low-level: seeds=100 events=$count checkpoints=$checkpoints InputConnection_ops=$operations differences=0")
         assertEquals(25000,count)
     }
-    @Test fun `cache safe margin queue draining and invalid finalization retain legacy behavior`() {
+    @Test fun `cache safe margin queue draining and invalid finalization keep batches balanced`() {
         Pairing().use { p ->
             p.start("x".repeat(800),400)
             p.select(800,800);p.reconcile()
@@ -129,7 +129,10 @@ class EditorPlanMatchTest {
             p.reconcile() // A matching selection alone must not accept a mismatched composing region.
             p.start("",0)
             p.finalize("unavailable")
-            assertEquals(1,p.newIc.batches) // Documents the pre-existing invalid-finalize batch leak.
+            assertEquals(0,p.newIc.batches)
+            p.start("raw",3,raw=true)
+            p.finalize("unavailable")
+            assertEquals(0,p.newIc.batches)
         }
     }
     @Test fun `closed handles reject use and close is idempotent`() {

@@ -31,6 +31,13 @@ class NativeEditorDriver(val ic: FakeInputConnection) : AutoCloseable {
             }
             response=session.call(response[0],*args)
         }
+        // Check each generated plan independently, including nested high-level batches.
+        var depth = 0
+        for (operation in response.drop(2).chunked(4)) {
+            when (operation[0]) { "begin" -> depth++; "end" -> depth-- }
+            kotlin.test.assertTrue(depth >= 0, "Editor plan ends an unopened batch")
+        }
+        kotlin.test.assertEquals(0, depth, "Editor plan leaks a batch")
         val results=response.drop(2).chunked(4).map { ic.apply(FakeInputConnection.Operation(it[0],it[1].toInt(),it[2].toInt(),it[3])) }
         session.call("results",*results.map{if(it)"1"else"0"}.toTypedArray())[0]=="1"
     }

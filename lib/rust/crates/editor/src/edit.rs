@@ -114,7 +114,7 @@ impl Session {
                 let value = &fields[0];
                 let composing = c.composing();
                 if self.raw || !composing.valid() {
-                    return self.done(false, vec![Op::simple("begin")]);
+                    return self.done(false, vec![Op::simple("begin"), Op::simple("end")]);
                 }
                 let old = c.slice(c.composing);
                 let mut before = c.before();
