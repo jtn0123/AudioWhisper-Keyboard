@@ -150,10 +150,10 @@ class ThemeManager(context: Context) {
             ZipUtils.unzip(appContext, themeExtRef, loadedDir).getOrThrow()
             val stylesheetFile = loadedDir.subFile(themeConfig.stylesheetPath())
             val stylesheetJson = stylesheetFile.readText()
-            SnyggStylesheet.fromJson(stylesheetJson).getOrThrow() to stylesheetJson
+            SnyggStylesheet.fromJson(stylesheetJson).getOrThrow()
         }.fold(
             onSuccess = { newStylesheet ->
-                val newInfo = ThemeInfo(activeName, themeConfig, newStylesheet.first, loadedDir, null, newStylesheet.second)
+                val newInfo = ThemeInfo(activeName, themeConfig, newStylesheet, loadedDir, null)
                 cachedThemeInfos.add(newInfo)
                 _activeThemeInfo.value = newInfo
             },
@@ -285,8 +285,9 @@ class ThemeManager(context: Context) {
         val stylesheet: SnyggStylesheet,
         val loadedDir: FsDir?,
         val loadFailure: LoadFailure?,
-        val stylesheetJson: String = stylesheet.toJson().getOrThrow(),
     ) {
+        // Derived per instance: data-class copy(stylesheet = draft) must serialize that draft.
+        val stylesheetJson: String by lazy { stylesheet.toJson().getOrThrow() }
         override fun toString(): String {
             return "ThemeInfo(name=$name, config=$config, loadedDir=$loadedDir)"
         }
