@@ -169,8 +169,24 @@ class Device:
                   "Renderer setting was not persisted")
 
     def probe(self, no_suggestions=False, field="text"):
+        # Unbind our observer before replacing its process. Android otherwise retains a
+        # bound-service record whose receiver belonged to the killed probe process.
+        restore_probe = self.original_accessibility()["enabled_accessibility_services"] == SERVICE
+        if restore_probe:
+            self.shell("settings", "put", "secure", "enabled_accessibility_services", "")
+            self.shell("settings", "put", "secure", "accessibility_enabled", 0)
+            self.wait(lambda: not any("Bound services:" in line and "label=Renderer probe" in line
+                                     for line in self.shell("dumpsys", "accessibility").splitlines()),
+                      "Old probe observer did not unbind")
+        # Old tree requests must not survive from a preceding fixture/settings task.
+        self.shell("am", "force-stop", PROBE)
+        time.sleep(.5)
         self.shell("am", "start", "-W", "-f", "0x10008000",
                    "-n", PROBE + "/.ProbeActivity", "--ez", "noSuggestions", str(no_suggestions).lower(), "--es", "field", field)
+        self.wait(lambda: any("topResumedActivity=" in line and PROBE + "/.ProbeActivity" in line
+                              for line in self.shell("dumpsys", "activity", "activities").splitlines()),
+                  "Disposable probe is not foreground")
+        self.reset(no_suggestions, field)
         self.shell("ime", "set", PKG + "/dev.patrickgold.florisboard.FlorisImeService")
         self.tap(540, 480)
         def shown():
@@ -185,6 +201,8 @@ class Device:
             self.tap(540, 480)
         self.wait(shown, "IME not shown")
         self.wait(lambda: self.digest()["utf16_units"] == 0, "Probe not empty")
+        if restore_probe:
+            self.services(SERVICE)
 
     def reset(self, no_suggestions=False, field="text"):
         self.shell("am", "broadcast", "-a", PROBE + ".RESET", "-p", PROBE,

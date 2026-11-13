@@ -333,6 +333,12 @@ All generated evidence remains ignored under `build/stage3b-accessibility/`: `ac
 committed. Hosted CI remains outside acceptance because of the account billing limit;
 the successful local gate is the gate for this work.
 
+## Package 6: emoji, editing and actions panels
+
+[Implementation, parity fixtures, mutations and device evidence](stage3b-package6.md).
+The default-off Rust surface now owns emoji, editing action tiles, overflow and its
+arrangement editor. Clipboard history and GIF/search remain Compose.
+
 ---
 
 ## Earlier renderer measurements

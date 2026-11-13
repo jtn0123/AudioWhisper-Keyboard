@@ -123,6 +123,13 @@ pairs and live theme switching are checked. The 2/4-worker Vello CPU experiment 
 both p50 and p95 and was removed. Compose stays the default. See
 [package 1 results, screenshots and per-trial measurements](stage3b-results.md).
 
+#### Milestone B package 6 (2026-11-13)
+
+Emoji, editing quick-action tiles, overflow and the action-order editor now draw and handle
+input on the Rust surface. Emoji history and arrangement policies also moved to Rust with
+Kotlin reference match tests and deliberate mutations. Clipboard history and GIF/search
+remain Compose; the prototype stays default-off. See [package 6 results](stage3b-package6.md).
+
 ### Stage 4: smaller settings (to 90%+)
 
 At roughly 55–64k Rust lines, Kotlin and Java together must be around 6k. Settings, extensions

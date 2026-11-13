@@ -85,6 +85,10 @@ internal fun FlorisImeService.ImeUiWrapper() {
 @Composable
 private fun FlorisImeService.ImeUi() {
     val state by keyboardManager.activeState.collectAsState()
+    val evaluator by keyboardManager.activeEvaluator.collectAsState()
+    val rustPrototype by prefs.keyboard.rustRendererPrototype.observeAsState()
+    val typingGif by com.jtn0123.audiowhisper.gif.GifSearch.typing.collectAsState()
+    val showingGif by com.jtn0123.audiowhisper.gif.GifSearch.showingGifs.collectAsState()
     val attributes = mapOf(
         FlorisImeUi.Attr.Mode to state.keyboardMode.toString(),
         FlorisImeUi.Attr.ShiftState to state.inputShiftState.toString(),
@@ -145,7 +149,9 @@ private fun FlorisImeService.ImeUi() {
                             .weight(keyboardWeight)
                             .wrapContentHeight(),
                     ) {
-                        when (state.imeUiMode) {
+                        if (rustPrototype && !typingGif && !showingGif && state.imeUiMode != ImeUiMode.CLIPBOARD) {
+                            com.jtn0123.audiowhisper.render.RustKeyboardLayout(evaluator)
+                        } else when (state.imeUiMode) {
                             ImeUiMode.TEXT -> TextInputLayout()
                             ImeUiMode.MEDIA -> MediaInputLayout()
                             ImeUiMode.CLIPBOARD -> ClipboardInputLayout()

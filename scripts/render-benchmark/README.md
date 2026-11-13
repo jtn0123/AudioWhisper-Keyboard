@@ -243,3 +243,34 @@ IME surface while its semantic snapshot remains available. `visuals.py` now esta
 the target first, requires a fresh native posted frame for each Rust state, and rejects
 native draw/post errors. Blank launch-fixture captures are excluded from visual acceptance.
 Timing trials also reject draw/post errors and fewer than 100 measured CPU frames.
+
+Package 6 adds `panels.py` for emoji/recents, editor-action cursor checkpoints and the exact
+serialized action arrangement. It records public action rectangles with an empty
+editor, then disables the observer during typed editing input to avoid synchronous
+InputConnection/accessibility-query interference. Full trees require an empty editor. Each fixture saves
+and restores history/arrangement preferences, including absent keys, and both suggestion
+preferences. Restore the session's original accessibility values during final cleanup too.
+
+```sh
+ANDROID_SERIAL=<runtime> python3 -I scripts/render-benchmark/panels.py compose build/panels-compose
+ANDROID_SERIAL=<runtime> python3 -I scripts/render-benchmark/panels.py rust build/panels-rust
+ANDROID_SERIAL=<runtime> python3 -I scripts/render-benchmark/panel-visuals.py '<agent-device-command>' build/panel-visuals
+python3 -I scripts/render-benchmark/compare-panels.py build/panel-visuals
+```
+
+The visual runner captures empty-editor Day/Night pairs and real accessibility targets for
+two emoji categories, variants, overflow, editing buttons and the arrangement editor. It
+keeps agent-device idle during adb-only input; only the explicit screenshot calls use it.
+`panel-pair.swift` retains the full editor overlay. The comparator compares visible tile
+wrappers, including partially clipped tiles whose Compose text leaf is offscreen, and
+excludes the IME tree occluded by a modal sheet. It rejects missing labels, wrong enabled
+states, missing clicks, target centers displaced by over 3 px and unexplained extra labels.
+Native category, scroll, dismissal and history controls have explicit labels where Compose
+had icon leaves. Run `python3 -I scripts/render-benchmark/test_panel_harness.py` for seven
+adversarial targeting/comparator checks.
+
+Each fixture starts a fresh disposable probe process. The harness unbinds its own observer
+before replacing that process and rebinds afterwards, preserving other accessibility
+services. Typed editing uses recorded visible-label points and scrolls through the grid
+gutter, avoiding accidental editing-key holds during a scroll. Full tree capture never
+runs while the disposable editor contains text.

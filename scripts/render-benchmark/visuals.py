@@ -17,6 +17,8 @@ def theme(device, name):
     wanted = '"ALWAYS_' + name.upper() + '"'
     if device.prefs().get("theme__mode") != wanted:
         for label in ("Theme mode", "Always " + name, "OK"):
+            if device.prefs().get("theme__mode") == wanted:
+                break
             def click():
                 request = device.request(setting=label)
                 return device.wait(lambda: device.response(request), "Setting response absent").get("ok")

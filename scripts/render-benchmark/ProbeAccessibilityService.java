@@ -8,7 +8,7 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.graphics.Rect;
 import android.os.Handler;
-import android.os.Looper;
+import android.os.HandlerThread;
 import android.view.accessibility.AccessibilityEvent;
 import android.view.accessibility.AccessibilityNodeInfo;
 import android.view.accessibility.AccessibilityWindowInfo;
@@ -21,8 +21,11 @@ import org.json.JSONObject;
 /** Disposable IME-only observer. Neither editor trees nor arbitrary event text are recorded. */
 public final class ProbeAccessibilityService extends AccessibilityService {
     private static final String KEYBOARD = "com.jtn0123.audiowhisper.keyboard";
-    private final Handler handler = new Handler(Looper.getMainLooper());
-    private long generation;
+    // InputConnection callbacks share the probe activity main thread. Query the IME on
+    // a worker so an accessibility request cannot block those synchronous callbacks.
+    private final HandlerThread worker = new HandlerThread("ime-probe");
+    private Handler handler;
+    private volatile long generation;
     private final BroadcastReceiver commands = new BroadcastReceiver() {
         @Override public void onReceive(Context context, Intent intent) {
             String request = intent.getStringExtra("request");
@@ -32,6 +35,8 @@ public final class ProbeAccessibilityService extends AccessibilityService {
     };
 
     @Override protected void onServiceConnected() {
+        worker.start();
+        handler = new Handler(worker.getLooper());
         AccessibilityServiceInfo info = getServiceInfo();
         info.flags |= AccessibilityServiceInfo.FLAG_RETRIEVE_INTERACTIVE_WINDOWS
             | AccessibilityServiceInfo.FLAG_REPORT_VIEW_IDS
@@ -42,6 +47,7 @@ public final class ProbeAccessibilityService extends AccessibilityService {
     @Override public void onDestroy() {
         handler.removeCallbacksAndMessages(null);
         unregisterReceiver(commands);
+        worker.quitSafely();
         super.onDestroy();
     }
     @Override public void onInterrupt() { }
@@ -80,6 +86,13 @@ public final class ProbeAccessibilityService extends AccessibilityService {
             } else {
                 JSONArray nodes = new JSONArray();
                 dump(root, -1, nodes);
+                // Compose emoji popups use a separate application window owned by the IME.
+                // Never inspect another package's application window or any editor contents.
+                for (AccessibilityWindowInfo window : getWindows()) {
+                    if (window.getType() != AccessibilityWindowInfo.TYPE_APPLICATION) continue;
+                    AccessibilityNodeInfo popup = window.getRoot();
+                    if (popup != null && KEYBOARD.contentEquals(popup.getPackageName())) dump(popup, -1, nodes);
+                }
                 result.put("nodes", nodes);
             }
             write(request + ".json", result.toString());

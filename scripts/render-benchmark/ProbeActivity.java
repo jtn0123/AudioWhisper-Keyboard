@@ -20,7 +20,7 @@ import java.security.MessageDigest;
 
 /** Temporary local measurement editor. It stores only count and SHA-256, never entered text. */
 public final class ProbeActivity extends Activity {
-    static boolean emptyEditor;
+    static volatile boolean emptyEditor;
     private EditText editor;
     private TextView result;
     private final BroadcastReceiver commands = new BroadcastReceiver() {
