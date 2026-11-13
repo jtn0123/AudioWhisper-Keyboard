@@ -32,6 +32,7 @@ suggest = { path = "../suggest" }
 transcript = { git = "https://github.com/jtn0123/AudioWhisper-Core", rev = "eb7c4057ee016fca71e50c051f51339caf5b5295" }
 # jni.h as Rust declarations, nothing more. 0.3.0 has no dependencies of its own.
 jni-sys = "=0.3.0"
+serde_json = "=1.0.154"
 raw-window-handle = "=0.6.2"
 wgpu = { version = "=29.0.3", default-features = false, features = ["std", "vulkan", "wgsl"] }
 

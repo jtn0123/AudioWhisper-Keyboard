@@ -17,6 +17,16 @@ class KeyboardRenderer(fontPaths: Array<String>) : AutoCloseable {
     fun smartbar(config: FloatArray, codes: IntArray, labels: Array<String>) = RenderNative.smartbar(handle, config, codes, labels)
 
     @Synchronized
+    fun semanticConfig(names: Array<String>, values: Array<String>, text: Array<String>, popups: IntArray, removable: IntArray, checked: IntArray, editor: IntArray) =
+        RenderNative.semanticConfig(handle, names, values, text, popups, removable, checked, editor)
+    @Synchronized
+    fun semanticSnapshot(): String = RenderNative.semanticSnapshot(handle)
+    @Synchronized
+    fun semanticAction(id: Int, action: Int): IntArray = RenderNative.semanticAction(handle, id, action)
+    @Synchronized
+    fun semanticCancel(): IntArray = RenderNative.semanticCancel(handle)
+
+    @Synchronized
     fun touch(metadata: IntArray, times: LongArray, coords: FloatArray): IntArray =
         RenderNative.touch(handle, metadata, times, coords)
 
@@ -73,6 +83,10 @@ internal object RenderNative {
     external fun theme(handle: Long, json: String, names: Array<String>, colors: IntArray, scale: FloatArray)
     external fun update(handle: Long, dimensions: FloatArray, metadata: Array<String>, candidateFlags: IntArray, geometry: FloatArray, labels: Array<String>, candidates: Array<String>)
     external fun smartbar(handle: Long, config: FloatArray, codes: IntArray, labels: Array<String>)
+    external fun semanticConfig(handle: Long, names: Array<String>, values: Array<String>, text: Array<String>, popups: IntArray, removable: IntArray, checked: IntArray, editor: IntArray)
+    external fun semanticSnapshot(handle: Long): String
+    external fun semanticAction(handle: Long, id: Int, action: Int): IntArray
+    external fun semanticCancel(handle: Long): IntArray
     external fun touch(handle: Long, metadata: IntArray, times: LongArray, coords: FloatArray): IntArray
     external fun tooltipShown(handle: Long, pointer: Int, shown: Boolean)
     external fun candidateBindings(handle: Long, tokens: IntArray): IntArray

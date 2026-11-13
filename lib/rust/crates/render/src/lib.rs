@@ -1,6 +1,8 @@
 //! Pure Rust keyboard drawing; Android surfaces belong to awnative.
 #![forbid(unsafe_code)]
 
+pub mod accessibility;
+pub mod accessibility_labels;
 mod backend;
 pub mod gesture_config;
 mod glide_touch;

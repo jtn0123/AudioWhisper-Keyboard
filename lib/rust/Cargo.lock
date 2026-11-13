@@ -106,6 +106,7 @@ dependencies = [
  "raw-window-handle",
  "reader",
  "render",
+ "serde_json",
  "shift",
  "snygg",
  "spacing",

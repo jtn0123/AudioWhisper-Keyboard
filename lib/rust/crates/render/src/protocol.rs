@@ -67,3 +67,7 @@ pub const BAR_SLOT_LEFT: i32 = 2;
 pub const BAR_SLOT_TOP: i32 = 3;
 pub const BAR_SLOT_RIGHT: i32 = 4;
 pub const BAR_SLOT_BOTTOM: i32 = 5;
+pub const ACCESS_CLICK: i32 = 1;
+pub const ACCESS_LONG_CLICK: i32 = 2;
+pub const ACCESS_DISMISS: i32 = 3;
+pub const ACCESS_READ_TOP: i32 = 41;
