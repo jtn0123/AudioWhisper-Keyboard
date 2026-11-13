@@ -39,61 +39,35 @@ internal fun KeyboardManager.handleArrow(code: Int, count: Int = 1) = editorInst
     val isShiftPressed = activeState.isManualSelectionMode || inputEventDispatcher.isPressed(KeyCode.SHIFT)
     val content = activeContent
     val selection = content.selection
+    val plan = com.jtn0123.audiowhisper.rust.PanelRules.selection(intArrayOf(
+        if (activeState.isManualSelectionMode) 1 else 0,
+        if (activeState.isManualSelectionModeStart) 1 else 0,
+        if (activeState.isManualSelectionModeEnd) 1 else 0, selection.start, selection.end, code))
+    activeState.isManualSelectionModeStart = plan[1] != 0
+    activeState.isManualSelectionModeEnd = plan[2] != 0
     when (code) {
         KeyCode.ARROW_LEFT -> {
-            if (!selection.isSelectionMode && activeState.isManualSelectionMode) {
-                activeState.isManualSelectionModeStart = true
-                activeState.isManualSelectionModeEnd = false
-            }
             sendDownUpKeyEvent(KeyEvent.KEYCODE_DPAD_LEFT, meta(shift = isShiftPressed), count)
         }
         KeyCode.ARROW_RIGHT -> {
-            if (!selection.isSelectionMode && activeState.isManualSelectionMode) {
-                activeState.isManualSelectionModeStart = false
-                activeState.isManualSelectionModeEnd = true
-            }
             sendDownUpKeyEvent(KeyEvent.KEYCODE_DPAD_RIGHT, meta(shift = isShiftPressed), count)
         }
         KeyCode.ARROW_UP -> {
-            if (!selection.isSelectionMode && activeState.isManualSelectionMode) {
-                activeState.isManualSelectionModeStart = true
-                activeState.isManualSelectionModeEnd = false
-            }
             sendDownUpKeyEvent(KeyEvent.KEYCODE_DPAD_UP, meta(shift = isShiftPressed), count)
         }
         KeyCode.ARROW_DOWN -> {
-            if (!selection.isSelectionMode && activeState.isManualSelectionMode) {
-                activeState.isManualSelectionModeStart = false
-                activeState.isManualSelectionModeEnd = true
-            }
             sendDownUpKeyEvent(KeyEvent.KEYCODE_DPAD_DOWN, meta(shift = isShiftPressed), count)
         }
         KeyCode.MOVE_START_OF_PAGE -> {
-            if (!selection.isSelectionMode && activeState.isManualSelectionMode) {
-                activeState.isManualSelectionModeStart = true
-                activeState.isManualSelectionModeEnd = false
-            }
             sendDownUpKeyEvent(KeyEvent.KEYCODE_DPAD_UP, meta(alt = true, shift = isShiftPressed), count)
         }
         KeyCode.MOVE_END_OF_PAGE -> {
-            if (!selection.isSelectionMode && activeState.isManualSelectionMode) {
-                activeState.isManualSelectionModeStart = false
-                activeState.isManualSelectionModeEnd = true
-            }
             sendDownUpKeyEvent(KeyEvent.KEYCODE_DPAD_DOWN, meta(alt = true, shift = isShiftPressed), count)
         }
         KeyCode.MOVE_START_OF_LINE -> {
-            if (!selection.isSelectionMode && activeState.isManualSelectionMode) {
-                activeState.isManualSelectionModeStart = true
-                activeState.isManualSelectionModeEnd = false
-            }
             sendDownUpKeyEvent(KeyEvent.KEYCODE_DPAD_LEFT, meta(alt = true, shift = isShiftPressed), count)
         }
         KeyCode.MOVE_END_OF_LINE -> {
-            if (!selection.isSelectionMode && activeState.isManualSelectionMode) {
-                activeState.isManualSelectionModeStart = false
-                activeState.isManualSelectionModeEnd = true
-            }
             sendDownUpKeyEvent(KeyEvent.KEYCODE_DPAD_RIGHT, meta(alt = true, shift = isShiftPressed), count)
         }
     }
@@ -103,17 +77,14 @@ internal fun KeyboardManager.handleArrow(code: Int, count: Int = 1) = editorInst
  * Handles a [KeyCode.CLIPBOARD_SELECT] event.
  */
 internal fun KeyboardManager.handleClipboardSelect() {
-    val activeSelection = editorInstance.activeContent.selection
-    activeState.isManualSelectionMode = if (activeSelection.isSelectionMode) {
-        if (activeState.isManualSelectionMode && activeState.isManualSelectionModeStart) {
-            editorInstance.setSelection(activeSelection.start, activeSelection.start)
-        } else {
-            editorInstance.setSelection(activeSelection.end, activeSelection.end)
-        }
-        false
-    } else {
-        !activeState.isManualSelectionMode
-    }
+    val selection = editorInstance.activeContent.selection
+    val plan = com.jtn0123.audiowhisper.rust.PanelRules.selection(intArrayOf(
+        if (activeState.isManualSelectionMode) 1 else 0,
+        if (activeState.isManualSelectionModeStart) 1 else 0,
+        if (activeState.isManualSelectionModeEnd) 1 else 0, selection.start, selection.end, KeyCode.CLIPBOARD_SELECT))
+    if (plan[3] >= 0) editorInstance.setSelection(plan[3], plan[3])
+    activeState.isManualSelectionMode = plan[0] != 0
+
 }
 
 internal fun KeyboardManager.revertPreviouslyAcceptedCandidate() {

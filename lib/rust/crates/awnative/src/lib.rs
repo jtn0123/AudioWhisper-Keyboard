@@ -49,3 +49,5 @@ pub extern "system" fn JNI_OnLoad(_: *mut JavaVM, _: *mut c_void) -> jint {
 }
 
 mod panel_rules;
+
+mod panel_oracle;

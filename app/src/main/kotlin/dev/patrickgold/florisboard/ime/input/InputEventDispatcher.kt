@@ -97,12 +97,13 @@ class InputEventDispatcher private constructor(private val repeatableKeyCodes: I
         data: KeyData,
         onLongPress: () -> Boolean = { false },
         onRepeat: () -> Boolean = { true },
+        scheduleHold: Boolean = true,
     ) = runBlocking {
         val eventTime = SystemClock.uptimeMillis()
         val result = pressedKeys.withLock { pressedKeys ->
             if (pressedKeys.containsKey(data.code)) return@withLock null
             val pressedKeyInfo = PressedKeyInfo(eventTime).also { pressedKeyInfo ->
-                pressedKeyInfo.job = scope.launch {
+                pressedKeyInfo.job = if (!scheduleHold) null else scope.launch {
                     val longPressDelay = determineLongPressDelay(data)
                     delay(longPressDelay)
                     val longPressResult = withContext(Dispatchers.Main) { onLongPress() }

@@ -28,3 +28,6 @@ pub mod trail;
 mod velocity;
 
 pub mod arrangement;
+
+pub mod editing;
+pub mod panel_geometry;
