@@ -107,6 +107,7 @@ element!(
     SetBooleanArrayRegion
 );
 element!(u16, GetCharArrayRegion, NewCharArray, SetCharArrayRegion);
+element!(i8, GetByteArrayRegion, NewByteArray, SetByteArrayRegion);
 element!(i32, GetIntArrayRegion, NewIntArray, SetIntArrayRegion);
 element!(f32, GetFloatArrayRegion, NewFloatArray, SetFloatArrayRegion);
 element!(i64, GetLongArrayRegion, NewLongArray, SetLongArrayRegion);
@@ -211,6 +212,7 @@ impl Env {
 
     /// The arrays in an array of arrays such as `int[][]`, `None` for each null; `name` says which
     /// argument was null, if the outer array was.
+    #[cfg(not(target_os = "android"))]
     pub fn read_arrays<T: Element>(
         &self,
         array: jobjectArray,

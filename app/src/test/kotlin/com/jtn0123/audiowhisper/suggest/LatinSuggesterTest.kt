@@ -50,7 +50,7 @@ class LatinSuggesterTest {
         probabilities = mapOf("jello" to 120, "WOR" to 79, "work" to 200, "word" to 190, "worn" to 60, "OK" to 150, "on" to 220, "form" to 158, "from" to 191, "fro" to 73, "yeah" to 135, "nit" to 59),
         ngrams = setOf("came" to "from"),
     )
-    private val suggester = LatinSuggester(decoder)
+    private val suggester = ReferenceLatinSuggester(decoder)
 
     private fun suggest(typed: String, before: String = "", after: String = "", max: Int = 8) =
         suggester.suggest(TypingState.of(before, typed, after), max, blockOffensiveWords = true)
@@ -174,7 +174,7 @@ class LatinSuggesterTest {
     private val personal = PersonalWords(
         listOf(PersonalWords.Entry("teh", 200), PersonalWords.Entry("iPhone", 250), PersonalWords.Entry("formica", 120)),
     )
-    private val personalSuggester = LatinSuggester(decoder, personalWords = { personal })
+    private val personalSuggester = ReferenceLatinSuggester(decoder, personalWords = { personal })
 
     private fun suggestPersonal(typed: String, after: String = "") =
         personalSuggester.suggest(TypingState.of("", typed, after), 8, blockOffensiveWords = true)
@@ -201,7 +201,7 @@ class LatinSuggesterTest {
     }
 
     private val learned = LearnedWords(null)
-    private val learningSuggester = LatinSuggester(decoder, history = { learned })
+    private val learningSuggester = ReferenceLatinSuggester(decoder, history = { learned })
 
     private fun learn(word: String, previous: String? = null, times: Int = TypingHistory.KNOWN_AFTER) =
         repeat(times) { learned.add(word, previous) }

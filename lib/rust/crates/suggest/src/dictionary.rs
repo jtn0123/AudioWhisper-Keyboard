@@ -1,6 +1,5 @@
-//! What the suggester and the learner ask the dictionary. The LatinIME decoder and its dictionary
-//! stay C++ behind Kotlin, so each question goes back to Kotlin, whose answer can fail (an exception
-//! there): hence the `Result`s.
+//! What the suggester and learner ask a dictionary. The native session implements these traits
+//! directly over `latin`; fallible test/platform adapters may implement them too.
 
 use crate::raw::RawSuggestion;
 

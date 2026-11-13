@@ -18,7 +18,7 @@ use std::ffi::{CString, c_void};
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 
-use suggest::qwerty;
+use crate::reference_qwerty as qwerty;
 
 pub mod cli;
 pub mod hooks;
@@ -465,3 +465,6 @@ pub fn suggest(
 
 #[cfg(test)]
 mod tests;
+
+mod reference_math;
+mod reference_qwerty;

@@ -10,6 +10,10 @@ rust-version.workspace = true
 [lib]
 crate-type = ["cdylib"]
 
+[features]
+# Only device replay APKs expose the test buffer snapshot; production Android has no legacy JNI.
+latin-fixture = []
+
 [dependencies]
 chars = { path = "../chars" }
 composing = { path = "../composing" }

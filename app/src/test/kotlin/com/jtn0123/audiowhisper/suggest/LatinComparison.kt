@@ -106,7 +106,7 @@ class LatinComparison(private val sigmaExact: Boolean) {
         val reference = ReferenceLatin.LatinSuggester(
             decoder, Locale.US, threshold, { personal }, { learned ?: TypingHistory.NONE },
         )
-        val rust = LatinSuggester(decoder, threshold, { personal }, { learned })
+        val rust = ReferenceLatinSuggester(decoder, threshold, { personal }, { learned })
         val maxCount = random.maxCount()
         val block = random.nextBoolean()
         val input = describe(state, maxCount, threshold, learned != null)

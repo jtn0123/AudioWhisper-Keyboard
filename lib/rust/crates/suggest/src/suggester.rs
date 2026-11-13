@@ -1,7 +1,7 @@
 //! Turns the decoder's results into the candidate strip and decides auto-correction, following
 //! AOSP's `Suggest.getSuggestedWordsForNonBatchInput` and `AutoCorrectionUtils`, plus three narrow
 //! rules of our own (see [`Suggester::is_allowed_to_auto_correct`]). Was Kotlin's
-//! `LatinSuggester`, which still runs the decoder: this asks it through a [`Dictionary`].
+//! `LatinSuggester`; the production [`Dictionary`] is an in-process native session.
 //!
 //! Upper- and lower-casing is Kotlin's with `Locale.US`, the only locale the keyboard suggests in.
 

@@ -25,7 +25,7 @@ impl PreviousWords {
 
     /// The native n-gram slots: each word, then the sentence-start marker if there is room.
     pub fn slot_count(&self) -> usize {
-        (self.words.len() + usize::from(self.is_beginning_of_sentence)).min(MAX_COUNT)
+        slot_count(self.words.len(), self.is_beginning_of_sentence)
     }
 
     /// The context for a word that starts right after `text_before_word`, by AOSP's
@@ -91,6 +91,13 @@ fn split_on_whitespace(text: &[u16]) -> Vec<&[u16]> {
     }
     tokens.push(&text[start..]);
     tokens
+}
+
+/// Native slot count shared by callers needing no dictionary context allocation.
+pub fn slot_count(words: usize, sentence_start: bool) -> usize {
+    words
+        .saturating_add(usize::from(sentence_start))
+        .min(MAX_COUNT)
 }
 
 #[cfg(test)]

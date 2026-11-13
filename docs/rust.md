@@ -35,7 +35,7 @@ wrappers: the point is to remove Kotlin decisions, not translate each line throu
 3. Snygg rules and stylesheet grammar: parsing, ordering and schema/version errors (done; stage 2.3 below).
 4. Snygg values: dimensions, colours, fonts, padding, shapes and variables (implemented; stage 2.4 below, emulator acceptance blocked).
 5. Snygg compilation/editor model: cascade, inheritance, matching and editor operations (done; stage 2.5 below). The extensible JVM schema DSL/generator stays at the Kotlin boundary.
-6. A1: let the Rust suggester call the Rust decoder through a native session; remove production LatinIME Java glue, keeping the C++ oracle.
+6. A1: native Rust suggest/decoder session; production LatinIME Java glue removed, C++ oracle retained (done; [proof](stage2-a1.md)).
 7. Emoji history and quick-action arrangement.
 8. Clipboard ordering, duplicate/expiry/limit/pinning and MIME policy; keep Room and the Android clipboard in Kotlin.
 9. Extension metadata/import policy: identifiers, maintainers, validation and archive-entry decisions.
@@ -167,6 +167,7 @@ The differential tests, deliberate mutation check and emulator checks below appl
 
 | Piece | Rust | Replaced | Proof it matches |
 |---|---|---|---|
+| Native typing decoder session (stage 2 package 6) | `crates/suggest` (`session`) calls `crates/latin` directly | Production LatinIME Java glue and Kotlin session/slot/geometry/result marshalling | Saved JVM/device 4,000 decoder and 2,000 full-pipeline states match byte for byte; 4,000 independent C++ oracle queries; result-order mutation caught; both renderer regressions and suggestion-pick/autocorrect digests match. See [A1 proof](stage2-a1.md) |
 | Clipboard history ordering, duplicates, expiry, limits, pins and MIME eligibility (stage 2 package 8) | `crates/render` (`clipboard_policy`) | `ClipboardManager` / `ClipboardHistory` policy; Room and Android clipboard remain Kotlin | `ClipboardMatchTest` against test-only `ReferenceClipboard`, 12,000 cohorts and MIME combinations, deliberate mutations; paired paste/pin/unpin/delete/clear stored-state fixture. See [package 7](stage3b-package7.md) |
 | Snygg compilation, cascade and editor model | `crates/snygg` (`resolve`, `editor`, `spec`, `json`) | `SnyggTheme` compilation/querying, property application/inheritance, built-in declarations and the theme editor's rule ordering/rename policy | JVM reference matches: 868,680 bundled-theme queries, 30,000 seeded queries and 7,200 editor steps; native JSON-to-style light/dark prototype oracle. Reversing cascade traversal fails. Five visual pairs are identical and editor edits persist; see stage 2.5 |
 | Snygg values, specs and ordered property decoding | `crates/snygg` (`value`, `value_spec`, `value_codec`, `value_uri`, `properties`) | All 28 built-in encoders, defaults, validation, canonical formatting, encoder choice and property decoding policy | Three JVM value match suites against test-only `ReferenceSnygg*`, all 12 bundled themes and 28 inline documents, seeded/mutated and every UTF-16 unit cases; dividing percentages by 99 fails. Emulator acceptance is blocked by the device helper; see stage 2.4 |
@@ -600,16 +601,23 @@ the bit. Each module is tested against the C++ through the oracle, and each was 
 one change at a time, to show the tests notice; the few changes they could not notice are ones no
 input can tell apart.
 
-The app runs on the port. `crates/awnative/src/latinime.rs` holds the eleven natives of
-`BinaryDictionary`, `DicTraverseSession` and `ProximityInfo`, which Java finds by their JNI names;
-`NativeLibrary` loads libawnative, and libjni_latinime.so is no longer built or shipped. A closed
-handle gets the C++'s answers; input the C++ would read through a null pointer or past an array
-throws instead. On the emulator, 4,000 seeded questions (typos, prefixes, predictions, previous
-words, tap offsets) got byte-identical answers from the C++ build and the Rust build: every output
-array, including the slots a call leaves alone, the weight, both probabilities and the whole word
-list. Typing "helo" on the emulator offers help, helo and hell.
+The app runs on the port through `crates/suggest/src/session.rs`. One native session owns
+its dictionary, traversal cache, QWERTY proximity model and retained output buffers. The Rust
+suggester asks that session's `Dictionary` implementation directly: there is no Kotlin/Java
+callback to decode, look up probabilities, or construct previous-word and geometry arrays.
+Kotlin reads dictionary bytes and converts the returned UI models; JNI stays in `awnative`.
+The old Java classes and Kotlin marshalling engine are test-only references, and the eleven
+legacy JNI exports compile only for host tests. No LatinIME Java module or C++ library is built
+or shipped in the application.
 
-`lib/latinime/src/main/jni` stays only as the reference `latin-oracle` compiles for the tests.
+At stage 2 package 6, saved pre-change and new JVM/device replays match byte for byte:
+4,000 seeded decoder requests (all retained slots, weights and probabilities) and 2,000 full
+pipeline states (strip/autocorrect and spelling, with personal and learned words). A separate
+4,000-question C++ oracle run also matches the native session. A reversed result-order mutation
+fails the JVM match test. Both renderers retain the 300-press/eight-hold digests and match the
+autocorrect/suggestion-pick fixtures. See [the session proof and reproduction](stage2-a1.md).
+
+`lib/latinime/src/main/jni` stays unchanged as the reference `latin-oracle` compiles for tests.
 
 ## Layout
 

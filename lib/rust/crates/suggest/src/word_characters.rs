@@ -3,6 +3,13 @@
 
 use chars::{code_point, is_letter};
 
+/// Kotlin's first UTF-16 unit after the cursor, as the former TypingState factory judged it.
+pub fn cursor_mid_word(text_after_cursor: &[u16]) -> bool {
+    text_after_cursor
+        .first()
+        .is_some_and(|&u| chars::is_letter_or_digit(u))
+}
+
 /// AOSP's word connectors (`'` and `-`, plus the typographic apostrophe) and `@`, which continue
 /// the word being typed: "don't" and "e-mail" aren't corrected halfway through, and the name part
 /// of an e-mail address is left alone.

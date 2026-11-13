@@ -88,8 +88,11 @@ android {
         versionCode = projectVersionCode.toInt()
         versionName = projectVersionName.substringBefore("-")
 
-        testInstrumentationRunner = if (providers.gradleProperty("rendererFixture").orNull == "true")
-            "com.jtn0123.audiowhisper.render.FixtureInstrumentation" else "androidx.test.runner.AndroidJUnitRunner"
+        testInstrumentationRunner = when {
+            providers.gradleProperty("suggestFixture").orNull == "true" -> "com.jtn0123.audiowhisper.suggest.A1Instrumentation"
+            providers.gradleProperty("rendererFixture").orNull == "true" -> "com.jtn0123.audiowhisper.render.FixtureInstrumentation"
+            else -> "androidx.test.runner.AndroidJUnitRunner"
+        }
 
         buildConfigField("String", "BUILD_COMMIT_HASH", "\"${getGitCommitHash().get()}\"")
         buildConfigField("String", "FLADDONS_API_VERSION", "\"v~draft2\"")
@@ -141,6 +144,7 @@ android {
             // debuggable build in its debug mode, keeping line numbers and locals for the
             // debugger.
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            if (providers.gradleProperty("suggestFixture").orNull == "true") proguardFile("suggest-fixture.pro")
             isMinifyEnabled = true
             isShrinkResources = true
 
@@ -209,6 +213,8 @@ android {
             it.useJUnitPlatform()
         }
     }
+    sourceSets.getByName("androidTest").kotlin.directories.add("src/test/kotlin/com/jtn0123/audiowhisper/suggest/a1")
+    sourceSets.getByName("androidTest").java.directories.add("src/test/java/com/android/inputmethod")
 }
 
 tasks.withType<Test> {
@@ -280,7 +286,6 @@ dependencies {
     implementation(projects.lib.compose)
     implementation(projects.lib.kotlin)
     // AOSP LatinIME dictionary engine (Apache-2.0): word suggestions and autocorrect.
-    implementation(projects.lib.latinime)
     // The keyboard's Rust code (libawnative): glide typing's scorer.
     implementation(projects.lib.rust)
     implementation(projects.lib.snygg)

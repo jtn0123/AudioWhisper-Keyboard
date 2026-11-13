@@ -1,4 +1,4 @@
-//! JNI entry points for LatinIME's dictionary engine, ported to Rust (the `latin` crate). They
+//! Host-test-only legacy JNI for the frozen Java reference, over the `latin` crate. These
 //! stand in for libjni_latinime.so's: the same Java classes (`BinaryDictionary`,
 //! `DicTraverseSession` and `ProximityInfo` in lib/latinime) and the same answers for valid calls.
 //! Closed (0) dictionaries and sessions and malformed arrays throw Java exceptions instead.

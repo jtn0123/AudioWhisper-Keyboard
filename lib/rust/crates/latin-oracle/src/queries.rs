@@ -5,8 +5,8 @@
 //! Also a line format for queries and outputs, so the same questions can be put to the decoder on
 //! the emulator and the answers compared with these.
 
-use suggest::qwerty;
-use suggest::tap::TapOffset;
+use crate::reference_qwerty as qwerty;
+use crate::reference_qwerty::TapOffset;
 
 use crate::{MAX_PREVIOUS_WORDS, MAX_WORD_LENGTH, Output, Query};
 

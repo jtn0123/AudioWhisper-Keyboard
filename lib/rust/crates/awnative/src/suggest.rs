@@ -5,6 +5,7 @@
 mod kept_words;
 mod learned_words;
 mod personal_words;
+mod session;
 mod suggester;
 mod swipe;
 mod tap;
@@ -40,6 +41,22 @@ impl From<NegativeCount> for Error {
 
 /// The cases' numbers, as `SuggestRules.Case` orders them.
 const CASES: [WordCase; 3] = [WordCase::AsTyped, WordCase::Capitalized, WordCase::AllCaps];
+
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_SuggestNative_isCursorMidWord(
+    env: *mut JNIEnv,
+    _: jclass,
+    text: jstring,
+) -> jboolean {
+    // SAFETY: the JVM provides this call's environment and string.
+    unsafe {
+        jni::run(env, 0, |env| {
+            Ok(boolean(word_characters::cursor_mid_word(
+                &env.read_string(text, "textAfterCursor")?,
+            )))
+        })
+    }
+}
 
 /// Whether typing `codePoint` after a word continues it (`word_characters::continues_word`).
 #[unsafe(no_mangle)]
@@ -272,4 +289,17 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_SuggestNative_revertAt
             env.make_string(&[&head[..], &revert.text].concat())
         })
     }
+}
+
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_SuggestNative_previousSlotCount(
+    _: *mut JNIEnv,
+    _: jclass,
+    word_count: jint,
+    sentence_start: jboolean,
+) -> jint {
+    previous_words::slot_count(
+        usize::try_from(word_count).unwrap_or(0),
+        sentence_start != 0,
+    ) as jint
 }

@@ -7,9 +7,7 @@ import com.jtn0123.audiowhisper.rust.SuggestRules
  * first, and whether a beginning-of-sentence marker follows them. Mirrors AOSP `NgramContext`.
  */
 data class PreviousWords(val words: List<String>, val isBeginningOfSentence: Boolean) {
-    /** Native n-gram slots: each word, then the sentence-start marker if there is room. */
-    val slotCount: Int
-        get() = (words.size + if (isBeginningOfSentence) 1 else 0).coerceAtMost(MAX_COUNT)
+    val slotCount: Int get() = SuggestRules.previousSlotCount(words.size, isBeginningOfSentence)
 
     companion object {
         /** Native MAX_PREV_WORD_COUNT_FOR_N_GRAM. */

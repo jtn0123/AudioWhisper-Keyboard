@@ -24,6 +24,10 @@ object SuggestRules {
     /** The most words a [Context] holds. */
     val maxPreviousWords: Int = SuggestNative.maxPreviousWords()
 
+    fun previousSlotCount(wordCount: Int, sentenceStart: Boolean): Int = SuggestNative.previousSlotCount(wordCount, sentenceStart)
+
+    fun isCursorMidWord(textAfterCursor: String): Boolean = SuggestNative.isCursorMidWord(textAfterCursor)
+
     /** How far beside a key, in key sizes from its centre, a tap still counts for it. */
     val tapLimit: Float = SuggestNative.tapLimit()
 

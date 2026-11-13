@@ -17,6 +17,7 @@ mod handle;
 mod jni;
 mod key_models;
 mod keys;
+#[cfg(not(target_os = "android"))]
 mod latinime;
 mod layout_rules;
 mod panic;

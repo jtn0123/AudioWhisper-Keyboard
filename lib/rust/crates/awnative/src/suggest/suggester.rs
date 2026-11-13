@@ -135,7 +135,7 @@ fn unpack(packed: &[i32]) -> Result<Vec<RawSuggestion>> {
 /// # Safety
 /// `personal` must be a handle to a `PersonalWords` and `learned` 0 or one to a
 /// `Mutex<LearnedWords>`, neither freed: Kotlin holds both stores while it calls.
-unsafe fn stores<'a>(
+pub(super) unsafe fn stores<'a>(
     personal: jlong,
     learned: jlong,
 ) -> Result<(&'a PersonalWords, Option<&'a Mutex<LearnedWords>>)> {
@@ -194,7 +194,7 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_SuggesterNative_sugges
 }
 
 /// The strip's words, with the indexes of its auto-correction and typed word written to `marks`.
-fn write_strip(env: &Env, strip: &[Arranged], marks: jintArray) -> Result<jobjectArray> {
+pub(super) fn write_strip(env: &Env, strip: &[Arranged], marks: jintArray) -> Result<jobjectArray> {
     let auto_correction = mark(strip, |it| it.is_auto_correction);
     env.write(
         marks,

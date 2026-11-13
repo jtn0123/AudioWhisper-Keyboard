@@ -45,7 +45,7 @@ class ComposeStabilityLinkageTest {
     }
 
     @Test fun everyReferencedComposeStabilityFieldExistsInTheActualCompiledClasses() {
-        val location = Path.of(FlorisPreferenceModel::class.java.protectionDomain.codeSource.location.toURI())
+        val location = Path.of(requireNotNull(FlorisPreferenceModel::class.java.protectionDomain).codeSource.location.toURI())
         val owners = mutableSetOf<String>()
         if (Files.isDirectory(location)) {
             Files.walk(location).use { paths ->

@@ -22,6 +22,10 @@ internal object SuggestNative {
 
     @JvmStatic external fun maxPreviousWords(): Int
 
+    @JvmStatic external fun previousSlotCount(wordCount: Int, sentenceStart: Boolean): Int
+
+    @JvmStatic external fun isCursorMidWord(textAfterCursor: String): Boolean
+
     @JvmStatic external fun previousWords(text: String): Array<String>
 
     @JvmStatic external fun modestThreshold(): Float

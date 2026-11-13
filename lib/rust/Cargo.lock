@@ -917,6 +917,8 @@ name = "latin-oracle"
 version = "0.1.0"
 dependencies = [
  "cc",
+ "chars",
+ "latin",
  "suggest",
 ]
 
@@ -1777,6 +1779,7 @@ name = "suggest"
 version = "0.1.0"
 dependencies = [
  "chars",
+ "latin",
 ]
 
 [[package]]
