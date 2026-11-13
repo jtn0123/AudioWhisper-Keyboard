@@ -127,6 +127,11 @@ class KeyboardManager(context: Context) : InputKeyEventReceiver {
             prefs.keyboard.utilityKeyAction.asFlow().collectLatestIn(scope) {
                 updateActiveEvaluators()
             }
+            // Field restarts may keep every keyboard-state bit unchanged. Invalidate the
+            // captured EditorInfo too, including rich-editor-dependent smartbar actions.
+            editorInstance.activeInfoFlow.collectLatestIn(scope) {
+                updateActiveEvaluators()
+            }
             activeState.collectLatestIn(scope) {
                 updateActiveEvaluators()
             }

@@ -68,7 +68,12 @@ def prepare(device, renderer, original, theme='day', side=None, incognito=False)
         'keyboard__landscape_input_ui_mode':'ALWAYS_SHOW'}
     set_preferences(device,values)
     device.probe(True);device.services(SERVICE)
-    data=device.capture('ready',lambda ns:any(n.get('text') in ('e','E') for n in ns))
+    def editor_ready(nodes):
+        # A newly recreated text editor is rich even when all keyboard-state bits match
+        # the preceding field. Do not accept a snapshot of the unspecified startup editor.
+        selected=[n for n in nodes if n.get('description')=='Select all']
+        return any(n.get('text') in ('e','E') for n in nodes) and all(n['enabled'] for n in selected)
+    data=device.capture('ready',editor_ready)
     if any(n.get('text')=='E' for n in data['nodes']):
         panel['tap_name'](device,'Shift',data['nodes'])
         data=device.capture('lowercase',lambda ns:any(n.get('text')=='e' for n in ns))
