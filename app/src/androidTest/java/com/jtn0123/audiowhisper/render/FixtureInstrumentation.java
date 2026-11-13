@@ -19,6 +19,37 @@ import java.util.concurrent.TimeUnit;
 
 /** Test-APK-only fixture transport, using the Android instrumentation API directly. */
 public final class FixtureInstrumentation extends Instrumentation {
+    /** Use the kept JNI transport: R8 removes the production's unused low-level wrapper.
+     * Find only this app's live service reference, then execute the returned batch effects
+     * against Android's real InputConnection after releasing the native session lock.
+     */
+    private boolean invalidFinalize() throws ReflectiveOperationException {
+        android.view.inputmethod.InputConnection connection = null;
+        for (java.lang.reflect.Field field : Class.forName("dev.patrickgold.florisboard.FlorisImeServiceKt").getDeclaredFields()) {
+            if (!java.lang.reflect.Modifier.isStatic(field.getModifiers())
+                || !java.lang.ref.WeakReference.class.isAssignableFrom(field.getType())) continue;
+            field.setAccessible(true);
+            Object reference = field.get(null);
+            Object service = reference instanceof java.lang.ref.WeakReference ? ((java.lang.ref.WeakReference<?>)reference).get() : null;
+            if (service instanceof android.inputmethodservice.InputMethodService) {
+                connection = ((android.inputmethodservice.InputMethodService)service).getCurrentInputConnection();
+                break;
+            }
+        }
+        if (connection == null) throw new IllegalStateException("No live fixture InputConnection");
+        long handle = com.jtn0123.audiowhisper.rust.EditorNative.create();
+        try {
+            String[] plan = com.jtn0123.audiowhisper.rust.EditorNative.call(handle,"finalize",new String[]{""});
+            if (!"ready".equals(plan[0])) throw new IllegalStateException("Unexpected fixture query");
+            for (int i=2;i<plan.length;i+=4) {
+                if ("begin".equals(plan[i])) connection.beginBatchEdit();
+                else if ("end".equals(plan[i])) connection.endBatchEdit();
+                else throw new IllegalStateException("Unexpected invalid-finalize effect");
+            }
+            return "1".equals(plan[1]);
+        } finally {com.jtn0123.audiowhisper.rust.EditorNative.free(handle);}
+    }
+
     @Override public void onCreate(Bundle arguments) { super.onCreate(arguments); start(); }
     @Override public void onStart() {
         Context context = getTargetContext();
@@ -28,7 +59,13 @@ public final class FixtureInstrumentation extends Instrumentation {
                 GifSearch search = GifSearch.INSTANCE;
                 FlorisApplication app = (FlorisApplication) context.getApplicationContext();
                 String op = intent.getStringExtra("op");
-                if ("search".equals(op)) {
+                if ("invalid-finalize".equals(op)) {
+                    try {
+                        boolean accepted = invalidFinalize();
+                        Files.write(new File(context.getFilesDir(), "render-batch-fixture.json").toPath(),
+                            ("{\"accepted\":" + accepted + "}").getBytes(StandardCharsets.UTF_8));
+                    } catch (Exception failure) {throw new IllegalStateException("Batch fixture failed", failure);}
+                } else if ("search".equals(op)) {
                     search.startTyping();
                     app.getKeyboardManager().getValue().getActiveState().setImeUiMode(ImeUiMode.TEXT);
                 } else if ("stop".equals(op)) {

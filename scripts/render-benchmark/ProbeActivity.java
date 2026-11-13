@@ -23,6 +23,10 @@ public final class ProbeActivity extends Activity {
     static volatile boolean emptyEditor;
     private EditText editor;
     private TextView result;
+    private int batchDepth;
+    private int connectionGeneration;
+    private int editorActions;
+    private int lastEditorAction;
     private final BroadcastReceiver commands = new BroadcastReceiver() {
         @Override public void onReceive(Context context, Intent intent) {
             if ("com.jtn0123.renderprobe.CLIP".equals(intent.getAction())) {
@@ -41,11 +45,18 @@ public final class ProbeActivity extends Activity {
                 } else if ("external".equals(fixture)) {
                     editor.getText().replace(0, Math.min(2, editor.length()), "XY");
                     editor.setSelection(Math.min(1, editor.length()));
+                } else if ("repeat".equals(fixture)) {
+                    editor.setText("alpha beta gamma");
+                    editor.setSelection(editor.length());
+                } else if ("clear".equals(fixture)) {
+                    editor.setText("");
                 } else throw new IllegalArgumentException("Unknown fixed editor fixture");
                 saveDigest(editor.getText());
                 return;
             }
             editor.setInputType(inputType(intent));
+            configureAction(intent);
+            editorActions = 0;
             editor.setText("");
             editor.requestFocus();
             ((InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE))
@@ -72,6 +83,33 @@ public final class ProbeActivity extends Activity {
         reset.setText("Clear editor");
         root.addView(reset);
         editor = new EditText(this) {
+            @Override public android.view.inputmethod.InputConnection onCreateInputConnection(android.view.inputmethod.EditorInfo info) {
+                android.view.inputmethod.InputConnection connection = super.onCreateInputConnection(info);
+                if (connection == null || !"batch".equals(getIntent().getStringExtra("field"))) return connection;
+                final int generation = ++connectionGeneration;
+                batchDepth = 0;
+                return new android.view.inputmethod.InputConnectionWrapper(connection, false) {
+                    private int depth;
+                    @Override public boolean beginBatchEdit() {
+                        boolean result = super.beginBatchEdit();
+                        depth++;
+                        publish();
+                        return result;
+                    }
+                    @Override public boolean endBatchEdit() {
+                        boolean result = super.endBatchEdit();
+                        depth--;
+                        publish();
+                        return result;
+                    }
+                    private void publish() {
+                        if (generation == connectionGeneration) {
+                            batchDepth = depth;
+                            if (ProbeActivity.this.result != null) saveDigest(getText());
+                        }
+                    }
+                };
+            }
             @Override protected void onSelectionChanged(int start, int end) {
                 super.onSelectionChanged(start, end);
                 if (result != null) saveDigest(getText());
@@ -79,6 +117,13 @@ public final class ProbeActivity extends Activity {
         };
         editor.setContentDescription("Benchmark editor");
         editor.setInputType(inputType(getIntent()));
+        configureAction(getIntent());
+        editor.setOnEditorActionListener((view, action, event) -> {
+            editorActions++;
+            lastEditorAction = action;
+            saveDigest(editor.getText());
+            return true;
+        });
         editor.setTextSize(18);
         root.addView(editor, new LinearLayout.LayoutParams(-1, 350));
         result = new TextView(this);
@@ -119,6 +164,11 @@ public final class ProbeActivity extends Activity {
             .showSoftInput(editor, InputMethodManager.SHOW_IMPLICIT), 400);
     }
 
+    private void configureAction(Intent intent) {
+        editor.setImeOptions("search".equals(intent.getStringExtra("field"))
+            ? android.view.inputmethod.EditorInfo.IME_ACTION_SEARCH : android.view.inputmethod.EditorInfo.IME_ACTION_NONE);
+    }
+
     private static int inputType(Intent intent) {
         String field = intent.getStringExtra("field");
         if ("number".equals(field)) return android.text.InputType.TYPE_CLASS_NUMBER;
@@ -129,6 +179,7 @@ public final class ProbeActivity extends Activity {
             | android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD;
         if ("url".equals(field)) return android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_VARIATION_URI;
         if ("email".equals(field)) return android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS;
+        if ("search".equals(field)) return android.text.InputType.TYPE_CLASS_TEXT;
         if ("caps".equals(field)) return android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_FLAG_CAP_SENTENCES;
         return android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE
             | (intent.getBooleanExtra("noSuggestions", false) ? android.text.InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS : 0);
@@ -140,7 +191,7 @@ public final class ProbeActivity extends Activity {
             byte[] hash = MessageDigest.getInstance("SHA-256").digest(text.toString().getBytes(StandardCharsets.UTF_8));
             StringBuilder hex = new StringBuilder();
             for (byte b : hash) hex.append(String.format(java.util.Locale.ROOT, "%02x", b & 255));
-            String json = "{\"utf16_units\":" + text.length() + ",\"sha256\":\"" + hex + "\",\"selection_start\":" + editor.getSelectionStart() + ",\"selection_end\":" + editor.getSelectionEnd() + ",\"composing_start\":" + android.view.inputmethod.BaseInputConnection.getComposingSpanStart(text) + ",\"composing_end\":" + android.view.inputmethod.BaseInputConnection.getComposingSpanEnd(text) + "}";
+            String json = "{\"utf16_units\":" + text.length() + ",\"sha256\":\"" + hex + "\",\"selection_start\":" + editor.getSelectionStart() + ",\"selection_end\":" + editor.getSelectionEnd() + ",\"composing_start\":" + android.view.inputmethod.BaseInputConnection.getComposingSpanStart(text) + ",\"composing_end\":" + android.view.inputmethod.BaseInputConnection.getComposingSpanEnd(text) + ",\"batch_depth\":" + batchDepth + ",\"editor_actions\":" + editorActions + ",\"last_editor_action\":" + lastEditorAction + "}";
             try (FileOutputStream out = new FileOutputStream(new File(getFilesDir(), "digest.json"))) {
                 out.write(json.getBytes(StandardCharsets.UTF_8));
             }

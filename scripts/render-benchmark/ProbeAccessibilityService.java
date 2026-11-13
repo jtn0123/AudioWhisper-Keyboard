@@ -30,7 +30,23 @@ public final class ProbeAccessibilityService extends AccessibilityService {
         @Override public void onReceive(Context context, Intent intent) {
             String request = intent.getStringExtra("request");
             if (request == null || !request.matches("[a-zA-Z0-9_-]+")) return;
-            handler.postDelayed(() -> capture(intent, request), intent.getIntExtra("delay", 0));
+            if ("rolling".equals(intent.getStringExtra("gesture"))) {
+                android.graphics.Path first = new android.graphics.Path();
+                first.moveTo(110, 1900);
+                android.graphics.Path second = new android.graphics.Path();
+                second.moveTo(215, 1900);
+                android.accessibilityservice.GestureDescription gesture = new android.accessibilityservice.GestureDescription.Builder()
+                    .addStroke(new android.accessibilityservice.GestureDescription.StrokeDescription(first, 0, 160))
+                    .addStroke(new android.accessibilityservice.GestureDescription.StrokeDescription(second, 80, 160)).build();
+                dispatchGesture(gesture, new GestureResultCallback() {
+                    @Override public void onCompleted(android.accessibilityservice.GestureDescription description) {reply(true);}
+                    @Override public void onCancelled(android.accessibilityservice.GestureDescription description) {reply(false);}
+                    private void reply(boolean ok) {
+                        try {write(request + ".json", new JSONObject().put("request",request).put("ok",ok).toString());}
+                        catch (Exception failure) {throw new IllegalStateException(failure);}
+                    }
+                }, null);
+            } else handler.postDelayed(() -> capture(intent, request), intent.getIntExtra("delay", 0));
         }
     };
 

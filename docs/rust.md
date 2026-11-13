@@ -42,7 +42,7 @@ wrappers: the point is to remove Kotlin decisions, not translate each line throu
 10. Dictation session state machine, compared with the existing schedules.
 11. ASR and VAD through sherpa-onnx 2.0.1's exact C API; restore its excluded C library and preserve audio/decoder/VAD settings and flushing.
 12. Pocket TTS through that C API: Loona, four threads, cancellation and stop-before-free; remove sherpa JNI only when unused.
-13. Input dispatch and KeyboardManager routing: press/release/repeat and actions.
+13. Input dispatch and KeyboardManager routing: press/release/repeat, pointer policy, actions, state, evaluator and feedback (done; [proof](stage2-input.md)).
 14. Editor state/reconciliation: expected text, selection/composing and UTF-16 (done; [proof](stage2-editor.md)).
 15. Editor operation plans: deletion, replacement and commits over a fake InputConnection (done; [proof](stage2-editor.md)).
 16. NLP orchestration: provider eligibility, candidate state and stale-result rejection.
@@ -167,7 +167,8 @@ The differential tests, deliberate mutation check and emulator checks below appl
 
 | Piece | Rust | Replaced | Proof it matches |
 |---|---|---|---|
-| Editor state, flags, reconciliation and operation plans (stage 2 packages 14/15) | `crates/editor` | Expected UTF-16 windows/queue, composing/selection, raw EditorInfo interpretation, commits/deletes/reverts/spacing/caps, batch sequences and editing routes; Kotlin interprets plans and supplies Android ICU/provider data | 50,000 seeded events over 200 seeds, 201,611 ordered effects and 93,887 checkpoints; four restored mutations; pre/post Compose and Rust regression, suggestions and extended editor fixtures match. See [editor proof](stage2-editor.md) |
+| Input dispatch and KeyboardManager routing (stage 2 package 13) | `crates/input` | Lifecycle/timers, shared pointer policy, ordered key routes, state/subtype transitions, evaluator tokens and feedback decisions; Kotlin executes Android effects for both renderers | 50,000 events across 200 seeds and 12,906 editor operations match frozen Kotlin; four restored mutations; existing 43,200-event touch comparison retained; pre/post Compose and Rust fixtures match. See [input proof](stage2-input.md) |
+| Editor state, flags, reconciliation and operation plans (stage 2 packages 14/15) | `crates/editor` | Expected UTF-16 windows/queue, composing/selection, raw EditorInfo interpretation, commits/deletes/reverts/spacing/caps, batch sequences and editing routes; Kotlin interprets plans and supplies Android ICU/provider data | 50,000 seeded events over 200 seeds, 201,611 ordered effects and 93,887 checkpoints; five restored mutations including the batch-balance invariant; pre/post Compose and Rust regression, suggestions and extended editor fixtures match. See [editor proof](stage2-editor.md) |
 | Extension metadata and import policy (stage 2 package 9) | `crates/extensions` | Identifier/maintainer/validation, type/target/skip and archive decisions; Kotlin keeps Android I/O, serialization and Compose resources | Seven bundled manifests, 155 document comparisons, exhaustive/seeded validation and maintainer matches, 10,000 entry lists and 11 generated ZIPs; ID mutation caught; Android ICU 302,152 matches and real valid/two-invalid import UI checks. See [extension proof](stage2-extensions.md) |
 | Native typing decoder session (stage 2 package 6) | `crates/suggest` (`session`) calls `crates/latin` directly | Production LatinIME Java glue and Kotlin session/slot/geometry/result marshalling | Saved JVM/device 4,000 decoder and 2,000 full-pipeline states match byte for byte; 4,000 independent C++ oracle queries; result-order mutation caught; both renderer regressions and suggestion-pick/autocorrect digests match. See [A1 proof](stage2-a1.md) |
 | Clipboard history ordering, duplicates, expiry, limits, pins and MIME eligibility (stage 2 package 8) | `crates/render` (`clipboard_policy`) | `ClipboardManager` / `ClipboardHistory` policy; Room and Android clipboard remain Kotlin | `ClipboardMatchTest` against test-only `ReferenceClipboard`, 12,000 cohorts and MIME combinations, deliberate mutations; paired paste/pin/unpin/delete/clear stored-state fixture. See [package 7](stage3b-package7.md) |
@@ -643,6 +644,7 @@ lib/rust/
   crates/emoji/               emoji files, skin tones and `:` suggestions
   crates/extensions/          extension metadata, maintainers, validation and archive import policy
   crates/editor/              UTF-16 editor state, reconciliation, input flags and ordered InputConnection plans
+  crates/input/               shared dispatcher, pointer/timer policy, key routes, state/subtype, evaluator and feedback
   crates/gif/                 the GIF panel: its search field, chips, keys, result cache, recents and GIPHY's JSON and URLs
   crates/latin/               LatinIME's dictionary and typing search, ported from its C++
   crates/chars/               Kotlin's character rules, for crates that judge text as Kotlin did

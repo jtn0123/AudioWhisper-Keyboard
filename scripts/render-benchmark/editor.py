@@ -40,7 +40,8 @@ def replay(d, renderer):
         d.shell('ime', 'set', ime)
         d.tap(540, 480)
         d.wait(lambda: d.shell('settings', 'get', 'secure', 'default_input_method').strip() == ime, 'Project IME selection lost')
-        tree = d.capture('ready-' + field, lambda ns: any(n.get('text') in ('e', 'E') for n in ns))
+        expected_labels = ('E',) if field == 'caps' else ('e', 'E')
+        tree = d.capture('ready-' + field, lambda ns: any(n.get('text') in expected_labels for n in ns))
         if field != 'caps' and any(n.get('text') == 'E' for n in tree['nodes']):
             d.tap(70, 2060)
             d.capture('lower-' + field, lambda ns: any(n.get('text') == 'e' for n in ns))
@@ -123,7 +124,10 @@ def main():
         d.save('editor.json', results)
         assert results['compose'] == results['rust'], 'Editor renderer state differs'
         if len(sys.argv) > 2:
-            assert results == json.loads(Path(sys.argv[2]).read_text()), 'Pre/post editor state differs'
+            baseline = json.loads(Path(sys.argv[2]).read_text())
+            for renderer, fixtures in baseline.items():
+                for name, expected in fixtures.items():
+                    assert all(results[renderer][name][key] == value for key, value in expected.items()), 'Pre/post editor state differs: ' + name
         print('Both renderers matched all fixed editor digests and UTF-16 selection/composing offsets')
     finally:
         d.output = Path(sys.argv[1])

@@ -22,6 +22,7 @@ KEYS = {
     'keyboard__landscape_input_ui_mode':'s', 'keyboard__height_factor_portrait':'i',
     'keyboard__height_factor_landscape':'i', 'keyboard__incognito_indicator':'s',
     'localization__subtypes':'s', 'localization__active_subtype_id':'l',
+    'keyboard__utility_key_enabled':'b','keyboard__utility_key_action':'s',
     'gestures__space_bar_long_press':'s', 'suggestion__incognito_mode':'s',
     'suggestion__enabled':'b','emoji__suggestion_enabled':'b','theme__mode':'s',
     'theme__day_theme_id':'s','theme__night_theme_id':'s',
@@ -62,6 +63,7 @@ def prepare(device, renderer, original, theme='day', side=None, incognito=False)
         'suggestion__enabled':False,'emoji__suggestion_enabled':False,
         'suggestion__incognito_mode':'FORCE_ON' if incognito else 'FORCE_OFF',
         'keyboard__incognito_indicator':'DISPLAY_BEHIND_KEYBOARD',
+        'keyboard__utility_key_enabled':True,'keyboard__utility_key_action':'SWITCH_LANGUAGE',
         'gestures__space_bar_long_press':'SHOW_SUBTYPE_PICKER',
         'theme__mode':'ALWAYS_'+theme.upper(),
         'theme__'+theme+'_theme_id':'org.florisboard.themes:floris_'+theme,
@@ -102,6 +104,14 @@ def workflow(device, original):
         panel['tap_name'](device,'English (United Kingdom)')
         device.wait(lambda:json.loads(device.prefs()['localization__active_subtype_id'])==8008,'Subtype selection did not persist')
         selected={k:v for k,v in device.prefs().items() if k in ('localization__subtypes','localization__active_subtype_id')}
+        # Two installed subtypes make the utility key a real language switch. Wait for
+        # each asynchronous preference write before pressing again; no typed state is dumped.
+        first_id=subtypes(original)[0]['id']
+        device.hold(335,2200,35)
+        device.wait(lambda:json.loads(device.prefs()['localization__active_subtype_id'])==first_id,'Language key did not wrap to first subtype')
+        device.hold(335,2200,35)
+        device.wait(lambda:json.loads(device.prefs()['localization__active_subtype_id'])==8008,'Language key did not advance to second subtype')
+
         prepare(device,renderer,original,side='END');sheet(device);panel['tap_name'](device,'English (United Kingdom)')
         device.wait(lambda:json.loads(device.prefs()['localization__active_subtype_id'])==8008,'Compact subtype selection did not persist')
         combined={k:v for k,v in device.prefs().items() if k in ('localization__active_subtype_id','keyboard__one_handed_mode','keyboard__one_handed_mode_enabled')}

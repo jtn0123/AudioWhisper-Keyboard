@@ -93,7 +93,10 @@ legacy unmatched begin could suppress editor selection/extracted-text updates fo
 of the connection. The test-only reference includes this documented correction. Every plan
 in both seeded suites is independently checked for nonnegative nesting and zero final batch
 depth, including raw-editor and invalid-composing finalization. Dropping the new end is an
-additional deliberate mutation, restored after the invariant catches it.
+additional deliberate mutation, restored after the invariant catches it. The follow-up
+[package 13 Android fixture](stage2-input.md) also measures the actual InputConnection:
+invalid finalization remains rejected, while batch depth changes from 1 in the baseline
+to 0 in the fixed build on both renderers, with unchanged text and selection.
 
 The seeded suites compared **201,611 InputConnection effects at 93,887 state checkpoints**:
 94,087 effects / 43,787 checkpoints in the low-level suite and 107,524 / 50,100 in editor flows.
