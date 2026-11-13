@@ -206,6 +206,7 @@ class FlorisImeService : LifecycleInputMethodService() {
     }
 
     override fun onCreateInputView(): View {
+        val timingStart = com.jtn0123.audiowhisper.render.RendererHostTiming.start()
         super.installViewTreeOwners()
         // Instantiate and install bottom sheet host UI view
         val bottomSheetView = FlorisBottomSheetHostUiView(this)
@@ -213,7 +214,7 @@ class FlorisImeService : LifecycleInputMethodService() {
         // Instantiate and return input view
         val composeView = ComposeInputView(this)
         inputWindowView = composeView
-        return composeView
+        return com.jtn0123.audiowhisper.render.RendererHostTiming.created(composeView, timingStart, prefs.keyboard.rustRendererPrototype.get())
     }
 
     override fun onCreateCandidatesView(): View? {

@@ -99,7 +99,8 @@ def compare(compose, rust, state):
                     # Text leaves have glyph bounds; compare target center to their parent key box.
                     target = compose[other["parent"]] if other["parent"] >= 0 else other
                     r, c = node["bounds"], other["bounds"]
-                    edge_key = node["class"].endswith("Keyboard$Key") and (r[0] == 0 or r[2] == 1080)
+                    host_bounds = rust[node["parent"]]["bounds"] if node["parent"] >= 0 else [0, 0, 1080, 2400]
+                    edge_key = node["class"].endswith("Keyboard$Key") and (r[0] == host_bounds[0] or r[2] == host_bounds[2])
                     contained = r[0]-3 <= c[0] and r[1]-3 <= c[1] and r[2]+3 >= c[2] and r[3]+3 >= c[3]
                     aligned = abs(center(r)[1] - center(target["bounds"])[1]) <= 3
                     if not (distance(r, target["bounds"]) <= 3 or (edge_key and contained and aligned)):

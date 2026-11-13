@@ -88,6 +88,17 @@ class ComparatorTest(unittest.TestCase):
         rust[0].update(enabled=True)
         self.assertTrue(any(d["verdict"] == "bug" for d in compare(compose, rust, "numeric")))
 
+    def test_compact_and_landscape_edges_follow_the_renderer_viewport(self):
+        for left, right in ((216,1080),(132,2400)):
+            compose,rust=fixture()
+            box=deepcopy(compose[0]);box.update(text=None,bounds=[left+44,0,left+130,100])
+            compose[0].update(parent=0,bounds=[left+74,30,left+99,70]);compose.insert(0,box)
+            host=deepcopy(rust[0]);host.update(text=None,description=None,textEntryKey=False,bounds=[left,0,right,100],**{"class":"android.widget.FrameLayout"})
+            rust[0].update(parent=0,bounds=[left,0,left+130,100]);rust.insert(0,host)
+            self.assertFalse(any(row['verdict']=='bug' for row in compare(compose,rust,'onehand')))
+            rust[1]['bounds'][0]+=1
+            self.assertTrue(any(row['verdict']=='bug' for row in compare(compose,rust,'onehand')))
+
 
 if __name__ == "__main__":
     unittest.main()
