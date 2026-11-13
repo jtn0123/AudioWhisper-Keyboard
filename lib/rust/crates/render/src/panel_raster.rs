@@ -4,7 +4,12 @@ use parley::{Alignment, AlignmentOptions, PositionedLayoutItem};
 use vello_cpu::kurbo::{Affine, Rect};
 impl Raster {
     pub(crate) fn panel(&mut self, scene: &Scene) -> Result<(), String> {
-        for panel in scene.panel.iter().chain(scene.search.iter()) {
+        for panel in scene
+            .panel
+            .iter()
+            .chain(scene.search.iter())
+            .chain(scene.preview.iter())
+        {
             for item in &panel.items {
                 let clip = crate::panel_layout::intersection(item.bounds, item.clip);
                 if clip.is_empty() {

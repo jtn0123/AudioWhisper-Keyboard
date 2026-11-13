@@ -240,6 +240,9 @@ impl Semantics {
                 }
             }
         }
+        if let Some(preview) = &scene.preview {
+            nodes.extend(crate::panel_accessibility::nodes(preview));
+        }
         if let Some(panel) = &scene.panel {
             nodes.extend(crate::panel_accessibility::nodes(panel));
         }

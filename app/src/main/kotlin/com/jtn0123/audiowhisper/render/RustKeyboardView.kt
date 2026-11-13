@@ -49,7 +49,7 @@ internal data class KeyboardSnapshot(
     val keyboard: TextKeyboard, val keys: List<TextKey>,
     val candidates: List<SuggestionCandidate>, val theme: RendererTheme, val shift: String,
     val keyboardHeight: Float, val stripHeight: Float, val rowHeight: Float, val marginH: Float, val marginV: Float, val smartbar: RendererSmartbar, val preview: Boolean,
-    val panels: RendererPanels, val editorOptions: IntArray, val search: RendererSearch, val subtypes: RendererSubtypes,
+    val panels: RendererPanels, val editorOptions: IntArray, val search: RendererSearch, val subtypes: RendererSubtypes, val watermark: Pair<String, IntArray>, val previewText: String,
 )
 
 /** A fresh native worker owns each surface generation. Destruction joins it before releasing its window. */
@@ -168,6 +168,7 @@ class RustKeyboardView(context: Context) : FrameLayout(context), SurfaceHolder.C
         if (s.panels.kind == 4) s.panels.clipboard.bind(native)
         if (s.panels.kind == 1) { s.panels.emoji.bind(native, refreshEmojiHistory); refreshEmojiHistory = false }
         native.search(s.theme.density,s.search.labels,SystemClock.uptimeNanos())
+        native.decorations(arrayOf(s.watermark.first, s.previewText), s.keyboardHeight, s.watermark.second)
         candidateBindings.bind(native, s.candidates)
         native.semanticConfig(accessibilityResources.first, accessibilityResources.second,
             s.smartbar.actions.map { (it as? QuickAction.InsertText)?.data ?: "" }.toTypedArray(),

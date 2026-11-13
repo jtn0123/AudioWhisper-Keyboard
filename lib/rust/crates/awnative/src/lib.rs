@@ -65,6 +65,7 @@ mod render_media;
 mod render_gif;
 
 mod render_chrome;
+mod render_decorations;
 mod render_search;
 mod render_subtypes;
 

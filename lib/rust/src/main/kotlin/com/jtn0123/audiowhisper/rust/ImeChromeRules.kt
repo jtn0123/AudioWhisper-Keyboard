@@ -3,6 +3,8 @@ package com.jtn0123.audiowhisper.rust
 object ImeChromeRules {
     init { RustLibrary.load() }
     external fun oneHanded(config: IntArray): FloatArray
+    external fun watermark(flags: IntArray): Boolean
+    external fun startEllipsis(labels: Array<String>, config: FloatArray): Array<String>
     external fun extract(config: FloatArray): FloatArray
     external fun sideButtons(config: FloatArray): FloatArray
 }

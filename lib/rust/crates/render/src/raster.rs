@@ -111,6 +111,9 @@ impl Raster {
             scene.width as f64,
             scene.height as f64,
         ));
+        if let Some(w) = &scene.watermark {
+            self.icon(&w.icon, &w.style, w.bounds)?;
+        }
         for (i, key) in scene
             .keys
             .iter()

@@ -29,6 +29,8 @@ pub struct Popup {
 
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Scene {
+    pub watermark: Option<crate::ime_decorations::Watermark>,
+    pub preview: Option<crate::panels::Panel>,
     pub search: Option<crate::panels::Panel>,
     pub panel: Option<crate::panels::Panel>,
     pub width: u16,
@@ -114,7 +116,8 @@ impl Scene {
             return Vec::new();
         }
         // Compare stable fields directly, without cloning all labels and candidate strings.
-        if self.panel != next.panel
+        if self.watermark != next.watermark
+            || self.panel != next.panel
             || self.width != next.width
             || self.height != next.height
             || self.strip != next.strip
@@ -136,7 +139,8 @@ impl Scene {
             rects.extend(crate::trail::bounds(&self.trail));
             rects.extend(crate::trail::bounds(&next.trail));
         }
-        if self.search != next.search
+        if self.preview != next.preview
+            || self.search != next.search
             || self.candidates != next.candidates
             || self.candidate_pressed != next.candidate_pressed
             || self.smartbar != next.smartbar

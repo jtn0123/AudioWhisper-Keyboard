@@ -167,18 +167,47 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_ImeChromeRules_extract
 
 pub(crate) fn argb(pixels: &[u8]) -> Vec<i32> {
     pixels
-        .chunks_exact(4)
+        .as_chunks::<4>()
+        .0
+        .iter()
         .map(|p| {
             let a = p[3] as u32;
             let channel = |v: u8| {
-                if a == 0 {
-                    0
-                } else {
-                    ((v as u32 * 255 + a / 2) / a).min(255)
-                }
+                (v as u32 * 255 + a / 2)
+                    .checked_div(a)
+                    .map_or(0, |n| n.min(255))
             };
             ((a << 24) | (channel(p[0]) << 16) | (channel(p[1]) << 8) | channel(p[2])) as i32
         })
         .collect()
 }
 
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_ImeChromeRules_startEllipsis(
+    env: *mut JNIEnv,
+    _: jclass,
+    labels: jobjectArray,
+    config: jfloatArray,
+) -> jobjectArray {
+    // SAFETY: inputs and output strings are local JVM values copied across the boundary.
+    unsafe {
+        jni::run(env, ptr::null_mut(), |env| {
+            let labels = strings(env, labels)?;
+            let c = env.read::<f32>(config, "ellipsis config")?;
+            if c.len() != 2 || c.iter().any(|v| !v.is_finite() || *v < 0.0) {
+                return Err(illegal("ellipsis config"));
+            }
+            let output: Vec<Vec<u16>> = labels
+                .iter()
+                .map(|label| {
+                    render::ime_decorations::start_ellipsis(label, c[0], |s| {
+                        s.encode_utf16().count() as f32 * c[1]
+                    })
+                    .encode_utf16()
+                    .collect()
+                })
+                .collect();
+            env.make_strings(&output)
+        })
+    }
+}

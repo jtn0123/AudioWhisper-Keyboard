@@ -58,6 +58,7 @@ fun RustKeyboardLayout(evaluator: ComputingEvaluator) = with(LocalDensity.curren
     val search = rendererSearch()
     val panels = rendererPanels()
     val subtypes = rendererSubtypes()
+    val watermark = rendererWatermark(evaluator)
     val baseSmartbar = rendererSmartbar(preview.isNotEmpty(), inline.isNotEmpty())
     val smartbar = if(search.active) baseSmartbar.copy(config=gifSearchBarConfig(baseSmartbar.config,FlorisImeSizing.smartbarHeight.toPx()),animating=false) else baseSmartbar
     var availableWidth by remember { mutableFloatStateOf(resources.displayMetrics.widthPixels.toFloat()) }
@@ -79,7 +80,7 @@ fun RustKeyboardLayout(evaluator: ComputingEvaluator) = with(LocalDensity.curren
             update = { view ->
                 view.update(KeyboardSnapshot(keyboard, keys, if (preview.isEmpty() && !search.active) candidates else emptyList(), theme,
                     evaluator.state.inputShiftState.toString(), heightPx, stripPx, rowHeight, marginH, marginV,
-                    smartbar, preview.isNotEmpty(), panels, intArrayOf(evaluator.editorInfo.imeOptions.raw, evaluator.editorInfo.inputAttributes.raw), search, subtypes))
+                    smartbar, preview.isNotEmpty(), panels, intArrayOf(evaluator.editorInfo.imeOptions.raw, evaluator.editorInfo.inputAttributes.raw), search, subtypes, watermark, ""))
             },
         )
         // Kind 2 is the native reservation for Android's InlineContentViews. The AndroidView
