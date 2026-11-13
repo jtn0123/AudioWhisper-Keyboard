@@ -79,8 +79,8 @@ impl Panel {
         for item in &mut self.items {
             item.icon_style =
                 theme.style(&r.element(&item.element, usize::from(self.pressed == Some(item.id))));
-            // SnyggIcon(fillMaxWidth) scales its intrinsic 24dp vector to the available width.
-            item.icon_style.size = item.bounds.width();
+            // The inherited font-size constrains icon height after fillMaxWidth, so its
+            // aspect-preserving vector fits that size rather than filling the side panel.
         }
     }
 }

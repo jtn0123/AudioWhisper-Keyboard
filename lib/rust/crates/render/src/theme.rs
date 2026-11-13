@@ -153,6 +153,16 @@ impl Theme {
                 Some("clipboard-clear-all-dialog")
             }
             "clipboard-clear-all-dialog-button" => Some("clipboard-clear-all-dialog-buttons"),
+            "one-handed-panel-button" => Some("one-handed-panel"),
+            "subtype-panel" | "extracted-landscape-input-layout" => Some("root"),
+            "subtype-panel-header" | "subtype-panel-list" => Some("subtype-panel"),
+            "subtype-panel-list-item" => Some("subtype-panel-list"),
+            "subtype-panel-list-item-icon-leading" | "subtype-panel-list-item-text" => {
+                Some("subtype-panel-list-item")
+            }
+            "extracted-landscape-input-field" | "extracted-landscape-input-action" => {
+                Some("extracted-landscape-input-layout")
+            }
             "key-popup-element" => Some("key-popup-box"),
             _ => Some("window"),
         };
