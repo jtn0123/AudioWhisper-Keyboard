@@ -14,7 +14,7 @@ import dev.patrickgold.jetpref.datastore.model.observeAsState
 import org.florisboard.lib.compose.stringRes
 
 internal data class RendererPanels(val kind: Int, val actions: List<QuickAction>, val arrangement: QuickActionArrangement,
-    val data: IntArray, val labels: Array<String>, val emoji: RendererEmoji, val clipboard: RendererClipboard)
+    val data: IntArray, val labels: Array<String>, val emoji: RendererEmoji, val clipboard: RendererClipboard, val gif: RendererGif)
 
 /** Android resources/evaluator and unchanged preference values; no grid or drag decisions. */
 @Composable
@@ -36,6 +36,7 @@ internal fun rendererPanels(): RendererPanels {
         stringRes(R.string.quick_actions_editor__subheader_sticky_action),
         stringRes(R.string.quick_actions_editor__subheader_dynamic_actions),
         stringRes(R.string.quick_actions_editor__subheader_hidden_actions), "Back")
+    val gif = rendererGif()
     val labels = actions.flatMap { action ->
         val icon = if (action is QuickAction.InsertKey) evaluator.computeImageVector(action.data) else null
         listOf(action.computeDisplayName(evaluator), when (action) {
@@ -43,6 +44,6 @@ internal fun rendererPanels(): RendererPanels {
             is QuickAction.InsertText -> action.data.firstOrNull().toString().ifBlank { "?" }
         }, icon?.let(::iconPath) ?: "")
     }
-    return RendererPanels(if (state.isActionsEditorVisible) 3 else if (state.isActionsOverflowVisible) 2 else if (state.imeUiMode == dev.patrickgold.florisboard.ime.ImeUiMode.CLIPBOARD) 4 else if (state.imeUiMode == dev.patrickgold.florisboard.ime.ImeUiMode.MEDIA) 1 else 0,
-        actions, arrangement, data.toIntArray(), (titles + labels).toTypedArray(), rendererEmoji(), rendererClipboard())
+    return RendererPanels(if (state.isActionsEditorVisible) 3 else if (state.isActionsOverflowVisible) 2 else if (state.imeUiMode == dev.patrickgold.florisboard.ime.ImeUiMode.CLIPBOARD) 4 else if (state.imeUiMode == dev.patrickgold.florisboard.ime.ImeUiMode.MEDIA) { if(gif.showing) 5 else 1 } else 0,
+        actions, arrangement, data.toIntArray(), (titles + labels).toTypedArray(), rendererEmoji(), rendererClipboard(), gif)
 }

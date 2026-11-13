@@ -36,6 +36,10 @@ object GifImages {
         }
     }
 
+    internal suspend fun previewBytes(url: String): ByteArray = withContext(Dispatchers.IO) {
+        previews.get(url) ?: download(url,MAX_PREVIEW_BYTES).also { previews.put(url,it) }
+    }
+
     fun forgetPreviews() = previews.evictAll()
 
     /** Saves [url] to [file], refusing anything larger than [maxBytes]. */

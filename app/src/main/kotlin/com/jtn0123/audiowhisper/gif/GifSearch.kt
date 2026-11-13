@@ -37,14 +37,14 @@ object GifSearch {
     /** The GIFs sent before ([GifRecents]): a chip that needs no GIPHY call. */
     val RECENTS: String = GifRules.recents
 
-    private val giphy = BuildConfig.GIPHY_API_KEY.takeIf { it.isNotBlank() }?.let { Giphy(it) }
+    internal var source: GifDataSource? = BuildConfig.GIPHY_API_KEY.takeIf { it.isNotBlank() }?.let { Giphy(it) }
 
     /**
      * A GIPHY key was built in. Without one there is no GIF tab: nothing on the phone could
      * supply the key, so the tab could only ever say it was missing. See `giphy.apiKey` in
      * app/build.gradle.kts.
      */
-    val available: Boolean get() = giphy != null
+    val available: Boolean get() = source != null
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private var loading: Job? = null
     private val cache = GifResultCache(SystemClock::elapsedRealtime)
@@ -183,7 +183,7 @@ object GifSearch {
      * from [cache]. A failed one is always tried again.
      */
     fun load(search: String) {
-        val giphy = giphy ?: return
+        val giphy = source ?: return
         if (search == RECENTS) return showRecents()
         val alreadyShowing = search == shown.value && (results.value is Results.Loaded || loading?.isActive == true)
         if (alreadyShowing) return
@@ -200,7 +200,7 @@ object GifSearch {
                 cache.put(search, gifs)
                 Results.Loaded(gifs)
             } catch (e: IOException) {
-                Log.w(TAG, "Could not load GIFs", e)
+                Log.w(TAG, "Could not load GIFs")
                 Results.Failed(problem(e))
             }
         }

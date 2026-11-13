@@ -44,3 +44,5 @@ fn malformed_upload_and_frame_cap_are_rejected() {
     let mut c = MediaCache::default();
     assert!(!c.upload(1, 64, frame(1), true));
 }
+
+#[test]fn argb_is_premultiplied_once_for_both_backends(){let frame=Frame::argb(1,1,&[0x80ff0000u32 as i32],1).unwrap();assert_eq!(frame.cpu.data_as_u8_slice(),&[128,0,0,128]);}

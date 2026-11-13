@@ -88,7 +88,6 @@ private fun FlorisImeService.ImeUi() {
     val evaluator by keyboardManager.activeEvaluator.collectAsState()
     val rustPrototype by prefs.keyboard.rustRendererPrototype.observeAsState()
     val typingGif by com.jtn0123.audiowhisper.gif.GifSearch.typing.collectAsState()
-    val showingGif by com.jtn0123.audiowhisper.gif.GifSearch.showingGifs.collectAsState()
     val attributes = mapOf(
         FlorisImeUi.Attr.Mode to state.keyboardMode.toString(),
         FlorisImeUi.Attr.ShiftState to state.inputShiftState.toString(),
@@ -149,7 +148,7 @@ private fun FlorisImeService.ImeUi() {
                             .weight(keyboardWeight)
                             .wrapContentHeight(),
                     ) {
-                        if (rustPrototype && !typingGif && !showingGif) {
+                        if (rustPrototype && !typingGif) {
                             com.jtn0123.audiowhisper.render.RustKeyboardLayout(evaluator)
                         } else when (state.imeUiMode) {
                             ImeUiMode.TEXT -> TextInputLayout()

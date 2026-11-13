@@ -35,11 +35,13 @@ class GiphyFormatException(cause: Throwable) : IOException("GIPHY sent an unread
  *
  * The URLs and the reading of GIPHY's answers are in Rust ([GiphyRules]); this makes the call.
  */
-class Giphy(private val apiKey: String) {
-    suspend fun trending(): List<Gif> = fetch(trendingUrl())
+internal class Giphy(private val apiKey: String) : GifDataSource {
+    override suspend fun trending(): List<Gif> = fetch(trendingUrl())
 
     /** Searches for [query], cut to GIPHY's 50-character limit. */
-    suspend fun search(query: String): List<Gif> = fetch(searchUrl(query))
+    override suspend fun search(query: String): List<Gif> = fetch(searchUrl(query))
+
+    override suspend fun preview(url: String): ByteArray = GifImages.previewBytes(url)
 
     internal fun trendingUrl(): String = GiphyRules.trendingUrl(apiKey)
 

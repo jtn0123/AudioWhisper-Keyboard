@@ -43,7 +43,7 @@ impl Frame {
                 rgba,
                 w,
                 h,
-                vello_cpu::PixelMetadata::default(),
+                vello_cpu::PixelMetadata::new(vello_cpu::peniko::ImageAlphaType::Alpha,true),
             )),
             hybrid,
             delay: delay.max(10_000_000),

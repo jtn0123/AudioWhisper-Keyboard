@@ -17,16 +17,24 @@ internal class RendererMediaBuffers(private val context: Context, private val na
     private val pending = mutableMapOf<Long,Job>()
     private val failed = mutableSetOf<Long>()
     private var cohort = emptySet<Long>()
-    fun update(snapshot: RendererClipboard?) {
+    fun update(snapshot: RendererClipboard?, gif: RendererGif? = null) {
         val current = snapshot?.entries.orEmpty().map { it.id }.toSet()
         if (current != cohort) { failed.retainAll(current); cohort=current }
         val wanted = native.mediaRequests().toSet()
         for ((id,job) in pending.toMap()) if (id !in wanted) { job.cancel();pending.remove(id) }
         for (id in wanted) {
             if(id in pending || id in failed) continue
-            val item = snapshot?.entries?.find { it.id==id } ?: continue
+            val item = snapshot?.entries?.find { it.id==id }
+            val result = gif?.ids?.indexOf(id)?.takeIf { it>=0 }?.let { gif.gifs[it] }
+            if(item==null && result==null) continue
             pending[id]=scope.launch {
                 try {
+                    if(result!=null) {
+                        withContext(Dispatchers.IO) {com.jtn0123.audiowhisper.gif.GifSearch.source?.preview(result.previewUrl)?.let { RendererGifDecoder.upload(native,id,it) }}
+                        changed()
+                        return@launch
+                    }
+                    requireNotNull(item)
                     val bitmap=withContext(Dispatchers.IO) {
                         val file=ClipboardFileStorage.getFileForId(context,ContentUris.parseId(requireNotNull(item.uri)))
                         if(item.type==ItemType.VIDEO) ThumbnailUtils.createVideoThumbnail(file,Size(256,256),null)
@@ -46,7 +54,7 @@ internal class RendererMediaBuffers(private val context: Context, private val na
                 finally {pending.remove(id)}
             }
         }
-        if(snapshot==null) {failed.clear();cohort=emptySet()}
+        if(snapshot==null && gif==null) {failed.clear();cohort=emptySet();com.jtn0123.audiowhisper.gif.GifImages.forgetPreviews()}
     }
     fun close(){scope.cancel();pending.clear();failed.clear()}
 }

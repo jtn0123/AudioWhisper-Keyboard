@@ -105,6 +105,7 @@ class RustKeyboardView(context: Context) : FrameLayout(context), SurfaceHolder.C
     }
 
     private val mediaBuffers = RendererMediaBuffers(context,native) { accessibility.refresh(); scheduleDeadline(); invalidateFrame() }
+    private val gifActions = RendererGifActions(context) { native.gifSent(); invalidateFrame() }
     private val clipboardActions = RendererClipboardActions(context)
 
     internal fun update(value: KeyboardSnapshot) {
@@ -161,6 +162,7 @@ class RustKeyboardView(context: Context) : FrameLayout(context), SurfaceHolder.C
             s.smartbar.config[11], manager.smartbarVisibleDynamicActionsCount.toFloat(), android.view.ViewConfiguration.getKeyRepeatDelay().toFloat() * 1_000_000,
             if (prefs.gestures.deleteKeyLongPress.get() == dev.patrickgold.florisboard.ime.text.gestures.SwipeAction.DELETE_WORD) 1f else 0f,
             android.view.ViewConfiguration.getLongPressTimeout().toFloat() * 1_000_000), s.panels.data, s.panels.labels)
+        if (s.panels.kind == 5) s.panels.gif.bind(native)
         if (s.panels.kind == 4) s.panels.clipboard.bind(native)
         if (s.panels.kind == 1) { s.panels.emoji.bind(native, refreshEmojiHistory); refreshEmojiHistory = false }
         candidateBindings.bind(native, s.candidates)
@@ -169,7 +171,7 @@ class RustKeyboardView(context: Context) : FrameLayout(context), SurfaceHolder.C
             s.keys.map { if (it.computedPopups.getPopupKeys(prefs.keyboard.keyHintConfiguration()).isNotEmpty()) 1 else 0 }.toIntArray(),
             s.candidates.map { if (it.isEligibleForUserRemoval) 1 else 0 }.toIntArray(), s.smartbar.checkedCodes, s.editorOptions)
         accessibility.refresh()
-        mediaBuffers.update(s.panels.clipboard.takeIf { s.panels.kind==4 })
+        mediaBuffers.update(s.panels.clipboard.takeIf { s.panels.kind==4 },s.panels.gif.takeIf { s.panels.kind==5 })
         gestureHost.layout(s)
         attachIfReady()
         scheduleDeadline()
@@ -254,7 +256,7 @@ class RustKeyboardView(context: Context) : FrameLayout(context), SurfaceHolder.C
         val actions = native.touch(metadata, times, coords)
         dispatchActions(actions, event)
         scheduleDeadline()
-        snapshot?.let { state -> mediaBuffers.update(state.panels.clipboard.takeIf { state.panels.kind==4 }) }
+        snapshot?.let { state -> mediaBuffers.update(state.panels.clipboard.takeIf { state.panels.kind==4 },state.panels.gif.takeIf { state.panels.kind==5 }) }
         invalidateFrame()
         if (event.actionMasked == MotionEvent.ACTION_UP) performClick()
         return true
@@ -274,6 +276,7 @@ class RustKeyboardView(context: Context) : FrameLayout(context), SurfaceHolder.C
     private fun dispatch(action: Int, index: Int, pointer: Int, event: MotionEvent?) {
         val s = snapshot ?: return
         val dispatcher = manager.inputEventDispatcher
+        if (action == PANEL_GIF) {gifActions.dispatch(index,pointer,s.panels.gif);return}
         if (action == PANEL_CLIPBOARD) {
             clipboardActions.dispatch(index,pointer,s.panels.clipboard)
             return
@@ -424,6 +427,7 @@ class RustKeyboardView(context: Context) : FrameLayout(context), SurfaceHolder.C
 
     fun release() {
         mediaBuffers.close()
+        gifActions.close()
         trace(SurfaceEvent.RELEASE)
         if (released) return
         if (snapshot?.panels?.kind == 3) savePanelArrangement()
