@@ -98,3 +98,14 @@ fn extract_action_touch_target_extends_outside_visual_button() {
         render::panels::Command::Chrome(0)
     );
 }
+
+#[test]
+fn compact_height_and_font_scaling_are_portrait_only() {
+    use render::ime_chrome::{font_multiplier, row_heights};
+    assert_eq!(font_multiplier(125, 80, true, true), 1.0);
+    assert_eq!(font_multiplier(125, 80, true, false), 1.25);
+    assert_eq!(row_heights(100.0, 100, 120, 80, true, false), [80.0, 60.24]);
+    let landscape = row_heights(128.0, 100, 125, 80, true, true);
+    assert_eq!(landscape[0], 160.0);
+    assert!((landscape[1] - 120.48).abs() < 0.0001);
+}

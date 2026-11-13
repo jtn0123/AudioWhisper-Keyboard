@@ -282,3 +282,51 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_ImeChromeRules_minimum
         })
     }
 }
+
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_ImeChromeRules_fontMultiplier(
+    env: *mut JNIEnv,
+    _: jclass,
+    config: jintArray,
+) -> jni_sys::jfloat {
+    // SAFETY: the local primitive array is copied before native policy is called.
+    unsafe {
+        jni::run(env, 0.0, |env| {
+            let c = env.read::<i32>(config, "font multiplier")?;
+            if c.len() != 4 {
+                return Err(illegal("font multiplier"));
+            }
+            Ok(render::ime_chrome::font_multiplier(
+                c[0],
+                c[1],
+                c[2] != 0,
+                c[3] != 0,
+            ))
+        })
+    }
+}
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_ImeChromeRules_rowHeights(
+    env: *mut JNIEnv,
+    _: jclass,
+    base: jni_sys::jfloat,
+    config: jintArray,
+) -> jfloatArray {
+    // SAFETY: copied local inputs produce a fresh JVM-owned primitive array.
+    unsafe {
+        jni::run(env, ptr::null_mut(), |env| {
+            let c = env.read::<i32>(config, "row heights")?;
+            if c.len() != 5 || !base.is_finite() || base < 0.0 {
+                return Err(illegal("row heights"));
+            }
+            env.make(&render::ime_chrome::row_heights(
+                base,
+                c[0],
+                c[1],
+                c[2],
+                c[3] != 0,
+                c[4] != 0,
+            ))
+        })
+    }
+}

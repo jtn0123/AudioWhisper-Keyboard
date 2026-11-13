@@ -40,7 +40,6 @@ import dev.patrickgold.florisboard.ime.smartbar.ExtendedActionsPlacement
 import dev.patrickgold.florisboard.ime.smartbar.SmartbarLayout
 import dev.patrickgold.florisboard.ime.text.keyboard.TextKeyboard
 import dev.patrickgold.florisboard.keyboardManager
-import dev.patrickgold.florisboard.lib.observeAsTransformingState
 import dev.patrickgold.florisboard.lib.util.ViewUtils
 import dev.patrickgold.jetpref.datastore.model.observeAsState
 import org.florisboard.lib.android.isOrientationLandscape
@@ -114,23 +113,24 @@ fun ProvideKeyboardRowBaseHeight(content: @Composable () -> Unit) {
     val resources = LocalResources.current
     val configuration = LocalConfiguration.current
 
-    val heightFactorPortrait by prefs.keyboard.heightFactorPortrait.observeAsTransformingState { it.toFloat() / 100f }
-    val heightFactorLandscape by prefs.keyboard.heightFactorLandscape.observeAsTransformingState { it.toFloat() / 100f }
+    val heightFactorPortrait by prefs.keyboard.heightFactorPortrait.observeAsState()
+    val heightFactorLandscape by prefs.keyboard.heightFactorLandscape.observeAsState()
     val oneHandedMode by prefs.keyboard.oneHandedModeEnabled.observeAsState()
-    val oneHandedModeScaleFactor by prefs.keyboard.oneHandedModeScaleFactor.observeAsTransformingState { it.toFloat() / 100f }
+    val oneHandedModeScaleFactor by prefs.keyboard.oneHandedModeScaleFactor.observeAsState()
 
     // See https://developer.android.com/about/versions/15/behavior-changes-15#stable-configuration
     val systemBarHeights = systemBarHeights()
-    val baseRowHeight = remember(
+    val heights = remember(
         configuration, resources, heightFactorPortrait, heightFactorLandscape,
         oneHandedMode, oneHandedModeScaleFactor, systemBarHeights,
     ) {
-        calcInputViewHeight(resources, systemBarHeights) * when {
-            configuration.isOrientationLandscape() -> heightFactorLandscape
-            else -> heightFactorPortrait * (if (oneHandedMode) oneHandedModeScaleFactor else 1f)
-        }
+        com.jtn0123.audiowhisper.rust.ImeChromeRules.rowHeights(
+            calcInputViewHeight(resources, systemBarHeights), intArrayOf(
+                heightFactorPortrait, heightFactorLandscape, oneHandedModeScaleFactor,
+                if (oneHandedMode) 1 else 0, if (configuration.isOrientationLandscape()) 1 else 0))
     }
-    val smartbarHeight = baseRowHeight * 0.753f
+    val baseRowHeight = heights[0]
+    val smartbarHeight = heights[1]
 
     SideEffect {
         FlorisImeSizing.Static.keyboardRowBaseHeightPx = baseRowHeight.toInt()

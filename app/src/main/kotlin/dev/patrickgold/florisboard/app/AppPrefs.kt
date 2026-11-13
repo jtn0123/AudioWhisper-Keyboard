@@ -52,7 +52,6 @@ import dev.patrickgold.florisboard.ime.text.key.UtilityKeyAction
 import dev.patrickgold.florisboard.ime.theme.ThemeMode
 import dev.patrickgold.florisboard.ime.theme.extCoreTheme
 import dev.patrickgold.florisboard.lib.ext.ExtensionComponentName
-import dev.patrickgold.florisboard.lib.observeAsTransformingState
 import dev.patrickgold.florisboard.lib.util.VersionName
 import dev.patrickgold.jetpref.datastore.annotations.Preferences
 import dev.patrickgold.jetpref.datastore.jetprefDataStoreOf
@@ -243,18 +242,15 @@ abstract class FlorisPreferenceModel : PreferenceModel() {
         fun fontSizeMultiplier(): Float {
             val configuration = LocalConfiguration.current
             val oneHandedModeEnabled by oneHandedModeEnabled.observeAsState()
-            val oneHandedModeFactor by oneHandedModeScaleFactor.observeAsTransformingState { it / 100.0f }
+            val oneHandedModeFactor by oneHandedModeScaleFactor.observeAsState()
             val fontSizeMultiplierBase by if (configuration.isOrientationPortrait()) {
                 fontSizeMultiplierPortrait
             } else {
                 fontSizeMultiplierLandscape
-            }.observeAsTransformingState { it / 100.0f }
-            val fontSizeMultiplier = fontSizeMultiplierBase * if (oneHandedModeEnabled && configuration.isOrientationPortrait()) {
-                oneHandedModeFactor
-            } else {
-                1.0f
-            }
-            return fontSizeMultiplier
+            }.observeAsState()
+            return com.jtn0123.audiowhisper.rust.ImeChromeRules.fontMultiplier(intArrayOf(
+                fontSizeMultiplierBase, oneHandedModeFactor, if (oneHandedModeEnabled) 1 else 0,
+                if (configuration.isOrientationPortrait()) 1 else 0))
         }
     }
 

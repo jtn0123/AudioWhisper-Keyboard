@@ -84,3 +84,29 @@ impl Panel {
         }
     }
 }
+
+/// Shared host sizing retains Compose's multiplication order and portrait-only compaction.
+pub fn font_multiplier(base: i32, scale: i32, enabled: bool, portrait: bool) -> f32 {
+    base as f32 / 100.0
+        * if enabled && portrait {
+            scale as f32 / 100.0
+        } else {
+            1.0
+        }
+}
+pub fn row_heights(
+    base: f32,
+    portrait: i32,
+    landscape: i32,
+    scale: i32,
+    enabled: bool,
+    is_landscape: bool,
+) -> [f32; 2] {
+    let factor = if is_landscape {
+        landscape as f32 / 100.0
+    } else {
+        portrait as f32 / 100.0 * if enabled { scale as f32 / 100.0 } else { 1.0 }
+    };
+    let row = base * factor;
+    [row, row * 0.753]
+}
