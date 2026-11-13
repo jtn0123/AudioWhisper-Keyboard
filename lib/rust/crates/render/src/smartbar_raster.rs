@@ -164,9 +164,9 @@ impl Raster {
         if style.shadow <= 0.0 {
             return;
         }
-        // Android elevation has a centered ambient lobe and an offset, tighter spot lobe.
+        // Android elevation has a centered ambient lobe and an offset spot lobe.
         // Values are physical pixels; damage reserves six elevations around the original box.
-        for (alpha, offset, sigma) in [(0x18000000, 0.0, 1.50), (0x2a000000, 0.60, 1.00)] {
+        for (alpha, offset, sigma) in [(0x10000000, 0.0, 0.30), (0x30000000, 1.20, 1.00)] {
             self.context.set_paint(color(alpha));
             let y = style.shadow * offset;
             self.context.fill_blurred_rounded_rect(
@@ -221,11 +221,19 @@ impl Raster {
         } else {
             format!("{}…", &text[..ends[low - 1]])
         };
+        // Compose's overflowing Text occupies the constrained column and draws from its start.
+        // Center only text which fit intrinsically (the early return above).
+        let fitted = self
+            .text
+            .measure(&label, style.size, style.mono, style.weight);
         self.label(
             &label,
             style.size,
             style.foreground,
-            r,
+            Rect {
+                right: r.left + fitted,
+                ..r
+            },
             style.mono,
             style.weight,
         )

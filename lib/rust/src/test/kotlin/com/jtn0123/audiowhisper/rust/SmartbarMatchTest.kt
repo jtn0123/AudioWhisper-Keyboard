@@ -13,10 +13,10 @@ class SmartbarMatchTest {
         for (layout in 0..3) for (flip in 0..1) for (shared in 0..1) for (extended in 0..1)
             for (placement in 0..2) for (speaker in 0..1) for (sticky in 0..1) for (display in 0..2) {
                 repeat(8) { n ->
-                    val density = listOf(1f,2f,2.625f,3f)[n%4]
+                    val density = listOf(1f,2f,2.625f,3f,1.5f,2.5f,2.625f,3.5f)[n]
                     val config = floatArrayOf(if (n == 0) 0f else 1f,layout.toFloat(),flip.toFloat(),
                         shared.toFloat(),extended.toFloat(),placement.toFloat(),speaker.toFloat(),sticky.toFloat(),
-                        listOf(0,1,2,3,6,19,30,50)[n].toFloat(),display.toFloat(),density,40*density)
+                        listOf(0,1,2,3,6,19,30,50)[n].toFloat(),display.toFloat(),density,if (n%4 == 2) 43.028f*density else 40*density)
                     val words = List(if (n == 1) 0 else if (n == 2) 1 else random.nextInt(2,25)) {
                         samples.random(random).repeat(random.nextInt(1,8))
                     }

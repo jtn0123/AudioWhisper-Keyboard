@@ -18,7 +18,7 @@ internal object ReferenceSmartbar {
         val dynamic = c[8].toInt()
         val display = c[9].toInt()
         val dp = c[10]
-        val h = c[11]
+        val h = c[11].roundToInt().toFloat()
         val height = if (extra) h * 2 else h
         val top = if (extra && placement != 1) h else 0f
         val actions = mutableListOf<Float>()
@@ -31,21 +31,22 @@ internal object ReferenceSmartbar {
         var visible = 0
         var content = 0f
         if (mode >= 2) {
-            val pinned = h + 8*dp
+            val edge = (4*dp).roundToInt().toFloat()
+            val pinned = h + 2*edge
             val read = if (speaker) pinned else 0f
             if (flip) {
-                if (sticky || (mode == 2 && shared)) action(if (sticky) 0 else 3, 4*dp)
-                if (speaker) action(1, pinned+4*dp)
-                action(2, width-h-pinned+4*dp)
+                if (sticky || (mode == 2 && shared)) action(if (sticky) 0 else 3, edge)
+                if (speaker) action(1, pinned+edge)
+                action(2, width-h-pinned+edge)
                 action(4, width-h)
                 left = pinned+read
                 right = maxOf(left, width-h-pinned)
             } else {
                 action(4, 0f)
                 val end = width-pinned-read
-                action(2, end-pinned+4*dp)
-                if (speaker) action(1, end+4*dp)
-                if (sticky || (mode == 2 && shared)) action(if (sticky) 0 else 3, width-pinned+4*dp)
+                action(2, end-pinned+edge)
+                if (speaker) action(1, end+edge)
+                if (sticky || (mode == 2 && shared)) action(if (sticky) 0 else 3, width-pinned+edge)
                 left = h
                 right = maxOf(h, end-pinned)
             }
@@ -60,13 +61,13 @@ internal object ReferenceSmartbar {
             visible = maxOf(0, capacity - if (mode == 1 && sticky) 1 else 0)
             if (overflow) entries.add(if (flip) 0 else entries.size, 3)
             val gap = maxOf(0f, r-l-h*entries.size)/(entries.size+1)
-            entries.forEachIndexed { i, id -> action(id, l+gap+(gap+h)*i, y) }
+            entries.forEachIndexed { i, id -> action(id, (l+gap+(gap+h)*i).roundToInt().toFloat(), y) }
         }
         if (mode == 1 || (mode == 2 && shared)) {
             quickActions(left, right, top)
         } else {
             val list = if (display == 0) words.take(3) else words.toList()
-            val gap = kotlin.math.round(dp)
+            val gap = dp.roundToInt().toFloat()
             val remaining = maxOf(0f, right-left-gap*maxOf(0,list.size-1))
             val unit = if (list.isEmpty()) 0 else (remaining/list.size).roundToInt()
             var remainder = remaining.roundToInt()-unit*list.size

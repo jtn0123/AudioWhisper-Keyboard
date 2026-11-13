@@ -144,3 +144,15 @@ fn toolbar_gesture_never_slides_into_character_keys() {
     assert_eq!(t.event(&mut s, &event(2, 20.0, 80.0)), vec![Event(7, 0, 7)]);
     assert!(t.event(&mut s, &event(1, 20.0, 80.0)).is_empty());
 }
+
+#[test]
+fn fractional_density_and_row_height_do_not_add_an_extra_quick_action() {
+    let c = Config::decode(&[
+        1.0, 2.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0, 19.0, 0.0, 2.625, 112.99,
+    ])
+    .unwrap();
+    let l = smartbar::layout(&c, 1080.0, &[], 0.0);
+    assert_eq!(l.visible_dynamic, 3);
+    assert_eq!(l.center.width(), 562.0);
+    assert_eq!(l.actions.len(), 8); // four pinned/toggle actions plus overflow and three dynamic.
+}

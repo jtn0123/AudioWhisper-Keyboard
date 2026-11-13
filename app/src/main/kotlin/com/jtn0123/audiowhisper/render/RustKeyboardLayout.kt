@@ -19,6 +19,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.viewinterop.AndroidView
 import dev.patrickgold.florisboard.app.FlorisPreferenceStore
 import dev.patrickgold.florisboard.ime.keyboard.ComputingEvaluator
@@ -32,6 +33,7 @@ import org.florisboard.lib.snygg.ui.rememberSnyggPalette
 @Composable
 fun RustKeyboardLayout(evaluator: ComputingEvaluator) = with(LocalDensity.current) {
     val context = LocalContext.current
+    val resources = LocalResources.current
     val prefs by FlorisPreferenceStore
     val nlp by context.nlpManager()
     val themeManager by context.themeManager()
@@ -47,7 +49,7 @@ fun RustKeyboardLayout(evaluator: ComputingEvaluator) = with(LocalDensity.curren
     val keyboardHeight = FlorisImeSizing.keyboardUiHeight()
     val preview by Dictation.preview.collectAsState()
     val smartbar = rendererSmartbar(preview.isNotEmpty())
-    var availableWidth by remember { mutableFloatStateOf(context.resources.displayMetrics.widthPixels.toFloat()) }
+    var availableWidth by remember { mutableFloatStateOf(resources.displayMetrics.widthPixels.toFloat()) }
     val measurement = smartbar.measure(availableWidth)
     val stripHeight = measurement[0].toDp()
     val insetHeight = measurement[1].toDp()

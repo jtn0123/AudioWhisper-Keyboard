@@ -42,7 +42,7 @@ impl Config {
             dynamic: a[8] as usize,
             mode: a[9] as i32,
             density: a[10],
-            row: a[11],
+            row: a[11].round(),
         })
     }
     pub fn extra(&self) -> bool {
@@ -145,7 +145,8 @@ pub fn layout(c: &Config, width: f32, intrinsic: &[f32], scroll: f32) -> Layout 
         bottom: y + h,
     };
     if c.layout >= 2 {
-        let pinned = h + 8.0 * c.density;
+        let edge = (4.0 * c.density).round();
+        let pinned = h + 2.0 * edge;
         let speaker = if c.speaker { pinned } else { 0.0 };
         let mut add = |id, left, w| {
             out.actions.push(Slot {
@@ -160,28 +161,24 @@ pub fn layout(c: &Config, width: f32, intrinsic: &[f32], scroll: f32) -> Layout 
         };
         if c.flip {
             if c.sticky || (c.layout == 2 && c.shared) {
-                add(if c.sticky { 0 } else { 3 }, 4.0 * c.density, h);
+                add(if c.sticky { 0 } else { 3 }, edge, h);
             }
             if c.speaker {
-                add(1, pinned + 4.0 * c.density, h);
+                add(1, pinned + edge, h);
             }
-            add(2, width - h - pinned + 4.0 * c.density, h);
+            add(2, width - h - pinned + edge, h);
             add(4, width - h, h);
             out.center.left = pinned + speaker;
             out.center.right = (width - h - pinned).max(out.center.left);
         } else {
             add(4, 0.0, h);
             let right = width - pinned - speaker;
-            add(2, right - pinned + 4.0 * c.density, h);
+            add(2, right - pinned + edge, h);
             if c.speaker {
-                add(1, right + 4.0 * c.density, h);
+                add(1, right + edge, h);
             }
             if c.sticky || (c.layout == 2 && c.shared) {
-                add(
-                    if c.sticky { 0 } else { 3 },
-                    width - pinned + 4.0 * c.density,
-                    h,
-                );
+                add(if c.sticky { 0 } else { 3 }, width - pinned + edge, h);
             }
             out.center.left = h;
             out.center.right = (right - pinned).max(h);
@@ -296,7 +293,7 @@ fn actions(c: &Config, r: Rect, out: &mut Layout) {
     }
     let gap = (r.width() - c.row * ids.len() as f32).max(0.0) / (ids.len() + 1) as f32;
     for (i, id) in ids.into_iter().enumerate() {
-        let left = r.left + gap + (gap + c.row) * i as f32;
+        let left = (r.left + gap + (gap + c.row) * i as f32).round();
         out.actions.push(Slot {
             id,
             bounds: Rect {
