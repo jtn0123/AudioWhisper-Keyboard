@@ -31,6 +31,9 @@ def main():
     rotation={k:d.shell('settings','get','system',k).strip() for k in ('accelerometer_rotation','user_rotation')}
     results={}
     try:
+        # Input-view timing is timestamp-only; do not mix in per-frame profiling or GPU trials.
+        for tag in ('aw-profile','aw-render','aw-compose','aw-hybrid'):
+            d.shell('setprop','log.tag.'+tag,'INFO')
         d.shell('setprop','log.tag.aw-host','DEBUG')
         d.shell('settings','put','system','accelerometer_rotation',0)
         d.shell('settings','put','system','user_rotation',0)
