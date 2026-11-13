@@ -195,6 +195,7 @@ abstract class FlorisPreferenceModel : PreferenceModel() {
 
     val keyboard = Keyboard()
     inner class Keyboard {
+        val rustRendererPrototype = boolean(key = "keyboard__rust_renderer_prototype", default = false)
         val numberRow = boolean(key = "keyboard__number_row", default = false)
         val hintedNumberRowEnabled = boolean(key = "keyboard__hinted_number_row_enabled", default = true)
         val hintedNumberRowMode = enum(key = "keyboard__hinted_number_row_mode", default = KeyHintMode.SMART_PRIORITY)

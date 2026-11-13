@@ -32,9 +32,11 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.LayoutDirection
 import com.jtn0123.audiowhisper.gif.GifSearch
 import com.jtn0123.audiowhisper.gif.GifSearchBar
+import com.jtn0123.audiowhisper.render.RustKeyboardLayout
 import dev.patrickgold.florisboard.R
 import dev.patrickgold.florisboard.app.FlorisPreferenceStore
 import dev.patrickgold.florisboard.ime.smartbar.IncognitoDisplayMode
+import dev.patrickgold.florisboard.ime.keyboard.KeyboardMode
 import dev.patrickgold.florisboard.ime.smartbar.InlineSuggestionsStyleCache
 import dev.patrickgold.florisboard.ime.smartbar.Smartbar
 import dev.patrickgold.florisboard.ime.smartbar.quickaction.QuickActionsOverflowPanel
@@ -55,6 +57,7 @@ fun TextInputLayout(
 
     val state by keyboardManager.activeState.collectAsState()
     val evaluator by keyboardManager.activeEvaluator.collectAsState()
+    val rustPrototype by prefs.keyboard.rustRendererPrototype.observeAsState()
 
     InlineSuggestionsStyleCache()
 
@@ -65,24 +68,28 @@ fun TextInputLayout(
                 .wrapContentHeight(),
         ) {
             val typingGifSearch by GifSearch.typing.collectAsState()
-            if (typingGifSearch) GifSearchBar() else Smartbar()
-            if (state.isActionsOverflowVisible) {
-                QuickActionsOverflowPanel()
+            if (rustPrototype && evaluator.keyboard.mode == KeyboardMode.CHARACTERS && !typingGifSearch && !state.isActionsOverflowVisible) {
+                RustKeyboardLayout(evaluator)
             } else {
-                Box {
-                    val incognitoDisplayMode by prefs.keyboard.incognitoDisplayMode.observeAsState()
-                    val showIncognitoIcon = evaluator.state.isIncognitoMode &&
-                        incognitoDisplayMode == IncognitoDisplayMode.DISPLAY_BEHIND_KEYBOARD
-                    if (showIncognitoIcon) {
-                        SnyggIcon(
-                            elementName = FlorisImeUi.IncognitoModeIndicator.elementName,
-                            modifier = Modifier
-                                .matchParentSize()
-                                .align(Alignment.Center),
-                            painter = painterResource(R.drawable.ic_incognito),
-                        )
+                if (typingGifSearch) GifSearchBar() else Smartbar()
+                if (state.isActionsOverflowVisible) {
+                    QuickActionsOverflowPanel()
+                } else {
+                    Box {
+                        val incognitoDisplayMode by prefs.keyboard.incognitoDisplayMode.observeAsState()
+                        val showIncognitoIcon = evaluator.state.isIncognitoMode &&
+                            incognitoDisplayMode == IncognitoDisplayMode.DISPLAY_BEHIND_KEYBOARD
+                        if (showIncognitoIcon) {
+                            SnyggIcon(
+                                elementName = FlorisImeUi.IncognitoModeIndicator.elementName,
+                                modifier = Modifier
+                                    .matchParentSize()
+                                    .align(Alignment.Center),
+                                painter = painterResource(R.drawable.ic_incognito),
+                            )
+                        }
+                        TextKeyboardLayout(evaluator = evaluator)
                     }
-                    TextKeyboardLayout(evaluator = evaluator)
                 }
             }
         }

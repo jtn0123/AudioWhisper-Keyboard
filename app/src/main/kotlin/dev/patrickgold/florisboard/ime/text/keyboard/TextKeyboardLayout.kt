@@ -41,6 +41,8 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalView
+import com.jtn0123.audiowhisper.render.traceComposeFrame
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.toSize
 import dev.patrickgold.florisboard.app.FlorisPreferenceStore
@@ -80,6 +82,7 @@ fun TextKeyboardLayout(
 ): Unit = with(LocalDensity.current) {
     val prefs by FlorisPreferenceStore
     val context = LocalContext.current
+    val hostView = LocalView.current
     val configuration = LocalConfiguration.current
     val glideTypingManager by context.glideTypingManager()
 
@@ -143,6 +146,7 @@ fun TextKeyboardLayout(
                     MotionEvent.ACTION_UP,
                     MotionEvent.ACTION_CANCEL,
                         -> {
+                        traceComposeFrame(hostView, event.eventTimeNanos)
                         val clonedEvent = MotionEvent.obtain(event)
                         touchEventChannel
                             .trySend(clonedEvent)

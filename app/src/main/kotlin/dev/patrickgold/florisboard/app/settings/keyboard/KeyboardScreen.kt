@@ -47,6 +47,11 @@ fun KeyboardScreen() = FlorisScreen {
 
     content {
         SwitchPreference(
+            prefs.keyboard.rustRendererPrototype,
+            title = stringRes(R.string.pref__keyboard__rust_renderer_prototype__label),
+            summary = stringRes(R.string.pref__keyboard__rust_renderer_prototype__summary),
+        )
+        SwitchPreference(
             prefs.keyboard.numberRow,
             title = stringRes(R.string.pref__keyboard__number_row__label),
             summary = stringRes(R.string.pref__keyboard__number_row__summary),

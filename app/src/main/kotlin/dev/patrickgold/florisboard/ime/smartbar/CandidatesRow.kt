@@ -41,6 +41,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import com.jtn0123.audiowhisper.dictation.Dictation
 import com.jtn0123.audiowhisper.dictation.DictationPreview
+import com.jtn0123.audiowhisper.render.rendererEmojiSamples
 import dev.patrickgold.florisboard.app.FlorisPreferenceStore
 import dev.patrickgold.florisboard.ime.nlp.ClipboardSuggestionCandidate
 import dev.patrickgold.florisboard.ime.nlp.SuggestionCandidate
@@ -91,7 +92,20 @@ fun CandidatesRow(modifier: Modifier = Modifier) {
             Arrangement.Center
         },
     ) {
-        if (candidates.isNotEmpty()) {
+        if (candidates.isEmpty()) {
+            for (sample in rendererEmojiSamples()) {
+                SnyggBox(
+                    elementName = FlorisImeUi.SmartbarCandidateWord.elementName,
+                    modifier = Modifier.weight(1f).fillMaxHeight(),
+                ) {
+                    SnyggText(
+                        elementName = "${FlorisImeUi.SmartbarCandidateWord.elementName}-text",
+                        modifier = Modifier.align(Alignment.Center),
+                        text = sample,
+                    )
+                }
+            }
+        } else {
             val candidateModifier = if (candidates.size == 1) {
                 Modifier
                     .fillMaxHeight()
