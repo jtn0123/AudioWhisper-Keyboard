@@ -26,3 +26,5 @@ mod theme_scene;
 pub mod touch;
 pub mod trail;
 mod velocity;
+
+pub mod arrangement;

@@ -47,3 +47,5 @@ pub extern "system" fn JNI_OnLoad(_: *mut JavaVM, _: *mut c_void) -> jint {
     panic::log_to_logcat();
     JNI_VERSION_1_6
 }
+
+mod panel_rules;

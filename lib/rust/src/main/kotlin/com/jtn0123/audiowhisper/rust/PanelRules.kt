@@ -1,0 +1,15 @@
+package com.jtn0123.audiowhisper.rust
+
+/** Opaque value ids keep equality and preference serialization at the Android storage edge. */
+object PanelRules {
+    init { RustLibrary.load() }
+    fun history(pinned: IntArray, recent: IntArray, config: IntArray): Array<IntArray> =
+        PanelPolicyNative.history(pinned, recent, config).map { it as IntArray }.toTypedArray()
+    fun arrange(config: IntArray, dynamic: IntArray, hidden: IntArray): Array<IntArray> =
+        PanelPolicyNative.arrange(config, dynamic, hidden).map { it as IntArray }.toTypedArray()
+}
+
+internal object PanelPolicyNative {
+    @JvmStatic external fun history(pinned: IntArray, recent: IntArray, config: IntArray): Array<Any>
+    @JvmStatic external fun arrange(config: IntArray, dynamic: IntArray, hidden: IntArray): Array<Any>
+}

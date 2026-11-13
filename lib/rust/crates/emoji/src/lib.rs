@@ -25,3 +25,5 @@ pub mod tones;
 pub(crate) fn utf16(text: &str) -> Vec<u16> {
     text.encode_utf16().collect()
 }
+
+pub mod history;

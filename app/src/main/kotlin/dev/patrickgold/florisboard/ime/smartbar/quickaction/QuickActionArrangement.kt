@@ -51,17 +51,12 @@ data class QuickActionArrangement(
     }
 
     fun distinct(): QuickActionArrangement {
-        val distinctSet = mutableSetOf<QuickAction>()
-        if (stickyAction != null) {
-            distinctSet.add(stickyAction)
-        }
-        val distinctDynamicActions = dynamicActions.filter { distinctSet.add(it) }
-        val distinctHiddenActions = hiddenActions.filter { distinctSet.add(it) }
-        return QuickActionArrangement(
-            stickyAction = stickyAction,
-            dynamicActions = distinctDynamicActions,
-            hiddenActions = distinctHiddenActions,
+        val pool = (listOfNotNull(stickyAction) + dynamicActions + hiddenActions).distinct()
+        val result = com.jtn0123.audiowhisper.rust.PanelRules.arrange(
+            intArrayOf(pool.indexOf(stickyAction), 0, 0, 0),
+            dynamicActions.map { pool.indexOf(it) }.toIntArray(), hiddenActions.map { pool.indexOf(it) }.toIntArray(),
         )
+        return QuickActionArrangement(pool.getOrNull(result[0][0]), result[1].map { pool[it] }, result[2].map { pool[it] })
     }
 
     companion object {
