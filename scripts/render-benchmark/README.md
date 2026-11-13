@@ -4,15 +4,13 @@ This disposable editor saves UTF-16 length and SHA-256 of UTF-8 text, never edit
 Do not run it against personal text. It is not packaged with the keyboard.
 
 The editor never changes audio or Do Not Disturb. `run.sh` requests volume zero on
-streams 1–5 from the host with `cmd media_session volume` and saves the responses in
-`host-muting.log`. Android 16 on this AVD refuses zero for alarm stream 4 (minimum 1);
-that limitation is recorded, not worked around by enabling DND. Keyboard-relevant streams
-accept zero. Never enable DND as part of a trial.
+streams 1, 2, 3 and 5 from the host with `cmd media_session volume`, requests the allowed
+alarm-stream minimum of 1 on this AVD, and saves responses in `host-muting.log`. Never enable DND as part of a trial.
 
-The final continuation stopped after device-name lookup failed twice. The current build
-was installed but a complete rerun and tail attribution were not obtained. Previous
-successful samples remain in the evidence root; incomplete continuation output is isolated
-in `before-compose-1/`. See `docs/stage3a-results.md` for the exact stop and missing checks.
+The CPU-tail continuation records two alternating Compose/CPU trials before and after
+separating strip/key damage, plus a Hybrid trial. See `docs/stage3a-results.md` for the
+per-trial numbers, cause breakdown and final runtime evidence. Incomplete samples are
+isolated under `tails-incomplete-*` and excluded.
 
 Open the chosen emulator with the T3 device tools and use the returned agent-device command
 for all UI actions. After boot, use the returned runtime device ID (for example,
@@ -52,7 +50,11 @@ installation and benchmark invocation. Never borrow another session's emulator.
    digest files between renderers. The default long-press selection is the number hint; inspect
    and select the accent choices separately. This script does not prove general input parity.
 
-6. Capture light/dark screenshots through agent-device with an empty editor, then use
+6. Capture light/dark screenshots through agent-device with an empty editor. Appearance
+   changes recreate the probe activity and the IME surface: wait for that transition,
+   refocus the editor, then verify native frames and visible keys before capturing. An AX
+   settle alone can finish before a SurfaceView has posted its first complete keyboard.
+   Then use
    `swift scripts/render-benchmark/pair.swift COMPOSE.png RUST.png PAIR.png` to crop/join the
    keyboard regions without redrawing their contents. The crop is specific to this AVD.
 7. Turn the prototype off, reset measurement properties, check targeted logcat for
@@ -73,7 +75,8 @@ touch-to-display presentation. Deduplicate touch timestamps to take the first re
 each event rather than later NLP updates. Use phone Perfetto FrameTimeline before acceptance.
 
 The `--profile` report groups frames over 2 ms by full/dirty region, case-change proxy,
-popup open/move/close, candidate change and shaping-cache miss. Groups overlap. It includes
+press/release, surface creation, popup open/move/close, candidate change and shaping-cache
+miss. Groups overlap. It includes
 damage pixels and encoding/raster/shaping/glyph/allocation-site times. `cold_glyph_ns`
 means glyph calls for a newly shaped layout, not a private Vello atlas miss; `color_glyph_ns`
 covers calls using COLR/CBDT/sbix fonts. `profile_init_ns` covers backend/font initialization
@@ -81,3 +84,18 @@ before the first frame. Explicit allocation-site counters cover our label-key st
 coordinate vectors and box paths, excluding library internals and JNI/scene allocation.
 These nested intervals must not be added together. Profiling itself adds overhead; compare
 only equally instrumented trials and retain separate uninstrumented acceptance trials.
+
+`buffer_post_ns` isolates the NDK lock, buffer copy and unlock/post interval. The frame's
+post timestamp is captured before diagnostic formatting. `area_px` remains the bounding
+rectangle supplied to the NDK; `paint_px` counts the exact union of rounded/clamped CPU
+damage pixels, and `regions` gives the number of rectangular passes. Overlap is counted
+once in `paint_px` even when a popup transition needs overlapping passes. Surface recreation
+means the first frame of a new native worker. The shift flag remains an ASCII case-change
+proxy; the scripted letter/hold trial does not exercise manual Shift.
+
+Kotlin surface diagnostics also use the opt-in `aw-profile` tag. Numeric `view event`
+codes are 2 created, 3 changed, 4 destroyed, 5 released, 6 attached, 7 detached,
+10 rejected touch and 11 rejected update. The view identity and live/released flags are
+numeric; these events never include input contents. Use them with native acquired/released
+window generations when checking configuration changes. They add no logging to normal
+key/scene updates.

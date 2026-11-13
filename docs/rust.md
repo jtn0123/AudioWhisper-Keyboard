@@ -89,13 +89,14 @@ The default-off **Rust keyboard renderer (prototype)** setting draws character k
 candidates and evaluated accent popups through Vello CPU. A Vulkan/Hybrid measurement path
 is opt-in. On `aw_keyboard` (Android 16, 60 Hz), Parley/Fontations rendered the system's
 COLRv1 emoji and CBDT/CBLC flags, including ZWJ, tone, keycap and VS16 sequences. Compose,
-CPU and Hybrid committed identical text in the retained pre-continuation
-300-press/eight-popup script. No complete trial was obtained after the device-tool stop.
-Retained CPU draw p50/p95/p99 was 0.689/7.765/12.367 ms; Hybrid CPU encoding was
-1.571/5.234/7.117 ms, with submission-to-completion wall time 5.709/8.070/9.641 ms
-on llvmpipe. **The 2/3 ms performance gate is not passed.** Compose stays the default.
-Milestone B needs Samsung font inspection, S24/120 Hz Perfetto and GPU timings, tail-cost
-profiling, broader action-trace parity and closer toolbar/candidate/popup/shadow matching.
+CPU and Hybrid match both committed-text digests in the fresh 300-press/eight-popup
+trials. Separate strip/key damage reduces CPU frames over 2 ms from 42.9% to 10.1%;
+two alternating final CPU scene+raster trials have p95 4.715 and 5.533 ms, versus
+7.809 and 8.479 ms before. Candidate edge cancellation, fresh light/dark/popup captures,
+and portrait/landscape recreation are checked on the final APK; window ownership ends at
+zero (5 acquired/5 released). **The 2/3 ms performance gate is not passed.** Compose stays
+the default and the prototype was left off. Milestone B still needs Samsung font inspection,
+S24/120 Hz Perfetto and GPU timings, broader input parity and closer visual matching.
 See [the full results and reproduction notes](stage3a-results.md) for boundaries and evidence.
 
 `rendererEmojiSamples()` in CandidatesRow and `traceComposeFrame()` in TextKeyboardLayout
@@ -105,10 +106,13 @@ callbacks; the default-off prototype leaves the existing Compose path in use. Th
 hook only supplies fixed synthetic samples when real candidates are absent and logs nothing.
 The frame hook logs numeric touch/commit timestamps only, never words or candidate text.
 `log.tag.aw-profile=DEBUG` at native surface creation opts into CPU attribution: damage
-area, full/dirty, case-change (shift) proxy, popup/candidate changes, shaping misses, glyph
-preparation, raster and explicit allocation-site timing. Those intervals overlap (shaping,
-glyphs and allocations are parts of encoding), and allocation counters do not cover library
-internals. No scene labels, candidate text or typed contents enter measurement logs.
+bounds and exact union paint pixels, full/dirty, press/release, surface creation, case-change
+(shift) proxy, popup/candidate changes, shaping misses, glyph calls, raster and buffer
+lock/copy/post time. The profile tag also enables numeric Kotlin surface lifecycle events.
+Those intervals overlap (shaping, glyphs and allocations are parts of encoding), and
+allocation counters do not cover library internals; cold-layout glyph timing is a proxy,
+not Vello's private atlas-miss count. No scene labels, candidate text or typed contents
+enter measurement logs.
 
 ### Stage 4: smaller settings (to 90%+)
 
