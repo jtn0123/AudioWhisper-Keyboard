@@ -20,15 +20,12 @@ import dev.patrickgold.florisboard.ime.clipboard.provider.ClipboardItem
 
 data class ClipboardHistory(val all: List<ClipboardItem>) {
     companion object {
-        private const val RECENT_TIMESPAN_MS = 300_000 // 300 sec = 5 min
-
         val EMPTY = ClipboardHistory(emptyList())
     }
 
-    private val now = System.currentTimeMillis()
-
-    val pinned = all.filter { it.isPinned }
-    val unpinned = all.filter { !it.isPinned }
-    val recent = unpinned.filter { (now - it.creationTimestampMs) < RECENT_TIMESPAN_MS }
-    val other = unpinned.filter { (now - it.creationTimestampMs) >= RECENT_TIMESPAN_MS }
+    private val groups = clipboardPlan(all)
+    val pinned = groups[1].map(all::get)
+    val recent = groups[2].map(all::get)
+    val other = groups[3].map(all::get)
+    val unpinned = recent + other
 }

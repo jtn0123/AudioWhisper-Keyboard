@@ -24,7 +24,7 @@ import dev.patrickgold.florisboard.editorInstance
 import dev.patrickgold.florisboard.ime.clipboard.provider.ClipboardHistoryDao
 import dev.patrickgold.florisboard.ime.clipboard.provider.ClipboardHistoryDatabase
 import dev.patrickgold.florisboard.ime.clipboard.provider.ClipboardItem
-import dev.patrickgold.florisboard.ime.clipboard.provider.ItemType
+import com.jtn0123.audiowhisper.rust.ClipboardRules
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -69,21 +69,7 @@ class ClipboardManager(
          * @return Returns true if the two MIME types match.
          */
         fun compareMimeTypes(concreteType: String, desiredType: String): Boolean {
-            val typeLength = desiredType.length
-            if (typeLength == 3 && desiredType == "*/*") {
-                return true
-            }
-            val slashpos = desiredType.indexOf('/')
-            if (slashpos > 0) {
-                if (typeLength == slashpos + 2 && desiredType[slashpos + 1] == '*') {
-                    if (desiredType.regionMatches(0, concreteType, 0, slashpos + 1)) {
-                        return true
-                    }
-                } else if (desiredType == concreteType) {
-                    return true
-                }
-            }
-            return false
+            return ClipboardRules.mimeMatches(concreteType, desiredType)
         }
     }
 
@@ -136,7 +122,7 @@ class ClipboardManager(
     }
 
     private fun updateHistory(items: List<ClipboardItem>) {
-        val itemsSorted = items.sortedByDescending { it.creationTimestampMs }
+        val itemsSorted = clipboardPlan(items)[0].map(items::get)
         val clipHistory = ClipboardHistory(itemsSorted)
         enforceHistoryLimit(clipHistory)
         _historyFlow.value = clipHistory
@@ -231,53 +217,28 @@ class ClipboardManager(
      * Adds a new item to the clipboard history (if enabled).
      */
     private fun insertOrMoveBeginning(newItem: ClipboardItem) {
-        if (prefs.clipboard.historyEnabled.get()) {
-            val historyElement = currentHistory.all.firstOrNull { it.type == ItemType.TEXT && it.text == newItem.text }
-            if (historyElement != null) {
-                moveToTheBeginning(
-                    oldItem = historyElement,
-                    newItem = if (historyElement.isPinned) {
-                        newItem.copy(isPinned = true)
-                    } else {
-                        newItem
-                    }
-                )
-            } else {
-                insertClip(newItem)
-            }
-        }
+        if (!prefs.clipboard.historyEnabled.get()) return
+        val cohort = currentHistory.all
+        val plan = clipboardPlan(cohort, newItem = newItem)[6]
+        val previous = cohort.getOrNull(plan[0])
+        if (previous == null) insertClip(newItem)
+        else moveToTheBeginning(previous, newItem.copy(isPinned = plan[1] != 0 || newItem.isPinned))
     }
 
     private fun enforceHistoryLimit(clipHistory: ClipboardHistory) {
-        if (prefs.clipboard.historySizeLimitEnabled.get()) {
-            val nonPinnedItems = clipHistory.recent + clipHistory.other
-            val nToRemove = nonPinnedItems.size - prefs.clipboard.historySizeLimit.get()
-            if (nToRemove > 0) {
-                val itemsToRemove = nonPinnedItems.asReversed().filterIndexed { n, _ -> n < nToRemove }
-                ioScope.launch {
-                    clipHistoryDao?.delete(itemsToRemove)
-                }
-            }
-        }
+        val indices = clipboardPlan(clipHistory.all,
+            limitEnabled = prefs.clipboard.historySizeLimitEnabled.get(),
+            limit = prefs.clipboard.historySizeLimit.get())[4]
+        if (indices.isNotEmpty()) ioScope.launch { clipHistoryDao?.delete(indices.map(clipHistory.all::get)) }
     }
 
     private fun enforceExpiryDate(clipHistory: ClipboardHistory) {
-        val itemsToRemove = mutableSetOf<ClipboardItem>()
-        if (prefs.clipboard.historyAutoCleanOldEnabled.get()) {
-            val nonPinnedItems = clipHistory.recent + clipHistory.other
-            val expiryTime = System.currentTimeMillis() - (prefs.clipboard.historyAutoCleanOldAfter.get() * 60 * 1000)
-            itemsToRemove.addAll(nonPinnedItems.filter { it.creationTimestampMs < expiryTime })
-        }
-        if (prefs.clipboard.historyAutoCleanSensitiveEnabled.get()) {
-            val sensitiveData = clipHistory.all.filter { it.isSensitive }
-            val expiryTime = System.currentTimeMillis() - (prefs.clipboard.historyAutoCleanSensitiveAfter.get() * 1000)
-            itemsToRemove.addAll(sensitiveData.filter { it.creationTimestampMs < expiryTime })
-        }
-        if (itemsToRemove.isNotEmpty()) {
-            ioScope.launch {
-                clipHistoryDao?.delete(itemsToRemove.toList())
-            }
-        }
+        val indices = clipboardPlan(clipHistory.all,
+            old = prefs.clipboard.historyAutoCleanOldEnabled.get(),
+            minutes = prefs.clipboard.historyAutoCleanOldAfter.get(),
+            sensitive = prefs.clipboard.historyAutoCleanSensitiveEnabled.get(),
+            seconds = prefs.clipboard.historyAutoCleanSensitiveAfter.get())[5]
+        if (indices.isNotEmpty()) ioScope.launch { clipHistoryDao?.delete(indices.map(clipHistory.all::get)) }
     }
 
     private fun moveToTheBeginning(oldItem: ClipboardItem, newItem: ClipboardItem) {
@@ -387,11 +348,7 @@ class ClipboardManager(
     fun canBePasted(clipItem: ClipboardItem?): Boolean {
         if (clipItem == null) return false
 
-        return clipItem.mimeTypes.contains("text/plain") || editorInstance.activeInfo.contentMimeTypes.any { editorType ->
-            clipItem.mimeTypes.any { clipType ->
-                compareMimeTypes(clipType, editorType)
-            }
-        }
+        return ClipboardRules.eligible(clipItem.mimeTypes.toTypedArray(), editorInstance.activeInfo.contentMimeTypes)
     }
 
     /**

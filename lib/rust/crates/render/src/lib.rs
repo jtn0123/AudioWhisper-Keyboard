@@ -44,3 +44,5 @@ pub mod emoji_panel;
 mod panel_commands;
 
 pub mod panel_geometry;
+
+pub mod clipboard_policy;

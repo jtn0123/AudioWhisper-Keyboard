@@ -55,3 +55,5 @@ mod render_panels;
 mod render_emoji;
 
 mod panel_oracle;
+
+mod clipboard;
