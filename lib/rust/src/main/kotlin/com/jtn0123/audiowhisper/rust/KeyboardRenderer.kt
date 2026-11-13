@@ -21,6 +21,17 @@ class KeyboardRenderer(fontPaths: Array<String>) : AutoCloseable {
         RenderNative.touch(handle, metadata, times, coords)
 
     @Synchronized
+    fun tooltipShown(pointer: Int, shown: Boolean) = RenderNative.tooltipShown(handle, pointer, shown)
+
+    @Synchronized
+    fun candidateBindings(tokens: IntArray): IntArray = RenderNative.candidateBindings(handle, tokens)
+
+    @Synchronized
+    fun gestures(values: FloatArray, actions: Array<String>) = RenderNative.gestures(handle, values, actions)
+    @Synchronized
+    fun longPress(pointer: Int, popup: Boolean, uninterrupted: Boolean): IntArray = RenderNative.longPress(handle, pointer, popup, uninterrupted)
+
+    @Synchronized
     fun tick(time: Long): IntArray = RenderNative.tick(handle, time)
     @Synchronized
     fun nextDeadline(): Long = RenderNative.nextDeadline(handle)
@@ -60,6 +71,10 @@ internal object RenderNative {
     external fun update(handle: Long, dimensions: FloatArray, metadata: Array<String>, candidateFlags: IntArray, geometry: FloatArray, labels: Array<String>, candidates: Array<String>)
     external fun smartbar(handle: Long, config: FloatArray, codes: IntArray, labels: Array<String>)
     external fun touch(handle: Long, metadata: IntArray, times: LongArray, coords: FloatArray): IntArray
+    external fun tooltipShown(handle: Long, pointer: Int, shown: Boolean)
+    external fun candidateBindings(handle: Long, tokens: IntArray): IntArray
+    external fun gestures(handle: Long, values: FloatArray, actions: Array<String>)
+    external fun longPress(handle: Long, pointer: Int, popup: Boolean, uninterrupted: Boolean): IntArray
     external fun tick(handle: Long, time: Long): IntArray
     external fun nextDeadline(handle: Long): Long
     external fun barSettings(handle: Long, delay: Long, changed: IntArray): IntArray

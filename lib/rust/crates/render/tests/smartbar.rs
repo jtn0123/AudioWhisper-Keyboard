@@ -176,5 +176,8 @@ fn disabled_action_regions_still_deliver_tooltip_gestures_to_the_host() {
     s.smartbar.as_mut().unwrap().actions[0].enabled = false;
     let mut t = Touch::default();
     assert_eq!(t.event(&mut s, &event(0, 20.0, 20.0)), vec![Event(5, 0, 7)]);
-    assert_eq!(t.event(&mut s, &event(1, 20.0, 20.0)), vec![Event(6, 0, 7)]);
+    assert_eq!(
+        t.event(&mut s, &event(1, 20.0, 20.0)),
+        vec![Event(render::protocol::TOOLTIP_UP, 0, 7)]
+    );
 }

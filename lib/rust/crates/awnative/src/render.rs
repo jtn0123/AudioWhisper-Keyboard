@@ -4,15 +4,14 @@ use crate::{
     jni::{self, Result, illegal},
 };
 use jni_sys::{
-    JNIEnv, jboolean, jclass, jfloatArray, jint, jintArray, jlong, jlongArray, jobject,
-    jobjectArray, jstring,
+    JNIEnv, jboolean, jclass, jfloatArray, jint, jintArray, jlong, jobject, jobjectArray, jstring,
 };
 use keys::{Bounds, Rect};
 use render::{
     scene::{Key, Popup, Scene},
-    touch::{Motion, Touch},
+    touch::Touch,
 };
-use std::{ptr, sync::Mutex};
+use std::sync::Mutex;
 
 #[derive(Debug, Default)]
 pub struct Session {
@@ -20,7 +19,7 @@ pub struct Session {
     text: Option<render::text::Text>,
     pub(crate) touch: Touch,
     fonts: Vec<Vec<u8>>,
-    touch_time: i64,
+    pub(crate) touch_time: i64,
     theme: Option<render::theme::Theme>,
     mode: String,
     shift: String,
@@ -215,41 +214,6 @@ pub(crate) fn strings(env: &jni::Env, array: jobjectArray) -> Result<Vec<String>
             ))
         })
         .collect()
-}
-
-#[unsafe(no_mangle)]
-pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_touch(
-    env: *mut JNIEnv,
-    _: jclass,
-    native: jlong,
-    metadata: jintArray,
-    times: jlongArray,
-    coords: jfloatArray,
-) -> jintArray {
-    // SAFETY: the wrapper owns the live handle and JVM arrays for this call.
-    unsafe {
-        handle::with_locked::<Session, _>(env, native, "renderer", ptr::null_mut(), |s, env| {
-            let meta = env.read::<i32>(metadata, "metadata")?;
-            if meta.len() < 2 {
-                return Err(illegal("missing action/index"));
-            }
-            let event = Motion {
-                action: meta[0],
-                index: meta[1] as usize,
-                ids: meta[2..].to_vec(),
-                times: env.read(times, "times")?,
-                coords: env.read(coords, "coords")?,
-            };
-            s.touch_time = event.times.last().copied().unwrap_or(0);
-            let actions: Vec<i32> = s
-                .touch
-                .event(&mut s.scene, &event)
-                .into_iter()
-                .flat_map(|a| [a.0, a.1, a.2])
-                .collect();
-            env.make(&actions)
-        })
-    }
 }
 
 #[unsafe(no_mangle)]

@@ -32,7 +32,12 @@ public final class ProbeActivity extends Activity {
         Button reset = new Button(this);
         reset.setText("Clear editor");
         root.addView(reset);
-        editor = new EditText(this);
+        editor = new EditText(this) {
+            @Override protected void onSelectionChanged(int start, int end) {
+                super.onSelectionChanged(start, end);
+                if (result != null) saveDigest(getText());
+            }
+        };
         editor.setContentDescription("Benchmark editor");
         editor.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE);
         editor.setTextSize(18);
@@ -58,7 +63,7 @@ public final class ProbeActivity extends Activity {
             byte[] hash = MessageDigest.getInstance("SHA-256").digest(text.toString().getBytes(StandardCharsets.UTF_8));
             StringBuilder hex = new StringBuilder();
             for (byte b : hash) hex.append(String.format(java.util.Locale.ROOT, "%02x", b & 255));
-            String json = "{\"utf16_units\":" + text.length() + ",\"sha256\":\"" + hex + "\"}";
+            String json = "{\"utf16_units\":" + text.length() + ",\"sha256\":\"" + hex + "\",\"selection_start\":" + editor.getSelectionStart() + ",\"selection_end\":" + editor.getSelectionEnd() + "}";
             try (FileOutputStream out = new FileOutputStream(new File(getFilesDir(), "digest.json"))) {
                 out.write(json.getBytes(StandardCharsets.UTF_8));
             }

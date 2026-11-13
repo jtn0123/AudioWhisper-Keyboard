@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="pref__glide__title">Glide typing</string>
+    <string name="pref__glide__enabled__label">Enable glide typing</string>
+    <string name="pref__glide__enabled__summary">Slide across letter keys to type words.</string>
+    <string name="pref__glide__show_trail__label">Show glide trail</string>
+    <string name="pref__glide__show_trail__summary">Draw a fading trail as you glide.</string>
+    <string name="pref__glide_trail_fade_duration">Trail fade duration</string>
+    <string name="pref__glide__show_preview">Show word preview</string>
+    <string name="pref__glide_preview_refresh_delay">Preview refresh delay</string>
+    <string name="pref__glide__immediate_backspace_deletes_word__label">Backspace deletes last glide word</string>
+    <string name="pref__glide__immediate_backspace_deletes_word__summary">Delete the whole word immediately after glide typing.</string>
+</resources>

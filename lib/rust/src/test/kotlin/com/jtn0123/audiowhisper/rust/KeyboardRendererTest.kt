@@ -44,6 +44,40 @@ class KeyboardRendererTest {
     }
 
     @Test
+    fun candidateHoldRetainsItsOriginalPlatformHandleAcrossSuggestionUpdates() {
+        KeyboardRenderer(emptyArray()).use { r ->
+            r.theme("""{"${'$'}schema":"https://schemas.florisboard.org/snygg/v2/stylesheet"}""",
+                emptyArray(),intArrayOf(),floatArrayOf(1f,1f,1f))
+            r.smartbar(floatArrayOf(1f,0f,0f,0f,0f,0f,0f,0f,0f,0f,1f,40f),IntArray(10),Array(10) {""})
+            r.update(floatArrayOf(400f,200f,40f),arrayOf("characters","unshifted"),
+                intArrayOf(0),floatArrayOf(),emptyArray(),arrayOf("fixture"))
+            r.candidateBindings(intArrayOf(17))
+            r.touch(intArrayOf(0,0,7),longArrayOf(0,1),floatArrayOf(50f,20f))
+            assertContentEquals(intArrayOf(17),r.candidateBindings(intArrayOf(23)))
+            assertContentEquals(intArrayOf(RenderProtocol.CANDIDATE_HOLD,17,7),r.tick(300_000_001))
+            assertContentEquals(intArrayOf(RenderProtocol.CANDIDATE_CANCEL,0,7),
+                r.touch(intArrayOf(1,0,7),longArrayOf(0,400_000_000),floatArrayOf(50f,20f)))
+            assertContentEquals(intArrayOf(),r.candidateBindings(intArrayOf(23)))
+        }
+    }
+
+    @Test
+    fun platformTooltipFailureDoesNotConsumeAnActionRelease() {
+        KeyboardRenderer(emptyArray()).use { r ->
+            r.theme("""{"${'$'}schema":"https://schemas.florisboard.org/snygg/v2/stylesheet"}""",
+                emptyArray(),intArrayOf(),floatArrayOf(1f,1f,1f))
+            r.smartbar(floatArrayOf(1f,2f,1f,0f,0f,0f,0f,1f,0f,0f,1f,40f),
+                IntArray(10) {if(it%2==1) 1 else -1},Array(10) {""})
+            r.update(floatArrayOf(400f,200f,40f),arrayOf("characters","unshifted"),
+                intArrayOf(),floatArrayOf(),emptyArray(),emptyArray())
+            assertContentEquals(intArrayOf(RenderProtocol.BAR_DOWN,0,7),r.touch(intArrayOf(0,0,7),longArrayOf(0,1),floatArrayOf(20f,20f)))
+            assertContentEquals(intArrayOf(RenderProtocol.TOOLTIP_SHOW,0,7),r.tick(300_000_001))
+            r.tooltipShown(7,false)
+            assertContentEquals(intArrayOf(RenderProtocol.BAR_UP,0,7),r.touch(intArrayOf(1,0,7),longArrayOf(0,400_000_000),floatArrayOf(20f,20f)))
+        }
+    }
+
+    @Test
     fun closedHandleThrowsInsteadOfUsingFreedMemory() {
         val renderer = KeyboardRenderer(emptyArray())
         renderer.close()

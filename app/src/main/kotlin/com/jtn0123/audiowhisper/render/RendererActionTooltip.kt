@@ -10,11 +10,11 @@ internal class RendererActionTooltip(private val parent: FrameLayout) {
     private var hide: Runnable? = null
     private var visible = false
 
-    fun show(index: Int, snapshot: KeyboardSnapshot) {
+    fun show(index: Int, snapshot: KeyboardSnapshot): Boolean {
         clear()
         val packet = snapshot.smartbar.measure(parent.width.toFloat())
-        val slot = (8 until packet.size step 6).firstOrNull { packet[it] == 1f && packet[it+1].toInt() == index } ?: return
-        val text = snapshot.smartbar.tooltips.getOrNull(index)?.takeIf { it.isNotEmpty() } ?: return
+        val slot = (8 until packet.size step 6).firstOrNull { packet[it] == 1f && packet[it+1].toInt() == index } ?: return false
+        val text = snapshot.smartbar.tooltips.getOrNull(index)?.takeIf { it.isNotEmpty() } ?: return false
         val view = View(parent.context).apply {
             isHapticFeedbackEnabled = false
             tooltipText = text
@@ -28,6 +28,7 @@ internal class RendererActionTooltip(private val parent: FrameLayout) {
         parent.addView(view, params)
         anchor = view
         visible = view.performLongClick()
+        return visible
     }
     fun up(): Boolean {
         val consumed = visible

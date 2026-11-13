@@ -14,6 +14,7 @@ import com.jtn0123.audiowhisper.rust.KeyboardRenderer
 import com.jtn0123.audiowhisper.suggest.TapOffset
 import dev.patrickgold.florisboard.app.FlorisPreferenceStore
 import dev.patrickgold.florisboard.ime.keyboard.KeyData
+import dev.patrickgold.florisboard.FlorisImeService
 import dev.patrickgold.florisboard.ime.nlp.ClipboardSuggestionCandidate
 import dev.patrickgold.florisboard.ime.nlp.SuggestionCandidate
 import dev.patrickgold.florisboard.ime.text.keyboard.TextKey
@@ -49,14 +50,16 @@ class RustKeyboardView(context: Context) : FrameLayout(context), SurfaceHolder.C
     private val native = KeyboardRenderer(systemRendererFonts())
     private val surface = SurfaceView(context)
     private val choreographer = Choreographer.getInstance()
-    private val pressed = mutableMapOf<Int, KeyData>()
-    private val popupChoices = mutableMapOf<Int, List<KeyData>>()
+    private val gestureHost = RendererGestureHost(context, native)
+    private var popupSource: TextKey? = null
+    private var popupChoices: List<KeyData> = emptyList()
     private var snapshot: KeyboardSnapshot? = null
     private var liveSurface = false
     private var surfaceReady = false
     private var framePending = false
     private var released = false
-    private val smartbarTouch = RendererSmartbarTouch(this) { pointer ->
+    private val candidateBindings = RendererCandidateBindings()
+    private val smartbarTouch = RendererSmartbarTouch(this, candidateBindings::get, native::tooltipShown) { pointer ->
         native.candidateLongPress(pointer)
         invalidateFrame()
     }
@@ -86,14 +89,14 @@ class RustKeyboardView(context: Context) : FrameLayout(context), SurfaceHolder.C
             native.theme(value.theme.json, value.theme.paletteNames.toTypedArray(), value.theme.paletteColors.toIntArray(),
                 floatArrayOf(value.theme.density, value.theme.fontScale, value.theme.fontMultiplier))
         }
-        snapshot?.let { old ->
-            val changed = old.smartbar.actions.indices.filter { i ->
+        val changed = snapshot?.let { old ->
+            old.smartbar.actions.indices.filter { i ->
                 old.smartbar.actions[i] != value.smartbar.actions.getOrNull(i) ||
                     (old.smartbar.codes[i * 2 + 1] and BAR_ENABLED != 0 &&
                         value.smartbar.codes.getOrNull(i * 2 + 1)?.and(BAR_ENABLED) != BAR_ENABLED)
             }.toIntArray()
-            dispatchActions(native.barSettings(prefs.keyboard.longPressDelay.get().toLong() * 1_000_000, changed))
-        }
+        } ?: intArrayOf()
+        dispatchActions(native.barSettings(prefs.keyboard.longPressDelay.get().toLong() * 1_000_000, changed))
         snapshot = value
         if (width > 0 && height > 0) updateScene()
     }
@@ -124,6 +127,8 @@ class RustKeyboardView(context: Context) : FrameLayout(context), SurfaceHolder.C
         manager.smartbarVisibleDynamicActionsCount = s.smartbar.measure(width.toFloat())[2].toInt()
         native.update(floatArrayOf(width.toFloat(), height.toFloat(), s.stripHeight),
             metadata.toTypedArray(), flags, geometry, labels.toTypedArray(), candidates.toTypedArray())
+        candidateBindings.bind(native, s.candidates)
+        gestureHost.layout(s)
         attachIfReady()
         invalidateFrame()
     }
@@ -198,6 +203,7 @@ class RustKeyboardView(context: Context) : FrameLayout(context), SurfaceHolder.C
                 coords[(h * pointers + p) * 2 + 1] = if (h < event.historySize) event.getHistoricalY(p, h) else event.getY(p)
             }
         }
+        snapshot?.let(gestureHost::configure)
         val actions = native.touch(metadata, times, coords)
         dispatchActions(actions, event)
         scheduleDeadline()
@@ -220,12 +226,13 @@ class RustKeyboardView(context: Context) : FrameLayout(context), SurfaceHolder.C
     private fun dispatch(action: Int, index: Int, pointer: Int, event: MotionEvent?) {
         val s = snapshot ?: return
         val dispatcher = manager.inputEventDispatcher
-        if (action >= BAR_DOWN) { smartbarTouch.dispatch(action, index, pointer, s); return }
+        if (action >= GLIDE_POINT && action != OPEN_POPUP) { gestureHost.dispatch(action, index, pointer); return }
+        if (action in BAR_DOWN until GLIDE_POINT) { smartbarTouch.dispatch(action, index, pointer, s); return }
         when (action) {
             KEY_DOWN -> {
                 val key = s.keys[index]
                 val data = key.computedData
-                pressed[pointer] = data
+                key.computedDataOnDown = data
                 val p = event?.findPointerIndex(pointer) ?: -1
                 if (p >= 0 && event != null) {
                     val v = key.visibleBounds
@@ -234,24 +241,32 @@ class RustKeyboardView(context: Context) : FrameLayout(context), SurfaceHolder.C
                 }
                 dispatcher.sendDown(data, onLongPress = {
                     val choices = key.computedPopups.getPopupKeys(prefs.keyboard.keyHintConfiguration()).toList()
-                    if (choices.isNotEmpty() && pressed[pointer] == data && !released) {
-                        popupChoices[pointer] = choices
-                        native.popup(index, choices.map { it.label }.toTypedArray(), choices.map { it.code }.toIntArray())
-                        invalidateFrame()
-                        true
-                    } else false
+                    val result = native.longPress(pointer, choices.isNotEmpty(), dispatcher.isUninterruptedEventSequence(data))
+                    dispatchActions(result)
+                    result.indices.step(3).any { result[it] == LONG_PRESS_BLOCK }
                 })
+                FlorisImeService.inputFeedbackController()?.keyPress(data)
             }
-            KEY_UP -> pressed.remove(pointer)?.let { down ->
-                val current = s.keys[index].computedData
+            KEY_UP -> {
+                val key = s.keys[index]
+                val down = key.computedDataOnDown
+                val current = key.computedData
                 if (down == current) dispatcher.sendUp(down)
                 else { dispatcher.sendCancel(down); dispatcher.sendDownUp(current) }
-                popupChoices.remove(pointer)
             }
-            KEY_CANCEL -> { pressed.remove(pointer)?.let(dispatcher::sendCancel); popupChoices.remove(pointer) }
+            KEY_CANCEL -> dispatcher.sendCancel(s.keys[index].computedDataOnDown)
+            OPEN_POPUP -> {
+                val key = s.keys[index]
+                popupSource = key
+                popupChoices = key.computedPopups.getPopupKeys(prefs.keyboard.keyHintConfiguration()).toList()
+                native.popup(index, popupChoices.map { it.label }.toTypedArray(), popupChoices.map { it.code }.toIntArray())
+                invalidateFrame()
+            }
             POPUP_SELECT -> {
-                pressed.remove(pointer)?.let(dispatcher::sendCancel)
-                popupChoices.remove(pointer)?.getOrNull(index)?.let(dispatcher::sendDownUp)
+                popupSource?.computedDataOnDown?.let(dispatcher::sendCancel)
+                popupChoices.getOrNull(index)?.let(dispatcher::sendDownUp)
+                popupSource = null
+                popupChoices = emptyList()
             }
             CANDIDATE_COMMIT -> s.candidates.getOrNull(index)?.let(manager::commitCandidate)
         }
@@ -261,9 +276,9 @@ class RustKeyboardView(context: Context) : FrameLayout(context), SurfaceHolder.C
         removeCallbacks(deadlineWakeup)
         dispatchActions(native.touch(intArrayOf(MotionEvent.ACTION_CANCEL, 0), longArrayOf(), floatArrayOf()))
         smartbarTouch.cancel()
-        for (data in pressed.values) manager.inputEventDispatcher.sendCancel(data)
-        pressed.clear()
-        popupChoices.clear()
+        candidateBindings.clear()
+        popupSource = null
+        popupChoices = emptyList()
     }
 
     private enum class SurfaceEvent(val code: Int) {

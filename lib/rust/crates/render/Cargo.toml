@@ -9,6 +9,7 @@ rust-version.workspace = true
 
 [dependencies]
 keys = { path = "../keys" }
+gestures = { path = "../gestures" }
 snygg = { path = "../snygg" }
 parley = { version = "=0.13.0", default-features = false, features = ["std"] }
 read-fonts = "=0.47.0"

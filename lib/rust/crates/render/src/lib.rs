@@ -2,7 +2,11 @@
 #![forbid(unsafe_code)]
 
 mod backend;
+pub mod gesture_config;
+mod glide_touch;
 pub mod hybrid;
+mod keyboard_swipe;
+mod keyboard_touch;
 pub mod profile;
 pub mod protocol;
 pub mod raster;
@@ -16,3 +20,4 @@ pub mod text;
 pub mod theme;
 mod theme_scene;
 pub mod touch;
+mod velocity;

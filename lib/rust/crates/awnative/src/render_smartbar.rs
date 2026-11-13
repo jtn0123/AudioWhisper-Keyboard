@@ -3,7 +3,7 @@ use crate::{
     handle,
     jni::{self, illegal},
 };
-use jni_sys::{JNIEnv, jclass, jfloatArray, jintArray, jlong, jobjectArray};
+use jni_sys::{JNIEnv, jboolean, jclass, jfloatArray, jintArray, jlong, jobjectArray};
 use render::protocol::*;
 use render::{
     smartbar::{self, Config},
@@ -196,5 +196,44 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_barSettin
                 env.make(&actions)
             },
         )
+    }
+}
+
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_candidateBindings(
+    env: *mut JNIEnv,
+    _: jclass,
+    native: jlong,
+    tokens: jintArray,
+) -> jintArray {
+    // SAFETY: synchronized owner keeps the handle and JVM arrays alive throughout this call.
+    unsafe {
+        handle::with_locked::<crate::render::Session, _>(
+            env,
+            native,
+            "renderer",
+            ptr::null_mut(),
+            |s, env| {
+                s.scene.candidate_tokens = env.read::<i32>(tokens, "candidate handles")?;
+                env.make(&s.touch.candidate_tokens())
+            },
+        )
+    }
+}
+
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_tooltipShown(
+    env: *mut JNIEnv,
+    _: jclass,
+    native: jlong,
+    pointer: i32,
+    shown: jboolean,
+) {
+    // SAFETY: synchronized owner keeps the session alive for the platform tooltip acknowledgement.
+    unsafe {
+        handle::with_locked::<crate::render::Session, _>(env, native, "renderer", (), |s, _| {
+            s.touch.tooltip_shown(pointer, shown != 0);
+            Ok(())
+        });
     }
 }

@@ -18,23 +18,26 @@ struct Pointer {
     highlighted: bool,
     deadline: Option<i64>,
     held: bool,
+    token: i32,
+    enabled: bool,
+}
+impl Pointer {
+    fn cancel_kind(&self) -> i32 {
+        if !self.action {
+            CANDIDATE_CANCEL
+        } else if self.enabled {
+            BAR_CANCEL
+        } else {
+            TOOLTIP_CLEAR
+        }
+    }
 }
 impl BarTouch {
     pub fn cancel(&mut self, scene: &mut Scene) -> Vec<Action> {
         let actions = self
             .pointers
             .iter()
-            .map(|(&p, t)| {
-                Action(
-                    if t.action {
-                        BAR_CANCEL
-                    } else {
-                        CANDIDATE_CANCEL
-                    },
-                    t.id as i32,
-                    p,
-                )
-            })
+            .map(|(&p, t)| Action(t.cancel_kind(), t.id as i32, p))
             .collect();
         self.pointers.clear();
         self.mark(scene);
@@ -75,6 +78,12 @@ impl BarTouch {
                                     .saturating_add(delay)
                             }),
                             held: false,
+                            enabled: !action || bar.actions.get(target).is_some_and(|a| a.enabled),
+                            token: scene
+                                .candidate_tokens
+                                .get(target)
+                                .copied()
+                                .unwrap_or(target as i32),
                         },
                     );
                     if !action || target != BAR_TOGGLE_INDEX as usize {
@@ -109,15 +118,7 @@ impl BarTouch {
                             t.x = nx;
                         } else if bar.layout.hit(nx, ny) != Some((t.action, t.id)) {
                             let t = self.pointers.remove(&id).expect("owned pointer");
-                            actions.push(Action(
-                                if t.action {
-                                    BAR_CANCEL
-                                } else {
-                                    CANDIDATE_CANCEL
-                                },
-                                t.id as i32,
-                                id,
-                            ));
+                            actions.push(Action(t.cancel_kind(), t.id as i32, id));
                         }
                     }
                 }
@@ -127,9 +128,13 @@ impl BarTouch {
                     let valid = !t.scrolling && bar.layout.hit(x, y) == Some((t.action, t.id));
                     actions.push(Action(
                         if t.action {
-                            if valid && t.id == BAR_TOGGLE_INDEX as usize {
+                            if !t.enabled {
+                                if valid { TOOLTIP_UP } else { TOOLTIP_CLEAR }
+                            } else if valid && t.id == BAR_TOGGLE_INDEX as usize {
                                 BAR_TOGGLE
-                            } else if valid && !t.held {
+                            } else if valid && t.held {
+                                BAR_HELD_UP
+                            } else if valid {
                                 BAR_UP
                             } else {
                                 BAR_CANCEL
@@ -164,13 +169,27 @@ impl BarTouch {
                     } else {
                         CANDIDATE_HOLD
                     },
-                    p.id as i32,
+                    if p.action { p.id as i32 } else { p.token },
                     id,
                 ));
             }
         }
         self.mark(scene);
         actions
+    }
+    pub fn tooltip_shown(&mut self, pointer: i32, shown: bool) {
+        if let Some(p) = self.pointers.get_mut(&pointer)
+            && p.action
+        {
+            p.held = shown;
+        }
+    }
+    pub fn candidate_tokens(&self) -> Vec<i32> {
+        self.pointers
+            .values()
+            .filter(|p| !p.action)
+            .map(|p| p.token)
+            .collect()
     }
     pub fn invalidate(&mut self, scene: &mut Scene, slots: &[i32]) -> Vec<Action> {
         let ids: Vec<_> = self
@@ -182,7 +201,7 @@ impl BarTouch {
         let mut actions = Vec::new();
         for id in ids {
             if let Some(p) = self.pointers.remove(&id) {
-                actions.push(Action(BAR_CANCEL, p.id as i32, id));
+                actions.push(Action(p.cancel_kind(), p.id as i32, id));
             }
         }
         self.mark(scene);

@@ -30,19 +30,30 @@ impl Motion {
     }
 }
 
-/// Actions: 0 down, 1 up, 2 cancel, 3 popup selection, 4 candidate, with key/choice and pointer id.
+/// Wire action kind and two payload integers, defined in protocol.rs. Glide points use f32 bits.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Action(pub i32, pub i32, pub i32);
 
 #[derive(Debug, Default)]
 pub struct Touch {
-    pointers: BTreeMap<i32, usize>,
+    keys: crate::keyboard_touch::KeyboardTouch,
+    glide: crate::glide_touch::GlideTouch,
     bar: crate::smartbar_touch::BarTouch,
+    candidates: BTreeMap<i32, usize>,
+    pub config: crate::gesture_config::GestureConfig,
     pub long_press_delay: i64,
 }
-const OUTSIDE: usize = usize::MAX;
-
 impl Touch {
+    pub fn configure(&mut self, config: crate::gesture_config::GestureConfig) {
+        self.keys.set_shift(config.shift_pressed);
+        self.config = config;
+    }
+    pub fn tooltip_shown(&mut self, pointer: i32, shown: bool) {
+        self.bar.tooltip_shown(pointer, shown);
+    }
+    pub fn candidate_tokens(&self) -> Vec<i32> {
+        self.bar.candidate_tokens()
+    }
     pub fn next_deadline(&self) -> Option<i64> {
         self.bar.next_deadline()
     }
@@ -52,36 +63,44 @@ impl Touch {
     pub fn invalidate_bar(&mut self, scene: &mut Scene, slots: &[i32]) -> Vec<Action> {
         self.bar.invalidate(scene, slots)
     }
-
     pub fn candidate_long_press(&mut self, scene: &mut Scene, pointer: i32) {
         self.bar.candidate_long_press(scene, pointer);
     }
-
-    pub fn cancel(&mut self, scene: &mut Scene) -> Vec<Action> {
-        let mut result: Vec<_> = self
-            .pointers
-            .iter()
-            .filter(|(_, key)| **key < scene.keys.len())
-            .map(|(&id, &key)| Action(2, key as i32, id))
-            .collect();
-        result.extend(self.bar.cancel(scene));
-        self.pointers.clear();
-        scene.pressed.clear();
-        scene.candidate_pressed.clear();
-        scene.popup = None;
-        result
+    pub fn long_press(
+        &mut self,
+        scene: &Scene,
+        pointer: i32,
+        popup: bool,
+        uninterrupted: bool,
+    ) -> Vec<Action> {
+        self.keys
+            .long_press(scene, &self.config, pointer, popup, uninterrupted)
     }
-
+    pub fn cancel(&mut self, scene: &mut Scene) -> Vec<Action> {
+        let mut actions = self.glide.cancel();
+        actions.extend(self.keys.cancel(scene));
+        actions.extend(self.bar.cancel(scene));
+        self.candidates.clear();
+        scene.candidate_pressed.clear();
+        actions
+    }
     pub fn event(&mut self, scene: &mut Scene, event: &Motion) -> Vec<Action> {
-        if event.action == 3 {
+        if event.action == 3 || !event.valid() {
             return self.cancel(scene);
         }
         let mut actions = Vec::new();
-        if !event.valid() {
-            return self.cancel(scene);
-        }
         if event.action == 0 {
             actions.extend(self.cancel(scene));
+        }
+        self.keys.velocity_event(event);
+        let (glide, intercepted) = self.glide.event(scene, &self.keys, event, &self.config);
+        actions.extend(glide);
+        if intercepted {
+            actions.extend(self.keys.cancel_active(scene));
+            if event.action == 1 {
+                actions.extend(self.keys.cancel(scene));
+            }
+            return actions;
         }
         actions.extend(self.bar.event(
             scene,
@@ -92,131 +111,46 @@ impl Touch {
                 300_000_000
             },
         ));
+        actions.extend(self.keys.event(scene, event, &self.config));
+        // Legacy candidate-only previews have no smartbar action table.
+        if scene.smartbar.is_none() {
+            self.candidate_event(scene, event, &mut actions);
+        }
+        self.bar.mark(scene);
+        actions
+    }
+    fn candidate_event(&mut self, scene: &mut Scene, event: &Motion, actions: &mut Vec<Action>) {
         let current = event.coords.len() - event.ids.len() * 2;
         let id = event.ids[event.index];
         let x = event.coords[current + event.index * 2];
         let y = event.coords[current + event.index * 2 + 1];
         match event.action {
             0 | 5 => {
-                if event.action != 0 {
-                    // Compose commits active character keys before a rolling second finger
-                    // goes down, while retaining held modifiers such as Shift.
-                    let released: Vec<_> = self
-                        .pointers
-                        .iter()
-                        .filter_map(|(&id, &index)| {
-                            scene
-                                .keys
-                                .get(index)
-                                .filter(|key| {
-                                    key.code > keys::codes::SPACE
-                                        && key.code != keys::codes::CJK_SPACE
-                                })
-                                .map(|_| (id, index))
-                        })
-                        .collect();
-                    for (id, index) in released {
-                        self.pointers.remove(&id);
-                        actions.push(Action(1, index as i32, id));
-                    }
-                    scene.popup = None;
-                }
-                if let Some(key) = scene.key_at(x, y) {
-                    if let Some(old) = self.pointers.insert(id, key) {
-                        actions.push(Action(2, old as i32, id));
-                    }
-                    actions.push(Action(0, key as i32, id));
-                } else if scene.smartbar.is_some() && y < scene.strip {
-                    // Smartbar owns this gesture, even when it later leaves the strip.
-                } else if let Some(choice) = scene
-                    .candidate_at(x, y)
-                    .filter(|_| scene.smartbar.is_none())
-                {
-                    // Keep the candidate identity from DOWN, rather than accepting an UP from outside.
-                    self.pointers.insert(id, scene.keys.len() + choice);
-                } else {
-                    self.pointers.insert(id, OUTSIDE);
+                if let Some(i) = scene.candidate_at(x, y) {
+                    self.candidates.insert(id, i);
                 }
             }
             2 => {
-                for sample in event.coords.chunks_exact(event.ids.len() * 2) {
-                    for (p, &pointer) in event.ids.iter().enumerate() {
-                        if let (Some(popup), Some(bounds)) =
-                            (scene.popup.as_ref(), scene.popup_bounds())
-                            && self.pointers.get(&pointer) == Some(&popup.key)
-                        {
-                            let selected = ((sample[p * 2] - bounds.left) / bounds.width()
-                                * popup.labels.len() as f32)
-                                .floor()
-                                .max(0.0) as usize;
-                            if let Some(popup) = scene.popup.as_mut() {
-                                popup.selected = selected.min(popup.labels.len().saturating_sub(1));
-                            }
-                            continue;
-                        }
-                        let Some(&old) = self.pointers.get(&pointer) else {
-                            continue;
-                        };
-                        if old >= scene.keys.len() && old != OUTSIDE {
-                            if scene.candidate_at(sample[p * 2], sample[p * 2 + 1])
-                                != Some(old - scene.keys.len())
-                            {
-                                self.pointers.remove(&pointer);
-                            }
-                            continue;
-                        }
-                        let new = scene.key_at(sample[p * 2], sample[p * 2 + 1]);
-                        if new.unwrap_or(OUTSIDE) != old {
-                            self.pointers.insert(pointer, new.unwrap_or(OUTSIDE));
-                            if old != OUTSIDE {
-                                actions.push(Action(2, old as i32, pointer));
-                            }
-                            if let Some(new) = new {
-                                self.pointers.insert(pointer, new);
-                                actions.push(Action(0, new as i32, pointer));
-                            }
-                        }
+                for (i, &id) in event.ids.iter().enumerate() {
+                    if self.candidates.get(&id).is_some_and(|&c| {
+                        scene.candidate_at(
+                            event.coords[current + i * 2],
+                            event.coords[current + i * 2 + 1],
+                        ) != Some(c)
+                    }) {
+                        self.candidates.remove(&id);
                     }
                 }
             }
             1 | 6 => {
-                if let Some(key) = self.pointers.remove(&id) {
-                    if key == OUTSIDE {
-                        // An outside pointer can return on MOVE, but releasing it commits nothing.
-                    } else if key >= scene.keys.len() {
-                        if scene.candidate_at(x, y) == Some(key - scene.keys.len()) {
-                            actions.push(Action(4, (key - scene.keys.len()) as i32, id));
-                        }
-                    } else if let Some(popup) = scene.popup.take() {
-                        if popup.key == key {
-                            actions.push(Action(3, popup.selected as i32, id));
-                        } else {
-                            scene.popup = Some(popup);
-                            actions.push(Action(1, key as i32, id));
-                        }
-                    } else {
-                        actions.push(Action(1, key as i32, id));
-                    }
-                }
-                if event.action == 1 {
-                    actions.extend(self.cancel(scene));
+                if let Some(i) = self.candidates.remove(&id)
+                    && scene.candidate_at(x, y) == Some(i)
+                {
+                    actions.push(Action(crate::protocol::CANDIDATE_COMMIT, i as i32, id));
                 }
             }
-            _ => actions.extend(self.cancel(scene)),
+            _ => {}
         }
-        scene.pressed = self
-            .pointers
-            .values()
-            .filter(|&&k| k < scene.keys.len())
-            .copied()
-            .collect();
-        scene.candidate_pressed = self
-            .pointers
-            .values()
-            .filter(|&&k| k >= scene.keys.len() && k != OUTSIDE)
-            .map(|k| k - scene.keys.len())
-            .collect();
-        self.bar.mark(scene);
-        actions
+        scene.candidate_pressed = self.candidates.values().copied().collect();
     }
 }

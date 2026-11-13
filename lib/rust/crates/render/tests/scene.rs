@@ -76,7 +76,7 @@ fn strip_offset_edges_and_disabled_keys_use_existing_geometry() {
 }
 
 #[test]
-fn pointer_reordering_cancel_and_history_preserve_action_order() {
+fn pointer_reordering_cancel_and_current_key_sample_follow_compose() {
     let mut scene = scene();
     scene.keys[0].code = keys::codes::SHIFT;
     let mut touch = Touch::default();
@@ -105,15 +105,8 @@ fn pointer_reordering_cancel_and_history_preserve_action_order() {
         times: vec![1, 2, 3],
         coords: vec![75.0, 40.0, 25.0, 40.0],
     };
-    assert_eq!(
-        touch.event(&mut scene, &history),
-        [
-            Action(2, 0, 7),
-            Action(0, 1, 7),
-            Action(2, 1, 7),
-            Action(0, 0, 7)
-        ]
-    );
+    // Compose uses the current sample for key sliding; history belongs to glide/velocity only.
+    assert!(touch.event(&mut scene, &history).is_empty());
     assert_eq!(
         touch.event(&mut scene, &motion(3, 0, &[7], &[25.0, 40.0])),
         [Action(2, 0, 7)]
@@ -251,7 +244,7 @@ fn rolling_fingers_commit_characters_before_the_next_down() {
 }
 
 #[test]
-fn leaving_and_reentering_keeps_pointer_identity_without_committing_outside() {
+fn leaving_and_reentering_does_not_reactivate_a_cancelled_compose_key() {
     let mut scene = scene();
     let mut touch = Touch::default();
     touch.event(&mut scene, &motion(0, 0, &[7], &[25.0, 40.0]));
@@ -259,13 +252,16 @@ fn leaving_and_reentering_keeps_pointer_identity_without_committing_outside() {
         touch.event(&mut scene, &motion(2, 0, &[7], &[-10.0, 40.0])),
         [Action(2, 0, 7)]
     );
-    assert_eq!(
-        touch.event(&mut scene, &motion(2, 0, &[7], &[75.0, 40.0])),
-        [Action(0, 1, 7)]
+    // onTouchMoveInternal requires an active key. Leaving cancels it permanently for this touch.
+    assert!(
+        touch
+            .event(&mut scene, &motion(2, 0, &[7], &[75.0, 40.0]))
+            .is_empty()
     );
-    assert_eq!(
-        touch.event(&mut scene, &motion(1, 0, &[7], &[75.0, 40.0])),
-        [Action(1, 1, 7)]
+    assert!(
+        touch
+            .event(&mut scene, &motion(1, 0, &[7], &[75.0, 40.0]))
+            .is_empty()
     );
     touch.event(&mut scene, &motion(0, 0, &[9], &[-10.0, 40.0]));
     assert!(

@@ -50,7 +50,7 @@ expected = [(300, "809d588bf48a1e900159a2692fc202c6a7d10d95dfdcc48767851aaa041ef
             (308, "c14d19d26f290a2478c424ae4fb4a4f28f538a5677f12491d526554126cbc555")]
 for path, (length, digest) in zip(sys.argv[1:], expected):
     actual = json.load(open(path))
-    if actual != {"utf16_units": length, "sha256": digest}:
+    if {key: actual[key] for key in ("utf16_units", "sha256")} != {"utf16_units": length, "sha256": digest}:
         raise SystemExit("Benchmark digest mismatch: " + path)
 CHECK
 printf 'Recorded %s: 300 key presses and 8 popup holds.\n' "$renderer"

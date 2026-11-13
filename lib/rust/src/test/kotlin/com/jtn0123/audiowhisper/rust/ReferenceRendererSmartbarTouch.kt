@@ -27,7 +27,7 @@ internal class ReferenceRendererSmartbarTouch(private val slots: List<Slot>, pri
         fun end(id: Int, h: Held, valid: Boolean) {
             val type = if (h.slot.action) {
                 if (valid && h.slot.index == BAR_TOGGLE_INDEX) BAR_TOGGLE
-                else if (valid && !h.timedOut) BAR_UP else BAR_CANCEL
+                else if (valid && h.timedOut) BAR_HELD_UP else if (valid) BAR_UP else BAR_CANCEL
             } else if (valid && !h.timedOut) CANDIDATE_UP else CANDIDATE_CANCEL
             addAll(listOf(type, h.slot.index, id))
         }
