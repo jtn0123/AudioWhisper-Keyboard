@@ -55,8 +55,10 @@ fun RustKeyboardLayout(evaluator: ComputingEvaluator) = with(LocalDensity.curren
     val inline by NlpInlineAutofill.suggestions.collectAsState()
     dev.patrickgold.florisboard.ime.smartbar.InlineSuggestionsStyleCache()
     LaunchedEffect(inline) { nlp.autoExpandCollapseSmartbarActions(null, inline) }
+    val search = rendererSearch()
     val panels = rendererPanels()
-    val smartbar = rendererSmartbar(preview.isNotEmpty(), inline.isNotEmpty())
+    val baseSmartbar = rendererSmartbar(preview.isNotEmpty(), inline.isNotEmpty())
+    val smartbar = if(search.active) baseSmartbar.copy(config=gifSearchBarConfig(baseSmartbar.config,FlorisImeSizing.smartbarHeight.toPx()),animating=false) else baseSmartbar
     var availableWidth by remember { mutableFloatStateOf(resources.displayMetrics.widthPixels.toFloat()) }
     val measurement = smartbar.measure(availableWidth)
     val stripHeight = measurement[0].toDp()
@@ -74,15 +76,15 @@ fun RustKeyboardLayout(evaluator: ComputingEvaluator) = with(LocalDensity.curren
             factory = { RustKeyboardView(it) },
             onRelease = { it.release() },
             update = { view ->
-                view.update(KeyboardSnapshot(keyboard, keys, if (preview.isEmpty()) candidates else emptyList(), theme,
+                view.update(KeyboardSnapshot(keyboard, keys, if (preview.isEmpty() && !search.active) candidates else emptyList(), theme,
                     evaluator.state.inputShiftState.toString(), heightPx, stripPx, rowHeight, marginH, marginV,
-                    smartbar, preview.isNotEmpty(), panels, intArrayOf(evaluator.editorInfo.imeOptions.raw, evaluator.editorInfo.inputAttributes.raw)))
+                    smartbar, preview.isNotEmpty(), panels, intArrayOf(evaluator.editorInfo.imeOptions.raw, evaluator.editorInfo.inputAttributes.raw), search))
             },
         )
         // Kind 2 is the native reservation for Android's InlineContentViews. The AndroidView
         // above keeps its identity when modes or inline suggestions change.
         val inlineRegion = measurement.drop(8).chunked(6).firstOrNull { it[0] == 2f }
-        if (inlineRegion != null && panels.kind == 0) {
+        if (inlineRegion != null && panels.kind == 0 && !search.active) {
             Box(Modifier.absoluteOffset(inlineRegion[2].toDp(),
                 (inlineRegion[3] - measurement[0] + measurement[1]).toDp())
                 .width((inlineRegion[4] - inlineRegion[2]).toDp())
@@ -90,7 +92,7 @@ fun RustKeyboardLayout(evaluator: ComputingEvaluator) = with(LocalDensity.curren
                 InlineSuggestionsUi(inline)
             }
         }
-        if (preview.isNotEmpty() && panels.kind == 0) {
+        if (preview.isNotEmpty() && panels.kind == 0 && !search.active) {
             // The platform preview occupies Rust's measured center without cancelling a held mic.
             Box(Modifier.absoluteOffset(measurement[3].toDp(),
                 (measurement[4] - measurement[0] + measurement[1]).toDp())

@@ -17,6 +17,7 @@ pub struct GifPanel {
     pub shown: String,
     pub labels: Vec<String>,
     pub phase: f32,
+    pub message_height: f32,
     pub status: i32,
     pub sending: Option<usize>,
     pub bottom: f32,
@@ -91,6 +92,15 @@ impl Panel {
             self.items.push(i);
             x += w;
         }
+        if g.chip_widths.iter().sum::<f32>() > width {
+            self.items.push(Item::new(
+                -217,
+                rect(0.0, header, width, chips),
+                "GIF categories".into(),
+                "panel-scroll",
+                Command::Gif(11, 0),
+            ));
+        }
         let area = rect(
             4.0 * d,
             header + chips + 4.0 * d,
@@ -138,7 +148,12 @@ impl Panel {
             self.max_scroll = 0.0;
             let mut i = Item::new(
                 -204,
-                area,
+                rect(
+                    area.left + 24.0 * d,
+                    area.top + (area.height() - g.message_height) / 2.0,
+                    area.width() - 48.0 * d,
+                    g.message_height,
+                ),
                 g.label(2),
                 "gif-message",
                 if g.status == 2 {
@@ -149,7 +164,6 @@ impl Panel {
             );
             i.multiline = true;
             if g.status == 0 {
-                i.label.clear();
                 i.element = "gif-spinner".into();
                 i.bounds = rect(
                     area.left + (area.width() - 28.0 * d) / 2.0,
@@ -235,4 +249,9 @@ pub fn grid(width: f32, d: f32, aspects: &[f32]) -> Vec<keys::Rect> {
             r
         })
         .collect()
+}
+
+/// Compose scroll semantics page a horizontally scrolling category row by its viewport.
+pub fn scroll_chips(offset: f32, width: f32, extent: f32, forward: bool) -> f32 {
+    (offset + if forward { width } else { -width }).clamp(0.0, (extent - width).max(0.0))
 }

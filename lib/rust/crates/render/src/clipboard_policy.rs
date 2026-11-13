@@ -37,7 +37,12 @@ pub fn groups(clips: &[Clip], now: i64) -> [Vec<usize>; 3] {
     out
 }
 /// Preserve Compose's TEXT-only comparison, including nullable text equality.
-pub fn duplicate(clips: &[Clip], text: Option<&[u16]>, enabled: bool) -> Option<(usize, bool)> {
+pub fn duplicate(
+    clips: &[Clip],
+    text: Option<&[u16]>,
+    enabled: bool,
+    new_pinned: bool,
+) -> Option<(usize, bool)> {
     if !enabled {
         return None;
     }
@@ -45,7 +50,7 @@ pub fn duplicate(clips: &[Clip], text: Option<&[u16]>, enabled: bool) -> Option<
         .iter()
         .enumerate()
         .find(|(_, c)| c.kind == 1 && c.text.as_deref() == text)
-        .map(|(i, c)| (i, c.pinned))
+        .map(|(i, c)| (i, c.pinned || new_pinned))
 }
 pub fn limit(clips: &[Clip], now: i64, enabled: bool, maximum: i32) -> Vec<usize> {
     if !enabled {
@@ -132,6 +137,6 @@ mod tests {
         };
         assert!(expiry(std::slice::from_ref(&p), 60_001, true, 1, false, 1).is_empty());
         assert_eq!(expiry(&[p], 1001, false, 1, true, 1), vec![0]);
-        assert_eq!(duplicate(&[c], None, true), Some((0, false)));
+        assert_eq!(duplicate(&[c], None, true, false), Some((0, false)));
     }
 }

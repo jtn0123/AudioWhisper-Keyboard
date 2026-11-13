@@ -20,6 +20,8 @@ class KeyboardRenderer(fontPaths: Array<String>) : AutoCloseable {
     @Synchronized
     fun gifs(config: FloatArray, labels: Array<String>, chips: Int, ids: LongArray) = RenderNative.gifs(handle,config,labels,chips,ids)
     @Synchronized
+    fun mediaRepeat(id: Long, count: Int) = RenderNative.mediaRepeat(handle,id,count)
+    @Synchronized
     fun mediaRequests(): LongArray = RenderNative.mediaRequests(handle)
     @Synchronized
     fun mediaUpload(id: Long, index: Int, width: Int, height: Int, delay: Long, last: Boolean, pixels: IntArray): Boolean =
@@ -106,6 +108,7 @@ internal object RenderNative {
     external fun search(handle: Long, density: Float, labels: Array<String>, now: Long)
     external fun gifSent(handle: Long)
     external fun gifs(handle: Long, config: FloatArray, labels: Array<String>, chips: Int, ids: LongArray)
+    external fun mediaRepeat(handle: Long, id: Long, count: Int)
     external fun mediaRequests(handle: Long): LongArray
     external fun mediaUpload(handle: Long, id: Long, index: Int, width: Int, height: Int, delay: Long, last: Boolean, pixels: IntArray): Boolean
     external fun clipboard(handle: Long, config: LongArray, records: LongArray, labels: Array<String>)

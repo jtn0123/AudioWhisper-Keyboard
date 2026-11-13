@@ -10,6 +10,8 @@ pub struct Search {
     pub back: String,
     pub prompt: String,
     pub submit: String,
+    pub back_icon: String,
+    pub submit_icon: String,
     pub cursor: bool,
     pub deadline: i64,
 }
@@ -45,7 +47,8 @@ impl Panel {
             "clipboard-header-button",
             Command::Gif(9, 0),
         );
-        back.glyph = "‹".into();
+        back.icon = s.back_icon.clone();
+        back.clip = rect(0.0, 0.0, width, row);
         self.items.push(back);
         let field = rect(row, 6.0 * d, width - 2.0 * row, row - 12.0 * d);
         self.items.push(Item::new(
@@ -80,7 +83,8 @@ impl Panel {
             "clipboard-header-button",
             Command::Gif(10, 0),
         );
-        submit.glyph = "⌕".into();
+        submit.icon = s.submit_icon.clone();
+        submit.clip = rect(0.0, 0.0, width, row);
         self.items.push(submit);
         self.items.push(Item::new(
             -305,
@@ -112,6 +116,11 @@ impl Panel {
                 }
             }
             if i.element == "search-query" {
+                i.text.size = 14.0 * d * theme.font_scale();
+                if s.query.is_empty() {
+                    i.bounds.left += 6.0 * d;
+                    i.text.foreground = (i.text.foreground & 0x00ffffff) | 0x99000000;
+                }
                 let width = i.bounds.width() - 4.0 * d;
                 let mut display = i.label.clone();
                 if text.measure(&display, i.text.size, i.text.mono, i.text.weight) > width {
@@ -132,10 +141,12 @@ impl Panel {
                 } else {
                     text.measure(&display, i.text.size, i.text.mono, i.text.weight)
                 };
+                let measured = text.measure(&display, i.text.size, i.text.mono, i.text.weight);
+                let height = text.height("Ag", i.text.size, i.text.mono, i.text.weight);
                 i.glyph = display;
-                i.bounds.top += (i.bounds.height()
-                    - text.height("Ag", i.text.size, i.text.mono, i.text.weight))
-                    / 2.0;
+                i.bounds.top += (i.bounds.height() - height) / 2.0;
+                i.bounds.bottom = i.bounds.top + height;
+                i.bounds.right = i.bounds.left + measured;
             }
             if i.element == "search-cursor" {
                 i.bounds.left = cursor_x;

@@ -13,5 +13,5 @@ internal fun clipboardPlan(
         if (it.isSensitive) 1L else 0L, if (it.text != null) 1L else 0L) }.toLongArray(),
     (items.map { it.text ?: "" } + (newItem?.text ?: "")).toTypedArray(),
     longArrayOf(now, if (enabled) 1 else 0, if (limitEnabled) 1 else 0, limit.toLong(),
-        if (old) 1 else 0, minutes.toLong(), if (sensitive) 1 else 0, seconds.toLong(), if (newItem?.text != null) 1 else 0),
+        if (old) 1 else 0, minutes.toLong(), if (sensitive) 1 else 0, seconds.toLong(), if (newItem?.text != null) 1 else 0,if(newItem?.isPinned==true) 1 else 0),
 )

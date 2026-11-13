@@ -167,3 +167,139 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_PanelRules_clipboardGr
         })
     }
 }
+
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_PanelRules_clipboardMenu(
+    env: *mut JNIEnv,
+    _: jclass,
+    config: jintArray,
+) -> jintArray {
+    // SAFETY: input/output are local JVM arrays; the probe uses owned synthetic entries only.
+    unsafe {
+        jni::run(env, ptr::null_mut(), |env| {
+            let c = env.read::<i32>(config, "clipboard menu")?;
+            if c.len() != 8 {
+                return Err(illegal("clipboard menu"));
+            }
+            let mut p = render::panels::Panel {
+                scroll: 50.0,
+                clipboard: Some(render::clipboard_panel::ClipboardPanel {
+                    enabled: c[0] != 0,
+                    locked: c[1] != 0,
+                    filter_row: c[2] != 0,
+                    filters: c[3] as u32,
+                    popup: (c[4] >= 0).then_some(c[4] as usize),
+                    clear: c[5] != 0,
+                    entries: (0..4)
+                        .map(|i| render::clipboard_panel::ClipEntry {
+                            id: i,
+                            semantic: i as i32,
+                            timestamp: 0,
+                            kind: (i % 3 + 1) as i32,
+                            pinned: i == 0,
+                            label: String::new(),
+                            description: String::new(),
+                            date: String::new(),
+                            aspect: 1.0,
+                            height: 1.0,
+                            date_height: 1.0,
+                            full_height: 1.0,
+                        })
+                        .collect(),
+                    ..Default::default()
+                }),
+                ..Default::default()
+            };
+            let actions = p.clipboard_activate(c[6], c[7] as usize);
+            let state = p.clipboard.unwrap();
+            let mut out = vec![
+                i32::from(state.filter_row),
+                state.filters as i32,
+                state.popup.map_or(-1, |i| i as i32),
+                i32::from(state.clear),
+                p.scroll as i32,
+            ];
+            out.extend(actions.into_iter().flat_map(|a| [a.0, a.1, a.2]));
+            env.make(&out)
+        })
+    }
+}
+
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_PanelRules_clipboardTargets(
+    env: *mut JNIEnv,
+    _: jclass,
+    config: jfloatArray,
+) -> jfloatArray {
+    // SAFETY: JVM arrays are copied; returned target rectangles contain only synthetic geometry.
+    unsafe {
+        jni::run(env, ptr::null_mut(), |env| {
+            let c = env.read::<f32>(config, "clipboard targets")?;
+            if c.len() != 14 || c.iter().any(|v| !v.is_finite()) || c[0] <= 0.0 {
+                return Err(illegal("clipboard targets"));
+            }
+            let mut p = render::panels::Panel {
+                density: c[0],
+                ..Default::default()
+            };
+            for i in 0..2 {
+                let at = 2 + i * 4;
+                let mut item = render::panels::Item::new(
+                    i as i32,
+                    render::panels::rect(c[at], c[at + 1], c[at + 2], c[at + 3]),
+                    String::new(),
+                    if c[1] == 0.0 {
+                        "clipboard-item"
+                    } else {
+                        "clipboard-header-button"
+                    },
+                    render::panels::Command::Clipboard(5, i),
+                );
+                item.clip = keys::Rect {
+                    left: c[10],
+                    top: c[11],
+                    right: c[12],
+                    bottom: c[13],
+                };
+                p.items.push(item);
+            }
+            let r = p.target_bounds(0);
+            env.make(&[r.left, r.top, r.right, r.bottom])
+        })
+    }
+}
+
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_PanelRules_clipboardDialog(
+    env: *mut JNIEnv,
+    _: jclass,
+    config: jfloatArray,
+) -> jfloatArray {
+    // SAFETY: JVM local geometry arrays are copied; output is a new local array.
+    unsafe {
+        jni::run(env, ptr::null_mut(), |env| {
+            let c = env.read::<f32>(config, "clipboard dialog")?;
+            if c.len() != 18 || c.iter().any(|v| !v.is_finite()) {
+                return Err(illegal("clipboard dialog"));
+            }
+            let m = render::clipboard_dialog::ClearMetrics {
+                root: c[5..9].try_into().unwrap(),
+                row: c[9..13].try_into().unwrap(),
+                messages: [c[13]; 2],
+                buttons: [[c[14], c[15]], [c[16], c[17]]],
+            };
+            let rects = render::clipboard_dialog::geometry(
+                c[0],
+                render::panels::rect(c[1], c[2], c[3], c[4]),
+                &m,
+                false,
+            );
+            env.make(
+                &rects
+                    .into_iter()
+                    .flat_map(|r| [r.left, r.top, r.right, r.bottom])
+                    .collect::<Vec<_>>(),
+            )
+        })
+    }
+}

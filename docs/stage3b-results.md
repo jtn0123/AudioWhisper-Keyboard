@@ -1,5 +1,21 @@
 # Stage 3B renderer results
 
+## Stage 3B package 7: clipboard and GIF/media (2026-11-13)
+
+The prototype now draws clipboard history, its menus/filters/clear dialog, media/GIF result
+states and the GIF search strip on the Rust surface. Clipboard ordering, duplicates,
+expiry, limits, pinning and MIME eligibility also run in Rust, with frozen Kotlin match
+tests and deliberate mutations. Kotlin retains Room, clipboard access, network/decoding
+and rich-content commits. No GIPHY key is configured; live results are unverified.
+
+The exact local gate exits 0 with 697 JVM tests passing and only the three permitted lint
+warning types. Fourteen Day/Night accessibility comparisons have zero bug verdicts;
+clipboard state, search routing and both ordinary regression digests match. Device history
+and settings are restored, the prototype is off, and the dedicated emulator is shut down.
+See [package 7 evidence and limitations](stage3b-package7.md). Package 6's emoji, editing
+and action panels remain native; earlier sections below describe historical stages.
+The renderer remains default-off pending the broader performance/phone acceptance gates.
+
 ## Stage 3B package 5: every text mode and inline autofill (2026-11-13)
 
 **All text modes, mode/field switches, the number row, screenshots, accessibility trees and

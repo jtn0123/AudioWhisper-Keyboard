@@ -3,6 +3,9 @@ package com.jtn0123.audiowhisper.rust
 /** Opaque value ids keep equality and preference serialization at the Android storage edge. */
 object PanelRules {
     init { RustLibrary.load() }
+    @JvmStatic external fun clipboardDialog(config: FloatArray): FloatArray
+    @JvmStatic external fun clipboardTargets(config: FloatArray): FloatArray
+    @JvmStatic external fun clipboardMenu(config: IntArray): IntArray
     @JvmStatic external fun clipboardGrid(config: FloatArray): FloatArray
     @JvmStatic external fun overflowAndHistoryMoves(config: IntArray): IntArray
     @JvmStatic external fun scroll(config: FloatArray): FloatArray

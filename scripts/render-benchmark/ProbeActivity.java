@@ -25,6 +25,14 @@ public final class ProbeActivity extends Activity {
     private TextView result;
     private final BroadcastReceiver commands = new BroadcastReceiver() {
         @Override public void onReceive(Context context, Intent intent) {
+            if ("com.jtn0123.renderprobe.CLIP".equals(intent.getAction())) {
+                String value = intent.getStringExtra("fixture");
+                android.content.ClipboardManager clipboard = getSystemService(android.content.ClipboardManager.class);
+                if (value == null) clipboard.clearPrimaryClip();
+                else if (value.matches("aw-test-[1-4]")) clipboard.setPrimaryClip(android.content.ClipData.newPlainText("aw-fixture", value));
+                else throw new IllegalArgumentException("Only fixed harmless clipboard fixtures are allowed");
+                return;
+            }
             editor.setInputType(inputType(intent));
             editor.setText("");
             editor.requestFocus();
@@ -89,7 +97,9 @@ public final class ProbeActivity extends Activity {
             ((InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE)).showSoftInput(editor, InputMethodManager.SHOW_IMPLICIT);
         });
         setContentView(root);
-        registerReceiver(commands, new IntentFilter("com.jtn0123.renderprobe.RESET"), Context.RECEIVER_EXPORTED);
+        IntentFilter filter = new IntentFilter("com.jtn0123.renderprobe.RESET");
+        filter.addAction("com.jtn0123.renderprobe.CLIP");
+        registerReceiver(commands, filter, Context.RECEIVER_EXPORTED);
         saveDigest(editor.getText());
         editor.requestFocus();
         editor.postDelayed(() -> ((InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE))

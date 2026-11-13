@@ -1,6 +1,8 @@
 package com.jtn0123.audiowhisper.render
 
 import android.graphics.*
+import androidx.core.graphics.createBitmap
+import androidx.core.graphics.scale
 import com.jtn0123.audiowhisper.gif.GifFrames
 import com.jtn0123.audiowhisper.rust.KeyboardRenderer
 import kotlinx.coroutines.currentCoroutineContext
@@ -10,7 +12,9 @@ import kotlinx.coroutines.ensureActive
 internal object RendererGifDecoder {
     suspend fun upload(native: KeyboardRenderer,id: Long,bytes: ByteArray) {
         val gif=GifFrames(bytes)
-        val bitmap=Bitmap.createBitmap(gif.width,gif.height,Bitmap.Config.ARGB_8888)
+        val drawable=ImageDecoder.decodeDrawable(ImageDecoder.createSource(java.nio.ByteBuffer.wrap(bytes)))
+        val repeat=(drawable as? android.graphics.drawable.AnimatedImageDrawable)?.repeatCount ?: 0
+        val bitmap=createBitmap(gif.width,gif.height,Bitmap.Config.ARGB_8888)
         val canvas=Canvas(bitmap)
         val scale=minOf(1f,128f/maxOf(gif.width,gif.height))
         val width=(gif.width*scale).toInt().coerceAtLeast(1)
@@ -24,7 +28,7 @@ internal object RendererGifDecoder {
                 val previous=if(frame.disposal==3) bitmap.copy(Bitmap.Config.ARGB_8888,false) else null
                 val decoded=BitmapFactory.decodeByteArray(frame.bytes,0,frame.bytes.size) ?: throw java.io.IOException("GIF frame decode failed")
                 try {canvas.drawBitmap(decoded,frame.x.toFloat(),frame.y.toFloat(),null)}finally{decoded.recycle()}
-                val sampled=Bitmap.createScaledBitmap(bitmap,width,height,true)
+                val sampled=bitmap.scale(width,height,true)
                 val pixels=IntArray(width*height)
                 try{sampled.getPixels(pixels,0,width,0,0,width,height)}finally{if(sampled!==bitmap)sampled.recycle()}
                 if(!native.mediaUpload(id,index++,width,height,frame.delayMs*1_000_000L,!iterator.hasNext(),pixels)) {previous?.recycle();break}
@@ -35,5 +39,6 @@ internal object RendererGifDecoder {
                 previous?.recycle()
             }
         }finally{bitmap.recycle()}
+        native.mediaRepeat(id,repeat)
     }
 }

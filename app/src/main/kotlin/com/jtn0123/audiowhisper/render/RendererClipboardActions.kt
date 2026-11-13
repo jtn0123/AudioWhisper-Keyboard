@@ -1,6 +1,7 @@
 package com.jtn0123.audiowhisper.render
 
 import android.content.Context
+import org.florisboard.lib.android.showShortToast
 import dev.patrickgold.florisboard.app.FlorisPreferenceStore
 import dev.patrickgold.florisboard.clipboardManager
 import dev.patrickgold.florisboard.keyboardManager
@@ -11,7 +12,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 
 /** Executes native commands through the same Room / InputConnection paths as Compose. */
-internal class RendererClipboardActions(context: Context) {
+internal class RendererClipboardActions(private val context: Context) {
     private val clipboard by context.clipboardManager()
     private val keyboard by context.keyboardManager()
     private val prefs by FlorisPreferenceStore
@@ -19,12 +20,15 @@ internal class RendererClipboardActions(context: Context) {
     fun dispatch(op: Int, index: Int, snapshot: RendererClipboard) {
         when(op) {
             0 -> keyboard.activeState.imeUiMode=ImeUiMode.TEXT
-            1 -> scope.launch { prefs.clipboard.historyEnabled.set(!prefs.clipboard.historyEnabled.get()) }
+            1 -> scope.launch { prefs.clipboard.historyEnabled.set(index!=0) }
+            13 -> scope.launch { context.showShortToast(dev.patrickgold.florisboard.R.string.clipboard__cleared_history) }
             else -> snapshot.entries.getOrNull(index)?.let { item ->
                 when(op) {
                     5,9 -> clipboard.pasteItem(item)
-                    7 -> if(item.isPinned) clipboard.unpinClip(item) else clipboard.pinClip(item)
+                    7 -> clipboard.pinClip(item)
+                    14 -> clipboard.unpinClip(item)
                     8 -> clipboard.deleteClip(item,onlyIfUnpinned=false)
+                    12 -> clipboard.clearExactHistory(listOf(item))
                 }
             }
         }

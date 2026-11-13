@@ -89,7 +89,7 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_semanticS
                 "holdDelayMillis": n.hold_delay(&s.scene, s.touch.long_press_delay / 1_000_000),
             })).collect();
             let value = json!({"nodes": nodes, "mode": s.semantics.labels.mode(&s.mode),
-                "shift": s.semantics.labels.shift(&s.shift), "popup": s.scene.popup.is_some() || s.scene.panel.as_ref().and_then(|p|p.emoji.as_ref()).is_some_and(|e|e.popup.is_some())});
+                "shift": s.semantics.labels.shift(&s.shift), "popup": s.scene.panel.as_ref().and_then(|p|p.clipboard.as_ref()).is_some_and(|c|c.modal()) || s.scene.popup.is_some() || s.scene.panel.as_ref().and_then(|p|p.emoji.as_ref()).is_some_and(|e|e.popup.is_some())});
             env.make_string(&value.to_string().encode_utf16().collect::<Vec<_>>())
         })
     }

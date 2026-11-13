@@ -23,7 +23,7 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_ClipboardNative_plan(
             let data = env.read::<i64>(records, "clipboard records")?;
             let strings = texts(env, strings)?;
             let c = env.read::<i64>(config, "clipboard config")?;
-            if data.len() % 5 != 0 || strings.len() != data.len() / 5 + 1 || c.len() != 9 {
+            if data.len() % 5 != 0 || strings.len() != data.len() / 5 + 1 || c.len() != 10 {
                 return Err(illegal("clipboard payload"));
             }
             let clips: Vec<_> = data
@@ -44,6 +44,7 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_ClipboardNative_plan(
                 &clips,
                 (c[8] != 0).then(|| strings.last().unwrap().as_slice()),
                 c[1] != 0,
+                c[9] != 0,
             );
             let out: Vec<Vec<i32>> = vec![
                 policy::order(&clips),

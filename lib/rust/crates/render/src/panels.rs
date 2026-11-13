@@ -33,6 +33,9 @@ pub struct Item {
     pub id: i32,
     pub media: Option<i64>,
     pub multiline: bool,
+    pub text_offset: f32,
+    pub secondary: String,
+    pub secondary_style: Style,
     pub key_type: String,
     pub bounds: Rect,
     pub clip: Rect,
@@ -54,6 +57,9 @@ impl Item {
             id,
             media: None,
             multiline: false,
+            text_offset: 0.0,
+            secondary: String::new(),
+            secondary_style: Default::default(),
             key_type: String::new(),
             bounds,
             clip: bounds,
@@ -125,13 +131,71 @@ impl Panel {
             }
         }
     }
+    pub fn target_bounds(&self, index: usize) -> Rect {
+        let item = &self.items[index];
+        let mut r = crate::smartbar::inset(item.bounds, item.styles[0].margin);
+        let header = item.element == "clipboard-header-button";
+        let minimum = matches!(
+            item.command,
+            Command::Clipboard(5, _) | Command::Clipboard(7..=9, _)
+        ) || header
+            || item.element == "clipboard-clear-all-dialog-button";
+        if minimum {
+            let width = (48.0 * self.density).max(r.width());
+            let height = (48.0 * self.density).max(r.height());
+            let center = ((r.left + r.right) / 2.0, (r.top + r.bottom) / 2.0);
+            r = rect(
+                center.0 - width / 2.0,
+                center.1 - height / 2.0,
+                width,
+                height,
+            );
+            for next in &self.items[index + 1..] {
+                let same = if header {
+                    next.element == "clipboard-header-button"
+                        && !matches!(next.command, Command::Action(_))
+                } else {
+                    matches!(
+                        (&item.command, &next.command),
+                        (Command::Clipboard(5, _), Command::Clipboard(5, _))
+                            | (Command::Clipboard(7..=9, _), Command::Clipboard(7..=9, _))
+                    )
+                };
+                if !same {
+                    continue;
+                }
+                let b = crate::smartbar::inset(next.bounds, next.styles[0].margin);
+                if header {
+                    let left =
+                        (b.left + b.right) / 2.0 - (48.0 * self.density).max(b.width()) / 2.0;
+                    if left > r.left {
+                        r.right = r.right.min(left);
+                    }
+                } else {
+                    let top =
+                        (b.top + b.bottom) / 2.0 - (48.0 * self.density).max(b.height()) / 2.0;
+                    if b.left < r.right && b.right > r.left && top > r.top {
+                        r.bottom = r.bottom.min(top);
+                    }
+                }
+            }
+        }
+        crate::panel_layout::intersection(r, item.clip)
+    }
     pub fn hit(&self, x: f32, y: f32) -> Option<&Item> {
-        self.items.iter().rev().find(|i| {
-            i.enabled
-                && !matches!(i.command, Command::None | Command::Scroll)
-                && inside(crate::smartbar::inset(i.bounds, i.styles[0].margin), x, y)
-                && inside(i.clip, x, y)
-        })
+        self.items
+            .iter()
+            .enumerate()
+            .rev()
+            .find(|(index, i)| {
+                i.enabled
+                    && !matches!(
+                        i.command,
+                        Command::None | Command::Scroll | Command::Gif(11, _)
+                    )
+                    && inside(self.target_bounds(*index), x, y)
+            })
+            .map(|(_, i)| i)
     }
     pub fn drag_at(&self, x: f32, y: f32) -> Option<Command> {
         let mut closest = None;

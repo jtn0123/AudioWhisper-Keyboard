@@ -88,7 +88,8 @@ android {
         versionCode = projectVersionCode.toInt()
         versionName = projectVersionName.substringBefore("-")
 
-        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        testInstrumentationRunner = if (providers.gradleProperty("rendererFixture").orNull == "true")
+            "com.jtn0123.audiowhisper.render.FixtureInstrumentation" else "androidx.test.runner.AndroidJUnitRunner"
 
         buildConfigField("String", "BUILD_COMMIT_HASH", "\"${getGitCommitHash().get()}\"")
         buildConfigField("String", "FLADDONS_API_VERSION", "\"v~draft2\"")
@@ -221,6 +222,19 @@ tasks.withType<Test> {
     jvmArgs("--enable-native-access=ALL-UNNAMED")
 }
 
+// AndroidX Test needs two runtime annotations. The full Error Prone compiler-annotation
+// jar references javax.lang.model, which Android cannot supply to R8. Package only the
+// runtime annotation classes actually used by the test runner; no missing-class suppression.
+val fixtureAnnotationSource by configurations.creating
+val fixtureAnnotations = tasks.register<Jar>("fixtureAnnotations") {
+    from({ zipTree(fixtureAnnotationSource.singleFile) }) {
+        include("com/google/errorprone/annotations/CanIgnoreReturnValue.class")
+        include("com/google/errorprone/annotations/MustBeClosed.class")
+    }
+    archiveFileName.set("fixture-runtime-annotations.jar")
+    destinationDirectory.set(layout.buildDirectory.dir("fixture-annotations"))
+}
+
 dependencies {
     // Enforced so the BOM's stable Compose versions win over transitive pre-releases: material-kolor 5
     // asks for material3 1.5.0-alpha22, and every material3 API it calls already exists in the BOM's 1.4.0.
@@ -272,8 +286,10 @@ dependencies {
     implementation(projects.lib.snygg)
 
     testImplementation(libs.kotlin.test.junit5)
+    fixtureAnnotationSource(libs.errorprone.annotations)
+    androidTestImplementation(files(fixtureAnnotations))
     androidTestImplementation(libs.androidx.test.ext)
-    androidTestImplementation(libs.androidx.test.espresso.core)
+    androidTestImplementation(libs.androidx.test.runner)
 }
 
 fun getGitCommitHash(short: Boolean = false): Provider<String> {

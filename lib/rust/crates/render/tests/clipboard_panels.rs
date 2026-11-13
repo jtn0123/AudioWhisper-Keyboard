@@ -12,6 +12,7 @@ fn panel() -> Panel {
         density: 1.0,
         clipboard: Some(ClipboardPanel {
             enabled: true,
+            action_height: 48.0,
             now: 1000,
             group_height: 24.0,
             message_heights: vec![24.0; 21],
@@ -28,6 +29,8 @@ fn panel() -> Panel {
                     date: String::new(),
                     aspect: 1.0,
                     height: 48.0,
+                    date_height: 24.0,
+                    full_height: 48.0,
                 })
                 .collect(),
             ..Default::default()
@@ -48,10 +51,18 @@ fn pin_delete_paste_and_filtered_clear_keep_original_indices() {
     p.clipboard_activate(2, 0);
     let actions = p.clipboard_activate(11, 0);
     assert_eq!(
-        actions.iter().map(|a| a.2).collect::<Vec<_>>(),
+        actions
+            .iter()
+            .filter(|a| a.1 == 12)
+            .map(|a| a.2)
+            .collect::<Vec<_>>(),
         vec![1, 2, 3]
     );
-    assert!(actions.iter().all(|a| a.0 == PANEL_CLIPBOARD && a.1 == 8));
+    assert!(
+        actions
+            .iter()
+            .all(|a| a.0 == PANEL_CLIPBOARD && [12, 13].contains(&a.1))
+    );
 }
 #[test]
 fn filter_toggle_resets_scroll_and_popup_blocks_header() {
@@ -123,4 +134,101 @@ fn disabled_and_locked_never_expose_history() {
                 .all(|i| !matches!(i.command, Command::Clipboard(5, _)))
         );
     }
+}
+
+#[test]
+fn popup_content_scrolls_without_moving_the_history_grid() {
+    use render::touch::{Motion, Touch};
+    let mut p = panel();
+    p.clipboard.as_mut().unwrap().entries[1].full_height = 1000.0;
+    p.clipboard_activate(6, 1);
+    p.layout(360.0, 300.0, 48.0);
+    let mut scene = Scene {
+        width: 360,
+        height: 300,
+        panel: Some(p),
+        ..Default::default()
+    };
+    let mut touch = Touch::default();
+    for (action, y, time) in [(0, 100.0, 1), (2, 60.0, 20_000_000), (1, 60.0, 30_000_000)] {
+        touch.event(
+            &mut scene,
+            &Motion {
+                action,
+                index: 0,
+                ids: vec![0],
+                times: vec![0, time],
+                coords: vec![70.0, y],
+            },
+        );
+    }
+    let p = scene.panel.as_ref().unwrap();
+    assert_eq!(p.scroll, 0.0);
+    assert_eq!(p.clipboard.as_ref().unwrap().popup_scroll, 40.0);
+    assert_eq!(touch.next_deadline(), None);
+}
+#[test]
+fn room_identity_is_stable_when_pinning_reorders_the_snapshot() {
+    let source = panel().clipboard.unwrap();
+    let mut c = ClipboardPanel::default();
+    c.update(source.clone());
+    for e in &mut c.entries {
+        e.aspect = 2.0;
+    }
+    let ids: Vec<_> = c.entries.iter().map(|e| (e.id, e.semantic)).collect();
+    let mut next = source;
+    next.entries.reverse();
+    next.entries[0].pinned = true;
+    c.update(next);
+    assert!(c.entries.iter().all(|e| e.aspect == 2.0));
+    for (id, semantic) in ids {
+        assert_eq!(
+            c.entries.iter().find(|e| e.id == id).unwrap().semantic,
+            semantic
+        );
+    }
+}
+
+#[test]
+fn header_touch_expansion_respects_history_but_not_pointer_only_delete() {
+    let mut p = panel();
+    p.row = 40.0;
+    p.layout(360.0, 300.0, 40.0);
+    let index = p
+        .items
+        .iter()
+        .position(|i| i.command == Command::Clipboard(3, 0))
+        .unwrap();
+    let bounds = p.target_bounds(index);
+    assert_eq!(bounds.bottom, 40.0);
+    assert_eq!(bounds.right, 324.0);
+}
+
+#[test]
+fn clear_is_disabled_when_a_filter_has_no_matching_items() {
+    let mut p = panel();
+    p.clipboard.as_mut().unwrap().filters = 1 << 2;
+    p.layout(360.0, 300.0, 48.0);
+    assert!(
+        !p.items
+            .iter()
+            .find(|i| i.command == Command::Clipboard(2, 0))
+            .unwrap()
+            .enabled
+    );
+    p.clipboard_activate(2, 0);
+    assert!(!p.clipboard.as_ref().unwrap().clear);
+}
+
+#[test]
+fn clear_dialog_preserves_compose_history_enabled_semantics() {
+    let mut p = panel();
+    p.clipboard.as_mut().unwrap().clear = true;
+    p.layout(360.0, 300.0, 48.0);
+    assert!(
+        p.items
+            .iter()
+            .filter(|i| matches!(i.command, Command::Clipboard(5, _)))
+            .all(|i| i.enabled)
+    );
 }

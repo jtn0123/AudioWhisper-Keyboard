@@ -119,9 +119,12 @@ impl Backend {
     pub fn image(&mut self, frame: &crate::media_cache::Frame, bounds: keys::Rect) {
         let w = frame.cpu.width() as f64;
         let h = frame.cpu.height() as f64;
+        let scale = (bounds.width() as f64 / w).max(bounds.height() as f64 / h);
         self.set_transform(
-            Affine::translate((bounds.left as f64, bounds.top as f64))
-                * Affine::scale_non_uniform(bounds.width() as f64 / w, bounds.height() as f64 / h),
+            Affine::translate((
+                bounds.left as f64 + (bounds.width() as f64 - w * scale) / 2.0,
+                bounds.top as f64 + (bounds.height() as f64 - h * scale) / 2.0,
+            )) * Affine::scale(scale),
         );
         match self {
             Self::Cpu(c) => c.context.set_paint(vello_cpu::Image {

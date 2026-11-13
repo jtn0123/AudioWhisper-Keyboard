@@ -39,6 +39,9 @@ impl Panel {
                 vec![Action(PANEL_HISTORY, index as i32, op)]
             }
             Command::Dismiss => {
+                if self.clipboard.as_ref().is_some_and(|c| c.modal()) {
+                    return self.clipboard_activate(10, 0);
+                }
                 if let Some(e) = &mut self.emoji {
                     e.popup = None;
                 }

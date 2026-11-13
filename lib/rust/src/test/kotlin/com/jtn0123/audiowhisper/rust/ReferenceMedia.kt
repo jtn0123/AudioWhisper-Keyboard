@@ -3,7 +3,7 @@ package com.jtn0123.audiowhisper.rust
 /** Test-only specification for decoded-frame admission and visibility clocks. No Android types. */
 internal fun referenceMedia(bounds: IntArray, ops: LongArray): LongArray {
     data class Frame(val bytes: Int,val delay: Long)
-    data class Animation(val frames: MutableList<Frame> = mutableListOf(),var frame: Int=0,var deadline: Long?=null,var touched: Long=0)
+    data class Animation(val frames: MutableList<Frame> = mutableListOf(),var frame: Int=0,var deadline: Long?=null,var touched: Long=0,var repeats: Int=-1,var plays: Int=0,var finished: Boolean=false)
     val entries=sortedMapOf<Long,Animation>()
     var visible=emptySet<Long>()
     var clock=0L
@@ -37,14 +37,18 @@ internal fun referenceMedia(bounds: IntArray, ops: LongArray): LongArray {
                 for((key,e)in entries) {
                     if(key in visible) {
                         clock++;e.touched=clock
-                        if(e.frames.size>1 && e.deadline==null) e.deadline=o[7]+e.frames[e.frame].delay
+                        if(e.frames.size>1 && e.deadline==null && !e.finished) e.deadline=o[7]+e.frames[e.frame].delay
                     }else e.deadline=null
                 }
             }
             2 -> for(e in entries.values) if(e.deadline?.let { o[7]>=it }==true) {
-                e.frame=(e.frame+1)%e.frames.size;e.deadline=o[7]+e.frames[e.frame].delay;accepted=true
+                val next=(e.frame+1)%e.frames.size
+                if(next==0)e.plays++
+                if(next==0 && e.repeats>=0 && e.plays>e.repeats){e.finished=true;e.deadline=null}
+                else{e.frame=next;e.deadline=o[7]+e.frames[e.frame].delay;accepted=true}
             }
             3 -> {entries.clear();visible=emptySet();clock=0;budget=24*1024*1024;perItem=4*1024*1024}
+            4 -> entries[id]?.let { it.repeats=o[2].toInt().coerceAtLeast(-1) }
         }
         output.addAll(listOf(entries[id]?.frame?.toLong() ?: -1,entries.values.mapNotNull { it.deadline }.minOrNull() ?: -1,
             bytes().toLong(),entries.size.toLong(),if(accepted)1 else 0))

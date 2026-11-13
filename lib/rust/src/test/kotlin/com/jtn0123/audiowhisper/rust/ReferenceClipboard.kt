@@ -25,7 +25,7 @@ internal fun referenceClipboard(records: LongArray, texts: Array<String>, c: Lon
     val duplicate = if (c[1] != 0L) indices.firstOrNull { at(it,1) == 1L && text(it) == newText } else null
     return arrayOf(indices.sortedByDescending { at(it,0) }.toIntArray(), pinned.toIntArray(), recent.toIntArray(),
         other.toIntArray(), limited.toIntArray(), expired.toIntArray(),
-        intArrayOf(duplicate ?: -1, duplicate?.let { at(it,2).toInt() } ?: 0), unpinned.toIntArray())
+        intArrayOf(duplicate ?: -1, duplicate?.let { if(at(it,2)!=0L || c[9]!=0L)1 else 0 } ?: 0), unpinned.toIntArray())
 }
 
 internal fun referenceMime(concrete: String, desired: String): Boolean {

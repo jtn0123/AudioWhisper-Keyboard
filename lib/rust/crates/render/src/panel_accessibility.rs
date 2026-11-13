@@ -6,7 +6,7 @@ use crate::{
     touch::Action,
 };
 pub fn nodes(panel: &Panel) -> Vec<Node> {
-    panel
+    let mut nodes: Vec<Node> = panel
         .items
         .iter()
         .enumerate()
@@ -14,7 +14,7 @@ pub fn nodes(panel: &Panel) -> Vec<Node> {
             if i.label.is_empty() {
                 return None;
             }
-            let mut content = crate::smartbar::inset(i.bounds, i.styles[0].margin);
+            let mut content = panel.target_bounds(index);
             if matches!(i.command, Command::None) {
                 content = crate::smartbar::inset(content, i.styles[0].padding);
             }
@@ -38,7 +38,7 @@ pub fn nodes(panel: &Panel) -> Vec<Node> {
                 n.role = "text";
                 n.actions.clear();
             }
-            if matches!(i.command, Command::Scroll) {
+            if matches!(i.command, Command::Scroll | Command::Gif(11, _)) {
                 n.role = "scroll";
                 n.actions = vec![ACCESS_SCROLL_FORWARD, ACCESS_SCROLL_BACKWARD];
             }
@@ -56,17 +56,66 @@ pub fn nodes(panel: &Panel) -> Vec<Node> {
             if matches!(i.command, Command::Clipboard(5, _)) {
                 n.actions.push(ACCESS_LONG_CLICK);
             }
+            if matches!(
+                i.command,
+                Command::Clipboard(7..=9, _) | Command::Clipboard(10..=11, _)
+            ) {
+                n.actions.push(ACCESS_DISMISS);
+                n.role = "popup item";
+            }
             if !n.enabled {
                 n.actions.clear();
             }
             Some(n)
         })
-        .collect()
+        .collect();
+    for i in &panel.items {
+        if i.secondary.is_empty() {
+            continue;
+        }
+        let r = crate::smartbar::inset(
+            crate::smartbar::inset(i.bounds, i.styles[0].margin),
+            i.styles[0].padding,
+        );
+        let bounds = crate::panel_layout::intersection(
+            keys::Rect {
+                top: r.top - i.text_offset,
+                bottom: r.top - i.text_offset + i.secondary_style.size * 1.2,
+                ..r
+            },
+            i.clip,
+        );
+        if bounds.is_empty() {
+            continue;
+        }
+        let mut node = Node::new(
+            2_500_000 + i.id,
+            bounds,
+            i.secondary.clone(),
+            "text",
+            Target::Panel(0),
+        );
+        node.enabled = i.enabled;
+        node.actions.clear();
+        nodes.push(node);
+    }
+    nodes
 }
 pub fn activate(panel: &mut Panel, index: usize, action: i32) -> Vec<Action> {
     let Some(i) = panel.items.get(index) else {
         return vec![];
     };
+    if matches!(i.command, Command::Gif(11, _)) {
+        if let Some(g) = &mut panel.gif {
+            g.chip_scroll = crate::gif_panel::scroll_chips(
+                g.chip_scroll,
+                i.bounds.width(),
+                g.chip_widths.iter().sum(),
+                action == ACCESS_SCROLL_FORWARD,
+            );
+        }
+        return vec![Action(PANEL_CHANGED, 0, 0)];
+    }
     if matches!(i.command, Command::Scroll) {
         panel.scroll = (panel.scroll
             + if action == ACCESS_SCROLL_FORWARD {

@@ -45,4 +45,24 @@ fn malformed_upload_and_frame_cap_are_rejected() {
     assert!(!c.upload(1, 64, frame(1), true));
 }
 
-#[test]fn argb_is_premultiplied_once_for_both_backends(){let frame=Frame::argb(1,1,&[0x80ff0000u32 as i32],1).unwrap();assert_eq!(frame.cpu.data_as_u8_slice(),&[128,0,0,128]);}
+#[test]
+fn argb_is_premultiplied_once_for_both_backends() {
+    let frame = Frame::argb(1, 1, &[0x80ff0000u32 as i32], 1).unwrap();
+    assert_eq!(frame.cpu.data_as_u8_slice(), &[128, 0, 0, 128]);
+}
+
+#[test]
+fn finite_encoded_repeat_count_finishes_on_last_frame_and_stays_idle() {
+    let mut c = MediaCache::default();
+    c.upload(1, 0, frame(100), false);
+    c.upload(1, 1, frame(100), true);
+    c.repeat(1, 0);
+    c.visibility([1].into(), 0);
+    assert!(c.tick(10_000_000));
+    assert!(!c.tick(20_000_000));
+    assert_eq!(c.entries[&1].frame, 1);
+    assert_eq!(c.deadline(), None);
+    c.visibility(Default::default(), 30_000_000);
+    c.visibility([1].into(), 40_000_000);
+    assert_eq!(c.deadline(), None);
+}

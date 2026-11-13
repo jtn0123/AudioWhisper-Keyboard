@@ -20,6 +20,11 @@ impl Panel {
             && let Some(g) = &mut self.gif
         {
             let style = theme.style(&request.element("clipboard-filter-chip", 0));
+            let body = theme.style(&request.element("media", 0));
+            let size = 16.0 * self.density * theme.font_scale();
+            let mut message = text.layout_weight(&g.label(2), size, body.mono, body.weight);
+            message.break_all_lines(Some((width - 56.0 * self.density).max(1.0)));
+            g.message_height = message.height().max(size);
             g.chip_widths = g
                 .chips
                 .iter()
@@ -366,9 +371,6 @@ impl Panel {
                     style.background = 0;
                 }
             }
-            if i.element == "clipboard-header-button" {
-                i.icon_style.size = 24.0 * self.density;
-            }
             if i.element == "media-bottom-row-button" {
                 i.icon_style = i.styles[0].clone();
                 i.icon_style.size = 24.0 * self.density;
@@ -397,6 +399,10 @@ impl Panel {
             if matches!(i.command, Command::None) {
                 i.text = i.styles[0].clone();
             }
+            if i.id == -42 {
+                i.text.italic = true;
+            }
+            i.secondary_style = theme.style(&r.element("clipboard-item-description", 0));
         }
         if self.kind == 5 {
             for i in &mut self.items {
@@ -409,8 +415,11 @@ impl Panel {
                 }
                 if i.element == "gif-attribution" {
                     for style in &mut i.styles {
-                        style.size = 11.0 * self.density;
+                        style.size = 11.0 * self.density * theme.font_scale();
                     }
+                }
+                if ["gif-search-field", "gif-message"].contains(&i.element.as_str()) {
+                    i.text.size = 14.0 * self.density * theme.font_scale();
                 }
                 if i.element == "gif-close" {
                     i.glyph = "×".into();
@@ -424,7 +433,9 @@ impl Panel {
             for i in &mut self.items {
                 if i.element == "clipboard-scrim" {
                     for s in &mut i.styles {
-                        s.background = 0xe0000000;
+                        s.background = (theme.style(&request.element("window", 0)).background
+                            & 0x00ffffff)
+                            | 0xe0000000;
                     }
                 }
             }

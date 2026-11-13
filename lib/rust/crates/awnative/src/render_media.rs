@@ -43,7 +43,9 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_mediaUplo
             let Some(p) = &mut s.scene.panel else {
                 return Ok(0);
             };
-            if !p.media.visible.contains(&id) {
+            // An admitted decode can finish after scrolling away; only visible entries tick.
+            if !p.media.visible.contains(&id) && (index == 0 || !p.media.entries.contains_key(&id))
+            {
                 return Ok(0);
             }
             let Some(frame) =
@@ -62,5 +64,24 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_mediaUplo
             s.prepare_panel();
             Ok(u8::from(accepted))
         })
+    }
+}
+
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_mediaRepeat(
+    env: *mut JNIEnv,
+    _: jclass,
+    native: jlong,
+    id: jlong,
+    count: jint,
+) {
+    // SAFETY: synchronized wrapper retains the session; repeat metadata contains no borrowed memory.
+    unsafe {
+        handle::with_locked::<Session, _>(env, native, "renderer", (), |s, _| {
+            if let Some(p) = &mut s.scene.panel {
+                p.media.repeat(id, count);
+            }
+            Ok(())
+        });
     }
 }

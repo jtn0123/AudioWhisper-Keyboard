@@ -35,7 +35,11 @@ impl Raster {
                     r.top = top;
                     r.bottom = top + item.icon_style.size;
                 }
-                if item.id == -14 || item.id == -15 {
+                if item.id == -14
+                    || item.id == -15
+                    || item.element == "clipboard-scrim"
+                    || matches!(item.command, crate::panels::Command::Gif(11, _))
+                {
                     self.context.pop_clip();
                     continue;
                 }
@@ -58,7 +62,7 @@ impl Raster {
                         },
                         &item.text,
                         r,
-                        false,
+                        ["clipboard-content", "gif-message"].contains(&item.element.as_str()),
                     )?;
                     self.context.pop_clip();
                     continue;
@@ -104,8 +108,66 @@ impl Raster {
                     self.context.pop_clip();
                     continue;
                 }
-                if item.multiline {
+                if item.element == "clipboard-item-action" {
+                    let icon = item.icon_style.size;
+                    self.icon(
+                        &item.icon,
+                        &item.icon_style,
+                        crate::panels::rect(r.left, r.top + (r.height() - icon) / 2.0, icon, icon),
+                    )?;
+                    r.left += icon + 4.0 * panel.density;
+                    r.top += (r.height()
+                        - self.text.height(
+                            &item.label,
+                            item.text.size,
+                            item.text.mono,
+                            item.text.weight,
+                        ))
+                        / 2.0;
+                }
+                if item.element == "clipboard-header-text" {
+                    r.top += (r.height()
+                        - self.text.height(
+                            &item.label,
+                            item.text.size,
+                            item.text.mono,
+                            item.text.weight,
+                        ))
+                        / 2.0;
                     self.panel_text(&item.label, &item.text, r, false)?;
+                    self.context.pop_clip();
+                    continue;
+                }
+                if item.multiline {
+                    r.top -= item.text_offset;
+                    if !item.secondary.is_empty() {
+                        let h = self.text.height(
+                            &item.secondary,
+                            item.secondary_style.size,
+                            item.secondary_style.mono,
+                            item.secondary_style.weight,
+                        );
+                        self.panel_text(
+                            &item.secondary,
+                            &item.secondary_style,
+                            keys::Rect {
+                                bottom: r.top + h,
+                                ..r
+                            },
+                            false,
+                        )?;
+                        r.top += h;
+                    }
+                    self.panel_text(
+                        if item.glyph.is_empty() {
+                            &item.label
+                        } else {
+                            &item.glyph
+                        },
+                        &item.text,
+                        r,
+                        ["clipboard-content", "gif-message"].contains(&item.element.as_str()),
+                    )?;
                     self.context.pop_clip();
                     continue;
                 }

@@ -222,7 +222,7 @@ class ClipboardManager(
         val plan = clipboardPlan(cohort, newItem = newItem)[6]
         val previous = cohort.getOrNull(plan[0])
         if (previous == null) insertClip(newItem)
-        else moveToTheBeginning(previous, newItem.copy(isPinned = plan[1] != 0 || newItem.isPinned))
+        else moveToTheBeginning(previous, newItem.copy(isPinned = plan[1] != 0))
     }
 
     private fun enforceHistoryLimit(clipHistory: ClipboardHistory) {

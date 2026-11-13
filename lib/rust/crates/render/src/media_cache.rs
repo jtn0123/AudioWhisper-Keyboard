@@ -43,7 +43,7 @@ impl Frame {
                 rgba,
                 w,
                 h,
-                vello_cpu::PixelMetadata::new(vello_cpu::peniko::ImageAlphaType::Alpha,true),
+                vello_cpu::PixelMetadata::new(vello_cpu::peniko::ImageAlphaType::Alpha, true),
             )),
             hybrid,
             delay: delay.max(10_000_000),
@@ -60,6 +60,9 @@ pub struct Animation {
     pub deadline: Option<i64>,
     pub touched: u64,
     pub complete: bool,
+    pub repeat_count: i32,
+    pub completed_plays: u32,
+    pub finished: bool,
 }
 #[derive(Clone, Debug, PartialEq)]
 pub struct MediaCache {
@@ -118,12 +121,20 @@ impl MediaCache {
             deadline: None,
             touched: self.clock,
             complete: false,
+            repeat_count: -1,
+            completed_plays: 0,
+            finished: false,
         });
         e.frames.push(frame);
         e.complete = last;
         e.touched = self.clock;
         self.bytes += size;
         true
+    }
+    pub fn repeat(&mut self, id: i64, count: i32) {
+        if let Some(e) = self.entries.get_mut(&id) {
+            e.repeat_count = count.max(-1);
+        }
     }
     pub fn remove(&mut self, id: i64) {
         if let Some(e) = self.entries.remove(&id) {
@@ -136,7 +147,7 @@ impl MediaCache {
             if self.visible.contains(&id) {
                 self.clock += 1;
                 e.touched = self.clock;
-                if e.frames.len() > 1 && e.deadline.is_none() {
+                if e.frames.len() > 1 && e.deadline.is_none() && !e.finished {
                     e.deadline = Some(now + e.frames[e.frame].delay);
                 }
             } else {
@@ -148,7 +159,16 @@ impl MediaCache {
         let mut changed = false;
         for e in self.entries.values_mut() {
             if e.deadline.is_some_and(|d| now >= d) {
-                e.frame = (e.frame + 1) % e.frames.len();
+                let next = (e.frame + 1) % e.frames.len();
+                if next == 0 {
+                    e.completed_plays += 1;
+                    if e.repeat_count >= 0 && e.completed_plays > e.repeat_count as u32 {
+                        e.finished = true;
+                        e.deadline = None;
+                        continue;
+                    }
+                }
+                e.frame = next;
                 e.deadline = Some(now + e.frames[e.frame].delay);
                 changed = true;
             }

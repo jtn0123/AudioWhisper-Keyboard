@@ -75,17 +75,17 @@ class Device:
         return {parts[1]: parts[2] for row in self.adb("exec-out", "run-as", PKG, "cat", PREFS).splitlines()
                 if len(parts := row.split(";", 2)) == 3}
 
-    def toggle_preference(self, route, label, key, enabled):
+    def toggle_preference(self, route, label, key, enabled, default=True):
         self.services(SERVICE)
         self.shell("am", "start", "-W", "-a", "android.intent.action.VIEW", "-c", "android.intent.category.BROWSABLE",
                    "-d", "ui://florisboard/settings/" + route, "-p", PKG)
-        if (self.prefs().get(key, "true") == "true") == enabled:
+        if (self.prefs().get(key, str(default).lower()) == "true") == enabled:
             return
         def toggle():
             request = self.request(setting=label)
             return self.wait(lambda: self.response(request), "Preference response absent").get("ok")
         self.wait(toggle, "Preference not found: " + label)
-        self.wait(lambda: (self.prefs().get(key, "true") == "true") == enabled, "Preference did not persist")
+        self.wait(lambda: (self.prefs().get(key, str(default).lower()) == "true") == enabled, "Preference did not persist")
 
     def capture_preferences(self):
         # TYPE_TEXT_FLAG_NO_SUGGESTIONS only applies to text fields. Numeric/phone

@@ -55,3 +55,5 @@ pub mod media_cache;
 pub mod gif_panel;
 
 pub mod gif_search;
+
+pub mod clipboard_dialog;

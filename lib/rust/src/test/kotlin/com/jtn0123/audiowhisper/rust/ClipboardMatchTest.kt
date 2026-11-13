@@ -20,7 +20,7 @@ class ClipboardMatchTest {
             val texts = Array(count + 1) { listOf("", "a", "aw-test-1", "\uD800", "\uDFFF", "📋").random(random) }
             val config = longArrayOf(now, (step and 1).toLong(), (step shr 1 and 1).toLong(), durations.random(random).toLong(),
                 (step shr 2 and 1).toLong(), durations.random(random).toLong(), (step shr 3 and 1).toLong(),
-                durations.random(random).toLong(), (step shr 4 and 1).toLong())
+                durations.random(random).toLong(), (step shr 4 and 1).toLong(),(step shr 5 and 1).toLong())
             val expected = referenceClipboard(records, texts, config)
             val actual = ClipboardRules.plan(records, texts, config)
             for (i in expected.indices) assertContentEquals(expected[i], actual[i], "step=$step plan=$i")

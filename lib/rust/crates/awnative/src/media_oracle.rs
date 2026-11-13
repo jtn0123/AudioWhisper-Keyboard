@@ -50,6 +50,7 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_MediaRules_trace(
                         accepted = cache.tick(o[7]);
                     }
                     3 => cache = MediaCache::default(),
+                    4 => cache.repeat(o[1], o[2] as i32),
                     _ => return Err(illegal("trace operation")),
                 }
                 out.extend([
@@ -84,6 +85,29 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_MediaRules_grid(
                     .flat_map(|r| [r.left, r.top, r.right, r.bottom])
                     .collect::<Vec<_>>(),
             )
+        })
+    }
+}
+
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_MediaRules_scrollChips(
+    env: *mut JNIEnv,
+    _: jclass,
+    config: jfloatArray,
+) -> jfloatArray {
+    // SAFETY: local JVM arrays are copied; only a pure coordinate result crosses back.
+    unsafe {
+        jni::run(env, ptr::null_mut(), |env| {
+            let c = env.read::<f32>(config, "chip scroll")?;
+            if c.len() != 4 || c.iter().any(|v| !v.is_finite()) {
+                return Err(illegal("chip scroll"));
+            }
+            env.make(&[render::gif_panel::scroll_chips(
+                c[0],
+                c[1],
+                c[2],
+                c[3] != 0.0,
+            )])
         })
     }
 }

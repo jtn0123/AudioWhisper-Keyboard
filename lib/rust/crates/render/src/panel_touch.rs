@@ -174,7 +174,14 @@ impl PanelTouch {
                             out.push(Action(PANEL_CANCEL, id, pointer));
                         }
                     }
-                    if self.scrolling
+                    if self.scrolling && panel.clipboard.as_ref().is_some_and(|c| c.modal()) {
+                        if let Some(c) = &mut panel.clipboard
+                            && self.origin[0] < panel.items[0].bounds.width() / 2.0
+                        {
+                            c.popup_scroll = (c.popup_scroll + self.last[1] - pos[1])
+                                .clamp(0.0, c.popup_max_scroll);
+                        }
+                    } else if self.scrolling
                         && panel.kind == 5
                         && self.origin[1] >= panel.row
                         && self.origin[1] < panel.row + 36.0 * panel.density
@@ -241,6 +248,7 @@ impl PanelTouch {
                 }
                 let now = *event.times.last().unwrap_or(&0);
                 if self.scrolling
+                    && !panel.clipboard.as_ref().is_some_and(|c| c.modal())
                     && (pos[1] - self.origin[1]).abs() >= (pos[0] - self.origin[0]).abs()
                 {
                     let velocity = -self.velocity.get(pointer).1;

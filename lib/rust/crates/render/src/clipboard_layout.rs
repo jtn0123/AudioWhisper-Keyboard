@@ -46,6 +46,16 @@ impl Panel {
                 text.height(&e.description, 12.0 * self.density, false, 400)
             };
             e.height = body + desc + s.margin[1] + s.margin[3] + s.padding[1] + s.padding[3];
+            e.full_height = e.height
+                + if e.kind == 1 {
+                    (l.height() - body).max(0.0)
+                } else {
+                    0.0
+                };
+            let date = theme.style(&r.element("clipboard-item-timestamp", 0));
+            let mut l = text.layout_weight(&e.date, date.size, date.mono, date.weight);
+            l.break_all_lines(Some(width / 2.0 - date.padding[0] - date.padding[2]));
+            e.date_height = l.height() + date.padding[1] + date.padding[3];
         }
         let s = theme.style(&r.element("clipboard-subheader", 0));
         c.group_height = text.height("RECENT", s.size, s.mono, s.weight)
@@ -53,6 +63,11 @@ impl Panel {
             + s.margin[3]
             + s.padding[1]
             + s.padding[3];
+        let action = theme.style(&r.element("clipboard-item-action", 0));
+        c.action_height = text.height(&c.label(13), action.size, action.mono, action.weight)
+            + action.padding[1]
+            + action.padding[3];
+        c.action_margin = theme.style(&r.element("clipboard-item-actions", 0)).margin;
         c.filter_height = 36.0 * self.density;
         let button = theme.style(&r.element("clipboard-history-disabled-button", 0));
         c.enable_size = [
@@ -63,10 +78,12 @@ impl Panel {
         c.message_heights = (0..c.labels.len())
             .map(|i| {
                 let s = theme.style(&r.element(
-                    if i == 5 {
-                        "clipboard-history-disabled-title"
-                    } else {
-                        "clipboard-history-disabled-message"
+                    match i {
+                        5 => "clipboard-history-disabled-title",
+                        6 => "clipboard-history-disabled-message",
+                        8 => "clipboard-history-locked-title",
+                        9 => "clipboard-history-locked-message",
+                        _ => "window",
                     },
                     0,
                 ));
@@ -75,6 +92,7 @@ impl Panel {
                 l.height() + s.padding[1] + s.padding[3]
             })
             .collect();
+        self.measure_clear(theme, text, r, width);
     }
     pub fn clipboard_layout(&mut self, width: f32, height: f32) {
         let Some(c) = &self.clipboard else {
@@ -147,9 +165,19 @@ impl Panel {
             );
             i.icon = c.icons.get(icon).cloned().unwrap_or_default();
             i.glyph = if slot == 0 { "‹" } else { "" }.into();
+            let available = if slot == 2 {
+                c.entries.iter().any(|e| c.visible(e))
+            } else {
+                !c.entries.is_empty()
+            };
             i.enabled = slot == 0
                 || slot == 4
-                || (!c.locked && !modal && (slot == 1 || (c.enabled && !c.entries.is_empty())));
+                || (!c.locked && !modal && (slot == 1 || (c.enabled && available)));
+            i.clip = if slot > 0 && c.enabled && !c.locked && !c.entries.is_empty() {
+                rect(0.0, 0.0, width, header)
+            } else {
+                full
+            };
             if slot == 4 {
                 i.code = keys::codes::DELETE;
             }
@@ -269,6 +297,7 @@ impl Panel {
                 );
                 i.clip = grid;
                 i.multiline = true;
+                i.secondary = e.description.clone();
                 i.media = (e.kind != 1).then_some(e.id);
                 i.key_type = match e.kind {
                     2 => "image",
@@ -276,7 +305,7 @@ impl Panel {
                     _ => "text",
                 }
                 .into();
-                i.enabled = !modal;
+                i.enabled = c.popup.is_none();
                 self.items.push(i);
                 lanes[l] += e.height;
             }
@@ -294,15 +323,14 @@ impl Panel {
             ));
         }
         if modal {
-            self.clipboard_modal(width, height, grid);
+            self.clipboard_modal(grid);
         }
         for i in &mut self.items {
             i.clip = intersection(i.clip, full);
         }
     }
-    fn clipboard_modal(&mut self, width: f32, height: f32, grid: keys::Rect) {
-        let c = self.clipboard.as_ref().unwrap();
-        let d = self.density;
+    fn clipboard_modal(&mut self, grid: keys::Rect) {
+        let c = self.clipboard.as_mut().unwrap();
         self.items.push(Item::new(
             -110,
             grid,
@@ -314,11 +342,13 @@ impl Panel {
             let Some(e) = c.entries.get(index) else {
                 return;
             };
-            let h = e.height.min(grid.height() - 60.0 * d);
-            let y = grid.top + (grid.height() - h - 48.0 * d) / 2.0;
+            let h = e.full_height.min(grid.height() - e.date_height);
+            c.popup_max_scroll = (e.full_height - h).max(0.0);
+            c.popup_scroll = c.popup_scroll.clamp(0.0, c.popup_max_scroll);
+            let y = grid.top + (grid.height() - h - e.date_height) / 2.0;
             let mut i = Item::new(
                 -111,
-                rect(0.0, y, width / 2.0, h),
+                rect(grid.left, y, grid.width() / 2.0, h),
                 e.label.clone(),
                 "clipboard-item-popup",
                 Command::None,
@@ -330,21 +360,26 @@ impl Panel {
             }
             .into();
             i.multiline = true;
+            i.secondary = e.description.clone();
+            i.text_offset = c.popup_scroll;
             i.media = (e.kind != 1).then_some(e.id);
             self.items.push(i);
             let mut date = Item::new(
                 -112,
-                rect(0.0, y + h, width / 2.0, 48.0 * d),
+                rect(grid.left, y + h, grid.width() / 2.0, e.date_height),
                 e.date.clone(),
                 "clipboard-item-timestamp",
                 Command::None,
             );
             date.multiline = true;
             self.items.push(date);
-            let y = grid.top + (grid.height() - 144.0 * d) / 2.0;
+            let total = c.action_height * 3.0 + c.action_margin[1] + c.action_margin[3];
+            let y = grid.top + (grid.height() - total) / 2.0;
+            let x = grid.left + grid.width() / 2.0;
+            let half = grid.width() / 2.0;
             self.items.push(Item::new(
                 -113,
-                rect(width / 2.0, y, width / 2.0, 144.0 * d),
+                rect(x, y, half, total),
                 String::new(),
                 "clipboard-item-actions",
                 Command::None,
@@ -355,50 +390,23 @@ impl Panel {
             {
                 let mut i = Item::new(
                     -114 - n as i32,
-                    rect(width / 2.0, y + n as f32 * 48.0 * d, width / 2.0, 48.0 * d),
+                    rect(
+                        x + c.action_margin[0],
+                        y + c.action_margin[1] + n as f32 * c.action_height,
+                        half - c.action_margin[0] - c.action_margin[2],
+                        c.action_height,
+                    ),
                     c.label(*label),
                     "clipboard-item-action",
                     Command::Clipboard(*op, index),
                 );
                 i.multiline = true;
+                i.clip = grid;
+                i.icon = c.icons.get(7 + n).cloned().unwrap_or_default();
                 self.items.push(i);
             }
         } else if c.clear {
-            let w = (240.0 * d).min(width);
-            let h = 180.0 * d;
-            let y = grid.top + (grid.height() - h) / 2.0;
-            let b = rect((width - w) / 2.0, y, w, h);
-            self.items.push(Item::new(
-                -120,
-                b,
-                String::new(),
-                "clipboard-clear-all-dialog",
-                Command::None,
-            ));
-            let mut i = Item::new(
-                -121,
-                rect(b.left, y, w, h - 48.0 * d),
-                c.label(if c.filter_row { 18 } else { 17 }),
-                "clipboard-clear-all-dialog-message",
-                Command::None,
-            );
-            i.multiline = true;
-            self.items.push(i);
-            for (n, op) in [10, 11].iter().enumerate() {
-                self.items.push(Item::new(
-                    -122 - n as i32,
-                    rect(
-                        b.right - (2 - n) as f32 * 64.0 * d,
-                        b.bottom - 48.0 * d,
-                        64.0 * d,
-                        48.0 * d,
-                    ),
-                    c.label(19 + n),
-                    "clipboard-clear-all-dialog-button",
-                    Command::Clipboard(*op, 0),
-                ));
-            }
+            self.clear_dialog(grid);
         }
-        let _ = height;
     }
 }

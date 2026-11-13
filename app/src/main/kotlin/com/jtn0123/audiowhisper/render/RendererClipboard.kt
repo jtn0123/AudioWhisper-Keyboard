@@ -5,6 +5,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.Backspace
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.PushPin
+import androidx.compose.material.icons.outlined.ContentPasteGo
 import androidx.compose.runtime.*
 import androidx.compose.ui.platform.LocalContext
 import com.jtn0123.audiowhisper.rust.KeyboardRenderer
@@ -43,7 +45,7 @@ internal fun rendererClipboard(): RendererClipboard {
         stringRes(R.string.clip__paste_item),stringRes(R.string.clipboard__confirm_clear_unfiltered_history__message),
         stringRes(R.string.clipboard__confirm_clear_filtered_history__message),stringRes(R.string.action__no),stringRes(R.string.action__yes))
     val icons = listOf(Icons.AutoMirrored.Filled.ArrowBack,Icons.Default.ToggleOn,Icons.Default.ToggleOff,
-        Icons.Default.DeleteSweep,Icons.Default.FilterList,Icons.Default.FilterListOff,Icons.AutoMirrored.Outlined.Backspace).map(::iconPath)
+        Icons.Default.DeleteSweep,Icons.Default.FilterList,Icons.Default.FilterListOff,Icons.AutoMirrored.Outlined.Backspace,Icons.Outlined.PushPin,Icons.Default.Delete,Icons.Outlined.ContentPasteGo).map(::iconPath)
     val descriptions=history.all.map { item ->
         val text=item.stringRepresentation()
         val network=dev.patrickgold.florisboard.lib.util.NetworkUtils

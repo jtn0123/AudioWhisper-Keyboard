@@ -18,10 +18,10 @@ internal class RendererMediaBuffers(private val context: Context, private val na
     private val failed = mutableSetOf<Long>()
     private var cohort = emptySet<Long>()
     fun update(snapshot: RendererClipboard?, gif: RendererGif? = null) {
-        val current = snapshot?.entries.orEmpty().map { it.id }.toSet()
+        val current = snapshot?.entries.orEmpty().map { it.id }.toSet()+(gif?.ids?.toSet() ?: emptySet())
         if (current != cohort) { failed.retainAll(current); cohort=current }
         val wanted = native.mediaRequests().toSet()
-        for ((id,job) in pending.toMap()) if (id !in wanted) { job.cancel();pending.remove(id) }
+        for ((id,job) in pending.toMap()) if (id !in current) { job.cancel();pending.remove(id) }
         for (id in wanted) {
             if(id in pending || id in failed) continue
             val item = snapshot?.entries?.find { it.id==id }
@@ -30,7 +30,11 @@ internal class RendererMediaBuffers(private val context: Context, private val na
             pending[id]=scope.launch {
                 try {
                     if(result!=null) {
-                        withContext(Dispatchers.IO) {com.jtn0123.audiowhisper.gif.GifSearch.source?.preview(result.previewUrl)?.let { RendererGifDecoder.upload(native,id,it) }}
+                        withContext(Dispatchers.IO) {
+                            val bytes=com.jtn0123.audiowhisper.gif.GifSearch.source?.preview(result.previewUrl)
+                                ?: throw java.io.IOException("GIF preview unavailable")
+                            RendererGifDecoder.upload(native,id,bytes)
+                        }
                         changed()
                         return@launch
                     }

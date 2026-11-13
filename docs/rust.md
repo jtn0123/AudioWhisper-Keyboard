@@ -123,6 +123,15 @@ pairs and live theme switching are checked. The 2/4-worker Vello CPU experiment 
 both p50 and p95 and was removed. Compose stays the default. See
 [package 1 results, screenshots and per-trial measurements](stage3b-results.md).
 
+#### Milestone B package 7 (2026-11-13)
+
+Clipboard history, GIF/media results and GIF search typing now remain on the native
+surface. Rust owns clipboard policy, panel geometry/menus/selection, visible animation
+clocks and bounded pixel caches. Kotlin retains Room, Android clipboard, network/decoding
+and existing rich-content commits. The prototype stays default-off. No GIPHY key is
+configured: no-key parity and generated local GIF fixtures are checked; live GIPHY results
+are unverified. See [package 7 results](stage3b-package7.md) for checks and limitations.
+
 #### Milestone B package 6 (2026-11-13)
 
 Emoji, editing quick-action tiles, overflow and the action-order editor now draw and handle
@@ -148,6 +157,7 @@ The differential tests, deliberate mutation check and emulator checks below appl
 
 | Piece | Rust | Replaced | Proof it matches |
 |---|---|---|---|
+| Clipboard history ordering, duplicates, expiry, limits, pins and MIME eligibility (stage 2 package 8) | `crates/render` (`clipboard_policy`) | `ClipboardManager` / `ClipboardHistory` policy; Room and Android clipboard remain Kotlin | `ClipboardMatchTest` against test-only `ReferenceClipboard`, 12,000 cohorts and MIME combinations, deliberate mutations; paired paste/pin/unpin/delete/clear stored-state fixture. See [package 7](stage3b-package7.md) |
 | Snygg compilation, cascade and editor model | `crates/snygg` (`resolve`, `editor`, `spec`, `json`) | `SnyggTheme` compilation/querying, property application/inheritance, built-in declarations and the theme editor's rule ordering/rename policy | JVM reference matches: 868,680 bundled-theme queries, 30,000 seeded queries and 7,200 editor steps; native JSON-to-style light/dark prototype oracle. Reversing cascade traversal fails. Five visual pairs are identical and editor edits persist; see stage 2.5 |
 | Snygg values, specs and ordered property decoding | `crates/snygg` (`value`, `value_spec`, `value_codec`, `value_uri`, `properties`) | All 28 built-in encoders, defaults, validation, canonical formatting, encoder choice and property decoding policy | Three JVM value match suites against test-only `ReferenceSnygg*`, all 12 bundled themes and 28 inline documents, seeded/mutated and every UTF-16 unit cases; dividing percentages by 99 fails. Emulator acceptance is blocked by the device helper; see stage 2.4 |
 | Snygg rules, selectors, attributes and ordered stylesheet structure | `crates/snygg` | `SnyggRule` and `SnyggStylesheet` grammar/formatting/comparison/schema policy, behind the same managed API | `SnyggGrammarMatchTest` and `SnyggStylesheetMatchTest` against test-only `ReferenceSnygg*`: all 12 bundled files, 28 inline fixtures, every configuration flag combination, UTF-16 and seeded/mutated cases. Reversing selector comparison fails. See stage 2.3 below |

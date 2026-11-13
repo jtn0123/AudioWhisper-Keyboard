@@ -12,6 +12,8 @@ pub struct ClipEntry {
     pub date: String,
     pub aspect: f32,
     pub height: f32,
+    pub date_height: f32,
+    pub full_height: f32,
 }
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct ClipboardPanel {
@@ -26,6 +28,8 @@ pub struct ClipboardPanel {
     pub filters: u32,
     pub filter_row: bool,
     pub popup: Option<usize>,
+    pub popup_scroll: f32,
+    pub popup_max_scroll: f32,
     pub clear: bool,
     pub message_heights: Vec<f32>,
     pub header_height: f32,
@@ -33,6 +37,9 @@ pub struct ClipboardPanel {
     pub grid_padding: [f32; 4],
     pub group_height: f32,
     pub filter_height: f32,
+    pub action_height: f32,
+    pub action_margin: [f32; 4],
+    pub clear_metrics: crate::clipboard_dialog::ClearMetrics,
     pub enable_size: [f32; 2],
 }
 impl ClipboardPanel {
@@ -67,10 +74,12 @@ impl ClipboardPanel {
         } else {
             for (a, b) in self.entries.iter().zip(&mut next.entries) {
                 b.height = a.height;
-                b.aspect = a.aspect;
             }
         }
         for entry in &mut next.entries {
+            if let Some(previous) = self.entries.iter().find(|e| e.id == entry.id) {
+                entry.aspect = previous.aspect;
+            }
             entry.semantic = self.entries.iter().find(|e| e.id == entry.id).map_or_else(
                 || {
                     self.next_semantic += 1;
@@ -104,8 +113,10 @@ impl Panel {
             return vec![];
         }
         match op {
-            1 => return vec![Action(PANEL_CLIPBOARD, 1, 0)],
-            2 if c.enabled && !c.modal() && !c.entries.is_empty() => c.clear = true,
+            1 => return vec![Action(PANEL_CLIPBOARD, 1, i32::from(!c.enabled))],
+            2 if c.enabled && !c.modal() && c.entries.iter().any(|e| c.visible(e)) => {
+                c.clear = true
+            }
             3 if c.enabled && !c.modal() && !c.entries.is_empty() => {
                 c.filter_row = !c.filter_row;
                 if !c.filter_row {
@@ -121,10 +132,21 @@ impl Panel {
                 c.popup = None;
                 return vec![Action(PANEL_CLIPBOARD, 5, index as i32)];
             }
-            6 if c.enabled && index < c.entries.len() => c.popup = Some(index),
+            6 if c.enabled && index < c.entries.len() => {
+                c.popup = Some(index);
+                c.popup_scroll = 0.0;
+            }
             7..=9 if c.popup.is_some() => {
                 let i = c.popup.take().unwrap();
-                return vec![Action(PANEL_CLIPBOARD, op, i as i32)];
+                return vec![Action(
+                    PANEL_CLIPBOARD,
+                    if op == 7 && c.entries[i].pinned {
+                        14
+                    } else {
+                        op
+                    },
+                    i as i32,
+                )];
             }
             10 => {
                 c.popup = None;
@@ -137,7 +159,8 @@ impl Panel {
                     .iter()
                     .enumerate()
                     .filter(|(_, e)| !e.pinned && c.visible(e))
-                    .map(|(i, _)| Action(PANEL_CLIPBOARD, 8, i as i32))
+                    .map(|(i, _)| Action(PANEL_CLIPBOARD, 12, i as i32))
+                    .chain(std::iter::once(Action(PANEL_CLIPBOARD, 13, 0)))
                     .collect();
             }
             _ => {}
