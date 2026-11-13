@@ -69,6 +69,15 @@ impl Semantics {
             let mut bounds = k.bounds.touch;
             bounds.top += scene.strip;
             bounds.bottom += scene.strip;
+            // Touch targets intentionally extend beyond the last row for ordinary input.
+            // Virtual keys must stay inside the view, away from system navigation controls.
+            bounds.left = bounds.left.max(0.0);
+            bounds.top = bounds.top.max(0.0);
+            bounds.right = bounds.right.min(scene.width as f32);
+            bounds.bottom = bounds.bottom.min(scene.height as f32);
+            if bounds.right <= bounds.left || bounds.bottom <= bounds.top {
+                continue;
+            }
             let mut n = Node::new(
                 i as i32 + 1,
                 bounds,

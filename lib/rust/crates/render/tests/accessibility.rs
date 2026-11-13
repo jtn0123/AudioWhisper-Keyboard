@@ -304,3 +304,33 @@ fn popup_bounds_candidate_clipping_and_editor_action_labels_follow_the_scene() {
         assert_eq!(labels.mode(mode), expected);
     }
 }
+
+#[test]
+fn key_semantics_clip_extended_touch_targets_to_the_renderer_viewport() {
+    let mut s = scene();
+    s.keys[1].bounds.touch = Rect {
+        left: -20.,
+        top: -80.,
+        right: 650.,
+        bottom: 400.,
+    };
+    let nodes = Semantics::default().snapshot(&s, "unshifted");
+    let key = nodes.iter().find(|n| n.id == 2).unwrap();
+    assert_eq!(
+        key.bounds,
+        Rect {
+            left: 0.,
+            top: 0.,
+            right: 600.,
+            bottom: 300.
+        }
+    );
+    // A completely clipped physical slot must not create an unreachable virtual node.
+    s.keys[1].bounds.touch.top = 400.;
+    assert!(
+        !Semantics::default()
+            .snapshot(&s, "unshifted")
+            .iter()
+            .any(|n| n.id == 2)
+    );
+}
