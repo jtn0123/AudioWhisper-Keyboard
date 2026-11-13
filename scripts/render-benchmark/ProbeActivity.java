@@ -2,6 +2,9 @@ package com.jtn0123.renderprobe;
 
 import android.app.Activity;
 import android.content.Context;
+import android.content.BroadcastReceiver;
+import android.content.Intent;
+import android.content.IntentFilter;
 import android.os.Bundle;
 import android.text.Editable;
 import android.text.TextWatcher;
@@ -17,8 +20,26 @@ import java.security.MessageDigest;
 
 /** Temporary local measurement editor. It stores only count and SHA-256, never entered text. */
 public final class ProbeActivity extends Activity {
+    static boolean emptyEditor;
     private EditText editor;
     private TextView result;
+    private final BroadcastReceiver commands = new BroadcastReceiver() {
+        @Override public void onReceive(Context context, Intent intent) {
+            int type = android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE;
+            if (intent.getBooleanExtra("noSuggestions", false)) type |= android.text.InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS;
+            editor.setInputType(type);
+            editor.setText("");
+            editor.requestFocus();
+            ((InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE))
+                .showSoftInput(editor, InputMethodManager.SHOW_IMPLICIT);
+            saveDigest(editor.getText());
+        }
+    };
+
+    @Override public void onDestroy() {
+        unregisterReceiver(commands);
+        super.onDestroy();
+    }
 
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
@@ -39,7 +60,8 @@ public final class ProbeActivity extends Activity {
             }
         };
         editor.setContentDescription("Benchmark editor");
-        editor.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE);
+        editor.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE
+            | (getIntent().getBooleanExtra("noSuggestions", false) ? android.text.InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS : 0));
         editor.setTextSize(18);
         root.addView(editor, new LinearLayout.LayoutParams(-1, 350));
         result = new TextView(this);
@@ -55,10 +77,15 @@ public final class ProbeActivity extends Activity {
             ((InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE)).showSoftInput(editor, InputMethodManager.SHOW_IMPLICIT);
         });
         setContentView(root);
+        registerReceiver(commands, new IntentFilter("com.jtn0123.renderprobe.RESET"), Context.RECEIVER_EXPORTED);
         saveDigest(editor.getText());
+        editor.requestFocus();
+        editor.postDelayed(() -> ((InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE))
+            .showSoftInput(editor, InputMethodManager.SHOW_IMPLICIT), 400);
     }
 
     private void saveDigest(Editable text) {
+        emptyEditor = text.length() == 0;
         try {
             byte[] hash = MessageDigest.getInstance("SHA-256").digest(text.toString().getBytes(StandardCharsets.UTF_8));
             StringBuilder hex = new StringBuilder();

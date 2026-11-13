@@ -20,6 +20,11 @@
 # Usage: scripts/install-dev.sh [--personal] [adb-serial]
 #        (build first: ./gradlew :app:assembleDebug, or :app:assemblePersonal)
 set -euo pipefail
+# Disposable harness APKs use the same serial-scoped installation entry point.
+if [ "${1:-}" = "--probe" ]; then
+    : "${ANDROID_SERIAL:?Set ANDROID_SERIAL before installing the disposable probe}"
+    exec "${ANDROID_HOME:-$HOME/Library/Android/sdk}/platform-tools/adb" -s "$ANDROID_SERIAL" install -r "${2:?Probe APK required}"
+fi
 cd "$(dirname "$0")/.."
 ADB="${ANDROID_HOME:-$HOME/Library/Android/sdk}/platform-tools/adb"
 VARIANT=debug

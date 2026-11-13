@@ -7,8 +7,9 @@ tools="$sdk/build-tools/36.0.0"
 android="$sdk/platforms/android-36/android.jar"
 output="$PWD/build/render-benchmark"
 mkdir -p "$output/classes" "$output/dex"
-javac --release 11 -classpath "$android" -d "$output/classes" scripts/render-benchmark/ProbeActivity.java
-"$tools/aapt2" link --manifest scripts/render-benchmark/AndroidManifest.xml -I "$android" -o "$output/probe-unsigned.apk"
+javac --release 11 -classpath "$android" -d "$output/classes" scripts/render-benchmark/*.java
+"$tools/aapt2" compile --dir scripts/render-benchmark/res -o "$output/resources.zip"
+"$tools/aapt2" link "$output/resources.zip" --manifest scripts/render-benchmark/AndroidManifest.xml -I "$android" -o "$output/probe-unsigned.apk"
 "$tools/d8" --min-api 36 --lib "$android" --output "$output/dex" "$output/classes/com/jtn0123/renderprobe/"*.class
 (cd "$output/dex" && zip -q "$output/probe-unsigned.apk" classes.dex)
 "$tools/zipalign" -f 4 "$output/probe-unsigned.apk" "$output/probe-aligned.apk"

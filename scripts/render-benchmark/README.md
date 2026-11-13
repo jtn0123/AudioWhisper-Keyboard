@@ -18,8 +18,8 @@ for all UI actions. After boot, use the returned runtime device ID (for example,
 installation and benchmark invocation. Never borrow another session's emulator.
 
 1. Run the full repository gate and `ANDROID_SERIAL=<serial> scripts/install-dev.sh`.
-2. Run `scripts/render-benchmark/build.sh`, then install `build/render-benchmark/probe.apk`
-   with targeted adb. Enable/select the keyboard's IME and mute the emulator's audio streams.
+2. Run `scripts/render-benchmark/build.sh`, then install it with
+   `scripts/install-dev.sh --probe build/render-benchmark/probe.apk`. Enable/select the keyboard's IME and mute the emulator's audio streams.
 3. With targeted adb, set `log.tag.aw-compose=DEBUG` for numeric Compose frame-commit timing
    and `log.tag.aw-emoji=DEBUG` for a synthetic colour-emoji strip when candidates are empty.
    `log.tag.aw-hybrid=DEBUG` selects the Vulkan experiment when a prototype surface is created;
@@ -121,3 +121,66 @@ the four cardinal swipes, and turning glide back on. Never silently compare disa
 Pass `glide` as run.sh's fourth argument to include glide frames in an alternating timing
 trial. The exact 300-press/eight-hold digest files are captured before those extra gestures.
 Both native timing and Compose gfxinfo then include the additional glide/fade frames.
+
+## Accessibility without UiAutomation
+
+Close the dedicated runtime device's agent-device session with `device_close` (without
+shutdown) first. These test runners use serial-scoped adb; never run standalone
+uiautomator alongside them. `emulator-5554` is explicitly rejected.
+
+```bash
+export ANDROID_SERIAL=<runtime-id>
+scripts/render-benchmark/build.sh
+scripts/install-dev.sh
+scripts/install-dev.sh --probe build/render-benchmark/probe.apk
+scripts/render-benchmark/a11y.sh build/a11y-unique-run
+python3 -I scripts/render-benchmark/compare-a11y.py build/a11y-unique-run
+python3 -I scripts/render-benchmark/test_compare_a11y.py
+python3 -I scripts/render-benchmark/talkback.py build/talkback-unique-run
+```
+
+`a11y.sh` records both secure accessibility values and restores them in `finally`, including
+`settings delete` for an original `null`. SIGINT follows the same cleanup. Use a fresh
+output directory per run; a hard process kill cannot execute cleanup, so retain the saved
+original values. The disposable service alone is enabled for dumps. It retrieves the
+`TYPE_INPUT_METHOD` window, clears Android's accessibility cache on every request, walks
+all real/virtual children, and publishes JSON atomically. Each response has a unique request
+ID, monotonic timestamp and content-event generation. Nonempty-editor dumps are refused.
+Tree runs disable suggestions in the disposable editor to exclude candidate text. Typing
+and regression runs keep suggestions enabled. No editor tree is traversed.
+
+The harness opens the existing Keyboard settings page with a BROWSABLE deep link, activates
+the existing prototype switch by its label, and polls the persisted preference. It waits
+for the requested casing/state and stable node geometry before saving each tree. Caps lock
+is held for 1,000 ms because the ordinary Shift long-press threshold is 2.5 times the
+configured delay; a digest-only uppercase commit/erase checks persistence. The 700 ms `e`
+hold runs in the background while a delayed request captures its popup at 450 ms.
+
+The comparator writes `comparison.json` and prints both a table and every node difference.
+It reports framework/text-hint wrappers, explicit key roles/actions/toggle names and
+extended edge hit rectangles as acceptable differences. Ordinary target centers and named
+control rectangles must agree within 3 px. Unexpected labels, disabled-state changes,
+missing clicks, displaced targets and incorrect Shift states are bugs. Symbols are the
+existing Compose fallback on both renderer settings. Adversarial comparator tests reject
+wrong labels, missing keys/actions, displaced bounds, wrong classes and wrong Shift states.
+
+TalkBack is selected exclusively through secure settings; its exact installed component is
+parsed from `dumpsys package`. The probe must remain the foreground activity at every
+checkpoint. Its notification permission is temporarily granted with `pm` to avoid the
+first-enable dialog, then restored. The AVD must be launched with `-no-audio`; muting requests
+zero on streams 1/2/3/5/10 and falls back to the allowed minimum, including alarm stream 4.
+DND is explicitly off. Only digest/length/cursor values and whitelisted fixed announcement
+words are saved. An enabled service or checked Shift node is not evidence of spoken output.
+
+**Input boundary:** on this AVD, shell `input swipe` delivers raw touch even with TalkBack
+exploration enabled. A 400 ms letter hold therefore selects configured hints on Compose;
+it does not spell the intended word. The requested run remains a measured failure of that
+fixture. `--hold-ms 35` runs a separate short-touch compatibility control; neither control
+claims physical TalkBack explore/lift acceptance. The double-tap/drag accent attempt is
+reported by its digest, never assumed to work because input injection returned success.
+
+For a fresh TalkBack-off regression, prepare an empty normal probe on the chosen renderer,
+restore accessibility, then use `run.sh adb compose|rust OUTPUT`. The adb adapter preserves
+the existing 300 × 35 ms presses and eight × 500 ms `e` holds. Shut down only the dedicated
+runtime device after restoring prototype off, Always day/Floris Day and accessibility,
+removing the probe and checking logcat.

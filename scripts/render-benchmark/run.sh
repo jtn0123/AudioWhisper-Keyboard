@@ -1,8 +1,9 @@
 #!/bin/bash
-# Use the exact agent-device command returned by device_open. Both paths must target the same device.
+# Use the returned agent-device command, or "adb" for an isolated harness-only replay.
 set -euo pipefail
 cd "$(dirname "$0")/../.."
-agent="${1:?usage: run.sh AGENT_DEVICE_COMMAND compose-rust-or-hybrid}"
+agent="${1:?usage: run.sh AGENT_DEVICE_COMMAND-or-adb compose-rust-or-hybrid}"
+if [ "$agent" = adb ]; then agent="$PWD/scripts/render-benchmark/adb-input.sh"; fi
 renderer="${2:?renderer required}"
 case "$renderer" in compose|rust|hybrid) ;; *) echo "Expected compose, rust or hybrid" >&2; exit 1 ;; esac
 : "${ANDROID_SERIAL:?Set ANDROID_SERIAL to the device_open emulator serial}"
