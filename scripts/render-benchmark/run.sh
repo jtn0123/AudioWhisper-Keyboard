@@ -8,9 +8,10 @@ case "$renderer" in compose|rust|hybrid) ;; *) echo "Expected compose, rust or h
 : "${ANDROID_SERIAL:?Set ANDROID_SERIAL to the device_open emulator serial}"
 output="${3:-$PWD/build/stage3a-evidence}"
 mkdir -p "$output"
-for stream in 1 2 3 4 5; do
+for stream in 1 2 3 5; do
     adb shell cmd media_session volume --stream "$stream" --set 0
 done > "$output/host-muting.log" 2>&1
+adb shell cmd media_session volume --stream 4 --set 1 >> "$output/host-muting.log" 2>&1
 adb logcat -d -s AndroidRuntime:E > "$output/$renderer-before-runtime.log"
 adb logcat -c
 positions=("60 1750" "165 1750" "275 1750" "380 1750" "110 1900" "215 1900" "325 1900" "435 1900" "220 2060" "325 2060" "435 2060" "540 2060")

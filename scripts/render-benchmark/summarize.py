@@ -85,6 +85,11 @@ def profile(path):
         "all": frames, "over_2ms": tails,
         "full": [f for f in tails if f["full"]],
         "dirty": [f for f in tails if not f["full"]],
+        "press": [f for f in tails if f.get("press")],
+        "release": [f for f in tails if f.get("release")],
+        "surface_create": [f for f in tails if f.get("recreate")],
+        "other": [f for f in tails if not any(f.get(k) for k in
+                  ("press", "release", "recreate", "shift", "popup_change", "candidates"))],
         "shift": [f for f in tails if f["shift"]],
         "popup_open_or_move": [f for f in tails if f["popup_change"] and f["popup_open"]],
         "popup_close": [f for f in tails if f["popup_change"] and not f["popup_open"]],
@@ -95,6 +100,8 @@ def profile(path):
     for name, group in groups.items():
         result[name] = {
             "draw": percentiles([f["draw_ns"] for f in group]),
+            "buffer_copy_post": percentiles([f["buffer_post_ns"] for f in group
+                                             if "buffer_post_ns" in f]),
             "area_px_min": min((f["area_px"] for f in group), default=0),
             "area_px_max": max((f["area_px"] for f in group), default=0),
             "totals_ms": {k: round(sum(f[k] for f in group) / 1e6, 3) for k in

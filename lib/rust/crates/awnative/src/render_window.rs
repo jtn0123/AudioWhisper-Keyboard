@@ -248,6 +248,7 @@ fn run(
             continue;
         };
         let start = Instant::now();
+        let mut post_ns = 0;
         let (draw, gpu_wait) = match &mut engine {
             Engine::Cpu(raster) => {
                 if raster.draw(&scene, damage).is_err() {
@@ -255,10 +256,12 @@ fn run(
                     break;
                 }
                 let draw = start.elapsed().as_nanos();
+                let post_start = Instant::now();
                 if !window.post(&scene, raster.pixels(), damage) {
                     log("post_error");
                     break;
                 }
+                post_ns = post_start.elapsed().as_nanos();
                 (draw, 0)
             }
             Engine::Hybrid(gpu) => match gpu.draw(&scene) {
@@ -269,6 +272,7 @@ fn run(
                 }
             },
         };
+        let posted = monotonic_ns();
         if profiling && let Engine::Cpu(raster) = &engine {
             let p = raster.profile();
             let area = ((damage.right.ceil().min(scene.width as f32)
@@ -277,13 +281,19 @@ fn run(
                 * (damage.bottom.ceil().min(scene.height as f32) - damage.top.floor().max(0.0))
                     .max(0.0)) as u64;
             let full = area == u64::from(scene.width) * u64::from(scene.height);
+            let press = scene.pressed.iter().any(|i| !previous.pressed.contains(i));
+            let release = previous.pressed.iter().any(|i| !scene.pressed.contains(i));
+            let recreate = previous.width == 0;
             let shift = previous
                 .keys
                 .iter()
                 .zip(&scene.keys)
                 .any(|(a, b)| a.label != b.label && a.label.eq_ignore_ascii_case(&b.label));
             log(&format!(
-                "profile draw_ns={draw} full={} area_px={area} shift={} popup_change={} popup_open={} candidates={} encode_ns={} raster_ns={} shape_ns={} glyph_ns={} alloc_ns={} alloc_sites={} layout_misses={} labels={} cold_glyph_ns={} color_glyph_ns={} glyph_runs={} cold_runs={} color_runs={}",
+                "profile draw_ns={draw} buffer_post_ns={post_ns} press={} release={} recreate={} full={} area_px={area} shift={} popup_change={} popup_open={} candidates={} encode_ns={} raster_ns={} shape_ns={} glyph_ns={} alloc_ns={} alloc_sites={} layout_misses={} labels={} cold_glyph_ns={} color_glyph_ns={} glyph_runs={} cold_runs={} color_runs={}",
+                u8::from(press),
+                u8::from(release),
+                u8::from(recreate),
                 u8::from(full),
                 u8::from(shift),
                 u8::from(previous.popup != scene.popup),
@@ -307,7 +317,7 @@ fn run(
         // Only numeric timing data; never scene labels, candidates, coordinates or action codes.
         log(&format!(
             "frame draw_ns={draw} post_ns={} touch_ns={touch} choreographer_ns={frame} gpu_wait_ns={gpu_wait}",
-            monotonic_ns()
+            posted
         ));
         previous = scene;
     }
