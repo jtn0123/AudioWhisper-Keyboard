@@ -1,0 +1,195 @@
+//! Canonical key-code wire values. Kotlin exposes names from VALUES, without another copy.
+
+pub const CHARACTERS_MIN: i32 = 1;
+pub const CHARACTERS_MAX: i32 = 65535;
+pub const INTERNAL_MIN: i32 = -9999;
+pub const INTERNAL_MAX: i32 = -1;
+pub const UNSPECIFIED: i32 = 0;
+pub const PHONE_WAIT: i32 = 59;
+pub const PHONE_PAUSE: i32 = 44;
+pub const SPACE: i32 = 32;
+pub const ESCAPE: i32 = 27;
+pub const ENTER: i32 = 10;
+pub const TAB: i32 = 9;
+pub const CTRL: i32 = -1;
+pub const CTRL_LOCK: i32 = -2;
+pub const ALT: i32 = -3;
+pub const ALT_LOCK: i32 = -4;
+pub const FN: i32 = -5;
+pub const FN_LOCK: i32 = -6;
+pub const DELETE: i32 = -7;
+pub const DELETE_WORD: i32 = -8;
+pub const FORWARD_DELETE: i32 = -9;
+pub const FORWARD_DELETE_WORD: i32 = -10;
+pub const SHIFT: i32 = -11;
+pub const CAPS_LOCK: i32 = -13;
+pub const ARROW_LEFT: i32 = -21;
+pub const ARROW_RIGHT: i32 = -22;
+pub const ARROW_UP: i32 = -23;
+pub const ARROW_DOWN: i32 = -24;
+pub const MOVE_START_OF_PAGE: i32 = -25;
+pub const MOVE_END_OF_PAGE: i32 = -26;
+pub const MOVE_START_OF_LINE: i32 = -27;
+pub const MOVE_END_OF_LINE: i32 = -28;
+pub const CLIPBOARD_COPY: i32 = -31;
+pub const CLIPBOARD_CUT: i32 = -32;
+pub const CLIPBOARD_PASTE: i32 = -33;
+pub const CLIPBOARD_SELECT: i32 = -34;
+pub const CLIPBOARD_SELECT_ALL: i32 = -35;
+pub const CLIPBOARD_CLEAR_HISTORY: i32 = -36;
+pub const CLIPBOARD_CLEAR_FULL_HISTORY: i32 = -37;
+pub const CLIPBOARD_CLEAR_PRIMARY_CLIP: i32 = -38;
+pub const TOGGLE_COMPACT_LAYOUT: i32 = -110;
+pub const COMPACT_LAYOUT_TO_LEFT: i32 = -111;
+pub const COMPACT_LAYOUT_TO_RIGHT: i32 = -112;
+pub const SPLIT_LAYOUT: i32 = -113;
+pub const MERGE_LAYOUT: i32 = -114;
+pub const UNDO: i32 = -131;
+pub const REDO: i32 = -132;
+pub const VIEW_CHARACTERS: i32 = -201;
+pub const VIEW_SYMBOLS: i32 = -202;
+pub const VIEW_SYMBOLS2: i32 = -203;
+pub const VIEW_NUMERIC: i32 = -204;
+pub const VIEW_NUMERIC_ADVANCED: i32 = -205;
+pub const VIEW_PHONE: i32 = -206;
+pub const VIEW_PHONE2: i32 = -207;
+pub const IME_UI_MODE_TEXT: i32 = -211;
+pub const IME_UI_MODE_MEDIA: i32 = -212;
+pub const IME_UI_MODE_CLIPBOARD: i32 = -213;
+pub const SYSTEM_INPUT_METHOD_PICKER: i32 = -221;
+pub const SYSTEM_PREV_INPUT_METHOD: i32 = -222;
+pub const SYSTEM_NEXT_INPUT_METHOD: i32 = -223;
+pub const IME_SUBTYPE_PICKER: i32 = -224;
+pub const IME_PREV_SUBTYPE: i32 = -225;
+pub const IME_NEXT_SUBTYPE: i32 = -226;
+pub const LANGUAGE_SWITCH: i32 = -227;
+pub const SHOW_SUBTYPE_PICKER: i32 = -228;
+pub const IME_SHOW_UI: i32 = -231;
+pub const IME_HIDE_UI: i32 = -232;
+pub const VOICE_INPUT: i32 = -233;
+pub const READ_ALOUD: i32 = -234;
+pub const TOGGLE_SMARTBAR_VISIBILITY: i32 = -241;
+pub const TOGGLE_ACTIONS_OVERFLOW: i32 = -242;
+pub const TOGGLE_ACTIONS_EDITOR: i32 = -243;
+pub const TOGGLE_INCOGNITO_MODE: i32 = -244;
+pub const TOGGLE_AUTOCORRECT: i32 = -245;
+pub const URI_COMPONENT_TLD: i32 = -255;
+pub const SETTINGS: i32 = -301;
+pub const CURRENCY_SLOT_1: i32 = -801;
+pub const CURRENCY_SLOT_2: i32 = -802;
+pub const CURRENCY_SLOT_3: i32 = -803;
+pub const CURRENCY_SLOT_4: i32 = -804;
+pub const CURRENCY_SLOT_5: i32 = -805;
+pub const CURRENCY_SLOT_6: i32 = -806;
+pub const MULTIPLE_CODE_POINTS: i32 = -902;
+pub const DRAG_MARKER: i32 = -991;
+pub const NOOP: i32 = -999;
+pub const CHAR_WIDTH_SWITCHER: i32 = -9701;
+pub const CHAR_WIDTH_FULL: i32 = -9702;
+pub const CHAR_WIDTH_HALF: i32 = -9703;
+pub const KANA_SMALL: i32 = 12307;
+pub const KANA_SWITCHER: i32 = -9710;
+pub const KANA_HIRA: i32 = -9711;
+pub const KANA_KATA: i32 = -9712;
+pub const KANA_HALF_KATA: i32 = -9713;
+pub const KESHIDA: i32 = 1600;
+pub const HALF_SPACE: i32 = 8204;
+pub const CJK_SPACE: i32 = 12288;
+
+pub const VALUES: &[i32] = &[
+    CHARACTERS_MIN,
+    CHARACTERS_MAX,
+    INTERNAL_MIN,
+    INTERNAL_MAX,
+    UNSPECIFIED,
+    PHONE_WAIT,
+    PHONE_PAUSE,
+    SPACE,
+    ESCAPE,
+    ENTER,
+    TAB,
+    CTRL,
+    CTRL_LOCK,
+    ALT,
+    ALT_LOCK,
+    FN,
+    FN_LOCK,
+    DELETE,
+    DELETE_WORD,
+    FORWARD_DELETE,
+    FORWARD_DELETE_WORD,
+    SHIFT,
+    CAPS_LOCK,
+    ARROW_LEFT,
+    ARROW_RIGHT,
+    ARROW_UP,
+    ARROW_DOWN,
+    MOVE_START_OF_PAGE,
+    MOVE_END_OF_PAGE,
+    MOVE_START_OF_LINE,
+    MOVE_END_OF_LINE,
+    CLIPBOARD_COPY,
+    CLIPBOARD_CUT,
+    CLIPBOARD_PASTE,
+    CLIPBOARD_SELECT,
+    CLIPBOARD_SELECT_ALL,
+    CLIPBOARD_CLEAR_HISTORY,
+    CLIPBOARD_CLEAR_FULL_HISTORY,
+    CLIPBOARD_CLEAR_PRIMARY_CLIP,
+    TOGGLE_COMPACT_LAYOUT,
+    COMPACT_LAYOUT_TO_LEFT,
+    COMPACT_LAYOUT_TO_RIGHT,
+    SPLIT_LAYOUT,
+    MERGE_LAYOUT,
+    UNDO,
+    REDO,
+    VIEW_CHARACTERS,
+    VIEW_SYMBOLS,
+    VIEW_SYMBOLS2,
+    VIEW_NUMERIC,
+    VIEW_NUMERIC_ADVANCED,
+    VIEW_PHONE,
+    VIEW_PHONE2,
+    IME_UI_MODE_TEXT,
+    IME_UI_MODE_MEDIA,
+    IME_UI_MODE_CLIPBOARD,
+    SYSTEM_INPUT_METHOD_PICKER,
+    SYSTEM_PREV_INPUT_METHOD,
+    SYSTEM_NEXT_INPUT_METHOD,
+    IME_SUBTYPE_PICKER,
+    IME_PREV_SUBTYPE,
+    IME_NEXT_SUBTYPE,
+    LANGUAGE_SWITCH,
+    SHOW_SUBTYPE_PICKER,
+    IME_SHOW_UI,
+    IME_HIDE_UI,
+    VOICE_INPUT,
+    READ_ALOUD,
+    TOGGLE_SMARTBAR_VISIBILITY,
+    TOGGLE_ACTIONS_OVERFLOW,
+    TOGGLE_ACTIONS_EDITOR,
+    TOGGLE_INCOGNITO_MODE,
+    TOGGLE_AUTOCORRECT,
+    URI_COMPONENT_TLD,
+    SETTINGS,
+    CURRENCY_SLOT_1,
+    CURRENCY_SLOT_2,
+    CURRENCY_SLOT_3,
+    CURRENCY_SLOT_4,
+    CURRENCY_SLOT_5,
+    CURRENCY_SLOT_6,
+    MULTIPLE_CODE_POINTS,
+    DRAG_MARKER,
+    NOOP,
+    CHAR_WIDTH_SWITCHER,
+    CHAR_WIDTH_FULL,
+    CHAR_WIDTH_HALF,
+    KANA_SMALL,
+    KANA_SWITCHER,
+    KANA_HIRA,
+    KANA_KATA,
+    KANA_HALF_KATA,
+    KESHIDA,
+    HALF_SPACE,
+    CJK_SPACE,
+];

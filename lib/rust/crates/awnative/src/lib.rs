@@ -15,6 +15,7 @@ mod giphy;
 mod glide;
 mod handle;
 mod jni;
+mod key_models;
 mod keys;
 mod latinime;
 mod panic;

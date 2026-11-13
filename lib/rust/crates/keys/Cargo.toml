@@ -1,7 +1,7 @@
 [package]
 name = "keys"
 version = "0.1.0"
-description = "The text keyboard's geometry: key widths, bounds and which key a touch lands on, ported from FlorisBoard's TextKeyboard"
+description = "Key models, selectors, keyboard state, text-key policy and geometry, ported from FlorisBoard"
 edition.workspace = true
 license.workspace = true
 publish.workspace = true

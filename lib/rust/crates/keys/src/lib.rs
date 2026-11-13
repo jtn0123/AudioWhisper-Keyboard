@@ -1,4 +1,4 @@
-//! The text keyboard's geometry: how wide each key wants to be, where each key's touch and visible
+//! Key/domain models, selector/state/text-key policy, and the text keyboard's geometry: how wide each key wants to be, where each key's touch and visible
 //! bounds fall once a keyboard is laid out at a size, and which key a touch lands on.
 //!
 //! A port of FlorisBoard's `TextKeyboard.layout` and `getKeyForPos`, `TextKey`'s flex factors and
@@ -7,9 +7,12 @@
 
 #![forbid(unsafe_code)]
 
+pub mod codes;
 mod desired;
 mod flex;
 mod layout;
+pub mod model_data;
+pub mod models;
 
 pub use desired::desired_key;
 pub use flex::{Flex, flex, mode};
