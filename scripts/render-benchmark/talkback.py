@@ -79,7 +79,7 @@ def run(device, renderer, service, duration):
     # First focus e, then double-tap with the second tap held and dragged to an accent.
     device.hold(275, 1750, duration)
     checkpoint("accent-focus")
-    device.shell("sh", "-c", "input tap 275 1750; sleep 0.08; input motionevent DOWN 275 1750; sleep 0.8; input motionevent MOVE 165 1560; input motionevent UP 165 1560")
+    device.shell("sh", "-c", "input tap 275 1750; sleep 0.08; input motionevent DOWN 275 1750; sleep 0.8; input motionevent MOVE 165 1440; input motionevent UP 165 1440")
     checkpoint("accent-attempt")
     # Explore/lift the expansion control, then Undo at its configured visible slot.
     device.hold(1025, 1618, duration)
@@ -130,13 +130,21 @@ def main():
             fields = ("utf16_units", "sha256", "selection_start", "selection_end")
             comparisons.append({"step": a["step"], "matches": all(a[k] == b[k] for k in fields)})
         device.save("talkback-comparison.json", comparisons)
+        failures = [{"renderer": renderer, "step": row["step"]}
+                    for renderer, rows in results.items() for row in rows
+                    if row.get("matches_expected") is False]
+        parity = all(row["matches"] for row in comparisons)
+        device.save("result.json", {"typing_fixture_passed": not failures, "expected_failures": failures,
+                                   "digest_cursor_parity": parity, "speech_verified": False,
+                                   "input_hold_ms": args.hold_ms})
     finally:
         device.restore_accessibility(original)
         if not notifications_granted:
             device.shell("pm", "revoke", TALKBACK, "android.permission.POST_NOTIFICATIONS")
         device.save("restored-accessibility.json", device.original_accessibility())
         (device.output / "accessibility-after.txt").write_text(device.shell("dumpsys", "accessibility"))
+    return int(bool(failures) or not parity)
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

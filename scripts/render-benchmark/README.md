@@ -175,7 +175,9 @@ words are saved. An enabled service or checked Shift node is not evidence of spo
 **Input boundary:** on this AVD, shell `input swipe` delivers raw touch even with TalkBack
 exploration enabled. A 400 ms letter hold therefore selects configured hints on Compose;
 it does not spell the intended word. The requested run remains a measured failure of that
-fixture. `--hold-ms 35` runs a separate short-touch compatibility control; neither control
+fixture, and the script returns nonzero for expected-word/capital failures or digest/cursor
+parity failures after completing both renderers (`result.json`). `--hold-ms 35` runs a
+separate short-touch compatibility control; neither control
 claims physical TalkBack explore/lift acceptance. The double-tap/drag accent attempt is
 reported by its digest, never assumed to work because input injection returned success.
 
