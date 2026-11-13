@@ -53,11 +53,14 @@ impl Session {
             number(if self.pending { 8 } else { -1 }),
         ]
     }
+    pub(crate) fn accepts(&self, generation: u64) -> bool {
+        self.pending && generation == self.generation
+    }
     pub fn ready(&self, generation: u64, now: i64) -> bool {
-        self.pending && generation == self.generation && now >= self.due
+        self.accepts(generation) && now >= self.due
     }
     pub fn complete(&mut self, generation: u64, values: Vec<Candidate>) -> bool {
-        if !self.pending || generation != self.generation {
+        if !self.accepts(generation) {
             return false;
         }
         self.pending = false;

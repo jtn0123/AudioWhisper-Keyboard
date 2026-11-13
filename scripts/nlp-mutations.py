@@ -17,8 +17,8 @@ def main():
     output = ROOT / sys.argv[1]
     output.mkdir(parents=True, exist_ok=True)
     mutations = [
-        ('accept-stale-generation', 'session.rs', 'if !self.pending || generation != self.generation {',
-         'if !self.pending || generation == u64::MAX {'),
+        ('accept-stale-generation', 'session.rs', 'self.pending && generation == self.generation\n',
+         'self.pending && generation <= self.generation\n'),
         ('wrong-dedup', 'session.rs', 'v.kind == value.kind && v.text == value.text',
          'v.kind == value.kind && v.text != value.text'),
         ('password-suggestions', 'policy.rs', '!password && !(raw & 15 == 1 && raw & 0x80000 != 0)',
@@ -26,6 +26,9 @@ def main():
         ('wrong-auto-expand', 'session.rs', 'self.visible().is_empty() && self.inline.is_empty() || self.context.selection()',
          'self.visible().is_empty() || self.inline.is_empty() || self.context.selection()'),
     ]
+    if len(sys.argv) > 2:
+        mutations = [edit for edit in mutations if edit[0] == sys.argv[2]]
+        assert mutations, 'Unknown mutation selector'
     results = []
     for label, file, old, new in mutations:
         path = SOURCE / file
@@ -53,7 +56,7 @@ def main():
         run = subprocess.run(['./gradlew', '--stacktrace', ':lib:rust:testDebugUnitTest', '--tests', '*NlpMatchTest',
             ':app:testDebugUnitTest', '--tests', '*Nlp*MatchTest'], cwd=ROOT, stdout=log, stderr=subprocess.STDOUT)
     assert run.returncode == 0, 'Restored match tests failed'
-    print('All four mutations restored; reference comparisons pass', flush=True)
+    print(f'All {len(mutations)} selected mutations restored; reference comparisons pass', flush=True)
 
 
 if __name__ == '__main__':

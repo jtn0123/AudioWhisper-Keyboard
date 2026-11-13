@@ -145,6 +145,8 @@ class NlpMatchTest {
             val a = p.call("beginFor", *old.toTypedArray(), "100")[0]
             val b = p.call("beginFor", *newer.toTypedArray(), "100")[0]
             assertEquals("0", p.call("completeFor", *newer.toTypedArray(), a, "stale", "hat", "0", "1")[0])
+            assertEquals("0", p.call("completeFor", *old.toTypedArray(), a, "stale-metadata", "hat", "0", "1")[0])
+            assertEquals(b, p.call("snapshot")[0], "Old completion metadata must not cancel the new request")
             assertEquals("1", p.call("completeFor", *newer.toTypedArray(), b, "fresh", "book", "0", "1")[0])
             assertEquals("fresh", p.call("snapshot")[4])
         }

@@ -61,8 +61,11 @@ internal class ReferenceNlp {
                 call("begin", f[22]) + listOf(words.bit(), emoji.bit()) + snapshot()
             }
             "completeFor" -> {
-                call("context", *f.take(22).toTypedArray())
-                call("complete", *f.drop(22).toTypedArray()) + snapshot()
+                if (!pending || f[22].toLong() != generation) listOf("0") + snapshot()
+                else {
+                    call("context", *f.take(22).toTypedArray())
+                    call("complete", *f.drop(22).toTypedArray()) + snapshot()
+                }
             }
             "candidatePlan" -> {
                 val old = context; context = f.take(22)

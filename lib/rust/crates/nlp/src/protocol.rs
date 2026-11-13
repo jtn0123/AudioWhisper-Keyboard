@@ -66,8 +66,14 @@ impl Session {
                 result
             }
             "completeFor" => {
-                self.configure(Context(f[..22].to_vec()));
-                let accepted = self.complete(int(f, 22) as u64, candidates(&f[23..]));
+                let generation = int(f, 22) as u64;
+                // An obsolete executor cannot roll back context or cancel the newer pending request.
+                let accepted = if self.accepts(generation) {
+                    self.configure(Context(f[..22].to_vec()));
+                    self.complete(generation, candidates(&f[23..]))
+                } else {
+                    false
+                };
                 let mut result = boolean(accepted);
                 result.extend(self.snapshot());
                 result
