@@ -21,16 +21,10 @@ import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
-import org.florisboard.lib.color.getColor
 import org.florisboard.lib.snygg.value.SnyggAssetResolver
-import org.florisboard.lib.snygg.value.SnyggDefinedVarValue
-import org.florisboard.lib.snygg.value.SnyggDynamicDarkColorValue
-import org.florisboard.lib.snygg.value.SnyggDynamicLightColorValue
 import org.florisboard.lib.snygg.value.SnyggDefaultAssetResolver
 import org.florisboard.lib.snygg.value.SnyggFontStyleValue
 import org.florisboard.lib.snygg.value.SnyggFontWeightValue
-import org.florisboard.lib.snygg.value.SnyggUndefinedValue
-import org.florisboard.lib.snygg.value.SnyggStaticColorValue
 import org.florisboard.lib.snygg.value.SnyggUriValue
 import java.io.File
 
@@ -69,25 +63,8 @@ data class SnyggTheme internal constructor(
         dynamicDarkColorScheme: ColorScheme,
         fontSizeMultiplier: Float,
     ): SnyggSinglePropertySet {
-        val editor = SnyggSinglePropertySetEditor().also { it.inheritImplicitly(parentStyle) }
-        val styleSets = style[elementName] ?: return editor.build()
-        for ((rule, propertySet) in styleSets) {
-            if (rule.isMatchForQuery(attributes, selector)) {
-                editor.applyAll(propertySet, parentStyle, fontSizeMultiplier)
-            }
-        }
-        for ((key, value) in editor.properties) {
-            if (value is SnyggDynamicLightColorValue) {
-                editor.properties[key] = SnyggStaticColorValue(
-                    color = dynamicLightColorScheme.getColor(value.colorName)
-                )
-            } else if (value is SnyggDynamicDarkColorValue) {
-                editor.properties[key] = SnyggStaticColorValue(
-                    color = dynamicDarkColorScheme.getColor(value.colorName)
-                )
-            }
-        }
-        return editor.build()
+        return SnyggCompilerAdapter.query(style, elementName, attributes, selector, parentStyle,
+            dynamicLightColorScheme, dynamicDarkColorScheme, fontSizeMultiplier)
     }
 
     companion object {
@@ -95,84 +72,23 @@ data class SnyggTheme internal constructor(
             stylesheet: SnyggStylesheet,
             assetResolver: SnyggAssetResolver = SnyggDefaultAssetResolver,
         ): SnyggTheme {
-            val elements = mutableMapOf<String, MutableList<Pair<SnyggElementRule, SnyggSinglePropertySet>>>()
-            var variablesSet: SnyggSinglePropertySet? = null
+            val compiled = SnyggCompilerAdapter.compile(stylesheet)
             val fonts = mutableMapOf<String, MutableList<Font>>()
-            stylesheet.rules.forEach { (rule, propertySet) ->
-                when (rule) {
-                    is SnyggAnnotationRule.Defines -> {
-                        check(propertySet is SnyggSinglePropertySet)
-                        variablesSet = propertySet
-                    }
-                    is SnyggAnnotationRule.Font -> {
-                        check(propertySet is SnyggMultiplePropertySets)
-                        val fontList = fonts.getOrDefault(rule.fontName, mutableListOf())
-                        propertySet.sets.forEach { fontSet ->
-                            val src = fontSet.src as? SnyggUriValue ?: return@forEach
-                            val fontPath = assetResolver.resolveAbsolutePath(src.uri).getOrNull()
-                            if (fontPath == null) return@forEach
-                            val fontStyle = (fontSet.fontStyle as? SnyggFontStyleValue)?.fontStyle
-                            val fontWeight = (fontSet.fontWeight as? SnyggFontWeightValue)?.fontWeight
-                            fontList.add(
-                                Font(
-                                    file = File(fontPath),
-                                    weight = fontWeight ?: FontWeight.Normal,
-                                    style = fontStyle ?: FontStyle.Normal,
-                                )
-                            )
-                        }
-                        if (fontList.isNotEmpty()) {
-                            fonts.put(rule.fontName, fontList)
-                        }
-                    }
-                    is SnyggElementRule -> {
-                        check(propertySet is SnyggSinglePropertySet)
-                        val list = elements.getOrDefault(rule.elementName, mutableListOf())
-                        list.add(rule to propertySet)
-                        elements[rule.elementName] = list
-                    }
+            compiled.fonts.forEach { (name, sets) ->
+                val fontList = fonts.getOrDefault(name, mutableListOf())
+                sets.forEach { fontSet ->
+                    val src = fontSet.src as? SnyggUriValue ?: return@forEach
+                    val path = assetResolver.resolveAbsolutePath(src.uri).getOrNull() ?: return@forEach
+                    fontList.add(Font(file = File(path),
+                        weight = (fontSet.fontWeight as? SnyggFontWeightValue)?.fontWeight ?: FontWeight.Normal,
+                        style = (fontSet.fontStyle as? SnyggFontStyleValue)?.fontStyle ?: FontStyle.Normal))
                 }
-            }
-            val variables = variablesSet?.properties ?: emptyMap()
-            val style = elements.mapValues { (_, rulesets) ->
-                rulesets.sortBy { it.first }
-                return@mapValues rulesets.map { (rule, propertySet) ->
-                    val editor = propertySet.edit()
-                    for ((property, value) in editor.properties) {
-                        if (value is SnyggDefinedVarValue) {
-                            editor.properties[property] =
-                                variables[value.key] ?: SnyggUndefinedValue
-                        }
-                    }
-                    return@map rule to editor.build()
-                }
+                if (fontList.isNotEmpty()) fonts[name] = fontList
             }
             val fontFamilies = fonts.mapValues { (_, fonts) ->
                 FontFamily(fonts)
             }
-            return SnyggTheme(style, fontFamilies)
+            return SnyggTheme(compiled.style, fontFamilies)
         }
     }
-}
-
-private fun SnyggElementRule.isMatchForQuery(
-    queryAttributes: SnyggQueryAttributes,
-    querySelector: SnyggSelector,
-): Boolean {
-    return selector.isMatchForQuery(querySelector) &&
-        attributes.isMatchForQuery(queryAttributes)
-}
-
-private fun SnyggAttributes.isMatchForQuery(query: SnyggQueryAttributes): Boolean {
-    for ((attrKey, attrValues) in this) {
-        val queryValue = query[attrKey]?.toString() ?: return false
-        if (!attrValues.contains(queryValue)) {
-            return false
-        }
-    }
-    return true
-}
-
-private fun SnyggSelector.isMatchForQuery(query: SnyggSelector): Boolean {
-    return this == SnyggSelector.NONE || this == query
 }

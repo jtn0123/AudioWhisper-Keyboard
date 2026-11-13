@@ -65,6 +65,35 @@ class SnyggStylesheetEditor(
         return SnyggStylesheet(schema, rulesMap)
     }
 
+    /** Applies the native add/rename/conflict plan without losing editor object identities. */
+    fun updateRule(old: SnyggRule, new: SnyggRule, allowAdd: Boolean = false): Boolean {
+        val plan = SnyggCompilerAdapter.ruleEdit(rules.keys, old, new, allowAdd)
+        return when (plan[0]) {
+            "unchanged" -> true
+            "duplicate", "missing" -> false
+            "replace" -> {
+                val key = rules.keys.elementAt(plan[1].toInt())
+                val set = checkNotNull(rules.remove(key))
+                rules[new] = set
+                true
+            }
+            "add" -> {
+                rules[new] = when (SnyggSpec.propertySetSpecOf(new)!!.type) {
+                    SnyggSpecDecl.PropertySet.Type.SINGLE_SET -> SnyggSinglePropertySetEditor()
+                    SnyggSpecDecl.PropertySet.Type.MULTIPLE_SETS -> SnyggMultiplePropertySetsEditor()
+                }
+                true
+            }
+            else -> error("Invalid native editor plan")
+        }
+    }
+
+    companion object {
+        fun compareRules(a: SnyggRule, b: SnyggRule, elementOrder: List<String>): Int =
+            SnyggCompilerAdapter.call(7, SnyggGrammarAdapter.pack(a).toList() +
+                SnyggGrammarAdapter.pack(b) + elementOrder.size.toString() + elementOrder).single().toInt()
+    }
+
     private object DefaultRuleComparator : Comparator<SnyggRule> {
         override fun compare(a: SnyggRule, b: SnyggRule): Int {
             return a.compareTo(b)

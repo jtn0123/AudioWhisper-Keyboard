@@ -11,12 +11,12 @@ use snygg::{
 };
 use std::ptr;
 
-struct Packet<'a> {
-    rows: &'a [Text],
-    at: usize,
+pub(super) struct Packet<'a> {
+    pub(super) rows: &'a [Text],
+    pub(super) at: usize,
 }
 impl<'a> Packet<'a> {
-    fn next(&mut self) -> jni::Result<Text> {
+    pub(super) fn next(&mut self) -> jni::Result<Text> {
         let value = self
             .rows
             .get(self.at)
@@ -24,12 +24,12 @@ impl<'a> Packet<'a> {
         self.at += 1;
         Ok(value.clone())
     }
-    fn number(&mut self) -> jni::Result<usize> {
+    pub(super) fn number(&mut self) -> jni::Result<usize> {
         chars::text::to_int_or_null(&self.next()?)
             .and_then(|n| usize::try_from(n).ok())
             .ok_or_else(|| illegal("invalid Snygg packet count"))
     }
-    fn attributes(&mut self) -> jni::Result<Attributes> {
+    pub(super) fn attributes(&mut self) -> jni::Result<Attributes> {
         let count = self.number()?;
         let mut attrs = Attributes::default();
         for _ in 0..count {
@@ -42,7 +42,7 @@ impl<'a> Packet<'a> {
         }
         Ok(attrs)
     }
-    fn rule(&mut self) -> jni::Result<Rule> {
+    pub(super) fn rule(&mut self) -> jni::Result<Rule> {
         match self.number()? {
             0 => Ok(Rule::Defines),
             1 => Ok(Rule::Font(self.next()?)),
@@ -74,7 +74,7 @@ fn attributes(a: Attributes) -> Vec<Text> {
     }
     out
 }
-fn rule(r: Rule) -> Vec<Text> {
+pub(super) fn rule(r: Rule) -> Vec<Text> {
     match r {
         Rule::Defines => vec![text("0")],
         Rule::Font(name) => vec![text("1"), name],

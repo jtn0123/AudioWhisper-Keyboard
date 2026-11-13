@@ -28,6 +28,7 @@ mod render_window;
 mod screen;
 mod shift;
 mod snygg;
+mod snygg_resolve;
 mod snygg_value;
 
 mod spacing;

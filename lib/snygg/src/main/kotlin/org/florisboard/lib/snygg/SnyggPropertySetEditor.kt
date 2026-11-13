@@ -28,7 +28,6 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
-import androidx.compose.ui.unit.isSpecified
 import org.florisboard.lib.snygg.value.RgbaColor
 import org.florisboard.lib.snygg.value.SnyggCircleShapeValue
 import org.florisboard.lib.snygg.value.SnyggCutCornerDpShapeValue
@@ -56,8 +55,6 @@ import org.florisboard.lib.snygg.value.SnyggTextOverflowValue
 import org.florisboard.lib.snygg.value.SnyggUriValue
 import org.florisboard.lib.snygg.value.SnyggValue
 import org.florisboard.lib.snygg.value.SnyggYesValue
-import org.florisboard.lib.snygg.value.isInherit
-import org.florisboard.lib.snygg.value.isUndefined
 import java.util.UUID
 
 sealed interface SnyggPropertySetEditor {
@@ -66,7 +63,7 @@ sealed interface SnyggPropertySetEditor {
 
 class SnyggSinglePropertySetEditor(initProperties: Map<String, SnyggValue>? = null) : SnyggPropertySetEditor {
     val uuid = UUID.randomUUID().toString()
-    val properties = mutableMapOf<String, SnyggValue>()
+    val properties: MutableMap<String, SnyggValue> = SnyggEditorProperties()
 
     init {
         if (initProperties != null) {
@@ -74,52 +71,22 @@ class SnyggSinglePropertySetEditor(initProperties: Map<String, SnyggValue>? = nu
         }
     }
 
-    @Suppress("NOTHING_TO_INLINE")
-    private inline fun getProperty(key: String): SnyggValue? {
-        return properties[key]
-    }
+    private fun getProperty(key: String): SnyggValue? = properties[key]
 
     private fun setProperty(key: String, value: SnyggValue?) {
-        if (value == null) {
-            properties.remove(key)
-        } else {
-            properties[key] = value
-        }
+        if (value == null) properties.remove(key) else properties[key] = value
     }
 
-    internal fun applyAll(
-        thisStyle: SnyggSinglePropertySet,
-        parentStyle: SnyggSinglePropertySet,
-        fontSizeMultiplier: Float,
-    ) {
-        for ((property, value) in thisStyle.properties) {
-            when {
-                value.isUndefined() -> setProperty(property, null)
-                value.isInherit() -> setProperty(property, parentStyle.properties[property])
-                else -> {
-                    val transformedValue = when (value) {
-                        is SnyggSpSizeValue if value.sp.isSpecified -> {
-                            SnyggSpSizeValue(value.sp * fontSizeMultiplier)
-                        }
-                        else -> {
-                            value
-                        }
-                    }
-                    setProperty(property, transformedValue)
-                }
-            }
-        }
-        inheritImplicitly(parentStyle)
+    internal fun applyAll(thisStyle: SnyggSinglePropertySet, parentStyle: SnyggSinglePropertySet, fontSizeMultiplier: Float) {
+        val result = SnyggCompilerAdapter.apply(properties, thisStyle, parentStyle, fontSizeMultiplier)
+        properties.clear()
+        properties.putAll(result)
     }
 
     internal fun inheritImplicitly(parentStyle: SnyggSinglePropertySet) {
-        // TODO: pattern properties??
-        for ((property, propertySpec) in SnyggSpec.elementsSpec.properties) {
-            if (propertySpec.inheritsImplicitly() && !properties.contains(property)) {
-                // inherit implicitly
-                setProperty(property, parentStyle.properties[property])
-            }
-        }
+        val result = SnyggCompilerAdapter.apply(properties, null, parentStyle)
+        properties.clear()
+        properties.putAll(result)
     }
 
     override fun build() = SnyggSinglePropertySet(properties.toMap())

@@ -1,12 +1,18 @@
-//! Snygg's grammar, for both the Compose adapter and the future Rust style resolver.
-//! Text is UTF-16, including lone surrogates. Values, specs and property decoding are
-//! plain Rust data. The JSON codec, cascade and editor are managed at this stage.
+//! Java-free Snygg grammar, values, compilation, cascade and editor model.
+//! Text is UTF-16, including lone surrogates. `resolve::CompiledTheme::from_json`
+//! and `resolve::Query` are directly usable by a renderer without JNI or Kotlin.
+//! Kotlin keeps its existing JSON codec/diagnostics and Compose object conversion.
 #![forbid(unsafe_code)]
 
 pub mod attributes;
 pub mod document;
+pub mod editor;
+pub mod external;
 pub mod grammar;
+pub mod json;
 pub mod properties;
+pub mod resolve;
+pub mod spec;
 pub mod value;
 pub mod value_codec;
 pub mod value_spec;
