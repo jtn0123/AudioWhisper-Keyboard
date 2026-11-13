@@ -16,6 +16,7 @@
 
 package dev.patrickgold.florisboard.app.ext
 
+import com.jtn0123.audiowhisper.rust.ExtensionPolicy
 import android.text.format.Formatter
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -47,9 +48,6 @@ import dev.patrickgold.florisboard.R
 import dev.patrickgold.florisboard.app.LocalNavController
 import dev.patrickgold.florisboard.cacheManager
 import dev.patrickgold.florisboard.extensionManager
-import dev.patrickgold.florisboard.ime.keyboard.KeyboardExtension
-import dev.patrickgold.florisboard.ime.nlp.LanguagePackExtension
-import dev.patrickgold.florisboard.ime.theme.ThemeExtension
 import dev.patrickgold.florisboard.lib.NATIVE_NULLPTR
 import dev.patrickgold.florisboard.lib.cache.CacheManager
 import dev.patrickgold.florisboard.lib.compose.FlorisScreen
@@ -103,21 +101,15 @@ fun ExtensionImportScreen(type: ExtensionImportScreenType, initUuid: String?) = 
     val scope = rememberCoroutineScope()
 
     fun getSkipReason(fileInfo: CacheManager.FileInfo): Int {
-        return when {
-            !FileRegistry.matchesFileFilter(fileInfo, type.supportedFiles) -> {
-                R.string.ext__import__file_skip_unsupported
-            }
-            fileInfo.ext != null -> {
-                val ext = fileInfo.ext
-                if (extensionManager.getExtensionById(ext.meta.id)?.sourceRef?.isAssets == true) {
-                    R.string.ext__import__file_skip_ext_core
-                } else {
-                    NATIVE_NULLPTR.toInt()
-                }
-            }
-            else -> { // ext == null
-                R.string.ext__import__file_skip_ext_corrupted
-            }
+        val code = ExtensionPolicy.skipReason(
+            FileRegistry.matchesFileFilter(fileInfo, type.supportedFiles), fileInfo.ext != null,
+            fileInfo.ext?.let { extensionManager.getExtensionById(it.meta.id)?.sourceRef?.isAssets } == true,
+        )
+        return when (code) {
+            "unsupported" -> R.string.ext__import__file_skip_unsupported
+            "core" -> R.string.ext__import__file_skip_ext_core
+            "corrupted" -> R.string.ext__import__file_skip_ext_corrupted
+            else -> NATIVE_NULLPTR.toInt()
         }
     }
 
@@ -174,20 +166,7 @@ fun ExtensionImportScreen(type: ExtensionImportScreenType, initUuid: String?) = 
                             continue
                         }
                         val ext = fileInfo.ext
-                        when (type) {
-                            ExtensionImportScreenType.EXT_ANY -> {
-                                ext?.let { extensionManager.import(it) }
-                            }
-                            ExtensionImportScreenType.EXT_KEYBOARD -> {
-                                ext.takeIf { it is KeyboardExtension }?.let { extensionManager.import(it) }
-                            }
-                            ExtensionImportScreenType.EXT_THEME -> {
-                                ext.takeIf { it is ThemeExtension }?.let { extensionManager.import(it) }
-                            }
-                            ExtensionImportScreenType.EXT_LANGUAGEPACK -> {
-                                ext.takeIf { it is LanguagePackExtension }?.let { extensionManager.import(it) }
-                            }
-                        }
+                        if (ext != null && ExtensionPolicy.accepts(type.id, ext.serialType())) extensionManager.import(ext)
                     }
                 }.onSuccess {
                     workspace.close()

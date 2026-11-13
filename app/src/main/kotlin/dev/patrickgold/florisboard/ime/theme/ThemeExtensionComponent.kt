@@ -16,6 +16,7 @@
 
 package dev.patrickgold.florisboard.ime.theme
 
+import com.jtn0123.audiowhisper.rust.ExtensionPolicy
 import dev.patrickgold.florisboard.lib.ext.ExtensionComponent
 import dev.patrickgold.florisboard.lib.ext.ExtensionComponentName
 import kotlinx.serialization.EncodeDefault
@@ -40,7 +41,7 @@ inline fun extPreviewTheme(id: String) = ExtensionComponentName(
 interface ThemeExtensionComponent : ExtensionComponent {
     companion object {
         fun defaultStylesheetPath(id: String): String {
-            return "stylesheets/$id.json"
+            return ExtensionPolicy.stylesheet(id, null)
         }
     }
 
@@ -51,7 +52,7 @@ interface ThemeExtensionComponent : ExtensionComponent {
     val materialYouFlags: MaterialYouFlags
     val stylesheetPath: String?
 
-    fun stylesheetPath(): String = stylesheetPath.takeUnless { it.isNullOrBlank() } ?: defaultStylesheetPath(id)
+    fun stylesheetPath(): String = ExtensionPolicy.stylesheet(id, stylesheetPath)
 }
 
 @OptIn(ExperimentalSerializationApi::class)
@@ -86,17 +87,15 @@ class ThemeExtensionComponentEditor(
     var stylesheetEditor: SnyggStylesheetEditor? = null
 
     fun build(): ThemeExtensionComponentImpl {
-        val component = ThemeExtensionComponentImpl(
-            id = id.trim(),
-            label = label.trim(),
-            authors = authors.filterNot { it.isBlank() },
+        val plan = ExtensionPolicy.themeComponent(id, label, stylesheetPath, authors)
+        check(plan[0].isEmpty()) { plan[0] }
+        return ThemeExtensionComponentImpl(
+            id = plan[1],
+            label = plan[2],
+            authors = plan.drop(5),
             isNightTheme = isNightTheme,
             materialYouFlags = materialYouFlags,
-            stylesheetPath = stylesheetPath.takeUnless { it.isBlank() },
+            stylesheetPath = if (plan[4] == "1") plan[3] else null,
         )
-        check(id.isNotBlank()) { "Theme component ID cannot be blank" }
-        check(label.isNotBlank()) { "Theme component label cannot be blank" }
-        check(authors.isNotEmpty()) { "Theme component authors must contain at least one non-blank author field" }
-        return component
     }
 }

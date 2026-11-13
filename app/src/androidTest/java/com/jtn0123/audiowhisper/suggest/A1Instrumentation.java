@@ -21,6 +21,7 @@ public final class A1Instrumentation extends Instrumentation {
             kotlin.Pair<String, String> hashes = A1Replay.INSTANCE.capture(dictionary, output, false);
             result.putString("decoder_sha256", hashes.getFirst());
             result.putString("pipeline_sha256", hashes.getSecond());
+            result.putLong("extension_maintainer_checks", dev.patrickgold.florisboard.lib.ext.ExtensionDeviceReplay.INSTANCE.run());
             dictionary.delete();
             finish(Activity.RESULT_OK, result);
         } catch (Exception failure) {

@@ -2,7 +2,7 @@
 //! directly (`Character.isDigit(codePoint)`), and UTF-16's surrogates.
 
 use crate::tables::TABLES;
-use crate::{CASE_IGNORABLE, CASED, DIGIT};
+use crate::{CASE_IGNORABLE, CASED, DIGIT, LETTER};
 
 /// The highest code point, U+10FFFF.
 pub const MAX: u32 = 0x10_FFFF;
@@ -16,6 +16,11 @@ const HANGUL_PER_LEADING: u32 = 588;
 /// `Character.isDigit(codePoint)`: general category Nd.
 pub fn is_digit(code_point: u32) -> bool {
     TABLES.flags(code_point) & DIGIT != 0
+}
+
+/// `Character.isLetter(codePoint)`: Unicode general category L, including supplementary letters.
+pub fn is_letter(code_point: u32) -> bool {
+    TABLES.flags(code_point) & LETTER != 0
 }
 
 /// `Character.toUpperCase(codePoint)`: one code point to one.

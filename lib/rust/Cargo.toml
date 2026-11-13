@@ -9,6 +9,7 @@ default-members = [
     "crates/composing",
     "crates/dictation",
     "crates/emoji",
+    "crates/extensions",
     "crates/gestures",
     "crates/gif",
     "crates/glide",

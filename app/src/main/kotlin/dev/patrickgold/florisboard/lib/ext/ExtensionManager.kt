@@ -16,6 +16,7 @@
 
 package dev.patrickgold.florisboard.lib.ext
 
+import com.jtn0123.audiowhisper.rust.ExtensionPolicy
 import android.content.Context
 import android.net.Uri
 import android.os.FileObserver
@@ -70,7 +71,12 @@ val ExtensionJsonConfig = Json {
         polymorphic(Composer::class) {
             subclass(Appender::class, Appender.serializer())
             subclass(WithRules::class, WithRules.serializer())
-            defaultDeserializer { Appender.serializer() }
+            defaultDeserializer { serial ->
+                when (ExtensionPolicy.composerType(serial)) {
+                    "with-rules" -> WithRules.serializer()
+                    else -> Appender.serializer()
+                }
+            }
         }
     }
 }
@@ -106,12 +112,7 @@ class ExtensionManager(context: Context) {
     fun import(ext: Extension) {
         val workingDir = requireNotNull(ext.workingDir) { "No working dir specified" }
         val extFileName = ExtensionDefaults.createFlexName(ext.meta.id)
-        val relGroupPath = when (ext) {
-            is KeyboardExtension -> IME_KEYBOARD_PATH
-            is ThemeExtension -> IME_THEME_PATH
-            is LanguagePackExtension -> IME_LANGUAGEPACK_PATH
-            else -> error("Unknown extension type")
-        }
+        val relGroupPath = ExtensionPolicy.group(ext.serialType())
         ext.sourceRef = FlorisRef.internal(relGroupPath).subRef(extFileName)
         FsFile(workingDir, ExtensionDefaults.MANIFEST_FILE_NAME).writeJson(ext, ExtensionJsonConfig)
         writeExtension(ext).throwOnFailure()

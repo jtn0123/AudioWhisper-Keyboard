@@ -3,3 +3,6 @@
 -keep class kotlin.** { *; }
 -keep class com.jtn0123.audiowhisper.suggest.** { *; }
 -keep class com.jtn0123.audiowhisper.rust.** { *; }
+
+# The extension replay compares Android ICU with the same test-only Kotlin parser.
+-keep class dev.patrickgold.florisboard.lib.ext.** { *; }

@@ -1,0 +1,136 @@
+package dev.patrickgold.florisboard.lib.ext
+
+import com.jtn0123.audiowhisper.rust.ExtensionPolicy
+import dev.patrickgold.florisboard.ime.theme.ThemeExtensionComponentEditor
+import dev.patrickgold.florisboard.lib.ValidationRule
+import dev.patrickgold.florisboard.lib.validate
+import java.io.File
+import kotlinx.serialization.json.*
+import kotlin.random.Random
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertTrue
+
+class ExtensionMetadataMatchTest {
+    private fun outcome(body: () -> Any?): Any? = try { body() } catch (e: Exception) { e.javaClass.name to e.message }
+    private fun encoded(extension: Extension) = ExtensionJsonConfig.encodeToString(Extension.serializer(), extension)
+    private fun compare(text: String) {
+        assertEquals(outcome { encoded(ReferenceExtensionPolicy.decode(text)) }, outcome { encoded(ExtensionCodec.decode(text)) })
+    }
+
+    @Test fun everyBundledExtensionAndGeneratedManifestMatches() {
+        val bundled = File("src/main/assets/ime").walkTopDown().filter { it.name == "extension.json" }.toList()
+        assertEquals(7, bundled.size)
+        for (file in bundled) {
+            compare(file.readText())
+            val meta = ExtensionCodec.decode(file.readText()).meta
+            assertTrue(meta.validate())
+        }
+        val base = ExtensionJsonConfig.parseToJsonElement(bundled.first { "/theme/" in it.path }.readText()).jsonObject
+        val variants = mutableListOf<JsonObject>(base)
+        for (field in listOf("id", "version", "title", "maintainers", "license")) {
+            val original = base.getValue("meta").jsonObject
+            for (value in listOf<JsonElement?>(null, JsonNull, JsonPrimitive(""), JsonPrimitive(" "), JsonPrimitive(12), JsonArray(emptyList()), JsonObject(emptyMap()))) {
+                val meta = original.toMutableMap().apply { if (value == null) remove(field) else put(field, value) }
+                variants += JsonObject(base + ("meta" to JsonObject(meta)))
+            }
+        }
+        for (id in listOf("a", "a.9", "A", "a..b", "../bad", "a._b", "é", "a\n", "a.1_b", "\uD800")) {
+            variants += JsonObject(base + ("meta" to JsonObject(base.getValue("meta").jsonObject + ("id" to JsonPrimitive(id)))))
+        }
+        for (version in listOf("bad version", "1..2", "-1", "1.2.3-alpha+9", "999999999999999999999", "١.٢.٣")) {
+            variants += JsonObject(base + ("meta" to JsonObject(base.getValue("meta").jsonObject + ("version" to JsonPrimitive(version)))))
+        }
+        for (schema in listOf(JsonNull, JsonPrimitive("unknown/v999"), JsonPrimitive(3), JsonObject(emptyMap()))) {
+            variants += JsonObject(base + ("\$schema" to schema))
+        }
+        for (kind in listOf(JsonPrimitive("unknown"), JsonPrimitive("ime.extension.keyboard"), JsonPrimitive("ime.extension.languagepack"), JsonNull, JsonPrimitive(42), JsonObject(emptyMap()))) {
+            variants += JsonObject(base + ("$" to kind))
+        }
+        val theme = base.getValue("themes").jsonArray.first()
+        variants += JsonObject(base + ("themes" to JsonArray(listOf(theme, theme))))
+        val unknownComponent = JsonObject(theme.jsonObject + ("$" to JsonPrimitive("unknown-component")))
+        variants += JsonObject(base + ("themes" to JsonArray(listOf(unknownComponent))))
+        variants += JsonObject(base - "$")
+        for (composer in listOf("unknown", "appender", "with-rules")) {
+            val item = buildJsonObject {
+                put("$", composer); put("id", "fixture"); put("label", "Fixture")
+                putJsonObject("rules") { put("a", "b") }
+            }
+            variants += JsonObject(base + mapOf("$" to JsonPrimitive("ime.extension.keyboard"), "composers" to JsonArray(listOf(item))))
+        }
+        for (document in variants) compare(document.toString())
+        for (document in variants) compare(JsonObject(document.entries.reversed().associate { it.toPair() }).toString())
+        for (first in listOf("ime.extension.theme", "unknown")) for (last in listOf("ime.extension.keyboard", "ime.extension.theme")) {
+            compare(base.toString().replaceFirst("\"ime.extension.theme\"", "\"$first\"").dropLast(1) + ",\"$\":\"$last\"}")
+        }
+        // The platform syntax boundary remains lenient, and retains exact error classes/messages.
+        for (text in listOf("{}", "[]", "null", "5", "{", "{\"$\":", base.toString().dropLast(1), base.toString().replace("\"id\":", "id:"))) compare(text)
+        // No semantic-version/schema restriction existed in import; identifiers are an editor rule.
+        assertTrue(ExtensionCodec.decode(variants[0].toString()).components().isNotEmpty())
+        val duplicate = ExtensionCodec.decode(JsonObject(base + ("themes" to JsonArray(listOf(theme, theme)))).toString())
+        assertEquals(2, duplicate.components().size)
+    }
+
+    private val rules: List<Pair<ValidationRule<String>, ValidationRule<String>>> get() = listOf(
+        ReferenceExtensionValidation.MetaId to ExtensionValidation.MetaId,
+        ReferenceExtensionValidation.MetaVersion to ExtensionValidation.MetaVersion,
+        ReferenceExtensionValidation.MetaTitle to ExtensionValidation.MetaTitle,
+        ReferenceExtensionValidation.MetaMaintainers to ExtensionValidation.MetaMaintainers,
+        ReferenceExtensionValidation.MetaLicense to ExtensionValidation.MetaLicense,
+        ReferenceExtensionValidation.ComponentId to ExtensionValidation.ComponentId,
+        ReferenceExtensionValidation.ComponentLabel to ExtensionValidation.ComponentLabel,
+        ReferenceExtensionValidation.ComponentAuthors to ExtensionValidation.ComponentAuthors,
+        ReferenceExtensionValidation.ThemeComponentStylesheetPath to ExtensionValidation.ThemeComponentStylesheetPath,
+    )
+    private fun validations(value: String, selected: List<Pair<ValidationRule<String>, ValidationRule<String>>> = rules) {
+        for ((reference, actual) in selected) {
+            // Resource IDs, status/error class and substituted regex text determine Compose's exact message.
+            assertEquals(validate(reference, value).toString(), validate(actual, value).toString())
+        }
+    }
+
+    @Test fun allUtf16AndSeededMetadataErrorsMatchComposeRules() {
+        for (unit in Char.MIN_VALUE..Char.MAX_VALUE) validations(unit.toString(), listOf(rules[0], rules[5], rules[6]))
+        val random = Random(20261113)
+        val pieces = listOf("a", "Z", "0", "_", ".", "..", "é", "١", "\uD800", "😀", " ", "\n", "\t", "\u00a0", "\u001c", "/", "'", ":", "<", "*", "x".repeat(31))
+        repeat(20_000) { validations(List(random.nextInt(8)) { pieces.random(random) }.joinToString("")) }
+        for (value in listOf("a.9", "a.0_b", "x".repeat(30), "x".repeat(31), "\u00a0" + "x".repeat(29) + "\u00a0")) validations(value)
+        val fields = listOf("local.test", "version?", "Title", "A <x>", "MIT")
+        assertTrue(ExtensionPolicy.metadataValid(fields[0], fields[1], fields[2], fields[3], fields[4]))
+        repeat(5) { missing ->
+            val values = fields.mapIndexed { i, v -> if (i == missing) " " else v }
+            val reference = listOf(rules[0].first, rules[1].first, rules[2].first, rules[3].first, rules[4].first)
+                .zip(values).all { (rule, value) -> validate(rule, value).isValid() }
+            assertEquals(reference, ExtensionPolicy.metadataValid(values[0], values[1], values[2], values[3], values[4]))
+        }
+    }
+
+    @Test fun componentNamesEditorPlansAndTypeDecisionsMatch() {
+        val random = Random(20261114)
+        val parts = listOf("", "a", ":", "a:b", "a:b:c", "\uD800", " ", "\n", "é", "local.theme")
+        repeat(5_000) {
+            val value = List(random.nextInt(5)) { parts.random(random) }.joinToString("")
+            assertEquals(outcome { ReferenceExtensionPolicy.componentName(value) }, outcome { ExtensionComponentName.from(value) })
+            val label = parts.random(random)
+            val authors = List(random.nextInt(4)) { parts.random(random) }
+            val path = parts.random(random)
+            assertEquals(outcome { ReferenceExtensionPolicy.themeComponent(value, label, authors, path) },
+                outcome { ThemeExtensionComponentEditor(id = value, label = label, authors = authors, stylesheetPath = path).build() })
+            assertEquals(ReferenceExtensionPolicy.stylesheet(value, path), ExtensionPolicy.stylesheet(value, path))
+        }
+        val serials = listOf("ime.extension.keyboard", "ime.extension.theme", "ime.extension.languagepack", "unknown", "")
+        for (serial in serials) {
+            assertEquals(outcome { ReferenceExtensionPolicy.group(serial) }, outcome { ExtensionPolicy.group(serial) })
+            for (requested in listOf("ext-any", "ext-keyboard", "ext-theme", "ext-languagepack", "unknown")) {
+                assertEquals(ReferenceExtensionPolicy.accepts(requested, serial), ExtensionPolicy.accepts(requested, serial))
+            }
+        }
+        for (supported in listOf(false, true)) for (parsed in listOf(false, true)) for (core in listOf(false, true)) {
+            assertEquals(ReferenceExtensionPolicy.skip(supported, parsed, core), ExtensionPolicy.skipReason(supported, parsed, core))
+        }
+        assertEquals("appender", ExtensionPolicy.composerType("unknown"))
+        assertEquals("appender", ExtensionPolicy.composerType(null))
+        assertEquals("with-rules", ExtensionPolicy.composerType("with-rules"))
+    }
+}

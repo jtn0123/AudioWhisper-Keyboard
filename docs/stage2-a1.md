@@ -79,5 +79,5 @@ pipeline SHA-256 is `658c8914602e62d97572366074775389d3f6c49c4941b41d0b90949b253
 The Compose and Rust renderer regressions retain both digests above. On each renderer,
 autocorrect-on-space digest is `6e5ce6afa65bc328ed7ef2585ac6077dca716587a929ef60778a364b5680051c`
 and candidate selection digest is `106a5842fc5fce6f663176285ed1516dbb1e3d15c05abab12fdca46d60b539b7`.
-No replay data or screenshots are tracked. Final cleanup and the combined Gradle gate are
-recorded with the package 9 delivery.
+No replay data or screenshots are tracked. Final cleanup and the successful combined Gradle gate are
+recorded in [the package 9 delivery](stage2-extensions.md).

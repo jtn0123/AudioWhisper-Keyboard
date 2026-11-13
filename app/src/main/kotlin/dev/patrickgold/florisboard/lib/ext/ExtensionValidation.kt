@@ -16,125 +16,94 @@
 
 package dev.patrickgold.florisboard.lib.ext
 
-import androidx.core.text.trimmedLength
+import com.jtn0123.audiowhisper.rust.ExtensionPolicy
+import dev.patrickgold.florisboard.lib.ValidationResult
 import dev.patrickgold.florisboard.R
 import dev.patrickgold.florisboard.ime.theme.ThemeExtensionComponent
 import dev.patrickgold.florisboard.lib.ValidationRule
 import org.florisboard.lib.snygg.SnyggStylesheet
-import dev.patrickgold.florisboard.lib.validate
 import org.florisboard.lib.snygg.value.SnyggVarValue
 
 object ExtensionValidation {
-    private val MetaIdRegex = """^[a-z][a-z0-9_]*(\.[a-z0-9][a-z0-9_]*)*${'$'}""".toRegex()
-    private val ComponentIdRegex = """^[a-z][a-z0-9_]*${'$'}""".toRegex()
-    private val ThemeComponentStylesheetPathRegex = """^[^:*<>"']*${'$'}""".toRegex()
+    private fun native(rule: String, value: String): ValidationResult {
+        val plan = ExtensionPolicy.validate(rule, value)
+        if (plan[1].isEmpty()) return ValidationResult.resultValid()
+        val resource = resources.getValue(plan[1])
+        return when {
+            plan[0] == "valid" -> ValidationResult.resultValid(hint = resource)
+            plan[2].isEmpty() -> ValidationResult.resultInvalid(error = resource)
+            else -> ValidationResult.resultInvalid(resource, plan[2] to plan[3])
+        }
+    }
+
+    private val resources = mapOf(
+        "ext__validation__enter_package_name" to R.string.ext__validation__enter_package_name,
+        "ext__validation__error_package_name" to R.string.ext__validation__error_package_name,
+        "ext__validation__enter_version" to R.string.ext__validation__enter_version,
+        "ext__validation__enter_title" to R.string.ext__validation__enter_title,
+        "ext__validation__enter_maintainer" to R.string.ext__validation__enter_maintainer,
+        "ext__validation__enter_license" to R.string.ext__validation__enter_license,
+        "ext__validation__enter_component_id" to R.string.ext__validation__enter_component_id,
+        "ext__validation__error_component_id" to R.string.ext__validation__error_component_id,
+        "ext__validation__enter_component_label" to R.string.ext__validation__enter_component_label,
+        "ext__validation__hint_component_label_to_long" to R.string.ext__validation__hint_component_label_to_long,
+        "ext__validation__error_author" to R.string.ext__validation__error_author,
+        "ext__validation__error_stylesheet_path_blank" to R.string.ext__validation__error_stylesheet_path_blank,
+        "ext__validation__error_stylesheet_path" to R.string.ext__validation__error_stylesheet_path,
+    )
 
     val MetaId = ValidationRule<String> {
         forKlass = ExtensionMeta::class
         forProperty = "id"
-        validator { str ->
-            when {
-                str.isBlank() -> resultInvalid(error = R.string.ext__validation__enter_package_name)
-                MetaIdRegex.matches(str) -> resultValid()
-                else -> resultInvalid(error = R.string.ext__validation__error_package_name, "id_regex" to MetaIdRegex)
-            }
-        }
+        validator { str -> native("id", str) }
     }
 
     val MetaVersion = ValidationRule<String> {
         forKlass = ExtensionMeta::class
         forProperty = "version"
-        validator { str ->
-            when {
-                str.isBlank() -> resultInvalid(error = R.string.ext__validation__enter_version)
-                else -> resultValid()
-            }
-        }
+        validator { str -> native("version", str) }
     }
 
     val MetaTitle = ValidationRule<String> {
         forKlass = ExtensionMeta::class
         forProperty = "title"
-        validator { str ->
-            when {
-                str.isBlank() -> resultInvalid(error = R.string.ext__validation__enter_title)
-                else -> resultValid()
-            }
-        }
+        validator { str -> native("title", str) }
     }
 
     val MetaMaintainers = ValidationRule<String> {
         forKlass = ExtensionMeta::class
         forProperty = "maintainers"
-        validator { str ->
-            val maintainers = str.lines().filter { it.isNotBlank() }
-            when {
-                maintainers.isEmpty() -> resultInvalid(error = R.string.ext__validation__enter_maintainer)
-                else -> resultValid()
-            }
-        }
+        validator { str -> native("maintainers", str) }
     }
 
     val MetaLicense = ValidationRule<String> {
         forKlass = ExtensionMeta::class
         forProperty = "license"
-        validator { str ->
-            when {
-                str.isBlank() -> resultInvalid(error = R.string.ext__validation__enter_license)
-                else -> resultValid()
-            }
-        }
+        validator { str -> native("license", str) }
     }
 
     val ComponentId = ValidationRule<String> {
         forKlass = ExtensionComponent::class
         forProperty = "id"
-        validator { str ->
-            when {
-                str.isBlank() -> resultInvalid(error = R.string.ext__validation__enter_component_id)
-                !ComponentIdRegex.matches(str) -> resultInvalid(error = R.string.ext__validation__error_component_id, "component_id_regex" to ComponentIdRegex)
-                else -> resultValid()
-            }
-        }
+        validator { str -> native("componentId", str) }
     }
 
     val ComponentLabel = ValidationRule<String> {
         forKlass = ExtensionComponent::class
         forProperty = "label"
-        validator { str ->
-            when {
-                str.isBlank() -> resultInvalid(error = R.string.ext__validation__enter_component_label)
-                str.trimmedLength() > 30 -> resultValid(hint = R.string.ext__validation__hint_component_label_to_long)
-                else -> resultValid()
-            }
-        }
+        validator { str -> native("componentLabel", str) }
     }
 
     val ComponentAuthors = ValidationRule<String> {
         forKlass = ExtensionComponent::class
         forProperty = "authors"
-        validator { str ->
-            val authors = str.lines().filter { it.isNotBlank() }
-            when {
-                authors.isEmpty() -> resultInvalid(error = R.string.ext__validation__error_author)
-                else -> resultValid()
-            }
-        }
+        validator { str -> native("componentAuthors", str) }
     }
 
     val ThemeComponentStylesheetPath = ValidationRule<String> {
         forKlass = ThemeExtensionComponent::class
         forProperty = "stylesheetPath"
-        validator { str ->
-            when {
-                str.isEmpty() -> resultValid()
-                str.isBlank() -> resultInvalid(error = R.string.ext__validation__error_stylesheet_path_blank)
-                !ThemeComponentStylesheetPathRegex.matches(str) -> {
-                    resultInvalid(error = R.string.ext__validation__error_stylesheet_path, "stylesheet_path_regex" to ThemeComponentStylesheetPathRegex)
-                }
-                else -> resultValid()
-            }
-        }
+        validator { str -> native("stylesheet", str) }
     }
 
     val ThemeComponentVariableName = ValidationRule<String> {
@@ -197,12 +166,6 @@ object ExtensionValidation {
     }
 }
 
-fun ExtensionMeta.validate(): Boolean {
-    return with(ExtensionValidation) {
-        validate(MetaId, id).isValid() &&
-            validate(MetaVersion, version).isValid() &&
-            validate(MetaTitle, title).isValid() &&
-            validate(MetaMaintainers, maintainers.joinToString("\n")).isValid() &&
-            validate(MetaLicense, license).isValid()
-    }
-}
+fun ExtensionMeta.validate(): Boolean = ExtensionPolicy.metadataValid(
+    id, version, title, maintainers.joinToString("\n"), license,
+)

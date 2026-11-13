@@ -38,7 +38,7 @@ wrappers: the point is to remove Kotlin decisions, not translate each line throu
 6. A1: native Rust suggest/decoder session; production LatinIME Java glue removed, C++ oracle retained (done; [proof](stage2-a1.md)).
 7. Emoji history and quick-action arrangement.
 8. Clipboard ordering, duplicate/expiry/limit/pinning and MIME policy; keep Room and the Android clipboard in Kotlin.
-9. Extension metadata/import policy: identifiers, maintainers, validation and archive-entry decisions.
+9. Extension metadata/import policy: identifiers, maintainers, validation and archive-entry decisions (done; [proof](stage2-extensions.md)).
 10. Dictation session state machine, compared with the existing schedules.
 11. ASR and VAD through sherpa-onnx 2.0.1's exact C API; restore its excluded C library and preserve audio/decoder/VAD settings and flushing.
 12. Pocket TTS through that C API: Loona, four threads, cancellation and stop-before-free; remove sherpa JNI only when unused.
@@ -167,6 +167,7 @@ The differential tests, deliberate mutation check and emulator checks below appl
 
 | Piece | Rust | Replaced | Proof it matches |
 |---|---|---|---|
+| Extension metadata and import policy (stage 2 package 9) | `crates/extensions` | Identifier/maintainer/validation, type/target/skip and archive decisions; Kotlin keeps Android I/O, serialization and Compose resources | Seven bundled manifests, 155 document comparisons, exhaustive/seeded validation and maintainer matches, 10,000 entry lists and 11 generated ZIPs; ID mutation caught; Android ICU 302,152 matches and real valid/two-invalid import UI checks. See [extension proof](stage2-extensions.md) |
 | Native typing decoder session (stage 2 package 6) | `crates/suggest` (`session`) calls `crates/latin` directly | Production LatinIME Java glue and Kotlin session/slot/geometry/result marshalling | Saved JVM/device 4,000 decoder and 2,000 full-pipeline states match byte for byte; 4,000 independent C++ oracle queries; result-order mutation caught; both renderer regressions and suggestion-pick/autocorrect digests match. See [A1 proof](stage2-a1.md) |
 | Clipboard history ordering, duplicates, expiry, limits, pins and MIME eligibility (stage 2 package 8) | `crates/render` (`clipboard_policy`) | `ClipboardManager` / `ClipboardHistory` policy; Room and Android clipboard remain Kotlin | `ClipboardMatchTest` against test-only `ReferenceClipboard`, 12,000 cohorts and MIME combinations, deliberate mutations; paired paste/pin/unpin/delete/clear stored-state fixture. See [package 7](stage3b-package7.md) |
 | Snygg compilation, cascade and editor model | `crates/snygg` (`resolve`, `editor`, `spec`, `json`) | `SnyggTheme` compilation/querying, property application/inheritance, built-in declarations and the theme editor's rule ordering/rename policy | JVM reference matches: 868,680 bundled-theme queries, 30,000 seeded queries and 7,200 editor steps; native JSON-to-style light/dark prototype oracle. Reversing cascade traversal fails. Five visual pairs are identical and editor edits persist; see stage 2.5 |
@@ -639,6 +640,7 @@ lib/rust/
   crates/shift/               the shift key, automatic capitals, the double-space full stop
   crates/composing/           rule-table composers, including Vietnamese Telex
   crates/emoji/               emoji files, skin tones and `:` suggestions
+  crates/extensions/          extension metadata, maintainers, validation and archive import policy
   crates/gif/                 the GIF panel: its search field, chips, keys, result cache, recents and GIPHY's JSON and URLs
   crates/latin/               LatinIME's dictionary and typing search, ported from its C++
   crates/chars/               Kotlin's character rules, for crates that judge text as Kotlin did

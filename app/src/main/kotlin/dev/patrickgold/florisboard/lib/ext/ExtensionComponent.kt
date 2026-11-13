@@ -16,6 +16,7 @@
 
 package dev.patrickgold.florisboard.lib.ext
 
+import com.jtn0123.audiowhisper.rust.ExtensionPolicy
 import androidx.compose.runtime.saveable.Saver
 import dev.patrickgold.jetpref.datastore.model.PreferenceSerializer
 import kotlinx.serialization.KSerializer
@@ -51,9 +52,9 @@ data class ExtensionComponentName(
         private const val DELIMITER = ":"
 
         fun from(str: String): ExtensionComponentName {
-            val data = str.split(DELIMITER)
-            check(data.size == 2) { "Extension component name must be of format <ext_id>:<comp_id>" }
-            return ExtensionComponentName(data[0], data[1])
+            val plan = ExtensionPolicy.componentName(str)
+            check(plan[0].isEmpty()) { plan[0] }
+            return ExtensionComponentName(plan[1], plan[2])
         }
 
         val Saver = Saver<ExtensionComponentName?, String>(

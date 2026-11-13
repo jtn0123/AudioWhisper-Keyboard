@@ -22,7 +22,7 @@ import kotlinx.serialization.descriptors.PrimitiveKind
 import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
-import kotlin.math.min
+import com.jtn0123.audiowhisper.rust.ExtensionPolicy
 
 @Serializable(with = ExtensionMaintainerSerializer::class)
 data class ExtensionMaintainer(
@@ -31,26 +31,11 @@ data class ExtensionMaintainer(
     val url: String? = null,
 ) {
     companion object {
-        private val ValidationRegex = """^\s*[\p{L}\d._-][\p{L}\d\s._-]*(<[^<>]+>)?\s*(\([^()]+\))?\s*${'$'}""".toRegex()
-
         fun from(str: String): ExtensionMaintainer? {
-            if (str.isBlank() || !ValidationRegex.matches(str)) {
-                return null
-            }
-            val emailStart = str.indexOf('<').let { if (it < 0) str.length else (it + 1) }
-            val emailEnd = str.indexOf('>').let { if (it < 0) str.length else it }
-            val urlStart = str.indexOf('(').let { if (it < 0) str.length else (it + 1) }
-            val urlEnd = str.indexOf(')').let { if (it < 0) str.length else it }
-            val nameStart = 0
-            val nameEnd = if (emailStart == str.length && urlStart == str.length) {
-                str.length
-            } else {
-                (min(emailStart, urlStart) - 1)
-            }
-            val name = str.substring(nameStart, nameEnd).trim()
-            val email = str.substring(emailStart, emailEnd).trim().takeIf { it.isNotBlank() }
-            val url = str.substring(urlStart, urlEnd).trim().takeIf { it.isNotBlank() }
-            return ExtensionMaintainer(name, email, url)
+            val ranges = ExtensionPolicy.maintainerRanges(str)
+            if (ranges.isEmpty()) return null
+            fun part(at: Int): String? = if (ranges[at] < 0) null else str.substring(ranges[at], ranges[at + 1])
+            return ExtensionMaintainer(requireNotNull(part(0)), part(2), part(4))
         }
 
         fun fromOrTakeRaw(str: String): ExtensionMaintainer {
@@ -58,15 +43,7 @@ data class ExtensionMaintainer(
         }
     }
 
-    override fun toString() = buildString {
-        append(name)
-        if (email != null && email.isNotBlank()) {
-            append(" <$email>")
-        }
-        if (url != null && url.isNotBlank()) {
-            append(" ($url)")
-        }
-    }
+    override fun toString(): String = ExtensionPolicy.formatMaintainer(name, email, url)
 }
 
 internal class ExtensionMaintainerSerializer : KSerializer<ExtensionMaintainer> {

@@ -31,7 +31,7 @@ import dev.patrickgold.florisboard.lib.NATIVE_NULLPTR
 import dev.patrickgold.florisboard.lib.ext.Extension
 import dev.patrickgold.florisboard.lib.ext.ExtensionDefaults
 import dev.patrickgold.florisboard.lib.ext.ExtensionEditor
-import dev.patrickgold.florisboard.lib.ext.ExtensionJsonConfig
+import dev.patrickgold.florisboard.lib.ext.ExtensionCodec
 import dev.patrickgold.florisboard.lib.io.FileRegistry
 import dev.patrickgold.florisboard.lib.io.ZipUtils
 import kotlinx.coroutines.CoroutineScope
@@ -47,7 +47,6 @@ import org.florisboard.lib.android.query
 import org.florisboard.lib.android.readToFile
 import org.florisboard.lib.kotlin.io.FsDir
 import org.florisboard.lib.kotlin.io.FsFile
-import org.florisboard.lib.kotlin.io.readJson
 import org.florisboard.lib.kotlin.io.subDir
 import org.florisboard.lib.kotlin.io.subFile
 import java.io.Closeable
@@ -92,7 +91,7 @@ class CacheManager(context: Context) {
                         val extWorkingDir = workspace.outputDir.subDir(file.nameWithoutExtension)
                         ZipUtils.unzip(srcFile = file, dstDir = extWorkingDir)
                         val extJsonFile = extWorkingDir.subFile(ExtensionDefaults.MANIFEST_FILE_NAME)
-                        extJsonFile.readJson<Extension>(ExtensionJsonConfig).also { it.workingDir = extWorkingDir }
+                        ExtensionCodec.decode(extJsonFile.readText()).also { it.workingDir = extWorkingDir }
                     }
                     FileInfo(
                         file = file,

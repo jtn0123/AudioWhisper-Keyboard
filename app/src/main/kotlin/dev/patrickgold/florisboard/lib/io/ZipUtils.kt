@@ -16,6 +16,7 @@
 
 package dev.patrickgold.florisboard.lib.io
 
+import com.jtn0123.audiowhisper.rust.ExtensionPolicy
 import android.content.Context
 import android.net.Uri
 import org.florisboard.lib.android.copyRecursively
@@ -138,25 +139,21 @@ object ZipUtils {
         require(srcFile.exists() && srcFile.isFile) { "Given src file `$srcFile` is not valid or a directory." }
         dstDir.mkdirs()
         ZipFile(srcFile).use { flexFile ->
-            val flexEntries = flexFile.entries()
-            while (flexEntries.hasMoreElements()) {
-                val flexEntry = flexEntries.nextElement()
-                if (flexEntry.name.length > 255) {
-                    continue
-                }
-                val flexEntryFile = FsFile(dstDir, flexEntry.name)
-                val canonicalDestinationDirPath = dstDir.canonicalPath
-                val canonicalDestinationFilePath = flexEntryFile.canonicalPath
-                if (canonicalDestinationFilePath.length > 1023) {
-                    continue
-                }
-                if (!canonicalDestinationFilePath.startsWith(canonicalDestinationDirPath + FsFile.separator)) {
-                    continue
-                }
-                if (flexEntry.isDirectory) {
-                    flexEntryFile.mkdir()
-                } else {
-                    flexFile.copy(flexEntry, flexEntryFile)
+            val entries = flexFile.entries().asSequence().toList()
+            val acceptedNames = ExtensionPolicy.archiveNames(entries.map { it.name })
+            for ((index, entry) in entries.withIndex()) {
+                if (!acceptedNames[index]) continue
+                val destination = FsFile(dstDir, entry.name)
+                // Canonicalization is file-system I/O; Rust decides containment, lengths and size.
+                val root = dstDir.canonicalPath
+                val canonical = destination.canonicalPath
+                val action = ExtensionPolicy.archive(root, listOf(
+                    ExtensionPolicy.ArchiveEntry(entry.name, canonical, entry.size, entry.isDirectory),
+                )).single()
+                when (action) {
+                    "directory" -> destination.mkdir()
+                    "copy" -> flexFile.copy(entry, destination)
+                    "empty" -> destination.outputStream().close()
                 }
             }
         }
@@ -164,9 +161,6 @@ object ZipUtils {
 
     private fun ZipFile.copy(srcEntry: ZipEntry, dstFile: FsFile) {
         dstFile.outputStream().use { outStream ->
-            if (srcEntry.size > 100000000) {
-                return
-            }
             this.getInputStream(srcEntry).use { inStream ->
                 inStream.copyTo(outStream)
             }

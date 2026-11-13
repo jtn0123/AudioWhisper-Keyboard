@@ -214,6 +214,7 @@ android {
         }
     }
     sourceSets.getByName("androidTest").kotlin.directories.add("src/test/kotlin/com/jtn0123/audiowhisper/suggest/a1")
+    sourceSets.getByName("androidTest").kotlin.directories.add("src/test/kotlin/dev/patrickgold/florisboard/lib/ext/replay")
     sourceSets.getByName("androidTest").java.directories.add("src/test/java/com/android/inputmethod")
 }
 
