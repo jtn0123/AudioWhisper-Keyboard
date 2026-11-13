@@ -130,7 +130,7 @@ import org.florisboard.lib.snygg.ui.SnyggText
 private val ItemWidth = 200.dp
 private val DialogWidth = 240.dp
 
-const val CLIPBOARD_HISTORY_NUM_GRID_COLUMNS_AUTO: Int = 0
+
 
 @Composable
 fun ClipboardInputLayout(
