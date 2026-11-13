@@ -200,8 +200,15 @@ internal class RendererAccessibility(
             MotionEvent.ACTION_UP -> {
                 host.removeCallbacks(hold)
                 val id = hit(event.x, event.y)
-                if (held && popup && id != View.NO_ID && nodes[id]?.string("role") == "popup item") activate(id, ACCESS_CLICK)
-                else if (!held && down != View.NO_ID) activate(down, ACCESS_CLICK)
+                val target = accessibilityReleaseTarget(down, id, held, popup,
+                    nodes[id]?.string("role") == "popup item",
+                    nodes.entries.firstOrNull { it.value.string("role") == "popup item" && it.value.bool("selected") }?.key)
+                if (target != null) activate(target, ACCESS_CLICK)
+                else if (held && popup) {
+                    nodes.entries.firstOrNull { it.value.string("role") == "popup item" }?.key?.let {
+                        activate(it, ACCESS_DISMISS)
+                    }
+                }
                 down = View.NO_ID
                 refresh()
             }
@@ -211,10 +218,11 @@ internal class RendererAccessibility(
     }
     fun clear() { host.removeCallbacks(hold); down = View.NO_ID; hovered = View.NO_ID }
     fun release() { clear(); active = false; nodes.clear(); focused = View.NO_ID }
-    private fun hit(x: Float, y: Float): Int = if (x < 0 || y < 0 || x >= host.width || y >= host.height) View.NO_ID
-        else nodes.entries.reversed().firstOrNull { (_, n) ->
-        bounds(n).contains(x.toInt(), y.toInt())
-    }?.key ?: View.NO_ID
+    private fun hit(x: Float, y: Float): Int = accessibilityHitTarget(x, y, host.width, host.height,
+        nodes.map { (id, n) ->
+            val b = bounds(n)
+            AccessibilityTarget(id, intArrayOf(b.left, b.top, b.right, b.bottom), n.string("role") == "popup item")
+        }) ?: View.NO_ID
     private fun supports(id: Int, action: Int) = nodes[id]?.get("actions")?.jsonArray?.any { it.jsonPrimitive.int == action } == true
     private fun focus(id: Int): Boolean {
         if (focused == id) return false
