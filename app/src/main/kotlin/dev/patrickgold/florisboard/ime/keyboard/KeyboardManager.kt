@@ -30,7 +30,6 @@ import dev.patrickgold.florisboard.clipboardManager
 import dev.patrickgold.florisboard.editorInstance
 import dev.patrickgold.florisboard.extensionManager
 import dev.patrickgold.florisboard.ime.ImeUiMode
-import dev.patrickgold.florisboard.ime.editor.EditorContent
 import dev.patrickgold.florisboard.ime.input.InputEventDispatcher
 import dev.patrickgold.florisboard.ime.input.InputKeyEventReceiver
 import dev.patrickgold.florisboard.ime.input.InputShiftState
@@ -141,13 +140,13 @@ class KeyboardManager(context: Context) : InputKeyEventReceiver {
                 reevaluateInputShiftState()
                 updateActiveEvaluators()
                 editorInstance.refreshComposing()
-                resetSuggestions(editorInstance.activeContent)
+                resetSuggestions()
             }
             clipboardManager.primaryClipFlow.collectLatestIn(scope) {
                 updateActiveEvaluators()
             }
-            editorInstance.activeContentFlow.collectIn(scope) { content ->
-                resetSuggestions(content)
+            editorInstance.activeContentFlow.collectIn(scope) {
+                resetSuggestions()
             }
 
         }
@@ -201,12 +200,9 @@ class KeyboardManager(context: Context) : InputKeyEventReceiver {
         )
     }
 
-    fun resetSuggestions(content: EditorContent) {
-        if (!(activeState.isComposingEnabled || nlpManager.isSuggestionOn())) {
-            nlpManager.clearSuggestions()
-            return
-        }
-        nlpManager.suggest(subtypeManager.activeSubtype, content)
+    fun resetSuggestions() {
+        // The flow is a notification; the native editor may already hold a newer prediction.
+        nlpManager.suggest(subtypeManager.activeSubtype, editorInstance.activeContent)
     }
 
     /**
@@ -221,6 +217,7 @@ class KeyboardManager(context: Context) : InputKeyEventReceiver {
     }
 
     fun commitCandidate(candidate: SuggestionCandidate) {
+        if (!nlpManager.canCommit(candidate)) return
         scope.launch {
             candidate.sourceProvider?.notifySuggestionAccepted(subtypeManager.activeSubtype, candidate)
         }

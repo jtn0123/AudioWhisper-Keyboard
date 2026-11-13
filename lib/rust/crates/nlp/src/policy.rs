@@ -19,8 +19,11 @@ impl Context {
             && self.0.get(3) == Some(&text("en"))
             && self.flag(17)
     }
+    pub fn enabled(&self) -> bool {
+        self.flag(4) || self.flag(5)
+    }
     pub fn on(&self) -> bool {
-        self.allowed() && (self.flag(4) || self.flag(5))
+        self.allowed() && self.enabled()
     }
     pub fn words(&self) -> bool {
         self.allowed() && self.flag(4) && self.latin()
@@ -48,6 +51,7 @@ impl Context {
             self.emoji(),
             self.autocorrect(),
             self.learn(),
+            self.enabled(),
         ]
         .map(|v| number(i32::from(v)))
         .to_vec()

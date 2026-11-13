@@ -36,7 +36,7 @@ internal class ReferenceNlp {
     private val query get() = on && flag(9) && !selection
     private val visible get() = if (!on) emptyList() else clipboard.ifEmpty { candidates }
     private fun invalidate() { generation++; pending = false; automatic = null; candidates = emptyList(); clipboard = emptyList() }
-    private fun policy() = listOf(on, words, emoji, auto, learning).map { it.bit() }
+    private fun policy() = listOf(on, words, emoji, auto, learning, flag(4) || flag(5)).map { it.bit() }
     private fun filter(values: List<List<String>>): List<List<String>> {
         if (!query) return emptyList()
         val prefixed = context[16].isNotEmpty() && emoji && values.any { it[2] == "1" }

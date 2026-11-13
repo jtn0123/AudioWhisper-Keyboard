@@ -47,48 +47,23 @@ internal class ClipboardSuggestionProvider(private val context: Context) : Sugge
         allowPossiblyOffensive: Boolean,
         isPrivateSession: Boolean,
     ): List<SuggestionCandidate> {
-        // Check if enabled
-        if (!prefs.clipboard.suggestionEnabled.get()) return emptyList()
-
-        val currentItem = validateClipboardItem(clipboardManager.primaryClip, lastClipboardItemId, content.text)
-            ?: return emptyList()
-
-        return buildList {
-            val now = System.currentTimeMillis()
-            if ((now - currentItem.creationTimestampMs) < prefs.clipboard.suggestionTimeout.get() * 1000) {
-                add(ClipboardSuggestionCandidate(currentItem, sourceProvider = this@ClipboardSuggestionProvider, context = context))
-                if (currentItem.isSensitive) {
-                    return@buildList
-                }
-                if (currentItem.type == ItemType.TEXT) {
-                    val text = currentItem.stringRepresentation()
-                    val matches = buildList {
-                        addAll(NetworkUtils.getEmailAddresses(text))
-                        addAll(NetworkUtils.getUrls(text))
-                        addAll(NetworkUtils.getPhoneNumbers(text))
-                    }
-                    matches.forEachIndexed { i, match ->
-                        val isUniqueMatch = matches.subList(0, i).all { prevMatch ->
-                            prevMatch.value != match.value && prevMatch.range.intersect(match.range).isEmpty()
-                        }
-                        if (match.value != text && isUniqueMatch) {
-                            add(ClipboardSuggestionCandidate(
-                                clipboardItem = currentItem.copy(
-                                    // TODO: adjust regex of phone number so we don't need to manually strip the
-                                    //  parentheses from the match results
-                                    text = if (match.value.startsWith("(") && match.value.endsWith(")")) {
-                                        match.value.substring(1, match.value.length - 1)
-                                    } else {
-                                        match.value
-                                    }
-                                ),
-                                sourceProvider = this@ClipboardSuggestionProvider,
-                                context = context,
-                            ))
-                        }
-                    }
-                }
-            }
+        val item = clipboardManager.primaryClip ?: return emptyList()
+        // Android's regex engine supplies spans; native policy owns eligibility, overlap and expiry.
+        val text = item.stringRepresentation()
+        val matches = if (item.type == ItemType.TEXT) buildList {
+            addAll(NetworkUtils.getEmailAddresses(text))
+            addAll(NetworkUtils.getUrls(text))
+            addAll(NetworkUtils.getPhoneNumbers(text))
+        } else emptyList()
+        val fields = listOf(prefs.clipboard.suggestionEnabled.get().bit(), item.id.toString(),
+            lastClipboardItemId.toString(), content.text, item.text ?: "",
+            (System.currentTimeMillis() - item.creationTimestampMs).toString(),
+            (prefs.clipboard.suggestionTimeout.get() * 1000).toString(), item.isSensitive.bit()) +
+            matches.flatMap { listOf(it.value, it.range.first.toString(), it.range.last.toString()) }
+        return NlpState.call("clipboardPlan", *fields.toTypedArray()).map { index ->
+            val selected = index.toInt()
+            val candidate = if (selected < 0) item else item.copy(text = matches[selected].value.removeSurrounding("(", ")"))
+            ClipboardSuggestionCandidate(candidate, this, context)
         }
     }
 
@@ -122,14 +97,4 @@ internal class ClipboardSuggestionProvider(private val context: Context) : Sugge
         // Do nothing
     }
 
-    private fun validateClipboardItem(currentItem: ClipboardItem?, lastItemId: Long, contentText: String) =
-        currentItem?.takeIf {
-            // Check if already used
-            it.id != lastItemId
-                // Check if content is empty
-                && contentText.isBlank()
-                // Check if clipboard content has any valid characters
-                && !currentItem.text.isNullOrBlank()
-                && currentItem.text.isNotBlank()
-        }
 }

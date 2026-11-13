@@ -19,7 +19,6 @@ package dev.patrickgold.florisboard.ime.nlp
 import android.content.Context
 import android.os.SystemClock
 import com.jtn0123.audiowhisper.suggest.GlideGuess
-import com.jtn0123.audiowhisper.suggest.WordCharacters
 import com.jtn0123.audiowhisper.suggest.WordLearner
 import dev.patrickgold.florisboard.app.FlorisPreferenceStore
 import dev.patrickgold.florisboard.clipboardManager
@@ -33,11 +32,10 @@ import dev.patrickgold.florisboard.keyboardManager
 import dev.patrickgold.florisboard.subtypeManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
@@ -46,10 +44,7 @@ import org.florisboard.lib.kotlin.guardedByLock
 import org.florisboard.lib.kotlin.collectLatestIn
 import org.florisboard.lib.kotlin.safeSubstring
 import java.util.concurrent.atomic.AtomicBoolean
-import kotlin.properties.Delegates
 
-/** AudioWhisper: how long after the first unsaved learned word the learned words are saved. */
-private const val LEARNED_SAVE_DELAY_MS = 5_000L
 
 class NlpManager(context: Context) {
 
@@ -69,24 +64,32 @@ class NlpManager(context: Context) {
             LatinLanguageProvider.ProviderId to ProviderInstanceWrapper(latinProvider),
         )
     }
-    // lock unnecessary because values constant
-    private val providersForceSuggestionOn = mutableMapOf<String, Boolean>()
     private val preloadLock = Mutex()
 
-    private val internalSuggestionsGuard = Mutex()
-    private var internalSuggestions by Delegates.observable(SystemClock.uptimeMillis() to listOf<SuggestionCandidate>()) { _, _, _ ->
-        scope.launch { assembleCandidates() }
+    private val environment = NlpEnvironment(context)
+    private var requestJob: Job? = null
+    val activeCandidatesFlow = NlpState.candidates
+    val activeCandidates get() = activeCandidatesFlow.value
+
+    private fun configure(subtype: Subtype = subtypeManager.activeSubtype, content: EditorContent = editorInstance.activeContent) {
+        NlpState.configure(environment.fields(subtype, content))
     }
 
-    private val _activeCandidatesFlow = MutableStateFlow(listOf<SuggestionCandidate>())
-    val activeCandidatesFlow = _activeCandidatesFlow.asStateFlow()
-    inline var activeCandidates
-        get() = activeCandidatesFlow.value
-        private set(v) {
-            _activeCandidatesFlow.value = v
+    init {
+        NlpState.expanded.collectLatestIn(scope) { expanded ->
+            if (expanded >= 0) {
+                prefs.smartbar.sharedActionsExpandWithAnimation.set(false)
+                prefs.smartbar.sharedActionsExpanded.set(expanded != 0)
+            }
         }
 
-    init {
+        keyboardManager.activeState.collectLatestIn(scope) { configure() }
+        editorInstance.activeInfoFlow.collectLatestIn(scope) { configure() }
+        prefs.suggestion.incognitoMode.asFlow().collectLatestIn(scope) { configure() }
+        prefs.suggestion.learnFromTyping.asFlow().collectLatestIn(scope) { configure() }
+        prefs.suggestion.blockPossiblyOffensive.asFlow().collectLatestIn(scope) { clearSuggestions() }
+        prefs.suggestion.api30InlineSuggestionsEnabled.asFlow().collectLatestIn(scope) { configure() }
+        prefs.smartbar.enabled.asFlow().collectLatestIn(scope) { configure() }
         clipboardManager.primaryClipFlow.collectLatestIn(scope) {
             assembleCandidates()
         }
@@ -100,6 +103,7 @@ class NlpManager(context: Context) {
             assembleCandidates()
         }
         subtypeManager.activeSubtypeFlow.collectLatestIn(scope) { subtype ->
+            clearSuggestions()
             preload(subtype)
         }
     }
@@ -184,72 +188,56 @@ class NlpManager(context: Context) {
         )
     }
 
-    fun providerForcesSuggestionOn(subtype: Subtype): Boolean {
-        // Using a cache because I have no idea how fast the runBlocking is
-        return providersForceSuggestionOn.getOrPut(subtype.nlpProviders.suggestion) {
-            runBlocking {
-                getSuggestionProvider(subtype).forcesSuggestionOn
+    fun providerForcesSuggestionOn(subtype: Subtype): Boolean =
+        NlpState.call("force", subtype.nlpProviders.suggestion)[0] == "1"
+
+    // The editor's legacy composing switch is independent of candidate field eligibility.
+    fun isSuggestionOn(): Boolean = environment.policy(subtypeManager.activeSubtype)[5] == "1"
+
+    @Synchronized fun suggest(subtype: Subtype, content: EditorContent) {
+        requestJob?.cancel()
+        val plan = NlpState.begin(SystemClock.uptimeMillis(), environment.fields(subtype, content))
+        if (plan[1].toLong() < 0) return
+        requestJob = scope.launch {
+            delay(plan[1].toLong())
+            if (NlpState.call("ready", plan[0], SystemClock.uptimeMillis().toString())[0] != "1") return@launch
+            val values = try {
+                val emoji = if (plan[3] == "1") emojiSuggestionProvider.suggest(subtype, content,
+                    prefs.emoji.suggestionCandidateMaxCount.get(), !prefs.suggestion.blockPossiblyOffensive.get(),
+                    keyboardManager.activeState.isIncognitoMode) else emptyList()
+                val words = if (plan[2] == "1") getSuggestionProvider(subtype).suggest(subtype, content, 8,
+                    !prefs.suggestion.blockPossiblyOffensive.get(), keyboardManager.activeState.isIncognitoMode) else emptyList()
+                emoji + words
+            } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                emptyList()
             }
+            NlpState.complete(plan[0], values, environment.fields(subtypeManager.activeSubtype))
+            assembleCandidates()
         }
     }
 
-    fun isSuggestionOn(): Boolean =
-        prefs.suggestion.enabled.get()
-            || prefs.emoji.suggestionEnabled.get()
-            || providerForcesSuggestionOn(subtypeManager.activeSubtype)
-
-    fun suggest(subtype: Subtype, content: EditorContent) {
-        val reqTime = SystemClock.uptimeMillis()
-        scope.launch {
-            val emojiSuggestions = when {
-                prefs.emoji.suggestionEnabled.get() -> {
-                    emojiSuggestionProvider.suggest(
-                        subtype = subtype,
-                        content = content,
-                        maxCandidateCount = prefs.emoji.suggestionCandidateMaxCount.get(),
-                        allowPossiblyOffensive = !prefs.suggestion.blockPossiblyOffensive.get(),
-                        isPrivateSession = keyboardManager.activeState.isIncognitoMode,
-                    )
-                }
-                else -> emptyList()
-            }
-            val suggestions = when {
-                emojiSuggestions.isNotEmpty() && prefs.emoji.suggestionType.get().prefix.isNotEmpty() -> {
-                    emptyList()
-                }
-                else -> {
-                    getSuggestionProvider(subtype).suggest(
-                        subtype = subtype,
-                        content = content,
-                        maxCandidateCount = 8,
-                        allowPossiblyOffensive = !prefs.suggestion.blockPossiblyOffensive.get(),
-                        isPrivateSession = keyboardManager.activeState.isIncognitoMode,
-                    )
-                }
-            }
-            internalSuggestionsGuard.withLock {
-                if (internalSuggestions.first < reqTime) {
-                    internalSuggestions = reqTime to buildList {
-                        addAll(emojiSuggestions)
-                        addAll(suggestions)
-                    }
-                }
-            }
-        }
+    fun beginExternalRequest(): String {
+        configure()
+        return NlpState.call("externalBegin")[0]
     }
 
-    fun suggestDirectly(suggestions: List<SuggestionCandidate>) {
-        val reqTime = SystemClock.uptimeMillis()
-        runBlocking {
-            internalSuggestions = reqTime to suggestions
-        }
+    fun canApplyExternalRequest(generation: String): Boolean {
+        configure()
+        return NlpState.call("externalValid", generation)[0] == "1"
     }
 
-    fun clearSuggestions() {
-        val reqTime = SystemClock.uptimeMillis()
-        runBlocking {
-            internalSuggestions = reqTime to emptyList()
-        }
+    @Synchronized fun suggestDirectly(suggestions: List<SuggestionCandidate>) {
+        configure()
+        requestJob?.cancel()
+        NlpState.directly(suggestions)
+    }
+
+    @Synchronized fun clearSuggestions() {
+        requestJob?.cancel()
+        configure()
+        NlpState.clear()
     }
 
     /**
@@ -259,21 +247,16 @@ class NlpManager(context: Context) {
      * now rather than read from [activeCandidates], which can be a keystroke behind; and digits,
      * apostrophes, hyphens and `@` continue a word instead of ending it (see [WordCharacters]).
      */
+    fun canCommit(candidate: SuggestionCandidate): Boolean =
+        NlpState.pick(candidate, environment.fields(subtypeManager.activeSubtype))
+
     fun getAutoCommitCandidate(triggerCodePoint: Int? = null): SuggestionCandidate? {
-        val subtype = subtypeManager.activeSubtype
-        if (subtype.nlpProviders.suggestion != LatinLanguageProvider.ProviderId) {
-            return activeCandidates.firstOrNull { it.isEligibleForAutoCommit }
-        }
-        if (!prefs.suggestion.enabled.get()) return null
-        if (triggerCodePoint != null && WordCharacters.continuesWord(triggerCodePoint)) return null
-        // Clipboard or emoji candidates have replaced the word suggestions: nothing visible to commit.
-        val shown = activeCandidates
-        if (shown.isNotEmpty() && shown.none { it.sourceProvider === latinProvider }) return null
-        return latinProvider.autoCommitCandidateFor(
-            subtype = subtype,
-            content = editorInstance.activeContent,
-            allowPossiblyOffensive = !prefs.suggestion.blockPossiblyOffensive.get(),
-        )
+        val requested = environment.fields(subtypeManager.activeSubtype)
+        NlpState.configure(requested)
+        if (NlpState.call("auto", (triggerCodePoint ?: -1).toString(), editorInstance.phantomSpace.isActive.bit())[0] != "1") return null
+        val candidate = latinProvider.autoCommitCandidateFor(subtypeManager.activeSubtype, editorInstance.activeContent,
+            !prefs.suggestion.blockPossiblyOffensive.get()) ?: return null
+        return candidate.takeIf { NlpState.autoCandidate(it, requested, environment.fields(subtypeManager.activeSubtype)) }
     }
 
     /**
@@ -281,42 +264,40 @@ class NlpManager(context: Context) {
      * remembered across restarts unless the field or the user asked for incognito.
      */
     fun keepAsTyped(word: String) {
-        val remember = !keyboardManager.activeState.isIncognitoMode
+        configure()
+        val remember = NlpState.call("keep", word)[0] == "1"
         if (latinProvider.keepAsTyped(word, remember)) {
             scope.launch(Dispatchers.IO) { latinProvider.saveKeptWords() }
         }
     }
 
     /** AudioWhisper: a save of the learned words is scheduled (see [saveLearnedWordsSoon]). */
-    private val learnedSavePending = AtomicBoolean(false)
 
     /**
      * AudioWhisper: the word being composed in [content] was finished by [triggerCodePoint] (null
      * for a space or Enter) and stays as typed. See [WordLearner.finished].
      */
     fun learnTypedWord(content: EditorContent, triggerCodePoint: Int? = null) {
-        if (triggerCodePoint != null && WordCharacters.continuesWord(triggerCodePoint)) return
-        val word = content.composingText
-        if (word.isEmpty() || !content.localComposing.isValid) return
-        val textBefore = content.text.safeSubstring(0, content.localComposing.start)
-        learn { it.finished(word, textBefore, content.composing.start) }
+        learningPlan(0, content.composingText, content, triggerCodePoint)
     }
 
-    /** AudioWhisper: the candidate [text] is about to replace the word composed in [content], or follow it. */
     fun learnCandidate(text: String, content: EditorContent) {
         latinProvider.dropSwipedWord()
-        val replacesWord = content.composingText.isNotEmpty() && content.localComposing.isValid
-        if (replacesWord) {
-            val textBefore = content.text.safeSubstring(0, content.localComposing.start)
-            learn { it.finished(text, textBefore, content.composing.start) }
-        } else {
-            learn { it.finished(text, beforeNextWord(content.textBeforeSelection), content.selection.start) }
-        }
+        learningPlan(1, text, content)
     }
 
-    /** AudioWhisper: the swiped [word] is about to go in at the cursor in [content]. */
-    fun learnSwipedWord(word: String, content: EditorContent) {
-        learn { it.swiped(word, beforeNextWord(content.textBeforeSelection)) }
+    fun learnSwipedWord(word: String, content: EditorContent) { learningPlan(2, word, content) }
+
+    private fun learningPlan(kind: Int, word: String, content: EditorContent, trigger: Int? = null) {
+        configure(subtypeManager.activeSubtype, content)
+        val plan = NlpState.call("learn", kind.toString(), (trigger ?: -1).toString(), word,
+            content.text.safeSubstring(0, content.localComposing.start), content.composing.start.toString(), content.localComposing.isValid.bit(),
+            content.textBeforeSelection)
+        if (plan.isEmpty()) return
+        learn { learner -> when (plan[0].toInt()) {
+            2 -> learner.swiped(plan[1], plan[2])
+            else -> learner.finished(plan[1], plan[2], plan[3].toInt())
+        } }
     }
 
     /** AudioWhisper: a backspace; a swiped word waiting to be learned is being taken out. */
@@ -328,7 +309,7 @@ class NlpManager(context: Context) {
     }
 
     /** AudioWhisper: input moved to another field. */
-    fun resetLearning() = latinProvider.resetLearning()
+    fun resetLearning() { NlpState.field(); latinProvider.resetLearning() }
 
     /** AudioWhisper: where the letters being typed were tapped (see [LatinLanguageProvider.tapTrail]). */
     val tapTrail get() = latinProvider.tapTrail
@@ -340,17 +321,17 @@ class NlpManager(context: Context) {
 
     /** Applies [change] to the learner unless incognito or the field rules learning out. */
     private inline fun learn(change: (WordLearner) -> Boolean) {
-        if (keyboardManager.activeState.isIncognitoMode) return
+        if (environment.policy(subtypeManager.activeSubtype)[4] != "1") return
         val learner = latinProvider.learnerFor(subtypeManager.activeSubtype) ?: return
         if (change(learner)) saveLearnedWordsSoon()
     }
 
-    /** One write for a burst of typing, a few seconds after its first word. */
     private fun saveLearnedWordsSoon() {
-        if (!learnedSavePending.compareAndSet(false, true)) return
+        val delayMs = NlpState.call("save", SystemClock.uptimeMillis().toString())[0].toLong()
+        if (delayMs < 0) return
         scope.launch(Dispatchers.IO) {
-            delay(LEARNED_SAVE_DELAY_MS)
-            learnedSavePending.set(false)
+            delay(delayMs)
+            NlpState.call("save", SystemClock.uptimeMillis().toString())
             latinProvider.saveLearnedWords()
         }
     }
@@ -364,7 +345,7 @@ class NlpManager(context: Context) {
 
     /** [textBefore] as the next word will see it: a word right before the cursor gets its space first. */
     private fun beforeNextWord(textBefore: String): String =
-        if (textBefore.isNotEmpty() && !textBefore.last().isWhitespace()) "$textBefore " else textBefore
+        NlpState.call("next", textBefore)[0]
 
     /** AudioWhisper: see [LatinLanguageProvider.isName]. */
     fun isName(word: String) = latinProvider.isName(word)
@@ -378,6 +359,7 @@ class NlpManager(context: Context) {
     }
 
     fun removeSuggestion(subtype: Subtype, candidate: SuggestionCandidate): Boolean {
+        if (!canCommit(candidate)) return false
         return runBlocking { candidate.sourceProvider?.removeSuggestion(subtype, candidate) == true }.also { result ->
             if (result) {
                 scope.launch {
@@ -401,48 +383,12 @@ class NlpManager(context: Context) {
     }
 
     private fun assembleCandidates() {
+        configure()
+        val requested = environment.fields(subtypeManager.activeSubtype)
         runBlocking {
-            val candidates = when {
-                isSuggestionOn() -> {
-                    clipboardSuggestionProvider.suggest(
-                        subtype = Subtype.DEFAULT,
-                        content = editorInstance.activeContent,
-                        maxCandidateCount = 8,
-                        allowPossiblyOffensive = !prefs.suggestion.blockPossiblyOffensive.get(),
-                        isPrivateSession = keyboardManager.activeState.isIncognitoMode,
-                    ).ifEmpty {
-                        buildList {
-                            internalSuggestionsGuard.withLock {
-                                addAll(internalSuggestions.second)
-                            }
-                        }
-                    }
-                }
-                else -> emptyList()
-            }
-            activeCandidates = candidates
-            autoExpandCollapseSmartbarActions(candidates, NlpInlineAutofill.suggestions.value)
-        }
-    }
-
-    fun autoExpandCollapseSmartbarActions(list1: List<*>?, list2: List<*>?) {
-        if (!prefs.smartbar.enabled.get()) {// || !prefs.smartbar.sharedActionsAutoExpandCollapse.get()) {
-            return
-        }
-        // TODO: this is a mess and needs to be cleaned up in v0.5 with the NLP development
-        /*if (keyboardManager.inputEventDispatcher.isRepeatableCodeLastDown()
-            && !keyboardManager.inputEventDispatcher.isPressed(KeyCode.DELETE)
-            && !keyboardManager.inputEventDispatcher.isPressed(KeyCode.FORWARD_DELETE)
-            || keyboardManager.activeState.isActionsOverflowVisible
-        ) {
-            return // We do not auto switch if a repeatable action key was last pressed or if the actions overflow
-                   // menu is visible to prevent annoying UI changes
-        }*/
-        val isSelection = editorInstance.activeContent.selection.isSelectionMode
-        val isExpanded = list1.isNullOrEmpty() && list2.isNullOrEmpty() || isSelection
-        scope.launch {
-            prefs.smartbar.sharedActionsExpandWithAnimation.set(false)
-            prefs.smartbar.sharedActionsExpanded.set(isExpanded)
+            val values = clipboardSuggestionProvider.suggest(Subtype.DEFAULT, editorInstance.activeContent, 8,
+                !prefs.suggestion.blockPossiblyOffensive.get(), keyboardManager.activeState.isIncognitoMode)
+            NlpState.clipboard(values, requested, environment.fields(subtypeManager.activeSubtype))
         }
     }
 

@@ -13,15 +13,16 @@ import com.jtn0123.audiowhisper.rust.SwipeRules
  * probability becomes the classifier's frequency) are in Rust ([SwipeRules],
  * lib/rust/crates/suggest/src/swipe_words.rs).
  */
-class SwipeWords private constructor(
+class SwipeWords internal constructor(
     private val dictionaryWords: List<String>,
     private val probability: (String) -> Int,
     private val userWords: Map<String, Int>,
+    private val unknownWords: (List<String>) -> List<String>,
 ) {
     /** Every word: the dictionary's first, then the user's that it lacks. */
     val words: List<String> = when {
         userWords.isEmpty() -> dictionaryWords
-        else -> dictionaryWords + userWords.keys.filter { probability(it) == NOT_A_PROBABILITY }
+        else -> dictionaryWords + unknownWords(userWords.keys.toList())
     }
 
     /** How strongly the classifier favours [word] (see [frequencyOf]); 0 for a word it doesn't know. */
@@ -29,10 +30,10 @@ class SwipeWords private constructor(
 
     /** These dictionary words with [userWords] (see [userWords]); this same instance if they are unchanged. */
     fun withUserWords(userWords: Map<String, Int>): SwipeWords =
-        if (userWords == this.userWords) this else SwipeWords(dictionaryWords, probability, userWords)
+        if (userWords == this.userWords) this else SwipeWords(dictionaryWords, probability, userWords, unknownWords)
 
     companion object {
-        val NONE = SwipeWords(emptyList(), { NOT_A_PROBABILITY }, emptyMap())
+        val NONE = SwipeWords(emptyList(), { NOT_A_PROBABILITY }, emptyMap(), { it })
 
         /** Words this common or more count the same; see [frequencyOf]. */
         val COMMON: Int = SwipeRules.common
@@ -44,8 +45,8 @@ class SwipeWords private constructor(
          * The dictionary's [words], each found again by [probability]. Words a swipe can't spell on
          * a letters layout ("MP3", "US$") are left out.
          */
-        fun fromDictionary(words: List<String>, probability: (String) -> Int) =
-            SwipeWords(SwipeRules.swipeable(words), probability, emptyMap())
+        fun fromDictionary(engine: LatinDictionaryEngine) =
+            SwipeWords(SwipeRules.swipeable(engine.words()), engine::probability, emptyMap(), engine.session::unknownWords)
 
         /**
          * The user's words as probabilities: [personal] entries at their own frequency, [learned]

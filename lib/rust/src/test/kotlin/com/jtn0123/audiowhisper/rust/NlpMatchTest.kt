@@ -117,7 +117,7 @@ class NlpMatchTest {
     @Test fun platformAutofillInPasswordDoesNotEnableWordCandidates() {
         Pairing().use { p ->
             p.call("context", *ReferenceNlp.context("", 0x81).toTypedArray())
-            assertEquals(listOf("0", "0", "0", "0", "0"), p.call("policy", *ReferenceNlp.context("", 0x81).toTypedArray()))
+            assertEquals(listOf("0", "0", "0", "0", "0", "1"), p.call("policy", *ReferenceNlp.context("", 0x81).toTypedArray()))
             val inline = p.call("inlineBegin", "1")
             assertEquals("1", inline[1])
             p.call("inlineComplete", inline[0], "platform", "1")

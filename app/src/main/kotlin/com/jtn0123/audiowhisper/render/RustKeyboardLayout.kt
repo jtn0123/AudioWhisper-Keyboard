@@ -53,7 +53,6 @@ fun RustKeyboardLayout(evaluator: ComputingEvaluator) = with(LocalDensity.curren
     val preview by Dictation.preview.collectAsState()
     val inline by NlpInlineAutofill.suggestions.collectAsState()
     dev.patrickgold.florisboard.ime.smartbar.InlineSuggestionsStyleCache()
-    LaunchedEffect(inline) { nlp.autoExpandCollapseSmartbarActions(null, inline) }
     val search = rendererSearch()
     val panels = rendererPanels()
     val watermark = rendererWatermark(evaluator)

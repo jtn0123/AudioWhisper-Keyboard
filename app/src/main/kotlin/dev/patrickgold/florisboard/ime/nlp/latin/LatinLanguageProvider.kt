@@ -44,6 +44,9 @@ import dev.patrickgold.florisboard.ime.dictionary.DictionaryManager
 import dev.patrickgold.florisboard.ime.dictionary.UserDictionaryDao
 import dev.patrickgold.florisboard.ime.editor.EditorContent
 import dev.patrickgold.florisboard.ime.editor.InputAttributes
+import dev.patrickgold.florisboard.ime.nlp.NlpEnvironment
+import dev.patrickgold.florisboard.ime.nlp.NlpState
+import dev.patrickgold.florisboard.ime.nlp.bit
 import dev.patrickgold.florisboard.ime.nlp.SpellingProvider
 import dev.patrickgold.florisboard.ime.nlp.SpellingResult
 import dev.patrickgold.florisboard.ime.nlp.SuggestionCandidate
@@ -91,21 +94,10 @@ class LatinLanguageProvider(context: Context) : SpellingProvider, SuggestionProv
         /** What the keyboard learned from typing; like [KEPT_WORDS_FILE], never backed up. */
         private const val LEARNED_WORDS_FILE = "learned-words.txt"
 
-        /** Fields where suggestions would expose or mangle what is typed (AOSP hides them too). */
-        private val NO_SUGGESTION_VARIATIONS = setOf(
-            InputAttributes.Variation.PASSWORD,
-            InputAttributes.Variation.VISIBLE_PASSWORD,
-            InputAttributes.Variation.WEB_PASSWORD,
-        )
 
-        /** Fields that hold addresses, not prose: suggestions are fine, auto-correction is not. */
-        private val NO_AUTO_CORRECT_VARIATIONS = setOf(
-            InputAttributes.Variation.EMAIL_ADDRESS,
-            InputAttributes.Variation.WEB_EMAIL_ADDRESS,
-            InputAttributes.Variation.URI,
-        )
     }
 
+    private val environment = NlpEnvironment(context)
     private val prefs by FlorisPreferenceStore
     private val appContext by context.appContext()
     private val editorInstance by context.editorInstance()
@@ -127,10 +119,6 @@ class LatinLanguageProvider(context: Context) : SpellingProvider, SuggestionProv
     private val dictionaryLoadLock = Mutex()
     @Volatile private var engine: LatinDictionaryEngine? = null
     @Volatile private var suggester: LatinSuggester? = null
-
-    /** The input a suggest() call answered and the auto-correction it chose, if any. */
-    private class LastResult(val state: TypingState, val blockOffensiveWords: Boolean, val autoCorrection: SuggestionCandidate?)
-    @Volatile private var lastResult: LastResult? = null
 
     /** The personal dictionaries, re-read by [refreshPersonalWords] each time the keyboard shows. */
     @Volatile private var personalWords = PersonalWords.NONE
@@ -167,7 +155,7 @@ class LatinLanguageProvider(context: Context) : SpellingProvider, SuggestionProv
         if (english) loadSwipeWords()
     }
 
-    private fun usesDictionary(subtype: Subtype) = subtype.primaryLocale.language == DICTIONARY_LANGUAGE
+    private fun usesDictionary(subtype: Subtype) = NlpState.call("language", subtype.primaryLocale.language)[0] == "1"
 
     /** Upstream's glide word list, for a language the dictionary doesn't cover. */
     private suspend fun loadTestWords() {
@@ -188,7 +176,7 @@ class LatinLanguageProvider(context: Context) : SpellingProvider, SuggestionProv
             val engine = engine
             if (swipeWordsFromDictionary || engine == null) return@withLock
             val started = SystemClock.elapsedRealtime()
-            val fromDictionary = SwipeWords.fromDictionary(engine.words(), engine::probability)
+            val fromDictionary = SwipeWords.fromDictionary(engine)
             synchronized(swipeWordsLock) {
                 swipeWords = fromDictionary.withUserWords(userSwipeWords())
                 swipeWordsFromDictionary = true
@@ -251,8 +239,7 @@ class LatinLanguageProvider(context: Context) : SpellingProvider, SuggestionProv
         allowPossiblyOffensive: Boolean,
         isPrivateSession: Boolean,
     ): SpellingResult {
-        if (subtype.primaryLocale.language != DICTIONARY_LANGUAGE) return SpellingResult.validWord()
-        if (word.none(Char::isLetter) || word.any(Char::isDigit)) return SpellingResult.validWord()
+        if (NlpState.call("spell", subtype.primaryLocale.language, word)[0] != "1") return SpellingResult.validWord()
         withContext(Dispatchers.IO) { loadDictionary() }
         val suggester = suggester ?: return SpellingResult.validWord()
         val check = suggester.spell(word, maxSuggestionCount, blockOffensiveWords = !allowPossiblyOffensive)
@@ -270,13 +257,13 @@ class LatinLanguageProvider(context: Context) : SpellingProvider, SuggestionProv
         isPrivateSession: Boolean,
     ): List<SuggestionCandidate> {
         val suggester = suggesterFor(subtype) ?: return emptyList()
-        val state = typingStateOf(content) ?: return emptyList()
+        val state = typingStateOf(subtype, content) ?: return emptyList()
         val started = System.nanoTime()
-        val autoCorrectAllowed = isAutoCorrectAllowedInEditor() && !isKeptAsTyped(state.typed)
-        val candidates = suggester.suggest(state, maxCandidateCount, !allowPossiblyOffensive)
-            .map { it.toCandidate(autoCorrectAllowed) }
+        val raw = suggester.suggest(state, maxCandidateCount, !allowPossiblyOffensive)
+        val flags = NlpState.call("candidatePlan", *environment.fields(subtype, content), isKeptAsTyped(state.typed).bit(),
+            *raw.map { it.isAutoCorrection.bit() }.toTypedArray())
+        val candidates = raw.mapIndexed { index, word -> word.toCandidate(flags[index] == "1") }
         val autoCorrection = candidates.firstOrNull { it.isEligibleForAutoCommit }
-        lastResult = LastResult(state, !allowPossiblyOffensive, autoCorrection)
         // Runs on every keystroke, so the line isn't even built outside debug builds.
         if (BuildConfig.DEBUG) {
             val elapsedMs = (System.nanoTime() - started) / 1_000_000.0
@@ -294,13 +281,9 @@ class LatinLanguageProvider(context: Context) : SpellingProvider, SuggestionProv
      */
     fun autoCommitCandidateFor(subtype: Subtype, content: EditorContent, allowPossiblyOffensive: Boolean): SuggestionCandidate? {
         val suggester = suggesterFor(subtype) ?: return null
-        if (!isAutoCorrectAllowedInEditor() || editorInstance.phantomSpace.isActive) return null
-        val state = typingStateOf(content)?.takeIf { it.typed.isNotEmpty() && !isKeptAsTyped(it.typed) } ?: return null
+        if (environment.policy(subtype, content)[3] != "1" || editorInstance.phantomSpace.isActive) return null
+        val state = typingStateOf(subtype, content)?.takeIf { it.typed.isNotEmpty() && !isKeptAsTyped(it.typed) } ?: return null
         val blockOffensiveWords = !allowPossiblyOffensive
-        val cached = lastResult
-        if (cached != null && cached.state == state && cached.blockOffensiveWords == blockOffensiveWords) {
-            return cached.autoCorrection
-        }
         return suggester.suggest(state, maxCount = 1, blockOffensiveWords)
             .firstOrNull { it.isAutoCorrection }
             ?.toCandidate(autoCorrectAllowed = true)
@@ -322,16 +305,8 @@ class LatinLanguageProvider(context: Context) : SpellingProvider, SuggestionProv
      * so dictation keeps its capital mid-sentence. A word the dictionary doesn't know is
      * assumed to be a name; so is everything when no dictionary is loaded.
      */
-    fun isName(word: String): Boolean {
-        val lower = word.lowercase(Locale.US)
-        if (lower == word) return false
-        personalWords.spellingOf(word)?.let { return it.first().isUpperCase() }
-        val engine = engine ?: return true
-        val asWritten = engine.probability(word)
-        val lowered = engine.probability(lower)
-        if (asWritten == NOT_A_PROBABILITY && lowered == NOT_A_PROBABILITY) return true
-        return asWritten > lowered
-    }
+    fun isName(word: String): Boolean = engine?.session?.isName(personalWords.store, word)
+        ?: com.jtn0123.audiowhisper.rust.NlpNames.withoutDictionary(personalWords.store, word)
 
     /**
      * AudioWhisper: re-reads the Floris and system personal dictionaries (those the settings
@@ -372,9 +347,7 @@ class LatinLanguageProvider(context: Context) : SpellingProvider, SuggestionProv
      * password, e-mail address or URL). Incognito is checked by the caller.
      */
     fun learnerFor(subtype: Subtype): WordLearner? {
-        if (!prefs.suggestion.learnFromTyping.get() || suggesterFor(subtype) == null) return null
-        if (!areSuggestionsAllowedInEditor() || !isAutoCorrectAllowedInEditor()) return null
-        return learner.takeIf { !editorInstance.activeInfo.isRawInputEditor }
+        return learner.takeIf { environment.policy(subtype, ready = suggesterFor(subtype) != null)[4] == "1" }
     }
 
     /** AudioWhisper: a new field started; see [WordLearner.reset]. Tap positions there are unrelated too. */
@@ -411,31 +384,17 @@ class LatinLanguageProvider(context: Context) : SpellingProvider, SuggestionProv
      * The word left of the cursor and its context, or null when there is nothing to suggest for:
      * a selection, a field that must not get suggestions, or an emoji search like ":smile".
      */
-    private fun typingStateOf(content: EditorContent): TypingState? {
-        if (!content.localSelection.isValid || content.localSelection.isSelectionMode) return null
-        if (!areSuggestionsAllowedInEditor()) return null
-        val typed = content.composingText
-        if (typed.isNotEmpty() && !typed.first().isLetterOrDigit()) return null
-        if (typed.isNotEmpty()) {
-            val textBefore = content.text.safeSubstring(0, content.localComposing.start)
-            return TypingState.of(textBefore, typed, content.textAfterSelection).copy(taps = tapTrail.offsetsFor(typed))
-        }
-        // After a tapped candidate the separating space is still pending (phantom space).
-        val textBefore = content.textBeforeSelection.let { if (it.lastOrNull()?.isLetterOrDigit() == true) "$it " else it }
-        return TypingState.of(textBefore, "", content.textAfterSelection)
+    private fun typingStateOf(subtype: Subtype, content: EditorContent): TypingState? {
+        val plan = NlpState.call("typingPolicy", *environment.fields(subtype, content, suggesterFor(subtype) != null),
+            if (content.composingText.isEmpty()) content.textBeforeSelection else content.text.safeSubstring(0, content.localComposing.start),
+            content.composingText, content.textAfterSelection)
+        if (plan.isEmpty()) return null
+        return TypingState.of(plan[0], plan[1], plan[2]).copy(taps = tapTrail.offsetsFor(plan[1]))
     }
-
-    private fun areSuggestionsAllowedInEditor(): Boolean {
-        val attributes = editorInstance.activeInfo.inputAttributes
-        return !attributes.flagTextNoSuggestions && attributes.variation !in NO_SUGGESTION_VARIATIONS
-    }
-
-    private fun isAutoCorrectAllowedInEditor(): Boolean =
-        editorInstance.activeInfo.inputAttributes.variation !in NO_AUTO_CORRECT_VARIATIONS
 
     private fun ArrangedWord.toCandidate(autoCorrectAllowed: Boolean) = WordSuggestionCandidate(
         text = text,
-        isEligibleForAutoCommit = isAutoCorrection && autoCorrectAllowed,
+        isEligibleForAutoCommit = autoCorrectAllowed,
         // The dictionary is read-only, so there is nothing for a long-press to remove.
         isEligibleForUserRemoval = false,
         // We set ourselves as the source provider so we can get notify events for our candidate

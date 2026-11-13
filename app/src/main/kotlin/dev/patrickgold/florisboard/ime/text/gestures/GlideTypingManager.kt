@@ -50,8 +50,6 @@ class GlideTypingManager(context: Context) : GlideTypingGesture.Listener {
     private var glideTypingClassifier = StatisticalGlideTypingClassifier(context)
     private var lastTime = System.currentTimeMillis()
 
-    /** AudioWhisper: counts suggestion requests, so a preview overtaken by a later one is dropped. */
-    private var requests = 0
 
     init {
         // AudioWhisper: the words change once the dictionary has loaded, and with the user's (B18).
@@ -106,14 +104,14 @@ class GlideTypingManager(context: Context) : GlideTypingGesture.Listener {
         // (B14), both read here on the main thread.
         val swipe = glideTypingClassifier.snapshot()
         val textBefore = editorInstance.activeContent.textBeforeSelection
-        val request = ++requests
+        val request = nlpManager.beginExternalRequest()
         scope.launch(Dispatchers.Default) {
             val guesses = glideTypingClassifier.getScoredSuggestions(swipe, MAX_SUGGESTION_COUNT)
             val suggestions = nlpManager.rankGlideGuesses(guesses, textBefore)
 
             withContext(Dispatchers.Main) {
                 // A preview finishing after a later request would show a word for less of the swipe.
-                if (!commit && request != requests) return@withContext
+                if (!nlpManager.canApplyExternalRequest(request)) return@withContext
                 val suggestionList = buildList {
                     suggestions.subList(
                         1.coerceAtMost(min(commit.compareTo(false), suggestions.size)),

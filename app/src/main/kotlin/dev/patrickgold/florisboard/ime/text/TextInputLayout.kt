@@ -63,7 +63,6 @@ fun TextInputLayout(
 
     val inline by NlpInlineAutofill.suggestions.collectAsState()
     val nlp by context.nlpManager()
-    LaunchedEffect(inline) { nlp.autoExpandCollapseSmartbarActions(null, inline) }
     InlineSuggestionsStyleCache()
 
     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {

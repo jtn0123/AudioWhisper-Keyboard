@@ -149,9 +149,6 @@ private fun SmartbarMainRow(modifier: Modifier = Modifier) {
     val scope = rememberCoroutineScope()
 
     val inlineSuggestions by NlpInlineAutofill.suggestions.collectAsState()
-    LaunchedEffect(inlineSuggestions) {
-        nlpManager.autoExpandCollapseSmartbarActions(null, inlineSuggestions)
-    }
     // AudioWhisper: the words being dictated show where the suggestions go (see CandidatesRow),
     // ahead of autofill chips and the expanded actions.
     val dictationPreview by Dictation.preview.collectAsState()
