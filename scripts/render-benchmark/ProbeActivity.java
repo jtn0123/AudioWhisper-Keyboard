@@ -33,6 +33,18 @@ public final class ProbeActivity extends Activity {
                 else throw new IllegalArgumentException("Only fixed harmless clipboard fixtures are allowed");
                 return;
             }
+            if ("com.jtn0123.renderprobe.EDITOR".equals(intent.getAction())) {
+                String fixture = intent.getStringExtra("fixture");
+                if ("emoji".equals(fixture)) {
+                    editor.setText("alpha 👨‍👩‍👧‍👦 😀 e\u0301 omega");
+                    editor.setSelection(editor.length());
+                } else if ("external".equals(fixture)) {
+                    editor.getText().replace(0, Math.min(2, editor.length()), "XY");
+                    editor.setSelection(Math.min(1, editor.length()));
+                } else throw new IllegalArgumentException("Unknown fixed editor fixture");
+                saveDigest(editor.getText());
+                return;
+            }
             editor.setInputType(inputType(intent));
             editor.setText("");
             editor.requestFocus();
@@ -89,7 +101,7 @@ public final class ProbeActivity extends Activity {
         editor.addTextChangedListener(new TextWatcher() {
             public void beforeTextChanged(CharSequence s, int start, int count, int after) { }
             public void onTextChanged(CharSequence s, int start, int before, int count) { }
-            public void afterTextChanged(Editable text) { saveDigest(text); }
+            public void afterTextChanged(Editable text) { editor.post(() -> saveDigest(editor.getText())); }
         });
         reset.setOnClickListener(view -> {
             editor.setText("");
@@ -99,6 +111,7 @@ public final class ProbeActivity extends Activity {
         setContentView(root);
         IntentFilter filter = new IntentFilter("com.jtn0123.renderprobe.RESET");
         filter.addAction("com.jtn0123.renderprobe.CLIP");
+        filter.addAction("com.jtn0123.renderprobe.EDITOR");
         registerReceiver(commands, filter, Context.RECEIVER_EXPORTED);
         saveDigest(editor.getText());
         editor.requestFocus();
@@ -114,6 +127,9 @@ public final class ProbeActivity extends Activity {
         if ("phone".equals(field)) return android.text.InputType.TYPE_CLASS_PHONE;
         if ("password".equals(field)) return android.text.InputType.TYPE_CLASS_TEXT
             | android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD;
+        if ("url".equals(field)) return android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_VARIATION_URI;
+        if ("email".equals(field)) return android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS;
+        if ("caps".equals(field)) return android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_FLAG_CAP_SENTENCES;
         return android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE
             | (intent.getBooleanExtra("noSuggestions", false) ? android.text.InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS : 0);
     }
@@ -124,7 +140,7 @@ public final class ProbeActivity extends Activity {
             byte[] hash = MessageDigest.getInstance("SHA-256").digest(text.toString().getBytes(StandardCharsets.UTF_8));
             StringBuilder hex = new StringBuilder();
             for (byte b : hash) hex.append(String.format(java.util.Locale.ROOT, "%02x", b & 255));
-            String json = "{\"utf16_units\":" + text.length() + ",\"sha256\":\"" + hex + "\",\"selection_start\":" + editor.getSelectionStart() + ",\"selection_end\":" + editor.getSelectionEnd() + "}";
+            String json = "{\"utf16_units\":" + text.length() + ",\"sha256\":\"" + hex + "\",\"selection_start\":" + editor.getSelectionStart() + ",\"selection_end\":" + editor.getSelectionEnd() + ",\"composing_start\":" + android.view.inputmethod.BaseInputConnection.getComposingSpanStart(text) + ",\"composing_end\":" + android.view.inputmethod.BaseInputConnection.getComposingSpanEnd(text) + "}";
             try (FileOutputStream out = new FileOutputStream(new File(getFilesDir(), "digest.json"))) {
                 out.write(json.getBytes(StandardCharsets.UTF_8));
             }
