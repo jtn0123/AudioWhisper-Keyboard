@@ -1,0 +1,22 @@
+[package]
+name = "render"
+version = "0.1.0"
+description = "Stage 3 keyboard scene with pure Rust CPU and Vulkan renderers"
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+keys = { path = "../keys" }
+parley = { version = "=0.13.0", default-features = false, features = ["std"] }
+read-fonts = "=0.47.0"
+vello_cpu = "=0.4.0"
+vello_hybrid = { version = "=0.2.0", default-features = false, features = ["wgpu", "text"] }
+wgpu = { version = "=29.0.3", default-features = false, features = ["std", "vulkan", "wgsl"] }
+# Hybrid's text feature does not enable decoding embedded PNG glyphs by itself.
+glifo_hybrid = { package = "glifo", version = "=0.3.0", default-features = false, features = ["std", "png"] }
+pollster = "=1.0.1"
+
+[lints]
+workspace = true

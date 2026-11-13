@@ -16,6 +16,7 @@ default-members = [
     "crates/latin",
     "crates/popup",
     "crates/reader",
+    "crates/render",
     "crates/shift",
     "crates/spacing",
     "crates/suggest",
