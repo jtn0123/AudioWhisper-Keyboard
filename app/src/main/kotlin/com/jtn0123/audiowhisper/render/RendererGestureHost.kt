@@ -71,6 +71,7 @@ internal class RendererGestureHost(private val context: Context, private val nat
             CAPS_LOCK -> dispatcher.sendDownUp(TextKeyData.CAPS_LOCK)
             INPUT_METHOD_PICKER -> dispatcher.sendDownUp(TextKeyData.SYSTEM_INPUT_METHOD_PICKER)
             KEY_CANCEL_CODE -> dispatcher.sendCancel(TextKeyData.SHIFT)
+            KEY_FEEDBACK -> FlorisImeService.inputFeedbackController()?.keyPress(TextKeyData.UNSPECIFIED)
             LONG_PRESS_FEEDBACK -> FlorisImeService.inputFeedbackController()?.keyLongPress(
                 if (value == KeyCode.SHIFT) TextKeyData.SHIFT else TextKeyData.UNSPECIFIED)
             LONG_PRESS_BLOCK -> Unit // The shared dispatcher consumes the callback's Boolean result.

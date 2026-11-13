@@ -14,6 +14,7 @@ pub struct Semantics {
 }
 #[derive(Clone, Debug, PartialEq)]
 pub enum Target {
+    Panel(usize),
     Key(usize),
     Bar(usize),
     Candidate(usize),
@@ -51,7 +52,13 @@ impl Node {
         };
         (base_millis as f32 * factor) as i64
     }
-    fn new(id: i32, bounds: Rect, label: String, role: &'static str, target: Target) -> Self {
+    pub(crate) fn new(
+        id: i32,
+        bounds: Rect,
+        label: String,
+        role: &'static str,
+        target: Target,
+    ) -> Self {
         Self {
             id,
             bounds,
@@ -76,7 +83,12 @@ impl Semantics {
     /// Popup ids include their source slot, and survive selected-item changes.
     pub fn snapshot(&self, scene: &Scene, shift: &str) -> Vec<Node> {
         let mut nodes = Vec::new();
-        for (i, k) in scene.keys.iter().enumerate() {
+        for (i, k) in scene
+            .keys
+            .iter()
+            .enumerate()
+            .filter(|_| scene.panel.is_none())
+        {
             if k.code == codes::UNSPECIFIED || k.code == codes::NOOP {
                 continue;
             }
@@ -118,7 +130,9 @@ impl Semantics {
             }
             nodes.push(n);
         }
-        if let Some(bar) = &scene.smartbar {
+        if let Some(bar) = &scene.smartbar
+            && scene.panel.as_ref().is_none_or(|p| p.kind == 2)
+        {
             for slot in &bar.layout.actions {
                 let Some(a) = bar.actions.get(slot.id) else {
                     continue;
@@ -225,6 +239,9 @@ impl Semantics {
                 }
             }
         }
+        if let Some(panel) = &scene.panel {
+            nodes.extend(crate::panel_accessibility::nodes(panel));
+        }
         nodes
     }
     pub fn activate(
@@ -242,6 +259,11 @@ impl Semantics {
         }
         let mut out = Vec::new();
         match n.target {
+            Target::Panel(i) => {
+                if let Some(p) = &mut scene.panel {
+                    out.extend(crate::panel_accessibility::activate(p, i, action));
+                }
+            }
             Target::Key(i) => {
                 out.extend(self.dismiss(scene));
                 if action == ACCESS_LONG_CLICK && scene.keys[i].code == codes::SHIFT {

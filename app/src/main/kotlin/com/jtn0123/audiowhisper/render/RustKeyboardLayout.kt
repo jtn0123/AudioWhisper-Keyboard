@@ -2,6 +2,7 @@ package com.jtn0123.audiowhisper.render
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.requiredHeight
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.layout.absoluteOffset
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.mutableFloatStateOf
@@ -12,6 +13,7 @@ import com.jtn0123.audiowhisper.dictation.DictationPreview
 import androidx.compose.ui.Alignment
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -51,6 +53,9 @@ fun RustKeyboardLayout(evaluator: ComputingEvaluator) = with(LocalDensity.curren
     val keyboardHeight = FlorisImeSizing.keyboardUiHeight()
     val preview by Dictation.preview.collectAsState()
     val inline by NlpInlineAutofill.suggestions.collectAsState()
+    dev.patrickgold.florisboard.ime.smartbar.InlineSuggestionsStyleCache()
+    LaunchedEffect(inline) { nlp.autoExpandCollapseSmartbarActions(null, inline) }
+    val panels = rendererPanels()
     val smartbar = rendererSmartbar(preview.isNotEmpty(), inline.isNotEmpty())
     var availableWidth by remember { mutableFloatStateOf(resources.displayMetrics.widthPixels.toFloat()) }
     val measurement = smartbar.measure(availableWidth)
@@ -61,21 +66,23 @@ fun RustKeyboardLayout(evaluator: ComputingEvaluator) = with(LocalDensity.curren
     val marginV = prefs.keyboard.keySpacingVertical.get() * density
     val heightPx = keyboardHeight.toPx()
     val stripPx = stripHeight.toPx()
+    val maxSurfaceHeight = resources.displayMetrics.heightPixels - dev.patrickgold.florisboard.ime.keyboard.systemBarHeights()
+    val surfaceHeight = if (panels.kind == 3) maxSurfaceHeight.toDp() else keyboardHeight + stripHeight
     Box(Modifier.fillMaxWidth().height(keyboardHeight + insetHeight).onSizeChanged { availableWidth = it.width.toFloat() }) {
         AndroidView(
-            modifier = Modifier.fillMaxWidth().requiredHeight(keyboardHeight + stripHeight).align(Alignment.BottomStart),
+            modifier = Modifier.fillMaxWidth().wrapContentHeight(Alignment.Bottom, unbounded = true).requiredHeight(surfaceHeight).align(Alignment.BottomStart),
             factory = { RustKeyboardView(it) },
             onRelease = { it.release() },
             update = { view ->
                 view.update(KeyboardSnapshot(keyboard, keys, if (preview.isEmpty()) candidates else emptyList(), theme,
                     evaluator.state.inputShiftState.toString(), heightPx, stripPx, rowHeight, marginH, marginV,
-                    smartbar, preview.isNotEmpty(), intArrayOf(evaluator.editorInfo.imeOptions.raw, evaluator.editorInfo.inputAttributes.raw)))
+                    smartbar, preview.isNotEmpty(), panels, intArrayOf(evaluator.editorInfo.imeOptions.raw, evaluator.editorInfo.inputAttributes.raw)))
             },
         )
         // Kind 2 is the native reservation for Android's InlineContentViews. The AndroidView
         // above keeps its identity when modes or inline suggestions change.
         val inlineRegion = measurement.drop(8).chunked(6).firstOrNull { it[0] == 2f }
-        if (inlineRegion != null) {
+        if (inlineRegion != null && panels.kind == 0) {
             Box(Modifier.absoluteOffset(inlineRegion[2].toDp(),
                 (inlineRegion[3] - measurement[0] + measurement[1]).toDp())
                 .width((inlineRegion[4] - inlineRegion[2]).toDp())
@@ -83,7 +90,7 @@ fun RustKeyboardLayout(evaluator: ComputingEvaluator) = with(LocalDensity.curren
                 InlineSuggestionsUi(inline)
             }
         }
-        if (preview.isNotEmpty()) {
+        if (preview.isNotEmpty() && panels.kind == 0) {
             // The platform preview occupies Rust's measured center without cancelling a held mic.
             Box(Modifier.absoluteOffset(measurement[3].toDp(),
                 (measurement[4] - measurement[0] + measurement[1]).toDp())

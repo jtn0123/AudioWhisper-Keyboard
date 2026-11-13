@@ -29,6 +29,7 @@ pub struct Popup {
 
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Scene {
+    pub panel: Option<crate::panels::Panel>,
     pub width: u16,
     pub height: u16,
     pub strip: f32,
@@ -71,7 +72,7 @@ impl Scene {
     }
 
     pub fn key_at(&self, x: f32, y: f32) -> Option<usize> {
-        if y < self.strip {
+        if self.panel.is_some() || y < self.strip {
             return None;
         }
         let rects: Vec<_> = self.keys.iter().map(|k| k.bounds.touch).collect();
@@ -112,7 +113,8 @@ impl Scene {
             return Vec::new();
         }
         // Compare stable fields directly, without cloning all labels and candidate strings.
-        if self.width != next.width
+        if self.panel != next.panel
+            || self.width != next.width
             || self.height != next.height
             || self.strip != next.strip
             || self.background != next.background

@@ -93,3 +93,51 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_PanelRules_selection(
         })
     }
 }
+
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_PanelRules_scroll(
+    env: *mut JNIEnv,
+    _: jclass,
+    config: jfloatArray,
+) -> jfloatArray {
+    // SAFETY: JVM owns the input array and receives a copied primitive result.
+    unsafe {
+        jni::run(env, ptr::null_mut(), |env| {
+            let c: [f32; 3] = env
+                .read::<f32>(config, "scroll")?
+                .try_into()
+                .map_err(|_| illegal("scroll config"))?;
+            let (duration, distance) = render::panel_scroll::decay(c[0], c[1]);
+            env.make(&[
+                duration as f32,
+                distance,
+                distance * c[1].signum() * render::panel_scroll::fraction(c[2]),
+            ])
+        })
+    }
+}
+
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_PanelRules_overflowAndHistoryMoves(
+    env: *mut JNIEnv,
+    _: jclass,
+    config: jintArray,
+) -> jintArray {
+    // SAFETY: the JVM owns local primitive arrays; only a copied result is returned.
+    unsafe {
+        jni::run(env, ptr::null_mut(), |env| {
+            let c: [i32; 5] = env
+                .read::<i32>(config, "panel policy")?
+                .try_into()
+                .map_err(|_| illegal("panel policy config"))?;
+            let arrangement = render::arrangement::Arrangement {
+                dynamic: (0..c[0].max(0)).collect(),
+                ..Default::default()
+            };
+            env.make(&[
+                arrangement.overflow(c[1].max(0) as usize).len() as i32,
+                i32::from(render::panel_geometry::history_moves(c[2] != 0, c[3], c[4])),
+            ])
+        })
+    }
+}

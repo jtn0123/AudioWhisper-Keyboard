@@ -97,10 +97,26 @@ impl Text {
     }
 
     pub fn layout_weight(&mut self, text: &str, size: f32, mono: bool, weight: i32) -> Layout<()> {
+        self.layout_font(text, size, mono, weight, false)
+    }
+    pub fn layout_font(
+        &mut self,
+        text: &str,
+        size: f32,
+        mono: bool,
+        weight: i32,
+        italic: bool,
+    ) -> Layout<()> {
         let mut builder = self
             .context
             .ranged_builder(&mut self.fonts, text, 1.0, true);
         builder.push_default(StyleProperty::FontSize(size));
+        builder.push_default(StyleProperty::FontStyle(if italic {
+            parley::FontStyle::Italic
+        } else {
+            parley::FontStyle::Normal
+        }));
+        builder.push_default(StyleProperty::OverflowWrap(parley::OverflowWrap::Anywhere));
         builder.push_default(StyleProperty::FontWeight(parley::FontWeight::new(
             weight as f32,
         )));

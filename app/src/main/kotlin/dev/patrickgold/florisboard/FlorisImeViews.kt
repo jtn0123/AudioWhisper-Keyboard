@@ -16,6 +16,8 @@
 
 package dev.patrickgold.florisboard
 
+import dev.patrickgold.jetpref.datastore.model.observeAsState
+
 import android.content.Context
 import android.inputmethodservice.ExtractEditText
 import android.util.TypedValue
@@ -91,6 +93,8 @@ internal class FlorisBottomSheetHostUiView(context: Context) : AbstractComposeVi
         val context = LocalContext.current
         val keyboardManager by context.keyboardManager()
         val state by keyboardManager.activeState.collectAsState()
+        val prefs by dev.patrickgold.florisboard.app.FlorisPreferenceStore
+        val rustPrototype by prefs.keyboard.rustRendererPrototype.observeAsState()
 
         ProvideLocalizedResources(
             service.resourcesContext,
@@ -99,7 +103,7 @@ internal class FlorisBottomSheetHostUiView(context: Context) : AbstractComposeVi
         ) {
             FlorisImeTheme {
                 BottomSheetHostUi(
-                    isShowing = state.isBottomSheetShowing() || state.isSubtypeSelectionShowing(),
+                    isShowing = (state.isBottomSheetShowing() && !rustPrototype) || state.isSubtypeSelectionShowing(),
                     onHide = {
                         if (state.isBottomSheetShowing()) {
                             keyboardManager.activeState.isActionsEditorVisible = false
@@ -109,7 +113,7 @@ internal class FlorisBottomSheetHostUiView(context: Context) : AbstractComposeVi
                         }
                     },
                 ) {
-                    if (state.isBottomSheetShowing()) {
+                    if (state.isBottomSheetShowing() && !rustPrototype) {
                         QuickActionsEditorPanel()
                     }
                     if (state.isSubtypeSelectionShowing()) {

@@ -69,6 +69,9 @@ impl Theme {
     pub fn style(&mut self, r: &Request) -> Style {
         self.resolve(r).1
     }
+    pub fn font_scale(&self) -> f32 {
+        self.font_scale
+    }
     pub fn cached_styles(&self) -> usize {
         self.cache.len()
     }
@@ -99,13 +102,37 @@ impl Theme {
             | "smartbar-candidate-clip-icon"
             | "smartbar-candidate-clip-secondary-text" => Some("smartbar-candidate-clip"),
             "smartbar-candidate-word-secondary-text" => Some("smartbar-candidate-word"),
+            "media-emoji-key"
+            | "media-emoji-subheader"
+            | "media-emoji-tab"
+            | "media-bottom-row" => Some("media"),
+            "media-bottom-row-button" => Some("media-bottom-row"),
+            "media-emoji-key-popup-box" => Some("media-emoji-key"),
+            "media-emoji-key-popup-element" => Some("media-emoji-key-popup-box"),
+            "smartbar-action-tile" => Some("smartbar-actions-overflow"),
+            "smartbar-action-tile-icon" | "smartbar-action-tile-text" => {
+                Some("smartbar-action-tile")
+            }
+            "smartbar-actions-overflow-customize-button" => Some("smartbar-actions-overflow"),
+            "smartbar-actions-editor-header"
+            | "smartbar-actions-editor-subheader"
+            | "smartbar-actions-editor-tile-grid" => Some("smartbar-actions-editor"),
+            "smartbar-actions-editor-header-button" => Some("smartbar-actions-editor-header"),
+            "smartbar-actions-editor-tile" => Some("smartbar-actions-editor-tile-grid"),
+            "smartbar-actions-editor-tile-icon" | "smartbar-actions-editor-tile-text" => {
+                Some("smartbar-actions-editor-tile")
+            }
             "key-popup-element" => Some("key-popup-box"),
             _ => Some("window"),
         };
         let parent_selector = match r.element.as_str() {
-            "key-hint" | "smartbar-candidate-word-text" | "smartbar-candidate-clip-text" => {
-                r.selector
-            }
+            "key-hint"
+            | "smartbar-candidate-word-text"
+            | "smartbar-candidate-clip-text"
+            | "smartbar-action-tile-text"
+            | "smartbar-action-tile-icon"
+            | "smartbar-actions-editor-tile-text"
+            | "smartbar-actions-editor-tile-icon" => r.selector,
             _ => 0,
         };
         let parent = parent_name.map_or_else(

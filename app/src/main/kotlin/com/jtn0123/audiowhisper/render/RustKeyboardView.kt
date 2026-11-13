@@ -28,6 +28,7 @@ import dev.patrickgold.florisboard.ime.smartbar.quickaction.QuickAction
 import com.jtn0123.audiowhisper.reader.ReadAloud
 import dev.patrickgold.florisboard.ime.popup.GlobalStateNumPopupsShowing
 import kotlinx.coroutines.flow.update
+import org.florisboard.lib.android.showShortToast
 
 private const val PROFILE_LOG_TAG = "aw-profile"
 
@@ -47,7 +48,7 @@ internal data class KeyboardSnapshot(
     val keyboard: TextKeyboard, val keys: List<TextKey>,
     val candidates: List<SuggestionCandidate>, val theme: RendererTheme, val shift: String,
     val keyboardHeight: Float, val stripHeight: Float, val rowHeight: Float, val marginH: Float, val marginV: Float, val smartbar: RendererSmartbar, val preview: Boolean,
-    val editorOptions: IntArray,
+    val panels: RendererPanels, val editorOptions: IntArray,
 )
 
 /** A fresh native worker owns each surface generation. Destruction joins it before releasing its window. */
@@ -71,6 +72,7 @@ class RustKeyboardView(context: Context) : FrameLayout(context), SurfaceHolder.C
     private var surfaceReady = false
     private var framePending = false
     private var released = false
+    private var refreshEmojiHistory = false
     private val candidateBindings = RendererCandidateBindings()
     private val smartbarTouch = RendererSmartbarTouch(this, candidateBindings::get, native::tooltipShown) { pointer ->
         native.candidateLongPress(pointer)
@@ -94,6 +96,7 @@ class RustKeyboardView(context: Context) : FrameLayout(context), SurfaceHolder.C
         // Snygg draws the IME background in another SurfaceView at the default media layer.
         // Order this surface above that background, while keeping Compose/autofill above it.
         surface.setZOrderMediaOverlay(true)
+        surface.holder.setFormat(android.graphics.PixelFormat.TRANSLUCENT)
         addView(surface, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
         surface.holder.addCallback(this)
         isClickable = true
@@ -120,6 +123,7 @@ class RustKeyboardView(context: Context) : FrameLayout(context), SurfaceHolder.C
             }.toIntArray()
         } ?: intArrayOf()
         dispatchActions(native.barSettings(prefs.keyboard.longPressDelay.get().toLong() * 1_000_000, changed))
+        if (snapshot?.panels?.kind == 3 && value.panels.kind != 3) savePanelArrangement()
         snapshot = value
         if (width > 0 && height > 0) updateScene()
     }
@@ -150,6 +154,11 @@ class RustKeyboardView(context: Context) : FrameLayout(context), SurfaceHolder.C
         manager.smartbarVisibleDynamicActionsCount = s.smartbar.measure(width.toFloat())[2].toInt()
         native.update(floatArrayOf(width.toFloat(), height.toFloat(), s.stripHeight, desired.visibleBounds.width, desired.visibleBounds.height),
             metadata.toTypedArray(), flags, geometry, labels.toTypedArray(), candidates.toTypedArray())
+        native.panels(floatArrayOf(s.panels.kind.toFloat(), s.theme.density,
+            s.smartbar.config[11], manager.smartbarVisibleDynamicActionsCount.toFloat(), android.view.ViewConfiguration.getKeyRepeatDelay().toFloat() * 1_000_000,
+            if (prefs.gestures.deleteKeyLongPress.get() == dev.patrickgold.florisboard.ime.text.gestures.SwipeAction.DELETE_WORD) 1f else 0f,
+            android.view.ViewConfiguration.getLongPressTimeout().toFloat() * 1_000_000), s.panels.data, s.panels.labels)
+        if (s.panels.kind == 1) { s.panels.emoji.bind(native, refreshEmojiHistory); refreshEmojiHistory = false }
         candidateBindings.bind(native, s.candidates)
         native.semanticConfig(accessibilityResources.first, accessibilityResources.second,
             s.smartbar.actions.map { (it as? QuickAction.InsertText)?.data ?: "" }.toTypedArray(),
@@ -258,6 +267,53 @@ class RustKeyboardView(context: Context) : FrameLayout(context), SurfaceHolder.C
     private fun dispatch(action: Int, index: Int, pointer: Int, event: MotionEvent?) {
         val s = snapshot ?: return
         val dispatcher = manager.inputEventDispatcher
+        if (action == PANEL_CHANGED) return
+        if (action == PANEL_EMOJI || action == PANEL_HISTORY) {
+            refreshEmojiHistory = action == PANEL_HISTORY
+            s.panels.emoji.emojis.getOrNull(index)?.let { emoji ->
+                if (action == PANEL_EMOJI) dispatcher.sendDownUp(emoji)
+                kotlinx.coroutines.runBlocking {
+                    val helper = dev.patrickgold.florisboard.ime.media.emoji.EmojiHistoryHelper
+                    when {
+                        action == PANEL_EMOJI -> helper.markEmojiUsed(prefs, emoji)
+                        pointer == 1 -> helper.pinEmoji(prefs, emoji)
+                        pointer == 2 -> helper.unpinEmoji(prefs, emoji)
+                        pointer == 7 -> helper.moveEmoji(prefs, emoji, -1)
+                        pointer == 8 -> helper.moveEmoji(prefs, emoji, 1)
+                        else -> {
+                            helper.removeEmoji(prefs, emoji)
+                            context.showShortToast(dev.patrickgold.florisboard.R.string.emoji__history__removal_success_message, "emoji" to emoji.value)
+                        }
+                    }
+                }
+            }
+            return
+        }
+        if (action in PANEL_DOWN..PANEL_REPEAT) {
+            when (action) {
+                PANEL_DOWN -> (s.panels.actions.getOrNull(index) as? QuickAction.InsertKey)?.let {
+                    FlorisImeService.inputFeedbackController()?.keyPress(TextKeyData.UNSPECIFIED)
+                    dispatcher.sendDown(it.data, scheduleHold = false)
+                }
+                PANEL_UP -> when (val a = s.panels.actions.getOrNull(index)) {
+                    is QuickAction.InsertKey -> dispatcher.sendUp(a.data)
+                    is QuickAction.InsertText -> a.onPointerUp(context)
+                    null -> Unit
+                }
+                PANEL_REPEAT -> manager.onInputKeyRepeat(TextKeyData(code = pointer))
+                PANEL_CANCEL -> s.panels.actions.getOrNull(index)?.onPointerCancel(context)
+                PANEL_MODE -> {
+                    if (index == 4) {
+                        com.jtn0123.audiowhisper.gif.GifSearch.showGifs(true)
+                        return
+                    }
+                    if (s.panels.kind == 3) savePanelArrangement()
+                    manager.activeState.isActionsEditorVisible = index == 3
+                    manager.activeState.isActionsOverflowVisible = index == 2 || index == 3
+                }
+            }
+            return
+        }
         if (action == ACCESS_READ_TOP) { ReadAloud.read(context, ReadAloud.From.Top); return }
         if (action >= GLIDE_POINT && action != OPEN_POPUP) { gestureHost.dispatch(action, index, pointer); return }
         if (action in BAR_DOWN until GLIDE_POINT) { smartbarTouch.dispatch(action, index, pointer, s); return }
@@ -313,6 +369,15 @@ class RustKeyboardView(context: Context) : FrameLayout(context), SurfaceHolder.C
         }
     }
 
+    private fun savePanelArrangement() {
+        val s = snapshot ?: return
+        val a = native.panelArrangement()
+        kotlinx.coroutines.runBlocking {
+            prefs.smartbar.actionArrangement.set(dev.patrickgold.florisboard.ime.smartbar.quickaction.QuickActionArrangement(
+                s.panels.actions.getOrNull(a[0][0]), a[1].map { s.panels.actions[it] }, a[2].map { s.panels.actions[it] }))
+        }
+    }
+
     private fun cancelInput() {
         accessibility.clear()
         dispatchActions(native.semanticCancel())
@@ -349,6 +414,7 @@ class RustKeyboardView(context: Context) : FrameLayout(context), SurfaceHolder.C
     fun release() {
         trace(SurfaceEvent.RELEASE)
         if (released) return
+        if (snapshot?.panels?.kind == 3) savePanelArrangement()
         cancelInput()
         accessibility.release()
         liveSurface = false

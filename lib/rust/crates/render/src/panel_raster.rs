@@ -1,0 +1,187 @@
+//! Paint panel items through the same colour-font path as keys and candidates.
+use crate::{raster::Raster, scene::Scene, smartbar::inset};
+use parley::{Alignment, AlignmentOptions, PositionedLayoutItem};
+use vello_cpu::kurbo::{Affine, Rect};
+impl Raster {
+    pub(crate) fn panel(&mut self, scene: &Scene) -> Result<(), String> {
+        let Some(panel) = &scene.panel else {
+            return Ok(());
+        };
+        for item in &panel.items {
+            let clip = crate::panel_layout::intersection(item.bounds, item.clip);
+            if clip.is_empty() {
+                continue;
+            }
+            self.context.push_clip_rect(&Rect::new(
+                clip.left as f64,
+                clip.top as f64,
+                clip.right as f64,
+                clip.bottom as f64,
+            ));
+            let style = &item.styles[usize::from(panel.pressed == Some(item.id))];
+            let r = inset(item.bounds, style.margin);
+            self.shadow(r, style);
+            self.box_at(r, style);
+            let mut r = inset(r, style.padding);
+            if item.element.ends_with("-tile") && !item.label.is_empty() {
+                let label = self.panel_text_layout(&item.label, &item.text, r.width(), true);
+                let label_height = label.height().min(item.text.size * 2.4);
+                let total = item.icon_style.size + item.icon_style.margin[3] + label_height;
+                let top = r.top + (r.height() - total) / 2.0;
+                let label_bounds = keys::Rect {
+                    top: top + item.icon_style.size + item.icon_style.margin[3],
+                    bottom: top + total,
+                    ..r
+                };
+                self.panel_text(&item.label, &item.text, label_bounds, true)?;
+                r.top = top;
+                r.bottom = top + item.icon_style.size;
+            }
+            if item.id == -14 || item.id == -15 {
+                self.context.pop_clip();
+                continue;
+            }
+            if item.id == -11 {
+                r.left += 48.0 * panel.density;
+                r.right -= 48.0 * panel.density;
+                r.top += (r.height()
+                    - self.text.height(
+                        &item.label,
+                        item.text.size,
+                        item.text.mono,
+                        item.text.weight,
+                    ))
+                    / 2.0;
+                self.panel_text(&item.label, &item.text, r, false)?;
+                self.context.pop_clip();
+                continue;
+            }
+            if item.element.ends_with("subheader") || item.id == -36 || item.id == -42 {
+                self.panel_text(&item.label, &item.text, r, false)?;
+                self.context.pop_clip();
+                continue;
+            }
+            if !item.icon.is_empty() {
+                self.icon(&item.icon, &item.icon_style, r)?;
+            } else {
+                self.label(
+                    if item.glyph.is_empty() {
+                        &item.label
+                    } else {
+                        &item.glyph
+                    },
+                    style.size,
+                    style.foreground,
+                    r,
+                    style.mono,
+                    style.weight,
+                )?;
+            }
+            if item.element == "media-emoji-tab" && item.selected {
+                let w = 24.0 * panel.density;
+                let h = 4.0 * panel.density;
+                self.box_at(
+                    keys::Rect {
+                        left: item.bounds.left + (item.bounds.width() - w) / 2.0,
+                        right: item.bounds.left + (item.bounds.width() + w) / 2.0,
+                        top: item.bounds.bottom - h,
+                        bottom: item.bounds.bottom,
+                    },
+                    &crate::style::Style {
+                        background: item.icon_style.foreground,
+                        ..Default::default()
+                    },
+                );
+            }
+            if let crate::panels::Command::Emoji(index) = item.command
+                && item.id < 400_000
+                && panel
+                    .emoji
+                    .as_ref()
+                    .is_some_and(|e| e.category == 0 || !e.variants(index).is_empty())
+            {
+                let d = 4.0 * panel.density;
+                let x = item.bounds.right - d;
+                let y = item.bounds.bottom - d;
+                let mut triangle = vello_cpu::kurbo::BezPath::new();
+                triangle.move_to((x as f64, (y - d) as f64));
+                triangle.line_to((x as f64, y as f64));
+                triangle.line_to(((x - d) as f64, y as f64));
+                triangle.close_path();
+                self.context
+                    .set_paint(crate::raster::color(panel.indicator.foreground));
+                self.context.fill_path(&triangle);
+            }
+            self.context.pop_clip();
+        }
+        Ok(())
+    }
+    fn panel_text(
+        &mut self,
+        text: &str,
+        style: &crate::style::Style,
+        r: keys::Rect,
+        center: bool,
+    ) -> Result<(), String> {
+        let mut layout = self.panel_text_layout(text, style, r.width(), center);
+        layout.set_alignment(
+            if center {
+                Alignment::Center
+            } else {
+                Alignment::Start
+            },
+            AlignmentOptions::default(),
+        );
+        self.context
+            .set_transform(Affine::translate((r.left as f64, r.top as f64)));
+        self.context
+            .set_paint(crate::raster::color(style.foreground));
+        for line in layout.lines() {
+            for item in line.items() {
+                if let PositionedLayoutItem::GlyphRun(run) = item {
+                    let coords: Vec<_> = run
+                        .run()
+                        .normalized_coords()
+                        .iter()
+                        .map(|c| c.to_bits())
+                        .collect();
+                    self.context.glyphs(&run, &coords)?;
+                }
+            }
+        }
+        self.context.reset_transform();
+        Ok(())
+    }
+    fn panel_text_layout(
+        &mut self,
+        text: &str,
+        style: &crate::style::Style,
+        width: f32,
+        limit: bool,
+    ) -> parley::Layout<()> {
+        let mut layout =
+            self.text
+                .layout_font(text, style.size, style.mono, style.weight, style.italic);
+        layout.break_all_lines(Some(width));
+        if limit && layout.lines().count() > 2 {
+            let end = layout.lines().nth(1).map_or(0, |l| l.text_range().end);
+            let mut fitted = text[..end].trim_end().to_owned();
+            loop {
+                let candidate = format!("{fitted}…");
+                layout = self.text.layout_font(
+                    &candidate,
+                    style.size,
+                    style.mono,
+                    style.weight,
+                    style.italic,
+                );
+                layout.break_all_lines(Some(width));
+                if layout.lines().count() <= 2 || fitted.is_empty() {
+                    break;
+                }
+                fitted.pop();
+            }
+        }
+        layout
+    }
+}

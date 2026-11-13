@@ -98,14 +98,25 @@ impl Raster {
             damage.bottom as f64,
         );
         self.context.push_clip_rect(&rect);
-        self.context.set_paint(color(scene.background));
+        self.context.set_paint(color(
+            if scene.panel.as_ref().is_some_and(|p| p.kind == 3) {
+                0x52000000
+            } else {
+                scene.background
+            },
+        ));
         self.context.fill_rect(&vello_cpu::kurbo::Rect::new(
             0.0,
             0.0,
             scene.width as f64,
             scene.height as f64,
         ));
-        for (i, key) in scene.keys.iter().enumerate() {
+        for (i, key) in scene
+            .keys
+            .iter()
+            .enumerate()
+            .filter(|_| scene.panel.is_none())
+        {
             let r = key.bounds.visible;
             if r.is_empty() {
                 continue;
@@ -196,7 +207,7 @@ impl Raster {
                 )?;
             }
         }
-        if damage.top < scene.strip {
+        if damage.top < scene.strip && scene.panel.as_ref().is_none_or(|p| p.kind == 2) {
             self.box_at(
                 Rect {
                     left: 0.0,
@@ -207,7 +218,7 @@ impl Raster {
                 &scene.strip_style,
             );
         }
-        if damage.top < scene.strip {
+        if damage.top < scene.strip && scene.panel.as_ref().is_none_or(|p| p.kind == 2) {
             self.smartbar(scene)?;
         }
         // Colour glyph preparation is substantial work even when all of its pixels are clipped.
@@ -270,6 +281,7 @@ impl Raster {
                 )?;
             }
         }
+        self.panel(scene)?;
         self.context.set_paint(color(scene.trail_color));
         for circle in &scene.trail {
             self.context.fill_path(

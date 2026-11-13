@@ -48,6 +48,7 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_longPress
                 .into_iter()
                 .flat_map(|a| [a.0, a.1, a.2])
                 .collect();
+            s.prepare_panel();
             env.make(&actions)
         })
     }
@@ -82,6 +83,7 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_touch(
                 .into_iter()
                 .flat_map(|a| [a.0, a.1, a.2])
                 .collect();
+            s.prepare_panel();
             env.make(&actions)
         })
     }

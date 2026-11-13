@@ -153,6 +153,7 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_tick(
                     .into_iter()
                     .flat_map(|a| [a.0, a.1, a.2])
                     .collect();
+                s.prepare_panel();
                 env.make(&actions)
             },
         )
@@ -195,6 +196,7 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_barSettin
                     .into_iter()
                     .flat_map(|a| [a.0, a.1, a.2])
                     .collect();
+                s.prepare_panel();
                 env.make(&actions)
             },
         )

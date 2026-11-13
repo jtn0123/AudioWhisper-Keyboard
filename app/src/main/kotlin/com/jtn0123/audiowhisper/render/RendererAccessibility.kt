@@ -104,13 +104,17 @@ internal class RendererAccessibility(
             isSelected = n.bool("selected")
             val checked = n["checked"]
             isCheckable = checked != JsonNull
-            isChecked = checked?.jsonPrimitive?.booleanOrNull == true
+            setChecked(if (checked?.jsonPrimitive?.booleanOrNull == true) AccessibilityNodeInfo.CHECKED_STATE_TRUE else AccessibilityNodeInfo.CHECKED_STATE_FALSE)
             isFocusable = true
             isAccessibilityFocused = focused == virtualViewId
             isVisibleToUser = host.isShown
             isTextEntryKey = n.string("role") == "key" || n.string("role") == "popup item"
             val r = bounds(n)
-            setBoundsInParent(r)
+            val windowBounds = Rect(r)
+            val windowLocation = IntArray(2)
+            host.getLocationInWindow(windowLocation)
+            windowBounds.offset(windowLocation[0], windowLocation[1])
+            setBoundsInWindow(windowBounds)
             val location = IntArray(2)
             host.getLocationOnScreen(location)
             r.offset(location[0], location[1])
@@ -125,6 +129,11 @@ internal class RendererAccessibility(
                 isLongClickable = true
                 addAction(AccessibilityNodeInfo.AccessibilityAction(AccessibilityNodeInfo.ACTION_LONG_CLICK,
                     n.string("longClickLabel").ifEmpty { null }))
+            }
+            isScrollable = supports(virtualViewId, ACCESS_SCROLL_FORWARD)
+            if (isScrollable) {
+                addAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_SCROLL_FORWARD)
+                addAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_SCROLL_BACKWARD)
             }
             if (supports(virtualViewId, ACCESS_DISMISS)) addAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_DISMISS)
         }
@@ -148,6 +157,8 @@ internal class RendererAccessibility(
             AccessibilityNodeInfo.ACTION_CLICK -> ACCESS_CLICK
             AccessibilityNodeInfo.ACTION_LONG_CLICK -> ACCESS_LONG_CLICK
             AccessibilityNodeInfo.ACTION_DISMISS -> ACCESS_DISMISS
+            AccessibilityNodeInfo.ACTION_SCROLL_FORWARD -> ACCESS_SCROLL_FORWARD
+            AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD -> ACCESS_SCROLL_BACKWARD
             else -> return false
         }
         if (!supports(virtualViewId, native)) return false
@@ -249,6 +260,8 @@ internal class RendererAccessibility(
         return Rect(floor(a[0]).toInt(), floor(a[1]).toInt(), ceil(a[2]).toInt(), ceil(a[3]).toInt())
     }
     private fun nodeClass(n: JsonObject): String = when (n.string("role")) {
+        "text" -> "android.widget.TextView"
+        "scroll" -> "android.widget.ScrollView"
         "key" -> "android.inputmethodservice.Keyboard\$Key"
         "toggle" -> "android.widget.Switch"
         else -> "android.widget.Button"

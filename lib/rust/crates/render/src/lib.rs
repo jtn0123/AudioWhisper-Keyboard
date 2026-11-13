@@ -29,5 +29,18 @@ mod velocity;
 
 pub mod arrangement;
 
+mod panel_layout;
+mod panel_raster;
+pub mod panel_scroll;
+mod panel_touch;
+pub mod panels;
+
+mod panel_accessibility;
+
 pub mod editing;
+
+pub mod emoji_panel;
+
+mod panel_commands;
+
 pub mod panel_geometry;

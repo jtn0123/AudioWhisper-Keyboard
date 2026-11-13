@@ -16,12 +16,12 @@ use std::sync::Mutex;
 #[derive(Debug, Default)]
 pub struct Session {
     pub(crate) scene: Scene,
-    text: Option<render::text::Text>,
+    pub(crate) text: Option<render::text::Text>,
     pub(crate) touch: Touch,
     pub(crate) semantics: render::accessibility::Semantics,
     fonts: Vec<Vec<u8>>,
     pub(crate) touch_time: i64,
-    theme: Option<render::theme::Theme>,
+    pub(crate) theme: Option<render::theme::Theme>,
     pub(crate) mode: String,
     pub(crate) shift: String,
     types: Vec<String>,
@@ -309,6 +309,7 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_frame(
     // SAFETY: synchronized wrapper owns the handle during the call.
     unsafe {
         handle::with_locked::<Session, _>(env, native, "renderer", 0, |s, _| {
+            s.prepare_panel();
             let animating = s.touch.animate(&mut s.scene, time);
             if let Some(bar) = &mut s.scene.smartbar
                 && bar.actions.iter().any(|a| a.warming)

@@ -38,6 +38,7 @@ pub struct Action(pub i32, pub i32, pub i32);
 
 #[derive(Debug)]
 pub struct Touch {
+    panel: crate::panel_touch::PanelTouch,
     keys: crate::keyboard_touch::KeyboardTouch,
     glide: crate::glide_touch::GlideTouch,
     bar: crate::smartbar_touch::BarTouch,
@@ -50,6 +51,7 @@ pub struct Touch {
 impl Default for Touch {
     fn default() -> Self {
         Self {
+            panel: Default::default(),
             keys: Default::default(),
             glide: Default::default(),
             bar: Default::default(),
@@ -84,10 +86,18 @@ impl Touch {
         self.bar.candidate_tokens()
     }
     pub fn next_deadline(&self) -> Option<i64> {
-        self.bar.next_deadline()
+        self.bar
+            .next_deadline()
+            .into_iter()
+            .chain(self.panel.deadline())
+            .min()
     }
     pub fn tick(&mut self, scene: &mut Scene, now: i64) -> Vec<Action> {
-        self.bar.tick(scene, now)
+        let mut actions = self.bar.tick(scene, now);
+        if let Some(p) = &mut scene.panel {
+            actions.extend(self.panel.tick(p, now));
+        }
+        actions
     }
     pub fn invalidate_bar(&mut self, scene: &mut Scene, slots: &[i32]) -> Vec<Action> {
         self.bar.invalidate(scene, slots)
@@ -107,6 +117,9 @@ impl Touch {
     }
     pub fn cancel(&mut self, scene: &mut Scene) -> Vec<Action> {
         let mut actions = self.glide.cancel();
+        if let Some(p) = &mut scene.panel {
+            actions.extend(self.panel.cancel(p));
+        }
         actions.extend(self.keys.cancel(scene));
         actions.extend(self.bar.cancel(scene));
         self.candidates.clear();
@@ -123,6 +136,14 @@ impl Touch {
         let mut actions = Vec::new();
         if event.action == 0 {
             actions.extend(self.cancel(scene));
+        }
+        if let Some(p) = &mut scene.panel {
+            actions.extend(self.panel.event(p, event, self.long_press_delay));
+            // The smartbar stays usable above the overflow. Editor covers it.
+            if p.kind == 2 {
+                actions.extend(self.bar.event(scene, event, self.long_press_delay));
+            }
+            return actions;
         }
         self.keys.velocity_event(event);
         let (glide, intercepted) = self.glide.event(scene, &self.keys, event, &self.config);

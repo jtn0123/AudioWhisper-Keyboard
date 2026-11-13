@@ -16,6 +16,7 @@ pub struct Style {
     pub percent: bool,
     pub mono: bool,
     pub weight: i32,
+    pub italic: bool,
     pub margin: [f32; 4],
     pub padding: [f32; 4],
 }
@@ -31,6 +32,7 @@ impl Default for Style {
             percent: false,
             mono: false,
             weight: 400,
+            italic: false,
             margin: [0.0; 4],
             padding: [0.0; 4],
         }
@@ -56,6 +58,7 @@ impl Style {
             },
             // Fontique selects real system faces or variable-font weight instances.
             mono: matches!(value("font-family"), Some(Value::Enum(Encoder::GenericFont, n)) if *n == text("monospace")),
+            italic: matches!(value("font-style"),Some(Value::Enum(Encoder::FontStyle,n)) if *n==text("italic")),
             weight: match value("font-weight") {
                 Some(Value::FontWeight(w)) => *w,
                 _ => 400,

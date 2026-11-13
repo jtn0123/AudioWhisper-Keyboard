@@ -35,6 +35,16 @@ private fun referenceChoices(tones: IntArray, preferred: Int): IntArray {
 }
 
 class PanelPresentationMatchTest {
+    @Test fun overflowCountAndHistoryMoveMenuMatchComposePrecedence() {
+        for (count in 0..32) for (visible in 0..35) for (pinned in 0..1) for (ps in 0..3) for (rs in 0..3) {
+            // QuickActionsOverflowPanel and EmojiHistoryPopup frozen Kotlin rules.
+            val overflow = if (count == 0) 0 else (count - visible).coerceIn(0 until count)
+            val moves = pinned != 0 && ps >= 2 || rs >= 2
+            assertContentEquals(intArrayOf(overflow, if (moves) 1 else 0),
+                PanelRules.overflowAndHistoryMoves(intArrayOf(count, visible, pinned, ps, rs)))
+        }
+    }
+
     @Test fun editingHoldRepeatDeletionAndOverflowPolicy() {
         for (delay in listOf(1L, 201L, 300L, 501L, 1000L)) for (repeat in listOf(1L, 50L, 100L)) for (words in listOf(false, true)) {
             val codes = IntArray(10001) { it - 9999 }

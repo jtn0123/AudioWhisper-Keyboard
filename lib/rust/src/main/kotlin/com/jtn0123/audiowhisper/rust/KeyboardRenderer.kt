@@ -14,6 +14,13 @@ class KeyboardRenderer(fontPaths: Array<String>) : AutoCloseable {
         RenderNative.update(handle, dimensions, metadata, candidateFlags, geometry, labels, candidates)
 
     @Synchronized
+    fun emoji(config: IntArray, groups: IntArray, values: Array<String>, history: IntArray, labels: Array<String>) = RenderNative.emoji(handle, config, groups, values, history, labels)
+    @Synchronized
+    fun panels(config: FloatArray, data: IntArray, labels: Array<String>) = RenderNative.panels(handle, config, data, labels)
+    @Synchronized
+    fun panelArrangement(): Array<IntArray> = RenderNative.panelArrangement(handle).map { it as IntArray }.toTypedArray()
+
+    @Synchronized
     fun smartbar(config: FloatArray, codes: IntArray, labels: Array<String>) = RenderNative.smartbar(handle, config, codes, labels)
 
     @Synchronized
@@ -82,6 +89,9 @@ internal object RenderNative {
     external fun create(fontPaths: Array<String>): Long
     external fun theme(handle: Long, json: String, names: Array<String>, colors: IntArray, scale: FloatArray)
     external fun update(handle: Long, dimensions: FloatArray, metadata: Array<String>, candidateFlags: IntArray, geometry: FloatArray, labels: Array<String>, candidates: Array<String>)
+    external fun emoji(handle: Long, config: IntArray, groups: IntArray, values: Array<String>, history: IntArray, labels: Array<String>)
+    external fun panels(handle: Long, config: FloatArray, data: IntArray, labels: Array<String>)
+    external fun panelArrangement(handle: Long): Array<Any>
     external fun smartbar(handle: Long, config: FloatArray, codes: IntArray, labels: Array<String>)
     external fun semanticConfig(handle: Long, names: Array<String>, values: Array<String>, text: Array<String>, popups: IntArray, removable: IntArray, checked: IntArray, editor: IntArray)
     external fun semanticSnapshot(handle: Long): String

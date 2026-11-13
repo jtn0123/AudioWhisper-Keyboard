@@ -71,3 +71,18 @@ pub const ACCESS_CLICK: i32 = 1;
 pub const ACCESS_LONG_CLICK: i32 = 2;
 pub const ACCESS_DISMISS: i32 = 3;
 pub const ACCESS_READ_TOP: i32 = 41;
+
+pub const PANEL_DOWN: i32 = 50;
+pub const PANEL_UP: i32 = 51;
+pub const PANEL_CANCEL: i32 = 52;
+pub const PANEL_MODE: i32 = 53;
+
+pub const PANEL_REPEAT: i32 = 54;
+
+pub const PANEL_EMOJI: i32 = 55;
+pub const PANEL_HISTORY: i32 = 56;
+
+pub const PANEL_CHANGED: i32 = 57;
+
+pub const ACCESS_SCROLL_FORWARD: i32 = 4;
+pub const ACCESS_SCROLL_BACKWARD: i32 = 5;

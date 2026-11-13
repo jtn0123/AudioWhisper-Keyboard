@@ -50,4 +50,8 @@ pub extern "system" fn JNI_OnLoad(_: *mut JavaVM, _: *mut c_void) -> jint {
 
 mod panel_rules;
 
+mod render_panels;
+
+mod render_emoji;
+
 mod panel_oracle;

@@ -1,7 +1,7 @@
 //! Compose action editor's marker algorithm; ids are value identities, never key codes.
 pub const EMPTY: i32 = -1;
 pub const MARKER: i32 = -2;
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Arrangement {
     pub sticky: i32,
     pub dynamic: Vec<i32>,

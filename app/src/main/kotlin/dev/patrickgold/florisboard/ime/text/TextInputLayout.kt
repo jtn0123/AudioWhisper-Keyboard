@@ -73,7 +73,7 @@ fun TextInputLayout(
                 .wrapContentHeight(),
         ) {
             val typingGifSearch by GifSearch.typing.collectAsState()
-            if (rustPrototype && !typingGifSearch && !state.isActionsOverflowVisible) {
+            if (rustPrototype && !typingGifSearch) {
                 RustKeyboardLayout(evaluator)
             } else {
                 if (typingGifSearch) GifSearchBar() else Smartbar()
