@@ -22,6 +22,9 @@ mod layout_rules;
 mod panic;
 mod popup;
 mod reader;
+mod render;
+#[cfg(target_os = "android")]
+mod render_window;
 mod screen;
 mod shift;
 mod spacing;
