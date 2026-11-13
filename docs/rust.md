@@ -30,7 +30,7 @@ are planning estimates, not delivery dates. Android ICU segmentation and locale 
 until a replacement matches Android. Keep Android work at the edge and avoid redundant JNI
 wrappers: the point is to remove Kotlin decisions, not translate each line through a call.
 
-1. Key/domain models: selectors, codes/types, currency slots, keyboard state and text-key evaluation.
+1. Key/domain models: selectors, codes/types, currency slots, keyboard state and text-key evaluation (done; stage 2.1 below).
 2. Layout assembly/cache: arrangements, merging, hints and cache keys; compare every retained layout's evaluated keys.
 3. Snygg rules and stylesheet grammar: parsing, ordering and schema/version errors.
 4. Snygg values: dimensions, colours, fonts, padding, shapes and variables.
@@ -101,6 +101,7 @@ The differential tests, deliberate mutation check and emulator checks below appl
 
 | Piece | Rust | Replaced | Proof it matches |
 |---|---|---|---|
+| Key/domain models: selector choices, canonical key codes and predefined types/labels, currency slots, state bits, key strings, popup-source precedence, phone hints and enabled/visible policy | `crates/keys` (`codes`, `model_data`, `models`) | `KeyData` selectors, `CurrencySet`, `KeyboardState` bits, `TextKeyData` tables/string rules, and the pure parts of `TextKey`/`ComputingEvaluatorImpl` | `KeyModelsMatchTest` and `KeySelectorsMatchTest` against the test-only `ReferenceKey*` and `ReferenceKeyboardState`; every bundled layout in all selector states, seeded nested selectors, raw registers and transitions, currency sets, key/string and popup/availability cases. Reversing the unshifted case choice in Rust failed both selector tests. See stage 2.1 below for counts and emulator proof |
 | Glide typing's scorer: pruning a swipe's candidate words and ranking them | `crates/glide` | `StatisticalGlideTypingClassifier`'s `Pruner`, ideal gestures and scoring | `SwipeIndexTest` against `ReferenceGlideClassifier`; on the emulator, 512 of 512 scorings were identical |
 | Dictation's text rules: spoken commands, joining phrases transcribed separately, and taking back the last one | `crates/dictation` | `Spoken.parse`, `Phrases.join` and `punctuate`, `DictationUndo.revertAt` | `DictationRulesMatchTest` against `ReferenceDictation`: every UTF-16 unit through each rule, and 100,000 random phrases. The same cases on the emulator: none of 1,579,648 differed. Dictated recordings typed the same text |
 | Dictation's filler words and custom vocabulary, new settings (Settings > Dictation): the Mac app's rules, not a port of the keyboard's own. The keyboard's spoken commands, joining and capitals stay as they were; a phrase is tidied before they see it | AudioWhisper-Core's `transcript`, a pinned git dependency of `crates/awnative` | Nothing replaced: `DictationRules.format`, called from `Dictation.type` | The Rust is the Mac app's, proven against its Swift there (AudioWhisper-Core's differential tests). Here `DictationRulesTest` checks the JNI: fillers, terms, CamelCase splits, `heard -> written`, comments, and text that isn't valid UTF-16 left alone; it fails for each of 2 breaks in the JNI. The page renders on the emulator |
@@ -123,6 +124,60 @@ The differential tests, deliberate mutation check and emulator checks below appl
 
 Many large pure-logic pieces are in Rust. The next stages move the remaining decisions, then
 the keyboard drawing and settings models, so Kotlin becomes a small Android shell.
+
+### Stage 2.1: key/domain boundary and proof (2026-11-12)
+
+The existing `keys` crate now owns domain decisions as well as geometry. Codes have one
+canonical Rust table; Kotlin exposes named values from it. Predefined keys carry their types
+and labels in Rust. Kotlin retains the kotlinx.serialization classes and enums, Compose's
+layout-direction value, observable state and batch notifications, Android fact gathering,
+ICU's mark predicate and locale casing/cache, and assembly of key/popup objects. Rust chooses
+children and popup sources by index, so JNI does not need to understand Kotlin objects or
+call back into an evaluator. Clipboard queries still stay behind the locked-device guard.
+Layout assembly/cache and Android labels/icons remain for their later work packages.
+
+The JVM differential tests retain the replaced Kotlin as `ReferenceKeySelectors`,
+`ReferenceKeyboardState`, `ReferenceKeyMetadata`, `ReferenceKeyCodes` and `ReferenceKeyRules`:
+
+- 93 bundled layouts across 132 JSON files, 5,840 key nodes in 80 shift/variation/direction/width
+  combinations: 467,200 cases. Both sides receive the same casing snapshots on the JVM,
+  because Android ICU itself was not ported. Another 40,000 seeded nested selectors include
+  missing children and children whose computation returns null; only missing children fall back.
+- All 65,536 low state registers and 20,000 random full-width registers, then 2,000 seeded
+  runs of 40 public mutations (80,000 transitions), including snapshots and wrapping/high bits.
+- 123,003 key-code inputs through lookup, space/currency classification and UTF-16 string
+  rules; all 60 predefined key records and every named code pinned against the old values.
+  Invalid code points are ignored, while lone surrogate code points are retained, as before.
+- 200,300 currency lookups over 100 seeded sets of different lengths, plus all 26 bundled
+  currency sets (52,026 lookups) and 80 explicit space/type cases.
+- All 5,120 popup-source masks/variations and 598,026 enabled/visible code/fact combinations,
+  plus popup modes/groups and phone hints. Fallback, disabled utilities and password cases
+  retain the old precedence.
+
+The deliberate mutation made an unshifted case selector choose its upper child. Both the
+bundled-layout and seeded-selector tests failed; the change was removed and the full checks
+passed. Tests also caught and fixed a port mistake: code-info labels for positive control
+characters use appendCodePoint, whereas display labels use the key's label. A separate audit
+against the original Kotlin caught a temporary extraction regex missing the digit in
+VIEW_SYMBOLS2: correcting the reference first made the lookup test fail, then fixing the
+Rust restored parity. Existing quirks
+stay: currency lookup takes abs(code), including positive codes and Int wrapping, and
+SHOW_SUBTYPE_PICKER is predefined but absent from the code-info lookup.
+
+Using the plan's non-blank tracked-main-source measure, stage 2.1 removes 487 Kotlin lines
+and adds 991 Rust lines (including JNI); Java is unchanged. Totals are 53,321 Kotlin,
+26,297 Rust and 627 Java, about 32.8% Rust. This is a migration count, not a claim that the
+90% target has been reached. Test references do not count toward either total.
+
+On the muted s24_like emulator (`local`, `emulator-5554`), the baseline and port builds were
+installed with `scripts/install-dev.sh` and driven through the T3 device session. The same
+key sequence matched in alphabet/symbol and numeric fields, including automatic capitals,
+manual shift, caps lock and release back to lowercase. Long-press e showed the same accent
+and number-hint grid; the dollar key and its five currency alternatives matched, including
+the prioritized cent key. Password input stayed masked, without suggestions or an enabled
+mic. Phone keys retained their secondary labels. The requested FATAL/AndroidRuntime logcat
+search found only routine runtime startup/exit messages, with no fatal or error-level runtime
+entries. The temporary field-check APK is a build artifact, not a new app feature.
 
 ### Sharing a core with the Mac app
 

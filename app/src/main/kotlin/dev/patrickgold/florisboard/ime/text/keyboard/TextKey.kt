@@ -17,6 +17,7 @@
 package dev.patrickgold.florisboard.ime.text.keyboard
 
 import com.jtn0123.audiowhisper.rust.KeyGeometry
+import com.jtn0123.audiowhisper.rust.KeyModels
 import dev.patrickgold.florisboard.app.FlorisPreferenceStore
 import dev.patrickgold.florisboard.ime.keyboard.AbstractKeyData
 import dev.patrickgold.florisboard.ime.keyboard.ComputingEvaluator
@@ -61,47 +62,16 @@ class TextKey(override val data: AbstractKeyData) : Key(data) {
             computedData = computed
             computedPopups.clear()
             mergePopups(computed, evaluator, computedPopups::merge)
-            if (keyboardMode == KeyboardMode.CHARACTERS || keyboardMode == KeyboardMode.NUMERIC_ADVANCED ||
-                keyboardMode == KeyboardMode.SYMBOLS || keyboardMode == KeyboardMode.SYMBOLS2) {
+            if (KeyModels.popupMode(keyboardMode.value)) {
                 val computedLabel = computed.label.lowercase(evaluator.subtype.primaryLocale)
-                val extLabel = when (computed.groupId) {
-                    KeyData.GROUP_ENTER -> {
-                        "~enter"
-                    }
-                    KeyData.GROUP_LEFT -> {
-                        "~left"
-                    }
-                    KeyData.GROUP_RIGHT -> {
-                        "~right"
-                    }
-                    else -> {
-                        computedLabel
-                    }
-                }
+                val extLabel = KeyModels.popupGroup(computed.groupId) ?: computedLabel
                 val extendedPopupsDefault = keyboard.extendedPopupMappingDefault
                 val extendedPopups = keyboard.extendedPopupMapping
-                var popupSet: PopupSet<AbstractKeyData>? = null
-                val kv = evaluator.state.keyVariation
-                if (popupSet == null && kv == KeyVariation.PASSWORD) {
-                    popupSet = extendedPopups?.get(KeyVariation.PASSWORD)?.get(extLabel) ?:
-                        extendedPopupsDefault?.get(KeyVariation.PASSWORD)?.get(extLabel)
+                val sources = KeyVariation.entries.flatMap { variation ->
+                    listOf(extendedPopups?.get(variation)?.get(extLabel), extendedPopupsDefault?.get(variation)?.get(extLabel))
                 }
-                if (popupSet == null && (kv == KeyVariation.NORMAL || kv == KeyVariation.PASSWORD)) {
-                    popupSet = extendedPopups?.get(KeyVariation.NORMAL)?.get(extLabel) ?:
-                        extendedPopupsDefault?.get(KeyVariation.NORMAL)?.get(extLabel)
-                }
-                if (popupSet == null && kv == KeyVariation.EMAIL_ADDRESS) {
-                    popupSet = extendedPopups?.get(KeyVariation.EMAIL_ADDRESS)?.get(extLabel) ?:
-                        extendedPopupsDefault?.get(KeyVariation.EMAIL_ADDRESS)?.get(extLabel)
-                }
-                if (popupSet == null && (kv == KeyVariation.EMAIL_ADDRESS || kv == KeyVariation.URI)) {
-                    popupSet = extendedPopups?.get(KeyVariation.URI)?.get(extLabel) ?:
-                        extendedPopupsDefault?.get(KeyVariation.URI)?.get(extLabel)
-                }
-                if (popupSet == null) {
-                    popupSet = extendedPopups?.get(KeyVariation.ALL)?.get(extLabel) ?:
-                        extendedPopupsDefault?.get(KeyVariation.ALL)?.get(extLabel)
-                }
+                val present = sources.indices.fold(0) { bits, i -> if (sources[i] != null) bits or (1 shl i) else bits }
+                val popupSet = sources.getOrNull(KeyModels.popupSource(evaluator.state.keyVariation.value, present))
                 var keySpecificPopupSet: PopupSet<AbstractKeyData>? = null
                 if (extLabel != computedLabel) {
                     keySpecificPopupSet = extendedPopups?.get(KeyVariation.ALL)?.get(computedLabel) ?:
@@ -194,19 +164,7 @@ class TextKey(override val data: AbstractKeyData) : Key(data) {
 
         val data = computedData
         if (data.type == KeyType.NUMERIC && evaluator.keyboard.mode == KeyboardMode.PHONE) {
-            hintedLabel = when (data.code) {
-                48 /* 0 */ -> "+"
-                49 /* 1 */ -> ""
-                50 /* 2 */ -> "ABC"
-                51 /* 3 */ -> "DEF"
-                52 /* 4 */ -> "GHI"
-                53 /* 5 */ -> "JKL"
-                54 /* 6 */ -> "MNO"
-                55 /* 7 */ -> "PQRS"
-                56 /* 8 */ -> "TUV"
-                57 /* 9 */ -> "WXYZ"
-                else -> null
-            }
+            hintedLabel = KeyModels.phoneHint(data.code)
         } else if (!data.isSpaceKey() || data.type == KeyType.NUMERIC) {
             val prefs by FlorisPreferenceStore
             computedPopups.getPopupKeys(prefs.keyboard.keyHintConfiguration()).hint.let { hintData ->

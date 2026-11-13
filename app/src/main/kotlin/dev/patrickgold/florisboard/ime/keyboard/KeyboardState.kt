@@ -16,6 +16,7 @@
 
 package dev.patrickgold.florisboard.ime.keyboard
 
+import com.jtn0123.audiowhisper.rust.KeyModels
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.State
 import androidx.compose.runtime.collectAsState
@@ -71,30 +72,6 @@ import kotlin.properties.Delegates
  */
 open class KeyboardState protected constructor(open var rawValue: ULong) {
     companion object {
-        const val M_KEYBOARD_MODE: ULong =                  0x0Fu
-        const val O_KEYBOARD_MODE: Int =                    0
-        const val M_KEY_VARIATION: ULong =                  0x0Fu
-        const val O_KEY_VARIATION: Int =                    4
-        const val M_INPUT_SHIFT_STATE: ULong =              0x03u
-        const val O_INPUT_SHIFT_STATE: Int =                8
-        const val M_IME_UI_MODE: ULong =                    0x07u
-        const val O_IME_UI_MODE: Int =                      24
-
-        const val F_IS_SELECTION_MODE: ULong =              0x00000400u
-        const val F_IS_MANUAL_SELECTION_MODE: ULong =       0x00000800u
-        const val F_IS_MANUAL_SELECTION_MODE_START: ULong = 0x00001000u
-        const val F_IS_MANUAL_SELECTION_MODE_END: ULong =   0x00002000u
-        const val F_IS_INCOGNITO_MODE: ULong =              0x00008000u
-        const val F_IS_ACTIONS_OVERFLOW_VISIBLE: ULong =    0x00010000u
-        const val F_IS_ACTIONS_EDITOR_VISIBLE: ULong =      0x00020000u
-        const val F_IS_COMPOSING_ENABLED: ULong =           0x00100000u
-
-        const val F_IS_CHAR_HALF_WIDTH: ULong =             0x00200000u
-
-        const val F_IS_RTL_LAYOUT_DIRECTION: ULong =        0x08000000u
-
-        const val F_IS_SUBTYPE_SELECTION_VISIBLE: ULong =   0x1_0000_0000u
-
         const val STATE_ALL_ZERO: ULong =                   0uL
 
         fun new(value: ULong = STATE_ALL_ZERO) = KeyboardState(value)
@@ -104,20 +81,9 @@ open class KeyboardState protected constructor(open var rawValue: ULong) {
         return new(rawValue)
     }
 
-    private fun getFlag(f: ULong): Boolean {
-        return (rawValue and f) != STATE_ALL_ZERO
-    }
-
-    private fun setFlag(f: ULong, v: Boolean) {
-        rawValue = if (v) { rawValue or f } else { rawValue and f.inv() }
-    }
-
-    private fun getRegion(m: ULong, o: Int): Int {
-        return ((rawValue shr o) and m).toInt()
-    }
-
-    private fun setRegion(m: ULong, o: Int, v: Int) {
-        rawValue = (rawValue and (m shl o).inv()) or ((v.toULong() and m) shl o)
+    private fun read(field: Int) = KeyModels.read(rawValue.toLong(), field)
+    private fun write(field: Int, value: Int) {
+        rawValue = KeyModels.write(rawValue.toLong(), field, value).toULong()
     }
 
     override fun hashCode(): Int {
@@ -133,24 +99,24 @@ open class KeyboardState protected constructor(open var rawValue: ULong) {
     }
 
     var keyVariation: KeyVariation
-        get() = KeyVariation.fromInt(getRegion(M_KEY_VARIATION, O_KEY_VARIATION))
-        set(v) { setRegion(M_KEY_VARIATION, O_KEY_VARIATION, v.toInt()) }
+        get() = KeyVariation.fromInt(read(1))
+        set(v) { write(1, v.toInt()) }
 
     var keyboardMode: KeyboardMode
-        get() = KeyboardMode.fromInt(getRegion(M_KEYBOARD_MODE, O_KEYBOARD_MODE))
-        set(v) { setRegion(M_KEYBOARD_MODE, O_KEYBOARD_MODE, v.toInt()) }
+        get() = KeyboardMode.fromInt(read(0))
+        set(v) { write(0, v.toInt()) }
 
     var inputShiftState: InputShiftState
-        get() = InputShiftState.fromInt(getRegion(M_INPUT_SHIFT_STATE, O_INPUT_SHIFT_STATE))
-        set(v) { setRegion(M_INPUT_SHIFT_STATE, O_INPUT_SHIFT_STATE, v.toInt()) }
+        get() = InputShiftState.fromInt(read(2))
+        set(v) { write(2, v.toInt()) }
 
     var imeUiMode: ImeUiMode
-        get() = ImeUiMode.fromInt(getRegion(M_IME_UI_MODE, O_IME_UI_MODE))
-        set(v) { setRegion(M_IME_UI_MODE, O_IME_UI_MODE, v.toInt()) }
+        get() = ImeUiMode.fromInt(read(3))
+        set(v) { write(3, v.toInt()) }
 
     var layoutDirection: LayoutDirection
-        get() = if (getFlag(F_IS_RTL_LAYOUT_DIRECTION)) LayoutDirection.Rtl else LayoutDirection.Ltr
-        set(v) { setFlag(F_IS_RTL_LAYOUT_DIRECTION, v == LayoutDirection.Rtl) }
+        get() = if ((read(4) != 0)) LayoutDirection.Rtl else LayoutDirection.Ltr
+        set(v) { write(4, v.ordinal) }
 
     val isLowercase: Boolean
         get() = inputShiftState == InputShiftState.UNSHIFTED
@@ -159,48 +125,48 @@ open class KeyboardState protected constructor(open var rawValue: ULong) {
         get() = inputShiftState != InputShiftState.UNSHIFTED
 
     var isSelectionMode: Boolean
-        get() = getFlag(F_IS_SELECTION_MODE)
-        set(v) { setFlag(F_IS_SELECTION_MODE, v) }
+        get() = (read(5) != 0)
+        set(v) { write(5, if (v) 1 else 0) }
 
     var isManualSelectionMode: Boolean
-        get() = getFlag(F_IS_MANUAL_SELECTION_MODE)
-        set(v) { setFlag(F_IS_MANUAL_SELECTION_MODE, v) }
+        get() = (read(6) != 0)
+        set(v) { write(6, if (v) 1 else 0) }
 
     var isManualSelectionModeStart: Boolean
-        get() = getFlag(F_IS_MANUAL_SELECTION_MODE_START)
-        set(v) { setFlag(F_IS_MANUAL_SELECTION_MODE_START, v) }
+        get() = (read(7) != 0)
+        set(v) { write(7, if (v) 1 else 0) }
 
     var isManualSelectionModeEnd: Boolean
-        get() = getFlag(F_IS_MANUAL_SELECTION_MODE_END)
-        set(v) { setFlag(F_IS_MANUAL_SELECTION_MODE_END, v) }
+        get() = (read(8) != 0)
+        set(v) { write(8, if (v) 1 else 0) }
 
     var isCursorMode: Boolean
         get() = !isSelectionMode
         set(v) { isSelectionMode = !v }
 
     var isIncognitoMode: Boolean
-        get() = getFlag(F_IS_INCOGNITO_MODE)
-        set(v) { setFlag(F_IS_INCOGNITO_MODE, v) }
+        get() = (read(9) != 0)
+        set(v) { write(9, if (v) 1 else 0) }
 
     var isActionsOverflowVisible: Boolean
-        get() = getFlag(F_IS_ACTIONS_OVERFLOW_VISIBLE)
-        set(v) { setFlag(F_IS_ACTIONS_OVERFLOW_VISIBLE, v) }
+        get() = (read(10) != 0)
+        set(v) { write(10, if (v) 1 else 0) }
 
     var isActionsEditorVisible: Boolean
-        get() = getFlag(F_IS_ACTIONS_EDITOR_VISIBLE)
-        set(v) { setFlag(F_IS_ACTIONS_EDITOR_VISIBLE, v) }
+        get() = (read(11) != 0)
+        set(v) { write(11, if (v) 1 else 0) }
 
     var isSubtypeSelectionVisible: Boolean
-        get() = getFlag(F_IS_SUBTYPE_SELECTION_VISIBLE)
-        set(v) { setFlag(F_IS_SUBTYPE_SELECTION_VISIBLE, v) }
+        get() = (read(12) != 0)
+        set(v) { write(12, if (v) 1 else 0) }
 
     var isComposingEnabled: Boolean
-        get() = getFlag(F_IS_COMPOSING_ENABLED)
-        set(v) { setFlag(F_IS_COMPOSING_ENABLED, v) }
+        get() = (read(13) != 0)
+        set(v) { write(13, if (v) 1 else 0) }
 
     var isCharHalfWidth: Boolean
-        get() = getFlag(F_IS_CHAR_HALF_WIDTH)
-        set(v) { setFlag(F_IS_CHAR_HALF_WIDTH, v) }
+        get() = (read(14) != 0)
+        set(v) { write(14, if (v) 1 else 0) }
 
 }
 

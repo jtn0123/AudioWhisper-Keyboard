@@ -17,6 +17,7 @@
 package dev.patrickgold.florisboard.ime.keyboard
 
 import android.content.Context
+import com.jtn0123.audiowhisper.rust.KeyModels
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import com.jtn0123.audiowhisper.dictation.DictationFields
@@ -26,7 +27,6 @@ import dev.patrickgold.florisboard.ime.core.DisplayLanguageNamesIn
 import dev.patrickgold.florisboard.ime.core.Subtype
 import dev.patrickgold.florisboard.ime.editor.FlorisEditorInfo
 import dev.patrickgold.florisboard.ime.text.key.KeyCode
-import dev.patrickgold.florisboard.ime.text.key.UtilityKeyAction
 import dev.patrickgold.florisboard.subtypeManager
 import org.florisboard.lib.android.AndroidKeyguardManager
 import org.florisboard.lib.android.systemService
@@ -54,66 +54,30 @@ internal class ComputingEvaluatorImpl(
     }
 
     override fun evaluateEnabled(data: KeyData): Boolean {
-        return when (data.code) {
-            KeyCode.CLIPBOARD_COPY,
-            KeyCode.CLIPBOARD_CUT -> {
-                state.isSelectionMode && editorInfo.isRichInputEditor
-            }
+        // AudioWhisper: gather Android facts lazily; key policy is in Rust.
+        fun bit(value: Boolean) = if (value) 1 else 0
+        val (a, b) = when (data.code) {
+            KeyCode.CLIPBOARD_COPY, KeyCode.CLIPBOARD_CUT ->
+                bit(state.isSelectionMode) to bit(editorInfo.isRichInputEditor)
             KeyCode.CLIPBOARD_PASTE -> {
-                !androidKeyguardManager.let { it.isDeviceLocked || it.isKeyguardLocked }
-                    && clipboardManager.canBePasted(clipboardManager.primaryClip)
+                val locked = androidKeyguardManager.let { it.isDeviceLocked || it.isKeyguardLocked }
+                bit(locked) to bit(!locked && clipboardManager.canBePasted(clipboardManager.primaryClip))
             }
-            KeyCode.CLIPBOARD_CLEAR_PRIMARY_CLIP -> {
-                clipboardManager.canBePasted(clipboardManager.primaryClip)
-            }
-            KeyCode.CLIPBOARD_SELECT_ALL -> {
-                editorInfo.isRichInputEditor
-            }
-            KeyCode.TOGGLE_INCOGNITO_MODE -> when (prefs.suggestion.incognitoMode.get()) {
-                IncognitoMode.FORCE_OFF, IncognitoMode.FORCE_ON -> false
-                IncognitoMode.DYNAMIC_ON_OFF -> !editorInfo.imeOptions.flagNoPersonalizedLearning
-            }
-            KeyCode.LANGUAGE_SWITCH -> {
-                subtypeManager.subtypes.size > 1
-            }
-            // AudioWhisper: no dictating a password, PIN or number.
-            KeyCode.VOICE_INPUT -> DictationFields.allows(editorInfo.inputAttributes)
-            else -> true
+            KeyCode.CLIPBOARD_CLEAR_PRIMARY_CLIP -> bit(clipboardManager.canBePasted(clipboardManager.primaryClip)) to 0
+            KeyCode.CLIPBOARD_SELECT_ALL -> bit(editorInfo.isRichInputEditor) to 0
+            KeyCode.TOGGLE_INCOGNITO_MODE -> prefs.suggestion.incognitoMode.get().ordinal to
+                bit(editorInfo.imeOptions.flagNoPersonalizedLearning)
+            KeyCode.LANGUAGE_SWITCH -> subtypeManager.subtypes.size to 0
+            KeyCode.VOICE_INPUT -> bit(DictationFields.allows(editorInfo.inputAttributes)) to 0
+            else -> 0 to 0
         }
+        return KeyModels.enabled(data.code, a, b)
     }
 
-    override fun evaluateVisible(data: KeyData): Boolean {
-        return when (data.code) {
-            KeyCode.IME_UI_MODE_TEXT,
-            KeyCode.IME_UI_MODE_MEDIA -> {
-                val tempUtilityKeyAction = when {
-                    prefs.keyboard.utilityKeyEnabled.get() -> prefs.keyboard.utilityKeyAction.get()
-                    else -> UtilityKeyAction.DISABLED
-                }
-                when (tempUtilityKeyAction) {
-                    UtilityKeyAction.DISABLED,
-                    UtilityKeyAction.SWITCH_LANGUAGE,
-                    UtilityKeyAction.SWITCH_KEYBOARD_APP -> false
-                    UtilityKeyAction.SWITCH_TO_EMOJIS -> true
-                    UtilityKeyAction.DYNAMIC_SWITCH_LANGUAGE_EMOJIS -> !shouldShowLanguageSwitch()
-                }
-            }
-            KeyCode.LANGUAGE_SWITCH -> {
-                val tempUtilityKeyAction = when {
-                    prefs.keyboard.utilityKeyEnabled.get() -> prefs.keyboard.utilityKeyAction.get()
-                    else -> UtilityKeyAction.DISABLED
-                }
-                when (tempUtilityKeyAction) {
-                    UtilityKeyAction.DISABLED,
-                    UtilityKeyAction.SWITCH_TO_EMOJIS -> false
-                    UtilityKeyAction.SWITCH_LANGUAGE,
-                    UtilityKeyAction.SWITCH_KEYBOARD_APP -> true
-                    UtilityKeyAction.DYNAMIC_SWITCH_LANGUAGE_EMOJIS -> shouldShowLanguageSwitch()
-                }
-            }
-            else -> true
-        }
-    }
+    override fun evaluateVisible(data: KeyData): Boolean = KeyModels.visible(
+        data.code, prefs.keyboard.utilityKeyEnabled.get(), prefs.keyboard.utilityKeyAction.get().ordinal,
+        shouldShowLanguageSwitch(),
+    )
 
     override fun isSlot(data: KeyData): Boolean {
         return CurrencySet.isCurrencySlot(data.code)

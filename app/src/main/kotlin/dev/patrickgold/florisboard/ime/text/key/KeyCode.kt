@@ -17,126 +17,127 @@
 package dev.patrickgold.florisboard.ime.text.key
 
 object KeyCode {
+    private val codes = com.jtn0123.audiowhisper.rust.KeyModels.codes()
     object Spec {
-        const val CHARACTERS_MIN = 1
-        const val CHARACTERS_MAX = 65535
+        val CHARACTERS_MIN = codes[0]
+        val CHARACTERS_MAX = codes[1]
         val CHARACTERS = CHARACTERS_MIN..CHARACTERS_MAX
 
-        const val INTERNAL_MIN = -9999
-        const val INTERNAL_MAX = -1
+        val INTERNAL_MIN = codes[2]
+        val INTERNAL_MAX = codes[3]
         val INTERNAL = INTERNAL_MIN..INTERNAL_MAX
     }
 
-    const val UNSPECIFIED =                    0
+    val UNSPECIFIED = codes[4]
 
-    const val PHONE_WAIT =                    59 // ;
-    const val PHONE_PAUSE =                   44 // ,
+    val PHONE_WAIT = codes[5] // ;
+    val PHONE_PAUSE = codes[6] // ,
 
-    const val SPACE =                         32
-    const val ESCAPE =                        27
-    const val ENTER =                         10
-    const val TAB =                            9
+    val SPACE = codes[7]
+    val ESCAPE = codes[8]
+    val ENTER = codes[9]
+    val TAB = codes[10]
 
-    const val CTRL =                          -1
-    const val CTRL_LOCK =                     -2
-    const val ALT =                           -3
-    const val ALT_LOCK =                      -4
-    const val FN =                            -5
-    const val FN_LOCK =                       -6
-    const val DELETE =                        -7
-    const val DELETE_WORD =                   -8
-    const val FORWARD_DELETE =                -9
-    const val FORWARD_DELETE_WORD =          -10
-    const val SHIFT =                        -11
-    const val CAPS_LOCK =                    -13
+    val CTRL = codes[11]
+    val CTRL_LOCK = codes[12]
+    val ALT = codes[13]
+    val ALT_LOCK = codes[14]
+    val FN = codes[15]
+    val FN_LOCK = codes[16]
+    val DELETE = codes[17]
+    val DELETE_WORD = codes[18]
+    val FORWARD_DELETE = codes[19]
+    val FORWARD_DELETE_WORD = codes[20]
+    val SHIFT = codes[21]
+    val CAPS_LOCK = codes[22]
 
-    const val ARROW_LEFT =                   -21
-    const val ARROW_RIGHT =                  -22
-    const val ARROW_UP =                     -23
-    const val ARROW_DOWN =                   -24
-    const val MOVE_START_OF_PAGE =           -25
-    const val MOVE_END_OF_PAGE =             -26
-    const val MOVE_START_OF_LINE =           -27
-    const val MOVE_END_OF_LINE =             -28
+    val ARROW_LEFT = codes[23]
+    val ARROW_RIGHT = codes[24]
+    val ARROW_UP = codes[25]
+    val ARROW_DOWN = codes[26]
+    val MOVE_START_OF_PAGE = codes[27]
+    val MOVE_END_OF_PAGE = codes[28]
+    val MOVE_START_OF_LINE = codes[29]
+    val MOVE_END_OF_LINE = codes[30]
 
-    const val CLIPBOARD_COPY =               -31
-    const val CLIPBOARD_CUT =                -32
-    const val CLIPBOARD_PASTE =              -33
-    const val CLIPBOARD_SELECT =             -34
-    const val CLIPBOARD_SELECT_ALL =         -35
-    const val CLIPBOARD_CLEAR_HISTORY =      -36
-    const val CLIPBOARD_CLEAR_FULL_HISTORY = -37
-    const val CLIPBOARD_CLEAR_PRIMARY_CLIP = -38
+    val CLIPBOARD_COPY = codes[31]
+    val CLIPBOARD_CUT = codes[32]
+    val CLIPBOARD_PASTE = codes[33]
+    val CLIPBOARD_SELECT = codes[34]
+    val CLIPBOARD_SELECT_ALL = codes[35]
+    val CLIPBOARD_CLEAR_HISTORY = codes[36]
+    val CLIPBOARD_CLEAR_FULL_HISTORY = codes[37]
+    val CLIPBOARD_CLEAR_PRIMARY_CLIP = codes[38]
 
-    const val TOGGLE_COMPACT_LAYOUT =       -110
-    const val COMPACT_LAYOUT_TO_LEFT =      -111
-    const val COMPACT_LAYOUT_TO_RIGHT =     -112
-    const val SPLIT_LAYOUT =                -113
-    const val MERGE_LAYOUT =                -114
+    val TOGGLE_COMPACT_LAYOUT = codes[39]
+    val COMPACT_LAYOUT_TO_LEFT = codes[40]
+    val COMPACT_LAYOUT_TO_RIGHT = codes[41]
+    val SPLIT_LAYOUT = codes[42]
+    val MERGE_LAYOUT = codes[43]
 
-    const val UNDO =                        -131
-    const val REDO =                        -132
+    val UNDO = codes[44]
+    val REDO = codes[45]
 
-    const val VIEW_CHARACTERS =             -201
-    const val VIEW_SYMBOLS =                -202
-    const val VIEW_SYMBOLS2 =               -203
-    const val VIEW_NUMERIC =                -204
-    const val VIEW_NUMERIC_ADVANCED =       -205
-    const val VIEW_PHONE =                  -206
-    const val VIEW_PHONE2 =                 -207
+    val VIEW_CHARACTERS = codes[46]
+    val VIEW_SYMBOLS = codes[47]
+    val VIEW_SYMBOLS2 = codes[48]
+    val VIEW_NUMERIC = codes[49]
+    val VIEW_NUMERIC_ADVANCED = codes[50]
+    val VIEW_PHONE = codes[51]
+    val VIEW_PHONE2 = codes[52]
 
-    const val IME_UI_MODE_TEXT =            -211
-    const val IME_UI_MODE_MEDIA =           -212
-    const val IME_UI_MODE_CLIPBOARD =       -213
+    val IME_UI_MODE_TEXT = codes[53]
+    val IME_UI_MODE_MEDIA = codes[54]
+    val IME_UI_MODE_CLIPBOARD = codes[55]
 
-    const val SYSTEM_INPUT_METHOD_PICKER =  -221
-    const val SYSTEM_PREV_INPUT_METHOD =    -222
-    const val SYSTEM_NEXT_INPUT_METHOD =    -223
-    const val IME_SUBTYPE_PICKER =          -224
-    const val IME_PREV_SUBTYPE =            -225
-    const val IME_NEXT_SUBTYPE =            -226
-    const val LANGUAGE_SWITCH =             -227
-    const val SHOW_SUBTYPE_PICKER =         -228
+    val SYSTEM_INPUT_METHOD_PICKER = codes[56]
+    val SYSTEM_PREV_INPUT_METHOD = codes[57]
+    val SYSTEM_NEXT_INPUT_METHOD = codes[58]
+    val IME_SUBTYPE_PICKER = codes[59]
+    val IME_PREV_SUBTYPE = codes[60]
+    val IME_NEXT_SUBTYPE = codes[61]
+    val LANGUAGE_SWITCH = codes[62]
+    val SHOW_SUBTYPE_PICKER = codes[63]
 
-    const val IME_SHOW_UI =                 -231
-    const val IME_HIDE_UI =                 -232
-    const val VOICE_INPUT =                 -233
+    val IME_SHOW_UI = codes[64]
+    val IME_HIDE_UI = codes[65]
+    val VOICE_INPUT = codes[66]
     // AudioWhisper: the suggestion bar's speaker, which reads the screen aloud.
-    const val READ_ALOUD =                  -234
+    val READ_ALOUD = codes[67]
 
-    const val TOGGLE_SMARTBAR_VISIBILITY =  -241
-    const val TOGGLE_ACTIONS_OVERFLOW =     -242
-    const val TOGGLE_ACTIONS_EDITOR =       -243
-    const val TOGGLE_INCOGNITO_MODE =       -244
-    const val TOGGLE_AUTOCORRECT =          -245
+    val TOGGLE_SMARTBAR_VISIBILITY = codes[68]
+    val TOGGLE_ACTIONS_OVERFLOW = codes[69]
+    val TOGGLE_ACTIONS_EDITOR = codes[70]
+    val TOGGLE_INCOGNITO_MODE = codes[71]
+    val TOGGLE_AUTOCORRECT = codes[72]
 
-    const val URI_COMPONENT_TLD =           -255
+    val URI_COMPONENT_TLD = codes[73]
 
-    const val SETTINGS =                    -301
+    val SETTINGS = codes[74]
 
-    const val CURRENCY_SLOT_1 =             -801
-    const val CURRENCY_SLOT_2 =             -802
-    const val CURRENCY_SLOT_3 =             -803
-    const val CURRENCY_SLOT_4 =             -804
-    const val CURRENCY_SLOT_5 =             -805
-    const val CURRENCY_SLOT_6 =             -806
+    val CURRENCY_SLOT_1 = codes[75]
+    val CURRENCY_SLOT_2 = codes[76]
+    val CURRENCY_SLOT_3 = codes[77]
+    val CURRENCY_SLOT_4 = codes[78]
+    val CURRENCY_SLOT_5 = codes[79]
+    val CURRENCY_SLOT_6 = codes[80]
 
-    const val MULTIPLE_CODE_POINTS =        -902
-    const val DRAG_MARKER =                 -991
-    const val NOOP =                        -999
+    val MULTIPLE_CODE_POINTS = codes[81]
+    val DRAG_MARKER = codes[82]
+    val NOOP = codes[83]
 
-    const val CHAR_WIDTH_SWITCHER =        -9701
-    const val CHAR_WIDTH_FULL =            -9702
-    const val CHAR_WIDTH_HALF =            -9703
+    val CHAR_WIDTH_SWITCHER = codes[84]
+    val CHAR_WIDTH_FULL = codes[85]
+    val CHAR_WIDTH_HALF = codes[86]
 
-    const val KANA_SMALL =                 12307
-    const val KANA_SWITCHER =              -9710
-    const val KANA_HIRA =                  -9711
-    const val KANA_KATA =                  -9712
-    const val KANA_HALF_KATA =             -9713
+    val KANA_SMALL = codes[87]
+    val KANA_SWITCHER = codes[88]
+    val KANA_HIRA = codes[89]
+    val KANA_KATA = codes[90]
+    val KANA_HALF_KATA = codes[91]
 
-    const val KESHIDA =                     1600
-    const val HALF_SPACE =                  8204
+    val KESHIDA = codes[92]
+    val HALF_SPACE = codes[93]
 
-    const val CJK_SPACE =                  12288
+    val CJK_SPACE = codes[94]
 }

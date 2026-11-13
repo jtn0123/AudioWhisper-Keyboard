@@ -16,7 +16,7 @@
 
 package dev.patrickgold.florisboard.ime.keyboard
 
-import androidx.compose.ui.unit.LayoutDirection
+import com.jtn0123.audiowhisper.rust.KeyModels
 import dev.patrickgold.florisboard.ime.input.InputShiftState
 import dev.patrickgold.florisboard.ime.popup.PopupSet
 import dev.patrickgold.florisboard.ime.text.key.KeyCode
@@ -97,8 +97,7 @@ interface KeyData : AbstractKeyData {
     }
 
     fun isSpaceKey(): Boolean {
-        return type == KeyType.CHARACTER && (code == KeyCode.SPACE || code == KeyCode.CJK_SPACE
-            || code == KeyCode.HALF_SPACE || code == KeyCode.KESHIDA)
+        return KeyModels.isSpace(type.ordinal, code)
     }
 }
 
@@ -125,7 +124,7 @@ class CaseSelector(
     val upper: AbstractKeyData,
 ) : AbstractKeyData {
     override fun compute(evaluator: ComputingEvaluator): KeyData? {
-        return (if (evaluator.state.isUppercase) { upper } else { lower }).compute(evaluator)
+        return evaluator.select(0, lower, upper)
     }
 
     override fun asString(isForDisplay: Boolean): String {
@@ -170,12 +169,7 @@ class ShiftStateSelector(
     val default: AbstractKeyData? = null,
 ) : AbstractKeyData {
     override fun compute(evaluator: ComputingEvaluator): KeyData? {
-        return when (evaluator.state.inputShiftState) {
-            InputShiftState.UNSHIFTED -> unshifted ?: default
-            InputShiftState.SHIFTED_MANUAL -> shiftedManual ?: shifted ?: default
-            InputShiftState.SHIFTED_AUTOMATIC -> shiftedAutomatic ?: shifted ?: default
-            InputShiftState.CAPS_LOCK -> capsLock ?: default
-        }?.compute(evaluator)
+        return evaluator.select(1, unshifted, shifted, shiftedManual, shiftedAutomatic, capsLock, default)
     }
 
     override fun asString(isForDisplay: Boolean): String {
@@ -219,13 +213,7 @@ data class VariationSelector(
     val password: AbstractKeyData? = null,
 ) : AbstractKeyData {
     override fun compute(evaluator: ComputingEvaluator): KeyData? {
-        return when (evaluator.state.keyVariation) {
-            KeyVariation.ALL -> default
-            KeyVariation.EMAIL_ADDRESS -> email ?: default
-            KeyVariation.NORMAL -> normal ?: default
-            KeyVariation.PASSWORD -> password ?: default
-            KeyVariation.URI -> uri ?: default
-        }?.compute(evaluator)
+        return evaluator.select(2, default, email, uri, normal, password)
     }
 
     override fun asString(isForDisplay: Boolean): String {
@@ -257,8 +245,7 @@ class LayoutDirectionSelector(
     val rtl: AbstractKeyData,
 ) : AbstractKeyData {
     override fun compute(evaluator: ComputingEvaluator): KeyData? {
-        val isRtl = evaluator.state.layoutDirection == LayoutDirection.Rtl
-        return (if (isRtl) { rtl } else { ltr }).compute(evaluator)
+        return evaluator.select(3, ltr, rtl)
     }
 
     override fun asString(isForDisplay: Boolean): String {
@@ -289,11 +276,16 @@ class CharWidthSelector(
     val half: AbstractKeyData?,
 ) : AbstractKeyData {
     override fun compute(evaluator: ComputingEvaluator): KeyData? {
-        val data = if (evaluator.state.isCharHalfWidth) { half } else { full }
-        return data?.compute(evaluator)
+        return evaluator.select(4, full, half)
     }
 
     override fun asString(isForDisplay: Boolean): String {
         return ""
     }
+}
+
+// AudioWhisper: serialization retains the children; Rust chooses before Kotlin evaluates one.
+internal fun ComputingEvaluator.select(kind: Int, vararg children: AbstractKeyData?): KeyData? {
+    val present = children.indices.fold(0) { bits, i -> if (children[i] != null) bits or (1 shl i) else bits }
+    return children.getOrNull(KeyModels.select(kind, state.rawValue.toLong(), present))?.compute(this)
 }

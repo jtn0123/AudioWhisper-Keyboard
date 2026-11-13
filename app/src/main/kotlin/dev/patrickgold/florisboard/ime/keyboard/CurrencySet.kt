@@ -16,10 +16,9 @@
 
 package dev.patrickgold.florisboard.ime.keyboard
 
-import dev.patrickgold.florisboard.ime.text.key.KeyCode
 import dev.patrickgold.florisboard.ime.text.keyboard.TextKeyData
 import kotlinx.serialization.Serializable
-import kotlin.math.abs
+import com.jtn0123.audiowhisper.rust.KeyModels
 
 @Serializable
 class CurrencySet(
@@ -31,31 +30,18 @@ class CurrencySet(
         val Fallback = CurrencySet(
             id = "fallback",
             label = "Fallback",
-            slots = listOf(
-                TextKeyData(code = 36, label = "$"),
-                TextKeyData(code = 162, label = "¢"),
-                TextKeyData(code = 8364, label = "€"),
-                TextKeyData(code = 163, label = "£"),
-                TextKeyData(code = 165, label = "¥"),
-                TextKeyData(code = 8369, label = "₱")
-            )
+            slots = KeyModels.currencyDefaults().map { code ->
+                TextKeyData(code = code, label = KeyModels.text(code, "", false, false))
+            }
         )
 
         fun isCurrencySlot(keyCode: Int): Boolean {
-            return when (keyCode) {
-                KeyCode.CURRENCY_SLOT_1,
-                KeyCode.CURRENCY_SLOT_2,
-                KeyCode.CURRENCY_SLOT_3,
-                KeyCode.CURRENCY_SLOT_4,
-                KeyCode.CURRENCY_SLOT_5,
-                KeyCode.CURRENCY_SLOT_6 -> true
-                else -> false
-            }
+            return KeyModels.isCurrency(keyCode)
         }
     }
 
     fun getSlot(keyCode: Int): TextKeyData? {
-        val slot = abs(keyCode) - abs(KeyCode.CURRENCY_SLOT_1)
+        val slot = KeyModels.currencySlot(keyCode)
         return slots.getOrNull(slot)
     }
 
