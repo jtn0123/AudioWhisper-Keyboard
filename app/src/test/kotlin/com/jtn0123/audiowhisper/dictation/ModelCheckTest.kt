@@ -5,6 +5,7 @@ import java.nio.file.Files
 import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 
 class ModelCheckTest {
     private val dir: File = Files.createTempDirectory("model-check").toFile()
@@ -60,6 +61,23 @@ class ModelCheckTest {
         File(dir, "a").writeText("two")
         assertEquals(ModelState.Ready, ModelCheck.quick(dir, expected))
         assertEquals(ModelState.Damaged(listOf("a")), ModelCheck.full(dir, expected, Remembered()))
+    }
+
+    @Test
+    fun `an unreadable file is damaged and is not remembered as verified`() {
+        val expected = listOf(write("a", "one"))
+        val file = File(dir, "a")
+        val permissions = Files.getPosixFilePermissions(file.toPath())
+        val remembered = Remembered()
+        try {
+            Files.setPosixFilePermissions(file.toPath(), emptySet())
+            assertFalse(file.canRead(), "fixture must actually be unreadable")
+            assertEquals(ModelState.Damaged(listOf("a")), ModelCheck.full(dir, expected, remembered))
+            assertEquals(emptySet(), remembered.keys)
+        } finally {
+            Files.setPosixFilePermissions(file.toPath(), permissions)
+        }
+        assertEquals(ModelState.Ready, ModelCheck.full(dir, expected, remembered))
     }
 
     @Test

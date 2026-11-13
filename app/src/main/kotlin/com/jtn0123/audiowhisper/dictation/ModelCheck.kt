@@ -2,6 +2,7 @@ package com.jtn0123.audiowhisper.dictation
 
 import android.content.Context
 import java.io.File
+import java.io.IOException
 import java.security.MessageDigest
 
 /** A file a model needs: its name in the model's folder, its size and its SHA-256. */
@@ -44,7 +45,11 @@ object ModelCheck {
         val damaged = expected.filterNot { file ->
             val on = File(dir, file.name)
             val key = "${on.path}:${on.length()}:${on.lastModified()}"
-            verified.contains(key) || (sha256(on) == file.sha256).also { if (it) verified.add(key) }
+            try {
+                verified.contains(key) || (sha256(on) == file.sha256).also { if (it) verified.add(key) }
+            } catch (_: IOException) {
+                false // Unreadable or removed during the check; never cache a failed read.
+            }
         }
         return if (damaged.isEmpty()) ModelState.Ready else ModelState.Damaged(damaged.map { it.name })
     }

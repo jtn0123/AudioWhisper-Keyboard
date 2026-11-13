@@ -100,15 +100,17 @@ internal class VoiceEngine private constructor(
          * the first time, a second more to check the files' SHA-256.
          */
         fun load(context: Context): VoiceEngine? {
-            if (quickState(context) is ModelState.Missing) return null
-            val state = fullState(context)
-            if (state != ModelState.Ready) {
-                Log.w(TAG, "Voice files not as expected: $state")
-                return null
-            }
             val started = SystemClock.elapsedRealtime()
-            return runCatching { create(dir(context)) }
-                .onSuccess { Log.i(TAG, "Loaded in ${SystemClock.elapsedRealtime() - started} ms") }
+            return runCatching {
+                if (quickState(context) is ModelState.Missing) return@runCatching null
+                val state = fullState(context)
+                if (state != ModelState.Ready) {
+                    Log.w(TAG, "Voice files not as expected: $state")
+                    return@runCatching null
+                }
+                create(dir(context))
+            }
+                .onSuccess { if (it != null) Log.i(TAG, "Loaded in ${SystemClock.elapsedRealtime() - started} ms") }
                 .onFailure { Log.w(TAG, "Could not load the voice: ${it.javaClass.simpleName}") }
                 .getOrNull()
         }
