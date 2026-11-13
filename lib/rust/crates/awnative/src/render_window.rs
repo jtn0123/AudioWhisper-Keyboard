@@ -244,14 +244,15 @@ fn run(
             continue;
         };
         drop(pending);
-        let Some(damage) = previous.damage(&scene) else {
+        let regions = previous.damage_regions(&scene);
+        let Some(damage) = regions.iter().copied().reduce(render::scene::union) else {
             continue;
         };
         let start = Instant::now();
         let mut post_ns = 0;
         let (draw, gpu_wait) = match &mut engine {
             Engine::Cpu(raster) => {
-                if raster.draw(&scene, damage).is_err() {
+                if raster.draw_regions(&scene, &regions).is_err() {
                     log("draw_error");
                     break;
                 }
@@ -280,7 +281,9 @@ fn run(
             .max(0.0)
                 * (damage.bottom.ceil().min(scene.height as f32) - damage.top.floor().max(0.0))
                     .max(0.0)) as u64;
-            let full = area == u64::from(scene.width) * u64::from(scene.height);
+            let paint = render::profile::damage_pixels(&regions, scene.width, scene.height);
+            let region_count = regions.len();
+            let full = paint == u64::from(scene.width) * u64::from(scene.height);
             let press = scene.pressed.iter().any(|i| !previous.pressed.contains(i));
             let release = previous.pressed.iter().any(|i| !scene.pressed.contains(i));
             let recreate = previous.width == 0;
@@ -290,7 +293,7 @@ fn run(
                 .zip(&scene.keys)
                 .any(|(a, b)| a.label != b.label && a.label.eq_ignore_ascii_case(&b.label));
             log(&format!(
-                "profile draw_ns={draw} buffer_post_ns={post_ns} press={} release={} recreate={} full={} area_px={area} shift={} popup_change={} popup_open={} candidates={} encode_ns={} raster_ns={} shape_ns={} glyph_ns={} alloc_ns={} alloc_sites={} layout_misses={} labels={} cold_glyph_ns={} color_glyph_ns={} glyph_runs={} cold_runs={} color_runs={}",
+                "profile draw_ns={draw} buffer_post_ns={post_ns} press={} release={} recreate={} full={} area_px={area} paint_px={paint} regions={region_count} shift={} popup_change={} popup_open={} candidates={} encode_ns={} raster_ns={} shape_ns={} glyph_ns={} alloc_ns={} alloc_sites={} layout_misses={} labels={} cold_glyph_ns={} color_glyph_ns={} glyph_runs={} cold_runs={} color_runs={}",
                 u8::from(press),
                 u8::from(release),
                 u8::from(recreate),

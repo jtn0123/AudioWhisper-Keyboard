@@ -365,3 +365,102 @@ fn profiling_preserves_pixels_and_distinguishes_cold_and_warm_layouts() {
     assert_eq!(measured.profile().alloc_sites, 0);
     assert_eq!(measured.profile().encode_ns, 0);
 }
+
+#[test]
+fn strip_and_key_damage_do_not_paint_the_rows_between_them() {
+    let mut before = scene();
+    for key in &mut before.keys {
+        key.bounds.visible.top += 40.0;
+        key.bounds.visible.bottom += 40.0;
+    }
+    before.height = 120;
+    before.pressed = vec![1];
+    let mut after = before.clone();
+    after.pressed.clear();
+    after.candidates = vec!["fixture".into()];
+    let regions = before.damage_regions(&after);
+    assert_eq!(regions.len(), 2);
+    assert_eq!(regions[0].bottom, 20.0);
+    assert_eq!(regions[1].top, 60.0);
+}
+
+#[test]
+fn disjoint_and_overlapping_damage_equal_full_repaint_with_text_and_shadows() {
+    let fonts =
+        vec![include_bytes!("../../../../../fastlane/staging/fonts/Roboto-Light.ttf").to_vec()];
+    for background in [0xfffafafa, 0xff202020] {
+        let mut scene = scene();
+        scene.background = background;
+        for (i, key) in scene.keys.iter_mut().enumerate() {
+            key.bounds.visible.top += 30.25;
+            key.bounds.visible.bottom += 30.25;
+            key.bounds.visible.left += 0.25;
+            key.bounds.visible.right -= 0.25;
+            key.label = if i == 0 { "é" } else { "W" }.into();
+            key.radius = 3.75;
+            key.shadow = 1.5;
+        }
+        scene.height = 120;
+        scene.candidate_size = 14.0;
+        scene.candidate_color = 0xff123456;
+        scene.popup_colors = [0xffeeeeee, 0xff000000, 0xffaabbcc];
+        let full = Scene::default().damage(&scene).unwrap();
+        let mut dirty = Raster::new(100, 120, fonts.clone());
+        let mut reference = Raster::new(100, 120, fonts.clone());
+        dirty.draw(&scene, full).unwrap();
+        for step in 0..16 {
+            let old = scene.clone();
+            scene.pressed = if step % 2 == 0 { vec![0] } else { vec![] };
+            scene.candidates = vec!["long clipped candidate".repeat(step + 1)];
+            scene.popup = match step % 4 {
+                0 => Some(Popup {
+                    key: 0,
+                    labels: vec!["è".into(), "é".into()],
+                    selected: 0,
+                }),
+                1 => Some(Popup {
+                    key: 0,
+                    labels: vec!["è".into(), "é".into()],
+                    selected: 1,
+                }),
+                _ => None,
+            };
+            dirty
+                .draw_regions(&scene, &old.damage_regions(&scene))
+                .unwrap();
+            reference.draw(&scene, full).unwrap();
+            let first = dirty
+                .pixels()
+                .as_chunks::<4>()
+                .0
+                .iter()
+                .zip(reference.pixels().as_chunks::<4>().0.iter())
+                .position(|(a, b)| a != b);
+            assert!(
+                first.is_none(),
+                "transition {step}, first pixel {first:?}, regions {:?}",
+                old.damage_regions(&scene)
+            );
+        }
+    }
+}
+
+#[test]
+fn profiled_damage_area_counts_overlap_rounding_and_clamping_once() {
+    let regions = [
+        Rect {
+            left: -2.5,
+            top: -0.5,
+            right: 4.25,
+            bottom: 2.25,
+        },
+        Rect {
+            left: 3.0,
+            top: 1.0,
+            right: 20.0,
+            bottom: 20.0,
+        },
+    ];
+    assert_eq!(render::profile::damage_pixels(&regions, 10, 4), 32);
+    assert_eq!(render::profile::damage_pixels(&[], 10, 4), 0);
+}

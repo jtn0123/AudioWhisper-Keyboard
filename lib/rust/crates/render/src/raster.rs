@@ -68,6 +68,17 @@ impl Raster {
         self.context.hybrid_parts()
     }
 
+    /// Retain the existing rectangular clip semantics for exact full/dirty pixel parity.
+    pub fn draw_regions(&mut self, scene: &Scene, regions: &[Rect]) -> Result<(), String> {
+        let mut total = Profile::default();
+        for &damage in regions {
+            self.draw(scene, damage)?;
+            total.accumulate(self.profile);
+        }
+        self.profile = total;
+        Ok(())
+    }
+
     pub fn draw(&mut self, scene: &Scene, damage: Rect) -> Result<(), String> {
         self.profile = Profile::default();
         let encode = self.profiling.then(Instant::now);

@@ -102,8 +102,8 @@ def profile(path):
             "draw": percentiles([f["draw_ns"] for f in group]),
             "buffer_copy_post": percentiles([f["buffer_post_ns"] for f in group
                                              if "buffer_post_ns" in f]),
-            "area_px_min": min((f["area_px"] for f in group), default=0),
-            "area_px_max": max((f["area_px"] for f in group), default=0),
+            "area_px_min": min((f.get("paint_px", f["area_px"]) for f in group), default=0),
+            "area_px_max": max((f.get("paint_px", f["area_px"]) for f in group), default=0),
             "totals_ms": {k: round(sum(f[k] for f in group) / 1e6, 3) for k in
                           ("encode_ns", "raster_ns", "shape_ns", "glyph_ns", "alloc_ns",
                            "cold_glyph_ns", "color_glyph_ns")},

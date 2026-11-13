@@ -76,24 +76,30 @@ impl Scene {
 
     /// Union of the regions whose pixels can change. A structural update invalidates everything.
     pub fn damage(&self, next: &Self) -> Option<Rect> {
+        self.damage_regions(next).into_iter().reduce(union)
+    }
+
+    /// Separate strip/key/popup damage so a distant key does not repaint intervening rows.
+    pub fn damage_regions(&self, next: &Self) -> Vec<Rect> {
         if self == next {
-            return None;
+            return Vec::new();
         }
-        let mut a = self.clone();
-        let mut b = next.clone();
-        a.pressed.clear();
-        b.pressed.clear();
-        a.popup = None;
-        b.popup = None;
-        a.candidates.clear();
-        b.candidates.clear();
-        if a != b {
-            return Some(Rect {
+        // Compare stable fields directly, without cloning all labels and candidate strings.
+        if self.width != next.width
+            || self.height != next.height
+            || self.strip != next.strip
+            || self.background != next.background
+            || self.candidate_color != next.candidate_color
+            || self.candidate_size != next.candidate_size
+            || self.popup_colors != next.popup_colors
+            || self.keys != next.keys
+        {
+            return vec![Rect {
                 left: 0.0,
                 top: 0.0,
                 right: next.width as f32,
                 bottom: next.height as f32,
-            });
+            }];
         }
         let mut rects = Vec::new();
         if self.candidates != next.candidates {
@@ -123,7 +129,7 @@ impl Scene {
             rects.extend(self.popup_bounds());
             rects.extend(next.popup_bounds());
         }
-        rects.into_iter().reduce(union)
+        rects
     }
 }
 
