@@ -24,6 +24,10 @@ impl Theme {
             auto_commit: false,
             popup_source: None,
         };
+        scene.telpad = types
+            .iter()
+            .map(|kind| crate::key_content::telpad(mode, kind))
+            .collect();
         let trail = self.properties(&base.element("glide-trail", 0));
         scene.trail_color = match snygg::resolve::get(&trail, &snygg::text("foreground")) {
             Some(snygg::value::Value::Color(c)) => crate::style::argb(*c),

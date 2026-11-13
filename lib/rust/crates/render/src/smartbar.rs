@@ -16,10 +16,12 @@ pub struct Config {
     pub mode: i32,
     pub density: f32,
     pub row: f32,
+    pub inline: bool,
+    pub preview: bool,
 }
 impl Config {
     pub fn decode(a: &[f32]) -> Option<Self> {
-        if a.len() != 12
+        if ![12, 14].contains(&a.len())
             || a.iter().any(|v| !v.is_finite())
             || a[10] <= 0.0
             || a[11] <= 0.0
@@ -34,7 +36,7 @@ impl Config {
             enabled: a[0] != 0.0,
             layout: a[1] as i32,
             flip: a[2] != 0.0,
-            shared: a[3] != 0.0,
+            shared: a[3] != 0.0 && !a.get(13).is_some_and(|v| *v != 0.0),
             extended: a[4] != 0.0,
             placement: a[5] as i32,
             speaker: a[6] != 0.0,
@@ -43,10 +45,17 @@ impl Config {
             mode: a[9] as i32,
             density: a[10],
             row: a[11].round(),
+            inline: a.get(12).is_some_and(|v| *v != 0.0),
+            preview: a.get(13).is_some_and(|v| *v != 0.0),
         })
     }
     pub fn extra(&self) -> bool {
         self.enabled && self.layout == 3 && self.extended
+    }
+    /// Compose's inline views replace candidates, or the actions-only main row.
+    /// An explicitly expanded shared row still takes precedence over inline suggestions.
+    pub fn inline_visible(&self) -> bool {
+        self.enabled && self.inline && !self.preview && !(self.layout == 2 && self.shared)
     }
     pub fn height(&self) -> f32 {
         if self.enabled {
@@ -124,6 +133,16 @@ impl Layout {
                 ]);
             }
         }
+        if c.inline_visible() {
+            a.extend([
+                2.0,
+                0.0,
+                self.center.left,
+                self.center.top,
+                self.center.right,
+                self.center.bottom,
+            ]);
+        }
         a
     }
 }
@@ -184,7 +203,9 @@ pub fn layout(c: &Config, width: f32, intrinsic: &[f32], scroll: f32) -> Layout 
             out.center.right = (right - pinned).max(h);
         }
     }
-    if c.layout == 1 || (c.layout == 2 && c.shared) {
+    if c.inline_visible() {
+        // Native drawing, hit testing and semantics leave the platform region empty.
+    } else if c.layout == 1 || (c.layout == 2 && c.shared) {
         actions(c, out.center, &mut out);
     } else {
         let area = out.center;

@@ -131,11 +131,26 @@ impl Raster {
             let r = crate::smartbar::inset(r, style.margin);
             self.shadow(r, style);
             self.box_at(r, style);
+            let telpad = scene.telpad.get(i) == Some(&true);
+            let label_bounds = if telpad {
+                crate::key_content::phone_label(
+                    r,
+                    [
+                        self.text
+                            .measure(&key.label, style.size, style.mono, style.weight),
+                        self.text
+                            .height(&key.label, style.size, style.mono, style.weight),
+                    ],
+                    false,
+                )
+            } else {
+                r
+            };
             self.label(
                 &key.label,
                 style.size,
                 style.foreground,
-                r,
+                label_bounds,
                 style.mono,
                 style.weight,
             )?;
@@ -153,15 +168,29 @@ impl Raster {
                 self.context.reset_transform();
             }
             if !key.hint.is_empty() {
-                self.label(
-                    &key.hint,
-                    hint.size,
-                    hint.foreground,
+                let hint_bounds = if telpad {
+                    crate::key_content::phone_label(
+                        r,
+                        [
+                            self.text
+                                .measure(&key.hint, hint.size, hint.mono, hint.weight),
+                            self.text
+                                .height(&key.hint, hint.size, hint.mono, hint.weight),
+                        ],
+                        true,
+                    )
+                } else {
                     Rect {
                         left: r.right - style.size * 0.6,
                         bottom: r.top + style.size * 0.7,
                         ..r
-                    },
+                    }
+                };
+                self.label(
+                    &key.hint,
+                    hint.size,
+                    hint.foreground,
+                    hint_bounds,
                     hint.mono,
                     hint.weight,
                 )?;

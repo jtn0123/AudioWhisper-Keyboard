@@ -36,4 +36,20 @@ class SmartbarMatchTest {
             }
         assertEquals(9216,cases)
     }
+
+    @Test fun inlineReservationMatchesComposeForEveryMainRowAndPreviewState() {
+        for (enabled in 0..1) for (layout in 0..3) for (flip in 0..1) for (shared in 0..1)
+            for (extended in 0..1) for (placement in 0..2) for (speaker in 0..1)
+                for (sticky in 0..1) for (inline in 0..1) for (preview in 0..1) {
+                    val config = floatArrayOf(enabled.toFloat(), layout.toFloat(), flip.toFloat(),
+                        shared.toFloat(), extended.toFloat(), placement.toFloat(), speaker.toFloat(),
+                        sticky.toFloat(), 19f, 0f, 2.625f, 113f, inline.toFloat(), preview.toFloat())
+                    for (width in listOf(720f, 1080f, 1440f)) {
+                        val candidates = floatArrayOf(70f, 200f, 500f)
+                        val expected = ReferenceSmartbar.layout(config, width, candidates)
+                        val actual = SmartbarRules.layout(config, width, candidates)
+                        assertEquals(expected.toList(), actual.toList(), config.toList().toString())
+                    }
+                }
+    }
 }

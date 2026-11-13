@@ -334,3 +334,24 @@ fn key_semantics_clip_extended_touch_targets_to_the_renderer_viewport() {
             .any(|n| n.id == 2)
     );
 }
+
+#[test]
+fn accessible_shift_uses_the_same_hold_threshold_as_ordinary_input() {
+    let mut s = scene();
+    let semantics = Semantics::default();
+    for (code, expected) in [
+        (SHIFT, 750),
+        (SPACE, 750),
+        (CJK_SPACE, 750),
+        (LANGUAGE_SWITCH, 600),
+        (101, 300),
+    ] {
+        s.keys[0].code = code;
+        let node = semantics.snapshot(&s, "unshifted").remove(0);
+        assert_eq!(node.hold_delay(&s, 300), expected);
+        if code == SHIFT {
+            assert!(400 < node.hold_delay(&s, 300));
+            assert!(900 >= node.hold_delay(&s, 300));
+        }
+    }
+}

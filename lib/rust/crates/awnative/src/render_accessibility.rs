@@ -85,6 +85,7 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_semanticS
                 "label": n.label, "description": n.description, "role": n.role, "state": n.state,
                 "enabled": n.enabled, "pressed": n.pressed, "selected": n.selected,
                 "checked": n.checked, "locked": n.locked, "actions": n.actions, "longClickLabel": n.long_click_label,
+                "holdDelayMillis": n.hold_delay(&s.scene, s.touch.long_press_delay / 1_000_000),
             })).collect();
             let value = json!({"nodes": nodes, "mode": s.semantics.labels.mode(&s.mode),
                 "shift": s.semantics.labels.shift(&s.shift), "popup": s.scene.popup.is_some()});

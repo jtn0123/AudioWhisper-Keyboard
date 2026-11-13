@@ -37,6 +37,20 @@ pub struct Node {
     pub target: Target,
 }
 impl Node {
+    /// Same key-specific clock as InputEventDispatcher.determineLongPressDelay. A 400 ms
+    /// Shift touch must remain a tap when the configured base is 300 ms, not lock caps.
+    pub fn hold_delay(&self, scene: &Scene, base_millis: i64) -> i64 {
+        let code = match self.target {
+            Target::Key(i) => scene.keys[i].code,
+            _ => 0,
+        };
+        let factor = match code {
+            codes::SPACE | codes::CJK_SPACE | codes::SHIFT => 2.5,
+            codes::LANGUAGE_SWITCH => 2.0,
+            _ => 1.0,
+        };
+        (base_millis as f32 * factor) as i64
+    }
     fn new(id: i32, bounds: Rect, label: String, role: &'static str, target: Target) -> Self {
         Self {
             id,

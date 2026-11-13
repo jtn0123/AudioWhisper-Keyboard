@@ -39,7 +39,6 @@ import com.jtn0123.audiowhisper.render.RustKeyboardLayout
 import dev.patrickgold.florisboard.R
 import dev.patrickgold.florisboard.app.FlorisPreferenceStore
 import dev.patrickgold.florisboard.ime.smartbar.IncognitoDisplayMode
-import dev.patrickgold.florisboard.ime.keyboard.KeyboardMode
 import dev.patrickgold.florisboard.ime.smartbar.InlineSuggestionsStyleCache
 import dev.patrickgold.florisboard.ime.smartbar.Smartbar
 import dev.patrickgold.florisboard.ime.smartbar.quickaction.QuickActionsOverflowPanel
@@ -74,7 +73,7 @@ fun TextInputLayout(
                 .wrapContentHeight(),
         ) {
             val typingGifSearch by GifSearch.typing.collectAsState()
-            if (rustPrototype && evaluator.keyboard.mode == KeyboardMode.CHARACTERS && !typingGifSearch && !state.isActionsOverflowVisible && inline.isEmpty()) {
+            if (rustPrototype && !typingGifSearch && !state.isActionsOverflowVisible) {
                 RustKeyboardLayout(evaluator)
             } else {
                 if (typingGifSearch) GifSearchBar() else Smartbar()

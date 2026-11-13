@@ -7,6 +7,7 @@ mod backend;
 pub mod gesture_config;
 mod glide_touch;
 pub mod hybrid;
+pub mod key_content;
 mod keyboard_swipe;
 mod keyboard_touch;
 pub mod popup_scene;

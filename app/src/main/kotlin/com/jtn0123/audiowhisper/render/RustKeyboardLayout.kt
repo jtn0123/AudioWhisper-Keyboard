@@ -25,6 +25,8 @@ import dev.patrickgold.florisboard.app.FlorisPreferenceStore
 import dev.patrickgold.florisboard.ime.keyboard.ComputingEvaluator
 import dev.patrickgold.florisboard.ime.keyboard.FlorisImeSizing
 import dev.patrickgold.florisboard.ime.text.keyboard.TextKeyboard
+import dev.patrickgold.florisboard.ime.nlp.NlpInlineAutofill
+import dev.patrickgold.florisboard.ime.smartbar.InlineSuggestionsUi
 import dev.patrickgold.florisboard.nlpManager
 import dev.patrickgold.florisboard.themeManager
 import org.florisboard.lib.snygg.ui.rememberSnyggPalette
@@ -48,7 +50,8 @@ fun RustKeyboardLayout(evaluator: ComputingEvaluator) = with(LocalDensity.curren
     }
     val keyboardHeight = FlorisImeSizing.keyboardUiHeight()
     val preview by Dictation.preview.collectAsState()
-    val smartbar = rendererSmartbar(preview.isNotEmpty())
+    val inline by NlpInlineAutofill.suggestions.collectAsState()
+    val smartbar = rendererSmartbar(preview.isNotEmpty(), inline.isNotEmpty())
     var availableWidth by remember { mutableFloatStateOf(resources.displayMetrics.widthPixels.toFloat()) }
     val measurement = smartbar.measure(availableWidth)
     val stripHeight = measurement[0].toDp()
@@ -69,6 +72,17 @@ fun RustKeyboardLayout(evaluator: ComputingEvaluator) = with(LocalDensity.curren
                     smartbar, preview.isNotEmpty(), intArrayOf(evaluator.editorInfo.imeOptions.raw, evaluator.editorInfo.inputAttributes.raw)))
             },
         )
+        // Kind 2 is the native reservation for Android's InlineContentViews. The AndroidView
+        // above keeps its identity when modes or inline suggestions change.
+        val inlineRegion = measurement.drop(8).chunked(6).firstOrNull { it[0] == 2f }
+        if (inlineRegion != null) {
+            Box(Modifier.absoluteOffset(inlineRegion[2].toDp(),
+                (inlineRegion[3] - measurement[0] + measurement[1]).toDp())
+                .width((inlineRegion[4] - inlineRegion[2]).toDp())
+                .height((inlineRegion[5] - inlineRegion[3]).toDp())) {
+                InlineSuggestionsUi(inline)
+            }
+        }
         if (preview.isNotEmpty()) {
             // The platform preview occupies Rust's measured center without cancelling a held mic.
             Box(Modifier.absoluteOffset(measurement[3].toDp(),

@@ -10,7 +10,10 @@ internal object ReferenceSmartbar {
         if (c[0] == 0f) return FloatArray(8)
         val mode = c[1].toInt()
         val flip = c[2] != 0f
-        val shared = c[3] != 0f
+        val preview = c.getOrElse(13) { 0f } != 0f
+        val inline = c.getOrElse(12) { 0f } != 0f && !preview
+        val shared = c[3] != 0f && !preview
+        val showInline = inline && !(mode == 2 && shared)
         val extra = mode == 3 && c[4] != 0f
         val placement = c[5].toInt()
         val speaker = c[6] != 0f
@@ -63,7 +66,9 @@ internal object ReferenceSmartbar {
             val gap = maxOf(0f, r-l-h*entries.size)/(entries.size+1)
             entries.forEachIndexed { i, id -> action(id, (l+gap+(gap+h)*i).roundToInt().toFloat(), y) }
         }
-        if (mode == 1 || (mode == 2 && shared)) {
+        if (showInline) {
+            // InlineSuggestionsUi fills this center instead of candidates or actions-only.
+        } else if (mode == 1 || (mode == 2 && shared)) {
             quickActions(left, right, top)
         } else {
             val list = if (display == 0) words.take(3) else words.toList()
@@ -95,8 +100,9 @@ internal object ReferenceSmartbar {
             }
         }
         if (extra) quickActions(0f,width,if (placement == 1) h else 0f)
+        val platform = if (showInline) listOf(2f,0f,left,top,right,top+h) else emptyList()
         return (listOf(height, height-if (extra && placement == 2) h else 0f, visible.toFloat(),
-            left,top,right,top+h,content)+actions+candidates).toFloatArray()
+            left,top,right,top+h,content)+actions+candidates+platform).toFloatArray()
     }
     fun ellipsis(advances: FloatArray, width: Float): Int =
         advances.indices.lastOrNull { advances[it] <= width }?.plus(1) ?: 0

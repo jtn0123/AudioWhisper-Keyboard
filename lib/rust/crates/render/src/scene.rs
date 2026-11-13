@@ -40,6 +40,7 @@ pub struct Scene {
     pub popup_style: Style,
     pub popup_styles: Vec<[Style; 2]>,
     pub keys: Vec<Key>,
+    pub telpad: Vec<bool>,
     pub candidates: Vec<String>,
     pub candidate_tokens: Vec<i32>,
     pub pressed: Vec<usize>,

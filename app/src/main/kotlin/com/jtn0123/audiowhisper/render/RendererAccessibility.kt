@@ -19,7 +19,6 @@ internal class RendererAccessibility(
     private val snapshot: () -> String,
     private val activate: (Int, Int) -> Boolean,
     private val cancel: () -> Unit,
-    private val holdDelay: () -> Long,
 ) : AccessibilityNodeProvider() {
     private val manager = host.context.getSystemService(AccessibilityManager::class.java)
     private var nodes = linkedMapOf<Int, JsonObject>()
@@ -195,7 +194,7 @@ internal class RendererAccessibility(
             MotionEvent.ACTION_DOWN -> {
                 down = hit(event.x, event.y).takeIf { it != View.NO_ID } ?: focused
                 held = false
-                host.postDelayed(hold, holdDelay())
+                nodes[down]?.get("holdDelayMillis")?.jsonPrimitive?.long?.let { host.postDelayed(hold, it) }
             }
             MotionEvent.ACTION_UP -> {
                 host.removeCallbacks(hold)

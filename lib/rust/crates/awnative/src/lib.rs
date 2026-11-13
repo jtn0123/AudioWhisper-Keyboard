@@ -24,6 +24,7 @@ mod popup;
 mod reader;
 mod render;
 mod render_accessibility;
+mod render_content;
 mod render_input;
 mod render_smartbar;
 mod render_theme;

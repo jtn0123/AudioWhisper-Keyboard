@@ -49,7 +49,7 @@ internal data class RendererSmartbar(
 
 /** Platform settings, evaluated action icons and handlers; all placement decisions are native. */
 @Composable
-internal fun rendererSmartbar(preview: Boolean): RendererSmartbar = with(LocalDensity.current) {
+internal fun rendererSmartbar(preview: Boolean, inline: Boolean = false): RendererSmartbar = with(LocalDensity.current) {
     val context = LocalContext.current
     val prefs by FlorisPreferenceStore
     val manager by context.keyboardManager()
@@ -99,9 +99,9 @@ internal fun rendererSmartbar(preview: Boolean): RendererSmartbar = with(LocalDe
         })
     }.toTypedArray()
     RendererSmartbar(floatArrayOf(if (enabled) 1f else 0f, layout.ordinal.toFloat(), if (flip) 1f else 0f,
-        if (shared && !preview) 1f else 0f, if (extended) 1f else 0f, placement.ordinal.toFloat(), if (speaker) 1f else 0f,
+        if (shared) 1f else 0f, if (extended) 1f else 0f, placement.ordinal.toFloat(), if (speaker) 1f else 0f,
         if (arrangement.stickyAction != null) 1f else 0f, arrangement.dynamicActions.size.toFloat(),
-        display.ordinal.toFloat(), density, FlorisImeSizing.smartbarHeight.toPx()), actions, codes, labels, tooltips, warming,
+        display.ordinal.toFloat(), density, FlorisImeSizing.smartbarHeight.toPx(), if (inline) 1f else 0f, if (preview) 1f else 0f), actions, codes, labels, tooltips, warming,
         listOfNotNull(KeyCode.TOGGLE_INCOGNITO_MODE.takeIf { evaluator.state.isIncognitoMode },
             KeyCode.TOGGLE_COMPACT_LAYOUT.takeIf { prefs.keyboard.oneHandedModeEnabled.get() }).toIntArray()) {
         if (expanded) manager.activeState.isActionsOverflowVisible = false

@@ -26,6 +26,8 @@ import dev.patrickgold.florisboard.keyboardManager
 import dev.patrickgold.florisboard.nlpManager
 import dev.patrickgold.florisboard.ime.smartbar.quickaction.QuickAction
 import com.jtn0123.audiowhisper.reader.ReadAloud
+import dev.patrickgold.florisboard.ime.popup.GlobalStateNumPopupsShowing
+import kotlinx.coroutines.flow.update
 
 private const val PROFILE_LOG_TAG = "aw-profile"
 
@@ -57,6 +59,12 @@ class RustKeyboardView(context: Context) : FrameLayout(context), SurfaceHolder.C
     private val choreographer = Choreographer.getInstance()
     private val gestureHost = RendererGestureHost(context, native)
     private var popupSource: TextKey? = null
+        set(value) {
+            if ((field != null) != (value != null)) {
+                GlobalStateNumPopupsShowing.update { it + if (value != null) 1 else -1 }
+            }
+            field = value
+        }
     private var popupChoices: List<KeyData> = emptyList()
     private var snapshot: KeyboardSnapshot? = null
     private var liveSurface = false
@@ -80,7 +88,7 @@ class RustKeyboardView(context: Context) : FrameLayout(context), SurfaceHolder.C
         dispatchActions(actions)
         invalidateFrame()
         actions.isNotEmpty()
-    }, { dispatchActions(native.semanticCancel()); invalidateFrame() }, { prefs.keyboard.longPressDelay.get().toLong() })
+    }, { dispatchActions(native.semanticCancel()); invalidateFrame() })
 
     init {
         // Snygg draws the IME background in another SurfaceView at the default media layer.
@@ -279,7 +287,13 @@ class RustKeyboardView(context: Context) : FrameLayout(context), SurfaceHolder.C
                 if (down == current) dispatcher.sendUp(down)
                 else { dispatcher.sendCancel(down); dispatcher.sendDownUp(current) }
             }
-            KEY_CANCEL -> dispatcher.sendCancel(s.keys[index].computedDataOnDown)
+            KEY_CANCEL -> {
+                dispatcher.sendCancel(s.keys[index].computedDataOnDown)
+                if (popupSource === s.keys[index]) {
+                    popupSource = null
+                    popupChoices = emptyList()
+                }
+            }
             OPEN_POPUP -> {
                 val key = s.keys[index]
                 popupSource = key
