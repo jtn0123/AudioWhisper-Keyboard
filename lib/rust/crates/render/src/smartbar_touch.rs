@@ -38,9 +38,7 @@ impl BarTouch {
         let y = event.coords[current + event.index * 2 + 1];
         match event.action {
             0 | 5 => {
-                if let Some((action, target)) = bar.layout.hit(x, y)
-                    && (!action || bar.actions.get(target).is_some_and(|a| a.enabled))
-                {
+                if let Some((action, target)) = bar.layout.hit(x, y) {
                     self.pointers.insert(
                         id,
                         Pointer {

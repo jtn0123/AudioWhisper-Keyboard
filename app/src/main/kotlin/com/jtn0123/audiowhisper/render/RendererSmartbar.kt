@@ -91,7 +91,7 @@ internal fun rendererSmartbar(preview: Boolean): RendererSmartbar = with(LocalDe
     val labels = actions.flatMap { action ->
         val icon = if (action?.keyData()?.code == KeyCode.READ_ALOUD && reading == ReadAloud.Status.READING) Icons.Default.Stop else if (action == null) toggleIcon else if (action is QuickAction.InsertKey) evaluator.computeImageVector(action.data) else null
         listOf(icon?.let(::iconPath) ?: "", when (action) {
-            is QuickAction.InsertText -> action.data.firstOrNull()?.toString() ?: "?"
+            is QuickAction.InsertText -> action.data.firstOrNull().toString().ifBlank { "?" }
             is QuickAction.InsertKey -> if (icon == null) evaluator.computeLabel(action.data) ?: "" else ""
             null -> ""
         })

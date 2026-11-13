@@ -31,10 +31,12 @@ internal class RendererSmartbarTouch(private val view: FrameLayout, private val 
             5 -> {
                 if (index == 4) { toggles.add(pointer); return }
                 s.smartbar.actions.getOrNull(index)?.let {
-                    actions[pointer] = it
-                    actionIndices[pointer] = index
-                    FlorisImeService.inputFeedbackController()?.keyPress(TextKeyData.UNSPECIFIED)
-                    it.onPointerDown(context)
+                    if (s.smartbar.codes[index * 2 + 1] and 1 != 0) {
+                        actions[pointer] = it
+                        actionIndices[pointer] = index
+                        FlorisImeService.inputFeedbackController()?.keyPress(TextKeyData.UNSPECIFIED)
+                        it.onPointerDown(context)
+                    }
                     if (it.keyData().code != KeyCode.READ_ALOUD) tooltip.down(index,s) {
                         tooltipConsumed.add(pointer)
                     }

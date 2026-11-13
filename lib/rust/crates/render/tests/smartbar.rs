@@ -169,3 +169,12 @@ fn removing_a_held_candidate_clears_highlight_but_keeps_release_ownership() {
     assert!(s.candidate_pressed.is_empty());
     assert_eq!(t.event(&mut s, &event(1, x, 20.0)), vec![Event(9, 0, 7)]);
 }
+
+#[test]
+fn disabled_action_regions_still_deliver_tooltip_gestures_to_the_host() {
+    let mut s = scene();
+    s.smartbar.as_mut().unwrap().actions[0].enabled = false;
+    let mut t = Touch::default();
+    assert_eq!(t.event(&mut s, &event(0, 20.0, 20.0)), vec![Event(5, 0, 7)]);
+    assert_eq!(t.event(&mut s, &event(1, 20.0, 20.0)), vec![Event(6, 0, 7)]);
+}

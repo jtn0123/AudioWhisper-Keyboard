@@ -129,7 +129,7 @@ impl Smartbar {
                     text.measure(&a.1, secondary.size, secondary.mono, secondary.weight)
                 });
                 let icon = if bar.aux.get(i).is_some_and(|a| !a.0.is_empty()) {
-                    bar.icons[i].size + bar.icons[i].margin[0] + bar.icons[i].margin[2]
+                    bar.icons[i].size.round() + bar.icons[i].margin[0] + bar.icons[i].margin[2]
                 } else {
                     0.0
                 };

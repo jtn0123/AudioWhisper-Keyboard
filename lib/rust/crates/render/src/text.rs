@@ -5,7 +5,7 @@ use parley::{FontContext, Layout, LayoutContext, StyleProperty};
 /// Reused shaping resources, with fonts supplied by the platform host.
 pub struct Text {
     fonts: FontContext,
-    widths: std::collections::HashMap<(String, u32, bool, i32), f32>,
+    widths: std::collections::HashMap<(String, u32, bool, i32), (f32, f32)>,
     context: LayoutContext<()>,
 }
 
@@ -70,6 +70,12 @@ impl Text {
     }
 
     pub fn measure(&mut self, text: &str, size: f32, mono: bool, weight: i32) -> f32 {
+        self.metrics(text, size, mono, weight).0
+    }
+    pub fn height(&mut self, text: &str, size: f32, mono: bool, weight: i32) -> f32 {
+        self.metrics(text, size, mono, weight).1
+    }
+    fn metrics(&mut self, text: &str, size: f32, mono: bool, weight: i32) -> (f32, f32) {
         let key = (text.to_owned(), size.to_bits(), mono, weight);
         if let Some(width) = self.widths.get(&key) {
             return *width;
@@ -77,9 +83,10 @@ impl Text {
         if self.widths.len() >= 256 {
             self.widths.clear();
         }
-        let width = self.layout_weight(text, size, mono, weight).width().ceil();
-        self.widths.insert(key, width);
-        width
+        let layout = self.layout_weight(text, size, mono, weight);
+        let metrics = (layout.width().ceil(), layout.height().ceil());
+        self.widths.insert(key, metrics);
+        metrics
     }
     pub fn layout(&mut self, text: &str, size: f32) -> Layout<()> {
         self.layout_style(text, size, false)

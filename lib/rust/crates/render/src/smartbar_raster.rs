@@ -69,7 +69,8 @@ impl Raster {
             if let Some((icon, second)) = bar.aux.get(i) {
                 if !icon.is_empty() {
                     let icon_style = &bar.icons[i];
-                    let width = icon_style.size + icon_style.margin[0] + icon_style.margin[2];
+                    let width =
+                        icon_style.size.round() + icon_style.margin[0] + icon_style.margin[2];
                     self.icon(
                         icon,
                         icon_style,
@@ -85,22 +86,29 @@ impl Raster {
                 }
                 if !second.is_empty() {
                     let secondary = &bar.secondary[i];
-                    let total = style.text.size
-                        + secondary.size
-                        + secondary.margin[1]
-                        + secondary.margin[3];
+                    let primary_height = self.text.height(
+                        &scene.candidates[i],
+                        style.text.size,
+                        style.text.mono,
+                        style.text.weight,
+                    );
+                    let second_height =
+                        self.text
+                            .height(second, secondary.size, secondary.mono, secondary.weight);
+                    let total =
+                        primary_height + second_height + secondary.margin[1] + secondary.margin[3];
                     let top = r.top + (r.height() - total) / 2.0;
                     self.fitted_label(
                         second,
                         secondary,
                         Rect {
-                            top: top + style.text.size,
-                            bottom: top + total,
+                            top: top + primary_height + secondary.margin[1],
+                            bottom: top + total - secondary.margin[3],
                             ..r
                         },
                     )?;
                     r.top = top;
-                    r.bottom = top + style.text.size;
+                    r.bottom = top + primary_height;
                 }
             }
             self.fitted_label(&scene.candidates[i], &style.text, r)?;
