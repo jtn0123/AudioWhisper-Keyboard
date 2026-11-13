@@ -45,9 +45,10 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_keyPrevie
                 popup_source: None,
             };
             let style = theme.style(&request);
+            let label=if labels[2].is_empty(){labels[1].as_str()}else{""};
             let [width, height] = render::key_preview::size(
                 theme.density(),
-                text.measure(&labels[1], style.size, style.mono, style.weight),
+                text.measure(label, style.size, style.mono, style.weight),
             );
             let bounds = Rect {
                 left: 0.0,
@@ -64,7 +65,7 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_keyPrevie
                         touch: bounds,
                         visible: bounds,
                     },
-                    label: labels[1].clone(),
+                    label: label.into(),
                     hint: String::new(),
                     icon: labels[2].clone(),
                     styles: [style.clone(), style],

@@ -21,6 +21,9 @@ class KeyPreviewMatchTest {
             assertContentEquals(intArrayOf(36,36),pixels.take(2).toIntArray())
             assertTrue(pixels.drop(2).any { it == 0xffff0000.toInt() })
             assertTrue(pixels.drop(2).any { it == 0 })
+            val icon="M 8 8 L 16 8 L 16 16 L 8 16 Z"
+            assertContentEquals(r.keyPreview(-7,arrayOf("function","",icon)),
+                r.keyPreview(-7,arrayOf("function","must not draw",icon)))
         }
     }
 }
