@@ -55,3 +55,24 @@ fn side_controls_share_touch_and_accessibility_and_landscape_disables_compact_wi
     touch.event(&mut s, &motion(3));
     assert!(touch.event(&mut s, &motion(1)).is_empty());
 }
+#[test]
+fn extraction_geometry_and_preview_graphemes_and_incognito_policy() {
+    let r = render::extract_chrome::geometry(400.0, 200.0, 1.0, [80.0, 36.0]);
+    assert_eq!(r[0].right, 304.0);
+    assert_eq!(r[1].left, 312.0);
+    assert_eq!(r[1].top, 82.0);
+    for incognito in [false, true] {
+        for behind in [false, true] {
+            assert_eq!(
+                render::ime_decorations::show_watermark(incognito, behind),
+                incognito && behind
+            );
+        }
+    }
+    let text = "abc 👩🏽‍💻";
+    let result = render::ime_decorations::start_ellipsis(text, 3.0, |s| {
+        unicode_segmentation::UnicodeSegmentation::graphemes(s, true).count() as f32
+    });
+    assert_eq!(result, "… 👩🏽‍💻");
+    assert_eq!(render::key_preview::size(2.0, 100.0), [100, 72]);
+}

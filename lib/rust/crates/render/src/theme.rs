@@ -69,6 +69,9 @@ impl Theme {
     pub fn style(&mut self, r: &Request) -> Style {
         self.resolve(r).1
     }
+    pub fn density(&self) -> f32 {
+        self.density
+    }
     pub fn font_scale(&self) -> f32 {
         self.font_scale
     }

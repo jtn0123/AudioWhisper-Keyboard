@@ -183,6 +183,23 @@ pub(crate) fn argb(pixels: &[u8]) -> Vec<i32> {
 }
 
 #[unsafe(no_mangle)]
+pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_ImeChromeRules_previewSize(
+    env: *mut JNIEnv,
+    _: jclass,
+    config: jfloatArray,
+) -> jintArray {
+    // SAFETY: local input is copied; output is a new JVM-owned primitive array.
+    unsafe {
+        jni::run(env, ptr::null_mut(), |env| {
+            let c = env.read::<f32>(config, "preview config")?;
+            if c.len() != 2 || c.iter().any(|v| !v.is_finite() || *v < 0.0) {
+                return Err(illegal("preview config"));
+            }
+            env.make(&render::key_preview::size(c[0], c[1]).map(i32::from))
+        })
+    }
+}
+#[unsafe(no_mangle)]
 pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_ImeChromeRules_startEllipsis(
     env: *mut JNIEnv,
     _: jclass,

@@ -4,6 +4,7 @@ object ImeChromeRules {
     init { RustLibrary.load() }
     external fun oneHanded(config: IntArray): FloatArray
     external fun watermark(flags: IntArray): Boolean
+    external fun previewSize(config: FloatArray): IntArray
     external fun startEllipsis(labels: Array<String>, config: FloatArray): Array<String>
     external fun extract(config: FloatArray): FloatArray
     external fun sideButtons(config: FloatArray): FloatArray
