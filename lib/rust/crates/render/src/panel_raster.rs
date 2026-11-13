@@ -108,6 +108,26 @@ impl Raster {
                     self.context.pop_clip();
                     continue;
                 }
+                if item.element == "subtype-panel-list-item" {
+                    let size = item.icon_style.size;
+                    self.icon(
+                        &item.icon,
+                        &item.icon_style,
+                        crate::panels::rect(r.left, r.top + (r.height() - size) / 2.0, size, size),
+                    )?;
+                    r.left += size + item.icon_style.padding[2];
+                    r.top += (r.height()
+                        - self.text.height(
+                            &item.label,
+                            item.text.size,
+                            item.text.mono,
+                            item.text.weight,
+                        ))
+                        / 2.0;
+                    self.panel_text(&item.label, &item.text, r, false)?;
+                    self.context.pop_clip();
+                    continue;
+                }
                 if item.element == "clipboard-item-action" {
                     let icon = item.icon_style.size;
                     self.icon(

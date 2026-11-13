@@ -12,6 +12,10 @@ impl Panel {
         request: &Request,
         width: f32,
     ) {
+        if self.kind == 7 {
+            self.measure_subtypes(theme, text, request);
+            return;
+        }
         if self.kind == 4 {
             self.measure_clipboard(theme, text, request, width);
             return;
@@ -99,6 +103,10 @@ impl Panel {
     }
     pub fn layout(&mut self, width: f32, height: f32, strip: f32) {
         self.items.clear();
+        if self.kind == 7 {
+            self.layout_subtypes(width, height);
+            return;
+        }
         if self.kind == 0 {
             return;
         }
@@ -404,6 +412,7 @@ impl Panel {
             }
             i.secondary_style = theme.style(&r.element("clipboard-item-description", 0));
         }
+        self.style_subtypes(theme, request);
         if self.kind == 5 {
             for i in &mut self.items {
                 if ["gif-search-field", "gif-tile"].contains(&i.element.as_str()) {

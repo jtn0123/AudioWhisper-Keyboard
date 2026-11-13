@@ -22,6 +22,7 @@ import dev.patrickgold.florisboard.ime.nlp.SuggestionCandidate
 import dev.patrickgold.florisboard.ime.text.keyboard.TextKey
 import dev.patrickgold.florisboard.ime.text.keyboard.TextKeyData
 import dev.patrickgold.florisboard.ime.text.keyboard.TextKeyboard
+import dev.patrickgold.florisboard.subtypeManager
 import dev.patrickgold.florisboard.keyboardManager
 import dev.patrickgold.florisboard.nlpManager
 import dev.patrickgold.florisboard.ime.smartbar.quickaction.QuickAction
@@ -48,7 +49,7 @@ internal data class KeyboardSnapshot(
     val keyboard: TextKeyboard, val keys: List<TextKey>,
     val candidates: List<SuggestionCandidate>, val theme: RendererTheme, val shift: String,
     val keyboardHeight: Float, val stripHeight: Float, val rowHeight: Float, val marginH: Float, val marginV: Float, val smartbar: RendererSmartbar, val preview: Boolean,
-    val panels: RendererPanels, val editorOptions: IntArray, val search: RendererSearch,
+    val panels: RendererPanels, val editorOptions: IntArray, val search: RendererSearch, val subtypes: RendererSubtypes,
 )
 
 /** A fresh native worker owns each surface generation. Destruction joins it before releasing its window. */
@@ -162,6 +163,7 @@ class RustKeyboardView(context: Context) : FrameLayout(context), SurfaceHolder.C
             s.smartbar.config[11], manager.smartbarVisibleDynamicActionsCount.toFloat(), android.view.ViewConfiguration.getKeyRepeatDelay().toFloat() * 1_000_000,
             if (prefs.gestures.deleteKeyLongPress.get() == dev.patrickgold.florisboard.ime.text.gestures.SwipeAction.DELETE_WORD) 1f else 0f,
             android.view.ViewConfiguration.getLongPressTimeout().toFloat() * 1_000_000), s.panels.data, s.panels.labels)
+        if (s.panels.kind == 7) native.subtypes(s.subtypes.selected, s.subtypes.ids, s.subtypes.labels)
         if (s.panels.kind == 5) s.panels.gif.bind(native)
         if (s.panels.kind == 4) s.panels.clipboard.bind(native)
         if (s.panels.kind == 1) { s.panels.emoji.bind(native, refreshEmojiHistory); refreshEmojiHistory = false }
@@ -277,6 +279,11 @@ class RustKeyboardView(context: Context) : FrameLayout(context), SurfaceHolder.C
     private fun dispatch(action: Int, index: Int, pointer: Int, event: MotionEvent?) {
         val s = snapshot ?: return
         val dispatcher = manager.inputEventDispatcher
+        if (action == PANEL_SUBTYPE) {
+            if (pointer != 0) { val subtypes by context.subtypeManager(); s.subtypes.ids.getOrNull(index)?.let(subtypes::switchToSubtypeById) }
+            manager.activeState.isSubtypeSelectionVisible = false
+            return
+        }
         if (action == PANEL_GIF) {gifActions.dispatch(index,pointer,s.panels.gif);return}
         if (action == PANEL_CLIPBOARD) {
             clipboardActions.dispatch(index,pointer,s.panels.clipboard)

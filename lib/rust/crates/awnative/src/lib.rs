@@ -65,5 +65,6 @@ mod render_media;
 mod render_gif;
 
 mod render_search;
+mod render_subtypes;
 
 mod media_oracle;

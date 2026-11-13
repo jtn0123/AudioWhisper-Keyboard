@@ -103,7 +103,7 @@ internal class FlorisBottomSheetHostUiView(context: Context) : AbstractComposeVi
         ) {
             FlorisImeTheme {
                 BottomSheetHostUi(
-                    isShowing = (state.isBottomSheetShowing() && !rustPrototype) || state.isSubtypeSelectionShowing(),
+                    isShowing = !rustPrototype && (state.isBottomSheetShowing() || state.isSubtypeSelectionShowing()),
                     onHide = {
                         if (state.isBottomSheetShowing()) {
                             keyboardManager.activeState.isActionsEditorVisible = false
@@ -116,7 +116,7 @@ internal class FlorisBottomSheetHostUiView(context: Context) : AbstractComposeVi
                     if (state.isBottomSheetShowing() && !rustPrototype) {
                         QuickActionsEditorPanel()
                     }
-                    if (state.isSubtypeSelectionShowing()) {
+                    if (state.isSubtypeSelectionShowing() && !rustPrototype) {
                         SelectSubtypePanel()
                     }
                 }

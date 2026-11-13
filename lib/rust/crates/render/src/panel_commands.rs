@@ -7,6 +7,11 @@ use crate::{
 impl Panel {
     pub fn activate(&mut self, command: Command) -> Vec<Action> {
         match command {
+            Command::Subtype(id) => vec![Action(
+                PANEL_SUBTYPE,
+                id.unwrap_or(0) as i32,
+                i32::from(id.is_some()),
+            )],
             Command::Gif(op, index) => {
                 if self.kind == 6 {
                     vec![Action(PANEL_GIF, op, index as i32)]
@@ -39,6 +44,9 @@ impl Panel {
                 vec![Action(PANEL_HISTORY, index as i32, op)]
             }
             Command::Dismiss => {
+                if self.kind == 7 {
+                    return vec![Action(PANEL_SUBTYPE, 0, 0)];
+                }
                 if self.clipboard.as_ref().is_some_and(|c| c.modal()) {
                     return self.clipboard_activate(10, 0);
                 }

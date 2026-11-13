@@ -44,6 +44,6 @@ internal fun rendererPanels(): RendererPanels {
             is QuickAction.InsertText -> action.data.firstOrNull().toString().ifBlank { "?" }
         }, icon?.let(::iconPath) ?: "")
     }
-    return RendererPanels(if (state.isActionsEditorVisible) 3 else if (state.isActionsOverflowVisible) 2 else if (state.imeUiMode == dev.patrickgold.florisboard.ime.ImeUiMode.CLIPBOARD) 4 else if (state.imeUiMode == dev.patrickgold.florisboard.ime.ImeUiMode.MEDIA) { if(gif.showing) 5 else 1 } else 0,
+    return RendererPanels(if (state.isSubtypeSelectionVisible) 7 else if (state.isActionsEditorVisible) 3 else if (state.isActionsOverflowVisible) 2 else if (state.imeUiMode == dev.patrickgold.florisboard.ime.ImeUiMode.CLIPBOARD) 4 else if (state.imeUiMode == dev.patrickgold.florisboard.ime.ImeUiMode.MEDIA) { if(gif.showing) 5 else 1 } else 0,
         actions, arrangement, data.toIntArray(), (titles + labels).toTypedArray(), rendererEmoji(), rendererClipboard(), gif)
 }
