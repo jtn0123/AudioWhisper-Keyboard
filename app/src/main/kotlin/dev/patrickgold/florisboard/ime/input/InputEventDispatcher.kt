@@ -18,255 +18,97 @@ package dev.patrickgold.florisboard.ime.input
 
 import android.os.SystemClock
 import android.view.ViewConfiguration
-import androidx.collection.SparseArrayCompat
-import androidx.collection.set
-import androidx.collection.isNotEmpty
+import com.jtn0123.audiowhisper.rust.InputDispatch
+import com.jtn0123.audiowhisper.rust.InputProtocol.*
 import dev.patrickgold.florisboard.app.FlorisPreferenceStore
 import dev.patrickgold.florisboard.ime.keyboard.KeyData
-import dev.patrickgold.florisboard.ime.keyboard.ShiftLogic
 import dev.patrickgold.florisboard.ime.text.gestures.SwipeAction
-import dev.patrickgold.florisboard.ime.text.key.KeyCode
 import dev.patrickgold.florisboard.ime.text.keyboard.TextKeyData
-import org.florisboard.lib.android.removeAndReturn
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.isActive
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.withContext
-import org.florisboard.lib.kotlin.guardedByLock
+import kotlinx.coroutines.*
 
-class InputEventDispatcher private constructor(private val repeatableKeyCodes: IntArray) {
+/** Clock, scheduling and receiver execution only. Rust owns the pressed-key lifecycle. */
+class InputEventDispatcher private constructor(repeatableKeyCodes: IntArray) {
     companion object {
-        private val DoubleTapTimeout = ViewConfiguration.getDoubleTapTimeout().toLong()
-        private val KeyRepeatDelay = ViewConfiguration.getKeyRepeatDelay().toLong()
-
-        fun new(repeatableKeyCodes: IntArray = intArrayOf()) = InputEventDispatcher(repeatableKeyCodes.clone())
+        private val doubleTapTimeout = ViewConfiguration.getDoubleTapTimeout().toLong()
+        private val keyRepeatDelay = ViewConfiguration.getKeyRepeatDelay().toLong()
+        fun new(repeatableKeyCodes: IntArray = intArrayOf()) = InputEventDispatcher(repeatableKeyCodes)
     }
-
     private val prefs by FlorisPreferenceStore
     private val scope = CoroutineScope(Dispatchers.Default + SupervisorJob())
-
-    private val pressedKeys = guardedByLock { SparseArrayCompat<PressedKeyInfo>() }
-    private var lastKeyEventDown: EventData = EventData(0L, TextKeyData.UNSPECIFIED)
-    private var lastKeyEventUp: EventData = EventData(0L, TextKeyData.UNSPECIFIED)
-
-    /**
-     * The input key event register. If null, the dispatcher will still process input, but won't dispatch them to an
-     * event receiver.
-     */
+    private val native = InputDispatch().also { it.call(INIT, *repeatableKeyCodes.map(Int::toLong).toLongArray()) }
+    // Managed key/callback ownership only; membership decisions come from Rust.
+    private val jobs = mutableMapOf<Int, PressedKeyInfo>()
     var keyEventReceiver: InputKeyEventReceiver? = null
 
-    private fun determineLongPressDelay(data: KeyData): Long {
-        val delayMillis = prefs.keyboard.longPressDelay.get().toLong()
-        val factor = when (data.code) {
-            KeyCode.SPACE, KeyCode.CJK_SPACE, KeyCode.SHIFT -> 2.5f
-            KeyCode.LANGUAGE_SWITCH -> 2.0f
-            else -> 1.0f
-        }
-        return (delayMillis * factor).toLong()
-    }
-
-    private fun determineRepeatDelay(data: KeyData): Long {
-        val factor = when (data.code) {
-            KeyCode.DELETE_WORD, KeyCode.FORWARD_DELETE_WORD, KeyCode.UNDO, KeyCode.REDO -> 5.0f
-            else -> 1.0f
-        }
-        return (KeyRepeatDelay * factor).toLong()
-    }
-
-    private fun determineRepeatData(data: KeyData): KeyData {
-        return when (data.code) {
-            KeyCode.DELETE -> when (prefs.gestures.deleteKeyLongPress.get()) {
-                SwipeAction.DELETE_WORD -> TextKeyData.DELETE_WORD
-                else -> TextKeyData.DELETE
-            }
-            KeyCode.FORWARD_DELETE -> when (prefs.gestures.deleteKeyLongPress.get()) {
-                SwipeAction.DELETE_WORD -> TextKeyData.FORWARD_DELETE_WORD
-                else -> TextKeyData.FORWARD_DELETE
-            }
-            else -> data
-        }
-    }
-
-    fun sendDown(
-        data: KeyData,
-        onLongPress: () -> Boolean = { false },
-        onRepeat: () -> Boolean = { true },
-        scheduleHold: Boolean = true,
-    ) = runBlocking {
-        val eventTime = SystemClock.uptimeMillis()
-        val result = pressedKeys.withLock { pressedKeys ->
-            if (pressedKeys.containsKey(data.code)) return@withLock null
-            val pressedKeyInfo = PressedKeyInfo(eventTime).also { pressedKeyInfo ->
-                pressedKeyInfo.job = if (!scheduleHold) null else scope.launch {
-                    val longPressDelay = determineLongPressDelay(data)
-                    delay(longPressDelay)
-                    val longPressResult = withContext(Dispatchers.Main) { onLongPress() }
-                    if (longPressResult) {
-                        pressedKeyInfo.blockUp = true
-                    } else if (repeatableKeyCodes.contains(data.code)) {
-                        val repeatData = determineRepeatData(data)
-                        val repeatDelay = determineRepeatDelay(repeatData)
-                        while (isActive) {
-                            val onRepeatResult = withContext(Dispatchers.Main) { onRepeat() }
-                            if (onRepeatResult) {
-                                keyEventReceiver?.onInputKeyRepeat(repeatData)
-                                pressedKeyInfo.blockUp = true
-                            }
-                            delay(repeatDelay)
-                        }
-                    }
+    @Synchronized fun sendDown(data: KeyData, onLongPress: () -> Boolean = {false},
+        onRepeat: () -> Boolean = {true}, scheduleHold: Boolean = true): PressedKeyInfo? {
+        val now = SystemClock.uptimeMillis()
+        val down = native.call(DOWN, data.code.toLong(), now, if(scheduleHold) 1 else 0)
+        if (down.isEmpty()) return null
+        val generation = down[4]
+        val timing = native.call(DELAYS, data.code.toLong(), prefs.keyboard.longPressDelay.get().toLong(), keyRepeatDelay, 0)
+        val info = PressedKeyInfo(now)
+        jobs[data.code] = info
+        if (down[3] != 0L) info.job = scope.launch {
+            delay(timing[0])
+            val handled = withContext(Dispatchers.Main) { onLongPress() }
+            // Like the legacy coroutine, sample repeat preferences after the hold callback.
+            val words = prefs.gestures.deleteKeyLongPress.get() == SwipeAction.DELETE_WORD
+            val plan = native.call(HOLD_RESULT, data.code.toLong(), if(handled) 1 else 0, if(words) 1 else 0, generation)
+            if (plan.isNotEmpty()) {
+                val repeatDelay = native.call(DELAYS, data.code.toLong(), 0, keyRepeatDelay, if(words) 1 else 0)[1]
+                val repeatData = if (plan[2] == 0L) data else checkNotNull(TextKeyData.getCodeInfoAsTextKeyData(plan[1].toInt()))
+                while (isActive) {
+                    val accepted = withContext(Dispatchers.Main) { onRepeat() }
+                    val emit = native.call(REPEAT_RESULT, data.code.toLong(), if(accepted) 1 else 0, generation)[0] != 0L
+                    if (emit) keyEventReceiver?.onInputKeyRepeat(repeatData)
+                    delay(repeatDelay)
                 }
             }
-            pressedKeys[data.code] = pressedKeyInfo
-            return@withLock pressedKeyInfo
         }
-        if (result != null) {
-            keyEventReceiver?.onInputKeyDown(data)
-            lastKeyEventDown = EventData(eventTime, data)
-        }
-        result
-    }
-
-    fun sendUp(data: KeyData) = runBlocking {
-        val (result, isBlocked) = pressedKeys.withLock { pressedKeys ->
-            if (pressedKeys.containsKey(data.code)) {
-                val pressedKeyInfo = pressedKeys.removeAndReturn(data.code)?.also { it.cancelJobs() }
-                return@withLock true to (pressedKeyInfo?.blockUp == true)
-            }
-            return@withLock false to false
-        }
-        if (result) {
-            if (!isBlocked) {
-                keyEventReceiver?.onInputKeyUp(data)
-                lastKeyEventUp = EventData(SystemClock.uptimeMillis(), data)
-            } else {
-                keyEventReceiver?.onInputKeyCancel(data)
-            }
-        }
-    }
-
-    fun sendDownUp(data: KeyData) = runBlocking {
-        pressedKeys.withLock { pressedKeys ->
-            pressedKeys.removeAndReturn(data.code)?.also { it.cancelJobs() }
-        }
-        val eventData = EventData(SystemClock.uptimeMillis(), data)
         keyEventReceiver?.onInputKeyDown(data)
-        lastKeyEventDown = eventData
+        native.call(ACK_DOWN,data.code.toLong(),now)
+        return info
+    }
+    @Synchronized fun sendUp(data: KeyData) {
+        val plan=native.call(UP,data.code.toLong(),SystemClock.uptimeMillis())
+        jobs.remove(data.code)?.cancelJobs()
+        if (plan.isEmpty()) return
+        if (plan[0].toInt()==EMIT_UP) {
+            keyEventReceiver?.onInputKeyUp(data)
+            native.call(ACK_UP,data.code.toLong(),SystemClock.uptimeMillis())
+        } else keyEventReceiver?.onInputKeyCancel(data)
+    }
+    @Synchronized fun sendDownUp(data: KeyData) {
+        native.call(DOWN_UP,data.code.toLong(),SystemClock.uptimeMillis())
+        jobs.remove(data.code)?.cancelJobs()
+        val now=SystemClock.uptimeMillis()
+        keyEventReceiver?.onInputKeyDown(data)
+        native.call(ACK_DOWN,data.code.toLong(),now)
         keyEventReceiver?.onInputKeyUp(data)
-        lastKeyEventUp = eventData
+        native.call(ACK_UP,data.code.toLong(),now)
     }
-
-    fun sendCancel(data: KeyData) = runBlocking {
-        val result = pressedKeys.withLock { pressedKeys ->
-            if (pressedKeys.containsKey(data.code)) {
-                pressedKeys.removeAndReturn(data.code)?.also { it.cancelJobs() }
-                return@withLock true
-            }
-            return@withLock false
-        }
-        if (result) {
-            keyEventReceiver?.onInputKeyCancel(data)
-        }
+    @Synchronized fun sendCancel(data: KeyData) {
+        val plan=native.call(CANCEL,data.code.toLong(),SystemClock.uptimeMillis())
+        jobs.remove(data.code)?.cancelJobs()
+        if (plan.isNotEmpty()) keyEventReceiver?.onInputKeyCancel(data)
     }
-
-    /**
-     * Checks if there's currently a key down with given [code].
-     *
-     * @param code The key code to check for.
-     *
-     * @return True if the given [code] is currently down, false otherwise.
-     */
-    fun isPressed(code: Int): Boolean = runBlocking {
-        pressedKeys.withLock { it.containsKey(code) }
+    fun facts(code: Int): LongArray = native.call(FACTS,code.toLong(),SystemClock.uptimeMillis(),doubleTapTimeout)
+    fun isPressed(code: Int)=facts(code)[0]!=0L
+    fun isAnyPressed()=facts(0)[1]!=0L
+    fun isConsecutiveDown(data: KeyData)=facts(data.code)[2]!=0L
+    fun isConsecutiveUp(data: KeyData)=facts(data.code)[3]!=0L
+    fun isUninterruptedEventSequence(data: KeyData)=facts(data.code)[4]!=0L
+    fun isRepeatable(data: KeyData)=facts(data.code)[5]!=0L
+    fun isRepeatableCodeLastDown()=facts(0)[6]!=0L
+    @Synchronized fun close() {keyEventReceiver=null;scope.cancel();jobs.clear();native.close()}
+    data class PressedKeyInfo(val eventTimeDown: Long, var job: Job?=null) {
+        fun cancelJobs() {job?.cancel()}
     }
-
-    fun isAnyPressed(): Boolean = runBlocking {
-        pressedKeys.withLock { it.isNotEmpty() }
-    }
-
-    // AudioWhisper: the double-tap rule is in Rust (lib/rust/crates/shift).
-    fun isConsecutiveDown(data: KeyData): Boolean {
-        val event = lastKeyEventDown
-        return ShiftLogic.isConsecutive(event.data.code, event.time, data.code, SystemClock.uptimeMillis(), DoubleTapTimeout)
-    }
-
-    fun isConsecutiveUp(data: KeyData): Boolean {
-        val event = lastKeyEventUp
-        return ShiftLogic.isConsecutive(event.data.code, event.time, data.code, SystemClock.uptimeMillis(), DoubleTapTimeout)
-    }
-
-    fun isUninterruptedEventSequence(data: KeyData): Boolean {
-        return lastKeyEventDown.data.code == data.code
-    }
-
-    fun isRepeatable(data: KeyData): Boolean {
-        return repeatableKeyCodes.contains(data.code)
-    }
-
-    fun isRepeatableCodeLastDown(): Boolean {
-        val event = lastKeyEventDown
-        return repeatableKeyCodes.contains(event.data.code)
-    }
-
-    /**
-     * Closes this dispatcher and cancels the local coroutine scope.
-     */
-    fun close() {
-        keyEventReceiver = null
-        scope.cancel()
-    }
-
-    data class PressedKeyInfo(
-        val eventTimeDown: Long,
-        var job: Job? = null,
-        var blockUp: Boolean = false,
-    ) {
-        fun cancelJobs() {
-            job?.cancel()
-        }
-    }
-
-    data class EventData(
-        val time: Long,
-        val data: KeyData,
-    )
 }
-
-/**
- * Interface which represents an input key event receiver.
- */
 interface InputKeyEventReceiver {
-    /**
-     * Event method which gets called when a key went down.
-     *
-     * @param data The associated input key data.
-     */
     fun onInputKeyDown(data: KeyData)
-
-    /**
-     * Event method which gets called when a key went up.
-     *
-     * @param data The associated input key data.
-     */
     fun onInputKeyUp(data: KeyData)
-
-    /**
-     * Event method which gets called when a key is called repeatedly while being pressed down.
-     *
-     * @param data The associated input key data.
-     */
     fun onInputKeyRepeat(data: KeyData)
-
-    /**
-     * Event method which gets called when a key press is cancelled.
-     *
-     * @param data The associated input key data.
-     */
     fun onInputKeyCancel(data: KeyData)
 }

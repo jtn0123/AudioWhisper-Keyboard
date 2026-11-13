@@ -261,10 +261,10 @@ class FlorisImeService : LifecycleInputMethodService() {
         // AudioWhisper: a new field starts on its own text, not a half-typed GIF search.
         if (!restarting) GifSearch.stopTyping()
         activeState.batchEdit {
-            if (activeState.imeUiMode != ImeUiMode.CLIPBOARD || prefs.clipboard.historyHideOnNextTextField.get()) {
-                activeState.imeUiMode = ImeUiMode.TEXT
-            }
-            activeState.isSelectionMode = editorInfo.initialSelection.isSelectionMode
+            activeState.rawValue = com.jtn0123.audiowhisper.rust.InputRules.control(longArrayOf(
+                com.jtn0123.audiowhisper.rust.InputProtocol.CONTROL_START.toLong(), activeState.rawValue.toLong(),
+                if(prefs.clipboard.historyHideOnNextTextField.get()) 1 else 0,
+                editorInfo.initialSelection.start.toLong(), editorInfo.initialSelection.end.toLong()))[0].toULong()
             editorInstance.handleStartInputView(editorInfo, isRestart = restarting)
         }
     }
@@ -340,9 +340,8 @@ class FlorisImeService : LifecycleInputMethodService() {
         dictation?.keyboardVisible(false)
         GifSearch.reset()
         activeState.batchEdit {
-            activeState.imeUiMode = ImeUiMode.TEXT
-            activeState.isActionsOverflowVisible = false
-            activeState.isActionsEditorVisible = false
+            activeState.rawValue = com.jtn0123.audiowhisper.rust.InputRules.control(longArrayOf(
+                com.jtn0123.audiowhisper.rust.InputProtocol.CONTROL_FINISH.toLong(), activeState.rawValue.toLong()))[0].toULong()
         }
     }
 

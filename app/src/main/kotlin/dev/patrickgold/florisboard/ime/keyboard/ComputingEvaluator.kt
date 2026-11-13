@@ -16,6 +16,7 @@
 
 package dev.patrickgold.florisboard.ime.keyboard
 
+import com.jtn0123.audiowhisper.rust.InputProtocol.*
 import android.content.Context
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowRightAlt
@@ -52,10 +53,7 @@ import dev.patrickgold.florisboard.R
 import dev.patrickgold.florisboard.ime.core.DisplayLanguageNamesIn
 import dev.patrickgold.florisboard.ime.core.Subtype
 import dev.patrickgold.florisboard.ime.editor.FlorisEditorInfo
-import dev.patrickgold.florisboard.ime.editor.ImeOptions
-import dev.patrickgold.florisboard.ime.input.InputShiftState
 import dev.patrickgold.florisboard.ime.text.key.KeyCode
-import dev.patrickgold.florisboard.ime.text.key.KeyType
 import dev.patrickgold.florisboard.lib.FlorisLocale
 import dev.patrickgold.florisboard.lib.compose.vectorResource
 import org.florisboard.lib.compose.icons.ForwardDelete
@@ -130,57 +128,31 @@ private fun computeLanguageDisplayName(locale: FlorisLocale, displayLanguageName
 }
 
 fun ComputingEvaluator.computeLabel(data: KeyData): String? {
-    val evaluator = this
-    return if (data.type == KeyType.CHARACTER && data.code != KeyCode.SPACE && data.code != KeyCode.CJK_SPACE
-        && data.code != KeyCode.HALF_SPACE && data.code != KeyCode.KESHIDA || data.type == KeyType.NUMERIC
-    ) {
-        data.asString(isForDisplay = true)
-    } else {
-        when (data.code) {
-            KeyCode.PHONE_PAUSE -> evaluator.context()?.getString(R.string.key__phone_pause)
-            KeyCode.PHONE_WAIT -> evaluator.context()?.getString(R.string.key__phone_wait)
-            KeyCode.SPACE, KeyCode.CJK_SPACE -> {
-                when (evaluator.keyboard.mode) {
-                    KeyboardMode.CHARACTERS -> evaluator.subtype.primaryLocale.let { locale ->
-                        computeLanguageDisplayName(locale, evaluator.displayLanguageNamesIn())
-                    }
-                    else -> null
-                }
-            }
-            KeyCode.IME_UI_MODE_TEXT,
-            KeyCode.VIEW_CHARACTERS -> {
-                evaluator.context()?.getString(R.string.key__view_characters)
-            }
-            KeyCode.VIEW_NUMERIC,
-            KeyCode.VIEW_NUMERIC_ADVANCED -> {
-                evaluator.context()?.getString(R.string.key__view_numeric)
-            }
-            KeyCode.VIEW_PHONE -> {
-                evaluator.context()?.getString(R.string.key__view_phone)
-            }
-            KeyCode.VIEW_PHONE2 -> {
-                evaluator.context()?.getString(R.string.key__view_phone2)
-            }
-            KeyCode.VIEW_SYMBOLS -> {
-                evaluator.context()?.getString(R.string.key__view_symbols)
-            }
-            KeyCode.VIEW_SYMBOLS2 -> {
-                evaluator.context()?.getString(R.string.key__view_symbols2)
-            }
-            KeyCode.HALF_SPACE -> {
-                evaluator.context()?.getString(R.string.key__view_half_space)
-            }
-            KeyCode.KESHIDA -> {
-                evaluator.context()?.getString(R.string.key__view_keshida)
-            }
-            else -> null
-        }
+    val token = com.jtn0123.audiowhisper.rust.InputRules.visual(longArrayOf(
+        data.type.ordinal.toLong(), data.code.toLong(), keyboard.mode.toInt().toLong()))
+    return when (token) {
+        0 -> null
+        1 -> data.asString(isForDisplay = true)
+        2 -> computeLanguageDisplayName(subtype.primaryLocale, displayLanguageNamesIn())
+        KeyCode.PHONE_PAUSE -> context()?.getString(R.string.key__phone_pause)
+        KeyCode.PHONE_WAIT -> context()?.getString(R.string.key__phone_wait)
+        KeyCode.IME_UI_MODE_TEXT, KeyCode.VIEW_CHARACTERS -> context()?.getString(R.string.key__view_characters)
+        KeyCode.VIEW_NUMERIC, KeyCode.VIEW_NUMERIC_ADVANCED -> context()?.getString(R.string.key__view_numeric)
+        KeyCode.VIEW_PHONE -> context()?.getString(R.string.key__view_phone)
+        KeyCode.VIEW_PHONE2 -> context()?.getString(R.string.key__view_phone2)
+        KeyCode.VIEW_SYMBOLS -> context()?.getString(R.string.key__view_symbols)
+        KeyCode.VIEW_SYMBOLS2 -> context()?.getString(R.string.key__view_symbols2)
+        KeyCode.HALF_SPACE -> context()?.getString(R.string.key__view_half_space)
+        KeyCode.KESHIDA -> context()?.getString(R.string.key__view_keshida)
+        else -> error("Unknown native label resource")
     }
 }
 
 fun ComputingEvaluator.computeImageVector(data: KeyData): ImageVector? {
-    val evaluator = this
-    return when (data.code) {
+    val icon = com.jtn0123.audiowhisper.rust.InputRules.visual(longArrayOf(data.code.toLong(),
+        state.rawValue.toLong(), editorInfo.inputAttributes.raw.toLong(), editorInfo.imeOptions.raw.toLong(),
+        keyboard.mode.toInt().toLong()))
+    return when (icon) {
         KeyCode.ARROW_LEFT -> {
             Icons.AutoMirrored.Filled.KeyboardArrowLeft
         }
@@ -225,24 +197,11 @@ fun ComputingEvaluator.computeImageVector(data: KeyData): ImageVector? {
         KeyCode.DELETE -> {
             Icons.AutoMirrored.Outlined.Backspace
         }
-        KeyCode.ENTER -> {
-            val imeOptions = evaluator.editorInfo.imeOptions
-            val inputAttributes = evaluator.editorInfo.inputAttributes
-            if (imeOptions.flagNoEnterAction || inputAttributes.flagTextMultiLine) {
-                Icons.AutoMirrored.Filled.KeyboardReturn
-            } else {
-                when (imeOptions.action) {
-                    ImeOptions.Action.DONE -> Icons.Default.Done
-                    ImeOptions.Action.GO -> Icons.AutoMirrored.Filled.ArrowRightAlt
-                    ImeOptions.Action.NEXT -> Icons.AutoMirrored.Filled.ArrowRightAlt
-                    ImeOptions.Action.NONE -> Icons.AutoMirrored.Filled.KeyboardReturn
-                    ImeOptions.Action.PREVIOUS -> Icons.AutoMirrored.Filled.ArrowRightAlt
-                    ImeOptions.Action.SEARCH -> Icons.Default.Search
-                    ImeOptions.Action.SEND -> Icons.AutoMirrored.Filled.Send
-                    ImeOptions.Action.UNSPECIFIED -> Icons.AutoMirrored.Filled.KeyboardReturn
-                }
-            }
-        }
+        ICON_RETURN -> Icons.AutoMirrored.Filled.KeyboardReturn
+        ICON_DONE -> Icons.Default.Done
+        ICON_ARROW -> Icons.AutoMirrored.Filled.ArrowRightAlt
+        ICON_SEARCH -> Icons.Default.Search
+        ICON_SEND -> Icons.AutoMirrored.Filled.Send
         KeyCode.FORWARD_DELETE -> {
             Icons.AutoMirrored.Default.ForwardDelete
         }
@@ -258,23 +217,9 @@ fun ComputingEvaluator.computeImageVector(data: KeyData): ImageVector? {
         KeyCode.SETTINGS -> {
             Icons.Default.Settings
         }
-        KeyCode.SHIFT -> {
-            when (evaluator.state.inputShiftState != InputShiftState.UNSHIFTED) {
-                true -> Icons.Default.KeyboardCapslock
-                else -> Icons.Default.KeyboardArrowUp
-            }
-        }
-        KeyCode.SPACE, KeyCode.CJK_SPACE -> {
-            when (evaluator.keyboard.mode) {
-                KeyboardMode.NUMERIC,
-                KeyboardMode.NUMERIC_ADVANCED,
-                KeyboardMode.PHONE,
-                KeyboardMode.PHONE2 -> {
-                    Icons.Default.SpaceBar
-                }
-                else -> null
-            }
-        }
+        ICON_CAPS -> Icons.Default.KeyboardCapslock
+        KeyCode.SHIFT -> Icons.Default.KeyboardArrowUp
+        KeyCode.SPACE -> Icons.Default.SpaceBar
         KeyCode.UNDO -> {
             Icons.AutoMirrored.Filled.Undo
         }
@@ -284,22 +229,10 @@ fun ComputingEvaluator.computeImageVector(data: KeyData): ImageVector? {
         KeyCode.TOGGLE_ACTIONS_OVERFLOW -> {
             Icons.Default.MoreHoriz
         }
-        KeyCode.TOGGLE_INCOGNITO_MODE -> {
-            if (evaluator.state.isIncognitoMode) {
-                this.context()?.vectorResource(id = R.drawable.ic_incognito)
-            } else {
-                this.context()?.vectorResource(id = R.drawable.ic_incognito_off)
-            }
-        }
+        KeyCode.TOGGLE_INCOGNITO_MODE -> context()?.vectorResource(R.drawable.ic_incognito)
+        ICON_INCOGNITO_OFF -> context()?.vectorResource(R.drawable.ic_incognito_off)
         KeyCode.TOGGLE_AUTOCORRECT -> {
             Icons.Default.FontDownload
-        }
-        KeyCode.CHAR_WIDTH_SWITCHER -> {
-            if (evaluator.state.isCharHalfWidth) {
-                this.context()?.vectorResource(R.drawable.ic_keyboard_char_width_switcher_full)
-            } else {
-                this.context()?.vectorResource(R.drawable.ic_keyboard_char_width_switcher_half)
-            }
         }
         KeyCode.CHAR_WIDTH_FULL -> {
             this.context()?.vectorResource(R.drawable.ic_keyboard_char_width_switcher_full)

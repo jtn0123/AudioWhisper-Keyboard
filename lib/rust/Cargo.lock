@@ -101,6 +101,7 @@ dependencies = [
  "gestures",
  "gif",
  "glide",
+ "input",
  "jni-sys",
  "keys",
  "latin",
@@ -838,6 +839,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "input"
+version = "0.1.0"
+dependencies = [
+ "keys",
+ "shift",
+]
+
+[[package]]
 name = "itertools"
 version = "0.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1568,6 +1577,7 @@ version = "0.1.0"
 dependencies = [
  "gestures",
  "glifo 0.3.0",
+ "input",
  "keys",
  "parley",
  "pollster",

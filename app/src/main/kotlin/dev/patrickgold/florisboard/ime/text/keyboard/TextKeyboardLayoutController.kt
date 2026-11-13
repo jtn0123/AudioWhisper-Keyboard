@@ -119,7 +119,7 @@ internal class TextKeyboardLayoutController(
                 // Search for active character keys and cancel them
                 for (pointer in pointerMap) {
                     val activeKey = pointer.activeKey
-                    if (activeKey != null && popupUiController.isSuitableForPopups(activeKey)) {
+                    if (activeKey != null && com.jtn0123.audiowhisper.rust.InputRules.pointer(floatArrayOf(activeKey.computedData.code.toFloat()))) {
                         swipeGestureDetector.onTouchCancel(event, pointer)
                         onTouchUpInternal(pointer)
                     }
@@ -215,43 +215,17 @@ internal class TextKeyboardLayoutController(
                 data = key.computedData,
                 onLongPress = onLongPress@ {
                     pointer.hasTriggeredLongPress = true
-                    when (key.computedData.code) {
-                        KeyCode.SPACE, KeyCode.CJK_SPACE -> {
-                            when (prefs.gestures.spaceBarLongPress.get()) {
-                                SwipeAction.NO_ACTION,
-                                SwipeAction.INSERT_SPACE -> {
-                                }
-                                else -> {
-                                    keyboardManager.executeSwipeAction(prefs.gestures.spaceBarLongPress.get())
-                                }
-                            }
-                            true
-                        }
-                        KeyCode.SHIFT -> {
-                            if (inputEventDispatcher.isUninterruptedEventSequence(key.computedData)) {
-                                inputEventDispatcher.sendDownUp(TextKeyData.CAPS_LOCK)
-                                inputFeedbackController?.keyLongPress(key.computedData)
-                            }
-                            // We always return false here to prevent blockade for the up touch event
-                            false
-                        }
-                        KeyCode.LANGUAGE_SWITCH -> {
-                            inputEventDispatcher.sendDownUp(TextKeyData.SYSTEM_INPUT_METHOD_PICKER)
-                            true
-                        }
-                        else -> {
-                            if (popupUiController.isSuitableForPopups(key) && key.computedPopups.getPopupKeys(
-                                    keyHintConfiguration
-                                ).isNotEmpty()
-                            ) {
-                                popupUiController.extend(key, size)
-                                inputFeedbackController?.keyLongPress(key.computedData)
-                                true
-                            } else {
-                                false
-                            }
-                        }
-                    }
+                    val action = prefs.gestures.spaceBarLongPress.get()
+                    val choices = key.computedPopups.getPopupKeys(keyHintConfiguration)
+                    val plan = com.jtn0123.audiowhisper.rust.InputRules.hold(key.computedData.code,
+                        choices.isNotEmpty(), inputEventDispatcher.isUninterruptedEventSequence(key.computedData),
+                        action != SwipeAction.NO_ACTION && action != SwipeAction.INSERT_SPACE)
+                    if (plan and com.jtn0123.audiowhisper.rust.InputProtocol.HOLD_SPACE != 0) keyboardManager.executeSwipeAction(action)
+                    if (plan and com.jtn0123.audiowhisper.rust.InputProtocol.HOLD_CAPS != 0) inputEventDispatcher.sendDownUp(TextKeyData.CAPS_LOCK)
+                    if (plan and com.jtn0123.audiowhisper.rust.InputProtocol.HOLD_PICKER != 0) inputEventDispatcher.sendDownUp(TextKeyData.SYSTEM_INPUT_METHOD_PICKER)
+                    if (plan and com.jtn0123.audiowhisper.rust.InputProtocol.HOLD_POPUP != 0) popupUiController.extend(key, size)
+                    if (plan and com.jtn0123.audiowhisper.rust.InputProtocol.HOLD_FEEDBACK != 0) inputFeedbackController?.keyLongPress(key.computedData)
+                    plan and com.jtn0123.audiowhisper.rust.InputProtocol.HOLD_BLOCK != 0
                 },
             )
             if (prefs.keyboard.popupEnabled.get() && popupUiController.isSuitableForPopups(key)) {
@@ -291,11 +265,9 @@ internal class TextKeyboardLayoutController(
                     onTouchDownInternal(event, pointer)
                 }
             } else {
-                if ((event.getX(pointer.index) < activeKey.visibleBounds.left - 0.1f * activeKey.visibleBounds.width)
-                    || (event.getX(pointer.index) > activeKey.visibleBounds.right + 0.1f * activeKey.visibleBounds.width)
-                    || (event.getY(pointer.index) < activeKey.visibleBounds.top - 0.35f * activeKey.visibleBounds.height)
-                    || (event.getY(pointer.index) > activeKey.visibleBounds.bottom + 0.35f * activeKey.visibleBounds.height)
-                ) {
+                val bounds = activeKey.visibleBounds
+                if (com.jtn0123.audiowhisper.rust.InputRules.pointer(floatArrayOf(
+                    event.getX(pointer.index), event.getY(pointer.index), bounds.left, bounds.top, bounds.right, bounds.bottom))) {
                     onTouchCancelInternal(pointer)
                     onTouchDownInternal(event, pointer)
                 }

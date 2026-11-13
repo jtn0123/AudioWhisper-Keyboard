@@ -15,6 +15,7 @@ default-members = [
     "crates/gif",
     "crates/glide",
     "crates/keys",
+    "crates/input",
     "crates/latin",
     "crates/popup",
     "crates/reader",

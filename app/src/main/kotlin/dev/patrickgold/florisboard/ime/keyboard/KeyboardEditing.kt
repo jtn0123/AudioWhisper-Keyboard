@@ -16,6 +16,9 @@
 
 package dev.patrickgold.florisboard.ime.keyboard
 
+import com.jtn0123.audiowhisper.rust.InputProtocol.*
+import com.jtn0123.audiowhisper.rust.InputRules
+import com.jtn0123.audiowhisper.rust.KeyModels
 import android.view.KeyEvent
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
@@ -28,7 +31,6 @@ import dev.patrickgold.florisboard.ime.editor.ImeOptions
 import dev.patrickgold.florisboard.ime.editor.OperationUnit
 import dev.patrickgold.florisboard.ime.nlp.SuggestionCandidate
 import dev.patrickgold.florisboard.ime.text.key.KeyCode
-import dev.patrickgold.florisboard.ime.text.key.UtilityKeyAction
 import dev.patrickgold.florisboard.nlpManager
 import dev.patrickgold.florisboard.subtypeManager
 import java.lang.ref.WeakReference
@@ -78,23 +80,33 @@ internal fun KeyboardManager.revertPreviouslyAcceptedCandidate() {
 /**
  * Handles a [KeyCode.DELETE] event.
  */
-internal fun KeyboardManager.handleBackwardDelete(unit: OperationUnit) {
-    if (inputEventDispatcher.isPressed(KeyCode.SHIFT)) {
-        return handleForwardDelete(unit)
+internal fun KeyboardManager.handleBackwardDelete(unit: OperationUnit) = executeDelete(unit, false)
+
+/** Only effects and query replies: native continuation chooses whether deletion falls through. */
+private fun KeyboardManager.executeDelete(unit: OperationUnit, forward: Boolean) {
+    var stage = 0L
+    var reply = false
+    while (stage >= 0) {
+        val plan = InputRules.control(longArrayOf(CONTROL_DELETE.toLong(), stage, unit.ordinal.toLong(),
+            if(reply) 1 else 0, if(editorInstance.activeContent.composingText.isNotEmpty()) 1 else 0,
+            if(forward) 1 else 0))
+        stage = plan[0]
+        for (offset in (1 until plan.size).step(2)) {
+            val arg = plan[offset+1]
+            when (plan[offset].toInt()) {
+                DELETE_DROP -> nlpManager.dropSwipedWord()
+                DELETE_STATE -> activeState.rawValue = KeyModels.write(activeState.rawValue.toLong(),
+                    (arg ushr 32).toInt(), arg.toInt()).toULong()
+                DELETE_UNDO_AUTO -> reply = undoAutoCorrection()
+                DELETE_UNDO_DICTATION -> reply = editorInstance.undoDictation()
+                DELETE_NOTIFY -> revertPreviouslyAcceptedCandidate()
+                DELETE_TAP -> nlpManager.tapTrail.deleted()
+                DELETE_BACKWARD_EDITOR -> editorInstance.deleteBackwards(OperationUnit.entries[arg.toInt()])
+                DELETE_FORWARD_EDITOR -> editorInstance.deleteForwards(OperationUnit.entries[arg.toInt()])
+                else -> error("Unknown native delete effect")
+            }
+        }
     }
-    nlpManager.dropSwipedWord()
-    activeState.batchEdit {
-        it.isManualSelectionMode = false
-        it.isManualSelectionModeStart = false
-        it.isManualSelectionModeEnd = false
-    }
-    if (unit == OperationUnit.CHARACTERS && (undoAutoCorrection() || editorInstance.undoDictation())) return
-    revertPreviouslyAcceptedCandidate()
-    // AudioWhisper: a letter of the word being typed goes; so does where it was tapped.
-    if (unit == OperationUnit.CHARACTERS && editorInstance.activeContent.composingText.isNotEmpty()) {
-        nlpManager.tapTrail.deleted()
-    }
-    editorInstance.deleteBackwards(unit)
 }
 
 /**
@@ -134,15 +146,7 @@ internal fun KeyboardManager.undoAutoCorrection(): Boolean {
 /**
  * Handles a [KeyCode.FORWARD_DELETE] event.
  */
-internal fun KeyboardManager.handleForwardDelete(unit: OperationUnit) {
-    activeState.batchEdit {
-        it.isManualSelectionMode = false
-        it.isManualSelectionModeStart = false
-        it.isManualSelectionModeEnd = false
-    }
-    revertPreviouslyAcceptedCandidate()
-    editorInstance.deleteForwards(unit)
-}
+internal fun KeyboardManager.handleForwardDelete(unit: OperationUnit) = executeDelete(unit, true)
 
 /**
  * Handles a [KeyCode.ENTER] event.
@@ -161,120 +165,39 @@ internal fun KeyboardManager.handleEnter() {
 }
 
 /**
- * Handles a [KeyCode.LANGUAGE_SWITCH] event. Also handles if the language switch should cycle
- * FlorisBoard internal or system-wide.
- */
-internal fun KeyboardManager.handleLanguageSwitch() {
-    when (prefs.keyboard.utilityKeyAction.get()) {
-        UtilityKeyAction.DYNAMIC_SWITCH_LANGUAGE_EMOJIS,
-        UtilityKeyAction.SWITCH_LANGUAGE -> subtypeManager.switchToNextSubtype()
-        else -> FlorisImeService.switchToNextInputMethod()
-    }
-}
-
-/**
- * Handles a [KeyCode.SHIFT] down event.
- */
-internal fun KeyboardManager.handleShiftDown(data: KeyData) {
-    activeState.inputShiftState = ShiftLogic.shiftDown(
-        activeState.inputShiftState,
-        prefs.keyboard.capitalizationBehavior.get(),
-        consecutiveDown = inputEventDispatcher.isConsecutiveDown(data),
-    )
-}
-
-/**
- * Handles a [KeyCode.SHIFT] up event.
- */
-internal fun KeyboardManager.handleShiftUp(data: KeyData) {
-    activeState.inputShiftState = ShiftLogic.shiftUp(
-        activeState.inputShiftState,
-        anyPressed = inputEventDispatcher.isAnyPressed(),
-        uninterrupted = inputEventDispatcher.isUninterruptedEventSequence(data),
-    )
-}
-
-/**
- * Handles a [KeyCode.CAPS_LOCK] event.
- */
-internal fun KeyboardManager.handleCapsLock() {
-    activeState.inputShiftState = ShiftLogic.capsLock(activeState.inputShiftState)
-}
-
-/**
- * Handles a [KeyCode.SHIFT] cancel event.
- */
-internal fun KeyboardManager.handleShiftCancel() {
-    activeState.inputShiftState = ShiftLogic.shiftCancel(activeState.inputShiftState)
-}
-
-/**
  * Handles a hardware [KeyEvent.KEYCODE_SPACE] event. Same as [handleSpace],
  * but skips handling changing to characters keyboard and double space periods.
  */
-internal fun KeyboardManager.handleHardwareKeyboardSpace() {
-    val candidate = autoCorrect()
-    // Skip handling changing to characters keyboard and double space periods
-    // TODO: this is whether we commit space after selecting candidate. Should be determined by SuggestionProvider
-    if (!subtypeManager.activeSubtype.primaryLocale.supportsAutoSpace &&
-            candidate != null) { /* Do nothing */ } else {
-        editorInstance.commitText(KeyCode.SPACE.toChar().toString())
-    }
-}
+internal fun KeyboardManager.handleHardwareKeyboardSpace() = handleSpace(null)
 
 /**
  * Handles a [KeyCode.SPACE] event. Also handles the auto-correction of two space taps if
  * enabled by the user.
  */
-internal fun KeyboardManager.handleSpace(data: KeyData) {
+internal fun KeyboardManager.handleSpace(data: KeyData?) {
     val candidate = autoCorrect()
-    if (prefs.keyboard.spaceBarSwitchesToCharacters.get()) {
-        when (activeState.keyboardMode) {
-            KeyboardMode.NUMERIC_ADVANCED,
-            KeyboardMode.SYMBOLS,
-            KeyboardMode.SYMBOLS2 -> {
-                activeState.keyboardMode = KeyboardMode.CHARACTERS
-            }
-            else -> { /* Do nothing */ }
-        }
-    }
-    if (prefs.correction.doubleSpacePeriod.get()) {
-        if (inputEventDispatcher.isConsecutiveUp(data)) {
-            val text = editorInstance.run { activeContent.getTextBeforeCursor(2) }
-            if (ShiftLogic.isDoubleSpacePeriod(text)) {
-                editorInstance.commitDoubleSpacePeriod()
-                return
-            }
-        }
-    }
-    // TODO: this is whether we commit space after selecting candidate. Should be determined by SuggestionProvider
-    if (!subtypeManager.activeSubtype.primaryLocale.supportsAutoSpace &&
-            candidate != null) { /* Do nothing */ } else {
-        editorInstance.commitText(KeyCode.SPACE.toChar().toString())
-    }
+    val plan = com.jtn0123.audiowhisper.rust.InputRules.control(longArrayOf(
+        com.jtn0123.audiowhisper.rust.InputProtocol.CONTROL_SPACE.toLong(), activeState.keyboardMode.toInt().toLong(),
+        if(data != null && prefs.keyboard.spaceBarSwitchesToCharacters.get()) 1 else 0,
+        if(data != null && prefs.correction.doubleSpacePeriod.get()) 1 else 0,
+        if(data != null && inputEventDispatcher.isConsecutiveUp(data)) 1 else 0,
+        if(subtypeManager.activeSubtype.primaryLocale.supportsAutoSpace) 1 else 0,
+        if(candidate != null) 1 else 0), editorInstance.run {activeContent.getTextBeforeCursor(2)})
+    activeState.keyboardMode = KeyboardMode.fromInt(plan[0].toInt())
+    if(plan[1] != 0L) editorInstance.commitDoubleSpacePeriod()
+    if(plan[2] != 0L) editorInstance.commitText(" ")
 }
 
 /**
  * Handles a [KeyCode.TOGGLE_INCOGNITO_MODE] event.
  */
-internal suspend fun KeyboardManager.handleToggleIncognitoMode() {
-    prefs.suggestion.forceIncognitoModeFromDynamic.set(!prefs.suggestion.forceIncognitoModeFromDynamic.get())
-    val newState = !activeState.isIncognitoMode
-    activeState.isIncognitoMode = newState
+internal suspend fun KeyboardManager.handleToggleIncognitoMode(force: Boolean, toast: Int) {
+    prefs.suggestion.forceIncognitoModeFromDynamic.set(force)
+    activeState.isIncognitoMode = toast != 0
     lastToastReference.get()?.cancel()
-    lastToastReference = WeakReference(
-        if (newState) {
-            appContext.showLongToast(
-                R.string.incognito_mode__toast_after_enabled,
-                "app_name" to appContext.getString(R.string.floris_app_name),
-            )
-        } else {
-            appContext.showLongToast(
-                R.string.incognito_mode__toast_after_disabled,
-                "app_name" to appContext.getString(R.string.floris_app_name),
-            )
-        }
-    )
+    val messages = intArrayOf(R.string.incognito_mode__toast_after_disabled, R.string.incognito_mode__toast_after_enabled)
+    lastToastReference = WeakReference(appContext.showLongToast(messages[toast],
+        "app_name" to appContext.getString(R.string.floris_app_name)))
 }
 
 /**
@@ -287,25 +210,4 @@ internal fun KeyboardManager.handleToggleAutocorrect() {
             appContext.showLongToast("Autocorrect toggle is a placeholder and not yet implemented")
         )
     }
-}
-
-/**
- * Switches the retained symbol layouts between full-width and half-width characters.
- */
-internal fun KeyboardManager.handleCharWidthSwitch() {
-    activeState.isCharHalfWidth = !activeState.isCharHalfWidth
-}
-
-/**
- * Handles a [KeyCode.CHAR_WIDTH_SWITCHER] event
- */
-internal fun KeyboardManager.handleCharWidthFull() {
-    activeState.isCharHalfWidth = false
-}
-
-/**
- * Handles a [KeyCode.CHAR_WIDTH_SWITCHER] event
- */
-internal fun KeyboardManager.handleCharWidthHalf() {
-    activeState.isCharHalfWidth = true
 }

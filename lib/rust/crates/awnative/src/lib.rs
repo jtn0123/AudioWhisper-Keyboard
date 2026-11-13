@@ -74,3 +74,5 @@ mod render_search;
 mod render_subtypes;
 
 mod media_oracle;
+
+mod input;

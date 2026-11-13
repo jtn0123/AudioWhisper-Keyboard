@@ -16,6 +16,8 @@
 
 package dev.patrickgold.florisboard.ime.core
 
+import com.jtn0123.audiowhisper.rust.InputRules
+import com.jtn0123.audiowhisper.rust.InputProtocol.*
 import android.content.Context
 import dev.patrickgold.florisboard.app.FlorisPreferenceStore
 import dev.patrickgold.florisboard.ime.keyboard.CurrencySet
@@ -84,8 +86,10 @@ class SubtypeManager(context: Context) {
      */
     private fun evaluateActiveSubtype(list: List<Subtype>) = scope.launch {
         val activeSubtypeId = prefs.localization.activeSubtypeId.get()
-        val subtype = list.find { it.id == activeSubtypeId } ?: list.firstOrNull() ?: Subtype.DEFAULT
-        if (subtype.id != activeSubtypeId) {
+        val plan = InputRules.control(longArrayOf(CONTROL_SUBTYPE.toLong(), activeSubtypeId, Subtype.DEFAULT.id,
+            *list.map {it.id}.toLongArray()))
+        val subtype = list.getOrNull(plan[0].toInt()) ?: Subtype.DEFAULT
+        if (plan[1] != 0L) {
             prefs.localization.activeSubtypeId.set(subtype.id)
         }
         activeSubtype = subtype
@@ -127,7 +131,9 @@ class SubtypeManager(context: Context) {
      */
     fun getSubtypeById(id: Long): Subtype? {
         val subtypeList = subtypes
-        return subtypeList.find { it.id == id }
+        val selected = InputRules.control(longArrayOf(CONTROL_FIND_SUBTYPE.toLong(), id,
+            *subtypeList.map {it.id}.toLongArray()))[0].toInt()
+        return subtypeList.getOrNull(selected)
     }
 
     /**
@@ -188,52 +194,24 @@ class SubtypeManager(context: Context) {
     /**
      * Switch to the previous subtype in the subtype list if possible.
      */
-    fun switchToPrevSubtype() = scope.launch {
-        val subtypeList = subtypes
-        val cachedActiveSubtype = activeSubtype
-        var triggerNextSubtype = false
-        var newActiveSubtype: Subtype = Subtype.DEFAULT
-        for (subtype in subtypeList.asReversed()) {
-            if (triggerNextSubtype) {
-                triggerNextSubtype = false
-                newActiveSubtype = subtype
-            } else if (subtype == cachedActiveSubtype) {
-                triggerNextSubtype = true
-            }
-        }
-        if (triggerNextSubtype) {
-            newActiveSubtype = subtypeList.last()
-        }
-        prefs.localization.activeSubtypeId.set(newActiveSubtype.id)
-        activeSubtype = newActiveSubtype
-    }
+    fun switchToPrevSubtype() = switchSubtype(-1)
 
-    /**
-     * Switch to the next subtype in the subtype list if possible.
-     */
-    fun switchToNextSubtype() = scope.launch {
+    fun switchToNextSubtype() = switchSubtype(1)
+
+    private fun switchSubtype(direction: Long) = scope.launch {
         val subtypeList = subtypes
         val cachedActiveSubtype = activeSubtype
-        var triggerNextSubtype = false
-        var newActiveSubtype: Subtype = Subtype.DEFAULT
-        for (subtype in subtypeList) {
-            if (triggerNextSubtype) {
-                triggerNextSubtype = false
-                newActiveSubtype = subtype
-            } else if (subtype == cachedActiveSubtype) {
-                triggerNextSubtype = true
-            }
-        }
-        if (triggerNextSubtype) {
-            newActiveSubtype = subtypeList.first()
-        }
+        val selected = InputRules.control(longArrayOf(CONTROL_CYCLE.toLong(), direction,
+            *subtypeList.map {if(it == cachedActiveSubtype) 1L else 0L}.toLongArray()))[0].toInt()
+        val newActiveSubtype = subtypeList.getOrNull(selected) ?: Subtype.DEFAULT
         prefs.localization.activeSubtypeId.set(newActiveSubtype.id)
         activeSubtype = newActiveSubtype
     }
 
     fun switchToSubtypeById(id: Long) = scope.launch {
-        if (subtypes.any { it.id == id }) {
-            activeSubtype = getSubtypeById(id)!!
+        val selected = getSubtypeById(id)
+        if (selected != null) {
+            activeSubtype = selected
             prefs.localization.activeSubtypeId.set(id)
         }
     }

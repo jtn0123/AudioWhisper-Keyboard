@@ -28,18 +28,6 @@ pub(crate) struct KeyboardTouch {
     velocity: Velocity,
     pressed_codes: BTreeSet<i32>,
 }
-pub(crate) fn suitable(code: i32) -> bool {
-    (code > SPACE && code != CJK_SPACE)
-        || [
-            ENTER,
-            LANGUAGE_SWITCH,
-            IME_UI_MODE_TEXT,
-            IME_UI_MODE_MEDIA,
-            IME_UI_MODE_CLIPBOARD,
-            CHAR_WIDTH_SWITCHER,
-        ]
-        .contains(&code)
-}
 impl KeyboardTouch {
     pub fn cancel_active(&mut self, scene: &mut Scene) -> Vec<Action> {
         let mut actions = Vec::new();
@@ -81,28 +69,30 @@ impl KeyboardTouch {
         };
         p.long = true;
         let mut actions = Vec::new();
-        match key.code {
-            SPACE | CJK_SPACE => {
-                if !["NO_ACTION", "INSERT_SPACE"].contains(&config.action(PREF_SPACE_HOLD as usize))
-                {
-                    actions.push(Action(SWIPE_ACTION, PREF_SPACE_HOLD, id));
-                }
-                actions.push(Action(LONG_PRESS_BLOCK, 0, id));
-            }
-            SHIFT if uninterrupted => {
-                actions.push(Action(crate::protocol::CAPS_LOCK, 0, id));
-                actions.push(Action(LONG_PRESS_FEEDBACK, SHIFT, id));
-            }
-            LANGUAGE_SWITCH => {
-                actions.push(Action(INPUT_METHOD_PICKER, 0, id));
-                actions.push(Action(LONG_PRESS_BLOCK, 0, id));
-            }
-            code if suitable(code) && popup => {
-                actions.push(Action(OPEN_POPUP, p.active.expect("active key") as i32, id));
-                actions.push(Action(LONG_PRESS_FEEDBACK, code, id));
-                actions.push(Action(LONG_PRESS_BLOCK, 0, id));
-            }
-            _ => {}
+        use input::protocol as ip;
+        let plan = input::pointer::hold(
+            key.code,
+            popup,
+            uninterrupted,
+            !["NO_ACTION", "INSERT_SPACE"].contains(&config.action(PREF_SPACE_HOLD as usize)),
+        );
+        if plan & ip::HOLD_SPACE != 0 {
+            actions.push(Action(SWIPE_ACTION, PREF_SPACE_HOLD, id));
+        }
+        if plan & ip::HOLD_CAPS != 0 {
+            actions.push(Action(crate::protocol::CAPS_LOCK, 0, id));
+        }
+        if plan & ip::HOLD_PICKER != 0 {
+            actions.push(Action(INPUT_METHOD_PICKER, 0, id));
+        }
+        if plan & ip::HOLD_POPUP != 0 {
+            actions.push(Action(OPEN_POPUP, p.active.expect("active key") as i32, id));
+        }
+        if plan & ip::HOLD_FEEDBACK != 0 {
+            actions.push(Action(LONG_PRESS_FEEDBACK, key.code, id));
+        }
+        if plan & ip::HOLD_BLOCK != 0 {
+            actions.push(Action(LONG_PRESS_BLOCK, 0, id));
         }
         actions
     }
@@ -128,7 +118,7 @@ impl KeyboardTouch {
                     for p in &mut self.pointers {
                         if p.active
                             .and_then(|k| scene.keys.get(k))
-                            .is_some_and(|k| suitable(k.code))
+                            .is_some_and(|k| input::pointer::roll_release(k.code))
                         {
                             self.swipes.cancel(p.id);
                             Self::release(scene, p, false, &mut actions);
@@ -304,11 +294,7 @@ impl KeyboardTouch {
         } else {
             let r = key.bounds.visible;
             let y = y - scene.strip;
-            if x < r.left - 0.1 * r.width()
-                || x > r.right + 0.1 * r.width()
-                || y < r.top - 0.35 * r.height()
-                || y > r.bottom + 0.35 * r.height()
-            {
+            if input::pointer::slide(x, y, r.left, r.top, r.right, r.bottom) {
                 Self::release(scene, p, true, actions);
                 Self::down(p, scene.key_at(x, y + scene.strip), actions);
             }

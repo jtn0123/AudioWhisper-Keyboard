@@ -5,7 +5,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 class EditorFlowMatchTest {
-    private class FlowPair : AutoCloseable {
+    internal class FlowPair : AutoCloseable {
         val pair=EditorPlanMatchTest.Pairing()
         val flow=ReferenceEditorFlow(pair.old)
         init{pair.start()}

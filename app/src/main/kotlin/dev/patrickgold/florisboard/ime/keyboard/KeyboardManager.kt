@@ -23,7 +23,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.setValue
 import com.jtn0123.audiowhisper.gif.GifSearch
-import com.jtn0123.audiowhisper.gif.GifSearchKeys
 import com.jtn0123.audiowhisper.suggest.AutoCorrectionUndo
 import dev.patrickgold.florisboard.app.FlorisPreferenceStore
 import dev.patrickgold.florisboard.appContext
@@ -163,9 +162,8 @@ class KeyboardManager(context: Context) : InputKeyEventReceiver {
             val mode = state.keyboardMode
             // We need to reset the snapshot input shift state for non-character layouts, because the shift mechanic
             // only makes sense for the character layouts.
-            if (mode != KeyboardMode.CHARACTERS) {
-                state.inputShiftState = InputShiftState.UNSHIFTED
-            }
+            state.rawValue = com.jtn0123.audiowhisper.rust.InputRules.control(longArrayOf(
+                com.jtn0123.audiowhisper.rust.InputProtocol.CONTROL_EVALUATOR.toLong(), state.rawValue.toLong()))[0].toULong()
             val computedKeyboard = keyboardCache.getOrElseAsync(mode, subtype) {
                 layoutManager.computeKeyboardAsync(
                     keyboardMode = mode,
@@ -215,11 +213,7 @@ class KeyboardManager(context: Context) : InputKeyEventReceiver {
      * @return If the language switch should be shown.
      */
     fun shouldShowLanguageSwitch(): Boolean {
-        return subtypeManager.subtypes.size > 1
-    }
-
-    suspend fun toggleOneHandedMode() {
-        prefs.keyboard.oneHandedModeEnabled.set(!prefs.keyboard.oneHandedModeEnabled.get())
+        return com.jtn0123.audiowhisper.rust.KeyModels.enabled(KeyCode.LANGUAGE_SWITCH, subtypeManager.subtypes.size, 0)
     }
 
     fun executeSwipeAction(swipeAction: SwipeAction) {
@@ -248,51 +242,8 @@ class KeyboardManager(context: Context) : InputKeyEventReceiver {
         editorInstance.commitGesture(fixCase(word))
     }
 
-    /**
-     * AudioWhisper: the GIF search box is open, so the app's field behind it must not change.
-     * Keys go through [typeIntoGifSearch]; the touch code checks this before its swipes.
-     */
+    /** The shared Rust routing plan sends keys to this search while it owns input. */
     val isTypingIntoGifSearch: Boolean get() = GifSearch.typing.value
-
-    /** AudioWhisper: [data] is a key the GIF search box takes or blocks, not one for the keyboard. */
-    internal fun heldByGifSearch(data: KeyData): Boolean =
-        isTypingIntoGifSearch && GifSearchKeys.route(data.code, data.type) != GifSearchKeys.Route.KEYBOARD
-
-    /**
-     * AudioWhisper: while the GIF search field is open, typing goes into it and keys that would
-     * edit the app do nothing. Returns false for keys it leaves to the keyboard (shift, layouts).
-     */
-    internal fun typeIntoGifSearch(data: KeyData): Boolean {
-        when (GifSearchKeys.route(data.code, data.type)) {
-            GifSearchKeys.Route.SEARCH -> editGifSearch(data)
-            GifSearchKeys.Route.IGNORE -> Unit
-            GifSearchKeys.Route.KEYBOARD -> {
-                if (data.code == KeyCode.IME_UI_MODE_MEDIA || data.code == KeyCode.IME_UI_MODE_CLIPBOARD) {
-                    GifSearch.stopTyping()
-                }
-                return false
-            }
-        }
-        return true
-    }
-
-    internal fun editGifSearch(data: KeyData) {
-        when (data.code) {
-            KeyCode.DELETE -> GifSearch.deleteLast()
-            KeyCode.DELETE_WORD -> GifSearch.deleteWord()
-            KeyCode.SPACE, KeyCode.CJK_SPACE -> GifSearch.type(" ")
-            KeyCode.ENTER -> {
-                GifSearch.submit()
-                activeState.imeUiMode = ImeUiMode.MEDIA
-            }
-            else -> {
-                GifSearch.type(data.asString(isForDisplay = false))
-                activeState.inputShiftState = ShiftLogic.keyTyped(
-                    activeState.inputShiftState, shiftPressed = inputEventDispatcher.isPressed(KeyCode.SHIFT),
-                )
-            }
-        }
-    }
 
     /**
      * Changes a word to the current case.

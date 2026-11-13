@@ -21,6 +21,7 @@ val projectCompileSdk = providers.gradleProperty("projectCompileSdk").get()
 
 // One definition is compiled by Rust and generates the Java constants used by both Kotlin modules.
 abstract class GenerateRenderProtocol : DefaultTask() {
+    @get:Input abstract val protocolName: Property<String>
     @get:InputFile abstract val source: RegularFileProperty
     @get:OutputDirectory abstract val outputDir: DirectoryProperty
     @TaskAction fun generate() {
@@ -28,15 +29,22 @@ abstract class GenerateRenderProtocol : DefaultTask() {
             .findAll(source.get().asFile.readText()).map { match ->
                 "    public static final int ${match.groupValues[1]} = ${match.groupValues[2]};"
             }.joinToString("\n")
-        val output = outputDir.get().file("com/jtn0123/audiowhisper/rust/RenderProtocol.java").asFile
+        val output = outputDir.get().file("com/jtn0123/audiowhisper/rust/${protocolName.get()}.java").asFile
         output.parentFile.mkdirs()
-        output.writeText("// Generated from render/src/protocol.rs.\npackage com.jtn0123.audiowhisper.rust;\n" +
-            "public final class RenderProtocol {\n    private RenderProtocol() {}\n$constants\n}\n")
+        output.writeText("// Generated from the canonical Rust protocol.\npackage com.jtn0123.audiowhisper.rust;\n" +
+            "public final class ${protocolName.get()} {\n    private ${protocolName.get()}() {}\n$constants\n}\n")
     }
 }
 val generateRenderProtocol = tasks.register<GenerateRenderProtocol>("generateRenderProtocol") {
+    protocolName.set("RenderProtocol")
     source.set(layout.projectDirectory.file("crates/render/src/protocol.rs"))
     outputDir.set(layout.buildDirectory.dir("generated/renderProtocol"))
+}
+
+val generateInputProtocol = tasks.register<GenerateRenderProtocol>("generateInputProtocol") {
+    protocolName.set("InputProtocol")
+    source.set(layout.projectDirectory.file("crates/input/src/protocol.rs"))
+    outputDir.set(layout.buildDirectory.dir("generated/inputProtocol"))
 }
 
 kotlin {
@@ -231,6 +239,7 @@ tasks.register("oracleCheck") {
 androidComponents {
     onVariants { variant ->
         variant.sources.java?.addGeneratedSourceDirectory(generateRenderProtocol, GenerateRenderProtocol::outputDir)
+        variant.sources.java?.addGeneratedSourceDirectory(generateInputProtocol, GenerateRenderProtocol::outputDir)
         variant.sources.jniLibs?.addGeneratedSourceDirectory(cargoBuildAndroid, CargoBuild::outputDir)
     }
 }

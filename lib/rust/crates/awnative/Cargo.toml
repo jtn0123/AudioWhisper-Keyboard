@@ -24,6 +24,7 @@ extensions = { path = "../extensions" }
 gestures = { path = "../gestures" }
 gif = { path = "../gif" }
 glide = { path = "../glide" }
+input = { path = "../input" }
 keys = { path = "../keys" }
 latin = { path = "../latin" }
 popup = { path = "../popup" }
