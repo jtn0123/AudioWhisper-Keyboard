@@ -28,6 +28,8 @@ mod render_window;
 mod screen;
 mod shift;
 mod snygg;
+mod snygg_value;
+
 mod spacing;
 mod suggest;
 mod text;

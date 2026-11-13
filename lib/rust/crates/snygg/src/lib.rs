@@ -1,11 +1,16 @@
 //! Snygg's grammar, for both the Compose adapter and the future Rust style resolver.
-//! Text is UTF-16: backtick strings may contain lone surrogates. Property values and
-//! the JSON codec are deliberately opaque until the values and cascade packages.
+//! Text is UTF-16, including lone surrogates. Values, specs and property decoding are
+//! plain Rust data. The JSON codec, cascade and editor are managed at this stage.
 #![forbid(unsafe_code)]
 
 pub mod attributes;
 pub mod document;
 pub mod grammar;
+pub mod properties;
+pub mod value;
+pub mod value_codec;
+pub mod value_spec;
+pub mod value_uri;
 
 pub type Text = Vec<u16>;
 
@@ -53,3 +58,6 @@ impl Error {
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod value_tests;

@@ -84,7 +84,7 @@ data class ReferenceSnyggStylesheet internal constructor(
                         }
                         throw ReferenceSnyggInvalidRuleException(key)
                     }
-                    val propertySet = SnyggPropertySet.fromJsonElement(rule.production(), config, jsonElement)
+                    val propertySet = ReferenceSnyggPropertyCodec.decode(rule.production(), config, jsonElement)
                     ruleMap[rule] = propertySet
                 }
             }

@@ -47,7 +47,6 @@ import org.florisboard.lib.snygg.value.SnyggTextMaxLinesValue
 import org.florisboard.lib.snygg.value.SnyggTextOverflowValue
 import org.florisboard.lib.snygg.value.SnyggUndefinedValue
 import org.florisboard.lib.snygg.value.SnyggValue
-import kotlin.collections.contains
 
 sealed class SnyggPropertySet {
     abstract fun edit(): SnyggPropertySetEditor
@@ -147,10 +146,8 @@ data class SnyggSinglePropertySet internal constructor(
             val valueStr = value.encoder().serialize(value).getOrThrow()
             config.json.encodeToJsonElement(valueStr)
         }
-        SnyggSpec.propertySetSpecOf(rule)!!.properties.forEach { (propKey, propSpec) ->
-            if (propSpec.required && !rawProperties.contains(propKey)) {
-                throw SerializationException("Rule '$rule' is missing required property '$propKey'")
-            }
+        SnyggPropertyCodec.missing(rule, rawProperties.keys)?.let { key ->
+            throw SerializationException("Rule '$rule' is missing required property '$key'")
         }
         return config.json.encodeToJsonElement(JsonObject(rawProperties))
     }
@@ -161,35 +158,7 @@ data class SnyggSinglePropertySet internal constructor(
             config: SnyggJsonConfiguration,
             jsonElement: JsonElement,
         ): SnyggSinglePropertySet {
-            val jsonObject = config.json.decodeFromJsonElement<JsonObject>(jsonElement)
-            val editor = SnyggSinglePropertySetEditor()
-            propLoop@ for ((property, valueElem) in jsonObject) {
-                val encoders = SnyggSpec.encodersOf(rule, property)
-                if (encoders == null) {
-                    if (config.ignoreInvalidProperties) {
-                        continue@propLoop
-                    }
-                    throw SnyggInvalidPropertyException(rule, property)
-                }
-                val valueStr = config.json.decodeFromJsonElement<String>(valueElem)
-                for (encoder in encoders) {
-                    val value = encoder.deserialize(valueStr).getOrNull()
-                    if (value != null) {
-                        editor.properties[property] = value
-                        continue@propLoop
-                    }
-                }
-                if (config.ignoreInvalidValues) {
-                    continue@propLoop
-                }
-                throw SnyggInvalidValueException(rule, property, valueStr)
-            }
-            SnyggSpec.propertySetSpecOf(rule)!!.properties.forEach { (propKey, propSpec) ->
-                if (propSpec.required && !editor.properties.contains(propKey)) {
-                    throw SnyggMissingRequiredPropertyException(rule, propKey)
-                }
-            }
-            return editor.build()
+            return SnyggSinglePropertySet(SnyggPropertyCodec.decode(rule, config, jsonElement))
         }
     }
 

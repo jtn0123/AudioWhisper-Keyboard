@@ -25,14 +25,15 @@ sealed interface SnyggTextValue : SnyggValue
 data class SnyggTextAlignValue(val textAlign: TextAlign) : SnyggTextValue {
     companion object : SnyggEnumLikeValueEncoder<TextAlign>(
         serializationId = "textAlign",
-        serializationMapping = mapOf(
-            "left" to TextAlign.Left,
-            "right" to TextAlign.Right,
-            "center" to TextAlign.Center,
-            "justify" to TextAlign.Justify,
-            "start" to TextAlign.Start,
-            "end" to TextAlign.End,
-        ),
+        nativeId = 21,
+        serializationMapping = NativeSnyggValues.keywords(21).zip(listOf(
+            TextAlign.Left,
+            TextAlign.Right,
+            TextAlign.Center,
+            TextAlign.Justify,
+            TextAlign.Start,
+            TextAlign.End,
+        )).toMap(),
         default = TextAlign.Left,
         construct = { SnyggTextAlignValue(it) },
         destruct = { (it as SnyggTextAlignValue).textAlign },
@@ -43,11 +44,12 @@ data class SnyggTextAlignValue(val textAlign: TextAlign) : SnyggTextValue {
 data class SnyggTextDecorationLineValue(val textDecoration: TextDecoration) : SnyggTextValue {
     companion object : SnyggEnumLikeValueEncoder<TextDecoration>(
         serializationId = "textAlign",
-        serializationMapping = mapOf(
-            "none" to TextDecoration.None,
-            "underline" to TextDecoration.Underline,
-            "line-through" to TextDecoration.LineThrough,
-        ),
+        nativeId = 22,
+        serializationMapping = NativeSnyggValues.keywords(22).zip(listOf(
+            TextDecoration.None,
+            TextDecoration.Underline,
+            TextDecoration.LineThrough,
+        )).toMap(),
         default = TextDecoration.None,
         construct = { SnyggTextDecorationLineValue(it) },
         destruct = { (it as SnyggTextDecorationLineValue).textDecoration },
@@ -56,34 +58,11 @@ data class SnyggTextDecorationLineValue(val textDecoration: TextDecoration) : Sn
 }
 
 data class SnyggTextMaxLinesValue(val maxLines: Int) : SnyggTextValue {
-    companion object : SnyggValueEncoder {
-        private const val TextMaxLinesId = "textMaxLines"
-        private const val NoneKey = "none"
-        private const val NoneValue = Int.MAX_VALUE
-
-        override val spec = SnyggValueSpec {
-            string(id = TextMaxLinesId, regex = """$NoneKey|[1-9][0-9]*""".toRegex())
-        }
-
-        override fun defaultValue() = SnyggTextMaxLinesValue(NoneValue)
-
-        override fun serialize(v: SnyggValue) = runCatching<String> {
-            require(v is SnyggTextMaxLinesValue)
-            require(v.maxLines >= 1)
-            val map = snyggIdToValueMapOf(TextMaxLinesId to (
-                if (v.maxLines == NoneValue) NoneKey else v.maxLines.toString()
-                ))
-            return@runCatching spec.pack(map)
-        }
-
-        override fun deserialize(v: String) = runCatching<SnyggValue> {
-            val map = snyggIdToValueMapOf()
-            spec.parse(v, map)
-            val clampValue = map.getString(TextMaxLinesId)
-            val maxLines = if (clampValue == NoneKey) NoneValue else clampValue.toInt()
-            return@runCatching SnyggTextMaxLinesValue(maxLines)
-        }
-    }
+    companion object : SnyggNativeValueEncoder<SnyggTextMaxLinesValue>(
+        nativeId = 23, valueClass = SnyggTextMaxLinesValue::class,
+        construct = { SnyggTextMaxLinesValue(it[0].toInt()) },
+        destruct = { listOf(it.maxLines.toString()) },
+    )
 
     override fun encoder() = Companion
 }
@@ -91,11 +70,12 @@ data class SnyggTextMaxLinesValue(val maxLines: Int) : SnyggTextValue {
 data class SnyggTextOverflowValue(val textOverflow: TextOverflow) : SnyggTextValue {
     companion object : SnyggEnumLikeValueEncoder<TextOverflow>(
         serializationId = "textAlign",
-        serializationMapping = mapOf(
-            "clip" to TextOverflow.Clip,
-            "ellipsis" to TextOverflow.Ellipsis,
-            "visible" to TextOverflow.Visible,
-        ),
+        nativeId = 24,
+        serializationMapping = NativeSnyggValues.keywords(24).zip(listOf(
+            TextOverflow.Clip,
+            TextOverflow.Ellipsis,
+            TextOverflow.Visible,
+        )).toMap(),
         default = TextOverflow.Clip,
         construct = { SnyggTextOverflowValue(it) },
         destruct = { (it as SnyggTextOverflowValue).textOverflow },

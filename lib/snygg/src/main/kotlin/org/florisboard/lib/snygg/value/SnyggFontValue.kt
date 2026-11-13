@@ -19,24 +19,24 @@ package org.florisboard.lib.snygg.value
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
-import org.florisboard.lib.snygg.value.SnyggFontValue.Companion.FontNameRegex
 
 sealed interface SnyggFontValue : SnyggValue {
     companion object {
-        internal val FontNameRegex = """`(?<fontName>[a-zA-Z0-9\s_-]+)`""".toRegex()
+        internal val FontNameRegex = NativeSnyggValues.patterns[5].toRegex()
     }
 }
 
 data class SnyggGenericFontFamilyValue(val fontFamily: FontFamily) : SnyggFontValue {
     companion object : SnyggEnumLikeValueEncoder<FontFamily>(
         serializationId = "genericFontFamily",
-        serializationMapping = mapOf(
-            "system" to FontFamily.Default,
-            "sans-serif" to FontFamily.SansSerif,
-            "serif" to FontFamily.Serif,
-            "monospace" to FontFamily.Monospace,
-            "cursive" to FontFamily.Cursive,
-        ),
+        nativeId = 10,
+        serializationMapping = NativeSnyggValues.keywords(10).zip(listOf(
+            FontFamily.Default,
+            FontFamily.SansSerif,
+            FontFamily.Serif,
+            FontFamily.Monospace,
+            FontFamily.Cursive,
+        )).toMap(),
         default = FontFamily.Default,
         construct = { SnyggGenericFontFamilyValue(it) },
         destruct = { (it as SnyggGenericFontFamilyValue).fontFamily },
@@ -45,29 +45,11 @@ data class SnyggGenericFontFamilyValue(val fontFamily: FontFamily) : SnyggFontVa
 }
 
 data class SnyggCustomFontFamilyValue(val fontName: String) : SnyggFontValue {
-    companion object : SnyggValueEncoder {
-        private const val EnclosedFontNameId = "enclosedFontName"
-
-        override val spec = SnyggValueSpec {
-            string(id = EnclosedFontNameId, regex = FontNameRegex)
-        }
-
-        override fun defaultValue() = SnyggCustomFontFamilyValue("")
-
-        override fun serialize(v: SnyggValue) = runCatching<String> {
-            require(v is SnyggCustomFontFamilyValue)
-            val map = snyggIdToValueMapOf(EnclosedFontNameId to "`${v.fontName}`")
-            return@runCatching spec.pack(map)
-        }
-
-        override fun deserialize(v: String) = runCatching<SnyggValue> {
-            val map = snyggIdToValueMapOf()
-            spec.parse(v, map)
-            val enclosedFontName = map.getString(EnclosedFontNameId)
-            val fontName = enclosedFontName.substring(1, enclosedFontName.length - 1)
-            return@runCatching SnyggCustomFontFamilyValue(fontName)
-        }
-    }
+    companion object : SnyggNativeValueEncoder<SnyggCustomFontFamilyValue>(
+        nativeId = 11, valueClass = SnyggCustomFontFamilyValue::class,
+        construct = { SnyggCustomFontFamilyValue(it[0]) },
+        destruct = { listOf(it.fontName) },
+    )
 
     override fun encoder() = Companion
 }
@@ -75,10 +57,11 @@ data class SnyggCustomFontFamilyValue(val fontName: String) : SnyggFontValue {
 data class SnyggFontStyleValue(val fontStyle: FontStyle) : SnyggFontValue {
     companion object : SnyggEnumLikeValueEncoder<FontStyle>(
         serializationId = "textAlign",
-        serializationMapping = mapOf(
-            "normal" to FontStyle.Normal,
-            "italic" to FontStyle.Italic,
-        ),
+        nativeId = 12,
+        serializationMapping = NativeSnyggValues.keywords(12).zip(listOf(
+            FontStyle.Normal,
+            FontStyle.Italic,
+        )).toMap(),
         default = FontStyle.Normal,
         construct = { SnyggFontStyleValue(it) },
         destruct = { (it as SnyggFontStyleValue).fontStyle },
@@ -89,26 +72,27 @@ data class SnyggFontStyleValue(val fontStyle: FontStyle) : SnyggFontValue {
 data class SnyggFontWeightValue(val fontWeight: FontWeight) : SnyggFontValue {
     companion object : SnyggEnumLikeValueEncoder<FontWeight>(
         serializationId = "textAlign",
-        serializationMapping = mapOf(
-            "thin" to FontWeight(100),
-            "extra-light" to FontWeight(200),
-            "light" to FontWeight(300),
-            "normal" to FontWeight(400),
-            "medium" to FontWeight(500),
-            "semi-bold" to FontWeight(600),
-            "bold" to FontWeight(700),
-            "extra-bold" to FontWeight(800),
-            "black" to FontWeight(900),
-            "100" to FontWeight(100),
-            "200" to FontWeight(200),
-            "300" to FontWeight(300),
-            "400" to FontWeight(400),
-            "500" to FontWeight(500),
-            "600" to FontWeight(600),
-            "700" to FontWeight(700),
-            "800" to FontWeight(800),
-            "900" to FontWeight(900),
-        ),
+        nativeId = 13,
+        serializationMapping = NativeSnyggValues.keywords(13).zip(listOf(
+            FontWeight(100),
+            FontWeight(200),
+            FontWeight(300),
+            FontWeight(400),
+            FontWeight(500),
+            FontWeight(600),
+            FontWeight(700),
+            FontWeight(800),
+            FontWeight(900),
+            FontWeight(100),
+            FontWeight(200),
+            FontWeight(300),
+            FontWeight(400),
+            FontWeight(500),
+            FontWeight(600),
+            FontWeight(700),
+            FontWeight(800),
+            FontWeight(900),
+        )).toMap(),
         default = FontWeight.Normal,
         construct = { SnyggFontWeightValue(it) },
         destruct = { (it as SnyggFontWeightValue).fontWeight },

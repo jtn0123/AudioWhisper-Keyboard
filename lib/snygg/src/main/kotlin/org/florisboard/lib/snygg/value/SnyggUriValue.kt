@@ -17,37 +17,13 @@
 package org.florisboard.lib.snygg.value
 
 import androidx.compose.ui.layout.ContentScale
-import java.net.URI
 
 data class SnyggUriValue(val uri: String) : SnyggValue {
-    companion object : SnyggValueEncoder {
-        private const val EnclosedUriFunction = "uri"
-        private const val EnclosedUriId = "enclosedUri"
-        // TODO: evaluate the pattern for the URI
-        private val EnclosedUriPattern = """`flex:/[^` ]+`""".toRegex()
-
-        override val spec = SnyggValueSpec {
-            function(name = EnclosedUriFunction) {
-                string(id = EnclosedUriId, regex = EnclosedUriPattern)
-            }
-        }
-
-        override fun defaultValue() = SnyggUriValue("")
-
-        override fun serialize(v: SnyggValue) = runCatching<String> {
-            require(v is SnyggUriValue)
-            val map = snyggIdToValueMapOf(EnclosedUriId to "`${v.uri}`")
-            return@runCatching spec.pack(map)
-        }
-
-        override fun deserialize(v: String) = runCatching<SnyggValue> {
-            val map = snyggIdToValueMapOf()
-            spec.parse(v, map)
-            val enclosedUri = map.getString(EnclosedUriId)
-            val uri = enclosedUri.substring(1, enclosedUri.length - 1)
-            return@runCatching SnyggUriValue(URI.create(uri).toString())
-        }
-    }
+    companion object : SnyggNativeValueEncoder<SnyggUriValue>(
+        nativeId = 25, valueClass = SnyggUriValue::class,
+        construct = { SnyggUriValue(it[0]) },
+        destruct = { listOf(it.uri) },
+    )
 
     override fun encoder() = Companion
 }
@@ -55,15 +31,16 @@ data class SnyggUriValue(val uri: String) : SnyggValue {
 data class SnyggContentScaleValue(val contentScale: ContentScale) : SnyggValue {
     companion object : SnyggEnumLikeValueEncoder<ContentScale>(
         serializationId = "textAlign",
-        serializationMapping = mapOf(
-            "crop" to ContentScale.Crop,
-            "fill-bounds" to ContentScale.FillBounds,
-            "fill-height" to ContentScale.FillHeight,
-            "fill-width" to ContentScale.FillWidth,
-            "fit" to ContentScale.Fit,
-            "inside" to ContentScale.Inside,
-            "none" to ContentScale.None,
-        ),
+        nativeId = 26,
+        serializationMapping = NativeSnyggValues.keywords(26).zip(listOf(
+            ContentScale.Crop,
+            ContentScale.FillBounds,
+            ContentScale.FillHeight,
+            ContentScale.FillWidth,
+            ContentScale.Fit,
+            ContentScale.Inside,
+            ContentScale.None,
+        )).toMap(),
         default = ContentScale.FillBounds,
         construct = { SnyggContentScaleValue(it) },
         destruct = { (it as SnyggContentScaleValue).contentScale },

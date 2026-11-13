@@ -66,15 +66,19 @@ abstract class SnyggEnumLikeValueEncoder<V> internal constructor(
     val default: V,
     val construct: (V) -> SnyggValue,
     val destruct: (SnyggValue) -> V,
+    private val nativeId: Int? = null,
 ) : SnyggValueEncoder {
-    final override val spec = SnyggValueSpec {
+    final override val spec = nativeId?.let { NativeSnyggValues.specs(it)[0] } ?: SnyggValueSpec {
         keywords(serializationId, serializationMapping.keys.toList())
     }
 
-    final override fun defaultValue() = construct(default)
+    final override fun defaultValue() = nativeId?.let { fromNative(NativeSnyggValues.call(3, listOf(it.toString()))[1]) } ?: construct(default)
 
-    @Suppress("UNCHECKED_CAST")
+    internal fun fromNative(key: String): SnyggValue = construct(serializationMapping.getValue(key))
+    internal fun nativeKey(v: SnyggValue): String = serializationMapping.getKeyByValue(destruct(v))
+
     final override fun serialize(v: SnyggValue) = runCatching<String> {
+        if (nativeId != null) return@runCatching NativeSnyggValues.call(2, listOf(nativeId.toString(), nativeId.toString(), nativeKey(v))).single()
         val entry = destruct(v)
         val map = snyggIdToValueMapOf(
             serializationId to serializationMapping.getKeyByValue(entry)
@@ -83,6 +87,7 @@ abstract class SnyggEnumLikeValueEncoder<V> internal constructor(
     }
 
     final override fun deserialize(v: String) = runCatching<SnyggValue> {
+        if (nativeId != null) return@runCatching fromNative(NativeSnyggValues.call(1, listOf(nativeId.toString(), v))[1])
         val map = snyggIdToValueMapOf()
         spec.parse(v, map)
         val entry = serializationMapping.getOrElse(map.getString(serializationId)) {

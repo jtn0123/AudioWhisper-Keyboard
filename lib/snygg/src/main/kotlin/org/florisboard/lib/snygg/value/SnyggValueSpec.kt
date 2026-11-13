@@ -16,12 +16,13 @@
 
 package org.florisboard.lib.snygg.value
 
-import androidx.annotation.CallSuper
 import org.florisboard.lib.kotlin.curlyFormat
 
 private val AngledGroupNameRegex = """<[a-zA-Z0-9]+>""".toRegex()
 private val WhitespaceRegex = """\s*""".toRegex()
 
+/** Specs may supply a native implementation of parse/pack. The defaults preserve the
+ * public JVM-regex DSL for caller-defined encoders; built-in specs replace both methods. */
 interface SnyggValueSpec {
     val id: String?
 
@@ -29,7 +30,6 @@ interface SnyggValueSpec {
 
     val packTemplate: String
 
-    @CallSuper
     fun parse(str: String, dstMap: SnyggIdToValueMap) {
         val match = parsePattern.matchEntire(str)
         checkNotNull(match) { "$str does not match pattern $parsePattern" }
@@ -43,7 +43,6 @@ interface SnyggValueSpec {
         }
     }
 
-    @CallSuper
     fun pack(srcMap: SnyggIdToValueMap): String {
         val raw = packTemplate.curlyFormat { arg ->
             srcMap[arg] ?: error("$arg not provided in mapping")
@@ -147,6 +146,19 @@ data class SnyggKeywordValueSpec(
     override val id: String,
     val keywords: List<String>,
 ) : SnyggValueSpec {
+    // Preserve the public keyword-spec type used by schema/editor consumers while
+    // letting built-in instances replace the JVM implementation with their Rust spec.
+    internal var nativeBinding: Int? = null
+
+    override fun parse(str: String, dstMap: SnyggIdToValueMap) {
+        val binding = nativeBinding
+        if (binding == null) super.parse(str, dstMap) else NativeSnyggValues.parse(binding, 0, str, dstMap)
+    }
+
+    override fun pack(srcMap: SnyggIdToValueMap): String = nativeBinding?.let {
+        NativeSnyggValues.pack(it, 0, srcMap)
+    } ?: super.pack(srcMap)
+
     init {
         require(id.isNotBlank()) { "id cannot be blank" }
     }

@@ -28,7 +28,7 @@ class SnyggStylesheetMatchTest {
         return files
     }
 
-    private fun sheets(): List<Pair<String, String>> = buildList {
+    internal fun sheets(): List<Pair<String, String>> = buildList {
         for (file in tracked()) {
             if (file.extension == "json" && file.name != "stylesheet.schema.json") {
                 val content = file.readText()

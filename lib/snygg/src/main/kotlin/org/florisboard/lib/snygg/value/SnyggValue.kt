@@ -74,20 +74,10 @@ inline fun SnyggValue.isNotUndefined(): Boolean {
 object SnyggInheritValue : SnyggValue, SnyggValueEncoder {
     const val Inherit = "inherit"
 
-    override val spec = SnyggValueSpec {
-        keywords(id = Inherit, keywords = listOf(Inherit))
-    }
-
+    override val spec = NativeSnyggValues.specs(0)[0]
     override fun defaultValue() = this
-
-    override fun serialize(v: SnyggValue) = runCatching<String> {
-        return@runCatching Inherit
-    }
-
-    override fun deserialize(v: String) = runCatching<SnyggValue> {
-        check(v.trim() == Inherit)
-        return@runCatching SnyggInheritValue
-    }
+    override fun serialize(v: SnyggValue) = runCatching { NativeSnyggValues.call(2, listOf("0", "0")).single() }
+    override fun deserialize(v: String) = runCatching<SnyggValue> { NativeSnyggValues.call(1, listOf("0", v)); this }
 
     override fun encoder() = this
 }
@@ -101,21 +91,11 @@ object SnyggInheritValue : SnyggValue, SnyggValueEncoder {
  * as "Undefined" in a stylesheet editor UI.
  */
 object SnyggUndefinedValue : SnyggValue, SnyggValueEncoder {
-    private const val Undefined = "undefined"
 
-    override val spec = SnyggValueSpec {
-        keywords(id = Undefined, keywords = listOf(Undefined))
-    }
-
+    override val spec = NativeSnyggValues.specs(1)[0]
     override fun defaultValue() = this
-
-    override fun serialize(v: SnyggValue) = runCatching<String> {
-        error("Undefined is not meant to be serialized")
-    }
-
-    override fun deserialize(v: String) = runCatching<SnyggValue> {
-        error("Undefined is not meant to be deserialized")
-    }
+    override fun serialize(v: SnyggValue) = runCatching { NativeSnyggValues.call(2, listOf("1", "1")).single() }
+    override fun deserialize(v: String) = runCatching<SnyggValue> { NativeSnyggValues.call(1, listOf("1", v)); this }
 
     override fun encoder() = this
 }
@@ -126,20 +106,10 @@ object SnyggUndefinedValue : SnyggValue, SnyggValueEncoder {
 object SnyggYesValue : SnyggValue, SnyggValueEncoder {
     const val Yes = "yes"
 
-    override val spec = SnyggValueSpec {
-        keywords(id = Yes, keywords = listOf(Yes))
-    }
-
+    override val spec = NativeSnyggValues.specs(2)[0]
     override fun defaultValue() = this
-
-    override fun serialize(v: SnyggValue) = runCatching<String> {
-        return@runCatching Yes
-    }
-
-    override fun deserialize(v: String) = runCatching<SnyggValue> {
-        check(v.trim() == Yes)
-        return@runCatching SnyggYesValue
-    }
+    override fun serialize(v: SnyggValue) = runCatching { NativeSnyggValues.call(2, listOf("2", "2")).single() }
+    override fun deserialize(v: String) = runCatching<SnyggValue> { NativeSnyggValues.call(1, listOf("2", v)); this }
 
     override fun encoder() = this
 }
@@ -150,20 +120,10 @@ object SnyggYesValue : SnyggValue, SnyggValueEncoder {
 object SnyggNoValue : SnyggValue, SnyggValueEncoder {
     const val No = "no"
 
-    override val spec = SnyggValueSpec {
-        keywords(id = No, keywords = listOf(No))
-    }
-
+    override val spec = NativeSnyggValues.specs(3)[0]
     override fun defaultValue() = this
-
-    override fun serialize(v: SnyggValue) = runCatching<String> {
-        return@runCatching No
-    }
-
-    override fun deserialize(v: String) = runCatching<SnyggValue> {
-        check(v.trim() == No)
-        return@runCatching SnyggNoValue
-    }
+    override fun serialize(v: SnyggValue) = runCatching { NativeSnyggValues.call(2, listOf("3", "3")).single() }
+    override fun deserialize(v: String) = runCatching<SnyggValue> { NativeSnyggValues.call(1, listOf("3", v)); this }
 
     override fun encoder() = this
 }

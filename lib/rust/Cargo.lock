@@ -1700,6 +1700,7 @@ name = "snygg"
 version = "0.1.0"
 dependencies = [
  "chars",
+ "regex",
 ]
 
 [[package]]

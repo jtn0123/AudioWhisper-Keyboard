@@ -25,7 +25,7 @@ internal fun <A, B> sameResult(label: String, a: Result<A>, b: Result<B>, expect
     assertEquals(a.isSuccess, b.isSuccess, label)
     if (a.isFailure) {
         assertEquals(a.exceptionOrNull()!!.javaClass.name.replace(".ReferenceSnygg", ".Snygg"), b.exceptionOrNull()!!.javaClass.name, label)
-        assertEquals(a.exceptionOrNull()!!.message, b.exceptionOrNull()!!.message, label)
+        assertEquals(a.exceptionOrNull()!!.message?.replace("org.florisboard.lib.snygg.reference.ReferenceSnygg", "org.florisboard.lib.snygg.value.Snygg"), b.exceptionOrNull()!!.message, label)
     } else {
         assertEquals(expected(a.getOrThrow()), actual(b.getOrThrow()), label)
     }
