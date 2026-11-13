@@ -9,11 +9,20 @@ from collections import Counter
 import json
 from pathlib import Path
 
-STATES = ("letters", "shifted", "caps-lock", "symbols", "expanded", "popup")
+STATES = ("letters", "shifted", "caps-lock", "symbols", "numeric", "expanded", "popup")
 FIELDS = ("text", "description", "viewId", "class", "bounds", "checked", "checkable",
           "selected", "enabled", "focusable", "clickable", "longClickable", "stateDescription", "actions")
 FALLBACKS = {"Shift", "Shift enabled", "Caps lock enabled", "Delete", "Symbols", "Comma", "Space",
-             "Period", "Return", "Expand actions", "Collapse actions"}
+             "Period", "Return", "Expand actions", "Collapse actions", "Enter", "Numeric", "Done"}
+# Frozen public key-name mapping. Match these to actual Compose glyphs and compare their
+# target geometry; do not waive punctuation merely because Rust speaks a fallback name.
+SPOKEN = dict(zip(
+    list('!"#$%&\'()*+,-./:;<=>?@[\\]^_`{|}~') + ['?123', '=\\<', 'ABC', '1 2\n3 4'],
+    ['Exclamation mark', 'Quotation mark', 'Number sign', 'Dollar sign', 'Percent', 'Ampersand',
+     'Apostrophe', 'Left parenthesis', 'Right parenthesis', 'Asterisk', 'Plus', 'Comma', 'Hyphen',
+     'Period', 'Slash', 'Colon', 'Semicolon', 'Less than', 'Equals', 'Greater than', 'Question mark',
+     'At sign', 'Left bracket', 'Backslash', 'Right bracket', 'Caret', 'Underscore', 'Grave accent',
+     'Left brace', 'Vertical bar', 'Right brace', 'Tilde', 'Symbols', 'More symbols', 'Letters', 'Numeric']))
 
 
 def center(bounds):
@@ -28,12 +37,22 @@ def actions(node):
     return {a["id"] for a in node["actions"]}
 
 
+def enabled(nodes, index):
+    # Compose's icon leaf can report enabled while its merged button parent is disabled.
+    while index >= 0:
+        node = nodes[index]
+        if not node["enabled"]:
+            return False
+        index = node["parent"]
+    return True
+
+
 def compare(compose, rust, state):
     differences = []
     used = set()
     semantic = [(i, n) for i, n in enumerate(rust) if n["textEntryKey"] or n["description"]]
     if not any(n["textEntryKey"] for n in rust):
-        # Symbols currently use the exact same Compose implementation on both settings.
+        # Permit a Compose/Compose control, but require virtual keys in accepted Rust runs.
         semantic = list(enumerate(rust))
     for ri, node in semantic:
         if node["textEntryKey"]:
@@ -51,7 +70,7 @@ def compare(compose, rust, state):
             if ci in used:
                 continue
             other_label = other["text"] or other["description"]
-            if label and label == other_label:
+            if label and label == SPOKEN.get(other_label, other_label):
                 candidates.append((distance(node["bounds"], other["bounds"]), ci, other))
             elif not label and all(node.get(k) == other.get(k) for k in ("class", "bounds", "viewId")):
                 candidates.append((0, ci, other))
@@ -65,7 +84,8 @@ def compare(compose, rust, state):
         used.add(ci)
         changes = {}
         for field in FIELDS:
-            if node.get(field) == other.get(field):
+            compose_value = enabled(compose, ci) if field == "enabled" else other.get(field)
+            if node.get(field) == compose_value:
                 continue
             verdict = "acceptable"
             reason = "Explicit virtual-key semantics replace Compose text/icon leaves"
@@ -94,7 +114,7 @@ def compare(compose, rust, state):
                 verdict, reason = "bug", "Virtual key is missing ACTION_CLICK"
             elif field in ("checked", "checkable", "stateDescription", "selected"):
                 reason = "Rust adds toggle/selection semantics absent from Compose text/icon leaves"
-            changes[field] = {"compose": other.get(field), "rust": node.get(field),
+            changes[field] = {"compose": compose_value, "rust": node.get(field),
                               "verdict": verdict, "reason": reason}
         if node["textEntryKey"] and 16 not in actions(node):
             changes["missing_click"] = {"verdict": "bug", "reason": "Virtual key is missing ACTION_CLICK"}
@@ -108,7 +128,7 @@ def compare(compose, rust, state):
         if ci in used:
             continue
         label = node["text"] or node["description"]
-        acceptable = not label or label in labels or label in hints or label in {"?123", ",", ".", "English (United States)"}
+        acceptable = not label or label in labels or SPOKEN.get(label) in labels or label in hints or label == "English (United States)"
         differences.append({"compose_index": ci, "rust_index": None, "compose": node,
             "verdict": "acceptable" if acceptable else "bug",
             "reason": "Compose framework wrapper, hint/glyph leaf or repeated label" if acceptable

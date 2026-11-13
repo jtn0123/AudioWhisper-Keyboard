@@ -75,6 +75,39 @@ class Device:
         return {parts[1]: parts[2] for row in self.adb("exec-out", "run-as", PKG, "cat", PREFS).splitlines()
                 if len(parts := row.split(";", 2)) == 3}
 
+    def toggle_preference(self, route, label, key, enabled):
+        self.services(SERVICE)
+        self.shell("am", "start", "-W", "-a", "android.intent.action.VIEW", "-c", "android.intent.category.BROWSABLE",
+                   "-d", "ui://florisboard/settings/" + route, "-p", PKG)
+        if (self.prefs().get(key, "true") == "true") == enabled:
+            return
+        def toggle():
+            request = self.request(setting=label)
+            return self.wait(lambda: self.response(request), "Preference response absent").get("ok")
+        self.wait(toggle, "Preference not found: " + label)
+        self.wait(lambda: (self.prefs().get(key, "true") == "true") == enabled, "Preference did not persist")
+
+    def capture_preferences(self):
+        # TYPE_TEXT_FLAG_NO_SUGGESTIONS only applies to text fields. Numeric/phone
+        # fields otherwise retain predictions from a previous public fixture.
+        specs = (("typing", "Display suggestions", "suggestion__enabled"),
+                 ("media", "Enable emoji suggestions", "emoji__suggestion_enabled"))
+        original = [(route, label, key, self.prefs().get(key, "true") == "true") for route, label, key in specs]
+        self.save("original-capture-preferences.json", original)
+        access = self.original_accessibility()
+        try:
+            for route, label, key, _ in original:
+                self.toggle_preference(route, label, key, False)
+        except Exception:
+            self.restore_capture_preferences(original)
+            self.restore_accessibility(access)
+            raise
+        return original
+
+    def restore_capture_preferences(self, original):
+        for route, label, key, enabled in original:
+            self.toggle_preference(route, label, key, enabled)
+
     def request(self, setting=None, delay=0):
         request = uuid.uuid4().hex
         args = ["am", "broadcast", "-a", PROBE + ".IME", "-p", PROBE,
@@ -135,9 +168,9 @@ class Device:
         self.wait(lambda: (self.prefs().get("keyboard__rust_renderer_prototype") == "true") == enabled,
                   "Renderer setting was not persisted")
 
-    def probe(self, no_suggestions=False):
+    def probe(self, no_suggestions=False, field="text"):
         self.shell("am", "start", "-W", "-f", "0x10008000",
-                   "-n", PROBE + "/.ProbeActivity", "--ez", "noSuggestions", str(no_suggestions).lower())
+                   "-n", PROBE + "/.ProbeActivity", "--ez", "noSuggestions", str(no_suggestions).lower(), "--es", "field", field)
         self.shell("ime", "set", PKG + "/dev.patrickgold.florisboard.FlorisImeService")
         self.tap(540, 480)
         def shown():
@@ -153,9 +186,9 @@ class Device:
         self.wait(shown, "IME not shown")
         self.wait(lambda: self.digest()["utf16_units"] == 0, "Probe not empty")
 
-    def reset(self, no_suggestions=False):
+    def reset(self, no_suggestions=False, field="text"):
         self.shell("am", "broadcast", "-a", PROBE + ".RESET", "-p", PROBE,
-                   "--ez", "noSuggestions", str(no_suggestions).lower())
+                   "--ez", "noSuggestions", str(no_suggestions).lower(), "--es", "field", field)
         self.wait(lambda: self.digest()["utf16_units"] == 0, "Probe reset did not publish")
 
     def digest(self):

@@ -62,6 +62,32 @@ class ComparatorTest(unittest.TestCase):
                        stateDescription="Shift")
         self.assertTrue(any(d["verdict"] == "bug" for d in compare(compose, rust, "caps-lock")))
 
+    def test_spoken_symbol_must_match_its_real_glyph_and_geometry(self):
+        compose, rust = fixture()
+        compose[0].update(text="@")
+        rust[0].update(text="At sign", description="At sign")
+        self.assertFalse(any(d["verdict"] == "bug" for d in compare(compose, rust, "symbols")))
+        rust[0].update(bounds=[5, 0, 105, 100])
+        self.assertTrue(any(d["verdict"] == "bug" for d in compare(compose, rust, "symbols")))
+
+    def test_missing_spoken_symbol_is_a_bug(self):
+        compose, rust = fixture()
+        compose[0].update(text="@")
+        rust[0].update(text="Hyphen", description="Hyphen")
+        self.assertTrue(any(d["verdict"] == "bug" for d in compare(compose, rust, "symbols")))
+
+    def test_disabled_compose_icon_inherits_its_button_state(self):
+        compose, rust = fixture()
+        compose[0].update(text="Voice input", description="Voice input", parent=0)
+        parent = deepcopy(compose[0])
+        parent.update(parent=-1, text=None, description=None, enabled=False)
+        compose.insert(0, parent)
+        rust[0].update(text="Voice input", description="Voice input", textEntryKey=False,
+                       enabled=False, actions=[{"id": 64, "label": None}], **{"class": "android.widget.Button"})
+        self.assertFalse(any(d["verdict"] == "bug" for d in compare(compose, rust, "numeric")))
+        rust[0].update(enabled=True)
+        self.assertTrue(any(d["verdict"] == "bug" for d in compare(compose, rust, "numeric")))
+
 
 if __name__ == "__main__":
     unittest.main()

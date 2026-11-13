@@ -186,3 +186,60 @@ restore accessibility, then use `run.sh adb compose|rust OUTPUT`. The adb adapte
 the existing 300 × 35 ms presses and eight × 500 ms `e` holds. Shut down only the dedicated
 runtime device after restoring prototype off, Always day/Floris Day and accessibility,
 removing the probe and checking logcat.
+
+## Package 5 text modes and inline reservation
+
+The prototype now draws every evaluated text keyboard, including symbols, numeric,
+advanced numeric and phone. `modes.py` replays fixed public fixtures in all seven main
+modes and a password field; each mode includes any applicable keyboard switches. It
+requires real Rust virtual keys, checks expected digests/cursors, and rejects surface
+create/change/destroy/attach events during the replay. `number-row.py` toggles the existing
+Number row preference through settings, compares character/symbol switches, then restores
+that preference. Number-field and phone-field resets exercise evaluator-driven switches.
+The probe's field buttons support manual screenshots too. Both retain only digests/offsets.
+
+```bash
+ANDROID_SERIAL=<runtime-id> python3 -I scripts/render-benchmark/modes.py build/modes-unique
+ANDROID_SERIAL=<runtime-id> python3 -I scripts/render-benchmark/number-row.py build/number-row-unique
+ANDROID_SERIAL=<runtime-id> python3 -I scripts/render-benchmark/visuals.py \
+  '<returned-agent-device-command>' build/visuals-unique
+```
+
+`visuals.py` selects Always day/night with the bundled Floris themes and captures empty
+SYMBOLS, SYMBOLS2, NUMERIC, PHONE and password keyboards via agent-device. It restores Always
+day and the original accessibility settings. Keep the agent-device session idle while the
+adb harness prepares each state; no snapshot/injection helper should run alongside the
+probe service. Actual cropped screenshot pairs put Compose on the left and Rust on the right.
+
+`a11y.sh` now includes a real number field and compares actual Rust symbols, not the old
+Compose fallback. The comparator maps explicit spoken punctuation/mode names to the exact
+Compose glyphs and checks target geometry, roles, enabled states and clicks. Its negative
+tests include swapped or displaced punctuation. An unexpected missing glyph remains a bug.
+
+The 400 ms TalkBack fixture is still a raw-touch fixture and deliberately fails the expected
+word check: ordinary long holds choose hints. Its former renderer divergence came from
+Shift timing: the accessibility bridge used the base delay instead of Compose's 2.5× Shift
+delay, locking caps in Rust. Native semantic snapshots now supply key-specific hold clocks.
+The 35 ms control and the 300-press/eight-hold regression remain separate controls.
+
+Inline autofill is hosted by the existing platform `InlineContentView` row in Rust's measured
+center reservation. Rust suppresses its own drawing/hits/semantic candidates there and
+preserves pinned controls, extended rows, shared-action precedence and dictation-preview
+precedence. Rust popups participate in the platform popup count for inline-view z-order.
+Native and JVM layout tests do not establish live autofill-service acceptance; report that
+separately when no service-generated suggestion views were exercised.
+
+Numeric and phone captures temporarily turn off both word and emoji suggestions through
+settings: the text-only no-suggestions input flag does not apply to those field classes.
+The harness restores both original switches before typing regressions and timing trials.
+
+Phone digit/hint placement uses the same Rust phone-key content rule tested against a
+frozen Kotlin `BiasAlignment` reference. Character/numeric/PHONE2 content stays centered;
+only PHONE keys of type NUMERIC use the side-by-side digit/letter layout.
+
+Open the probe's agent-device screenshot target **before** adb preparation. A redundant
+`agent-device open` after `probe()` starts another activity and can destroy the prepared
+IME surface while its semantic snapshot remains available. `visuals.py` now establishes
+the target first, requires a fresh native posted frame for each Rust state, and rejects
+native draw/post errors. Blank launch-fixture captures are excluded from visual acceptance.
+Timing trials also reject draw/post errors and fewer than 100 measured CPU frames.

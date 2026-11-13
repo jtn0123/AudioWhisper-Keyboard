@@ -44,9 +44,15 @@ def capture(device, renderer):
     device.tap(70, 2060)
     device.capture(prefix + "unshifted", lambda ns: "e" in labels(ns))
     device.tap(70, 2190)
-    device.capture(prefix + "symbols", lambda ns: "e" not in labels(ns) and "E" not in labels(ns))
+    device.capture(prefix + "symbols", lambda ns: "1" in labels(ns) and "e" not in labels(ns)
+                   and "E" not in labels(ns) and (renderer == "compose" or any(n.get("textEntryKey") for n in ns)))
     device.tap(70, 2190)
     device.capture(prefix + "returned", lambda ns: "e" in labels(ns))
+    device.reset(no_suggestions=True, field="number")
+    device.capture(prefix + "numeric", lambda ns: "1" in labels(ns) and "2" in labels(ns) and "e" not in labels(ns)
+                   and (renderer == "compose" or any(n.get("textEntryKey") for n in ns)))
+    device.reset(no_suggestions=True)
+    device.capture(prefix + "letters-again", lambda ns: "e" in labels(ns))
     if device.prefs().get("smartbar__shared_actions_expanded") != "true":
         device.tap(1025, 1618)
     device.capture(prefix + "expanded", lambda ns: any(n.get("description") == "Undo" for n in ns))
@@ -77,11 +83,13 @@ def main():
     device = Device(args.output)
     original = device.original_accessibility()
     device.save("original-accessibility.json", original)
+    capture_prefs = device.capture_preferences()
     try:
         device.mute()
         for renderer in ([args.renderer] if args.renderer else ["compose", "rust"]):
             capture(device, renderer)
     finally:
+        device.restore_capture_preferences(capture_prefs)
         device.restore_accessibility(original)
         device.save("restored-accessibility.json", device.original_accessibility())
 

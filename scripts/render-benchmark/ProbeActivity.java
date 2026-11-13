@@ -25,9 +25,7 @@ public final class ProbeActivity extends Activity {
     private TextView result;
     private final BroadcastReceiver commands = new BroadcastReceiver() {
         @Override public void onReceive(Context context, Intent intent) {
-            int type = android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE;
-            if (intent.getBooleanExtra("noSuggestions", false)) type |= android.text.InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS;
-            editor.setInputType(type);
+            editor.setInputType(inputType(intent));
             editor.setText("");
             editor.requestFocus();
             ((InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE))
@@ -60,12 +58,26 @@ public final class ProbeActivity extends Activity {
             }
         };
         editor.setContentDescription("Benchmark editor");
-        editor.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE
-            | (getIntent().getBooleanExtra("noSuggestions", false) ? android.text.InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS : 0));
+        editor.setInputType(inputType(getIntent()));
         editor.setTextSize(18);
         root.addView(editor, new LinearLayout.LayoutParams(-1, 350));
         result = new TextView(this);
         root.addView(result);
+        LinearLayout fields = new LinearLayout(this);
+        for (String field : new String[]{"text", "number", "phone", "password"}) {
+            Button button = new Button(this);
+            button.setText(field);
+            button.setOnClickListener(view -> {
+                Intent options = new Intent().putExtra("field", field).putExtra("noSuggestions", true);
+                editor.setInputType(inputType(options));
+                editor.setText("");
+                editor.requestFocus();
+                ((InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE))
+                    .showSoftInput(editor, InputMethodManager.SHOW_IMPLICIT);
+            });
+            fields.addView(button, new LinearLayout.LayoutParams(0, -2, 1));
+        }
+        root.addView(fields);
         editor.addTextChangedListener(new TextWatcher() {
             public void beforeTextChanged(CharSequence s, int start, int count, int after) { }
             public void onTextChanged(CharSequence s, int start, int before, int count) { }
@@ -82,6 +94,18 @@ public final class ProbeActivity extends Activity {
         editor.requestFocus();
         editor.postDelayed(() -> ((InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE))
             .showSoftInput(editor, InputMethodManager.SHOW_IMPLICIT), 400);
+    }
+
+    private static int inputType(Intent intent) {
+        String field = intent.getStringExtra("field");
+        if ("number".equals(field)) return android.text.InputType.TYPE_CLASS_NUMBER;
+        if ("decimal".equals(field)) return android.text.InputType.TYPE_CLASS_NUMBER
+            | android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL | android.text.InputType.TYPE_NUMBER_FLAG_SIGNED;
+        if ("phone".equals(field)) return android.text.InputType.TYPE_CLASS_PHONE;
+        if ("password".equals(field)) return android.text.InputType.TYPE_CLASS_TEXT
+            | android.text.InputType.TYPE_TEXT_VARIATION_PASSWORD;
+        return android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE
+            | (intent.getBooleanExtra("noSuggestions", false) ? android.text.InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS : 0);
     }
 
     private void saveDigest(Editable text) {

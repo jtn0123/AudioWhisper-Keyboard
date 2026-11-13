@@ -46,7 +46,7 @@ if [ "${4:-}" = glide ]; then
     adb shell dumpsys gfxinfo com.jtn0123.audiowhisper.keyboard framestats > "$output/$renderer-gfx-glide.txt"
 fi
 adb logcat -d -s aw-render:D aw-compose:D aw-profile:D AndroidRuntime:E > "$output/$renderer-timing.log"
-if grep -Eq 'FATAL|AndroidRuntime' "$output/$renderer-timing.log"; then
+if grep -Eq 'FATAL|AndroidRuntime|draw_error|post_error|hybrid_draw_error' "$output/$renderer-timing.log"; then
     echo "Runtime failure; inspect $output/$renderer-timing.log" >&2
     exit 1
 fi

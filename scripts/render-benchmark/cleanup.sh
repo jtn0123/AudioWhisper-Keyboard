@@ -26,6 +26,12 @@ for tag in ('aw-a11y', 'aw-render', 'aw-profile', 'aw-compose', 'aw-hybrid', 'aw
     d.shell('setprop', 'log.tag.' + tag, 'INFO')
 d.shell('cmd', 'notification', 'set_dnd', 'off')
 assert d.shell('settings', 'get', 'global', 'zen_mode').strip() == '0'
+d.mute()
+ime = api['PKG'] + '/dev.patrickgold.florisboard.FlorisImeService'
+d.shell('ime', 'set', ime)
+assert d.shell('settings', 'get', 'secure', 'default_input_method').strip() == ime
+d.save('audio-streams.json', {str(stream): d.shell('cmd', 'media_session', 'volume', '--stream', stream, '--get')
+                            for stream in (1, 2, 3, 4, 5, 10)})
 d.wait(lambda: 'Bound services:{}' in d.shell('dumpsys', 'accessibility'), 'A service remains bound')
 d.save('accessibility.json', d.original_accessibility())
 (d.output / 'accessibility.txt').write_text(d.shell('dumpsys', 'accessibility'))
