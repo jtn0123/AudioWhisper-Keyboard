@@ -9,7 +9,6 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.layout.onSizeChanged
 import com.jtn0123.audiowhisper.dictation.Dictation
-import com.jtn0123.audiowhisper.dictation.DictationPreview
 import androidx.compose.ui.Alignment
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -80,7 +79,7 @@ fun RustKeyboardLayout(evaluator: ComputingEvaluator) = with(LocalDensity.curren
             update = { view ->
                 view.update(KeyboardSnapshot(keyboard, keys, if (preview.isEmpty() && !search.active) candidates else emptyList(), theme,
                     evaluator.state.inputShiftState.toString(), heightPx, stripPx, rowHeight, marginH, marginV,
-                    smartbar, preview.isNotEmpty(), panels, intArrayOf(evaluator.editorInfo.imeOptions.raw, evaluator.editorInfo.inputAttributes.raw), search, subtypes, watermark, ""))
+                    smartbar, preview.isNotEmpty(), panels, intArrayOf(evaluator.editorInfo.imeOptions.raw, evaluator.editorInfo.inputAttributes.raw), search, subtypes, watermark, preview))
             },
         )
         // Kind 2 is the native reservation for Android's InlineContentViews. The AndroidView
@@ -94,14 +93,7 @@ fun RustKeyboardLayout(evaluator: ComputingEvaluator) = with(LocalDensity.curren
                 InlineSuggestionsUi(inline)
             }
         }
-        if (preview.isNotEmpty() && panels.kind == 0 && !search.active) {
-            // The platform preview occupies Rust's measured center without cancelling a held mic.
-            Box(Modifier.absoluteOffset(measurement[3].toDp(),
-                (measurement[4] - measurement[0] + measurement[1]).toDp())
-                .width((measurement[5] - measurement[3]).toDp()).height((measurement[6] - measurement[4]).toDp())) {
-                DictationPreview(preview)
-            }
-        }
+
     }
 }
 
