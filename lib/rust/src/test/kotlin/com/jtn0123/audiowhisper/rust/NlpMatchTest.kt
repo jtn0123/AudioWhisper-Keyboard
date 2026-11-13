@@ -29,10 +29,12 @@ class NlpMatchTest {
             Pairing().use { p ->
                 var context = ReferenceNlp.context()
                 p.call("context", *context.toTypedArray())
+                p.call("previewStart", "0")
                 val pending = mutableListOf<String>()
                 val inflations = mutableListOf<String>()
+                val clipboardRequests = mutableListOf<Pair<String, List<String>>>()
                 repeat(250) { step ->
-                    val kind = random.nextInt(14); reached += kind
+                    val kind = random.nextInt(16); reached += kind
                     when (kind) {
                         0, 1, 2 -> {
                             val word = listOf("h", "hel", "helo", "teh", "zorblax", ":smile", "a\uD800", "")[random.nextInt(8)]
@@ -62,7 +64,11 @@ class NlpMatchTest {
                         }
                         7 -> { inflations += p.call("inlineBegin", random.nextInt(4).toString())[0] }
                         8 -> if (inflations.isNotEmpty()) p.call("inlineComplete", inflations.removeAt(random.nextInt(inflations.size)), "unpin", "0", "pin1", "1", "pin2", "1")
-                        9 -> p.call("auto", listOf(-1, 32, 46, 39, 64, 0x1d7ce)[random.nextInt(6)].toString(), random.nextInt(2).toString())
+                        9 -> {
+                            p.call("auto", listOf(-1, 32, 46, 39, 64, 0x1d7ce)[random.nextInt(6)].toString(), random.nextInt(2).toString())
+                            p.call("preview", (step * 7).toString(), random.nextInt(2).toString(), random.nextInt(200).toString())
+                            p.call("glidePlan", random.nextInt(9).toString(), random.nextInt(1, 9).toString(), random.nextInt(2).toString())
+                        }
                         10 -> {
                             p.call("learn", random.nextInt(3).toString(), listOf(-1, 39, 46)[random.nextInt(3)].toString(), "zorblax", "a ", "2", random.nextInt(2).toString(), "a")
                             p.call("keep", "zorblax"); p.call("save", (step * 97L).toString())
@@ -70,12 +76,17 @@ class NlpMatchTest {
                         11 -> p.call("clear")
                         12 -> p.call("direct", "direct", "zorblax", "0", "0")
                         13 -> { p.call("clipboard", "clip", "synthetic", "2", "0"); p.call("pick", "direct") }
+                        14 -> clipboardRequests.add(p.call("clipboardBeginFor", *context.toTypedArray())[0] to context.toList())
+                        15 -> if (clipboardRequests.isNotEmpty()) {
+                            val (gen, requested) = clipboardRequests.removeAt(random.nextInt(clipboardRequests.size))
+                            p.call("clipboardFor", *requested.toTypedArray(), *context.toTypedArray(), gen, "clip$step", "synthetic", "2", "0")
+                        }
                     }
                     events++
                 }
             }
         }
-        assertEquals(50_000, events); assertEquals((0..13).toSet(), reached)
+        assertEquals(50_000, events); assertEquals((0..15).toSet(), reached)
         println("NLP: 50000 events, 200 seeds, zero differences")
     }
     @Test fun outOfOrderResultsNeverApplyOrBecomePickable() {
@@ -162,6 +173,52 @@ class NlpMatchTest {
             assertEquals(listOf("0"), p.call("pick", "fresh-auto"))
             assertEquals(listOf("0"), p.call("autoCandidate", *current.toTypedArray(), *changed.toTypedArray(), "stale-auto", "the", "0", "1"))
             assertEquals(listOf("0"), p.call("pick", "stale-auto"))
+        }
+    }
+    @Test fun clipboardAndSynchronousResultsCannotRollBackANewerRequest() {
+        Pairing().use { p ->
+            val old = ReferenceNlp.context("old")
+            val current = ReferenceNlp.context("current")
+            val oldClip = p.call("clipboardBeginFor", *old.toTypedArray())[0]
+            p.call("beginFor", *old.toTypedArray(), "100")
+            val fresh = p.call("beginFor", *current.toTypedArray(), "101")[0]
+            val before = p.call("snapshot")
+            assertEquals(before, p.call("clipboardFor", *old.toTypedArray(), *old.toTypedArray(), oldClip, "old-clip", "clip", "2", "0"))
+            assertEquals(before, p.call("clipboardFor", *old.toTypedArray(), *current.toTypedArray(), oldClip, "changed-clip", "clip", "2", "0"))
+            assertEquals(listOf("0"), p.call("autoCandidate", *old.toTypedArray(), *old.toTypedArray(), "old-auto", "older", "0", "1"))
+            assertEquals(before, p.call("snapshot"), "Obsolete result metadata cannot change context or cancel pending work")
+            assertEquals(listOf("1"), p.call("ready", fresh, "109"))
+            assertEquals("1", p.call("completeFor", *current.toTypedArray(), fresh, "new", "current", "0", "0")[0])
+            val clip1 = p.call("clipboardBeginFor", *current.toTypedArray())[0]
+            val clip2 = p.call("clipboardBeginFor", *current.toTypedArray())[0]
+            p.call("clipboardFor", *current.toTypedArray(), *current.toTypedArray(), clip2, "fresh-clip", "clip", "2", "0")
+            val shown = p.call("snapshot")
+            assertEquals(shown, p.call("clipboardFor", *current.toTypedArray(), *current.toTypedArray(), clip1, "stale-same-editor", "clip", "2", "0"))
+            assertEquals("fresh-clip", p.call("snapshot")[4])
+        }
+    }
+    @Test fun pendingRequestsHideStaleWordsWithoutFlashingExpandedActions() {
+        Pairing().use { p ->
+            p.call("context", *ReferenceNlp.context().toTypedArray())
+            p.call("direct", "shown", "help", "0", "0")
+            assertEquals("0", p.call("snapshot")[1])
+            val generation = p.call("begin", "100")[0]
+            assertEquals("0", p.call("snapshot")[3])
+            assertEquals("-1", p.call("snapshot")[1], "Pending leaves the existing expansion binding unchanged")
+            p.call("complete", generation)
+            assertEquals("1", p.call("snapshot")[1], "An empty completed response expands actions")
+        }
+    }
+    @Test fun glidePreviewClockAndCommitSliceMatchTheFrozenManager() {
+        Pairing().use { p ->
+            p.call("previewStart", "100")
+            assertEquals(listOf("0"), p.call("preview", "250", "1", "150"))
+            assertEquals(listOf("1"), p.call("preview", "251", "1", "150"))
+            assertEquals(listOf("0"), p.call("preview", "1000", "0", "150"))
+            assertEquals(listOf("1"), p.call("preview", "1001", "1", "150"))
+            assertEquals(listOf("0", "0", "-1"), p.call("glidePlan", "0", "8", "1"))
+            assertEquals(listOf("1", "5", "0"), p.call("glidePlan", "5", "8", "1"))
+            assertEquals(listOf("0", "1", "-1"), p.call("glidePlan", "5", "1", "0"))
         }
     }
     @Test fun malformedMessagesAndClosedHandlesThrow() {

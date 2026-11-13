@@ -17,10 +17,12 @@ pub struct Session {
     pub candidates: Vec<Candidate>,
     pub automatic: Option<Candidate>,
     pub clipboard: Vec<Candidate>,
+    pub clipboard_generation: u64,
     pub inline_generation: u64,
     pub inline_pending: bool,
     pub inline: Vec<Field>,
     pub save_due: Option<i64>,
+    pub preview_time: i64,
 }
 impl Session {
     pub fn configure(&mut self, context: Context) {
@@ -40,6 +42,7 @@ impl Session {
         self.candidates.clear();
         self.automatic = None;
         self.clipboard.clear();
+        self.clipboard_generation = self.clipboard_generation.wrapping_add(1);
     }
     pub fn begin(&mut self, now: i64) -> Vec<Field> {
         let automatic = self.automatic.take();
@@ -104,7 +107,8 @@ impl Session {
         }
     }
     pub fn expanded(&self) -> i32 {
-        if !self.context.flag(8) {
+        if !self.context.flag(8) || self.pending && !self.context.selection() {
+            // Clearing stale words for an in-flight request must not flash the actions toolbar.
             return -1;
         }
         i32::from(self.visible().is_empty() && self.inline.is_empty() || self.context.selection())

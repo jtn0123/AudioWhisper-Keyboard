@@ -17,15 +17,15 @@ fn candidates(fields: &[Field]) -> Vec<Candidate> {
 impl Session {
     pub fn checked_call(&mut self, op: &str, f: &[Field]) -> Result<Vec<Field>, &'static str> {
         let count = match op {
-            "context" | "policy" => Some(22),
+            "context" | "policy" | "clipboardBeginFor" => Some(22),
             "typingPolicy" => Some(25),
             "candidatePlan" | "clipboardFor" | "beginFor" | "completeFor" => None,
-            "language" | "next" | "force" => Some(1),
+            "language" | "next" | "force" | "previewStart" => Some(1),
             "spell" => Some(2),
             "begin" | "inlineBegin" | "inlineCancel" | "save" => Some(1),
             "ready" | "auto" => Some(2),
             "clear" | "snapshot" | "field" | "externalBegin" => Some(0),
-            "typing" => Some(3),
+            "typing" | "preview" | "glidePlan" => Some(3),
             "learn" => Some(7),
             "autoCandidate" => Some(48),
             "composing" => Some(4),
@@ -44,7 +44,7 @@ impl Session {
             return Err("incomplete NLP result");
         }
         if op == "candidatePlan" && f.len() < 23
-            || op == "clipboardFor" && (f.len() < 22 || !(f.len() - 22).is_multiple_of(4))
+            || op == "clipboardFor" && (f.len() < 45 || !(f.len() - 45).is_multiple_of(4))
         {
             return Err("incomplete NLP plan");
         }
@@ -55,6 +55,27 @@ impl Session {
         }
         let boolean = |value| vec![number(i32::from(value))];
         Ok(match op {
+            "previewStart" => {
+                self.preview_time = int(f, 0);
+                vec![]
+            }
+            "preview" => {
+                let now = int(f, 0);
+                let refresh = int(f, 1) != 0 && now.saturating_sub(self.preview_time) > int(f, 2);
+                if refresh {
+                    self.preview_time = now;
+                }
+                boolean(refresh)
+            }
+            "glidePlan" => {
+                let count = int(f, 0).max(0);
+                let commit = int(f, 2) != 0 && count > 0;
+                vec![
+                    number(i64::from(commit)),
+                    number(int(f, 1).max(0).min(count)),
+                    number(if commit { 0 } else { -1 }),
+                ]
+            }
             "beginFor" => {
                 self.configure(Context(f[..22].to_vec()));
                 let mut result = self.begin(int(f, 22));
@@ -85,10 +106,22 @@ impl Session {
                     .map(|flag| number(i32::from(allowed && flag == &number(1))))
                     .collect()
             }
+            "clipboardBeginFor" => {
+                self.configure(Context(f.to_vec()));
+                self.clipboard_generation = self.clipboard_generation.wrapping_add(1);
+                self.clipboard.clear();
+                let mut result = vec![number(self.clipboard_generation)];
+                result.extend(self.snapshot());
+                result
+            }
             "clipboardFor" => {
-                if self.context.0 == f[..22] {
+                // Completions never configure the session: an old executor cannot roll it back.
+                if self.context.0 == f[..22]
+                    && f[..22] == f[22..44]
+                    && int(f, 44) as u64 == self.clipboard_generation
+                {
                     self.clipboard = if self.context.on() {
-                        candidates(&f[22..])
+                        candidates(&f[45..])
                     } else {
                         vec![]
                     };
@@ -116,8 +149,7 @@ impl Session {
                 }
             }
             "autoCandidate" => {
-                let exact = f[..22] == f[22..44];
-                self.configure(Context(f[22..44].to_vec()));
+                let exact = self.context.0 == f[..22] && f[..22] == f[22..44];
                 let candidate = candidates(&f[44..]).pop().expect("one validated candidate");
                 let accept =
                     exact && self.context.autocorrect() && candidate.kind == 0 && candidate.auto;

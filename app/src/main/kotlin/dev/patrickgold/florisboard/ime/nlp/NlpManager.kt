@@ -223,6 +223,14 @@ class NlpManager(context: Context) {
         return NlpState.call("externalBegin")[0]
     }
 
+    fun startGlidePreviewClock(now: Long) { NlpState.call("previewStart", now.toString()) }
+
+    fun refreshGlidePreview(now: Long, enabled: Boolean, delay: Int): Boolean =
+        NlpState.call("preview", now.toString(), enabled.bit(), delay.toString())[0] == "1"
+
+    fun glideResultPlan(count: Int, max: Int, commit: Boolean): List<Int> =
+        NlpState.call("glidePlan", count.toString(), max.toString(), commit.bit()).map(String::toInt)
+
     fun canApplyExternalRequest(generation: String): Boolean {
         configure()
         return NlpState.call("externalValid", generation)[0] == "1"
@@ -383,12 +391,12 @@ class NlpManager(context: Context) {
     }
 
     private fun assembleCandidates() {
-        configure()
         val requested = environment.fields(subtypeManager.activeSubtype)
+        val generation = NlpState.beginClipboard(requested)
         runBlocking {
             val values = clipboardSuggestionProvider.suggest(Subtype.DEFAULT, editorInstance.activeContent, 8,
                 !prefs.suggestion.blockPossiblyOffensive.get(), keyboardManager.activeState.isIncognitoMode)
-            NlpState.clipboard(values, requested, environment.fields(subtypeManager.activeSubtype))
+            NlpState.clipboard(generation, values, requested, environment.fields(subtypeManager.activeSubtype))
         }
     }
 

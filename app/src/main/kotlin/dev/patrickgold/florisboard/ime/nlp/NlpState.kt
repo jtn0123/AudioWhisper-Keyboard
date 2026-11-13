@@ -6,7 +6,6 @@ import dev.patrickgold.florisboard.app.FlorisPreferenceStore
 import dev.patrickgold.florisboard.editorInstance
 import dev.patrickgold.florisboard.ime.core.Subtype
 import dev.patrickgold.florisboard.ime.editor.EditorContent
-import dev.patrickgold.florisboard.ime.nlp.latin.LatinLanguageProvider
 import dev.patrickgold.florisboard.keyboardManager
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -60,7 +59,7 @@ internal object NlpState {
         val fields = objects.flatMap { (id, v) -> listOf(id, v.text.toString(), when (v) {
             is EmojiSuggestionCandidate -> "1"
             is ClipboardSuggestionCandidate -> "2"
-            else -> if (v.sourceProvider?.providerId == LatinLanguageProvider.ProviderId) "0" else "3"
+            else -> "0"
         }, v.isEligibleForAutoCommit.bit()) }.toTypedArray()
         return objects to fields
     }
@@ -81,10 +80,14 @@ internal object NlpState {
         val (objects, fields) = pack(values)
         val result = native.call("direct", *fields); words = objects; clips = emptyMap(); publish(result)
     }
-    @Synchronized fun clipboard(values: List<SuggestionCandidate>, requested: Array<String>, current: Array<String>) {
-        native.call("context", *current)
+    @Synchronized fun beginClipboard(current: Array<String>): String {
+        val result = native.call("clipboardBeginFor", *current)
+        publish(result.drop(1).toTypedArray())
+        return result[0]
+    }
+    @Synchronized fun clipboard(generation: String, values: List<SuggestionCandidate>, requested: Array<String>, current: Array<String>) {
         val (objects, fields) = pack(values)
-        val result = native.call("clipboardFor", *requested, *fields); clips = clips + objects; publish(result)
+        val result = native.call("clipboardFor", *requested, *current, generation, *fields); clips = clips + objects; publish(result)
     }
     @Synchronized fun inlineBegin(count: Int): Array<String> = native.call("inlineBegin", count.toString()).also { publish() }
     @Synchronized fun inlineComplete(generation: String, values: List<NlpInlineAutofillSuggestion>) {

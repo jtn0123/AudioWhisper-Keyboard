@@ -14,10 +14,12 @@ internal class ReferenceNlp {
     var automatic: List<String>? = null
     var candidates = emptyList<List<String>>()
     var clipboard = emptyList<List<String>>()
+    var clipboardGeneration = 0L
     var inlineGeneration = 0L
     var inlinePending = false
     var inline = emptyList<String>()
     var saveDue: Long? = null
+    var previewTime = 0L
     private fun flag(at: Int) = context[at] == "1"
     private val allowed: Boolean get() {
         val raw = context[0].toInt()
@@ -35,7 +37,7 @@ internal class ReferenceNlp {
     private val selection get() = context[10] != context[11]
     private val query get() = on && flag(9) && !selection
     private val visible get() = if (!on) emptyList() else clipboard.ifEmpty { candidates }
-    private fun invalidate() { generation++; pending = false; automatic = null; candidates = emptyList(); clipboard = emptyList() }
+    private fun invalidate() { generation++; clipboardGeneration++; pending = false; automatic = null; candidates = emptyList(); clipboard = emptyList() }
     private fun policy() = listOf(on, words, emoji, auto, learning, flag(4) || flag(5)).map { it.bit() }
     private fun filter(values: List<List<String>>): List<List<String>> {
         if (!query) return emptyList()
@@ -44,7 +46,7 @@ internal class ReferenceNlp {
             .distinctBy { it[2] to it[1] }.map { v -> v.take(3) + (v[3] == "1" && auto && v[2] == "0").bit() }
     }
     private fun snapshot(): List<String> {
-        val expanded = if (!flag(8)) -1 else if (visible.isEmpty() && inline.isEmpty() || selection) 1 else 0
+        val expanded = if (!flag(8) || pending && !selection) -1 else if (visible.isEmpty() && inline.isEmpty() || selection) 1 else 0
         return listOf(generation.toString(), expanded.toString(), (automatic ?: visible.firstOrNull { it[3] == "1" })?.get(0).orEmpty(), visible.size.toString()) +
             visible.map { it[0] } + inline.size.toString() + inline
     }
@@ -52,6 +54,16 @@ internal class ReferenceNlp {
         val f = fields.toList()
         fun bool(value: Boolean) = listOf(value.bit())
         return when (op) {
+            "previewStart" -> { previewTime = f[0].toLong(); emptyList() }
+            "preview" -> {
+                val now = f[0].toLong(); val refresh = f[1] == "1" && now - previewTime > f[2].toLong()
+                if (refresh) previewTime = now
+                bool(refresh)
+            }
+            "glidePlan" -> {
+                val size = f[0].toInt(); val max = f[1].toInt(); val commit = f[2] == "1"
+                listOf(1.coerceAtMost(minOf(commit.compareTo(false), size)), max.coerceAtMost(size), if (commit && size > 0) 0 else -1).map(Int::toString)
+            }
             "context" -> {
                 if (context != f) { invalidate(); externalGeneration++; context = f; inlineGeneration++; inlinePending = false; inline = emptyList() }
                 snapshot()
@@ -72,12 +84,15 @@ internal class ReferenceNlp {
                 val allowed = auto && f[22] == "0"
                 val result = f.drop(23).map { (allowed && it == "1").bit() }; context = old; result
             }
-            "clipboardFor" -> { if (context == f.take(22)) clipboard = if (on) f.drop(22).chunked(4) else emptyList(); snapshot() }
+            "clipboardBeginFor" -> {
+                call("context", *f.toTypedArray()); clipboardGeneration++; clipboard = emptyList()
+                listOf(clipboardGeneration.toString()) + snapshot()
+            }
+            "clipboardFor" -> { if (context == f.take(22) && f.take(22) == f.drop(22).take(22) && f[44].toLong() == clipboardGeneration) clipboard = if (on) f.drop(45).chunked(4) else emptyList(); snapshot() }
             "externalBegin" -> { externalGeneration++; listOf(externalGeneration.toString()) }
             "externalValid" -> bool(f[0].toLong() == externalGeneration && query)
             "autoCandidate" -> {
-                val same = f.take(22) == f.drop(22).take(22)
-                call("context", *f.drop(22).take(22).toTypedArray())
+                val same = context == f.take(22) && f.take(22) == f.drop(22).take(22)
                 val candidate = f.drop(44)
                 val accepted = same && auto && candidate[2] == "0" && candidate[3] == "1"
                 if (accepted) automatic = candidate

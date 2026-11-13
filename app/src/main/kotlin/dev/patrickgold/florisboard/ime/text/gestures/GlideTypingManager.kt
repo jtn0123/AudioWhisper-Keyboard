@@ -17,6 +17,7 @@
 package dev.patrickgold.florisboard.ime.text.gestures
 
 import android.content.Context
+import android.os.SystemClock
 import dev.patrickgold.florisboard.app.FlorisPreferenceStore
 import dev.patrickgold.florisboard.editorInstance
 import dev.patrickgold.florisboard.ime.nlp.WordSuggestionCandidate
@@ -29,7 +30,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import kotlin.math.min
 
 /**
  * Handles the [GlideTypingClassifier]. Basically responsible for linking [GlideTypingGesture.Detector]
@@ -48,12 +48,13 @@ class GlideTypingManager(context: Context) : GlideTypingGesture.Listener {
 
     private val scope = CoroutineScope(Dispatchers.Default + SupervisorJob())
     private var glideTypingClassifier = StatisticalGlideTypingClassifier(context)
-    private var lastTime = System.currentTimeMillis()
 
 
     init {
+        val previewStarted = SystemClock.uptimeMillis()
         // AudioWhisper: the words change once the dictionary has loaded, and with the user's (B18).
         scope.launch(Dispatchers.Main) {
+            nlpManager.startGlidePreviewClock(previewStarted)
             nlpManager.swipeWordsVersion.collect {
                 glideTypingClassifier.setWordData(subtypeManager.activeSubtype)
             }
@@ -76,10 +77,9 @@ class GlideTypingManager(context: Context) : GlideTypingGesture.Listener {
 
         this.glideTypingClassifier.addGesturePoint(normalized)
 
-        val time = System.currentTimeMillis()
-        if (prefs.glide.showPreview.get() && time - lastTime > prefs.glide.previewRefreshDelay.get()) {
+        if (nlpManager.refreshGlidePreview(SystemClock.uptimeMillis(), prefs.glide.showPreview.get(),
+                prefs.glide.previewRefreshDelay.get())) {
             updateSuggestionsAsync(1, false)
-            lastTime = time
         }
     }
 
@@ -112,18 +112,14 @@ class GlideTypingManager(context: Context) : GlideTypingGesture.Listener {
             withContext(Dispatchers.Main) {
                 // A preview finishing after a later request would show a word for less of the swipe.
                 if (!nlpManager.canApplyExternalRequest(request)) return@withContext
-                val suggestionList = buildList {
-                    suggestions.subList(
-                        1.coerceAtMost(min(commit.compareTo(false), suggestions.size)),
-                        maxSuggestionsToShow.coerceAtMost(suggestions.size)
-                    ).map { keyboardManager.fixCase(it) }.forEach {
-                        add(WordSuggestionCandidate(it, confidence = 1.0))
-                    }
+                val plan = nlpManager.glideResultPlan(suggestions.size, maxSuggestionsToShow, commit)
+                val suggestionList = (plan[0] until plan[1]).map { index ->
+                    WordSuggestionCandidate(keyboardManager.fixCase(suggestions[index]), confidence = 1.0)
                 }
 
                 nlpManager.suggestDirectly(suggestionList)
-                if (commit && suggestions.isNotEmpty()) {
-                    keyboardManager.commitGesture(suggestions.first())
+                if (plan[2] >= 0) {
+                    keyboardManager.commitGesture(suggestions[plan[2]])
                 }
             }
         }
