@@ -13,6 +13,7 @@ pub struct Subtypes {
     pub header: String,
     pub header_height: f32,
     pub row_height: f32,
+    pub bottom_inset: f32,
 }
 
 pub fn rows(ids: &[i64], labels: &[String], selected: i64) -> Vec<(i64, String, bool)> {
@@ -20,6 +21,10 @@ pub fn rows(ids: &[i64], labels: &[String], selected: i64) -> Vec<(i64, String, 
         .zip(labels)
         .map(|(&id, label)| (id, label.clone(), id == selected))
         .collect()
+}
+
+pub fn content_height(height: f32, inset: f32) -> f32 {
+    (height - inset).max(0.0)
 }
 
 pub fn sheet_start(height: f32, header: f32, row: f32, count: usize) -> f32 {
@@ -51,6 +56,8 @@ impl Panel {
     }
     pub fn layout_subtypes(&mut self, width: f32, height: f32) {
         let Some(s) = &self.subtypes else { return };
+        let full_height = height;
+        let height = content_height(height, s.bottom_inset);
         let start = sheet_start(height, s.header_height, s.row_height, s.ids.len());
         let area = rect(0.0, start, width, height - start);
         self.max_scroll =
@@ -58,7 +65,7 @@ impl Panel {
         self.scroll = self.scroll.clamp(0.0, self.max_scroll);
         self.items.push(Item::new(
             -70,
-            rect(0.0, 0.0, width, start),
+            rect(0.0, 0.0, width, full_height),
             "Dismiss".into(),
             "subtype-scrim",
             Command::Subtype(None),
@@ -77,6 +84,8 @@ impl Panel {
             "subtype-panel-header",
             Command::None,
         ));
+        // The disabled clickable header retains Compose's 48dp semantic target.
+        self.items[2].clip = rect(0.0, 0.0, width, full_height);
         let clip = rect(
             0.0,
             start + s.header_height,

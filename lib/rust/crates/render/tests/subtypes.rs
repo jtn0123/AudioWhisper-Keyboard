@@ -63,3 +63,63 @@ fn configured_order_labels_selection_clipping_and_dismissal() {
     p.layout(400.0, 100.0, 0.0);
     assert_eq!(p.scroll, p.max_scroll);
 }
+
+#[test]
+fn sheet_stays_above_navigation_while_scrim_covers_navigation() {
+    let mut panel = Panel {
+        kind: 7,
+        subtypes: Some(Subtypes {
+            ids: vec![1],
+            labels: vec!["English".into()],
+            header_height: 40.0,
+            row_height: 56.0,
+            bottom_inset: 24.0,
+            ..Default::default()
+        }),
+        ..Default::default()
+    };
+    panel.layout(400.0, 300.0, 0.0);
+    assert_eq!(panel.items[0].bounds.bottom, 300.0);
+    assert_eq!(panel.items[1].bounds.bottom, 276.0);
+    assert_eq!(
+        panel.hit(200.0, 290.0).unwrap().command,
+        Command::Subtype(None)
+    );
+    assert_eq!(
+        panel.hit(200.0, 250.0).unwrap().command,
+        Command::Subtype(Some(0))
+    );
+}
+
+#[test]
+fn disabled_clickable_header_minimum_target_is_clipped_at_first_row() {
+    let mut panel = Panel {
+        kind: 7,
+        density: 2.625,
+        subtypes: Some(Subtypes {
+            ids: vec![1],
+            labels: vec!["English".into()],
+            header: "Select subtype".into(),
+            header_height: 109.0,
+            row_height: 135.0,
+            ..Default::default()
+        }),
+        ..Default::default()
+    };
+    panel.layout(1080.0, 2274.0, 0.0);
+    let target = panel.target_bounds(2);
+    assert_eq!(target.top, 2021.5);
+    assert_eq!(target.bottom, 2139.0);
+    let header = panel.subtypes.as_ref().unwrap().header.clone();
+    let scene = Scene {
+        width: 1080,
+        height: 2274,
+        panel: Some(panel),
+        ..Default::default()
+    };
+    let nodes = Semantics::default().snapshot(&scene, "");
+    assert_eq!(
+        nodes.iter().find(|n| n.label == header).unwrap().bounds,
+        target
+    );
+}

@@ -22,6 +22,7 @@ internal class RustChromeView(context: Context) : View(context) {
     private var labels = emptyArray<String>()
     private var icons = emptyArray<String>()
     private var subtypes: RendererSubtypes? = null
+    private var subtypeBottomInset = 0f
     var subtypeAction: (Int?) -> Unit = {}
     var action: (Int) -> Unit = {}
     var fieldLayout: (FloatArray) -> Unit = {}
@@ -35,10 +36,10 @@ internal class RustChromeView(context: Context) : View(context) {
         this.theme = theme; this.kind = kind; this.labels = labels; this.icons = icons
         configure()
     }
-    fun updateSubtypes(theme: RendererTheme, data: RendererSubtypes) {
+    fun updateSubtypes(theme: RendererTheme, data: RendererSubtypes, bottomInset: Float) {
         val old = subtypes
-        if (this.theme == theme && old?.selected == data.selected && old.ids.contentEquals(data.ids) && old.labels.contentEquals(data.labels)) return
-        this.theme = theme; subtypes = data; configure()
+        if (this.theme == theme && subtypeBottomInset == bottomInset && old?.selected == data.selected && old.ids.contentEquals(data.ids) && old.labels.contentEquals(data.labels)) return
+        this.theme = theme; subtypes = data; subtypeBottomInset = bottomInset; configure()
     }
     private val wakeup = Runnable {
         native?.let { dispatch(it.tick(SystemClock.uptimeNanos())); redraw() }
@@ -63,7 +64,7 @@ internal class RustChromeView(context: Context) : View(context) {
                 arrayOf(theme.mode, theme.shift), intArrayOf(), floatArrayOf(), emptyArray(), emptyArray())
             renderer.panels(floatArrayOf(7f,theme.density,48f*theme.density,0f,50_000_000f,0f,500_000_000f),
                 intArrayOf(-1,0,0),Array(6) { "" })
-            renderer.subtypes(data.selected,data.ids,data.labels)
+            renderer.subtypes(data.selected,data.ids,data.labels,subtypeBottomInset)
         }
         redraw()
     }

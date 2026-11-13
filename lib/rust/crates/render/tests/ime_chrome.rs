@@ -76,3 +76,25 @@ fn extraction_geometry_and_preview_graphemes_and_incognito_policy() {
     assert_eq!(result, "… 👩🏽‍💻");
     assert_eq!(render::key_preview::size(2.0, 100.0), [100, 72]);
 }
+
+#[test]
+fn extract_action_touch_target_extends_outside_visual_button() {
+    let mut panel = Panel {
+        kind: 8,
+        density: 2.625,
+        chrome: Some(Chrome {
+            kind: 1,
+            button: [200.0, 85.0],
+            labels: vec!["Done".into()],
+            ..Default::default()
+        }),
+        ..Default::default()
+    };
+    panel.layout(1000.0, 300.0, 0.0);
+    assert_eq!(panel.items[2].bounds.height(), 85.0);
+    assert_eq!(panel.target_bounds(2).height(), 126.0);
+    assert_eq!(
+        panel.hit(900.0, 90.0).unwrap().command,
+        render::panels::Command::Chrome(0)
+    );
+}

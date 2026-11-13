@@ -15,7 +15,7 @@ pub fn nodes(panel: &Panel) -> Vec<Node> {
                 return None;
             }
             let mut content = panel.target_bounds(index);
-            if matches!(i.command, Command::None) {
+            if matches!(i.command, Command::None) && i.element != "subtype-panel-header" {
                 content = crate::smartbar::inset(content, i.styles[0].padding);
             }
             let r = crate::panel_layout::intersection(content, i.clip);

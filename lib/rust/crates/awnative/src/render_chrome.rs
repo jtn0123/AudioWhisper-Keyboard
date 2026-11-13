@@ -235,3 +235,50 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_ImeChromeRules_startEl
         })
     }
 }
+
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_ImeChromeRules_minimumTarget(
+    env: *mut JNIEnv,
+    _: jclass,
+    config: jfloatArray,
+) -> jfloatArray {
+    // SAFETY: the JVM input is copied; the result is a fresh local primitive array.
+    unsafe {
+        jni::run(env, ptr::null_mut(), |env| {
+            let c = env.read::<f32>(config, "minimum target")?;
+            if c.len() != 6 || c.iter().any(|v| !v.is_finite() || *v < 0.0) {
+                return Err(illegal("minimum target"));
+            }
+            let header = c[5] == 0.0;
+            let mut item = render::panels::Item::new(
+                1,
+                render::panels::rect(0.0, c[2], c[1], c[3]),
+                "label".into(),
+                if header {
+                    "subtype-panel-header"
+                } else {
+                    "extracted-landscape-input-action"
+                },
+                render::panels::Command::None,
+            );
+            item.clip = render::panels::rect(0.0, 0.0, c[1], 10000.0);
+            let mut items = vec![item];
+            if header {
+                items.push(render::panels::Item::new(
+                    2,
+                    render::panels::rect(0.0, c[4], c[1], 56.0 * c[0]),
+                    "row".into(),
+                    "subtype-panel-list-item",
+                    render::panels::Command::Subtype(Some(0)),
+                ));
+            }
+            let panel = render::panels::Panel {
+                density: c[0],
+                items,
+                ..Default::default()
+            };
+            let r = panel.target_bounds(0);
+            env.make(&[r.left, r.top, r.right, r.bottom])
+        })
+    }
+}

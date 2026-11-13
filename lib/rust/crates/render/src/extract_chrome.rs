@@ -62,6 +62,8 @@ impl Panel {
             "extracted-landscape-input-action",
             Command::Chrome(0),
         ));
+        // Material buttons keep their minimum touch target outside their visual bounds.
+        self.items[2].clip = rect(0.0, 0.0, width, height);
     }
     pub fn extract_style(&mut self, theme: &mut Theme, request: &Request) {
         let Some(c) = &mut self.chrome else { return };

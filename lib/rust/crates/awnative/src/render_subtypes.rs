@@ -13,13 +13,14 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_subtypes(
     selected: jlong,
     ids: jlongArray,
     labels: jobjectArray,
+    bottom_inset: jni_sys::jfloat,
 ) {
     // SAFETY: synchronized JVM owner retains the session; local arrays are copied.
     unsafe {
         handle::with_locked::<Session, _>(env, native, "renderer", (), |s, env| {
             let ids = env.read::<i64>(ids, "subtype ids")?;
             let labels = strings(env, labels)?;
-            if labels.len() != ids.len() + 3 {
+            if labels.len() != ids.len() + 3 || !bottom_inset.is_finite() || bottom_inset < 0.0 {
                 return Err(illegal("subtype labels"));
             }
             let p = s
@@ -33,6 +34,7 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_subtypes(
             p.subtypes = Some(render::subtype_panel::Subtypes {
                 ids,
                 selected,
+                bottom_inset,
                 header: labels[0].clone(),
                 icons: [labels[1].clone(), labels[2].clone()],
                 labels: labels[3..].to_vec(),
@@ -79,11 +81,16 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_SubtypeRules_geometry(
     unsafe {
         crate::jni::run(env, std::ptr::null_mut(), |env| {
             let c = env.read::<f32>(config, "subtype geometry")?;
-            if c.len() != 6 || c.iter().any(|v| !v.is_finite() || *v < 0.0) {
+            if c.len() != 7 || c.iter().any(|v| !v.is_finite() || *v < 0.0) {
                 return Err(illegal("subtype geometry"));
             }
             env.make(&[
-                render::subtype_panel::sheet_start(c[0], c[1], c[2], c[3] as usize),
+                render::subtype_panel::sheet_start(
+                    render::subtype_panel::content_height(c[0], c[6]),
+                    c[1],
+                    c[2],
+                    c[3] as usize,
+                ),
                 render::modal_scene::offset(c[0], c[4], c[5]),
             ])
         })

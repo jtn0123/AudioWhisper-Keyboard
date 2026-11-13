@@ -26,7 +26,7 @@ class KeyboardRenderer(fontPaths: Array<String>) : AutoCloseable {
     fun pixels(): IntArray = RenderNative.pixels(handle)
 
     @Synchronized
-    fun subtypes(selected: Long, ids: LongArray, labels: Array<String>) = RenderNative.subtypes(handle, selected, ids, labels)
+    fun subtypes(selected: Long, ids: LongArray, labels: Array<String>, bottomInset: Float = 0f) = RenderNative.subtypes(handle, selected, ids, labels, bottomInset)
 
     @Synchronized
     fun search(density: Float, labels: Array<String>, now: Long) = RenderNative.search(handle,density,labels,now)
@@ -125,7 +125,7 @@ internal object RenderNative {
     external fun keyPreview(handle: Long, code: Int, labels: Array<String>): IntArray
     external fun chromeInfo(handle: Long): FloatArray
     external fun pixels(handle: Long): IntArray
-    external fun subtypes(handle: Long, selected: Long, ids: LongArray, labels: Array<String>)
+    external fun subtypes(handle: Long, selected: Long, ids: LongArray, labels: Array<String>, bottomInset: Float)
     external fun search(handle: Long, density: Float, labels: Array<String>, now: Long)
     external fun gifSent(handle: Long)
     external fun gifs(handle: Long, config: FloatArray, labels: Array<String>, chips: Int, ids: LongArray)

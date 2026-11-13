@@ -2,6 +2,7 @@ package com.jtn0123.audiowhisper.rust
 
 object ImeChromeRules {
     init { RustLibrary.load() }
+    external fun minimumTarget(config: FloatArray): FloatArray
     external fun oneHanded(config: IntArray): FloatArray
     external fun watermark(flags: IntArray): Boolean
     external fun previewSize(config: FloatArray): IntArray

@@ -144,7 +144,8 @@ impl Panel {
             Command::Clipboard(5, _) | Command::Clipboard(7..=9, _)
         ) || header
             || item.element == "clipboard-clear-all-dialog-button"
-            || item.element == "extracted-landscape-input-action";
+            || item.element == "extracted-landscape-input-action"
+            || item.element == "subtype-panel-header";
         if minimum {
             let width = (48.0 * self.density).max(r.width());
             let height = (48.0 * self.density).max(r.height());
@@ -160,11 +161,13 @@ impl Panel {
                     next.element == "clipboard-header-button"
                         && !matches!(next.command, Command::Action(_))
                 } else {
-                    matches!(
-                        (&item.command, &next.command),
-                        (Command::Clipboard(5, _), Command::Clipboard(5, _))
-                            | (Command::Clipboard(7..=9, _), Command::Clipboard(7..=9, _))
-                    )
+                    (item.element == "subtype-panel-header"
+                        && next.element == "subtype-panel-list-item")
+                        || matches!(
+                            (&item.command, &next.command),
+                            (Command::Clipboard(5, _), Command::Clipboard(5, _))
+                                | (Command::Clipboard(7..=9, _), Command::Clipboard(7..=9, _))
+                        )
                 };
                 if !same {
                     continue;
