@@ -4,7 +4,7 @@ use super::*;
 use crate::bytes::FormatVersion;
 
 /// The differential tests against the C++, which only the computer running the tests has.
-#[cfg(not(target_os = "android"))]
+#[cfg(all(feature = "oracle", not(target_os = "android")))]
 mod oracle;
 
 /// What a read leaves in an `out` slot it does not write.

@@ -1,8 +1,8 @@
 name: AudioWhisper Keyboard CI
 
-# Runs the same checks as a local `./gradlew test :app:lintDebug :lib:rust:check assembleDebug`:
+# Runs the same checks as a local `./gradlew test :app:lintDebug :lib:rust:check :lib:rust:oracleCheck assembleDebug`:
 # every JVM test (including those that go through the Rust and LatinIME JNI), Android lint, the
-# Rust workspace's tests, clippy with warnings as errors and rustfmt, then a debug build.
+# Rust tests and opt-in C++ oracle comparisons, clippy with warnings as errors and rustfmt, then a debug build.
 #
 # It needs nothing from a developer's machine: jetpref comes from third_party/m2, the sherpa-onnx
 # AAR from Git LFS, Rust from rust-toolchain.toml and the NDK from tools.versions.toml. GIPHY has
@@ -73,7 +73,7 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
 
       - name: Test, lint and build
-        run: ./gradlew --stacktrace test :app:lintDebug :lib:rust:check assembleDebug
+        run: ./gradlew --stacktrace test :app:lintDebug :lib:rust:check :lib:rust:oracleCheck assembleDebug
 
       - name: Upload lint and test reports
         if: failure()

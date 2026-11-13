@@ -1,14 +1,20 @@
 //! Shared by the tests: both sides' dictionary, keyboard and sessions, the comparison, and
 //! [`in_chunks`], which spreads a test's rounds over threads.
 
-use std::sync::{Arc, OnceLock};
+use std::sync::Arc;
+#[cfg(feature = "oracle")]
+use std::sync::OnceLock;
+#[cfg(feature = "oracle")]
 use std::thread;
 
+#[cfg(feature = "oracle")]
 use latin_oracle::queries::Random;
 
 use crate::defines::MAX_PROXIMITY_CHARS_SIZE;
 use crate::layout::{KeyboardGeometry, ProximityInfo};
-use crate::search::{DicTraverseSession, Output, Query};
+use crate::search::DicTraverseSession;
+#[cfg(feature = "oracle")]
+use crate::search::{Output, Query};
 use crate::trie::dictionary::Dictionary;
 
 /// The app's QWERTY model (`suggest::qwerty`): three staggered rows of 100 by 150 keys on a
@@ -126,6 +132,7 @@ impl TestKeyboard {
     }
 
     /// The C++ side's `ProximityInfo`, from the same arrays.
+    #[cfg(feature = "oracle")]
     pub fn cpp_proximity(&self) -> latin_oracle::Proximity {
         latin_oracle::hooks::search::proximity(&latin_oracle::hooks::layout::RawKeyboard {
             keyboard_width: self.width,
@@ -145,9 +152,15 @@ impl TestKeyboard {
     }
 }
 
+/// The app's dictionary, available to Rust-only tests without linking the C++ oracle.
+fn bundled_dictionary_path() -> std::path::PathBuf {
+    std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../../../app/src/main/assets/dicts/main_en-US.dict")
+}
+
 /// The bundled English dictionary, read for the Rust side.
 pub fn bundled_file() -> Arc<[u8]> {
-    let path = latin_oracle::bundled_dictionary_path();
+    let path = bundled_dictionary_path();
     std::fs::read(path).expect("the bundled dictionary").into()
 }
 
@@ -161,13 +174,14 @@ pub fn rust_side() -> (Dictionary, ProximityInfo) {
 
 /// A session for the bundled dictionary (a large one: the large node cache).
 pub fn new_session() -> DicTraverseSession {
-    let size = std::fs::metadata(latin_oracle::bundled_dictionary_path())
+    let size = std::fs::metadata(bundled_dictionary_path())
         .expect("the bundled dictionary")
         .len();
     DicTraverseSession::new(usize::try_from(size).expect("size fits"))
 }
 
 /// The oracle's query as the Rust search takes it.
+#[cfg(feature = "oracle")]
 pub fn convert(query: &latin_oracle::Query) -> Query {
     Query {
         code_points: query.code_points.clone(),
@@ -179,6 +193,7 @@ pub fn convert(query: &latin_oracle::Query) -> Query {
 }
 
 /// Every field of the output the same as the C++'s, the weight to the bit.
+#[cfg(feature = "oracle")]
 pub fn assert_same(ours: &Output, theirs: &latin_oracle::Output, context: &str) {
     assert_eq!(ours.count, theirs.count, "count ({context})");
     assert_eq!(
@@ -205,6 +220,7 @@ pub fn assert_same(ours: &Output, theirs: &latin_oracle::Output, context: &str) 
 }
 
 /// The words of the bundled dictionary, to draw typed words from.
+#[cfg(feature = "oracle")]
 pub fn words() -> Vec<Vec<char>> {
     let dictionary = latin_oracle::Dictionary::bundled();
     let text = String::from_utf16(&dictionary.words()).expect("UTF-16 words");
@@ -213,6 +229,7 @@ pub fn words() -> Vec<Vec<char>> {
 
 /// Both sides of a differential test: the C++ dictionary and keyboard, the Rust ones, and the
 /// words to type.
+#[cfg(feature = "oracle")]
 pub struct Pair {
     pub cpp_dictionary: latin_oracle::Dictionary,
     pub cpp_proximity: latin_oracle::Proximity,
@@ -221,6 +238,7 @@ pub struct Pair {
     pub words: Vec<Vec<char>>,
 }
 
+#[cfg(feature = "oracle")]
 impl Pair {
     /// One pair for every test in the binary, made by the first that asks.
     pub fn shared() -> &'static Self {
@@ -261,6 +279,7 @@ impl Pair {
 
 /// The centre of the key for a lower-case ASCII letter on the test keyboard, nudged by up to 30
 /// either way; `None` for anything else.
+#[cfg(feature = "oracle")]
 pub fn tap(random: &mut Random, code_point: i32) -> Option<(i32, i32)> {
     let rows = ["qwertyuiop", "asdfghjkl", "zxcvbnm"];
     let letter = char::from_u32(code_point as u32)?.to_ascii_lowercase();
@@ -277,12 +296,14 @@ pub fn tap(random: &mut Random, code_point: i32) -> Option<(i32, i32)> {
 
 /// How many threads a test's rounds are spread over. Fixed, so the rounds each thread runs, and
 /// the state its sessions carry from one round to the next, are the same on any computer.
+#[cfg(feature = "oracle")]
 const CHUNKS: usize = 8;
 
 /// `run` for every round of `inputs`, in [`CHUNKS`] runs of consecutive rounds on threads of
 /// their own, each run with its own sessions from `start`; the results in round order. The
 /// inputs are made beforehand from the test's one generator, so they are the same however the
 /// rounds are split, and only the C++ call itself holds the oracle's lock.
+#[cfg(feature = "oracle")]
 pub fn in_chunks<I: Sync, S, R: Send>(
     inputs: &[I],
     start: impl Fn() -> S + Sync,

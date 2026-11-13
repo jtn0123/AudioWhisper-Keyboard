@@ -1,7 +1,7 @@
 use super::*;
 
 /// Every code point, the beginning-of-sentence marker and a little past it: the same as the C++.
-#[cfg(not(target_os = "android"))]
+#[cfg(all(feature = "oracle", not(target_os = "android")))]
 #[test]
 fn every_code_point_matches_the_cpp() {
     use crate::defines::NOT_A_CODE_POINT;

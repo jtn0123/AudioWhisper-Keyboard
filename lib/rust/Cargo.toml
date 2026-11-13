@@ -2,6 +2,24 @@
 # Gradle runs cargo (see build.gradle.kts); docs/rust.md explains the layout and the rules.
 [workspace]
 members = ["crates/*"]
+# Everyday commands stay Rust-only; oracleCheck explicitly selects the full workspace.
+default-members = [
+    "crates/awnative",
+    "crates/chars",
+    "crates/composing",
+    "crates/dictation",
+    "crates/emoji",
+    "crates/gestures",
+    "crates/gif",
+    "crates/glide",
+    "crates/keys",
+    "crates/latin",
+    "crates/popup",
+    "crates/reader",
+    "crates/shift",
+    "crates/spacing",
+    "crates/suggest",
+]
 resolver = "3"
 
 [workspace.package]
@@ -24,7 +42,7 @@ lto = true
 panic = "abort"
 strip = true
 
-# The differential tests put hundreds of thousands of questions to the port and to LatinIME's C++;
+# The opt-in differential tests put hundreds of thousands of questions to Rust and LatinIME's C++;
 # unoptimised, the C++ alone took over a minute. Overflow checks and debug assertions stay on.
 [profile.dev.package.latin]
 opt-level = 2

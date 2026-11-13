@@ -1,10 +1,10 @@
 use super::*;
 
 /// SplitMix64, for seeded random buffers.
-#[cfg(not(target_os = "android"))]
+#[cfg(all(feature = "oracle", not(target_os = "android")))]
 struct Random(u64);
 
-#[cfg(not(target_os = "android"))]
+#[cfg(all(feature = "oracle", not(target_os = "android")))]
 impl Random {
     fn next(&mut self) -> u64 {
         self.0 = self.0.wrapping_add(0x9E37_79B9_7F4A_7C15);
@@ -31,7 +31,7 @@ impl Random {
     }
 }
 
-#[cfg(not(target_os = "android"))]
+#[cfg(all(feature = "oracle", not(target_os = "android")))]
 #[test]
 fn random_buffers_read_as_the_cpp_reads_them() {
     use latin_oracle::hooks::bytes as cpp;
@@ -78,7 +78,7 @@ fn random_buffers_read_as_the_cpp_reads_them() {
     }
 }
 
-#[cfg(not(target_os = "android"))]
+#[cfg(all(feature = "oracle", not(target_os = "android")))]
 #[test]
 fn format_versions_match_the_cpp() {
     use latin_oracle::hooks::bytes as cpp;

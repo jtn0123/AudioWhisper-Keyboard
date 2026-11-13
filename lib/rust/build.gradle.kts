@@ -172,13 +172,23 @@ fun ndkClang(ndk: File, api: String): String {
 }
 
 val cargoTest = tasks.register<Cargo>("cargoTest") {
-    description = "Runs the Rust unit tests."
-    configureCargo("test", "--workspace", "--locked")
+    description = "Runs the everyday Rust unit tests without the C++ oracle."
+    configureCargo("test", "--locked")
 }
 
 val cargoClippy = tasks.register<Cargo>("cargoClippy") {
     description = "Lints the Rust code, failing on any warning."
-    configureCargo("clippy", "--workspace", "--all-targets", "--locked", "--", "-D", "warnings")
+    configureCargo("clippy", "--all-targets", "--locked", "--", "-D", "warnings")
+}
+
+val cargoOracleTest = tasks.register<Cargo>("cargoOracleTest") {
+    description = "Runs the full Rust workspace tests, including LatinIME's C++ comparisons."
+    configureCargo("test", "--workspace", "--features", "latin/oracle", "--locked")
+}
+
+val cargoOracleClippy = tasks.register<Cargo>("cargoOracleClippy") {
+    description = "Lints the full workspace and the oracle tests, failing on any warning."
+    configureCargo("clippy", "--workspace", "--all-targets", "--features", "latin/oracle", "--locked", "--", "-D", "warnings")
 }
 
 val cargoFmtCheck = tasks.register<Cargo>("cargoFmtCheck") {
@@ -188,6 +198,12 @@ val cargoFmtCheck = tasks.register<Cargo>("cargoFmtCheck") {
 
 tasks.named("check") {
     dependsOn(cargoTest, cargoClippy, cargoFmtCheck)
+}
+
+tasks.register("oracleCheck") {
+    group = "verification"
+    description = "Checks the full Rust workspace with the opt-in LatinIME C++ oracle."
+    dependsOn(cargoOracleTest, cargoOracleClippy, cargoFmtCheck)
 }
 
 androidComponents {

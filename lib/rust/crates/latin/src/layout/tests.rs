@@ -2,29 +2,29 @@
 //! keyboards, and typed inputs from the oracle's query generator, every value to the bit.
 
 mod robustness;
-#[cfg(not(target_os = "android"))]
+#[cfg(all(feature = "oracle", not(target_os = "android")))]
 mod support;
-#[cfg(not(target_os = "android"))]
+#[cfg(all(feature = "oracle", not(target_os = "android")))]
 mod typed;
 
-#[cfg(not(target_os = "android"))]
+#[cfg(all(feature = "oracle", not(target_os = "android")))]
 use super::*;
-#[cfg(not(target_os = "android"))]
+#[cfg(all(feature = "oracle", not(target_os = "android")))]
 use crate::defines::{MAX_PROXIMITY_CHARS_SIZE, MAX_WORD_LENGTH};
 
-#[cfg(not(target_os = "android"))]
+#[cfg(all(feature = "oracle", not(target_os = "android")))]
 use latin_oracle::hooks::layout as cpp;
-#[cfg(not(target_os = "android"))]
+#[cfg(all(feature = "oracle", not(target_os = "android")))]
 use latin_oracle::queries::{self, Random};
-#[cfg(not(target_os = "android"))]
+#[cfg(all(feature = "oracle", not(target_os = "android")))]
 use support::{Keyboard, assert_bits, assert_states_match, qwerty, random_keyboard};
 
 /// `en_US`, as the bundled dictionary's header spells its locale.
-#[cfg(not(target_os = "android"))]
+#[cfg(all(feature = "oracle", not(target_os = "android")))]
 const EN_US: [i32; 5] = ['e' as i32, 'n' as i32, '_' as i32, 'U' as i32, 'S' as i32];
 
 /// The locales to try: English (which adds vowels), others, and ones too short to be either.
-#[cfg(not(target_os = "android"))]
+#[cfg(all(feature = "oracle", not(target_os = "android")))]
 fn locales() -> Vec<Vec<i32>> {
     let text = |it: &str| it.chars().map(|c| c as i32).collect::<Vec<i32>>();
     vec![
@@ -39,7 +39,7 @@ fn locales() -> Vec<Vec<i32>> {
 }
 
 /// Every value the keyboard gives, for `points` and the keys, the same as the C++'s.
-#[cfg(not(target_os = "android"))]
+#[cfg(all(feature = "oracle", not(target_os = "android")))]
 fn assert_keyboard_matches(
     keyboard: &Keyboard,
     ours: &ProximityInfo,
@@ -143,14 +143,14 @@ fn assert_keyboard_matches(
     assert_proximities_match(keyboard, ours, theirs, random, stride);
 }
 
-#[cfg(not(target_os = "android"))]
+#[cfg(all(feature = "oracle", not(target_os = "android")))]
 fn keyboard_extent(keyboard: &Keyboard) -> i32 {
     keyboard.keyboard_width
 }
 
 /// The letters near each tap, for taps over the keyboard (48 to a call, any primary code), in
 /// every locale.
-#[cfg(not(target_os = "android"))]
+#[cfg(all(feature = "oracle", not(target_os = "android")))]
 fn assert_proximities_match(
     keyboard: &Keyboard,
     ours: &ProximityInfo,
@@ -193,7 +193,7 @@ fn assert_proximities_match(
     }
 }
 
-#[cfg(not(target_os = "android"))]
+#[cfg(all(feature = "oracle", not(target_os = "android")))]
 #[test]
 fn qwerty_keyboard_matches_the_cpp() {
     let keyboard = qwerty();
@@ -205,7 +205,7 @@ fn qwerty_keyboard_matches_the_cpp() {
     assert_keyboard_matches(&keyboard, &ours, theirs, &mut Random::new(1), 1);
 }
 
-#[cfg(not(target_os = "android"))]
+#[cfg(all(feature = "oracle", not(target_os = "android")))]
 #[test]
 fn random_keyboards_match_the_cpp() {
     let mut random = Random::new(20_261_110);
@@ -217,7 +217,7 @@ fn random_keyboards_match_the_cpp() {
     }
 }
 
-#[cfg(not(target_os = "android"))]
+#[cfg(all(feature = "oracle", not(target_os = "android")))]
 #[test]
 fn sweet_spot_factor_matches_the_cpp() {
     let mut values: Vec<f32> = (-300..=1500).map(|it| it as f32 / 400.0).collect();
