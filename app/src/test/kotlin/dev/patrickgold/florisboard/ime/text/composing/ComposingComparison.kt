@@ -7,19 +7,7 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlin.random.Random
 
-/**
- * Puts the text composers in Rust ([HangulUnicode], [KanaUnicode] and [WithRules], which call
- * lib/rust/crates/composing) up against the Kotlin they replaced ([ReferenceHangulUnicode],
- * [ReferenceKanaUnicode], [ReferenceWithRules]) wherever this runs: the JVM's tests and, copied in
- * for a check, the phone. It records each difference and how often each outcome was seen, so a
- * caller can tell the runs reached them all.
- *
- * [composersJson] is the bundled composers' extension.json, whose Telex rules are compared as the
- * app reads them. [sigmaExact] says whether text given to the rules may hold Σ, which lower-cases
- * to ς at the end of a word and to σ elsewhere. Rust decides that by ICU's rule, as Android does;
- * the JVM uses its own, so off a phone Σ is made σ. Hangul and kana judge no case, so they take Σ
- * everywhere.
- */
+/** Compares the retained Telex and generic rule composers through JNI. */
 class ComposingComparison(private val sigmaExact: Boolean, composersJson: String) {
     val differences = mutableListOf<String>()
     val seen = mutableMapOf<String, Int>()
@@ -67,7 +55,7 @@ class ComposingComparison(private val sigmaExact: Boolean, composersJson: String
     private fun compare(name: String, kotlin: Composer, rust: Composer, preceding: String, toInsert: String): Pair<Int, String> {
         val expected = kotlin.getActions(preceding, toInsert)
         record(name, "$preceding | $toInsert", expected, rust.getActions(preceding, toInsert))
-        see("$name: ${label(name, preceding, toInsert, expected)}")
+        see("$name: ${label(toInsert, expected)}")
         return expected
     }
 
@@ -89,35 +77,6 @@ class ComposingComparison(private val sigmaExact: Boolean, composersJson: String
             val preceding = if (name == "telex" || name == "rules") clean(read) else read
             text = apply(text, compare(name, kotlin, rust, preceding, toInsert)).takeLast(MAX_TEXT)
             if (random.nextInt(20) == 0) text = ""
-        }
-    }
-
-    /** Korean typed jamo by jamo, and odd keystrokes after every kind of syllable. */
-    fun hangul(random: Random, runs: Int, steps: Int) {
-        val kotlin = ReferenceHangulUnicode()
-        val rust = HangulUnicode()
-        repeat(runs) { typing(random, "hangul", kotlin, rust, steps) { hangulKey() } }
-        repeat(runs * steps) {
-            val preceding = random.text(random.nextInt(3)) + random.hangulLast()
-            compare("hangul", kotlin, rust, if (random.nextInt(30) == 0) "" else preceding, random.hangulKey())
-        }
-    }
-
-    /** Kana typed with their marks and the small-kana key, sticky and not. */
-    fun kana(random: Random, runs: Int, steps: Int) {
-        val composers = listOf(
-            ReferenceKanaUnicode(sticky = false) to KanaUnicode(),
-            ReferenceKanaUnicode(sticky = true) to JSON.decodeFromString(KanaUnicode.serializer(), """{"sticky":true}"""),
-        )
-        check(composers[1].second.sticky) { "sticky wasn't read" }
-        repeat(runs) {
-            val (kotlin, rust) = composers.random(random)
-            typing(random, "kana", kotlin, rust, steps) { kanaKey() }
-        }
-        repeat(runs * steps) {
-            val (kotlin, rust) = composers.random(random)
-            val preceding = if (random.nextInt(30) == 0) "" else random.text(random.nextInt(3)) + random.kanaLast()
-            compare("kana", kotlin, rust, preceding, random.kanaKey())
         }
     }
 
@@ -148,8 +107,6 @@ class ComposingComparison(private val sigmaExact: Boolean, composersJson: String
     /** Every UTF-16 unit typed after odd texts, and after each composer's own characters. */
     fun everyUnit() {
         val composers = listOf(
-            "hangul" to (ReferenceHangulUnicode() to HangulUnicode()),
-            "kana" to (ReferenceKanaUnicode() to KanaUnicode()),
             "telex" to (telexReference to telex),
         )
         for ((name, pair) in composers) {
@@ -169,53 +126,10 @@ class ComposingComparison(private val sigmaExact: Boolean, composersJson: String
     private fun Random.piece(): String = when (nextInt(6)) {
         0 -> nextInt(0x10000).toChar().toString()
         1 -> listOf("\uD800", "\uDC00", "\uDBFF", "😀", "𛅐").random(this)
-        2 -> JAMO.random(this)
-        3 -> KANA.random(this)
+        2 -> "\u0000"
+        3 -> "é"
         4 -> vietnamese.random(this)
         else -> ODD.random(this)
-    }
-
-    /** A syllable, built from its blocks so finals and vowels that combine come up often. */
-    private fun Random.syllable(): String {
-        val initial = nextInt(19)
-        val medial = if (nextBoolean()) listOf(8, 13, 18).random(this) else nextInt(21)
-        val last = when (nextInt(5)) {
-            0, 1 -> 0
-            2 -> listOf(1, 4, 8, 17).random(this)
-            else -> nextInt(28)
-        }
-        return (0xAC00 + initial * 588 + medial * 28 + last).toChar().toString()
-    }
-
-    private fun Random.hangulLast(): String = when (nextInt(10)) {
-        in 0..3 -> syllable()
-        in 4..6 -> JAMO.random(this)
-        7 -> listOf("꯿", "가", "힣", "힤", "㄰", "㆏").random(this)
-        else -> piece()
-    }
-
-    private fun Random.hangulKey(): String = when (nextInt(20)) {
-        in 0..6 -> HANGUL_MEDIALS.random(this)
-        in 7..13 -> HANGUL_CONSONANTS.random(this)
-        14 -> JAMO.random(this)
-        15 -> "_"
-        16 -> ""
-        17 -> JAMO.random(this) + piece()
-        else -> piece()
-    }
-
-    private fun Random.kanaLast(): String = when (nextInt(8)) {
-        in 0..4 -> KANA.random(this)
-        5 -> KANA_MARKS.random(this)
-        else -> piece()
-    }
-
-    private fun Random.kanaKey(): String = when (nextInt(12)) {
-        in 0..4 -> KANA_MARKS.random(this)
-        in 5..8 -> KANA.random(this)
-        9 -> ""
-        10 -> KANA_MARKS.random(this) + piece()
-        else -> piece()
     }
 
     private fun Random.telexKey(): String = when (nextInt(12)) {
@@ -232,58 +146,13 @@ class ComposingComparison(private val sigmaExact: Boolean, composersJson: String
     }
 
     /** An outcome's name: what kind of action, for what kind of keystroke. */
-    private fun label(name: String, preceding: String, toInsert: String, action: Pair<Int, String>): String = when (name) {
-        "hangul" -> hangulLabel(preceding, toInsert, action)
-        "kana" -> kanaLabel(toInsert, action)
-        else -> {
-            val (delete, text) = action
-            when {
-                delete == 0 && text == toInsert -> "keep"
-                text.isNotEmpty() && text.uppercase() == text && text.lowercase() != text -> "delete ${delete.coerceAtMost(2)}, upper"
-                else -> "delete ${delete.coerceAtMost(2)}"
-            }
-        }
-    }
-
-    private fun hangulLabel(preceding: String, toInsert: String, action: Pair<Int, String>): String {
+    private fun label(toInsert: String, action: Pair<Int, String>): String {
         val (delete, text) = action
-        val last = preceding.lastOrNull()
-        fun isSyllable(c: Char?) = c != null && c in '가'..'힣'
-        fun final(c: Char) = (c.code - 0xAC00) % 28
         return when {
-            delete == 0 && isSyllable(last) && toInsert.startsWith("_") -> "underscore after a syllable"
             delete == 0 && text == toInsert -> "keep"
-            delete != 1 -> "other"
-            text.length == 2 -> if (final(text[0]) == 0) "final starts a syllable" else "composed final split"
-            text.length == 1 && isSyllable(text[0]) -> when {
-                !isSyllable(last) -> "initial and vowel"
-                final(text[0]) == 0 -> "vowels combine in a syllable"
-                final(last!!) == 0 -> "final added"
-                else -> "finals combine in a syllable"
-            }
-            text.length == 1 && text[0] in 'ㅏ'..'ㅣ' -> "vowels combine"
-            text.length == 1 -> "finals combine"
-            else -> "other"
+            text.isNotEmpty() && text.uppercase() == text && text.lowercase() != text -> "delete ${delete.coerceAtMost(2)}, upper"
+            else -> "delete ${delete.coerceAtMost(2)}"
         }
-    }
-
-    private fun kanaLabel(toInsert: String, action: Pair<Int, String>): String {
-        val (delete, text) = action
-        val kind = when (toInsert.firstOrNull()) {
-            '゙', '゛', 'ﾞ' -> "dakuten"
-            '゚', '゜', 'ﾟ' -> "handakuten"
-            '〓' -> "small"
-            else -> "other"
-        }
-        val shape = when {
-            delete == 0 && text == toInsert -> "keep"
-            delete == 0 && text.isEmpty() -> "nothing"
-            delete == 0 -> "mark alone"
-            text.isEmpty() -> "marks cancel"
-            text == "゙" || text == "゚" -> "second mark"
-            else -> "made"
-        }
-        return "$kind $shape"
     }
 
     private fun hex(text: String) = text.map { "%04x".format(it.code) }.joinToString(" ")
@@ -296,16 +165,6 @@ class ComposingComparison(private val sigmaExact: Boolean, composersJson: String
         const val MAX_TEXT = 12
         const val CAPITAL_SIGMA = 'Σ'
         val JSON = Json { ignoreUnknownKeys = true }
-
-        /** Every Hangul Compatibility Jamo, U+3131 to U+318E. */
-        val JAMO = (0x3131..0x318E).map { it.toChar().toString() }
-        val HANGUL_MEDIALS = "ㅏㅐㅑㅒㅓㅔㅕㅖㅗㅘㅙㅚㅛㅜㅝㅞㅟㅠㅡㅢㅣ".map { it.toString() }
-        val HANGUL_CONSONANTS = "ㄱㄲㄳㄴㄵㄶㄷㄸㄹㄺㄻㄼㄽㄾㄿㅀㅁㅂㅃㅄㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ".map { it.toString() }
-
-        /** Every hiragana and katakana, their phonetic extensions, halfwidth katakana and the small kana outside the BMP. */
-        val KANA = ((0x3041..0x30FF) + (0x31F0..0x31FF) + (0xFF66..0xFF9D)).map { it.toChar().toString() } +
-            (0x1B150..0x1B167).map { String(Character.toChars(it)) }
-        val KANA_MARKS = listOf("゙", "゚", "゛", "゜", "ﾞ", "ﾟ", "〓")
 
         val TELEX_KEYS = "abcdeghiklmnopqrstuvxyw".map { it.toString() } + listOf("w", "s", "f", "r", "x", "j", "z", "a", "e", "o", "d")
 

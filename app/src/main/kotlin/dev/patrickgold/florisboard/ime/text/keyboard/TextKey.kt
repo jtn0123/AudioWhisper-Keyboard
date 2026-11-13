@@ -28,7 +28,6 @@ import dev.patrickgold.florisboard.ime.keyboard.computeLabel
 import dev.patrickgold.florisboard.ime.popup.MutablePopupSet
 import dev.patrickgold.florisboard.ime.popup.PopupMapping
 import dev.patrickgold.florisboard.ime.popup.PopupSet
-import dev.patrickgold.florisboard.ime.text.key.KeyCode
 import dev.patrickgold.florisboard.ime.text.key.KeyType
 import dev.patrickgold.florisboard.ime.text.key.KeyVariation
 import dev.patrickgold.florisboard.lib.lowercase
@@ -74,9 +73,6 @@ class TextKey(override val data: AbstractKeyData) : Key(data) {
                     }
                     KeyData.GROUP_RIGHT -> {
                         "~right"
-                    }
-                    KeyData.GROUP_KANA -> {
-                        "~kana"
                     }
                     else -> {
                         computedLabel

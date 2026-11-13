@@ -94,11 +94,6 @@ interface KeyData : AbstractKeyData {
          */
         const val GROUP_ENTER: Int = 3
 
-        /**
-         * Constant for the enter modifier key group. Any key belonging to this group will get the
-         * popups specified for "~kana" in the popup mapping.
-         */
-        const val GROUP_KANA: Int = 97
     }
 
     fun isSpaceKey(): Boolean {
@@ -296,38 +291,6 @@ class CharWidthSelector(
     override fun compute(evaluator: ComputingEvaluator): KeyData? {
         val data = if (evaluator.state.isCharHalfWidth) { half } else { full }
         return data?.compute(evaluator)
-    }
-
-    override fun asString(isForDisplay: Boolean): String {
-        return ""
-    }
-}
-
-/**
- * Allows to select an [AbstractKeyData] based on the kana state. Note that this type of selector only really
- * makes sense in a text context, though technically speaking it can be used anywhere, so this implementation allows
- * for any [AbstractKeyData] to be used here. The JSON class identifier for this selector is `kana_selector`.
- *
- * Example usage in a layout JSON file:
- * ```
- * { "$": "kana_selector",
- *   "hira": { "code": 12354, "label": "あ" },
- *   "kata": { "code": 12450, "label": "ア" }
- * }
- * ```
- *
- * @property hira The key data to use if the current kana state is hiragana.
- * @property kata The key data to use if the current kana state is katakana.
- */
-@Serializable
-@SerialName("kana_selector")
-class KanaSelector(
-    val hira: AbstractKeyData,
-    val kata: AbstractKeyData,
-) : AbstractKeyData {
-    override fun compute(evaluator: ComputingEvaluator): KeyData? {
-        val data = if (evaluator.state.isKanaKata) { kata } else { hira }
-        return data.compute(evaluator)
     }
 
     override fun asString(isForDisplay: Boolean): String {

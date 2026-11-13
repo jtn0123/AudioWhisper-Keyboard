@@ -56,8 +56,6 @@ import kotlin.properties.Delegates
  *          |       1  |          |          | Is quick actions editor visible
  *          |    1     |          |          | Is composing enabled
  *          |   1      |          |          | Is character half-width enabled
- *          |  1       |          |          | Is Kana Kata enabled
- *          | 1        |          |          | Is Kana small
  *      111 |          |          |          | Ime Ui Mode
  *     1    |          |          |          | Layout Direction (0=LTR, 1=RTL)
  *
@@ -92,8 +90,6 @@ open class KeyboardState protected constructor(open var rawValue: ULong) {
         const val F_IS_COMPOSING_ENABLED: ULong =           0x00100000u
 
         const val F_IS_CHAR_HALF_WIDTH: ULong =             0x00200000u
-        const val F_IS_KANA_KATA: ULong =                   0x00400000u
-        const val F_IS_KANA_SMALL: ULong =                  0x00800000u
 
         const val F_IS_RTL_LAYOUT_DIRECTION: ULong =        0x08000000u
 
@@ -202,17 +198,9 @@ open class KeyboardState protected constructor(open var rawValue: ULong) {
         get() = getFlag(F_IS_COMPOSING_ENABLED)
         set(v) { setFlag(F_IS_COMPOSING_ENABLED, v) }
 
-    var isKanaKata: Boolean
-        get() = getFlag(F_IS_KANA_KATA)
-        set(v) { setFlag(F_IS_KANA_KATA, v) }
-
     var isCharHalfWidth: Boolean
         get() = getFlag(F_IS_CHAR_HALF_WIDTH)
         set(v) { setFlag(F_IS_CHAR_HALF_WIDTH, v) }
-
-    var isKanaSmall: Boolean
-        get() = getFlag(F_IS_KANA_SMALL)
-        set(v) { setFlag(F_IS_KANA_SMALL, v) }
 
 }
 

@@ -197,13 +197,7 @@ android {
         // The app is English only; this also leaves out the libraries' translations.
         // Typing languages are unaffected: layouts and dictionaries are assets.
         localeFilters += "en"
-        // Leave out the Chinese shape-based input pack, a 7.4 MB database only Chinese layouts
-        // use; without it they get no candidates. Setting this replaces aapt's default ignore
-        // list, so that comes first, unchanged.
-        ignoreAssetsPatterns += listOf(
-            "!.svn", "!.git", "!.ds_store", "!*.scc", ".*", "<dir>_*", "!CVS", "!thumbs.db", "!picasa.ini", "!*~",
-            "!<dir>org.florisboard.hanshapebasedbasicpack",
-        )
+
     }
 
     testOptions {

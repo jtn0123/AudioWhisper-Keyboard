@@ -97,12 +97,11 @@ fun ExtensionComponentView(
                 }
                 is LanguagePackComponent -> {
                     val text = remember(
-                        component.authors, component.locale, component.hanShapeBasedKeyCode,
+                        component.authors, component.locale,
                     ) {
                         buildString {
                             appendLine("authors = ${component.authors}")
                             appendLine("locale = ${component.locale.localeTag()}")
-                            appendLine("hanShapeBasedKeyCode = ${component.hanShapeBasedKeyCode}")
                         }
                     }
                     Text(

@@ -113,7 +113,7 @@
     <string name="settings__localization__group_subtypes__label" comment="Label of subtypes group">Subtypes</string>
     <string name="settings__localization__subtype_add_title" comment="Title of subtype dialog when adding a new subtype">Add subtype</string>
     <string name="settings__localization__language_pack_title" comment="Title of the language pack manager screen for managing installed and custom language packs">Manage installed language packs</string>
-    <string name="settings__localization__language_pack_summary" comment="Summary of preference item for adding a new language pack">Experimental: manage extensions that add support for specific languages (shape-based Chinese input for now)</string>
+    <string name="settings__localization__language_pack_summary" comment="Summary of preference item for adding a new language pack">Manage installed language-pack extensions</string>
     <string name="settings__localization__subtype_edit_title" comment="Title of subtype dialog when editing an existing subtype">Edit subtype</string>
     <string name="settings__localization__subtype_locale" comment="Label for locale dropdown in subtype dialog">Primary language</string>
     <string name="settings__localization__subtype_popup_mapping" comment="Label for popup mapping dropdown in subtype screen">Popup mapping</string>

@@ -26,8 +26,6 @@ import dev.patrickgold.florisboard.ime.keyboard.KeyboardExtension
 import dev.patrickgold.florisboard.ime.nlp.LanguagePackExtension
 import dev.patrickgold.florisboard.ime.text.composing.Appender
 import dev.patrickgold.florisboard.ime.text.composing.Composer
-import dev.patrickgold.florisboard.ime.text.composing.HangulUnicode
-import dev.patrickgold.florisboard.ime.text.composing.KanaUnicode
 import dev.patrickgold.florisboard.ime.text.composing.WithRules
 import dev.patrickgold.florisboard.ime.theme.ThemeExtension
 import dev.patrickgold.florisboard.lib.devtools.LogTopic
@@ -71,8 +69,6 @@ val ExtensionJsonConfig = Json {
         }
         polymorphic(Composer::class) {
             subclass(Appender::class, Appender.serializer())
-            subclass(HangulUnicode::class, HangulUnicode.serializer())
-            subclass(KanaUnicode::class, KanaUnicode.serializer())
             subclass(WithRules::class, WithRules.serializer())
             defaultDeserializer { Appender.serializer() }
         }

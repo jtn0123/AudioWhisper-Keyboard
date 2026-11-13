@@ -8,17 +8,6 @@ import java.lang.ref.Reference
  * cursor to delete and what to type instead, `0 to toInsert` when it has nothing to do.
  */
 object Composing {
-    /** Korean jamo joined into syllables, and split again when a vowel takes a final. */
-    fun hangul(precedingText: String, toInsert: String): Pair<Int, String> =
-        unpack(ComposingNative.hangul(precedingText, toInsert), toInsert)
-
-    /**
-     * A voicing mark or the small-kana key (〓) applied to the kana before it, or taken off it;
-     * [sticky] keeps a mark on instead.
-     */
-    fun kana(precedingText: String, toInsert: String, sticky: Boolean): Pair<Int, String> =
-        unpack(ComposingNative.kana(precedingText, toInsert, sticky), toInsert)
-
     /** An action as composing.rs packs it: null for none, else the count's two halves, then the text. */
     internal fun unpack(packed: String?, toInsert: String): Pair<Int, String> {
         if (packed == null) return 0 to toInsert

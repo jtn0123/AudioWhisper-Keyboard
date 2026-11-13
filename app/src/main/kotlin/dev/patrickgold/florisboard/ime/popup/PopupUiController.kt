@@ -67,7 +67,6 @@ val ExceptionsForKeyCodes = listOf(
     KeyCode.IME_UI_MODE_TEXT,
     KeyCode.IME_UI_MODE_MEDIA,
     KeyCode.IME_UI_MODE_CLIPBOARD,
-    KeyCode.KANA_SWITCHER,
     KeyCode.CHAR_WIDTH_SWITCHER,
 )
 

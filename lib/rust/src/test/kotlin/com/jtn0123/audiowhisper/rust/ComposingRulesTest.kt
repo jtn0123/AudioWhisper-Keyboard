@@ -3,7 +3,6 @@ package com.jtn0123.audiowhisper.rust
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
-import kotlin.test.assertSame
 
 /**
  * The text composers through JNI, as the keyboard calls them: actions unpacked, whatever their
@@ -11,24 +10,6 @@ import kotlin.test.assertSame
  * Kotlin they replace, in the app.
  */
 class ComposingRulesTest {
-    @Test
-    fun hangulCrosses() {
-        assertEquals(1 to "가", Composing.hangul("ㄱ", "ㅏ"))
-        assertEquals(1 to "각사", Composing.hangul("x갃", "ㅏ"))
-        val toInsert = "ㅏ"
-        assertSame(toInsert, Composing.hangul("", toInsert).second)
-    }
-
-    @Test
-    fun kanaCrosses() {
-        assertEquals(1 to "が", Composing.kana("か", "゙", sticky = false))
-        assertEquals(1 to "か", Composing.kana("が", "゙", sticky = false))
-        assertEquals(1 to "が", Composing.kana("が", "゙", sticky = true))
-        assertEquals(1 to "𛅐", Composing.kana("ゐ", "〓", sticky = false))
-        assertEquals(0 to "", Composing.kana("", "〓", sticky = false))
-        assertEquals(0 to "か", Composing.kana("か", "か", sticky = false))
-    }
-
     @Test
     fun rulesKeepTheirOrderAndAnyCount() {
         val rules = ComposingRules(listOf("uow" to "ươ", "aa" to "â", "a" to "1", "" to "e"))
@@ -46,7 +27,6 @@ class ComposingRulesTest {
         val rules = ComposingRules(listOf("\uD800" to "\uDC00\u0000", "😀" to "ß"))
         assertEquals(0 to "\uDC00\u0000", rules.actions("", "\uD800"))
         assertEquals(1 to "SS", rules.actions("\uD83D", "\uDE00"))
-        assertEquals(0 to "\uD800", Composing.hangul("\uDC00", "\uD800"))
     }
 
     @Test

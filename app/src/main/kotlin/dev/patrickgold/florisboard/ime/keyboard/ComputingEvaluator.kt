@@ -294,13 +294,6 @@ fun ComputingEvaluator.computeImageVector(data: KeyData): ImageVector? {
         KeyCode.TOGGLE_AUTOCORRECT -> {
             Icons.Default.FontDownload
         }
-        KeyCode.KANA_SWITCHER -> {
-            if (evaluator.state.isKanaKata) {
-                this.context()?.vectorResource(R.drawable.ic_keyboard_kana_switcher_kata)
-            } else {
-                this.context()?.vectorResource(R.drawable.ic_keyboard_kana_switcher_hira)
-            }
-        }
         KeyCode.CHAR_WIDTH_SWITCHER -> {
             if (evaluator.state.isCharHalfWidth) {
                 this.context()?.vectorResource(R.drawable.ic_keyboard_char_width_switcher_full)

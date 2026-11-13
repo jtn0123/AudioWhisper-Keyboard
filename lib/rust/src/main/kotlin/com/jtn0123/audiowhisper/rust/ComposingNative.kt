@@ -10,10 +10,6 @@ internal object ComposingNative {
         RustLibrary.load()
     }
 
-    @JvmStatic external fun hangul(precedingText: String, toInsert: String): String?
-
-    @JvmStatic external fun kana(precedingText: String, toInsert: String, sticky: Boolean): String?
-
     @JvmStatic external fun newRules(keys: String, keyLengths: IntArray, values: String, valueLengths: IntArray): Long
 
     @JvmStatic external fun freeRules(rules: Long)

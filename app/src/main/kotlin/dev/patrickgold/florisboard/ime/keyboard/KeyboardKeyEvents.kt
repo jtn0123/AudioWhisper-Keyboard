@@ -123,10 +123,6 @@ internal fun KeyboardManager.handleInputKeyUp(data: KeyData) = activeState.batch
         KeyCode.IME_UI_MODE_CLIPBOARD -> activeState.imeUiMode = ImeUiMode.CLIPBOARD
         KeyCode.VOICE_INPUT -> FlorisImeService.releaseMic()
         KeyCode.READ_ALOUD -> ReadAloud.keyUp(appContext)
-        KeyCode.KANA_SWITCHER -> handleKanaSwitch()
-        KeyCode.KANA_HIRA -> handleKanaHira()
-        KeyCode.KANA_KATA -> handleKanaKata()
-        KeyCode.KANA_HALF_KATA -> handleKanaHalfKata()
         KeyCode.LANGUAGE_SWITCH -> handleLanguageSwitch()
         KeyCode.REDO -> editorInstance.performRedo()
         KeyCode.SETTINGS -> FlorisImeService.launchSettings()

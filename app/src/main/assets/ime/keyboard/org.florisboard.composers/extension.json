@@ -10,8 +10,6 @@
   },
   "composers": [
     { "$": "appender" },
-    { "$": "hangul-unicode" },
-    { "$": "kana-unicode" },
     { "$": "with-rules",
       "id": "telex",
       "label": "Telex",

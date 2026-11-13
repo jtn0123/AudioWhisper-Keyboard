@@ -356,47 +356,7 @@ internal fun KeyboardManager.handleToggleAutocorrect() {
 }
 
 /**
- * Handles a [KeyCode.KANA_SWITCHER] event
- */
-internal fun KeyboardManager.handleKanaSwitch() {
-    activeState.batchEdit {
-        it.isKanaKata = !it.isKanaKata
-        it.isCharHalfWidth = false
-    }
-}
-
-/**
- * Handles a [KeyCode.KANA_HIRA] event
- */
-internal fun KeyboardManager.handleKanaHira() {
-    activeState.batchEdit {
-        it.isKanaKata = false
-        it.isCharHalfWidth = false
-    }
-}
-
-/**
- * Handles a [KeyCode.KANA_KATA] event
- */
-internal fun KeyboardManager.handleKanaKata() {
-    activeState.batchEdit {
-        it.isKanaKata = true
-        it.isCharHalfWidth = false
-    }
-}
-
-/**
- * Handles a [KeyCode.KANA_HALF_KATA] event
- */
-internal fun KeyboardManager.handleKanaHalfKata() {
-    activeState.batchEdit {
-        it.isKanaKata = true
-        it.isCharHalfWidth = true
-    }
-}
-
-/**
- * Handles a [KeyCode.CHAR_WIDTH_SWITCHER] event
+ * Switches the retained symbol layouts between full-width and half-width characters.
  */
 internal fun KeyboardManager.handleCharWidthSwitch() {
     activeState.isCharHalfWidth = !activeState.isCharHalfWidth

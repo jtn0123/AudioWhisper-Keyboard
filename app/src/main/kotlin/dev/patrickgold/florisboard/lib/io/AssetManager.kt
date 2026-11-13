@@ -20,7 +20,6 @@ import android.content.Context
 import dev.patrickgold.florisboard.ime.keyboard.AbstractKeyData
 import dev.patrickgold.florisboard.ime.keyboard.CaseSelector
 import dev.patrickgold.florisboard.ime.keyboard.CharWidthSelector
-import dev.patrickgold.florisboard.ime.keyboard.KanaSelector
 import dev.patrickgold.florisboard.ime.keyboard.KeyData
 import dev.patrickgold.florisboard.ime.keyboard.LayoutDirectionSelector
 import dev.patrickgold.florisboard.ime.keyboard.ShiftStateSelector
@@ -53,7 +52,6 @@ val DefaultJsonConfig = Json {
             subclass(VariationSelector::class, VariationSelector.serializer())
             subclass(LayoutDirectionSelector::class, LayoutDirectionSelector.serializer())
             subclass(CharWidthSelector::class, CharWidthSelector.serializer())
-            subclass(KanaSelector::class, KanaSelector.serializer())
             defaultDeserializer { TextKeyData.serializer() }
         }
         polymorphic(KeyData::class) {
@@ -178,5 +176,3 @@ fun FlorisRef.loadTextAsset(context: Context): Result<String> {
 private fun readTextFile(file: File) = runCatching {
     file.readText(Charsets.UTF_8)
 }
-
-

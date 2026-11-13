@@ -63,8 +63,10 @@ class SubtypeManager(context: Context) {
             } else {
                 emptyList()
             }
-            subtypes = list
-            evaluateActiveSubtype(list)
+            val supported = list.map { it.withSupportedInput() }
+            subtypes = supported
+            evaluateActiveSubtype(supported)
+            if (supported != list) persistNewSubtypeList(supported)
         }
     }
 

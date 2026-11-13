@@ -11,6 +11,7 @@ the Android companion to the AudioWhisper Mac app. It installs next to stock Flo
   are removed and a custom vocabulary applied, by the Mac app's rules.
 - **Read aloud**: a speaker beside the mic reads the screen, in a built-in neural voice (Kyutai's
   Pocket TTS) or the phone's own.
+- **Latin-script input**, including accented layouts and Vietnamese Telex; numeric, symbol and phone layouts, emoji, add-ons and the theme editor remain available
 - **Autocorrect and predictions** from AOSP LatinIME, with the typing rules rewritten in Rust
   (`lib/rust`, see [docs/rust.md](docs/rust.md)).
 - **GIF search** through GIPHY.

@@ -1,10 +1,6 @@
 //! FlorisBoard's text composers, which turn a keystroke and the text before the cursor into what
 //! to delete and what to type instead:
 //!
-//! - [`hangul`]: Korean jamo joined into syllables as they are typed, and split again when a
-//!   vowel takes a syllable's last consonant (FlorisBoard's `HangulUnicode`);
-//! - [`kana`]: a voicing mark or the small-kana key applied to the kana before it, or taken off
-//!   it again (`KanaUnicode`);
 //! - [`rules`]: a table of endings and what they become, such as Telex for Vietnamese
 //!   (`WithRules`).
 //!
@@ -14,8 +10,6 @@
 
 #![forbid(unsafe_code)]
 
-pub mod hangul;
-pub mod kana;
 pub mod rules;
 
 /// What a composer does with a keystroke: delete this many UTF-16 units before the cursor, then

@@ -8,9 +8,9 @@
 
 use std::ptr;
 
+use composing::Action;
 use composing::rules::Rules;
-use composing::{Action, hangul, kana};
-use jni_sys::{JNIEnv, jboolean, jclass, jintArray, jlong, jstring};
+use jni_sys::{JNIEnv, jclass, jintArray, jlong, jstring};
 
 use crate::handle::{free, into_handle, object};
 use crate::jni::{self, Env, Result, illegal};
@@ -37,41 +37,6 @@ fn with_text(
     let preceding = env.read_string(preceding, "precedingText")?;
     let to_insert = env.read_string(to_insert, "toInsert")?;
     packed(env, compose(&preceding, &to_insert))
-}
-
-/// Typing `toInsert` after `precedingText` in Korean (`hangul::actions`).
-#[unsafe(no_mangle)]
-pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_ComposingNative_hangul(
-    env: *mut JNIEnv,
-    _: jclass,
-    preceding: jstring,
-    to_insert: jstring,
-) -> jstring {
-    // SAFETY: the JVM passes its environment for this call.
-    unsafe {
-        jni::run(env, ptr::null_mut(), |env| {
-            with_text(env, preceding, to_insert, hangul::actions)
-        })
-    }
-}
-
-/// Typing `toInsert` after `precedingText` in kana (`kana::actions`), `sticky` or not.
-#[unsafe(no_mangle)]
-pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_ComposingNative_kana(
-    env: *mut JNIEnv,
-    _: jclass,
-    preceding: jstring,
-    to_insert: jstring,
-    sticky: jboolean,
-) -> jstring {
-    // SAFETY: the JVM passes its environment for this call.
-    unsafe {
-        jni::run(env, ptr::null_mut(), |env| {
-            with_text(env, preceding, to_insert, |preceding, to_insert| {
-                kana::actions(preceding, to_insert, sticky != 0)
-            })
-        })
-    }
 }
 
 /// Rules to try in order: ending `i` is the `i`th piece of `keys`, cut by `keyLengths`, and its
