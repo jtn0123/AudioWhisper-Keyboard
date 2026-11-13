@@ -50,6 +50,7 @@ impl Touch {
             .collect();
         self.pointers.clear();
         scene.pressed.clear();
+        scene.candidate_pressed.clear();
         scene.popup = None;
         result
     }
@@ -176,6 +177,12 @@ impl Touch {
             .values()
             .filter(|&&k| k < scene.keys.len())
             .copied()
+            .collect();
+        scene.candidate_pressed = self
+            .pointers
+            .values()
+            .filter(|&&k| k >= scene.keys.len() && k != OUTSIDE)
+            .map(|k| k - scene.keys.len())
             .collect();
         actions
     }

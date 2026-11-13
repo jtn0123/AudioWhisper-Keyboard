@@ -9,6 +9,7 @@ rust-version.workspace = true
 
 [dependencies]
 keys = { path = "../keys" }
+snygg = { path = "../snygg" }
 parley = { version = "=0.13.0", default-features = false, features = ["std"] }
 read-fonts = "=0.47.0"
 vello_cpu = "=0.4.0"
@@ -20,3 +21,6 @@ pollster = "=1.0.1"
 
 [lints]
 workspace = true
+
+[dev-dependencies]
+serde_json = { version = "=1.0.154", features = ["preserve_order"] }

@@ -6,15 +6,19 @@ class KeyboardRenderer(fontPaths: Array<String>) : AutoCloseable {
     private val cleanable = RustLibrary.cleaner.register(this, Free(handle))
 
     @Synchronized
-    fun update(dimensions: FloatArray, colors: IntArray, geometry: FloatArray, labels: Array<String>, candidates: Array<String>) =
-        RenderNative.update(handle, dimensions, colors, geometry, labels, candidates)
+    fun theme(json: String, names: Array<String>, colors: IntArray, scale: FloatArray) =
+        RenderNative.theme(handle, json, names, colors, scale)
+
+    @Synchronized
+    fun update(dimensions: FloatArray, metadata: Array<String>, candidateFlags: IntArray, geometry: FloatArray, labels: Array<String>, candidates: Array<String>) =
+        RenderNative.update(handle, dimensions, metadata, candidateFlags, geometry, labels, candidates)
 
     @Synchronized
     fun touch(metadata: IntArray, times: LongArray, coords: FloatArray): IntArray =
         RenderNative.touch(handle, metadata, times, coords)
 
     @Synchronized
-    fun popup(key: Int, labels: Array<String>) = RenderNative.popup(handle, key, labels)
+    fun popup(key: Int, labels: Array<String>, codes: IntArray) = RenderNative.popup(handle, key, labels, codes)
 
     @Synchronized
     fun attach(surface: Any, hybrid: Boolean = false) = RenderNative.attach(handle, surface, hybrid)
@@ -39,9 +43,10 @@ class KeyboardRenderer(fontPaths: Array<String>) : AutoCloseable {
 internal object RenderNative {
     init { RustLibrary.load() }
     external fun create(fontPaths: Array<String>): Long
-    external fun update(handle: Long, dimensions: FloatArray, colors: IntArray, geometry: FloatArray, labels: Array<String>, candidates: Array<String>)
+    external fun theme(handle: Long, json: String, names: Array<String>, colors: IntArray, scale: FloatArray)
+    external fun update(handle: Long, dimensions: FloatArray, metadata: Array<String>, candidateFlags: IntArray, geometry: FloatArray, labels: Array<String>, candidates: Array<String>)
     external fun touch(handle: Long, metadata: IntArray, times: LongArray, coords: FloatArray): IntArray
-    external fun popup(handle: Long, key: Int, labels: Array<String>)
+    external fun popup(handle: Long, key: Int, labels: Array<String>, codes: IntArray)
     external fun attach(handle: Long, surface: Any, hybrid: Boolean)
     external fun frame(handle: Long, time: Long)
     external fun detach(handle: Long)

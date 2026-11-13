@@ -8,19 +8,21 @@ class KeyboardRendererTest {
     @Test
     fun packedMotionAndGeometryDispatchThroughJni() {
         KeyboardRenderer(emptyArray()).use { renderer ->
-            renderer.update(floatArrayOf(100f, 80f, 20f, 16f, 0f),
-                IntArray(17),
-                floatArrayOf(0f, 0f, 50f, 60f, 0f, 0f, 50f, 60f, 20f, 0f, 1f, 10f, 0f, 97f,
-                    50f, 0f, 100f, 60f, 50f, 0f, 100f, 60f, 20f, 0f, 1f, 10f, 0f, 101f),
+            renderer.theme("""{"${'$'}schema":"https://schemas.florisboard.org/snygg/v2/stylesheet","key":{"font-size":"20sp"}}""",
+                emptyArray(), intArrayOf(), floatArrayOf(1f, 1f, 1f))
+            renderer.update(floatArrayOf(100f, 80f, 20f),
+                arrayOf("characters", "unshifted", "character", "character"), intArrayOf(),
+                floatArrayOf(0f, 0f, 50f, 60f, 0f, 0f, 50f, 60f, 1f, 97f,
+                    50f, 0f, 100f, 60f, 50f, 0f, 100f, 60f, 1f, 101f),
                 arrayOf("a", "", "", "e", "", ""), emptyArray())
             assertContentEquals(intArrayOf(0, 0, 7),
                 renderer.touch(intArrayOf(0, 0, 7), longArrayOf(1, 2), floatArrayOf(25f, 40f)))
             assertContentEquals(intArrayOf(2, 0, 7, 0, 1, 7),
                 renderer.touch(intArrayOf(2, 0, 7), longArrayOf(1, 2, 3), floatArrayOf(25f, 40f, 75f, 40f)))
-            renderer.popup(1, arrayOf("é", "è"))
+            renderer.popup(1, arrayOf("é", "è"), intArrayOf(233, 232))
             assertContentEquals(intArrayOf(3, 0, 7),
                 renderer.touch(intArrayOf(1, 0, 7), longArrayOf(1, 4), floatArrayOf(75f, 40f)))
-            assertFailsWith<IllegalArgumentException> { renderer.popup(2, arrayOf("é")) }
+            assertFailsWith<IllegalArgumentException> { renderer.popup(2, arrayOf("é"), intArrayOf(233)) }
         }
     }
 

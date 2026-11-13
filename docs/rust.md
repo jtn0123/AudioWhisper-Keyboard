@@ -114,6 +114,15 @@ allocation counters do not cover library internals; cold-layout glyph timing is 
 not Vello's private atlas-miss count. No scene labels, candidate text or typed contents
 enter measurement logs.
 
+#### Milestone B package 1 (2026-11-12)
+
+The prototype now compiles and resolves the active Snygg source in Rust, including extension
+themes and named Material You palettes, with cached drawing states and raw theme inputs
+across JNI. All 12 bundled themes match the test-only Kotlin reference; six fresh visual
+pairs and live theme switching are checked. The 2/4-worker Vello CPU experiment regressed
+both p50 and p95 and was removed. Compose stays the default. See
+[package 1 results, screenshots and per-trial measurements](stage3b-results.md).
+
 ### Stage 4: smaller settings (to 90%+)
 
 At roughly 55–64k Rust lines, Kotlin and Java together must be around 6k. Settings, extensions

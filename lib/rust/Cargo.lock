@@ -1548,6 +1548,8 @@ dependencies = [
  "parley",
  "pollster",
  "read-fonts 0.47.0",
+ "serde_json",
+ "snygg",
  "vello_cpu",
  "vello_hybrid",
  "wgpu",

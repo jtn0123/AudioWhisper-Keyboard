@@ -76,11 +76,11 @@ impl Text {
             .context
             .ranged_builder(&mut self.fonts, text, 1.0, true);
         builder.push_default(StyleProperty::FontSize(size));
-        if mono {
-            builder.push_default(StyleProperty::FontFamily(parley::FontFamily::Source(
-                "monospace".into(),
-            )));
-        }
+        // Unsupported theme families/weights have already selected the regular system
+        // fallback in Style; always request its public generic explicitly.
+        builder.push_default(StyleProperty::FontFamily(parley::FontFamily::Source(
+            if mono { "monospace" } else { "sans-serif" }.into(),
+        )));
         let mut layout = builder.build(text);
         layout.break_all_lines(None);
         layout

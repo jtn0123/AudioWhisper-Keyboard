@@ -1,6 +1,6 @@
 //! Vello CPU keeps a backing pixmap and only paints invalidated rectangles.
 use crate::profile::{Profile, elapsed};
-use crate::{scene::Scene, text::Text};
+use crate::{scene::Scene, style::Style, text::Text};
 use keys::Rect;
 use parley::{Layout, PositionedLayoutItem};
 use read_fonts::TableProvider;
@@ -115,7 +115,7 @@ impl Raster {
                 bottom: r.bottom + scene.strip,
                 ..r
             };
-            let margin = key.shadow * 4.0;
+            let margin = key.styles.iter().map(|s| s.shadow).fold(0.0, f32::max) * 4.0;
             if r.right + margin < damage.left
                 || r.left - margin > damage.right
                 || r.bottom + margin < damage.top
@@ -123,48 +123,61 @@ impl Raster {
             {
                 continue;
             }
-            let pressed = usize::from(scene.pressed.contains(&i)) * 2;
-            if key.shadow > 0.0 {
+            let pressed = usize::from(scene.pressed.contains(&i));
+            let style = &key.styles[pressed];
+            let hint = &key.hints[pressed];
+            if style.shadow > 0.0 {
                 self.context.set_paint(color(0x33000000));
                 self.context.fill_blurred_rounded_rect(
                     &vello_cpu::kurbo::Rect::new(
                         r.left as f64,
-                        (r.top + key.shadow * 0.5) as f64,
+                        (r.top + style.shadow * 0.5) as f64,
                         r.right as f64,
-                        (r.bottom + key.shadow * 0.5) as f64,
+                        (r.bottom + style.shadow * 0.5) as f64,
                     ),
-                    key.radius,
-                    key.shadow * 0.75,
+                    style.radii(r.width(), r.height())[0],
+                    style.shadow * 0.75,
                 );
             }
-            self.box_at(r, key.radius, key.colors[pressed]);
-            self.label(&key.label, key.size, key.colors[pressed + 1], r, false)?;
+            self.box_at(r, style);
+            self.label(&key.label, style.size, style.foreground, r, style.mono)?;
             if !key.icon.is_empty() {
                 let path = vello_cpu::kurbo::BezPath::from_svg(&key.icon)
                     .map_err(|_| "invalid icon path".to_owned())?;
                 self.context.set_transform(
                     Affine::translate((
-                        (r.left + (r.width() - key.size) / 2.0) as f64,
-                        (r.top + (r.height() - key.size) / 2.0) as f64,
-                    )) * Affine::scale(key.size as f64 / 24.0),
+                        (r.left + (r.width() - style.size) / 2.0) as f64,
+                        (r.top + (r.height() - style.size) / 2.0) as f64,
+                    )) * Affine::scale(style.size as f64 / 24.0),
                 );
-                self.context.set_paint(color(key.colors[pressed + 1]));
+                self.context.set_paint(color(style.foreground));
                 self.context.fill_path(&path);
                 self.context.reset_transform();
             }
             if !key.hint.is_empty() {
                 self.label(
                     &key.hint,
-                    key.hint_size,
-                    key.hint_colors[pressed / 2],
+                    hint.size,
+                    hint.foreground,
                     Rect {
-                        left: r.right - key.size * 0.6,
-                        bottom: r.top + key.size * 0.7,
+                        left: r.right - style.size * 0.6,
+                        bottom: r.top + style.size * 0.7,
                         ..r
                     },
-                    true,
+                    hint.mono,
                 )?;
             }
+        }
+        if damage.top < scene.strip {
+            self.box_at(
+                Rect {
+                    left: 0.0,
+                    top: 0.0,
+                    right: scene.width as f32,
+                    bottom: scene.strip,
+                },
+                &scene.strip_style,
+            );
         }
         // Colour glyph preparation is substantial work even when all of its pixels are clipped.
         // A key-only update must not rebuild the unchanged COLR/CBDT candidate strip.
@@ -181,22 +194,30 @@ impl Raster {
                 ((i + 1) as f32 * width) as f64,
                 scene.strip as f64,
             ));
+            let default = crate::scene::CandidateStyle::default();
+            let style = scene
+                .candidate_styles
+                .get(i)
+                .map(|s| &s[usize::from(scene.candidate_pressed.contains(&i))])
+                .unwrap_or(&default);
+            let r = Rect {
+                left: i as f32 * width,
+                right: (i + 1) as f32 * width,
+                top: 0.0,
+                bottom: scene.strip,
+            };
+            self.box_at(r, &style.container);
             self.label(
                 candidate,
-                scene.candidate_size,
-                scene.candidate_color,
-                Rect {
-                    left: i as f32 * width,
-                    right: (i + 1) as f32 * width,
-                    top: 0.0,
-                    bottom: scene.strip,
-                },
-                false,
+                style.text.size,
+                style.text.foreground,
+                r,
+                style.text.mono,
             )?;
             self.context.pop_clip();
         }
         if let (Some(popup), Some(bounds)) = (&scene.popup, scene.popup_bounds()) {
-            self.box_at(bounds, 12.0, scene.popup_colors[0]);
+            self.box_at(bounds, &scene.popup_style);
             for (i, label) in popup.labels.iter().enumerate() {
                 let width = bounds.width() / popup.labels.len() as f32;
                 let r = Rect {
@@ -204,16 +225,13 @@ impl Raster {
                     right: bounds.left + (i + 1) as f32 * width,
                     ..bounds
                 };
-                if i == popup.selected {
-                    self.box_at(r, 8.0, scene.popup_colors[2]);
-                }
-                self.label(
-                    label,
-                    scene.keys[popup.key].size,
-                    scene.popup_colors[1],
-                    r,
-                    false,
-                )?;
+                let style = scene
+                    .popup_styles
+                    .get(i)
+                    .map(|s| &s[usize::from(i == popup.selected)])
+                    .unwrap_or(&scene.popup_style);
+                self.box_at(r, style);
+                self.label(label, style.size, style.foreground, r, style.mono)?;
             }
         }
         self.context.pop_clip();
@@ -224,17 +242,48 @@ impl Raster {
         Ok(())
     }
 
-    fn box_at(&mut self, r: Rect, radius: f32, argb: u32) {
-        self.context.set_paint(color(argb));
+    fn box_at(&mut self, r: Rect, style: &Style) {
+        self.context.set_paint(color(style.background));
+        let c = style.radii(r.width(), r.height());
         let shape = RoundedRect::new(
             r.left as f64,
             r.top as f64,
             r.right as f64,
             r.bottom as f64,
-            radius as f64,
+            vello_cpu::kurbo::RoundedRectRadii::new(
+                c[0] as f64,
+                c[1] as f64,
+                c[2] as f64,
+                c[3] as f64,
+            ),
         );
         let start = self.profiling.then(Instant::now);
-        let path = shape.to_path(0.1);
+        let path = if style.shape == snygg::value::ShapeKind::Cut {
+            let mut p = vello_cpu::kurbo::BezPath::new();
+            for (i, (x, y)) in [
+                (r.left + c[0], r.top),
+                (r.right - c[1], r.top),
+                (r.right, r.top + c[1]),
+                (r.right, r.bottom - c[2]),
+                (r.right - c[2], r.bottom),
+                (r.left + c[3], r.bottom),
+                (r.left, r.bottom - c[3]),
+                (r.left, r.top + c[0]),
+            ]
+            .into_iter()
+            .enumerate()
+            {
+                if i == 0 {
+                    p.move_to((x as f64, y as f64));
+                } else {
+                    p.line_to((x as f64, y as f64));
+                }
+            }
+            p.close_path();
+            p
+        } else {
+            shape.to_path(0.1)
+        };
         self.profile.alloc_ns += elapsed(start);
         self.profile.alloc_sites += u32::from(self.profiling);
         self.context.fill_path(&path);

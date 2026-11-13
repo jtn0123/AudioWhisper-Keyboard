@@ -8,11 +8,11 @@ import android.view.MotionEvent
 import android.view.SurfaceHolder
 import android.view.SurfaceView
 import android.widget.FrameLayout
-import androidx.compose.ui.geometry.Size
 import com.jtn0123.audiowhisper.rust.KeyboardRenderer
 import com.jtn0123.audiowhisper.suggest.TapOffset
 import dev.patrickgold.florisboard.app.FlorisPreferenceStore
 import dev.patrickgold.florisboard.ime.keyboard.KeyData
+import dev.patrickgold.florisboard.ime.nlp.ClipboardSuggestionCandidate
 import dev.patrickgold.florisboard.ime.nlp.SuggestionCandidate
 import dev.patrickgold.florisboard.ime.text.keyboard.TextKey
 import dev.patrickgold.florisboard.ime.text.keyboard.TextKeyData
@@ -35,8 +35,8 @@ internal fun systemRendererFonts(): Array<String> {
 }
 
 data class KeyboardSnapshot(
-    val keyboard: TextKeyboard, val keys: List<TextKey>, val styles: List<ResolvedKeyStyle>,
-    val candidates: List<SuggestionCandidate>, val colors: IntArray, val candidateSize: Float,
+    val keyboard: TextKeyboard, val keys: List<TextKey>,
+    val candidates: List<SuggestionCandidate>, val theme: RendererTheme, val shift: String,
     val keyboardHeight: Float, val stripHeight: Float, val rowHeight: Float, val marginH: Float, val marginV: Float,
 )
 
@@ -70,6 +70,10 @@ class RustKeyboardView(context: Context) : FrameLayout(context), SurfaceHolder.C
             cancelInput()
             native.touch(intArrayOf(MotionEvent.ACTION_CANCEL, 0), longArrayOf(), floatArrayOf())
         }
+        if (snapshot?.theme != value.theme) {
+            native.theme(value.theme.json, value.theme.paletteNames.toTypedArray(), value.theme.paletteColors.toIntArray(),
+                floatArrayOf(value.theme.density, value.theme.fontScale, value.theme.fontMultiplier))
+        }
         snapshot = value
         if (width > 0 && height > 0) updateScene()
     }
@@ -79,24 +83,25 @@ class RustKeyboardView(context: Context) : FrameLayout(context), SurfaceHolder.C
         val desired = TextKey(TextKeyData.UNSPECIFIED)
         s.keyboard.sizeDesiredKey(desired, width.toFloat(), s.keyboardHeight, s.rowHeight, s.marginH, s.marginV)
         s.keyboard.layout(width.toFloat(), s.keyboardHeight, desired, true)
-        val geometry = FloatArray(s.keys.size * 14)
-        val colors = s.colors.toMutableList()
+        val geometry = FloatArray(s.keys.size * 10)
+        val metadata = mutableListOf(s.keyboard.mode.toString(), s.shift)
         val labels = mutableListOf<String>()
         for ((i, key) in s.keys.withIndex()) {
-            val style = s.styles[i]
             val t = key.touchBounds
             val v = key.visibleBounds
-            floatArrayOf(t.left, t.top, t.right, t.bottom, v.left, v.top, v.right, v.bottom, style.fontSize,
-                style.radius(Size(v.width, v.height)), if (key.isEnabled) 1f else 0f, style.hintSize, style.shadow,
-                key.computedData.code.toFloat()).copyInto(geometry, i * 14)
-            colors.addAll(style.colors.toList())
+            floatArrayOf(t.left, t.top, t.right, t.bottom, v.left, v.top, v.right, v.bottom,
+                if (key.isEnabled) 1f else 0f, key.computedData.code.toFloat()).copyInto(geometry, i * 10)
+            metadata.add(key.computedData.type.toString())
             labels.add(key.label ?: "")
             labels.add(key.hintedLabel ?: "")
             labels.add(key.foregroundImageVector?.let(::iconPath) ?: "")
         }
         val candidates = s.candidates.map { it.text.toString() }.ifEmpty { rendererEmojiSamples() }
-        native.update(floatArrayOf(width.toFloat(), height.toFloat(), s.stripHeight, s.candidateSize, 0f),
-            colors.toIntArray(), geometry, labels.toTypedArray(), candidates.toTypedArray())
+        val flags = if (s.candidates.isEmpty()) IntArray(candidates.size) else s.candidates.map {
+            (if (it.isEligibleForAutoCommit) 1 else 0) or (if (it is ClipboardSuggestionCandidate) 2 else 0)
+        }.toIntArray()
+        native.update(floatArrayOf(width.toFloat(), height.toFloat(), s.stripHeight),
+            metadata.toTypedArray(), flags, geometry, labels.toTypedArray(), candidates.toTypedArray())
         invalidateFrame()
     }
 
@@ -181,7 +186,7 @@ class RustKeyboardView(context: Context) : FrameLayout(context), SurfaceHolder.C
                     val choices = key.computedPopups.getPopupKeys(prefs.keyboard.keyHintConfiguration()).toList()
                     if (choices.isNotEmpty() && pressed[pointer] == data && !released) {
                         popupChoices[pointer] = choices
-                        native.popup(index, choices.map { it.label }.toTypedArray())
+                        native.popup(index, choices.map { it.label }.toTypedArray(), choices.map { it.code }.toIntArray())
                         invalidateFrame()
                         true
                     } else false

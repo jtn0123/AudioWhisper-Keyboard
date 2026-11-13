@@ -1,4 +1,5 @@
 use keys::{Bounds, Rect};
+use render::style::Style;
 use render::{
     raster::Raster,
     scene::{Key, Popup, Scene},
@@ -23,12 +24,22 @@ fn scene() -> Scene {
                 label: String::new(),
                 hint: String::new(),
                 icon: String::new(),
-                size: 20.0,
-                radius: 0.0,
-                shadow: 0.0,
-                hint_size: 10.0,
-                hint_colors: [0xff000000; 2],
-                colors: [0xff123456, 0xff000000, 0xffabcdef, 0xff000000],
+                styles: [
+                    Style {
+                        size: 20.0,
+                        background: 0xff123456,
+                        ..Style::default()
+                    },
+                    Style {
+                        size: 20.0,
+                        background: 0xffabcdef,
+                        ..Style::default()
+                    },
+                ],
+                hints: std::array::from_fn(|_| Style {
+                    size: 10.0,
+                    ..Style::default()
+                }),
                 enabled: true,
             }
         })
@@ -193,7 +204,9 @@ fn fractional_edges_do_not_accumulate_antialiasing_on_repaint() {
         key.bounds.visible.right -= 0.25;
         key.bounds.visible.top += 0.25;
         key.bounds.visible.bottom -= 0.25;
-        key.radius = 3.75;
+        for style in &mut key.styles {
+            style.corners = [3.75; 4];
+        }
     }
     let full = Scene::default().damage(&scene).unwrap();
     let mut raster = Raster::new(100, 80, vec![]);
@@ -266,8 +279,12 @@ fn leaving_and_reentering_keeps_pointer_identity_without_committing_outside() {
 fn shadow_damage_restores_neighbor_pixels() {
     let mut scene = scene();
     for key in &mut scene.keys {
-        key.shadow = 2.0;
-        key.radius = 4.0;
+        for style in &mut key.styles {
+            style.shadow = 2.0;
+        }
+        for style in &mut key.styles {
+            style.corners = [4.0; 4];
+        }
     }
     let full = Scene::default().damage(&scene).unwrap();
     let mut raster = Raster::new(100, 80, vec![]);
@@ -397,13 +414,16 @@ fn disjoint_and_overlapping_damage_equal_full_repaint_with_text_and_shadows() {
             key.bounds.visible.left += 0.25;
             key.bounds.visible.right -= 0.25;
             key.label = if i == 0 { "é" } else { "W" }.into();
-            key.radius = 3.75;
-            key.shadow = 1.5;
+            for style in &mut key.styles {
+                style.corners = [3.75; 4];
+                style.shadow = 1.5;
+            }
         }
         scene.height = 120;
-        scene.candidate_size = 14.0;
-        scene.candidate_color = 0xff123456;
-        scene.popup_colors = [0xffeeeeee, 0xff000000, 0xffaabbcc];
+        scene.popup_style = Style {
+            background: 0xffeeeeee,
+            ..Style::default()
+        };
         let full = Scene::default().damage(&scene).unwrap();
         let mut dirty = Raster::new(100, 120, fonts.clone());
         let mut reference = Raster::new(100, 120, fonts.clone());

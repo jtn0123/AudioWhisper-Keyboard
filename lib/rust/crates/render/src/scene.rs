@@ -1,4 +1,5 @@
 //! Scene snapshots contain the evaluated keys and resolved Snygg values, never another layout.
+use crate::style::Style;
 use keys::{Bounds, Rect};
 
 #[derive(Clone, Debug, PartialEq)]
@@ -8,13 +9,15 @@ pub struct Key {
     pub label: String,
     pub hint: String,
     pub icon: String,
-    pub size: f32,
-    pub radius: f32,
-    pub shadow: f32,
-    pub hint_size: f32,
-    pub hint_colors: [u32; 2],
-    pub colors: [u32; 4], // normal background/foreground, pressed background/foreground
+    pub styles: [Style; 2],
+    pub hints: [Style; 2],
     pub enabled: bool,
+}
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct CandidateStyle {
+    pub container: Style,
+    pub text: Style,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -30,9 +33,11 @@ pub struct Scene {
     pub height: u16,
     pub strip: f32,
     pub background: u32,
-    pub candidate_color: u32,
-    pub candidate_size: f32,
-    pub popup_colors: [u32; 3],
+    pub strip_style: Style,
+    pub candidate_styles: Vec<[CandidateStyle; 2]>,
+    pub candidate_pressed: Vec<usize>,
+    pub popup_style: Style,
+    pub popup_styles: Vec<[Style; 2]>,
     pub keys: Vec<Key>,
     pub candidates: Vec<String>,
     pub pressed: Vec<usize>,
@@ -89,9 +94,10 @@ impl Scene {
             || self.height != next.height
             || self.strip != next.strip
             || self.background != next.background
-            || self.candidate_color != next.candidate_color
-            || self.candidate_size != next.candidate_size
-            || self.popup_colors != next.popup_colors
+            || self.strip_style != next.strip_style
+            || self.candidate_styles != next.candidate_styles
+            || self.popup_style != next.popup_style
+            || self.popup_styles != next.popup_styles
             || self.keys != next.keys
         {
             return vec![Rect {
@@ -102,7 +108,7 @@ impl Scene {
             }];
         }
         let mut rects = Vec::new();
-        if self.candidates != next.candidates {
+        if self.candidates != next.candidates || self.candidate_pressed != next.candidate_pressed {
             rects.push(Rect {
                 left: 0.0,
                 top: 0.0,
@@ -116,7 +122,7 @@ impl Scene {
             }
             if let Some(key) = next.keys.get(i) {
                 let r = key.bounds.visible;
-                let margin = key.shadow * 4.0;
+                let margin = key.styles.iter().map(|s| s.shadow).fold(0.0, f32::max) * 4.0;
                 rects.push(Rect {
                     left: r.left - margin,
                     right: r.right + margin,
