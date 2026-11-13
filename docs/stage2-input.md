@@ -25,9 +25,10 @@ composing and editor engines are reused rather than replaced.
 Kotlin retains Android clocks/coroutine wakeups, managed key and callback lifetimes,
 observable state/Flow bindings, resources/ICU locale facts, asset loading and Android effects:
 InputConnection, InputMethodService, clipboard/Room, preferences, vibrator and AudioManager.
-Provider/candidate objects and asynchronous NLP notifications still use the existing managed
-NLP boundary (stage 2 package 16); decoder, correction/reversion rules and editor operations
-remain in their already-ported Rust engines. Dictation/read-aloud effects call the existing
+This port left provider/candidate orchestration at the managed NLP boundary. [Package 16](stage2-nlp.md)
+now owns its decisions and generations in Rust, with Android objects/execution retained in Kotlin;
+decoder, correction/reversion rules and editor operations remain in their already-ported Rust engines.
+Dictation/read-aloud effects call the existing
 platform hosts. The autocorrect-toggle key retains its legacy placeholder toast.
 
 ## JVM proof
@@ -86,9 +87,12 @@ python3 -I scripts/render-benchmark/input-glide.py build/stage2-input/glide-fres
 ```
 
 The input runner uses only fixed synthetic fixtures. The two-finger case injects overlapping
-fixed strokes through the disposable accessibility service. The repeat fixture starts with a
-nonempty prefix and holds for two seconds, long enough to delete the entire prefix despite
-scheduler jitter. Search Enter must deliver one SEARCH editor action without a newline;
+fixed strokes through the disposable accessibility service. The original repeat fixture starts
+with a short prefix and holds for two seconds until it is empty. Package 16 retains it and adds
+`repeat-long`: 64 repetitions of `alpha beta gamma ` (1,088 UTF-16 units). The same two-second
+hold leaves a nonempty prefix, making repeat-rate changes observable in both length and digest.
+The package-16 before/after results are recorded below and in [the NLP proof](stage2-nlp.md).
+Search Enter must deliver one SEARCH editor action without a newline;
 multiline Enter must commit a newline without an editor action. After recording the digest,
 the runner clears only the probe editor to inspect mode/shift labels on the same connection.
 Only hashes, counts, offsets, action IDs and empty-editor keyboard trees are retained.
@@ -185,6 +189,7 @@ Caps-lock is off at the end of the caps fixture.
 | Caps on/off: `ABc` | 3 | `4f1a1434703d440eadd31ca4fc6bd39f85c5e7f7711faf3f6f4e11b374728c46` |
 | Long-press popup: `é` | 1 | `4a99557e4033c3539de2eb65472017cad5f9557f7a0625a09f1c3f6e2ba69c4c` |
 | Two-second delete: empty | 0 | `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855` |
+| Two-second delete, long prefix (package 16) | 1,055 | `07b9f1e0ce48a5235a5c48458ecd255a131e004a2e5762aa9e59a701434d9055` |
 | Two-finger rolling: `as` | 2 | `f4bf9f7fcbedaba0392f108c59d8f4a38b3838efb64877380171b54475c2ade8` |
 | Search Enter: `hi` | 2 | `8f434346648f6b96df89dda901c5176b10a6d83961dd3c1ac88b59b2dc327aa4` |
 | Multiline Enter: `hi\n` | 3 | `98ea6e4f216f2fb4b69fff9b3a44842c38686ca685f3f55dc48c5d3fb1107be4` |

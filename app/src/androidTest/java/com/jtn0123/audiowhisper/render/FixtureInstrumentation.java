@@ -59,7 +59,31 @@ public final class FixtureInstrumentation extends Instrumentation {
                 GifSearch search = GifSearch.INSTANCE;
                 FlorisApplication app = (FlorisApplication) context.getApplicationContext();
                 String op = intent.getStringExtra("op");
-                if ("invalid-finalize".equals(op)) {
+                if ("editor-state".equals(op)) {
+                    try {
+                        dev.patrickgold.florisboard.ime.editor.EditorInstance editor = app.getEditorInstance().getValue();
+                        if (!"com.jtn0123.renderprobe".equals(editor.getActiveInfo().getPackageName()) || editor.getActiveContent().getText().length() != 0)
+                            throw new IllegalStateException("Editor metadata requires an empty fixture");
+                        String json = "{\"input_type\":" + editor.getActiveInfo().getInputAttributes().getRaw() +
+                            ",\"initial_caps\":" + editor.getActiveInfo().getInitialCapsMode().toFlags() +
+                            ",\"cursor_caps\":" + editor.getActiveCursorCapsMode().toFlags() +
+                            ",\"shift\":" + app.getKeyboardManager().getValue().getActiveState().getInputShiftState().ordinal() + "}";
+                        File pending = new File(context.getFilesDir(), "editor-state-fixture.json.tmp");
+                        Files.write(pending.toPath(), json.getBytes(StandardCharsets.UTF_8));
+                        if (!pending.renameTo(new File(context.getFilesDir(), "editor-state-fixture.json"))) throw new IllegalStateException("Editor fixture publish failed");
+                    } catch (Exception failure) { throw new IllegalStateException("Editor state fixture failed", failure); }
+                } else if ("nlp-unlearn".equals(op)) {
+                    app.getNlpManager().getValue().unlearnAutoCorrection(0);
+                } else if ("nlp-state".equals(op)) {
+                    try {
+                        dev.patrickgold.florisboard.ime.nlp.NlpManager manager = app.getNlpManager().getValue();
+                        String json = "{\"candidates\":" + manager.getActiveCandidatesFlow().getValue().size() +
+                            ",\"inline\":" + ((java.util.List<?>) ((kotlinx.coroutines.flow.StateFlow<?>) dev.patrickgold.florisboard.ime.nlp.NlpInlineAutofill.class.getMethod("getSuggestions").invoke(dev.patrickgold.florisboard.ime.nlp.NlpInlineAutofill.INSTANCE)).getValue()).size() + "}";
+                        File pending = new File(context.getFilesDir(), "nlp-state-fixture.json.tmp");
+                        Files.write(pending.toPath(), json.getBytes(StandardCharsets.UTF_8));
+                        if (!pending.renameTo(new File(context.getFilesDir(), "nlp-state-fixture.json"))) throw new IllegalStateException("NLP fixture publish failed");
+                    } catch (Exception failure) { throw new IllegalStateException("NLP state fixture failed", failure); }
+                } else if ("invalid-finalize".equals(op)) {
                     try {
                         boolean accepted = invalidFinalize();
                         Files.write(new File(context.getFilesDir(), "render-batch-fixture.json").toPath(),

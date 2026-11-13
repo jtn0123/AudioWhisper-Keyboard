@@ -302,3 +302,36 @@ Host measurements opt into numeric timestamps only: ten process-cold starts and 
 configuration recreations in one process per renderer, factory return and first layout.
 These compare the current complete paths, not an unimplemented plain-View alternative or
 physical presentation latency. See [package 8 results](../../docs/stage3b-package8.md).
+
+## Stage 2 NLP orchestration
+
+`nlp.py` replays fixed fast typing/candidate picks, autocorrect with a cursor move and a password
+field on both renderers, and compares full digest/selection/composing results with the old build.
+Pass `--agent` with the exact device_open command to capture typing/autocorrect/password screenshots.
+It uses the disposable observer's narrowly allowlisted synthetic-field strip capture: labels are
+hashed, and application/editor trees are never inspected. `compare-nlp.py` checks candidate order,
+click actions and geometry, distinguishing the four fixed expanded-action controls from candidates.
+
+```sh
+python3 -I scripts/render-benchmark/nlp.py build/nlp-unique --baseline BASELINE/nlp.json \
+  --agent '<device_open command>'
+python3 -I scripts/render-benchmark/compare-nlp.py build/nlp-unique
+python3 -I scripts/render-benchmark/test_nlp_harness.py
+```
+
+For learning, build `:app:assembleDebugAndroidTest -PrendererFixture=true` and install its test APK
+through `scripts/install-dev.sh --probe`. `nlp-learning.py OUTPUT` starts/stops the test controller
+for each renderer, learns a fixed synthetic word, takes it back through the existing manager
+operation, checks the saved store digest returns exactly, then checks password counts and incognito.
+It waits for an atomic receiver response and verifies instrumentation completion. Preserve and
+restore the session's original learned/kept files separately; none of these scripts may erase them.
+
+`input.py` retains the old empty repeat-delete fixture and adds `repeat-delete-2s-long`: the
+probe starts with 1,088 UTF-16 units, holds Delete for two seconds, and saves remaining length,
+digest and cursor. The longer prefix makes repeat-rate changes observable. Before/after comparison
+requires the same remaining content; a digest of the empty string alone cannot establish the rate.
+Run timed repeat fixtures with builds idle. The probe publishes `digest.json` by temporary-file
+rename so host reads cannot observe a truncated JSON record. The test APK's `editor-state` operation
+reports only numeric field/caps/shift metadata and refuses anything except an empty probe editor.
+Before clipboard workflows, preserve the original Room files and the probe's `CLIP_STATE` snapshot;
+restore the payload with `operation=restore`, then restore Room while its owner is stopped.

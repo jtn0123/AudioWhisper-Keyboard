@@ -21,6 +21,7 @@ import java.security.MessageDigest;
 /** Temporary local measurement editor. It stores only count and SHA-256, never entered text. */
 public final class ProbeActivity extends Activity {
     static volatile boolean emptyEditor;
+    static volatile boolean nlpCaptureAllowed;
     private EditText editor;
     private TextView result;
     private int batchDepth;
@@ -29,6 +30,27 @@ public final class ProbeActivity extends Activity {
     private int lastEditorAction;
     private final BroadcastReceiver commands = new BroadcastReceiver() {
         @Override public void onReceive(Context context, Intent intent) {
+            if ("com.jtn0123.renderprobe.CLIP_STATE".equals(intent.getAction())) {
+                android.content.ClipboardManager clipboard = getSystemService(android.content.ClipboardManager.class);
+                File backup = new File(getFilesDir(), "original-clipboard.parcel");
+                android.os.Parcel parcel = android.os.Parcel.obtain();
+                try {
+                    String operation = intent.getStringExtra("operation");
+                    if ("snapshot".equals(operation)) {
+                        android.content.ClipData clip = clipboard.getPrimaryClip();
+                        parcel.writeInt(clip == null ? 0 : 1);
+                        if (clip != null) clip.writeToParcel(parcel, 0);
+                        java.nio.file.Files.write(backup.toPath(), parcel.marshall());
+                    } else if ("restore".equals(operation)) {
+                        byte[] bytes = java.nio.file.Files.readAllBytes(backup.toPath());
+                        parcel.unmarshall(bytes, 0, bytes.length); parcel.setDataPosition(0);
+                        if (parcel.readInt() == 0) clipboard.clearPrimaryClip();
+                        else clipboard.setPrimaryClip(android.content.ClipData.CREATOR.createFromParcel(parcel));
+                    } else throw new IllegalArgumentException("Unknown clipboard state operation");
+                } catch (java.io.IOException failure) { throw new IllegalStateException("Clipboard fixture state failed", failure); }
+                finally { parcel.recycle(); }
+                return;
+            }
             if ("com.jtn0123.renderprobe.CLIP".equals(intent.getAction())) {
                 String value = intent.getStringExtra("fixture");
                 android.content.ClipboardManager clipboard = getSystemService(android.content.ClipboardManager.class);
@@ -48,6 +70,11 @@ public final class ProbeActivity extends Activity {
                 } else if ("repeat".equals(fixture)) {
                     editor.setText("alpha beta gamma");
                     editor.setSelection(editor.length());
+                } else if ("repeat-long".equals(fixture)) {
+                    editor.setText("alpha beta gamma ".repeat(64));
+                    editor.setSelection(editor.length());
+                } else if ("cursor-start".equals(fixture)) {
+                    editor.setSelection(0);
                 } else if ("clear".equals(fixture)) {
                     editor.setText("");
                 } else throw new IllegalArgumentException("Unknown fixed editor fixture");
@@ -157,6 +184,7 @@ public final class ProbeActivity extends Activity {
         IntentFilter filter = new IntentFilter("com.jtn0123.renderprobe.RESET");
         filter.addAction("com.jtn0123.renderprobe.CLIP");
         filter.addAction("com.jtn0123.renderprobe.EDITOR");
+        filter.addAction("com.jtn0123.renderprobe.CLIP_STATE");
         registerReceiver(commands, filter, Context.RECEIVER_EXPORTED);
         saveDigest(editor.getText());
         editor.requestFocus();
@@ -187,14 +215,17 @@ public final class ProbeActivity extends Activity {
 
     private void saveDigest(Editable text) {
         emptyEditor = text.length() == 0;
+        nlpCaptureAllowed = "helo".contentEquals(text) || "the ".contentEquals(text);
         try {
             byte[] hash = MessageDigest.getInstance("SHA-256").digest(text.toString().getBytes(StandardCharsets.UTF_8));
             StringBuilder hex = new StringBuilder();
             for (byte b : hash) hex.append(String.format(java.util.Locale.ROOT, "%02x", b & 255));
             String json = "{\"utf16_units\":" + text.length() + ",\"sha256\":\"" + hex + "\",\"selection_start\":" + editor.getSelectionStart() + ",\"selection_end\":" + editor.getSelectionEnd() + ",\"composing_start\":" + android.view.inputmethod.BaseInputConnection.getComposingSpanStart(text) + ",\"composing_end\":" + android.view.inputmethod.BaseInputConnection.getComposingSpanEnd(text) + ",\"batch_depth\":" + batchDepth + ",\"editor_actions\":" + editorActions + ",\"last_editor_action\":" + lastEditorAction + "}";
-            try (FileOutputStream out = new FileOutputStream(new File(getFilesDir(), "digest.json"))) {
+            File pending = new File(getFilesDir(), "digest.json.tmp");
+            try (FileOutputStream out = new FileOutputStream(pending)) {
                 out.write(json.getBytes(StandardCharsets.UTF_8));
             }
+            if (!pending.renameTo(new File(getFilesDir(), "digest.json"))) throw new IllegalStateException("Digest fixture publish failed");
             result.setText("UTF-16 units: " + text.length() + "\nSHA-256: " + hex);
         } catch (Exception exception) {
             throw new IllegalStateException("Could not save benchmark digest", exception);

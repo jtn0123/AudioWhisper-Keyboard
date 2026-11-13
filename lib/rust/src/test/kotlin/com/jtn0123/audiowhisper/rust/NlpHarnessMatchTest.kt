@@ -24,7 +24,7 @@ class NlpHarnessMatchTest {
                         val text = content.take(end)
                         val context = ReferenceNlp.context(text, f[1].toInt()).toMutableList().also {
                             it[4] = f[3]; it[5] = f[3]; it[7] = "1"
-                            if (end == content.length) { it[10] = f[2]; it[11] = f[2] }
+                            if (end == content.length) { it[10] = f[2]; it[11] = f.getOrNull(5) ?: f[2] }
                         }
                         p.call("context", *context.toTypedArray())
                         val generation = p.call("begin", checkpoints.toString())[0]
@@ -47,8 +47,8 @@ class NlpHarnessMatchTest {
                 }
             }
         }
-        assertEquals(42, names.size)
-        assertEquals(1996, checkpoints)
+        assertEquals(54, names.size)
+        assertEquals(2056, checkpoints)
         println("NLP public fixture replay: ${names.size} traces, $checkpoints prefix/cursor checkpoints, zero differences")
     }
 }

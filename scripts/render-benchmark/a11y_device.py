@@ -164,7 +164,22 @@ class Device:
             request = self.request(setting="Rust keyboard renderer (prototype)")
             result = self.wait(lambda: self.response(request), "Settings request timed out")
             return result.get("ok")
-        self.wait(toggle, "Renderer switch not found")
+        try:
+            self.wait(toggle, "Renderer switch not found")
+        except RuntimeError as failure:
+            if str(failure) != "Renderer switch not found":
+                raise
+            # A warm settings deep link can have an empty navigation host. Select the same
+            # persisted fixture flag on a fresh process; digest/virtual-key checks still apply.
+            raw = self.adb("exec-out", "run-as", PKG, "cat", PREFS)
+            key = "keyboard__rust_renderer_prototype"
+            rows = [row for row in raw.splitlines() if len(parts := row.split(";", 2)) != 3 or parts[1] != key]
+            rows.append("b;" + key + ";" + str(enabled).lower())
+            self.shell("am", "force-stop", PKG)
+            subprocess.run(["adb", "-s", self.serial, "shell", "run-as " + PKG + " sh -c " + shlex.quote("cat > " + PREFS)],
+                           input=("\n".join(rows) + "\n").encode(), check=True)
+            self.shell("ime", "set", PKG + "/dev.patrickgold.florisboard.FlorisImeService")
+            self.save("renderer-selection-" + renderer + ".json", {"renderer": renderer, "via": "persisted-fixture-flag", "warm_settings_control_missing": True})
         self.wait(lambda: (self.prefs().get("keyboard__rust_renderer_prototype") == "true") == enabled,
                   "Renderer setting was not persisted")
 

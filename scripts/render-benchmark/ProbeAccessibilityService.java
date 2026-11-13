@@ -97,6 +97,10 @@ public final class ProbeAccessibilityService extends AccessibilityService {
                 result.put("found", node != null).put("rootClass", root.getClassName())
                     .put("rootChildren", root.getChildCount())
                     .put("ok", node != null && node.performAction(AccessibilityNodeInfo.ACTION_CLICK));
+            } else if (intent.getBooleanExtra("nlpStrip", false) && ProbeActivity.nlpCaptureAllowed) {
+                JSONArray nodes = new JSONArray();
+                dumpStrip(root, nodes);
+                result.put("strip", nodes);
             } else if (!ProbeActivity.emptyEditor) {
                 result.put("error", "Tree capture requires an empty disposable editor");
             } else {
@@ -157,6 +161,31 @@ public final class ProbeAccessibilityService extends AccessibilityService {
         for (int i = 0; i < node.getChildCount(); i++) {
             AccessibilityNodeInfo child = node.getChild(i);
             if (child != null) dump(child, index, nodes);
+        }
+    }
+    /** Hash only IME candidate labels from two allowlisted public fixtures, never editor nodes. */
+    private void dumpStrip(AccessibilityNodeInfo node, JSONArray nodes) throws Exception {
+        Rect bounds = new Rect(); node.getBoundsInScreen(bounds);
+        CharSequence label = node.getText();
+        if (label == null || label.length() == 0) label = node.getContentDescription();
+        if (label != null && label.length() > 0 && bounds.centerY() >= 1540 && bounds.centerY() <= 1690
+            && bounds.centerX() >= 240 && bounds.centerX() <= 800 && node.isVisibleToUser()) {
+            AccessibilityNodeInfo target = node;
+            while (target != null && !target.isClickable()) target = target.getParent();
+            Rect actionBounds = new Rect();
+            if (target != null) target.getBoundsInScreen(actionBounds);
+            byte[] digest = java.security.MessageDigest.getInstance("SHA-256").digest(label.toString().getBytes(StandardCharsets.UTF_8));
+            StringBuilder hash = new StringBuilder();
+            for (byte value : digest) hash.append(String.format(java.util.Locale.ROOT, "%02x", value & 255));
+            boolean clickAction = target != null && target.getActionList().stream().anyMatch(action -> action.getId() == AccessibilityNodeInfo.ACTION_CLICK);
+            nodes.put(new JSONObject().put("labelSha256", hash.toString()).put("enabled", node.isEnabled())
+                .put("clickable", target != null).put("clickAction", clickAction)
+                .put("labelBounds", new JSONArray(new int[]{bounds.left, bounds.top, bounds.right, bounds.bottom}))
+                .put("bounds", new JSONArray(new int[]{actionBounds.left, actionBounds.top, actionBounds.right, actionBounds.bottom})));
+        }
+        for (int i = 0; i < node.getChildCount(); i++) {
+            AccessibilityNodeInfo child = node.getChild(i);
+            if (child != null) dumpStrip(child, nodes);
         }
     }
     private Object nullable(CharSequence value) { return value == null ? JSONObject.NULL : value.toString(); }

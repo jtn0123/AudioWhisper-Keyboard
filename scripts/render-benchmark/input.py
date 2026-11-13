@@ -84,6 +84,13 @@ def replay(d, renderer):
     save('repeat-delete-2s', '')
 
     fresh()
+    d.shell('am', 'broadcast', '-a', api['PROBE'] + '.EDITOR', '-p', api['PROBE'], '--es', 'fixture', 'repeat-long')
+    assert d.digest()['utf16_units'] == 1088
+    d.hold(1015, 2060, 2000)
+    save('repeat-delete-2s-long')
+    assert 0 < results['repeat-delete-2s-long']['utf16_units'] < 1088
+
+    fresh()
     d.services(api['SERVICE'])
     request = uuid.uuid4().hex
     d.shell('am', 'broadcast', '-a', api['PROBE'] + '.IME', '-p', api['PROBE'],

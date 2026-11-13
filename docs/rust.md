@@ -45,7 +45,7 @@ wrappers: the point is to remove Kotlin decisions, not translate each line throu
 13. Input dispatch and KeyboardManager routing: press/release/repeat, pointer policy, actions, state, evaluator and feedback (done; [proof](stage2-input.md)).
 14. Editor state/reconciliation: expected text, selection/composing and UTF-16 (done; [proof](stage2-editor.md)).
 15. Editor operation plans: deletion, replacement and commits over a fake InputConnection (done; [proof](stage2-editor.md)).
-16. NLP orchestration: provider eligibility, candidate state and stale-result rejection.
+16. NLP orchestration: provider eligibility, scheduling/generations, candidate and inline state, learning and smartbar plans (done; [proof](stage2-nlp.md): 50,000 orchestration events/200 seeds, 50,000 learning events/200 seeds, real dictionary traces, restored mutations and both-renderer emulator comparisons).
 17. Subtype/settings defaults, validation, migration and active subtype.
 18. Backup/restore manifests, conflicts and error classes.
 19. Remaining utility rules: MIME matching, formatting and validation.
@@ -645,6 +645,7 @@ lib/rust/
   crates/extensions/          extension metadata, maintainers, validation and archive import policy
   crates/editor/              UTF-16 editor state, reconciliation, input flags and ordered InputConnection plans
   crates/input/               shared dispatcher, pointer/timer policy, key routes, state/subtype, evaluator and feedback
+  crates/nlp/                 provider eligibility, request generations, candidate/inline state, learning and smartbar plans
   crates/gif/                 the GIF panel: its search field, chips, keys, result cache, recents and GIPHY's JSON and URLs
   crates/latin/               LatinIME's dictionary and typing search, ported from its C++
   crates/chars/               Kotlin's character rules, for crates that judge text as Kotlin did
