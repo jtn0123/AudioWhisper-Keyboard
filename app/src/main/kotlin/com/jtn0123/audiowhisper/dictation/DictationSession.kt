@@ -101,13 +101,17 @@ internal class DictationSession(
     private var idleSince = 0L
     private var keyboardShown = true
 
+    @Volatile private var released = false
+
     private val status get() = flows.status.value
 
     fun pressMic() {
+        if (released) return
         if (micKey.press(status) == MicKey.Action.START) start()
     }
 
     fun releaseMic() {
+        if (released) return
         when (micKey.release()) {
             MicKey.Action.FINISH -> if (status == Dictation.Status.LISTENING) finish()
             MicKey.Action.END_HOLD -> if (status == Dictation.Status.LISTENING) {
@@ -142,11 +146,14 @@ internal class DictationSession(
     }
 
     fun keyboardVisible(visible: Boolean) {
+        if (released) return
         keyboardShown = visible
         if (status == Dictation.Status.IDLE && idleSince != 0L) scheduleRelease()
     }
 
     fun release() {
+        if (released) return
+        released = true
         abandon()
         platform.removeCallbacks(unload)
         platform.work(::closeModel)
@@ -155,11 +162,17 @@ internal class DictationSession(
 
     /** Frees the model now if no dictation is using it. Any thread. */
     fun freeIfIdle() {
-        platform.post {
+        if (released) return
+        post {
             if (status != Dictation.Status.IDLE) return@post
             platform.removeCallbacks(unload)
             unload.run()
         }
+    }
+
+    /** Drops late main-thread results and requests after the owner has released this session. */
+    private fun post(action: Runnable) {
+        platform.post { if (!released) action.run() }
     }
 
     private fun start() {
@@ -223,14 +236,14 @@ internal class DictationSession(
     private fun preload(id: Int) = platform.work {
         models.retry()
         val loading = !models.isLoaded
-        if (loading) platform.post { if (current(id)) flows.warming.value = true }
+        if (loading) post { if (current(id)) flows.warming.value = true }
         try {
             models.get()
         } catch (e: ModelLoadException) {
             platform.log(LogLevel.ERROR, "Could not load the model", e)
-            platform.post { if (current(id)) modelFailed() }
+            post { if (current(id)) modelFailed() }
         } finally {
-            if (loading) platform.post { flows.warming.value = false }
+            if (loading) post { flows.warming.value = false }
         }
     }
 
@@ -251,15 +264,15 @@ internal class DictationSession(
     }
 
     private fun callbacks(id: Int) = Callbacks(
-        onLevel = { level -> platform.post { if (listening(id)) flows.level.value = level } },
+        onLevel = { level -> post { if (listening(id)) flows.level.value = level } },
         onMicError = { code ->
             platform.log(LogLevel.ERROR, "Microphone failed while recording: $code")
-            platform.post { if (listening(id)) micStopped() }
+            post { if (listening(id)) micStopped() }
         },
         onPhrase = { phrase ->
             platform.work {
                 val result = runCatching { timed(phrase) }
-                platform.post { type(id, result) }
+                post { type(id, result) }
             }
         },
         onPreview = { phrase -> preview(id, phrase) },
@@ -277,7 +290,7 @@ internal class DictationSession(
             }
             val seconds = phrase.size / Transcriber.SAMPLE_RATE.toFloat()
             platform.log(LogLevel.DEBUG, "Previewed %.1f s in %d ms".format(seconds, platform.uptimeMs() - started))
-            if (text != null) platform.post { showPreview(id, text) }
+            if (text != null) post { showPreview(id, text) }
         }
     }
 
@@ -293,7 +306,7 @@ internal class DictationSession(
         flows.status.value = Dictation.Status.FINISHING
         flows.level.value = 0f
         // Queued behind every phrase handed over so far, so it runs last.
-        platform.work { platform.post { if (id == session) finished() } }
+        platform.work { post { if (id == session) finished() } }
     }
 
     private fun finished() {
@@ -367,7 +380,7 @@ internal class DictationSession(
         if (models.close()) platform.log(LogLevel.INFO, "Model released")
     }
 
-    private val unload = Runnable { platform.work(::closeModel) }
+    private val unload = Runnable { if (!released) platform.work(::closeModel) }
 }
 
 /**

@@ -2,6 +2,7 @@ package com.jtn0123.audiowhisper.dictation
 
 import com.jtn0123.audiowhisper.dictation.Dictation.Status
 import dev.patrickgold.florisboard.R
+import java.util.concurrent.RejectedExecutionException
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -231,6 +232,32 @@ class DictationSessionTest {
     }
 
     @Test
+    fun `an idle release queued before shutdown does not submit work afterwards`() {
+        dictation.freeIfIdle()
+        dictation.release()
+        platform.runAll()
+        dictation.freeIfIdle()
+        dictation.release()
+        platform.runAll()
+        assertFalse(platform.model.loaded)
+    }
+
+    @Test
+    fun `queued model and phrase results do nothing after release`() {
+        tap()
+        say("too late")
+        dictation.release()
+        platform.runAll()
+        dictation.pressMic()
+        dictation.releaseMic()
+        assertEquals(Status.IDLE, status)
+        assertEquals("", editor.text.toString())
+        assertEquals(emptyList(), editor.problems)
+        assertFalse(flows.warming.value)
+        assertFalse(platform.model.loaded)
+    }
+
+    @Test
     fun `scratch that takes back the last phrase`() {
         tap()
         say("hello there")
@@ -320,6 +347,7 @@ private class FakePlatform : DictationSession.Platform {
     private val main = ArrayDeque<Runnable>()
     private val timed = mutableListOf<Pair<Long, Runnable>>()
     private val worker = ArrayDeque<Runnable>()
+    private var shutDown = false
 
     /** Runs everything due by [now], main and worker, until both are empty. */
     fun runAll() {
@@ -339,8 +367,13 @@ private class FakePlatform : DictationSession.Platform {
         timed.removeAll { it.second === action }
     }
     override fun uptimeMs() = now
-    override fun work(action: Runnable) = worker.addLast(action)
-    override fun shutDownWorker() = Unit
+    override fun work(action: Runnable) {
+        if (shutDown) throw RejectedExecutionException("worker shut down")
+        worker.addLast(action)
+    }
+    override fun shutDownWorker() {
+        shutDown = true
+    }
     override fun hasMicPermission() = micAllowed
     override fun openAppSettings() {
         appSettingsOpened++
