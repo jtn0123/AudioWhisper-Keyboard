@@ -357,6 +357,7 @@ name = "editor"
 version = "0.1.0"
 dependencies = [
  "chars",
+ "composing",
  "dictation",
  "keys",
  "spacing",

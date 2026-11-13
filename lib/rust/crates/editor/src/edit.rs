@@ -61,12 +61,15 @@ impl Session {
                     self.query = Query::None;
                     return self.commit(&value);
                 }
-                vec![
-                    text("composer"),
-                    c.before(),
-                    value,
-                    number(i32::from(spaces[0])),
-                ]
+                let before = c.before();
+                let count = self.composer_read.max(usize::from(spaces[0]));
+                let previous = &before[before.len().saturating_sub(count)..];
+                let action = self
+                    .composer
+                    .as_ref()
+                    .and_then(|rules| rules.actions(previous, &value));
+                let (remove, value) = action.map(|a| (a.delete, a.text)).unwrap_or((0, value));
+                self.edit("composer", &[number(remove), value])
             }
             "composer" => {
                 let Query::Composer(_, spaces) = std::mem::take(&mut self.query) else {

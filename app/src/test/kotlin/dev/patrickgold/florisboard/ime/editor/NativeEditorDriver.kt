@@ -8,7 +8,7 @@ import java.util.Locale
 class NativeEditorDriver(val ic: FakeInputConnection) : AutoCloseable {
     val session=EditorSession()
     val breaks=ReferenceBreaks()
-    val composer=ReferenceComposer()
+    init {session.call("composerRules","a\u0301","á")}
     var raw=false
     var enabled=true
     var determine=true
@@ -24,7 +24,7 @@ class NativeEditorDriver(val ic: FakeInputConnection) : AutoCloseable {
                 "word" -> ReferencePlatform.word(response[1]).let{arrayOf(it.start.toString(),it.end.toString())}
                 "caps" -> arrayOf(ReferenceCaps.getCapsMode(response[1],response[2].toInt(),response[3].toInt()).toString())
                 "character" -> arrayOf(breaks.measureUChars(response[1],1).toString())
-                "composer" -> composer.getActions(response[1].takeLast(composer.toRead.coerceAtLeast(response[3].toInt())),response[2]).let{arrayOf(it.first.toString(),it.second)}
+
                 "measure","extent" -> arrayOf(breaks.measure(response[1],response[4].toInt(),Locale.ENGLISH,response[2]=="0",response[3]=="1").toString())
                 "spacing" -> arrayOf(response[1].takeLast(breaks.measureLastUChars(response[1],1)),response[1].takeLast(breaks.measureLastUChars(response[1],3)))
                 else -> error("Unhandled query ${response[0]}")

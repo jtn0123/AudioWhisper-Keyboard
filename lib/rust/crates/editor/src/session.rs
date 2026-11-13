@@ -38,6 +38,8 @@ pub struct Session {
     pub(crate) operations: Vec<Op>,
     pub(crate) failures: usize,
     pub(crate) mass: i32,
+    pub(crate) composer: Option<composing::rules::Rules>,
+    pub(crate) composer_read: usize,
     pub(crate) context: crate::high::Context,
 }
 impl Session {
@@ -156,6 +158,24 @@ impl Session {
                 self.input_type = integer(fields, 4);
                 vec![]
             }
+            "composerRules" => {
+                self.composer_read = fields
+                    .as_chunks::<2>()
+                    .0
+                    .iter()
+                    .map(|p| p[0].len().saturating_sub(1))
+                    .max()
+                    .unwrap_or(0);
+                self.composer = Some(composing::rules::Rules::new(
+                    fields
+                        .as_chunks::<2>()
+                        .0
+                        .iter()
+                        .map(|p| (p[0].clone(), p[1].clone()))
+                        .collect(),
+                ));
+                vec![]
+            }
             "arrow" => self.arrow(fields),
             "massBegin" | "massEnd" | "massState" | "massReset" => self.mass_state(operation),
             "inputInfo" => {
@@ -196,7 +216,11 @@ impl Session {
                 out
             }
             "reset" => {
+                let composer = self.composer.take();
+                let composer_read = self.composer_read;
                 *self = Self::new();
+                self.composer = composer;
+                self.composer_read = composer_read;
                 self.done(true, vec![])
             }
             "start" => {

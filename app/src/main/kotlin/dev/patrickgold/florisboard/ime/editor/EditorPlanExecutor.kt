@@ -8,6 +8,7 @@ import android.view.inputmethod.InputConnection
 import com.jtn0123.audiowhisper.rust.EditorSession
 import dev.patrickgold.florisboard.ime.nlp.BreakIteratorGroup
 import dev.patrickgold.florisboard.ime.text.composing.Composer
+import dev.patrickgold.florisboard.ime.text.composing.WithRules
 import dev.patrickgold.florisboard.lib.FlorisLocale
 
 /** Interprets the native protocol verbatim. Branches select platform APIs, never editing policy. */
@@ -17,7 +18,19 @@ internal class EditorPlanExecutor(
     private val composer: () -> Composer,
     private val word: suspend (String, Int) -> EditorRange,
 ) {
+    private var loadedComposer: Composer? = null
+    private fun supplyComposer(session: EditorSession) {
+        val current = composer()
+        if (loadedComposer !== current) {
+            val rules = (current as? WithRules)?.let { table ->
+                table.ruleOrder.flatMap { listOf(it, table.rules.getValue(it)) }
+            }.orEmpty()
+            session.call("composerRules", *rules.toTypedArray())
+            loadedComposer = current
+        }
+    }
     suspend fun execute(session: EditorSession, ic: InputConnection, operation: String, fields: Array<out String>): Boolean {
+        supplyComposer(session)
         var response = session.call(operation, *fields)
         while (response[0] != "ready") {
             val values = when (response[0]) {
@@ -27,11 +40,6 @@ internal class EditorPlanExecutor(
                     if (response[2] == "1") ic.getSelectedText(0)?.toString().orEmpty() else "")
                 "word" -> word(response[1], response[2].toInt()).let { arrayOf(it.start.toString(), it.end.toString()) }
                 "character" -> arrayOf(breaks.measureUChars(response[1], 1, locale()).toString())
-                "composer" -> {
-                    val c = composer()
-                    val previous = response[1].takeLast(c.toRead.coerceAtLeast(response[3].toInt()))
-                    c.getActions(previous, response[2]).let { arrayOf(it.first.toString(), it.second) }
-                }
                 "spacing" -> arrayOf(
                     response[1].takeLast(breaks.measureLastUChars(response[1], 1, locale())),
                     response[1].takeLast(breaks.measureLastUChars(response[1], 3, locale())))

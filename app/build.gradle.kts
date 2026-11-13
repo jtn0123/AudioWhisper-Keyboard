@@ -292,7 +292,7 @@ dependencies {
     implementation(projects.lib.snygg)
 
     testImplementation(libs.kotlin.test.junit5)
-    testImplementation("com.ibm.icu:icu4j:78.3")
+    testImplementation(libs.icu4j)
     fixtureAnnotationSource(libs.errorprone.annotations)
     androidTestImplementation(files(fixtureAnnotations))
     androidTestImplementation(libs.androidx.test.ext)

@@ -6,6 +6,12 @@ impl Session {
         operation: &str,
         fields: &[Field],
     ) -> Result<Vec<Field>, &'static str> {
+        if operation == "composerRules" {
+            if !fields.len().is_multiple_of(2) {
+                return Err("incomplete composer rule");
+            }
+            return Ok(self.call(operation, fields));
+        }
         let expected = match operation {
             "inputInfo" | "unavailable" | "rawEnter" => 1,
             "arrow" => 3,
