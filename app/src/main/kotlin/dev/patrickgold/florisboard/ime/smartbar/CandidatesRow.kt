@@ -60,7 +60,7 @@ import org.florisboard.lib.snygg.ui.SnyggRow
 import org.florisboard.lib.snygg.ui.SnyggSpacer
 import org.florisboard.lib.snygg.ui.SnyggText
 
-val CandidatesRowScrollbarHeight = 2.dp
+
 
 @Composable
 fun CandidatesRow(modifier: Modifier = Modifier) {

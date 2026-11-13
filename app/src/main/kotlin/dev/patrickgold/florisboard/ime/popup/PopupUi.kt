@@ -41,7 +41,7 @@ import org.florisboard.lib.snygg.ui.SnyggIcon
 import org.florisboard.lib.snygg.ui.SnyggRow
 import org.florisboard.lib.snygg.ui.SnyggText
 
-val GlobalStateNumPopupsShowing = MutableStateFlow(0)
+
 
 @Composable
 fun PopupBaseBox(

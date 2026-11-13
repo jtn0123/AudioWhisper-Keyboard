@@ -31,6 +31,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import dev.patrickgold.florisboard.ime.nlp.NlpInlineAutofillSuggestion
 import dev.patrickgold.florisboard.ime.popup.GlobalStateNumPopupsShowing
@@ -39,6 +40,8 @@ import dev.patrickgold.florisboard.lib.toIntOffset
 import org.florisboard.lib.compose.florisHorizontalScroll
 import org.florisboard.lib.snygg.SnyggSinglePropertySet
 import org.florisboard.lib.snygg.ui.rememberSnyggThemeQuery
+
+val CandidatesRowScrollbarHeight = 2.dp
 
 var CachedInlineSuggestionsChipStyleSet: SnyggSinglePropertySet? = null
 

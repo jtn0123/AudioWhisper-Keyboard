@@ -45,7 +45,11 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_keyPrevie
                 popup_source: None,
             };
             let style = theme.style(&request);
-            let label=if labels[2].is_empty(){labels[1].as_str()}else{""};
+            let label = if labels[2].is_empty() {
+                labels[1].as_str()
+            } else {
+                ""
+            };
             let [width, height] = render::key_preview::size(
                 theme.density(),
                 text.measure(label, style.size, style.mono, style.weight),

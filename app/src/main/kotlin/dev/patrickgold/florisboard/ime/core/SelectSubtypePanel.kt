@@ -95,7 +95,3 @@ fun SelectSubtypePanel(modifier: Modifier = Modifier) {
         }
     }
 }
-
-fun KeyboardState.isSubtypeSelectionShowing(): Boolean {
-    return isSubtypeSelectionVisible
-}
