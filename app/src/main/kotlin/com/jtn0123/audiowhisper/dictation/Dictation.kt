@@ -11,6 +11,7 @@ import android.os.SystemClock
 import android.provider.Settings
 import android.util.Log
 import androidx.annotation.StringRes
+import androidx.core.net.toUri
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import kotlinx.coroutines.flow.StateFlow
@@ -127,7 +128,7 @@ class Dictation(private val context: Context, private val editor: Editor) {
         override fun openModelSettings() = context.startActivity(
             // BROWSABLE is what FlorisAppActivity takes as a deep link; without it, it would
             // treat the link as an extension file to import.
-            Intent(Intent.ACTION_VIEW, Uri.parse(DICTATION_SETTINGS))
+            Intent(Intent.ACTION_VIEW, DICTATION_SETTINGS.toUri())
                 .addCategory(Intent.CATEGORY_BROWSABLE)
                 .setPackage(context.packageName)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),

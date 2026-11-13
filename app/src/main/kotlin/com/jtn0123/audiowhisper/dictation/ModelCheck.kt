@@ -1,6 +1,7 @@
 package com.jtn0123.audiowhisper.dictation
 
 import android.content.Context
+import androidx.core.content.edit
 import java.io.File
 import java.io.IOException
 import java.security.MessageDigest
@@ -72,7 +73,7 @@ object ModelCheck {
         val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
         return object : VerifiedFiles {
             override fun contains(key: String) = prefs.getBoolean(key, false)
-            override fun add(key: String) = prefs.edit().putBoolean(key, true).apply()
+            override fun add(key: String) = prefs.edit { putBoolean(key, true) }
         }
     }
 
