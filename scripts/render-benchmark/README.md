@@ -274,3 +274,31 @@ before replacing that process and rebinds afterwards, preserving other accessibi
 services. Typed editing uses recorded visible-label points and scrolls through the grid
 gutter, avoiding accidental editing-key holds during a scroll. Full tree capture never
 runs while the disposable editor contains text.
+
+## Package 8 IME chrome
+
+With the dedicated device open and its runtime id exported as `ANDROID_SERIAL`, keep
+agent-device navigation idle while these serial-scoped fixtures execute:
+
+```bash
+python3 -I scripts/render-benchmark/chrome.py workflow build/stage3b8/workflow-unique
+python3 -I scripts/render-benchmark/chrome.py visuals build/stage3b8/visuals-unique \
+  --agent '<device_open agent-device command>'
+python3 -I scripts/render-benchmark/compare-chrome.py build/stage3b8/visuals-unique
+python3 -I scripts/render-benchmark/host.py build/stage3b8/host-unique
+```
+
+The workflow uses the real space-hold subtype sheet, including a compact keyboard, and
+compares persisted subtype/one-handed state and the fixed typing digest. Visuals capture
+Day/Night subtype, compact subtype, both sides, incognito and landscape extraction; the
+Swift pairing helper supports both orientations. Chrome comparisons check actionable
+ancestors and the retained keyboard viewport. The harness restores private preferences,
+rotation and accessibility settings in `finally`.
+
+Close the agent-device UI automation session before starting the dump harness; reopen the
+probe with `--no-test-ime` without taking a snapshot when screenshots are needed. A live
+UiAutomation snapshot session prevents the disposable accessibility observer from binding.
+Host measurements opt into numeric timestamps only: ten process-cold starts and ten
+configuration recreations in one process per renderer, factory return and first layout.
+These compare the current complete paths, not an unimplemented plain-View alternative or
+physical presentation latency. See [package 8 results](../../docs/stage3b-package8.md).

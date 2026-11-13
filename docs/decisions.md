@@ -82,3 +82,15 @@ build and back without losing the app's data. `run-as` doesn't work on it, which
 `com.jtn0123.audiowhisper.keyboard`. **Would change if** the keyboard is ever distributed;
 then it needs a real release key, and the models need installing without a debuggable build
 (grade report item E5).
+
+
+## Retain the Compose root while removing keyboard drawing surfaces
+
+Package 8 keeps the root and bottom-sheet Compose hosts because they still provide the
+live theme, preference/resource bindings, background images, sizing/insets and Android
+inline-suggestion interop. A plain View factory alone would still load Compose through
+those dependencies; removing them together is a separate host rewrite. The current paths
+have timestamp-only cold/warm creation measurements in [the package 8 report](stage3b-package8.md).
+**Would change if** those remaining adapters can be hosted cleanly with Android lifecycle/
+Flow bindings and a measured plain-View trial is neutral or better. This does not block the
+35-file fallback keyboard deletion after S24 acceptance, whose dry-run compile already passes.

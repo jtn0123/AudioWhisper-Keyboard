@@ -123,6 +123,16 @@ pairs and live theme switching are checked. The 2/4-worker Vello CPU experiment 
 both p50 and p95 and was removed. Compose stays the default. See
 [package 1 results, screenshots and per-trial measurements](stage3b-results.md).
 
+#### Milestone B package 8 (2026-11-13)
+
+Subtype selection, one-handed side controls, incognito watermark, landscape extract chrome
+and dictation preview now draw in Rust. ExtractEditText remains an Android View, and the
+settings key preview uses offscreen Vello CPU pixels. Live editor stylesheet copies now
+refresh native JSON. Compose still hosts root/theme/state/resources and inline Android
+views; the prototype stays default-off pending phone acceptance. The deletion dry run
+removes 35 fallback files plus bypassed branches and compiles without committing deletion.
+See [package 8 inventory, checks, timings and deletion counts](stage3b-package8.md).
+
 #### Milestone B package 7 (2026-11-13)
 
 Clipboard history, GIF/media results and GIF search typing now remain on the native

@@ -1,5 +1,14 @@
 # Stage 3B renderer results
 
+## Stage 3B package 8: final IME surfaces (2026-11-13)
+
+The remaining subtype sheet, one-handed controls, incognito watermark, extract chrome and
+dictation preview draw in Rust; the settings key preview receives offscreen Vello CPU
+pixels. Shared Compose hosts and inline/state/resource adapters remain. The prototype stays
+default-off, and no phone acceptance or fallback deletion is claimed. See
+[package 8 inventory and acceptance evidence](stage3b-package8.md) for rule mutations,
+local gate, runtime checks, root-host decision and the discarded deletion dry run.
+
 ## Stage 3B package 7: clipboard and GIF/media (2026-11-13)
 
 The prototype now draws clipboard history, its menus/filters/clear dialog, media/GIF result
