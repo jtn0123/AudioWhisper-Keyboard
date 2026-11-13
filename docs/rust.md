@@ -31,7 +31,7 @@ until a replacement matches Android. Keep Android work at the edge and avoid red
 wrappers: the point is to remove Kotlin decisions, not translate each line through a call.
 
 1. Key/domain models: selectors, codes/types, currency slots, keyboard state and text-key evaluation (done; stage 2.1 below).
-2. Layout assembly/cache: arrangements, merging, hints and cache keys; compare every retained layout's evaluated keys.
+2. Layout assembly/cache: arrangements, merging, hints and cache keys (done; stage 2.2 below).
 3. Snygg rules and stylesheet grammar: parsing, ordering and schema/version errors.
 4. Snygg values: dimensions, colours, fonts, padding, shapes and variables.
 5. Snygg compilation/editor model: cascade, inheritance, matching, editor operations and the live schema generator.
@@ -101,6 +101,7 @@ The differential tests, deliberate mutation check and emulator checks below appl
 
 | Piece | Rust | Replaced | Proof it matches |
 |---|---|---|---|
+| Layout selection and assembly: subtype/mode load plans, explicit modifier types, arrangement insertion, number/symbol hint alignment and computed-keyboard cache keys/invalidation | `crates/keys` (`assembly`) | `LayoutManager`'s decisions and merge/hint loops, plus `TextKeyboardCache`'s policy | `LayoutAssemblyMatchTest` against `ReferenceLayoutAssembly` and `ReferenceTextKeyboardCache`: every bundled layout, mode and retained preset, complete evaluated key/popup/hint lists and bit-exact geometry, seeded malformed/missing references and cache histories. Changing the insertion marker from code 0 to code 1 fails both layout tests. See stage 2.2 below |
 | Key/domain models: selector choices, canonical key codes and predefined types/labels, currency slots, state bits, key strings, popup-source precedence, phone hints and enabled/visible policy | `crates/keys` (`codes`, `model_data`, `models`) | `KeyData` selectors, `CurrencySet`, `KeyboardState` bits, `TextKeyData` tables/string rules, and the pure parts of `TextKey`/`ComputingEvaluatorImpl` | `KeyModelsMatchTest` and `KeySelectorsMatchTest` against the test-only `ReferenceKey*` and `ReferenceKeyboardState`; every bundled layout in all selector states, seeded nested selectors, raw registers and transitions, currency sets, key/string and popup/availability cases. Reversing the unshifted case choice in Rust failed both selector tests. See stage 2.1 below for counts and emulator proof |
 | Glide typing's scorer: pruning a swipe's candidate words and ranking them | `crates/glide` | `StatisticalGlideTypingClassifier`'s `Pruner`, ideal gestures and scoring | `SwipeIndexTest` against `ReferenceGlideClassifier`; on the emulator, 512 of 512 scorings were identical |
 | Dictation's text rules: spoken commands, joining phrases transcribed separately, and taking back the last one | `crates/dictation` | `Spoken.parse`, `Phrases.join` and `punctuate`, `DictationUndo.revertAt` | `DictationRulesMatchTest` against `ReferenceDictation`: every UTF-16 unit through each rule, and 100,000 random phrases. The same cases on the emulator: none of 1,579,648 differed. Dictated recordings typed the same text |
@@ -179,6 +180,74 @@ mic. Phone keys retained their secondary labels. The requested FATAL/AndroidRunt
 search found only routine runtime startup/exit messages, with no fatal or error-level runtime
 entries. The temporary field-check APK is a build artifact, not a new app feature.
 
+### Stage 2.2: layout assembly/cache boundary and proof (2026-11-12)
+
+The existing `keys` crate owns the layout load plan for each mode and number-row setting,
+the modifier type for an explicit main-layout override, arrangement merging, first-row number
+hints and bottom-aligned symbol hints, and computed-keyboard cache key packing/invalidation.
+Keys cross this boundary as indices with row sizes and plain-key codes, not serialized objects.
+This keeps selectors, labels, popup objects and repeated insertion markers intact, including
+empty rows and the difference between an unavailable layout and a valid empty layout.
+
+Kotlin retains asset/archive reads, kotlinx.serialization decoding, metadata/resource lookup,
+coroutines and their deferred file-read caches, warnings, TextKey allocation, Android locale
+casing/cache and display resources. The already-ported key and popup rules remain in Rust.
+`LayoutCache` holds managed keyboard objects under Rust's keys; the original subtype data-class
+hash is an opaque input, preserving the old hash-collision behaviour until the subtype package.
+There are no JNI callbacks or native handles for keyboards, so no new lifetime/locking protocol.
+
+`LayoutAssemblyMatchTest` retains the replaced decisions and loops in test-only
+`ReferenceLayoutAssembly` and the old cache policy in `ReferenceTextKeyboardCache`. It checks:
+
+- All 93 bundled layout files (94 indexed entries), all 46 retained subtype presets and all
+  12 keyboard modes, with the number row off and on: 103,776 complete keyboards and 1,581,429
+  evaluated keys. An assertion proves the index covers every bundled layout file. Each layout
+  is substituted in its own slot, including modifier and numeric-row layouts. Main metadata's
+  explicit modifiers are resolved too.
+- Complete ordered key lists: codes, types, labels, groups, multi-code-point data, popup and
+  hint keys/order under seeded hint configurations, flex factors, row/column positions and
+  touch/visible bounds to the Float bit. The reference uses the old Kotlin geometry; production
+  uses Rust geometry. Both receive identical JVM locale-casing snapshots because Android ICU
+  was not ported. Android resource labels/icons remain unchanged outside this pure boundary.
+- Another 4,000 seeded keyboards (57,034 evaluated keys) with missing/empty extension and layout
+  references, number/hint settings and shift/variation/direction/width states; also 4,000 synthetic
+  arrangement sets with unavailable/empty layouts, empty rows, repeated insertion markers,
+  selectors that produce code 0, and selectors that produce no key.
+- 40,000 cache operations followed by 2,880,000 lookups against the original per-mode Int-hash
+  cache: overwrites/collisions, every clear scope, negative hashes and Int boundaries.
+
+The deliberate Rust mutation changed the plain-key insertion marker from code 0 to code 1.
+Both the bundled-layout matrix and seeded-layout test failed at arrangement comparison; the
+cache test still passed. Restoring code 0 restored the suite. The first matrix run also caught
+an invalid test fixture supplying a modifier field that SubtypeLayoutMap does not have; the
+fixture now substitutes those layouts at loading, retaining coverage of every modifier.
+There are no intentional behaviour changes.
+
+The full command `./gradlew --stacktrace test :app:lintDebug :lib:rust:check
+:lib:rust:oracleCheck assembleDebug` exited 0 for both the rules/reference commit and production
+routing. Lint reports zero errors and exactly the three known warnings
+(AndroidGradlePluginVersion, NewerVersionAvailable, ChromeOsAbiSupport).
+
+On the muted s24_like emulator (`local`, `emulator-5554`), both builds were installed through
+`scripts/install-dev.sh` and driven with the T3 device session. The same steps checked English
+QWERTY, Croatian QWERTZ, Catalan with its extra ç key and long-press e accent, both symbol pages,
+number row off/on, portrait/landscape and a height change from 100% to 125% and back. Seven
+paired screenshots' key regions are pixel-identical: QWERTY, QWERTZ, Catalan, both symbol pages,
+125% height and the reopened landscape keyboard. The first rotation screenshots captured the
+settings field losing focus on both builds; a rebuilt baseline with the original LayoutManager
+and cache confirmed the actual reopened landscape keyboard too. Unchanged editor state controls
+the enter/Done icon; matching field/state snapshots match it. Long-press e commits the same
+accent on both builds, and deletion removes it. The requested logcat search found only routine
+debug/info AndroidRuntime startup/normal-exit messages, with no FATAL or error-level runtime
+entries. The three temporary subtypes were removed, number row/utility key/height restored,
+and AudioWhisper was restored as the selected IME. Screenshots and APKs are local QA artifacts,
+not shipped code.
+
+The tracked-main-source recount removes 151 non-blank Kotlin lines and adds 273 Rust lines
+(including JNI), a net addition of 122 lines; Java is unchanged. Totals: 53,170 Kotlin,
+26,570 Rust and 627 Java, 33.06% Rust (previously 32.77%). Test references are excluded by the
+90% section's rules. Kotlin shrinks; this package does not claim the overall target is reached.
+
 ### Sharing a core with the Mac app
 
 The Mac app's text rules are Rust too, in [AudioWhisper-Core](https://github.com/jtn0123/AudioWhisper-Core)
@@ -250,7 +319,7 @@ lib/rust/
   crates/dictation/           dictation's text rules and the mic key
   crates/suggest/             typing suggestions, auto-correction, the spell checker, what typing learns
   crates/reader/              reading a page aloud: blocks, selections, scrolls, speech, the speaker key, the screen walk's decisions
-  crates/keys/                the text keyboard's geometry: flex, layout, hit-testing
+  crates/keys/                key/domain models, layout assembly/cache rules, geometry and hit-testing
   crates/gestures/            swipes and the start of a glide
   crates/spacing/             phantom and automatic spaces
   crates/popup/               long-press popups: grid, finger tracking, key order

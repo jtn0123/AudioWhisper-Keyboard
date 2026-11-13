@@ -23,9 +23,7 @@ import dev.patrickgold.florisboard.extensionManager
 import dev.patrickgold.florisboard.ime.core.Subtype
 import dev.patrickgold.florisboard.ime.popup.PopupMapping
 import dev.patrickgold.florisboard.ime.popup.PopupMappingComponent
-import dev.patrickgold.florisboard.ime.text.key.KeyType
 import dev.patrickgold.florisboard.ime.text.keyboard.TextKey
-import dev.patrickgold.florisboard.ime.text.keyboard.TextKeyData
 import dev.patrickgold.florisboard.ime.text.keyboard.TextKeyboard
 import dev.patrickgold.florisboard.keyboardManager
 import dev.patrickgold.florisboard.lib.devtools.LogTopic
@@ -168,17 +166,7 @@ class LayoutManager(context: Context) {
             flogWarning { "$keyboardMode - main - $it" }
         }.getOrNull()
         val modifierToLoad = if (mainLayout?.meta?.modifier != null) {
-            val layoutType = when (mainLayout.type) {
-                LayoutType.SYMBOLS -> {
-                    LayoutType.SYMBOLS_MOD
-                }
-                LayoutType.SYMBOLS2 -> {
-                    LayoutType.SYMBOLS2_MOD
-                }
-                else -> {
-                    LayoutType.CHARACTERS_MOD
-                }
-            }
+            val layoutType = LayoutAssembly.modifier(mainLayout.type)
             LTN(layoutType, mainLayout.meta.modifier)
         } else {
             modifier
@@ -192,73 +180,18 @@ class LayoutManager(context: Context) {
             flogWarning { "$keyboardMode - ext - $it" }
         }.getOrNull()
 
-        val computedArrangement: ArrayList<Array<TextKey>> = arrayListOf()
-
-        if (extensionLayout != null) {
-            for (row in extensionLayout.arrangement) {
-                val rowArray = Array(row.size) { TextKey(row[it]) }
-                computedArrangement.add(rowArray)
-            }
-        }
-
-        if (mainLayout != null && modifierLayout != null) {
-            for (mainRowI in mainLayout.arrangement.indices) {
-                val mainRow = mainLayout.arrangement[mainRowI]
-                if (mainRowI + 1 < mainLayout.arrangement.size) {
-                    val rowArray = Array(mainRow.size) { TextKey(mainRow[it]) }
-                    computedArrangement.add(rowArray)
-                } else {
-                    // merge main and mod here
-                    val rowArray = arrayListOf<TextKey>()
-                    val firstModRow = modifierLayout.arrangement.firstOrNull()
-                    for (modKey in (firstModRow ?: listOf())) {
-                        if (modKey is TextKeyData && modKey.code == 0) {
-                            rowArray.addAll(mainRow.map { TextKey(it) })
-                        } else {
-                            rowArray.add(TextKey(modKey))
-                        }
-                    }
-                    val temp = Array(rowArray.size) { rowArray[it] }
-                    computedArrangement.add(temp)
-                }
-            }
-            for (modRowI in 1 until modifierLayout.arrangement.size) {
-                val modRow = modifierLayout.arrangement[modRowI]
-                val rowArray = Array(modRow.size) { TextKey(modRow[it]) }
-                computedArrangement.add(rowArray)
-            }
-        } else if (mainLayout != null && modifierLayout == null) {
-            for (mainRow in mainLayout.arrangement) {
-                val rowArray = Array(mainRow.size) { TextKey(mainRow[it]) }
-                computedArrangement.add(rowArray)
-            }
-        } else if (mainLayout == null && modifierLayout != null) {
-            for (modRow in modifierLayout.arrangement) {
-                val rowArray = Array(modRow.size) { TextKey(modRow[it]) }
-                computedArrangement.add(rowArray)
-            }
-        }
-
-        // Add hints to keys
-        if (keyboardMode == KeyboardMode.CHARACTERS && computedArrangement.isNotEmpty()) {
-            val symbolsComputedArrangement = computeKeyboardAsync(KeyboardMode.SYMBOLS, subtype).await().arrangement
-            // number row hint always happens on first row
-            if (prefs.keyboard.hintedNumberRowEnabled.get() && symbolsComputedArrangement.isNotEmpty()) {
-                val row = computedArrangement[0]
-                val symbolRow = symbolsComputedArrangement[0]
-                addRowHints(row, symbolRow, KeyType.NUMERIC)
-            }
-            // all other symbols are added bottom-aligned
-            val rOffset = computedArrangement.size - symbolsComputedArrangement.size
-            for ((r, row) in computedArrangement.withIndex()) {
-                if (r < rOffset) {
-                    continue
-                }
-                val symbolRow = symbolsComputedArrangement.getOrNull(r - rOffset)
-                if (symbolRow != null) {
-                    addRowHints(row, symbolRow, KeyType.CHARACTER)
-                }
-            }
+        val rows = LayoutAssembly.merge(mainLayout?.arrangement, modifierLayout?.arrangement, extensionLayout?.arrangement)
+        val computedArrangement = rows.map { row -> row.map(::TextKey).toTypedArray() }
+        if (keyboardMode == KeyboardMode.CHARACTERS && rows.isNotEmpty()) {
+            val symbols = computeKeyboardAsync(KeyboardMode.SYMBOLS, subtype).await().arrangement
+                .map { row -> row.map { it.data } }
+            val hints = LayoutAssembly.hints(keyboardMode, prefs.keyboard.hintedNumberRowEnabled.get(),
+                rows, symbols, DefaultComputingEvaluator).iterator()
+            computedArrangement.forEach { row -> row.forEach { key ->
+                val (number, symbol) = hints.next()
+                key.computedNumberHint = number
+                key.computedSymbolHint = symbol
+            } }
         }
 
         val array = Array(computedArrangement.size) { computedArrangement[it] }
@@ -274,27 +207,6 @@ class LayoutManager(context: Context) {
         )
     }
 
-    private fun addRowHints(main: Array<TextKey>, hint: Array<TextKey>, hintType: KeyType) {
-        for ((k,key) in main.withIndex()) {
-            val hintKey = hint.getOrNull(k)?.data?.compute(DefaultComputingEvaluator)
-            if (hintKey?.type != hintType) {
-                continue
-            }
-
-            when (hintType) {
-                KeyType.CHARACTER -> {
-                    key.computedSymbolHint = hintKey
-                }
-                KeyType.NUMERIC -> {
-                    key.computedNumberHint = hintKey
-                }
-                else -> {
-                    // do nothing
-                }
-            }
-        }
-    }
-
     /**
      * Computes a layout for [keyboardMode] based on the given [subtype] and returns it.
      *
@@ -305,43 +217,8 @@ class LayoutManager(context: Context) {
         keyboardMode: KeyboardMode,
         subtype: Subtype,
     ): Deferred<TextKeyboard> = ioScope.async {
-        var main: LTN? = null
-        var modifier: LTN? = null
-        var extension: LTN? = null
-
-        when (keyboardMode) {
-            KeyboardMode.CHARACTERS -> {
-                if (prefs.keyboard.numberRow.get()) {
-                    extension = LTN(LayoutType.NUMERIC_ROW, subtype.layoutMap.numericRow)
-                }
-                main = LTN(LayoutType.CHARACTERS, subtype.layoutMap.characters)
-                modifier = LTN(LayoutType.CHARACTERS_MOD, extCoreLayout("default"))
-            }
-            KeyboardMode.NUMERIC -> {
-                main = LTN(LayoutType.NUMERIC, subtype.layoutMap.numeric)
-            }
-            KeyboardMode.NUMERIC_ADVANCED -> {
-                main = LTN(LayoutType.NUMERIC_ADVANCED, subtype.layoutMap.numericAdvanced)
-            }
-            KeyboardMode.PHONE -> {
-                main = LTN(LayoutType.PHONE, subtype.layoutMap.phone)
-            }
-            KeyboardMode.PHONE2 -> {
-                main = LTN(LayoutType.PHONE2, subtype.layoutMap.phone2)
-            }
-            KeyboardMode.SYMBOLS -> {
-                extension = LTN(LayoutType.NUMERIC_ROW, subtype.layoutMap.numericRow)
-                main = LTN(LayoutType.SYMBOLS, subtype.layoutMap.symbols)
-                modifier = LTN(LayoutType.SYMBOLS_MOD, extCoreLayout("default"))
-            }
-            KeyboardMode.SYMBOLS2 -> {
-                main = LTN(LayoutType.SYMBOLS2, subtype.layoutMap.symbols2)
-                modifier = LTN(LayoutType.SYMBOLS2_MOD, extCoreLayout("default"))
-            }
-            else -> {
-                // Default values are already provided
-            }
-        }
+        val (main, modifier, extension) = LayoutAssembly.plan(keyboardMode, prefs.keyboard.numberRow.get(), subtype.layoutMap::get)
+            .map { request -> request?.let { (type, name) -> LTN(type, name) } }
 
         return@async mergeLayouts(keyboardMode, subtype, main, modifier, extension)
     }
