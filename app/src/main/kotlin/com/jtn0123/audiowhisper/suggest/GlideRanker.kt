@@ -1,6 +1,7 @@
 package com.jtn0123.audiowhisper.suggest
 
 import com.jtn0123.audiowhisper.rust.SwipeRules
+import com.jtn0123.audiowhisper.rust.NativeGlide
 
 /**
  * A swipe-typing guess: [word] and how badly the swipe fits it, in nats (the glide classifier's
@@ -24,6 +25,14 @@ data class GlideGuess(val word: String, val cost: Float)
 class GlideRanker(private val history: TypingHistory, private val lookup: WordLookup?) {
     /** [guesses], best first in [previous]'s context. Ties keep the classifier's order. */
     fun rank(guesses: List<GlideGuess>, previous: PreviousWords): List<String> {
+        if ((history is LearnedWords || history === TypingHistory.NONE) &&
+            (lookup == null || lookup is LatinDictionaryEngine)) {
+            val order = NativeGlide.rank(lookup?.session, (history as? LearnedWords)?.store,
+                guesses.map { it.word }, FloatArray(guesses.size) { guesses[it].cost },
+                previous.words, previous.isBeginningOfSentence)
+            return order.map { guesses[it].word }
+        }
+        // Synthetic lookup/history seam retained for reference comparisons.
         if (guesses.size < 2 || previous.slotCount == 0) return guesses.map { it.word }
         val costs = FloatArray(guesses.size) { guesses[it].cost }
         val order = SwipeRules.rankGlide(costs, guesses.map { context(it.word, previous) })

@@ -17,6 +17,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('apk', type=Path)
     parser.add_argument('--fixture', action='store_true')
+    parser.add_argument('--compiled', type=Path)
     args = parser.parse_args()
     sdk = Path.home() / 'Library/Android/sdk'
     nm = next((sdk / 'ndk').glob('*/toolchains/llvm/prebuilt/darwin-x86_64/bin/llvm-nm'))
@@ -32,7 +33,9 @@ def main():
     expected_legacy = len(LEGACY) if args.fixture else 0
     if len(legacy) != expected_legacy:
         raise RuntimeError('Packaged legacy callback exports differ from the requested mode')
-    for name in ('NativeLearnerNative_call', 'ReaderWalk_walk'):
+    if args.compiled and data != args.compiled.read_bytes():
+        raise RuntimeError('Packaged native bytes differ from the compiled artifact')
+    for name in ('NativeLearnerNative_call', 'NativeGlideNative_rank', 'ReaderWalk_walk'):
         if PREFIX + name not in symbols:
             raise RuntimeError('Required engine export missing: ' + name)
     print(json.dumps({'native_sha256': hashlib.sha256(data).hexdigest(),

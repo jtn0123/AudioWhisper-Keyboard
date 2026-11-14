@@ -40,6 +40,45 @@ pub struct Context {
     pub probability: i32,
 }
 
+/// Native facts requested in the same per-guess order as the former managed adapter.
+#[derive(Debug)]
+pub enum Query<'a> {
+    Ngram(&'a crate::previous_words::PreviousWords, &'a [u16]),
+    Probability(&'a [u16]),
+    Pair(&'a crate::previous_words::PreviousWords, &'a [u16]),
+}
+
+/// Gather an entire cohort without JNI re-entry. Empty/single/no-context cohorts never query a store.
+pub fn rank_from<E>(
+    costs: &[f32],
+    words: &[&[u16]],
+    previous: &crate::previous_words::PreviousWords,
+    mut ask: impl FnMut(Query<'_>) -> Result<i32, E>,
+) -> Result<Option<Vec<usize>>, E> {
+    if costs.len() != words.len() {
+        return Ok(None);
+    }
+    if words.len() < 2 || previous.slot_count() == 0 {
+        return Ok(Some((0..words.len()).collect()));
+    }
+    let mut contexts = Vec::with_capacity(words.len());
+    for &word in words {
+        let ngram = ask(Query::Ngram(previous, word))?;
+        let probability = if ngram == NOT_A_PROBABILITY {
+            NOT_A_PROBABILITY
+        } else {
+            ask(Query::Probability(word))?
+        };
+        let pair_count = ask(Query::Pair(previous, word))?;
+        contexts.push(Context {
+            pair_count,
+            ngram,
+            probability,
+        });
+    }
+    Ok(rank(costs, &contexts))
+}
+
 /// How much `context` favours its guess, in nats.
 pub fn bonus(context: Context) -> f32 {
     habit_bonus(context.pair_count) + dictionary_bonus(context.ngram, context.probability)

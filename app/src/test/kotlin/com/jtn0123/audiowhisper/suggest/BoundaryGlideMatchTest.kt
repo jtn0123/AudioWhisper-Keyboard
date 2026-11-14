@@ -4,8 +4,27 @@ import java.io.File
 import java.util.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 
 class BoundaryGlideMatchTest {
+    @Test fun closedDictionaryIsNotQueriedForEarlyReturnCohorts() {
+        val file = File("src/main/assets/dicts/main_en-US.dict")
+        val engine = checkNotNull(LatinDictionaryEngine.open(file.path, 0, file.length(), "en_US"))
+        engine.close()
+        val history = LearnedWords(null)
+        val old = ReferenceBoundaryGlideRanker(history, engine)
+        val native = GlideRanker(history, engine)
+        val guesses = listOf(GlideGuess("hello", 1f), GlideGuess("world", 2f))
+        val previous = PreviousWords(listOf("hello"), false)
+        for ((words, context) in listOf(emptyList<GlideGuess>() to previous,
+            guesses.take(1) to previous, guesses to PreviousWords.NONE)) {
+            assertEquals(old.rank(words, context), native.rank(words, context))
+        }
+        val expected = assertFailsWith<IllegalArgumentException> { old.rank(guesses, previous) }
+        val actual = assertFailsWith<IllegalArgumentException> { native.rank(guesses, previous) }
+        assertEquals(expected.message, actual.message)
+    }
+
     @Test fun nativeContextAndRankMatchFrozenPerGuessQueries() {
         val file = File("src/main/assets/dicts/main_en-US.dict")
         checkNotNull(LatinDictionaryEngine.open(file.path, 0, file.length(), "en_US")).use { engine ->

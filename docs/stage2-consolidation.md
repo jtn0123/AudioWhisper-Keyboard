@@ -549,3 +549,26 @@ runners. An attempted second manifest runner was rewritten by AGP; that unaccept
 preflight is retained separately, and no extra manifest is shipped. No assertion changed.
 C1 live learning/unlearning, password candidate/inline counts and incognito storage
 checks pass on both renderers with exact baseline restoration (`c1-learning/`).
+
+## G1: gather and rank a glide cohort in process
+
+`NativeGlide.rank` sends one UTF-16 batch (words followed by previous words), lengths,
+costs and native session/store ownership. `suggest::glide_ranker::rank_from` preserves
+the early returns and per-word ngram → conditional probability → learned-pair order,
+then calls the unchanged stable float ranking. JNI only copies fields and resolves
+the requested native lookups. No Android work, JNI callback or native lock across
+managed work is introduced. The session monitor serializes close; stores remain reachable.
+Synthetic lookup/history adapters remain reference seams.
+
+For N≥2 with context, this replaces **N pair queries + N ngrams + up to N probabilities
++ slot count + rank (up to 3N+2 JNI calls)** with **one** exchange. Empty/single/no-context
+requests never query the dictionary/store; closed dictionaries preserve lazy exceptions.
+
+The frozen pre-change `ReferenceBoundaryGlideRanker` matches **10,000 real-dictionary
+cohorts**, including missing dictionaries, learned pairs, duplicate/tied words, malformed
+UTF-16, NaN, infinities and signed zero. Existing synthetic glide comparisons remain.
+Directed closed-handle and malformed-packet tests pass. Removing learned-pair influence
+causes one fresh assertion failure; byte restoration passes, SHA
+`3e31ba49187ea43f554c1cff3bb8498e6c60fb44bdc88a72213538321cd8d69a`.
+Evidence: `g1-tests.log`, `g1-boundaries.log`, `g1-mutation/`. Final device/timing evidence
+is recorded with the completed stack below.
