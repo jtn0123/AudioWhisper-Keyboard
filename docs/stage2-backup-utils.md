@@ -1,5 +1,9 @@
 # Stage 2 packages 18 and 19: backup, restore and utility rules
 
+**2026-11-14 update:** fresh SSD acceptance is recorded in
+[the appended device record](#fresh-ssd-acceptance-2026-11-14). Earlier holds below
+remain historical evidence.
+
 ## Device boundary
 
 The initial, single T3 `device_list` call returned **“The device hub did not answer
@@ -182,3 +186,60 @@ also all exit zero. Evidence is under ignored `build/stage2-backup-utils/`:
 `final-gate.log`, `final-gate-status.json`, `gate-report-summary.json`,
 `source-count.json`, `source-lengths.json` and `mutations-final/`.
 Hosted CI is not the acceptance gate because of the stated account billing limit.
+
+
+## Fresh SSD acceptance (2026-11-14)
+
+The owned new `aw_keyboard_ssd` is runtime `emulator-5556`; the old AVD and 5554 are
+untouched. Evidence is under ignored `build/device-acceptance-2026-11-14/`. The pre-port
+control is **a846b8ab**, with 908 selected Kotlin/Java/Rust production files verified
+byte-identical; added probe/keep rules are test-only. Both APKs use `install-dev.sh`.
+
+**PASS — real SAF round trip.** Main exports a preferences-only archive through the
+system picker. Its guarded archive has two files (preferences and metadata). The probe
+captures all 143 preferences and canonical store hashes. Production setters change three
+settings; four synthetic learned-word additions change the known count 1→2 and store SHA
+from `7848a5161495f8822d228eb8e2d298b38359d3e229a79a5db04ea5babf7276f0` to
+`1ed8f403ee13f6cd0ecd71702917d69776f20fbd6cfa50cff807cf76b4fb9ca1`.
+Restore selects this archive through the real SAF UI and ERASE/overwrite. All **143**
+exported preference values return exactly. The mutated learned store remains unchanged;
+the kept-as-typed store remains empty, SHA
+`e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855`.
+
+The unchanged pre-port build restores the same archive through SAF with identical results.
+Learned/kept stores are excluded from this legacy archive format: learned-store rollback
+is unsupported on both builds, rather than a new restore regression. Each wrapper then
+restores the separate canonical test baseline with exact preference/store hash checks.
+Evidence: `saf-accepted/comparison.json`, `saf-old/comparison.json`.
+
+**PASS — incompatible archive.** A guarded metadata-only version-63 archive is selected
+through SAF on old/main. Both disable Restore and show the same 167-unit message hash
+`c3f124a613693bd014128d55880d716eb53750cbae40f359ffa0a41a599751c9`.
+All 12 visible application labels also match, aggregate SHA
+`c49a0fa3024b525c6320c9ec16026ad5c6eecfdad35ccc1c26ed4c1c1d6d2aa8`.
+Evidence: both `incompatible.json` records. No archive payload is trusted before guards.
+
+**PASS — Android utilities.** Old/main match all 50 MIME booleans (aggregate SHA
+`a9102ba77137f79f5fb514d52221fba28b22f1545e37669c29729504b22cb4e7`), six
+locale hashes (`c4d69420a419d979203afec3ab6d4f4ec81429a6dc52c009a7c913be8149bfda`)
+and six ref hashes (`0ed9f53f0e64836c271b9a9976f0d75be6c85882457834e22bd880a3f3ddade8`).
+The only old/main initial preference difference is the last-use version marker, verified
+against each APK manifest and `AppVersionUtils.updateVersionOnInstallAndLastUse`.
+Earlier fixture calls failed because shrinking removed test-only probe entry points;
+opt-in fixture keep rules fix those calls without changing production shrinking or policy.
+Those failed attempts remain separate evidence. No package-18/19 acceptance check remains
+unrun; final gate, restoration and shutdown are recorded after cleanup.
+
+
+### Final fresh-device gate and hold
+
+The final exact whole-codebase gate exits **0** (4m 48s): **803 JVM tests**, no
+failures/errors/skips; Rust checks/oracle pass and only the five allowed lint warnings
+remain. Normal debug is installed; final receipts verify exact baseline preference/store
+hashes and accessibility null/0. Prototype off, Always day/Floris Day, owned IME and mic
+permission pass before a final volume-verifier assertion. Disposable APKs/private audio
+are removed; models remain. A normal launcher intent fails, and its one advised debug
+retry also fails. Device work stops under the requested rule. **Still owed:** corrected
+volume/DND readback, literal `FATAL|AndroidRuntime` final scan and shutdown. The device
+is not claimed closed. See [the complete hold and diagnostic](stage2-tts.md#final-gate-and-device-hold);
+this does not alter the package-specific acceptance results above.
