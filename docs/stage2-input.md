@@ -301,3 +301,17 @@ in `postfix-typing-strip/suggestions/`. NLP selects the same strip explicitly. T
 restores the expanded flag and the exact baseline preference bytes afterward. No expected
 digest or candidate policy is changed. The adapter and independent timestamp-oracle host
 suites pass 4 and 5 tests respectively.
+
+
+### Final fresh-device gate and hold
+
+The final exact whole-codebase gate exits **0** (4m 48s): **803 JVM tests**, no
+failures/errors/skips; Rust checks/oracle pass and only the five allowed lint warnings
+remain. Normal debug is installed; final receipts verify exact baseline preference/store
+hashes and accessibility null/0. Prototype off, Always day/Floris Day, owned IME and mic
+permission pass before a final volume-verifier assertion. Disposable APKs/private audio
+are removed; models remain. A normal launcher intent fails, and its one advised debug
+retry also fails. Device work stops under the requested rule. **Still owed:** corrected
+volume/DND readback, literal `FATAL|AndroidRuntime` final scan and shutdown. The device
+is not claimed closed. See [the complete hold and diagnostic](stage2-tts.md#final-gate-and-device-hold);
+this does not alter the package-specific acceptance results above.
