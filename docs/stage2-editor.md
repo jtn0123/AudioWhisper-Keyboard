@@ -276,3 +276,32 @@ controls in `caps-state/` and `normal-caps-state/` show the correct caps input t
 uppercase state after a text-to-caps transition on both fixture and normal APKs; a direct
 cold caps control in `caps-diagnostic/` stays lowercase. No digest is re-baselined and no
 production change is inferred from these differing preparation paths.
+
+
+### Complete wrapper follow-up
+
+`editor-meta-after-automation-reset/editor.json` subsequently passes the **unchanged
+complete wrapper on both renderers**, using the current JNI-free main sources and a
+test-only numeric metadata receiver. Every fixed digest and UTF-16 selection/composing
+offset matches. Both caps preparations report input type 16385, cursor caps 8192,
+shift state 2, auto-capitalization enabled and zero editor units. No microphone is opened.
+The observer first failed to bind after manual agent snapshots; closing/reopening only
+the owned device cleared UiAutomation before the successful run. Earlier lowercase
+caps preparation failures remain failed evidence, including a later Compose control;
+the precise trigger of those earlier input-state differences is not established.
+The successful full wrapper closes the replay obligation without changing a digest,
+adding retries to an assertion, or attributing an unproved production cause.
+
+
+### Final fresh-device gate and hold
+
+The final exact whole-codebase gate exits **0** (4m 48s): **803 JVM tests**, no
+failures/errors/skips; Rust checks/oracle pass and only the five allowed lint warnings
+remain. Normal debug is installed; final receipts verify exact baseline preference/store
+hashes and accessibility null/0. Prototype off, Always day/Floris Day, owned IME and mic
+permission pass before a final volume-verifier assertion. Disposable APKs/private audio
+are removed; models remain. A normal launcher intent fails, and its one advised debug
+retry also fails. Device work stops under the requested rule. **Still owed:** corrected
+volume/DND readback, literal `FATAL|AndroidRuntime` final scan and shutdown. The device
+is not claimed closed. See [the complete hold and diagnostic](stage2-tts.md#final-gate-and-device-hold);
+this does not alter the package-specific acceptance results above.
