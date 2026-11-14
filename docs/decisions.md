@@ -39,8 +39,9 @@ Decided on 2026-11-12, replacing the 2026-11-08 logic-only decision: aim for at 
 our non-blank main-source lines in Rust, including the keyboard renderer and settings models.
 Keep one library (`lib/rust`, one `.so`), with JNI only in `awnative`. Kotlin keeps the IME
 service shell, a draw surface and touch forwarding, the TalkBack bridge, microphone,
-text-to-speech, accessibility-service and other Android APIs, and a slim settings app with
-accessible Compose controls. This removes duplicated policy and shares text rules with the
+text-to-speech, accessibility-service and other Android APIs, and the thin settings Activity/platform adapter. The user decision on 2026-11-14
+moves settings drawing, navigation/widgets and editing models to the same Rust renderer;
+Compose settings stay default/fallback until phone acceptance (see [design](stage4-settings.md)). This removes duplicated policy and shares text rules with the
 Mac app; Kotlin is already memory-safe, so safety alone is not the reason. Try pure Rust
 Vello + Parley + Skrifa/Fontations first to avoid another large C++ dependency. Use skia-safe
 only if the prototype cannot match the look or speed; Skia's compatibility then justifies

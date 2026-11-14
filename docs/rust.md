@@ -150,19 +150,27 @@ input on the Rust surface. Emoji history and arrangement policies also moved to 
 Kotlin reference match tests and deliberate mutations. Clipboard history and GIF/search
 remain Compose; the prototype stays default-off. See [package 6 results](stage3b-package6.md).
 
-### Stage 4: smaller settings (to 90%+)
+### Stage 4: Rust draws settings (decision 2026-11-14)
 
-At roughly 55–64k Rust lines, Kotlin and Java together must be around 6k. Settings, extensions
-and the theme editor alone were about 13k at planning time. Rebuild them as a few data-driven
-Compose screens: Rust describes settings/properties and owns validation, editing models and
-workflows; accessible Compose controls stay. Slim the service shell and JNI declarations too,
-then recount. Stage 4 is part of the decision, because drawing the keyboard alone cannot reach 90%.
+Rust draws the settings Activity on the keyboard's Vello CPU / Parley / Skrifa stack.
+This replaces the earlier plan to retain accessible Compose settings controls. Keep every
+screen, add-on/extension flow and the theme editor. Rust owns navigation, screen descriptions,
+widgets/layout, scrolling/fling, animation, hit testing, focus, semantics and editable models.
+Kotlin retains a thin Activity/surface/input/back host, the Android accessibility bridge,
+InputConnection endpoint, resources, file IO and execution of platform plans (SAF, intents,
+permissions, IME picker and toasts). Android string resources remain the source of truth.
 
-The user chose 90% including settings, removal of developer tools and non-Latin input,
-retention of add-ons and the theme editor, and pure Rust rendering first with Skia as fallback.
-The implementation defaults are system fonts/emoji, exact behaviour with reviewed pixel
-variation, deleting Compose after phone acceptance, and a 120 Hz S24 test before default-on.
-The differential tests, deliberate mutation check and emulator checks below apply to every port.
+Compose stays the default and fallback behind a separate default-off settings renderer switch
+until phone acceptance, just as for the keyboard. The current checkpoint ends after design,
+a Home/full-settings-screen/text-field/platform-action prototype and the same stored-file,
+reference/mutation, screenshot, accessibility and measured-runtime proof as other packages.
+Unported routes continue in Compose. See [the complete design and inventory](stage4-settings.md).
+
+The 90% target remains, but this settings scope plus the measured keyboard deletion alone is
+projected at roughly 63–67% Rust. Finishing the target also requires a separately inventoried
+reduction of remaining Kotlin models/wrappers/hosts. Preserve genuine Android boundaries;
+never add Rust or remove tests to improve the count. Recount with the supplied source tool
+and refresh the deletion dry run before claiming a full-port endpoint.
 
 ## What is in Rust
 
