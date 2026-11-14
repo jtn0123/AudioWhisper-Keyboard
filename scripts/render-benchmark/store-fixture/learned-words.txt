@@ -1,0 +1,2 @@
+# AudioWhisper learned words, v1
+w	2	awfixturecanonical

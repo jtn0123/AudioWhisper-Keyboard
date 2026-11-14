@@ -285,6 +285,37 @@ The unfinished checks are a device acceptance hold, not a claim of a complete gr
 pass. Source implementation, native/session reference comparisons, all four restored mutations,
 seven exact speech/VAD fixtures, 20 timing trials and the full local Gradle gate remain proven.
 
+## Package 12 recovery attempt (2026-11-13)
+
+Recovery stopped at the required original-store hash check, before any device mutation.
+T3 successfully booted `aw_keyboard` as runtime `emulator-5556`; the device list confirmed
+that mapping. No command targeted the other session's `emulator-5554`.
+
+`files/dictation-typing-held` contains both store files. The observed hashes are:
+
+| File | Held original and live copy SHA-256 | Recorded wrapper restoration SHA-256 |
+| --- | --- | --- |
+| `learned-words.txt` | `776b730b0929d3dc226c0eed8b341bfae397ae23d1c18316f0cdcdefdbeb3ff8` | `4f43d71a4a4e360cd0134707e70fd3c781132b8205ce09f6c231c8c71c079a05` |
+| `kept-as-typed.txt` | `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855` | `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855` |
+
+The record is `after/typing-stores-restored.json`. The wrapper scripts keep their
+pre-replay hashes only in memory and write this record after successful restoration;
+therefore that completed-run record does not authenticate the interrupted run's held
+learned-word bytes. The mismatch does not by itself establish which copy is correct.
+Neither held nor live copy was overwritten, moved or deleted. No store contents were
+printed or retained in this recovery evidence; only hashes and metadata were inspected.
+`files/dictation-held-test-state` is absent; the renderer probe package remains installed.
+
+The explicit stop-on-inexact-restoration rule prevented all subsequent device operations:
+preferences/accessibility/permissions restoration, probe/test-file cleanup, prototype/theme
+verification, muting, final logcat scan and shutdown remain unverified. No APK was installed,
+no audio was synthesized or played, and no microphone was opened. The device remains open
+in this thread because shutdown would be another device operation after the required stop.
+No package 12 implementation or long-delete replay was started. Resume recovery only with
+an authenticated original matching the recorded hash, or the interrupted wrapper's
+pre-replay hash record authenticating the held bytes. Sanitized observations are under
+`build/stage2-tts/recovery/hold.json`.
+
 ## Evidence locations (ignored, not committed)
 
 All paths below are relative to `build/stage2-dictation/`:
@@ -301,3 +332,46 @@ All paths below are relative to `build/stage2-dictation/`:
 
 The generated audio, models, APKs, screenshots, dumps, downloaded header/checksums, local
 settings and build products are excluded from the commits. Reader production source is unchanged.
+
+## Package 12 canonical test-store recovery (2026-11-13)
+
+The user resolved the preceding store hold: `aw_keyboard` is a dedicated synthetic-input
+emulator, and learned words legitimately accumulate during replays. Exact configuration
+restoration remains mandatory. The earlier recovery note is retained as historical evidence;
+its original-store requirement is superseded by this explicit canonical-store decision.
+
+Fresh held **and** live SHA-256 observations agree:
+
+- Learned: `776b730b0929d3dc226c0eed8b341bfae397ae23d1c18316f0cdcdefdbeb3ff8`.
+- Kept-as-typed: `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855`.
+
+The held copies were then deleted. All 16 preferences from `before/preferences.json`, both
+accessibility values, and microphone/notification grants **and flags** match exactly. Those
+preferences already specify prototype off, Always day and Floris Day. The probe/test APKs,
+generated WAV directory, Silero copy and named fixture response files were removed; existing
+Parakeet/Pocket models remain. DND is off, audio streams are muted to their allowed minimum,
+and our IME is selected. The literal `FATAL|AndroidRuntime` scan returns zero matches.
+Sanitized evidence is under `build/stage2-tts/recovery/`.
+
+Every new typing session uses the committed synthetic fixture in
+`scripts/render-benchmark/store-fixture/`: learned SHA-256
+`7848a5161495f8822d228eb8e2d298b38359d3e229a79a5db04ea5babf7276f0`, empty kept-as-typed SHA-256
+`e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855`.
+`store-session.py` force-stops the IME, installs the fixtures, checks hashes and records them
+before launching a wrapper, then repeats installation and verification in `finally` even if
+the wrapper fails. A pending host record remains if a guest stall prevents restoration; that
+is a hard failure, and the next session reinstalls the fixture before any input. A `finally`
+block cannot make an unresponsive guest writable, so successful restoration is always checked.
+
+Replace the previous ignored held-store typing wrappers with:
+
+```sh
+ANDROID_SERIAL=<owned-runtime> python3 -I scripts/render-benchmark/typing-suite.py OUTPUT
+ANDROID_SERIAL=<owned-runtime> python3 -I scripts/render-benchmark/store-session.py OUTPUT/stores -- \
+  python3 -I scripts/dictation-ui.py OUTPUT/ui native AGENT_DEVICE_COMMAND
+```
+
+`typing-suite.py` gives **each** ordinary wrapper its own canonical session and checks its
+restoration before starting the next. Use `--baseline BEFORE` for the post-change comparison.
+The learning wrapper installs/restores the same fixture itself. Extra dictation/learning
+wrappers must use `store-session.py` rather than moving accumulated learned-store originals.

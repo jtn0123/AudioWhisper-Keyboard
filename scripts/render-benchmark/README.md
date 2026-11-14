@@ -335,3 +335,14 @@ rename so host reads cannot observe a truncated JSON record. The test APK's `edi
 reports only numeric field/caps/shift metadata and refuses anything except an empty probe editor.
 Before clipboard workflows, preserve the original Room files and the probe's `CLIP_STATE` snapshot;
 restore the payload with `operation=restore`, then restore Room while its owner is stopped.
+
+### Dedicated test-store sessions
+
+Run typing wrappers through `python3 -I scripts/render-benchmark/typing-suite.py OUTPUT` or
+`python3 -I scripts/render-benchmark/store-session.py OUTPUT/stores -- COMMAND...`.
+The latter also wraps dictation/extra wrappers. `nlp-learning.py` uses the same session itself.
+Every wrapper starts and ends with the canonical synthetic learned/empty blocked fixtures,
+installed with the IME stopped and checked by SHA-256. Each restoration is checked before the
+next wrapper. Guest failure leaves `stores-pending.json` and fails the session; rerunning resets
+the store first. No accumulated test words are backed up or logged. Keep ANDROID_SERIAL scoped
+to the owned dedicated emulator and agent-device idle during scripts.

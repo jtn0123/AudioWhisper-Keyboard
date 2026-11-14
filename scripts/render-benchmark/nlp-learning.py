@@ -95,4 +95,7 @@ def main():
         d.restore_accessibility(original)
 
 
-if __name__ == '__main__': main()
+if __name__ == '__main__':
+    stores = runpy.run_path(str(Path(__file__).with_name('store-session.py')))
+    with stores['fixture_session'](Path(sys.argv[1]) / 'stores'):
+        main()

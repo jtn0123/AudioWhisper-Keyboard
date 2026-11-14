@@ -294,3 +294,15 @@ baseline again, and reports zero accessibility bugs. Cleanup then repeats. The r
 and grep exits one for no matches. Both the earlier launcher notices and final empty result remain
 in ignored evidence. Device close with `shutdown: true` succeeds; device inventory confirms
 `aw_keyboard` is no longer open and is **not booted**.
+
+## Canonical emulator store (package 12 recovery)
+
+The dedicated emulator's accumulated synthetic learned words are now replaced by the committed
+`scripts/render-benchmark/store-fixture/` before every wrapper. `nlp-learning.py` owns a
+`fixture_session` directly; use `store-session.py OUTPUT/stores -- COMMAND...` around other
+learning/extra wrappers, and `typing-suite.py OUTPUT [--baseline BEFORE]` for ordinary typing.
+Each session force-stops the IME before installing, records and verifies fixture hashes, and
+reinstalls/verifies them in `finally` after success or failure. A stalled restoration fails and
+leaves a pending record. See [the recovery proof](stage2-dictation.md#package-12-canonical-test-store-recovery-2026-11-13)
+for full hashes and exact configuration recovery. The previous historical store-size/hash
+records above do not define the new canonical baseline.
