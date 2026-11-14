@@ -90,7 +90,7 @@ internal class ReferenceVoiceEngine private constructor(
          * Loads the voice; null if it isn't installed or fails to load. Takes a second or two, and
          * the first time, a second more to check the files' SHA-256.
          */
-        fun load(context: Context): ReferenceVoiceEngine? {
+        fun load(context: Context, seed: Int? = null): ReferenceVoiceEngine? {
             val started = SystemClock.elapsedRealtime()
             return runCatching {
                 if (quickState(context) is ModelState.Missing) return@runCatching null
@@ -99,14 +99,14 @@ internal class ReferenceVoiceEngine private constructor(
                     Log.w(TAG, "Voice files not as expected: $state")
                     return@runCatching null
                 }
-                create(dir(context))
+                create(dir(context), seed)
             }
                 .onSuccess { if (it != null) Log.i(TAG, "Loaded in ${SystemClock.elapsedRealtime() - started} ms") }
                 .onFailure { Log.w(TAG, "Could not load the voice: ${it.javaClass.simpleName}") }
                 .getOrNull()
         }
 
-        private fun create(dir: File): ReferenceVoiceEngine {
+        private fun create(dir: File, seed: Int?): ReferenceVoiceEngine {
             fun path(name: String) = File(dir, name).path
             val pocket = OfflineTtsPocketModelConfig(
                 lmFlow = path(LM_FLOW),
@@ -119,7 +119,8 @@ internal class ReferenceVoiceEngine private constructor(
             )
             val tts = OfflineTts(config = OfflineTtsConfig(model = OfflineTtsModelConfig(pocket = pocket, numThreads = THREADS)))
             val reference = WaveReader.readWave(path(REFERENCE))
-            val config = GenerationConfig(referenceAudio = reference.samples, referenceSampleRate = reference.sampleRate)
+            val config = GenerationConfig(referenceAudio = reference.samples, referenceSampleRate = reference.sampleRate,
+                extra = seed?.let { mapOf("seed" to it.toString()) }.orEmpty())
             return ReferenceVoiceEngine(tts, config)
         }
     }

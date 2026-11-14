@@ -172,6 +172,7 @@ val cargoBuildAndroid = tasks.register<CargoBuild>("cargoBuildAndroid") {
     description = "Builds libawnative.so for arm64 Android."
     configureCargo("build", "--release", "--locked", "--package", "awnative", "--target", androidTarget)
     if (providers.gradleProperty("suggestFixture").orNull == "true") args.addAll("--features", "latin-fixture")
+    if (providers.gradleProperty("ttsFixture").orNull == "true") args.addAll("--features", "tts-fixture")
     val ndkDirectory = androidComponents.sdkComponents.ndkDirectory
     environment.put(
         "CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER",

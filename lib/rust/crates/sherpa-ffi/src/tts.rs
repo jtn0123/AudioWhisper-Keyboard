@@ -72,14 +72,29 @@ impl Tts {
     pub fn close(&self) {
         self.generator.close();
     }
-    pub fn generate(
+    pub fn generate(&self, text: &str, audio: impl FnMut(&[f32]) -> bool) -> Result<(), String> {
+        self.generate_inner(text, audio, None)
+    }
+    /// The comparison APK pins stochastic synthesis; normal builds omit this entry point.
+    #[cfg(feature = "tts-fixture")]
+    pub fn generate_fixture(
+        &self,
+        text: &str,
+        seed: i32,
+        audio: impl FnMut(&[f32]) -> bool,
+    ) -> Result<(), String> {
+        self.generate_inner(text, audio, Some(seed))
+    }
+    fn generate_inner(
         &self,
         text: &str,
         mut audio: impl FnMut(&[f32]) -> bool,
+        seed: Option<i32>,
     ) -> Result<(), String> {
         let lease = self.generator.lease()?;
         let owner = lease.owner();
         let text = cstring(text)?;
+        let extra = generation_extra(seed)?;
         let config = GenerationConfig {
             silence_scale: 0.2,
             speed: 1.0,
@@ -88,6 +103,9 @@ impl Tts {
             reference_audio_len: count(&self.reference)?,
             reference_sample_rate: self.reference_rate,
             num_steps: 5,
+            extra: extra
+                .as_ref()
+                .map_or(std::ptr::null(), |value| value.as_ptr()),
             ..Default::default()
         };
         let mut callback = Callback {
@@ -150,5 +168,31 @@ unsafe extern "C" fn deliver(samples: *const f32, n: i32, _: f32, arg: *mut c_vo
         }
     }
 }
+fn generation_extra(seed: Option<i32>) -> Result<Option<std::ffi::CString>, String> {
+    seed.map(|value| cstring(&format!("{{\"seed\":{value}}}")))
+        .transpose()
+}
+
 // Keep public ownership explicit: callers share Tts, never C pointers or borrowed output.
 pub type SharedTts = Arc<Tts>;
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn comparison_seed_is_explicit_and_normal_generation_has_no_override() {
+        assert!(super::generation_extra(None).unwrap().is_none());
+        for (seed, expected) in [
+            (42, br#"{"seed":42}"#.as_slice()),
+            (-1, br#"{"seed":-1}"#.as_slice()),
+            (0, br#"{"seed":0}"#.as_slice()),
+        ] {
+            assert_eq!(
+                super::generation_extra(Some(seed))
+                    .unwrap()
+                    .unwrap()
+                    .as_bytes(),
+                expected
+            );
+        }
+    }
+}

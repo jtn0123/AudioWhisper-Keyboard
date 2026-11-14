@@ -100,6 +100,7 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_TtsNative_close(
         })
     }
 }
+// SAFETY: the exported signature matches TtsNative; the synchronous bridge validates every reference.
 #[unsafe(no_mangle)]
 pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_TtsNative_generate(
     env: *mut JNIEnv,
@@ -107,6 +108,35 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_TtsNative_generate(
     id: jlong,
     text: jstring,
     callback: jobject,
+) {
+    generate(env, id, text, callback, |tts, text, audio| {
+        tts.generate(text, audio)
+    })
+}
+
+/// Present only in the comparison APK; the normal JNI generator never selects a seed.
+#[cfg(feature = "tts-fixture")]
+// SAFETY: the test APK declares this exact JNI signature and uses the same validated bridge.
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_com_jtn0123_audiowhisper_reader_TtsComparison_generate(
+    env: *mut JNIEnv,
+    _: jclass,
+    id: jlong,
+    text: jstring,
+    seed: jint,
+    callback: jobject,
+) {
+    generate(env, id, text, callback, |tts, text, audio| {
+        tts.generate_fixture(text, seed, audio)
+    })
+}
+
+fn generate(
+    env: *mut JNIEnv,
+    id: jlong,
+    text: jstring,
+    callback: jobject,
+    synthesize: impl FnOnce(&Tts, &str, &mut dyn FnMut(&[f32]) -> bool) -> Result<(), String>,
 ) {
     // SAFETY: callback/local references and Env are used only synchronously on this JNI thread.
     // Rust model/PCM leases outlive the callback, including blocking Android playback writes.
@@ -120,17 +150,16 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_TtsNative_generate(
                 (c"audio", c"(Ljava/nio/ByteBuffer;)Z"),
             )?;
             let mut error = None;
-            let result = tts.generate(&text, |samples| {
-                match e.with_pcm_buffer(samples, |buffer| {
-                    e.call_boolean(method, &[jvalue { l: buffer }])
-                }) {
-                    Ok(keep) => keep,
-                    Err(failure) => {
-                        error = Some(failure);
-                        false
-                    }
+            let mut audio = |samples: &[f32]| match e.with_pcm_buffer(samples, |buffer| {
+                e.call_boolean(method, &[jvalue { l: buffer }])
+            }) {
+                Ok(keep) => keep,
+                Err(failure) => {
+                    error = Some(failure);
+                    false
                 }
-            });
+            };
+            let result = synthesize(&tts, &text, &mut audio);
             if let Some(error) = error {
                 return Err(error);
             }

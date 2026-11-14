@@ -19,14 +19,15 @@ class TtsInstrumentation : Instrumentation() {
     private fun hex(bytes: ByteArray) = bytes.joinToString("") { "%02x".format(it) }
     private fun bytes(samples: FloatArray): ByteArray = ByteBuffer.allocate(samples.size * 4)
         .order(ByteOrder.LITTLE_ENDIAN).also { it.asFloatBuffer().put(samples) }.array()
-    private fun generate(text: String, index: Int, reference: Boolean, directory: File): JSONObject {
+    private fun generate(text: String, index: Int, reference: Boolean, directory: File, deterministic: Boolean = true): JSONObject {
         val hash = MessageDigest.getInstance("SHA-256")
         val chunks = JSONArray()
         val chunkHashes = JSONArray()
         var first = -1L
         var count = 0
-        val old = if (reference) checkNotNull(ReferenceVoiceEngine.load(targetContext)) else null
+        val old = if (reference) checkNotNull(ReferenceVoiceEngine.load(targetContext, if (deterministic) 42 else null)) else null
         val native = if (!reference) SherpaTts(VoiceEngine.dir(targetContext).path) else null
+        val nativeGenerate = native?.let { if (deterministic) TtsComparison.bind(it) else it::speak }
         val rate = old?.sampleRate ?: checkNotNull(native).sampleRate
         try {
             return File(directory, "$index-${if (reference) 1 else 0}.pcm").outputStream().use { output ->
@@ -40,7 +41,7 @@ class TtsInstrumentation : Instrumentation() {
                     if (first < 0) first = System.nanoTime()
                     audio(bytes(it))
                 }
-                else native!!.speak(text) { buffer ->
+                else nativeGenerate!!(text) { buffer ->
                     if (first < 0) first = System.nanoTime()
                     val pcm = ByteArray(buffer.remaining()); buffer.get(pcm); audio(pcm)
                 }
@@ -58,16 +59,17 @@ class TtsInstrumentation : Instrumentation() {
     private fun stress(text: String, expected: JSONObject): JSONObject {
         val directory = VoiceEngine.dir(targetContext).path
         val native = SherpaTts(directory)
+        val generate = TtsComparison.bind(native)
         val heaps = JSONArray()
         try {
-            repeat(20) { native.speak(text) { native.cancel(); false } } // Allocator/model-cache warmup.
+            repeat(20) { generate(text) { native.cancel(); false } } // Allocator/model-cache warmup.
             repeat(200) { cycle ->
                 var received = 0
-                native.speak(text) { pcm -> received += pcm.remaining() / 4; native.cancel(); false }
+                generate(text) { pcm -> received += pcm.remaining() / 4; native.cancel(); false }
                 check(received in 1 until expected.getInt("samples"))
                 // An immediate new generation must remain usable after cancellation.
                 var resumed = 0
-                native.speak(text) { pcm ->
+                generate(text) { pcm ->
                     resumed += pcm.remaining() / 4
                     val firstChunk = ByteArray(pcm.remaining()); pcm.get(firstChunk)
                     check(hex(MessageDigest.getInstance("SHA-256").digest(firstChunk)) == expected.getJSONArray("chunk_sha256").getString(0))
@@ -84,11 +86,11 @@ class TtsInstrumentation : Instrumentation() {
         } finally { native.close() }
         val firstHeap = (0 until minOf(5, heaps.length())).maxOf { heaps.getJSONObject(it).getLong("native_heap_bytes") }
         val lastHeap = (maxOf(0, heaps.length() - 5) until heaps.length()).maxOf { heaps.getJSONObject(it).getLong("native_heap_bytes") }
-        check(lastHeap <= firstHeap) // Same warmed model/text/chunk shape; require a bounded plateau.
+        // The caller persists these observations before requiring the same bounded plateau.
         // Exercise close from INSIDE a callback: physical release must wait for callback return.
         val closing = SherpaTts(directory)
         var callbackReturned = false
-        closing.speak(text) { closing.close(); callbackReturned = true; false }
+        TtsComparison.bind(closing)(text) { closing.close(); callbackReturned = true; false }
         check(callbackReturned)
         closing.close()
         // Return the complete observations. A plateau is reviewed from these samples; a crash-free
@@ -102,6 +104,15 @@ class TtsInstrumentation : Instrumentation() {
         try {
             val sentences = context.assets.open("tts-sentences.txt").bufferedReader().use { it.readLines() }
             check(sentences.size == 5)
+            if (options.getString("randomnessControl") == "true") {
+                val control = JSONArray()
+                for (index in 0..3) control.put(JSONObject().put("reference", index < 2)
+                    .put("identity", JSONObject(identity(generate(sentences[0], 90 + index, index < 2, directory, deterministic = false)))))
+                File(targetContext.filesDir, "tts-randomness-control.json").writeText(control.toString(2))
+                result.putBoolean("tts_randomness_control", true)
+                finish(Activity.RESULT_OK, result)
+                return
+            }
             val records = JSONArray()
             val report = JSONObject().put("identical", false)
             val reportFile = File(targetContext.filesDir, "tts-comparison.json")
@@ -126,7 +137,13 @@ class TtsInstrumentation : Instrumentation() {
                 }
             }
             report.put("timings", timings)
-            if (options.getString("stress") != "false") report.put("stress", stress(sentences[1], expected[1]))
+            reportFile.writeText(report.toString(2))
+            if (options.getString("stress") != "false") {
+                val stress = stress(sentences[1], expected[1])
+                report.put("stress", stress)
+                reportFile.writeText(report.toString(2))
+                check(stress.getBoolean("heap_plateau")) // Persist failure evidence; never relax the rule.
+            }
             report.put("identical", true); reportFile.writeText(report.toString(2))
             result.putBoolean("tts_complete", true); finish(Activity.RESULT_OK, result)
         } catch (failure: Throwable) {

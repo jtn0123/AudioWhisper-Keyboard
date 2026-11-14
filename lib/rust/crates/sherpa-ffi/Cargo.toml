@@ -7,6 +7,9 @@ license.workspace = true
 publish.workspace = true
 rust-version.workspace = true
 
+[features]
+tts-fixture = []
+
 [dependencies]
 reader = { path = "../reader" }
 libloading = "=0.8.9"
