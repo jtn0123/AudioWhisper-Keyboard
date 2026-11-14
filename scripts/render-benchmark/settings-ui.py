@@ -33,21 +33,26 @@ def actions(d):
     picker = max(nodes, key=lambda n: n['rect']['x'])
     d.ui('press', '@' + picker['ref'])
     d.ui('back')
-    d.launch('settings/home')
-    field = next(n for n in d.app_nodes() if n.get('editable'))
-    d.ui('press', '@' + field['ref'])
-    # Fixed synthetic fixture only. Neither UI output nor the filled tree is persisted.
-    value = 'settingsfixture'
-    d.ui('type', value)
-    expected = {'utf16_units': len(value), 'sha256': hashlib.sha256(value.encode()).hexdigest()}
-    digest = d.field_digest()
-    if digest != expected:
-        raise RuntimeError('Preview field digest differs')
-    field = next(n for n in d.app_nodes() if n.get('editable'))
-    d.ui('fill', '@' + field['ref'], '')
-    if d.field_digest()['utf16_units'] != 0:
-        raise RuntimeError('Preview field did not clear')
-    d.ui('back')
+    stock = d.stock_ime()
+    d.save('stock-ime.json', {'component': stock})
+    try:
+        d.launch('settings/home')
+        field = next(n for n in d.app_nodes() if n.get('editable'))
+        d.ui('press', '@' + field['ref'])
+        # Fixed synthetic fixture only. Neither UI output nor the filled tree is persisted.
+        value = 'settingsfixture'
+        d.ui('type', value)
+        expected = {'utf16_units': len(value), 'sha256': hashlib.sha256(value.encode()).hexdigest()}
+        digest = d.field_digest()
+        if digest != expected:
+            raise RuntimeError('Preview field digest differs')
+        field = next(n for n in d.app_nodes() if n.get('editable'))
+        d.ui('fill', '@' + field['ref'], '')
+        if d.field_digest()['utf16_units'] != 0:
+            raise RuntimeError('Preview field did not clear')
+        d.ui('back')
+    finally:
+        d.restore_ime()
     return digest
 
 

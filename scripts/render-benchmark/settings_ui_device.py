@@ -113,7 +113,7 @@ class SettingsDevice:
         for attempt in range(12 if scroll else 1):
             node = self.find(label)
             if node:
-                self.ui('press', '@' + node['ref'])
+                self.ui('press', 'role=' + node['kind'] + ' label=' + json.dumps(self.label(node)))
                 return
             if scroll:
                 self.ui('scroll', 'down', 480)
@@ -161,6 +161,26 @@ class SettingsDevice:
             raise RuntimeError('No real slider semantic node')
         box = nodes[0]['rect']
         self.ui('press', box['x'] + 1, box['y'] + box['height'] // 2)
+
+    def stock_ime(self):
+        installed = self.adb('shell', 'ime', 'list', '-a', '-s').decode().splitlines()
+        system = set(self.adb('shell', 'pm', 'list', 'packages', '-s').decode().splitlines())
+        allowed = ('com.google.android.inputmethod.latin', 'com.android.inputmethod.latin')
+        candidate = next((ime.strip() for ime in installed
+                          if ime.split('/')[0] in allowed and 'package:' + ime.split('/')[0] in system), None)
+        if candidate is None:
+            raise RuntimeError('No stock system keyboard is available')
+        self.adb('shell', 'ime', 'set', candidate)
+        selected = self.adb('shell', 'settings', 'get', 'secure', 'default_input_method').decode().strip()
+        if selected != candidate:
+            raise RuntimeError('Stock keyboard selection was not applied')
+        return candidate
+
+    def restore_ime(self):
+        self.adb('shell', 'ime', 'set', IME)
+        selected = self.adb('shell', 'settings', 'get', 'secure', 'default_input_method').decode().strip()
+        if selected != IME:
+            raise RuntimeError('Project keyboard selection was not restored')
 
     def file_receipt(self, name):
         data = self.read_prefs()
