@@ -360,9 +360,52 @@ failure and stops at its own volume assertion: it incorrectly expects stream 10 
 zero, whereas the local muting receipt shows Android requires 1–15 and the existing helper
 sets one. Media uses zero; neural reading uses USAGE_MEDIA. No room microphone is opened.
 
-**Still owed:** corrected final volume/DND readback, the final literal unfiltered
+**Owed at handoff (completed in the next section):** corrected final volume/DND readback, the final literal unfiltered
 `FATAL|AndroidRuntime` scan, and `device_close(shutdown=true)`. Shutdown is not attempted
 because it would be another device operation after the requested stop. The guest is not
 claimed shut down or finally logcat-clean. Earlier editor crash and failed test-probe
 controls remain documented; no cleared idle window is presented as proof of the whole run.
 Evidence: `final-hold.json`, `final-host.json`, `final-restoration/`.
+
+### Final handoff completion (2026-11-14)
+
+The orchestrator finished the three owed steps on `aw_keyboard_ssd` (emulator-5556) with adb
+diagnostics and the T3 device tools.
+
+**Volume and DND.** The first readback (`cmd media_session volume --get`) showed streams
+0/1/2/3/4/5/10 at 3/5/5/5/6/5/6, so the device was **not muted** despite the earlier muting
+steps. A direct `cmd media_session volume --stream 3 --set 0` printed success and left media at 5.
+`cmd audio set-volume` set streams 1/2/3/5 to 0 and 0/4/10 to their minimum of 1. Both
+`cmd audio get-stream-volume` and `media_session --get` read the new levels back. `zen_mode` was 0
+(DND off) throughout. The emulator ran with `-no-audio`, so nothing reached the host speakers.
+`ebf24eb7` moves the harness muting to `cmd audio set-volume` with a readback check.
+
+**Logcat.** `logcat -d -b all` covers the whole boot, 02:21:17 to 05:36:15 (31,777 lines).
+The literal unfiltered `FATAL|AndroidRuntime` scan matches 53 lines. They belong to three
+`FATAL EXCEPTION`s in the keyboard process, each raised by the test-only `AcceptanceProbe`
+through `FixtureInstrumentation` before `acceptance-fixture.pro` kept the members it calls:
+
+| Time | Error | Probe frame |
+| --- | --- | --- |
+| 04:08:27 | `NoClassDefFoundError` `kotlin.io.FilesKt` | `AcceptanceProbe.reader` |
+| 04:34:55 | `NoSuchMethodError` `LearnedWords.add$default` | `AcceptanceProbe.learnedFixture` |
+| 04:38:17 | `NoSuchMethodError` `LearnedWords.add` | `AcceptanceProbe.learnedFixture` |
+
+No production frame, native fatal signal or ANR appears. The scan is not literally clean
+for that reason; the three crashes are harness defects that were fixed during the run.
+
+**Shutdown.** `device_close(shutdown=true)` returned "Device shutdown failed: Could not
+communicate with device support. Try refreshing devices." The advised refresh lists
+`aw_keyboard_ssd` as not booted, adb no longer lists emulator-5556, and no emulator process
+remains. The guest is shut down. The AVD and models on `/Volumes/2TB` are kept.
+
+**Gate after the muting fix.** The first run failed in `:lib:rust:cargoOracleTest`: the
+`latin-oracle` lib unit test binary (six tests) died with SIGSEGV. Standalone reruns of the same
+binary passed 674 times: 14 sequential/default, 120 default, 480 with 12 concurrent runners, and
+60 with macOS malloc scribble/guard checks. The rerun gate exits 0 in 2m 27s, with 803 JVM
+tests, zero failures/errors/skips, and only the permitted lint warnings (AndroidGradlePluginVersion 1,
+NewerVersionAvailable 3, ChromeOsAbiSupport 1).
+
+**Open item: intermittent `latin-oracle` SIGSEGV.** The cause is unknown. Only test-only C++
+oracle code runs in that binary. The suspected next step is an AddressSanitizer build of
+`latin-oracle`, looped under gate-like parallel load. This is not presented as a flake to ignore.
