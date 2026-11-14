@@ -1,12 +1,30 @@
 package com.jtn0123.audiowhisper.rust
 
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+
+/** Copied JNI packets within one complete editor round trip. */
+interface EditorCalls {
+    fun call(operation: String, vararg fields: String): Array<String>
+}
+
 /** Complete editor messages use UTF-16. No platform callbacks run while Rust holds its mutex. */
-class EditorSession : AutoCloseable {
+class EditorSession : EditorCalls, AutoCloseable {
     private val allocation = Allocation(EditorNative.create())
     private val cleanable = RustLibrary.cleaner.register(this, allocation)
-    @Synchronized fun call(operation: String, vararg fields: String): Array<String> =
-        allocation.call(operation, fields)
-    @Synchronized override fun close() = cleanable.clean()
+    private val gate = Mutex()
+    private val direct = object : EditorCalls {
+        override fun call(operation: String, vararg fields: String) = allocation.call(operation, fields)
+    }
+    override fun call(operation: String, vararg fields: String): Array<String> = runBlocking {
+        gate.withLock { direct.call(operation, *fields) }
+    }
+    /** Own the pending native query across suspending platform analysis and all plan effects. */
+    suspend fun <T> transaction(block: suspend (EditorCalls) -> T): T = gate.withLock {
+        try { block(direct) } finally { java.lang.ref.Reference.reachabilityFence(this) }
+    }
+    override fun close() = runBlocking { gate.withLock { cleanable.clean() } }
     private class Allocation(private var handle: Long) : Runnable {
         @Synchronized fun call(operation: String, fields: Array<out String>): Array<String> {
             check(handle != 0L) { "the editor is closed" }

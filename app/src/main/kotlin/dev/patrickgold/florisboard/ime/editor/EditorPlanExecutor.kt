@@ -6,6 +6,7 @@ import android.view.KeyCharacterMap
 import android.view.KeyEvent
 import android.view.inputmethod.InputConnection
 import com.jtn0123.audiowhisper.rust.EditorSession
+import com.jtn0123.audiowhisper.rust.EditorCalls
 import dev.patrickgold.florisboard.ime.nlp.BreakIteratorGroup
 import dev.patrickgold.florisboard.ime.text.composing.Composer
 import dev.patrickgold.florisboard.ime.text.composing.WithRules
@@ -17,9 +18,10 @@ internal class EditorPlanExecutor(
     private val locale: () -> FlorisLocale,
     private val composer: () -> Composer,
     private val word: suspend (String, Int) -> EditorRange,
+    private val uptimeMs: () -> Long = SystemClock::uptimeMillis,
 ) {
     private var loadedComposer: Composer? = null
-    private fun supplyComposer(session: EditorSession) {
+    private fun supplyComposer(session: EditorCalls) {
         val current = composer()
         if (loadedComposer !== current) {
             val rules = (current as? WithRules)?.let { table ->
@@ -29,7 +31,10 @@ internal class EditorPlanExecutor(
             loadedComposer = current
         }
     }
-    suspend fun execute(session: EditorSession, ic: InputConnection, operation: String, fields: Array<out String>): Boolean {
+    suspend fun execute(session: EditorSession, ic: InputConnection, operation: String, fields: Array<out String>): Boolean =
+        session.transaction { executePlan(it, ic, operation, fields) }
+
+    private suspend fun executePlan(session: EditorCalls, ic: InputConnection, operation: String, fields: Array<out String>): Boolean {
         supplyComposer(session)
         var response = session.call(operation, *fields)
         while (response[0] != "ready") {
@@ -59,7 +64,7 @@ internal class EditorPlanExecutor(
             response = session.call(response[0], *values)
         }
         val results = mutableListOf<String>()
-        val eventTime = SystemClock.uptimeMillis()
+        val eventTime = uptimeMs()
         for (op in response.drop(2).chunked(4)) {
             val a = op[1].toInt()
             val b = op[2].toInt()
@@ -75,7 +80,7 @@ internal class EditorPlanExecutor(
                 "action" -> ic.performEditorAction(a)
                 "contextMenu" -> ic.performContextMenuAction(a)
                 "down", "up" -> ic.sendKeyEvent(KeyEvent(eventTime,
-                    if (op[0] == "down") eventTime else SystemClock.uptimeMillis(),
+                    if (op[0] == "down") eventTime else uptimeMs(),
                     if (op[0] == "down") KeyEvent.ACTION_DOWN else KeyEvent.ACTION_UP,
                     a, op[3].toIntOrNull() ?: 0, b, KeyCharacterMap.VIRTUAL_KEYBOARD, 0,
                     KeyEvent.FLAG_SOFT_KEYBOARD or KeyEvent.FLAG_KEEP_TOUCH_MODE, InputDevice.SOURCE_KEYBOARD))
