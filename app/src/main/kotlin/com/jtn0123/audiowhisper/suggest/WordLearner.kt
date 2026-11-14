@@ -12,14 +12,14 @@ import com.jtn0123.audiowhisper.rust.WordProbabilities
  *
  * A dictionary word capitalised only because it starts the sentence ("The"), or typed in caps
  * lock ("HELLO"), is learned in lower case; other words keep their capitals. The rules are in Rust
- * (lib/rust/crates/suggest/src/word_learner.rs), which asks [lookup] how words are spelled.
+ * (lib/rust/crates/suggest/src/word_learner.rs), which reads the loaded native dictionary directly.
  *
  * Call from the main thread only. Never logs a word.
  */
 class WordLearner(history: LearnedWords, private val lookup: () -> WordLookup?) {
     private val learner = Learner(history.store)
 
-    /** The dictionary, as the Rust asks it. */
+    /** Synthetic lookup seam for host/opt-in comparisons. Production supplies a native engine or null. */
     private class Probabilities(private val lookup: WordLookup) : WordProbabilities {
         override fun probability(word: String): Int = lookup.probability(word)
     }
@@ -28,12 +28,20 @@ class WordLearner(history: LearnedWords, private val lookup: () -> WordLookup?) 
      * [word], which starts at [start] in the editor right after [textBefore], is finished.
      * Returns true if [history] changed.
      */
-    fun finished(word: String, textBefore: CharSequence, start: Int): Boolean =
-        learner.finished(word, textBefore.toString(), start, dictionary())
+    fun finished(word: String, textBefore: CharSequence, start: Int): Boolean {
+        val dictionary = lookup()
+        return if (dictionary == null || dictionary is LatinDictionaryEngine)
+            learner.learnNative(word, textBefore.toString(), start, false, dictionary?.session)
+        else learner.finished(word, textBefore.toString(), start, Probabilities(dictionary))
+    }
 
     /** A swiped [word] went in after [textBefore]; a swiped word still waiting before it is kept. */
-    fun swiped(word: String, textBefore: CharSequence): Boolean =
-        learner.swiped(word, textBefore.toString(), dictionary())
+    fun swiped(word: String, textBefore: CharSequence): Boolean {
+        val dictionary = lookup()
+        return if (dictionary == null || dictionary is LatinDictionaryEngine)
+            learner.learnNative(word, textBefore.toString(), -1, true, dictionary?.session)
+        else learner.swiped(word, textBefore.toString(), Probabilities(dictionary))
+    }
 
     /** The swiped word waiting to be kept was replaced or deleted. */
     fun dropSwiped() = learner.dropSwiped()
@@ -44,5 +52,4 @@ class WordLearner(history: LearnedWords, private val lookup: () -> WordLookup?) 
     /** Another field: positions there say nothing about what was learned here. */
     fun reset() = learner.reset()
 
-    private fun dictionary(): WordProbabilities? = lookup()?.let(::Probabilities)
 }

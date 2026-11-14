@@ -115,12 +115,18 @@ class Learner(private val store: LearnedWordStore) {
         RustLibrary.cleaner.register(this, Free(handle))
     }
 
-    /** [word], which starts at [start] right after [textBefore], is finished. True if [store] changed. */
+    /** Production engine exchange. No Rust → Kotlin dictionary callback. */
+    fun learnNative(word: String, textBefore: String, start: Int, swiped: Boolean, dictionary: LatinSession?): Boolean {
+        fun call(session: Long) = NativeLearnerNative.call(handle, store.handle, session, word, textBefore, start, swiped)
+        return (dictionary?.withHandle(::call) ?: call(-1L)).also { Reference.reachabilityFence(this) }
+    }
+
+    /** Legacy callback seam for reference comparisons; production uses [learnNative]. */
     fun finished(word: String, textBefore: String, start: Int, dictionary: WordProbabilities?): Boolean =
         SuggesterNative.learnerFinished(handle, store.handle, dictionary, word, textBefore, start)
             .also { Reference.reachabilityFence(this) }
 
-    /** A swiped [word] went in after [textBefore]. True if [store] changed. */
+    /** Legacy callback seam for reference comparisons; production uses [learnNative]. */
     fun swiped(word: String, textBefore: String, dictionary: WordProbabilities?): Boolean =
         SuggesterNative.learnerSwiped(handle, store.handle, dictionary, word, textBefore)
             .also { Reference.reachabilityFence(this) }
@@ -144,4 +150,10 @@ class Learner(private val store: LearnedWordStore) {
     private class Free(private val handle: Long) : Runnable {
         override fun run() = SuggesterNative.freeLearner(handle)
     }
+}
+
+internal object NativeLearnerNative {
+    init { RustLibrary.load() }
+    @JvmStatic external fun call(learner: Long, store: Long, session: Long, word: String,
+        textBefore: String, start: Int, swiped: Boolean): Boolean
 }

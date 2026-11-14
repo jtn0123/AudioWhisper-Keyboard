@@ -430,3 +430,69 @@ Pending implementation. For each logical change: preserve independent Kotlin ref
 C1, C2, G1, R1 and W1–W5 are not delivered by this inventory commit. C3 is deliberately retained unless an identical demand-driven replacement is proved. Device and timing results will be appended without relabelling historical evidence.
 
 Baseline full gate: exit **0**, 2m 37s; no oracle crash. Evidence: ignored `build/stage2-consolidation/before/gate.log` and `gate.exit`.
+
+## C1: native learning exchange
+
+The production dictionary and null-dictionary paths now call `NativeLearnerNative.call`
+once per finished/swiped event. `WordLearner` invokes the existing native learner and
+`Session::probability` in process. The session monitor covers the exchange and close;
+the learned-store lock is still held only for store effects. No managed callback runs
+under a production learner lock. Synthetic `WordLookup` adapters remain reference seams.
+
+Dictionary lookup remains lazy. A closed dictionary does not reject a lowercase/no-op
+event that formerly needed no lookup; a spelling lookup fails at the same point with
+the same exception, after the same prior store effects. Null and closed handles have
+distinct transport representations. Stores and owners remain reachable through JNI.
+
+`ReferenceBoundaryLearner` freezes the old callback adapter. `BoundaryLearnerMatchTest`
+compares **30,000 events / 100 seeds** against both it and the independent pre-port
+`ReferenceLatin.WordLearner`, including pending swipes, replacement, undo/reset/drop,
+null dictionaries, capacities, capitalization and invalid UTF-16. Existing learner and
+50,000-event NLP learning comparisons also pass. Returning no probability for every
+native lookup causes one fresh assertion failure; restoring the backed-up bytes passes.
+Restored source SHA-256: `68f38c6b4293c89077cd8f3a4c1d44bf40be6ddb1c2f358bd5a80849c3b8fcbc`.
+
+The test-only boundary instrumentation measures the same public operations on both
+APKs, with 100 warmups and 20 batches; samples include managed model conversion and
+result fingerprinting. It uses only synthetic in-memory stores and never opens audio.
+The reader reference contributes 6,000 independent Android comparisons per replay.
+The initial probe failed because asynchronous application startup deletes `cacheDir`;
+its dictionary now uses private `filesDir`, as A1 does. An unused default-constructor
+stub had also been removed by R8; supplying the identical default callback explicitly
+fixes the test-only linkage without adding retention or changing production code.
+The one resulting test-instrumentation fatal is retained in `before/probe-files-runtime.log`.
+Neither failed probe is counted as measurement or parity evidence.
+
+Pre-change normal-build Compose/Rust regressions retain both `809d588b…`/`c14d19d2…`
+digests; autocorrect, candidate-pick and glide/cancel replays pass on both renderers.
+Canonical stores, exact preferences and accessibility restore around every wrapper.
+Baseline timing is `before/timing.json`; its full result fingerprint is
+`babe9cdc337ec6c3857c5c551ed5534bf428efb82d0b2ba40c1daeb11f358d73`.
+All evidence paths here are relative to ignored `build/stage2-consolidation/`.
+
+The verified C1 fixture retains the same full result fingerprint and both accepted A1
+decoder/pipeline digests. Learner transaction p50/p95 is **7,441 / 8,664 ns**, versus
+**9,340 / 20,457 ns** before. Unmodified controls also varied considerably between
+APK runs; these small emulator samples do not establish an end-to-end speedup.
+Evidence: `c1-timing-verified/`, `c1-a1-verified/`, `c1-fixture-apk.json`.
+
+The first full C1 gate exits 1 at APK packaging after an overlapping fixture build
+removed an intermediate DEX. The overlap also left a stale normal native payload
+inside a fixture APK; A1 correctly rejects its missing snapshot export. The sequential
+native outputs were correct, but APK packaging stayed up-to-date with old bytes.
+Removing only generated packaging state and rebuilding gives an APK whose actual
+ELF exports pass `consolidation-apk-check.py --fixture`; A1 then passes. The rejected
+APK/timing attempt and its instrumentation fatal are not accepted fixture evidence.
+The final full gate is still required before pushing the implementation commits.
+
+## C3 refinement after the inventory
+
+Keep the demand-driven walk and Android adapter, including every child fetch after
+the node/depth cap and lazy text fallback. However, facts and class name are always
+requested consecutively for a visited node. Those two reads can be batched into one
+per-node UTF-16 packet without collecting the whole tree. Facts must be copied before
+fetching class name, preserving mutation/exception order. `ReaderBoundaryOrderTest`
+freezes the current bridge's password, fallback, malformed-facts and platform-failure
+read traces before this change. Existing 10,000 seeded tree comparisons and exact
+20,000-node/250-depth checks remain mandatory. C3a is therefore refined to **merge**;
+the traversal, child and text Android boundaries remain **keep**.

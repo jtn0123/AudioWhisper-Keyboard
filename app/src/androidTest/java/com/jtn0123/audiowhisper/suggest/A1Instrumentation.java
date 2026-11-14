@@ -9,10 +9,20 @@ import java.nio.file.Files;
 
 /** Runs the identical JVM corpus in the target process, reporting digests only. */
 public final class A1Instrumentation extends Instrumentation {
-    @Override public void onCreate(Bundle arguments) { super.onCreate(arguments); start(); }
+    private boolean boundaries;
+    @Override public void onCreate(Bundle arguments) {
+        super.onCreate(arguments);
+        boundaries = "true".equals(arguments.getString("boundaries"));
+        start();
+    }
     @Override public void onStart() {
         Bundle result = new Bundle();
         try {
+            if (boundaries) {
+                result.putString("boundaries", BoundaryReplay.run(getTargetContext()));
+                finish(Activity.RESULT_OK, result);
+                return;
+            }
             File dictionary = new File(getTargetContext().getFilesDir(), "a1-fixture.dict");
             try (InputStream input = getTargetContext().getAssets().open("dicts/main_en-US.dict")) {
                 Files.copy(input, dictionary.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING);

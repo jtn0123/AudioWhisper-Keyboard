@@ -13,6 +13,46 @@ use super::boolean;
 use super::suggester::JavaLookup;
 use crate::handle::{free, into_handle, object, with_locked};
 use crate::jni::{Env, Result};
+use suggest::{dictionary::Lookup, session::Session};
+
+/// The managed session monitor stays held for this whole exchange. Lookup remains lazy: a
+/// closed session fails only if the same spelling rule would have asked the old callback.
+struct NativeLookup(jlong);
+impl Lookup for NativeLookup {
+    type Error = crate::jni::Error;
+    fn probability(&mut self, word: &[u16]) -> Result<i32> {
+        // SAFETY: the synchronized session owner keeps this handle live, or passes zero after close.
+        unsafe { Ok(crate::handle::locked::<Session>(self.0, "session")?.probability(word)) }
+    }
+}
+
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_NativeLearnerNative_call(
+    env: *mut JNIEnv,
+    _: jclass,
+    learner: jlong,
+    store: jlong,
+    session: jlong,
+    word: jstring,
+    text_before: jstring,
+    start: jint,
+    swiped: jboolean,
+) -> jboolean {
+    // SAFETY: the learner/store owners stay reachable and the session monitor serializes close.
+    unsafe {
+        with_learner(env, learner, store, 0, |learner, store, env| {
+            let word = env.read_string(word, "word")?;
+            let text_before = env.read_string(text_before, "textBefore")?;
+            let mut lookup = (session != -1).then_some(NativeLookup(session));
+            let changed = if swiped != 0 {
+                learner.swiped(store, lookup.as_mut(), &word, &text_before)?
+            } else {
+                learner.finished(store, lookup.as_mut(), &word, &text_before, start)?
+            };
+            Ok(boolean(changed))
+        })
+    }
+}
 
 /// A new learner, which has learned nothing yet.
 #[unsafe(no_mangle)]

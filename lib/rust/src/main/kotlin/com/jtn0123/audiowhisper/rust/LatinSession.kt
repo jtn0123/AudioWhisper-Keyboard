@@ -7,6 +7,10 @@ class LatinSession private constructor(private var handle: Long) : AutoCloseable
     private val cleanable = RustLibrary.cleaner.register(this, Free(handle))
     class Candidate(val word: String, val score: Int, val kindAndFlags: Int)
 
+    /** Keep close serialized with an entire native engine exchange. A closed lookup fails lazily,
+     * just as probability() did: a no-op learner event need not ask the dictionary at all. */
+    @Synchronized internal fun <T> withHandle(action: (Long) -> T): T = action(handle)
+
     @Synchronized fun isName(personal: PersonalWordStore, word: String): Boolean {
         check(handle != 0L) { "the session is closed" }
         return NlpNative.isName(handle, personal.handle, word).also { Reference.reachabilityFence(personal) }
