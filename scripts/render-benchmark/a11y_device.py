@@ -69,14 +69,16 @@ class Device:
 
     def mute(self):
         self.shell("cmd", "notification", "set_dnd", "off")
+        # `cmd media_session volume --set` reports success but changes nothing on the android-36
+        # AVD, so set through AudioService and fail unless the readback matches. Accessibility
+        # (10) and alarm (4) have a minimum of 1.
         results = {}
-        for stream in (1, 2, 3, 5, 10, 4):
-            result = subprocess.run(["adb", "-s", self.serial, "shell", "cmd", "media_session", "volume",
-                                     "--stream", str(stream), "--set", "0"], capture_output=True, text=True)
-            response = result.stdout + result.stderr
-            if "Error" in response or "error" in response:
-                response += self.shell("cmd", "media_session", "volume", "--stream", stream, "--set", 1)
-            results[str(stream)] = response
+        for stream, target in ((1, 0), (2, 0), (3, 0), (5, 0), (10, 1), (4, 1)):
+            response = self.shell("cmd", "audio", "set-volume", stream, target)
+            level = self.shell("cmd", "audio", "get-stream-volume", stream).rsplit("->", 1)[-1].strip()
+            if level != str(target):
+                raise RuntimeError(f"Stream {stream} is at {level or 'unknown'}, not {target}")
+            results[str(stream)] = response + f"level {level}\n"
         self.save("muting.json", results)
 
     def prefs(self):

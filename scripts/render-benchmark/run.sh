@@ -17,10 +17,18 @@ import json, sys
 if json.load(open(sys.argv[1]))["utf16_units"] != 0:
     raise SystemExit("Clear the benchmark editor before running a trial")
 CHECK
-for stream in 1 2 3 5; do
-    adb shell cmd media_session volume --stream "$stream" --set 0
-done > "$output/host-muting.log" 2>&1
-adb shell cmd media_session volume --stream 4 --set 1 >> "$output/host-muting.log" 2>&1
+# `cmd media_session volume --set` reports success but changes nothing on the android-36 AVD;
+# set through AudioService and stop unless the readback matches. Alarm (4) has a minimum of 1.
+mute_stream() {
+    adb shell cmd audio set-volume "$1" "$2" >> "$output/host-muting.log" 2>&1
+    local level
+    level=$(adb shell cmd audio get-stream-volume "$1" | tr -d '\r' | sed -n 's/.*-> *//p')
+    echo "stream $1 level $level" >> "$output/host-muting.log"
+    [ "$level" = "$2" ] || { echo "Stream $1 is at ${level:-unknown}, not $2" >&2; exit 1; }
+}
+: > "$output/host-muting.log"
+for stream in 1 2 3 5; do mute_stream "$stream" 0; done
+mute_stream 4 1
 adb logcat -d -s AndroidRuntime:E > "$output/$renderer-before-runtime.log"
 adb logcat -c
 positions=("60 1750" "165 1750" "275 1750" "380 1750" "110 1900" "215 1900" "325 1900" "435 1900" "220 2060" "325 2060" "435 2060" "540 2060")

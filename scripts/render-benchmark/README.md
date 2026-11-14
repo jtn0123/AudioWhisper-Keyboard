@@ -3,9 +3,14 @@
 This disposable editor saves UTF-16 length and SHA-256 of UTF-8 text, never editor contents.
 Do not run it against personal text. It is not packaged with the keyboard.
 
-The editor never changes audio or Do Not Disturb. `run.sh` requests volume zero on
-streams 1, 2, 3 and 5 from the host with `cmd media_session volume`, requests the allowed
-alarm-stream minimum of 1 on this AVD, and saves responses in `host-muting.log`. Never enable DND as part of a trial.
+The editor never changes audio or Do Not Disturb. `run.sh` sets volume zero on
+streams 1, 2, 3 and 5 from the host with `cmd audio set-volume`, sets the allowed
+alarm-stream minimum of 1 on this AVD, reads each stream back with `cmd audio get-stream-volume`,
+stops on any mismatch, and saves responses in `host-muting.log`. `a11y_device.py`'s `mute()` does
+the same, with accessibility (10) at its minimum of 1. Do not use `cmd media_session volume --set`:
+on the android-36 AVD it prints success but leaves the volume unchanged (2026-11-14: media read
+5/15 after the acceptance run's muting steps, and a direct `--set 0` left it at 5). Its `--get`
+readback is accurate. Never enable DND as part of a trial.
 
 The CPU-tail continuation records two alternating Compose/CPU trials before and after
 separating strip/key damage, plus a Hybrid trial. See `docs/stage3a-results.md` for the
