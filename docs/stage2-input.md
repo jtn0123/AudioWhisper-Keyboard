@@ -237,3 +237,30 @@ Ignored local evidence is under `build/stage2-input/`: `final-gate-summary.json`
 `final-normal-regression/`, `final-normal-cleanup/` and the mutation directories.
 The harness's 26 Python self-tests also pass. Screenshots, dumps, APKs, private state copies
 and build outputs are excluded from commits.
+
+## Timestamp-driven long-delete oracle (package 12)
+
+The debug-only opt-in `aw-delete` hook records down/up, each actual repeat attempt and its admitted/skipped tick,
+and each scheduled wait/deadline in uptime milliseconds. It records timestamps only. The
+NO_ACTION delete fixture checks the 300 ms hold deadline and every production repeat deadline
+against the Android repeat delay passed to `input::lifecycle::repeat_delay`. Coroutine delays
+start after the preceding callback/work; late wakeups do not create hypothetical missed repeats.
+The exact expected deletion count is the admitted actual ticks, with attempts/deadlines and
+release checked. UP can cancel an attempt before native admission, or race a previously
+admitted tick before its log/editor delivery. Each attempt has an explicit timestamped
+admitted/skipped outcome; an admitted attempt cannot start after completed UP. The editor's
+exact count is checked independently of those timer admissions. The digest must equal the exact fixed source prefix of that length;
+selection must equal that length too. No tolerance or historical 1,055/1,056 count is used.
+All other input records and the long hold's mode/action/batch facts still compare directly.
+The JVM fake-clock tests are unchanged.
+
+`test_delete_timing.py` checks jitter, missing/extra deletes, missing release, a tick after
+release and a 50→51 ms production-wait mutation with an independent 50 ms Android deadline.
+The actual source interval mutation and restored JVM results are recorded in the TTS report.
+**Both-renderer device acceptance remains missing:** the emulator stalled before installing
+the timing-hook build, and T3 shutdown failed twice. No device mutation result is claimed.
+
+The production +1 ms mutation produces two fresh assertion failures in
+InputDispatchMatchTest (direct repeat-delay boundaries and the 50,000-event lifecycle match).
+Restoring exact source bytes gives Gradle exit 0 and all six tests passing. The host timestamp
+oracle separately rejects 51 ms waits against the unchanged 50 ms reference deadlines.

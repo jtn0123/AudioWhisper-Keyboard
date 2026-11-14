@@ -15,6 +15,7 @@ api = runpy.run_path(str(Path(__file__).with_name('a11y_device.py')))
 chrome = runpy.run_path(str(Path(__file__).with_name('chrome.py')))
 panels = runpy.run_path(str(Path(__file__).with_name('panels.py')))
 editor = runpy.run_path(str(Path(__file__).with_name('editor.py')))
+delete_timing = runpy.run_path(str(Path(__file__).with_name('delete-timing.py')))
 KEYS = {'keyboard__hinted_number_row_enabled': 'b', 'keyboard__hinted_symbols_enabled': 'b',
         'gestures__delete_key_long_press': 's', 'keyboard__long_press_delay': 'i',
         'correction__auto_capitalization': 'b'}
@@ -86,9 +87,18 @@ def replay(d, renderer):
     fresh()
     d.shell('am', 'broadcast', '-a', api['PROBE'] + '.EDITOR', '-p', api['PROBE'], '--es', 'fixture', 'repeat-long')
     assert d.digest()['utf16_units'] == 1088
-    d.hold(1015, 2060, 2000)
-    save('repeat-delete-2s-long')
-    assert 0 < results['repeat-delete-2s-long']['utf16_units'] < 1088
+    d.adb('logcat', '-c')
+    d.shell('setprop', 'log.tag.aw-delete', 'DEBUG')
+    try:
+        d.hold(1015, 2060, 2000)
+        after = editor['settled'](d)
+        timing = delete_timing['verify'](d.adb('logcat', '-d', '-s', 'aw-delete:D', '*:S'), 1088, after['utf16_units'])
+        d.save('repeat-delete-timing.json', timing)
+        # Exact contents follow from the actual scheduled deletes, including selection offsets.
+        save('repeat-delete-2s-long', ('alpha beta gamma ' * 64)[:1088 - timing['expected_deletes']])
+        assert after['selection_start'] == after['selection_end'] == 1088 - timing['expected_deletes']
+    finally:
+        d.shell('setprop', 'log.tag.aw-delete', 'INFO')
 
     fresh()
     d.services(api['SERVICE'])
@@ -129,12 +139,18 @@ def main():
             results[renderer] = replay(d, renderer)
         d.output = root
         d.save('input.json', results)
-        assert results['compose'] == results['rust'], 'Input fixture renderer state differs'
+        def deterministic(records):
+            # The variable-duration hold is checked EXACTLY against its own timestamps above.
+            # Its final caps/mode/batch/action facts still compare across builds and renderers.
+            return {name: ({k: v for k, v in value.items() if k not in
+                    ('sha256', 'utf16_units', 'selection_start', 'selection_end')}
+                    if name == 'repeat-delete-2s-long' else value) for name, value in records.items()}
+        assert deterministic(results['compose']) == deterministic(results['rust']), 'Input fixture renderer state differs'
         if len(sys.argv) > 2:
             baseline = json.loads(Path(sys.argv[2]).read_text())
             for renderer, fixtures in baseline.items():
                 for name, expected in fixtures.items():
-                    assert all(results[renderer][name][key] == value for key, value in expected.items()), 'Pre/post input fixture state differs: ' + name
+                    assert deterministic(results[renderer])[name] == deterministic(fixtures)[name], 'Pre/post input fixture state differs: ' + name
         print('Both renderers match all input fixture digests, selection, modes and IME actions')
     finally:
         d.output = Path(sys.argv[1])

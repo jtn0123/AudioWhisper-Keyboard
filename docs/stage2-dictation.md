@@ -375,3 +375,32 @@ ANDROID_SERIAL=<owned-runtime> python3 -I scripts/render-benchmark/store-session
 restoration before starting the next. Use `--baseline BEFORE` for the post-change comparison.
 The learning wrapper installs/restores the same fixture itself. Extra dictation/learning
 wrappers must use `store-session.py` rather than moving accumulated learned-store originals.
+
+The long-delete hold now has a timestamp-driven exact oracle; see
+[its design and acceptance boundary](stage2-input.md#timestamp-driven-long-delete-oracle-package-12).
+This supersedes the fixed-count comparison, without changing the production delay or the JVM
+fake-clock tests. The new hook build could not be installed before the emulator stalled.
+
+## Package 12 device failure after recovery
+
+The initial recovery above was verified before any baseline replay. The fresh unchanged
+`dc7256e5` source build (895 checked Kotlin/Rust/Java main/crate files byte-identical) passes
+primary regression and suggestions with canonical stores. Its APK is 66,265,488 bytes,
+SHA-256 `c2949714060dba3b70832eef3c3d3895e0a1eca3c00910a67708574dd4f77b7a`.
+The extended editor wrapper failed its unchanged email digest assertion; the targeted key
+bounds contain all four fixed coordinates. No production explanation or accepted replacement
+baseline is claimed. Its wrapper verified canonical restoration after failure.
+
+The next replay never started: canonical setup's kept-as-typed hash command timed out at
+30 seconds, followed by a 30-second timeout in the `finally` force-stop. A pending record is
+retained in `build/stage2-tts/before/typing-retry/editor-stores/`. T3 screenshot reported
+"The device hub could not complete the request"; the advised device refresh reported that
+the hub did not answer within 40 seconds. Shutdown then returned:
+
+> Device shutdown failed: Could not communicate with device support. Try refreshing devices.
+
+One advised refresh and one shutdown retry returned the same error. Device work stopped under
+the two-failure rule. Final store/configuration cleanup, logcat and shutdown are **unverified**;
+initial recovery does not establish final cleanup after replays. No new TTS/hook build was
+installed, no TTS PCM comparison/stress/timing/UI proof ran, and no model was installed.
+The controlled original APK and renderer probe remain installed. Only emulator-5556 was used.

@@ -306,3 +306,8 @@ reinstalls/verifies them in `finally` after success or failure. A stalled restor
 leaves a pending record. See [the recovery proof](stage2-dictation.md#package-12-canonical-test-store-recovery-2026-11-13)
 for full hashes and exact configuration recovery. The previous historical store-size/hash
 records above do not define the new canonical baseline.
+
+The two-second long-delete fixture now uses the [timestamp-driven exact oracle](stage2-input.md#timestamp-driven-long-delete-oracle-package-12)
+instead of a fixed delivered count. Its exact content prefix/selection follows the recorded
+repeat ticks and checked production deadlines. Both-renderer acceptance is still pending after
+the package-12 device-tool failure; the old variable-count records remain historical evidence.

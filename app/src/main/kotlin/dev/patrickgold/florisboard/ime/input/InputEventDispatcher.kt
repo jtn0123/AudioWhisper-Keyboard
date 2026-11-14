@@ -49,7 +49,9 @@ class InputEventDispatcher private constructor(repeatableKeyCodes: IntArray) {
         val timing = native.call(DELAYS, data.code.toLong(), prefs.keyboard.longPressDelay.get().toLong(), keyRepeatDelay, 0)
         val info = PressedKeyInfo(now)
         jobs[data.code] = info
+        DeleteTiming.event(data.code, now, "down")
         if (down[3] != 0L) info.job = scope.launch {
+            DeleteTiming.wait(data.code, now, "hold", timing[0], prefs.keyboard.longPressDelay.get().toLong())
             delay(timing[0])
             val handled = withContext(Dispatchers.Main) { onLongPress() }
             // Like the legacy coroutine, sample repeat preferences after the hold callback.
@@ -60,8 +62,11 @@ class InputEventDispatcher private constructor(repeatableKeyCodes: IntArray) {
                 val repeatData = if (plan[2] == 0L) data else checkNotNull(TextKeyData.getCodeInfoAsTextKeyData(plan[1].toInt()))
                 while (isActive) {
                     val accepted = withContext(Dispatchers.Main) { onRepeat() }
+                    DeleteTiming.event(data.code, now, "attempt")
                     val emit = native.call(REPEAT_RESULT, data.code.toLong(), if(accepted) 1 else 0, generation)[0] != 0L
+                    DeleteTiming.event(data.code, now, if (emit) "tick" else "skipped")
                     if (emit) keyEventReceiver?.onInputKeyRepeat(repeatData)
+                    DeleteTiming.wait(data.code, now, "repeat", repeatDelay, keyRepeatDelay)
                     delay(repeatDelay)
                 }
             }
@@ -72,7 +77,10 @@ class InputEventDispatcher private constructor(repeatableKeyCodes: IntArray) {
     }
     @Synchronized fun sendUp(data: KeyData) {
         val plan=native.call(UP,data.code.toLong(),SystemClock.uptimeMillis())
-        jobs.remove(data.code)?.cancelJobs()
+        jobs.remove(data.code)?.let {
+            it.cancelJobs()
+            DeleteTiming.event(data.code, it.eventTimeDown, "up")
+        }
         if (plan.isEmpty()) return
         if (plan[0].toInt()==EMIT_UP) {
             keyEventReceiver?.onInputKeyUp(data)
