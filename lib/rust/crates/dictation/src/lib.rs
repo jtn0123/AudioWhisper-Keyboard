@@ -27,3 +27,13 @@ const fn unit(ascii: char) -> u16 {
 fn utf16(text: &str) -> Vec<u16> {
     text.encode_utf16().collect()
 }
+
+pub mod session;
+
+pub mod segmentation;
+
+mod compose;
+
+pub fn normalize_result(text: &[u16]) -> Vec<u16> {
+    chars::trim(text).to_vec()
+}

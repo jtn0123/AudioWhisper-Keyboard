@@ -80,3 +80,8 @@ mod input;
 mod nlp;
 
 mod nlp_stores;
+
+mod dictation_session;
+
+#[cfg(not(target_os = "android"))]
+mod dictation_segment_test;

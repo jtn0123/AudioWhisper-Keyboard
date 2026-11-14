@@ -156,7 +156,7 @@ fn lower_first(phrase: &[u16], is_name: impl FnOnce(&[u16]) -> bool) -> Vec<u16>
 }
 
 /// The letters and apostrophes `text` starts with.
-fn first_word(text: &[u16]) -> &[u16] {
+pub(crate) fn first_word(text: &[u16]) -> &[u16] {
     let length = text
         .iter()
         .take_while(|&&u| is_letter(u) || u == unit('\'') || u == RIGHT_QUOTE)
