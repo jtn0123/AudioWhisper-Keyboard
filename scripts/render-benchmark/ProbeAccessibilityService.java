@@ -97,6 +97,17 @@ public final class ProbeAccessibilityService extends AccessibilityService {
                 result.put("found", node != null).put("rootClass", root.getClassName())
                     .put("rootChildren", root.getChildCount())
                     .put("ok", node != null && node.performAction(AccessibilityNodeInfo.ACTION_CLICK));
+            } else if (intent.hasExtra("panelTarget")) {
+                // Fixed action geometry only, even during the disposable editing fixture.
+                // Never dump a tree, candidate label or application/editor node in this mode.
+                String label = intent.getStringExtra("panelTarget");
+                if (!java.util.Arrays.asList("Arrow left", "Arrow right", "Select all", "Copy", "Paste").contains(label)) {
+                    result.put("error", "Unknown panel target");
+                } else {
+                    Rect bounds = panelTarget(root, label);
+                    result.put("buttonBounds", bounds == null ? JSONObject.NULL :
+                        new JSONArray(new int[]{bounds.left, bounds.top, bounds.right, bounds.bottom}));
+                }
             } else if (intent.getBooleanExtra("nlpStrip", false) && ProbeActivity.nlpCaptureAllowed) {
                 JSONArray nodes = new JSONArray();
                 dumpStrip(root, nodes);
@@ -117,6 +128,22 @@ public final class ProbeAccessibilityService extends AccessibilityService {
             }
             write(request + ".json", result.toString());
         } catch (Exception failure) { throw new IllegalStateException("Probe capture failed", failure); }
+    }
+    private Rect panelTarget(AccessibilityNodeInfo node, String label) {
+        Rect bounds = new Rect(); node.getBoundsInScreen(bounds);
+        // Native virtual tiles retain their full bounds while partly clipped by the grid.
+        // Tap inside their visible body intersection, below the fixed smartbar header.
+        if (node.isVisibleToUser() && bounds.intersect(0, 1675, 1080, 2274) &&
+            (label.contentEquals(node.getText() == null ? "" : node.getText()) ||
+             label.contentEquals(node.getContentDescription() == null ? "" : node.getContentDescription()))) return bounds;
+        for (int i = 0; i < node.getChildCount(); i++) {
+            AccessibilityNodeInfo child = node.getChild(i);
+            if (child != null) {
+                Rect found = panelTarget(child, label);
+                if (found != null) return found;
+            }
+        }
+        return null;
     }
     private AccessibilityNodeInfo root(int type) {
         for (AccessibilityWindowInfo window : getWindows()) {

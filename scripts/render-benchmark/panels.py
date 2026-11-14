@@ -11,6 +11,7 @@ import runpy
 import shlex
 import subprocess
 import time
+import uuid
 
 api = runpy.run_path(str(Path(__file__).with_name('a11y_device.py')))
 SERVICE, PKG, PROBE = (api[k] for k in ('SERVICE', 'PKG', 'PROBE'))
@@ -69,6 +70,41 @@ def scroll(device, down=True):
     # The content gutter avoids arming an editing key before the scroll gesture wins.
     device.shell('input', 'swipe', 15, 2140 if down else 1760, 15, 1760 if down else 2140, 500)
     time.sleep(.3)
+
+
+def panel_bounds(reply):
+    bounds = reply.get('buttonBounds')
+    if bounds is None:
+        return None
+    if (len(bounds) != 4 or any(type(n) is not int for n in bounds)
+        or not (0 <= bounds[0] < bounds[2] <= 1080 and 1675 <= bounds[1] < bounds[3] <= 2274)
+        or bounds[2] - bounds[0] > 400 or bounds[3] - bounds[1] > 400):
+        raise RuntimeError('Panel target must be inside the visible action viewport, not a root/editor')
+    return bounds
+
+
+def panel_point(device, label):
+    # Scrolling a LazyGrid can settle at a different offset after editing. Query only the
+    # allowlisted button's current bounds; full tree capture still requires an empty editor.
+    if label not in ('Arrow left', 'Arrow right', 'Select all', 'Copy', 'Paste'):
+        raise ValueError('Unknown panel action')
+    device.services(SERVICE)
+    previous = None
+    since = time.monotonic()
+    def stable():
+        nonlocal previous, since
+        request = uuid.uuid4().hex
+        device.shell('am', 'broadcast', '-a', PROBE + '.IME', '-p', PROBE,
+                     '--es', 'request', request, '--es', 'panelTarget', label)
+        reply = device.wait(lambda: device.response(request), 'Panel geometry reply absent')
+        bounds = panel_bounds(reply)
+        if bounds != previous or bounds is None:
+            previous = bounds; since = time.monotonic()
+        return bounds if bounds and time.monotonic() - since >= .4 else None
+    bounds = device.wait(stable, 'Visible panel action absent: ' + label)
+    device.save('target-' + label.lower().replace(' ', '-') + '.json', {'bounds': bounds})
+    observer_off(device)
+    return center({'bounds': bounds})
 
 
 def overflow(device):
@@ -189,20 +225,20 @@ def main():
         device.tap(*points['More actions'])
         device.shell('input', 'text', 'abcd')
         device.tap(*points['More actions'])
-        device.tap(*points['Arrow left'])
+        device.tap(*panel_point(device, 'Arrow left'))
         checkpoint(device, 'arrow-left', 4, 3, 3)
         for _ in range(3):
             scroll(device)
-        device.tap(*points['Select all'])
+        device.tap(*panel_point(device, 'Select all'))
         checkpoint(device, 'select-all', 4, 0, 4)
-        device.tap(*points['Copy'])
+        device.tap(*panel_point(device, 'Copy'))
         checkpoint(device, 'copy', 4, 4, 4)
         device.tap(*points['More actions'])
-        device.tap(*points['Arrow right'])
+        device.tap(*panel_point(device, 'Arrow right'))
         checkpoint(device, 'arrow-right', 4, 4, 4)
         for _ in range(3):
             scroll(device)
-        device.tap(*points['Paste'])
+        device.tap(*panel_point(device, 'Paste'))
         digest(device, 'abcdabcd', 'editing')
         device.reset(True)
         device.services(SERVICE)

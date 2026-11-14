@@ -15,6 +15,16 @@ def node(parent, bounds, text=None, kind='android.view.View', enabled=True, visi
 
 
 class PanelHarnessTests(unittest.TestCase):
+    def test_live_action_bounds_reject_root_offscreen_and_malformed_replies(self):
+        self.assertIsNone(panels['panel_bounds']({}))
+        self.assertEqual([71, 2045, 217, 2088], panels['panel_bounds']({'buttonBounds': [71, 2045, 217, 2088]}))
+        self.assertEqual([287, 1675, 530, 1881], panels['panel_bounds']({'buttonBounds': [287, 1675, 530, 1881]}))
+        for bounds in ([0, 1562, 1080, 2274], [71, 2245, 217, 2388], [True, 2045, 217, 2088], [1, 2, 3]):
+            with self.subTest(bounds=bounds), self.assertRaises(RuntimeError):
+                panels['panel_bounds']({'buttonBounds': bounds})
+        with self.assertRaises(ValueError):
+            panels['panel_point'](None, 'Unlisted')
+
     def test_disabled_native_button_never_targets_the_clickable_root(self):
         nodes = [node(-1, [0, 1562, 1080, 2274], kind='android.widget.FrameLayout', clickable=True),
                  node(0, [287, 1686, 530, 1881], 'Copy', 'android.widget.Button', enabled=False)]
