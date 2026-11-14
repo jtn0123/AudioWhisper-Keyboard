@@ -1,5 +1,9 @@
 # Stage 2 package 17: settings and subtypes
 
+**2026-11-14 update:** fresh SSD acceptance is recorded in
+[the appended device record](#fresh-ssd-acceptance-2026-11-14). Earlier holds below
+remain historical evidence.
+
 ## Device status
 
 The single initial T3 `device_list` returned **“The device hub did not answer within
@@ -222,3 +226,48 @@ stale app output; the linkage test and its assertions are retained unchanged. Th
 full command is rerun after fresh app compilation. Both the failed gate and the
 class-file diagnosis remain in ignored `gate-before-clean/` and
 `stability-diagnostic.json`; this is not treated as a passed gate.
+
+
+## Fresh SSD acceptance (2026-11-14)
+
+**PASS — real settings upgrade and active-subtype removal.** The new owned guest is
+`aw_keyboard_ssd`, runtime `emulator-5556`; old aw_keyboard and 5554 are untouched.
+Evidence: ignored `build/device-acceptance-2026-11-14/settings-upgrade/comparison.json`.
+The pre-change **33b8db50** APK uses verified unchanged production sources (865 checked
+files), with test-only probes. Both old and main install through `scripts/install-dev.sh`.
+
+The mixed synthetic seven-field stored fixture includes boolean, height 37, active subtype
+119, English/French subtypes 20/119, action/history JSON and nullable theme. Stored-file SHA
+is `c7e83b927d3e8f4a0cead8852098bdb248ebc7d0cfcb0810f77bf3b3a23f312b`.
+Old settings UI initializes bookkeeping before the probe captures **all 143** values.
+A real-UI long press and confirmation remove active French: two subtypes become one,
+active ID **119→20**; exactly the subtype list and active-ID preferences change.
+
+The exact fixture is reset; all 143 pre-upgrade values match the old initial snapshot.
+Upgrading to main preserves **142/143 byte-equivalent serialized values**. The sole change
+is `internal__version_last_use`, whose value matches the new APK manifest by design;
+all user settings, both subtype records and active ID 119 survive. Old/current marker hashes
+are `9015af5fafc7b9d8879a8f1fbe9231c96277d09ed9e98cfa14639d8e0bc78d1a` /
+`4d16fc586d7d09c4024a5d723a24a60d8a3b9246e56cb0778140cd5a7bf6c2ec`.
+Removing active French through main's real UI again gives one subtype / ID20. Every value
+matches the old fallback after the expected manifest-version substitution.
+
+The wrapper restores the fresh baseline preferences and canonical stores exactly; its
+cleanup records `EXACT_BASELINE_RESTORED`. No user setting discrepancy or package-17
+acceptance check remains unrun. Packages 18–19 SAF and utility checks also pass; see
+[their fresh record](stage2-backup-utils.md#fresh-ssd-acceptance-2026-11-14).
+Final gate and shutdown are recorded after cleanup.
+
+
+### Final fresh-device gate and hold
+
+The final exact whole-codebase gate exits **0** (4m 48s): **803 JVM tests**, no
+failures/errors/skips; Rust checks/oracle pass and only the five allowed lint warnings
+remain. Normal debug is installed; final receipts verify exact baseline preference/store
+hashes and accessibility null/0. Prototype off, Always day/Floris Day, owned IME and mic
+permission pass before a final volume-verifier assertion. Disposable APKs/private audio
+are removed; models remain. A normal launcher intent fails, and its one advised debug
+retry also fails. Device work stops under the requested rule. **Still owed:** corrected
+volume/DND readback, literal `FATAL|AndroidRuntime` final scan and shutdown. The device
+is not claimed closed. See [the complete hold and diagnostic](stage2-tts.md#final-gate-and-device-hold);
+this does not alter the package-specific acceptance results above.
