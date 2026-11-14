@@ -26,7 +26,7 @@ import android.view.inputmethod.EditorInfo
  *
  * @see EditorInfo.inputType for mask table
  */
-data class InputAttributes private constructor(val raw: Int) {
+data class InputAttributes(val raw: Int) {
     private val decoded = EditorAttributes.input(raw)
     val type: Type get() = Type.fromInt(decoded[0])
     val variation: Variation get() = Variation.fromInt(decoded[1])

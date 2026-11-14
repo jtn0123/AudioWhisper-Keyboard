@@ -25,7 +25,7 @@ import com.jtn0123.audiowhisper.rust.EditorAttributes
  *
  * @see EditorInfo.imeOptions for mask table
  */
-data class ImeOptions private constructor(val raw: Int) {
+data class ImeOptions(val raw: Int) {
     private val decoded = EditorAttributes.options(raw)
     val action: Action get() = Action.fromInt(decoded[0])
     val flagForceAscii: Boolean get() = decoded[1] != 0
