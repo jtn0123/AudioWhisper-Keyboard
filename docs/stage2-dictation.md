@@ -1,5 +1,9 @@
 # Stage 2 packages 10 and 11: dictation
 
+**2026-11-14 update:** fresh SSD acceptance is recorded in
+[the appended device record](#fresh-ssd-acceptance-2026-11-14). Earlier holds below
+remain historical evidence.
+
 Implementation and acceptance evidence for the session-policy and sherpa C API ports.
 
 **Implementation and dictation-specific proof are complete; final emulator acceptance is
@@ -404,3 +408,58 @@ the two-failure rule. Final store/configuration cleanup, logcat and shutdown are
 initial recovery does not establish final cleanup after replays. No new TTS/hook build was
 installed, no TTS PCM comparison/stress/timing/UI proof ran, and no model was installed.
 The controlled original APK and renderer probe remain installed. Only emulator-5556 was used.
+
+
+## Fresh SSD acceptance (2026-11-14)
+
+The never-booted replacement `aw_keyboard_ssd` is runtime `emulator-5556`. The old AVD
+and 5554 are untouched. Its four installed Parakeet files match host hashes; its own
+preference/store baseline replaces the old guest's pending recovery record. That pending
+`build/stage2-tts/before/typing-retry/editor-stores/` is **not replayed** on this guest.
+Evidence below is fresh, under ignored `build/device-acceptance-2026-11-14/`.
+
+**PASS — file-only reference/native parity.** Seven fresh synthetic WAVs at 16 kHz have
+99,878 / 48,000 / 48,000 / 147,878 / 1,600 / 66,908 / 99,878 samples. All whole-text,
+segment and preview hashes, VAD/boundaries, flush and session-state assertions match.
+Segment counts are 1/0/0/2/0/1/1; preview counts 4/0/0/4/0/3/4. The first transcript
+is 75 UTF-8 bytes, SHA `5ba81156b538277e476600860c4a46129d64d86da64a866be53bd84b427afffb`.
+The production listener receives one phrase, four previews and zero errors with the
+same hash; temporary VAD objects do not leak. Audio/text content is not retained in evidence.
+`dictation-reference/comparison.json` SHA is
+`0651f00537ef928d0e3966f8f23dbbb219ab44bfd7c21445d17a61efe84ede29`.
+
+Ten alternating timing runs per path execute with builds idle. JNI median first partial
+is 56.576 ms (49.909–67.498), C API 57.778 ms (49.338–68.874); median RTF is
+0.08045 / 0.07873. These overlapping small samples do not establish a speedup.
+
+**PASS — JNI-free main.** `dictation-native-mapped/comparison.json` reuses that freshly
+hashed oracle and passes all seven fixtures through `MicAudio.Replay`, including the
+production listener. Report SHA is
+`8303acf0a2cf650e7ab699017fcc1f0d516d010781ccfc4312b53657511f849d`.
+The APK has zero legacy sherpa JNI libraries/classes. Seven process-map snapshots contain
+zero legacy JNI; six show C API/ORT (the first precedes model creation). The observer now
+resolves APK-backed ELF mappings by guarded ZIP member offsets rather than grepping only
+`.so` filenames; four host controls cover this. The earlier naive map-observer failure
+is retained separately and is not called a parity failure or erased.
+
+**PASS — UI.** Listening, processing, missing-model and missing-permission fake-platform
+states all pass (`dictation-ui/ui.json`), with empty-editor screenshots and no room mic.
+The temporarily held 652,282,309-byte encoder is restored; microphone permission is granted
+again. Canonical preference/store hashes restore exactly around each wrapper. The normal
+debug build is reinstalled after package 12. The original email assertion passes unchanged
+on old/main and both renderers; see [the editor record](stage2-editor.md#fresh-ssd-acceptance-2026-11-14).
+No package-12 dictation check remains unrun. Final gate and shutdown follow cleanup.
+
+
+### Final fresh-device gate and hold
+
+The final exact whole-codebase gate exits **0** (4m 48s): **803 JVM tests**, no
+failures/errors/skips; Rust checks/oracle pass and only the five allowed lint warnings
+remain. Normal debug is installed; final receipts verify exact baseline preference/store
+hashes and accessibility null/0. Prototype off, Always day/Floris Day, owned IME and mic
+permission pass before a final volume-verifier assertion. Disposable APKs/private audio
+are removed; models remain. A normal launcher intent fails, and its one advised debug
+retry also fails. Device work stops under the requested rule. **Still owed:** corrected
+volume/DND readback, literal `FATAL|AndroidRuntime` final scan and shutdown. The device
+is not claimed closed. See [the complete hold and diagnostic](stage2-tts.md#final-gate-and-device-hold);
+this does not alter the package-specific acceptance results above.
