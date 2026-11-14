@@ -19,17 +19,18 @@ internal object ReaderNative {
 
     @JvmStatic external fun allShown(edges: IntArray, visibleTop: Int, visibleBottom: Int): Boolean
 
-    @JvmStatic external fun join(texts: Array<String>, edges: IntArray, scrolls: BooleanArray, places: IntArray): Array<String>
+    @JvmStatic external fun join(text: String, lengths: IntArray, edges: IntArray, scrolls: BooleanArray, places: IntArray): String
 
     @JvmStatic external fun find(
-        texts: Array<String>,
+        text: String,
+        lengths: IntArray,
         edges: IntArray,
         selected: String,
         visibleTop: Int,
         visibleBottom: Int,
     ): IntArray?
 
-    @JvmStatic external fun resumeAfter(texts: Array<String>, read: Array<String>): Int
+    @JvmStatic external fun resumeAfter(text: String, lengths: IntArray, textCount: Int): Int
 
     @JvmStatic external fun utterances(text: String, sentenceLengths: IntArray, max: Int): Array<String>
 

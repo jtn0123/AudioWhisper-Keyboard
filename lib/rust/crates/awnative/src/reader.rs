@@ -13,7 +13,7 @@ use reader::page_text::{self, Edges, Piece};
 use reader::speaker_key::{self, Action, SpeakerKey};
 
 use crate::handle::{free, into_handle, with_locked};
-use crate::jni::{self, Env, Error, Result, boolean, cut, illegal};
+use crate::jni::{self, Env, Result, boolean, cut, illegal};
 
 /// No block, no action.
 const NONE: jint = -1;
@@ -33,13 +33,6 @@ fn read_edges(env: &Env, edges: jintArray) -> Result<Vec<Edges>> {
     Ok((pairs.iter())
         .map(|&[top, bottom]| Edges { top, bottom })
         .collect())
-}
-
-/// The strings of a `String[]` that may hold no null; `name` says which argument it is.
-fn read_texts(env: &Env, array: jobjectArray, name: &'static str) -> Result<Vec<Vec<u16>>> {
-    (env.read_strings(array, name)?.into_iter())
-        .map(|it| it.ok_or(Error::NullPointer(name)))
-        .collect()
 }
 
 fn visible(top: jint, bottom: jint) -> Edges {
@@ -111,20 +104,23 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_ReaderNative_allShown(
 
 /// The pieces of text with these `texts`, `edges` and `scrolls` made into blocks to read
 /// (`page_text::blocks`): their texts, with each one's first piece, top and bottom written to
-/// `places`, three values a block, which must be long enough for a block a piece.
+/// `places`: count, then first piece/top/bottom/UTF-16 length per block. Text returns as one string.
 #[unsafe(no_mangle)]
 pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_ReaderNative_join(
     env: *mut JNIEnv,
     _: jclass,
-    texts: jobjectArray,
+    text: jstring,
+    lengths: jintArray,
     edges: jintArray,
     scrolls: jbooleanArray,
     places: jintArray,
-) -> jobjectArray {
+) -> jstring {
     // SAFETY: the JVM passes its environment for this call.
     unsafe {
         jni::run(env, ptr::null_mut(), |env| {
-            let texts = read_texts(env, texts, "texts")?;
+            let text = env.read_string(text, "texts")?;
+            let lengths = env.read::<i32>(lengths, "lengths")?;
+            let texts = cut(&text, &lengths)?;
             let edges = read_edges(env, edges)?;
             let scrolls = env.read::<jboolean>(scrolls, "scrolls")?;
             if edges.len() != texts.len() || scrolls.len() != texts.len() {
@@ -138,12 +134,22 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_ReaderNative_join(
                 })
                 .collect();
             let blocks = page_text::blocks(&pieces);
-            let values: Vec<i32> = (blocks.iter())
-                .flat_map(|it| [index(it.first), it.edges.top, it.edges.bottom])
-                .collect();
+            let mut values = vec![index(blocks.len())];
+            values.extend(blocks.iter().flat_map(|it| {
+                [
+                    index(it.first),
+                    it.edges.top,
+                    it.edges.bottom,
+                    index(it.text.len()),
+                ]
+            }));
             env.write(places, &values, "places")?;
-            let texts: Vec<&[u16]> = blocks.iter().map(|it| &it.text[..]).collect();
-            env.make_strings(&texts)
+            env.make_string(
+                &blocks
+                    .iter()
+                    .flat_map(|it| it.text.iter().copied())
+                    .collect::<Vec<_>>(),
+            )
         })
     }
 }
@@ -154,7 +160,8 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_ReaderNative_join(
 pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_ReaderNative_find(
     env: *mut JNIEnv,
     _: jclass,
-    texts: jobjectArray,
+    text: jstring,
+    lengths: jintArray,
     edges: jintArray,
     selected: jstring,
     visible_top: jint,
@@ -163,12 +170,14 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_ReaderNative_find(
     // SAFETY: the JVM passes its environment for this call.
     unsafe {
         jni::run(env, ptr::null_mut(), |env| {
-            let texts = read_texts(env, texts, "texts")?;
+            let text = env.read_string(text, "texts")?;
+            let lengths = env.read::<i32>(lengths, "lengths")?;
+            let texts = cut(&text, &lengths)?;
             let edges = read_edges(env, edges)?;
             if edges.len() != texts.len() {
                 return Err(illegal("not as many edges as texts"));
             }
-            let blocks: Vec<(&[u16], Edges)> = texts.iter().map(|it| &it[..]).zip(edges).collect();
+            let blocks: Vec<(&[u16], Edges)> = texts.iter().copied().zip(edges).collect();
             let selected = env.read_string(selected, "selected")?;
             let visible = visible(visible_top, visible_bottom);
             match page_text::find(&blocks, &selected, visible) {
@@ -185,17 +194,21 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_ReaderNative_find(
 pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_ReaderNative_resumeAfter(
     env: *mut JNIEnv,
     _: jclass,
-    texts: jobjectArray,
-    read: jobjectArray,
+    text: jstring,
+    lengths: jintArray,
+    text_count: jint,
 ) -> jint {
     // SAFETY: the JVM passes its environment for this call.
     unsafe {
         jni::run(env, 0, |env| {
-            let texts = read_texts(env, texts, "texts")?;
-            let read = read_texts(env, read, "read")?;
-            let texts: Vec<&[u16]> = texts.iter().map(|it| &it[..]).collect();
-            let read: Vec<&[u16]> = read.iter().map(|it| &it[..]).collect();
-            Ok(index(page_text::resume_after(&texts, &read)))
+            let text = env.read_string(text, "texts and read")?;
+            let lengths = env.read::<i32>(lengths, "lengths")?;
+            let fields = cut(&text, &lengths)?;
+            let count = usize::try_from(text_count).map_err(|_| illegal("negative text count"))?;
+            let (texts, read) = fields
+                .split_at_checked(count)
+                .ok_or_else(|| illegal("missing texts"))?;
+            Ok(index(page_text::resume_after(texts, read)))
         })
     }
 }

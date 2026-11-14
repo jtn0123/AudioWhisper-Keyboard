@@ -31,10 +31,15 @@ object ReaderRules {
 
     /** The pieces with these [texts], [edges] and whether each [scrolls], made into blocks to read. */
     fun join(texts: List<String>, edges: IntArray, scrolls: BooleanArray): List<Joined> {
-        val places = IntArray(PLACE * texts.size)
-        val joined = ReaderNative.join(texts.toTypedArray(), edges, scrolls, places)
-        return joined.mapIndexed { index, text ->
-            val at = PLACE * index
+        val packet = Utf16Batch(texts)
+        val places = IntArray(1 + PLACE * texts.size)
+        val joined = ReaderNative.join(packet.text, packet.lengths, edges, scrolls, places)
+        var offset = 0
+        return List(places[0]) { index ->
+            val at = 1 + PLACE * index
+            val length = places[at + 3]
+            val text = joined.substring(offset, offset + length)
+            offset += length
             Joined(places[at], text, places[at + 1], places[at + 2])
         }
     }
@@ -43,12 +48,16 @@ object ReaderRules {
      * Where [selected] starts among the blocks with these [texts] and [edges]: the block, then the
      * offset in its text; null if it isn't there.
      */
-    fun find(texts: List<String>, edges: IntArray, selected: String, visibleTop: Int, visibleBottom: Int): IntArray? =
-        ReaderNative.find(texts.toTypedArray(), edges, selected, visibleTop, visibleBottom)
+    fun find(texts: List<String>, edges: IntArray, selected: String, visibleTop: Int, visibleBottom: Int): IntArray? {
+        val packet = Utf16Batch(texts)
+        return ReaderNative.find(packet.text, packet.lengths, edges, selected, visibleTop, visibleBottom)
+    }
 
     /** Where to carry on among the blocks with these [texts] after a scroll, given the texts [read] so far. */
-    fun resumeAfter(texts: List<String>, read: List<String>): Int =
-        ReaderNative.resumeAfter(texts.toTypedArray(), read.toTypedArray())
+    fun resumeAfter(texts: List<String>, read: List<String>): Int {
+        val packet = Utf16Batch(texts + read)
+        return ReaderNative.resumeAfter(packet.text, packet.lengths, texts.size)
+    }
 
     /**
      * [text], whose sentences are [sentenceLengths] long, cut into pieces of at most [max] UTF-16
@@ -61,7 +70,7 @@ object ReaderRules {
     fun fits(first: Int, last: Int, top: Int, bottom: Int): Boolean = ReaderNative.fits(first, last, top, bottom)
 
     /** How many values [join] writes for each block. */
-    private const val PLACE = 3
+    private const val PLACE = 4
 }
 
 /**

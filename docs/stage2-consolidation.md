@@ -572,3 +572,40 @@ causes one fresh assertion failure; byte restoration passes, SHA
 `3e31ba49187ea43f554c1cff3bb8498e6c60fb44bdc88a72213538321cd8d69a`.
 Evidence: `g1-tests.log`, `g1-boundaries.log`, `g1-mutation/`. Final device/timing evidence
 is recorded with the completed stack below.
+
+## R1: bulk reader text fields and results
+
+Reader join/find/resume now send one UTF-16 string plus lengths; resume packs both
+lists with an explicit split index. Join returns one string plus count/first-piece/
+top/bottom/length metadata. This shares `Utf16Batch` with G1. The Java-free reader
+decisions and Android node callbacks, sentence segmentation and reveal ownership
+are unchanged. Empty fields and surrogate boundaries remain explicit, never delimiters.
+
+Existing frozen reader comparisons pass: 40,000 page, 40,000 join and 40,000 scroll
+cohorts, plus the retained speech/view/key tests. New boundary checks preserve every
+UTF-16 unit across 65,536 separate fields and indexes beyond 65,535, and reject bad
+length/count packets. All 65,536 round trips also pass on Android, alongside 6,000
+independent reader comparisons per device replay. Shifting first-piece metadata by
+one causes a fresh assertion failure; exact restoration passes (historical mutation
+source SHA `d009e6217c628b31c25057b3a7edbcb3ad4c5cc332f9e1312cf59b0cabe26a92`).
+
+Three alternating original-baseline/current APK rounds use one test APK, 100 warmups
+and 20 batches per round: 60 samples per side. Every result fingerprint matches the
+original `babe9cdc…` value, with exact canonical restoration. These are per-operation
+synthetic emulator costs, including managed projection/fingerprinting, not phone or
+touch-to-present acceptance. The unchanged walk is a useful noise control.
+
+| Public operation | Before p50 / p95 (µs) | After p50 / p95 (µs) |
+| --- | ---: | ---: |
+| Finished/pending-swipe learner transaction | 7.00 / 7.67 | 6.19 / 6.69 |
+| Glide rank, 32 guesses | 68.34 / 91.31 | 47.38 / 51.22 |
+| Reader join, 512 pieces | 82.87 / 98.73 | 66.90 / 82.41 |
+| Reader find, 512 blocks | 98.54 / 103.58 | 80.90 / 94.10 |
+| Reader resume, 512 blocks | 54.38 / 69.26 | 38.48 / 44.33 |
+| Unchanged 513-node callback walk | 729.88 / 787.68 | 749.67 / 787.95 |
+
+Both renderer reader UI checks pass after R1: real muted neural playback advances,
+stop returns IDLE and the masked fixture editor stays empty. Evidence: `r1-tests.log`,
+`r1-boundaries.log`, `r1-mutation/`, `r1-paired/`, `r1-reader/` and `r1-evidence/`.
+The APK checker now also compares actual packaged native bytes with the compiled
+stripped artifact to reject stale package contents before device execution.

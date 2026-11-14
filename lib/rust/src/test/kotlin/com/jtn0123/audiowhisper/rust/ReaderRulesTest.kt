@@ -14,6 +14,31 @@ import kotlin.test.assertTrue
  * themselves are tested in Rust and, against the Kotlin they replace, in the app.
  */
 class ReaderRulesTest {
+    @Test fun packedFieldsPreserveEveryUtf16UnitAndFullWidthPieceIndexes() {
+        val texts = List(65_536) { "x${it.toChar()}z" }
+        val edges = IntArray(texts.size * 2) { it * 4 }
+        val joined = ReaderRules.join(texts, edges, BooleanArray(texts.size))
+        assertEquals(texts.size, joined.size)
+        for (i in texts.indices) {
+            assertEquals(texts[i], joined[i].text, "UTF-16 unit $i")
+            assertEquals(i, joined[i].first)
+            assertEquals(edges[i * 2], joined[i].top)
+            assertEquals(edges[i * 2 + 1], joined[i].bottom)
+        }
+    }
+
+    @Test fun malformedBatchLengthsAndCountsThrowRatherThanReadingPastThePacket() {
+        assertFailsWith<IllegalArgumentException> {
+            ReaderNative.join("", intArrayOf(-1), intArrayOf(), BooleanArray(0), IntArray(1))
+        }
+        assertFailsWith<IllegalArgumentException> {
+            ReaderNative.find("a", intArrayOf(2), intArrayOf(0, 1), "a", 0, 1)
+        }
+        assertFailsWith<IllegalArgumentException> {
+            ReaderNative.resumeAfter("a", intArrayOf(1), 2)
+        }
+    }
+
     @Test
     fun theNumbersAreKotlins() {
         assertEquals(3_900, ReaderRules.maxUtterance)

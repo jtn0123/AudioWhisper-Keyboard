@@ -47,6 +47,8 @@ def main():
             report = json.loads(next(line[len(prefix):] for line in result.stdout.splitlines() if line.startswith(prefix)))
             if report['reader_reference_comparisons'] != 6_000:
                 raise RuntimeError('Incomplete reader reference comparison')
+            if report.get('reader_unit_roundtrips') != 65_536:
+                raise RuntimeError('Incomplete UTF-16 transport comparison')
             if args.baseline and report['sha256'] != json.loads(args.baseline.read_text())['sha256']:
                 raise RuntimeError('Boundary result digest mismatch')
         (args.output / 'result.json').write_text(json.dumps(report, indent=2) + '\n')

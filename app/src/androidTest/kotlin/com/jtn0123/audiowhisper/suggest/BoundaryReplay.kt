@@ -54,6 +54,16 @@ object BoundaryReplay {
         }
         val result = JSONObject()
         result.put("reader_reference_comparisons", 6_000)
+        val units = List(65_536) { "x${it.toChar()}z" }
+        val unitEdges = IntArray(units.size * 2) { it * 4 }
+        val roundTrip = ReaderRules.join(units, unitEdges, BooleanArray(units.size))
+        check(roundTrip.size == units.size) { "UTF-16 cohort size" }
+        for (i in units.indices) {
+            val block = roundTrip[i]
+            check(block.text == units[i] && block.first == i && block.top == unitEdges[i * 2] &&
+                block.bottom == unitEdges[i * 2 + 1]) { "UTF-16 packet unit $i" }
+        }
+        result.put("reader_unit_roundtrips", units.size)
         val digest = MessageDigest.getInstance("SHA-256")
         fun fingerprint(value: String) { digest.update(value.toByteArray(Charsets.UTF_8)) }
         fun trial(name: String, count: Int, action: () -> Unit) {
