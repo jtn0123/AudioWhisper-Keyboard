@@ -24,8 +24,10 @@ class SettingsDevice:
         self.original = json.loads((self.baseline / 'baseline.json').read_text())
         self.serial = os.environ['ANDROID_SERIAL']
         self.agent = os.environ['AGENT_DEVICE']
-        if self.serial != 'emulator-5556' or self.original['serial'] != self.serial:
-            raise ValueError('This proof is bound to the owned aw_keyboard_ssd runtime')
+        if self.serial == 'emulator-5554' or self.original['serial'] != self.serial:
+            raise ValueError('This proof requires the owned aw_keyboard_ssd runtime')
+        if self.adb('emu', 'avd', 'name').decode().splitlines()[0] != 'aw_keyboard_ssd':
+            raise ValueError('This proof requires the aw_keyboard_ssd AVD')
 
     def adb(self, *args, input=None):
         return subprocess.run(['adb', '-s', self.serial, *map(str, args)], input=input,

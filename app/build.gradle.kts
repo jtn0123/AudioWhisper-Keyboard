@@ -97,6 +97,7 @@ android {
         versionName = projectVersionName.substringBefore("-")
 
         testInstrumentationRunner = when {
+            providers.gradleProperty("settingsFixture").orNull == "true" -> "com.jtn0123.audiowhisper.settingsui.SettingsInstrumentation"
             providers.gradleProperty("ttsFixture").orNull == "true" -> "com.jtn0123.audiowhisper.reader.TtsInstrumentation"
             providers.gradleProperty("dictationFixture").orNull == "true" -> "com.jtn0123.audiowhisper.dictation.DictationInstrumentation"
             providers.gradleProperty("rendererFixture").orNull == "true" -> "com.jtn0123.audiowhisper.render.FixtureInstrumentation"
@@ -159,6 +160,7 @@ android {
             if (providers.gradleProperty("dictationFixture").orNull == "true") proguardFile("dictation-fixture.pro")
             if (providers.gradleProperty("ttsFixture").orNull == "true") proguardFile("tts-fixture.pro")
             if (providers.gradleProperty("rendererFixture").orNull == "true") proguardFile("acceptance-fixture.pro")
+            if (providers.gradleProperty("settingsFixture").orNull == "true") proguardFile("settings-fixture.pro")
             isMinifyEnabled = true
             isShrinkResources = true
 
@@ -226,6 +228,10 @@ android {
         unitTests.all {
             it.useJUnitPlatform()
         }
+    }
+    if (providers.gradleProperty("settingsFixture").orNull == "true") {
+        sourceSets.getByName("debug").kotlin.directories.add("src/settingsFixture/kotlin")
+        sourceSets.getByName("debug").manifest.srcFile("src/settingsFixture/AndroidManifest.xml")
     }
     sourceSets.getByName("androidTest").kotlin.directories.add("src/test/kotlin/com/jtn0123/audiowhisper/suggest/a1")
     sourceSets.getByName("androidTest").kotlin.directories.add("src/test/kotlin/com/jtn0123/audiowhisper/gif/shared")

@@ -47,6 +47,7 @@ class SettingsUiMatchTest {
                     val i=node.getValue("id").jsonPrimitive.int-1000
                     assertEquals(ref.enabled(i,p),node.getValue("enabled").jsonPrimitive.boolean, "enabled row $i mask $mask")
                     assertEquals(when(ref.rows[i].kind){"toggle"->"toggle";"heading"->"heading";else->"button"},node.getValue("role").jsonPrimitive.content)
+                    if (!node.getValue("enabled").jsonPrimitive.boolean) assertTrue(node.getValue("actions").jsonArray.isEmpty(), "disabled row $i offers an action")
                     if(ref.rows[i].kind=="toggle") assertEquals(p.getValue(ref.rows[i].key).toBoolean(),node.getValue("checked").jsonPrimitive.boolean)
                 }
             }

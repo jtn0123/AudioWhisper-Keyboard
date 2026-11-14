@@ -1,0 +1,5 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application>
+        <activity android:name="com.jtn0123.audiowhisper.settingsui.SettingsDeathActivity" android:exported="true" android:theme="@style/FlorisAppTheme.Splash" android:launchMode="singleTask" android:windowSoftInputMode="adjustResize" />
+    </application>
+</manifest>

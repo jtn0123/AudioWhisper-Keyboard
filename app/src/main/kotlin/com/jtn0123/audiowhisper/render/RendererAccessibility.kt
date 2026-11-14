@@ -118,7 +118,7 @@ internal class RendererAccessibility(
             if (range != null) {
                 rangeInfo = AccessibilityNodeInfo.RangeInfo(AccessibilityNodeInfo.RangeInfo.RANGE_TYPE_FLOAT,
                     range[0].jsonPrimitive.float, range[1].jsonPrimitive.float, range[2].jsonPrimitive.float)
-                addAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_SET_PROGRESS)
+                if (isEnabled) addAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_SET_PROGRESS)
             }
             if (n.string("role") == "edit") {
                 isEditable = true
@@ -175,6 +175,7 @@ internal class RendererAccessibility(
             }
         }
         val n = nodes.getValue(virtualViewId)
+        if (!n.bool("enabled")) return false
         val platformSupported = (n.string("role") == "edit" && (action == AccessibilityNodeInfo.ACTION_SET_TEXT || action == AccessibilityNodeInfo.ACTION_SET_SELECTION)) ||
             (n["range"]?.let { it != JsonNull } == true && action == AccessibilityNodeInfo.AccessibilityAction.ACTION_SET_PROGRESS.id)
         if (platformSupported && platformAction?.invoke(virtualViewId, action, arguments) == true) { refresh(); return true }

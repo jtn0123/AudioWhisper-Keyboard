@@ -2,11 +2,37 @@
 from pathlib import Path
 import runpy
 import unittest
+import json
+import os
+import tempfile
+from unittest.mock import patch
 
 api = runpy.run_path(str(Path(__file__).with_name('settings_ui_device.py')))
 
 
 class SettingsUiTests(unittest.TestCase):
+    def test_fresh_owned_runtime_id_is_admitted_by_avd_identity(self):
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            (base/'baseline.json').write_text(json.dumps({'serial': 'emulator-5558'}))
+            with patch.dict(os.environ, {'ANDROID_SERIAL': 'emulator-5558', 'AGENT_DEVICE': '/unused'}), \
+                 patch.object(api['SettingsDevice'], 'adb', return_value=b'aw_keyboard_ssd\nOK\n') as adb:
+                device = api['SettingsDevice'](base/'out', base)
+                self.assertEqual('emulator-5558', device.serial)
+                adb.assert_called_once_with('emu', 'avd', 'name')
+
+    def test_reused_serial_cannot_admit_another_avd_or_the_reserved_device(self):
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            for serial in ('emulator-5556', 'emulator-5554'):
+                (base/'baseline.json').write_text(json.dumps({'serial': serial}))
+                with patch.dict(os.environ, {'ANDROID_SERIAL': serial, 'AGENT_DEVICE': '/unused'}), \
+                     patch.object(api['SettingsDevice'], 'adb', return_value=b'another_avd\nOK\n') as adb:
+                    with self.assertRaisesRegex(ValueError, 'aw_keyboard_ssd'):
+                        api['SettingsDevice'](base/'out', base)
+                    if serial == 'emulator-5554':
+                        adb.assert_not_called()
+
     def test_nested_compose_label_uses_specific_semantic_selector(self):
         device = object.__new__(api['SettingsDevice'])
         node = {'ref': 'e27', 'kind': 'text', 'label': 'Cancel'}
