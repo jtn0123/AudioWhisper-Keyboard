@@ -38,12 +38,12 @@ historical evidence, not a new JNI-free acceptance run.
 ## Deterministic long delete
 
 [The debug hook and exact oracle](stage2-input.md#timestamp-driven-long-delete-oracle-package-12)
-use dispatched key down/up times, every actual callback tick and coroutine wait deadlines.
+use dispatched key down/up times, each repeat attempt, its native-admitted/skipped outcome and coroutine wait deadlines.
 The 300 ms hold and production repeat deadline must agree exactly with the Android schedule.
 The delivered count, exact fixed-source prefix hash and selection must agree with the eligible
-actual ticks. A delayed coroutine wake does not create missed synthetic grid repeats. The JVM
-fake-clock tests are unchanged. Four host oracle controls cover jitter, one missing/extra
-delete, missing/up-before-tick boundaries and a 50→51 ms interval mutation.
+admitted actual ticks, including a tick admitted before UP whose log/delivery races release. A delayed coroutine wake does not create missed synthetic grid repeats. The JVM
+fake-clock tests are unchanged. Five host oracle controls cover jitter, one missing/extra
+delete, release/admission races, missing/up-before-attempt boundaries and a 50→51 ms interval mutation.
 The actual production +1 ms mutation is tested against the unchanged JVM lifecycle reference.
 The hooked APK never reached the device, so neither renderer has accepted this new device check.
 
@@ -90,7 +90,7 @@ pruning, parent fallback when children contribute no text, WebView classificatio
 choice and in-list membership now run in `reader::walk`. One native walk requests plain node
 facts through an Android adapter. Kotlin only fetches AccessibilityNodeInfo data/children,
 retains node/callback ownership and executes reveal/scroll actions. No text enters logs.
-The existing follow-along geometric decisions were already Rust; turn timing/count now come
+The existing follow-along geometric decisions were already Rust; turn timing/count, 40 ms playback-head polling and two-block look-ahead now come
 from Rust too. Playback-frame events retain exact highlight/reveal onset semantics. Existing
 speaker-key stop/start/top policy remains in Rust; the C generator now owns cancellation.
 No new skip UI or word-highlighting feature is introduced.
@@ -172,3 +172,59 @@ The stop mutation fails in the fake-owner ordering test, with no native model lo
 device crash. The timestamp-oracle 51 ms wait control also fails against its 50 ms reference.
 The focused TTS comparison APK and test APK build exits 0. These compiled test paths have not
 been installed or run after the device hold.
+
+## JNI removal, APK size and source accounting
+
+Normal builds do not put the sherpa AAR on the production implementation classpath. A typed
+Gradle generated-source task extracts only arm64 C API and onnxruntime after `verifySherpa`
+authenticates the entire pinned AAR and C library. Explicit comparison properties retain the
+AAR/JNI oracle; the file-only comparison app/test APK build exits 0. Normal R8 retention rules
+for sherpa Kotlin/JNI and the old callback are removed.
+
+`scripts/tts-apk-check.py` verifies the finished normal APK: no sherpa JNI library, zero sherpa
+Kotlin descriptors in either DEX, and both native payloads byte-identical to the pinned AAR.
+The packaged C API SHA-256 remains
+`0eadae93c4d595a26584d7eebde7b397b9a36d01eee3ebc7262e0d34df2fce10`;
+onnxruntime is `33847ad43bffe204699fd4a27f7f3603452a8cdaf2f9a44983a0bc31ffcf2da1`.
+Keeping these authenticated payloads skips Gradle's otherwise eight-byte ORT string-table/alignment rewrite.
+A fresh package is used for size accounting: the incremental ZIP had an unreferenced 22 MB
+old-entry gap after swapping payloads. Repackaging removes that stale space without source changes.
+
+| Normal debug APK | Bytes |
+| --- | ---: |
+| Unchanged dc7256e5 production-source baseline | 66,265,488 |
+| Final C API-only build | 61,650,231 |
+| Net reduction (port plus JNI removal) | 4,615,257 (6.965%) |
+
+Final APK SHA-256: `56372d29bd4787829453a7a370cad78ca1b41354395b29a9052640d6f64d47ce`.
+The owned Rust library grows from 9,763,616 to 9,798,744 bytes; no new native dependency is added.
+
+The documented nonblank, tracked, non-test source count is:
+
+| Language | dc7256e5 | Final | Net |
+| --- | ---: | ---: | ---: |
+| Kotlin | 53,212 | 53,186 | -26 |
+| Rust | 45,483 | 46,516 | +1,033 |
+| Java | 321 | 321 | 0 |
+
+Rust is **46.51%** of this counted source. The Kotlin reduction is net of new platform/JNI
+adapters and the debug timing hook; it is not a claim that only 26 lines of policy moved.
+Test-only references, generated character tables, benchmarks and the entirely test-only
+latin-oracle crate are excluded exactly as in `rust.md`. Every changed source file is at most
+500 lines. No suppressions, lint baselines or skipped/deleted tests were introduced.
+
+## Final local gate
+
+The final required invocation exits **0**, captured directly from Gradle, with **779 JVM tests**,
+zero failures/errors/skips, Rust tests/format/clippy with `-D warnings`, and the full C++ oracle:
+
+```sh
+./gradlew --stacktrace test :app:lintDebug :lib:rust:check :lib:rust:oracleCheck assembleDebug
+```
+
+App lint has exactly five warnings: one AndroidGradlePluginVersion, three NewerVersionAvailable,
+and one ChromeOsAbiSupport. No other app warnings remain. The Rust Android library lint is clean.
+The separate Python timestamp-oracle controls pass all five tests, including the release race.
+The actual Gradle exit, test counts, lint ids, APK/hash inspection and source recount are under
+`build/stage2-tts/final-gate5/` and `build/stage2-tts/source-count.json`. Private build artifacts,
+models, downloads, audio, screenshots, dumps, settings and caches are excluded from all commits.

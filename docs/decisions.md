@@ -95,17 +95,22 @@ have timestamp-only cold/warm creation measurements in [the package 8 report](st
 Flow bindings and a measured plain-View trial is neutral or better. This does not block the
 35-file fallback keyboard deletion after S24 acceptance, whose dry-run compile already passes.
 
-## sherpa-onnx 2.0.1 C API for dictation
+## sherpa-onnx 2.0.1 C API for dictation and Pocket TTS
 
-ASR and Silero VAD now use the exact C API already inside the vendored 2.0.1 AAR, following
+ASR, Silero VAD and Pocket TTS now use the exact C API already inside the vendored 2.0.1 AAR, following
 its existing binary-vendoring pattern. Gradle restores `libsherpa-onnx-c-api.so` for arm64-v8a
-and still excludes the unused C++ API. The AAR SHA-256 is
+and onnxruntime only; the unused C++ API is excluded. The AAR SHA-256 is
 `a8d09d1d32f3eb8520482c6d3d43fae674681c5b050385967c70a3c2c9bf0ee7`, verified against the
 [release's published checksum](https://github.com/k2-fsa/sherpa-onnx/releases/download/v2.0.1/checksum.txt)
 and GitHub release asset digest. The C library SHA-256 is
 `0eadae93c4d595a26584d7eebde7b397b9a36d01eee3ebc7262e0d34df2fce10`; `verifySherpa` pins both
 before packaging. No additional binary download is needed. `sherpa-ffi` is the dedicated unsafe
 C boundary, with exact versioned layouts, owned streams/results and stop-before-free; JNI stays
-only in `awnative`. The sherpa JNI library/Kotlin API remain for Pocket TTS pending package 12.
+only in `awnative`. Normal APKs no longer depend on the AAR's managed classes or package its
+JNI library. A verified extraction task copies only the C API and onnxruntime out of the same
+pinned AAR. Packaging preserves both payloads byte-for-byte; onnxruntime SHA-256 is
+`33847ad43bffe204699fd4a27f7f3603452a8cdaf2f9a44983a0bc31ffcf2da1`. Explicit `ttsFixture`/`dictationFixture` comparison builds retain the original AAR
+as a test oracle. The package-12 implementation/local checks are recorded in [the TTS report](stage2-tts.md);
+real-model PCM/stress/timing and final device acceptance remain on a documented device-tool hold.
 **Would change if** a later release is deliberately pinned and passes the same byte-identical
 transcript, segmentation, flush, lifecycle and timing comparisons in [the dictation proof](stage2-dictation.md).

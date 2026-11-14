@@ -3,7 +3,7 @@
 The coroutine delays AFTER each actual repeat, so missed wall-clock slots are not repeats.
 A tick is an actual scheduler wake delivered to the repeat callback. Independently validate
 all scheduled deadlines against the unscaled Android interval (NO_ACTION delete fixture),
-then count eligible ticks between the real down/up boundaries. No tolerance or fixed count.
+then count native-admitted ticks whose attempts precede completed release. No tolerance or fixed count.
 """
 import re
 

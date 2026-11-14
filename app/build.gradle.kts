@@ -52,6 +52,10 @@ val giphyApiKey: String = rootProject.file("local.properties")
     ?: ""
 require(giphyApiKey.all { it.isLetterOrDigit() }) { "giphy.apiKey must be letters and digits only" }
 
+// The old JNI/Kotlin dependency is an oracle only in explicit comparison builds.
+val sherpaOracle = providers.gradleProperty("dictationFixture").orNull == "true" ||
+    providers.gradleProperty("ttsFixture").orNull == "true"
+
 kotlin {
     compilerOptions {
         jvmTarget.set(JvmTarget.JVM_11)
@@ -115,8 +119,11 @@ android {
 
     packaging {
         jniLibs {
-            // ASR/VAD use the exact C API already vendored in the 2.0.1 AAR. JNI stays for TTS.
+            // Normal builds package only the pinned C API and onnxruntime payload below.
             excludes += "**/libsherpa-onnx-cxx-api.so"
+            // Preserve the checksum-authenticated payload bytes, including ORT ELF padding.
+            keepDebugSymbols += setOf("**/libsherpa-onnx-c-api.so", "**/libonnxruntime.so")
+            if (!sherpaOracle) excludes += "**/libsherpa-onnx-jni.so"
         }
     }
 
@@ -264,9 +271,9 @@ dependencies {
     // androidTestImplementation(composeBom)
 
     implementation(libs.androidx.activity.compose)
-    // sherpa-onnx 2.0.1 (Apache-2.0): on-device speech recognition for
-    // dictation. Vendored AAR from github.com/k2-fsa/sherpa-onnx releases.
-    implementation(files("libs/sherpa-onnx-2.0.1.aar"))
+    // Version/checksum-pinned C payload is extracted below; no sherpa classes ship normally.
+    androidTestImplementation(files("libs/sherpa-onnx-2.0.1.aar"))
+    if (sherpaOracle) implementation(files("libs/sherpa-onnx-2.0.1.aar"))
     implementation(libs.androidx.activity.ktx)
     implementation(libs.androidx.autofill)
     implementation(libs.androidx.collection.ktx)
@@ -327,7 +334,7 @@ fun getGitCommitHash(short: Boolean = false): Provider<String> {
     return execProvider.standardOutput.asText.map { it.trim() }
 }
 
-// The C API and JNI must come from the same release. Fail before packaging an altered AAR.
+// C API, ORT and the test-only JNI oracle come from the same checksum-pinned release.
 val verifySherpa = tasks.register("verifySherpa") {
     val aar = layout.projectDirectory.file("libs/sherpa-onnx-2.0.1.aar")
     inputs.file(aar)
@@ -346,3 +353,31 @@ val verifySherpa = tasks.register("verifySherpa") {
     }
 }
 tasks.named("preBuild") { dependsOn(verifySherpa) }
+
+// No repackaged/downloaded binary: extract exactly these two files after authenticating the AAR.
+abstract class ExtractSherpaC : DefaultTask() {
+    @get:InputFile abstract val aar: RegularFileProperty
+    @get:OutputDirectory abstract val outputDirectory: DirectoryProperty
+    @TaskAction fun extract() {
+        val output = outputDirectory.get().asFile
+        ZipFile(aar.get().asFile).use { zip ->
+            for (name in listOf("libsherpa-onnx-c-api.so", "libonnxruntime.so")) {
+                val target = output.resolve("arm64-v8a/$name")
+                target.parentFile.mkdirs()
+                zip.getInputStream(zip.getEntry("jni/arm64-v8a/$name")).use { input ->
+                    target.outputStream().use { input.copyTo(it) }
+                }
+            }
+        }
+    }
+}
+val extractSherpaC = tasks.register<ExtractSherpaC>("extractSherpaC") {
+    dependsOn(verifySherpa)
+    aar.set(layout.projectDirectory.file("libs/sherpa-onnx-2.0.1.aar"))
+    outputDirectory.set(layout.buildDirectory.dir("generated/sherpa-c"))
+}
+if (!sherpaOracle) {
+    androidComponents.onVariants { variant ->
+        variant.sources.jniLibs?.addGeneratedSourceDirectory(extractSherpaC) { it.outputDirectory }
+    }
+}
