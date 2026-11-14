@@ -279,6 +279,11 @@ restoration. Shut down only that AVD through device_close and confirm its runtim
 
 ## Source budget and full-port endpoint
 
+**2026-11-14 follow-up:** the user replaced the 90% target with logic and all UI drawing
+in Rust, leaving only thin Android adapters. The quota arithmetic and open scope question
+below are retained as the historical sizing that prompted this decision; they are no longer
+acceptance requirements. See [the current ownership decision](rust.md).
+
 At `04186d1d`, the exact supplied rust_share.py rules give **52,745 Kotlin / 321 Java /
 51,500 Rust = 49.25% Rust**. These are nonblank tracked lines, including comments, not a
 performance metric. The supplied script includes latin-oracle main source even though the

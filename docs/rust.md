@@ -4,18 +4,39 @@ AudioWhisper Keyboard is moving its own logic from Kotlin to Rust, one piece at 
 piece lands only when it gives the same results as the Kotlin it replaces, proven by a test that
 runs both, and has been checked on the emulator.
 
-## The 90% target (decided 2026-11-12)
+## Logic and drawing in Rust (decided 2026-11-14)
 
-The target is at least 90% Rust in our main source, because stopping at logic leaves most of
-this keyboard in Compose and settings. Count non-blank lines of tracked `.kt`, `.java` and
-`.rs` files; exclude paths containing `/test/`, `/tests/`, `/androidTest/` or `benchmark/`,
-`*Test.kt`, `*_test.rs`, `*_tests.rs`, `tests.rs`, and generated tables
-(`latin/src/chars/tables.rs`, `chars/src/tables/*`), plus the entirely test-only
-`latin-oracle` crate (including its Rust C++-oracle harness). Dependencies' native source is not ours
-and does not count, including sherpa-onnx, onnxruntime and a renderer's dependencies.
-The planning snapshot was about 25.8k Rust, 55.8k Kotlin and 0.6k Java (31% Rust).
-After stage 1, the tracked-source recount on 2026-11-12 is 25,306 Rust, 53,808 Kotlin and
-627 Java: 31.7% Rust. Recount after ports; never add Rust or remove tests just to improve a ratio.
+The goal is **logic in Rust**: every decision and all UI drawing belong in Rust. Kotlin
+and Java remain only as thin Android adapters. An adapter transports platform facts,
+executes a Rust plan and returns the actual Android result; it does not choose policy,
+validate domain data, own editing/navigation state or draw application controls.
+
+Android adapters include IME/Activity/service lifecycle, InputConnection, surfaces and
+Choreographer, insets, accessibility transport, resources/system fonts/colours, file/network
+IO, audio, Room/content providers, intents, SAF and permissions. Platform-owned UI such as
+the IME picker, permission dialogs and inline autofill views remains Android-owned. Rust
+chooses the requests, layout, semantics and actions; Android supplies platform capabilities.
+Keep genuine Android APIs and move decisions out of their wrappers rather than replacing
+each Kotlin line with a JNI call. The full settings port and fallback deletion still require
+their separate acceptance gates.
+
+**History:** on 2026-11-12 the user replaced the original logic-only boundary with a target
+of at least 90% Rust, explicitly including keyboard drawing and settings. On 2026-11-14 the
+user replaced that percentage target with the ownership goal above: stage 4 sizing showed
+that settings plus Compose keyboard deletion reaches only about **63–67% Rust**. A line
+quota would obscure the remaining policy work and penalize necessary Android adapters.
+Report Rust share after each package; the percentage is descriptive, never a target. Never
+add Rust or remove tests to improve it.
+
+Count non-blank lines of tracked `.kt`, `.java` and `.rs` files; exclude paths containing
+`/test/`, `/tests/`, `/androidTest/` or `benchmark/`, `*Test.kt`, `*_test.rs`, `*_tests.rs`,
+`tests.rs`, generated tables (`latin/src/chars/tables.rs`, `chars/src/tables/*`), and the
+entirely test-only `latin-oracle` crate. Dependencies' native source is not ours and does not
+count, including sherpa-onnx, onnxruntime and renderer dependencies. Preserve the supplied
+counter's separately documented latin-oracle discrepancy when reporting its result.
+The historical planning snapshot was about 25.8k Rust, 55.8k Kotlin and 0.6k Java (31%).
+After stage 1 the 2026-11-12 recount was 25,306 Rust, 53,808 Kotlin and 627 Java (31.7%).
+Stage percentage headings below are historical estimates, not acceptance targets.
 
 ### Stage 1: remove features we do not use (done)
 
@@ -170,11 +191,12 @@ The default-off Home/Keyboard prototype is implemented; [checkpoint results](sta
 record passing local comparisons/mutations and the device-tool hold. Final on-device stored-file,
 TalkBack, visual, lifecycle and performance acceptance remains incomplete. Neither fallback is deleted.
 
-The 90% target remains, but this settings scope plus the measured keyboard deletion alone is
-projected at roughly 63–67% Rust. Finishing the target also requires a separately inventoried
-reduction of remaining Kotlin models/wrappers/hosts. Preserve genuine Android boundaries;
-never add Rust or remove tests to improve the count. Recount with the supplied source tool
-and refresh the deletion dry run before claiming a full-port endpoint.
+The 2026-11-14 ownership decision replaces the 90% target. The settings scope plus the
+measured keyboard deletion is projected at roughly 63–67% Rust; report that estimate without
+chasing it. Inventory remaining models/wrappers/hosts for decisions and drawing that must
+move to Rust, and name the Android API for each adapter that stays. Stage 5 is research and
+planning until separately authorized. Recount with the supplied source tool and refresh the
+deletion dry run before claiming an endpoint. Neither Compose fallback is deleted here.
 
 ## What is in Rust
 

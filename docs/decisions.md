@@ -33,7 +33,22 @@ the two round alike only where both fuse multiply-adds, which is arm64 (see
 `.github/workflows/android.yml`). **Would change if** the keyboard needs to run on an x86-64
 device; that would also need the oracle tests to accept a last-bit difference there.
 
-## 90% Rust, including keyboard drawing
+## Logic and all UI drawing in Rust
+
+Decided on 2026-11-14: every decision and all application UI drawing belong in Rust;
+Kotlin/Java are thin Android adapters only. Adapters transport lifecycle, InputConnection,
+surfaces/Choreographer/insets, accessibility, resources/fonts/colours, file/network IO,
+audio, Room/content providers, intents, SAF and permissions. They execute native plans and
+return platform facts; policy, validation, navigation, editing, layout and semantics live in
+Rust. Android-owned picker/permission/inline-autofill UI stays at the platform boundary.
+The percentage is reported, never targeted: stage 4 sizing showed complete settings plus
+Compose keyboard deletion reaches about 63–67%, so a 90% quota does not describe the desired
+ownership. Preserve the behavior and device gates, and keep both Compose fallbacks until
+phone acceptance. Do not add Rust or remove tests for a ratio. Stage 5 inventories remaining
+policy and true adapters; it does not authorize ports. **Would change if** measured platform
+constraints require an explicit exception supported by runtime evidence.
+
+### Historical 90% decision (superseded 2026-11-14)
 
 Decided on 2026-11-12, replacing the 2026-11-08 logic-only decision: aim for at least 90% of
 our non-blank main-source lines in Rust, including the keyboard renderer and settings models.
