@@ -1,6 +1,7 @@
 //! Native settings UI. Platform effects and persisted IO are returned as plans.
 pub mod catalogue;
 mod dialog;
+mod dialog_metrics;
 pub mod editor;
 mod events;
 mod field;

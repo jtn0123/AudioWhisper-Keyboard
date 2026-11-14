@@ -165,7 +165,7 @@ impl App {
                     );
                 }
             }
-            if let Some(checked) = c.checked {
+            if let Some(checked) = c.checked.filter(|_| c.role == "toggle") {
                 let x = b.right - 60.0 * d;
                 let y = (b.top + b.bottom) / 2.0;
                 self.paint_box(

@@ -15,14 +15,8 @@ impl App {
         let width = (w - 48.0 * d).min(560.0 * d);
         let left = (w - width) / 2.0;
         let padding = if h < 600.0 * d { 8.0 * d } else { 32.0 * d };
-        let top = padding;
-        let bottom = h - padding;
         let button_height = (48.0 * f).max(48.0) * d;
         let footer = button_height + 24.0 * d;
-        let area = rect(left, top, width, bottom - top);
-        self.paint_box(p, rect(0.0, 0.0, w, h), 0x60000000, 0.0);
-        self.paint_box(p, area, self.colors[0], 28.0 * d);
-        self.controls.clear();
         let title = self.label(r.label);
         let title_width = width
             - if r.switch.is_empty() {
@@ -31,6 +25,15 @@ impl App {
                 112.0 * d
             };
         let th = height(text, &title, 24.0 * d * f, title_width) + 32.0 * d;
+        let rows = self.dialog_rows(width, text);
+        let content: f32 = rows.iter().map(|row| row.2).sum();
+        let dialog_height = (th + 16.0 * d + content + footer).min((h - 2.0 * padding).max(1.0));
+        let top = (h - dialog_height) / 2.0;
+        let bottom = top + dialog_height;
+        let area = rect(left, top, width, dialog_height);
+        self.paint_box(p, rect(0.0, 0.0, w, h), 0x60000000, 0.0);
+        self.paint_box(p, area, self.colors[0], 28.0 * d);
+        self.controls.clear();
         self.paint_text(
             p,
             &title,
@@ -85,26 +88,7 @@ impl App {
         match r.kind {
             Kind::Choice(_) => {
                 for (j, choice) in Self::choices(m.row).iter().enumerate() {
-                    let label = self.choice_label(m.row, choice);
-                    let summary = if m.selected == *choice {
-                        if let Kind::Choice(prefix) = r.kind {
-                            self.strings
-                                .get(&format!(
-                                    "enum__{prefix}__{}__description",
-                                    choice.to_ascii_lowercase()
-                                ))
-                                .cloned()
-                                .unwrap_or_default()
-                        } else {
-                            String::new()
-                        }
-                    } else {
-                        String::new()
-                    };
-                    let rh = (height(text, &label, 16.0 * d * f, width - 80.0 * d)
-                        + height(text, &summary, 14.0 * d * f, width - 80.0 * d)
-                        + 24.0 * d)
-                        .max(56.0 * d);
+                    let (label, summary, rh) = rows[j].clone();
                     self.add(
                         p,
                         Control {
@@ -114,7 +98,7 @@ impl App {
                             summary,
                             role: "radio",
                             enabled: m.enabled,
-                            checked: None,
+                            checked: Some(m.selected == *choice),
                             selected: m.selected == *choice,
                             action: Action::Choose(choice.clone()),
                             range: None,
@@ -125,30 +109,15 @@ impl App {
                     y += rh;
                 }
             }
-            Kind::Slider(second, unit) => {
+            Kind::Slider(second, _) => {
                 for (slot, value) in m.values.iter().enumerate() {
                     let key = if slot == 0 { r.key } else { second };
                     let pref = settings::catalogue::get(&settings::text(key)).unwrap();
-                    let orientation = if r.key.contains("spacing") {
-                        if slot == 0 {
-                            "screen_orientation__vertical"
-                        } else {
-                            "screen_orientation__horizontal"
-                        }
-                    } else if slot == 0 {
-                        "screen_orientation__portrait"
-                    } else {
-                        "screen_orientation__landscape"
-                    };
-                    let label = if m.values.len() > 1 {
-                        self.label(orientation) + ": "
-                    } else {
-                        String::new()
-                    } + &self.label(unit).replace("{v}", value);
-                    let rh = height(text, &label, 16.0 * d * f, width - 48.0 * d) + 16.0 * d;
+                    let (label, _, row_height) = &rows[slot];
+                    let rh = row_height - 72.0 * d;
                     self.paint_text(
                         p,
-                        &label,
+                        label,
                         rect(left + 24.0 * d, y, width - 48.0 * d, rh),
                         16.0 * d * f,
                         self.colors[1],
@@ -168,7 +137,7 @@ impl App {
                         Control {
                             id: 4000 + slot as i32,
                             bounds: rect(left + 32.0 * d, y, width - 64.0 * d, 56.0 * d),
-                            label,
+                            label: label.clone(),
                             summary: String::new(),
                             role: "slider",
                             enabled: true,

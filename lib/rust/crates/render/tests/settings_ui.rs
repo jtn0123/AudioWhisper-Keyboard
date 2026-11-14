@@ -108,3 +108,43 @@ fn only_modal_controls_are_exposed_and_cancelled_back_preserves_drafts() {
     assert!(a.modal.is_none());
     assert!(a.effects.is_empty());
 }
+#[test]
+fn short_dialog_wraps_content() {
+    let (mut a, mut text) = app();
+    a.config = [480.0, 900.0, 1.0, 1.0];
+    a.scene(&mut text);
+    assert!(a.activate(1006)); // Spacebar label.
+    a.scene(&mut text);
+    let first = a.controls.iter().find(|c| c.id == 3000).unwrap();
+    let last = a.controls.iter().find(|c| c.id == 3002).unwrap();
+    let footer = a.controls.iter().find(|c| c.id == 5).unwrap();
+    assert!(footer.bounds.top - last.bounds.bottom < 48.0);
+    assert!(first.bounds.top > 200.0); // The small dialog is vertically centered.
+}
+#[test]
+fn dialog_radios_expose_checked_state() {
+    let (mut a, mut text) = app();
+    a.scene(&mut text);
+    assert!(a.activate(1006));
+    a.scene(&mut text);
+    for radio in a.controls.iter().filter(|c| c.role == "radio") {
+        assert_eq!(radio.checked, Some(radio.selected));
+    }
+}
+#[test]
+fn radio_checked_semantics_do_not_draw_switch_tracks() {
+    let (mut a, mut text) = app();
+    a.config = [480.0, 900.0, 1.0, 1.0];
+    a.scene(&mut text);
+    assert!(a.activate(1006));
+    let panel = a.scene(&mut text).panel.unwrap();
+    let modal = panel.items.iter().skip_while(|item| {
+        item.element != "settings-box" || item.styles[0].background != 0x60000000
+    });
+    assert!(modal.clone().count() > 1);
+    assert!(modal.clone().all(|item| {
+        item.element != "settings-box"
+            || item.bounds.width() != 52.0
+            || item.bounds.height() != 32.0
+    }));
+}
