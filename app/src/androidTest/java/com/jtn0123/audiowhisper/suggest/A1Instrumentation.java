@@ -12,34 +12,37 @@ public final class A1Instrumentation extends Instrumentation {
     private boolean boundaries;
     @Override public void onCreate(Bundle arguments) {
         super.onCreate(arguments);
-        boundaries = "true".equals(arguments.getString("boundaries"));
+        boundaries = arguments != null && "true".equals(arguments.getString("boundaries"));
         start();
     }
-    @Override public void onStart() {
+    @Override public void onStart() { replay(this, boundaries); }
+
+    /** Shared by the combined renderer/A1 test APK; assertions and accepted digests are unchanged. */
+    public static void replay(Instrumentation instrumentation, boolean boundaries) {
         Bundle result = new Bundle();
         try {
             if (boundaries) {
-                result.putString("boundaries", BoundaryReplay.run(getTargetContext()));
-                finish(Activity.RESULT_OK, result);
+                result.putString("boundaries", BoundaryReplay.run(instrumentation.getTargetContext()));
+                instrumentation.finish(Activity.RESULT_OK, result);
                 return;
             }
-            File dictionary = new File(getTargetContext().getFilesDir(), "a1-fixture.dict");
-            try (InputStream input = getTargetContext().getAssets().open("dicts/main_en-US.dict")) {
+            File dictionary = new File(instrumentation.getTargetContext().getFilesDir(), "a1-fixture.dict");
+            try (InputStream input = instrumentation.getTargetContext().getAssets().open("dicts/main_en-US.dict")) {
                 Files.copy(input, dictionary.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
             }
-            File output = new File(getTargetContext().getFilesDir(), "a1-replay");
+            File output = new File(instrumentation.getTargetContext().getFilesDir(), "a1-replay");
             kotlin.Pair<String, String> hashes = A1Replay.INSTANCE.capture(dictionary, output, false);
             result.putString("decoder_sha256", hashes.getFirst());
             result.putString("pipeline_sha256", hashes.getSecond());
             result.putLong("extension_maintainer_checks", dev.patrickgold.florisboard.lib.ext.ExtensionDeviceReplay.INSTANCE.run());
             dictionary.delete();
-            finish(Activity.RESULT_OK, result);
+            instrumentation.finish(Activity.RESULT_OK, result);
         } catch (Exception failure) {
             result.putString("failure", failure.getClass().getName() + ": " + failure.getMessage());
             java.io.StringWriter trace = new java.io.StringWriter();
             failure.printStackTrace(new java.io.PrintWriter(trace));
             result.putString("fixture_trace", trace.toString());
-            finish(Activity.RESULT_CANCELED, result);
+            instrumentation.finish(Activity.RESULT_CANCELED, result);
         }
     }
 }

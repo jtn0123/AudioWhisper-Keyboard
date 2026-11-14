@@ -253,7 +253,7 @@ class NlpManager(context: Context) {
      *
      * AudioWhisper: for the Latin provider the answer is computed for the word at the cursor right
      * now rather than read from [activeCandidates], which can be a keystroke behind; and digits,
-     * apostrophes, hyphens and `@` continue a word instead of ending it (see [WordCharacters]).
+     * apostrophes, hyphens and `@` continue a word instead of ending it (see [com.jtn0123.audiowhisper.rust.SuggestRules.continuesWord]).
      */
     fun canCommit(candidate: SuggestionCandidate): Boolean =
         NlpState.pick(candidate, environment.fields(subtypeManager.activeSubtype))

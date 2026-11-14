@@ -1,5 +1,7 @@
 package com.jtn0123.audiowhisper.suggest
 
+import com.jtn0123.audiowhisper.rust.SuggestRules
+
 
 /** What surrounds the cursor when suggestions are requested. */
 data class TypingState(
@@ -42,7 +44,7 @@ data class SpellCheck(val isValid: Boolean, val suggestions: List<String>, val i
  */
 class LatinSuggester(
     private val decoder: LatinDictionaryEngine,
-    private val threshold: Float = AutoCorrection.MODEST_THRESHOLD,
+    private val threshold: Float = SuggestRules.modestThreshold,
     /** The user's personal dictionaries as they stand now (read on every call, so it can be swapped). */
     private val personalWords: () -> PersonalWords = { PersonalWords.NONE },
     /** What the user has typed before ([LearnedWords]), or null if not learning. */

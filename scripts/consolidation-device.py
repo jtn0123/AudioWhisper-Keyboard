@@ -22,10 +22,7 @@ def main():
     if serial == 'emulator-5554':
         raise ValueError('Reserved emulator')
     command = ['adb', '-s', serial, 'shell', 'am', 'instrument', '-w']
-    if not args.a1:
-        command += ['-e', 'boundaries', 'true']
-    if args.a1 and args.runner != 'a1':
-        raise ValueError('A1 replay requires its A1 runner')
+    command += ['-e', 'a1' if args.a1 else 'boundaries', 'true']
     runner = ('com.jtn0123.audiowhisper.suggest.A1Instrumentation' if args.runner == 'a1'
               else 'com.jtn0123.audiowhisper.render.FixtureInstrumentation')
     command += ['com.jtn0123.audiowhisper.keyboard.test/' + runner]

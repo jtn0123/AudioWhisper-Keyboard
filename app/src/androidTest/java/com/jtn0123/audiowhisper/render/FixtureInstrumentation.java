@@ -79,12 +79,15 @@ public final class FixtureInstrumentation extends Instrumentation {
     }
 
     private boolean boundaries;
+    private boolean a1Replay;
     @Override public void onCreate(Bundle arguments) {
         super.onCreate(arguments);
         boundaries = arguments != null && "true".equals(arguments.getString("boundaries"));
+        a1Replay = arguments != null && "true".equals(arguments.getString("a1"));
         start();
     }
     @Override public void onStart() {
+        if (a1Replay) { com.jtn0123.audiowhisper.suggest.A1Instrumentation.replay(this, false); return; }
         if (boundaries) {
             Bundle result = new Bundle();
             try {

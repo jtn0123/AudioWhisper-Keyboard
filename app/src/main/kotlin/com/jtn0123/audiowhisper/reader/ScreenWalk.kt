@@ -3,6 +3,7 @@ package com.jtn0123.audiowhisper.reader
 import android.graphics.Rect
 import android.view.accessibility.AccessibilityNodeInfo
 import android.view.accessibility.AccessibilityNodeInfo.AccessibilityAction
+import com.jtn0123.audiowhisper.rust.ScreenWalkRules
 
 /**
  * What a walk of one window found: the app it belongs to, its text in reading order, the list that
@@ -59,8 +60,14 @@ internal class ScreenWalk(private val visible: Rect) {
         val packet = com.jtn0123.audiowhisper.rust.ReaderWalk.walk(tree,
             intArrayOf(visible.left, visible.top, visible.right, visible.bottom))
         val list = tree.nodes.getOrNull(packet[0])
-        val part = list?.let { ScreenRules.visiblePart(Rect().also(it::getBoundsInScreen).box(), visible.box()) }
-        val follow = FollowAlong(list, part?.let { Rect(it.left, it.top, it.right, it.bottom) } ?: visible)
+        val part = list?.let {
+            val bounds = Rect().also(it::getBoundsInScreen)
+            val (left, top, right, bottom) = ScreenWalkRules.visiblePart(intArrayOf(
+                bounds.left, bounds.top, bounds.right, bounds.bottom,
+                visible.left, visible.top, visible.right, visible.bottom))
+            Rect(left, top, right, bottom)
+        }
+        val follow = FollowAlong(list, part ?: visible)
         val pieces = packet.drop(3).chunked(4).map { (id, top, bottom, inList) ->
             TextBlock(checkNotNull(tree.texts[id]), top, bottom, inList != 0) {
                 if (inList != 0) follow.show(tree.nodes[id])
@@ -69,7 +76,6 @@ internal class ScreenWalk(private val visible: Rect) {
         return Screen(root.packageName?.toString(), PageText.blocks(pieces), list,
             visible.top, visible.bottom, packet[1], packet[2] != 0)
     }
-    private fun Rect.box() = Box(left, top, right, bottom)
     private companion object {
         val UP_DOWN = setOf(AccessibilityAction.ACTION_SCROLL_UP.id, AccessibilityAction.ACTION_SCROLL_DOWN.id,
             AccessibilityAction.ACTION_PAGE_UP.id, AccessibilityAction.ACTION_PAGE_DOWN.id)

@@ -54,7 +54,7 @@ Only production methods are considered; DTOs, Android effects, lifecycle ownersh
 | W13 LatinSuggester / LatinDictionaryEngine | File range IO and native/UI model conversion | keep IO/test seam; decoder is already native |
 | W14 GlideRanker | Per-guess context forwarding/assembly and native ranking | merge G1 production engine path; retain synthetic lookup seam only in tests |
 | W15 Dictation Spacing/Spoken/Phrases/MicKey/DictationUndo | Text/enum/clock/effect adapters to native rules; old Phrases path is test-only after session plans | keep test seams/platform effects; C2 restricts old callback exports |
-| W16 GifSearchKeys / SearchText / GifResultCache / GifRecents / Giphy / GifSender / GifImages / GifFrames | UI model identity, network/file/decoder IO and coroutine scheduling | keep Android/test seams; pure rule helpers preserve existing match fixtures |
+| W16 GifSearchKeys / SearchText / GifResultCache / GifRecents / Giphy / GifSender / GifImages / GifFrames | UI model identity, network/file/decoder IO and coroutine scheduling | remove pure SearchText production facade; keep Android/test seams for the other owners and preserve existing match fixtures |
 | W18 Transcriber / VoiceEngine / LoadedVoice / PlayQueue / ModelHolder | Native calls plus Android model files, coroutine/focus/playback and managed callback lifetimes | keep Android API/lifetime seams; not pure forwarding |
 | W17 lib/rust synchronized owners and JNI DTO adapters | Cleaner, monitors, reachability fences, packet conversion, enum projections | keep lifetime/test seams. Deleting these would expose raw handles or JNI arrays to Android owners |
 
@@ -609,3 +609,30 @@ stop returns IDLE and the masked fixture editor stays empty. Evidence: `r1-tests
 `r1-boundaries.log`, `r1-mutation/`, `r1-paired/`, `r1-reader/` and `r1-evidence/`.
 The APK checker now also compares actual packaged native bytes with the compiled
 stripped artifact to reject stale package contents before device execution.
+
+## W1–W5 and W16: remove redundant production facades
+
+AutoCorrection, WordCharacters, WordCase and ScreenRules/Box now live only in test
+sources, with their original forwarding implementations. FollowAlong.fits is a test-only
+extension; FollowAlong itself retains Android refresh/scroll/delay ownership. Production
+uses SuggestRules.modestThreshold and ScreenWalkRules directly. ScreenWalk builds the
+same visible-part input and Rect, without an intermediate Box. SearchText likewise lives
+in shared JVM/Android test sources; GifSearch calls the same GifRules methods directly,
+including the former default delete count of one. No rule decision or independent
+reference was removed, and the old match tests still exercise their original facades.
+PageText and SpeakerKey remain because they own Android segmentation/reveal callbacks
+and clock reads respectively. Lifecycle/IO/model adapters stay as classified above.
+
+The complete JVM test task passes (`w-tests.log`). The combined renderer runner can
+also invoke the unchanged A1 replay, avoiding different target APKs for live and native
+checks. That replay matches both accepted decoder/pipeline digests (`w-a1/`), and the
+final boundary replay matches the original fingerprint, 6,000 reader comparisons and
+all 65,536 UTF-16 units (`w-boundaries/`). Muted neural playback advances and stops on
+both renderers after the direct screen-rule calls (`w-reader/`). There is no new policy
+mutation for these forwarding-only edits: the independent references and original
+match assertions are retained. An Android test import exposed the need to share the
+frozen SearchText facade; its initial failed compilation is retained in
+`w-fixture-build.log`, and the corrected fixture build passes in `w-fixture-shared.log`.
+The no-key GIF search replay also matches on both renderers: query digest and typing
+state match, key_available is false, and no text reaches the editor (`w-gif/`). Live
+GIPHY results remain unverified because no key is available.

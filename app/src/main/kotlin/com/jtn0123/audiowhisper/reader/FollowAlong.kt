@@ -3,7 +3,7 @@ package com.jtn0123.audiowhisper.reader
 import android.graphics.Rect
 import android.view.accessibility.AccessibilityNodeInfo
 import android.view.accessibility.AccessibilityNodeInfo.AccessibilityAction
-import com.jtn0123.audiowhisper.rust.ReaderRules
+import com.jtn0123.audiowhisper.rust.ScreenWalkRules
 import com.jtn0123.audiowhisper.rust.ScreenWalkRules.AfterTurn
 import com.jtn0123.audiowhisper.rust.ScreenWalkRules.Move
 import kotlinx.coroutines.delay
@@ -21,7 +21,7 @@ internal class FollowAlong(private val scroller: AccessibilityNodeInfo?, private
     suspend fun show(node: AccessibilityNodeInfo) {
         if (!node.refresh()) return
         val span = span(node) ?: return showOwnView(node)
-        when (ScreenRules.move(span.first, span.last, view.top, view.bottom, canTurn = scroller != null)) {
+        when (ScreenWalkRules.move(span.first, span.last, view.top, view.bottom, canTurn = scroller != null)) {
             Move.STAY -> Unit
             Move.SHOW_ON_SCREEN -> node.performAction(SHOW_ON_SCREEN)
             Move.TURN_PAGES -> turnPages(node, checkNotNull(scroller))
@@ -33,7 +33,7 @@ internal class FollowAlong(private val scroller: AccessibilityNodeInfo?, private
             if (!scroller.performAction(AccessibilityAction.ACTION_SCROLL_FORWARD.id)) return
             delay(TURN_MS)
             val span = node.takeIf { it.refresh() }?.let(::span) ?: return
-            when (ScreenRules.afterTurn(span.first, span.last, view.top, view.bottom)) {
+            when (ScreenWalkRules.afterTurn(span.first, span.last, view.top, view.bottom)) {
                 AfterTurn.SHOW_ON_SCREEN -> {
                     node.performAction(SHOW_ON_SCREEN)
                     return
@@ -47,7 +47,7 @@ internal class FollowAlong(private val scroller: AccessibilityNodeInfo?, private
     /** A view cut off by an edge, or gone past it, is moved back; one well inside is left alone. */
     private fun showOwnView(node: AccessibilityNodeInfo) {
         val bounds = Rect().also(node::getBoundsInScreen)
-        if (!ScreenRules.isInside(bounds.top, bounds.bottom, view.top, view.bottom)) node.performAction(SHOW_ON_SCREEN)
+        if (!ScreenWalkRules.isInside(bounds.top, bounds.bottom, view.top, view.bottom)) node.performAction(SHOW_ON_SCREEN)
     }
 
     internal companion object {
@@ -58,12 +58,6 @@ internal class FollowAlong(private val scroller: AccessibilityNodeInfo?, private
         /** A forward scroll moves a web page about half a screen; this covers a long way down. */
         private val MAX_TURNS = com.jtn0123.audiowhisper.rust.ReaderTiming.maxTurns
         private val TURN_MS = com.jtn0123.audiowhisper.rust.ReaderTiming.turnMs
-
-        /**
-         * A piece spanning [span] fits in a view from [top] to [bottom] when all of it shows, or, if
-         * it is taller than the view, once it starts in the top half.
-         */
-        fun fits(span: IntRange, top: Int, bottom: Int): Boolean = ReaderRules.fits(span.first, span.last, top, bottom)
 
         /** Where a web page's piece really is, out of sight too; null for an app's own views. */
         private fun span(node: AccessibilityNodeInfo): IntRange? {
