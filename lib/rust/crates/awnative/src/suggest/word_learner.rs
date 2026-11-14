@@ -5,14 +5,17 @@
 
 use std::sync::Mutex;
 
-use jni_sys::{JNIEnv, jboolean, jclass, jint, jlong, jobject, jstring};
+use jni_sys::{JNIEnv, jboolean, jclass, jint, jlong, jstring};
 use suggest::learned_words::LearnedWords;
 use suggest::word_learner::WordLearner;
 
 use super::boolean;
-use super::suggester::JavaLookup;
+#[cfg(any(not(target_os = "android"), feature = "legacy-fixture"))]
+use super::legacy_suggester::JavaLookup;
 use crate::handle::{free, into_handle, object, with_locked};
 use crate::jni::{Env, Result};
+#[cfg(any(not(target_os = "android"), feature = "legacy-fixture"))]
+use jni_sys::jobject;
 use suggest::{dictionary::Lookup, session::Session};
 
 /// The managed session monitor stays held for this whole exchange. Lookup remains lazy: a
@@ -95,6 +98,7 @@ unsafe fn with_learner<T>(
 }
 
 /// The dictionary to ask, if one is open (`lookup` isn't null).
+#[cfg(any(not(target_os = "android"), feature = "legacy-fixture"))]
 fn lookup(env: &Env, lookup: jobject) -> Result<Option<JavaLookup<'_>>> {
     if lookup.is_null() {
         return Ok(None);
@@ -105,6 +109,7 @@ fn lookup(env: &Env, lookup: jobject) -> Result<Option<JavaLookup<'_>>> {
 /// `word`, which starts at `start` right after `textBefore`, is finished
 /// (`WordLearner::finished`). Returns whether the store changed.
 #[unsafe(no_mangle)]
+#[cfg(any(not(target_os = "android"), feature = "legacy-fixture"))]
 pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_SuggesterNative_learnerFinished(
     env: *mut JNIEnv,
     _: jclass,
@@ -130,6 +135,7 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_SuggesterNative_learne
 /// A swiped `word` went in after `textBefore` (`WordLearner::swiped`). Returns whether the store
 /// changed.
 #[unsafe(no_mangle)]
+#[cfg(any(not(target_os = "android"), feature = "legacy-fixture"))]
 pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_SuggesterNative_learnerSwiped(
     env: *mut JNIEnv,
     _: jclass,

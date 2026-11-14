@@ -10,8 +10,10 @@ use std::sync::Mutex;
 
 use dictation::mic_key::{self, Action, MicKey, Status};
 use dictation::{Spoken, Typing};
-use jni_sys::{JNI_FALSE, JNIEnv, jboolean, jchar, jclass, jint, jlong, jobject};
-use jni_sys::{jobjectArray, jstring, jvalue};
+use jni_sys::{JNI_FALSE, JNIEnv, jboolean, jchar, jclass, jint, jlong};
+#[cfg(any(not(target_os = "android"), feature = "legacy-fixture"))]
+use jni_sys::{jobject, jvalue};
+use jni_sys::{jobjectArray, jstring};
 
 use crate::handle::{free, into_handle, with_locked};
 use crate::jni::{self, Env, Result};
@@ -65,6 +67,7 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_DictationNative_parse(
 /// How to type `phrase` after `before` (see `dictation::join`), asking `names.isName(word)` if
 /// the phrase's first word might be a name.
 #[unsafe(no_mangle)]
+#[cfg(any(not(target_os = "android"), feature = "legacy-fixture"))]
 pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_DictationNative_join(
     env: *mut JNIEnv,
     _: jclass,
@@ -95,6 +98,7 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_DictationNative_join(
 }
 
 /// Asks Kotlin whether `word` is a name.
+#[cfg(any(not(target_os = "android"), feature = "legacy-fixture"))]
 fn is_name(env: &Env, names: jobject, word: &[u16]) -> Result<bool> {
     let is_name = env.method(names, "names", (c"isName", c"(Ljava/lang/String;)Z"))?;
     env.with_string(word, |word| {

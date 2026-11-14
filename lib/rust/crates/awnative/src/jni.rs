@@ -381,6 +381,7 @@ impl Env {
     }
 
     /// What `call` gives a new Java string of these UTF-16 units, freeing the string after.
+    #[cfg(any(not(target_os = "android"), feature = "legacy-fixture"))]
     pub fn with_string<R>(
         &self,
         units: &[u16],

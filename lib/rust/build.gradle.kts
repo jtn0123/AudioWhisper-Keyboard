@@ -173,6 +173,7 @@ val cargoBuildAndroid = tasks.register<CargoBuild>("cargoBuildAndroid") {
     configureCargo("build", "--release", "--locked", "--package", "awnative", "--target", androidTarget)
     if (providers.gradleProperty("suggestFixture").orNull == "true") args.addAll("--features", "latin-fixture")
     if (providers.gradleProperty("ttsFixture").orNull == "true") args.addAll("--features", "tts-fixture")
+    if (providers.gradleProperty("dictationFixture").orNull == "true") args.addAll("--features", "dictation-fixture")
     val ndkDirectory = androidComponents.sdkComponents.ndkDirectory
     environment.put(
         "CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER",

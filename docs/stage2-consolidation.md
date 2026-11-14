@@ -496,3 +496,28 @@ freezes the current bridge's password, fallback, malformed-facts and platform-fa
 read traces before this change. Existing 10,000 seeded tree comparisons and exact
 20,000-node/250-depth checks remain mandatory. C3a is therefore refined to **merge**;
 the traversal, child and text Android boundaries remain **keep**.
+
+## C2: reference-only callbacks stay out of normal Android
+
+The old `SuggesterNative.suggest/spell`, callback `learnerFinished/learnerSwiped`
+and `DictationNative.join` exports now compile only on the host or with
+`legacy-fixture`. Existing Latin/TTS fixture features enable it; the dictation
+comparison property enables its own feature too. The shared native-session store
+and result transport remains independent of that adapter. Every legacy test and
+frozen reference is retained. Consumer rules retain the callback names for opt-in R8
+fixtures. Normal production suggestion/learning/dictation paths use their native sessions.
+
+The normal APK contains **zero of those five legacy exports**, while the host/JVM
+boundary/A1 checks and Rust checks pass. The actual Cargo default was deliberately
+changed to enable `legacy-fixture`: that normal APK compiled, and the packaged-export
+checker rejected it. Restoring the backed-up manifest bytes and rebuilding passes.
+Manifest restoration SHA: `e619381a98fa2fea1e8a28c419c6c3cb966105c36571baf3f7cdb84378055c3e`.
+Evidence: `c2-check.log`, `c2-normal-apk.json`, `c2-mutation/`.
+
+This removes three callback invocation sites from normal Android (generic probability,
+decode and name lookup), retaining them only as host/fixture seams. Kotlin external
+declarations remain available for those tests. Production Android still has the four
+demand-driven reader call sites and the synchronous PCM consumer at this point.
+No policy moved in C2; the deliberate feature/export mutation proves the shipping boundary.
+C1's post-change primary regression, suggestion and glide/cancel wrappers also pass on
+both renderers, with exact canonical restoration (`c1-typing/`).

@@ -12,8 +12,10 @@ crate-type = ["cdylib"]
 
 [features]
 # Only device replay APKs expose the test buffer snapshot; production Android has no legacy JNI.
-latin-fixture = []
-tts-fixture = ["sherpa-ffi/tts-fixture"]
+legacy-fixture = []
+latin-fixture = ["legacy-fixture"]
+dictation-fixture = ["legacy-fixture"]
+tts-fixture = ["sherpa-ffi/tts-fixture", "legacy-fixture"]
 
 [dependencies]
 settings = { path = "../settings" }

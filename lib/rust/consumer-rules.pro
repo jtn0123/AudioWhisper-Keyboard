@@ -3,8 +3,8 @@
     native <methods>;
 }
 
-# The Rust calls DictationNames.isName by name (crates/awnative/src/dictation.rs), on whatever
-# implements it.
+# Host/opt-in reference callbacks use these names. Their native exports are excluded from
+# normal Android builds by awnative's legacy-fixture feature; preserve fixture R8 compatibility.
 -keep interface com.jtn0123.audiowhisper.rust.DictationNames {
     boolean isName(java.lang.String);
 }
@@ -12,7 +12,7 @@
     boolean isName(java.lang.String);
 }
 
-# The Rust calls the dictionary back by name (crates/awnative/src/suggest/suggester.rs).
+# Frozen callback dictionary adapter (suggest/legacy_suggester.rs), for reference fixtures only.
 -keep interface com.jtn0123.audiowhisper.rust.WordProbabilities {
     int probability(java.lang.String);
 }

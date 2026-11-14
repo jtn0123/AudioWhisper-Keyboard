@@ -4,6 +4,8 @@
 
 mod kept_words;
 mod learned_words;
+#[cfg(any(not(target_os = "android"), feature = "legacy-fixture"))]
+mod legacy_suggester;
 mod personal_words;
 mod session;
 mod suggester;
