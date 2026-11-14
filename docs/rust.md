@@ -194,7 +194,7 @@ TalkBack, visual, lifecycle and performance acceptance remains incomplete. Neith
 The 2026-11-14 ownership decision replaces the 90% target. The settings scope plus the
 measured keyboard deletion is projected at roughly 63–67% Rust; report that estimate without
 chasing it. Inventory remaining models/wrappers/hosts for decisions and drawing that must
-move to Rust, and name the Android API for each adapter that stays. Stage 5 is research and
+move to Rust, and name the Android API for each adapter that stays. The [stage 5 inventory](stage5-inventory.md) is research and
 planning until separately authorized. Recount with the supplied source tool and refresh the
 deletion dry run before claiming an endpoint. Neither Compose fallback is deleted here.
 
