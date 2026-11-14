@@ -22,40 +22,11 @@ pub fn plan(v: &[i64], text: &[u16]) -> Result<Vec<i64>, &'static str> {
             } as i64])
         }
         CONTROL_SUBTYPE if args.len() >= 2 => {
-            let active = args[0];
-            let default = args[1];
-            let ids = &args[2..];
-            let index = ids
-                .iter()
-                .position(|id| *id == active)
-                .or(if ids.is_empty() { None } else { Some(0) });
-            let chosen = index.map_or(default, |i| ids[i]);
-            Ok(vec![
-                index.map_or(-1, |i| i as i64),
-                i64::from(chosen != active),
-            ])
+            let (index, changed) = settings::subtype::active(&args[2..], args[0], args[1]);
+            Ok(vec![index, i64::from(changed)])
         }
         CONTROL_CYCLE if !args.is_empty() => {
-            let reverse = args[0] < 0;
-            let flags = &args[1..];
-            let mut trigger = false;
-            let mut selected = -1;
-            let mut order: Vec<usize> = (0..flags.len()).collect();
-            if reverse {
-                order.reverse();
-            }
-            for &i in &order {
-                if trigger {
-                    trigger = false;
-                    selected = i as i64;
-                } else if flags[i] != 0 {
-                    trigger = true;
-                }
-            }
-            if trigger {
-                selected = order[0] as i64;
-            }
-            Ok(vec![selected])
+            Ok(vec![settings::subtype::cycle(&args[1..], args[0] < 0)])
         }
         CONTROL_SPACE if args.len() == 6 => {
             let mode = if args[1] != 0 && matches!(args[0], 2 | 3 | 5) {

@@ -304,6 +304,15 @@ impl<'a> Lexer<'a> {
         self.expect(Token::EndList)
     }
 
+    /// Captures a raw value for a schema-directed consumer. Unknown members retain
+    /// kotlinx's bracket-only skip behavior; the consumer validates known fields.
+    pub fn raw_value(&mut self) -> Result<Vec<u16>> {
+        self.skip_whitespace();
+        let start = self.position;
+        self.skip_value()?;
+        Ok(self.source[start..self.position].to_vec())
+    }
+
     /// Reads a `String?`: `null`, or a quoted string.
     pub fn nullable_string(&mut self) -> Result<Option<Vec<u16>>> {
         if self.try_null() {

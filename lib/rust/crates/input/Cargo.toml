@@ -7,6 +7,7 @@ publish.workspace = true
 rust-version.workspace = true
 
 [dependencies]
+settings = { path = "../settings" }
 keys = { path = "../keys" }
 shift = { path = "../shift" }
 

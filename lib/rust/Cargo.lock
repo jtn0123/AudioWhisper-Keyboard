@@ -112,6 +112,7 @@ dependencies = [
  "reader",
  "render",
  "serde_json",
+ "settings",
  "sherpa-ffi",
  "shift",
  "snygg",
@@ -855,6 +856,7 @@ name = "input"
 version = "0.1.0"
 dependencies = [
  "keys",
+ "settings",
  "shift",
 ]
 
@@ -1703,6 +1705,16 @@ dependencies = [
  "serde",
  "serde_core",
  "zmij",
+]
+
+[[package]]
+name = "settings"
+version = "0.1.0"
+dependencies = [
+ "chars",
+ "extensions",
+ "gif",
+ "keys",
 ]
 
 [[package]]

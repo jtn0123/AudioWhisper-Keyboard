@@ -15,6 +15,7 @@ crate-type = ["cdylib"]
 latin-fixture = []
 
 [dependencies]
+settings = { path = "../settings" }
 backup = { path = "../backup" }
 utilities = { path = "../utilities" }
 sherpa-ffi = { path = "../sherpa-ffi" }

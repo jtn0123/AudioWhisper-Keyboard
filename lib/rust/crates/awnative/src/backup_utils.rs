@@ -45,3 +45,13 @@ pub extern "system" fn Java_org_florisboard_lib_kotlin_UtilityNative_call(
 ) -> jobjectArray {
     transfer(env, operation, input, utilities::call)
 }
+
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_SettingsNative_call(
+    env: *mut JNIEnv,
+    _: jclass,
+    operation: jint,
+    input: jobjectArray,
+) -> jobjectArray {
+    transfer(env, operation, input, settings::call)
+}

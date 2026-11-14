@@ -6,6 +6,7 @@ members = ["crates/*"]
 default-members = [
     "crates/awnative",
     "crates/backup",
+    "crates/settings",
     "crates/utilities",
     "crates/chars",
     "crates/composing",
