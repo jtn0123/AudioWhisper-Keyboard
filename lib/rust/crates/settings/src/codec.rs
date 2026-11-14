@@ -13,22 +13,43 @@ fn fields(raw: &[u16]) -> Result<Fields> {
     lex.object(|lex, key| {
         let key = String::from_utf16_lossy(key);
         let value = lex.raw_value()?;
-        if let Some((_, old)) = values.iter_mut().find(|(k, _)| *k == key) {
-            *old = value;
-        } else {
-            values.push((key, value));
-        }
+        values.push((key, value));
         Ok(true)
     })
     .map_err(|_| "invalid object")?;
     lex.expect_eof().map_err(|_| "trailing JSON")?;
     Ok(values)
 }
-fn raw<'a>(fields: &'a Fields, name: &str) -> Option<&'a [u16]> {
-    fields
-        .iter()
-        .find(|(k, _)| k == name)
-        .map(|(_, v)| v.as_slice())
+// Streaming class decoding validates every occurrence; a bad earlier field cannot
+// be hidden by a later valid value. Valid repetitions retain their last value.
+fn field(
+    values: &Fields,
+    name: &str,
+    default: Option<Value>,
+    mut decode: impl FnMut(&[u16]) -> Result<Value>,
+) -> Result<Value> {
+    let mut result = default;
+    for (_, raw) in values.iter().filter(|(key, _)| key == name) {
+        result = Some(decode(raw)?);
+    }
+    result.ok_or("missing required field")
+}
+fn member(
+    values: &Fields,
+    name: &str,
+    kind: Kind,
+    default: Option<Value>,
+    nullable: bool,
+    compact: bool,
+    depth: usize,
+) -> Result<Value> {
+    field(values, name, default, |raw| {
+        if nullable && raw == text("null") {
+            Ok(Value::Null)
+        } else {
+            read(kind, raw, compact, depth)
+        }
+    })
 }
 fn list(input: &[u16], mut decode: impl FnMut(&[u16]) -> Result<Value>) -> Result<Value> {
     let mut lexer = Lexer::new(input);
@@ -121,11 +142,15 @@ fn record(kind: Kind, input: &[u16], compact: bool, depth: usize) -> Result<Valu
     let mut result = Vec::new();
     let mut add =
         |name: &'static str, kind: Kind, default: Option<Value>, nullable: bool| -> Result<()> {
-            let value = match raw(&values, name) {
-                Some(v) if nullable && v == text("null") => Value::Null,
-                Some(v) => read(kind, v, compact, depth)?,
-                None => default.clone().ok_or("missing required field")?,
-            };
+            let value = member(
+                &values,
+                name,
+                kind,
+                default.clone(),
+                nullable,
+                compact,
+                depth,
+            )?;
             if !compact || default.as_ref() != Some(&value) {
                 result.push((name.to_owned(), value));
             }
@@ -183,31 +208,31 @@ fn record(kind: Kind, input: &[u16], compact: bool, depth: usize) -> Result<Valu
             add("recent", Kind::Strings, None, false)?;
         }
         Kind::Action => {
-            let tag = raw(&values, "$")
-                .map(string)
-                .transpose()?
-                .unwrap_or(Value::string("insert_key"));
+            let tag = field(&values, "$", Some(Value::string("insert_key")), string)?;
             let tag = if tag.string_value()? == text("insert_text") {
                 "insert_text"
             } else {
                 "insert_key"
             };
             result.push(("$".to_owned(), Value::string(tag)));
-            let data = raw(&values, "data").ok_or("missing action data")?;
             result.push((
                 "data".to_owned(),
-                read(
+                member(
+                    &values,
+                    "data",
                     if tag == "insert_text" {
                         Kind::String
                     } else {
                         Kind::Key
                     },
-                    data,
+                    None,
+                    false,
                     compact,
                     depth,
                 )?,
             ));
         }
+
         Kind::Popup => {
             add("main", Kind::AbstractKey, null, true)?;
             add("relevant", Kind::Keys, empty(), false)?;
@@ -220,10 +245,7 @@ fn record(kind: Kind, input: &[u16], compact: bool, depth: usize) -> Result<Valu
     Ok(Value::Object(result))
 }
 fn key(values: &Fields, abstract_key: bool, compact: bool, depth: usize) -> Result<Value> {
-    let tag = raw(values, "$")
-        .map(string)
-        .transpose()?
-        .unwrap_or(Value::string("text_key"));
+    let tag = field(values, "$", Some(Value::string("text_key")), string)?;
     let tag = String::from_utf16_lossy(tag.string_value()?);
     let selectors = [
         "case_selector",
@@ -263,39 +285,40 @@ fn key(values: &Fields, abstract_key: bool, compact: bool, depth: usize) -> Resu
             _ => (&["full", "half"], true, true),
         };
         for &name in names {
-            let value = match raw(values, name) {
-                Some(v) if nullable && v == text("null") => Value::Null,
-                Some(v) => read(Kind::AbstractKey, v, compact, depth + 1)?,
-                None if !required => Value::Null,
-                None => return Err("missing selector field"),
-            };
+            let value = member(
+                values,
+                name,
+                Kind::AbstractKey,
+                if required { None } else { Some(Value::Null) },
+                nullable,
+                compact,
+                depth + 1,
+            )?;
             if !compact || required || value != Value::Null {
                 out.push((name.to_owned(), value));
             }
         }
     } else {
-        let raw_type = raw(values, "type")
-            .map(string)
-            .transpose()?
-            .unwrap_or(Value::string("character"));
-        let upper = chars::case::uppercase(raw_type.string_value()?);
-        let names = [
-            "character",
-            "enter_editing",
-            "function",
-            "lock",
-            "modifier",
-            "navigation",
-            "system_gui",
-            "numeric",
-            "placeholder",
-            "unspecified",
-        ];
-        let index = names
-            .iter()
-            .position(|name| chars::case::uppercase(&text(name)) == upper)
-            .ok_or("unknown key type")?;
-        let t = text(names[index]);
+        let key_type = field(values, "type", Some(Value::string("character")), |raw| {
+            let upper = chars::case::uppercase(string(raw)?.string_value()?);
+            let names = [
+                "character",
+                "enter_editing",
+                "function",
+                "lock",
+                "modifier",
+                "navigation",
+                "system_gui",
+                "numeric",
+                "placeholder",
+                "unspecified",
+            ];
+            let index = names
+                .iter()
+                .position(|name| chars::case::uppercase(&text(name)) == upper)
+                .ok_or("unknown key type")?;
+            Ok(Value::string(names[index]))
+        })?;
         let fields = if tag == "multi_text_key" {
             vec![
                 ("type", Kind::String, Value::string("character")),
@@ -313,13 +336,17 @@ fn key(values: &Fields, abstract_key: bool, compact: bool, depth: usize) -> Resu
             ("popup", Kind::Popup, Value::Null),
         ]) {
             let value = if name == "type" {
-                Value::String(t.clone())
+                key_type.clone()
             } else {
-                match raw(values, name) {
-                    Some(v) if name == "popup" && v == text("null") => Value::Null,
-                    Some(v) => read(kind, v, compact, depth + 1)?,
-                    None => default.clone(),
-                }
+                member(
+                    values,
+                    name,
+                    kind,
+                    Some(default.clone()),
+                    name == "popup",
+                    compact,
+                    depth + 1,
+                )?
             };
             if !compact || value != default {
                 out.push((name.to_owned(), value));
@@ -395,36 +422,46 @@ pub fn decode(kind: &str, input: &[u16], compact: bool) -> Result<Value> {
         "history" => read(Kind::History, input, false, 0),
         "arrangement" => {
             let values = fields(input)?;
-            let sticky = raw(&values, "stickyAction").ok_or("missing sticky action")?;
             Ok(object([
                 (
                     "stickyAction",
-                    if sticky == text("null") {
-                        Value::Null
-                    } else {
-                        read(Kind::Action, sticky, compact, 0)?
-                    },
+                    member(
+                        &values,
+                        "stickyAction",
+                        Kind::Action,
+                        None,
+                        true,
+                        compact,
+                        0,
+                    )?,
                 ),
                 (
                     "dynamicActions",
-                    read(
+                    member(
+                        &values,
+                        "dynamicActions",
                         Kind::Actions,
-                        raw(&values, "dynamicActions").ok_or("missing actions")?,
+                        None,
+                        false,
                         compact,
                         0,
                     )?,
                 ),
                 (
                     "hiddenActions",
-                    read(
+                    member(
+                        &values,
+                        "hiddenActions",
                         Kind::Actions,
-                        raw(&values, "hiddenActions").ok_or("missing hidden actions")?,
+                        None,
+                        false,
                         compact,
                         0,
                     )?,
                 ),
             ]))
         }
+
         _ => Err("unknown codec"),
     }
 }

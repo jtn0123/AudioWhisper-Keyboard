@@ -63,6 +63,8 @@ class SettingsCodecMatchTest {
         assertEquals(legacy,SettingsCodecs.subtype(Subtype.DEFAULT))
         val minimum="[{\"id\":1,\"primaryLocale\":\"en-US\",\"secondaryLocales\":[],\"composer\":\"a:b\",\"currencySet\":\"a:b\",\"popupMapping\":\"a:b\",\"layoutMap\":{}}]"
         compare(minimum,{ReferenceSettingsCodecs.subtypes(ReferenceSettingsCodecs.subtypes(it))},{SettingsCodecs.subtypes(SettingsCodecs.subtypes(it))})
+        for(first in listOf("2", "null", "\"bad\"", "{}")) compare(minimum.replace("\"id\":1", "\"id\":$first,\"id\":1"),
+            {ReferenceSettingsCodecs.subtypes(ReferenceSettingsCodecs.subtypes(it))},{SettingsCodecs.subtypes(SettingsCodecs.subtypes(it))})
     }
     @Test fun arrangementsAllKeyVariantsPopupsAndCorruptInputsMatch() {
         val random=Random(1702)
@@ -83,7 +85,9 @@ class SettingsCodecMatchTest {
             raw.replace("\"code\":-233","\"code\":\"-233\""),raw.dropLast(1),"{}","null","[]",raw.replace("\"code\":-233","\"code\":2147483648"),
             raw.replace("\"type\":\"system_gui\"","\"type\":\"system_guı\""),
             raw.replace("\"code\":-233","\"code\":+1"),raw.replace("\"code\":-233","\"code\":\"+1\""))
-        for(input in cases) compare(input,{ReferenceSettingsCodecs.arrangement(ReferenceSettingsCodecs.arrangement(it))},{SettingsCodecs.arrangement(SettingsCodecs.arrangement(it))})
+        val duplicates=listOf(raw.replace("\"code\":-233","\"code\":null,\"code\":-233"),
+            raw.replace("\"type\":\"system_gui\"","\"type\":\"bad\",\"type\":\"system_gui\""))
+        for(input in cases+duplicates) compare(input,{ReferenceSettingsCodecs.arrangement(ReferenceSettingsCodecs.arrangement(it))},{SettingsCodecs.arrangement(SettingsCodecs.arrangement(it))})
     }
     @Test fun emojiHistoriesAndEveryUtf16UnitMatch() {
         val random=Random(1703)
@@ -94,7 +98,7 @@ class SettingsCodecMatchTest {
             assertEquals(raw,SettingsCodecs.history(h))
             assertEquals(h,SettingsCodecs.history(raw))
         }
-        for(raw in listOf("{}","null","[]","{\"pinned\":[],\"recent\":[],\"unknown\":1}","{\"pinned\":[null],\"recent\":[]}","{\"pinned\":[],\"recent\":[]} trailing"))
+        for(raw in listOf("{}","null","[]","{\"pinned\":[],\"recent\":[],\"unknown\":1}","{\"pinned\":[null],\"recent\":[]}","{\"pinned\":[],\"recent\":[]} trailing", "{\"pinned\":null,\"pinned\":[\"😀\"],\"recent\":[]}"))
             assertEquals(ReferenceSettingsCodecs.history(raw),SettingsCodecs.history(raw))
     }
 }
