@@ -198,3 +198,81 @@ the full C++ oracle and debug assembly pass. App lint has only `AndroidGradlePlu
 three `NewerVersionAvailable` notices and `ChromeOsAbiSupport`. No warning suppression, lint
 baseline or skipped test was added. An earlier check overlapped my dependency edit and rustdoc
 used its old dependency graph; that result was discarded. This final gate used frozen sources.
+
+## Fresh SSD acceptance (2026-11-14)
+
+The new `aw_keyboard_ssd` guest opened as `emulator-5556`; the old AVD and
+`emulator-5554` were untouched. Evidence is under ignored
+`build/device-acceptance-2026-11-14/`. The initial whole-codebase gate exits zero
+with 802 JVM tests, no failures/errors/skips and the five permitted lint warnings.
+
+The checksum-verified `dc7256e5` APK retains SHA-256
+`c2949714060dba3b70832eef3c3d3895e0a1eca3c00910a67708574dd4f77b7a`.
+Its unchanged URL/email/password block and `95c76b21`'s same block pass on both renderers:
+five units, digest `2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824`.
+The old email failure is classified as an old-run environment/input artifact; its
+exact trigger remains unproved. No digest or field policy was changed.
+
+Before the concurrency fix below, the complete `95c76b21` editor wrapper passes on both renderers in
+`editor-after-transport/`, including every cluster/backspace checkpoint, autocorrect
+revert, sentence capitalization and external edits during composition. Earlier old/main
+runs stopped at Rust caps preparation and remain separate failed evidence. The T3 UI
+transport now preserves the original BROWSABLE settings-intent category; its control
+finds the requested settings row only with that category. No assertion was relaxed.
+Canonical stores, the fresh preference-file SHA-256 and accessibility values restore
+exactly around each of these later wrappers.
+
+
+### Regression found by the extra-panel replay
+
+The new run exposed an actual editor protocol race: two editor plans could interleave
+while the first plan suspended for word analysis. The second plan consumed/replaced the
+pending analysis; the first resumed into `IllegalArgumentException: no pending editor
+analysis`. The sanitized crash record has 64 literal FATAL/AndroidRuntime lines and
+identifies `EditorNative.call`, `EditorPlanExecutor.execute` and start-input-view.
+
+Fix `bfb3a4c2` serializes each complete query/reply exchange and its platform effects
+with a coroutine mutex on the session. JNI calls still copy packets and release the
+native mutex before Android callbacks. The real executor/native-session JVM test pauses
+the first word reply and starts a second plan; it fails before the fix and passes after.
+Removing the transaction lock deliberately produces one fresh assertion failure.
+The source is then restored byte-for-byte, SHA-256
+`1f84cb5ecdfa3c64dc770b772994416e4dc38a5b277ad935c15270993968339f`;
+the restored editor suites pass. No editing rules or expected digests change.
+
+The full post-fix local gate exits zero with 803 JVM tests and no failures/errors/skips;
+lint retains only the five permitted warnings. An earlier build reused stale Android
+Cargo workspace artifacts from the historical control build and failed compilation.
+Isolating that cache and rebuilding the workspace gives the successful gate; no source
+or check is weakened. Evidence: `postfix-gate-isolated.log`,
+`editor-concurrency-before.*` and `editor-transaction-mutation/`.
+
+All 17 extra replay records match the prior accepted records after this fix, including
+both panels, subtype/one-handed workflows, invalid-finalize, GIF search and clipboard.
+Each wrapper restores the exact fresh preferences and canonical stores; the clipboard
+controller also restores its on-device Room database/WAL/SHM hashes exactly. A separate
+learning/unlearning run passes on both renderers: learned-store hash changes from
+`7848a5161495f8822d228eb8e2d298b38359d3e229a79a5db04ea5babf7276f0`
+to `391e5fa71fb3adf58416baf9fd16c46ec33162a73f0e35f315ad57f5171fa5d5`
+and returns exactly; password candidate and inline counts are zero, and incognito does
+not alter the stores. These are fresh post-fix runs in `postfix-extras-gutter/` and
+`postfix-learning/`.
+
+The agent-device pan transport leaves Android UiAutomation attached, suppressing the
+probe accessibility observer. The first post-fix extra run stopped at this observer
+preflight (zero runtime failures); it did not exercise the panel fixture. Closing and
+reopening only this owned T3 device cleared that attachment. With explicit user approval,
+`panels.py` retains its original fixed gutter adb swipes; other navigation, taps, holds,
+text and screenshots remain on the returned agent-device command. The subsequent 17-record
+pass uses this transport. No arbitrary adb UI driving is added.
+
+The post-fix normal JNI-free build passes all Compose editor checkpoints in
+`postfix-typing-strip/editor/compose/` and the entire Rust replay separately in
+`editor-rust-diagnostic/editor.json`. Both retain the same URL/email/password digest.
+The combined wrapper again times out preparing Rust's empty caps field, before its text
+assertion. That preparation timeout was also observed on the pre-change build and is
+retained as unresolved evidence; the individual renderer passes do not erase it. Numeric
+controls in `caps-state/` and `normal-caps-state/` show the correct caps input type and
+uppercase state after a text-to-caps transition on both fixture and normal APKs; a direct
+cold caps control in `caps-diagnostic/` stays lowercase. No digest is re-baselined and no
+production change is inferred from these differing preparation paths.
