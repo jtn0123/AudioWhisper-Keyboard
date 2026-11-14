@@ -25,7 +25,7 @@ assert permission+': granted=true' in d.shell('dumpsys','package',api['PKG'])
 def state(op):
     return d.shell('am','broadcast','-a','com.jtn0123.audiowhisper.DICTATION_UI','-n',api['PKG']+'/com.jtn0123.audiowhisper.dictation.DictationUiReceiver','--es','op',op)
 try:
-    d.mute();subprocess.run([agent,'open',api['PROBE']],check=True,stdout=subprocess.DEVNULL)
+    d.mute();subprocess.run([agent,'open',api['PROBE'],'--no-test-ime'],check=True,stdout=subprocess.DEVNULL)
     chrome['set_preferences'](d,{'keyboard__rust_renderer_prototype':True,'theme__mode':'ALWAYS_DAY',
         'theme__day_theme_id':'org.florisboard.themes:floris_day','suggestion__enabled':False,'emoji__suggestion_enabled':False})
     results={}

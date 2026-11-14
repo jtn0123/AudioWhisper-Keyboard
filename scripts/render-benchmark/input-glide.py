@@ -1,5 +1,6 @@
 """Compare the existing public glide/candidate/cancel traces with agent-device idle."""
 import json
+import os
 from pathlib import Path
 import runpy
 import sys
@@ -21,7 +22,7 @@ try:
         if any(n.get('text')=='E' for n in tree['nodes']):d.tap(70,2060)
         panels['observer_off'](d)
         saved=sys.argv
-        sys.argv=['gestures.py',str(Path(__file__).with_name('adb-input.sh').resolve()),str(root/renderer),'--glide-only']
+        sys.argv=['gestures.py',os.environ.get('AGENT_DEVICE') or str(Path(__file__).with_name('adb-input.sh').resolve()),str(root/renderer),'--glide-only']
         try:runpy.run_path(str(Path(__file__).with_name('gestures.py')),run_name='__main__')
         finally:sys.argv=saved
         results[renderer]=json.loads((root/renderer/'gestures.json').read_text())

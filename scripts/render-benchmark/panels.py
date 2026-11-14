@@ -31,7 +31,9 @@ class Device(api['Device']):
 
 def named(nodes, label):
     for index, node in enumerate(nodes):
-        if node['visible'] and label in (node.get('text'), node.get('description')):
+        hashed = label.startswith('aw-test-') and hashlib.sha256(label.encode()).hexdigest() in (
+            node.get('textSha256'), node.get('descriptionSha256'))
+        if node['visible'] and (label in (node.get('text'), node.get('description')) or hashed):
             target = node
             if node.get('clickable') or node.get('class') in ('android.widget.Button', 'android.widget.Switch', 'android.widget.TextView'):
                 return target
@@ -68,7 +70,9 @@ def observer_off(device):
 
 def scroll(device, down=True):
     # The content gutter avoids arming an editing key before the scroll gesture wins.
-    device.shell('input', 'swipe', 15, 2140 if down else 1760, 15, 1760 if down else 2140, 500)
+    # The documented fixed gutter swipe must not attach UiAutomation: that suppresses
+    # the observer needed for the following fresh geometry. Other UI uses AGENT_DEVICE.
+    device.adb('shell', 'input', 'swipe', 15, 2140 if down else 1760, 15, 1760 if down else 2140, 500)
     time.sleep(.3)
 
 

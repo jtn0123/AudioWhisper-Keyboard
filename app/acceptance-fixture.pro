@@ -1,0 +1,13 @@
+# Test-APK-only platform acceptance calls; normal builds keep their existing shrinking.
+-keep class org.florisboard.lib.kotlin.MimeTypeFilter { public *; }
+-keep class org.florisboard.lib.kotlin.MimeTypeFilterKt { public *; }
+-keep class dev.patrickgold.florisboard.lib.FlorisLocale { public *; }
+-keep class dev.patrickgold.florisboard.lib.FlorisLocale$Companion { public *; }
+-keep class dev.patrickgold.florisboard.lib.io.FlorisRef { public *; }
+-keep class dev.patrickgold.florisboard.lib.io.FlorisRef$Companion { public *; }
+-keep class dev.patrickgold.florisboard.app.AppPrefsKt { public *; }
+# Kotlin test facades are provided by main; retain them for external probe calls.
+-keep class kotlin.** { *; }
+
+# Synthetic learned-store mutation uses this otherwise unused compatibility API.
+-keep class com.jtn0123.audiowhisper.suggest.LearnedWords { *; }

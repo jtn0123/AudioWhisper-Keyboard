@@ -4,7 +4,9 @@ from pathlib import Path
 import runpy
 import sys
 import time
+import uuid
 
+chrome = runpy.run_path(str(Path(__file__).with_name("chrome.py")))
 api = runpy.run_path(str(Path(__file__).with_name("a11y_device.py")))
 
 
@@ -31,9 +33,17 @@ def replay(device, renderer):
             device.tap(540, 2200)
             expected = hashlib.sha256(b"the ").hexdigest()
         else:
+            request = uuid.uuid4().hex
+            device.shell("am", "broadcast", "-a", api["PROBE"] + ".IME", "-p", api["PROBE"],
+                         "--es", "request", request, "--ez", "nlpStrip", "true")
+            strip = device.wait(lambda: device.response(request), "Candidate strip probe absent")
+            device.save(renderer + "-candidate-strip.json", strip)
             device.tap(365, 1619)
             expected = hashlib.sha256(b"help").hexdigest()
-        device.wait(lambda: device.digest()["sha256"] == expected, "Suggestion commit digest mismatch: " + label)
+        try:
+            device.wait(lambda: device.digest()["sha256"] == expected, "Suggestion commit digest mismatch: " + label)
+        finally:
+            device.save(renderer + "-" + label + "-digest.json", device.digest())
         results[label] = device.digest()
     return results
 
@@ -41,14 +51,17 @@ def replay(device, renderer):
 def main():
     device = api["Device"](Path(sys.argv[1]))
     access = device.original_accessibility()
+    expanded = device.prefs().get("smartbar__shared_actions_expanded", "false") == "true"
     prototype = device.prefs().get("keyboard__rust_renderer_prototype") == "true"
     try:
         device.mute()
+        chrome["set_preferences"](device, {"smartbar__shared_actions_expanded": False})
         results = {renderer: replay(device, renderer) for renderer in ("compose", "rust")}
         assert results["compose"] == results["rust"], "Renderer suggestion fixtures differ"
         device.save("suggestions.json", results)
         print("Both renderers matched autocorrect and candidate-pick digests")
     finally:
+        chrome["set_preferences"](device, {"smartbar__shared_actions_expanded": expanded})
         device.renderer("rust" if prototype else "compose")
         device.restore_accessibility(access)
 

@@ -53,8 +53,9 @@ val giphyApiKey: String = rootProject.file("local.properties")
 require(giphyApiKey.all { it.isLetterOrDigit() }) { "giphy.apiKey must be letters and digits only" }
 
 // The old JNI/Kotlin dependency is an oracle only in explicit comparison builds.
-val sherpaOracle = providers.gradleProperty("dictationFixture").orNull == "true" ||
-    providers.gradleProperty("ttsFixture").orNull == "true"
+val sherpaOracle = (providers.gradleProperty("dictationFixture").orNull == "true" ||
+    providers.gradleProperty("ttsFixture").orNull == "true") &&
+    providers.gradleProperty("jniFreeFixture").orNull != "true"
 
 kotlin {
     compilerOptions {
@@ -157,6 +158,7 @@ android {
             if (providers.gradleProperty("suggestFixture").orNull == "true") proguardFile("suggest-fixture.pro")
             if (providers.gradleProperty("dictationFixture").orNull == "true") proguardFile("dictation-fixture.pro")
             if (providers.gradleProperty("ttsFixture").orNull == "true") proguardFile("tts-fixture.pro")
+            if (providers.gradleProperty("rendererFixture").orNull == "true") proguardFile("acceptance-fixture.pro")
             isMinifyEnabled = true
             isShrinkResources = true
 

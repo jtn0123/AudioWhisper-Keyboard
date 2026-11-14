@@ -24,5 +24,5 @@ try:
 finally:
     d.restore_accessibility(original)
 PY
-    scripts/render-benchmark/run.sh adb "$renderer" "$output/$renderer"
+    scripts/render-benchmark/run.sh "${AGENT_DEVICE:-adb}" "$renderer" "$output/$renderer"
 done

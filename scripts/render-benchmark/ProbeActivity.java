@@ -181,6 +181,9 @@ public final class ProbeActivity extends Activity {
             ((InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE)).showSoftInput(editor, InputMethodManager.SHOW_IMPLICIT);
         });
         setContentView(root);
+        // Read-aloud screenshots retain the real stop/highlight UI without saving its source.
+        // The accessibility text is unchanged; only this disposable app's glyphs are hidden.
+        if ("reader".equals(getIntent().getStringExtra("field"))) maskText(root);
         IntentFilter filter = new IntentFilter("com.jtn0123.renderprobe.RESET");
         filter.addAction("com.jtn0123.renderprobe.CLIP");
         filter.addAction("com.jtn0123.renderprobe.EDITOR");
@@ -190,6 +193,17 @@ public final class ProbeActivity extends Activity {
         editor.requestFocus();
         editor.postDelayed(() -> ((InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE))
             .showSoftInput(editor, InputMethodManager.SHOW_IMPLICIT), 400);
+    }
+
+    private void maskText(android.view.View view) {
+        if (view instanceof TextView) {
+            ((TextView) view).setTextColor(android.graphics.Color.TRANSPARENT);
+            ((TextView) view).setHintTextColor(android.graphics.Color.TRANSPARENT);
+        }
+        if (view instanceof android.view.ViewGroup) {
+            android.view.ViewGroup group = (android.view.ViewGroup) view;
+            for (int i = 0; i < group.getChildCount(); i++) maskText(group.getChildAt(i));
+        }
     }
 
     private void configureAction(Intent intent) {

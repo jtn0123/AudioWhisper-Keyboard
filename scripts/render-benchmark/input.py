@@ -5,6 +5,7 @@ probe's fixed accessibility gesture. Run with python3 -I and the owned ANDROID_S
 """
 import hashlib
 import json
+import os
 from pathlib import Path
 import runpy
 import sys
@@ -42,6 +43,7 @@ def replay(d, renderer):
 
     def save(name, expected=None):
         value = editor['settled'](d)
+        d.save(name + '-digest.json', value)
         if expected is not None:
             assert value['sha256'] == hashlib.sha256(expected.encode()).hexdigest(), name
         # Inspect mode after clearing only the disposable editor, without restarting its connection.
@@ -56,7 +58,10 @@ def replay(d, renderer):
 
     fresh()
     # Explicit double-tap from unshifted, independent of adb process launch jitter.
-    d.adb('shell', 'input swipe 70 2060 70 2060 35; sleep 0.08; input swipe 70 2060 70 2060 35')
+    if os.environ.get('AGENT_DEVICE'):
+        api['agent_ui']['run']('press', 70, 2060, '--double-tap')
+    else:
+        d.adb('shell', 'input swipe 70 2060 70 2060 35; sleep 0.08; input swipe 70 2060 70 2060 35')
     text('ab')
     d.tap(70, 2060)
     text('c')

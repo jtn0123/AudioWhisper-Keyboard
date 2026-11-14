@@ -6,6 +6,7 @@ The optional --agent captures typing/autocorrect/password states through agent-d
 import argparse
 import hashlib
 import json
+import os
 from pathlib import Path
 import runpy
 import subprocess
@@ -32,6 +33,10 @@ def replay(d, renderer, agent):
             d.tap(70, 2060)
         panels['observer_off'](d)
     def type_word(word):
+        if os.environ.get('AGENT_DEVICE'):
+            for char in word:
+                d.hold(*POINTS[char], 20)
+            return
         # One shell transaction removes host launch jitter between rapid strokes.
         commands = [f'input swipe {POINTS[c][0]} {POINTS[c][1]} {POINTS[c][0]} {POINTS[c][1]} 20' for c in word]
         d.adb('shell', '; '.join(commands))
@@ -84,7 +89,7 @@ def main():
     d.save('original-preferences.json', d.prefs())
     try:
         d.mute()
-        chrome['set_preferences'](d, {'suggestion__enabled': True, 'emoji__suggestion_enabled': True,
+        chrome['set_preferences'](d, {'smartbar__shared_actions_expanded': False, 'suggestion__enabled': True, 'emoji__suggestion_enabled': True,
             'theme__mode': 'ALWAYS_DAY', 'theme__day_theme_id': 'org.florisboard.themes:floris_day',
             'suggestion__incognito_mode': 'FORCE_ON'})
         results = {}

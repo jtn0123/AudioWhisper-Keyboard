@@ -13,6 +13,7 @@ import org.json.JSONObject
 class DictationUiReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         val op = intent.getStringExtra("op") ?: return
+        if (op == "editor-meta") { editorMetadata(context); return }
         active?.release(); active = null
         if (op == "reset") { publish(DictationFlows()); return }
         if (op !in setOf("listening", "processing", "no-model", "no-permission")) return
@@ -56,6 +57,30 @@ class DictationUiReceiver : BroadcastReceiver() {
             .put("problem", problem).toString().toByteArray())
         check(pending.renameTo(File(context.filesDir, "dictation-ui.json")))
     }
+    /** Numeric metadata only, in the existing process: instrumentation would restart the IME. */
+    private fun editorMetadata(context: Context) {
+        val app = context.applicationContext as dev.patrickgold.florisboard.FlorisApplication
+        val editor = app.editorInstance.value
+        val keyboard = app.keyboardManager.value
+        val prefs by dev.patrickgold.florisboard.app.FlorisPreferenceStore
+        val probe = editor.activeInfo.packageName == "com.jtn0123.renderprobe"
+        val value = JSONObject().put("is_probe", probe)
+            .put("input_type", editor.activeInfo.inputAttributes.raw)
+            .put("initial_caps", editor.activeInfo.initialCapsMode.toFlags())
+            .put("cursor_caps", editor.activeCursorCapsMode.toFlags())
+            .put("shift", keyboard.activeState.inputShiftState.ordinal)
+            .put("shift_pressed", keyboard.inputEventDispatcher.isPressed(dev.patrickgold.florisboard.ime.text.key.KeyCode.SHIFT))
+            .put("read_pressed", keyboard.inputEventDispatcher.isPressed(dev.patrickgold.florisboard.ime.text.key.KeyCode.READ_ALOUD))
+            .put("auto_cap", prefs.correction.autoCapitalization.get())
+            .put("locale_cap", app.subtypeManager.value.activeSubtype.primaryLocale.supportsCapitalization)
+            .put("active_units", if (probe) editor.activeContent.text.length else -1)
+            .put("reading", com.jtn0123.audiowhisper.reader.ReadAloud.status.value.name)
+            .put("connection", dev.patrickgold.florisboard.FlorisImeService.currentInputConnection() != null)
+        val pending = File(context.filesDir, "editor-meta.json.tmp")
+        Files.write(pending.toPath(), value.toString().toByteArray())
+        check(pending.renameTo(File(context.filesDir, "editor-meta.json")))
+    }
+
     companion object {
         private var active: DictationSession? = null
         private var problem = 0

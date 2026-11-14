@@ -94,13 +94,22 @@ class DictationInstrumentation : Instrumentation() {
         val reportFile = File(targetContext.filesDir, "dictation-comparison.json")
         val result = Bundle()
         try {
+            val nativeOnly = options.getString("nativeOnly") == "true"
+            val oracleFile = File(targetContext.filesDir, "dictation-oracle.json")
+            val oracle = if (nativeOnly) JSONObject(oracleFile.readText()) else null
+            check(!nativeOnly || options.getString("reuse") == "true")
             val files = if (options.getString("reuse") == "true") scratch.listFiles()!!.sortedBy { it.name }
                 else DictationAudioFixtures.create(targetContext, scratch)
             val records = JSONArray()
             for ((index, file) in files.withIndex()) {
                 sendStatus(0, Bundle().apply { putInt("fixture", index); putLong("start_ns", System.nanoTime()) })
-                val wave = WaveReader.readWave(file.path); check(wave.sampleRate == 16_000)
-                val old = run(wave.samples, true); val native = run(wave.samples, false)
+                val samples = if (nativeOnly) {
+                    check(hash(file.readBytes()) == oracle!!.getJSONArray("fixtures").getJSONObject(index).getString("wav_sha256"))
+                    MicAudio.Replay.pcm16(file.readBytes())
+                } else WaveReader.readWave(file.path).also { check(it.sampleRate == 16_000) }.samples
+                val old = if (nativeOnly) oracle!!.getJSONArray("fixtures").getJSONObject(index)
+                    .getJSONObject("parity") to JSONObject() else run(samples, true)
+                val native = run(samples, false)
                 if (old.first.toString() != native.first.toString()) {
                     Files.write(reportFile.toPath(), JSONObject().put("identical", false).put("failure_kind", "parity")
                         .put("fixture", index).put("reference", old.first).put("native", native.first).toString(2).toByteArray())
@@ -113,14 +122,15 @@ class DictationInstrumentation : Instrumentation() {
                 }
                 if (index == 5) check(old.first.getJSONArray("flush").length() > 0) { "Clipped fixture did not exercise final flush" }
                 records.put(JSONObject().put("fixture", index).put("wav_sha256", hash(Files.readAllBytes(file.toPath())))
-                    .put("samples", wave.samples.size).put("parity", native.first))
+                    .put("samples", samples.size).put("parity", native.first))
             }
             val production = ProductionListenerComparison.run(targetContext, files.first(), records.getJSONObject(0).getJSONObject("parity"))
             val timing = JSONArray()
-            val timed = WaveReader.readWave(files.first().path).samples
+            val timed = if (nativeOnly) MicAudio.Replay.pcm16(files.first().readBytes())
+                else WaveReader.readWave(files.first().path).samples
             repeat(if (options.getString("timings") == "false") 0 else 10) { trial ->
                 sendStatus(0, Bundle().apply { putInt("trial", trial); putLong("start_ns", System.nanoTime()) })
-                for (reference in if (trial % 2 == 0) listOf(true, false) else listOf(false, true)) {
+                for (reference in if (nativeOnly) listOf(false) else if (trial % 2 == 0) listOf(true, false) else listOf(false, true)) {
                     val record = run(timed, reference, measureOnly = true)
                     val expected = JSONObject(records.getJSONObject(0).getJSONObject("parity").toString()).also { it.put("session_states", JSONArray()) }
                     check(record.first.toString() == expected.toString()) { "Timing run changed output" }
@@ -128,6 +138,8 @@ class DictationInstrumentation : Instrumentation() {
                 }
             }
             val report = JSONObject().put("fixtures", records).put("timings", timing).put("production_listener", production).put("identical", true)
+                .put("native_only", nativeOnly)
+            if (nativeOnly) report.put("oracle_sha256", hash(oracleFile.readBytes()))
             val pending = File(reportFile.path + ".tmp"); Files.write(pending.toPath(), report.toString(2).toByteArray()); check(pending.renameTo(reportFile))
             result.putBoolean("dictation_complete", true); finish(Activity.RESULT_OK, result)
         } catch (failure: Throwable) {

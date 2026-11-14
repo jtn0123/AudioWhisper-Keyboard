@@ -94,9 +94,14 @@ public final class ProbeAccessibilityService extends AccessibilityService {
                 // Settings UI actions use exact public labels, never return the application tree.
                 AccessibilityNodeInfo node = find(root, setting);
                 while (node != null && !node.isClickable()) node = node.getParent();
+                boolean geometryOnly = intent.getBooleanExtra("geometryOnly", false);
+                if (node != null && geometryOnly) {
+                    Rect bounds = new Rect(); node.getBoundsInScreen(bounds);
+                    result.put("bounds", new JSONArray(new int[]{bounds.left, bounds.top, bounds.right, bounds.bottom}));
+                }
                 result.put("found", node != null).put("rootClass", root.getClassName())
                     .put("rootChildren", root.getChildCount())
-                    .put("ok", node != null && node.performAction(AccessibilityNodeInfo.ACTION_CLICK));
+                    .put("ok", node != null && (geometryOnly || node.performAction(AccessibilityNodeInfo.ACTION_CLICK)));
             } else if (intent.hasExtra("panelTarget")) {
                 // Fixed action geometry only, even during the disposable editing fixture.
                 // Never dump a tree, candidate label or application/editor node in this mode.
@@ -184,6 +189,17 @@ public final class ProbeAccessibilityService extends AccessibilityService {
             actions.put(new JSONObject().put("id", action.getId()).put("label", nullable(action.getLabel())));
         }
         item.put("actions", actions);
+        // Fixture history is targeted by digest; never write clipboard payloads to a dump.
+        for (String field : new String[]{"text", "description"}) {
+            String label = item.optString(field, "");
+            if (label.contains("aw-test-")) {
+                byte[] digest = java.security.MessageDigest.getInstance("SHA-256")
+                    .digest(label.getBytes(StandardCharsets.UTF_8));
+                StringBuilder hash = new StringBuilder();
+                for (byte value : digest) hash.append(String.format(java.util.Locale.ROOT, "%02x", value & 255));
+                item.put(field + "Sha256", hash.toString()).put(field, JSONObject.NULL);
+            }
+        }
         nodes.put(item);
         for (int i = 0; i < node.getChildCount(); i++) {
             AccessibilityNodeInfo child = node.getChild(i);

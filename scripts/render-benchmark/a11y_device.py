@@ -6,6 +6,9 @@ import shlex
 import subprocess
 import time
 import uuid
+import runpy
+
+agent_ui = runpy.run_path(str(Path(__file__).with_name('agent-ui.py')))
 
 PKG = "com.jtn0123.audiowhisper.keyboard"
 PROBE = "com.jtn0123.renderprobe"
@@ -25,6 +28,11 @@ class Device:
         return subprocess.check_output(["adb", "-s", self.serial, *map(str, args)], text=True)
 
     def shell(self, *args):
+        if os.environ.get('AGENT_DEVICE'):
+            if args[:2] == ('am', 'start'):
+                return agent_ui['launch'](args[2:])
+            if args[0] == 'input' and args[1] != 'motionevent':
+                return agent_ui['touch'](args[1:])
         return self.adb("shell", shlex.join(list(map(str, args))))
 
     def save(self, name, value):
@@ -114,7 +122,14 @@ class Device:
                 "--es", "request", request, "--ei", "delay", delay]
         if setting:
             args += ["--es", "setting", setting]
+            if os.environ.get('AGENT_DEVICE'):
+                args += ['--ez', 'geometryOnly', 'true']
         self.shell(*args)
+        if setting and os.environ.get('AGENT_DEVICE'):
+            reply = self.wait(lambda: self.response(request), 'Setting geometry absent')
+            if reply.get('found'):
+                x1, y1, x2, y2 = reply['bounds']
+                self.tap((x1 + x2) // 2, (y1 + y2) // 2)
         return request
 
     def response(self, request):

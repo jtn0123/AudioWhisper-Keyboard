@@ -338,6 +338,33 @@ restore the payload with `operation=restore`, then restore Room while its owner 
 
 ### Dedicated test-store sessions
 
+For T3-owned acceptance, export `AGENT_DEVICE` as the exact command returned by
+`device_open`, and `ANDROID_SERIAL` as its runtime serial. The shared adapter uses
+agent-device for launches, settings clicks, taps, holds and text. Settings deep links
+retain their original `android.intent.category.BROWSABLE` category. Double Shift uses
+the dedicated `--double-tap` action: ordinary repeated host-dispatched taps can reach
+Android's 300 ms cutoff despite a requested 80 ms pause.
+
+The existing multi-segment/cancel/open-popup fixtures retain their documented input
+runner. The existing `panels.py` 500 ms gutter swipes also retain their original
+serial-scoped adb call. On 2026-11-14, agent-device's pan left `Ui Automation` attached
+and suppressed the probe observer; subsequent service binding failed with zero new
+AndroidRuntime matches. Closing/reopening only the owned T3 session releases it.
+The user explicitly authorized these fixed scrolls; other navigation stays on agent-device.
+
+`DEVICE_BASELINE` optionally names the fresh device's baseline directory, containing
+`baseline.json` and `preferences.jetpref`. Store sessions validate its serial/hash,
+restore exact preference bytes and accessibility values before/after each wrapper,
+and record verification alongside the canonical store hashes. An old guest's pending
+record does not apply merely because its numeric runtime serial is reused.
+
+`acceptance-extras.py OUTPUT --baseline OLD_EXTRAS` checks all 17 existing records.
+Its clipboard probe hashes rows in the app process; clipboard item labels are hashed
+before dump publication. Empty original Room files remain on-device and their exact
+restoration is verified. No clipboard payload database is exported. The disposable
+`reader` field masks application glyphs while retaining accessibility text, allowing
+real stop/highlight screenshots without saving the read-aloud source.
+
 Run typing wrappers through `python3 -I scripts/render-benchmark/typing-suite.py OUTPUT` or
 `python3 -I scripts/render-benchmark/store-session.py OUTPUT/stores -- COMMAND...`.
 The latter also wraps dictation/extra wrappers. `nlp-learning.py` uses the same session itself.
@@ -346,3 +373,41 @@ installed with the IME stopped and checked by SHA-256. Each restoration is check
 next wrapper. Guest failure leaves `stores-pending.json` and fails the session; rerunning resets
 the store first. No accumulated test words are backed up or logged. Keep ANDROID_SERIAL scoped
 to the owned dedicated emulator and agent-device idle during scripts.
+
+The restored SSD baseline has `smartbar__shared_actions_expanded=true`. The candidate
+fixture must collapse that strip before typing: otherwise the fixed candidate coordinate
+hits More actions instead. `suggestions.py` and `nlp.py` explicitly select the candidate
+strip; hash-only strip geometry records distinguish this fixture-preparation failure from
+an NLP regression. The enclosing state wrapper restores the original expanded flag and
+exact preference bytes. Expected commit digests are unchanged.
+
+
+### File-only speech and platform acceptance probes
+
+`reader-ui.py OUTPUT` requires the masked `reader` probe field and rendererFixture test APK.
+It verifies real muted neural playback, uses the floating Stop reading pill and records
+reading/stopped screenshot pairs on both renderers. Its metadata bridge uses Java I/O
+so historical unchanged APKs do not need unused Kotlin I/O facades retained.
+
+For the seven-fixture dictation comparison, build main/test with `-PdictationFixture=true`,
+install both with the installer, and seal their copies under ignored `build/`. Then run:
+
+```sh
+ANDROID_SERIAL=<owned-runtime> python3 -I scripts/dictation-proof.py OUTPUT \
+  --apk SEALED_MAIN_APK --test-apk SEALED_TEST_APK
+```
+
+The runner retains a fresh hash-only oracle on-device. Rebuild with
+`-PdictationFixture=true -PjniFreeFixture=true`, seal/install both APKs, then run with
+`--native-only --oracle PREVIOUS_OUTPUT/comparison.json` and the new APK paths.
+This uses the production `MicAudio.Replay` file producer and checks all seven fixtures
+against the fresh oracle. `apk-maps.py` validates installed APK hashes, guards ZIP entry
+paths/types/sizes before payload inspection, and resolves uncompressed ELF mappings by
+APK offsets. A `.so` filename grep alone cannot establish absence of JNI libraries.
+
+The rendererFixture controller also offers hash-only acceptance snapshots of all declared
+preferences, subtype IDs/counts, MIME/locale/ref results, and fixed synthetic learned-store
+mutation. The `dictationFixture` numeric `editor-meta` operation observes field/caps/shift
+state inside the existing IME process; instrumentation startup would restart that process.
+Neither hook is included in normal debug builds. All fixtures require exact canonical-state
+restoration and never authorize opening the room microphone.

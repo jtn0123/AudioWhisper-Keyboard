@@ -24,7 +24,7 @@ KEYS = {
     'localization__subtypes':'s', 'localization__active_subtype_id':'l',
     'keyboard__utility_key_enabled':'b','keyboard__utility_key_action':'s',
     'gestures__space_bar_long_press':'s', 'suggestion__incognito_mode':'s',
-    'suggestion__enabled':'b','emoji__suggestion_enabled':'b','theme__mode':'s',
+    'smartbar__shared_actions_expanded':'b','suggestion__enabled':'b','emoji__suggestion_enabled':'b','theme__mode':'s',
     'theme__day_theme_id':'s','theme__night_theme_id':'s',
 }
 

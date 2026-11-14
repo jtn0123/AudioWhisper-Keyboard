@@ -50,6 +50,34 @@ public final class FixtureInstrumentation extends Instrumentation {
         } finally {com.jtn0123.audiowhisper.rust.EditorNative.free(handle);}
     }
 
+    /** Uses Java I/O so an unchanged old APK need not retain unused Kotlin file facades. */
+    private void readerState(Context context) {
+        try {
+            org.json.JSONObject report = new org.json.JSONObject().put("status",
+                com.jtn0123.audiowhisper.reader.ReadAloud.INSTANCE.getStatus().getValue().name());
+            java.lang.reflect.Field serviceField = com.jtn0123.audiowhisper.reader.ReadAloud.class.getDeclaredField("service");
+            serviceField.setAccessible(true);
+            Object service = serviceField.get(null);
+            Object voice = null;
+            if (service != null) {
+                java.lang.reflect.Field speaking = service.getClass().getDeclaredField("speaking");
+                speaking.setAccessible(true);
+                voice = speaking.get(service);
+            }
+            boolean neural = voice != null && voice.getClass().getName().endsWith(".NeuralVoice");
+            report.put("neural", neural);
+            if (neural) {
+                java.lang.reflect.Field trackField = voice.getClass().getDeclaredField("track");
+                trackField.setAccessible(true);
+                android.media.AudioTrack track = (android.media.AudioTrack) trackField.get(voice);
+                report.put("playback_head_frames", ((long) track.getPlaybackHeadPosition()) & 0xffff_ffffL);
+            }
+            File pending = new File(context.getFilesDir(), "reader-probe.json.tmp");
+            Files.write(pending.toPath(), report.toString().getBytes(StandardCharsets.UTF_8));
+            if (!pending.renameTo(new File(context.getFilesDir(), "reader-probe.json"))) throw new IllegalStateException("Reader probe publish failed");
+        } catch (Exception failure) { throw new IllegalStateException("Reader metadata probe failed", failure); }
+    }
+
     @Override public void onCreate(Bundle arguments) { super.onCreate(arguments); start(); }
     @Override public void onStart() {
         Context context = getTargetContext();
@@ -59,7 +87,17 @@ public final class FixtureInstrumentation extends Instrumentation {
                 GifSearch search = GifSearch.INSTANCE;
                 FlorisApplication app = (FlorisApplication) context.getApplicationContext();
                 String op = intent.getStringExtra("op");
-                if ("editor-state".equals(op)) {
+                if ("acceptance-snapshot".equals(op)) {
+                    AcceptanceProbe.snapshot(context);
+                } else if ("clipboard-snapshot".equals(op)) {
+                    AcceptanceProbe.clipboard(context);
+                } else if ("reader-state".equals(op)) {
+                    readerState(context);
+                } else if ("learned-fixture".equals(op)) {
+                    AcceptanceProbe.learnedFixture(context);
+                } else if ("backup-change-settings".equals(op)) {
+                    AcceptanceProbe.changeBackupSettings();
+                } else if ("editor-state".equals(op)) {
                     try {
                         dev.patrickgold.florisboard.ime.editor.EditorInstance editor = app.getEditorInstance().getValue();
                         if (!"com.jtn0123.renderprobe".equals(editor.getActiveInfo().getPackageName()) || editor.getActiveContent().getText().length() != 0)

@@ -17,6 +17,17 @@ FIXTURES={f'aw-test-{n}' for n in range(1,5)}
 
 def history(device):
     """Copy Room files privately; publish only digests and fixed fixture metadata."""
+    if os.environ.get('HASH_ONLY_CLIPBOARD') == '1':
+        device.shell('run-as', PKG, 'rm', '-f', 'files/clipboard-probe.json')
+        device.shell('am', 'broadcast', '-a', 'com.jtn0123.audiowhisper.RENDER_FIXTURE',
+                     '-p', PKG, '--es', 'op', 'clipboard-snapshot')
+        def response():
+            result = subprocess.run(['adb', '-s', device.serial, 'exec-out', 'run-as', PKG,
+                                     'cat', 'files/clipboard-probe.json'], capture_output=True, text=True)
+            if result.returncode == 0:
+                return {'rows': json.loads(result.stdout)}
+            return None
+        return device.wait(response, 'Hash-only clipboard probe absent')['rows']
     folder=device.output/'private-room';folder.mkdir(exist_ok=True)
     for suffix in ('','-wal','-shm'):
         path='databases/clipboard_history'+suffix
