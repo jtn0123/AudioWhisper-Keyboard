@@ -4,7 +4,7 @@
 
 Inventory captured at `4685918a` before production edits: **358 external fun declarations in 43 production Kotlin files** (357 in lib/rust, one UtilityNative in lib/kotlin). Largest files: KeyboardRenderer 41, WordStoresNative 32, SuggestNative 29, GifNative 22, KeyModels 18, ReaderNative 15. The tracked-source counter reports Kotlin 52,839, Java 321, Rust 51,310: **49.11% Rust**. The supplied 49.09% was an earlier revision. No ratio-driven changes are authorized.
 
-This is the pre-implementation inventory commit. Merge/remove rows are work to prove, not completion claims. Every declared JNI method appears below. Paths in the entry column are relative to lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust unless stated otherwise. Rust source paths are relative to lib/rust/crates/awnative/src. The JNI symbol is `Java_<package_with_underscores>_<owner>_<method>`; package is com.jtn0123.audiowhisper.rust except UtilityNative (org.florisboard.lib.kotlin). The Rust column gives the implementing Rust function location and engine calls. Callers are direct managed call sites, including lib/rust transport wrappers. Counts in the hot-path table are structural call counts, not timings.
+The inventory below preserves the pre-implementation view from commit `598264f5`. Final row dispositions and proof follow the inventory. Every declared JNI method appears below. Paths in the entry column are relative to lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust unless stated otherwise. Rust source paths are relative to lib/rust/crates/awnative/src. The JNI symbol is `Java_<package_with_underscores>_<owner>_<method>`; package is com.jtn0123.audiowhisper.rust except UtilityNative (org.florisboard.lib.kotlin). The Rust column gives the implementing Rust function location and engine calls. Callers are direct managed call sites, including lib/rust transport wrappers. Counts in the hot-path table are structural call counts, not timings.
 
 ## Hot paths and platform ownership
 
@@ -18,6 +18,28 @@ This is the pre-implementation inventory commit. Merge/remove rows are work to p
 | H1 key press / candidate publication | One packed renderer touch per MotionEvent, dispatch lifecycle and route plans separated by Android effects; editor resumes ICU/provider requests; NLP config/call emits whole candidate plan. State/evaluator getters depend on observed recomposition count | keep event/test seams: Android clocks, MotionEvent, InputConnection, ICU and observable bindings. No fixed per-key count exists under async callbacks; do not claim all 41 renderer methods run per key |
 | H2 key/layout/domain evaluation | KeyModels scalar selectors/read/write are one call per property/selector; layout assembly already bulk; enabled/visible depend on locked clipboard/platform facts | keep test seam/platform snapshots; do not cache mutable Android facts or alter observable-state notification ordering |
 | H3 GIF/clipboard/emoji | One call per distinct storage or panel event; native upload one call per decoded frame | keep Android API: Room, clipboard, network/frame decode and platform callbacks have separate lifetimes |
+
+### Counted phases of a key/candidate action
+
+For an accepted ordinary DOWN/UP pair, InputEventDispatcher makes five lifecycle
+exchanges: DOWN, DELAYS, ACK_DOWN, UP, ACK_UP. Each receiver phase makes one
+FACTS(code), one FACTS(SHIFT) through isPressed, and one InputRules.route: six more
+for the pair. sendDownUp instead has three lifecycle exchanges plus the same six
+receiver calls. A Rust-renderer MotionEvent adds one packed touch exchange; the
+number of MOVE events is input-dependent. KeyModels property reads/writes, feedback,
+locale casing/text conversion and the requested editor operation add separate calls.
+Rejected downs, cancellation, hold/repeat and receiver absence follow their own plans.
+This is a structural breakdown of the named layer, not an asserted end-to-end total.
+
+One completed asynchronous candidate request has beginFor, ready and completeFor
+(three NLP exchanges); its clipboard assembly adds clipboardBeginFor and clipboardFor
+(two more). The Latin provider adds one native suggest call, with separate typed-word,
+previous-word and tap packet projections as listed in the complete inventory. Emoji
+and Android clipboard-provider work depend on enabled policy. Context observers,
+selection callbacks, invalidation and UI recomposition may add calls independently.
+No per-candidate loop crosses JNI to publish the strip; the completion returns the
+whole visibility plan. These counts and phases are unchanged by package 20. Glide
+and learner context loops are the measured per-item boundaries consolidated below.
 
 ## Rust to Kotlin callbacks (all call sites)
 
@@ -423,11 +445,11 @@ Only production methods are considered; DTOs, Android effects, lifecycle ownersh
 
 ## Proof and results
 
-Pending implementation. For each logical change: preserve independent Kotlin reference, compare JNI/JVM results, back up and restore each deliberate mutation byte-for-byte, benchmark bulk/hot changes on aw_keyboard_ssd, run both-renderer replays plus relevant package fixtures. The exact full gate must exit zero before each push. Existing tests and latin-oracle remain unchanged.
+Each logical change preserves independent Kotlin references and existing assertions. Mutations back up and restore exact source bytes. Bulk/hot changes use paired APK measurements on aw_keyboard_ssd; both-renderer replays and relevant package fixtures are recorded below. The exact full gate must exit zero before each push. Latin-oracle is unchanged.
 
 ## Open items
 
-C1, C2, G1, R1 and W1–W5 are not delivered by this inventory commit. C3 is deliberately retained unless an identical demand-driven replacement is proved. Device and timing results will be appended without relabelling historical evidence.
+C1/C2, G1, R1, W1–W5 and the pure SearchText part of W16 are implemented. C3 is deliberately retained on Android semantics and measured cost. H1–H3 and the other managed owners remain platform/lifetime/test seams. Live GIPHY results need a key; phone/120 Hz renderer acceptance remains outside this package. No merge/remove row is deferred. Final gate/device accounting follows below.
 
 Baseline full gate: exit **0**, 2m 37s; no oracle crash. Evidence: ignored `build/stage2-consolidation/before/gate.log` and `gate.exit`.
 
@@ -636,3 +658,118 @@ frozen SearchText facade; its initial failed compilation is retained in
 The no-key GIF search replay also matches on both renderers: query digest and typing
 state match, key_available is false, and no text reaches the editor (`w-gif/`). Live
 GIPHY results remain unverified because no key is available.
+
+## Final boundary accounting
+
+| Inventory rows | Disposition | Reason / resulting exchange |
+| --- | --- | --- |
+| C1, W12 | remove callback chain; retain ownership | One native learner transaction uses the native dictionary directly; no Rust → Kotlin → Rust lookup |
+| C2, C1a/C2a/C2b | remove normal Android callback exports; retain reference seams | Five legacy exports are fixture/host-only. The decode callback was already unused by production after A1; it was not an active decoder chain |
+| G1, W14 | merge | Native context queries and stable rank share one exchange, up to 3N+2 → 1 JNI calls |
+| R1 | merge | join/find/resume carry one UTF-16 string plus lengths instead of per-string JNI arrays |
+| W1–W5; SearchText in W16 | remove production facade | Call the same rules directly; preserve original facade and independent comparisons in test sources |
+| C3a–C3c | keep | Android reads are lazy/observable; identical per-node packing regressed measured p50/p95 and was reverted |
+| C4 | keep | Synchronous Android PCM consumer owns AudioTrack/cancellation/backpressure; borrowed samples expire after callback |
+| H1–H3, W6–W11, W13, W15, remainder of W16, W17–W18 | keep | Android effects, IO, mutable UI/model identity, native ownership or independent test seams as itemized above |
+
+The complete per-method table is a baseline inventory, not a list of deleted symbols.
+Lifecycle/reset/undo/drop entries (including SuggesterNative.new/freeLearner) remain
+required, callback-free ownership operations. Typed legacy declarations remain for
+references; production consumers no longer enter their five removed Android exports.
+
+| Metric | Before | After |
+| --- | ---: | ---: |
+| Production-source `external fun` declarations | 358 / 43 files | 360 / 45 files |
+| Rust → Kotlin invocation sites in all source | 8 | 8 (3 reference-only) |
+| Invocation sites compiled into normal Android | 8 | 5 |
+| Callback method contracts in normal Android | 9 | 5 |
+| Active production invocation sites | 6 | 5 |
+| Tracked main Kotlin / Java / Rust nonblank lines | 52,839 / 321 / 51,310 | 52,745 / 321 / 51,498 |
+| Rust share, supplied `rust_share.py` | 49.11% | 49.25% |
+
+The extra declarations are NativeLearnerNative.call and NativeGlideNative.rank. A lower
+source declaration count would require deleting reference seams or folding unrelated
+lifetime operations into an opcode API without a measured benefit; neither is this
+package's objective. The provided 49.09% belonged to 95c76b21; the verified starting
+checkout was 4685918a. No tests were removed or weakened to change this ratio.
+
+Four shipped-boundary deliberate mutations were caught and restored: learner probability
+(1 fresh assertion), glide learned-pair effect (1), reader first-piece metadata (1),
+and accidentally enabling legacy-fixture in a normal APK (1 packaged-export rejection).
+The rejected C3 prototype adds two supplemental assertion failures, excluded from the
+four shipped-boundary mutation count. Every restored comparison/check exits zero.
+
+## Final validation
+
+The exact required command exits **0** in **3m 18s**:
+
+```sh
+./gradlew --stacktrace test :app:lintDebug :lib:rust:check :lib:rust:oracleCheck assembleDebug
+```
+
+Evidence: `final-gate.log`, `final-gate.exit`. JVM reports contain 486 app, 173 lib/rust
+and 128 lib/snygg tests: **787 tests, zero failures/errors/skips**. Rust tests, Clippy,
+formatting and the unchanged C++ Latin oracle pass. No SIGSEGV occurred, so no crash
+rerun was needed. Lint XML contains only AndroidGradlePluginVersion,
+NewerVersionAvailable and ChromeOsAbiSupport. There are no compiler warnings. The
+pre-existing unit-test manifest merge notice about removing an absent EmojiCompat
+initializer appears in both baseline and final gates; it is not a lint/compiler finding.
+The earlier overlapping-build packaging failure is retained above, not substituted
+for this successful gate.
+
+The normal APK has no legacy fixture exports or A1 snapshot entry. Its packaged
+libawnative bytes equal the compiled stripped artifact, SHA-256
+`4ece59a340436419269b44518a12d16e3ca8702b239e0a46db4bbd6df5373fea`
+(`final-apk.json`). App/probe installation uses install-dev.sh exclusively. No source
+in latin-oracle, settings/stage 4 or local.properties changed; Compose remains. All
+changed/new owned code files are below 500 nonblank/noncomment lines. Models, APKs,
+grade reports and .kotlin sessions are not committed.
+
+The additional harness checks pass: test_muting.py **2 tests**, and test_clipboard_gif
+**5 tests** (unittest discovery from scripts/render-benchmark, retaining Python -I).
+Evidence: `final-muting-tests.log`, `final-clipboard-gif-tests.log`.
+
+Final **normal APK** checks (`final-typing/typing-results.json`) exit zero with verified
+canonical-store restoration around each wrapper:
+
+- regression.sh invokes run.sh on Compose and Rust: both retain exactly 300 UTF-16
+  units / `809d588bf48a1e900159a2692fc202c6a7d10d95dfdcc48767851aaa041ef7d3`,
+  then 308 / `c14d19d26f290a2478c424ae4fb4a4f28f538a5677f12491d526554126cbc555`;
+- suggestions.py matches autocorrect and candidate-pick digests on both renderers;
+- input-glide.py matches all five existing glide/candidate/cancel checkpoints on both.
+
+Relevant fixture checks elsewhere in this package include both A1 digests, the 6,000
+reader comparisons and 65,536 transport units, native cohort timing/fingerprints, live
+learning/unlearning, incognito storage, password candidate/inline counts, real muted
+neural read/stop and no-key GIF search. Inline delivery itself and live GIPHY responses
+are not claimed; the password inline count remains zero. No microphone was opened.
+Only aw_keyboard_ssd / returned emulator-5556 was driven. The reserved emulator-5554
+was never targeted. All UI input used the returned agent-device transport through the
+project runners; application/probe installation used install-dev.sh.
+
+Cleanup retains its initial failed literal-runtime audit (`final-cleanup.log` and
+`final-cleanup/runtime-errors.txt`). All **20** matching lines are DEBUG/INFO startup
+and exit-0 messages from exactly four shell `am` processes. Every message was matched
+to the complete five-message startup/exit sequence; there is no app exception/fatal
+in that final runtime window (`runtime-audit.json`). Earlier failed test-instrumentation
+fatals are retained above and are not erased from this report's history.
+
+The final byte audit also caught a late write to the transient
+smartbar__shared_actions_expand_with_animation flag during NLP initialization. Stopping
+the selected IME makes Android choose its fallback, so final cleanup selects the project
+IME first, then restores the original durable preference bytes after that last bind.
+Three consecutive hash/IME checks pass before shutdown. No application assertion was
+changed. These cleanup preflights are retained; they are not accepted zero-error logs.
+
+Pre-shutdown cleanup (`final-cleanup/cleanup.json`) verifies the original preference
+SHA `0e622df78757593b44492677be6295051f14dcd44314fe42b8e9231e1b2d17a4`,
+prototype off, Always Day/Floris Day, original accessibility null/0, project IME,
+DND off, streams 1/2/3/5 = 0 and 4/10 = 1, original canonical learned/kept hashes,
+and no pending store records. Disposable probe/test APKs and private dictionary/replay
+files were removed; models and the normal app remain.
+
+`device_close(shutdown=true)` reported “Could not communicate with device support”.
+The advised refresh confirms aw_keyboard_ssd booted=false; `adb devices` confirms
+emulator-5556 is absent (`final-adb-devices.txt`). Only the untouched reserved runtime
+remains. The Device panel inventory retains a stale open-session row, despite the AVD
+being off. No further device action was attempted.
