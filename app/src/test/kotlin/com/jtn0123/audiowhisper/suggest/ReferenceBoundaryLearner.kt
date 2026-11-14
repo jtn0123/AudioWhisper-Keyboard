@@ -1,6 +1,6 @@
 package com.jtn0123.audiowhisper.suggest
 
-import com.jtn0123.audiowhisper.rust.Learner
+import com.jtn0123.audiowhisper.rust.LegacyLearner
 import com.jtn0123.audiowhisper.rust.WordProbabilities
 
 /**
@@ -17,7 +17,7 @@ import com.jtn0123.audiowhisper.rust.WordProbabilities
  * Call from the main thread only. Never logs a word.
  */
 class ReferenceBoundaryLearner(history: LearnedWords, private val lookup: () -> WordLookup?) {
-    private val learner = Learner(history.store)
+    private val learner = LegacyLearner(history.store)
 
     /** The dictionary, as the Rust asks it. */
     private class Probabilities(private val lookup: WordLookup) : WordProbabilities {

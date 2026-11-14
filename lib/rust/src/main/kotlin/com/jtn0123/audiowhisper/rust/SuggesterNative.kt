@@ -10,49 +10,13 @@ internal object SuggesterNative {
         RustLibrary.load()
     }
 
-    @JvmStatic external fun suggest(
-        personal: Long,
-        learned: Long,
-        dictionary: SuggestDictionary,
-        typed: String,
-        previousWords: Array<String>,
-        isBeginningOfSentence: Boolean,
-        isCursorMidWord: Boolean,
-        maxCount: Int,
-        threshold: Float,
-        marks: IntArray,
-    ): Array<String>
 
-    @JvmStatic external fun spell(
-        personal: Long,
-        learned: Long,
-        dictionary: SuggestDictionary,
-        word: String,
-        maxCount: Int,
-        threshold: Float,
-        verdict: IntArray,
-    ): Array<String>
 
     @JvmStatic external fun newLearner(): Long
 
     @JvmStatic external fun freeLearner(learner: Long)
 
-    @JvmStatic external fun learnerFinished(
-        learner: Long,
-        store: Long,
-        dictionary: WordProbabilities?,
-        word: String,
-        textBefore: String,
-        start: Int,
-    ): Boolean
 
-    @JvmStatic external fun learnerSwiped(
-        learner: Long,
-        store: Long,
-        dictionary: WordProbabilities?,
-        word: String,
-        textBefore: String,
-    ): Boolean
 
     @JvmStatic external fun learnerDropSwiped(learner: Long)
 

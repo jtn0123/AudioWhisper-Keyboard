@@ -312,6 +312,8 @@ dependencies {
     // AOSP LatinIME dictionary engine (Apache-2.0): word suggestions and autocorrect.
     // The keyboard's Rust code (libawnative): glide typing's scorer.
     implementation(projects.lib.rust)
+    testImplementation(testFixtures(projects.lib.rust))
+    androidTestImplementation(testFixtures(projects.lib.rust))
     implementation(projects.lib.snygg)
 
     testImplementation(libs.kotlin.test.junit5)
@@ -384,3 +386,14 @@ if (!sherpaOracle) {
         variant.sources.jniLibs?.addGeneratedSourceDirectory(extractSherpaC) { it.outputDirectory }
     }
 }
+
+// Check the APK itself, including unused production declarations that R8 may discard.
+val checkNativeDeclarations = tasks.register<Exec>("checkNativeDeclarations") {
+    group = "verification"
+    description = "Rejects production native declarations missing from the normal debug APK."
+    dependsOn("assembleDebug")
+    workingDir(rootDir)
+    commandLine("python3", "-I", "scripts/native-declarations-check.py",
+        "app/build/outputs/apk/debug/app-debug.apk")
+}
+tasks.named("check") { dependsOn(checkNativeDeclarations) }

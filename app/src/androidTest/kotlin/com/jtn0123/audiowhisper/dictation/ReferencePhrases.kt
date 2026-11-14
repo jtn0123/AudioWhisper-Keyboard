@@ -1,5 +1,6 @@
 package com.jtn0123.audiowhisper.dictation
 
+import com.jtn0123.audiowhisper.rust.LegacyDictation
 import com.jtn0123.audiowhisper.rust.DictationRules
 
 /**
@@ -25,7 +26,7 @@ object Phrases {
      * most once.
      */
     fun join(before: CharSequence?, lastPhrase: String?, phrase: String, isName: (String) -> Boolean): Typing =
-        typing(DictationRules.join(before?.toString().orEmpty(), lastPhrase, phrase) { isName(it) })
+        typing(LegacyDictation.join(before?.toString().orEmpty(), lastPhrase, phrase) { isName(it) })
 
     /**
      * How to type a spoken punctuation [mark] ("question mark"): in place of the punctuation

@@ -50,13 +50,13 @@ class DictationRulesTest {
         // A lone surrogate, a pair, a NUL and a byte-order mark: Kotlin Strings may hold any of them.
         val odd = "a\uD800b 😀 \u0000﻿"
         assertEquals(listOf(Kind.WORDS to odd), parts(odd))
-        assertEquals(" $odd", DictationRules.join("x", null, odd) { false }.text)
+        assertEquals(" $odd", LegacyDictation.join("x", null, odd) { false }.text)
     }
 
     @Test
     fun joinAsksForNamesAndUnpacksTheTyping() {
         val asked = mutableListOf<String>()
-        val typing = DictationRules.join("I need to talk to.", "talk to.", "John about it.") {
+        val typing = LegacyDictation.join("I need to talk to.", "talk to.", "John about it.") {
             asked += it
             it == "John"
         }
@@ -68,7 +68,7 @@ class DictationRulesTest {
     @Test
     fun anExceptionFromIsNameIsThrown() {
         val thrown = assertFailsWith<IllegalStateException> {
-            DictationRules.join("so", null, "Paris is") { error("no dictionary") }
+            LegacyDictation.join("so", null, "Paris is") { error("no dictionary") }
         }
         assertEquals("no dictionary", thrown.message)
     }

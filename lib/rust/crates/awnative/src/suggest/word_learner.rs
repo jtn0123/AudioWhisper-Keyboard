@@ -110,7 +110,7 @@ fn lookup(env: &Env, lookup: jobject) -> Result<Option<JavaLookup<'_>>> {
 /// (`WordLearner::finished`). Returns whether the store changed.
 #[unsafe(no_mangle)]
 #[cfg(any(not(target_os = "android"), feature = "legacy-fixture"))]
-pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_SuggesterNative_learnerFinished(
+pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_LegacyFixtureNative_learnerFinished(
     env: *mut JNIEnv,
     _: jclass,
     learner: jlong,
@@ -136,7 +136,7 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_SuggesterNative_learne
 /// changed.
 #[unsafe(no_mangle)]
 #[cfg(any(not(target_os = "android"), feature = "legacy-fixture"))]
-pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_SuggesterNative_learnerSwiped(
+pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_LegacyFixtureNative_learnerSwiped(
     env: *mut JNIEnv,
     _: jclass,
     learner: jlong,

@@ -3,14 +3,6 @@ package com.jtn0123.audiowhisper.rust
 import java.lang.ref.Reference
 
 /**
- * Says whether a capitalised word is a name ("John"), which keeps its capital mid-sentence. The
- * Rust calls [isName] by name, so lib/rust's consumer rules keep it through R8.
- */
-fun interface DictationNames {
-    fun isName(word: String): Boolean
-}
-
-/**
  * Dictation's text rules, in Rust (lib/rust/crates/dictation): finding spoken commands in a
  * transcribed phrase, joining phrases that were transcribed separately, and whether a backspace can
  * still take back the phrase typed last. The keyboard's `Spoken`, `Phrases` and `DictationUndo`
@@ -45,13 +37,6 @@ object DictationRules {
         }
         Part(kind, part.substring(1))
     }
-
-    /**
-     * How to type [phrase] after [before], the text up to the cursor, when [lastPhrase] is what
-     * dictation typed last. [names] is asked at most once.
-     */
-    fun join(before: String, lastPhrase: String?, phrase: String, names: DictationNames): Typing =
-        typing(DictationNative.join(before, lastPhrase, phrase, names))
 
     /** How to type the spoken punctuation [mark] after [before]. */
     fun punctuate(before: String, lastPhrase: String?, mark: Char): Typing =

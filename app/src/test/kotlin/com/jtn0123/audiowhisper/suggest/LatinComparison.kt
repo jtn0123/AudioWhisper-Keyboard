@@ -141,7 +141,7 @@ class LatinComparison(private val sigmaExact: Boolean) {
         val (words, pairs) = CAPACITIES.random(random) to CAPACITIES.random(random)
         val stores = LearnedWords(null, words, pairs) to LearnedWords(null, words, pairs)
         var lookup: WordLookup? = decoder
-        val learners = ReferenceLatin.WordLearner(stores.first, { lookup }) to WordLearner(stores.second, { lookup })
+        val learners = ReferenceLatin.WordLearner(stores.first, { lookup }) to FixtureWordLearner(stores.second, { lookup })
         repeat(steps) {
             // The dictionary closes and opens.
             if (random.nextInt(10) == 0) lookup = if (lookup == null) decoder else null
@@ -150,7 +150,7 @@ class LatinComparison(private val sigmaExact: Boolean) {
         }
     }
 
-    private fun learnerStep(random: Random, learners: Pair<ReferenceLatin.WordLearner, WordLearner>, vocabulary: List<String>) {
+    private fun learnerStep(random: Random, learners: Pair<ReferenceLatin.WordLearner, FixtureWordLearner>, vocabulary: List<String>) {
         val (reference, rust) = learners
         val word = random.learnable(vocabulary)
         val textBefore = random.textBefore(vocabulary)

@@ -68,7 +68,7 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_DictationNative_parse(
 /// the phrase's first word might be a name.
 #[unsafe(no_mangle)]
 #[cfg(any(not(target_os = "android"), feature = "legacy-fixture"))]
-pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_DictationNative_join(
+pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_LegacyFixtureNative_join(
     env: *mut JNIEnv,
     _: jclass,
     before: jstring,

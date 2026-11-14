@@ -12,7 +12,6 @@ internal object DictationNative {
 
     @JvmStatic external fun parse(phrase: String): Array<String>
 
-    @JvmStatic external fun join(before: String, lastPhrase: String?, phrase: String, names: DictationNames): String
 
     @JvmStatic external fun punctuate(before: String, lastPhrase: String?, mark: Char): String
 

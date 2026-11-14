@@ -128,7 +128,7 @@ fn unpack(packed: &[i32]) -> Result<Vec<RawSuggestion>> {
 /// `maxCount` words, drawing on the stores behind `personal` and `learned` (0 for none) and asking
 /// `dictionary`. `marks` gets the indexes of the auto-correction and the typed word, -1 for none.
 #[unsafe(no_mangle)]
-pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_SuggesterNative_suggest(
+pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_LegacyFixtureNative_suggest(
     env: *mut JNIEnv,
     _: jclass,
     personal: jlong,
@@ -172,7 +172,7 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_SuggesterNative_sugges
 /// corrections. `verdict` gets whether the word is valid and whether the first correction is
 /// confident, 1 or 0 each.
 #[unsafe(no_mangle)]
-pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_SuggesterNative_spell(
+pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_LegacyFixtureNative_spell(
     env: *mut JNIEnv,
     _: jclass,
     personal: jlong,

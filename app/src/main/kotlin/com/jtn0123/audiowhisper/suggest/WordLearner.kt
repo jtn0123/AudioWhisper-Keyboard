@@ -1,7 +1,6 @@
 package com.jtn0123.audiowhisper.suggest
 
 import com.jtn0123.audiowhisper.rust.Learner
-import com.jtn0123.audiowhisper.rust.WordProbabilities
 
 /**
  * Feeds [history] the words the user finishes. A typed word is finished by a space, punctuation
@@ -16,13 +15,8 @@ import com.jtn0123.audiowhisper.rust.WordProbabilities
  *
  * Call from the main thread only. Never logs a word.
  */
-class WordLearner(history: LearnedWords, private val lookup: () -> WordLookup?) {
+class WordLearner(history: LearnedWords, private val lookup: () -> LatinDictionaryEngine?) {
     private val learner = Learner(history.store)
-
-    /** Synthetic lookup seam for host/opt-in comparisons. Production supplies a native engine or null. */
-    private class Probabilities(private val lookup: WordLookup) : WordProbabilities {
-        override fun probability(word: String): Int = lookup.probability(word)
-    }
 
     /**
      * [word], which starts at [start] in the editor right after [textBefore], is finished.
@@ -30,17 +24,13 @@ class WordLearner(history: LearnedWords, private val lookup: () -> WordLookup?) 
      */
     fun finished(word: String, textBefore: CharSequence, start: Int): Boolean {
         val dictionary = lookup()
-        return if (dictionary == null || dictionary is LatinDictionaryEngine)
-            learner.learnNative(word, textBefore.toString(), start, false, dictionary?.session)
-        else learner.finished(word, textBefore.toString(), start, Probabilities(dictionary))
+        return learner.learnNative(word, textBefore.toString(), start, false, dictionary?.session)
     }
 
     /** A swiped [word] went in after [textBefore]; a swiped word still waiting before it is kept. */
     fun swiped(word: String, textBefore: CharSequence): Boolean {
         val dictionary = lookup()
-        return if (dictionary == null || dictionary is LatinDictionaryEngine)
-            learner.learnNative(word, textBefore.toString(), -1, true, dictionary?.session)
-        else learner.swiped(word, textBefore.toString(), Probabilities(dictionary))
+        return learner.learnNative(word, textBefore.toString(), -1, true, dictionary?.session)
     }
 
     /** The swiped word waiting to be kept was replaced or deleted. */

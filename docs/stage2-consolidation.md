@@ -773,3 +773,39 @@ The advised refresh confirms aw_keyboard_ssd booted=false; `adb devices` confirm
 emulator-5556 is absent (`final-adb-devices.txt`). Only the untouched reserved runtime
 remains. The Device panel inventory retains a stale open-session row, despite the AVD
 being off. No further device action was attempted.
+
+## Stage 4 prerequisite: isolate legacy managed seams (2026-11-14)
+
+The five callback exports excluded by package 20 now also have **no production Kotlin
+entry point**. `LegacyFixtureNative.suggest`, `spell`, `learnerFinished`, `learnerSwiped`
+and `join` are declared only in `lib/rust/src/testFixtures/test/kotlin`, in a separate
+Android testFixtures artifact. Their Rust exports use that fixture class name and still
+compile only on the host or with `legacy-fixture`. `LegacySuggester`, `LegacyLearner`,
+`LegacyDictation` and their callback interfaces live in that artifact too. JVM and Android
+reference tests depend on it explicitly; normal APKs do not.
+
+`WordLearner` accepts `LatinDictionaryEngine?`, including the original null-dictionary
+behavior. Its synthetic WordLookup adapter is `FixtureWordLearner` in app tests. The
+original Kotlin learner reference, callback/native real-dictionary comparison and all
+assertions remain. Production Learner retains only native-session learning and lifetime/
+undo/reset operations. Suggester's result DTOs remain shared with LatinSession.
+
+The required gate now runs `:app:checkNativeDeclarations`, through `:lib:rust:check`.
+`scripts/native-declarations-check.py` scans all owned main/debug Kotlin sources before
+shrinking and verifies all **355** external declarations against the **APK's** arm64
+`libawnative.so` dynamic exports. Strings and nested comments are excluded. Unsupported
+owner/overload shapes fail closed. Fixture sources are excluded by source set, rather
+than an allowlist of missing production symbols.
+
+`scripts/native-declarations-mutation.py` adds an unexported production native method,
+compiles/packages it, requires the actual Gradle check task to fail for its missing JNI
+symbol, restores the original bytes, and requires the task to pass. The fresh mutant
+exits **1**, restored exits **0**; restoration SHA is
+`8b15b24b8cfd527acc8e5369d41268695998c160f35447be12a93f428f450ec7`.
+Evidence is in ignored `build/stage4-settings/native-mutation/`. This also proves an
+unused method removed by R8 cannot escape source-to-APK verification.
+
+All **816 JVM tests** remain (486 app, 173 rust-wrapper, 128 Snygg, 29 Kotlin-library),
+with no failures, errors or skips. The full gate, Android test compilation, permitted-lint
+and warning audit are captured under `build/stage4-settings/step0-*`. Muting and clipboard/
+GIF harness checks pass (2 and 5 tests). No device has been opened for this prerequisite.

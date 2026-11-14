@@ -78,6 +78,12 @@ android {
         targetCompatibility = JavaVersion.VERSION_11
     }
 
+    testFixtures { enable = true }
+    sourceSets.getByName("testFixtures").kotlin.directories.apply {
+        clear()
+        add("src/testFixtures/test/kotlin")
+    }
+
     testOptions {
         unitTests.all {
             it.useJUnitPlatform()
@@ -230,7 +236,7 @@ val cargoFmtCheck = tasks.register<Cargo>("cargoFmtCheck") {
 }
 
 tasks.named("check") {
-    dependsOn(cargoTest, cargoClippy, cargoFmtCheck)
+    dependsOn(cargoTest, cargoClippy, cargoFmtCheck, ":app:checkNativeDeclarations")
 }
 
 tasks.register("oracleCheck") {

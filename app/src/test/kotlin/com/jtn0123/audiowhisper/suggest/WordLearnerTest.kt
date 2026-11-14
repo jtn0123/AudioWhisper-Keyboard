@@ -12,7 +12,7 @@ class WordLearnerTest {
         override fun probability(word: String) = if (word in dictionary) 150 else NOT_A_PROBABILITY
         override fun ngramProbability(previous: PreviousWords, word: String) = NOT_A_PROBABILITY
     }
-    private val learner = WordLearner(history, lookup = { lookup })
+    private val learner = FixtureWordLearner(history, lookup = { lookup })
 
     private val sentenceStart = PreviousWords(emptyList(), isBeginningOfSentence = true)
     private fun after(word: String) = PreviousWords(listOf(word), isBeginningOfSentence = false)
@@ -134,7 +134,7 @@ class WordLearnerTest {
 
     @Test
     fun withoutADictionaryWordsAreKeptAsTyped() {
-        val noDictionary = WordLearner(history, lookup = { null })
+        val noDictionary = FixtureWordLearner(history, lookup = { null })
         noDictionary.finished("The", "", start = 0)
         assertEquals(listOf("The"), storedAfter(sentenceStart))
     }

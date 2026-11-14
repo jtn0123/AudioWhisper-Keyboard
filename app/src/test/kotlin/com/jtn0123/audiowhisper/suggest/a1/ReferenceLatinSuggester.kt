@@ -1,7 +1,7 @@
 package com.jtn0123.audiowhisper.suggest
 
+import com.jtn0123.audiowhisper.rust.LegacySuggester
 import com.jtn0123.audiowhisper.rust.SuggestDictionary
-import com.jtn0123.audiowhisper.rust.Suggester
 
 /**
  * Turns decoder output into the candidate strip and decides auto-correction, following AOSP
@@ -44,7 +44,7 @@ class ReferenceLatinSuggester(
     /** The candidate strip for [state]: at most [maxCount] words, auto-correction first. */
     fun suggest(state: TypingState, maxCount: Int, blockOffensiveWords: Boolean): List<ArrangedWord> {
         val previous = state.previousWords
-        val strip = Suggester.suggest(
+        val strip = LegacySuggester.suggest(
             personalWords().store, history()?.store, Request(decoder, state, blockOffensiveWords), state.typed,
             previous.words, previous.isBeginningOfSentence, state.isCursorMidWord, maxCount, threshold,
         )
@@ -56,7 +56,7 @@ class ReferenceLatinSuggester(
     /** Spell-checks [word] with no context. */
     fun spell(word: String, maxCount: Int, blockOffensiveWords: Boolean): SpellCheck {
         val request = Request(decoder, TypingState(word, PreviousWords.NONE, isCursorMidWord = false), blockOffensiveWords)
-        val verdict = Suggester.spell(personalWords().store, history()?.store, request, word, maxCount, threshold)
+        val verdict = LegacySuggester.spell(personalWords().store, history()?.store, request, word, maxCount, threshold)
         return SpellCheck(verdict.isValid, verdict.suggestions, verdict.isHighConfidence)
     }
 }

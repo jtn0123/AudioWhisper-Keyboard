@@ -8,8 +8,8 @@ import tempfile
 import zipfile
 
 PREFIX = 'Java_com_jtn0123_audiowhisper_rust_'
-LEGACY = ['SuggesterNative_' + method for method in ('suggest', 'spell', 'learnerFinished', 'learnerSwiped')]
-LEGACY += ['DictationNative_join']
+LEGACY = ['LegacyFixtureNative_' + method for method in ('suggest', 'spell', 'learnerFinished', 'learnerSwiped')]
+LEGACY += ['LegacyFixtureNative_join']
 SNAPSHOT = 'Java_com_jtn0123_audiowhisper_suggest_A1Probe_snapshot'
 
 
