@@ -9,6 +9,9 @@ import xml.etree.ElementTree as ET
 
 ROOT = Path(__file__).resolve().parent.parent
 MUTATIONS = {
+    'walk': ('lib/rust/crates/awnative/src/reader_runtime.rs',
+             'password: f[4] != 0,', 'password: f[5] != 0,',
+             [':app:testDebugUnitTest', '--tests', '*ScreenTraversalMatchTest', '--tests', '*ReaderBoundaryOrderTest']),
     'learner': ('lib/rust/crates/awnative/src/suggest/word_learner.rs',
                 '?.probability(word)', '?.probability(&word[..0])',
                 [':app:testDebugUnitTest', '--tests', '*BoundaryLearnerMatchTest']),

@@ -493,9 +493,9 @@ requested consecutively for a visited node. Those two reads can be batched into 
 per-node UTF-16 packet without collecting the whole tree. Facts must be copied before
 fetching class name, preserving mutation/exception order. `ReaderBoundaryOrderTest`
 freezes the current bridge's password, fallback, malformed-facts and platform-failure
-read traces before this change. Existing 10,000 seeded tree comparisons and exact
-20,000-node/250-depth checks remain mandatory. C3a is therefore refined to **merge**;
-the traversal, child and text Android boundaries remain **keep**.
+read traces before evaluating the candidate. Existing 10,000 seeded tree comparisons
+and exact 20,000-node/250-depth checks remain mandatory. This candidate was subsequently
+**rejected on measured cost** below; all reader callbacks remain **keep**.
 
 ## C2: reference-only callbacks stay out of normal Android
 
@@ -521,3 +521,31 @@ demand-driven reader call sites and the synchronous PCM consumer at this point.
 No policy moved in C2; the deliberate feature/export mutation proves the shipping boundary.
 C1's post-change primary regression, suggestion and glide/cancel wrappers also pass on
 both renderers, with exact canonical restoration (`c1-typing/`).
+
+## C3: retain the measured Android traversal boundary
+
+The per-node facts/class packet candidate preserved all results, mutable-array copy
+order, exact platform exception identity, password/text pruning and post-cap child
+fetch failures. Swapping its password field caused two match assertions to fail and
+the backed-up prototype source was restored. It also passed the 6,000 Android reader
+comparisons and actual muted neural playback/stop on both renderers.
+
+It was nevertheless **reverted, not shipped**. Three alternating before/after APK
+rounds (60 timing samples per side), using the same test APK and exact result hash,
+showed the 513-node synthetic walk p50 **776,743 → 1,040,816.5 ns** and p95
+**922,666 → 1,417,900 ns**. Fewer callbacks did not pay for the extra packet packing.
+The original reader bridge remains byte-identical to C2; no eager tree snapshot or
+new reader wire format is in production. C3 stays **keep: Android API and measured cost**.
+The synthetic timing excludes actual AccessibilityNodeInfo/Binder latency; the real
+reader UI checks establish platform execution, not a full-screen walk latency claim.
+Evidence: `c3-control/`, `c3-paired/comparison.json`, `c3-before-reader/` and
+`c3-after-reader-verified/`. Prototype mutation assertions are not counted as shipped
+consolidation mutation coverage. The read-order/cap/UTF-16 regressions remain in tests.
+
+The combined opt-in fixture now uses the existing renderer instrumentation for boundary
+timing (`--runner renderer`) and live workflows, with `-PsuggestFixture=true
+-PrendererFixture=true`. Separate A1-only/renderer-only properties keep their existing
+runners. An attempted second manifest runner was rewritten by AGP; that unaccepted
+preflight is retained separately, and no extra manifest is shipped. No assertion changed.
+C1 live learning/unlearning, password candidate/inline counts and incognito storage
+checks pass on both renderers with exact baseline restoration (`c1-learning/`).

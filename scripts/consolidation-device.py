@@ -15,6 +15,7 @@ def main():
     parser.add_argument('output', type=Path)
     parser.add_argument('--baseline', type=Path)
     parser.add_argument('--a1', action='store_true')
+    parser.add_argument('--runner', choices=('a1', 'renderer'), default='a1')
     args = parser.parse_args()
     args.output.mkdir(parents=True, exist_ok=False)
     serial = os.environ['ANDROID_SERIAL']
@@ -23,7 +24,11 @@ def main():
     command = ['adb', '-s', serial, 'shell', 'am', 'instrument', '-w']
     if not args.a1:
         command += ['-e', 'boundaries', 'true']
-    command += ['com.jtn0123.audiowhisper.keyboard.test/com.jtn0123.audiowhisper.suggest.A1Instrumentation']
+    if args.a1 and args.runner != 'a1':
+        raise ValueError('A1 replay requires its A1 runner')
+    runner = ('com.jtn0123.audiowhisper.suggest.A1Instrumentation' if args.runner == 'a1'
+              else 'com.jtn0123.audiowhisper.render.FixtureInstrumentation')
+    command += ['com.jtn0123.audiowhisper.keyboard.test/' + runner]
     with STORES['fixture_session'](args.output / 'stores'):
         result = subprocess.run(command, capture_output=True, text=True, timeout=300)
         (args.output / 'instrumentation.log').write_text(result.stdout + result.stderr)

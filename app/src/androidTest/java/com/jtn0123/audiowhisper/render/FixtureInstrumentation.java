@@ -78,8 +78,24 @@ public final class FixtureInstrumentation extends Instrumentation {
         } catch (Exception failure) { throw new IllegalStateException("Reader metadata probe failed", failure); }
     }
 
-    @Override public void onCreate(Bundle arguments) { super.onCreate(arguments); start(); }
+    private boolean boundaries;
+    @Override public void onCreate(Bundle arguments) {
+        super.onCreate(arguments);
+        boundaries = arguments != null && "true".equals(arguments.getString("boundaries"));
+        start();
+    }
     @Override public void onStart() {
+        if (boundaries) {
+            Bundle result = new Bundle();
+            try {
+                result.putString("boundaries", com.jtn0123.audiowhisper.suggest.BoundaryReplay.run(getTargetContext()));
+                finish(Activity.RESULT_OK, result);
+            } catch (Throwable failure) {
+                result.putString("failure", failure.getClass().getName() + ": " + failure.getMessage());
+                finish(Activity.RESULT_CANCELED, result);
+            }
+            return;
+        }
         Context context = getTargetContext();
         CountDownLatch done = new CountDownLatch(1);
         BroadcastReceiver receiver = new BroadcastReceiver() {

@@ -99,8 +99,8 @@ android {
         testInstrumentationRunner = when {
             providers.gradleProperty("ttsFixture").orNull == "true" -> "com.jtn0123.audiowhisper.reader.TtsInstrumentation"
             providers.gradleProperty("dictationFixture").orNull == "true" -> "com.jtn0123.audiowhisper.dictation.DictationInstrumentation"
-            providers.gradleProperty("suggestFixture").orNull == "true" -> "com.jtn0123.audiowhisper.suggest.A1Instrumentation"
             providers.gradleProperty("rendererFixture").orNull == "true" -> "com.jtn0123.audiowhisper.render.FixtureInstrumentation"
+            providers.gradleProperty("suggestFixture").orNull == "true" -> "com.jtn0123.audiowhisper.suggest.A1Instrumentation"
             else -> "androidx.test.runner.AndroidJUnitRunner"
         }
 
