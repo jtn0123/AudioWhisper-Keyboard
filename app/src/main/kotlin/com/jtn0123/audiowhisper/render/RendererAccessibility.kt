@@ -19,6 +19,8 @@ internal class RendererAccessibility(
     private val snapshot: () -> String,
     private val activate: (Int, Int) -> Boolean,
     private val cancel: () -> Unit,
+    private val hoverCommits: Boolean = true,
+    private val platformAction: ((Int, Int, Bundle?) -> Boolean)? = null,
 ) : AccessibilityNodeProvider() {
     private val manager = host.context.getSystemService(AccessibilityManager::class.java)
     private var nodes = linkedMapOf<Int, JsonObject>()
@@ -105,6 +107,20 @@ internal class RendererAccessibility(
             val checked = n["checked"]
             isCheckable = checked != JsonNull
             setChecked(if (checked?.jsonPrimitive?.booleanOrNull == true) AccessibilityNodeInfo.CHECKED_STATE_TRUE else AccessibilityNodeInfo.CHECKED_STATE_FALSE)
+            isHeading = n.string("role") == "heading"
+            val range = n["range"]?.takeUnless { it == JsonNull }?.jsonArray
+            if (range != null) {
+                rangeInfo = AccessibilityNodeInfo.RangeInfo(AccessibilityNodeInfo.RangeInfo.RANGE_TYPE_FLOAT,
+                    range[0].jsonPrimitive.float, range[1].jsonPrimitive.float, range[2].jsonPrimitive.float)
+                addAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_SET_PROGRESS)
+            }
+            if (n.string("role") == "edit") {
+                isEditable = true
+                inputType = android.text.InputType.TYPE_CLASS_TEXT
+                setTextSelection(n.int("anchor"), n.int("focus"))
+                addAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_SET_TEXT)
+                addAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_SET_SELECTION)
+            }
             isFocusable = true
             isAccessibilityFocused = focused == virtualViewId
             isVisibleToUser = host.isShown
@@ -130,11 +146,9 @@ internal class RendererAccessibility(
                 addAction(AccessibilityNodeInfo.AccessibilityAction(AccessibilityNodeInfo.ACTION_LONG_CLICK,
                     n.string("longClickLabel").ifEmpty { null }))
             }
-            isScrollable = supports(virtualViewId, ACCESS_SCROLL_FORWARD)
-            if (isScrollable) {
-                addAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_SCROLL_FORWARD)
-                addAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_SCROLL_BACKWARD)
-            }
+            isScrollable = supports(virtualViewId, ACCESS_SCROLL_FORWARD) || supports(virtualViewId, ACCESS_SCROLL_BACKWARD)
+            if (supports(virtualViewId, ACCESS_SCROLL_FORWARD)) addAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_SCROLL_FORWARD)
+            if (supports(virtualViewId, ACCESS_SCROLL_BACKWARD)) addAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_SCROLL_BACKWARD)
             if (supports(virtualViewId, ACCESS_DISMISS)) addAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_DISMISS)
         }
     }
@@ -153,6 +167,10 @@ internal class RendererAccessibility(
                 return true
             }
         }
+        val n = nodes.getValue(virtualViewId)
+        val platformSupported = (n.string("role") == "edit" && (action == AccessibilityNodeInfo.ACTION_SET_TEXT || action == AccessibilityNodeInfo.ACTION_SET_SELECTION)) ||
+            (n["range"]?.let { it != JsonNull } == true && action == AccessibilityNodeInfo.AccessibilityAction.ACTION_SET_PROGRESS.id)
+        if (platformSupported && platformAction?.invoke(virtualViewId, action, arguments) == true) { refresh(); return true }
         val native = when (action) {
             AccessibilityNodeInfo.ACTION_CLICK -> ACCESS_CLICK
             AccessibilityNodeInfo.ACTION_LONG_CLICK -> ACCESS_LONG_CLICK
@@ -188,7 +206,7 @@ internal class RendererAccessibility(
                 if (old != View.NO_ID) {
                     event(old, AccessibilityEvent.TYPE_VIEW_HOVER_EXIT)
                     // Moving outside cancels. A lift inside the same key commits once.
-                    if (id == old && supports(old, ACCESS_CLICK)) {
+                    if (hoverCommits && id == old && supports(old, ACCESS_CLICK)) {
                         activate(old, ACCESS_CLICK)
                         refresh()
                     }
@@ -260,10 +278,13 @@ internal class RendererAccessibility(
         return Rect(floor(a[0]).toInt(), floor(a[1]).toInt(), ceil(a[2]).toInt(), ceil(a[3]).toInt())
     }
     private fun nodeClass(n: JsonObject): String = when (n.string("role")) {
-        "text" -> "android.widget.TextView"
+        "text", "heading" -> "android.widget.TextView"
         "scroll" -> "android.widget.ScrollView"
         "key" -> "android.inputmethodservice.Keyboard\$Key"
         "toggle" -> "android.widget.Switch"
+        "radio" -> "android.widget.RadioButton"
+        "slider" -> "android.widget.SeekBar"
+        "edit" -> "android.widget.EditText"
         else -> "android.widget.Button"
     }
     private fun JsonObject.int(key: String) = getValue(key).jsonPrimitive.int

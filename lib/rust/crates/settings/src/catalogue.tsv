@@ -141,3 +141,4 @@ theme__sunset_time	s	18:00:00.000					#
 theme__editor_color_representation	s	HEX				HEX|RGB|HSV	#
 theme__editor_display_kbd_after_dialogs	s	REMEMBER				ALWAYS|NEVER|REMEMBER	#
 theme__editor_level	s	ADVANCED				BASIC|ADVANCED|DEVELOPER	#
+other__rust_settings_prototype	b	false					#

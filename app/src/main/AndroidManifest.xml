@@ -96,6 +96,12 @@
             </intent-filter>
         </activity>
 
+        <activity
+            android:name="dev.patrickgold.florisboard.app.ComposeSettingsFallbackActivity"
+            android:windowSoftInputMode="adjustResize"
+            android:theme="@style/FlorisAppTheme.Splash"
+            android:exported="false" />
+
         <!-- The launcher entry, also the settings activity named in method.xml and spellchecker.xml -->
         <activity-alias
             android:name="dev.patrickgold.florisboard.SettingsLauncherAlias"

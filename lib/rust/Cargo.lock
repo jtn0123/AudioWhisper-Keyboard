@@ -1606,6 +1606,7 @@ dependencies = [
  "popup",
  "read-fonts 0.47.0",
  "serde_json",
+ "settings",
  "snygg",
  "unicode-segmentation",
  "vello_common 0.2.0",

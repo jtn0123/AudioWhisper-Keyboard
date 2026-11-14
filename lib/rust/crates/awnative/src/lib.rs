@@ -91,3 +91,6 @@ mod dictation_segment_test;
 
 mod reader_runtime;
 mod tts;
+
+mod render_settings;
+mod render_settings_state;

@@ -19,6 +19,15 @@ package dev.patrickgold.florisboard.app
 import android.content.Intent
 import android.content.res.Configuration
 import android.os.Bundle
+import androidx.activity.BackEventCompat
+import androidx.activity.OnBackPressedCallback
+import androidx.activity.result.contract.ActivityResultContracts
+import android.widget.FrameLayout
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.compose.runtime.DisposableEffect
+import androidx.navigation.NavDestination.Companion.hasRoute
+import com.jtn0123.audiowhisper.settingsui.RustSettingsView
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Column
@@ -37,6 +46,7 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import androidx.core.net.toUri
 import androidx.core.view.WindowCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.NavController
@@ -59,6 +69,8 @@ import org.florisboard.lib.compose.stringRes
 import org.florisboard.lib.kotlin.collectIn
 import java.util.concurrent.atomic.AtomicBoolean
 
+private const val SETTINGS_PROFILE_TAG = "aw-settings"
+
 enum class AppTheme(val id: String) {
     AUTO("auto"),
     AUTO_AMOLED("auto_amoled"),
@@ -71,7 +83,16 @@ val LocalNavController = staticCompositionLocalOf<NavController> {
     error("LocalNavController not initialized")
 }
 
-class FlorisAppActivity : ComponentActivity() {
+open class FlorisAppActivity : ComponentActivity() {
+    protected open val allowRustSettings = true
+    private var rustSettings: RustSettingsView? = null
+    private var rustState: Array<String>? = null
+    private var initialPrototype: Boolean? = null
+    private var fallbackReady = false
+    private val composeFallback = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        result.data?.getStringExtra("native-route")?.let { rustSettings?.navigate(it) }
+        rustSettings?.refreshPlatform()
+    }
     private val prefs by FlorisPreferenceStore
     private val appContext by appContext()
     private val cacheManager by cacheManager()
@@ -79,15 +100,21 @@ class FlorisAppActivity : ComponentActivity() {
     private var intentToBeHandled by mutableStateOf<Intent?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        if (android.util.Log.isLoggable(SETTINGS_PROFILE_TAG, android.util.Log.DEBUG)) android.util.Log.d(SETTINGS_PROFILE_TAG, "activity_start_ns=${System.nanoTime()}")
         // Splash screen should be installed before calling super.onCreate()
         installSplashScreen().apply {
             setKeepOnScreenCondition { !appContext.preferenceStoreLoaded.value }
         }
         super.onCreate(savedInstanceState)
+        rustState = savedInstanceState?.getStringArray("rust-settings-state")
         WindowCompat.setDecorFitsSystemWindows(window, false)
 
         prefs.other.settingsTheme.asFlow().collectIn(lifecycleScope) {
             appTheme = it
+        }
+
+        prefs.other.rustSettingsPrototype.asFlow().collectIn(lifecycleScope) { enabled ->
+            if (allowRustSettings && initialPrototype != null && initialPrototype != enabled) recreate()
         }
 
         // We defer the setContent call until the datastore model is loaded, until then the splash screen stays drawn
@@ -100,7 +127,10 @@ class FlorisAppActivity : ComponentActivity() {
                 prefs.internal.isImeSetUp.set(false)
             }
             AppVersionUtils.updateVersionOnInstallAndLastUse(this, prefs)
-            setContent {
+            initialPrototype = prefs.other.rustSettingsPrototype.get()
+            if (allowRustSettings && initialPrototype == true && prefs.internal.isImeSetUp.get()) {
+                installRustSettings()
+            } else setContent {
                 ProvideLocalizedResources(
                     this,
                     appName = R.string.floris_app_name,
@@ -112,13 +142,27 @@ class FlorisAppActivity : ComponentActivity() {
                     }
                 }
             }
-            onNewIntent(intent)
+            if (android.util.Log.isLoggable(SETTINGS_PROFILE_TAG, android.util.Log.DEBUG)) {
+                window.decorView.viewTreeObserver.registerFrameCommitCallback {
+                    android.util.Log.d(SETTINGS_PROFILE_TAG, "activity_commit_ns=${System.nanoTime()}")
+                }
+            }
+            if (rustSettings == null || rustState == null) onNewIntent(intent)
         }
     }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
+        rustSettings?.let { host ->
+            val uri = intent.data
+            if (intent.action == Intent.ACTION_VIEW && uri?.scheme == "ui" && uri.host == "florisboard") {
+                host.navigate(uri.toString().removePrefix("ui://florisboard/"))
+            } else if (intent.action == Intent.ACTION_SEND || intent.action == Intent.ACTION_VIEW) {
+                composeFallback.launch(Intent(intent).setClass(this, ComposeSettingsFallbackActivity::class.java).setFlags(0))
+            }
+            return
+        }
 
         if (intent.action == Intent.ACTION_VIEW && intent.categories?.contains(Intent.CATEGORY_BROWSABLE) == true) {
             intentToBeHandled = intent
@@ -135,10 +179,60 @@ class FlorisAppActivity : ComponentActivity() {
         intentToBeHandled = null
     }
 
+    private fun installRustSettings() {
+        val host = RustSettingsView(this)
+        host.bind(this, prefs, rustState) { route ->
+            val target = Intent(Intent.ACTION_VIEW, "ui://florisboard/$route".toUri())
+                .addCategory(Intent.CATEGORY_BROWSABLE).setClass(this, ComposeSettingsFallbackActivity::class.java)
+            composeFallback.launch(target)
+        }
+        rustSettings = host
+        val root = FrameLayout(this).apply { addView(host, FrameLayout.LayoutParams(-1, -1)) }
+        ViewCompat.setOnApplyWindowInsetsListener(root) { view, insets ->
+            val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout() or WindowInsetsCompat.Type.ime())
+            view.setPadding(bars.left, bars.top, bars.right, bars.bottom)
+            host.imeVisibility(insets.isVisible(WindowInsetsCompat.Type.ime()))
+            insets
+        }
+        setContentView(root)
+        ViewCompat.requestApplyInsets(root)
+        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
+            override fun handleOnBackStarted(backEvent: BackEventCompat) = host.back(0, backEvent.progress)
+            override fun handleOnBackProgressed(backEvent: BackEventCompat) = host.back(1, backEvent.progress)
+            override fun handleOnBackCancelled() = host.back(2)
+            override fun handleOnBackPressed() = host.back(3)
+        })
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        rustSettings?.save()?.let { outState.putStringArray("rust-settings-state", it) }
+        super.onSaveInstanceState(outState)
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (rustSettings != null && initialPrototype != prefs.other.rustSettingsPrototype.get()) recreate()
+        else rustSettings?.refreshPlatform()
+    }
+
     @Composable
     private fun AppContent() {
         val navController = rememberNavController()
         val previewFieldController = rememberPreviewFieldController()
+        DisposableEffect(navController) {
+            val listener = NavController.OnDestinationChangedListener { _, destination, _ ->
+                if (!allowRustSettings && fallbackReady) {
+                    val route = when {
+                        destination.hasRoute<Routes.Settings.Home>() -> "settings/home"
+                        destination.hasRoute<Routes.Settings.Keyboard>() -> "settings/keyboard"
+                        else -> null
+                    }
+                    if (route != null) { if (route != "settings/home") setResult(RESULT_OK, Intent().putExtra("native-route", route)); finish() }
+                }
+            }
+            navController.addOnDestinationChangedListener(listener)
+            onDispose { navController.removeOnDestinationChangedListener(listener) }
+        }
 
         val isImeSetUp by prefs.internal.isImeSetUp.observeAsState()
 
@@ -186,6 +280,7 @@ class FlorisAppActivity : ComponentActivity() {
                 }
             }
             intentToBeHandled = null
+            fallbackReady = true
         }
     }
 }

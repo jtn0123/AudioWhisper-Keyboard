@@ -1,0 +1,218 @@
+//! Settings screen descriptions. Defaults, ranges and enum membership remain in settings.
+#[derive(Clone, Copy, Debug)]
+pub enum Kind {
+    Heading,
+    Toggle,
+    Choice(&'static str),
+    Slider(&'static str, &'static str),
+    Route(&'static str),
+}
+#[derive(Clone, Copy, Debug)]
+pub struct Row {
+    pub key: &'static str,
+    pub label: &'static str,
+    pub summary: &'static str,
+    pub kind: Kind,
+    pub switch: &'static str,
+}
+const fn row(
+    key: &'static str,
+    label: &'static str,
+    summary: &'static str,
+    kind: Kind,
+    switch: &'static str,
+) -> Row {
+    Row {
+        key,
+        label,
+        summary,
+        kind,
+        switch,
+    }
+}
+pub const HOME: &[(&str, &str)] = &[
+    ("settings/localization", "settings__localization__title"),
+    ("settings/theme", "settings__theme__title"),
+    ("settings/keyboard", "settings__keyboard__title"),
+    ("settings/smartbar", "settings__smartbar__title"),
+    ("settings/dictation", "settings__dictation__title"),
+    ("settings/typing", "settings__typing__title"),
+    ("settings/gestures", "settings__gestures__title"),
+    ("settings/clipboard", "settings__clipboard__title"),
+    ("settings/media", "settings__media__title"),
+    ("ext", "ext__home__title"),
+    ("settings/other", "settings__other__title"),
+    ("settings/about", "about__title"),
+];
+pub const KEYBOARD: &[Row] = &[
+    row(
+        "keyboard__rust_renderer_prototype",
+        "pref__keyboard__rust_renderer_prototype__label",
+        "pref__keyboard__rust_renderer_prototype__summary",
+        Kind::Toggle,
+        "",
+    ),
+    row(
+        "keyboard__number_row",
+        "pref__keyboard__number_row__label",
+        "pref__keyboard__number_row__summary",
+        Kind::Toggle,
+        "",
+    ),
+    row(
+        "keyboard__hinted_number_row_mode",
+        "pref__keyboard__hinted_number_row_mode__label",
+        "",
+        Kind::Choice("key_hint_mode"),
+        "keyboard__hinted_number_row_enabled",
+    ),
+    row(
+        "keyboard__hinted_symbols_mode",
+        "pref__keyboard__hinted_symbols_mode__label",
+        "",
+        Kind::Choice("key_hint_mode"),
+        "keyboard__hinted_symbols_enabled",
+    ),
+    row(
+        "keyboard__utility_key_enabled",
+        "pref__keyboard__utility_key_enabled__label",
+        "pref__keyboard__utility_key_enabled__summary",
+        Kind::Toggle,
+        "",
+    ),
+    row(
+        "keyboard__utility_key_action",
+        "pref__keyboard__utility_key_action__label",
+        "",
+        Kind::Choice("utility_key_action"),
+        "",
+    ),
+    row(
+        "keyboard__space_bar_display_mode",
+        "pref__keyboard__space_bar_mode__label",
+        "",
+        Kind::Choice("space_bar_mode"),
+        "",
+    ),
+    row(
+        "keyboard__capitalization_behavior",
+        "pref__keyboard__capitalization_behavior__label",
+        "",
+        Kind::Choice("capitalization_behavior"),
+        "",
+    ),
+    row(
+        "keyboard__font_size_multiplier_portrait",
+        "pref__keyboard__font_size_multiplier__label",
+        "",
+        Kind::Slider(
+            "keyboard__font_size_multiplier_landscape",
+            "unit__percent__symbol",
+        ),
+        "",
+    ),
+    row(
+        "keyboard__incognito_indicator",
+        "pref__keyboard__incognito_indicator__label",
+        "",
+        Kind::Choice("incognito_display_mode"),
+        "",
+    ),
+    row(
+        "pref__keyboard__group_layout__label",
+        "pref__keyboard__group_layout__label",
+        "",
+        Kind::Heading,
+        "",
+    ),
+    row(
+        "keyboard__one_handed_mode",
+        "pref__keyboard__one_handed_mode__label",
+        "",
+        Kind::Choice("one_handed_mode"),
+        "keyboard__one_handed_mode_enabled",
+    ),
+    row(
+        "keyboard__one_handed_mode_scale_factor",
+        "pref__keyboard__one_handed_mode_scale_factor__label",
+        "",
+        Kind::Slider("", "unit__percent__symbol"),
+        "",
+    ),
+    row(
+        "keyboard__landscape_input_ui_mode",
+        "pref__keyboard__landscape_input_ui_mode__label",
+        "",
+        Kind::Choice("landscape_input_ui_mode"),
+        "",
+    ),
+    row(
+        "keyboard__height_factor_portrait",
+        "pref__keyboard__height_factor__label",
+        "",
+        Kind::Slider("keyboard__height_factor_landscape", "unit__percent__symbol"),
+        "",
+    ),
+    row(
+        "keyboard__key_spacing_vertical",
+        "pref__keyboard__key_spacing__label",
+        "",
+        Kind::Slider(
+            "keyboard__key_spacing_horizontal",
+            "unit__display_pixel__symbol",
+        ),
+        "",
+    ),
+    row(
+        "keyboard__bottom_offset_portrait",
+        "pref__keyboard__bottom_offset__label",
+        "",
+        Kind::Slider(
+            "keyboard__bottom_offset_landscape",
+            "unit__display_pixel__symbol",
+        ),
+        "",
+    ),
+    row(
+        "pref__keyboard__group_keypress__label",
+        "pref__keyboard__group_keypress__label",
+        "",
+        Kind::Heading,
+        "",
+    ),
+    row(
+        "settings__input_feedback__title",
+        "settings__input_feedback__title",
+        "",
+        Kind::Route("settings/keyboard/input-feedback"),
+        "",
+    ),
+    row(
+        "keyboard__popup_enabled",
+        "pref__keyboard__popup_enabled__label",
+        "pref__keyboard__popup_enabled__summary",
+        Kind::Toggle,
+        "",
+    ),
+    row(
+        "keyboard__merge_hint_popups_enabled",
+        "pref__keyboard__merge_hint_popups_enabled__label",
+        "pref__keyboard__merge_hint_popups_enabled__summary",
+        Kind::Toggle,
+        "",
+    ),
+    row(
+        "keyboard__long_press_delay",
+        "pref__keyboard__long_press_delay__label",
+        "",
+        Kind::Slider("", "unit__milliseconds__symbol"),
+        "",
+    ),
+    row(
+        "keyboard__space_bar_switches_to_characters",
+        "pref__keyboard__space_bar_switches_to_characters__label",
+        "pref__keyboard__space_bar_switches_to_characters__summary",
+        Kind::Toggle,
+        "",
+    ),
+];

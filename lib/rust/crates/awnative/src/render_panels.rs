@@ -12,6 +12,9 @@ use render::{
 use std::ptr;
 impl Session {
     pub(crate) fn prepare_panel(&mut self) {
+        if self.settings.is_some() {
+            return;
+        }
         self.prepare_search();
         let Some(p) = &mut self.scene.panel else {
             return;

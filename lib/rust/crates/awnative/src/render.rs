@@ -16,6 +16,7 @@ use std::sync::Mutex;
 #[derive(Debug, Default)]
 pub struct Session {
     pub(crate) scene: Scene,
+    pub(crate) settings: Option<render::settings_ui::App>,
     pub(crate) text: Option<render::text::Text>,
     pub(crate) touch: Touch,
     pub(crate) semantics: render::accessibility::Semantics,

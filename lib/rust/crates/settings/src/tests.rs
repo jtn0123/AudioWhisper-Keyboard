@@ -2,7 +2,7 @@ use super::*;
 #[test]
 fn catalogue_is_complete_unique_and_defaults_are_valid() {
     let rows = catalogue::all();
-    assert_eq!(rows.len(), 143);
+    assert_eq!(rows.len(), 144);
     let mut keys = std::collections::HashSet::new();
     for row in rows {
         assert!(keys.insert(row.key));

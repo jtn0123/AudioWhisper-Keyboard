@@ -6,6 +6,11 @@ class KeyboardRenderer(fontPaths: Array<String>) : AutoCloseable {
     private val cleanable = RustLibrary.cleaner.register(this, Free(handle))
 
     @Synchronized
+    fun settings(operation: Int, input: Array<String> = emptyArray()): Array<String> = RenderNative.settings(handle, operation, input)
+    @Synchronized
+    fun settingsTouch(metadata: IntArray, times: LongArray, coords: FloatArray): Array<String> = RenderNative.settingsTouch(handle, metadata, times, coords)
+
+    @Synchronized
     fun theme(json: String, names: Array<String>, colors: IntArray, scale: FloatArray) =
         RenderNative.theme(handle, json, names, colors, scale)
 
@@ -116,6 +121,8 @@ class KeyboardRenderer(fontPaths: Array<String>) : AutoCloseable {
 }
 
 internal object RenderNative {
+    @JvmStatic external fun settings(handle: Long, operation: Int, input: Array<String>): Array<String>
+    @JvmStatic external fun settingsTouch(handle: Long, metadata: IntArray, times: LongArray, coords: FloatArray): Array<String>
     init { RustLibrary.load() }
     external fun create(fontPaths: Array<String>): Long
     external fun theme(handle: Long, json: String, names: Array<String>, colors: IntArray, scale: FloatArray)

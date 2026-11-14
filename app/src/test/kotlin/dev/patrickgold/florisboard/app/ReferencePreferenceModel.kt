@@ -263,6 +263,8 @@ abstract class ReferencePreferenceModel : PreferenceModel() {
 
     val other = Other()
     inner class Other {
+        val rustSettingsPrototype = boolean(key = "other__rust_settings_prototype", default = false)
+
         val settingsTheme = enum(key = "other__settings_theme", default = AppTheme.AUTO)
         val accentColor = custom(key = "other__accent_color", default = Color.Unspecified, serializer = ReferenceColorSerializer)
     }

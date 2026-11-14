@@ -101,38 +101,38 @@ existing cache/import path, not a settings deep-link reinterpretation.
 | Route | Deep-link path | Arguments / special state |
 | --- | --- | --- |
 | Setup.Screen | no public deep link | IME enable/select and notification wizard |
-| Settings.Home | `settings/home` | `` |
-| Settings.Localization | `settings/localization` | `` |
-| Settings.SelectLocale | `settings/localization/select-locale` | `` |
+| Settings.Home | `settings/home` | none |
+| Settings.Localization | `settings/localization` | none |
+| Settings.SelectLocale | `settings/localization/select-locale` | none |
 | Settings.LanguagePackManager | `settings/localization/language-pack-manage` | `(val action: LanguagePackManagerScreenAction)` |
-| Settings.SubtypeAdd | `settings/localization/subtype/add` | `` |
+| Settings.SubtypeAdd | `settings/localization/subtype/add` | none |
 | Settings.SubtypeEdit | `settings/localization/subtype/edit` | `(val id: Long)` |
-| Settings.Theme | `settings/theme` | `` |
+| Settings.Theme | `settings/theme` | none |
 | Settings.ThemeManager | `settings/theme/manage` | `(val action: ThemeManagerScreenAction)` |
-| Settings.Keyboard | `settings/keyboard` | `` |
-| Settings.InputFeedback | `settings/keyboard/input-feedback` | `` |
-| Settings.Smartbar | `settings/smartbar` | `` |
-| Settings.Dictation | `settings/dictation` | `` |
-| Settings.Typing | `settings/typing` | `` |
-| Settings.Dictionary | `settings/dictionary` | `` |
+| Settings.Keyboard | `settings/keyboard` | none |
+| Settings.InputFeedback | `settings/keyboard/input-feedback` | none |
+| Settings.Smartbar | `settings/smartbar` | none |
+| Settings.Dictation | `settings/dictation` | none |
+| Settings.Typing | `settings/typing` | none |
+| Settings.Dictionary | `settings/dictionary` | none |
 | Settings.UserDictionary | `settings/dictionary/user-dictionary` | `(val type: UserDictionaryType)` |
-| Settings.Gestures | `settings/gestures` | `` |
-| Settings.Clipboard | `settings/clipboard` | `` |
-| Settings.Media | `settings/media` | `` |
-| Settings.Other | `settings/other` | `` |
-| Settings.PhysicalKeyboard | `settings/other/physical-keyboard` | `` |
-| Settings.Backup | `settings/other/backup` | `` |
-| Settings.Restore | `settings/other/restore` | `` |
-| Settings.About | `settings/about` | `` |
-| Settings.ProjectLicense | `settings/about/project-license` | `` |
-| Settings.ThirdPartyLicenses | `settings/about/third-party-licenses` | `` |
-| Ext.Home | `ext` | `` |
+| Settings.Gestures | `settings/gestures` | none |
+| Settings.Clipboard | `settings/clipboard` | none |
+| Settings.Media | `settings/media` | none |
+| Settings.Other | `settings/other` | none |
+| Settings.PhysicalKeyboard | `settings/other/physical-keyboard` | none |
+| Settings.Backup | `settings/other/backup` | none |
+| Settings.Restore | `settings/other/restore` | none |
+| Settings.About | `settings/about` | none |
+| Settings.ProjectLicense | `settings/about/project-license` | none |
+| Settings.ThirdPartyLicenses | `settings/about/third-party-licenses` | none |
+| Ext.Home | `ext` | none |
 | Ext.List | `ext/list` | `(val type: ExtensionListScreenType, val showUpdate: Boolean? = null)` |
 | Ext.Edit | `ext/edit` | `(val id: String, @SerialName("create") val serialType: String? = null)` |
 | Ext.Export | `ext/export` | `(val id: String)` |
 | Ext.Import | `ext/import` | `(val type: ExtensionImportScreenType, val uuid: String? = null)` |
 | Ext.View | `ext/view` | `(val id: String)` |
-| Ext.CheckUpdates | `ext/check-updates` | `` |
+| Ext.CheckUpdates | `ext/check-updates` | none |
 
 Extension editing also has internal metadata/dependencies/component-create/file-editor states
 inside ExtensionEditScreen. ThemeEditorScreen is entered for a theme component, including
@@ -202,7 +202,7 @@ also part of their corresponding widget port, not permission to omit editable co
 | `settings/theme/EditRuleDialog.kt` | 172 | Rule/element selector |
 | `settings/theme/ThemeEditorComponents.kt` | 131, 140, 148, 163 | Component id, label, authors and draft properties |
 | `app/src/main/kotlin/dev/patrickgold/florisboard/lib/compose/PreviewKeyboardField.kt` | 98 | Preview scratch text |
-| `lib/compose/src/main/kotlin/org/florisboard/lib/compose/FlorisDropdownLikeButton.kt` | 56 | Dictation vocabulary (multiline) |
+| `lib/compose/src/main/kotlin/org/florisboard/lib/compose/FlorisDropdownLikeButton.kt` | 56 | Read-only dropdown display/menu anchor; no editable model |
 
 ThemeEditorScreen also holds the text-field drafts in its retained editing model. Fields can
 be hidden in nested sheets/dialogs: searching only direct material3.TextField calls misses

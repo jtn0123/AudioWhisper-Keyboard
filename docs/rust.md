@@ -166,6 +166,10 @@ a Home/full-settings-screen/text-field/platform-action prototype and the same st
 reference/mutation, screenshot, accessibility and measured-runtime proof as other packages.
 Unported routes continue in Compose. See [the complete design and inventory](stage4-settings.md).
 
+The default-off Home/Keyboard prototype is implemented; [checkpoint results](stage4-settings-results.md)
+record passing local comparisons/mutations and the device-tool hold. Final on-device stored-file,
+TalkBack, visual, lifecycle and performance acceptance remains incomplete. Neither fallback is deleted.
+
 The 90% target remains, but this settings scope plus the measured keyboard deletion alone is
 projected at roughly 63–67% Rust. Finishing the target also requires a separately inventoried
 reduction of remaining Kotlin models/wrappers/hosts. Preserve genuine Android boundaries;
@@ -176,6 +180,7 @@ and refresh the deletion dry run before claiming a full-port endpoint.
 
 | Piece | Rust | Replaced | Proof it matches |
 |---|---|---|---|
+| Settings renderer prototype (stage 4 checkpoint) | `render::settings_ui`, `awnative::render_settings` | Home/Keyboard layout, controls, scroll, focus, semantics, UTF-16 scratch editor and saved native drafts behind a default-off selector; other screens use Compose | Frozen screen decisions, Compose EditProcessor differential checks, real host Jetpref byte parity, four restored mutations and native input/geometry tests. Device acceptance incomplete; see [checkpoint](stage4-settings-results.md) |
 | Settings and subtypes (stage 2 package 17) | `crates/settings` | All preference defaults, scalar/enum admission, UI ranges, complex stored codecs, historical migrations, subtype edit/active/fallback/preset policy and settings derivations; Kotlin retains typed Jetpref I/O, Locale, resources and Compose | Frozen Kotlin references, all 143 preferences/27 ranges, bundled and seeded codecs, 1,000 historical states, 2,000 action migrations, 30,000 subtype operations/200 seeds and 20 real generated Jetpref files; restored default/bound/migration/fallback mutations. Device hub did not answer; upgrade/UI/typing acceptance remains owed. See [proof](stage2-settings.md) |
 | Backup manifests, restore plans and utility rules (stage 2 packages 18/19) | `crates/backup`, `crates/utilities` | Archive layout/selection/metadata, ordered restore/conflict effects; MIME policy, ref normalization/classification, locale tag/display layout, versions/changelog and dictionary validation | Frozen Kotlin reference matches, locally generated ZIPs, exhaustive selection/presence/conflict masks, seeded and full UTF-16 validation, four restored mutations and full local gate. Device hub did not answer; UI/Android acceptance and the prior email assertion remain held. Existing learned-store backup exclusion is preserved. See [proof](stage2-backup-utils.md) |
 | Pocket TTS and remaining reader queue/walk policy (stage 2 package 12) | `crates/reader`, `crates/sherpa-ffi` | C generator/PCM leases/cancellation, play/system-TTS queues, full screen selection/order, follow timing; Kotlin retains Android playback/focus/accessibility/files | Seeded queue/tree matches, retained chunk/follow tests, native fake-owner ordering, restored mutations; normal APK has no sherpa Kotlin/JNI. **PCM parity, real-model stress/timing, UI and final device acceptance remain unverified after two T3 shutdown failures.** See [package 12](stage2-tts.md) |
