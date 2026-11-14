@@ -297,11 +297,9 @@ class ClipboardManager(
     fun restoreHistory(items: List<ClipboardItem>) {
         ioScope.launch {
             val currentHistory = currentHistory.all
-            for (item in items) {
-                if (!currentHistory.map { it.copy(id = 0) }.contains(item.copy(id = 0))) {
-                    insertClip(item.copy(id = 0))
-                }
-            }
+            val existing = currentHistory.map { it.copy(id = 0) }.toSet()
+            val indices = com.jtn0123.audiowhisper.rust.BackupPolicy.incoming(items.map { it.copy(id = 0) in existing })
+            for (index in indices) insertClip(items[index].copy(id = 0))
         }
     }
 

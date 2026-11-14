@@ -16,6 +16,7 @@
 
 package dev.patrickgold.florisboard.lib
 
+import org.florisboard.lib.kotlin.UtilityRules
 import android.content.Context
 import com.jtn0123.audiowhisper.rust.SpacingRules
 import dev.patrickgold.florisboard.extensionManager
@@ -47,9 +48,6 @@ class FlorisLocale private constructor(val base: Locale) {
         private const val DELIMITER_LANGUAGE_TAG = '-'
         /** Delimiter for a locale tag. */
         private const val DELIMITER_LOCALE_TAG = '_'
-
-        /** Delimiter regex to split language/locale tags. */
-        private val DELIMITER_SPLITTER = """[${DELIMITER_LANGUAGE_TAG}${DELIMITER_LOCALE_TAG}]""".toRegex()
 
         /** Constant locale for ROOT */
         val ROOT = from("", "", "")
@@ -101,16 +99,9 @@ class FlorisLocale private constructor(val base: Locale) {
          *
          * @return A new [FlorisLocale].
          */
-        fun fromTag(str: String) = when {
-            str.contains(DELIMITER_SPLITTER) -> {
-                val lc = str.split(DELIMITER_SPLITTER)
-                if (lc.size >= 3) {
-                    from(lc[0], lc[1], lc[2])
-                } else {
-                    from(lc[0], lc[1])
-                }
-            }
-            else -> from(str)
+        fun fromTag(str: String): FlorisLocale {
+            val parts = UtilityRules.call(5, str)
+            return from(parts[0], parts[1], parts[2])
         }
 
         /**
@@ -162,20 +153,8 @@ class FlorisLocale private constructor(val base: Locale) {
      * @return The generated tag for this locale. May be an empty string if
      *  [language], [country] and [variant] are not specified.
      */
-    private fun buildLocaleString(delimiter: Char) = buildString {
-        val language = base.language
-        val country = base.country
-        val variant = base.variant
-        append(language)
-        if (language.isNotBlank() && country.isNotBlank()) {
-            append(delimiter)
-        }
-        append(country)
-        if (country.isNotBlank() && variant.isNotBlank()) {
-            append(delimiter)
-        }
-        append(variant)
-    }
+    private fun buildLocaleString(delimiter: Char): String = UtilityRules.call(6,
+        delimiter.code.toString(), base.language, base.country, base.variant)[0]
 
     /**
      * Returns the language code of this locale.
@@ -217,10 +196,7 @@ class FlorisLocale private constructor(val base: Locale) {
      * TODO: this is absolutely not exhaustive and hard-coded, find solution based on ICU or system
      */
     val supportsCapitalization: Boolean
-        get() = when (language) {
-            "zh", "ko", "th", "bn", "hi" -> false
-            else -> true
-        }
+        get() = UtilityRules.call(8, language)[0] == "1"
 
     /**
      * Returns true if suggestions in this language should have spaces added after, false otherwise. Decided in
@@ -290,28 +266,9 @@ class FlorisLocale private constructor(val base: Locale) {
      * @return The display name for this locale. May be an empty string if
      *  [language], [country] and [variant] are not specified.
      */
-    fun displayName(locale: FlorisLocale = default()) = buildString {
-        val languageName = displayLanguage(locale).ifBlank { base.language }
-        val countryName = displayCountry(locale).ifBlank { base.country }
-        val variantName = displayVariant(locale).ifBlank { base.variant }
-        append(languageName)
-        if (countryName.isNotBlank()) {
-            if (languageName.isNotBlank()) {
-                append(' ')
-            }
-            append('(')
-            append(countryName)
-            append(')')
-        }
-        if (variantName.isNotBlank()) {
-            if (languageName.isNotBlank() || countryName.isNotBlank()) {
-                append(' ')
-            }
-            append('[')
-            append(variantName.uppercase())
-            append(']')
-        }
-    }
+    fun displayName(locale: FlorisLocale = default()): String = UtilityRules.call(7,
+        displayLanguage(locale), displayCountry(locale), displayVariant(locale),
+        base.language, base.country, base.variant)[0]
 
     /**
      * Generate a debug string representing this locale. Not to be confused

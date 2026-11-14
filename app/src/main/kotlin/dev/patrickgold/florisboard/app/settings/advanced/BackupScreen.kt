@@ -16,7 +16,7 @@
 
 package dev.patrickgold.florisboard.app.settings.advanced
 
-import android.content.ContentUris
+import com.jtn0123.audiowhisper.rust.BackupPolicy
 import android.content.Intent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -42,21 +42,13 @@ import androidx.core.app.ShareCompat
 import androidx.core.content.FileProvider
 import dev.patrickgold.florisboard.BuildConfig
 import dev.patrickgold.florisboard.R
-import dev.patrickgold.florisboard.app.FlorisPreferenceModel
-import dev.patrickgold.florisboard.app.FlorisPreferenceStore
 import dev.patrickgold.florisboard.app.LocalNavController
 import dev.patrickgold.florisboard.cacheManager
-import dev.patrickgold.florisboard.clipboardManager
-import dev.patrickgold.florisboard.ime.clipboard.provider.ClipboardFileStorage
-import dev.patrickgold.florisboard.ime.clipboard.provider.ItemType
 import dev.patrickgold.florisboard.lib.cache.CacheManager
 import dev.patrickgold.florisboard.lib.compose.FlorisScreen
 import dev.patrickgold.florisboard.lib.devtools.flogError
-import dev.patrickgold.florisboard.lib.ext.ExtensionManager
 import dev.patrickgold.florisboard.lib.io.FileRegistry
 import dev.patrickgold.florisboard.lib.io.ZipUtils
-import dev.patrickgold.jetpref.datastore.runtime.AndroidAppDataStorage
-import dev.patrickgold.jetpref.datastore.runtime.FileBasedStorage
 import dev.patrickgold.jetpref.material.ui.JetPrefListItem
 import kotlinx.coroutines.launch
 import kotlinx.serialization.SerialName
@@ -68,20 +60,15 @@ import org.florisboard.lib.compose.FlorisOutlinedBox
 import org.florisboard.lib.compose.defaultFlorisOutlinedBox
 import org.florisboard.lib.compose.rippleClickable
 import org.florisboard.lib.compose.stringRes
-import org.florisboard.lib.kotlin.io.subDir
 import org.florisboard.lib.kotlin.io.subFile
 import org.florisboard.lib.kotlin.io.writeJson
 
 object Backup {
     const val FILE_PROVIDER_AUTHORITY = "${BuildConfig.APPLICATION_ID}.provider.file"
-    const val METADATA_JSON_NAME = "backup_metadata.json"
-    const val CLIPBOARD_TEXT_ITEMS_JSON_NAME = "clipboard_text_items.json"
-    const val CLIPBOARD_IMAGES_JSON_NAME = "clipboard_images.json"
-    const val CLIPBOARD_VIDEO_JSON_NAME = "clipboard_video.json"
+    val METADATA_JSON_NAME get() = BackupPolicy.metadataName
 
-    fun defaultFileName(metadata: Metadata): String {
-        return "backup_${metadata.packageName}_${metadata.versionCode}_${metadata.timestamp}.zip"
-    }
+    fun defaultFileName(metadata: Metadata): String =
+        BackupPolicy.fileName(metadata.packageName, metadata.versionCode, metadata.timestamp)
 
     enum class Destination {
         FILE_SYS,
@@ -99,28 +86,20 @@ object Backup {
         private var _clipboardData: MutableState<ToggleableState> = mutableStateOf(ToggleableState.Off)
         val clipboardData: State<ToggleableState> = _clipboardData
 
+        fun mask(): Int = listOf(jetprefDatastore, imeKeyboard, imeTheme,
+            clipboardTextItems, clipboardImageItems, clipboardVideoItems)
+            .foldIndexed(0) { index, mask, value -> mask or (if (value) 1 shl index else 0) }
+
         fun updateCheckboxState() {
-            val newValue = if (
-                !clipboardVideoItems && !clipboardImageItems && !clipboardTextItems
-            ) {
-                ToggleableState.Off
-            } else if (
-                clipboardVideoItems && clipboardImageItems && clipboardTextItems
-            ) {
-                ToggleableState.On
-            } else {
-                ToggleableState.Indeterminate
+            _clipboardData.value = when (BackupPolicy.selection(mask())[2]) {
+                "off" -> ToggleableState.Off
+                "on" -> ToggleableState.On
+                else -> ToggleableState.Indeterminate
             }
-            _clipboardData.value = newValue
         }
 
-        fun provideClipboardItems(): Boolean {
-            return clipboardTextItems || clipboardImageItems || clipboardVideoItems
-        }
+        fun atLeastOneSelected(): Boolean = BackupPolicy.selection(mask())[0] == "1"
 
-        fun atLeastOneSelected(): Boolean {
-            return jetprefDatastore || imeKeyboard || imeTheme || clipboardTextItems || clipboardImageItems || clipboardVideoItems
-        }
     }
 
     @Serializable
@@ -177,55 +156,7 @@ fun BackupScreen() = FlorisScreen {
 
     suspend fun prepareBackupWorkspace() {
         val workspace = cacheManager.backupAndRestore.new()
-        if (backupFilesSelector.jetprefDatastore) {
-            val fileBasedStorage = workspace.inputDir
-                .subDir(AndroidAppDataStorage.JETPREF_DIR_NAME)
-                .subFile("${FlorisPreferenceModel.NAME}.${AndroidAppDataStorage.JETPREF_FILE_EXT}")
-                .let { FileBasedStorage(it.path) }
-            FlorisPreferenceStore.export(fileBasedStorage).getOrThrow()
-        }
-        val workspaceFilesDir = workspace.inputDir.subDir("files")
-        if (backupFilesSelector.imeKeyboard) {
-            context.filesDir.subDir(ExtensionManager.IME_KEYBOARD_PATH).let { dir ->
-                dir.copyRecursively(workspaceFilesDir.subDir(ExtensionManager.IME_KEYBOARD_PATH))
-            }
-        }
-        if (backupFilesSelector.imeTheme) {
-            context.filesDir.subDir(ExtensionManager.IME_THEME_PATH).let { dir ->
-                dir.copyRecursively(workspaceFilesDir.subDir(ExtensionManager.IME_THEME_PATH))
-            }
-        }
-
-        if (backupFilesSelector.provideClipboardItems()) {
-            val clipboardManager by context.clipboardManager()
-            val clipboardHistory = clipboardManager.currentHistory.all
-            val clipboardFilesDir = workspace.inputDir.subDir("clipboard")
-            clipboardFilesDir.mkdir()
-            if (backupFilesSelector.clipboardTextItems) {
-                clipboardFilesDir.subFile(Backup.CLIPBOARD_TEXT_ITEMS_JSON_NAME)
-                    .writeJson(clipboardHistory.filter { it.type == ItemType.TEXT })
-            }
-            if (backupFilesSelector.clipboardImageItems) {
-                clipboardFilesDir.subFile(Backup.CLIPBOARD_IMAGES_JSON_NAME)
-                    .writeJson(clipboardHistory.filter { it.type == ItemType.IMAGE })
-                for (item in clipboardHistory.filter { it.type == ItemType.IMAGE }) {
-                    val id = ContentUris.parseId(item.uri!!)
-                    ClipboardFileStorage.getFileForId(context, id).copyTo(
-                        clipboardFilesDir.subFile("${ClipboardFileStorage.CLIPBOARD_FILES_PATH}/$id")
-                    )
-                }
-            }
-            if (backupFilesSelector.clipboardVideoItems) {
-                clipboardFilesDir.subFile(Backup.CLIPBOARD_VIDEO_JSON_NAME)
-                    .writeJson(clipboardHistory.filter { it.type == ItemType.VIDEO })
-                for (item in clipboardHistory.filter { it.type == ItemType.VIDEO }) {
-                    val id = ContentUris.parseId(item.uri!!)
-                    ClipboardFileStorage.getFileForId(context, id).copyTo(
-                        clipboardFilesDir.subFile("${ClipboardFileStorage.CLIPBOARD_FILES_PATH}/$id")
-                    )
-                }
-            }
-        }
+        BackupIO.backup(context, workspace.inputDir, backupFilesSelector.mask())
         workspace.metadata = Backup.Metadata(
             packageName = BuildConfig.APPLICATION_ID,
             versionCode = BuildConfig.VERSION_CODE,

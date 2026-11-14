@@ -38,86 +38,31 @@ class MimeTypeFilter {
 
     internal constructor(filterTypes: List<String>) {
         types = filterTypes
-        filters = filterTypes.map { filterType ->
-            val filterTypeParts = filterType.split("/")
-            require(filterTypeParts.size == 2) {
-                "Ill-formatted MIME type filter '$filterType'. Must be type/subtype."
-            }
-            require(filterTypeParts[0].isNotEmpty() && filterTypeParts[1].isNotEmpty()) {
-                "Ill-formatted MIME type filter '$filterType'. Type or subtype empty."
-            }
-            val filter0 = filterTypeParts[0].replace("*", "[^\\s]+").toRegex()
-            val filter1 = filterTypeParts[1].replace("*", "[^\\s]+").toRegex()
-            filter0 to filter1
+        filters = filterTypes.map { filter ->
+            val plan = UtilityRules.call(0, filter)
+            require(plan[0].isEmpty()) { plan[0] }
+            // The platform compiler preserves its full regex grammar and exception messages.
+            plan[1].toRegex() to plan[2].toRegex()
         }
-        println(filters)
     }
 
-    private fun matchMimeTypeAgainstFilters(mimeType: String): Boolean {
-        val mimeTypeParts = mimeType.split("/")
-        if (mimeTypeParts.size != 2 || mimeTypeParts[0].isEmpty() || mimeTypeParts[1].isEmpty()) {
-            return false
-        }
-        for ((filter0, filter1) in filters) {
-            if (mimeTypeParts[0].matches(filter0) && mimeTypeParts[1].matches(filter1)) {
-                return true
+    private fun match(mode: Int, values: List<String?>?): Boolean {
+        val input = values.orEmpty()
+        val facts = UtilityRules.call(1, *input.map { it.orEmpty() }.toTypedArray()).chunked(3).flatMap { row ->
+            listOf(row[0]) + filters.flatMap { (type, subtype) ->
+                listOf(type.matches(row[1]).bit(), subtype.matches(row[2]).bit())
             }
         }
-        return false
+        return UtilityRules.call(15, mode.toString(), input.size.toString(), filters.size.toString(),
+            *facts.toTypedArray())[0] == "1"
     }
+    private fun Boolean.bit() = if (this) "1" else "0"
 
-    /**
-     * Matches a given [mimeType] against the filter types of this [MimeTypeFilter]. If the MIME type is null or
-     * ill-formatted, it will not match.
-     */
-    fun matches(mimeType: String?): Boolean {
-        if (mimeType.isNullOrEmpty()) {
-            return false
-        }
-        return matchMimeTypeAgainstFilters(mimeType)
-    }
+    fun matches(mimeType: String?): Boolean = match(0, listOf(mimeType))
+    fun matchesAll(mimeTypes: List<String?>?): Boolean = match(1, mimeTypes)
+    fun matchesAny(mimeTypes: List<String?>?): Boolean = match(2, mimeTypes)
+    fun matchesOne(mimeTypes: List<String?>?): Boolean = match(3, mimeTypes)
 
-    // TODO: document and test
-    fun matchesAll(mimeTypes: List<String?>?): Boolean {
-        if (mimeTypes.isNullOrEmpty()) {
-            return false
-        }
-        for (mimeType in mimeTypes) {
-            if (!matches(mimeType)) {
-                return false
-            }
-        }
-        return true
-    }
-
-    // TODO: document and test
-    fun matchesAny(mimeTypes: List<String?>?): Boolean {
-        if (mimeTypes.isNullOrEmpty()) {
-            return false
-        }
-        for (mimeType in mimeTypes) {
-            if (matches(mimeType)) {
-                return true
-            }
-        }
-        return false
-    }
-
-    // TODO: document and test
-    fun matchesOne(mimeTypes: List<String?>?): Boolean {
-        if (mimeTypes.isNullOrEmpty()) {
-            return false
-        }
-        var numMatches = 0
-        for (mimeType in mimeTypes) {
-            if (matches(mimeType)) {
-                if (++numMatches > 1) {
-                    return false
-                }
-            }
-        }
-        return numMatches == 1
-    }
 }
 
 /**

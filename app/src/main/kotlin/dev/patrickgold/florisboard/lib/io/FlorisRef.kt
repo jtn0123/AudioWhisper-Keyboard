@@ -16,6 +16,7 @@
 
 package dev.patrickgold.florisboard.lib.io
 
+import org.florisboard.lib.kotlin.UtilityRules
 import android.content.Context
 import android.net.Uri
 import androidx.annotation.VisibleForTesting
@@ -65,9 +66,6 @@ value class FlorisRef private constructor(val uri: Uri) {
         @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
         internal const val AUTHORITY_INTERNAL = "internal"
 
-        private const val URL_HTTP_PREFIX = "http://"
-        private const val URL_HTTPS_PREFIX = "https://"
-        private const val URL_MAILTO_PREFIX = "mailto:"
 
         /**
          * Constructs a new [FlorisRef] pointing to a UI screen within the app
@@ -150,12 +148,9 @@ value class FlorisRef private constructor(val uri: Uri) {
          * @return The newly constructed reference.
          */
         fun from(str: String): FlorisRef {
-            // First two entries only kept due to backwards-compatibility reasons.
-            return when {
-                str.startsWith("assets:") -> assets(str.substring(7))
-                str.startsWith("internal:") -> internal(str.substring(9))
-                else -> FlorisRef(str.toUri())
-            }
+            val plan = UtilityRules.call(2, str)
+            return FlorisRef(if (plan[0].isEmpty()) plan[1].toUri() else Uri.Builder()
+                .scheme(SCHEME_FLORIS).authority(plan[0]).encodedPath(plan[1]).build())
         }
 
         /**
@@ -166,12 +161,7 @@ value class FlorisRef private constructor(val uri: Uri) {
          * @return The newly constructed reference.
          */
         fun fromUrl(url: String): FlorisRef {
-            return FlorisRef(when {
-                url.startsWith(URL_HTTP_PREFIX) ||
-                    url.startsWith(URL_HTTPS_PREFIX) ||
-                    url.startsWith(URL_MAILTO_PREFIX) -> url.toUri()
-                else -> "$URL_HTTPS_PREFIX$url".toUri().normalizeScheme()
-            })
+            return FlorisRef(UtilityRules.call(3, url)[0].toUri())
         }
 
         /**
@@ -190,40 +180,43 @@ value class FlorisRef private constructor(val uri: Uri) {
         }
     }
 
+    private val facts: List<String>
+        get() = UtilityRules.call(4, uri.scheme.orEmpty(), uri.authority.orEmpty(), uri.path.orEmpty())
+
     /**
      * True if the scheme and authority indicates a reference to an app user interface
      * component (screen), false otherwise.
      */
     val isAppUi: Boolean
-        get() = uri.scheme == SCHEME_FLORIS && uri.authority == AUTHORITY_APP_UI
+        get() = facts[0] == "1"
 
     /**
      * True if the scheme and authority indicates a reference to a FlorisBoard APK asset
      * resource, false otherwise.
      */
     val isAssets: Boolean
-        get() = uri.scheme == SCHEME_FLORIS && uri.authority == AUTHORITY_ASSETS
+        get() = facts[0] == "2"
 
     /**
      * True if the scheme indicates a reference to a FlorisBoard cache
      * resource, false otherwise.
      */
     val isCache: Boolean
-        get() = uri.scheme == SCHEME_FLORIS && uri.authority == AUTHORITY_CACHE
+        get() = facts[0] == "3"
 
     /**
      * True if the scheme indicates a reference to a FlorisBoard internal
      * storage resource, false otherwise.
      */
     val isInternal: Boolean
-        get() = uri.scheme == SCHEME_FLORIS && uri.authority == AUTHORITY_INTERNAL
+        get() = facts[0] == "4"
 
     /**
      * True if the scheme references any other external resource (URL, content
      * resolver, etc.), false otherwise.
      */
     val isExternal: Boolean
-        get() = uri.scheme != SCHEME_FLORIS
+        get() = facts[1] == "1"
 
     /**
      * Returns the scheme of this URI, or an empty string if no scheme is
@@ -244,13 +237,13 @@ value class FlorisRef private constructor(val uri: Uri) {
      * Works only for assets, cache or internal references.
      */
     val relativePath: String
-        get() = (uri.path ?: "").removePrefix("/")
+        get() = facts[3]
 
     /**
      * Returns if this URI contains data for all valid parts of a FlorisRef.
      */
     val isValid: Boolean
-        get() = scheme.isNotBlank() && authority.isNotBlank()
+        get() = facts[2] == "1"
 
     /**
      * Returns if this URI contains data for all valid parts of a FlorisRef.

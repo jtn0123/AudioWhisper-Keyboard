@@ -69,7 +69,7 @@ object ClipboardFileStorage {
      * @param file the file to be inserted
      */
     fun insertFileFromBackupIfNotExisting(context: Context, file: FsFile) {
-        if (!context.clipboardFilesDir.subFile(file.name).isFile) {
+        if (com.jtn0123.audiowhisper.rust.BackupPolicy.incoming(listOf(context.clipboardFilesDir.subFile(file.name).isFile)).isNotEmpty()) {
             file.copyTo(context.clipboardFilesDir.subFile(file.name), overwrite = false)
         }
     }

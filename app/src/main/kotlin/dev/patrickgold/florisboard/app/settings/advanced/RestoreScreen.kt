@@ -43,22 +43,14 @@ import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.unit.dp
 import dev.patrickgold.florisboard.BuildConfig
 import dev.patrickgold.florisboard.R
-import dev.patrickgold.florisboard.app.FlorisPreferenceModel
-import dev.patrickgold.florisboard.app.FlorisPreferenceStore
 import dev.patrickgold.florisboard.app.LocalNavController
 import dev.patrickgold.florisboard.cacheManager
-import dev.patrickgold.florisboard.clipboardManager
-import dev.patrickgold.florisboard.ime.clipboard.provider.ClipboardFileStorage
-import dev.patrickgold.florisboard.ime.clipboard.provider.ClipboardItem
-import dev.patrickgold.florisboard.ime.clipboard.provider.ItemType
 import dev.patrickgold.florisboard.lib.cache.CacheManager
 import dev.patrickgold.florisboard.lib.compose.FlorisScreen
-import dev.patrickgold.florisboard.lib.ext.ExtensionManager
 import dev.patrickgold.florisboard.lib.io.ZipUtils
-import dev.patrickgold.jetpref.datastore.runtime.AndroidAppDataStorage
-import dev.patrickgold.jetpref.datastore.runtime.FileBasedStorage
 import dev.patrickgold.jetpref.datastore.runtime.ImportStrategy
 import dev.patrickgold.jetpref.datastore.ui.Preference
+import com.jtn0123.audiowhisper.rust.BackupPolicy
 import java.io.FileNotFoundException
 import java.text.DateFormat
 import java.util.*
@@ -73,15 +65,14 @@ import org.florisboard.lib.compose.FlorisOutlinedBox
 import org.florisboard.lib.compose.FlorisOutlinedButton
 import org.florisboard.lib.compose.defaultFlorisOutlinedBox
 import org.florisboard.lib.compose.stringRes
-import org.florisboard.lib.kotlin.io.deleteContentsRecursively
 import org.florisboard.lib.kotlin.io.readJson
-import org.florisboard.lib.kotlin.io.subDir
 import org.florisboard.lib.kotlin.io.subFile
 
-object Restore {
-    const val MIN_VERSION_CODE = 64
-    const val PACKAGE_NAME = "dev.patrickgold.florisboard"
-    const val BACKUP_ARCHIVE_FILE_NAME = "backup.zip"
+private fun restoreMessage(key: String): Int? = when (key) {
+    "different_version" -> R.string.backup_and_restore__restore__metadata_warn_different_version
+    "different_vendor" -> R.string.backup_and_restore__restore__metadata_warn_different_vendor
+    "invalid_metadata" -> R.string.backup_and_restore__restore__metadata_error_invalid_metadata
+    else -> null
 }
 
 @Composable
@@ -110,29 +101,18 @@ fun RestoreScreen() = FlorisScreen {
                 restoreWorkspace?.close()
                 restoreWorkspace = null
                 val workspace = cacheManager.backupAndRestore.new()
-                workspace.zipFile = workspace.inputDir.subFile(Restore.BACKUP_ARCHIVE_FILE_NAME)
+                workspace.zipFile = workspace.inputDir.subFile(BackupPolicy.inputArchiveName)
                 context.contentResolver.readToFile(uri, workspace.zipFile)
-                ZipUtils.unzip(workspace.zipFile, workspace.outputDir)
+                ZipUtils.unzip(workspace.zipFile, workspace.outputDir, BackupPolicy::archive)
                 workspace.metadata = try {
                     workspace.outputDir.subFile(Backup.METADATA_JSON_NAME).readJson()
                 } catch (e: FileNotFoundException) {
-                    error("Invalid archive: either backup_metadata.json is missing or file is not a ZIP archive.")
+                    error(BackupPolicy.missingMetadata)
                 }
-                workspace.restoreWarningId = when {
-                    workspace.metadata.versionCode != BuildConfig.VERSION_CODE -> {
-                        R.string.backup_and_restore__restore__metadata_warn_different_version
-                    }
-                    !workspace.metadata.packageName.startsWith(Restore.PACKAGE_NAME) -> {
-                        R.string.backup_and_restore__restore__metadata_warn_different_vendor
-                    }
-                    else -> null
-                }
-                workspace.restoreErrorId = when {
-                    workspace.metadata.packageName.isBlank() || workspace.metadata.versionCode < Restore.MIN_VERSION_CODE -> {
-                        R.string.backup_and_restore__restore__metadata_error_invalid_metadata
-                    }
-                    else -> null
-                }
+                val status = BackupPolicy.metadata(workspace.metadata.packageName,
+                    workspace.metadata.versionCode, BuildConfig.VERSION_CODE)
+                workspace.restoreWarningId = restoreMessage(status[0])
+                workspace.restoreErrorId = restoreMessage(status[1])
                 restoreWorkspace = workspace
             }.onFailure { error ->
                 restoreScope.launch {
@@ -146,93 +126,7 @@ fun RestoreScreen() = FlorisScreen {
     )
 
     suspend fun performRestore() {
-        val workspace = restoreWorkspace!!
-        val shouldReset = importStrategy == ImportStrategy.Erase
-        if (restoreFilesSelector.jetprefDatastore) {
-            val file = workspace.outputDir
-                .subDir(AndroidAppDataStorage.JETPREF_DIR_NAME)
-                .subFile("${FlorisPreferenceModel.NAME}.${AndroidAppDataStorage.JETPREF_FILE_EXT}")
-            if (file.exists()) {
-                val fileBasedStorage = FileBasedStorage(file.path)
-                FlorisPreferenceStore.import(importStrategy, fileBasedStorage).getOrThrow()
-            }
-        }
-        val workspaceFilesDir = workspace.outputDir.subDir("files")
-        if (restoreFilesSelector.imeKeyboard) {
-            val srcDir = workspaceFilesDir.subDir(ExtensionManager.IME_KEYBOARD_PATH)
-            val dstDir = context.filesDir.subDir(ExtensionManager.IME_KEYBOARD_PATH)
-            if (shouldReset) {
-                dstDir.deleteContentsRecursively()
-            }
-            if (srcDir.exists()) {
-                srcDir.copyRecursively(dstDir, overwrite = true)
-            }
-        }
-        if (restoreFilesSelector.imeTheme) {
-            val srcDir = workspaceFilesDir.subDir(ExtensionManager.IME_THEME_PATH)
-            val dstDir = context.filesDir.subDir(ExtensionManager.IME_THEME_PATH)
-            if (shouldReset) {
-                dstDir.deleteContentsRecursively()
-            }
-            if (srcDir.exists()) {
-                srcDir.copyRecursively(dstDir, overwrite = true)
-            }
-        }
-        val clipboardManager = context.clipboardManager().value
-        if (shouldReset) {
-            clipboardManager.clearFullHistory()
-            ClipboardFileStorage.resetClipboardFileStorage(context)
-        }
-
-        if (restoreFilesSelector.provideClipboardItems()) {
-            val clipboardFilesDir = workspace.outputDir.subDir("clipboard")
-
-            if (restoreFilesSelector.clipboardTextItems) {
-                val clipboardItems = clipboardFilesDir.subFile(Backup.CLIPBOARD_TEXT_ITEMS_JSON_NAME)
-                if (clipboardItems.exists()) {
-                    val clipboardItemsList = clipboardItems.readJson<List<ClipboardItem>>()
-                    clipboardManager.restoreHistory(items = clipboardItemsList.filter { it.type == ItemType.TEXT })
-                }
-            }
-            if (restoreFilesSelector.clipboardImageItems) {
-                val clipboardItems = clipboardFilesDir.subFile(Backup.CLIPBOARD_IMAGES_JSON_NAME)
-                if (clipboardItems.exists()) {
-                    val clipboardItemsList = clipboardItems.readJson<List<ClipboardItem>>()
-                    for (item in clipboardItemsList.filter { it.type == ItemType.IMAGE }) {
-                        ClipboardFileStorage.insertFileFromBackupIfNotExisting(
-                            context,
-                            clipboardFilesDir.subFile(
-                                relPath = "${ClipboardFileStorage.CLIPBOARD_FILES_PATH}/${
-                                    item.uri!!.path!!.split(
-                                        '/'
-                                    ).last()
-                                }"
-                            )
-                        )
-                    }
-                    clipboardManager.restoreHistory(items = clipboardItemsList.filter { it.type == ItemType.IMAGE })
-                }
-            }
-            if (restoreFilesSelector.clipboardVideoItems) {
-                val clipboardItems = clipboardFilesDir.subFile(Backup.CLIPBOARD_VIDEO_JSON_NAME)
-                if (clipboardItems.exists()) {
-                    val clipboardItemsList = clipboardItems.readJson<List<ClipboardItem>>()
-                    for (item in clipboardItemsList.filter { it.type == ItemType.VIDEO }) {
-                        ClipboardFileStorage.insertFileFromBackupIfNotExisting(
-                            context,
-                            clipboardFilesDir.subFile(
-                                relPath = "${ClipboardFileStorage.CLIPBOARD_FILES_PATH}/${
-                                    item.uri!!.path!!.split(
-                                        '/'
-                                    ).last()
-                                }"
-                            )
-                        )
-                    }
-                    clipboardManager.restoreHistory(items = clipboardItemsList.filter { it.type == ItemType.VIDEO })
-                }
-            }
-        }
+        BackupIO.restore(context, restoreWorkspace!!, restoreFilesSelector.mask(), importStrategy)
     }
 
     bottomBar {

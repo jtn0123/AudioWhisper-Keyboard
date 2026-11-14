@@ -16,6 +16,7 @@
 
 package dev.patrickgold.florisboard.lib.util
 
+import org.florisboard.lib.kotlin.UtilityRules
 import android.content.Context
 import dev.patrickgold.florisboard.app.FlorisPreferenceModel
 
@@ -29,18 +30,14 @@ object AppVersionUtils {
     }
 
     fun shouldShowChangelog(context: Context, prefs: FlorisPreferenceModel): Boolean {
-        val installVersion =
-            VersionName.fromString(prefs.internal.versionOnInstall.get()) ?: VersionName.DEFAULT
-        val lastChangelogVersion =
-            VersionName.fromString(prefs.internal.versionLastChangelog.get()) ?: VersionName.DEFAULT
-        val currentVersion =
-            VersionName.fromString(getRawVersionName(context)) ?: VersionName.DEFAULT
-
-        return lastChangelogVersion < currentVersion && installVersion != currentVersion
+        // Preserve public parser exceptions, then ask Rust for the complete changelog rule.
+        val raw = listOf(prefs.internal.versionOnInstall.get(), prefs.internal.versionLastChangelog.get(), getRawVersionName(context))
+        raw.forEach { VersionName.fromString(it) }
+        return UtilityRules.call(12, *raw.toTypedArray())[0] == "1"
     }
 
     suspend fun updateVersionOnInstallAndLastUse(context: Context, prefs: FlorisPreferenceModel) {
-        if (prefs.internal.versionOnInstall.get() == VersionName.DEFAULT_RAW) {
+        if (UtilityRules.call(13, prefs.internal.versionOnInstall.get())[0] == "1") {
             prefs.internal.versionOnInstall.set(getRawVersionName(context))
         }
         prefs.internal.versionLastUse.set(getRawVersionName(context))
@@ -63,62 +60,18 @@ data class VersionName(
         const val DEFAULT_RAW: String = "0.0.0"
 
         fun fromString(raw: String): VersionName? {
-            if (raw.matches("""[0-9]+[.][0-9]+[.][0-9]+""".toRegex())) {
-                val list = raw.split(".").map { it.toInt() }
-                if (list.size == 3) {
-                    return VersionName(list[0], list[1], list[2])
-                }
-            } else if (raw.matches("""[0-9]+[.][0-9]+[.][0-9]+[-][0-9]+""".toRegex())) {
-                val list = raw.split(".").map { it.toInt() }
-                if (list.size == 4) {
-                    return VersionName(list[0], list[1], list[2], null, list[3])
-                }
-            } else if (raw.matches("""[0-9]+[.][0-9]+[.][0-9]+[-][a-zA-Z]+""".toRegex())) {
-                val list = raw.split(".")
-                if (list.size == 4) {
-                    return VersionName(
-                        list[0].toInt(), list[1].toInt(), list[2].toInt(),
-                        list[3], null
-                    )
-                }
-            } else if (raw.matches("""[0-9]+[.][0-9]+[.][0-9]+[-][a-zA-Z]+[0-9]+""".toRegex())) {
-                val list = raw.split(".")
-                if (list.size == 4) {
-                    val extraName = list[3].split("""[0-9]+""".toRegex())[0]
-                    val extraValue = list[3].split("""[a-zA-Z]+""".toRegex())[1].toInt()
-                    return VersionName(
-                        list[0].toInt(), list[1].toInt(), list[2].toInt(),
-                        extraName, extraValue
-                    )
-                }
-            }
-            return null
+            val result = UtilityRules.call(9, raw)
+            if (result.isEmpty()) return null
+            if (result[0] == "number-error") throw NumberFormatException("For input string: \"${result[1]}\"")
+            return VersionName(result[1].toInt(), result[2].toInt(), result[3].toInt())
         }
+
     }
 
-    override fun toString(): String {
-        val mmp = "$major.$minor.$patch"
-        return if (extraName != null || extraValue != null) {
-            val extraName = extraName ?: ""
-            val extraValue = extraValue?.toString() ?: ""
-            "$mmp.$extraName$extraValue"
-        } else {
-            mmp
-        }
-    }
+    override fun toString(): String = UtilityRules.call(11, major.toString(), minor.toString(), patch.toString(),
+        if (extraName == null) "0" else "1$extraName", extraValue?.toString().orEmpty())[0]
 
-    operator fun compareTo(other: VersionName): Int {
-        if (major != other.major) {
-            return major.compareTo(other.major)
-        } else if (minor != other.minor) {
-            return minor.compareTo(other.minor)
-        } else if (patch != other.patch) {
-            return patch.compareTo(other.patch)
-        } else if (extraValue != null && other.extraValue != null) {
-            if (extraValue != other.extraValue) {
-                return extraValue.compareTo(other.extraValue)
-            }
-        }
-        return 0
-    }
+    private fun fields() = listOf(major.toString(), minor.toString(), patch.toString(), extraName.orEmpty(), extraValue?.toString().orEmpty())
+    operator fun compareTo(other: VersionName): Int = UtilityRules.call(10,
+        *(fields() + other.fields()).toTypedArray())[0].toInt()
 }
