@@ -30,6 +30,7 @@ mod render;
 mod render_accessibility;
 mod render_content;
 mod render_input;
+mod render_profile;
 mod render_smartbar;
 mod render_theme;
 mod render_trail;

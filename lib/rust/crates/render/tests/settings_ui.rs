@@ -259,6 +259,29 @@ fn selection_handles_are_native_primary_teardrops_and_drag_selection() {
 }
 
 #[test]
+fn shaping_owners_share_the_platform_font_blob_without_copying_its_payload() {
+    use parley::PositionedLayoutItem;
+    let blob = render::text::FontBlob::from(
+        include_bytes!("../../../../../fastlane/staging/fonts/Roboto-Light.ttf").to_vec(),
+    );
+    let mut first = Text::shared(vec![blob.clone()]);
+    let mut second = Text::shared(vec![blob.clone()]);
+    for owner in [&mut first, &mut second] {
+        let layout = owner.layout("Settings", 16.0);
+        let mut runs = 0;
+        for line in layout.lines() {
+            for item in line.items() {
+                if let PositionedLayoutItem::GlyphRun(run) = item {
+                    assert_eq!(run.run().font().data.id(), blob.id());
+                    runs += 1;
+                }
+            }
+        }
+        assert!(runs > 0);
+    }
+}
+
+#[test]
 fn material_sliders_use_the_pinned_track_gap_and_vertical_thumb_tokens() {
     let (mut a, mut text) = app();
     a.config = [480.0, 8192.0, 1.0, 1.0];

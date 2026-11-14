@@ -67,7 +67,7 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_pixels(
         handle::with_locked::<Session, _>(env, native, "renderer", ptr::null_mut(), |s, env| {
             s.prepare_panel();
             let raster = s.bitmap.get_or_insert_with(|| {
-                render::raster::Raster::new(s.scene.width, s.scene.height, s.fonts.clone())
+                render::raster::Raster::shared(s.scene.width, s.scene.height, s.fonts.clone())
             });
             raster
                 .draw(

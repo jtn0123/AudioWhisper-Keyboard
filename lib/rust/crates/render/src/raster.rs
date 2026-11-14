@@ -29,8 +29,15 @@ impl std::fmt::Debug for Raster {
 
 impl Raster {
     pub fn new(width: u16, height: u16, fonts: Vec<Vec<u8>>) -> Self {
+        Self::shared(
+            width,
+            height,
+            fonts.into_iter().map(crate::text::FontBlob::from).collect(),
+        )
+    }
+    pub fn shared(width: u16, height: u16, fonts: Vec<crate::text::FontBlob>) -> Self {
         Self {
-            text: Text::new(fonts),
+            text: Text::shared(fonts),
             layouts: HashMap::new(),
             context: crate::backend::Backend::cpu(width, height),
             pixmap: Pixmap::new(width, height),
@@ -54,10 +61,10 @@ impl Raster {
     pub(crate) fn hybrid(
         width: u16,
         height: u16,
-        fonts: Vec<Vec<u8>>,
+        fonts: Vec<parley::fontique::Blob<u8>>,
         resources: vello_hybrid::Resources,
     ) -> Self {
-        let mut raster = Self::new(width, height, fonts);
+        let mut raster = Self::shared(width, height, fonts);
         raster.context = crate::backend::Backend::hybrid(width, height, resources);
         raster
     }
@@ -90,6 +97,8 @@ impl Raster {
             right: damage.right.ceil(),
             bottom: damage.bottom.ceil(),
         };
+        self.context
+            .settings_scene(scene.panel.as_ref().is_some_and(|p| p.kind == 9));
         self.context.reset();
         let rect = vello_cpu::kurbo::Rect::new(
             damage.left as f64,

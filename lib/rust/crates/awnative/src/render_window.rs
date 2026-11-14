@@ -80,10 +80,12 @@ impl Window {
             bits: std::ptr::null_mut(),
             reserved: [0; 6],
         };
+        let lock_start = monotonic_ns();
         // SAFETY: the owned window is live; NDK writes these initialized stack values and returns an exclusively locked buffer.
         if unsafe { ANativeWindow_lock(window, &mut buffer, &mut dirty) } != 0 {
             return false;
         }
+        let locked = monotonic_ns();
         let valid = buffer.width == scene.width as i32
             && buffer.height == scene.height as i32
             && buffer.stride >= buffer.width
@@ -105,8 +107,17 @@ impl Window {
                 }
             }
         }
+        let copied = monotonic_ns();
         // SAFETY: exactly one unlock for the successful lock above, even on unexpected dimensions/format.
         let posted = unsafe { ANativeWindow_unlockAndPost(window) } == 0;
+        if profile_enabled() {
+            log(&format!(
+                "buffer lock_ns={} copy_ns={} unlock_ns={}",
+                locked - lock_start,
+                copied - locked,
+                monotonic_ns() - copied
+            ));
+        }
         valid && posted
     }
 }
@@ -127,7 +138,7 @@ impl Worker {
     pub fn new(
         env: *mut JNIEnv,
         surface: jobject,
-        fonts: Vec<Vec<u8>>,
+        fonts: Vec<render::text::FontBlob>,
         width: u16,
         height: u16,
         hybrid: bool,
@@ -196,12 +207,17 @@ impl Drop for Worker {
 fn run(
     window: Window,
     shared: Arc<(Mutex<Pending>, Condvar)>,
-    fonts: Vec<Vec<u8>>,
+    fonts: Vec<render::text::FontBlob>,
     width: u16,
     height: u16,
     hybrid: bool,
 ) {
     let profiling = profile_enabled();
+    crate::render_profile::heap(
+        2,
+        fonts.iter().map(|f| f.len()).sum(),
+        width as usize * height as usize * 4,
+    );
     let initialization = profiling.then(Instant::now);
     let gpu = if hybrid {
         match window.hybrid(width, height, fonts.clone()) {
@@ -219,8 +235,9 @@ fn run(
     };
     let mut engine = match gpu {
         Some(gpu) => Engine::Hybrid(Box::new(gpu)),
-        None => Engine::Cpu(Box::new(Raster::new(width, height, fonts))),
+        None => Engine::Cpu(Box::new(Raster::shared(width, height, fonts))),
     };
+    crate::render_profile::heap(3, 0, width as usize * height as usize * 4);
     let mut previous = Scene::default();
     if let Engine::Cpu(raster) = &mut engine {
         raster.set_profiling(profiling);
@@ -248,6 +265,8 @@ fn run(
         let Some(damage) = regions.iter().copied().reduce(render::scene::union) else {
             continue;
         };
+        let worker_ns = monotonic_ns();
+        let _trace = crate::render_profile::Span::new(c"aw.worker");
         let start = Instant::now();
         let mut post_ns = 0;
         let (draw, gpu_wait) = match &mut engine {
@@ -274,6 +293,9 @@ fn run(
             },
         };
         let posted = monotonic_ns();
+        if previous.width == 0 {
+            crate::render_profile::heap(4, 0, width as usize * height as usize * 4);
+        }
         if profiling && let Engine::Cpu(raster) = &engine {
             let p = raster.profile();
             let area = ((damage.right.ceil().min(scene.width as f32)
@@ -319,14 +341,14 @@ fn run(
         }
         // Only numeric timing data; never scene labels, candidates, coordinates or action codes.
         log(&format!(
-            "frame draw_ns={draw} post_ns={} touch_ns={touch} choreographer_ns={frame} gpu_wait_ns={gpu_wait}",
+            "frame draw_ns={draw} post_ns={} touch_ns={touch} choreographer_ns={frame} worker_ns={worker_ns} gpu_wait_ns={gpu_wait}",
             posted
         ));
         previous = scene;
     }
 }
 
-fn profile_enabled() -> bool {
+pub(crate) fn profile_enabled() -> bool {
     #[link(name = "log")]
     unsafe extern "C" {
         fn __android_log_is_loggable(
@@ -349,7 +371,7 @@ impl Window {
         &self,
         width: u16,
         height: u16,
-        fonts: Vec<Vec<u8>>,
+        fonts: Vec<render::text::FontBlob>,
     ) -> std::result::Result<render::hybrid::Hybrid, String> {
         use raw_window_handle::{AndroidDisplayHandle, AndroidNdkWindowHandle};
         let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
@@ -392,7 +414,7 @@ fn monotonic_ns() -> i64 {
     }
 }
 
-fn log(message: &str) {
+pub(crate) fn log(message: &str) {
     #[link(name = "log")]
     unsafe extern "C" {
         fn __android_log_write(

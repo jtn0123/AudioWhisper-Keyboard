@@ -2,6 +2,8 @@
 use parley::fontique::GenericFamily;
 use parley::{FontContext, Layout, LayoutContext, StyleProperty};
 
+pub type FontBlob = parley::fontique::Blob<u8>;
+
 /// Reused shaping resources, with fonts supplied by the platform host.
 pub struct Text {
     fonts: FontContext,
@@ -17,13 +19,16 @@ impl std::fmt::Debug for Text {
 
 impl Text {
     pub fn new(fonts: impl IntoIterator<Item = Vec<u8>>) -> Self {
+        Self::shared(fonts.into_iter().map(FontBlob::from))
+    }
+    pub fn shared(fonts: impl IntoIterator<Item = FontBlob>) -> Self {
         let mut context = FontContext::new();
         let mut families = Vec::new();
         for bytes in fonts {
             families.extend(
                 context
                     .collection
-                    .register_fonts(bytes.into(), None)
+                    .register_fonts(bytes, None)
                     .into_iter()
                     .map(|(id, _)| id),
             );

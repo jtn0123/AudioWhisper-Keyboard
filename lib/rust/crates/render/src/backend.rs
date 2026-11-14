@@ -10,6 +10,7 @@ use vello_cpu::{
 pub(crate) struct Cpu {
     context: RenderContext,
     resources: Resources,
+    bitmap_atlas: bool,
 }
 pub(crate) struct Hybrid {
     pub context: vello_hybrid::Scene,
@@ -42,6 +43,7 @@ impl Backend {
         Self::Cpu(Box::new(Cpu {
             context: RenderContext::new(width, height),
             resources: Resources::new(),
+            bitmap_atlas: true,
         }))
     }
     pub fn hybrid(width: u16, height: u16, resources: vello_hybrid::Resources) -> Self {
@@ -49,6 +51,11 @@ impl Backend {
             context: vello_hybrid::Scene::new(width, height),
             resources,
         }))
+    }
+    pub fn settings_scene(&mut self, settings: bool) {
+        if let Self::Cpu(cpu) = self {
+            cpu.bitmap_atlas = !settings;
+        }
     }
     forward!(reset());
     forward!(set_paint(paint: AlphaColor<Srgb>));
@@ -85,7 +92,9 @@ impl Backend {
                 .font_size(run.run().font_size())
                 .normalized_coords(coords)
                 .hint(true)
-                .atlas_cache(true)
+                // Settings draws directly to avoid the 4096² RGBA atlas (64 MiB).
+                // Other scenes retain their existing bitmap cache policy.
+                .atlas_cache(c.bitmap_atlas)
                 .fill_glyphs(run.positioned_glyphs().map(|g| vello_cpu::Glyph {
                     id: g.id,
                     x: g.x,

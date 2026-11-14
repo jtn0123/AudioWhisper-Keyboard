@@ -20,7 +20,7 @@ pub struct Session {
     pub(crate) text: Option<render::text::Text>,
     pub(crate) touch: Touch,
     pub(crate) semantics: render::accessibility::Semantics,
-    pub(crate) fonts: Vec<Vec<u8>>,
+    pub(crate) fonts: Vec<render::text::FontBlob>,
     pub(crate) bitmap: Option<render::raster::Raster>,
     pub(crate) touch_time: i64,
     pub(crate) theme: Option<render::theme::Theme>,
@@ -50,14 +50,20 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_create(
     // SAFETY: the JVM supplies this call's environment and array references.
     unsafe {
         jni::run(env, 0, |env| {
+            #[cfg(target_os = "android")]
+            crate::render_profile::heap(0, 0, 0);
             let mut fonts = Vec::new();
             for path in env.read_strings(paths, "fonts")? {
                 let path = String::from_utf16(&path.ok_or_else(|| illegal("null font path"))?)
                     .map_err(|_| illegal("invalid font path"))?;
-                fonts.push(std::fs::read(path).map_err(|_| illegal("could not read system font"))?);
+                fonts.push(render::text::FontBlob::from(
+                    std::fs::read(path).map_err(|_| illegal("could not read system font"))?,
+                ));
             }
+            #[cfg(target_os = "android")]
+            crate::render_profile::heap(1, fonts.iter().map(|f| f.len()).sum(), 0);
             Ok(handle::into_handle(Mutex::new(Session {
-                text: Some(render::text::Text::new(fonts.clone())),
+                text: Some(render::text::Text::shared(fonts.clone())),
                 fonts,
                 ..Session::default()
             })))

@@ -48,6 +48,8 @@ fn reply(
         .text
         .as_mut()
         .ok_or_else(|| illegal("settings fonts missing"))?;
+    #[cfg(target_os = "android")]
+    let _trace = crate::render_profile::Span::new(c"aw.settings.scene_reply");
     s.scene = a.scene(text);
     let nodes:Vec<_>=a.controls.iter().map(|c|{
         let mut actions=if matches!(c.action,Action::None){vec![]}else{vec![1]};

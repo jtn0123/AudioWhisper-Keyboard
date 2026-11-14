@@ -78,7 +78,7 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_keyPrevie
                 }],
                 ..Default::default()
             };
-            let mut raster = render::raster::Raster::new(width, height, s.fonts.clone());
+            let mut raster = render::raster::Raster::shared(width, height, s.fonts.clone());
             raster
                 .draw(&scene, bounds)
                 .map_err(|_| illegal("key preview raster failed"))?;

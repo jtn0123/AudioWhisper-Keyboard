@@ -21,6 +21,8 @@ import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.*
 
+private const val SETTINGS_TRACE_TAG = "aw-profile"
+
 /** Surface, lifecycle and Android transport. Native code supplies every drawn control and action. */
 internal class RustSettingsView(context: Context) : FrameLayout(context), SurfaceHolder.Callback, Choreographer.FrameCallback {
     private lateinit var activity: FlorisAppActivity
@@ -158,11 +160,15 @@ internal class RustSettingsView(context: Context) : FrameLayout(context), Surfac
         if (live && !pending && !released) { pending = true; choreographer.postFrameCallback(this) }
     }
     override fun doFrame(frameTimeNanos: Long) {
+        android.os.Trace.beginSection("aw.settings.frame")
+        try {
         pending = false
         if (!live || released) return
         if (state.getValue("animating").jsonPrimitive.boolean) receive(native.settings(8, arrayOf(frameTimeNanos.toString())))
+        if (android.util.Log.isLoggable(SETTINGS_TRACE_TAG, android.util.Log.DEBUG)) android.util.Log.d(SETTINGS_TRACE_TAG, "submit frame_ns=$frameTimeNanos submit_ns=${System.nanoTime()}")
         native.frame(frameTimeNanos)
         if (state.getValue("animating").jsonPrimitive.boolean) requestFrame()
+        } finally { android.os.Trace.endSection() }
     }
     override fun surfaceCreated(holder: SurfaceHolder) = Unit
     override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) {
@@ -178,10 +184,18 @@ internal class RustSettingsView(context: Context) : FrameLayout(context), Surfac
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) { super.onSizeChanged(w,h,oldw,oldh); configure() }
     override fun onInterceptTouchEvent(event: MotionEvent) = true
     override fun onTouchEvent(event: MotionEvent): Boolean {
+        if (event.actionMasked == MotionEvent.ACTION_DOWN) requestUnbufferedDispatch(event)
         if (accessibility.touch(event)) return true
+        android.os.Trace.beginSection("aw.settings.input")
+        try {
+        val delivered = System.nanoTime()
         val p = event.rendererPacket(); receive(native.settingsTouch(p.metadata, p.times, p.coords))
+        if (android.util.Log.isLoggable(SETTINGS_TRACE_TAG, android.util.Log.DEBUG)) {
+            android.util.Log.d(SETTINGS_TRACE_TAG, "input event_ns=${event.eventTimeNanos} delivered_ns=$delivered reply_ns=${System.nanoTime()} action=${event.actionMasked}")
+        }
         if (event.actionMasked == MotionEvent.ACTION_UP) performClick()
         return true
+        } finally { android.os.Trace.endSection() }
     }
     override fun dispatchHoverEvent(event: MotionEvent) = accessibility.hover(event) || super.dispatchHoverEvent(event)
     override fun getAccessibilityNodeProvider() = accessibility

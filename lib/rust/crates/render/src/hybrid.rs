@@ -25,7 +25,7 @@ impl Hybrid {
         surface: wgpu::Surface<'static>,
         width: u16,
         height: u16,
-        fonts: Vec<Vec<u8>>,
+        fonts: Vec<crate::text::FontBlob>,
     ) -> Result<Self, String> {
         pollster::block_on(Self::create(instance, surface, width, height, fonts))
     }
@@ -35,7 +35,7 @@ impl Hybrid {
         surface: wgpu::Surface<'static>,
         width: u16,
         height: u16,
-        fonts: Vec<Vec<u8>>,
+        fonts: Vec<crate::text::FontBlob>,
     ) -> Result<Self, String> {
         let adapter = instance
             .request_adapter(&wgpu::RequestAdapterOptions {
