@@ -6,6 +6,7 @@ use std::ffi::c_void;
 
 use jni_sys::{JNI_VERSION_1_6, JavaVM, jint};
 
+mod backup_utils;
 mod composing;
 mod dictation;
 mod editor;

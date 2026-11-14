@@ -135,7 +135,9 @@ object ZipUtils {
      * @throws java.util.zip.ZipException If a Zip format error has occurred.
      * @throws java.io.IOException If an I/O error has occurred.
      */
-    fun unzip(srcFile: FsFile, dstDir: FsDir) {
+    fun unzip(srcFile: FsFile, dstDir: FsDir,
+        entryPlan: (String, List<ExtensionPolicy.ArchiveEntry>) -> List<String> = ExtensionPolicy::archive,
+    ) {
         require(srcFile.exists() && srcFile.isFile) { "Given src file `$srcFile` is not valid or a directory." }
         dstDir.mkdirs()
         ZipFile(srcFile).use { flexFile ->
@@ -147,7 +149,7 @@ object ZipUtils {
                 // Canonicalization is file-system I/O; Rust decides containment, lengths and size.
                 val root = dstDir.canonicalPath
                 val canonical = destination.canonicalPath
-                val action = ExtensionPolicy.archive(root, listOf(
+                val action = entryPlan(root, listOf(
                     ExtensionPolicy.ArchiveEntry(entry.name, canonical, entry.size, entry.isDirectory),
                 )).single()
                 when (action) {

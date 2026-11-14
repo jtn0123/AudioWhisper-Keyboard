@@ -37,3 +37,8 @@
 # Rust owns the screen walk; this adapter fetches Android node data synchronously.
 -keep interface com.jtn0123.audiowhisper.rust.ReaderTree { *; }
 -keepclassmembers class * implements com.jtn0123.audiowhisper.rust.ReaderTree { *; }
+
+# Utility rules live in the JVM-only Kotlin module, with JNI in awnative.
+-keepclasseswithmembernames class org.florisboard.lib.kotlin.UtilityNative {
+    native <methods>;
+}

@@ -1,0 +1,15 @@
+[package]
+name = "backup"
+version = "0.1.0"
+description = "Backup manifests and restore planning"
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+chars = { path = "../chars" }
+extensions = { path = "../extensions" }
+
+[lints]
+workspace = true

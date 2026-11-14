@@ -5,6 +5,8 @@ members = ["crates/*"]
 # Everyday commands stay Rust-only; oracleCheck explicitly selects the full workspace.
 default-members = [
     "crates/awnative",
+    "crates/backup",
+    "crates/utilities",
     "crates/chars",
     "crates/composing",
     "crates/dictation",

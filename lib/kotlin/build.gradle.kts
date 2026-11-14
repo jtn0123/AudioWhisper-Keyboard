@@ -55,6 +55,11 @@ tasks {
 }
 
 tasks.withType<Test> {
+    val rustHost = project(":lib:rust").layout.buildDirectory.dir("rust/host")
+    dependsOn(":lib:rust:cargoBuildHost")
+    inputs.dir(rustHost).withPropertyName("rustHostLibrary").withPathSensitivity(PathSensitivity.RELATIVE)
+    systemProperty("java.library.path", rustHost.get().asFile.path)
+    jvmArgs("--enable-native-access=ALL-UNNAMED")
     testLogging {
         events = setOf(TestLogEvent.FAILED, TestLogEvent.PASSED, TestLogEvent.SKIPPED)
     }

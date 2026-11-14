@@ -1,0 +1,29 @@
+//! User dictionary rules; generic Validation.kt is resource/callback/type-contract glue.
+use crate::{blank, text};
+pub fn validate(rule: &[u16], value: &[u16], min: i32, max: i32) -> &'static str {
+    let start = value
+        .iter()
+        .position(|&u| !chars::is_whitespace(u))
+        .unwrap_or(value.len());
+    let end = value
+        .iter()
+        .rposition(|&u| !chars::is_whitespace(u))
+        .map_or(start, |i| i + 1);
+    let trimmed = &value[start..end];
+    if rule == text("freq") {
+        match chars::text::to_int_or_null(trimmed) {
+            None => "empty",
+            Some(n) if n < min || n > max => "invalid",
+            Some(_) => "",
+        }
+    } else if blank(value) {
+        if rule == text("word") { "empty" } else { "" }
+    } else if trimmed
+        .iter()
+        .any(|&u| chars::is_regex_space(u) || u == 59 || u == 44)
+    {
+        "invalid"
+    } else {
+        ""
+    }
+}

@@ -1,0 +1,11 @@
+package org.florisboard.lib.kotlin
+
+/** Plain copied values; Android Uri/Locale objects and JVM callbacks never cross JNI. */
+object UtilityRules {
+    fun call(operation: Int, vararg values: String): List<String> =
+        UtilityNative.call(operation, arrayOf(*values)).asList()
+}
+internal object UtilityNative {
+    init { System.loadLibrary("awnative") }
+    @JvmStatic external fun call(operation: Int, input: Array<String>): Array<String>
+}

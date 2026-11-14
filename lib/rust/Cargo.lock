@@ -92,6 +92,7 @@ checksum = "f2032f911046de80f0a198e0901378627c33f59ea0ac00e363d481118bd70a53"
 name = "awnative"
 version = "0.1.0"
 dependencies = [
+ "backup",
  "chars",
  "composing",
  "dictation",
@@ -117,7 +118,16 @@ dependencies = [
  "spacing",
  "suggest",
  "transcript",
+ "utilities",
  "wgpu",
+]
+
+[[package]]
+name = "backup"
+version = "0.1.0"
+dependencies = [
+ "chars",
+ "extensions",
 ]
 
 [[package]]
@@ -1982,6 +1992,13 @@ name = "utf_types"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3a3b425286980a367278453f3b6d28cdcb134b574e5a35824a6ff5eebad50bb6"
+
+[[package]]
+name = "utilities"
+version = "0.1.0"
+dependencies = [
+ "chars",
+]
 
 [[package]]
 name = "vello_common"
