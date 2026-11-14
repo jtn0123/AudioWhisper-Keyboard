@@ -93,7 +93,7 @@ open class FlorisAppActivity : ComponentActivity() {
         result.data?.getStringExtra("native-route")?.let { rustSettings?.navigate(it) }
         rustSettings?.refreshPlatform()
     }
-    private val prefs by FlorisPreferenceStore
+    private val prefs: FlorisPreferenceModel by lazy { val model by FlorisPreferenceStore; model }
     private val appContext by appContext()
     private val cacheManager by cacheManager()
     private var appTheme by mutableStateOf(AppTheme.AUTO)
@@ -101,6 +101,11 @@ open class FlorisAppActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         if (android.util.Log.isLoggable(SETTINGS_PROFILE_TAG, android.util.Log.DEBUG)) android.util.Log.d(SETTINGS_PROFILE_TAG, "activity_start_ns=${System.nanoTime()}")
+        if (com.jtn0123.audiowhisper.rust.NativeRuntime.failure != null) {
+            super.onCreate(savedInstanceState)
+            com.jtn0123.audiowhisper.settingsui.PlatformCrashScreen.showIfUnavailable(this)
+            return
+        }
         // Splash screen should be installed before calling super.onCreate()
         installSplashScreen().apply {
             setKeepOnScreenCondition { !appContext.preferenceStoreLoaded.value }
@@ -211,6 +216,7 @@ open class FlorisAppActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
+        if (com.jtn0123.audiowhisper.rust.NativeRuntime.failure != null) return
         if (rustSettings != null && initialPrototype != prefs.other.rustSettingsPrototype.get()) recreate()
         else rustSettings?.refreshPlatform()
     }

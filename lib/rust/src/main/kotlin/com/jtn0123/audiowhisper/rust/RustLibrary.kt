@@ -12,7 +12,7 @@ internal object RustLibrary {
     val cleaner: Cleaner = Cleaner.create()
 
     init {
-        System.loadLibrary("awnative")
+        NativeRuntime.requireLoaded()
     }
 
     /** Loads the library, if this is the first use. */

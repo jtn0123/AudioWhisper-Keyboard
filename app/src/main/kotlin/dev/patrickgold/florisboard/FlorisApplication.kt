@@ -76,6 +76,7 @@ class FlorisApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         FlorisApplicationReference = WeakReference(this)
+        if (!com.jtn0123.audiowhisper.rust.NativeRuntime.load()) return
         try {
             Flog.install(
                 context = this,
