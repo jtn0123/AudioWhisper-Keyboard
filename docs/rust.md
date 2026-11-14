@@ -10,7 +10,8 @@ The target is at least 90% Rust in our main source, because stopping at logic le
 this keyboard in Compose and settings. Count non-blank lines of tracked `.kt`, `.java` and
 `.rs` files; exclude paths containing `/test/`, `/tests/`, `/androidTest/` or `benchmark/`,
 `*Test.kt`, `*_test.rs`, `*_tests.rs`, `tests.rs`, and generated tables
-(`latin/src/chars/tables.rs`, `chars/src/tables/*`). Dependencies' native source is not ours
+(`latin/src/chars/tables.rs`, `chars/src/tables/*`), plus the entirely test-only
+`latin-oracle` crate (including its Rust C++-oracle harness). Dependencies' native source is not ours
 and does not count, including sherpa-onnx, onnxruntime and a renderer's dependencies.
 The planning snapshot was about 25.8k Rust, 55.8k Kotlin and 0.6k Java (31% Rust).
 After stage 1, the tracked-source recount on 2026-11-12 is 25,306 Rust, 53,808 Kotlin and
@@ -39,8 +40,8 @@ wrappers: the point is to remove Kotlin decisions, not translate each line throu
 7. Emoji history and quick-action arrangement.
 8. Clipboard ordering, duplicate/expiry/limit/pinning and MIME policy; keep Room and the Android clipboard in Kotlin.
 9. Extension metadata/import policy: identifiers, maintainers, validation and archive-entry decisions (done; [proof](stage2-extensions.md)).
-10. Dictation session state machine, compared with the existing schedules.
-11. ASR and VAD through sherpa-onnx 2.0.1's exact C API; restore its excluded C library and preserve audio/decoder/VAD settings and flushing.
+10. Dictation session state machine, compared with the existing schedules (done implementation and dictation proof; [proof and final device-acceptance hold](stage2-dictation.md)).
+11. ASR and VAD through sherpa-onnx 2.0.1's exact C API; restore its excluded C library and preserve audio/decoder/VAD settings and flushing (done implementation and byte-identical dictation proof; [proof and final device-acceptance hold](stage2-dictation.md)).
 12. Pocket TTS through that C API: Loona, four threads, cancellation and stop-before-free; remove sherpa JNI only when unused.
 13. Input dispatch and KeyboardManager routing: press/release/repeat, pointer policy, actions, state, evaluator and feedback (done; [proof](stage2-input.md)).
 14. Editor state/reconciliation: expected text, selection/composing and UTF-16 (done; [proof](stage2-editor.md)).
@@ -167,6 +168,7 @@ The differential tests, deliberate mutation check and emulator checks below appl
 
 | Piece | Rust | Replaced | Proof it matches |
 |---|---|---|---|
+| Dictation session and sherpa ASR/VAD (stage 2 packages 10/11) | `crates/dictation`, `crates/sherpa-ffi` | Lifecycle/generations/timeouts, UI and editor plans, model policy, VAD segmentation and native recognizer/stream/cancellation ownership; Kotlin retains Android I/O/executors | 50,000 session events and 50,000 PCM chunks over 200 seeds each; recorded traces; seven byte-identical fixture comparisons (26 transcript hashes, 315 VAD observations, five segments, 14 partials and final flush); four restored mutations and four UI pairs; final legacy-input/cleanup/logcat/shutdown acceptance remains on a documented device hold. See [dictation proof](stage2-dictation.md) |
 | Input dispatch and KeyboardManager routing (stage 2 package 13) | `crates/input` | Lifecycle/timers, shared pointer policy, ordered key routes, state/subtype transitions, evaluator tokens and feedback decisions; Kotlin executes Android effects for both renderers | 50,000 events across 200 seeds and 12,906 editor operations match frozen Kotlin; four restored mutations; existing 43,200-event touch comparison retained; pre/post Compose and Rust fixtures match. See [input proof](stage2-input.md) |
 | Editor state, flags, reconciliation and operation plans (stage 2 packages 14/15) | `crates/editor` | Expected UTF-16 windows/queue, composing/selection, raw EditorInfo interpretation, commits/deletes/reverts/spacing/caps, batch sequences and editing routes; Kotlin interprets plans and supplies Android ICU/provider data | 50,000 seeded events over 200 seeds, 201,611 ordered effects and 93,887 checkpoints; five restored mutations including the batch-balance invariant; pre/post Compose and Rust regression, suggestions and extended editor fixtures match. See [editor proof](stage2-editor.md) |
 | Extension metadata and import policy (stage 2 package 9) | `crates/extensions` | Identifier/maintainer/validation, type/target/skip and archive decisions; Kotlin keeps Android I/O, serialization and Compose resources | Seven bundled manifests, 155 document comparisons, exhaustive/seeded validation and maintainer matches, 10,000 entry lists and 11 generated ZIPs; ID mutation caught; Android ICU 302,152 matches and real valid/two-invalid import UI checks. See [extension proof](stage2-extensions.md) |
@@ -632,7 +634,8 @@ lib/rust/
   rust-toolchain.toml         the pinned Rust version, with the Android target
   .cargo/config.toml          16 KB page alignment for Android; cargo's output in build/cargo
   crates/glide/               glide typing's scorer: plain Rust, no unsafe, no JNI
-  crates/dictation/           dictation's text rules and the mic key
+  crates/dictation/           dictation text/session/model-cache/segmentation policy and the mic key
+  crates/sherpa-ffi/          owned sherpa-onnx 2.0.1 C API boundary for ASR and VAD
   crates/suggest/             typing suggestions, auto-correction, the spell checker, what typing learns
   crates/reader/              reading a page aloud: blocks, selections, scrolls, speech, the speaker key, the screen walk's decisions
   crates/keys/                key/domain models, layout assembly/cache rules, geometry and hit-testing
@@ -659,9 +662,9 @@ lib/rust/
 
 There is one native library, `libawnative.so`, however many crates there are. Each area of logic is
 its own crate with no unsafe code (`#![forbid(unsafe_code)]`) and no knowledge of Android or the
-JVM, so it is tested with plain `cargo test`. `awnative` is the only shipped crate with `unsafe`
-(the test-only `latin-oracle` calls C++): it converts JNI arrays to slices, calls the logic crate,
-and turns bad input into a Java exception instead of a crash.
+JVM, so it is tested with plain `cargo test`. `awnative` owns JNI conversion and turns bad input into a Java exception instead of a crash.
+The other shipped unsafe boundary is `sherpa-ffi`, which owns the pinned sherpa C API objects;
+its safe API exposes no C pointer. The test-only `latin-oracle` calls C++.
 
 Native objects (an index, a query, a word store) cross JNI as a `Long` handle. The Kotlin wrapper
 frees each one with a `java.lang.ref.Cleaner` once it is unreachable; a query is also
@@ -755,7 +758,8 @@ Or, from `lib/rust`, plain `cargo test`, `cargo clippy --all-targets -- -D warni
   (`#[cfg(test)] mod tests;`) rather than inline once a file grows past that.
 - **No warnings, and none silenced.** Clippy runs with `-D warnings`; fix what it says rather than
   adding `#[allow]`.
-- **Unsafe stays in `awnative`**, and each `unsafe` block says why it is sound (`// SAFETY:`).
+- **Unsafe stays at native boundaries**: JNI in `awnative`, and sherpa C ownership in the dedicated
+  `sherpa-ffi` crate. Logic crates forbid unsafe. Every unsafe block/implementation has a `// SAFETY:` comment.
 - **Never hold a lock across a call back into Kotlin.** The suggester locks the learned words
   only for each read, not while it waits on the decoder, so a callback can't deadlock against
   another thread learning a word.
