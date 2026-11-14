@@ -406,6 +406,30 @@ binary passed 674 times: 14 sequential/default, 120 default, 480 with 12 concurr
 tests, zero failures/errors/skips, and only the permitted lint warnings (AndroidGradlePluginVersion 1,
 NewerVersionAvailable 3, ChromeOsAbiSupport 1).
 
-**Open item: intermittent `latin-oracle` SIGSEGV.** The cause is unknown. Only test-only C++
-oracle code runs in that binary. The suspected next step is an AddressSanitizer build of
-`latin-oracle`, looped under gate-like parallel load. This is not presented as a flake to ignore.
+**Resolved: intermittent `latin-oracle` SIGSEGV (2026-11-14).** The cause was a data race in
+the oracle's fake JNI environment (test-only), not in shipped code. Every `latinime::Dictionary`
+constructor logs through `LogUtils::logToJava`, which calls `FindClass("android/util/Log")`.
+Dictionaries open under the oracle's shared lock, so the lib tests' parallel
+`Dictionary::bundled()` calls could reach `findClass` together the first time that name was
+looked up, when its unguarded class vector was growing. One thread could then read or
+reallocate the vector while another wrote it. `locking.rs` had wrongly said only JNI_OnLoad
+writes the fake environment's tables.
+
+A scratch integration test that opens the bundled dictionary on 24 threads released by one
+barrier reproduced the race at once. Uninstrumented, 8 of 1,300 processes died, by SIGSEGV
+(exit 139) or by SIGABRT (exit 134) from heap corruption. With AddressSanitizer on the C++
+(`CXXFLAGS="-fsanitize=address -fno-omit-frame-pointer -g"`, linking
+`libclang_rt.asan_osx_dynamic.dylib`), 270 of 1,000 processes reported errors: 232
+heap-buffer-overflows, 35 double-frees and 3 SEGVs. All 270 had `findClass` in their stacks,
+under `logToJava` and `Dictionary::Dictionary`. The fix gives the class table its own mutex.
+After it, the same test passed 1,000 of 1,000 ASan processes and 5,000 of 5,000 uninstrumented
+ones.
+
+The whole `latin` and `latin-oracle` suites under ASan (102 tests) then reported no memory
+errors. One comparison differs only in the ASan build:
+`layout::tests::sweet_spot_factor_matches_the_cpp` for a signalling NaN. The normal -O2 C++
+compiles `std::min(C, x)` to `fminnm`, which the Rust port reproduces on purpose (see
+`touch_position_correction_utils.rs`). The instrumented build compiles it to `fcmp`/`fcsel`
+instead, verified by disassembling both objects. No tap distance is NaN, and the normal build,
+which the gate runs, matches. The scratch race test is not committed. It catches a regression in
+only about 0.6% of uninstrumented processes, so the docs record its recipe instead.

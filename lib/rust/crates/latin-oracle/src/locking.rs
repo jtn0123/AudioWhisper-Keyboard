@@ -15,8 +15,10 @@
 //! * a session's constructor, `init` and destructor touch only that session and read the
 //!   dictionary; the other hooks read a dictionary or keyboard, or write a `ProximityInfoState`
 //!   the caller owns (a hook on a session's state must not run while that session searches);
-//! * the fake JNI environment's tables are written only by JNI_OnLoad, and its arrays are each
-//!   call's own;
+//! * the fake JNI environment's natives are written only by JNI_OnLoad; its classes are also
+//!   added after it, by any call whose C++ calls FindClass (every dictionary open logs, which
+//!   looks up android.util.Log), so that table has a mutex of its own; its arrays are each call's
+//!   own;
 //! * `TimeKeeper::setCurrentTime`, which every search calls, writes nothing in test mode, and
 //!   `TimeKeeper` is held in test mode whenever the lock isn't held exclusively. Only `HeaderPolicy`
 //!   reads the time, for a missing date, and only the header hook (exclusive) controls it.

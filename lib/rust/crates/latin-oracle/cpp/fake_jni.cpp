@@ -18,6 +18,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <map>
+#include <mutex>
 #include <string>
 #include <utility>
 #include <vector>
@@ -98,17 +99,30 @@ jstring newString(JNIEnv *, const jchar *chars, jsize length) {
     return reinterpret_cast<jstring>(it);
 }
 
-std::vector<Object *> &classes() {
-    static std::vector<Object *> all;
-    return all;
+/**
+ * The classes FindClass has made, one per name. FindClass runs after JNI_OnLoad too, on any
+ * thread: every Dictionary's constructor logs through LogUtils::logToJava, which looks up
+ * android.util.Log, and dictionaries open under the shared lock. So the table has a lock of
+ * its own; without it, the first concurrent opens grew the vector while others read it.
+ */
+struct Classes {
+    std::mutex lock;
+    std::vector<Object *> all;
+};
+
+Classes &classes() {
+    static Classes it;
+    return it;
 }
 
 jclass findClass(JNIEnv *, const char *name) {
-    for (Object *const it : classes()) {
+    Classes &table = classes();
+    const std::lock_guard<std::mutex> held(table.lock);
+    for (Object *const it : table.all) {
         if (it->name == name) return reinterpret_cast<jclass>(it);
     }
-    classes().push_back(new Object{Kind::Class, 0, nullptr, {}, name});
-    return reinterpret_cast<jclass>(classes().back());
+    table.all.push_back(new Object{Kind::Class, 0, nullptr, {}, name});
+    return reinterpret_cast<jclass>(table.all.back());
 }
 
 std::map<std::string, void *> &natives() {
