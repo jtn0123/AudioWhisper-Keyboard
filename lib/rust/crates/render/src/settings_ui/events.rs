@@ -49,6 +49,8 @@ impl App {
                         {
                             values.push(self.value(second));
                         }
+                        self.scrollbar_start[1] = -1;
+                        self.scrollbar_last[1] = -1;
                         self.modal = Some(Modal {
                             row: i,
                             selected: self.value(r.key),
@@ -106,7 +108,7 @@ impl App {
                 }
                 self.focus = -1;
             }
-            Action::Slider(_) => {}
+            Action::Slider(_) | Action::SelectionHandle(_) => {}
         }
         true
     }
@@ -228,6 +230,25 @@ impl App {
                     .rev()
                     .find(|c| c.enabled && c.bounds.contains(x, y))
                     .map_or(-1, |c| c.id);
+                self.handle_drag_offset = self
+                    .controls
+                    .iter()
+                    .find(|c| c.id == id)
+                    .and_then(|c| {
+                        if let Action::SelectionHandle(anchor) = c.action {
+                            self.handle_caret_x(anchor)
+                        } else {
+                            None
+                        }
+                    })
+                    .map_or(0.0, |caret| caret - x);
+                if id == 20 || id == 21 {
+                    self.handle_drag_other = if id == 20 {
+                        self.editor.focus
+                    } else {
+                        self.editor.anchor
+                    };
+                }
                 self.down = Some((id, x, y, t));
                 self.last = (y, t);
             } else if e.action == 2 {
@@ -243,6 +264,10 @@ impl App {
                             min + (max - min) * (x - c.bounds.left) / c.bounds.width(),
                         );
                     }
+                } else if id == 20 || id == 21 {
+                    // The handles disappear at a collapsed range. Keep the original
+                    // grabbed endpoint/opposite anchor so the same drag can cross it.
+                    self.drag_editor_handle(x + self.handle_drag_offset);
                 } else if (y - down_y).abs() > 8.0 * self.config[2] || self.dragging {
                     self.dragging = true;
                     let dt = (t - self.last.1) as f32 / 1_000_000_000.0;

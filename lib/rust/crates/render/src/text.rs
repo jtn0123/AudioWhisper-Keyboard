@@ -107,10 +107,39 @@ impl Text {
         weight: i32,
         italic: bool,
     ) -> Layout<()> {
+        self.layout_line(text, size, mono, weight, italic, 0.0)
+    }
+    pub fn layout_line(
+        &mut self,
+        text: &str,
+        size: f32,
+        mono: bool,
+        weight: i32,
+        italic: bool,
+        line_height: f32,
+    ) -> Layout<()> {
+        self.layout_typography(text, size, mono, weight, italic, [line_height, 0.0])
+    }
+    pub fn layout_typography(
+        &mut self,
+        text: &str,
+        size: f32,
+        mono: bool,
+        weight: i32,
+        italic: bool,
+        metrics: [f32; 2],
+    ) -> Layout<()> {
+        let [line_height, letter_spacing] = metrics;
         let mut builder = self
             .context
             .ranged_builder(&mut self.fonts, text, 1.0, true);
         builder.push_default(StyleProperty::FontSize(size));
+        builder.push_default(StyleProperty::LetterSpacing(letter_spacing));
+        if line_height > 0.0 {
+            builder.push_default(StyleProperty::LineHeight(parley::LineHeight::Absolute(
+                line_height,
+            )));
+        }
         builder.push_default(StyleProperty::FontStyle(if italic {
             parley::FontStyle::Italic
         } else {

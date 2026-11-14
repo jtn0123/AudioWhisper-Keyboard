@@ -1,11 +1,14 @@
 //! Native settings UI. Platform effects and persisted IO are returned as plans.
 pub mod catalogue;
 mod dialog;
+mod dialog_buttons;
 mod dialog_metrics;
 pub mod editor;
 mod events;
 mod field;
 mod layout;
+mod material;
+mod scrollbar;
 mod widgets;
 use crate::panel_scroll::Fling;
 use catalogue::{KEYBOARD, Kind};
@@ -26,6 +29,7 @@ pub enum Action {
     Default,
     Slider(usize),
     Editor,
+    SelectionHandle(bool),
     Picker,
 }
 #[derive(Clone, Debug)]
@@ -58,21 +62,30 @@ pub struct App {
     pub strings: BTreeMap<String, String>,
     pub editor: Editor,
     pub config: [f32; 4],
-    pub colors: [u32; 6],
+    pub colors: [u32; 13],
+    pub dialog_window_width: f32,
+    pub sp_pixels: [f32; 33],
     pub controls: Vec<Control>,
     pub max_scroll: f32,
+    pub clock: i64,
+    pub scrollbar_start: [i64; 2],
+    pub scrollbar_last: [i64; 2],
+    pub scrollbar_exists: [bool; 2],
     pub focus: i32,
     pub accepted: bool,
     pub reveal_focus: bool,
     pub reveal_target: Option<f32>,
     pub editor_layout: Option<parley::Layout<()>>,
     pub editor_origin: [f32; 2],
+    pub toolbar_dismissed: bool,
     pub back_progress: f32,
     pub ime_enabled: bool,
     pub ime_selected: bool,
     pub effects: Vec<Vec<String>>,
     pub fling: Option<Fling>,
     pub down: Option<(i32, f32, f32, i64)>,
+    pub handle_drag_offset: f32,
+    pub handle_drag_other: usize,
     pub last: (f32, i64),
     pub dragging: bool,
     pub velocity: f32,
@@ -88,22 +101,32 @@ impl Default for App {
             editor: Editor::default(),
             config: [1.0, 1.0, 1.0, 1.0],
             colors: [
-                0xfff8f8f8, 0xff161616, 0xff555555, 0xff376a20, 0xffdce9d0, 0xffe9e9e9,
+                0xfff8f8f8, 0xff161616, 0xff555555, 0xff376a20, 0xffdce9d0, 0xffe9e9e9, 0xffffffff,
+                0xff777777, 0xfff8f8f8, 0xff555b66, 0xffc5c5c5, 0xffeeeeee, 0xffeeeeee,
             ],
+            dialog_window_width: 0.0,
+            sp_pixels: [0.0; 33],
             controls: vec![],
             max_scroll: 0.0,
+            clock: 0,
+            scrollbar_start: [-1; 2],
+            scrollbar_last: [-1; 2],
+            scrollbar_exists: [false; 2],
             focus: -1,
             accepted: true,
             reveal_focus: false,
             reveal_target: None,
             editor_layout: None,
             editor_origin: [0.0; 2],
+            toolbar_dismissed: false,
             back_progress: 0.0,
             ime_enabled: true,
             ime_selected: true,
             effects: vec![],
             fling: None,
             down: None,
+            handle_drag_offset: 0.0,
+            handle_drag_other: 0,
             last: (0.0, 0),
             dragging: false,
             velocity: 0.0,
@@ -172,6 +195,8 @@ impl App {
                 self.stack.push(route.into());
             }
             self.modal = None;
+            self.scrollbar_start[0] = -1;
+            self.scrollbar_last[0] = -1;
             self.focus = -1;
         } else if route == "@enable" {
             self.effects.push(vec!["enable".into()]);
@@ -189,6 +214,9 @@ impl App {
     }
     pub fn set_scroll(&mut self, value: f32) {
         let v = value.clamp(0.0, self.max_scroll);
+        if v != self.scroll() {
+            self.scrollbar_last[usize::from(self.modal.is_some())] = -1;
+        }
         if let Some(m) = &mut self.modal {
             m.scroll = v;
         } else {
@@ -223,6 +251,16 @@ impl App {
         }
     }
     pub fn tick(&mut self, now: i64) -> bool {
+        for time in self
+            .scrollbar_start
+            .iter_mut()
+            .chain(self.scrollbar_last.iter_mut())
+        {
+            if *time < 0 {
+                *time = now;
+            }
+        }
+        self.clock = now;
         if let Some(f) = &self.fling {
             let value = f.value(now);
             let done = now >= f.start + f.duration || value <= 0.0 || value >= self.max_scroll;
@@ -231,6 +269,6 @@ impl App {
                 self.fling = None;
             }
         }
-        self.fling.is_some()
+        self.animating()
     }
 }

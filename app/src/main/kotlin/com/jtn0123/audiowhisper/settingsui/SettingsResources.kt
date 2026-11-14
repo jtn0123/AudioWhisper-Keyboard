@@ -75,6 +75,8 @@ internal fun settingsResources(context: Context): Array<String> {
         "settings__keyboard__title" to R.string.settings__keyboard__title,
         "settings__localization__title" to R.string.settings__localization__title,
         "settings__media__title" to R.string.settings__media__title,
+        "settings__selection_start" to R.string.settings__selection_start,
+        "settings__selection_end" to R.string.settings__selection_end,
         "settings__navigate_back" to R.string.settings__navigate_back,
         "settings__other__title" to R.string.settings__other__title,
         "settings__preview_keyboard" to R.string.settings__preview_keyboard,

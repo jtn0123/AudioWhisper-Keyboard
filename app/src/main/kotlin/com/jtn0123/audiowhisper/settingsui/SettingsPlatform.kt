@@ -42,7 +42,18 @@ internal class SettingsPlatform(private val activity: FlorisAppActivity, private
             isAppearanceLightStatusBars = !dark; isAppearanceLightNavigationBars = !dark
         }
         return intArrayOf(colors.background.toArgb(), colors.onSurface.toArgb(), colors.onSurfaceVariant.toArgb(),
-            colors.primary.toArgb(), colors.primaryContainer.toArgb(), colors.surfaceContainerHighest.toArgb())
+            colors.primary.toArgb(), colors.primaryContainer.toArgb(), colors.surfaceContainerHighest.toArgb(),
+            colors.onPrimary.toArgb(), colors.outline.toArgb(), colors.surface.toArgb(),
+            colors.secondary.toArgb(), colors.outlineVariant.toArgb(), colors.surfaceContainerHigh.toArgb(), colors.surfaceContainer.toArgb())
+    }
+    fun dialogWindowWidth(): Float {
+        val value = android.util.TypedValue()
+        val attr = if (activity.resources.configuration.orientation == Configuration.ORIENTATION_PORTRAIT)
+            android.R.attr.windowMinWidthMinor else android.R.attr.windowMinWidthMajor
+        if (!android.app.Dialog(activity).context.theme.resolveAttribute(attr, value, true)) return 0f
+        val metrics = activity.resources.displayMetrics
+        return if (value.type == android.util.TypedValue.TYPE_FRACTION) value.getFraction(metrics.widthPixels.toFloat(), metrics.widthPixels.toFloat())
+            else android.util.TypedValue.complexToDimension(value.data, metrics)
     }
     fun facts() = arrayOf(InputMethodUtils.isFlorisboardEnabled(activity).toString(), InputMethodUtils.isFlorisboardSelected(activity).toString())
     private fun <T : Any> raw(pref: PreferenceData<T>) = pref.serializer.serialize(pref.get()).orEmpty()

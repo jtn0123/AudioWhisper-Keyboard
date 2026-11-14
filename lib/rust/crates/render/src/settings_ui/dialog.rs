@@ -1,4 +1,3 @@
-use super::layout::height;
 use super::{
     Action, App, Control,
     catalogue::{KEYBOARD, Kind},
@@ -11,43 +10,51 @@ impl App {
     pub(super) fn dialog(&mut self, p: &mut Panel, text: &mut Text) {
         let m = self.modal.as_ref().unwrap().clone();
         let r = KEYBOARD[m.row];
-        let [w, h, d, f] = self.config;
-        let width = (w - 48.0 * d).min(560.0 * d);
+        let [w, h, d, _] = self.config;
+        let window = if self.dialog_window_width > 0.0 {
+            self.dialog_window_width
+        } else {
+            320.0 * d
+        };
+        let width = (window - 32.0 * d)
+            .max(280.0 * d)
+            .min(560.0 * d)
+            .min(w - 32.0 * d);
         let left = (w - width) / 2.0;
         let padding = if h < 600.0 * d { 8.0 * d } else { 32.0 * d };
-        let button_height = (48.0 * f).max(48.0) * d;
-        let footer = button_height + 24.0 * d;
+        let (button_height, button_widths, footer) = self.button_metrics(width, text);
         let title = self.label(r.label);
         let title_width = width
             - if r.switch.is_empty() {
                 48.0 * d
             } else {
-                112.0 * d
+                116.0 * d
             };
-        let th = height(text, &title, 24.0 * d * f, title_width) + 32.0 * d;
+        let drawn_title = self.row_text(text, &title, self.sp(24), title_width, 1);
+        let title_height = self.measure(text, &drawn_title, self.sp(24), title_width);
+        let th = if r.switch.is_empty() {
+            title_height + 40.0 * d
+        } else {
+            title_height.max(48.0 * d) + 32.0 * d
+        };
         let rows = self.dialog_rows(width, text);
         let content: f32 = rows.iter().map(|row| row.2).sum();
-        let dialog_height = (th + 16.0 * d + content + footer).min((h - 2.0 * padding).max(1.0));
+        let dialog_height = (th + content + footer).min((h - 2.0 * padding).max(1.0));
         let top = (h - dialog_height) / 2.0;
         let bottom = top + dialog_height;
         let area = rect(left, top, width, dialog_height);
-        self.paint_box(p, rect(0.0, 0.0, w, h), 0x60000000, 0.0);
-        self.paint_box(p, area, self.colors[0], 28.0 * d);
+        self.paint_box(p, rect(0.0, 0.0, w, h), 0x99000000, 0.0);
+        self.paint_box(p, area, self.colors[11], 28.0 * d);
         self.controls.clear();
         self.paint_text(
             p,
-            &title,
+            &drawn_title,
             rect(left + 24.0 * d, top + 24.0 * d, title_width, th),
-            24.0 * d * f,
+            self.sp(24),
             self.colors[1],
             area,
         );
-        let clip = rect(
-            left,
-            top + th + 16.0 * d,
-            width,
-            (bottom - top - th - footer - 16.0 * d).max(1.0),
-        );
+        let clip = rect(left, top + th, width, (bottom - top - th - footer).max(1.0));
         let mut y = clip.top - m.scroll;
         self.controls.push(Control {
             id: 4,
@@ -66,12 +73,7 @@ impl App {
                 p,
                 Control {
                     id: 8,
-                    bounds: rect(
-                        left + width - 72.0 * d,
-                        top + 16.0 * d,
-                        64.0 * d,
-                        (th - 16.0 * d).max(48.0 * d),
-                    ),
+                    bounds: rect(left + width - 72.0 * d, top + 16.0 * d, 64.0 * d, 48.0 * d),
                     label: title.clone(),
                     summary: String::new(),
                     role: "toggle",
@@ -113,17 +115,37 @@ impl App {
                 for (slot, value) in m.values.iter().enumerate() {
                     let key = if slot == 0 { r.key } else { second };
                     let pref = settings::catalogue::get(&settings::text(key)).unwrap();
-                    let (label, _, row_height) = &rows[slot];
-                    let rh = row_height - 72.0 * d;
+                    let (orientation, value_label, row_height) = &rows[slot];
+                    y += if slot == 0 { 8.0 } else { 16.0 } * d;
+                    let rh = row_height - if slot == 0 { 60.0 } else { 68.0 } * d;
+                    let value_width = text.layout(value_label, self.sp(16)).width();
+                    let value_x = if orientation.is_empty() {
+                        left + (width - value_width) / 2.0
+                    } else {
+                        left + width - 24.0 * d - value_width
+                    };
                     self.paint_text(
                         p,
-                        label,
-                        rect(left + 24.0 * d, y, width - 48.0 * d, rh),
-                        16.0 * d * f,
-                        self.colors[1],
+                        value_label,
+                        rect(value_x, y, value_width + 1.0, rh),
+                        self.sp(16),
+                        self.colors[2],
                         clip,
                     );
-                    y += rh;
+                    self.paint_text(
+                        p,
+                        orientation,
+                        rect(left + 24.0 * d, y, width - 48.0 * d - value_width, rh),
+                        self.sp(16),
+                        self.colors[2],
+                        clip,
+                    );
+                    let label = if orientation.is_empty() {
+                        value_label.clone()
+                    } else {
+                        format!("{orientation}: {value_label}")
+                    };
+                    y += rh + 4.0 * d;
                     let min: f32 = pref.min.parse().unwrap();
                     let max: f32 = pref.max.parse().unwrap();
                     let current = value
@@ -136,7 +158,7 @@ impl App {
                         p,
                         Control {
                             id: 4000 + slot as i32,
-                            bounds: rect(left + 32.0 * d, y, width - 64.0 * d, 56.0 * d),
+                            bounds: rect(left + 24.0 * d, y, width - 48.0 * d, 48.0 * d),
                             label: label.clone(),
                             summary: String::new(),
                             role: "slider",
@@ -149,28 +171,22 @@ impl App {
                         clip,
                         text,
                     );
-                    y += 72.0 * d;
+                    y += 48.0 * d;
                 }
             }
             _ => {}
         }
         self.max_scroll = (y + m.scroll - clip.bottom).max(0.0);
         self.set_scroll(m.scroll);
-        for (id, key, action, x) in [
-            (5, "action__default", Action::Default, left + 8.0 * d),
-            (6, "action__cancel", Action::Cancel, left + width / 3.0),
-            (7, "action__ok", Action::Confirm, left + width * 2.0 / 3.0),
-        ] {
+        self.paint_scrollbar(p, clip);
+        for (id, key, action, x, button_y, button_width) in
+            self.button_positions([left, bottom, width, button_height], button_widths, footer)
+        {
             self.add(
                 p,
                 Control {
                     id,
-                    bounds: rect(
-                        x,
-                        bottom - button_height - 8.0 * d,
-                        width / 3.0 - 8.0 * d,
-                        button_height,
-                    ),
+                    bounds: rect(x, button_y, button_width, button_height),
                     label: self.label(key),
                     summary: String::new(),
                     role: "button",

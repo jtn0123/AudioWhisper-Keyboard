@@ -124,6 +124,7 @@ fn short_dialog_wraps_content() {
 #[test]
 fn dialog_radios_expose_checked_state() {
     let (mut a, mut text) = app();
+    a.scrolls[1] = 300.0; // Font-scale 2 rows now use Material line heights; reveal the row.
     a.scene(&mut text);
     assert!(a.activate(1006));
     a.scene(&mut text);
@@ -139,7 +140,7 @@ fn radio_checked_semantics_do_not_draw_switch_tracks() {
     assert!(a.activate(1006));
     let panel = a.scene(&mut text).panel.unwrap();
     let modal = panel.items.iter().skip_while(|item| {
-        item.element != "settings-box" || item.styles[0].background != 0x60000000
+        item.element != "settings-box" || item.styles[0].background != 0x99000000
     });
     assert!(modal.clone().count() > 1);
     assert!(modal.clone().all(|item| {
@@ -147,4 +148,225 @@ fn radio_checked_semantics_do_not_draw_switch_tracks() {
             || item.bounds.width() != 52.0
             || item.bounds.height() != 32.0
     }));
+}
+
+#[test]
+fn material_switch_metrics_palette_and_link_divider_match_tokens() {
+    let (mut a, mut text) = app();
+    a.config = [480.0, 4000.0, 1.0, 1.0];
+    a.prefs
+        .insert("keyboard__number_row".into(), "false".into());
+    a.prefs
+        .insert("keyboard__hinted_symbols_enabled".into(), "true".into());
+    let panel = a.scene(&mut text).panel.unwrap();
+    let boxes: Vec<_> = panel
+        .items
+        .iter()
+        .filter(|i| i.element == "settings-box")
+        .collect();
+    assert!(boxes.iter().any(|i| i.bounds.width() == 52.0
+        && i.bounds.height() == 32.0
+        && i.styles[0].background == a.colors[7]));
+    assert!(boxes.iter().any(|i| i.bounds.width() == 16.0
+        && i.bounds.height() == 16.0
+        && i.styles[0].background == a.colors[7]));
+    assert!(boxes.iter().any(|i| i.bounds.width() == 24.0
+        && i.bounds.height() == 24.0
+        && i.styles[0].background == a.colors[6]));
+    assert!(
+        boxes
+            .iter()
+            .any(|i| i.bounds.width() == 2.0 && i.styles[0].background == a.colors[10])
+    );
+    let heading = panel
+        .items
+        .iter()
+        .find(|i| i.label == "pref__keyboard__group_layout__label")
+        .unwrap();
+    assert_eq!(heading.bounds.left, 56.0);
+    assert_eq!(heading.text.weight, 700);
+    assert_eq!(heading.text.foreground, a.colors[9]);
+}
+
+#[test]
+fn platform_nonlinear_sp_values_and_material_line_heights_are_used_verbatim() {
+    let (mut a, mut text) = app();
+    a.config = [1080.0, 8192.0, 2.625, 2.0];
+    for (sp, px) in [
+        (14, 68.25),
+        (16, 75.6),
+        (20, 89.25),
+        (22, 94.5),
+        (24, 99.75),
+        (28, 110.25),
+        (32, 120.75),
+    ] {
+        a.sp_pixels[sp] = px;
+    }
+    let panel = a.scene(&mut text).panel.unwrap();
+    let title = panel
+        .items
+        .iter()
+        .find(|i| i.label == "pref__keyboard__number_row__label")
+        .unwrap();
+    assert_eq!(title.text.size, 75.6);
+    assert_eq!(title.text.line_height, 0.0); // The app bodyLarge override uses natural font metrics.
+    let summary = panel
+        .items
+        .iter()
+        .find(|i| i.label == "pref__keyboard__number_row__summary")
+        .unwrap();
+    assert_eq!(summary.text.size, 68.25);
+    assert_eq!(summary.text.line_height, 89.25);
+}
+
+#[test]
+fn selection_handles_are_native_primary_teardrops_and_drag_selection() {
+    let (mut a, _) = app();
+    let mut text = Text::new(vec![
+        include_bytes!("../../../../../fastlane/staging/fonts/Roboto-Light.ttf").to_vec(),
+    ]);
+    a.config = [480.0, 900.0, 1.0, 1.0];
+    a.editor.text = "abcdef".encode_utf16().collect();
+    a.editor.focused = true;
+    assert!(a.editor.select(1, 3));
+    let panel = a.scene(&mut text).panel.unwrap();
+    let end = a.controls.iter().find(|c| c.id == 21).unwrap().bounds;
+    assert!(a.controls.iter().any(|c| c.id == 20));
+    assert_eq!(
+        panel
+            .items
+            .iter()
+            .filter(|i| i.bounds.width() == 25.0 && i.styles[0].background == a.colors[3])
+            .count(),
+        2
+    );
+    let x = (end.left + end.right) / 2.0;
+    let y = (end.top + end.bottom) / 2.0;
+    for (action, dx, t) in [(0, 0.0, 1), (2, 30.0, 16_000_001), (1, 30.0, 32_000_001)] {
+        a.motion(&Motion {
+            action,
+            index: 0,
+            ids: vec![0],
+            times: vec![0, t],
+            coords: vec![x + dx, y],
+        });
+        a.scene(&mut text);
+    }
+    assert_eq!(a.editor.anchor, 1);
+    assert!(a.editor.focus > 3);
+    assert_eq!(a.editor.text, "abcdef".encode_utf16().collect::<Vec<_>>());
+}
+
+#[test]
+fn material_sliders_use_the_pinned_track_gap_and_vertical_thumb_tokens() {
+    let (mut a, mut text) = app();
+    a.config = [480.0, 8192.0, 1.0, 1.0];
+    a.scene(&mut text);
+    assert!(a.activate(1008));
+    let panel = a.scene(&mut text).panel.unwrap();
+    assert_eq!(
+        panel
+            .items
+            .iter()
+            .filter(|i| i.bounds.width() == 4.0 && i.bounds.height() == 44.0)
+            .count(),
+        2
+    );
+    assert!(panel.items.iter().any(|i| i.bounds.height() == 16.0
+        && i.bounds.width() > 16.0
+        && i.styles[0].background == a.colors[3]));
+    assert!(panel.items.iter().any(|i| i.bounds.height() == 16.0
+        && i.bounds.width() > 16.0
+        && i.styles[0].background == a.colors[4]));
+}
+
+#[test]
+fn modal_keeps_underlying_screen_text_geometry_and_dims_system_bars() {
+    let (mut a, mut text) = app();
+    a.config = [1080.0, 2300.0, 2.625, 1.0];
+    a.colors[0] = 0xffffffff;
+    a.colors[12] = 0xffe0e0e0;
+    a.scrolls[1] = 100.0;
+    let before = a.scene(&mut text);
+    let label = a
+        .controls
+        .iter()
+        .find(|c| c.id == 1001)
+        .unwrap()
+        .label
+        .clone();
+    let bounds = before
+        .panel
+        .as_ref()
+        .unwrap()
+        .items
+        .iter()
+        .find(|i| i.label == label)
+        .unwrap()
+        .bounds;
+    assert!(a.activate(1002));
+    let after = a.scene(&mut text);
+    assert_eq!(
+        after
+            .panel
+            .as_ref()
+            .unwrap()
+            .items
+            .iter()
+            .find(|i| i.label == label)
+            .unwrap()
+            .bounds,
+        bounds
+    );
+    assert_eq!(a.system_bar_color(), 0xff5a5a5a);
+    assert!(!a.light_system_bars());
+    a.back();
+    assert_eq!(a.system_bar_color(), 0xffe0e0e0);
+    assert!(a.light_system_bars());
+}
+
+#[test]
+fn reversed_requests_normalize_like_compose_and_off_center_grabs_can_cross_a_collapsed_range() {
+    let (mut a, _) = app();
+    let mut text = Text::new(vec![
+        include_bytes!("../../../../../fastlane/staging/fonts/Roboto-Light.ttf").to_vec(),
+    ]);
+    a.config = [480.0, 640.0, 1.0, 1.0];
+    a.editor.focused = true;
+    a.editor.text = "abcdef".encode_utf16().collect();
+    assert!(a.editor.select(4, 1));
+    // Compose's SetSelectionCommand normalizes reversed requests to min/max.
+    assert_eq!((a.editor.anchor, a.editor.focus), (1, 4));
+    a.scene(&mut text);
+    let handle = a.controls.iter().find(|c| c.id == 21).unwrap().bounds;
+    let other = a.controls.iter().find(|c| c.id == 20).unwrap().bounds;
+    assert!(handle.left > other.right);
+    let (x, y) = (handle.left + 3.0, handle.top + 3.0);
+    let motion = |a: &mut App, text: &mut Text, action, x, t| {
+        a.motion(&Motion {
+            action,
+            index: 0,
+            ids: vec![0],
+            times: vec![0, t],
+            coords: vec![x, y],
+        });
+        a.scene(text);
+    };
+    motion(&mut a, &mut text, 0, x, 1);
+    motion(&mut a, &mut text, 2, x + 16.0, 16_000_001);
+    motion(&mut a, &mut text, 1, x + 16.0, 32_000_001);
+    assert_eq!(a.editor.anchor, 1);
+    assert!(a.editor.focus > 4);
+    let handle = a.controls.iter().find(|c| c.id == 21).unwrap().bounds;
+    let other = a.controls.iter().find(|c| c.id == 20).unwrap().bounds;
+    motion(&mut a, &mut text, 0, handle.left + 3.0, 48_000_001);
+    motion(&mut a, &mut text, 2, other.right + 3.0, 64_000_001);
+    assert_eq!((a.editor.anchor, a.editor.focus), (1, 1));
+    assert!(a.controls.iter().all(|c| c.id != 20 && c.id != 21));
+    motion(&mut a, &mut text, 2, other.right - 13.0, 80_000_001);
+    motion(&mut a, &mut text, 1, other.right - 13.0, 96_000_001);
+    assert_eq!((a.editor.anchor, a.editor.focus), (0, 1));
+    assert_eq!(a.scrolls[1], 0.0);
+    assert!(a.fling.is_none());
 }

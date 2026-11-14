@@ -327,9 +327,14 @@ impl Raster {
         width: f32,
         limit: bool,
     ) -> parley::Layout<()> {
-        let mut layout =
-            self.text
-                .layout_font(text, style.size, style.mono, style.weight, style.italic);
+        let mut layout = self.text.layout_typography(
+            text,
+            style.size,
+            style.mono,
+            style.weight,
+            style.italic,
+            [style.line_height, style.letter_spacing],
+        );
         layout.break_all_lines(Some(width));
         if limit && layout.lines().count() > 2 {
             let end = layout.lines().nth(1).map_or(0, |l| l.text_range().end);

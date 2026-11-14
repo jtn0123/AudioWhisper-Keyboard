@@ -1,4 +1,3 @@
-use super::layout::height;
 use super::{Action, App, Control};
 use crate::{
     panels::{Command, Item, Panel, rect},
@@ -42,6 +41,8 @@ impl App {
         item.clip = clip;
         item.text = Style {
             size,
+            line_height: self.line_height(size),
+            letter_spacing: self.letter_spacing(size),
             foreground: color,
             ..Default::default()
         };
@@ -49,13 +50,8 @@ impl App {
     }
     pub(super) fn add(&mut self, p: &mut Panel, mut c: Control, clip: Rect, text: &mut Text) {
         let d = self.config[2];
-        let f = self.config[3];
         let b = c.bounds;
-        let color = if c.enabled {
-            self.colors[1]
-        } else {
-            self.colors[2] & 0x00ffffff | 0x66000000
-        };
+        let color = self.enabled_color(self.colors[1], c.enabled);
         if self.reveal_focus && c.id == self.focus {
             if b.top < clip.top {
                 self.reveal_target = Some(self.scroll() + b.top - clip.top);
@@ -71,7 +67,7 @@ impl App {
                 p,
                 if c.id == 1 { "back" } else { "picker" },
                 rect(
-                    b.left + 16.0 * d,
+                    b.left + if c.id == 3 { 12.0 } else { 16.0 } * d,
                     b.top + (b.height() - 24.0 * d) / 2.0,
                     24.0 * d,
                     24.0 * d,
@@ -81,47 +77,52 @@ impl App {
             );
         } else if c.role == "edit" {
             self.paint_editor(p, &c, text, clip);
+        } else if self.modal.is_some() && (5..=7).contains(&c.id) {
+            self.paint_button(p, &c.label, b, text, clip);
         } else if c.role == "slider" {
-            let [min, max, value] = c.range.unwrap();
-            let y = (b.top + b.bottom) / 2.0;
-            self.paint_box(
-                p,
-                rect(b.left, y - 2.0 * d, b.width(), 4.0 * d),
-                self.colors[5],
-                2.0 * d,
-            );
-            let x = b.left + b.width() * (value - min) / (max - min);
-            self.paint_box(
-                p,
-                rect(b.left, y - 2.0 * d, x - b.left, 4.0 * d),
-                self.colors[3],
-                2.0 * d,
-            );
-            self.paint_box(
-                p,
-                rect(x - 10.0 * d, y - 10.0 * d, 20.0 * d, 20.0 * d),
-                self.colors[3],
-                10.0 * d,
-            );
+            self.paint_slider(p, &c, clip);
         } else {
             let only_switch = matches!(c.action, Action::Switch(_) | Action::ModalSwitch);
             let is_home =
                 matches!(c.action, Action::Route(_)) && self.screen_index() == 0 && c.id >= 100;
+            let screen_row = (1000..3000).contains(&c.id) || is_home;
             let left = b.left
-                + if is_home || (self.modal.is_none() && c.id >= 1000 && c.role != "heading") {
+                + if c.role == "radio" {
+                    52.0
+                } else if screen_row {
                     56.0
                 } else {
                     16.0
                 } * d;
             let right = b.right
-                - if c.role == "toggle" && !only_switch {
-                    72.0 * d
+                - if matches!(c.action, Action::Row(i) if !super::catalogue::KEYBOARD[i].switch.is_empty())
+                {
+                    88.0 * d
+                } else if c.role == "toggle" && !only_switch {
+                    80.0 * d
                 } else {
                     16.0 * d
                 };
-            let lh = height(text, &c.label, 16.0 * d * f, (right - left).max(1.0));
-            let sh = height(text, &c.summary, 14.0 * d * f, (right - left).max(1.0));
-            let top = b.top + ((b.height() - lh - sh) / 2.0).max(0.0);
+            let label = if screen_row {
+                self.row_text(text, &c.label, self.sp(16), right - left, 1)
+            } else {
+                c.label.clone()
+            };
+            let summary = if screen_row {
+                self.row_text(text, &c.summary, self.sp(14), right - left, 2)
+            } else {
+                c.summary.clone()
+            };
+            let lh = self.measure(text, &label, self.sp(16), (right - left).max(1.0));
+            let sh = self.measure(text, &summary, self.sp(14), (right - left).max(1.0));
+            let top = b.top
+                + if c.role == "radio" && !summary.is_empty() {
+                    8.0 * d
+                } else if screen_row && sh > self.sp(20) + 0.5 {
+                    12.0 * d
+                } else {
+                    ((b.height() - lh - sh) / 2.0).max(0.0)
+                };
             if is_home {
                 self.paint_icon(
                     p,
@@ -139,70 +140,82 @@ impl App {
             if !only_switch {
                 self.paint_text(
                     p,
-                    &c.label,
+                    &label,
                     rect(left, top, (right - left).max(1.0), lh),
-                    if c.role == "heading" { 14.0 } else { 16.0 } * d * f,
+                    self.sp(16),
                     if c.role == "heading" {
-                        self.colors[3]
+                        self.colors[9]
+                    } else if c.role == "radio" {
+                        self.enabled_color(self.colors[2], c.enabled)
                     } else {
                         color
                     },
                     clip,
                 );
+                if c.role == "heading" {
+                    p.items.last_mut().unwrap().text.weight = 700;
+                }
                 if !c.summary.is_empty() {
                     self.paint_text(
                         p,
-                        &c.summary,
+                        &summary,
                         rect(
                             left,
                             top + lh,
                             (right - left).max(1.0),
                             b.height() - 12.0 * d - lh,
                         ),
-                        14.0 * d * f,
-                        self.colors[2],
+                        self.sp(14),
+                        self.enabled_color(self.colors[2], c.enabled),
                         clip,
                     );
                 }
             }
             if let Some(checked) = c.checked.filter(|_| c.role == "toggle") {
-                let x = b.right - 60.0 * d;
-                let y = (b.top + b.bottom) / 2.0;
-                self.paint_box(
+                self.paint_switch(
                     p,
-                    rect(x, y - 16.0 * d, 52.0 * d, 32.0 * d),
-                    if checked {
+                    if screen_row && sh > self.sp(20) + 0.5 {
+                        rect(b.left, b.top, b.width(), 72.0 * d)
+                    } else {
+                        b
+                    },
+                    checked,
+                    c.enabled,
+                    matches!(c.action, Action::Switch(_)),
+                    clip,
+                );
+            }
+            if c.role == "radio" {
+                let cx = b.left + 28.0 * d;
+                let cy = b.top + 20.0 * d;
+                let ink = self.enabled_color(
+                    if c.selected {
                         self.colors[3]
                     } else {
                         self.colors[2]
                     },
-                    16.0 * d,
+                    c.enabled,
                 );
                 self.paint_box(
                     p,
-                    rect(
-                        x + if checked { 26.0 } else { 4.0 } * d,
-                        y - 12.0 * d,
-                        24.0 * d,
-                        24.0 * d,
-                    ),
-                    if checked {
-                        self.colors[4]
-                    } else {
-                        self.colors[5]
-                    },
-                    12.0 * d,
+                    rect(cx - 10.0 * d, cy - 10.0 * d, 20.0 * d, 20.0 * d),
+                    ink,
+                    10.0 * d,
                 );
-            }
-            if c.role == "radio" {
-                self.paint_text(
+                self.paint_box(
                     p,
-                    if c.selected { "◉" } else { "○" },
-                    rect(b.right - 40.0 * d, top, 24.0 * d, 24.0 * d),
-                    22.0 * d,
-                    self.colors[3],
-                    clip,
+                    rect(cx - 8.0 * d, cy - 8.0 * d, 16.0 * d, 16.0 * d),
+                    self.colors[11],
+                    8.0 * d,
                 );
+                if c.selected {
+                    self.paint_box(
+                        p,
+                        rect(cx - 6.0 * d, cy - 6.0 * d, 12.0 * d, 12.0 * d),
+                        ink,
+                        6.0 * d,
+                    );
+                }
             }
         }
         c.bounds = crate::panel_layout::intersection(c.bounds, clip);

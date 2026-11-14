@@ -3,5 +3,7 @@
     <string name="pref__other__rust_settings_prototype__label">Rust settings renderer (prototype)</string>
     <string name="pref__other__rust_settings_prototype__summary">Draw Home and Keyboard settings in Rust. Other screens use the Compose fallback.</string>
     <string name="settings__navigate_back">Back</string>
+    <string name="settings__selection_start">Start of selection</string>
+    <string name="settings__selection_end">End of selection</string>
     <string name="crash__copy_details">Copy details</string>
 </resources>

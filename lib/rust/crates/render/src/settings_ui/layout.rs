@@ -7,22 +7,101 @@ use crate::{
     scene::Scene,
     text::Text,
 };
-pub(super) fn height(text: &mut Text, label: &str, size: f32, width: f32) -> f32 {
-    if label.is_empty() {
-        return 0.0;
-    }
-    let mut l = text.layout(label, size);
-    l.break_all_lines(Some(width.max(1.0)));
-    l.height()
-}
 impl App {
+    pub fn sp(&self, value: usize) -> f32 {
+        let pixels = self.sp_pixels[value];
+        if pixels > 0.0 {
+            pixels
+        } else {
+            value as f32 * self.config[2] * self.config[3]
+        }
+    }
+    pub(super) fn line_height(&self, size: f32) -> f32 {
+        for (font, line) in [(14, 20), (22, 28), (24, 32)] {
+            if (size - self.sp(font)).abs() < 0.01 {
+                return self.sp(line);
+            }
+        }
+        0.0 // The app overrides bodyLarge with an unspecified lineHeight: use real font metrics.
+    }
+    pub(super) fn letter_spacing(&self, size: f32) -> f32 {
+        if (size - self.sp(14)).abs() < 0.01 {
+            0.25 * self.config[2] * self.config[3]
+        } else {
+            0.0
+        }
+    }
+    pub(super) fn measure(&self, text: &mut Text, label: &str, size: f32, width: f32) -> f32 {
+        if label.is_empty() {
+            return 0.0;
+        }
+        let mut layout = text.layout_typography(
+            label,
+            size,
+            false,
+            400,
+            false,
+            [self.line_height(size), self.letter_spacing(size)],
+        );
+        layout.break_all_lines(Some(width.max(1.0)));
+        layout.height()
+    }
+    pub(super) fn row_text(
+        &self,
+        text: &mut Text,
+        label: &str,
+        size: f32,
+        width: f32,
+        max: usize,
+    ) -> String {
+        if self.config[3] > 1.0 || label.is_empty() {
+            return label.into();
+        }
+        let mut layout = text.layout_typography(
+            label,
+            size,
+            false,
+            400,
+            false,
+            [self.line_height(size), self.letter_spacing(size)],
+        );
+        layout.break_all_lines(Some(width.max(1.0)));
+        if layout.lines().count() <= max {
+            return label.into();
+        }
+        let end = layout
+            .lines()
+            .nth(max - 1)
+            .map_or(0, |line| line.text_range().end);
+        let mut fitted = label[..end].trim_end().to_owned();
+        loop {
+            let candidate = format!("{fitted}…");
+            let mut layout = text.layout_typography(
+                &candidate,
+                size,
+                false,
+                400,
+                false,
+                [self.line_height(size), self.letter_spacing(size)],
+            );
+            layout.break_all_lines(Some(width.max(1.0)));
+            if layout.lines().count() <= max || fitted.is_empty() {
+                return candidate;
+            }
+            fitted.pop();
+        }
+    }
     pub fn scene(&mut self, text: &mut Text) -> Scene {
         self.scene_pass(text, true)
     }
     fn scene_pass(&mut self, text: &mut Text, replay: bool) -> Scene {
         self.controls.clear();
+        self.scrollbar_exists = [false; 2];
         self.reveal_target = None;
-        let [w, h, d, f] = self.config;
+        let [w, h, d, _] = self.config;
+        let old_scroll = self.scroll();
+        // Paint the underlying screen from its own scroll and styling state.
+        let modal = self.modal.take();
         let title = self.label(if self.screen_index() == 0 {
             "settings__home__title"
         } else {
@@ -31,12 +110,11 @@ impl App {
         let title_left = if self.screen_index() == 0 {
             16.0 * d
         } else {
-            64.0 * d
+            56.0 * d
         };
         let header = (64.0 * d)
-            .max(height(text, &title, 22.0 * d * f, w - title_left - 16.0 * d) + 32.0 * d);
-        let old_scroll = self.scroll();
-        let footer = (56.0 * f).max(56.0) * d;
+            .max(self.measure(text, &title, self.sp(22), w - title_left - 16.0 * d) + 16.0 * d);
+        let footer = 56.0 * d;
         let mut p = Panel {
             kind: 9,
             density: d,
@@ -64,7 +142,7 @@ impl App {
                 } else {
                     "settings__home__ime_not_enabled"
                 });
-                let rh = height(text, &label, 14.0 * d * f, w - 32.0 * d) + 32.0 * d;
+                let rh = self.measure(text, &label, self.sp(14), w - 32.0 * d) + 32.0 * d;
                 self.add(
                     &mut p,
                     Control {
@@ -90,8 +168,8 @@ impl App {
             }
             for (i, (route, label)) in HOME.iter().enumerate() {
                 let label = self.label(label);
-                let rh =
-                    (height(text, &label, 16.0 * d * f, w - 72.0 * d) + 32.0 * d).max(56.0 * d);
+                let rh = (self.measure(text, &label, self.sp(16), w - 72.0 * d) + 32.0 * d)
+                    .max(56.0 * d);
                 self.add(
                     &mut p,
                     Control {
@@ -143,21 +221,39 @@ impl App {
                 let label = self.label(r.label);
                 // Match widgets::add's icon/text/switch bounds when measuring wrapped rows.
                 let width = w - if matches!(r.kind, Kind::Heading) {
-                    32.0 * d
+                    72.0 * d
                 } else if !r.switch.is_empty() {
-                    136.0 * d
+                    144.0 * d
                 } else if matches!(r.kind, Kind::Toggle) {
-                    128.0 * d
+                    136.0 * d
                 } else {
                     72.0 * d
                 };
+                let drawn_label = self.row_text(text, &label, self.sp(16), width, 1);
+                let drawn_summary = self.row_text(text, &summary, self.sp(14), width, 2);
                 let rh = if matches!(r.kind, Kind::Heading) {
-                    (height(text, &label, 14.0 * d * f, width) + 24.0 * d).max(48.0 * d)
+                    (self.measure(text, &drawn_label, self.sp(16), width) + 16.0 * d).max(56.0 * d)
                 } else {
-                    (height(text, &label, 16.0 * d * f, width)
-                        + height(text, &summary, 14.0 * d * f, width)
-                        + 24.0 * d)
-                        .max(64.0 * d)
+                    (self.measure(text, &drawn_label, self.sp(16), width)
+                        + self.measure(text, &drawn_summary, self.sp(14), width)
+                        + if self.measure(text, &drawn_summary, self.sp(14), width)
+                            > self.sp(20) + 0.5
+                        {
+                            24.0
+                        } else {
+                            16.0
+                        } * d)
+                        .max(
+                            if summary.is_empty() {
+                                56.0
+                            } else if self.measure(text, &drawn_summary, self.sp(14), width)
+                                > self.sp(20) + 0.5
+                            {
+                                88.0
+                            } else {
+                                72.0
+                            } * d,
+                        )
                 };
                 let role = match r.kind {
                     Kind::Heading => "heading",
@@ -173,12 +269,7 @@ impl App {
                     &mut p,
                     Control {
                         id: 1000 + i as i32,
-                        bounds: rect(
-                            offset,
-                            y,
-                            if r.switch.is_empty() { w } else { w - 64.0 * d },
-                            rh,
-                        ),
+                        bounds: rect(offset, y, w, rh),
                         label,
                         summary,
                         role,
@@ -196,7 +287,18 @@ impl App {
                         &mut p,
                         Control {
                             id: 2000 + i as i32,
-                            bounds: rect(offset + w - 64.0 * d, y, 64.0 * d, rh),
+                            bounds: rect(
+                                offset + w - 72.0 * d,
+                                y + if self.measure(text, &drawn_summary, self.sp(14), width)
+                                    > self.sp(20) + 0.5
+                                {
+                                    12.0 * d
+                                } else {
+                                    (rh - 48.0 * d) / 2.0
+                                },
+                                56.0 * d,
+                                48.0 * d,
+                            ),
                             label: self.label(r.label),
                             summary: String::new(),
                             role: "toggle",
@@ -218,7 +320,8 @@ impl App {
         if self.modal.is_none() {
             self.set_scroll(self.scroll());
         }
-        self.paint_box(&mut p, rect(0.0, 0.0, w, header), self.colors[0], 0.0);
+        self.paint_scrollbar(&mut p, viewport);
+        self.paint_box(&mut p, rect(0.0, 0.0, w, header), self.header_color(), 0.0);
         if self.screen_index() != 0 {
             self.add(
                 &mut p,
@@ -238,12 +341,12 @@ impl App {
                 text,
             );
         }
-        let left = if self.screen_index() == 0 { 16.0 } else { 64.0 } * d;
+        let left = if self.screen_index() == 0 { 16.0 } else { 56.0 } * d;
         self.paint_text(
             &mut p,
             &title,
             rect(left, 18.0 * d, w - left - 16.0 * d, header - 18.0 * d),
-            22.0 * d * f,
+            self.sp(22),
             self.colors[1],
             rect(0.0, 0.0, w, h),
         );
@@ -257,7 +360,7 @@ impl App {
             &mut p,
             Control {
                 id: 2,
-                bounds: rect(0.0, h - footer, w - 56.0 * d, footer),
+                bounds: rect(0.0, h - footer, w - 48.0 * d, footer),
                 label: self.label("settings__preview_keyboard"),
                 summary: String::new(),
                 role: "edit",
@@ -274,7 +377,7 @@ impl App {
             &mut p,
             Control {
                 id: 3,
-                bounds: rect(w - 56.0 * d, h - footer, 56.0 * d, footer),
+                bounds: rect(w - 48.0 * d, h - footer, 48.0 * d, footer),
                 label: self.label("setup__select_ime__switch_keyboard_btn"),
                 summary: String::new(),
                 role: "button",
@@ -287,6 +390,7 @@ impl App {
             rect(0.0, 0.0, w, h),
             text,
         );
+        self.modal = modal;
         if self.modal.is_some() {
             self.dialog(&mut p, text);
         }
@@ -299,6 +403,8 @@ impl App {
         }
         self.controls
             .retain(|c| c.bounds.width() > 0.0 && c.bounds.height() > 0.0);
+        self.controls
+            .sort_by_key(|c| matches!(c.action, Action::SelectionHandle(_)));
         Scene {
             width: w as u16,
             height: h as u16,

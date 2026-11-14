@@ -89,6 +89,12 @@ internal class RendererAccessibility(
             refresh(force = true)
             return AccessibilityNodeInfo(host).apply {
                 host.onInitializeAccessibilityNodeInfo(this)
+                if (!hoverCommits) {
+                    // Settings' host is only a container; all interaction lives in its
+                    // native virtual descendants. Do not expose a dead whole-screen button.
+                    isClickable = false; isLongClickable = false; isFocusable = false
+                    removeAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_CLICK)
+                }
                 nodes.keys.forEach { addChild(host, it) }
             }
         }
@@ -116,6 +122,7 @@ internal class RendererAccessibility(
             }
             if (n.string("role") == "edit") {
                 isEditable = true
+                n["hint"]?.jsonPrimitive?.content?.let { hintText = it; isShowingHintText = n["hintShowing"]?.jsonPrimitive?.boolean == true }
                 inputType = android.text.InputType.TYPE_CLASS_TEXT
                 setTextSelection(n.int("anchor"), n.int("focus"))
                 addAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_SET_TEXT)
@@ -154,7 +161,7 @@ internal class RendererAccessibility(
     }
 
     override fun findFocus(focus: Int): AccessibilityNodeInfo? =
-        if (focus == AccessibilityNodeInfo.FOCUS_ACCESSIBILITY) createAccessibilityNodeInfo(focused) else null
+        if (focus == AccessibilityNodeInfo.FOCUS_ACCESSIBILITY && focused != View.NO_ID) createAccessibilityNodeInfo(focused) else null
 
     override fun performAction(virtualViewId: Int, action: Int, arguments: Bundle?): Boolean {
         if (virtualViewId !in nodes) return false
@@ -205,6 +212,10 @@ internal class RendererAccessibility(
                 hovered = View.NO_ID
                 if (old != View.NO_ID) {
                     event(old, AccessibilityEvent.TYPE_VIEW_HOVER_EXIT)
+                    if (!hoverCommits && focused == old) {
+                        focused = View.NO_ID
+                        event(old, AccessibilityEvent.TYPE_VIEW_ACCESSIBILITY_FOCUS_CLEARED)
+                    }
                     // Moving outside cancels. A lift inside the same key commits once.
                     if (hoverCommits && id == old && supports(old, ACCESS_CLICK)) {
                         activate(old, ACCESS_CLICK)

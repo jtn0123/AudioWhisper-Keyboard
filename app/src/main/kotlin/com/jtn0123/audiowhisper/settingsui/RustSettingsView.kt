@@ -25,10 +25,15 @@ import kotlinx.serialization.json.*
 internal class RustSettingsView(context: Context) : FrameLayout(context), SurfaceHolder.Callback, Choreographer.FrameCallback {
     private lateinit var activity: FlorisAppActivity
     private lateinit var platform: SettingsPlatform
+    var backAvailability: (Boolean) -> Unit = {}
     private var fallback: (String) -> Unit = {}
     private val native = KeyboardRenderer(systemRendererFonts())
     private val surface = SurfaceView(context)
     private val endpoint = SettingsInputView(context, this)
+    private val selectionMenu = SettingsSelectionMenu(endpoint, this)
+    internal val pendingWrites get() = if (::platform.isInitialized) platform.pending else 0
+    internal val inputHasFocus get() = endpoint.hasFocus()
+    var restoreInputFocus = false
     private val choreographer = Choreographer.getInstance()
     private val imm = context.getSystemService(InputMethodManager::class.java)
     private var state = Json.parseToJsonElement(native.settings(1, settingsResources(context) + settingsIcons())[0]).jsonObject
@@ -99,6 +104,14 @@ internal class RustSettingsView(context: Context) : FrameLayout(context), Surfac
     }
     private fun receive(reply: Array<String>) {
         state = Json.parseToJsonElement(reply[0]).jsonObject
+        val barColor = state.getValue("systemBarColor").jsonPrimitive.long.toInt()
+        activity.window.decorView.setBackgroundColor(barColor)
+        (parent as? android.view.View)?.setBackgroundColor(barColor)
+        androidx.core.view.WindowCompat.getInsetsController(activity.window, activity.window.decorView).apply {
+            val light = state.getValue("lightSystemBars").jsonPrimitive.boolean
+            isAppearanceLightStatusBars = light; isAppearanceLightNavigationBars = light
+        }
+        backAvailability(state.getValue("canBack").jsonPrimitive.boolean)
         editorText = reply[1]
         val editor = state.getValue("editor").jsonObject
         if (!editor.getValue("focused").jsonPrimitive.boolean && endpoint.hasFocus()) endpoint.clearFocus()
@@ -121,6 +134,7 @@ internal class RustSettingsView(context: Context) : FrameLayout(context), Surfac
                 "hideEditor" -> { endpoint.clearFocus(); imm.hideSoftInputFromWindow(endpoint.windowToken, 0) }
             }
         }
+        selectionMenu.update(state.getValue("selectionToolbar").jsonPrimitive.boolean)
         accessibility.refresh(); requestFrame()
     }
     fun refreshPlatform() = configure()
@@ -134,7 +148,10 @@ internal class RustSettingsView(context: Context) : FrameLayout(context), Surfac
         val colors = platform.palette()
         (parent as? android.view.View)?.setBackgroundColor(colors[0])
         val config = arrayOf(width.toString(), height.toString(), metrics.density.toString(), resources.configuration.fontScale.toString()) +
-            colors.map { it.toUInt().toString() }.toTypedArray() + platform.facts()
+            colors.take(6).map { it.toUInt().toString() }.toTypedArray() + platform.facts() +
+            colors.drop(6).take(6).map { it.toUInt().toString() }.toTypedArray() + (0..32).map {
+                android.util.TypedValue.applyDimension(android.util.TypedValue.COMPLEX_UNIT_SP, it.toFloat(), metrics).toString()
+            }.toTypedArray() + arrayOf(platform.dialogWindowWidth().toString(), colors[12].toUInt().toString())
         receive(native.settings(3, config))
     }
     private fun requestFrame() {
@@ -156,7 +173,7 @@ internal class RustSettingsView(context: Context) : FrameLayout(context), Surfac
     }
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
-        if (state.getValue("editor").jsonObject.getValue("focused").jsonPrimitive.boolean) endpoint.post { endpoint.requestFocus(); imm.restartInput(endpoint) }
+        if (restoreInputFocus) endpoint.post { endpoint.requestFocus(); imm.restartInput(endpoint) }
     }
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) { super.onSizeChanged(w,h,oldw,oldh); configure() }
     override fun onInterceptTouchEvent(event: MotionEvent) = true
@@ -171,6 +188,6 @@ internal class RustSettingsView(context: Context) : FrameLayout(context), Surfac
     override fun performClick(): Boolean { super.performClick(); return true }
     override fun onDetachedFromWindow() {
         super.onDetachedFromWindow(); released = true; live = false; choreographer.removeFrameCallback(this)
-        accessibility.release(); native.detach(); native.close()
+        selectionMenu.close(); accessibility.release(); native.detach(); native.close()
     }
 }

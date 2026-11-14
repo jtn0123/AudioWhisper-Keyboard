@@ -125,7 +125,7 @@ fun PreviewKeyboardField(
                         }) {
                             Icon(
                                 imageVector = Icons.Default.Keyboard,
-                                contentDescription = null,
+                                contentDescription = stringRes(R.string.setup__select_ime__switch_keyboard_btn),
                             )
                         }
                     }

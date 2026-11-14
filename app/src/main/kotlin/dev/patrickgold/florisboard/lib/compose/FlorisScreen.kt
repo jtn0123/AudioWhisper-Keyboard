@@ -31,6 +31,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
@@ -92,9 +94,10 @@ private class FlorisScreenScopeImpl : FlorisScreenScope {
     private var fab: FlorisScreenFab = @Composable { }
     private var navigationIcon: FlorisScreenNavigationIcon = @Composable {
         val navController = LocalNavController.current
+        val backLabel = org.florisboard.lib.compose.stringRes(dev.patrickgold.florisboard.R.string.settings__navigate_back)
         FlorisIconButton(
             onClick = { navController.popBackStack() },
-            modifier = Modifier.autoMirrorForRtl(),
+            modifier = Modifier.autoMirrorForRtl().semantics { contentDescription = backLabel },
             icon = Icons.AutoMirrored.Filled.ArrowBack,
         )
     }
@@ -125,9 +128,12 @@ private class FlorisScreenScopeImpl : FlorisScreenScope {
         val context = LocalContext.current
         val previewFieldController = LocalPreviewFieldController.current
 
+        org.florisboard.lib.compose.DisposableLifecycleEffect(
+            onResume = { previewFieldController?.isVisible = previewFieldVisible },
+            onPause = {},
+        )
         SideEffect {
             val window = (context as Activity).window
-            previewFieldController?.isVisible = previewFieldVisible
             // Bar colours are gone from Android 15 on (the app is always edge to edge); only the
             // navigation bar's contrast scrim is still the app's to choose.
             window.isNavigationBarContrastEnforced = true

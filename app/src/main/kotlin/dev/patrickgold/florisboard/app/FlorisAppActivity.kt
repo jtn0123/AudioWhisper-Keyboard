@@ -86,6 +86,7 @@ val LocalNavController = staticCompositionLocalOf<NavController> {
 open class FlorisAppActivity : ComponentActivity() {
     protected open val allowRustSettings = true
     private var rustSettings: RustSettingsView? = null
+    private var rustInputFocus = false
     private var rustState: Array<String>? = null
     private var initialPrototype: Boolean? = null
     private var fallbackReady = false
@@ -112,6 +113,7 @@ open class FlorisAppActivity : ComponentActivity() {
         }
         super.onCreate(savedInstanceState)
         rustState = savedInstanceState?.getStringArray("rust-settings-state")
+        rustInputFocus = savedInstanceState?.getBoolean("rust-settings-input-focus") == true
         WindowCompat.setDecorFitsSystemWindows(window, false)
 
         prefs.other.settingsTheme.asFlow().collectIn(lifecycleScope) {
@@ -185,7 +187,7 @@ open class FlorisAppActivity : ComponentActivity() {
     }
 
     private fun installRustSettings() {
-        val host = RustSettingsView(this)
+        val host = RustSettingsView(this).apply { restoreInputFocus = rustInputFocus }
         host.bind(this, prefs, rustState) { route ->
             val target = Intent(Intent.ACTION_VIEW, "ui://florisboard/$route".toUri())
                 .addCategory(Intent.CATEGORY_BROWSABLE).setClass(this, ComposeSettingsFallbackActivity::class.java)
@@ -201,15 +203,18 @@ open class FlorisAppActivity : ComponentActivity() {
         }
         setContentView(root)
         ViewCompat.requestApplyInsets(root)
-        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
+        val backCallback = object : OnBackPressedCallback(false) {
             override fun handleOnBackStarted(backEvent: BackEventCompat) = host.back(0, backEvent.progress)
             override fun handleOnBackProgressed(backEvent: BackEventCompat) = host.back(1, backEvent.progress)
             override fun handleOnBackCancelled() = host.back(2)
             override fun handleOnBackPressed() = host.back(3)
-        })
+        }
+        host.backAvailability = { backCallback.isEnabled = it }
+        onBackPressedDispatcher.addCallback(this, backCallback)
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
+        rustSettings?.let { outState.putBoolean("rust-settings-input-focus", it.inputHasFocus) }
         rustSettings?.save()?.let { outState.putStringArray("rust-settings-state", it) }
         super.onSaveInstanceState(outState)
     }

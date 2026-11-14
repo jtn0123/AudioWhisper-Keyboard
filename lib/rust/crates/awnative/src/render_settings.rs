@@ -54,9 +54,9 @@ fn reply(
         if c.role=="slider" {actions.extend([4,5]);} else if c.role=="scroll" {if a.scroll()<a.max_scroll {actions.push(4);}
 
             if a.scroll()>0.0 {actions.push(5);}}
-        let label=if c.role=="edit" && !a.editor.text.is_empty(){String::from_utf16_lossy(&a.editor.text)}else{c.label.clone()};
+        let label=if c.role=="edit"{String::from_utf16_lossy(&a.editor.text)}else{c.label.clone()};
         json!({"id":c.id,"bounds":[c.bounds.left,c.bounds.top,c.bounds.right,c.bounds.bottom],"label":label,
-            "description":c.label,"role":c.role,"state":c.summary,"enabled":c.enabled,"pressed":false,"selected":c.selected,
+            "description":c.label,"hint":if c.role=="edit"{c.label.as_str()}else{""},"hintShowing":c.role=="edit" && a.editor.text.is_empty(),"role":c.role,"state":c.summary,"enabled":c.enabled,"pressed":false,"selected":c.selected,
             "checked":if c.role=="radio"{Some(c.selected)}else{c.checked},"locked":false,"actions":actions,"longClickLabel":"","holdDelayMillis":500,
             "range":c.range,"anchor":a.editor.anchor,"focus":a.editor.focus})
     }).collect();
@@ -67,8 +67,8 @@ fn reply(
         .map(|c| [c.bounds.left, c.bounds.top, c.bounds.right, c.bounds.bottom]);
     let effects = std::mem::take(&mut a.effects);
     let result = json!({"nodes":nodes,"mode":"","shift":"","popup":a.modal.is_some(),"effects":effects,
-        "route":a.stack.last(),"scroll":a.scroll(),"maxScroll":a.max_scroll,"focus":a.focus,
-        "animating":a.fling.is_some(),"accepted":a.accepted,"editor":{"anchor":a.editor.anchor,"focus":a.editor.focus,"composing":a.editor.composing,"focused":a.editor.focused,"bounds":field}});
+        "systemBarColor":a.system_bar_color(),"lightSystemBars":a.light_system_bars(),"route":a.stack.last(),"canBack":a.stack.len()>1 || a.modal.is_some() || a.editor.focused,"scroll":a.scroll(),"maxScroll":a.max_scroll,"focus":a.focus,
+        "animating":a.animating(),"scrollbarAlpha":a.scrollbar_alpha(usize::from(a.modal.is_some())),"selectionToolbar":a.editor.focused && a.editor.anchor!=a.editor.focus && !a.toolbar_dismissed,"accepted":a.accepted,"editor":{"anchor":a.editor.anchor,"focus":a.editor.focus,"composing":a.editor.composing,"focused":a.editor.focused,"bounds":field}});
     let mut out = vec![
         settings::text(&result.to_string()),
         a.editor.text.clone(),
@@ -117,11 +117,29 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_settings(
                     {
                         return Err(illegal("settings dimensions"));
                     }
-                    let mut colors = [0; 6];
-                    for (i, color) in colors.iter_mut().enumerate() {
+                    let mut colors = a.colors;
+                    for (i, color) in colors.iter_mut().take(6).enumerate() {
                         *color = field(&p, 4 + i)?
                             .parse()
                             .map_err(|_| illegal("settings color"))?;
+                    }
+                    if p.len() >= 51 {
+                        for (i, color) in colors.iter_mut().enumerate().skip(6).take(6) {
+                            *color = field(&p, 6 + i)?
+                                .parse()
+                                .map_err(|_| illegal("settings extended color"))?;
+                        }
+                        for (i, pixels) in a.sp_pixels.iter_mut().enumerate() {
+                            *pixels = float(&p, 18 + i)?;
+                        }
+                    }
+                    if p.len() > 51 {
+                        a.dialog_window_width = float(&p, 51)?;
+                    }
+                    if p.len() > 52 {
+                        colors[12] = field(&p, 52)?
+                            .parse()
+                            .map_err(|_| illegal("settings scrolled color"))?;
                     }
                     a.config = c;
                     a.colors = colors;
@@ -190,6 +208,9 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_settings(
                 }
                 9 => {
                     let kind = field(&p, 0)?;
+                    if kind != "query" {
+                        a.toolbar_dismissed = false;
+                    }
                     match kind {
                         "commit" | "compose" => {
                             a.accepted = a.editor.replace(
@@ -221,6 +242,15 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_settings(
                             } else {
                                 a.editor.query(field(&p, 1)?, int(&p, 2)?.max(0) as usize)
                             };
+                        }
+                        "focus" => a.editor.focused = true,
+                        "dismissToolbar" => a.toolbar_dismissed = true,
+                        "selectAll" => {
+                            a.editor.select(0, a.editor.text.len() as i32);
+                        }
+                        "cut" => {
+                            a.editor.replace(&[], 1, false);
+                            a.toolbar_dismissed = true;
                         }
                         "blur" => {
                             a.editor.focused = false;
