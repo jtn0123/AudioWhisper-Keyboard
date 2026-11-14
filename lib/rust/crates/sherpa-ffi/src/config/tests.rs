@@ -1,0 +1,202 @@
+//! ABI values independently emitted by the C compiler for the pinned header.
+use super::*;
+use std::mem::{align_of, offset_of, size_of};
+#[test]
+fn exact_v2_0_1_c_layout() {
+    assert_eq!(size_of::<FeatureConfig>(), 8);
+    assert_eq!(align_of::<FeatureConfig>(), 4);
+    assert_eq!(offset_of!(FeatureConfig, sample_rate), 0);
+    assert_eq!(offset_of!(FeatureConfig, feature_dim), 4);
+    assert_eq!(size_of::<OfflineTransducerModelConfig>(), 24);
+    assert_eq!(align_of::<OfflineTransducerModelConfig>(), 8);
+    assert_eq!(offset_of!(OfflineTransducerModelConfig, encoder), 0);
+    assert_eq!(offset_of!(OfflineTransducerModelConfig, decoder), 8);
+    assert_eq!(offset_of!(OfflineTransducerModelConfig, joiner), 16);
+    assert_eq!(size_of::<OfflineParaformerModelConfig>(), 8);
+    assert_eq!(align_of::<OfflineParaformerModelConfig>(), 8);
+    assert_eq!(offset_of!(OfflineParaformerModelConfig, model), 0);
+    assert_eq!(size_of::<OfflineNemoEncDecCtcModelConfig>(), 8);
+    assert_eq!(align_of::<OfflineNemoEncDecCtcModelConfig>(), 8);
+    assert_eq!(offset_of!(OfflineNemoEncDecCtcModelConfig, model), 0);
+    assert_eq!(size_of::<OfflineWhisperModelConfig>(), 48);
+    assert_eq!(align_of::<OfflineWhisperModelConfig>(), 8);
+    assert_eq!(offset_of!(OfflineWhisperModelConfig, encoder), 0);
+    assert_eq!(offset_of!(OfflineWhisperModelConfig, decoder), 8);
+    assert_eq!(offset_of!(OfflineWhisperModelConfig, language), 16);
+    assert_eq!(offset_of!(OfflineWhisperModelConfig, task), 24);
+    assert_eq!(offset_of!(OfflineWhisperModelConfig, tail_paddings), 32);
+    assert_eq!(
+        offset_of!(OfflineWhisperModelConfig, enable_token_timestamps),
+        36
+    );
+    assert_eq!(
+        offset_of!(OfflineWhisperModelConfig, enable_segment_timestamps),
+        40
+    );
+    assert_eq!(size_of::<OfflineTdnnModelConfig>(), 8);
+    assert_eq!(align_of::<OfflineTdnnModelConfig>(), 8);
+    assert_eq!(offset_of!(OfflineTdnnModelConfig, model), 0);
+    assert_eq!(size_of::<OfflineSenseVoiceModelConfig>(), 24);
+    assert_eq!(align_of::<OfflineSenseVoiceModelConfig>(), 8);
+    assert_eq!(offset_of!(OfflineSenseVoiceModelConfig, model), 0);
+    assert_eq!(offset_of!(OfflineSenseVoiceModelConfig, language), 8);
+    assert_eq!(offset_of!(OfflineSenseVoiceModelConfig, use_itn), 16);
+    assert_eq!(size_of::<OfflineMoonshineModelConfig>(), 40);
+    assert_eq!(align_of::<OfflineMoonshineModelConfig>(), 8);
+    assert_eq!(offset_of!(OfflineMoonshineModelConfig, preprocessor), 0);
+    assert_eq!(offset_of!(OfflineMoonshineModelConfig, encoder), 8);
+    assert_eq!(
+        offset_of!(OfflineMoonshineModelConfig, uncached_decoder),
+        16
+    );
+    assert_eq!(offset_of!(OfflineMoonshineModelConfig, cached_decoder), 24);
+    assert_eq!(offset_of!(OfflineMoonshineModelConfig, merged_decoder), 32);
+    assert_eq!(size_of::<OfflineFireRedAsrModelConfig>(), 16);
+    assert_eq!(align_of::<OfflineFireRedAsrModelConfig>(), 8);
+    assert_eq!(offset_of!(OfflineFireRedAsrModelConfig, encoder), 0);
+    assert_eq!(offset_of!(OfflineFireRedAsrModelConfig, decoder), 8);
+    assert_eq!(size_of::<OfflineDolphinModelConfig>(), 8);
+    assert_eq!(align_of::<OfflineDolphinModelConfig>(), 8);
+    assert_eq!(offset_of!(OfflineDolphinModelConfig, model), 0);
+    assert_eq!(size_of::<OfflineZipformerCtcModelConfig>(), 8);
+    assert_eq!(align_of::<OfflineZipformerCtcModelConfig>(), 8);
+    assert_eq!(offset_of!(OfflineZipformerCtcModelConfig, model), 0);
+    assert_eq!(size_of::<OfflineCanaryModelConfig>(), 40);
+    assert_eq!(align_of::<OfflineCanaryModelConfig>(), 8);
+    assert_eq!(offset_of!(OfflineCanaryModelConfig, encoder), 0);
+    assert_eq!(offset_of!(OfflineCanaryModelConfig, decoder), 8);
+    assert_eq!(offset_of!(OfflineCanaryModelConfig, src_lang), 16);
+    assert_eq!(offset_of!(OfflineCanaryModelConfig, tgt_lang), 24);
+    assert_eq!(offset_of!(OfflineCanaryModelConfig, use_pnc), 32);
+    assert_eq!(size_of::<OfflineWenetCtcModelConfig>(), 8);
+    assert_eq!(align_of::<OfflineWenetCtcModelConfig>(), 8);
+    assert_eq!(offset_of!(OfflineWenetCtcModelConfig, model), 0);
+    assert_eq!(size_of::<OfflineOmnilingualAsrCtcModelConfig>(), 8);
+    assert_eq!(align_of::<OfflineOmnilingualAsrCtcModelConfig>(), 8);
+    assert_eq!(offset_of!(OfflineOmnilingualAsrCtcModelConfig, model), 0);
+    assert_eq!(size_of::<OfflineMedAsrCtcModelConfig>(), 8);
+    assert_eq!(align_of::<OfflineMedAsrCtcModelConfig>(), 8);
+    assert_eq!(offset_of!(OfflineMedAsrCtcModelConfig, model), 0);
+    assert_eq!(size_of::<OfflineFunASRNanoModelConfig>(), 88);
+    assert_eq!(align_of::<OfflineFunASRNanoModelConfig>(), 8);
+    assert_eq!(offset_of!(OfflineFunASRNanoModelConfig, encoder_adaptor), 0);
+    assert_eq!(offset_of!(OfflineFunASRNanoModelConfig, llm), 8);
+    assert_eq!(offset_of!(OfflineFunASRNanoModelConfig, embedding), 16);
+    assert_eq!(offset_of!(OfflineFunASRNanoModelConfig, tokenizer), 24);
+    assert_eq!(offset_of!(OfflineFunASRNanoModelConfig, system_prompt), 32);
+    assert_eq!(offset_of!(OfflineFunASRNanoModelConfig, user_prompt), 40);
+    assert_eq!(offset_of!(OfflineFunASRNanoModelConfig, max_new_tokens), 48);
+    assert_eq!(offset_of!(OfflineFunASRNanoModelConfig, temperature), 52);
+    assert_eq!(offset_of!(OfflineFunASRNanoModelConfig, top_p), 56);
+    assert_eq!(offset_of!(OfflineFunASRNanoModelConfig, seed), 60);
+    assert_eq!(offset_of!(OfflineFunASRNanoModelConfig, language), 64);
+    assert_eq!(offset_of!(OfflineFunASRNanoModelConfig, itn), 72);
+    assert_eq!(offset_of!(OfflineFunASRNanoModelConfig, hotwords), 80);
+    assert_eq!(size_of::<OfflineFireRedAsrCtcModelConfig>(), 8);
+    assert_eq!(align_of::<OfflineFireRedAsrCtcModelConfig>(), 8);
+    assert_eq!(offset_of!(OfflineFireRedAsrCtcModelConfig, model), 0);
+    assert_eq!(size_of::<OfflineQwen3ASRModelConfig>(), 64);
+    assert_eq!(align_of::<OfflineQwen3ASRModelConfig>(), 8);
+    assert_eq!(offset_of!(OfflineQwen3ASRModelConfig, conv_frontend), 0);
+    assert_eq!(offset_of!(OfflineQwen3ASRModelConfig, encoder), 8);
+    assert_eq!(offset_of!(OfflineQwen3ASRModelConfig, decoder), 16);
+    assert_eq!(offset_of!(OfflineQwen3ASRModelConfig, tokenizer), 24);
+    assert_eq!(offset_of!(OfflineQwen3ASRModelConfig, max_total_len), 32);
+    assert_eq!(offset_of!(OfflineQwen3ASRModelConfig, max_new_tokens), 36);
+    assert_eq!(offset_of!(OfflineQwen3ASRModelConfig, temperature), 40);
+    assert_eq!(offset_of!(OfflineQwen3ASRModelConfig, top_p), 44);
+    assert_eq!(offset_of!(OfflineQwen3ASRModelConfig, seed), 48);
+    assert_eq!(offset_of!(OfflineQwen3ASRModelConfig, hotwords), 56);
+    assert_eq!(size_of::<OfflineCohereTranscribeModelConfig>(), 32);
+    assert_eq!(align_of::<OfflineCohereTranscribeModelConfig>(), 8);
+    assert_eq!(offset_of!(OfflineCohereTranscribeModelConfig, encoder), 0);
+    assert_eq!(offset_of!(OfflineCohereTranscribeModelConfig, decoder), 8);
+    assert_eq!(offset_of!(OfflineCohereTranscribeModelConfig, language), 16);
+    assert_eq!(
+        offset_of!(OfflineCohereTranscribeModelConfig, use_punct),
+        24
+    );
+    assert_eq!(offset_of!(OfflineCohereTranscribeModelConfig, use_itn), 28);
+    assert_eq!(size_of::<OfflineModelConfig>(), 504);
+    assert_eq!(align_of::<OfflineModelConfig>(), 8);
+    assert_eq!(offset_of!(OfflineModelConfig, transducer), 0);
+    assert_eq!(offset_of!(OfflineModelConfig, paraformer), 24);
+    assert_eq!(offset_of!(OfflineModelConfig, nemo_ctc), 32);
+    assert_eq!(offset_of!(OfflineModelConfig, whisper), 40);
+    assert_eq!(offset_of!(OfflineModelConfig, tdnn), 88);
+    assert_eq!(offset_of!(OfflineModelConfig, tokens), 96);
+    assert_eq!(offset_of!(OfflineModelConfig, num_threads), 104);
+    assert_eq!(offset_of!(OfflineModelConfig, debug), 108);
+    assert_eq!(offset_of!(OfflineModelConfig, provider), 112);
+    assert_eq!(offset_of!(OfflineModelConfig, model_type), 120);
+    assert_eq!(offset_of!(OfflineModelConfig, modeling_unit), 128);
+    assert_eq!(offset_of!(OfflineModelConfig, bpe_vocab), 136);
+    assert_eq!(offset_of!(OfflineModelConfig, telespeech_ctc), 144);
+    assert_eq!(offset_of!(OfflineModelConfig, sense_voice), 152);
+    assert_eq!(offset_of!(OfflineModelConfig, moonshine), 176);
+    assert_eq!(offset_of!(OfflineModelConfig, fire_red_asr), 216);
+    assert_eq!(offset_of!(OfflineModelConfig, dolphin), 232);
+    assert_eq!(offset_of!(OfflineModelConfig, zipformer_ctc), 240);
+    assert_eq!(offset_of!(OfflineModelConfig, canary), 248);
+    assert_eq!(offset_of!(OfflineModelConfig, wenet_ctc), 288);
+    assert_eq!(offset_of!(OfflineModelConfig, omnilingual), 296);
+    assert_eq!(offset_of!(OfflineModelConfig, medasr), 304);
+    assert_eq!(offset_of!(OfflineModelConfig, funasr_nano), 312);
+    assert_eq!(offset_of!(OfflineModelConfig, fire_red_asr_ctc), 400);
+    assert_eq!(offset_of!(OfflineModelConfig, qwen3_asr), 408);
+    assert_eq!(offset_of!(OfflineModelConfig, cohere_transcribe), 472);
+    assert_eq!(size_of::<OfflineLMConfig>(), 16);
+    assert_eq!(align_of::<OfflineLMConfig>(), 8);
+    assert_eq!(offset_of!(OfflineLMConfig, model), 0);
+    assert_eq!(offset_of!(OfflineLMConfig, scale), 8);
+    assert_eq!(size_of::<HomophoneReplacerConfig>(), 24);
+    assert_eq!(align_of::<HomophoneReplacerConfig>(), 8);
+    assert_eq!(offset_of!(HomophoneReplacerConfig, dict_dir), 0);
+    assert_eq!(offset_of!(HomophoneReplacerConfig, lexicon), 8);
+    assert_eq!(offset_of!(HomophoneReplacerConfig, rule_fsts), 16);
+    assert_eq!(size_of::<OfflineCtcFstDecoderConfig>(), 16);
+    assert_eq!(align_of::<OfflineCtcFstDecoderConfig>(), 8);
+    assert_eq!(offset_of!(OfflineCtcFstDecoderConfig, graph), 0);
+    assert_eq!(offset_of!(OfflineCtcFstDecoderConfig, max_active), 8);
+    assert_eq!(size_of::<OfflineRecognizerConfig>(), 624);
+    assert_eq!(align_of::<OfflineRecognizerConfig>(), 8);
+    assert_eq!(offset_of!(OfflineRecognizerConfig, feat_config), 0);
+    assert_eq!(offset_of!(OfflineRecognizerConfig, model_config), 8);
+    assert_eq!(offset_of!(OfflineRecognizerConfig, lm_config), 512);
+    assert_eq!(offset_of!(OfflineRecognizerConfig, decoding_method), 528);
+    assert_eq!(offset_of!(OfflineRecognizerConfig, max_active_paths), 536);
+    assert_eq!(offset_of!(OfflineRecognizerConfig, hotwords_file), 544);
+    assert_eq!(offset_of!(OfflineRecognizerConfig, hotwords_score), 552);
+    assert_eq!(offset_of!(OfflineRecognizerConfig, rule_fsts), 560);
+    assert_eq!(offset_of!(OfflineRecognizerConfig, rule_fars), 568);
+    assert_eq!(offset_of!(OfflineRecognizerConfig, blank_penalty), 576);
+    assert_eq!(offset_of!(OfflineRecognizerConfig, hr), 584);
+    assert_eq!(
+        offset_of!(OfflineRecognizerConfig, ctc_fst_decoder_config),
+        608
+    );
+    assert_eq!(size_of::<SileroVadModelConfig>(), 32);
+    assert_eq!(align_of::<SileroVadModelConfig>(), 8);
+    assert_eq!(offset_of!(SileroVadModelConfig, model), 0);
+    assert_eq!(offset_of!(SileroVadModelConfig, threshold), 8);
+    assert_eq!(offset_of!(SileroVadModelConfig, min_silence_duration), 12);
+    assert_eq!(offset_of!(SileroVadModelConfig, min_speech_duration), 16);
+    assert_eq!(offset_of!(SileroVadModelConfig, window_size), 20);
+    assert_eq!(offset_of!(SileroVadModelConfig, max_speech_duration), 24);
+    assert_eq!(size_of::<TenVadModelConfig>(), 32);
+    assert_eq!(align_of::<TenVadModelConfig>(), 8);
+    assert_eq!(offset_of!(TenVadModelConfig, model), 0);
+    assert_eq!(offset_of!(TenVadModelConfig, threshold), 8);
+    assert_eq!(offset_of!(TenVadModelConfig, min_silence_duration), 12);
+    assert_eq!(offset_of!(TenVadModelConfig, min_speech_duration), 16);
+    assert_eq!(offset_of!(TenVadModelConfig, window_size), 20);
+    assert_eq!(offset_of!(TenVadModelConfig, max_speech_duration), 24);
+    assert_eq!(size_of::<VadModelConfig>(), 88);
+    assert_eq!(align_of::<VadModelConfig>(), 8);
+    assert_eq!(offset_of!(VadModelConfig, silero_vad), 0);
+    assert_eq!(offset_of!(VadModelConfig, sample_rate), 32);
+    assert_eq!(offset_of!(VadModelConfig, num_threads), 36);
+    assert_eq!(offset_of!(VadModelConfig, provider), 40);
+    assert_eq!(offset_of!(VadModelConfig, debug), 48);
+    assert_eq!(offset_of!(VadModelConfig, ten_vad), 56);
+}

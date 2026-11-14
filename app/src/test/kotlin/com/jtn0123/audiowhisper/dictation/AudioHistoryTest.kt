@@ -12,7 +12,7 @@ class AudioHistoryTest {
 
     @Test
     fun `gives back the audio before a phrase`() {
-        val history = AudioHistory(capacity = 10)
+        val history = ReferenceAudioHistory(capacity = 10)
         history.add(floats(0, 1, 2, 3))
         history.add(floats(4, 5, 6))
         assertEquals(7, history.end)
@@ -21,14 +21,14 @@ class AudioHistoryTest {
 
     @Test
     fun `a lead-in from before the start is cut to the start`() {
-        val history = AudioHistory(capacity = 10)
+        val history = ReferenceAudioHistory(capacity = 10)
         history.add(floats(0, 1, 2))
         assertContentEquals(floats(0, 1), history.slice(-3, 2))
     }
 
     @Test
     fun `audio older than the capacity is gone, the rest wraps around`() {
-        val history = AudioHistory(capacity = 4)
+        val history = ReferenceAudioHistory(capacity = 4)
         history.add(floats(0, 1, 2, 3, 4, 5))
         assertContentEquals(floats(2, 3, 4, 5), history.slice(0, 6))
         assertContentEquals(floats(4, 5), history.slice(4, 9))

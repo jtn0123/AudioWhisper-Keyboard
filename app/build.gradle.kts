@@ -17,6 +17,9 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmDefaultMode
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import java.util.Properties
+import java.io.InputStream
+import java.security.MessageDigest
+import java.util.zip.ZipFile
 
 plugins {
     alias(libs.plugins.agp.application)
@@ -89,6 +92,7 @@ android {
         versionName = projectVersionName.substringBefore("-")
 
         testInstrumentationRunner = when {
+            providers.gradleProperty("dictationFixture").orNull == "true" -> "com.jtn0123.audiowhisper.dictation.DictationInstrumentation"
             providers.gradleProperty("suggestFixture").orNull == "true" -> "com.jtn0123.audiowhisper.suggest.A1Instrumentation"
             providers.gradleProperty("rendererFixture").orNull == "true" -> "com.jtn0123.audiowhisper.render.FixtureInstrumentation"
             else -> "androidx.test.runner.AndroidJUnitRunner"
@@ -110,10 +114,8 @@ android {
 
     packaging {
         jniLibs {
-            // sherpa-onnx's Kotlin API loads only libsherpa-onnx-jni.so, which links against the
-            // system libraries and libonnxruntime.so. Its C and C++ API libraries (about 4.5 MB)
-            // are for apps calling sherpa-onnx from their own native code, which this one doesn't.
-            excludes += listOf("**/libsherpa-onnx-c-api.so", "**/libsherpa-onnx-cxx-api.so")
+            // ASR/VAD use the exact C API already vendored in the 2.0.1 AAR. JNI stays for TTS.
+            excludes += "**/libsherpa-onnx-cxx-api.so"
         }
     }
 
@@ -145,6 +147,7 @@ android {
             // debugger.
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             if (providers.gradleProperty("suggestFixture").orNull == "true") proguardFile("suggest-fixture.pro")
+            if (providers.gradleProperty("dictationFixture").orNull == "true") proguardFile("dictation-fixture.pro")
             isMinifyEnabled = true
             isShrinkResources = true
 
@@ -242,6 +245,14 @@ val fixtureAnnotations = tasks.register<Jar>("fixtureAnnotations") {
     destinationDirectory.set(layout.buildDirectory.dir("fixture-annotations"))
 }
 
+// A source set absent from normal APKs. Its shell receiver changes only controlled UI facts.
+if (providers.gradleProperty("dictationFixture").orNull == "true") {
+    android.sourceSets.getByName("debug") {
+        kotlin.srcDir("src/dictationFixture/test/kotlin")
+        manifest.srcFile("src/dictationFixture/AndroidManifest.xml")
+    }
+}
+
 dependencies {
     // Enforced so the BOM's stable Compose versions win over transitive pre-releases: material-kolor 5
     // asks for material3 1.5.0-alpha22, and every material3 API it calls already exists in the BOM's 1.4.0.
@@ -313,3 +324,23 @@ fun getGitCommitHash(short: Boolean = false): Provider<String> {
     }
     return execProvider.standardOutput.asText.map { it.trim() }
 }
+
+// The C API and JNI must come from the same release. Fail before packaging an altered AAR.
+val verifySherpa = tasks.register("verifySherpa") {
+    val aar = layout.projectDirectory.file("libs/sherpa-onnx-2.0.1.aar")
+    inputs.file(aar)
+    doLast {
+        fun digest(input: InputStream): String = input.use { stream ->
+            val hash = MessageDigest.getInstance("SHA-256")
+            val buffer = ByteArray(1 shl 20)
+            while (true) { val count = stream.read(buffer); if (count < 0) break; hash.update(buffer, 0, count) }
+            hash.digest().joinToString("") { "%02x".format(it) }
+        }
+        check(digest(aar.asFile.inputStream()) == "a8d09d1d32f3eb8520482c6d3d43fae674681c5b050385967c70a3c2c9bf0ee7")
+        ZipFile(aar.asFile).use { zip ->
+            check(digest(zip.getInputStream(zip.getEntry("jni/arm64-v8a/libsherpa-onnx-c-api.so"))) ==
+                "0eadae93c4d595a26584d7eebde7b397b9a36d01eee3ebc7262e0d34df2fce10")
+        }
+    }
+}
+tasks.named("preBuild") { dependsOn(verifySherpa) }

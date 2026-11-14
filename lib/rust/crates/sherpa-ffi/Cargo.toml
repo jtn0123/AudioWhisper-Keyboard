@@ -1,0 +1,15 @@
+[package]
+name = "sherpa-ffi"
+version = "0.1.0"
+description = "Owned sherpa-onnx 2.0.1 C API boundary; no Android or JVM dependencies"
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+libloading = "=0.8.9"
+dictation = { path = "../dictation" }
+
+[lints]
+workspace = true

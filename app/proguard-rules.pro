@@ -28,10 +28,13 @@
 # @Serializable and @Polymorphic are used at runtime for polymorphic serialization.
 -keepattributes RuntimeVisibleAnnotations,AnnotationDefault
 
-# sherpa-onnx (dictation): its native code reads the config classes' fields and builds the
-# result classes by name, and the AAR ships no rules of its own. Without this R8 strips the
-# fields only native reads, and the recognizer fails to start.
--keep class com.k2fsa.sherpa.onnx.** { *; }
+# Only Pocket TTS still uses sherpa JNI. Its native config/result field names must survive.
+# ASR/VAD Kotlin classes are retained only in opt-in comparison APKs.
+-keep class com.k2fsa.sherpa.onnx.OfflineTts** { *; }
+-keep class com.k2fsa.sherpa.onnx.GenerationConfig { *; }
+-keep class com.k2fsa.sherpa.onnx.GeneratedAudio { *; }
+-keep class com.k2fsa.sherpa.onnx.WaveReader** { *; }
+-keep class com.k2fsa.sherpa.onnx.WaveData { *; }
 
 # The read-aloud voice's callback, which that native code finds by its method's signature.
 -keep class com.jtn0123.audiowhisper.reader.VoiceEngine$AudioCallback { *; }

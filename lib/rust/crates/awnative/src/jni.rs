@@ -138,6 +138,33 @@ impl Env {
         Ok(values)
     }
 
+    /// Borrow direct native-order Float32 PCM for a synchronous call. The app's producer
+    /// owns the buffer and must not mutate it until return; the closure cannot retain it.
+    pub fn with_direct_f32<T>(
+        &self,
+        buffer: jobject,
+        count: i32,
+        body: impl FnOnce(&[f32]) -> Result<T>,
+    ) -> Result<T> {
+        if buffer.is_null() || count < 0 {
+            return Err(illegal("invalid PCM buffer"));
+        }
+        let capacity = jni_call!(self, GetDirectBufferCapacity, buffer);
+        if capacity < i64::from(count) * 4 {
+            return Err(illegal("PCM capacity"));
+        }
+        let address = jni_call!(self, GetDirectBufferAddress, buffer).cast::<f32>();
+        if count == 0 {
+            return body(&[]);
+        }
+        if address.is_null() || !(address as usize).is_multiple_of(align_of::<f32>()) {
+            return Err(illegal("unaligned PCM"));
+        }
+        // SAFETY: JNI pins the direct allocation for this call; capacity and alignment were
+        // checked. The producer does not write while the synchronous consumer borrows it.
+        body(unsafe { std::slice::from_raw_parts(address, count as usize) })
+    }
+
     /// A new Java array holding `values`.
     pub fn make<T: Element>(&self, values: &[T]) -> Result<jarray> {
         let len = jsize::try_from(values.len()).map_err(|_| illegal("array too long"))?;

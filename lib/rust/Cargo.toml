@@ -22,6 +22,7 @@ default-members = [
     "crates/reader",
     "crates/render",
     "crates/shift",
+    "crates/sherpa-ffi",
     "crates/spacing",
     "crates/snygg",
     "crates/suggest",

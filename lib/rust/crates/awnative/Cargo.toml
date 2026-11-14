@@ -15,6 +15,7 @@ crate-type = ["cdylib"]
 latin-fixture = []
 
 [dependencies]
+sherpa-ffi = { path = "../sherpa-ffi" }
 chars = { path = "../chars" }
 composing = { path = "../composing" }
 dictation = { path = "../dictation" }

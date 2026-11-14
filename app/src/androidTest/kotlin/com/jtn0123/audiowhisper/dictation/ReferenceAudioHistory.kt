@@ -8,7 +8,7 @@ package com.jtn0123.audiowhisper.dictation
  * listener give each phrase back the moment before the VAD's start. Memory stays fixed
  * however long the dictation runs.
  */
-class AudioHistory(private val capacity: Int) {
+class ReferenceAudioHistory(private val capacity: Int) {
     private val ring = FloatArray(capacity)
 
     /** Samples added since the start; the next one added is at this position. */

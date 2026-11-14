@@ -1,0 +1,8 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application>
+        <receiver android:name="com.jtn0123.audiowhisper.dictation.DictationUiReceiver"
+            android:exported="true" android:permission="android.permission.DUMP">
+            <intent-filter><action android:name="com.jtn0123.audiowhisper.DICTATION_UI" /></intent-filter>
+        </receiver>
+    </application>
+</manifest>

@@ -47,7 +47,7 @@ class MicRecorder(
     }
 
     private fun pump(audio: MicAudio) {
-        val buffer = FloatArray(Transcriber.SAMPLE_RATE / 10)
+        val buffer = FloatArray(com.jtn0123.audiowhisper.rust.DictationAudio.chunkSamples)
         try {
             while (running) {
                 val n = audio.read(buffer)

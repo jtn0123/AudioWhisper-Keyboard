@@ -19,7 +19,7 @@ import kotlinx.coroutines.flow.asStateFlow
 
 /**
  * Dictation inside the keyboard. A tap on the mic key toggles it and a hold talks until
- * it is let go (see [MicKey]); while it listens,
+ * it is let go (see the native mic-key policy); while it listens,
  * each phrase is typed as the user pauses and every key keeps working, so
  * the keyboard never goes away. Hiding the keyboard stops it, and leaving
  * the field drops whatever it hasn't typed yet: a dictation only ever types
@@ -135,7 +135,7 @@ class Dictation(private val context: Context, private val editor: Editor) {
         )
 
         override fun listen(callbacks: DictationSession.Callbacks): DictationSession.Listening =
-            PhraseListener(context.assets, callbacks.onLevel, callbacks.onMicError, callbacks.onPhrase, callbacks.onPreview)
+            PhraseListener(context, callbacks.onLevel, callbacks.onMicError, callbacks.onPhrase, callbacks.onPreview, callbacks.onSpeech, callbacks.onModelError)
                 .apply { start(::openAudio) }
 
         /**
@@ -181,10 +181,10 @@ class Dictation(private val context: Context, private val editor: Editor) {
     companion object {
         private const val TAG = "AWDictation"
         private const val DICTATION_SETTINGS = "ui://florisboard/settings/dictation"
-        internal const val KEEP_LOADED_MS = 5 * 60 * 1000L
+        internal val KEEP_LOADED_MS: Long get() = com.jtn0123.audiowhisper.rust.DictationSessionPlan.releaseAt(0, 0, true)
 
         /** Long enough to switch to another app and dictate there without loading it again. */
-        internal const val KEEP_LOADED_HIDDEN_MS = 60 * 1000L
+        internal val KEEP_LOADED_HIDDEN_MS: Long get() = com.jtn0123.audiowhisper.rust.DictationSessionPlan.releaseAt(0, 0, false)
 
         // One keyboard per process, so the mic button can watch these
         // without holding on to the service.
