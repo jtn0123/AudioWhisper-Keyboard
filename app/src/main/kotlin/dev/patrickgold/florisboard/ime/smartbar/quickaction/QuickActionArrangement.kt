@@ -17,28 +17,8 @@
 package dev.patrickgold.florisboard.ime.smartbar.quickaction
 
 import dev.patrickgold.florisboard.ime.text.keyboard.TextKeyData
-import dev.patrickgold.florisboard.lib.io.DefaultJsonConfig
 import dev.patrickgold.jetpref.datastore.model.PreferenceSerializer
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.modules.SerializersModule
-import kotlinx.serialization.modules.plus
-import kotlinx.serialization.modules.polymorphic
-
-val QuickActionJsonConfig = Json(DefaultJsonConfig) {
-    classDiscriminator = "$"
-    encodeDefaults = false
-    ignoreUnknownKeys = true
-    isLenient = false
-
-    serializersModule += SerializersModule {
-        polymorphic(QuickAction::class) {
-            subclass(QuickAction.InsertKey::class, QuickAction.InsertKey.serializer())
-            subclass(QuickAction.InsertText::class, QuickAction.InsertText.serializer())
-            defaultDeserializer { QuickAction.InsertKey.serializer() }
-        }
-    }
-}
 
 @Serializable
 data class QuickActionArrangement(
@@ -60,45 +40,16 @@ data class QuickActionArrangement(
     }
 
     companion object {
-        // The mic is pinned (the sticky action, at the left end of the suggestion bar since flipToggles is on)
-        // and emoji has its own button beside the suggestions (Smartbar.kt), so neither is a bottom-row key and
-        // the space bar is wider. Emoji is hidden here so the expanded actions don't repeat it.
-        val Default = QuickActionArrangement(
-            stickyAction = QuickAction.InsertKey(TextKeyData.VOICE_INPUT),
-            dynamicActions = listOf(
-                QuickAction.InsertKey(TextKeyData.UNDO),
-                QuickAction.InsertKey(TextKeyData.REDO),
-                QuickAction.InsertKey(TextKeyData.SETTINGS),
-                QuickAction.InsertKey(TextKeyData.TOGGLE_INCOGNITO_MODE),
-                QuickAction.InsertKey(TextKeyData.IME_UI_MODE_CLIPBOARD),
-                QuickAction.InsertKey(TextKeyData.TOGGLE_COMPACT_LAYOUT),
-                QuickAction.InsertKey(TextKeyData.TOGGLE_AUTOCORRECT),
-                QuickAction.InsertKey(TextKeyData.ARROW_UP),
-                QuickAction.InsertKey(TextKeyData.ARROW_DOWN),
-                QuickAction.InsertKey(TextKeyData.ARROW_LEFT),
-                QuickAction.InsertKey(TextKeyData.ARROW_RIGHT),
-                QuickAction.InsertKey(TextKeyData.CLIPBOARD_CLEAR_PRIMARY_CLIP),
-                QuickAction.InsertKey(TextKeyData.CLIPBOARD_COPY),
-                QuickAction.InsertKey(TextKeyData.CLIPBOARD_CUT),
-                QuickAction.InsertKey(TextKeyData.CLIPBOARD_PASTE),
-                QuickAction.InsertKey(TextKeyData.CLIPBOARD_SELECT_ALL),
-                QuickAction.InsertKey(TextKeyData.LANGUAGE_SWITCH),
-                QuickAction.InsertKey(TextKeyData.FORWARD_DELETE),
-                QuickAction.InsertKey(TextKeyData.IME_HIDE_UI),
-            ),
-            hiddenActions = listOf(
-                QuickAction.InsertKey(TextKeyData.IME_UI_MODE_MEDIA),
-            ),
-        )
+        val Default by lazy { com.jtn0123.audiowhisper.settings.SettingsDefaults.arrangement("smartbar__action_arrangement") }
     }
 
     object Serializer : PreferenceSerializer<QuickActionArrangement> {
         override fun serialize(value: QuickActionArrangement): String {
-            return QuickActionJsonConfig.encodeToString(value)
+            return com.jtn0123.audiowhisper.settings.SettingsCodecs.arrangement(value)
         }
 
         override fun deserialize(value: String): QuickActionArrangement {
-            return QuickActionJsonConfig.decodeFromString(value)
+            return com.jtn0123.audiowhisper.settings.SettingsCodecs.arrangement(value)
         }
     }
 }

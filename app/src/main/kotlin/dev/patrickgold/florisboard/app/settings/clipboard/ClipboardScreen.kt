@@ -65,9 +65,9 @@ fun ClipboardScreen() = FlorisScreen {
                 prefs.clipboard.suggestionTimeout,
                 title = stringRes(R.string.pref__clipboard__suggestion_timeout__label),
                 valueLabel = { stringRes(R.string.pref__clipboard__suggestion_timeout__summary, "v" to it) },
-                min = 30,
-                max = 300,
-                stepIncrement = 5,
+                min = com.jtn0123.audiowhisper.rust.SettingsRules.minimum("clipboard__suggestion_timeout").toInt(),
+                max = com.jtn0123.audiowhisper.rust.SettingsRules.maximum("clipboard__suggestion_timeout").toInt(),
+                stepIncrement = com.jtn0123.audiowhisper.rust.SettingsRules.step("clipboard__suggestion_timeout").toInt(),
                 enabledIf = { prefs.clipboard.suggestionEnabled isEqualTo true },
             )
         }
@@ -91,9 +91,9 @@ fun ClipboardScreen() = FlorisScreen {
                         numGridColumns.toString()
                     }
                 },
-                min = 0,
-                max = 10,
-                stepIncrement = 1,
+                min = com.jtn0123.audiowhisper.rust.SettingsRules.minimum("clipboard__history_num_grid_columns_portrait").toInt(),
+                max = com.jtn0123.audiowhisper.rust.SettingsRules.maximum("clipboard__history_num_grid_columns_portrait").toInt(),
+                stepIncrement = com.jtn0123.audiowhisper.rust.SettingsRules.step("clipboard__history_num_grid_columns_portrait").toInt(),
                 enabledIf = { prefs.clipboard.historyEnabled isEqualTo true },
             )
             SwitchPreference(
@@ -105,9 +105,9 @@ fun ClipboardScreen() = FlorisScreen {
                 prefs.clipboard.historyAutoCleanOldAfter,
                 title = stringRes(R.string.pref__clipboard__clean_up_after__label),
                 valueLabel = { pluralsRes(R.plurals.unit__minutes__written, it, "v" to it) },
-                min = 0,
-                max = 120,
-                stepIncrement = 5,
+                min = com.jtn0123.audiowhisper.rust.SettingsRules.minimum("clipboard__history_auto_clean_old_after").toInt(),
+                max = com.jtn0123.audiowhisper.rust.SettingsRules.maximum("clipboard__history_auto_clean_old_after").toInt(),
+                stepIncrement = com.jtn0123.audiowhisper.rust.SettingsRules.step("clipboard__history_auto_clean_old_after").toInt(),
                 enabledIf = { prefs.clipboard.historyEnabled isEqualTo true && prefs.clipboard.historyAutoCleanOldEnabled isEqualTo true },
             )
             SwitchPreference(
@@ -119,9 +119,9 @@ fun ClipboardScreen() = FlorisScreen {
                 prefs.clipboard.historyAutoCleanSensitiveAfter,
                 title = stringRes(R.string.pref__clipboard__auto_clean_sensitive_after__label),
                 valueLabel = { pluralsRes(R.plurals.unit__seconds__written, it, "v" to it) },
-                min = 0,
-                max = 300,
-                stepIncrement = 10,
+                min = com.jtn0123.audiowhisper.rust.SettingsRules.minimum("clipboard__history_auto_clean_sensitive_after").toInt(),
+                max = com.jtn0123.audiowhisper.rust.SettingsRules.maximum("clipboard__history_auto_clean_sensitive_after").toInt(),
+                stepIncrement = com.jtn0123.audiowhisper.rust.SettingsRules.step("clipboard__history_auto_clean_sensitive_after").toInt(),
                 enabledIf = { prefs.clipboard.historyEnabled isEqualTo true && prefs.clipboard.historyAutoCleanSensitiveEnabled isEqualTo true },
             )
             SwitchPreference(
@@ -133,9 +133,9 @@ fun ClipboardScreen() = FlorisScreen {
                 prefs.clipboard.historySizeLimit,
                 title = stringRes(R.string.pref__clipboard__max_history_size__label),
                 valueLabel = { pluralsRes(R.plurals.unit__items__written, it, "v" to it) },
-                min = 5,
-                max = 100,
-                stepIncrement = 5,
+                min = com.jtn0123.audiowhisper.rust.SettingsRules.minimum("clipboard__history_size_limit").toInt(),
+                max = com.jtn0123.audiowhisper.rust.SettingsRules.maximum("clipboard__history_size_limit").toInt(),
+                stepIncrement = com.jtn0123.audiowhisper.rust.SettingsRules.step("clipboard__history_size_limit").toInt(),
                 enabledIf = { prefs.clipboard.historyEnabled isEqualTo true && prefs.clipboard.historySizeLimitEnabled isEqualTo true },
             )
 

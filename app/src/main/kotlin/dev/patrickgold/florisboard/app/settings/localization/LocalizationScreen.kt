@@ -53,16 +53,15 @@ import dev.patrickgold.jetpref.datastore.ui.Preference
 import dev.patrickgold.jetpref.datastore.ui.PreferenceGroup
 import dev.patrickgold.jetpref.datastore.ui.SwitchPreference
 import dev.patrickgold.jetpref.material.ui.JetPrefAlertDialog
-import kotlinx.serialization.json.Json
 import org.florisboard.lib.compose.FlorisWarningCard
 import org.florisboard.lib.compose.stringRes
 
 internal val SubtypeSaver = Saver<MutableState<Subtype?>, String>(
     save = {
-        Json.encodeToString<Subtype?>(it.value)
+        it.value?.let(com.jtn0123.audiowhisper.settings.SettingsCodecs::subtype) ?: "null"
     },
     restore = {
-        mutableStateOf(Json.decodeFromString(it))
+        mutableStateOf(if (it == "null") null else com.jtn0123.audiowhisper.settings.SettingsCodecs.subtype(it))
     },
 )
 

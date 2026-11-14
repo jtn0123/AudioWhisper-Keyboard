@@ -99,9 +99,9 @@ fun KeyboardScreen() = FlorisScreen {
             primaryLabel = stringRes(R.string.screen_orientation__portrait),
             secondaryLabel = stringRes(R.string.screen_orientation__landscape),
             valueLabel = { stringRes(R.string.unit__percent__symbol, "v" to it) },
-            min = 50,
-            max = 150,
-            stepIncrement = 5,
+            min = com.jtn0123.audiowhisper.rust.SettingsRules.minimum("keyboard__font_size_multiplier_portrait").toInt(),
+            max = com.jtn0123.audiowhisper.rust.SettingsRules.maximum("keyboard__font_size_multiplier_portrait").toInt(),
+            stepIncrement = com.jtn0123.audiowhisper.rust.SettingsRules.step("keyboard__font_size_multiplier_portrait").toInt(),
         )
         ListPreference(
             listPref = prefs.keyboard.incognitoDisplayMode,
@@ -121,9 +121,9 @@ fun KeyboardScreen() = FlorisScreen {
                 prefs.keyboard.oneHandedModeScaleFactor,
                 title = stringRes(R.string.pref__keyboard__one_handed_mode_scale_factor__label),
                 valueLabel = { stringRes(R.string.unit__percent__symbol, "v" to it) },
-                min = 70,
-                max = 90,
-                stepIncrement = 1,
+                min = com.jtn0123.audiowhisper.rust.SettingsRules.minimum("keyboard__one_handed_mode_scale_factor").toInt(),
+                max = com.jtn0123.audiowhisper.rust.SettingsRules.maximum("keyboard__one_handed_mode_scale_factor").toInt(),
+                stepIncrement = com.jtn0123.audiowhisper.rust.SettingsRules.step("keyboard__one_handed_mode_scale_factor").toInt(),
                 enabledIf = { prefs.keyboard.oneHandedModeEnabled.isTrue() },
             )
             ListPreference(
@@ -138,9 +138,9 @@ fun KeyboardScreen() = FlorisScreen {
                 primaryLabel = stringRes(R.string.screen_orientation__portrait),
                 secondaryLabel = stringRes(R.string.screen_orientation__landscape),
                 valueLabel = { stringRes(R.string.unit__percent__symbol, "v" to it) },
-                min = 50,
-                max = 150,
-                stepIncrement = 5,
+                min = com.jtn0123.audiowhisper.rust.SettingsRules.minimum("keyboard__height_factor_portrait").toInt(),
+                max = com.jtn0123.audiowhisper.rust.SettingsRules.maximum("keyboard__height_factor_portrait").toInt(),
+                stepIncrement = com.jtn0123.audiowhisper.rust.SettingsRules.step("keyboard__height_factor_portrait").toInt(),
             )
             DialogSliderPreference(
                 primaryPref = prefs.keyboard.keySpacingVertical,
@@ -149,9 +149,9 @@ fun KeyboardScreen() = FlorisScreen {
                 primaryLabel = stringRes(R.string.screen_orientation__vertical),
                 secondaryLabel = stringRes(R.string.screen_orientation__horizontal),
                 valueLabel = { stringRes(R.string.unit__display_pixel__symbol, "v" to it) },
-                min = 0.0f,
-                max = 10.0f,
-                stepIncrement = 0.5f,
+                min = com.jtn0123.audiowhisper.rust.SettingsRules.minimum("keyboard__key_spacing_vertical").toFloat(),
+                max = com.jtn0123.audiowhisper.rust.SettingsRules.maximum("keyboard__key_spacing_vertical").toFloat(),
+                stepIncrement = com.jtn0123.audiowhisper.rust.SettingsRules.step("keyboard__key_spacing_vertical").toFloat(),
             )
             DialogSliderPreference(
                 primaryPref = prefs.keyboard.bottomOffsetPortrait,
@@ -160,9 +160,9 @@ fun KeyboardScreen() = FlorisScreen {
                 primaryLabel = stringRes(R.string.screen_orientation__portrait),
                 secondaryLabel = stringRes(R.string.screen_orientation__landscape),
                 valueLabel = { stringRes(R.string.unit__display_pixel__symbol, "v" to it) },
-                min = 0,
-                max = 60,
-                stepIncrement = 1,
+                min = com.jtn0123.audiowhisper.rust.SettingsRules.minimum("keyboard__bottom_offset_portrait").toInt(),
+                max = com.jtn0123.audiowhisper.rust.SettingsRules.maximum("keyboard__bottom_offset_portrait").toInt(),
+                stepIncrement = com.jtn0123.audiowhisper.rust.SettingsRules.step("keyboard__bottom_offset_portrait").toInt(),
             )
         }
 
@@ -185,9 +185,9 @@ fun KeyboardScreen() = FlorisScreen {
                 prefs.keyboard.longPressDelay,
                 title = stringRes(R.string.pref__keyboard__long_press_delay__label),
                 valueLabel = { stringRes(R.string.unit__milliseconds__symbol, "v" to it) },
-                min = 100,
-                max = 700,
-                stepIncrement = 10,
+                min = com.jtn0123.audiowhisper.rust.SettingsRules.minimum("keyboard__long_press_delay").toInt(),
+                max = com.jtn0123.audiowhisper.rust.SettingsRules.maximum("keyboard__long_press_delay").toInt(),
+                stepIncrement = com.jtn0123.audiowhisper.rust.SettingsRules.step("keyboard__long_press_delay").toInt(),
             )
             SwitchPreference(
                 prefs.keyboard.spaceBarSwitchesToCharacters,

@@ -16,9 +16,10 @@
 
 package dev.patrickgold.florisboard.ime.core
 
-import com.jtn0123.audiowhisper.rust.InputRules
-import com.jtn0123.audiowhisper.rust.InputProtocol.*
 import android.content.Context
+import com.jtn0123.audiowhisper.rust.SettingsRules
+import com.jtn0123.audiowhisper.settings.SettingsCodecs
+import com.jtn0123.audiowhisper.settings.SettingsSubtypes
 import dev.patrickgold.florisboard.app.FlorisPreferenceStore
 import dev.patrickgold.florisboard.ime.keyboard.CurrencySet
 import dev.patrickgold.florisboard.keyboardManager
@@ -28,30 +29,17 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import kotlinx.serialization.json.Json
 import org.florisboard.lib.kotlin.collectLatestIn
 
-val SubtypeJsonConfig = Json {
-    encodeDefaults = true
-    ignoreUnknownKeys = true
-    isLenient = false
-}
-
-/**
- * Class which acts as a high level helper for the raw implementation of subtypes in the prefs. Additionally provides
- * helper methods for the in-keyboard language switch process.
- */
 class SubtypeManager(context: Context) {
     private val prefs by FlorisPreferenceStore
     private val keyboardManager by context.keyboardManager()
     private val scope = CoroutineScope(Dispatchers.Default)
-
     private val _subtypesFlow = MutableStateFlow(listOf<Subtype>())
     val subtypesFlow = _subtypesFlow.asStateFlow()
     inline var subtypes
         get() = subtypesFlow.value
         private set(v) { _subtypesFlow.value = v }
-
     private val _activeSubtypeFlow = MutableStateFlow(Subtype.DEFAULT)
     val activeSubtypeFlow = _activeSubtypeFlow.asStateFlow()
     inline var activeSubtype
@@ -59,160 +47,60 @@ class SubtypeManager(context: Context) {
         private set(v) { _activeSubtypeFlow.value = v }
 
     init {
-        prefs.localization.subtypes.asFlow().collectLatestIn(scope) { listRaw ->
-            val list = if (listRaw.isNotBlank()) {
-                SubtypeJsonConfig.decodeFromString<List<Subtype>>(listRaw)
-            } else {
-                emptyList()
-            }
-            val supported = list.map { it.withSupportedInput() }
-            subtypes = supported
-            evaluateActiveSubtype(supported)
-            if (supported != list) persistNewSubtypeList(supported)
+        prefs.localization.subtypes.asFlow().collectLatestIn(scope) { raw ->
+            val list = SettingsCodecs.subtypes(raw)
+            val plan = SettingsSubtypes.plan("load", list, prefs.localization.activeSubtypeId.get())
+            subtypes = plan.list
+            evaluateActiveSubtype(plan.list)
+            if (plan.changed) persistNewSubtypeList(plan.list)
         }
     }
-
     private fun persistNewSubtypeList(list: List<Subtype>) = scope.launch {
-        val listRaw = SubtypeJsonConfig.encodeToString(list)
-        prefs.localization.subtypes.set(listRaw)
+        prefs.localization.subtypes.set(SettingsCodecs.subtypes(list))
     }
-
-    /**
-     * Gets the active subtype and returns it. If the activeSubtypeId points to a non-existent
-     * subtype, this method tries to determine a new active subtype.
-     *
-     * @return The active subtype or null, if the subtype list is empty or no new active subtype
-     *  could be determined.
-     */
     private fun evaluateActiveSubtype(list: List<Subtype>) = scope.launch {
-        val activeSubtypeId = prefs.localization.activeSubtypeId.get()
-        val plan = InputRules.control(longArrayOf(CONTROL_SUBTYPE.toLong(), activeSubtypeId, Subtype.DEFAULT.id,
-            *list.map {it.id}.toLongArray()))
-        val subtype = list.getOrNull(plan[0].toInt()) ?: Subtype.DEFAULT
-        if (plan[1] != 0L) {
-            prefs.localization.activeSubtypeId.set(subtype.id)
-        }
-        activeSubtype = subtype
+        val plan = SettingsSubtypes.plan("evaluate", list, prefs.localization.activeSubtypeId.get())
+        if (plan.writeActive) prefs.localization.activeSubtypeId.set(plan.active)
+        activeSubtype = plan.selected
     }
-
-    /**
-     * Adds a given [subtype] to the subtype list, if it does not exist.
-     *
-     * @param subtype The subtype which should be added.
-     * @return True if the subtype was added, false otherwise. A return value of false indicates
-     *  that the subtype already exists.
-     */
     fun addSubtype(subtype: Subtype): Boolean {
-        val subtypeToAdd = subtype.copy(id = System.currentTimeMillis())
-        val subtypeList = subtypes
-        if (subtypeList.find { it.equalsExcludingId(subtype) } != null) {
-            return false
-        }
-        val newSubtypeList = subtypeList + subtypeToAdd
-        persistNewSubtypeList(newSubtypeList)
-        return true
+        val plan = SettingsSubtypes.plan("add", subtypes, activeSubtype.id, subtype, System.currentTimeMillis())
+        if (plan.changed) persistNewSubtypeList(plan.list)
+        return plan.changed
     }
-
-    /**
-     * Gets the currency set from the given subtype and returns it. Falls back to a default one if the subtype does not
-     * exist.
-     *
-     * @return The currency set or a fallback.
-     */
-    fun getCurrencySet(subtypeToSearch: Subtype): CurrencySet {
-        return keyboardManager.resources.currencySets.value?.get(subtypeToSearch.currencySet) ?: CurrencySet.Fallback
-    }
-
-    /**
-     * Gets a subtype by the given [id].
-     *
-     * @param id The id of the subtype you want to get.
-     * @return The subtype or null, if no matching subtype could be found.
-     */
+    fun getCurrencySet(subtypeToSearch: Subtype): CurrencySet =
+        keyboardManager.resources.currencySets.value?.get(subtypeToSearch.currencySet) ?: CurrencySet.Fallback
     fun getSubtypeById(id: Long): Subtype? {
-        val subtypeList = subtypes
-        val selected = InputRules.control(longArrayOf(CONTROL_FIND_SUBTYPE.toLong(), id,
-            *subtypeList.map {it.id}.toLongArray()))[0].toInt()
-        return subtypeList.getOrNull(selected)
+        val list = subtypes
+        return list.getOrNull(SettingsRules.call(25, id.toString(), *list.map { it.id.toString() }.toTypedArray())[0].toInt())
     }
-
-    /**
-     * Gets the default system subtype for a given [locale].
-     *
-     * @param locale The locale of the default system subtype to get.
-     * @return The default system locale or null, if no matching default system subtype could be
-     *  found.
-     */
     fun getSubtypePresetForLocale(locale: FlorisLocale): SubtypePreset? {
-        val presets = keyboardManager.resources.subtypePresets.value
-        return presets?.find { it.locale == locale } ?: presets?.find { it.locale.language == locale.language }
+        val presets = keyboardManager.resources.subtypePresets.value.orEmpty()
+        val index = SettingsRules.preset(locale.base.toString(),locale.language,
+            presets.map { it.locale.base.toString() to it.locale.language })
+        return presets.getOrNull(index)
     }
-
-    /**
-     * Modifies an existing subtype with the newly provided details. In order to determine which
-     * subtype should be updated, the id must be the same.
-     *
-     * @param subtypeToModify The subtype with the new details but same id.
-     */
     fun modifySubtypeWithSameId(subtypeToModify: Subtype) {
-        val subtypeList = subtypes
-        val index = subtypeList.indexOfFirst { subtypeToModify.id == it.id }
-        if (index >= 0 && index < subtypeList.size) {
-            val newSubtypeList = subtypeList.mapIndexed { n, subtype ->
-                if (n == index) {
-                    subtypeToModify
-                } else {
-                    subtype
-                }
-            }
-            persistNewSubtypeList(newSubtypeList)
-        }
+        val plan = SettingsSubtypes.plan("modify",subtypes,activeSubtype.id,subtypeToModify)
+        if (plan.changed) persistNewSubtypeList(plan.list)
     }
-
-    /**
-     * Removes a given [subtypeToRemove]. Nothing happens if the given [subtypeToRemove] does not
-     * exist.
-     *
-     * @param subtypeToRemove The subtype which should be removed.
-     */
     fun removeSubtype(subtypeToRemove: Subtype) {
-        val subtypeList = subtypes
-        val indexToRemove = subtypeList.indexOf(subtypeToRemove)
-        if (indexToRemove in subtypeList.indices) {
-            val newSubtypeList = subtypeList.mapIndexedNotNull { n, subtype ->
-                if (n != indexToRemove) {
-                    subtype
-                } else {
-                    null
-                }
-            }
-            persistNewSubtypeList(newSubtypeList)
-            evaluateActiveSubtype(newSubtypeList)
-        }
+        val plan = SettingsSubtypes.plan("remove",subtypes,activeSubtype.id,subtypeToRemove)
+        if (plan.changed) { persistNewSubtypeList(plan.list); evaluateActiveSubtype(plan.list) }
     }
-
-    /**
-     * Switch to the previous subtype in the subtype list if possible.
-     */
-    fun switchToPrevSubtype() = switchSubtype(-1)
-
-    fun switchToNextSubtype() = switchSubtype(1)
-
-    private fun switchSubtype(direction: Long) = scope.launch {
-        val subtypeList = subtypes
-        val cachedActiveSubtype = activeSubtype
-        val selected = InputRules.control(longArrayOf(CONTROL_CYCLE.toLong(), direction,
-            *subtypeList.map {if(it == cachedActiveSubtype) 1L else 0L}.toLongArray()))[0].toInt()
-        val newActiveSubtype = subtypeList.getOrNull(selected) ?: Subtype.DEFAULT
-        prefs.localization.activeSubtypeId.set(newActiveSubtype.id)
-        activeSubtype = newActiveSubtype
+    fun reorderSubtypes(order: List<Int>) {
+        val plan = SettingsSubtypes.plan("reorder",subtypes,activeSubtype.id,order = order)
+        if (plan.changed) persistNewSubtypeList(plan.list)
     }
-
+    fun switchToPrevSubtype() = switchSubtype("previous")
+    fun switchToNextSubtype() = switchSubtype("next")
+    private fun switchSubtype(direction: String) = scope.launch {
+        val plan = SettingsSubtypes.plan(direction,subtypes,activeSubtype.id,selected = activeSubtype)
+        prefs.localization.activeSubtypeId.set(plan.active)
+        activeSubtype = plan.selected
+    }
     fun switchToSubtypeById(id: Long) = scope.launch {
         val selected = getSubtypeById(id)
-        if (selected != null) {
-            activeSubtype = selected
-            prefs.localization.activeSubtypeId.set(id)
-        }
+        if (selected != null) { activeSubtype = selected; prefs.localization.activeSubtypeId.set(id) }
     }
 }

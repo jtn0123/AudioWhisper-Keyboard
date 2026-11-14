@@ -23,7 +23,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.setValue
 import dev.patrickgold.florisboard.ime.core.Subtype
-import dev.patrickgold.florisboard.ime.core.SubtypeJsonConfig
 import dev.patrickgold.florisboard.ime.core.SubtypeLayoutMap
 import dev.patrickgold.florisboard.ime.core.SubtypeNlpProviderMap
 import dev.patrickgold.florisboard.lib.FlorisLocale
@@ -62,10 +61,10 @@ internal class SubtypeEditorState(init: Subtype?) {
                     popupMapping = editor.popupMapping.value,
                     layoutMap = editor.layoutMap.value,
                 )
-                SubtypeJsonConfig.encodeToString(subtype)
+                com.jtn0123.audiowhisper.settings.SettingsCodecs.subtype(subtype)
             },
             restore = { str ->
-                val subtype = SubtypeJsonConfig.decodeFromString<Subtype>(str)
+                val subtype = com.jtn0123.audiowhisper.settings.SettingsCodecs.subtype(str)
                 SubtypeEditorState(subtype)
             },
         )
@@ -94,21 +93,12 @@ internal class SubtypeEditorState(init: Subtype?) {
     }
 
     fun toSubtype() = runCatching<Subtype> {
-        check(primaryLocale.value != SelectLocale)
-        check(nlpProviders.value.spelling != SelectNlpProviderId)
-        check(nlpProviders.value.suggestion != SelectNlpProviderId)
-        check(composer.value != SelectComponentName)
-        check(currencySet.value != SelectComponentName)
-        check(punctuationRule.value != SelectComponentName)
-        check(popupMapping.value != SelectComponentName)
-        check(layoutMap.value.characters != SelectComponentName)
-        check(layoutMap.value.symbols != SelectComponentName)
-        check(layoutMap.value.symbols2 != SelectComponentName)
-        check(layoutMap.value.numeric != SelectComponentName)
-        check(layoutMap.value.numericAdvanced != SelectComponentName)
-        check(layoutMap.value.numericRow != SelectComponentName)
-        check(layoutMap.value.phone != SelectComponentName)
-        check(layoutMap.value.phone2 != SelectComponentName)
+        check(com.jtn0123.audiowhisper.rust.SettingsRules.editorValid(listOf(
+            primaryLocale.value.languageTag(), nlpProviders.value.spelling, nlpProviders.value.suggestion,
+            composer.value.toString(),currencySet.value.toString(),punctuationRule.value.toString(),popupMapping.value.toString(),
+            layoutMap.value.characters.toString(),layoutMap.value.symbols.toString(),layoutMap.value.symbols2.toString(),
+            layoutMap.value.numeric.toString(),layoutMap.value.numericAdvanced.toString(),layoutMap.value.numericRow.toString(),
+            layoutMap.value.phone.toString(),layoutMap.value.phone2.toString())))
         Subtype(
             id.value, primaryLocale.value, secondaryLocales.value, nlpProviders.value, composer.value,
             currencySet.value, punctuationRule.value, popupMapping.value, layoutMap.value,

@@ -51,9 +51,9 @@ fun GesturesScreen() = FlorisScreen {
                 prefs.glide.trailDuration,
                 title = stringRes(R.string.pref__glide_trail_fade_duration),
                 valueLabel = { stringRes(R.string.unit__milliseconds__symbol, "v" to it) },
-                min = 0,
-                max = 500,
-                stepIncrement = 10,
+                min = com.jtn0123.audiowhisper.rust.SettingsRules.minimum("glide__trail_fade_duration").toInt(),
+                max = com.jtn0123.audiowhisper.rust.SettingsRules.maximum("glide__trail_fade_duration").toInt(),
+                stepIncrement = com.jtn0123.audiowhisper.rust.SettingsRules.step("glide__trail_fade_duration").toInt(),
                 enabledIf = { prefs.glide.enabled isEqualTo true && prefs.glide.showTrail isEqualTo true },
             )
             SwitchPreference(
@@ -66,9 +66,9 @@ fun GesturesScreen() = FlorisScreen {
                 prefs.glide.previewRefreshDelay,
                 title = stringRes(R.string.pref__glide_preview_refresh_delay),
                 valueLabel = { stringRes(R.string.unit__milliseconds__symbol, "v" to it) },
-                min = 50,
-                max = 500,
-                stepIncrement = 25,
+                min = com.jtn0123.audiowhisper.rust.SettingsRules.minimum("glide__preview_refresh_delay").toInt(),
+                max = com.jtn0123.audiowhisper.rust.SettingsRules.maximum("glide__preview_refresh_delay").toInt(),
+                stepIncrement = com.jtn0123.audiowhisper.rust.SettingsRules.step("glide__preview_refresh_delay").toInt(),
                 enabledIf = { prefs.glide.enabled isEqualTo true && prefs.glide.showPreview isEqualTo true },
             )
             SwitchPreference(
@@ -144,17 +144,17 @@ fun GesturesScreen() = FlorisScreen {
                 prefs.gestures.swipeVelocityThreshold,
                 title = stringRes(R.string.pref__gestures__swipe_velocity_threshold__label),
                 valueLabel = { stringRes(R.string.unit__display_pixel_per_seconds__symbol, "v" to it) },
-                min = 400,
-                max = 4000,
-                stepIncrement = 100,
+                min = com.jtn0123.audiowhisper.rust.SettingsRules.minimum("gestures__swipe_velocity_threshold").toInt(),
+                max = com.jtn0123.audiowhisper.rust.SettingsRules.maximum("gestures__swipe_velocity_threshold").toInt(),
+                stepIncrement = com.jtn0123.audiowhisper.rust.SettingsRules.step("gestures__swipe_velocity_threshold").toInt(),
             )
             DialogSliderPreference(
                 prefs.gestures.swipeDistanceThreshold,
                 title = stringRes(R.string.pref__gestures__swipe_distance_threshold__label),
                 valueLabel = { stringRes(R.string.unit__display_pixel__symbol, "v" to it) },
-                min = 12,
-                max = 72,
-                stepIncrement = 1,
+                min = com.jtn0123.audiowhisper.rust.SettingsRules.minimum("gestures__swipe_distance_threshold").toInt(),
+                max = com.jtn0123.audiowhisper.rust.SettingsRules.maximum("gestures__swipe_distance_threshold").toInt(),
+                stepIncrement = com.jtn0123.audiowhisper.rust.SettingsRules.step("gestures__swipe_distance_threshold").toInt(),
             )
         }
     }

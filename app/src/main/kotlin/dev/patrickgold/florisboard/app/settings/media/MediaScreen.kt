@@ -96,9 +96,9 @@ fun MediaScreen() = FlorisScreen {
                         pluralsRes(R.plurals.unit__items__written, maxSize, "v" to maxSize)
                     }
                 },
-                min = 0,
-                max = 120,
-                stepIncrement = 1,
+                min = com.jtn0123.audiowhisper.rust.SettingsRules.minimum("emoji__history_pinned_max_size").toInt(),
+                max = com.jtn0123.audiowhisper.rust.SettingsRules.maximum("emoji__history_pinned_max_size").toInt(),
+                stepIncrement = com.jtn0123.audiowhisper.rust.SettingsRules.step("emoji__history_pinned_max_size").toInt(),
                 enabledIf = { prefs.emoji.historyEnabled.isTrue() },
             )
             Preference(
@@ -151,9 +151,9 @@ fun MediaScreen() = FlorisScreen {
                 valueLabel = { length ->
                     pluralsRes(R.plurals.unit__characters__written, length, "v" to length)
                 },
-                min = 1,
-                max = 5,
-                stepIncrement = 1,
+                min = com.jtn0123.audiowhisper.rust.SettingsRules.minimum("emoji__suggestion_query_min_length").toInt(),
+                max = com.jtn0123.audiowhisper.rust.SettingsRules.maximum("emoji__suggestion_query_min_length").toInt(),
+                stepIncrement = com.jtn0123.audiowhisper.rust.SettingsRules.step("emoji__suggestion_query_min_length").toInt(),
                 enabledIf = { prefs.emoji.suggestionEnabled.isTrue() },
             )
             DialogSliderPreference(
@@ -162,9 +162,9 @@ fun MediaScreen() = FlorisScreen {
                 valueLabel = { count ->
                     pluralsRes(R.plurals.unit__candidates__written, count, "v" to count)
                 },
-                min = 1,
-                max = 10,
-                stepIncrement = 1,
+                min = com.jtn0123.audiowhisper.rust.SettingsRules.minimum("emoji__suggestion_candidate_max_count").toInt(),
+                max = com.jtn0123.audiowhisper.rust.SettingsRules.maximum("emoji__suggestion_candidate_max_count").toInt(),
+                stepIncrement = com.jtn0123.audiowhisper.rust.SettingsRules.step("emoji__suggestion_candidate_max_count").toInt(),
                 enabledIf = { prefs.emoji.suggestionEnabled.isTrue() },
             )
         }

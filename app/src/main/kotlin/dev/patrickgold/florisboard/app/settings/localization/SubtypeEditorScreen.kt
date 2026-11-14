@@ -285,7 +285,7 @@ fun SubtypeEditorScreen(id: Long?) = FlorisScreen {
                     selectListValues + popupMappings.values.map { it.label }
                 }
                 val expanded = remember { mutableStateOf(false) }
-                val selectedIndex = popupMappingIds.indexOf(popupMapping).coerceAtLeast(0)
+                val selectedIndex = com.jtn0123.audiowhisper.settings.SettingsSelection.index(popupMapping, popupMappingIds)
                 JetPrefDropdown(
                     options = popupMappingLabels,
                     expanded = expanded,
@@ -313,7 +313,7 @@ fun SubtypeEditorScreen(id: Long?) = FlorisScreen {
                     selectListValues + nlpProviderMappings.values.map { it }
                 }
                 val expanded = remember { mutableStateOf(false) }
-                val selectedIndex = nlpProviderMappingIds.indexOf(nlpProviders.suggestion).coerceAtLeast(0)
+                val selectedIndex = com.jtn0123.audiowhisper.settings.SettingsSelection.index(nlpProviders.suggestion, nlpProviderMappingIds)
                 JetPrefDropdown(
                     options = nlpProviderMappingLabels,
                     expanded = expanded,
@@ -343,7 +343,7 @@ fun SubtypeEditorScreen(id: Long?) = FlorisScreen {
                 JetPrefDropdown(
                     options = composerNames,
                     expanded = expanded,
-                    selectedOptionIndex = composerIds.indexOf(composer).coerceAtLeast(0),
+                    selectedOptionIndex = com.jtn0123.audiowhisper.settings.SettingsSelection.index(composer, composerIds),
                     isError = showSelectAsError && composer == SelectComponentName,
                     onSelectOption = { composer = composerIds[it] },
                     appearance = JetPrefDropdownMenuDefaults.outlined(shape = ShapeDefaults.Small),
@@ -360,7 +360,7 @@ fun SubtypeEditorScreen(id: Long?) = FlorisScreen {
                 JetPrefDropdown(
                     options = currencySetNames,
                     expanded = expanded,
-                    selectedOptionIndex = currencySetIds.indexOf(currencySet).coerceAtLeast(0),
+                    selectedOptionIndex = com.jtn0123.audiowhisper.settings.SettingsSelection.index(currencySet, currencySetIds),
                     isError = showSelectAsError && currencySet == SelectComponentName,
                     onSelectOption = { currencySet = currencySetIds[it] },
                     appearance = JetPrefDropdownMenuDefaults.outlined(shape = ShapeDefaults.Small),
@@ -462,7 +462,7 @@ private fun SubtypeLayoutDropdown(
     val layoutLabels = remember(layouts) { selectListValues + layouts.values.map { it.label } }
     val layoutId = remember(layoutMap) { layoutMap[layoutType] }
     val expanded = remember { mutableStateOf(false) }
-    val selectedIndex = layoutIds.indexOf(layoutId).coerceAtLeast(0)
+    val selectedIndex = com.jtn0123.audiowhisper.settings.SettingsSelection.index(layoutId, layoutIds)
     JetPrefDropdown(
         options = layoutLabels,
         expanded = expanded,

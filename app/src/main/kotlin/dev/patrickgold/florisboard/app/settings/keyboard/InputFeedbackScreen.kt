@@ -55,9 +55,9 @@ fun InputFeedbackScreen() = FlorisScreen {
                 prefs.inputFeedback.audioVolume,
                 title = stringRes(R.string.pref__input_feedback__audio_volume__label),
                 valueLabel = { stringRes(R.string.unit__percent__symbol, "v" to it) },
-                min = 1,
-                max = 100,
-                stepIncrement = 1,
+                min = com.jtn0123.audiowhisper.rust.SettingsRules.minimum("input_feedback__audio_volume").toInt(),
+                max = com.jtn0123.audiowhisper.rust.SettingsRules.maximum("input_feedback__audio_volume").toInt(),
+                stepIncrement = com.jtn0123.audiowhisper.rust.SettingsRules.step("input_feedback__audio_volume").toInt(),
                 enabledIf = { prefs.inputFeedback.audioEnabled isEqualTo true },
             )
             SwitchPreference(
@@ -117,9 +117,9 @@ fun InputFeedbackScreen() = FlorisScreen {
                         stringRes(R.string.unit__milliseconds__symbol, "v" to it)
                     }
                 },
-                min = 1,
-                max = 100,
-                stepIncrement = 1,
+                min = com.jtn0123.audiowhisper.rust.SettingsRules.minimum("input_feedback__haptic_vibration_duration").toInt(),
+                max = com.jtn0123.audiowhisper.rust.SettingsRules.maximum("input_feedback__haptic_vibration_duration").toInt(),
+                stepIncrement = com.jtn0123.audiowhisper.rust.SettingsRules.step("input_feedback__haptic_vibration_duration").toInt(),
                 onPreviewSelectedValue = { duration ->
                     val strength = prefs.inputFeedback.hapticVibrationStrength.get()
                     vibrator?.vibrate(duration, strength)
@@ -143,9 +143,9 @@ fun InputFeedbackScreen() = FlorisScreen {
                         stringRes(R.string.unit__percent__symbol, "v" to strength)
                     }
                 },
-                min = 1,
-                max = 100,
-                stepIncrement = 1,
+                min = com.jtn0123.audiowhisper.rust.SettingsRules.minimum("input_feedback__haptic_vibration_strength").toInt(),
+                max = com.jtn0123.audiowhisper.rust.SettingsRules.maximum("input_feedback__haptic_vibration_strength").toInt(),
+                stepIncrement = com.jtn0123.audiowhisper.rust.SettingsRules.step("input_feedback__haptic_vibration_strength").toInt(),
                 onPreviewSelectedValue = { strength ->
                     val duration = prefs.inputFeedback.hapticVibrationDuration.get()
                     vibrator?.vibrate(duration, strength)

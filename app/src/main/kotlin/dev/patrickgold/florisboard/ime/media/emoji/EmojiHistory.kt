@@ -17,12 +17,10 @@
 package dev.patrickgold.florisboard.ime.media.emoji
 
 import dev.patrickgold.florisboard.app.FlorisPreferenceModel
-import dev.patrickgold.florisboard.lib.devtools.flogError
 import dev.patrickgold.jetpref.datastore.model.PreferenceSerializer
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.Json
 
 @Serializable
 data class EmojiHistory(
@@ -51,16 +49,11 @@ data class EmojiHistory(
 
     object Serializer : PreferenceSerializer<EmojiHistory> {
         override fun serialize(value: EmojiHistory): String {
-            return Json.encodeToString(value)
+            return com.jtn0123.audiowhisper.settings.SettingsCodecs.history(value)
         }
 
         override fun deserialize(value: String): EmojiHistory {
-            try {
-                return Json.decodeFromString(value)
-            } catch (e: Exception) {
-                flogError { "Failed to deserialize EmojiHistory: ${e.javaClass.simpleName}" }
-                return Empty
-            }
+            return com.jtn0123.audiowhisper.settings.SettingsCodecs.history(value)
         }
     }
 

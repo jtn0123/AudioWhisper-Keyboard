@@ -18,12 +18,6 @@ package dev.patrickgold.florisboard.ime.core
 
 import dev.patrickgold.florisboard.ime.keyboard.LayoutType
 import dev.patrickgold.florisboard.ime.keyboard.LayoutTypeId
-import dev.patrickgold.florisboard.ime.keyboard.extCoreComposer
-import dev.patrickgold.florisboard.ime.keyboard.extCoreCurrencySet
-import dev.patrickgold.florisboard.ime.keyboard.extCoreLayout
-import dev.patrickgold.florisboard.ime.keyboard.extCorePopupMapping
-import dev.patrickgold.florisboard.ime.keyboard.extCorePunctuationRule
-import dev.patrickgold.florisboard.ime.nlp.latin.LatinLanguageProvider
 import dev.patrickgold.florisboard.lib.FlorisLocale
 import dev.patrickgold.florisboard.lib.ext.ExtensionComponentName
 import kotlinx.serialization.SerialName
@@ -51,7 +45,7 @@ data class Subtype(
     val nlpProviders: SubtypeNlpProviderMap = SubtypeNlpProviderMap(),
     val composer: ExtensionComponentName,
     val currencySet: ExtensionComponentName,
-    val punctuationRule: ExtensionComponentName = extCorePunctuationRule("default"),
+    val punctuationRule: ExtensionComponentName = ExtensionComponentName.from(com.jtn0123.audiowhisper.rust.SettingsRules.defaultSubtype()["punctuationRule"].text()),
     val popupMapping: ExtensionComponentName,
     val layoutMap: SubtypeLayoutMap,
 ) {
@@ -59,17 +53,9 @@ data class Subtype(
         /**
          * Subtype to use when prefs do not contain any valid subtypes.
          */
-        val DEFAULT = Subtype(
-            id = -1,
-            primaryLocale = FlorisLocale.from("en", "US"),
-            secondaryLocales = emptyList(),
-            nlpProviders = SubtypeNlpProviderMap(),
-            composer = extCoreComposer("appender"),
-            currencySet = extCoreCurrencySet("dollar"),
-            punctuationRule = extCorePunctuationRule("default"),
-            popupMapping = extCorePopupMapping("en"),
-            layoutMap = SubtypeLayoutMap(characters = extCoreLayout("qwerty")),
-        )
+        val DEFAULT: Subtype by lazy {
+            com.jtn0123.audiowhisper.settings.SettingsCodecs.subtype(com.jtn0123.audiowhisper.rust.SettingsRules.defaultSubtype())
+        }
     }
 
     /**
@@ -90,18 +76,7 @@ data class Subtype(
         return "$id/$languageTag/$currencySet/${layoutMap.characters}"
     }
 
-    fun equalsExcludingId(other: Subtype): Boolean {
-        if (other.primaryLocale != primaryLocale) return false
-        if (other.secondaryLocales != secondaryLocales) return false
-        if (other.nlpProviders != nlpProviders) return false
-        if (other.composer != composer) return false
-        if (other.currencySet != currencySet) return false
-        if (other.punctuationRule != punctuationRule) return false
-        if (other.popupMapping != popupMapping) return false
-        if (other.layoutMap != layoutMap) return false
 
-        return true
-    }
 }
 
 @Serializable
@@ -124,17 +99,18 @@ data class SubtypeLayoutMap(
     val phone2: ExtensionComponentName = PHONE2_DEFAULT,
 ) {
     companion object {
-        private const val EQUALS =                      "="
-        private const val DELIMITER =                   ","
+        private fun nativeLayoutDefault(key: String) = ExtensionComponentName.from(
+            com.jtn0123.audiowhisper.rust.SettingsRules.defaultSubtype()["layoutMap"][key].text())
 
-        private val CHARACTERS_DEFAULT =          extCoreLayout("qwerty")
-        private val SYMBOLS_DEFAULT =             extCoreLayout("western")
-        private val SYMBOLS2_DEFAULT =            extCoreLayout("western")
-        private val NUMERIC_DEFAULT =             extCoreLayout("western_arabic")
-        private val NUMERIC_ADVANCED_DEFAULT =    extCoreLayout("western_arabic")
-        private val NUMERIC_ROW_DEFAULT =         extCoreLayout("western_arabic")
-        private val PHONE_DEFAULT =               extCoreLayout("telpad")
-        private val PHONE2_DEFAULT =              extCoreLayout("telpad")
+
+        private val CHARACTERS_DEFAULT = nativeLayoutDefault("characters")
+        private val SYMBOLS_DEFAULT = nativeLayoutDefault("symbols")
+        private val SYMBOLS2_DEFAULT = nativeLayoutDefault("symbols2")
+        private val NUMERIC_DEFAULT = nativeLayoutDefault("numeric")
+        private val NUMERIC_ADVANCED_DEFAULT = nativeLayoutDefault("numericAdvanced")
+        private val NUMERIC_ROW_DEFAULT = nativeLayoutDefault("numericRow")
+        private val PHONE_DEFAULT = nativeLayoutDefault("phone")
+        private val PHONE2_DEFAULT = nativeLayoutDefault("phone2")
     }
 
     operator fun get(layoutType: LayoutType): ExtensionComponentName? {
@@ -165,59 +141,16 @@ data class SubtypeLayoutMap(
         }
     }
 
-    override fun toString() = buildString(128) {
-        append(LayoutTypeId.CHARACTERS)
-        append(EQUALS)
-        append(characters)
+    override fun toString(): String = com.jtn0123.audiowhisper.rust.SettingsRules.call(28,
+        characters.toString(),symbols.toString(),symbols2.toString(),numeric.toString(),
+        numericAdvanced.toString(),numericRow.toString(),phone.toString(),phone2.toString())[0]
 
-        append(DELIMITER)
-
-        append(LayoutTypeId.SYMBOLS)
-        append(EQUALS)
-        append(symbols)
-
-        append(DELIMITER)
-
-        append(LayoutTypeId.SYMBOLS2)
-        append(EQUALS)
-        append(symbols2)
-
-        append(DELIMITER)
-
-        append(LayoutTypeId.NUMERIC_ROW)
-        append(EQUALS)
-        append(numericRow)
-
-        append(DELIMITER)
-
-        append(LayoutTypeId.NUMERIC)
-        append(EQUALS)
-        append(numeric)
-
-        append(DELIMITER)
-
-        append(LayoutTypeId.NUMERIC_ADVANCED)
-        append(EQUALS)
-        append(numericAdvanced)
-
-        append(DELIMITER)
-
-        append(LayoutTypeId.PHONE)
-        append(EQUALS)
-        append(phone)
-
-        append(DELIMITER)
-
-        append(LayoutTypeId.PHONE2)
-        append(EQUALS)
-        append(phone2)
-    }
 }
 
 @Serializable
 data class SubtypeNlpProviderMap(
-    val spelling: String = LatinLanguageProvider.ProviderId,
-    val suggestion: String = LatinLanguageProvider.ProviderId,
+    val spelling: String = com.jtn0123.audiowhisper.rust.SettingsRules.defaultSubtype()["nlpProviders"]["spelling"].text(),
+    val suggestion: String = com.jtn0123.audiowhisper.rust.SettingsRules.defaultSubtype()["nlpProviders"]["suggestion"].text(),
 ) {
     inline fun forEach(action: (String, String) -> Unit) {
         action("spelling", spelling)
@@ -240,15 +173,15 @@ data class SubtypePreset(
     val nlpProviders: SubtypeNlpProviderMap = SubtypeNlpProviderMap(),
     val composer: ExtensionComponentName,
     val currencySet: ExtensionComponentName,
-    val punctuationRule: ExtensionComponentName = extCorePunctuationRule("default"),
-    val popupMapping: ExtensionComponentName = extCorePopupMapping("default"),
+    val punctuationRule: ExtensionComponentName = ExtensionComponentName.from(com.jtn0123.audiowhisper.rust.SettingsRules.defaultSubtype()["punctuationRule"].text()),
+    val popupMapping: ExtensionComponentName = ExtensionComponentName.from(com.jtn0123.audiowhisper.rust.SettingsRules.defaultSubtype()["punctuationRule"].text()),
     val preferred: SubtypeLayoutMap,
 ) {
     fun toSubtype(): Subtype {
         return Subtype(
-            id = -1,
+            id = Subtype.DEFAULT.id,
             primaryLocale = locale,
-            secondaryLocales = emptyList(),
+            secondaryLocales = Subtype.DEFAULT.secondaryLocales,
             nlpProviders = nlpProviders,
             composer = composer,
             currencySet = currencySet,
