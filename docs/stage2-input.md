@@ -264,3 +264,40 @@ The production +1 ms mutation produces two fresh assertion failures in
 InputDispatchMatchTest (direct repeat-delay boundaries and the 50,000-event lifecycle match).
 Restoring exact source bytes gives Gradle exit 0 and all six tests passing. The host timestamp
 oracle separately rejects 51 ms waits against the unchanged 50 ms reference deadlines.
+
+## Fresh SSD acceptance (2026-11-14)
+
+Before editor fix `bfb3a4c2`, the normal JNI-free `95c76b21` APK passes the complete input replay on both renderers on
+`aw_keyboard_ssd`, runtime `emulator-5556`, with builds idle. The exact timestamp oracle
+observes **33 admitted deletes** per renderer: 1,088 → **1,055 units**, selection 1,055,
+SHA-256 `07b9f1e0ce48a5235a5c48458ecd255a131e004a2e5762aa9e59a701434d9055`.
+The dispatched holds last **1,999 ms Compose / 1,995 ms Rust**. Every production wait
+agrees with its independent Android deadline; no count tolerance or digest change is used.
+
+The T3 adapter's ordinary repeated Shift presses exposed host-dispatch overhead at the
+300 ms double-tap boundary (the control records a 300 ms down-to-down interval). The
+failed three-unit case digest is retained. The dedicated agent-device `--double-tap`
+action passes the unchanged assertion, and the complete input replay then passes caps,
+accent, repeats, rolling input and both Enter behaviors. The Shift timing rule and its expected digest are unchanged.
+
+Glide/candidate/cancel passes five checkpoints per renderer. All eight mode/password
+fixtures and NLP pass on both renderers. The complete editor replay also passes; see
+[its fresh-device record](stage2-editor.md#fresh-ssd-acceptance-2026-11-14). Evidence and
+exact preference/canonical-store restoration records are under ignored
+`build/device-acceptance-2026-11-14/`. Older held runs above remain historical.
+
+The fresh post-editor-fix replay (`bfb3a4c2`, normal JNI-free APK) also passes every input,
+glide, mode/password and NLP check on both renderers. Its independent long-delete oracle
+again admits exactly 33 deletes and requires the same 1,055-unit digest above. Actual
+holds are 2,009 ms Compose / 1,997 ms Rust; all 300 ms hold and 50 ms repeat deadlines
+pass. Evidence is in `postfix-typing-rest/`, with separate exact baseline restoration
+records for all four wrappers. These numbers are from the new run, not the earlier one.
+
+The candidate-pick fixture initially fails because the restored baseline expands the
+shared action strip. Its hash-only strip capture identifies More actions/Undo/Redo/Settings
+at the fixed candidate coordinates. Explicitly selecting the candidate strip fixes the
+fixture preparation; both renderers retain the original autocorrect and candidate hashes
+in `postfix-typing-strip/suggestions/`. NLP selects the same strip explicitly. The wrapper
+restores the expanded flag and the exact baseline preference bytes afterward. No expected
+digest or candidate policy is changed. The adapter and independent timestamp-oracle host
+suites pass 4 and 5 tests respectively.
