@@ -2,6 +2,12 @@
 
 ## Status and boundary
 
+**Follow-up 2:** [implementation, measurements and device results](stage4-followup2.md).
+UI/text preference bytes match; Rust accessibility checks pass, while the retained Compose
+path has 23 unlabeled controls. Strict visual acceptance and final-source captures remain
+open after the owned emulator went offline. The full settings port has not started.
+The earlier checkpoints below remain historical.
+
 **Follow-up 2026-11-14:** see [the acceptance follow-up](#acceptance-follow-up-2026-11-14)
 for current measurements, fixes and the renewed device-tool hold. Step 3 is still incomplete.
 The original checkpoint below is retained as history. The 90% target has been replaced by

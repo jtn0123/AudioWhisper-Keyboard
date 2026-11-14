@@ -130,3 +130,26 @@ as a test oracle. The package-12 implementation/local checks are recorded in [th
 real-model PCM/stress/timing and final device acceptance remain on a documented device-tool hold.
 **Would change if** a later release is deliberately pinned and passes the same byte-identical
 transcript, segmentation, flush, lifecycle and timing comparisons in [the dictation proof](stage2-dictation.md).
+
+## Settings prototype parity and bootstrap (2026-11-14, follow-up 2)
+
+Material controls use Compose's Material 3 dimensions and the same resolved ColorScheme
+roles; anti-aliasing is the only permitted visual difference. Compare paired empty-field
+screens at identical density, theme and font scale: flat control interiors must differ by
+at most 3/255 per RGB channel, with a one-physical-pixel edge band excluded for raster
+anti-aliasing; measure control bounds separately. For full pictures, mask system bars and
+one-pixel glyph edge bands, count every remaining channel error above 3/255, and report
+mismatches rather than approving a percentage of different pixels. Keep that method across
+light, dark and font 2.0. Wrapping titles/summaries where Compose uses ellipses is an explicit
+accessibility improvement and is excluded from parity failure; all text sizes and line
+heights otherwise use Android's nonlinear system `sp` conversion, exactly as Compose does.
+Selection handles must work, are drawn in Rust as M3 primary-colour teardrops, and may use
+Android's floating ActionMode for the toolbar. The settings root yields Back to the system
+animation; in-app pops receive gesture progress from Android's OnBackAnimationCallback
+(via AndroidX) and Rust applies it to the prototype scene. Native-load failure uses a minimal
+platform View crash adapter before preferences/native UI bootstrap. It has a plain-language
+summary and Copy details button, with a reusable structured report boundary so it can host
+all crashes after Compose deletion. Details exclude exception messages/causes, filenames
+and all editable/clipboard/transcript/learned/audio data. **Would change if** phone evidence
+requires a measured, explicitly agreed platform exception; the full port and fallback
+deletion remain separately gated.
