@@ -1,5 +1,6 @@
 //! Resolved symbols stay alive as long as any owned recognizer, stream or VAD.
 use crate::config::{OfflineRecognizerConfig, VadModelConfig};
+use crate::tts_config::{GeneratedAudio, GenerationConfig, OfflineTtsConfig};
 use libloading::Library;
 use std::{
     ffi::{c_char, c_void},
@@ -35,6 +36,11 @@ macro_rules! symbols {
     }
 }
 symbols! {
+    create_tts: unsafe extern "C" fn(*const OfflineTtsConfig)->*const c_void = "SherpaOnnxCreateOfflineTts",
+    destroy_tts: unsafe extern "C" fn(*const c_void) = "SherpaOnnxDestroyOfflineTts",
+    tts_sample_rate: unsafe extern "C" fn(*const c_void)->i32 = "SherpaOnnxOfflineTtsSampleRate",
+    tts_generate: unsafe extern "C" fn(*const c_void,*const c_char,*const GenerationConfig,Option<unsafe extern "C" fn(*const f32,i32,f32,*mut c_void)->i32>,*mut c_void)->*const GeneratedAudio = "SherpaOnnxOfflineTtsGenerateWithConfig",
+    destroy_audio: unsafe extern "C" fn(*const GeneratedAudio) = "SherpaOnnxDestroyOfflineTtsGeneratedAudio",
     version: unsafe extern "C" fn()->*const c_char = "SherpaOnnxGetVersionStr",
     create_recognizer: unsafe extern "C" fn(*const OfflineRecognizerConfig)->*const c_void = "SherpaOnnxCreateOfflineRecognizer",
     destroy_recognizer: unsafe extern "C" fn(*const c_void) = "SherpaOnnxDestroyOfflineRecognizer",

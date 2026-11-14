@@ -20,7 +20,7 @@ class ReleasedOnceTest {
     @Test
     fun `a use after close does nothing`() {
         val native = Native()
-        val held = ReleasedOnce(native) { it.released++ }
+        val held = ReferenceReleasedOnce(native) { it.released++ }
         assertTrue(held.use { it.call() })
         held.close()
         assertFalse(held.use { it.call() })
@@ -30,7 +30,7 @@ class ReleasedOnceTest {
     @Test
     fun `close frees once however often it is called`() {
         val native = Native()
-        val held = ReleasedOnce(native) { it.released++ }
+        val held = ReferenceReleasedOnce(native) { it.released++ }
         repeat(3) { held.close() }
         assertEquals(1, native.released)
     }
@@ -38,7 +38,7 @@ class ReleasedOnceTest {
     @Test
     fun `close waits for a use in progress`() {
         val native = Native()
-        val held = ReleasedOnce(native) { it.released++ }
+        val held = ReferenceReleasedOnce(native) { it.released++ }
         val using = CountDownLatch(1)
         val finish = CountDownLatch(1)
         var releasedDuringUse = -1

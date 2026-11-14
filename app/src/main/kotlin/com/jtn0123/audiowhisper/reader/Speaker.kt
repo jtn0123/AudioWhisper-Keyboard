@@ -6,6 +6,7 @@ import android.speech.tts.UtteranceProgressListener
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.channels.Channel
 import java.util.concurrent.ConcurrentHashMap
+import com.jtn0123.audiowhisper.rust.PlaybackQueue
 import java.util.concurrent.atomic.AtomicInteger
 
 /**
@@ -24,7 +25,7 @@ internal class Speaker(context: Context, onFocusLost: () -> Unit) : Voice {
     private val nextId = AtomicInteger()
 
     /** Blocks queued and not yet finished. A callback for any other (one [stop] dropped) is ignored. */
-    private val live: MutableSet<Int> = ConcurrentHashMap.newKeySet()
+    private val queue = PlaybackQueue()
 
     /** What to do when a block starts being spoken, by block; taken on its first sentence. */
     private val starts = ConcurrentHashMap<Int, () -> Unit>()
@@ -46,7 +47,7 @@ internal class Speaker(context: Context, onFocusLost: () -> Unit) : Voice {
         val pieces = PageText.utterances(text)
         if (pieces.isEmpty()) return
         val block = nextId.incrementAndGet()
-        live += block
+        queue.system(0, block)
         starts[block] = onStart
         pieces.forEachIndexed { index, piece ->
             val id = if (index == pieces.lastIndex) "$block$SEPARATOR$LAST" else "$block$SEPARATOR$index"
@@ -55,11 +56,11 @@ internal class Speaker(context: Context, onFocusLost: () -> Unit) : Voice {
     }
 
     override suspend fun awaitBlocks(count: Int) {
-        while (live.size > count) finished.receive()
+        while (queue.system(4)[2] > count) finished.receive()
     }
 
     override fun shutdown() {
-        live.clear()
+        queue.system(3)
         starts.clear()
         tts.stop()
         finished.trySend(Unit)
@@ -68,17 +69,15 @@ internal class Speaker(context: Context, onFocusLost: () -> Unit) : Voice {
     }
 
     private fun blockEnded(utteranceId: String) {
-        // A block's middle sentences ending means nothing; its last one does.
-        if (utteranceId.substringAfter(SEPARATOR) != LAST) return
-        val block = blockOf(utteranceId) ?: return
-        starts.remove(block)
-        if (live.remove(block)) finished.trySend(Unit)
+        val ended = queue.system(2, text = utteranceId)
+        if (ended[1] != 0L) { starts.remove(ended[0].toInt()); finished.trySend(Unit) }
     }
 
     /** The engine's word on each sentence; only a block's first start and last end matter. */
     private inner class Progress : UtteranceProgressListener() {
         override fun onStart(utteranceId: String) {
-            blockOf(utteranceId)?.let(starts::remove)?.invoke()
+            val started = queue.system(1, text = utteranceId)
+            if (started[1] != 0L) starts.remove(started[0].toInt())?.invoke()
         }
 
         override fun onDone(utteranceId: String) = blockEnded(utteranceId)
@@ -90,8 +89,6 @@ internal class Speaker(context: Context, onFocusLost: () -> Unit) : Voice {
 
         override fun onStop(utteranceId: String, interrupted: Boolean) = blockEnded(utteranceId)
     }
-
-    private fun blockOf(utteranceId: String): Int? = utteranceId.substringBefore(SEPARATOR).toIntOrNull()
 
     private companion object {
         const val SEPARATOR = ':'

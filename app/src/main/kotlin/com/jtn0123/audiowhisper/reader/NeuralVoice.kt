@@ -12,6 +12,7 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import java.nio.ByteBuffer
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -76,6 +77,7 @@ internal class NeuralVoice(context: Context, private val engine: VoiceEngine, on
 
     override fun shutdown() {
         stopped = true
+        engine.cancel()
         scope.cancel()
         repeat(plays.clear()) { finished.trySend(Unit) }
         // Pausing makes a write in progress return, so the worker gets to the release.
@@ -105,17 +107,15 @@ internal class NeuralVoice(context: Context, private val engine: VoiceEngine, on
     }
 
     /** Sends [samples] to the speaker, waiting while its buffer is full; false once stopped. */
-    private fun write(samples: FloatArray): Boolean {
+    private fun write(samples: ByteBuffer): Boolean {
         if (stopped) return false
         if (track.playState != AudioTrack.PLAYSTATE_PLAYING) track.play()
-        var offset = 0
         val started = SystemClock.elapsedRealtime()
         try {
-            while (offset < samples.size) {
-                val count = track.write(samples, offset, samples.size - offset, AudioTrack.WRITE_BLOCKING)
+            while (samples.hasRemaining()) {
+                val count = track.write(samples, samples.remaining(), AudioTrack.WRITE_BLOCKING)
                 if (count <= 0 || stopped) return false
-                offset += count
-                written += count
+                written += count / Float.SIZE_BYTES
             }
             return true
         } finally {
@@ -138,6 +138,6 @@ internal class NeuralVoice(context: Context, private val engine: VoiceEngine, on
         const val TAG = "NeuralVoice"
         const val BUFFER_SECONDS = 4
         const val START_FRACTION = 5
-        const val FOLLOW_MS = 40L
+        val FOLLOW_MS = com.jtn0123.audiowhisper.rust.ReaderTiming.followMs
     }
 }

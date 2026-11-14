@@ -165,6 +165,29 @@ impl Env {
         body(unsafe { std::slice::from_raw_parts(address, count as usize) })
     }
 
+    /// Borrowed PCM view valid only inside body. Consumers must finish/copy before return.
+    pub fn with_pcm_buffer<T>(
+        &self,
+        samples: &[f32],
+        body: impl FnOnce(jobject) -> Result<T>,
+    ) -> Result<T> {
+        let size =
+            i64::try_from(std::mem::size_of_val(samples)).map_err(|_| illegal("PCM too large"))?;
+        let buffer = jni_call!(
+            self,
+            NewDirectByteBuffer,
+            samples.as_ptr().cast_mut().cast(),
+            size
+        );
+        self.check()?;
+        if buffer.is_null() {
+            return Err(Error::Pending);
+        }
+        let result = body(buffer);
+        self.delete_local(buffer);
+        result
+    }
+
     /// A new Java array holding `values`.
     pub fn make<T: Element>(&self, values: &[T]) -> Result<jarray> {
         let len = jsize::try_from(values.len()).map_err(|_| illegal("array too long"))?;

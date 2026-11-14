@@ -1,6 +1,8 @@
 //! The sole sherpa native boundary. Safe owners hide C pointers, streams and snapshots.
 mod api;
 pub mod config;
+mod tts;
+mod tts_config;
 mod vad;
 use api::Api;
 use config::{
@@ -13,6 +15,7 @@ use std::{
         atomic::{AtomicU64, Ordering},
     },
 };
+pub use tts::{SharedTts, Tts};
 pub use vad::{Batch, Vad};
 
 #[derive(Debug)]

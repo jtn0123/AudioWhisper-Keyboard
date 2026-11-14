@@ -92,6 +92,7 @@ android {
         versionName = projectVersionName.substringBefore("-")
 
         testInstrumentationRunner = when {
+            providers.gradleProperty("ttsFixture").orNull == "true" -> "com.jtn0123.audiowhisper.reader.TtsInstrumentation"
             providers.gradleProperty("dictationFixture").orNull == "true" -> "com.jtn0123.audiowhisper.dictation.DictationInstrumentation"
             providers.gradleProperty("suggestFixture").orNull == "true" -> "com.jtn0123.audiowhisper.suggest.A1Instrumentation"
             providers.gradleProperty("rendererFixture").orNull == "true" -> "com.jtn0123.audiowhisper.render.FixtureInstrumentation"
@@ -148,6 +149,7 @@ android {
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             if (providers.gradleProperty("suggestFixture").orNull == "true") proguardFile("suggest-fixture.pro")
             if (providers.gradleProperty("dictationFixture").orNull == "true") proguardFile("dictation-fixture.pro")
+            if (providers.gradleProperty("ttsFixture").orNull == "true") proguardFile("tts-fixture.pro")
             isMinifyEnabled = true
             isShrinkResources = true
 
@@ -248,7 +250,7 @@ val fixtureAnnotations = tasks.register<Jar>("fixtureAnnotations") {
 // A source set absent from normal APKs. Its shell receiver changes only controlled UI facts.
 if (providers.gradleProperty("dictationFixture").orNull == "true") {
     android.sourceSets.getByName("debug") {
-        kotlin.srcDir("src/dictationFixture/test/kotlin")
+        kotlin.directories.add("src/dictationFixture/test/kotlin")
         manifest.srcFile("src/dictationFixture/AndroidManifest.xml")
     }
 }

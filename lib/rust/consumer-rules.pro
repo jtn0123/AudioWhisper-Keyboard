@@ -27,3 +27,13 @@
     int ngramProbability(java.lang.String);
     int[] decode(java.lang.String, boolean, boolean);
 }
+
+# Synchronous PCM consumer called by awnative, before the C buffer can be freed.
+-keep interface com.jtn0123.audiowhisper.rust.TtsAudio { boolean audio(java.nio.ByteBuffer); }
+-keepclassmembers class * implements com.jtn0123.audiowhisper.rust.TtsAudio {
+    boolean audio(java.nio.ByteBuffer);
+}
+
+# Rust owns the screen walk; this adapter fetches Android node data synchronously.
+-keep interface com.jtn0123.audiowhisper.rust.ReaderTree { *; }
+-keepclassmembers class * implements com.jtn0123.audiowhisper.rust.ReaderTree { *; }

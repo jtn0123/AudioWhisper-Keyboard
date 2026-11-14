@@ -56,8 +56,8 @@ internal class FollowAlong(private val scroller: AccessibilityNodeInfo?, private
         private const val UNCLIPPED_BOTTOM = "AccessibilityNodeInfo.unclippedBottom"
 
         /** A forward scroll moves a web page about half a screen; this covers a long way down. */
-        private const val MAX_TURNS = 8
-        private const val TURN_MS = 200L
+        private val MAX_TURNS = com.jtn0123.audiowhisper.rust.ReaderTiming.maxTurns
+        private val TURN_MS = com.jtn0123.audiowhisper.rust.ReaderTiming.turnMs
 
         /**
          * A piece spanning [span] fits in a view from [top] to [bottom] when all of it shows, or, if

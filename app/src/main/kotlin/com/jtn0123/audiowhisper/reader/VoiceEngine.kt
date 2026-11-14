@@ -8,12 +8,6 @@ import com.jtn0123.audiowhisper.dictation.LargeModels
 import com.jtn0123.audiowhisper.dictation.ModelCheck
 import com.jtn0123.audiowhisper.dictation.ModelFiles
 import com.jtn0123.audiowhisper.dictation.ModelState
-import com.k2fsa.sherpa.onnx.GenerationConfig
-import com.k2fsa.sherpa.onnx.OfflineTts
-import com.k2fsa.sherpa.onnx.OfflineTtsConfig
-import com.k2fsa.sherpa.onnx.OfflineTtsModelConfig
-import com.k2fsa.sherpa.onnx.OfflineTtsPocketModelConfig
-import com.k2fsa.sherpa.onnx.WaveReader
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -23,6 +17,8 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.nio.ByteBuffer
+import com.jtn0123.audiowhisper.rust.SherpaTts
 
 /**
  * The built-in neural voice: Kyutai's Pocket TTS (int8, through sherpa-onnx), entirely on the
@@ -31,32 +27,12 @@ import java.io.File
  *
  * One sentence is generated at a time; [speak] may be called from any thread, one at a time.
  */
-internal class VoiceEngine private constructor(
-    tts: OfflineTts,
-    private val config: GenerationConfig,
-) : AutoCloseable {
-    val sampleRate: Int = tts.sampleRate()
-    private val tts = ReleasedOnce(tts) { it.release() }
+internal class VoiceEngine private constructor(private val tts: SherpaTts) : AutoCloseable {
+    val sampleRate: Int = tts.sampleRate
 
-    /**
-     * Speaks [text], handing its audio to [onAudio] as it is made; generation stops early when
-     * [onAudio] returns false. Does nothing once the voice is [close]d.
-     */
-    fun speak(text: String, onAudio: (FloatArray) -> Boolean) {
-        tts.use { it.generateWithConfigAndCallback(text, config, AudioCallback(onAudio)) }
-    }
-
-    /**
-     * What sherpa-onnx's native code calls with each piece of audio: it looks the method up by its
-     * exact signature, invoke([F)Ljava/lang/Integer;, which a Kotlin lambda doesn't have (it
-     * compiles to the erased invoke(Object)). Kept by name in proguard-rules.pro.
-     */
-    class AudioCallback(private val onAudio: (FloatArray) -> Boolean) : (FloatArray) -> Int {
-        // 1 asks for more audio, 0 stops generating.
-        override fun invoke(samples: FloatArray): Int = if (onAudio(samples)) 1 else 0
-    }
-
-    /** Frees the voice once the sentence being made, if any, is done. */
+    /** Borrowed PCM is consumed synchronously, before Rust releases the generation lease. */
+    fun speak(text: String, onAudio: (ByteBuffer) -> Boolean) = tts.speak(text, onAudio)
+    fun cancel() = tts.cancel()
     override fun close() = tts.close()
 
     companion object {
@@ -83,7 +59,6 @@ internal class VoiceEngine private constructor(
         )
 
         // As for dictation: 4 threads keep to the S24 Ultra's performance cores.
-        private const val THREADS = 4
         private const val TAG = "VoiceEngine"
 
         fun dir(context: Context): File = ModelFiles.dir(context, POCKET)
@@ -115,22 +90,8 @@ internal class VoiceEngine private constructor(
                 .getOrNull()
         }
 
-        private fun create(dir: File): VoiceEngine {
-            fun path(name: String) = File(dir, name).path
-            val pocket = OfflineTtsPocketModelConfig(
-                lmFlow = path(LM_FLOW),
-                lmMain = path(LM_MAIN),
-                encoder = path(ENCODER),
-                decoder = path(DECODER),
-                textConditioner = path(TEXT_CONDITIONER),
-                vocabJson = path(VOCAB),
-                tokenScoresJson = path(TOKEN_SCORES),
-            )
-            val tts = OfflineTts(config = OfflineTtsConfig(model = OfflineTtsModelConfig(pocket = pocket, numThreads = THREADS)))
-            val reference = WaveReader.readWave(path(REFERENCE))
-            val config = GenerationConfig(referenceAudio = reference.samples, referenceSampleRate = reference.sampleRate)
-            return VoiceEngine(tts, config)
-        }
+        private fun create(dir: File): VoiceEngine = VoiceEngine(SherpaTts(dir.path))
+
     }
 }
 

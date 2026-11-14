@@ -14,7 +14,8 @@ if hashlib.sha256(source).hexdigest() != PIN:
     raise ValueError('Wrong sherpa-onnx v2.0.1 C header')
 clean = re.sub(r'/\*.*?\*/|//[^\n]*', '', source.decode(), flags=re.S)
 structs = dict(re.findall(r'typedef struct (SherpaOnnx\w+)\s*\{([^}]+)\}\s*\w+;', clean))
-roots = ['SherpaOnnxOfflineRecognizerConfig', 'SherpaOnnxVadModelConfig']
+roots = (['SherpaOnnxOfflineTtsConfig', 'SherpaOnnxGenerationConfig', 'SherpaOnnxGeneratedAudio']
+         if '--tts' in sys.argv else ['SherpaOnnxOfflineRecognizerConfig', 'SherpaOnnxVadModelConfig'])
 used = []
 
 def visit(name):
@@ -35,11 +36,13 @@ for name in used:
         field = field.strip()
         if not field:
             continue
-        match = re.fullmatch(r'(const char\s*\*|int32_t|float|SherpaOnnx\w+)\s*(\w+)', field)
+        match = re.fullmatch(r'(const char\s*\*const\s*\*|const (?:char|float|int32_t)\s*\*|int32_t|float|SherpaOnnx\w+)\s*(\w+)', field)
         if not match:
             raise ValueError(field)
         ty, key = match.groups()
-        ty = {'const char *': '*const c_char', 'int32_t': 'i32', 'float': 'f32'}.get(ty, ty.removeprefix('SherpaOnnx'))
+        ty = {'const char *': '*const c_char', 'const char *const *': '*const *const c_char',
+              'const float *': '*const f32', 'const int32_t *': '*const i32',
+              'int32_t': 'i32', 'float': 'f32'}.get(ty, ty.removeprefix('SherpaOnnx'))
         lines.append(f'    pub {key}: {ty},')
     lines += ['}', '']
 Path(sys.argv[2]).write_text('\n'.join(lines))
@@ -71,7 +74,7 @@ with tempfile.TemporaryDirectory(dir=root if (root := Path('build')).is_dir() el
              'use super::*;', 'use std::mem::{size_of, align_of, offset_of};', '#[test]', 'fn exact_v2_0_1_c_layout() {']
     tests += [f'    assert_eq!({check}, {value});' for check, value in zip(checks, values)]
     tests.append('}')
-    target = Path(sys.argv[2]).parent / 'config/tests.rs'
+    target = Path(sys.argv[2]).with_suffix('') / 'tests.rs'
     target.parent.mkdir(exist_ok=True)
     target.write_text('\n'.join(tests) + '\n')
 with Path(sys.argv[2]).open('a') as output:

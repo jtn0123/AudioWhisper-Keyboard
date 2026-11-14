@@ -6,7 +6,7 @@ package com.jtn0123.audiowhisper.reader
  * freed memory. Read-aloud turned off mid-sentence is the case: the service frees the voice
  * while its worker thread may be about to start the next sentence.
  */
-internal class ReleasedOnce<T : Any>(value: T, private val release: (T) -> Unit) : AutoCloseable {
+internal class ReferenceReleasedOnce<T : Any>(value: T, private val release: (T) -> Unit) : AutoCloseable {
     private val lock = Any()
     private var value: T? = value
 

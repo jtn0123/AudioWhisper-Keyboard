@@ -48,7 +48,8 @@ def check(name, suite):
             failures += int(node.get('failures', '0'))
             (out / (name + '-' + path.name)).write_bytes(path.read_bytes())
         return status, failures
-    status = run(['cargo', 'test', '--locked', '--manifest-path', 'lib/rust/Cargo.toml', '-p', 'reader',
+    status = run(['cargo', 'test', '--locked', '--manifest-path', 'lib/rust/Cargo.toml',
+                  '--target-dir', 'build/stage2-tts/cargo-standalone', '-p', 'reader',
                   'generator::tests::stop_precedes_free_and_callback_keeps_buffer_live'], name)
     text = (out / (name + '.log')).read_text()
     return status, int('test result: FAILED' in text and 'panicked at' in text)

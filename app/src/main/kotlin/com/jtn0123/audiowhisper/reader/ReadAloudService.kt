@@ -256,7 +256,7 @@ class ReadAloudService : AccessibilityService() {
 
     private companion object {
         const val TAG = "ReadAloud"
-        const val LOOKAHEAD = 2
+        val LOOKAHEAD = com.jtn0123.audiowhisper.rust.ReaderTiming.lookahead
         const val LOOK_TRIES = 8
         const val LOOK_RETRY_MS = 250L
         const val SETTLE_TRIES = 4

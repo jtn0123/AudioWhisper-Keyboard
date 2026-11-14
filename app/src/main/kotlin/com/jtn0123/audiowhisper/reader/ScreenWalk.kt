@@ -32,91 +32,48 @@ internal class Screen(
  * or a pager going sideways is never it, and its pages out of sight are skipped.
  */
 internal class ScreenWalk(private val visible: Rect) {
-    private class Piece(val text: String, val node: AccessibilityNodeInfo, val bounds: Rect, val scroller: Int)
-    private class Scroller(val node: AccessibilityNodeInfo, val parent: Int, val area: Long)
-
-    private val pieces = ArrayList<Piece>()
-    private val scrollers = ArrayList<Scroller>()
-    private var nodes = 0
-    private var web = false
-
-    fun walk(root: AccessibilityNodeInfo): Screen {
-        visit(root, scroller = NONE, sideways = false, depth = 0)
-        val areas = LongArray(scrollers.size) { scrollers[it].area }
-        val scrollerOf = IntArray(pieces.size) { pieces[it].scroller }
-        val main = ScreenRules.mainScroller(scrollerOf, areas)
-        val parents = IntArray(scrollers.size) { scrollers[it].parent }
-        val list = scrollers.getOrNull(main)?.node
-        val follow = FollowAlong(list, list?.let(::visiblePart) ?: visible)
-        val inList = ScreenRules.inList(scrollerOf, parents, main)
-        val blocks = PageText.blocks(pieces.mapIndexed { index, piece ->
-            TextBlock(piece.text, piece.bounds.top, piece.bounds.bottom, inList[index]) {
-                if (inList[index]) follow.show(piece.node)
-            }
-        })
-        return Screen(root.packageName?.toString(), blocks, list, visible.top, visible.bottom, nodes, web)
-    }
-
-    private fun visit(node: AccessibilityNodeInfo, scroller: Int, sideways: Boolean, depth: Int) {
-        if (nodes >= MAX_NODES || depth > MAX_DEPTH) return
-        nodes++
-        if (node.isPassword || node.isEditable) return
-        if (sideways && !node.isVisibleToUser) return
-        if (!web && WEB_VIEW.contentEquals(node.className)) web = true
-        val bounds = Rect().also(node::getBoundsInScreen)
-        var inner = scroller
-        var across = sideways
-        if (node.isScrollable) {
-            if (isSideways(node)) {
-                across = true
-            } else {
-                scrollers += Scroller(node, scroller, ScreenRules.visibleArea(bounds.box(), visible.box()))
-                inner = scrollers.lastIndex
-            }
-        }
-        val before = pieces.size
-        for (index in 0 until node.childCount) {
-            node.getChild(index)?.let { visit(it, inner, across, depth + 1) }
-        }
-        val text = node.text
-        if (pieces.size == before && !text.isNullOrBlank()) pieces += Piece(text.toString(), node, bounds, scroller)
-    }
-
-    /** The part of [node] the app shows above the keyboard. */
-    private fun visiblePart(node: AccessibilityNodeInfo): Rect {
-        val part = ScreenRules.visiblePart(Rect().also(node::getBoundsInScreen).box(), visible.box())
-        return Rect(part.left, part.top, part.right, part.bottom)
-    }
-
-    private fun Rect.box() = Box(left, top, right, bottom)
-
-    private companion object {
-        const val NONE = ScreenRules.NONE
-        const val WEB_VIEW = "android.webkit.WebView"
-
-        /** A long web page is a few thousand nodes; this keeps a runaway tree from taking seconds. */
-        const val MAX_NODES = 20_000
-        const val MAX_DEPTH = 250
-
-        val UP_DOWN = setOf(
-            AccessibilityAction.ACTION_SCROLL_UP.id, AccessibilityAction.ACTION_SCROLL_DOWN.id,
-            AccessibilityAction.ACTION_PAGE_UP.id, AccessibilityAction.ACTION_PAGE_DOWN.id,
-        )
-        val ACROSS = setOf(
-            AccessibilityAction.ACTION_SCROLL_LEFT.id, AccessibilityAction.ACTION_SCROLL_RIGHT.id,
-            AccessibilityAction.ACTION_PAGE_LEFT.id, AccessibilityAction.ACTION_PAGE_RIGHT.id,
-        )
-
-        fun isSideways(node: AccessibilityNodeInfo): Boolean {
+    private class AndroidTree(root: AccessibilityNodeInfo) : com.jtn0123.audiowhisper.rust.ReaderTree {
+        val nodes = arrayListOf(root)
+        val texts = mutableMapOf<Int, String>()
+        override fun facts(id: Int): IntArray {
+            val node = nodes[id]
+            val bounds = Rect().also(node::getBoundsInScreen)
             val collection = node.collectionInfo
             val actions = node.actionList.map { it.id }
-            return ScreenRules.isSideways(
-                rows = collection?.rowCount ?: 0,
-                columns = collection?.columnCount ?: 0,
-                upDown = actions.any { it in UP_DOWN },
-                across = actions.any { it in ACROSS },
-                className = node.className?.toString().orEmpty(),
-            )
+            fun Boolean.bit() = if (this) 1 else 0
+            return intArrayOf(bounds.left, bounds.top, bounds.right, bounds.bottom,
+                node.isPassword.bit(), node.isEditable.bit(), node.isVisibleToUser.bit(), node.isScrollable.bit(),
+                collection?.rowCount ?: 0, collection?.columnCount ?: 0,
+                actions.any { it in UP_DOWN }.bit(), actions.any { it in ACROSS }.bit(), node.childCount)
         }
+        override fun className(id: Int): String = nodes[id].className?.toString().orEmpty()
+        override fun text(id: Int): String = nodes[id].text?.toString().orEmpty().also { texts[id] = it }
+        override fun child(id: Int, index: Int): Int {
+            val child = nodes[id].getChild(index) ?: return -1
+            nodes += child
+            return nodes.lastIndex
+        }
+    }
+    fun walk(root: AccessibilityNodeInfo): Screen {
+        val tree = AndroidTree(root)
+        val packet = com.jtn0123.audiowhisper.rust.ReaderWalk.walk(tree,
+            intArrayOf(visible.left, visible.top, visible.right, visible.bottom))
+        val list = tree.nodes.getOrNull(packet[0])
+        val part = list?.let { ScreenRules.visiblePart(Rect().also(it::getBoundsInScreen).box(), visible.box()) }
+        val follow = FollowAlong(list, part?.let { Rect(it.left, it.top, it.right, it.bottom) } ?: visible)
+        val pieces = packet.drop(3).chunked(4).map { (id, top, bottom, inList) ->
+            TextBlock(checkNotNull(tree.texts[id]), top, bottom, inList != 0) {
+                if (inList != 0) follow.show(tree.nodes[id])
+            }
+        }
+        return Screen(root.packageName?.toString(), PageText.blocks(pieces), list,
+            visible.top, visible.bottom, packet[1], packet[2] != 0)
+    }
+    private fun Rect.box() = Box(left, top, right, bottom)
+    private companion object {
+        val UP_DOWN = setOf(AccessibilityAction.ACTION_SCROLL_UP.id, AccessibilityAction.ACTION_SCROLL_DOWN.id,
+            AccessibilityAction.ACTION_PAGE_UP.id, AccessibilityAction.ACTION_PAGE_DOWN.id)
+        val ACROSS = setOf(AccessibilityAction.ACTION_SCROLL_LEFT.id, AccessibilityAction.ACTION_SCROLL_RIGHT.id,
+            AccessibilityAction.ACTION_PAGE_LEFT.id, AccessibilityAction.ACTION_PAGE_RIGHT.id)
     }
 }

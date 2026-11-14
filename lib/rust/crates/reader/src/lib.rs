@@ -15,3 +15,8 @@ pub mod follow_along;
 pub mod page_text;
 pub mod screen;
 pub mod speaker_key;
+
+pub mod generator;
+pub mod play_queue;
+pub mod walk;
+pub mod wave;
