@@ -1,5 +1,8 @@
 # Stage 2 package 12: Pocket TTS and reader policy
 
+The held-run account below is historical. Fresh SSD results are recorded in the dated
+acceptance section at the end; earlier evidence is not relabelled.
+
 **Implementation is present; device acceptance is incomplete.** The owned emulator stalled
 while recording the unchanged-build canonical-store baseline, before any new APK was installed.
 T3 shutdown failed twice after the advised refresh. The user explicitly permits commit/push
@@ -228,3 +231,138 @@ The separate Python timestamp-oracle controls pass all five tests, including the
 The actual Gradle exit, test counts, lint ids, APK/hash inspection and source recount are under
 `build/stage2-tts/final-gate5/` and `build/stage2-tts/source-count.json`. Private build artifacts,
 models, downloads, audio, screenshots, dumps, settings and caches are excluded from all commits.
+
+
+## Fresh SSD acceptance (2026-11-14)
+
+The new `aw_keyboard_ssd` guest is the owned runtime `emulator-5556`. The old AVD and
+`emulator-5554` are untouched. The initial whole gate passes 802 JVM tests; editor fix
+`bfb3a4c2` adds a test and passes the whole gate with 803. Evidence is under ignored
+`build/device-acceptance-2026-11-14/`. The previous pending record in
+`build/stage2-tts/before/typing-retry/editor-stores/` belongs to the old guest and was
+not replayed. This device has its own baseline: preferences SHA-256
+`0e622df78757593b44492677be6295051f14dcd44314fe42b8e9231e1b2d17a4`, canonical
+learned-store `7848a5161495f8822d228eb8e2d298b38359d3e229a79a5db04ea5babf7276f0`
+and empty kept store `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855`.
+Each wrapper records and verifies exact preference/store hashes and accessibility restoration.
+
+### Part A
+
+Fresh post-editor-fix primary regression and suggestions pass on both renderers, with
+all four original digests above: 300 keys, 308 units/eight holds, autocorrect and candidate
+pick. Full input, timestamp-driven long delete, glide, all eight mode/password fixtures,
+NLP, learning/unlearning and all 17 extra records pass. The long-delete trace admits 33
+deletes per renderer, with exact 1,055-unit prefix hash and independent 50 ms deadlines;
+see [the input record](stage2-input.md#fresh-ssd-acceptance-2026-11-14).
+
+The unchanged email block passes on checksum-verified `dc7256e5` first and then main,
+both renderers, with five-unit SHA-256
+`2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824`.
+It is classified as an old-guest environment/input artifact; the old trigger is unproved.
+The combined editor wrapper initially fails caps preparation on old/main; a later complete
+JNI-free main wrapper passes both renderers unchanged. Failed controls remain explicit in [the editor record](stage2-editor.md#fresh-ssd-acceptance-2026-11-14).
+The fresh extra replay exposes and verifies the editor transaction fix documented there.
+No expected typing digest changes.
+
+### File-only PCM, timing and stress proof
+
+The initial unseeded runner fails fixture 0: JNI returns 26,880 samples and the C API
+32,640 at 24 kHz. A same-path control proves stochastic input: two JNI generations give
+30,720/28,800 samples with different hashes; two C-API generations also differ in hash.
+The pinned Pocket implementation defaults to seed -1. Fix `3b28d049` pins seed 42 on
+both comparison paths, with a Cargo-feature-only JNI entry using the same production
+lease/callback bridge. Normal builds omit that entry and retain the random default.
+This is a harness-input correction, not a re-baselined PCM expectation. Reference and
+native identities must still match exactly on every run.
+
+The seed transport's Rust test passes. A +1 seed mutation produces one fresh assertion;
+restoration is byte-identical, SHA-256
+`2aa9be1bcc2f2ab68ed83b6e300425f62941c48a60c3d9ad434ddee3bbf11769`.
+All three sherpa-ffi host tests and feature-enabled awnative clippy pass. The fixture now
+persists heap observations before enforcing the unchanged plateau assertion.
+
+`tts-seeded/comparison.json` passes all five Float32 little-endian PCM comparisons,
+sample rate/count and every callback length/hash (32 chunks total):
+
+| Fixture | Samples at 24 kHz | Chunks | PCM SHA-256 |
+| --- | ---: | ---: | --- |
+| 0 | 34,560 | 2 | `9b7a6cb7fcca1af92d05d9a7b9f23bed6a89dce2318173a511f03c2a2e74420e` |
+| 1 | 345,600 | 13 | `0579b97b13c784e0037253fe20bce07f5b757b21851ed83f187fec013df8069b` |
+| 2 | 205,440 | 8 | `947d897c2879eb33730f3fe6c7496285a9448e79c44b1b86dd8e074170a71f44` |
+| 3 | 144,000 | 6 | `7653850753d8981b2a26c9389c96f884f481ace299b342cedb13c1cdb53efbc6` |
+| 4 | 72,960 | 3 | `455429bf4e9739e7810637ced696b136a4c6e98e603af21f81a390c39e1a429a` |
+
+Ten alternating runs per path execute with builds idle. JNI median first-audio is
+261.38 ms (232.57–328.41); C API is 258.63 ms (238.02–335.51). Median synthesis RTF is
+0.18854 / 0.18767 respectively. These overlapping small samples do not establish a speedup.
+The measurement excludes model load/file open/close and includes callback hashing/file writes.
+
+After 20 warmups, all 200 real-model cancel/immediate-re-speak cycles pass. Each cancellation
+is mid-utterance and each immediate first chunk matches the seeded accepted full utterance.
+All 21 native-heap samples are retained. Initial-five maximum is 609,582,400 bytes;
+final-five maximum is 609,560,560, satisfying the exact plateau rule. Closing from inside
+a callback and repeated close pass. This is the specified warmed-model plateau proof,
+not a claim about every workload. No microphone or playback component runs in this proof.
+
+### UI and dictation continuation
+
+The checksum-verified old JNI build and main C-API renderer fixture each produce reading /
+stopped screenshot pairs on both renderers (`reader-baseline-pill/`, `reader-main-pill/`).
+Actual neural playback advances before the reading shot; the floating **Stop reading**
+pill then yields IDLE, no neural track, and an empty masked editor. Old playheads are
+4,896 frames each; main is 1,088 / 4,352 frames. Screenshots mask all source glyphs;
+media stays at zero; Android enforces minimum one for accessibility/alarm. Earlier keyboard-stop-key controls remain failed evidence on
+the old build (still READING after ten seconds), so this does not claim that key passed.
+The accepted screenshot pairs use the floating stop control on both builds.
+
+The normal debug build is reinstalled after the proof. Fresh file-only JNI/reference and
+JNI-free production dictation both pass all seven fixtures, including production-listener
+preview/final delivery, VAD, boundaries, flush and session states. The JNI-free APK contains
+zero legacy JNI libraries/classes; APK-offset-aware process-map checks find no legacy JNI
+in seven snapshots. All four fake-platform UI states pass without room-microphone access;
+see [the dictation record](stage2-dictation.md#fresh-ssd-acceptance-2026-11-14).
+
+### Still owed / limits
+
+No core package-12 PCM, cancellation, timing, screenshot-pair or dictation replay remains
+unrun. The earlier caps preparation trigger and old-build keyboard stop-key control remain
+unresolved observations; neither is relabeled as a pass. Final gate and the cleanup hold are recorded below.
+
+
+### Final gate and device hold
+
+The exact whole-codebase gate exits **0 in 4m 48s** (`final-gate-restored.log`):
+**803 JVM tests**, zero failures/errors/skips; Rust checks and full C++ oracle pass.
+Lint has only AndroidGradlePluginVersion (1), NewerVersionAvailable (3) and
+ChromeOsAbiSupport (1). The initial final attempt failed clippy because a public type
+followed the seed test module; moving the declaration before the tests fixes it without
+suppression. Four transport, four APK-map and five timestamp-oracle host controls pass.
+Normal APK SHA is `cf9edb5fafd927f54dee12c3b78cbebe99e2cbba5c06821eede15fc61e547c4c`
+(61,781,303 bytes). It has zero legacy JNI libraries/descriptors, no fixture receiver,
+and no seeded comparison export. `install-dev.sh` installs it successfully.
+
+Final restoration receipts verify preference SHA
+`0e622df78757593b44492677be6295051f14dcd44314fe42b8e9231e1b2d17a4`, both canonical
+store hashes and accessibility null/0. Prototype off, ALWAYS_DAY/Floris Day, owned IME
+and microphone permission pass before the final volume assertion. Disposable probe/test
+APKs, generated private PCM/WAVs and the two owned SAF archives are removed; models remain.
+
+The agent-device launcher handoff fails with:
+
+> Error (COMMAND_FAILED): Failed to launch com.google.android.apps.nexuslauncher
+> Hint: Retry with --debug and inspect diagnostics log for details.
+
+The single advised debug retry returns the same error, diagnostic `mwgg2phc-9fee4e5e`:
+the normal MAIN/LAUNCHER intent does not resolve this Home-only activity. This was a
+handoff-command mistake, not evidence of an app crash. No subsequent device calls run
+once the retry failure is known. The cleanup runner had already started after the first
+failure and stops at its own volume assertion: it incorrectly expects stream 10 to allow
+zero, whereas the local muting receipt shows Android requires 1–15 and the existing helper
+sets one. Media uses zero; neural reading uses USAGE_MEDIA. No room microphone is opened.
+
+**Still owed:** corrected final volume/DND readback, the final literal unfiltered
+`FATAL|AndroidRuntime` scan, and `device_close(shutdown=true)`. Shutdown is not attempted
+because it would be another device operation after the requested stop. The guest is not
+claimed shut down or finally logcat-clean. Earlier editor crash and failed test-probe
+controls remain documented; no cleared idle window is presented as proof of the whole run.
+Evidence: `final-hold.json`, `final-host.json`, `final-restoration/`.
