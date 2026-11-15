@@ -2,6 +2,12 @@
 
 ## Status and boundary
 
+**Follow-up 3:** [prototype debts closed, then group 1](stage4-followup3.md). Font advances,
+line boxes, frame timing (the CPU raster is recommended), keyboard memory and native-load
+failure were fixed and measured. Five more screens are drawn in Rust (Sounds & Vibration,
+Smartbar, Gestures & Glide typing, Clipboard, Emojis), still behind the default-off
+selector. The device suite, the final pictures and a TalkBack session are still owed.
+
 **Follow-up 2:** [implementation, measurements and device results](stage4-followup2.md).
 UI/text preference bytes match; Rust accessibility checks pass, while the retained Compose
 path has 23 unlabeled controls. Strict visual acceptance and final-source captures remain
