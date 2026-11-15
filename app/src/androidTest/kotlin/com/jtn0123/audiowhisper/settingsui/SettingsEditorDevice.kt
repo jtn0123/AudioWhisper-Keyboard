@@ -10,6 +10,18 @@ import java.io.File
 
 /** Direct endpoint checks. No keyboard, clipboard payload or field contents enter receipts. */
 internal class SettingsEditorDevice(private val h: SettingsHarness) {
+    private companion object {
+        // Saved state v2: version, stack, scrolls, modal row/selected/values/scroll, editor text,
+        // anchor, focus, then the composing span.
+        const val SAVED_VERSION = "2"
+        const val STACK = 1
+        const val EDITOR_TEXT = 7
+        const val COMPOSING_START = 10
+        const val COMPOSING_END = 11
+        const val EDITOR_FOCUSED = 12
+        // Numbers only (anchor, focus, composing span, focused); never the text slot.
+        val META = (EDITOR_TEXT + 1)..EDITOR_FOCUSED
+    }
     private val fixture = "ab\uD83D\uDE80cdef"
     private fun host() = h.views(RustSettingsView::class.java).single()
     private fun endpoint() = h.views(SettingsInputView::class.java).single()
@@ -23,11 +35,12 @@ internal class SettingsEditorDevice(private val h: SettingsHarness) {
             connection = checkNotNull(endpoint().onCreateInputConnection(EditorInfo()))
             check(connection.setComposingText("ab", 1))
             check(view.editorText == "ab")
-            check(view.save()[11] == "0" && view.save()[12] == "2")
+            check(view.save()[0] == SAVED_VERSION) // The slots below follow render_settings_state.rs.
+            check(view.save()[COMPOSING_START] == "0" && view.save()[COMPOSING_END] == "2")
             check(connection.setComposingText(fixture, 1))
             check(view.editorText == fixture)
             check(connection.finishComposingText())
-            check(view.save()[11] == "-1")
+            check(view.save()[COMPOSING_START] == "-1")
             check(connection.setSelection(1, 4))
             check(view.anchor == 1 && view.selectionEnd == 4)
         }
@@ -68,10 +81,10 @@ internal class SettingsEditorDevice(private val h: SettingsHarness) {
         val restored = host()
         h.main {
             val after = restored.save()
-            val changed = listOf(1, 8, 9, 10, 11, 12, 13).filter { before[it] != after[it] }
+            val changed = (listOf(STACK, EDITOR_TEXT) + META).filter { before[it] != after[it] }
             report.put("recreate_changed_slots", org.json.JSONArray(changed))
-            report.put("before_meta", org.json.JSONArray(listOf(9,10,11,12,13).map { before[it] }))
-            report.put("after_meta", org.json.JSONArray(listOf(9,10,11,12,13).map { after[it] }))
+            report.put("before_meta", org.json.JSONArray(META.map { before[it] }))
+            report.put("after_meta", org.json.JSONArray(META.map { after[it] }))
             check(changed.isEmpty())
             connection = checkNotNull(endpoint().onCreateInputConnection(EditorInfo()))
             check(connection.finishComposingText())
