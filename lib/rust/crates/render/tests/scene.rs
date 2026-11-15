@@ -367,6 +367,8 @@ fn profiling_preserves_pixels_and_distinguishes_cold_and_warm_layouts() {
     assert_eq!(cold.layout_misses, 1);
     assert!(cold.cold_runs > 0);
     assert_eq!(cold.cold_runs, cold.glyph_runs);
+    // Outline text never reaches vello_cpu's 64 MiB atlas page (stage4-followup3.md, A6).
+    assert_eq!(cold.atlas_runs, 0);
     assert!(cold.encode_ns > 0 && cold.raster_ns > 0);
     measured.draw(&scene, full).unwrap();
     let warm = measured.profile();

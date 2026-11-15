@@ -97,8 +97,6 @@ impl Raster {
             right: damage.right.ceil(),
             bottom: damage.bottom.ceil(),
         };
-        self.context
-            .settings_scene(scene.panel.as_ref().is_some_and(|p| p.kind == 9));
         self.context.reset();
         let rect = vello_cpu::kurbo::Rect::new(
             damage.left as f64,
@@ -437,11 +435,12 @@ impl Raster {
                     self.profile.alloc_ns += elapsed(allocation);
                     self.profile.alloc_sites += u32::from(self.profiling);
                     let glyph = self.profiling.then(Instant::now);
-                    self.context.glyphs(&run, &coords)?;
+                    let atlas = self.context.glyphs(&run, &coords)?;
                     let glyph_ns = elapsed(glyph);
                     self.profile.glyph_ns += glyph_ns;
                     if self.profiling {
                         self.profile.glyph_runs += 1;
+                        self.profile.atlas_runs += u32::from(atlas);
                         // First use of a shaped layout is a cold-work proxy, not a claim
                         // about hits/misses in Vello's private glyph/atlas caches.
                         if missed {

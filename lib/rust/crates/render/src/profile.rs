@@ -17,6 +17,8 @@ pub struct Profile {
     pub glyph_runs: u32,
     pub cold_runs: u32,
     pub color_runs: u32,
+    /// Runs drawn through the glyph atlas (colour fonts only; see `Backend::glyph_list`).
+    pub atlas_runs: u32,
 }
 
 pub(crate) fn elapsed(start: Option<Instant>) -> u128 {
