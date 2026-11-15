@@ -22,9 +22,15 @@ class SettingsUiMatchTest {
     @Test fun allHomeRoutesMatchTheComposeSource() {
         KeyboardRenderer(emptyArray()).use { n ->
             prepare(n,defaults())
+            // Keyboard, Smartbar, Gestures, Clipboard and Media are drawn natively; the rest fall back
+            // to Compose, which is told every route it must hand back.
+            val native=listOf("settings/home","settings/keyboard","settings/keyboard/input-feedback","settings/smartbar",
+                "settings/gestures","settings/clipboard","settings/media")
             for (i in ref.home.indices) {
-                if (i == 2) continue
-                assertEquals(listOf(listOf("compose",ref.home[i])),effects(state(n,5,(100+i).toString())))
+                if (ref.home[i] in native) {
+                    assertEquals(ref.home[i],state(n,5,(100+i).toString()).getValue("route").jsonPrimitive.content)
+                    assertEquals("settings/home",state(n,6,"3","0").getValue("route").jsonPrimitive.content)
+                } else assertEquals(listOf(listOf("compose",ref.home[i],native.joinToString("|"))),effects(state(n,5,(100+i).toString())))
             }
             val keyboard=state(n,5,"102")
             assertEquals("settings/keyboard",keyboard.getValue("route").jsonPrimitive.content)
