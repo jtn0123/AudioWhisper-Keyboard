@@ -1,5 +1,5 @@
-"""Require fresh JVM assertion failures for each UI, editor and group 1 mutation, and fresh Rust test
-panics for each layout and scroll mutation that only Rust tests see; always restore bytes."""
+"""Require fresh JVM assertion failures for each UI, editor, group 1 and group 2 mutation, and
+fresh Rust test panics for each mutation that only Rust tests see; always restore bytes."""
 import argparse
 import hashlib
 import json
@@ -29,11 +29,11 @@ CASES = [
      '        Yes("clipboard__history_auto_clean_old_enabled"),\n    ])),', '        &MINUTES,\n    )\n    .on(HISTORY),'),
     ('entry-order', CAT / 'clipboard.rs', SYNC_CLEAR + SYNC_SET, SYNC_SET + SYNC_CLEAR),
     ('no-preview', CAT / 'input_feedback.rs', '    hardware: 1,\n    preview: true,', '    hardware: 1,\n    preview: false,'),
-    ('confirm-swap', CAT / 'media.rs', 'Kind::Confirm("pinned"', 'Kind::Confirm("recent"'),
+    ('confirm-swap', CAT / 'media.rs', 'Kind::Confirm(&RESET_PINNED)', 'Kind::Confirm(&RESET_RECENT)'),
     ('visible-fixed', CAT / 'smartbar.rs', '    .shown(SHARED),', '    .shown(Any(&[SHARED, EXTENDED])),'),
     ('stale-string-id', ROOT / 'app/src/main/kotlin/com/jtn0123/audiowhisper/settingsui/SettingsStringIds.kt',
      '    "action__yes" to R.string.action__yes,\n', ''),
-    ('route-dropped', BASE / 'render/src/settings_ui/catalogue.rs', '    media::SCREEN,\n];', '];'),
+    ('route-dropped', BASE / 'render/src/settings_ui/catalogue.rs', '    media::SCREEN,\n    typing', '    typing'),
     # The group 1 gallery's differences (stage4-followup4.md, part 1): each must fail a Rust test.
     ('no-stretch', BASE / 'render/src/settings_ui/overscroll.rs',
      '        let left = self.relax(delta);', '        let left = delta;'),
@@ -49,6 +49,27 @@ CASES = [
      '[self.px(52.0), self.px(32.0), self.px(48.0)]', '[52.0 * self.config[2], 32.0 * self.config[2], self.px(48.0)]'),
     ('linked-divider-inside', BASE / 'render/src/settings_ui/material.rs',
      'b.left - 1.0,', 'b.left,'),
+    # Group 2: each must fail SettingsGroupTwoMatchTest, SettingsEditorMatchTest or a Rust test.
+    ('spell-any-package', BASE / 'render/src/settings_ui/rows.rs',
+     '&& self.fact("spell_package") == self.fact("package")', '&& true'),
+    ('spell-intent-swapped', BASE / 'render/src/settings_ui/events.rs',
+     '"intent".into(), "spellCheckerSettings".into()', '"intent".into(), "hardKeyboardSettings".into()'),
+    ('forget-no-toast', CAT / 'typing.rs', 'toast: "pref__suggestion__forget_learned__done",', 'toast: "",'),
+    ('auto-space-card-always', CAT / 'typing.rs', '.shown(Yes("correction__auto_space_punctuation"))', '.shown(Always)'),
+    ('changelog-version-unfilled', BASE / 'render/src/settings_ui/events.rs',
+     '.replace("{version}", self.fact("version_name"))', '.replace("{version}", "{version}")'),
+    ('physical-fact-inverted', CAT / 'physical_keyboard.rs',
+     '.shown(Fact("physical_keyboard", "true"))', '.shown(Fact("physical_keyboard", "false"))'),
+    ('models-never-checking', BASE / 'render/src/settings_ui/fields.rs',
+     '"ready" if self.fact("models_checked") != "true"', '"ready" if false'),
+    ('field-not-saved', BASE / 'render/src/settings_ui/fields.rs',
+     'if self.prefs.get(key) != Some(&value) {', 'if false {'),
+    ('field-enter-finishes', BASE / 'awnative/src/render_settings.rs', '66 if a.field.is_some() =>', '66 if false =>'),
+    ('dictation-route-dropped', BASE / 'render/src/settings_ui/catalogue.rs', '    dictation::SCREEN,\n', ''),
+    ('confirm-generic-buttons', BASE / 'render/src/settings_ui/dialog_buttons.rs',
+     '["", ask.dismiss, ask.confirm]', '["", "action__no", "action__yes"]'),
+    ('field-minimum-outside-padding', BASE / 'render/src/settings_ui/fields.rs',
+     '.max(self.px(120.0) - 2.0 * v)', '.max(self.px(120.0))'),
 ]
 # The Rust test binary that must panic for each Rust-only case.
 RUST = dict.fromkeys([
@@ -59,7 +80,10 @@ RUST = dict.fromkeys([
     'radio-text-half-pixel',
     'switch-half-pixel-track',
     'linked-divider-inside',
-], 'settings_ui_overscroll')
+], 'settings_ui_overscroll') | dict.fromkeys([
+    'confirm-generic-buttons',
+    'field-minimum-outside-padding',
+], 'settings_ui_group_two')
 
 
 def run_rust(output, name, target):
@@ -77,7 +101,7 @@ def run(output, name):
     started = time.time_ns()
     with (output / (name + '.log')).open('wb') as log:
         result = subprocess.run(['./gradlew', ':app:testDebugUnitTest', '--tests', '*SettingsEditorMatchTest',
-                                 '--tests', '*SettingsUi*MatchTest', '--tests', '*SettingsGroupOneMatchTest',
+                                 '--tests', '*SettingsUi*MatchTest', '--tests', '*SettingsGroupOneMatchTest', '--tests', '*SettingsGroupTwoMatchTest',
                                  '--tests', '*SettingsResourcesTest'], cwd=ROOT, stdout=log, stderr=subprocess.STDOUT)
     failures = []
     for path in (ROOT / 'app/build/test-results/testDebugUnitTest').glob('TEST-*settingsui.Settings*Test.xml'):
