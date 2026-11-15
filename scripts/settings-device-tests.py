@@ -39,6 +39,17 @@ def accessibility_comparison(reports):
     return result
 
 
+def differing_keys(left, right):
+    """Preference keys whose lines differ, in file order; lines are `type;key;value`."""
+    def lines(data):
+        return [(line.split(b';', 2)[1].decode() if line.count(b';') >= 2 else '?', line) for line in data.splitlines()]
+    a, b = lines(left), lines(right)
+    keys = [key for (key, x), (_, y) in zip(a, b) if x != y]
+    if len(a) != len(b):
+        keys.append(f'line count {len(a)} vs {len(b)}')
+    return keys
+
+
 def known_defects(reports):
     """Each named known defect once per control, with every audit checkpoint that saw it."""
     out = {}
@@ -105,7 +116,9 @@ def main():
                 files[renderer] = d.read_prefs()
             identical = files['compose'] == files['rust']
             d.save('preference-parity.json', {'identical_bytes': identical,
-                'compose_bytes': len(files['compose']), 'rust_bytes': len(files['rust'])})
+                'compose_bytes': len(files['compose']), 'rust_bytes': len(files['rust']),
+                # Key names only: values can hold field text (vocabulary), so they stay private.
+                'differing_keys': differing_keys(files['compose'], files['rust'])})
             assert identical, 'Complete preference files differ'
             # Same rows exercised, in the same order, with the same rows never enabled.
             group_one = {renderer: report['group_one'] for renderer, report in reports.items()}
