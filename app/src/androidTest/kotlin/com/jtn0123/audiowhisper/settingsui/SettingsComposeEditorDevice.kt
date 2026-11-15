@@ -52,6 +52,29 @@ internal class SettingsComposeEditorDevice(private val h: SettingsHarness) {
         }
         expect("")
         h.main { connection.closeConnection() }
+        vocabulary(report)
         report.put("input_connection_operations", 11).put("same_edit_sequence", true).put("ime_changed", false)
+    }
+
+    /** DictationScreen's OutlinedTextField: the editable above the preview field. */
+    private fun vocabulary(report: JSONObject) {
+        h.launch("settings/dictation")
+        h.waitFor("dictation absent") { h.find("Remove filler words") != null }
+        repeat(6) { if (h.nodes().count { it.isEditable } < 2) h.scroll(true) }
+        val bounds = { n: Node -> android.graphics.Rect().also(n::getBoundsInScreen) }
+        val field = checkNotNull(h.nodes().filter { it.isEditable }.takeIf { it.size == 2 }?.minBy { bounds(it).top })
+        check(field.performAction(Node.ACTION_FOCUS))
+        val info = EditorInfo()
+        lateinit var connection: InputConnection
+        h.waitFor("Compose vocabulary endpoint unavailable") {
+            var found: InputConnection? = null
+            h.main {
+                val owner = h.views(View::class.java).first { it.javaClass.name == "androidx.compose.ui.platform.AndroidComposeView" }
+                found = owner.onCreateInputConnection(info)
+            }
+            found?.let { connection = it }
+            found != null && info.inputType and android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE != 0
+        }
+        SettingsVocabularyDevice(h).run(report, info, connection)
     }
 }

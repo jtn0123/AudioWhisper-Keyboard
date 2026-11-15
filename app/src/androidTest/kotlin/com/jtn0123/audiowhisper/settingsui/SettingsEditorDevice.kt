@@ -94,9 +94,25 @@ internal class SettingsEditorDevice(private val h: SettingsHarness) {
             connection.closeConnection()
         }
         check(h.nodes().none { h.label(it) in listOf("Start of selection", "End of selection") })
+        vocabulary(report)
         report.put("native_heap_before_bytes", heapBefore).put("native_heap_after_bytes", android.os.Debug.getNativeHeapAllocatedSize())
         report.put("input_connection_operations", 18).put("selection_handles", 2).put("handle_drag", true)
             .put("recreate_mid_composition", true).put("ime_changed", false)
+    }
+    /** The vocabulary field owns the same endpoint once it has the editor (DictationScreen's 7th row). */
+    private fun vocabulary(report: JSONObject) {
+        h.launch("settings/dictation")
+        h.waitFor("dictation absent") { h.views(RustSettingsView::class.java).size == 1 && h.find("Remove filler words") != null }
+        val info = EditorInfo()
+        lateinit var connection: InputConnection
+        h.main {
+            val view = host()
+            check(view.edit("focus", "1006"))
+            check(view.multiLine)
+            connection = checkNotNull(endpoint().onCreateInputConnection(info))
+        }
+        SettingsVocabularyDevice(h).run(report, info, connection)
+        h.main { check(host().edit("focus", "2") && !host().multiLine) }
     }
     fun prepareDeath(report: JSONObject) {
         // Finish instrumentation before ordinary process death. AMS tears down the task

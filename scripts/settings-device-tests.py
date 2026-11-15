@@ -124,6 +124,10 @@ def main():
             group_one = {renderer: report['group_one'] for renderer, report in reports.items()}
             d.save('group-one.json', group_one)
             assert group_one['compose'] == group_one['rust'], 'Group 1 walks differ'
+            # Group 2 also lists every external launch its rows fired (blocked on device).
+            group_two = {renderer: report['group_two'] for renderer, report in reports.items()}
+            d.save('group-two.json', group_two)
+            assert group_two['compose'] == group_two['rust'], 'Group 2 walks differ'
             d.save('accessibility-comparison.json', accessibility_comparison(reports))
             accessibility_passed = all(r['accessibility_passed'] and r['system_ime_picker'] for r in reports.values())
             known = known_defects(reports)
@@ -137,10 +141,14 @@ def main():
         if args.mode == 'metrics':
             run('metrics', 'compose')
         if args.mode in ('all', 'text'):
-            run('compose-text', 'compose')
+            compose_report = run('compose-text', 'compose')
             compose_file = d.read_prefs()
-            run('text')
+            rust_report = run('text')
             rust_file = d.read_prefs()
+            # The vocabulary field: the same edits saved, the text restored, the same EditorInfo.
+            vocabulary = {'compose': compose_report['vocabulary'], 'rust': rust_report['vocabulary']}
+            d.save('vocabulary-field.json', vocabulary)
+            assert vocabulary['compose'] == vocabulary['rust'], 'Vocabulary fields differ'
             d.save('text-preference-parity.json', {'identical_bytes': compose_file == rust_file, 'compose_bytes': len(compose_file), 'rust_bytes': len(rust_file)})
             assert compose_file == rust_file, 'Text-only preference files differ'
         if args.mode in ('all', 'death'):

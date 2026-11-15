@@ -26,6 +26,17 @@ GROUP_ONE = [
         'Update strategy (Recent)', 'Maximum items to keep', 'Reset pinned emojis', 'Reset recent emojis',
         'Trigger type', 'Minimum query length', 'Maximum candidate count']),
 ]
+# Group 2, the same way. Spelling's Languages list is enabled only while FlorisBoard is the
+# system spell checker; a skipped entry says so.
+GROUP_TWO = [
+    ('typing', 'Display suggestions', 2, ['Incognito mode', 'Forget learned words', 'Languages']),
+    ('dictionary', 'Enable system user dictionary', 0, []),
+    ('other/physical-keyboard', 'Show on-screen keyboard', 0, []),
+    ('about', 'Version', 0, []),
+    ('dictation', 'Remove filler words', 1, []),
+]
+# Suggestions on for its dependent rows, auto-space on for the feedback card.
+GROUP_TWO_MASTERS = {'suggestion__enabled': 'true', 'correction__auto_space_punctuation': 'true'}
 # The swipe lists are enabled only while glide typing is off.
 SWIPE_DIALOGS = ['Swipe up', 'Swipe down', 'Swipe left', 'Swipe right', 'Space bar swipe up', 'Space bar swipe left',
                  'Space bar swipe right', 'Space bar long press', 'Delete key swipe left', 'Delete key long press']
@@ -44,6 +55,10 @@ def with_prefs(data, booleans, strings):
     lines = [line for line in data.splitlines() if not any((';'+key+';').encode() in line for key in keys)]
     lines += [f'b;{k};{v}'.encode() for k, v in booleans.items()] + [f's;{k};{v}'.encode() for k, v in strings.items()]
     return b'\n'.join(lines) + b'\n'
+
+
+def without(data, keys):
+    return b'\n'.join(line for line in data.splitlines() if not any((';'+key+';').encode() in line for key in keys)) + b'\n'
 
 
 def picture(d, name):
@@ -92,12 +107,52 @@ def group_one(d, renderer):
     d.save(renderer+'-group-one-skipped.json', skipped)
 
 
+def group_two(d, renderer):
+    """Each group 2 screen from its top, then its dialogs. The vocabulary is cleared first, so
+    the field shows only its placeholder and no picture holds what the user wrote."""
+    d.fixture()
+    data = with_prefs(without(d.read_prefs(), ['dictation__vocabulary']), GROUP_TWO_MASTERS, {})
+    d.adb('shell', 'am', 'force-stop', MODULE.PKG)
+    d.private_write(MODULE.PREFS, data)
+    d.prototype(renderer)
+    skipped = []
+    for route, ready, pages, dialogs in GROUP_TWO:
+        name = renderer+'-'+route.replace('/', '-')
+        d.launch('settings/home')
+        d.launch('settings/'+route)
+        d.wait(lambda: d.find(ready), 'Screen absent')
+        picture(d, name)
+        for page in range(pages):
+            d.ui('scroll', 'down', 1440)
+            picture(d, f'{name}-lower{page+1}')
+        for label in dialogs:
+            d.launch('settings/home')
+            d.launch('settings/'+route)
+            d.ui('scroll', 'top')
+            node = None
+            for _ in range(12):
+                node = d.find(label)
+                if node:
+                    break
+                d.ui('scroll', 'down', 480, '--duration-ms', 1200)
+            if node is None or node.get('enabled') is False:
+                skipped.append(label)
+                continue
+            d.press(label)
+            d.wait(lambda: d.find('Cancel'), 'Dialog absent')
+            picture(d, f"{renderer}-dialog-{route.replace('/', '-')}-{label.lower().replace(' ', '-')}")
+            d.press('Cancel')
+    d.save(renderer+'-group-two-skipped.json', skipped)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('baseline', type=Path)
     parser.add_argument('--renderer', choices=['compose', 'rust', 'all'], default='all')
     parser.add_argument('--output', type=Path, default=Path('build/stage4-followup3/pictures'))
     parser.add_argument('--appearance', choices=['light', 'dark', 'font2', 'all'], default='all')
+    parser.add_argument('--sections', nargs='+', choices=['keyboard', 'group-one', 'group-two'],
+                        default=['keyboard', 'group-one', 'group-two'])
     args = parser.parse_args()
     base = args.output
     d = MODULE.SettingsDevice(base, args.baseline)
@@ -125,41 +180,46 @@ def main():
             d.output.mkdir(parents=True, exist_ok=True)
             d.save('environment.json', {'font_scale': scale, 'appearance': appearance, 'width_px': 1080})
             for renderer in (('compose', 'rust') if args.renderer == 'all' else (args.renderer,)):
-                d.fixture()
-                d.prototype(renderer)
-                for route in ('home', 'keyboard'):
-                    d.launch('settings/'+route)
-                    d.wait(lambda: d.find('Keyboard') if route == 'home' else d.find('Number row'), 'Screen absent')
+                if 'keyboard' in args.sections:
+                    d.fixture()
+                    d.prototype(renderer)
+                    for route in ('home', 'keyboard'):
+                        d.launch('settings/'+route)
+                        d.wait(lambda: d.find('Keyboard') if route == 'home' else d.find('Number row'), 'Screen absent')
+                        time.sleep(3.0)
+                        d.empty_tree(renderer+'-'+route+'.json')
+                        d.screenshot(renderer+'-'+route+'.png')
+                    d.ui('scroll', 'down', 1440)
                     time.sleep(3.0)
-                    d.empty_tree(renderer+'-'+route+'.json')
-                    d.screenshot(renderer+'-'+route+'.png')
-                d.ui('scroll', 'down', 1440)
-                time.sleep(3.0)
-                d.empty_tree(renderer+'-keyboard-lower.json')
-                d.screenshot(renderer+'-keyboard-lower.png')
-                # Enable the two dependent controls only for the dialog gallery.
-                data = d.read_prefs()
-                d.adb('shell', 'am', 'force-stop', MODULE.PKG)
-                for key in ('keyboard__utility_key_enabled', 'keyboard__one_handed_mode_enabled'):
-                    lines = [line for line in data.splitlines() if (';'+key+';').encode() not in line]
-                    data = b'\n'.join(lines) + ('\nb;'+key+';true\n').encode()
-                d.private_write(MODULE.PREFS, data)
-                d.prototype(renderer)
-                for i, label in enumerate(DIALOGS):
-                    # Dialogs are visited in screen order; explicitly return to top first.
-                    d.launch('settings/home')
-                    d.launch('settings/keyboard')
-                    d.ui('scroll', 'top')
-                    d.press(label, scroll=True)
-                    d.wait(lambda: d.find('Cancel'), 'Dialog absent')
-                    time.sleep(3.0)
-                    name = f'{renderer}-dialog-{i:02d}'
-                    d.empty_tree(name+'.json')
-                    d.screenshot(name+'.png')
-                    d.press('Cancel')
-                print(appearance, renderer, '17 pictures', flush=True)
-                group_one(d, renderer)
-                print(appearance, renderer, 'group 1 pictures', flush=True)
+                    d.empty_tree(renderer+'-keyboard-lower.json')
+                    d.screenshot(renderer+'-keyboard-lower.png')
+                    # Enable the two dependent controls only for the dialog gallery.
+                    data = d.read_prefs()
+                    d.adb('shell', 'am', 'force-stop', MODULE.PKG)
+                    for key in ('keyboard__utility_key_enabled', 'keyboard__one_handed_mode_enabled'):
+                        lines = [line for line in data.splitlines() if (';'+key+';').encode() not in line]
+                        data = b'\n'.join(lines) + ('\nb;'+key+';true\n').encode()
+                    d.private_write(MODULE.PREFS, data)
+                    d.prototype(renderer)
+                    for i, label in enumerate(DIALOGS):
+                        # Dialogs are visited in screen order; explicitly return to top first.
+                        d.launch('settings/home')
+                        d.launch('settings/keyboard')
+                        d.ui('scroll', 'top')
+                        d.press(label, scroll=True)
+                        d.wait(lambda: d.find('Cancel'), 'Dialog absent')
+                        time.sleep(3.0)
+                        name = f'{renderer}-dialog-{i:02d}'
+                        d.empty_tree(name+'.json')
+                        d.screenshot(name+'.png')
+                        d.press('Cancel')
+                    print(appearance, renderer, '17 pictures', flush=True)
+                if 'group-one' in args.sections:
+                    group_one(d, renderer)
+                    print(appearance, renderer, 'group 1 pictures', flush=True)
+                if 'group-two' in args.sections:
+                    group_two(d, renderer)
+                    print(appearance, renderer, 'group 2 pictures', flush=True)
     finally:
         d.ui('settings', 'text-size', 'large')
         d.ui('settings', 'appearance', 'light')
