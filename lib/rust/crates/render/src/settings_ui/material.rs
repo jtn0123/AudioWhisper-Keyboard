@@ -65,53 +65,69 @@ impl App {
         clip: Rect,
     ) {
         let d = self.config[2];
-        let x = b.right
-            - if linked {
-                50.0
-            } else if self.modal.is_some() {
-                68.0
-            } else {
-                66.0
-            } * d;
-        let y = (b.top + b.bottom) / 2.0;
         let color = |c| self.enabled_color(c, enabled);
         if linked {
-            // Jetpref draws a 2 physical-pixel divider through 80% of its switch box.
+            // Jetpref's `drawLine` with a 2 px stroke along its box's left edge: centred on it.
             self.paint_clipped_box(
                 p,
-                rect(b.left, b.top + b.height() * 0.1, 2.0, b.height() * 0.8),
+                rect(
+                    b.left - 1.0,
+                    b.top + b.height() * 0.1,
+                    2.0,
+                    b.height() * 0.8,
+                ),
                 color(self.colors[10]),
                 0.0,
                 clip,
             );
         }
+        let [x, y, w, h] = self.switch_track(b, linked);
         // [outline or whole track, inner track (unchecked only), thumb].
         let [outer, inner, thumb] = self.switch_colors(checked, enabled).map(color);
-        self.paint_clipped_box(
-            p,
-            rect(x, y - 16.0 * d, 52.0 * d, 32.0 * d),
-            outer,
-            16.0 * d,
-            clip,
-        );
+        self.paint_clipped_box(p, rect(x, y, w, h), outer, h / 2.0, clip);
         if !checked {
-            self.paint_clipped_box(
-                p,
-                rect(x + 2.0 * d, y - 14.0 * d, 48.0 * d, 28.0 * d),
-                inner,
-                14.0 * d,
-                clip,
-            );
+            // `border(2.dp)` strokes inside the shape, in fractional pixels.
+            let line = 2.0 * d;
+            let inside = rect(x + line, y + line, w - 2.0 * line, h - 2.0 * line);
+            self.paint_clipped_box(p, inside, inner, h / 2.0 - line, clip);
         }
-        let size = if checked { 24.0 } else { 16.0 } * d;
-        let cx = x + if checked { 36.0 } else { 16.0 } * d;
-        self.paint_clipped_box(
-            p,
-            rect(cx - size / 2.0, y - size / 2.0, size, size),
-            thumb,
-            size / 2.0,
-            clip,
-        );
+        // M3's ThumbNode: the size and its offset along the track are `toPx().toInt()`, and
+        // `Alignment.CenterStart` rounds it to the middle of the track.
+        let (size, along) = if checked { (24.0, 24.0) } else { (16.0, 8.0) };
+        let size = (size * d).trunc();
+        let top = y + ((h - size) / 2.0).round();
+        let thumb_box = rect(x + (along * d).trunc(), top, size, size);
+        self.paint_clipped_box(p, thumb_box, thumb, size / 2.0, clip);
+    }
+    /// The Switch's 52 by 32 dp track, `[left, top, width, height]`, where Compose lays it out.
+    ///
+    /// SwitchPreference sizes the Switch to the 48 dp touch target, 16 dp from the row's end;
+    /// ListPreference's linked switch has 8 dp of start padding in its 56 by 48 dp box `b`.
+    /// Either way the track (`requiredSize`, each side `roundToPx`) is wider than the space
+    /// left, so `Placeable` centres the overflow by integer division, and the rest is centred
+    /// with `Alignment.Center`'s rounding. Whole pixels, as Compose's layout always is. The
+    /// dialog's switch keeps the earlier fractional placement.
+    pub(super) fn switch_track(&self, b: Rect, linked: bool) -> [f32; 4] {
+        let [tw, th, target] = [self.px(52.0), self.px(32.0), self.px(48.0)];
+        let centre = |space: f32, size: f32| ((space - size) / 2.0).round();
+        // `(width - measuredWidth) / 2` in Int arithmetic truncates toward zero.
+        let overflow = |space: f32| (space.min(tw) - tw) / 2.0;
+        if self.modal.is_some() && !linked {
+            let d = self.config[2];
+            let y = (b.top + b.bottom) / 2.0 - 16.0 * d;
+            return [b.right - 68.0 * d, y, 52.0 * d, 32.0 * d];
+        }
+        let (left, top, x) = if linked {
+            let [pad, width] = [self.px(8.0), self.px(56.0)];
+            let fitted = (width - pad).min(tw);
+            let x = centre(width, pad + fitted) + pad + overflow(width - pad).trunc();
+            (b.left, b.top + centre(b.height(), target), x)
+        } else {
+            let left = b.right - self.px(16.0) - target;
+            let x = centre(target, target.min(tw)) + overflow(target).trunc();
+            (left, b.top + centre(b.height(), target), x)
+        };
+        [left + x, top + centre(target, th), tw, th]
     }
 }
 

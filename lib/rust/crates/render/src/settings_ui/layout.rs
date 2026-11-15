@@ -292,20 +292,22 @@ impl App {
                         &mut p,
                         Control {
                             id: 2000 + i as i32,
+                            // ListItem's trailing slot in whole pixels: 16 dp from the end,
+                            // top-aligned in a three-line item, else centred with rounding.
                             bounds: rect(
-                                offset + w - 72.0 * d,
+                                offset + w - self.px(16.0) - self.px(56.0),
                                 y + if self.multiline(self.measure(
                                     text,
                                     &drawn_summary,
                                     self.sp(14),
                                     width,
                                 )) {
-                                    12.0 * d
+                                    self.px(12.0)
                                 } else {
-                                    (rh - 48.0 * d) / 2.0
+                                    ((rh - self.px(48.0)) / 2.0).round()
                                 },
-                                56.0 * d,
-                                48.0 * d,
+                                self.px(56.0),
+                                self.px(48.0),
                             ),
                             label: self.label(r.label),
                             summary: String::new(),

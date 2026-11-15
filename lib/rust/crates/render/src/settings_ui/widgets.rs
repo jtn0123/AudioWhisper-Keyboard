@@ -200,7 +200,9 @@ impl App {
                 self.paint_switch(
                     p,
                     if screen_row && self.multiline(sh) {
-                        rect(b.left, b.top, b.width(), 72.0 * d)
+                        // A three-line item's trailing content sits 12 dp below its top.
+                        let target = self.px(48.0) + 2.0 * self.px(12.0);
+                        rect(b.left, b.top, b.width(), target)
                     } else {
                         b
                     },

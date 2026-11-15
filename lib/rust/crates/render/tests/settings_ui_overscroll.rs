@@ -1,7 +1,7 @@
 //! Where content rests after a drag past an end (Compose's stretch overscroll), one-line
-//! switch rows' height, the disabled switch's colours and the dialog radio text's whole-pixel
-//! width: the four differences the group 1 gallery found against Compose pictures
-//! (stage4-followup4.md, part 1).
+//! switch rows' height, the disabled switch's colours, the dialog radio text's whole-pixel
+//! width and the switches' whole-pixel placement: the five differences the group 1 gallery
+//! found against Compose pictures (stage4-followup4.md, part 1).
 use render::{
     settings_ui::{App, catalogue::Kind},
     text::Text,
@@ -213,4 +213,62 @@ fn dialog_radio_text_gets_the_whole_pixel_width_compose_gives_it() {
         .find(|i| i.element == "settings-subheader" && i.label == radio.label)
         .unwrap();
     assert_eq!((label.bounds.left, label.bounds.width()), (320.0, 535.0));
+}
+
+#[test]
+fn switches_sit_on_the_whole_pixels_compose_lays_them_out() {
+    // At 2.625 the 52 dp track is 137 px (136.5 rounded), 21 px below the top of the 126 px
+    // touch target and 5 px outside its start (the overflow split by integer division). A
+    // checked thumb is 63 px, 63 px along and 11 px down (10.5 rounded); an unchecked one 42 px,
+    // 21 along and 21 down. A linked switch's 2 px divider straddles its box's start.
+    let (mut a, mut text) = app("settings/keyboard");
+    a.config = [1080.0, 6000.0, 2.625, 1.0];
+    let panel = a.scene(&mut text).panel.unwrap();
+    let boxes: Vec<_> = panel
+        .items
+        .iter()
+        .filter(|i| i.element == "settings-box")
+        .map(|i| i.bounds)
+        .collect();
+    let (mut rows, mut linked) = (0, 0);
+    for c in a.controls.iter().filter(|c| c.role == "toggle") {
+        let b = c.bounds;
+        let inside = |w: f32| {
+            boxes
+                .iter()
+                .find(|x| x.width() == w && x.top >= b.top && x.bottom <= b.bottom)
+                .copied()
+        };
+        let track = inside(137.0).unwrap_or_else(|| panic!("track of {}", c.label));
+        assert_eq!(track.height(), 84.0);
+        if c.id >= 2000 {
+            linked += 1;
+            assert_eq!((b.left, b.width(), b.height()), (891.0, 147.0, 126.0));
+            assert_eq!(track.left, b.left + 16.0);
+            assert_eq!(track.top, b.top + 21.0);
+            assert_eq!(inside(2.0).unwrap().left, b.left - 1.0, "divider");
+        } else {
+            rows += 1;
+            assert_eq!(track.left, 907.0, "{}", c.label);
+            let target = ((b.height() - 126.0) / 2.0).round();
+            assert!(
+                [target, 32.0].contains(&(track.top - 21.0 - b.top)),
+                "{}",
+                c.label
+            );
+        }
+        let (size, along, down) = if c.checked == Some(true) {
+            (63.0, 63.0, 11.0)
+        } else {
+            (42.0, 21.0, 21.0)
+        };
+        let thumb = inside(size).unwrap_or_else(|| panic!("thumb of {}", c.label));
+        assert_eq!(
+            (thumb.left, thumb.top, thumb.height()),
+            (track.left + along, track.top + down, size),
+            "{}",
+            c.label
+        );
+    }
+    assert!(rows > 3 && linked > 1, "{rows} rows, {linked} linked");
 }
