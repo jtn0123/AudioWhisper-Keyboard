@@ -5,9 +5,10 @@ ANDROID_SERIAL and AGENT_DEVICE must identify the owned aw_keyboard_ssd session.
 python3 -I scripts/keyboard-memory.py OUTPUT PRIVATE_BASELINE
 Run it right after installing, so every build starts from a fresh process.
 
-Three points, in one process: settings open with the keyboard hidden, the keyboard shown in
-the settings "Try out your setup" field, and after 60 letter presses (no space, so nothing is
-committed or learned). It saves dumpsys meminfo, the glyph-atlas-sized anonymous mappings from
+Five points, in one process: settings open with the keyboard hidden, the keyboard shown in
+the settings "Try out your setup" field, after 60 letter presses (no space, so nothing is
+committed or learned), with colour-emoji candidates shown (the letters deleted, then an emoji
+name typed with inline emoji suggestions on), and with the emoji panel open and scrolled. It saves dumpsys meminfo, the glyph-atlas-sized anonymous mappings from
 smaps (a vello_cpu atlas page is 4096x4096 RGBA, 65,536 KiB) and every other anonymous mapping of 8 MiB or more, and the keyboard raster's per-frame
 draw times. It never reads or saves the field's text.
 """
@@ -29,6 +30,8 @@ CATEGORIES = ('Native Heap', 'Dalvik Heap', 'Dalvik Other', 'Stack', 'Ashmem', '
               'Unknown', 'TOTAL PSS')
 ATLAS_KIB = 4096 * 4096 * 4 // 1024
 LETTERS = 'qwertyuiopasdfghjklzxcvbnm'
+# An emoji name with inline suggestions: the candidate row then draws colour glyphs.
+EMOJI_QUERY = 'rocket'
 
 
 def meminfo(d):
@@ -74,11 +77,18 @@ def keys(d):
     """Letter keys' centres, from the keyboard's accessibility nodes."""
     out = {}
     for node in d.tree()['nodes']:
-        label = (node.get('label') or '').strip().lower()
+        label = (node.get('label') or '').strip()
         rect = node.get('rect')
-        if len(label) == 1 and label in LETTERS and rect and rect['y'] > 1200 and label not in out:
-            out[label] = (rect['x'] + rect['width'] // 2, rect['y'] + rect['height'] // 2)
+        named = label in ('Delete', 'Emoji') or (len(label) == 1 and label.lower() in LETTERS)
+        if named and rect and rect['y'] > 1200 and label.lower() not in out:
+            out[label.lower()] = (rect['x'] + rect['width'] // 2, rect['y'] + rect['height'] // 2)
     return out
+
+
+def colour_candidates(d):
+    """Whether the candidate row shows an emoji. Only this boolean leaves the function."""
+    return any(any(ord(c) >= 0x1F000 for c in (n.get('label') or '')) and (n.get('rect') or {}).get('y', 0) > 1200
+               for n in d.tree()['nodes'])
 
 
 def main():
@@ -96,6 +106,15 @@ def main():
     try:
         d.adb('shell', 'setprop', 'log.tag.aw-profile', 'DEBUG')
         d.fixture()
+        # Inline emoji suggestions, through the app's own Emojis screen: a file written now would
+        # race the IME process the system rebinds at once, which then saves its own copy.
+        d.launch('settings/media')
+        d.press('Trigger type', scroll=True)
+        d.wait(lambda: d.find('Inline text'), 'Trigger type dialog absent')
+        d.press('Inline text')
+        if d.find('OK'):
+            d.press('OK')
+        d.wait(lambda: (d.prefs().get('emoji__suggestion_type') or '').strip('"') == 'INLINE_TEXT', 'Inline emoji suggestions did not persist')
         # Through the app's own switch, as d.prototype() does: the running process has already
         # read the preference file, so writing the file would not reach the keyboard.
         d.launch('settings/keyboard')
@@ -105,7 +124,7 @@ def main():
             d.wait(lambda: d.prefs().get('keyboard__rust_renderer_prototype') == 'true', 'Prototype did not persist')
         pid = d.adb('shell', 'pidof', MODULE.PKG).decode().split()[0]
         time.sleep(3)
-        for point in ('settings', 'shown', 'typed'):
+        for point in ('settings', 'shown', 'typed', 'emoji-candidates', 'emoji-panel'):
             d.adb('shell', 'logcat', '-c')
             if point == 'shown':
                 d.ui('scroll', 'bottom')
@@ -117,6 +136,24 @@ def main():
                 for i in range(60):
                     x, y = centres[LETTERS[i % len(LETTERS)]]
                     d.ui('press', x, y)
+                time.sleep(3)
+            if point == 'emoji-candidates':
+                centres = keys(d)
+                for _ in range(60):
+                    d.ui('press', *centres['delete'])
+                for letter in EMOJI_QUERY:
+                    d.ui('press', *centres[letter])
+                d.wait(lambda: colour_candidates(d), 'No colour-emoji candidate appeared')
+                time.sleep(3)
+            if point == 'emoji-panel':
+                # Clear the query so the actions row (with Emoji) replaces the candidates.
+                for _ in EMOJI_QUERY:
+                    d.ui('press', *keys(d)['delete'])
+                d.wait(lambda: 'emoji' in keys(d), 'Emoji action absent')
+                d.ui('press', *keys(d)['emoji'])
+                time.sleep(2)
+                # Swipes inside the panel (below the candidate row), never the settings page behind it.
+                d.ui('swipe', 540, 2100, 540, 1750, '--count', 4, '--pause-ms', 600, '--pattern', 'ping-pong')
                 time.sleep(3)
             assert d.adb('shell', 'pidof', MODULE.PKG).decode().split()[0] == pid, 'The process restarted'
             text, categories = meminfo(d)
