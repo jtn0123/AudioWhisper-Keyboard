@@ -10,6 +10,7 @@ use vello_cpu::{
 pub(crate) struct Cpu {
     context: RenderContext,
     resources: Resources,
+    color: crate::color_glyphs::ColorGlyphs,
 }
 pub(crate) struct Hybrid {
     pub context: vello_hybrid::Scene,
@@ -42,6 +43,7 @@ impl Backend {
         Self::Cpu(Box::new(Cpu {
             context: RenderContext::new(width, height),
             resources: Resources::new(),
+            color: Default::default(),
         }))
     }
     pub fn hybrid(width: u16, height: u16, resources: vello_hybrid::Resources) -> Self {
@@ -77,13 +79,13 @@ impl Backend {
                 .fill_blurred_rounded_rect(rect, radius, sigma, false),
         }
     }
-    /// Draws a shaped run; `Ok(true)` when it went through the glyph atlas.
+    /// Draws a shaped run; `Ok(true)` when it went through the glyph atlas (Hybrid only).
     pub fn glyphs(&mut self, run: &GlyphRun<'_, ()>, coords: &[i16]) -> Result<bool, String> {
         let glyphs = run.positioned_glyphs().map(|g| (g.id, g.x, g.y));
         self.glyph_list(run.run().font(), run.run().font_size(), coords, glyphs)
     }
     /// Draw positioned glyphs (id, x, y) of one font at the current transform; `Ok(true)` when
-    /// they went through the glyph atlas.
+    /// they went through the glyph atlas, which only the Hybrid backend still uses.
     pub fn glyph_list(
         &mut self,
         font: &parley::FontData,
@@ -94,19 +96,23 @@ impl Backend {
         let color_font = read_fonts::FontRef::from_index(font.data.as_ref(), font.index)
             .is_ok_and(|font| font.colr().is_ok() || font.cbdt().is_ok() || font.sbix().is_ok());
         match self {
-            Self::Cpu(c) => c
-                .context
-                .glyph_run(&mut c.resources, font)
-                .font_size(size)
-                .normalized_coords(coords)
-                .hint(true)
-                // vello_cpu's atlas page is a fixed 4096² RGBA pixmap, filled at creation, so
-                // one cached glyph makes 64 MiB resident. Outlines draw directly; colour
-                // glyphs, which otherwise decode their bitmaps every frame, keep the atlas.
-                .atlas_cache(color_font)
-                .fill_glyphs(glyphs.map(|(id, x, y)| vello_cpu::Glyph { id, x, y }))
-                .map(|()| color_font)
-                .map_err(|_| "glyph rendering failed".to_owned()),
+            // vello_cpu's atlas page is a fixed 4096² RGBA pixmap, filled at creation, so one
+            // cached glyph would make 64 MiB resident. Outlines draw directly; colour glyphs,
+            // which drawn directly decode their bitmaps every frame, use tiles sized to what
+            // is shown (`color_glyphs`). Neither reaches the atlas.
+            Self::Cpu(c) if color_font => c
+                .color
+                .draw(&mut c.context, &mut c.resources, font, size, coords, glyphs)
+                .map(|()| false),
+            Self::Cpu(c) => crate::color_glyphs::direct(
+                &mut c.context,
+                &mut c.resources,
+                font,
+                size,
+                coords,
+                glyphs,
+            )
+            .map(|()| false),
             Self::Hybrid(c) => {
                 // Hybrid requires bitmap glyphs to use its image atlas. Mixing outline
                 // glyphs into that atlas loses labels on the tested software Vulkan path;
@@ -155,6 +161,7 @@ impl Backend {
                     ..Default::default()
                 },
             );
+            c.color.end_frame();
         }
     }
     pub fn hybrid_parts(&mut self) -> Option<(&vello_hybrid::Scene, &mut vello_hybrid::Resources)> {
