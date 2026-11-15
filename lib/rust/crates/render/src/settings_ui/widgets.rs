@@ -103,7 +103,7 @@ impl App {
             let [inset_left, inset_right] = match row {
                 Some(i) => self.row_insets(i),
                 None if is_home => [56.0 * d, 16.0 * d],
-                None if c.role == "radio" => [52.0 * d, 16.0 * d],
+                None if c.role == "radio" => self.radio_insets(),
                 None => [16.0 * d, 16.0 * d],
             };
             let left = b.left + inset_left;

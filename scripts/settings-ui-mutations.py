@@ -43,6 +43,8 @@ CASES = [
      '                                64.0\n', '                                56.0\n'),
     ('disabled-switch-faded-enabled', BASE / 'render/src/settings_ui/material.rs',
      'match (enabled, checked) {', 'match (true, checked) {'),
+    ('radio-text-half-pixel', BASE / 'render/src/settings_ui/dialog_metrics.rs',
+     '[self.px(52.0), self.px(16.0)]', '[52.0 * self.config[2], 16.0 * self.config[2]]'),
 ]
 # The Rust test binary that must panic for each Rust-only case.
 RUST = dict.fromkeys([
@@ -50,6 +52,7 @@ RUST = dict.fromkeys([
     'fling-not-absorbed',
     'one-line-switch-56',
     'disabled-switch-faded-enabled',
+    'radio-text-half-pixel',
 ], 'settings_ui_overscroll')
 
 

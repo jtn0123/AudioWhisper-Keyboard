@@ -97,7 +97,7 @@ impl App {
                         p,
                         Control {
                             id: 3000 + j as i32,
-                            bounds: rect(left + 8.0 * d, y, width - 16.0 * d, rh),
+                            bounds: rect(left + self.px(8.0), y, width - 2.0 * self.px(8.0), rh),
                             label,
                             summary,
                             role: "radio",

@@ -2,24 +2,37 @@
 use super::{App, catalogue::Kind};
 use crate::text::Text;
 impl App {
+    /// `dp` in whole pixels, as Compose's `roundToPx` gives every dp padding and size.
+    pub(super) fn px(&self, dp: f32) -> f32 {
+        (dp * self.config[2]).round()
+    }
+    /// A choice row's text insets inside its 8 dp padding: the 52 dp radio and the 16 dp end,
+    /// each rounded to whole pixels as Compose's `roundToPx` does (535 px of text, not 535.5,
+    /// in the 288 dp dialog at 2.625).
+    pub(super) fn radio_insets(&self) -> [f32; 2] {
+        [self.px(52.0), self.px(16.0)]
+    }
     pub(super) fn dialog_rows(&self, width: f32, text: &mut Text) -> Vec<(String, String, f32)> {
         let m = self.modal.as_ref().unwrap();
         let r = self.rows()[m.row];
         let [_, _, d, _] = self.config;
         match r.kind {
-            Kind::Choice(_) => self
-                .choices(m.row)
-                .iter()
-                .map(|choice| {
-                    let label = self.choice_label(m.row, choice);
-                    let summary = self.choice_description(m.row, choice, m.selected == *choice);
-                    let rh = (self.measure(text, &label, self.sp(16), width - 84.0 * d)
-                        + self.measure(text, &summary, self.sp(14), width - 84.0 * d)
-                        + 16.0 * d)
-                        .max(40.0 * d);
-                    (label, summary, rh)
-                })
-                .collect(),
+            Kind::Choice(_) => {
+                let [start, end] = self.radio_insets();
+                let tw = width - 2.0 * self.px(8.0) - start - end;
+                self.choices(m.row)
+                    .iter()
+                    .map(|choice| {
+                        let label = self.choice_label(m.row, choice);
+                        let summary = self.choice_description(m.row, choice, m.selected == *choice);
+                        let rh = (self.measure(text, &label, self.sp(16), tw)
+                            + self.measure(text, &summary, self.sp(14), tw)
+                            + 16.0 * d)
+                            .max(40.0 * d);
+                        (label, summary, rh)
+                    })
+                    .collect()
+            }
             Kind::Slider(s) => m
                 .values
                 .iter()

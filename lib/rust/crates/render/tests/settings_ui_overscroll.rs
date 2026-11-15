@@ -1,6 +1,7 @@
 //! Where content rests after a drag past an end (Compose's stretch overscroll), one-line
-//! switch rows' height and the disabled switch's colours: the three differences the group 1
-//! gallery found against Compose pictures (stage4-followup4.md, part 1).
+//! switch rows' height, the disabled switch's colours and the dialog radio text's whole-pixel
+//! width: the four differences the group 1 gallery found against Compose pictures
+//! (stage4-followup4.md, part 1).
 use render::{
     settings_ui::{App, catalogue::Kind},
     text::Text,
@@ -193,4 +194,23 @@ fn disabled_switches_use_the_disabled_tokens_under_the_row_fade() {
     let b = boxes(&mut a, &mut text);
     assert!(b.contains(&(52.0, 32.0, 0xfff1eff2)), "track");
     assert!(b.contains(&(24.0, 24.0, 0xfffcf9fc)), "thumb");
+}
+
+#[test]
+fn dialog_radio_text_gets_the_whole_pixel_width_compose_gives_it() {
+    // At 2.625 the 288 dp dialog's row padding is 21 px, the radio 137 and the end 42 (each
+    // dp padding rounded on its own), so the text box is 535 px, not 288 - 84 dp = 535.5.
+    let (mut a, mut text) = app("settings/keyboard");
+    a.config = [1080.0, 2400.0, 2.625, 1.0];
+    a.scene(&mut text);
+    assert!(a.activate(1006)); // Spacebar label.
+    let panel = a.scene(&mut text).panel.unwrap();
+    let radio = a.controls.iter().find(|c| c.id == 3000).unwrap().clone();
+    assert_eq!((radio.bounds.left, radio.bounds.width()), (183.0, 714.0));
+    let label = panel
+        .items
+        .iter()
+        .find(|i| i.element == "settings-subheader" && i.label == radio.label)
+        .unwrap();
+    assert_eq!((label.bounds.left, label.bounds.width()), (320.0, 535.0));
 }
