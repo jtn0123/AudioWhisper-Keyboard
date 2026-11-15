@@ -194,43 +194,16 @@ class SettingsInstrumentation : Instrumentation() {
                 h.click(title)
                 h.waitFor("cancelled dialog not reopened") { h.find("Cancel") != null }
             }
-            val modalSwitch = h.nodes().firstOrNull { it.isCheckable && it.isClickable && (it.className.toString().endsWith("Switch") || h.label(it).isBlank()) }
-            if (modalSwitch != null && modalSwitch.checked != Node.CHECKED_STATE_TRUE) {
-                check(modalSwitch.performAction(Node.ACTION_CLICK))
-                SystemClock.sleep(100)
-            }
-            val radios = h.nodes().filter { it.isClickable && it.rangeInfo == null && !it.isEditable &&
-                !it.className.toString().endsWith("Switch") && h.label(it).isNotBlank() &&
-                h.label(it).substringBefore('\n') != title && h.label(it) !in listOf("Default", "Cancel", "OK") }
-            for (target in radios) {
-                target.performAction(Node.ACTION_CLEAR_ACCESSIBILITY_FOCUS)
-                check(target.performAction(Node.ACTION_ACCESSIBILITY_FOCUS))
-                val chosen = h.label(target).substringBefore('\n')
-                check(target.performAction(Node.ACTION_CLICK))
-                h.waitFor("radio choice did not select") { h.nodes().any { h.label(it).substringBefore('\n') == chosen && (it.isSelected || it.checked == Node.CHECKED_STATE_TRUE) } }
-            }
-            val sliderCount = h.nodes().count { it.rangeInfo != null }
-            for (slot in 0 until sliderCount) {
-                fun slider() = h.nodes().filter { it.rangeInfo != null }[slot]
-                val range = checkNotNull(slider().rangeInfo)
-                // Compose correctly refuses SET_PROGRESS when it would make no change.
-                // Exercise a real transition through the other endpoint before minimum.
-                if (range.current == range.min) {
-                    h.progress(range.max, slot)
-                    h.waitFor("slider maximum not applied") { slider().rangeInfo!!.current == range.max }
-                }
-                h.progress(range.min, slot)
-                h.waitFor("slider minimum not applied") { slider().rangeInfo!!.current == range.min }
-                check(slider().performAction(Node.ACTION_SCROLL_FORWARD))
-                h.waitFor("slider forward did not update") { slider().rangeInfo!!.current > range.min }
-                check(slider().performAction(Node.ACTION_SCROLL_BACKWARD))
-                h.waitFor("slider backward did not update") { slider().rangeInfo!!.current == range.min }
-            }
+            h.exerciseDialog(title)
             h.click("OK")
             h.waitFor("dialog did not close") { h.find("Cancel") == null }
         }
         h.top()
         screens.put(h.audit("keyboard-returned"))
+        SettingsGroupOneDevice(h) { stage = it }.run(report, screens)
+        stage = "ui"
+        h.click("Keyboard")
+        h.waitFor("Keyboard unavailable") { h.find("Number row") != null }
         report.put("screens", screens)
         var violations = 0
         var known = 0

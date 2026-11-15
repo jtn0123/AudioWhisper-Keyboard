@@ -186,6 +186,41 @@ internal class SettingsHarness(val instrumentation: Instrumentation, explore: Bo
         check(items.length() > 0)
         return JSONObject().put("screen", screen).put("items", items)
     }
+    /** Every radio and slider of the open dialog, as the keyboard walk always exercised them. */
+    fun exerciseDialog(title: String) {
+        val modalSwitch = nodes().firstOrNull { it.isCheckable && it.isClickable && (it.className.toString().endsWith("Switch") || label(it).isBlank()) }
+        if (modalSwitch != null && modalSwitch.checked != Node.CHECKED_STATE_TRUE) {
+            check(modalSwitch.performAction(Node.ACTION_CLICK))
+            SystemClock.sleep(100)
+        }
+        val radios = nodes().filter { it.isClickable && it.rangeInfo == null && !it.isEditable &&
+            !it.className.toString().endsWith("Switch") && label(it).isNotBlank() &&
+            label(it).substringBefore('\n') != title && label(it) !in listOf("Default", "Cancel", "OK") }
+        for (target in radios) {
+            target.performAction(Node.ACTION_CLEAR_ACCESSIBILITY_FOCUS)
+            check(target.performAction(Node.ACTION_ACCESSIBILITY_FOCUS))
+            val chosen = label(target).substringBefore('\n')
+            check(target.performAction(Node.ACTION_CLICK))
+            waitFor("radio choice did not select") { nodes().any { label(it).substringBefore('\n') == chosen && (it.isSelected || it.checked == Node.CHECKED_STATE_TRUE) } }
+        }
+        val sliderCount = nodes().count { it.rangeInfo != null }
+        for (slot in 0 until sliderCount) {
+            fun slider() = nodes().filter { it.rangeInfo != null }[slot]
+            val range = checkNotNull(slider().rangeInfo)
+            // Compose correctly refuses SET_PROGRESS when it would make no change.
+            // Exercise a real transition through the other endpoint before minimum.
+            if (range.current == range.min) {
+                progress(range.max, slot)
+                waitFor("slider maximum not applied") { slider().rangeInfo!!.current == range.max }
+            }
+            progress(range.min, slot)
+            waitFor("slider minimum not applied") { slider().rangeInfo!!.current == range.min }
+            check(slider().performAction(Node.ACTION_SCROLL_FORWARD))
+            waitFor("slider forward did not update") { slider().rangeInfo!!.current > range.min }
+            check(slider().performAction(Node.ACTION_SCROLL_BACKWARD))
+            waitFor("slider backward did not update") { slider().rangeInfo!!.current == range.min }
+        }
+    }
     fun back() { main { checkNotNull((instrumentation as SettingsInstrumentation).resumedActivity ?: activity).onBackPressedDispatcher.onBackPressed() }; SystemClock.sleep(150); activity = (instrumentation as SettingsInstrumentation).resumedActivity ?: activity }
     fun close() { main { activity?.finish() }; activity = null }
     fun progress(value: Float, slot: Int = 0) {

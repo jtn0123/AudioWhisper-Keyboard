@@ -77,7 +77,7 @@ def main():
     def run(mode, renderer='rust', label=None):
         fixture(renderer)
         name = f'{renderer}-{label or mode}'
-        result = subprocess.run(['adb', '-s', d.serial, 'shell', 'am', 'instrument', '-w', '-e', 'mode', mode, COMPONENT], check=True, capture_output=True, timeout=300).stdout
+        result = subprocess.run(['adb', '-s', d.serial, 'shell', 'am', 'instrument', '-w', '-e', 'mode', mode, COMPONENT], check=True, capture_output=True, timeout=1200).stdout
         (d.output / f'{name}.log').write_bytes(result)
         if b'PASS ' + mode.encode() not in result:
             detail = d.adb('exec-out', 'run-as', MODULE.PKG, 'cat', 'files/settings-device-failure.json')
@@ -107,6 +107,10 @@ def main():
             d.save('preference-parity.json', {'identical_bytes': identical,
                 'compose_bytes': len(files['compose']), 'rust_bytes': len(files['rust'])})
             assert identical, 'Complete preference files differ'
+            # Same rows exercised, in the same order, with the same rows never enabled.
+            group_one = {renderer: report['group_one'] for renderer, report in reports.items()}
+            d.save('group-one.json', group_one)
+            assert group_one['compose'] == group_one['rust'], 'Group 1 walks differ'
             d.save('accessibility-comparison.json', accessibility_comparison(reports))
             accessibility_passed = all(r['accessibility_passed'] and r['system_ime_picker'] for r in reports.values())
             known = known_defects(reports)
