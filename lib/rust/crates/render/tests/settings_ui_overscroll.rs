@@ -1,5 +1,6 @@
-//! Where content rests after a drag past an end (Compose's stretch overscroll) and one-line
-//! switch rows' height: differences the group 1 gallery found (stage4-followup4.md, part 1).
+//! Where content rests after a drag past an end (Compose's stretch overscroll), one-line
+//! switch rows' height and the disabled switch's colours: the three differences the group 1
+//! gallery found against Compose pictures (stage4-followup4.md, part 1).
 use render::{
     settings_ui::{App, catalogue::Kind},
     text::Text,
@@ -148,4 +149,48 @@ fn one_line_switch_rows_leave_room_for_the_switch_touch_target() {
         }
     }
     assert!(one_line >= 3, "clipboard has one-line toggles");
+}
+
+#[test]
+fn disabled_switches_use_the_disabled_tokens_under_the_row_fade() {
+    let palette = |a: &mut App| {
+        a.colors[0] = 0xfffafafa;
+        a.colors[1] = 0xff1d1b20;
+        a.colors[5] = 0xffe6e0e9;
+        a.colors[7] = 0xff79747e;
+        a.colors[8] = 0xfffef7ff;
+    };
+    let boxes = |a: &mut App, text: &mut Text| -> Vec<(f32, f32, u32)> {
+        let panel = a.scene(text).panel.unwrap();
+        panel
+            .items
+            .iter()
+            .filter(|i| i.element == "settings-box")
+            .map(|i| (i.bounds.width(), i.bounds.height(), i.styles[0].background))
+            .collect()
+    };
+    // Clipboard history is off, so its toggles are disabled and unchecked.
+    let (mut a, mut text) = app("settings/clipboard");
+    a.config = [480.0, 4000.0, 1.0, 1.0];
+    palette(&mut a);
+    let b = boxes(&mut a, &mut text);
+    assert!(b.contains(&(52.0, 32.0, 0xfff1eff2)), "outline");
+    assert!(b.contains(&(48.0, 28.0, 0xfffaf8fb)), "track");
+    assert!(b.contains(&(16.0, 16.0, 0xffdbd9dc)), "thumb");
+    assert!(
+        !b.iter().any(|x| x.2 == 0xffc9c7cb),
+        "the faded enabled outline"
+    );
+    // The Smartbar's fixed row: a checked, disabled switch.
+    let (mut a, mut text) = app("settings/smartbar");
+    a.config = [480.0, 4000.0, 1.0, 1.0];
+    palette(&mut a);
+    a.prefs.insert("smartbar__enabled".into(), "true".into());
+    a.prefs.insert(
+        "smartbar__layout".into(),
+        "SUGGESTIONS_ACTIONS_SHARED".into(),
+    );
+    let b = boxes(&mut a, &mut text);
+    assert!(b.contains(&(52.0, 32.0, 0xfff1eff2)), "track");
+    assert!(b.contains(&(24.0, 24.0, 0xfffcf9fc)), "thumb");
 }

@@ -41,12 +41,15 @@ CASES = [
      'if velocity != 0.0 && self.stretch.edges[toward] > 0.0 {', 'if velocity != 0.0 && toward > 2 {'),
     ('one-line-switch-56', BASE / 'render/src/settings_ui/layout.rs',
      '                                64.0\n', '                                56.0\n'),
+    ('disabled-switch-faded-enabled', BASE / 'render/src/settings_ui/material.rs',
+     'match (enabled, checked) {', 'match (true, checked) {'),
 ]
 # The Rust test binary that must panic for each Rust-only case.
 RUST = dict.fromkeys([
     'no-stretch',
     'fling-not-absorbed',
     'one-line-switch-56',
+    'disabled-switch-faded-enabled',
 ], 'settings_ui_overscroll')
 
 

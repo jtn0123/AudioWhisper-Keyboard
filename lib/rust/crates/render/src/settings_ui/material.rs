@@ -20,6 +20,28 @@ impl App {
         ((color >> 16) & 255) * 299 + ((color >> 8) & 255) * 587 + (color & 255) * 114 > 128000
     }
 
+    /// `SwitchDefaults.colors()` (Material 3 1.4.0): the outline (or a checked switch's whole
+    /// track), the unchecked inner track and the thumb. A disabled switch uses the disabled
+    /// tokens, each `copy(alpha).compositeOver(surface)`; the disabled row then fades it all,
+    /// as it fades the row's text, so callers pass these through `enabled_color`.
+    pub(super) fn switch_colors(&self, checked: bool, enabled: bool) -> [u32; 3] {
+        let [on_surface, primary, highest, on_primary, outline, surface] =
+            [1, 3, 5, 6, 7, 8].map(|i| self.colors[i]);
+        match (enabled, checked) {
+            (true, true) => [primary, primary, on_primary],
+            (true, false) => [outline, highest, outline],
+            // DisabledSelectedHandleColor is surface at full opacity, the border transparent.
+            (false, true) => {
+                let track = composite(on_surface, 0.12, surface);
+                [track, track, surface]
+            }
+            (false, false) => [
+                composite(on_surface, 0.12, surface),
+                composite(highest, 0.12, surface),
+                composite(on_surface, 0.38, surface),
+            ],
+        }
+    }
     pub(super) fn enabled_color(&self, color: u32, enabled: bool) -> u32 {
         if enabled {
             return color;
@@ -63,14 +85,12 @@ impl App {
                 clip,
             );
         }
+        // [outline or whole track, inner track (unchecked only), thumb].
+        let [outer, inner, thumb] = self.switch_colors(checked, enabled).map(color);
         self.paint_clipped_box(
             p,
             rect(x, y - 16.0 * d, 52.0 * d, 32.0 * d),
-            color(if checked {
-                self.colors[3]
-            } else {
-                self.colors[7]
-            }),
+            outer,
             16.0 * d,
             clip,
         );
@@ -78,7 +98,7 @@ impl App {
             self.paint_clipped_box(
                 p,
                 rect(x + 2.0 * d, y - 14.0 * d, 48.0 * d, 28.0 * d),
-                color(self.colors[5]),
+                inner,
                 14.0 * d,
                 clip,
             );
@@ -88,11 +108,7 @@ impl App {
         self.paint_clipped_box(
             p,
             rect(cx - size / 2.0, y - size / 2.0, size, size),
-            color(if checked {
-                self.colors[6]
-            } else {
-                self.colors[7]
-            }),
+            thumb,
             size / 2.0,
             clip,
         );
@@ -160,4 +176,15 @@ impl App {
             clip,
         );
     }
+}
+
+/// Compose's `color.copy(alpha).compositeOver(background)` for opaque sRGB colours. An sRGB
+/// `Color` packs each component, the copied alpha included, into 8 bits.
+fn composite(color: u32, alpha: f32, background: u32) -> u32 {
+    let alpha = (alpha * 255.0 + 0.5).floor() / 255.0;
+    let channel = |shift: u32| {
+        let [c, b] = [color, background].map(|v| ((v >> shift) & 255) as f32 / 255.0);
+        ((c * alpha + b * (1.0 - alpha)) * 255.0 + 0.5).floor() as u32
+    };
+    0xff000000 | channel(16) << 16 | channel(8) << 8 | channel(0)
 }
