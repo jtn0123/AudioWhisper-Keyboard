@@ -62,21 +62,47 @@ class SettingsDevice:
             time.sleep(.1)
         raise RuntimeError(message)
 
+    def pid(self):
+        return self.adb('shell', 'pidof ' + PKG + ' || true').decode().strip()
+
     def restore_files(self):
-        self.adb('shell', 'am', 'force-stop', PKG)
-        # A stopped selected IME can be replaced by Android. Bind the original IME before
-        # the last byte restoration so startup bookkeeping cannot overwrite the restored file.
-        self.adb('shell', 'ime', 'set', self.original['secure']['default_input_method'])
+        # The bytes go in while the app process is dead, so the next process loads them. A
+        # process alive across the write keeps the old values in memory, and Jetpref's next
+        # write (any preference, the whole file) puts them back over the restored bytes.
+        originals = {}
         for path, entry in self.original['files'].items():
-            data = (self.baseline / entry['file']).read_bytes()
-            if hashlib.sha256(data).hexdigest() != entry['sha256']:
+            originals[path] = (self.baseline / entry['file']).read_bytes()
+            if hashlib.sha256(originals[path]).hexdigest() != entry['sha256']:
                 raise RuntimeError('Original state artifact changed')
-            self.private_write(path, data)
+        for _ in range(5):
+            self.adb('shell', 'am', 'force-stop', PKG)
+            for path, data in originals.items():
+                self.private_write(path, data)
+            if not self.pid():
+                break
+        else:
+            raise RuntimeError('The app restarted during every file restoration')
+        # A stopped selected IME can be replaced by Android, so the original is bound again. Its
+        # process now starts from the restored bytes; its startup writes, if any, are let land
+        # before the bytes are verified, so a startup that changes them fails here.
+        ime = self.original['secure']['default_input_method']
+        self.adb('shell', 'ime', 'set', ime)
+        if ime == IME:
+            self.wait(self.pid, 'The original IME did not start')
+        self.wait(self.files_settled, 'The restored files kept changing', timeout=20)
         self.verify_files()
 
+    def files_settled(self):
+        before = self.hashes()
+        time.sleep(1.5)
+        return before == self.hashes()
+
+    def hashes(self):
+        return {path: self.adb('shell', 'run-as', PKG, 'sha256sum', path).decode().split()[0]
+                for path in self.original['files']}
+
     def verify_files(self):
-        actual = {path: self.adb('shell', 'run-as', PKG, 'sha256sum', path).decode().split()[0]
-                  for path in self.original['files']}
+        actual = self.hashes()
         expected = {path: entry['sha256'] for path, entry in self.original['files'].items()}
         if actual != expected:
             raise RuntimeError('Exact original file restoration failed')
@@ -195,7 +221,7 @@ class SettingsDevice:
 
     def cleanup(self):
         # Restore settings via the platform state interface only when changed; files are
-        # restored last, after service/IME binding and its bookkeeping writes.
+        # restored last, and the IME then starts from them (see restore_files).
         for key in ('enabled_accessibility_services', 'accessibility_enabled'):
             original = self.original['secure'][key]
             current = self.adb('shell', 'settings', 'get', 'secure', key).decode().strip()
