@@ -53,9 +53,8 @@ fn reply(
     s.scene = a.scene(text);
     let nodes:Vec<_>=a.controls.iter().map(|c|{
         let mut actions=if !c.enabled || matches!(c.action,Action::None){vec![]}else{vec![1]};
-        if c.enabled && c.role=="slider" {actions.extend([4,5]);} else if c.role=="scroll" {if a.scroll()<a.max_scroll {actions.push(4);}
-
-            if a.scroll()>0.0 {actions.push(5);}}
+        if c.enabled && c.role=="slider" {actions.extend([4,5]);} else if c.role=="scroll" {let [back,forward]=a.can_scroll(); if forward {actions.push(4);}
+            if back {actions.push(5);}}
         let label=if c.role=="edit"{String::from_utf16_lossy(&a.editor.text)}else{c.label.clone()};
         json!({"id":c.id,"bounds":[c.bounds.left,c.bounds.top,c.bounds.right,c.bounds.bottom],"label":label,
             "description":c.label,"hint":if c.role=="edit"{c.label.as_str()}else{""},"hintShowing":c.role=="edit" && a.editor.text.is_empty(),"role":c.role,"state":c.summary,"enabled":c.enabled,"pressed":false,"selected":c.selected,

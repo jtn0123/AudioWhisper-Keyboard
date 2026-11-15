@@ -145,6 +145,22 @@ fn each_back_stack_entry_keeps_its_own_scroll() {
 }
 
 #[test]
+fn scrolling_stops_being_offered_at_the_whole_pixel_end_the_screen_shows() {
+    let (mut a, mut text) = app("settings/clipboard");
+    a.scene(&mut text);
+    let max = a.max_scroll;
+    assert!(max > 1.0, "the clipboard screen scrolls at 480x640");
+    assert_eq!(a.can_scroll(), [false, true]);
+    // A fling that decays a fraction short of the end shows the end, as ScrollState's rounded
+    // value does.
+    a.set_scroll((max + 0.5).floor() - 0.4);
+    a.scene(&mut text);
+    assert_eq!(a.shown_scroll(), (a.max_scroll + 0.5).floor());
+    assert_eq!(a.can_scroll(), [true, false]);
+    a.set_scroll(max - 1.0);
+    assert_eq!(a.can_scroll(), [true, true]);
+}
+#[test]
 fn haptic_sliders_follow_the_vibrator_facts_like_input_feedback_screen() {
     let (mut a, _) = app("settings/keyboard/input-feedback");
     a.strings

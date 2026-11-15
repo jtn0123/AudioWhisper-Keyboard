@@ -201,6 +201,12 @@ impl App {
     pub fn shown_scroll(&self) -> f32 {
         shown(self.scroll())
     }
+    /// ScrollState's `canScrollBackward` and `canScrollForward`, over the whole-pixel position
+    /// it shows: a fling that stops a fraction short of the end shows the end, so it is there.
+    pub fn can_scroll(&self) -> [bool; 2] {
+        let at = self.shown_scroll();
+        [at > 0.0, at < shown(self.max_scroll)]
+    }
     pub fn set_scroll(&mut self, value: f32) {
         let v = value.clamp(0.0, self.max_scroll);
         if v != self.scroll() {
