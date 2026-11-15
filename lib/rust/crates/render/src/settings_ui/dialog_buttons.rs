@@ -10,9 +10,24 @@ use crate::{
 };
 use keys::Rect;
 impl App {
+    /// The neutral, dismiss and confirm labels: ListPreference and DialogSliderPreference's
+    /// default/cancel/ok, or the emoji history confirmation's no/yes with no neutral button.
+    pub(super) fn button_keys(&self) -> [&'static str; 3] {
+        let confirm = self.modal.as_ref().is_some_and(|m| {
+            matches!(self.rows()[m.row].kind, super::catalogue::Kind::Confirm(..))
+        });
+        if confirm {
+            ["", "action__no", "action__yes"]
+        } else {
+            ["action__default", "action__cancel", "action__ok"]
+        }
+    }
     pub(super) fn button_metrics(&self, width: f32, text: &mut Text) -> (f32, [f32; 3], f32) {
         let d = self.config[2];
-        let widths = ["action__default", "action__cancel", "action__ok"].map(|key| {
+        let widths = self.button_keys().map(|key| {
+            if key.is_empty() {
+                return 0.0;
+            }
             let label = self.button_label(text, &self.label(key));
             (label.width.ceil() + 2.0 * (12.0 * d).round()).max((58.0 * d).round())
         });
@@ -33,10 +48,11 @@ impl App {
         let [left, bottom, width, height] = area;
         let px = |dp: f32| (dp * self.config[2]).round();
         let y = bottom - px(8.0) - height;
-        vec![
+        let [neutral, dismiss, confirm] = self.button_keys();
+        let mut buttons = vec![
             (
                 5,
-                "action__default",
+                neutral,
                 Action::Default,
                 left + px(16.0),
                 bottom - footer + px(16.0),
@@ -44,7 +60,7 @@ impl App {
             ),
             (
                 6,
-                "action__cancel",
+                dismiss,
                 Action::Cancel,
                 left + width - px(16.0) - widths[2] - px(8.0) - widths[1],
                 y,
@@ -52,13 +68,15 @@ impl App {
             ),
             (
                 7,
-                "action__ok",
+                confirm,
                 Action::Confirm,
                 left + width - px(16.0) - widths[2],
                 y,
                 widths[2],
             ),
-        ]
+        ];
+        buttons.retain(|b| !b.1.is_empty());
+        buttons
     }
     /// labelLarge: 14/20 sp, medium weight, 0.1 sp tracking.
     fn button_label(

@@ -1,7 +1,4 @@
-use super::{
-    Action, App, Modal,
-    catalogue::{KEYBOARD, Kind},
-};
+use super::{Action, App, Modal, catalogue::Kind};
 use crate::{panel_scroll::Fling, touch::Motion};
 impl App {
     pub fn activate(&mut self, id: i32) -> bool {
@@ -25,7 +22,7 @@ impl App {
                 self.effects.push(vec!["editor".into()]);
             }
             Action::Switch(i) => {
-                let key = KEYBOARD[i].switch;
+                let key = self.rows()[i].switch;
                 self.write(key, (!self.yes(key)).to_string());
             }
             Action::ModalSwitch => {
@@ -34,20 +31,21 @@ impl App {
                 }
             }
             Action::Row(i) => {
-                let r = KEYBOARD[i];
+                let r = self.rows()[i];
                 match r.kind {
                     Kind::Toggle => self.write(r.key, (!self.yes(r.key)).to_string()),
-                    Kind::Choice(_) | Kind::Slider(_, _) => {
+                    Kind::Choice(_) | Kind::Slider(_) | Kind::Confirm(..) => {
                         if self.editor.focused {
                             self.editor.focused = false;
                             self.editor.composing = None;
                             self.effects.push(vec!["hideEditor".into()]);
                         }
-                        let mut values = vec![self.value(r.key)];
-                        if let Kind::Slider(second, _) = r.kind
-                            && !second.is_empty()
-                        {
-                            values.push(self.value(second));
+                        let mut values = vec![];
+                        if let Kind::Slider(s) = r.kind {
+                            values.push(self.value(r.key));
+                            if !s.second.is_empty() {
+                                values.push(self.value(s.second));
+                            }
                         }
                         self.scrollbar_start[1] = -1;
                         self.scrollbar_last[1] = -1;
@@ -74,7 +72,7 @@ impl App {
             }
             Action::Confirm => {
                 if let Some(m) = self.modal.take() {
-                    let r = KEYBOARD[m.row];
+                    let r = self.rows()[m.row];
                     match r.kind {
                         Kind::Choice(_) => {
                             self.write(r.key, m.selected);
@@ -82,12 +80,15 @@ impl App {
                                 self.write(r.switch, m.enabled.to_string());
                             }
                         }
-                        Kind::Slider(second, _) => {
+                        Kind::Slider(s) => {
                             self.write(r.key, m.values[0].clone());
-                            if !second.is_empty() {
-                                self.write(second, m.values[1].clone());
+                            if !s.second.is_empty() {
+                                self.write(s.second, m.values[1].clone());
                             }
                         }
+                        Kind::Confirm(which, _) => self
+                            .effects
+                            .push(vec!["deleteEmojiHistory".into(), which.into()]),
                         _ => {}
                     }
                 }
@@ -95,15 +96,15 @@ impl App {
             }
             Action::Default => {
                 if let Some(m) = self.modal.take() {
-                    let r = KEYBOARD[m.row];
+                    let r = self.rows()[m.row];
                     self.reset(r.key);
                     if !r.switch.is_empty() {
                         self.reset(r.switch);
                     }
-                    if let Kind::Slider(second, _) = r.kind
-                        && !second.is_empty()
+                    if let Kind::Slider(s) = r.kind
+                        && !s.second.is_empty()
                     {
-                        self.reset(second);
+                        self.reset(s.second);
                     }
                 }
                 self.focus = -1;
@@ -113,14 +114,15 @@ impl App {
         true
     }
     pub fn set_slider(&mut self, slot: usize, value: f32) -> bool {
+        let rows = self.rows();
         let Some(m) = &mut self.modal else {
             return false;
         };
-        let r = KEYBOARD[m.row];
-        let Kind::Slider(second, _) = r.kind else {
+        let r = rows[m.row];
+        let Kind::Slider(s) = r.kind else {
             return false;
         };
-        let key = if slot == 0 { r.key } else { second };
+        let key = if slot == 0 { r.key } else { s.second };
         let Ok(p) = settings::catalogue::get(&settings::text(key)) else {
             return false;
         };
@@ -153,36 +155,73 @@ impl App {
             return false;
         };
         let m = self.modal.as_ref().unwrap();
-        let r = KEYBOARD[m.row];
-        let Kind::Slider(second, _) = r.kind else {
+        let r = self.rows()[m.row];
+        let Kind::Slider(s) = r.kind else {
             return false;
         };
-        let p = settings::catalogue::get(&settings::text(if slot == 0 { r.key } else { second }))
+        let p = settings::catalogue::get(&settings::text(if slot == 0 { r.key } else { s.second }))
             .unwrap();
-        self.set_slider(
+        let changed = self.set_slider(
             slot,
             range[2] + direction * p.step.parse::<f32>().unwrap_or(1.0),
-        )
+        );
+        // M3's slider ends a key press with onValueChangeFinished.
+        self.slider_finished(slot);
+        changed
+    }
+    /// `onValueChangeFinished`: JetPref previews the selected value, here as a vibrate plan
+    /// with the other haptic setting's stored value.
+    pub fn slider_finished(&mut self, slot: usize) {
+        let Some(m) = &self.modal else {
+            return;
+        };
+        let r = self.rows()[m.row];
+        let Kind::Slider(s) = r.kind else {
+            return;
+        };
+        let Some(value) = m.values.get(slot).filter(|_| s.preview).cloned() else {
+            return;
+        };
+        let [duration, strength] = [
+            "input_feedback__haptic_vibration_duration",
+            "input_feedback__haptic_vibration_strength",
+        ]
+        .map(|key| {
+            if key == r.key {
+                value.clone()
+            } else {
+                self.value(key)
+            }
+        });
+        self.effects
+            .push(vec!["vibrate".into(), duration, strength]);
     }
     pub fn focus_next(&mut self, reverse: bool) {
         let mut eligible = vec![];
         if let Some(m) = &self.modal {
-            if !KEYBOARD[m.row].switch.is_empty() {
+            let r = self.rows()[m.row];
+            if !r.switch.is_empty() {
                 eligible.push(8);
             }
-            match KEYBOARD[m.row].kind {
+            match r.kind {
                 Kind::Choice(_) => {
-                    eligible.extend((0..Self::choices(m.row).len()).map(|i| 3000 + i as i32))
+                    eligible.extend((0..self.choices(m.row).len()).map(|i| 3000 + i as i32))
                 }
-                Kind::Slider(_, _) => eligible.extend((0..m.values.len()).map(|i| 4000 + i as i32)),
+                Kind::Slider(_) => eligible.extend((0..m.values.len()).map(|i| 4000 + i as i32)),
                 _ => {}
             }
-            eligible.extend([5, 6, 7]);
+            if !matches!(r.kind, Kind::Confirm(..)) {
+                eligible.push(5);
+            }
+            eligible.extend([6, 7]);
         } else {
-            if self.screen_index() == 1 {
+            if !self.is_home() {
                 eligible.push(1);
-                for (i, row) in KEYBOARD.iter().enumerate() {
-                    if self.visible(i) && self.enabled(i) && !matches!(row.kind, Kind::Heading) {
+                for (i, row) in self.rows().iter().enumerate() {
+                    if self.visible(i)
+                        && self.enabled(i)
+                        && !matches!(row.kind, Kind::Heading | Kind::Fixed)
+                    {
                         eligible.push(1000 + i as i32);
                         if !row.switch.is_empty() {
                             eligible.push(2000 + i as i32);
@@ -317,6 +356,15 @@ impl App {
                 }
                 self.last = (x, y);
             } else if e.action == 1 {
+                let slider = self.down.and_then(|(id, ..)| {
+                    self.controls
+                        .iter()
+                        .find(|c| c.id == id)
+                        .and_then(|c| match c.action {
+                            Action::Slider(slot) => Some(slot),
+                            _ => None,
+                        })
+                });
                 if let Some((id, _, _, _)) = self.down.take() {
                     if self.dragging {
                         self.velocity.up(t.div_euclid(1_000_000));
@@ -344,6 +392,9 @@ impl App {
                             self.activate(id);
                         }
                     }
+                }
+                if let Some(slot) = slider {
+                    self.slider_finished(slot);
                 }
                 self.dragging = false;
             }

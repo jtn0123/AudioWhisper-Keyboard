@@ -1,7 +1,4 @@
-use super::{
-    Action, App, Control,
-    catalogue::{KEYBOARD, Kind},
-};
+use super::{Action, App, Control, catalogue::Kind};
 use crate::{
     panels::{Panel, rect},
     text::Text,
@@ -9,7 +6,7 @@ use crate::{
 impl App {
     pub(super) fn dialog(&mut self, p: &mut Panel, text: &mut Text) {
         let m = self.modal.as_ref().unwrap().clone();
-        let r = KEYBOARD[m.row];
+        let r = self.rows()[m.row];
         let [w, h, d, _] = self.config;
         let window = if self.dialog_window_width > 0.0 {
             self.dialog_window_width
@@ -23,7 +20,11 @@ impl App {
         let left = (w - width) / 2.0;
         let padding = if h < 600.0 * d { 8.0 * d } else { 32.0 * d };
         let (button_height, button_widths, footer) = self.button_metrics(width, text);
-        let title = self.label(r.label);
+        let title = self.label(if matches!(r.kind, Kind::Confirm(..)) {
+            "action__reset_confirm_title"
+        } else {
+            r.label
+        });
         let title_width = width
             - if r.switch.is_empty() {
                 48.0 * d
@@ -89,7 +90,7 @@ impl App {
         }
         match r.kind {
             Kind::Choice(_) => {
-                for (j, choice) in Self::choices(m.row).iter().enumerate() {
+                for (j, choice) in self.choices(m.row).iter().enumerate() {
                     let (label, summary, rh) = rows[j].clone();
                     self.add(
                         p,
@@ -111,9 +112,9 @@ impl App {
                     y += rh;
                 }
             }
-            Kind::Slider(second, _) => {
+            Kind::Slider(s) => {
                 for (slot, value) in m.values.iter().enumerate() {
-                    let key = if slot == 0 { r.key } else { second };
+                    let key = if slot == 0 { r.key } else { s.second };
                     let pref = settings::catalogue::get(&settings::text(key)).unwrap();
                     let (orientation, value_label, row_height) = &rows[slot];
                     y += if slot == 0 { 8.0 } else { 16.0 } * d;
@@ -173,6 +174,18 @@ impl App {
                     );
                     y += 48.0 * d;
                 }
+            }
+            Kind::Confirm(..) => {
+                let (message, _, rh) = &rows[0];
+                self.paint_text(
+                    p,
+                    message,
+                    rect(left + 24.0 * d, y, width - 48.0 * d, *rh),
+                    self.sp(16),
+                    self.colors[2],
+                    clip,
+                );
+                y += rh;
             }
             _ => {}
         }

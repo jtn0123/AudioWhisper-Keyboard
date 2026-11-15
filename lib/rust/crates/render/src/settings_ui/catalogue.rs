@@ -1,11 +1,73 @@
-//! Settings screen descriptions. Defaults, ranges and enum membership remain in settings.
+//! Settings screen descriptions, as data: each FlorisScreen's rows in source order with their
+//! enabledIf/visibleIf conditions. Defaults, ranges and enum membership remain in settings.
+mod clipboard;
+mod gestures;
+mod input_feedback;
+mod keyboard;
+mod media;
+mod smartbar;
+pub use keyboard::KEYBOARD;
+
+/// A JetPref `enabledIf` / `visibleIf` lambda over stored preferences and device facts.
+#[derive(Clone, Copy, Debug)]
+pub enum Cond {
+    Always,
+    Never,
+    Yes(&'static str),
+    No(&'static str),
+    Is(&'static str, &'static str),
+    Not(&'static str, &'static str),
+    Any(&'static [Cond]),
+    All(&'static [Cond]),
+    /// `vibrator != null && vibrator.hasVibrator()`.
+    Vibrator,
+    /// `vibrator.hasAmplitudeControl()`.
+    Amplitude,
+}
+/// One `listPrefEntries` entry: stored value, label and description string keys.
+pub type Entry = (&'static str, &'static str, &'static str);
+#[derive(Clone, Copy, Debug)]
+pub struct Choices {
+    pub entries: &'static [Entry],
+    /// `showDescriptionOnlyIfSelected`.
+    pub selected_only: bool,
+    /// A label template's `{emoji}` argument per entry (EmojiSkinTone), or empty.
+    pub emoji: &'static [&'static str],
+}
+/// How a DialogSliderPreference's `valueLabel` shows a value.
+#[derive(Clone, Copy, Debug)]
+pub struct Unit {
+    /// A `{v}` string key, a plurals key when `plural`, or empty for the bare number.
+    pub key: &'static str,
+    pub plural: bool,
+    /// The label shown instead at value 0 (`general__auto`, `general__unlimited`), or empty.
+    pub zero: &'static str,
+}
+#[derive(Clone, Copy, Debug)]
+pub struct Slider {
+    /// The secondary preference of a dual slider, or empty.
+    pub second: &'static str,
+    pub unit: Unit,
+    /// `primaryLabel` / `secondaryLabel` string keys of a dual slider.
+    pub labels: [&'static str; 2],
+    /// The summary replaces the value when the vibrator facts are missing: 0 never, 1 without
+    /// a vibrator, 2 also without amplitude control.
+    pub hardware: u8,
+    /// `onPreviewSelectedValue` vibrates with the selected value.
+    pub preview: bool,
+}
 #[derive(Clone, Copy, Debug)]
 pub enum Kind {
     Heading,
     Toggle,
-    Choice(&'static str),
-    Slider(&'static str, &'static str),
+    Choice(&'static Choices),
+    Slider(&'static Slider),
     Route(&'static str),
+    /// A plain Preference whose onClick asks to confirm an effect: (effect argument, message
+    /// `{name}` argument string key).
+    Confirm(&'static str, &'static str),
+    /// A disabled Preference with a disabled, checked trailing switch.
+    Fixed,
 }
 #[derive(Clone, Copy, Debug)]
 pub struct Row {
@@ -13,22 +75,110 @@ pub struct Row {
     pub label: &'static str,
     pub summary: &'static str,
     pub kind: Kind,
+    /// A ListPreference's `switchPref`, or empty.
     pub switch: &'static str,
+    /// `summarySwitchDisabled`'s string key.
+    pub off: &'static str,
+    /// A leading icon name, or empty.
+    pub icon: &'static str,
+    pub enabled: Cond,
+    pub visible: Cond,
 }
-const fn row(
+pub(super) const fn row(
     key: &'static str,
     label: &'static str,
     summary: &'static str,
     kind: Kind,
-    switch: &'static str,
 ) -> Row {
     Row {
         key,
         label,
         summary,
         kind,
-        switch,
+        switch: "",
+        off: "state__disabled",
+        icon: "",
+        enabled: Cond::Always,
+        visible: Cond::Always,
     }
+}
+impl Row {
+    pub(super) const fn on(mut self, enabled: Cond) -> Self {
+        self.enabled = enabled;
+        self
+    }
+    pub(super) const fn shown(mut self, visible: Cond) -> Self {
+        self.visible = visible;
+        self
+    }
+    pub(super) const fn linked(mut self, switch: &'static str, off: &'static str) -> Self {
+        self.switch = switch;
+        self.off = off;
+        self
+    }
+    pub(super) const fn icon(mut self, icon: &'static str) -> Self {
+        self.icon = icon;
+        self
+    }
+}
+pub(super) const fn toggle(key: &'static str, label: &'static str, summary: &'static str) -> Row {
+    row(key, label, summary, Kind::Toggle)
+}
+pub(super) const fn heading(label: &'static str) -> Row {
+    row(label, label, "", Kind::Heading)
+}
+pub(super) const fn list(key: &'static str, label: &'static str, choices: &'static Choices) -> Row {
+    row(key, label, "", Kind::Choice(choices))
+}
+pub(super) const fn slider(key: &'static str, label: &'static str, s: &'static Slider) -> Row {
+    row(key, label, "", Kind::Slider(s))
+}
+pub(super) const fn entries(entries: &'static [Entry]) -> Choices {
+    Choices {
+        entries,
+        selected_only: false,
+        emoji: &[],
+    }
+}
+pub(super) const fn unit(key: &'static str) -> Unit {
+    Unit {
+        key,
+        plural: false,
+        zero: "",
+    }
+}
+pub(super) const fn plural(key: &'static str, zero: &'static str) -> Unit {
+    Unit {
+        key,
+        plural: true,
+        zero,
+    }
+}
+pub(super) const fn single(unit: Unit) -> Slider {
+    Slider {
+        second: "",
+        unit,
+        labels: ["", ""],
+        hardware: 0,
+        preview: false,
+    }
+}
+pub(super) const fn dual(second: &'static str, unit: Unit, labels: [&'static str; 2]) -> Slider {
+    Slider {
+        second,
+        unit,
+        labels,
+        hardware: 0,
+        preview: false,
+    }
+}
+/// A FlorisScreen: its route, title, `iconSpaceReserved` and content rows.
+#[derive(Debug)]
+pub struct Screen {
+    pub route: &'static str,
+    pub title: &'static str,
+    pub icon_space: bool,
+    pub rows: &'static [Row],
 }
 pub const HOME: &[(&str, &str)] = &[
     ("settings/localization", "settings__localization__title"),
@@ -44,175 +194,26 @@ pub const HOME: &[(&str, &str)] = &[
     ("settings/other", "settings__other__title"),
     ("settings/about", "about__title"),
 ];
-pub const KEYBOARD: &[Row] = &[
-    row(
-        "keyboard__rust_renderer_prototype",
-        "pref__keyboard__rust_renderer_prototype__label",
-        "pref__keyboard__rust_renderer_prototype__summary",
-        Kind::Toggle,
-        "",
-    ),
-    row(
-        "keyboard__number_row",
-        "pref__keyboard__number_row__label",
-        "pref__keyboard__number_row__summary",
-        Kind::Toggle,
-        "",
-    ),
-    row(
-        "keyboard__hinted_number_row_mode",
-        "pref__keyboard__hinted_number_row_mode__label",
-        "",
-        Kind::Choice("key_hint_mode"),
-        "keyboard__hinted_number_row_enabled",
-    ),
-    row(
-        "keyboard__hinted_symbols_mode",
-        "pref__keyboard__hinted_symbols_mode__label",
-        "",
-        Kind::Choice("key_hint_mode"),
-        "keyboard__hinted_symbols_enabled",
-    ),
-    row(
-        "keyboard__utility_key_enabled",
-        "pref__keyboard__utility_key_enabled__label",
-        "pref__keyboard__utility_key_enabled__summary",
-        Kind::Toggle,
-        "",
-    ),
-    row(
-        "keyboard__utility_key_action",
-        "pref__keyboard__utility_key_action__label",
-        "",
-        Kind::Choice("utility_key_action"),
-        "",
-    ),
-    row(
-        "keyboard__space_bar_display_mode",
-        "pref__keyboard__space_bar_mode__label",
-        "",
-        Kind::Choice("space_bar_mode"),
-        "",
-    ),
-    row(
-        "keyboard__capitalization_behavior",
-        "pref__keyboard__capitalization_behavior__label",
-        "",
-        Kind::Choice("capitalization_behavior"),
-        "",
-    ),
-    row(
-        "keyboard__font_size_multiplier_portrait",
-        "pref__keyboard__font_size_multiplier__label",
-        "",
-        Kind::Slider(
-            "keyboard__font_size_multiplier_landscape",
-            "unit__percent__symbol",
-        ),
-        "",
-    ),
-    row(
-        "keyboard__incognito_indicator",
-        "pref__keyboard__incognito_indicator__label",
-        "",
-        Kind::Choice("incognito_display_mode"),
-        "",
-    ),
-    row(
-        "pref__keyboard__group_layout__label",
-        "pref__keyboard__group_layout__label",
-        "",
-        Kind::Heading,
-        "",
-    ),
-    row(
-        "keyboard__one_handed_mode",
-        "pref__keyboard__one_handed_mode__label",
-        "",
-        Kind::Choice("one_handed_mode"),
-        "keyboard__one_handed_mode_enabled",
-    ),
-    row(
-        "keyboard__one_handed_mode_scale_factor",
-        "pref__keyboard__one_handed_mode_scale_factor__label",
-        "",
-        Kind::Slider("", "unit__percent__symbol"),
-        "",
-    ),
-    row(
-        "keyboard__landscape_input_ui_mode",
-        "pref__keyboard__landscape_input_ui_mode__label",
-        "",
-        Kind::Choice("landscape_input_ui_mode"),
-        "",
-    ),
-    row(
-        "keyboard__height_factor_portrait",
-        "pref__keyboard__height_factor__label",
-        "",
-        Kind::Slider("keyboard__height_factor_landscape", "unit__percent__symbol"),
-        "",
-    ),
-    row(
-        "keyboard__key_spacing_vertical",
-        "pref__keyboard__key_spacing__label",
-        "",
-        Kind::Slider(
-            "keyboard__key_spacing_horizontal",
-            "unit__display_pixel__symbol",
-        ),
-        "",
-    ),
-    row(
-        "keyboard__bottom_offset_portrait",
-        "pref__keyboard__bottom_offset__label",
-        "",
-        Kind::Slider(
-            "keyboard__bottom_offset_landscape",
-            "unit__display_pixel__symbol",
-        ),
-        "",
-    ),
-    row(
-        "pref__keyboard__group_keypress__label",
-        "pref__keyboard__group_keypress__label",
-        "",
-        Kind::Heading,
-        "",
-    ),
-    row(
-        "settings__input_feedback__title",
-        "settings__input_feedback__title",
-        "",
-        Kind::Route("settings/keyboard/input-feedback"),
-        "",
-    ),
-    row(
-        "keyboard__popup_enabled",
-        "pref__keyboard__popup_enabled__label",
-        "pref__keyboard__popup_enabled__summary",
-        Kind::Toggle,
-        "",
-    ),
-    row(
-        "keyboard__merge_hint_popups_enabled",
-        "pref__keyboard__merge_hint_popups_enabled__label",
-        "pref__keyboard__merge_hint_popups_enabled__summary",
-        Kind::Toggle,
-        "",
-    ),
-    row(
-        "keyboard__long_press_delay",
-        "pref__keyboard__long_press_delay__label",
-        "",
-        Kind::Slider("", "unit__milliseconds__symbol"),
-        "",
-    ),
-    row(
-        "keyboard__space_bar_switches_to_characters",
-        "pref__keyboard__space_bar_switches_to_characters__label",
-        "pref__keyboard__space_bar_switches_to_characters__summary",
-        Kind::Toggle,
-        "",
-    ),
+pub const HOME_ROUTE: &str = "settings/home";
+pub const SCREENS: &[Screen] = &[
+    keyboard::SCREEN,
+    input_feedback::SCREEN,
+    smartbar::SCREEN,
+    gestures::SCREEN,
+    clipboard::SCREEN,
+    media::SCREEN,
 ];
+/// The native screen at `route`, if Rust draws it.
+pub fn screen(route: &str) -> Option<&'static Screen> {
+    SCREENS.iter().find(|s| s.route == route)
+}
+/// Every route Rust draws: home, then [`SCREENS`].
+pub fn native_routes() -> Vec<&'static str> {
+    std::iter::once(HOME_ROUTE)
+        .chain(SCREENS.iter().map(|s| s.route))
+        .collect()
+}
+/// Whether `route` is drawn natively: home or one of [`SCREENS`].
+pub fn native(route: &str) -> bool {
+    route == HOME_ROUTE || screen(route).is_some()
+}

@@ -6,7 +6,7 @@ use crate::{
 };
 use jni_sys::{JNIEnv, jclass, jfloatArray, jint, jintArray, jlong, jlongArray, jobjectArray};
 use render::{
-    settings_ui::{Action, App},
+    settings_ui::{Action, App, catalogue},
     touch::Motion,
 };
 use serde_json::json;
@@ -142,6 +142,9 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_settings(
                         colors[12] = field(&p, 52)?
                             .parse()
                             .map_err(|_| illegal("settings scrolled color"))?;
+                    }
+                    if p.len() > 54 {
+                        a.vibrator = [field(&p, 53)? == "true", field(&p, 54)? == "true"];
                     }
                     a.config = c;
                     a.colors = colors;
@@ -297,7 +300,18 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_settings(
                         && let Action::Slider(slot) = c.action
                     {
                         a.set_slider(slot, v);
+                        // M3's setProgress semantics action ends with onValueChangeFinished.
+                        a.slider_finished(slot);
                     }
+                }
+                16 => {
+                    query = settings::text(&App::plural_requests().join("\n"));
+                }
+                18 => {
+                    query = settings::text(&App::string_keys().join("\n"));
+                }
+                19 => {
+                    query = settings::text(&catalogue::native_routes().join("\n"));
                 }
                 17 => {
                     let id = int(&p, 0)?;

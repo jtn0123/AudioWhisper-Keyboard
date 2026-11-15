@@ -1,16 +1,21 @@
 //! Versioned saved-state transport. No preference values or native handles are restored.
 use render::settings_ui::{
     App, Modal,
-    catalogue::{KEYBOARD, Kind},
+    catalogue::{self, Kind},
 };
 use settings::{Text, text};
 pub fn save(a: &App) -> Vec<Text> {
     let m = a.modal.as_ref();
     vec![
-        text("1"),
+        text("2"),
         text(&a.stack.join("|")),
-        text(&a.scrolls[0].to_string()),
-        text(&a.scrolls[1].to_string()),
+        text(
+            &a.scrolls
+                .iter()
+                .map(f32::to_string)
+                .collect::<Vec<_>>()
+                .join("|"),
+        ),
         text(&m.map_or(-1, |m| m.row as i32).to_string()),
         text(&m.map_or(String::new(), |m| m.selected.clone())),
         text(&m.map_or(String::new(), |m| m.values.join("|"))),
@@ -26,13 +31,13 @@ pub fn save(a: &App) -> Vec<Text> {
     ]
 }
 pub fn restore(a: &mut App, packet: &[Text]) -> Result<(), &'static str> {
-    if packet.len() != 16 || packet[0] != text("1") || packet[8].len() > 65_536 {
+    if packet.len() != 15 || packet[0] != text("2") || packet[7].len() > 65_536 {
         return Err("settings saved state version or size");
     }
     let p: Vec<_> = packet.iter().map(|s| String::from_utf16_lossy(s)).collect();
     let number = |i: usize| p[i].parse::<i32>().map_err(|_| "settings saved integer");
-    let float = |i: usize| {
-        p[i].parse::<f32>()
+    let finite = |s: &str| {
+        s.parse::<f32>()
             .ok()
             .filter(|v| v.is_finite() && *v >= 0.0)
             .ok_or("settings saved scroll")
@@ -42,52 +47,65 @@ pub fn restore(a: &mut App, packet: &[Text]) -> Result<(), &'static str> {
         || stack.len() > 32
         || stack
             .iter()
-            .any(|r| !matches!(r.as_str(), "settings/home" | "settings/keyboard"))
+            .enumerate()
+            .any(|(i, r)| !catalogue::native(r) || (i == 0) != (r == catalogue::HOME_ROUTE))
     {
         return Err("settings saved route");
     }
-    let scrolls = [float(2)?, float(3)?];
-    let row = number(4)?;
+    let scrolls = p[2].split('|').map(finite).collect::<Result<Vec<_>, _>>()?;
+    if scrolls.len() != stack.len() {
+        return Err("settings saved scrolls");
+    }
+    let rows = catalogue::screen(stack.last().unwrap()).map_or(&[][..], |s| s.rows);
+    let row = number(3)?;
     let modal = if row < 0 {
         None
     } else {
         let row = row as usize;
-        let r = KEYBOARD.get(row).ok_or("settings saved modal")?;
-        let values: Vec<_> = p[6].split('|').map(String::from).collect();
-        match r.kind {
-            Kind::Choice(_) if App::choices(row).contains(&p[5]) && values.len() == 1 => {}
-            Kind::Slider(second, _)
-                if values.len() == if second.is_empty() { 1 } else { 2 }
+        let r = rows.get(row).ok_or("settings saved modal")?;
+        let values: Vec<_> = p[5].split('|').map(String::from).collect();
+        let choices: Vec<_> = match r.kind {
+            Kind::Choice(c) => c.entries.iter().map(|e| e.0).collect(),
+            _ => vec![],
+        };
+        let values = match r.kind {
+            Kind::Choice(_) if choices.contains(&p[4].as_str()) && values.len() == 1 => values,
+            Kind::Slider(s)
+                if values.len() == if s.second.is_empty() { 1 } else { 2 }
                     && values
                         .iter()
-                        .all(|s| s.parse::<f32>().is_ok_and(f32::is_finite)) => {}
+                        .all(|s| s.parse::<f32>().is_ok_and(f32::is_finite)) =>
+            {
+                values
+            }
+            Kind::Confirm(..) if p[5].is_empty() => vec![],
             _ => return Err("settings saved modal values"),
-        }
+        };
         Some(Modal {
             row,
-            selected: p[5].clone(),
+            selected: p[4].clone(),
             values,
-            scroll: float(7)?,
-            enabled: p[15].parse().map_err(|_| "settings saved switch")?,
+            scroll: finite(&p[6])?,
+            enabled: p[14].parse().map_err(|_| "settings saved switch")?,
         })
     };
-    let (anchor, focus) = (number(9)?, number(10)?);
-    let (start, end) = (number(11)?, number(12)?);
+    let (anchor, focus) = (number(8)?, number(9)?);
+    let (start, end) = (number(10)?, number(11)?);
     if anchor < 0
         || focus < 0
-        || anchor as usize > packet[8].len()
-        || focus as usize > packet[8].len()
+        || anchor as usize > packet[7].len()
+        || focus as usize > packet[7].len()
         || !((start == -1 && end == -1)
-            || (start >= 0 && end >= start && end as usize <= packet[8].len()))
+            || (start >= 0 && end >= start && end as usize <= packet[7].len()))
     {
         return Err("settings saved editor bounds");
     }
-    let focused = p[13].parse::<bool>().map_err(|_| "settings saved focus")?;
-    let id = number(14)?;
+    let focused = p[12].parse::<bool>().map_err(|_| "settings saved focus")?;
+    let id = number(13)?;
     a.stack = stack;
     a.scrolls = scrolls;
     a.modal = modal;
-    a.editor.text = packet[8].clone();
+    a.editor.text = packet[7].clone();
     a.editor.anchor = anchor as usize;
     a.editor.focus = focus as usize;
     a.editor.composing = (start >= 0).then_some((start as usize, end as usize));

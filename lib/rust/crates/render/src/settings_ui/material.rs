@@ -4,11 +4,7 @@ use crate::panels::{Panel, rect};
 use keys::Rect;
 impl App {
     pub fn header_color(&self) -> u32 {
-        self.colors[if self.scrolls[self.screen_index()] > 0.0 {
-            12
-        } else {
-            0
-        }]
+        self.colors[if self.screen_scroll() > 0.0 { 12 } else { 0 }]
     }
     pub fn system_bar_color(&self) -> u32 {
         if self.modal.is_none() {

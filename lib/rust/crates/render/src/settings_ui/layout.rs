@@ -1,6 +1,6 @@
 use super::{
     Action, App, Control,
-    catalogue::{HOME, KEYBOARD, Kind},
+    catalogue::{HOME, Kind},
 };
 use crate::{
     panels::{Panel, rect},
@@ -106,6 +106,23 @@ impl App {
             fitted.pop();
         }
     }
+    /// A screen row's text insets, left and right: the icon space (56 dp, or 16 dp without
+    /// `iconSpaceReserved`), and the trailing switch or linked-list switch with its divider.
+    pub(super) fn row_insets(&self, i: usize) -> [f32; 2] {
+        let d = self.config[2];
+        let left = if self.screen().is_none_or(|s| s.icon_space) {
+            56.0
+        } else {
+            16.0
+        };
+        let r = &self.rows()[i];
+        let right = match r.kind {
+            Kind::Choice(_) if !r.switch.is_empty() => 88.0,
+            Kind::Toggle | Kind::Fixed => 80.0,
+            _ => 16.0,
+        };
+        [left * d, right * d]
+    }
     pub fn scene(&mut self, text: &mut Text) -> Scene {
         self.scene_pass(text, true)
     }
@@ -117,16 +134,8 @@ impl App {
         let old_scroll = self.scroll();
         // Paint the underlying screen from its own scroll and styling state.
         let modal = self.modal.take();
-        let title = self.label(if self.screen_index() == 0 {
-            "settings__home__title"
-        } else {
-            "settings__keyboard__title"
-        });
-        let title_left = if self.screen_index() == 0 {
-            16.0 * d
-        } else {
-            56.0 * d
-        };
+        let title = self.label(self.screen().map_or("settings__home__title", |s| s.title));
+        let title_left = if self.is_home() { 16.0 * d } else { 56.0 * d };
         let header = (64.0 * d)
             .max(self.measure(text, &title, self.sp(22), w - title_left - 16.0 * d) + 16.0 * d);
         let footer = 56.0 * d;
@@ -150,7 +159,7 @@ impl App {
             range: None,
         });
         let mut y = header - self.shown_scroll();
-        if self.screen_index() == 0 {
+        if self.is_home() {
             if !self.ime_enabled || !self.ime_selected {
                 let label = self.label(if self.ime_enabled {
                     "settings__home__ime_not_selected"
@@ -206,45 +215,14 @@ impl App {
                 y += rh;
             }
         } else {
-            for (i, r) in KEYBOARD.iter().enumerate() {
+            for (i, r) in self.rows().iter().enumerate() {
                 if !self.visible(i) {
                     continue;
                 }
-                let summary = match r.kind {
-                    Kind::Choice(_) if !r.switch.is_empty() && !self.yes(r.switch) => {
-                        self.label("state__disabled")
-                    }
-                    Kind::Choice(_) => self.choice_label(i, &self.value(r.key)),
-                    Kind::Slider(second, unit) => {
-                        let first = self.label(unit).replace("{v}", &self.value(r.key));
-                        if second.is_empty() {
-                            first
-                        } else {
-                            format!(
-                                "{first} / {}",
-                                self.label(unit).replace("{v}", &self.value(second))
-                            )
-                        }
-                    }
-                    _ => {
-                        if r.summary.is_empty() {
-                            String::new()
-                        } else {
-                            self.label(r.summary)
-                        }
-                    }
-                };
+                let summary = self.summary(i);
                 let label = self.label(r.label);
                 // Match widgets::add's icon/text/switch bounds when measuring wrapped rows.
-                let width = w - if matches!(r.kind, Kind::Heading) {
-                    72.0 * d
-                } else if !r.switch.is_empty() {
-                    144.0 * d
-                } else if matches!(r.kind, Kind::Toggle) {
-                    136.0 * d
-                } else {
-                    72.0 * d
-                };
+                let width = w - self.row_insets(i).iter().sum::<f32>();
                 let drawn_label = self.row_text(text, &label, self.sp(16), width, 1);
                 let drawn_summary = self.row_text(text, &summary, self.sp(14), width, 2);
                 let rh = if matches!(r.kind, Kind::Heading) {
@@ -279,7 +257,7 @@ impl App {
                     _ => "button",
                 };
                 let action = match r.kind {
-                    Kind::Heading => Action::None,
+                    Kind::Heading | Kind::Fixed => Action::None,
                     Kind::Route(route) => Action::Route(route.into()),
                     _ => Action::Row(i),
                 };
@@ -343,7 +321,7 @@ impl App {
         }
         self.paint_scrollbar(&mut p, viewport);
         self.paint_box(&mut p, rect(0.0, 0.0, w, header), self.header_color(), 0.0);
-        if self.screen_index() != 0 {
+        if !self.is_home() {
             self.add(
                 &mut p,
                 Control {
@@ -362,7 +340,7 @@ impl App {
                 text,
             );
         }
-        let left = if self.screen_index() == 0 { 16.0 } else { 56.0 } * d;
+        let left = if self.is_home() { 16.0 } else { 56.0 } * d;
         self.paint_text(
             &mut p,
             &title,

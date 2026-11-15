@@ -8,10 +8,11 @@ mod events;
 mod field;
 mod layout;
 mod material;
+mod rows;
+pub use rows::CODE_KEYS;
 mod scrollbar;
 mod widgets;
 use crate::panel_scroll::Fling;
-use catalogue::{KEYBOARD, Kind};
 use editor::Editor;
 use keys::Rect;
 use std::collections::BTreeMap;
@@ -56,7 +57,8 @@ pub struct Modal {
 #[derive(Debug)]
 pub struct App {
     pub stack: Vec<String>,
-    pub scrolls: [f32; 2],
+    /// Each back-stack entry's own ScrollState, parallel to `stack`.
+    pub scrolls: Vec<f32>,
     pub modal: Option<Modal>,
     pub prefs: BTreeMap<String, String>,
     pub strings: BTreeMap<String, String>,
@@ -81,6 +83,8 @@ pub struct App {
     pub back_progress: f32,
     pub ime_enabled: bool,
     pub ime_selected: bool,
+    /// `hasVibrator()` and `hasAmplitudeControl()`.
+    pub vibrator: [bool; 2],
     pub effects: Vec<Vec<String>>,
     pub fling: Option<Fling>,
     pub down: Option<(i32, f32, f32, i64)>,
@@ -95,7 +99,7 @@ impl Default for App {
     fn default() -> Self {
         Self {
             stack: vec!["settings/home".into()],
-            scrolls: [0.0; 2],
+            scrolls: vec![0.0],
             modal: None,
             prefs: BTreeMap::new(),
             strings: BTreeMap::new(),
@@ -123,6 +127,7 @@ impl Default for App {
             back_progress: 0.0,
             ime_enabled: true,
             ime_selected: true,
+            vibrator: [false; 2],
             effects: vec![],
             fling: None,
             down: None,
@@ -147,39 +152,6 @@ impl App {
     pub fn label(&self, key: &str) -> String {
         self.strings.get(key).cloned().unwrap_or_else(|| key.into())
     }
-    pub fn visible(&self, i: usize) -> bool {
-        KEYBOARD[i].key != "keyboard__utility_key_action"
-            || self.yes("keyboard__utility_key_enabled")
-    }
-    pub fn enabled(&self, i: usize) -> bool {
-        match KEYBOARD[i].key {
-            "keyboard__hinted_number_row_mode" => !self.yes("keyboard__number_row"),
-            "keyboard__one_handed_mode_scale_factor" => {
-                self.yes("keyboard__one_handed_mode_enabled")
-            }
-            _ => true,
-        }
-    }
-    pub fn choices(i: usize) -> Vec<String> {
-        let p = settings::catalogue::get(&settings::text(KEYBOARD[i].key))
-            .expect("static settings key");
-        if p.key.starts_with("keyboard__hinted_") {
-            return ["ACCENT_PRIORITY", "HINT_PRIORITY", "SMART_PRIORITY"]
-                .map(String::from)
-                .into();
-        }
-        p.choices
-            .split('|')
-            .filter(|s| *s != "DISABLED")
-            .map(String::from)
-            .collect()
-    }
-    pub fn choice_label(&self, i: usize, choice: &str) -> String {
-        let Kind::Choice(prefix) = KEYBOARD[i].kind else {
-            return String::new();
-        };
-        self.label(&format!("enum__{prefix}__{}", choice.to_ascii_lowercase()))
-    }
     pub fn navigate(&mut self, route: &str) {
         self.fling = None;
         if self.editor.focused {
@@ -187,16 +159,18 @@ impl App {
             self.editor.composing = None;
             self.effects.push(vec!["hideEditor".into()]);
         }
-        if matches!(route, "settings/home" | "settings/keyboard") {
-            if route == "settings/home" {
+        if catalogue::native(route) {
+            if route == catalogue::HOME_ROUTE {
                 self.stack = vec![route.into()];
+                self.scrolls.truncate(1);
             } else if let Some(at) = self.stack.iter().position(|r| r == route) {
                 self.stack.truncate(at + 1);
+                self.scrolls.truncate(at + 1);
             } else {
                 // A pushed destination is a new back-stack entry: Compose gives it a fresh
                 // ScrollState, so it opens at the top whatever an earlier visit left.
                 self.stack.push(route.into());
-                self.scrolls[self.screen_index()] = 0.0;
+                self.scrolls.push(0.0);
             }
             self.modal = None;
             self.scrollbar_start[0] = -1;
@@ -205,16 +179,22 @@ impl App {
         } else if route == "@enable" {
             self.effects.push(vec!["enable".into()]);
         } else {
-            self.effects.push(vec!["compose".into(), route.into()]);
+            // The fallback hands back any destination Rust draws, so it is told which.
+            self.effects.push(vec![
+                "compose".into(),
+                route.into(),
+                catalogue::native_routes().join("|"),
+            ]);
         }
     }
-    pub fn screen_index(&self) -> usize {
-        usize::from(self.stack.last().is_some_and(|r| r == "settings/keyboard"))
+    /// The top back-stack entry's own scroll, whatever dialog is over it.
+    pub fn screen_scroll(&self) -> f32 {
+        self.scrolls.last().copied().unwrap_or(0.0)
     }
     pub fn scroll(&self) -> f32 {
         self.modal
             .as_ref()
-            .map_or(self.scrolls[self.screen_index()], |m| m.scroll)
+            .map_or(self.screen_scroll(), |m| m.scroll)
     }
     /// Where content sits: Compose's ScrollState and LazyListState move layout by whole pixels
     /// and carry the remainder, so they show round(position).
@@ -228,9 +208,8 @@ impl App {
         }
         if let Some(m) = &mut self.modal {
             m.scroll = v;
-        } else {
-            let i = self.screen_index();
-            self.scrolls[i] = v;
+        } else if let Some(scroll) = self.scrolls.last_mut() {
+            *scroll = v;
         }
     }
     pub fn write(&mut self, key: &str, value: String) {
@@ -254,6 +233,7 @@ impl App {
             self.effects.push(vec!["hideEditor".into()]);
         } else if self.stack.len() > 1 {
             self.stack.pop();
+            self.scrolls.pop();
             self.focus = -1;
         } else {
             self.effects.push(vec!["finish".into()]);

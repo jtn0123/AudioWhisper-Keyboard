@@ -1,4 +1,4 @@
-use super::{Action, App, Control};
+use super::{Action, App, Control, catalogue::Kind};
 use crate::{
     panels::{Command, Item, Panel, rect},
     style::Style,
@@ -85,26 +85,17 @@ impl App {
             self.paint_slider(p, &c, clip);
         } else {
             let only_switch = matches!(c.action, Action::Switch(_) | Action::ModalSwitch);
-            let is_home =
-                matches!(c.action, Action::Route(_)) && self.screen_index() == 0 && c.id >= 100;
+            let is_home = matches!(c.action, Action::Route(_)) && self.is_home() && c.id >= 100;
             let screen_row = (1000..3000).contains(&c.id) || is_home;
-            let left = b.left
-                + if c.role == "radio" {
-                    52.0
-                } else if screen_row {
-                    56.0
-                } else {
-                    16.0
-                } * d;
-            let right = b.right
-                - if matches!(c.action, Action::Row(i) if !super::catalogue::KEYBOARD[i].switch.is_empty())
-                {
-                    88.0 * d
-                } else if c.role == "toggle" && !only_switch {
-                    80.0 * d
-                } else {
-                    16.0 * d
-                };
+            let row = (1000..2000).contains(&c.id).then(|| (c.id - 1000) as usize);
+            let [inset_left, inset_right] = match row {
+                Some(i) => self.row_insets(i),
+                None if is_home => [56.0 * d, 16.0 * d],
+                None if c.role == "radio" => [52.0 * d, 16.0 * d],
+                None => [16.0 * d, 16.0 * d],
+            };
+            let left = b.left + inset_left;
+            let right = b.right - inset_right;
             let label = if screen_row {
                 self.row_text(text, &c.label, self.sp(16), right - left, 1)
             } else {
@@ -136,6 +127,21 @@ impl App {
                         24.0 * d,
                     ),
                     self.colors[2],
+                    clip,
+                );
+            }
+            if let Some(icon) = row.map(|i| self.rows()[i].icon).filter(|n| !n.is_empty()) {
+                // M3 ListItem's leading content: centred, or top-aligned in a three-line item.
+                let y = if self.multiline(sh) {
+                    b.top + 12.0 * d
+                } else {
+                    b.top + (b.height() - 24.0 * d) / 2.0
+                };
+                self.paint_icon(
+                    p,
+                    icon,
+                    rect(b.left + 16.0 * d, y, 24.0 * d, 24.0 * d),
+                    self.enabled_color(self.colors[2], c.enabled),
                     clip,
                 );
             }
@@ -173,7 +179,12 @@ impl App {
                     );
                 }
             }
-            if let Some(checked) = c.checked.filter(|_| c.role == "toggle") {
+            let fixed = row.is_some_and(|i| matches!(self.rows()[i].kind, Kind::Fixed));
+            if let Some(checked) = c
+                .checked
+                .filter(|_| c.role == "toggle")
+                .or(fixed.then_some(true))
+            {
                 self.paint_switch(
                     p,
                     if screen_row && self.multiline(sh) {
