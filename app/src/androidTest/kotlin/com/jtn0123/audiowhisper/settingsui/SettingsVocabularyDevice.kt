@@ -17,7 +17,13 @@ internal class SettingsVocabularyDevice(private val h: SettingsHarness) {
     fun run(report: JSONObject, info: EditorInfo, connection: InputConnection) {
         val saved = prefs.dictation.vocabulary
         val original = saved.get()
-        fun expect(value: String) = h.waitFor("vocabulary not saved") { saved.get() == value }
+        var step = 0
+        // A failure names the step and the lengths involved, never the text.
+        fun expect(value: String) = h.waitFor("vocabulary not saved at step ${++step}") {
+            report.put("vocabulary_step", step).put("vocabulary_expected_units", value.length)
+                .put("vocabulary_saved_units", saved.get().length)
+            saved.get() == value
+        }
         fun edit(value: String, operation: () -> Boolean) {
             h.main { check(operation()) }
             expect(value)

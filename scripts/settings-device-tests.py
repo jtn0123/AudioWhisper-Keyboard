@@ -137,7 +137,7 @@ def main():
                 # Passing excludes the named defects; acceptance does not, until each is fixed.
                 'acceptance_complete': accessibility_passed and not known['compose'], 'picker_presented': {k: r['system_ime_picker'] for k,r in reports.items()}, 'real_talkback_phone_session': 'owed'})
             for defect in known['compose']:
-                print(f"KNOWN DEFECT, OWED (Compose/Jetpref): {defect['name']} for {defect['for']!r}: {defect['occurrences']} audit node(s) on {', '.join(defect['screens'])}", flush=True)
+                print(f"KNOWN DEFECT, OWED (Compose): {defect['name']} for {defect['for']!r}: {defect['occurrences']} audit node(s) on {', '.join(defect['screens'])}", flush=True)
         if args.mode == 'metrics':
             run('metrics', 'compose')
         if args.mode in ('all', 'text'):
@@ -149,7 +149,9 @@ def main():
             vocabulary = {'compose': compose_report['vocabulary'], 'rust': rust_report['vocabulary']}
             d.save('vocabulary-field.json', vocabulary)
             assert vocabulary['compose'] == vocabulary['rust'], 'Vocabulary fields differ'
-            d.save('text-preference-parity.json', {'identical_bytes': compose_file == rust_file, 'compose_bytes': len(compose_file), 'rust_bytes': len(rust_file)})
+            d.save('text-preference-parity.json', {'identical_bytes': compose_file == rust_file, 'compose_bytes': len(compose_file), 'rust_bytes': len(rust_file),
+                # Key names only, as for the ui stage: the vocabulary value never enters a receipt.
+                'differing_keys': differing_keys(compose_file, rust_file)})
             assert compose_file == rust_file, 'Text-only preference files differ'
         if args.mode in ('all', 'death'):
             fixture('rust')

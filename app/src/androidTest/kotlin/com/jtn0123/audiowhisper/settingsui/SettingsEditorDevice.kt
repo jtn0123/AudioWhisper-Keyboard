@@ -3,6 +3,7 @@ package com.jtn0123.audiowhisper.settingsui
 import android.os.SystemClock
 import android.view.KeyEvent
 import android.view.MotionEvent
+import android.view.accessibility.AccessibilityNodeInfo as Node
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputConnection
 import org.json.JSONObject
@@ -103,14 +104,16 @@ internal class SettingsEditorDevice(private val h: SettingsHarness) {
     private fun vocabulary(report: JSONObject) {
         h.launch("settings/dictation")
         h.waitFor("dictation absent") { h.views(RustSettingsView::class.java).size == 1 && h.find("Remove filler words") != null }
+        // Tapped through accessibility, as the Compose path focuses its field: both bring up the
+        // IME, which stores Smartbar state of its own, so the two preference files stay comparable.
+        repeat(6) { if (h.nodes().count { it.isEditable } < 2) h.scroll(true) }
+        val bounds = { n: Node -> android.graphics.Rect().also(n::getBoundsInScreen) }
+        val field = checkNotNull(h.nodes().filter { it.isEditable }.takeIf { it.size == 2 }?.minBy { bounds(it).top })
+        check(field.performAction(Node.ACTION_CLICK))
+        h.waitFor("vocabulary field not focused") { var multiLine = false; h.main { multiLine = host().multiLine }; multiLine }
         val info = EditorInfo()
         lateinit var connection: InputConnection
-        h.main {
-            val view = host()
-            check(view.edit("focus", "1006"))
-            check(view.multiLine)
-            connection = checkNotNull(endpoint().onCreateInputConnection(info))
-        }
+        h.main { connection = checkNotNull(endpoint().onCreateInputConnection(info)) }
         SettingsVocabularyDevice(h).run(report, info, connection)
         h.main { check(host().edit("focus", "2") && !host().multiLine) }
     }
