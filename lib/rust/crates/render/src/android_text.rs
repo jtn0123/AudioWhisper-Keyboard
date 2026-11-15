@@ -27,11 +27,19 @@ pub fn layout_size(size: f32) -> f32 {
 }
 
 /// Hinted advance of one glyph: the base advance is whole pixels at the layout size (the
-/// TrueType interpreter's when the font is hinted, else the rounded linear advance), while the
-/// shaper's positioning adjustment (kerning) only scales to it.
+/// TrueType interpreter's when the font is hinted, else FreeType's rounded linear advance), while
+/// the shaper's positioning adjustment (kerning) only scales to it.
 pub fn advance(base: f32, hinted: Option<f32>, shaped: f32, size: f32) -> f32 {
     let k = layout_size(size) / size;
-    hinted.unwrap_or_else(|| (base * k).round()) + (shaped - base) * k
+    hinted.unwrap_or_else(|| pixel_round(base * k)) + (shaped - base) * k
+}
+
+/// FreeType's whole-pixel advance: the scaled advance is first a 26.6 fixed-point value
+/// (`FT_MulFix` rounds to 1/64 px), then `FT_PIX_ROUND` rounds that half up. So 22.497 px is
+/// 22.5 in 26.6 and becomes 23, where rounding the linear value would give 22 (Roboto's `e` at
+/// weight 500 and 42 px).
+pub fn pixel_round(px: f32) -> f32 {
+    ((px * 64.0).round() / 64.0 + 0.5).floor()
 }
 
 type Face = (u64, u32, u32, Vec<i16>);
@@ -249,9 +257,16 @@ fn shape_run(
         .map(|c| F2Dot14::from_bits(c.to_bits()))
         .collect();
     let font = run.font();
+    // FreeType adds a variable font's HVAR delta in whole font units (`FT_fixedToInt`).
     let metrics = skrifa::FontRef::from_index(font.data.as_ref(), font.index)
         .ok()
-        .map(|f| f.glyph_metrics(Size::new(size), LocationRef::new(&location)));
+        .map(|f| {
+            let upem = f
+                .metrics(Size::unscaled(), LocationRef::new(&location))
+                .units_per_em;
+            let units = f.glyph_metrics(Size::unscaled(), LocationRef::new(&location));
+            (units, size / f32::from(upem.max(1)))
+        });
     let k = layout_size(size) / size;
     for cluster in run.clusters() {
         // Parley splits a ligature into one cluster per character; Minikin spaces the
@@ -268,7 +283,9 @@ fn shape_run(
             .map(|g| {
                 let base = metrics
                     .as_ref()
-                    .and_then(|m| m.advance_width(GlyphId::new(g.id)))
+                    .and_then(|(m, scale)| {
+                        Some(m.advance_width(GlyphId::new(g.id))?.round() * scale)
+                    })
                     .unwrap_or(g.advance);
                 let hinted = hinting.advance(font, layout_size(size), &coords, g.id);
                 let advance = advance(base, hinted, g.advance, size);

@@ -149,6 +149,11 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_settings(
                     if p.len() > 54 {
                         a.vibrator = [field(&p, 53)? == "true", field(&p, 54)? == "true"];
                     }
+                    if p.len() > 55 {
+                        colors[13] = field(&p, 55)?
+                            .parse()
+                            .map_err(|_| illegal("settings card content color"))?;
+                    }
                     a.config = c;
                     a.colors = colors;
                     a.ime_enabled = field(&p, 10)? == "true";

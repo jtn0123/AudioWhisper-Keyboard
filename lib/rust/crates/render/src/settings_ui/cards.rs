@@ -27,11 +27,12 @@ const BODY_LARGE: Type = Type {
     tracking: 0.0,
     weight: 400,
 };
-/// Material 3's titleMedium and titleSmall, which FlorisSimpleCard uses.
+/// Material 3's titleMedium and titleSmall, which FlorisSimpleCard uses, as the resolved library
+/// has them (`TypeScaleTokens`: 0.2 sp titleMedium tracking, not the published 0.15 sp).
 const TITLE_MEDIUM: Type = Type {
     size: 16,
     line: 24.0,
-    tracking: 0.15,
+    tracking: 0.2,
     weight: 500,
 };
 const TITLE_SMALL: Type = Type {
@@ -217,10 +218,12 @@ impl App {
         let layout = self.styled(text, &link, BODY_LARGE, Some(inner));
         let (lw, lh) = (layout.width.ceil().min(inner), layout.height.ceil());
         let b = rect(x + pad, y + pad, w - 2.0 * pad, 2.0 * pad + bh + lh);
-        // M3 Card: surfaceContainerHighest, the medium (12 dp) shape, onSurface content.
+        // M3 Card: surfaceContainerHighest and the medium (12 dp) shape. Its content colour is
+        // `contentColorFor(surfaceContainerHighest)`, which is onSurfaceVariant whenever the
+        // scheme's surfaceVariant is the same colour, as materialkolor's 2025 spec makes it.
         self.paint_clipped_box(p, b, self.colors[5], 12.0 * self.config[2], clip);
         let body_box = rect(b.left + pad, b.top + pad, inner, bh);
-        self.paint_styled(p, &body, body_box, BODY_LARGE, self.colors[1], clip);
+        self.paint_styled(p, &body, body_box, BODY_LARGE, self.colors[13], clip);
         let link_box = rect(b.left + pad, b.top + pad + bh, lw, lh);
         self.focus_box(p, 6000 + i as i32, link_box, clip);
         self.paint_styled(p, &link, link_box, BODY_LARGE, self.colors[3], clip);
@@ -259,14 +262,21 @@ impl App {
             }
         };
         let simple = matches!(self.spell_card(), SpellCard::App(..));
-        // FlorisSimpleCard's Row: padding (start 0, end 16, top and bottom 8) around a 48 dp
-        // icon box for the error and warning cards; 8 dp all round and a 40 dp box otherwise.
+        // FlorisSimpleCard's Row: padding (start 0, end 16, top and bottom 8) around the error
+        // and warning cards' icon, a 24 dp icon padded 12 dp all round; 8 dp all round and a
+        // 32 dp icon padded 8 dp at the end otherwise. Compose rounds each dp to whole pixels,
+        // so the padded icon is 32 + 63 + 32 = 127 px at 2.625, not 48 dp's 126.
         let [start, end, vertical] = if simple {
             [self.px(8.0); 3]
         } else {
             [0.0, self.px(16.0), self.px(8.0)]
         };
-        let icon_box = if simple { self.px(40.0) } else { self.px(48.0) };
+        let padded = 2.0 * self.px(12.0) + self.px(24.0);
+        let icon_box = if simple {
+            self.px(32.0) + self.px(8.0)
+        } else {
+            padded
+        };
         let column = card.width() - start - end - icon_box;
         let th = self
             .styled(text, &label, TITLE_MEDIUM, Some(column))
@@ -279,7 +289,7 @@ impl App {
                 .height
                 .ceil()
         };
-        let icon_height = if simple { self.px(32.0) } else { self.px(48.0) };
+        let icon_height = if simple { self.px(32.0) } else { padded };
         let row = icon_height.max(th + sh);
         let b = rect(
             card.left,

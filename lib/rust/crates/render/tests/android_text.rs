@@ -159,6 +159,20 @@ fn truncated_layout_size_and_hinted_advances() {
 }
 
 #[test]
+fn unhinted_advances_round_through_26_6_like_freetype() {
+    use render::android_text::{advance, pixel_round};
+    // Roboto's `e` at weight 500 and 42 px: 1097 units of 2048 is 22.497 px, which FreeType holds
+    // as 1440/64 = 22.5 and FT_PIX_ROUND takes to 23 (Android's StaticLayout puts the next glyph
+    // 23 px on); rounding the linear advance would give 22.
+    let e = 1097.0 * 42.0 / 2048.0;
+    assert_eq!(pixel_round(e), 23.0);
+    assert_eq!(advance(e, None, e, 42.0), 23.0);
+    // Below the 26.6 half-pixel it still rounds down: 22.48 px is 1439/64.
+    assert_eq!(pixel_round(22.48), 22.0);
+    assert_eq!(pixel_round(22.0), 22.0);
+}
+
+#[test]
 fn hard_breaks_hyphens_and_long_words_wrap_like_static_layout() {
     let mut text = font();
     // No break after hard hyphens without hyphenation (Minikin WordBreaker).

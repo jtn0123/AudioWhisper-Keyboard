@@ -1,6 +1,7 @@
 package com.jtn0123.audiowhisper.settingsui
 
 import android.content.res.Configuration
+import androidx.compose.material3.contentColorFor
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.isUnspecified
 import androidx.compose.ui.graphics.toArgb
@@ -49,7 +50,9 @@ internal class SettingsPlatform(private val activity: FlorisAppActivity, private
         return intArrayOf(colors.background.toArgb(), colors.onSurface.toArgb(), colors.onSurfaceVariant.toArgb(),
             colors.primary.toArgb(), colors.primaryContainer.toArgb(), colors.surfaceContainerHighest.toArgb(),
             colors.onPrimary.toArgb(), colors.outline.toArgb(), colors.surface.toArgb(),
-            colors.secondary.toArgb(), colors.outlineVariant.toArgb(), colors.surfaceContainerHigh.toArgb(), colors.surfaceContainer.toArgb())
+            colors.secondary.toArgb(), colors.outlineVariant.toArgb(), colors.surfaceContainerHigh.toArgb(), colors.surfaceContainer.toArgb(),
+            // M3 Card's content colour, as Material resolves it for this scheme.
+            colors.contentColorFor(colors.surfaceContainerHighest).toArgb())
     }
     fun dialogWindowWidth(): Float {
         val value = android.util.TypedValue()

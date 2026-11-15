@@ -82,7 +82,8 @@ pub struct App {
     /// Each painted field's text layout and origin, for placing the caret where a tap lands.
     pub field_layouts: Vec<(i32, std::sync::Arc<crate::android_text::Layout>, [f32; 2])>,
     pub config: [f32; 4],
-    pub colors: [u32; 13],
+    /// The palette; 13 is M3 Card's content colour, `contentColorFor(surfaceContainerHighest)`.
+    pub colors: [u32; 14],
     pub dialog_window_width: f32,
     pub sp_pixels: [f32; 33],
     pub controls: Vec<Control>,
@@ -131,7 +132,7 @@ impl Default for App {
             config: [1.0, 1.0, 1.0, 1.0],
             colors: [
                 0xfff8f8f8, 0xff161616, 0xff555555, 0xff376a20, 0xffdce9d0, 0xffe9e9e9, 0xffffffff,
-                0xff777777, 0xfff8f8f8, 0xff555b66, 0xffc5c5c5, 0xffeeeeee, 0xffeeeeee,
+                0xff777777, 0xfff8f8f8, 0xff555b66, 0xffc5c5c5, 0xffeeeeee, 0xffeeeeee, 0xff161616,
             ],
             dialog_window_width: 0.0,
             sp_pixels: [0.0; 33],

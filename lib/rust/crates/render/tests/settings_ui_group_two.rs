@@ -335,3 +335,38 @@ fn the_vocabulary_field_minimum_includes_its_padding() {
         assert_eq!(c.bounds.width(), 1080.0 - 2.0 * inset);
     }
 }
+
+#[test]
+fn cards_take_the_content_colour_and_tracking_compose_resolves() {
+    // The auto-space Card's text is `contentColorFor(surfaceContainerHighest)`, palette slot 13
+    // (onSurfaceVariant under materialkolor's scheme, not onSurface). FlorisErrorCard's text is
+    // titleMedium, whose tracking the resolved Material library has at 0.2 sp.
+    let (mut a, _) = app("settings/typing");
+    let mut text = Text::new(vec![
+        include_bytes!("../../../../../fastlane/staging/fonts/Roboto-Light.ttf").to_vec(),
+    ]);
+    a.config = [1080.0, 6000.0, 2.625, 1.0];
+    a.colors[13] = 0xff474648;
+    a.prefs
+        .insert("correction__auto_space_punctuation".into(), "true".into());
+    let panel = a.scene(&mut text).panel.unwrap();
+    let style = |label: &str| {
+        let item = panel.items.iter().find(|i| i.label == label).unwrap();
+        (item.text.foreground, item.text.letter_spacing)
+    };
+    let body = style("pref__correction__auto_space_punctuation__feedback");
+    assert_eq!(body, (0xff474648, 0.0));
+    let (foreground, tracking) = style("pref__spelling__active_spellchecker__summary_disabled");
+    assert_eq!(foreground, 0xffffffff);
+    assert!((tracking - 0.2 * 2.625).abs() < 1e-4, "{tracking}");
+    // The error icon's 12 dp padding and 24 dp size round separately (32 + 63 + 32), so the text
+    // starts 127 px into the card, not 48 dp's 126.
+    let card = a.controls.iter().find(|c| c.role == "card").unwrap().bounds;
+    let label = panel
+        .items
+        .iter()
+        .find(|i| i.label == "pref__spelling__active_spellchecker__summary_disabled")
+        .unwrap()
+        .bounds;
+    assert_eq!(label.left - card.left, 127.0);
+}

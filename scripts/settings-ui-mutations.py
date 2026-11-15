@@ -70,6 +70,14 @@ CASES = [
      '["", ask.dismiss, ask.confirm]', '["", "action__no", "action__yes"]'),
     ('field-minimum-outside-padding', BASE / 'render/src/settings_ui/fields.rs',
      '.max(self.px(120.0) - 2.0 * v)', '.max(self.px(120.0))'),
+    # The group 2 gallery's differences: each must fail a Rust test.
+    ('card-content-onsurface', BASE / 'render/src/settings_ui/cards.rs',
+     'BODY_LARGE, self.colors[13], clip', 'BODY_LARGE, self.colors[1], clip'),
+    ('title-medium-published-tracking', BASE / 'render/src/settings_ui/cards.rs', 'tracking: 0.2,', 'tracking: 0.15,'),
+    ('card-icon-box-48dp', BASE / 'render/src/settings_ui/cards.rs',
+     'let padded = 2.0 * self.px(12.0) + self.px(24.0);', 'let padded = self.px(48.0);'),
+    ('advance-linear-round', BASE / 'render/src/android_text.rs',
+     'hinted.unwrap_or_else(|| pixel_round(base * k))', 'hinted.unwrap_or_else(|| (base * k).round())'),
 ]
 # The Rust test binary that must panic for each Rust-only case.
 RUST = dict.fromkeys([
@@ -83,7 +91,10 @@ RUST = dict.fromkeys([
 ], 'settings_ui_overscroll') | dict.fromkeys([
     'confirm-generic-buttons',
     'field-minimum-outside-padding',
-], 'settings_ui_group_two')
+    'card-content-onsurface',
+    'title-medium-published-tracking',
+    'card-icon-box-48dp',
+], 'settings_ui_group_two') | {'advance-linear-round': 'android_text'}
 
 
 def run_rust(output, name, target):

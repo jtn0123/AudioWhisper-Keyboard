@@ -115,7 +115,10 @@ def group_two(d, renderer):
     d.adb('shell', 'am', 'force-stop', MODULE.PKG)
     d.private_write(MODULE.PREFS, data)
     d.prototype(renderer)
-    skipped = []
+    # Languages is enabled only while this app is the system spell checker. Compose reports
+    # enabled on the row's text, not on the disabled row, so the fact decides for both.
+    spell = d.adb('shell', 'settings', 'get', 'secure', 'selected_spell_checker').decode().strip()
+    skipped = [] if spell.startswith(MODULE.PKG + '/') else ['Languages']
     for route, ready, pages, dialogs in GROUP_TWO:
         name = renderer+'-'+route.replace('/', '-')
         d.launch('settings/home')
@@ -126,6 +129,8 @@ def group_two(d, renderer):
             d.ui('scroll', 'down', 1440)
             picture(d, f'{name}-lower{page+1}')
         for label in dialogs:
+            if label in skipped:
+                continue
             d.launch('settings/home')
             d.launch('settings/'+route)
             d.ui('scroll', 'top')

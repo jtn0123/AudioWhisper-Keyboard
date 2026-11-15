@@ -164,7 +164,8 @@ internal class RustSettingsView(context: Context) : FrameLayout(context), Surfac
             colors.take(6).map { it.toUInt().toString() }.toTypedArray() + platform.facts() +
             colors.drop(6).take(6).map { it.toUInt().toString() }.toTypedArray() + (0..32).map {
                 android.util.TypedValue.applyDimension(android.util.TypedValue.COMPLEX_UNIT_SP, it.toFloat(), metrics).toString()
-            }.toTypedArray() + arrayOf(platform.dialogWindowWidth().toString(), colors[12].toUInt().toString()) + platform.vibratorFacts()
+            }.toTypedArray() + arrayOf(platform.dialogWindowWidth().toString(), colors[12].toUInt().toString()) + platform.vibratorFacts() +
+            colors[13].toUInt().toString()
         receive(native.settings(3, config))
         pushFacts()
     }
