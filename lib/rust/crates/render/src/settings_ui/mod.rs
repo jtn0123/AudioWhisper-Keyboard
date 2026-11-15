@@ -75,7 +75,7 @@ pub struct App {
     pub accepted: bool,
     pub reveal_focus: bool,
     pub reveal_target: Option<f32>,
-    pub editor_layout: Option<parley::Layout<()>>,
+    pub editor_layout: Option<std::sync::Arc<crate::android_text::Layout>>,
     pub editor_origin: [f32; 2],
     pub toolbar_dismissed: bool,
     pub back_progress: f32,

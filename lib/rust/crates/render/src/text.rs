@@ -1,13 +1,16 @@
 //! System font registration, fallback and shaping using Parley.
 use parley::fontique::GenericFamily;
 use parley::{FontContext, Layout, LayoutContext, StyleProperty};
+use std::{collections::HashMap, sync::Arc};
 
 pub type FontBlob = parley::fontique::Blob<u8>;
 
 /// Reused shaping resources, with fonts supplied by the platform host.
 pub struct Text {
     fonts: FontContext,
-    widths: std::collections::HashMap<(String, u32, bool, i32), (f32, f32)>,
+    widths: HashMap<(String, u32, bool, i32), (f32, f32)>,
+    android: HashMap<(String, [u32; 4], i32), Arc<crate::android_text::Layout>>,
+    hinting: crate::android_text::Hinting,
     context: LayoutContext<()>,
 }
 
@@ -70,6 +73,8 @@ impl Text {
         Self {
             fonts: context,
             widths: Default::default(),
+            android: Default::default(),
+            hinting: Default::default(),
             context: LayoutContext::new(),
         }
     }
@@ -134,7 +139,58 @@ impl Text {
         italic: bool,
         metrics: [f32; 2],
     ) -> Layout<()> {
+        let mut layout = self.shape(text, size, [mono, italic], weight, metrics);
+        layout.break_all_lines(None);
+        layout
+    }
+
+    /// Sans-serif UI text laid out as Android's hinted `TextMotion.Static` text, wrapped at
+    /// `width`; see [`crate::android_text`]. `metrics` is line height and letter spacing in px.
+    pub fn android(
+        &mut self,
+        text: &str,
+        size: f32,
+        weight: i32,
+        metrics: [f32; 2],
+        width: Option<f32>,
+    ) -> Arc<crate::android_text::Layout> {
         let [line_height, letter_spacing] = metrics;
+        let bits = [
+            size,
+            line_height,
+            letter_spacing,
+            width.unwrap_or(f32::INFINITY),
+        ];
+        let key = (text.to_owned(), bits.map(f32::to_bits), weight);
+        if let Some(layout) = self.android.get(&key) {
+            return layout.clone();
+        }
+        if self.android.len() >= 512 {
+            self.android.clear();
+        }
+        // Shape at the real size without spacing; Minikin adds spacing per cluster itself and,
+        // as the device fixture shows, keeps optional ligatures when spacing is set.
+        let mut shaped = self.shape(text, size, [false; 2], weight, [line_height, 0.0]);
+        shaped.break_all_lines(None);
+        let layout = Arc::new(crate::android_text::build(
+            &shaped,
+            text,
+            letter_spacing,
+            width,
+            &mut self.hinting,
+        ));
+        self.android.insert(key, layout.clone());
+        layout
+    }
+
+    fn shape(
+        &mut self,
+        text: &str,
+        size: f32,
+        [mono, italic]: [bool; 2],
+        weight: i32,
+        [line_height, letter_spacing]: [f32; 2],
+    ) -> Layout<()> {
         let mut builder = self
             .context
             .ranged_builder(&mut self.fonts, text, 1.0, true);
@@ -158,8 +214,6 @@ impl Text {
         builder.push_default(StyleProperty::FontFamily(parley::FontFamily::Source(
             if mono { "monospace" } else { "sans-serif" }.into(),
         )));
-        let mut layout = builder.build(text);
-        layout.break_all_lines(None);
-        layout
+        builder.build(text)
     }
 }

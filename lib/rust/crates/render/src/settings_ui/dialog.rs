@@ -118,7 +118,7 @@ impl App {
                     let (orientation, value_label, row_height) = &rows[slot];
                     y += if slot == 0 { 8.0 } else { 16.0 } * d;
                     let rh = row_height - if slot == 0 { 60.0 } else { 68.0 } * d;
-                    let value_width = text.layout(value_label, self.sp(16)).width();
+                    let value_width = self.android(text, value_label, self.sp(16), None).width;
                     let value_x = if orientation.is_empty() {
                         left + (width - value_width) / 2.0
                     } else {

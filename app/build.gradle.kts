@@ -237,6 +237,8 @@ android {
     sourceSets.getByName("androidTest").kotlin.directories.add("src/test/kotlin/com/jtn0123/audiowhisper/gif/shared")
     sourceSets.getByName("androidTest").kotlin.directories.add("src/test/kotlin/dev/patrickgold/florisboard/lib/ext/replay")
     sourceSets.getByName("androidTest").java.directories.add("src/test/java/com/android/inputmethod")
+    // The tracked Roboto-Light the Rust text tests use, so the device can record Android's layout of it.
+    sourceSets.getByName("androidTest").assets.directories.add("../fastlane/staging/fonts")
 }
 
 tasks.withType<Test> {

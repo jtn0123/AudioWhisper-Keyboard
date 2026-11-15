@@ -1599,6 +1599,7 @@ version = "0.1.0"
 dependencies = [
  "gestures",
  "glifo 0.3.0",
+ "icu_segmenter",
  "input",
  "keys",
  "parley",
@@ -1607,6 +1608,7 @@ dependencies = [
  "read-fonts 0.47.0",
  "serde_json",
  "settings",
+ "skrifa 0.49.0",
  "snygg",
  "unicode-segmentation",
  "vello_common 0.2.0",

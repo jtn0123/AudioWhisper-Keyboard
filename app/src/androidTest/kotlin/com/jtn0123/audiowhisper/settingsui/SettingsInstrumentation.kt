@@ -60,7 +60,10 @@ class SettingsInstrumentation : Instrumentation() {
                     }
                     report.put("native_load_failure", true).put("non_compose", true)
                 }
-                "metrics" -> SettingsTypographyDevice(h).run(report)
+                "metrics" -> {
+                    SettingsTypographyDevice(h).run(report)
+                    SettingsTypographyFixture(h).run(report)
+                }
                 "text" -> SettingsEditorDevice(h).run(report)
                 "compose-text" -> SettingsComposeEditorDevice(h).run(report)
                 "ui" -> runUi(h, report)

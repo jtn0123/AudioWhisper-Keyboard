@@ -1,44 +1,48 @@
-//! Single-line preview field; Parley supplies caret and selection geometry and hit testing.
+//! Single-line preview field; caret, selection and hit testing use the same Android layout
+//! positions the text is drawn from.
 use super::{Action, App, Control};
 use crate::{
+    android_text::Layout,
     panels::{Panel, rect},
     text::Text,
 };
 use keys::Rect;
-use parley::{Cursor, Selection, layout::Affinity};
+
+/// Caret x and its line's top and bottom.
+fn caret(layout: &Layout, byte: usize) -> (f32, f32, f32) {
+    let (line, x) = layout.caret(byte);
+    layout
+        .lines
+        .get(line)
+        .map_or((x, 0.0, layout.height), |l| (x, l.top, l.top + l.height))
+}
 impl App {
     pub(super) fn paint_editor(&mut self, p: &mut Panel, c: &Control, text: &mut Text, clip: Rect) {
         let d = self.config[2];
         let size = self.sp(16);
         let b = c.bounds;
         let value = String::from_utf16_lossy(&self.editor.text);
-        let layout = text.layout_line(&value, size, false, 400, false, self.line_height(size));
+        let layout = self.android(text, &value, size, None);
         let byte = |at: usize| String::from_utf16_lossy(&self.editor.text[..at]).len();
-        let cursor = |at: usize| Cursor::from_byte_index(&layout, byte(at), Affinity::Downstream);
-        let caret = cursor(self.editor.focus).geometry(&layout, 2.0 * d);
+        let focus = caret(&layout, byte(self.editor.focus));
         let available = (b.width() - 32.0 * d).max(1.0);
-        let shift = (caret.x0 as f32 - available + 2.0 * d).max(0.0);
+        let shift = (focus.0 - available + 2.0 * d).max(0.0);
         let x = b.left + 16.0 * d - shift;
         let y = b.top
             + if self.editor.focused && self.editor.anchor != self.editor.focus {
                 2.0 * d
             } else {
-                (b.height() - layout.height()) / 2.0
+                (b.height() - layout.height) / 2.0
             };
         let field_clip = crate::panel_layout::intersection(
             clip,
             rect(b.left + 8.0 * d, b.top, b.width() - 16.0 * d, b.height()),
         );
-        let selection = Selection::new(cursor(self.editor.anchor), cursor(self.editor.focus));
-        for (r, _) in selection.geometry(&layout) {
+        for [l, t, r, bottom] in layout.selection(byte(self.editor.anchor), byte(self.editor.focus))
+        {
             self.field_box(
                 p,
-                rect(
-                    x + r.x0 as f32,
-                    y + r.y0 as f32,
-                    r.width() as f32,
-                    r.height() as f32,
-                ),
+                rect(x + l, y + t, r - l, bottom - t),
                 self.colors[4],
                 field_clip,
             );
@@ -54,8 +58,8 @@ impl App {
             rect(
                 x,
                 y,
-                layout.width().max(available) + 2.0 * d,
-                layout.height().max(size * 1.3),
+                layout.width.max(available) + 2.0 * d,
+                layout.height.max(size * 1.3),
             ),
             size,
             if self.editor.text.is_empty() {
@@ -69,43 +73,36 @@ impl App {
             self.field_box(
                 p,
                 rect(
-                    x + caret.x0 as f32,
-                    y + caret.y0 as f32,
+                    x + focus.0,
+                    y + focus.1,
                     2.0 * d,
-                    (caret.height() as f32).max(size),
+                    (focus.2 - focus.1).max(size),
                 ),
                 self.colors[3],
                 field_clip,
             );
         }
         if let Some((a, b)) = self.editor.composing {
-            for (r, _) in Selection::new(cursor(a), cursor(b)).geometry(&layout) {
-                self.field_box(
-                    p,
-                    rect(
-                        x + r.x0 as f32,
-                        y + r.y1 as f32 - 2.0 * d,
-                        r.width() as f32,
-                        2.0 * d,
-                    ),
-                    self.colors[3],
-                    field_clip,
-                );
+            for [l, _, r, bottom] in layout.selection(byte(a), byte(b)) {
+                let underline = rect(x + l, y + bottom - 2.0 * d, r - l, 2.0 * d);
+                self.field_box(p, underline, self.colors[3], field_clip);
             }
         }
         if self.editor.focused && self.editor.anchor != self.editor.focus {
             for (start, at) in [(true, self.editor.anchor), (false, self.editor.focus)] {
-                let caret = cursor(at).geometry(&layout, 1.0);
-                let other = cursor(if start {
-                    self.editor.focus
-                } else {
-                    self.editor.anchor
-                })
-                .geometry(&layout, 1.0);
-                let leading = caret.x0 <= other.x0;
+                let here = caret(&layout, byte(at));
+                let other = caret(
+                    &layout,
+                    byte(if start {
+                        self.editor.focus
+                    } else {
+                        self.editor.anchor
+                    }),
+                );
+                let leading = here.0 <= other.0;
                 let diameter = 25.0 * d;
-                let left = x + caret.x0 as f32 - if leading { diameter } else { 0.0 };
-                let bounds = rect(left, y + caret.y1 as f32, diameter, diameter);
+                let left = x + here.0 - if leading { diameter } else { 0.0 };
+                let bounds = rect(left, y + here.2, diameter, diameter);
                 self.paint_box(p, bounds, self.colors[3], diameter / 2.0);
                 let item = p.items.last_mut().unwrap();
                 // M3 teardrop: circle with the corner at the selection endpoint squared.
@@ -142,10 +139,9 @@ impl App {
     }
     pub(super) fn place_editor_caret(&mut self, x: f32, y: f32) {
         if let Some(layout) = &self.editor_layout {
-            let cursor =
-                Cursor::from_point(layout, x - self.editor_origin[0], y - self.editor_origin[1]);
+            let index = layout.index_at(x - self.editor_origin[0], y - self.editor_origin[1]);
             let value = String::from_utf16_lossy(&self.editor.text);
-            let at = value[..cursor.index()].encode_utf16().count() as i32;
+            let at = value[..index].encode_utf16().count() as i32;
             self.editor.select(at, at);
         }
     }
@@ -157,18 +153,13 @@ impl App {
             self.editor.focus
         };
         let byte = String::from_utf16_lossy(&self.editor.text[..at]).len();
-        Some(
-            self.editor_origin[0]
-                + Cursor::from_byte_index(layout, byte, Affinity::Downstream)
-                    .geometry(layout, 1.0)
-                    .x0 as f32,
-        )
+        Some(self.editor_origin[0] + layout.caret(byte).1)
     }
     pub(super) fn drag_editor_handle(&mut self, x: f32) {
         if let Some(layout) = &self.editor_layout {
-            let cursor = Cursor::from_point(layout, x - self.editor_origin[0], 0.0);
+            let index = layout.index_at(x - self.editor_origin[0], 0.0);
             let value = String::from_utf16_lossy(&self.editor.text);
-            let at = value[..cursor.index()].encode_utf16().count() as i32;
+            let at = value[..index].encode_utf16().count() as i32;
             self.editor.select(at, self.handle_drag_other as i32);
         }
     }

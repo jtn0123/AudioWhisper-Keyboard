@@ -85,24 +85,30 @@ impl Backend {
         }
     }
     pub fn glyphs(&mut self, run: &GlyphRun<'_, ()>, coords: &[i16]) -> Result<(), String> {
+        let glyphs = run.positioned_glyphs().map(|g| (g.id, g.x, g.y));
+        self.glyph_list(run.run().font(), run.run().font_size(), coords, glyphs)
+    }
+    /// Draw positioned glyphs (id, x, y) of one font at the current transform.
+    pub fn glyph_list(
+        &mut self,
+        font: &parley::FontData,
+        size: f32,
+        coords: &[i16],
+        glyphs: impl Iterator<Item = (u32, f32, f32)> + Clone,
+    ) -> Result<(), String> {
         match self {
             Self::Cpu(c) => c
                 .context
-                .glyph_run(&mut c.resources, run.run().font())
-                .font_size(run.run().font_size())
+                .glyph_run(&mut c.resources, font)
+                .font_size(size)
                 .normalized_coords(coords)
                 .hint(true)
                 // Settings draws directly to avoid the 4096² RGBA atlas (64 MiB).
                 // Other scenes retain their existing bitmap cache policy.
                 .atlas_cache(c.bitmap_atlas)
-                .fill_glyphs(run.positioned_glyphs().map(|g| vello_cpu::Glyph {
-                    id: g.id,
-                    x: g.x,
-                    y: g.y,
-                }))
+                .fill_glyphs(glyphs.map(|(id, x, y)| vello_cpu::Glyph { id, x, y }))
                 .map_err(|_| "glyph rendering failed".to_owned()),
             Self::Hybrid(c) => {
-                let font = run.run().font();
                 // Hybrid requires bitmap glyphs to use its image atlas. Mixing outline
                 // glyphs into that atlas loses labels on the tested software Vulkan path;
                 // draw ordinary outlines directly and reserve the atlas for colour fonts.
@@ -112,15 +118,11 @@ impl Backend {
                     });
                 c.context
                     .glyph_run(&mut c.resources, font)
-                    .font_size(run.run().font_size())
+                    .font_size(size)
                     .normalized_coords(coords)
                     .hint(true)
                     .atlas_cache(color_font)
-                    .fill_glyphs(run.positioned_glyphs().map(|g| glifo_hybrid::Glyph {
-                        id: g.id,
-                        x: g.x,
-                        y: g.y,
-                    }));
+                    .fill_glyphs(glyphs.map(|(id, x, y)| glifo_hybrid::Glyph { id, x, y }));
                 Ok(())
             }
         }

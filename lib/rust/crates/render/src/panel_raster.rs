@@ -198,7 +198,11 @@ impl Raster {
                     continue;
                 }
                 if item.element.ends_with("subheader") || item.id == -36 || item.id == -42 {
-                    self.panel_text(&item.label, &item.text, r, false)?;
+                    if panel.kind == 9 && !item.text.mono && !item.text.italic {
+                        self.android_text(&item.label, &item.text, r)?;
+                    } else {
+                        self.panel_text(&item.label, &item.text, r, false)?;
+                    }
                     self.context.pop_clip();
                     continue;
                 }
@@ -318,6 +322,36 @@ impl Raster {
             }
         }
         self.context.reset_transform();
+        Ok(())
+    }
+    /// Settings text, laid out and drawn the way Android draws hinted Compose text.
+    fn android_text(
+        &mut self,
+        text: &str,
+        style: &crate::style::Style,
+        r: keys::Rect,
+    ) -> Result<(), String> {
+        let layout = self.text.android(
+            text,
+            style.size,
+            style.weight,
+            [style.line_height, style.letter_spacing],
+            Some(r.width()),
+        );
+        self.context
+            .set_paint(crate::raster::color(style.foreground));
+        for line in &layout.lines {
+            let baseline = r.top + line.baseline;
+            for run in &line.runs {
+                // No subpixel positioning: every glyph starts on a whole device pixel.
+                let glyphs = run
+                    .glyphs
+                    .iter()
+                    .map(|&(id, x, y)| (id, (r.left + x).round(), (baseline + y).round()));
+                self.context
+                    .glyph_list(&run.font, run.size, &run.coords, glyphs)?;
+            }
+        }
         Ok(())
     }
     fn panel_text_layout(

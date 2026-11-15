@@ -31,20 +31,27 @@ impl App {
             0.0
         }
     }
+    /// Body text as Android lays it out, wrapped at `width`.
+    pub(super) fn android(
+        &self,
+        text: &mut Text,
+        label: &str,
+        size: f32,
+        width: Option<f32>,
+    ) -> std::sync::Arc<crate::android_text::Layout> {
+        text.android(
+            label,
+            size,
+            400,
+            [self.line_height(size), self.letter_spacing(size)],
+            width.map(|w| w.max(1.0)),
+        )
+    }
     pub(super) fn measure(&self, text: &mut Text, label: &str, size: f32, width: f32) -> f32 {
         if label.is_empty() {
             return 0.0;
         }
-        let mut layout = text.layout_typography(
-            label,
-            size,
-            false,
-            400,
-            false,
-            [self.line_height(size), self.letter_spacing(size)],
-        );
-        layout.break_all_lines(Some(width.max(1.0)));
-        layout.height()
+        self.android(text, label, size, Some(width)).height
     }
     pub(super) fn row_text(
         &self,
@@ -57,35 +64,21 @@ impl App {
         if self.config[3] > 1.0 || label.is_empty() {
             return label.into();
         }
-        let mut layout = text.layout_typography(
-            label,
-            size,
-            false,
-            400,
-            false,
-            [self.line_height(size), self.letter_spacing(size)],
-        );
-        layout.break_all_lines(Some(width.max(1.0)));
-        if layout.lines().count() <= max {
+        let layout = self.android(text, label, size, Some(width));
+        if layout.lines.len() <= max {
             return label.into();
         }
-        let end = layout
-            .lines()
-            .nth(max - 1)
-            .map_or(0, |line| line.text_range().end);
+        let end = layout.lines[max - 1].range.end;
         let mut fitted = label[..end].trim_end().to_owned();
         loop {
             let candidate = format!("{fitted}…");
-            let mut layout = text.layout_typography(
-                &candidate,
-                size,
-                false,
-                400,
-                false,
-                [self.line_height(size), self.letter_spacing(size)],
-            );
-            layout.break_all_lines(Some(width.max(1.0)));
-            if layout.lines().count() <= max || fitted.is_empty() {
+            if self
+                .android(text, &candidate, size, Some(width))
+                .lines
+                .len()
+                <= max
+                || fitted.is_empty()
+            {
                 return candidate;
             }
             fitted.pop();

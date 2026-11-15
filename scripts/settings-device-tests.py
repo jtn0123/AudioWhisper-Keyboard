@@ -44,7 +44,7 @@ def main():
     parser.add_argument('baseline', type=Path)
     parser.add_argument('mode', choices=['all', 'ui', 'text', 'death', 'crash', 'metrics'])
     args = parser.parse_args()
-    d = MODULE.SettingsDevice('build/stage4-followup2/instrumentation', args.baseline)
+    d = MODULE.SettingsDevice(os.environ.get('SETTINGS_RECEIPTS', 'build/stage4-followup3/instrumentation'), args.baseline)
     assert d.adb('emu', 'avd', 'name').decode().splitlines()[0] == 'aw_keyboard_ssd'
     for stream, volume in [(1, 0), (2, 0), (3, 0), (5, 0), (4, 1), (10, 1)]:
         d.adb('shell', 'cmd', 'audio', 'set-volume', str(stream), str(volume))

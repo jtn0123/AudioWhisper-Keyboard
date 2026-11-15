@@ -16,6 +16,9 @@ popup = { path = "../popup" }
 snygg = { path = "../snygg" }
 parley = { version = "=0.13.0", default-features = false, features = ["std"] }
 read-fonts = "=0.47.0"
+# Android-style hinted UI text: unscaled advances and UAX #14 break opportunities.
+skrifa = { version = "=0.49.0", default-features = false, features = ["std"] }
+icu_segmenter = { version = "=2.3.0", default-features = false, features = ["compiled_data"] }
 vello_cpu = "=0.4.0"
 vello_hybrid = { version = "=0.2.0", default-features = false, features = ["wgpu", "text"] }
 wgpu = { version = "=29.0.3", default-features = false, features = ["std", "vulkan", "wgsl"] }
@@ -36,3 +39,7 @@ serde_json = { version = "=1.0.154", features = ["preserve_order"] }
 [[example]]
 name = "settings_color_probe"
 path = "../../../../benchmark/settings-color-probe.rs"
+
+[[example]]
+name = "settings_font_probe"
+path = "../../../../benchmark/settings-font-probe.rs"

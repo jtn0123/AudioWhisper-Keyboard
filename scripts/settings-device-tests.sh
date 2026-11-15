@@ -14,8 +14,10 @@ if [[ ! -f "$baseline/baseline.json" ]]; then
     python3 -I scripts/settings-device-baseline.py "$serial" "$baseline"
 fi
 trap 'python3 -I scripts/settings-device-baseline.py "$serial" "$baseline" --verify' EXIT
-mkdir -p build/stage4-followup2/instrumentation
-./gradlew -PsettingsFixture=true assembleDebug assembleDebugAndroidTest > build/stage4-followup2/instrumentation/build.log 2>&1
-scripts/install-dev.sh "$serial" > build/stage4-followup2/instrumentation/install.log 2>&1
+receipts="${SETTINGS_RECEIPTS:-build/stage4-followup3/instrumentation}"
+export SETTINGS_RECEIPTS="$receipts"
+mkdir -p "$receipts"
+./gradlew -PsettingsFixture=true assembleDebug assembleDebugAndroidTest > "$receipts/build.log" 2>&1
+scripts/install-dev.sh "$serial" > "$receipts/install.log" 2>&1
 adb -s "$serial" install -r -t app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
 python3 -I scripts/settings-device-tests.py "$baseline" "$mode"

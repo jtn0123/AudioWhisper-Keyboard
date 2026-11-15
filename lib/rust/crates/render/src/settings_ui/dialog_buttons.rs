@@ -10,15 +10,14 @@ impl App {
         let d = self.config[2];
         let widths = ["action__default", "action__cancel", "action__ok"].map(|key| {
             (text
-                .layout_typography(
+                .android(
                     &self.label(key),
                     self.sp(14),
-                    false,
                     500,
-                    false,
                     [self.sp(20), 0.1 * d * self.config[3]],
+                    None,
                 )
-                .width()
+                .width
                 + 24.0 * d)
                 .max(58.0 * d)
         });
@@ -75,22 +74,15 @@ impl App {
         clip: Rect,
     ) {
         let spacing = 0.1 * self.config[2] * self.config[3];
-        let layout = text.layout_typography(
-            label,
-            self.sp(14),
-            false,
-            500,
-            false,
-            [self.sp(20), spacing],
-        );
+        let layout = text.android(label, self.sp(14), 500, [self.sp(20), spacing], None);
         self.paint_text(
             p,
             label,
             rect(
-                b.left + (b.width() - layout.width()) / 2.0,
-                b.top + (b.height() - layout.height()) / 2.0,
-                layout.width() + 1.0,
-                layout.height(),
+                b.left + (b.width() - layout.width) / 2.0,
+                b.top + (b.height() - layout.height) / 2.0,
+                layout.width + 1.0,
+                layout.height,
             ),
             self.sp(14),
             self.colors[3],
