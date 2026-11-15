@@ -61,7 +61,7 @@ fn reply(
         let (anchor,focus)=edited.as_ref().map_or((a.editor.anchor,a.editor.focus),|e| (e.anchor,e.focus));
         let label=if let Some(t)=&shown{t.clone()}else if c.role=="image"{String::new()}else{c.label.clone()};
         json!({"id":c.id,"bounds":[c.bounds.left,c.bounds.top,c.bounds.right,c.bounds.bottom],"label":label,
-            "description":c.label,"hint":if c.role=="edit"{c.label.as_str()}else{""},"hintShowing":shown.as_ref().is_some_and(|t| t.is_empty()),"role":c.role,"state":c.summary,"enabled":c.enabled,"pressed":false,"selected":c.selected,
+            "description":c.label,"hint":if c.role=="edit"{c.label.as_str()}else{""},"hintShowing":shown.as_ref().is_some_and(|t| t.is_empty()),"role":c.role,"state":c.summary,"enabled":c.exposed_enabled(),"pressed":false,"selected":c.selected,
             "checked":if c.role=="radio"{Some(c.selected)}else{c.checked},"locked":false,"actions":actions,"longClickLabel":"","holdDelayMillis":500,
             "range":c.range,"anchor":anchor,"focus":focus})
     }).collect();

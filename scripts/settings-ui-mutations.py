@@ -32,6 +32,11 @@ CASES = [
     ('no-preview', CAT / 'input_feedback.rs', '    hardware: 1,\n    preview: true,', '    hardware: 1,\n    preview: false,'),
     ('confirm-swap', CAT / 'media.rs', 'Kind::Confirm(&RESET_PINNED)', 'Kind::Confirm(&RESET_RECENT)'),
     ('visible-fixed', CAT / 'smartbar.rs', '    .shown(SHARED),', '    .shown(Any(&[SHARED, EXTENDED])),'),
+    # The fixed row is Compose's plain text: no button role, and no disabled state to report.
+    ('fixed-row-button', BASE / 'render/src/settings_ui/layout.rs',
+     'Kind::Info | Kind::Status(_) | Kind::Fixed => "text",', 'Kind::Info | Kind::Status(_) => "text",'),
+    ('fixed-row-reported-disabled', BASE / 'render/src/settings_ui/mod.rs',
+     'self.enabled || self.role == "text"', 'self.enabled'),
     ('stale-string-id', ROOT / 'app/src/main/kotlin/com/jtn0123/audiowhisper/settingsui/SettingsStringIds.kt',
      '    "action__yes" to R.string.action__yes,\n', ''),
     ('route-dropped', BASE / 'render/src/settings_ui/catalogue.rs', '    media::SCREEN,\n    typing', '    typing'),

@@ -52,6 +52,15 @@ pub struct Control {
     pub action: Action,
     pub range: Option<[f32; 3]>,
 }
+impl Control {
+    /// Whether accessibility reports the control enabled. `enabled` is how it is drawn. A
+    /// passive row (`text`) is drawn faded when its condition fails, but JetPref's Preference
+    /// without onClick fades by alpha alone: Material's ListItem node carries no disabled state,
+    /// so TalkBack reads it as plain text either way.
+    pub fn exposed_enabled(&self) -> bool {
+        self.enabled || self.role == "text"
+    }
+}
 #[derive(Clone, Debug)]
 pub struct Modal {
     pub row: usize,

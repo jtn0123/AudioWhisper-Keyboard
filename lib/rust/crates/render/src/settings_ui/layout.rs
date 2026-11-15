@@ -270,8 +270,9 @@ impl App {
                 let role = match r.kind {
                     Kind::Heading => "heading",
                     Kind::Toggle => "toggle",
-                    // JetPref's Preference without onClick is not clickable.
-                    Kind::Info | Kind::Status(_) => "text",
+                    // JetPref's Preference without onClick is not clickable. Smartbar's fixed row
+                    // is one too: its Switch has `onCheckedChange = null`, so it adds nothing.
+                    Kind::Info | Kind::Status(_) | Kind::Fixed => "text",
                     _ => "button",
                 };
                 let action = match r.kind {

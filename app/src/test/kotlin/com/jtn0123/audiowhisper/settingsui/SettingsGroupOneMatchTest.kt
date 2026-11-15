@@ -53,9 +53,12 @@ class SettingsGroupOneMatchTest {
                     for (node in rows) {
                         val i = node.int("id") - 1000
                         val row = screen.rows[i]
-                        assertEquals(row.enabled(facts), node.bool("enabled"), "enabled row $i $label")
-                        assertEquals(when (row.kind) { "toggle" -> "toggle"; "heading" -> "heading"; else -> "button" }, node.getValue("role").jsonPrimitive.content)
-                        if (!node.bool("enabled")) assertTrue(node.getValue("actions").jsonArray.isEmpty(), "disabled row $i offers an action")
+                        // The fixed row is a Preference without onClick. Its condition only fades it:
+                        // Material's ListItem node carries no disabled state, so Compose reports it enabled.
+                        assertEquals(row.enabled(facts) || row.kind == "fixed", node.bool("enabled"), "enabled row $i $label")
+                        assertEquals(when (row.kind) { "toggle" -> "toggle"; "heading" -> "heading"; "fixed" -> "text"; else -> "button" },
+                            node.getValue("role").jsonPrimitive.content, "role row $i $label")
+                        if (!row.enabled(facts)) assertTrue(node.getValue("actions").jsonArray.isEmpty(), "disabled row $i offers an action")
                         if (row.kind == "toggle") assertEquals(p.getValue(row.key).toBoolean(), node.bool("checked"))
                         else assertEquals(JsonNull, node.getValue("checked"), "row $i has toggle semantics")
                     }

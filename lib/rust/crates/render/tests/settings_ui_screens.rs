@@ -336,7 +336,7 @@ fn emoji_history_resets_ask_yes_or_no_before_deleting() {
 }
 
 #[test]
-fn smartbar_fixed_row_shows_only_for_the_shared_layout_and_stays_disabled_and_checked() {
+fn smartbar_fixed_row_shows_only_for_the_shared_layout_drawn_disabled_and_checked_as_plain_text() {
     let (mut a, mut text) = app("settings/smartbar");
     let fixed = a
         .rows()
@@ -369,6 +369,9 @@ fn smartbar_fixed_row_shows_only_for_the_shared_layout_and_stays_disabled_and_ch
     assert!(!c.enabled);
     // Drawn checked, but a Switch with `onCheckedChange = null` adds no toggleable semantics.
     assert_eq!(c.checked, None);
+    // A Preference without onClick: Compose's ListItem node is enabled text with no role.
+    assert_eq!(c.role, "text");
+    assert!(c.exposed_enabled());
     assert!(a.controls.iter().all(|c| c.id != 2000 + fixed as i32));
     assert!(!a.activate(c.id));
 }
