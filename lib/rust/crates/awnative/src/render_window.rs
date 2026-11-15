@@ -10,14 +10,7 @@ use std::{
     time::Instant,
 };
 
-#[repr(C)]
-#[derive(Default)]
-struct ARect {
-    left: i32,
-    top: i32,
-    right: i32,
-    bottom: i32,
-}
+use crate::render_surface::Rect as ARect;
 #[repr(C)]
 struct Buffer {
     width: i32,
@@ -63,15 +56,20 @@ impl Drop for Window {
     }
 }
 
+/// The damage as whole buffer pixels, clipped to the scene.
+fn dirty(scene: &Scene, damage: Rect) -> ARect {
+    ARect {
+        left: damage.left.floor().max(0.0) as i32,
+        top: damage.top.floor().max(0.0) as i32,
+        right: damage.right.ceil().min(scene.width as f32) as i32,
+        bottom: damage.bottom.ceil().min(scene.height as f32) as i32,
+    }
+}
+
 impl Window {
     fn post(&self, scene: &Scene, pixels: &[u8], damage: Rect) -> bool {
         let window = self.raw as *mut c_void;
-        let mut dirty = ARect {
-            left: damage.left.floor().max(0.0) as i32,
-            top: damage.top.floor().max(0.0) as i32,
-            right: damage.right.ceil().min(scene.width as f32) as i32,
-            bottom: damage.bottom.ceil().min(scene.height as f32) as i32,
-        };
+        let mut dirty = dirty(scene, damage);
         let mut buffer = Buffer {
             width: 0,
             height: 0,
@@ -122,9 +120,10 @@ impl Window {
     }
 }
 
+/// The next scene to draw, with its touch time, Choreographer frame time and vsync id.
 #[derive(Debug, Default)]
 struct Pending {
-    next: Option<(Scene, i64, i64)>,
+    next: Option<(Scene, i64, i64, i64)>,
     stop: bool,
 }
 
@@ -142,6 +141,7 @@ impl Worker {
         width: u16,
         height: u16,
         hybrid: bool,
+        timeline: bool,
     ) -> Result<Self> {
         if surface.is_null() || width == 0 || height == 0 {
             return Err(illegal("surface without scene dimensions"));
@@ -177,7 +177,15 @@ impl Worker {
         let thread = thread::Builder::new()
             .name("aw-render".into())
             .spawn(move || {
-                run(window, worker_shared, fonts, width, height, hybrid);
+                run(
+                    window,
+                    worker_shared,
+                    fonts,
+                    width,
+                    height,
+                    hybrid,
+                    timeline,
+                );
             })
             .map_err(|_| illegal("could not start render thread"))?;
         Ok(Self {
@@ -186,9 +194,9 @@ impl Worker {
         })
     }
 
-    pub fn submit(&self, scene: Scene, touch: i64, frame: i64) {
+    pub fn submit(&self, scene: Scene, touch: i64, frame: i64, vsync: i64) {
         let (lock, ready) = &*self.shared;
-        lock.lock().unwrap_or_else(|e| e.into_inner()).next = Some((scene, touch, frame));
+        lock.lock().unwrap_or_else(|e| e.into_inner()).next = Some((scene, touch, frame, vsync));
         ready.notify_one();
     }
 }
@@ -211,6 +219,7 @@ fn run(
     width: u16,
     height: u16,
     hybrid: bool,
+    timeline: bool,
 ) {
     let profiling = profile_enabled();
     crate::render_profile::heap(
@@ -238,6 +247,22 @@ fn run(
         None => Engine::Cpu(Box::new(Raster::shared(width, height, fonts))),
     };
     crate::render_profile::heap(3, 0, width as usize * height as usize * 4);
+    // Declared after `window` (a parameter), so it is dropped, and detached, first.
+    let mut presenter = match &engine {
+        Engine::Cpu(_) if timeline => {
+            let presenter = crate::render_surface::SurfacePresenter::new(
+                window.raw as *mut c_void,
+                width,
+                height,
+            );
+            log(&format!(
+                "surface_control={}",
+                u8::from(presenter.is_some())
+            ));
+            presenter
+        }
+        _ => None,
+    };
     let mut previous = Scene::default();
     if let Engine::Cpu(raster) = &mut engine {
         raster.set_profiling(profiling);
@@ -257,7 +282,7 @@ fn run(
         if pending.stop {
             break;
         }
-        let Some((scene, touch, frame)) = pending.next.take() else {
+        let Some((scene, touch, frame, vsync)) = pending.next.take() else {
             continue;
         };
         drop(pending);
@@ -277,7 +302,19 @@ fn run(
                 }
                 let draw = start.elapsed().as_nanos();
                 let post_start = Instant::now();
-                if !window.post(&scene, raster.pixels(), damage) {
+                let posted = match &mut presenter {
+                    Some(presenter) => presenter.present(
+                        &crate::render_surface::Frame {
+                            pixels: raster.pixels(),
+                            width: scene.width.into(),
+                            height: scene.height.into(),
+                        },
+                        dirty(&scene, damage),
+                        vsync,
+                    ),
+                    None => window.post(&scene, raster.pixels(), damage),
+                };
+                if !posted {
                     log("post_error");
                     break;
                 }
@@ -341,7 +378,7 @@ fn run(
         }
         // Only numeric timing data; never scene labels, candidates, coordinates or action codes.
         log(&format!(
-            "frame draw_ns={draw} post_ns={} touch_ns={touch} choreographer_ns={frame} worker_ns={worker_ns} gpu_wait_ns={gpu_wait}",
+            "frame draw_ns={draw} post_ns={} touch_ns={touch} choreographer_ns={frame} vsync_id={vsync} worker_ns={worker_ns} gpu_wait_ns={gpu_wait}",
             posted
         ));
         previous = scene;

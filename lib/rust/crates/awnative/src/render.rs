@@ -286,6 +286,7 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_attach(
     native: jlong,
     surface: jobject,
     hybrid: jboolean,
+    timeline: jboolean,
 ) {
     // SAFETY: live session and local Surface reference are valid for this call. Worker owns the acquired native reference.
     unsafe {
@@ -300,11 +301,12 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_attach(
                     s.scene.width,
                     s.scene.height,
                     hybrid != 0,
+                    timeline != 0,
                 )?);
             }
             #[cfg(not(target_os = "android"))]
             {
-                let _ = (s.fonts.len(), surface, hybrid);
+                let _ = (s.fonts.len(), surface, hybrid, timeline);
             }
             Ok(())
         })
@@ -317,6 +319,7 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_frame(
     _: jclass,
     native: jlong,
     time: jlong,
+    vsync: jlong,
 ) -> jboolean {
     // SAFETY: synchronized wrapper owns the handle during the call.
     unsafe {
@@ -336,11 +339,11 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_frame(
             }
             #[cfg(target_os = "android")]
             if let Some(worker) = &s.worker {
-                worker.submit(s.scene.clone(), s.touch_time, time);
+                worker.submit(s.scene.clone(), s.touch_time, time, vsync);
             }
             #[cfg(not(target_os = "android"))]
             {
-                let _ = (s, time);
+                let _ = (s, time, vsync);
             }
             Ok(u8::from(animating))
         })

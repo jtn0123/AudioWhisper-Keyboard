@@ -41,11 +41,17 @@ data_sources { config { name: "linux.ftrace" ftrace_config {
 data_sources { config { name: "android.surfaceflinger.frametimeline" } }
 data_sources { config { name: "linux.process_stats" process_stats_config { scan_all_processes_on_start: true } } }
 '''
+    # Measurement switches, not in the baseline's property list: each is restored from its value.
+    switches = {tag: d.adb('shell', 'getprop', 'log.tag.' + tag).decode().strip() for tag in ('aw-hybrid', 'aw-unbuffered')}
     try:
         d.adb('shell', 'setprop', 'log.tag.aw-profile', 'DEBUG')
-        for trial, renderer in enumerate(('compose', 'rust', 'rust', 'compose')):
+        # Compose and the CPU raster interleaved, then the hybrid GPU path ("hybrid"), then the CPU
+        # raster taking unbuffered input ("unbuffered") rather than Compose's batched events.
+        for trial, renderer in enumerate(('compose', 'rust', 'rust', 'compose', 'hybrid', 'hybrid', 'unbuffered', 'unbuffered')):
+            for tag, value in switches.items():
+                d.adb('shell', 'setprop', 'log.tag.' + tag, 'DEBUG' if tag == 'aw-' + renderer else value or "''")
             d.fixture()
-            d.prototype(renderer)
+            d.prototype('compose' if renderer == 'compose' else 'rust')
             d.launch('settings/keyboard')
             time.sleep(1)
             label = f'{trial}-{renderer}'
@@ -67,6 +73,9 @@ data_sources { config { name: "linux.process_stats" process_stats_config { scan_
             print(label, flush=True)
     finally:
         try:
+            for tag, value in switches.items():
+                d.adb('shell', 'setprop', 'log.tag.' + tag, value or "''")
+                assert d.adb('shell', 'getprop', 'log.tag.' + tag).decode().strip() == value
             for key, value in d.original['properties'].items():
                 d.adb('shell', 'setprop ' + shlex.quote(key) + ' ' + shlex.quote(value))
         finally:

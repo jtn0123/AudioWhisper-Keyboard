@@ -101,10 +101,13 @@ class KeyboardRenderer(fontPaths: Array<String>) : AutoCloseable {
     fun popup(key: Int, labels: Array<String>, codes: IntArray) = RenderNative.popup(handle, key, labels, codes)
 
     @Synchronized
-    fun attach(surface: Any, hybrid: Boolean = false) = RenderNative.attach(handle, surface, hybrid)
+    /** [timeline]: present through a SurfaceControl whose frames carry their vsync id (CPU path only). */
+    fun attach(surface: Any, hybrid: Boolean = false, timeline: Boolean = false) =
+        RenderNative.attach(handle, surface, hybrid, timeline)
 
     @Synchronized
-    fun frame(time: Long) = RenderNative.frame(handle, time)
+    /** [vsync]: the Choreographer vsync id this frame is timed by, or -1. */
+    fun frame(time: Long, vsync: Long = -1) = RenderNative.frame(handle, time, vsync)
 
     @Synchronized
     fun detach() = RenderNative.detach(handle)
@@ -159,8 +162,8 @@ internal object RenderNative {
     external fun candidateLongPress(handle: Long, pointer: Int)
     external fun popupGrid(handle: Long, prioritized: Int, landscape: Boolean)
     external fun popup(handle: Long, key: Int, labels: Array<String>, codes: IntArray)
-    external fun attach(handle: Long, surface: Any, hybrid: Boolean)
-    external fun frame(handle: Long, time: Long): Boolean
+    external fun attach(handle: Long, surface: Any, hybrid: Boolean, timeline: Boolean)
+    external fun frame(handle: Long, time: Long, vsync: Long): Boolean
     external fun detach(handle: Long)
     external fun close(handle: Long)
 }

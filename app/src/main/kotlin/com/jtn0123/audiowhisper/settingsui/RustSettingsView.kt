@@ -25,7 +25,7 @@ private const val SETTINGS_TRACE_TAG = "aw-profile"
 private const val UNBUFFERED_TAG = "aw-unbuffered"
 
 /** Surface, lifecycle and Android transport. Native code supplies every drawn control and action. */
-internal class RustSettingsView(context: Context) : FrameLayout(context), SurfaceHolder.Callback, Choreographer.FrameCallback {
+internal class RustSettingsView(context: Context) : FrameLayout(context), SurfaceHolder.Callback, Choreographer.VsyncCallback {
     private lateinit var activity: FlorisAppActivity
     private lateinit var platform: SettingsPlatform
     var backAvailability: (Boolean) -> Unit = {}
@@ -158,25 +158,29 @@ internal class RustSettingsView(context: Context) : FrameLayout(context), Surfac
         receive(native.settings(3, config))
     }
     private fun requestFrame() {
-        if (live && !pending && !released) { pending = true; choreographer.postFrameCallback(this) }
+        if (live && !pending && !released) { pending = true; choreographer.postVsyncCallback(this) }
     }
-    override fun doFrame(frameTimeNanos: Long) {
+    /** The vsync callback (Java's AChoreographer_postVsyncCallback), so the frame carries its vsync id. */
+    override fun onVsync(data: Choreographer.FrameData) {
+        val frameTimeNanos = data.frameTimeNanos
         android.os.Trace.beginSection("aw.settings.frame")
         try {
         pending = false
         if (!live || released) return
         if (state.getValue("animating").jsonPrimitive.boolean) receive(native.settings(8, arrayOf(frameTimeNanos.toString())))
         if (android.util.Log.isLoggable(SETTINGS_TRACE_TAG, android.util.Log.DEBUG)) android.util.Log.d(SETTINGS_TRACE_TAG, "submit frame_ns=$frameTimeNanos submit_ns=${System.nanoTime()}")
-        native.frame(frameTimeNanos)
+        native.frame(frameTimeNanos, data.preferredFrameTimeline.vsyncId)
         if (state.getValue("animating").jsonPrimitive.boolean) requestFrame()
         } finally { android.os.Trace.endSection() }
     }
     override fun surfaceCreated(holder: SurfaceHolder) = Unit
     override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) {
-        configure(); native.attach(holder.surface); live = true; requestFrame()
+        // The hybrid GPU path is for measurement only, as on the keyboard.
+        configure(); native.attach(holder.surface, hybrid = android.util.Log.isLoggable("aw-hybrid", android.util.Log.DEBUG), timeline = true)
+        live = true; requestFrame()
     }
     override fun surfaceDestroyed(holder: SurfaceHolder) {
-        live = false; pending = false; choreographer.removeFrameCallback(this); native.detach()
+        live = false; pending = false; choreographer.removeVsyncCallback(this); native.detach()
     }
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
@@ -205,7 +209,7 @@ internal class RustSettingsView(context: Context) : FrameLayout(context), Surfac
     override fun getAccessibilityNodeProvider() = accessibility
     override fun performClick(): Boolean { super.performClick(); return true }
     override fun onDetachedFromWindow() {
-        super.onDetachedFromWindow(); released = true; live = false; choreographer.removeFrameCallback(this)
+        super.onDetachedFromWindow(); released = true; live = false; choreographer.removeVsyncCallback(this)
         selectionMenu.close(); accessibility.release(); native.detach(); native.close()
     }
 }

@@ -32,6 +32,8 @@ mod render_content;
 mod render_input;
 mod render_profile;
 mod render_smartbar;
+#[cfg(target_os = "android")]
+mod render_surface;
 mod render_theme;
 mod render_trail;
 #[cfg(target_os = "android")]
