@@ -233,11 +233,17 @@ class SettingsInstrumentation : Instrumentation() {
         screens.put(h.audit("keyboard-returned"))
         report.put("screens", screens)
         var violations = 0
+        var known = 0
         for (i in 0 until screens.length()) {
             val items = screens.getJSONObject(i).getJSONArray("items")
-            for (j in 0 until items.length()) violations += items.getJSONObject(j).getJSONArray("violations").length()
+            for (j in 0 until items.length()) {
+                violations += items.getJSONObject(j).getJSONArray("violations").length()
+                if (!items.getJSONObject(j).isNull("known_defect")) known++
+            }
         }
-        report.put("accessibility_violations", violations).put("accessibility_passed", violations == 0)
+        // Known defects are owed, not passed: the device script lists every one by name.
+        report.put("accessibility_violations", violations).put("accessibility_known_defects", known)
+            .put("accessibility_passed", violations == 0)
         h.waitFor("preference writes pending") { h.views(RustSettingsView::class.java).none { it.pendingWrites > 0 } }
         stage = "picker"
         val priorWindows = h.automation.windows.map { it.id }.toSet()

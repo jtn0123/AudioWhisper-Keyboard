@@ -39,6 +39,23 @@ def accessibility_comparison(reports):
     return result
 
 
+def known_defects(reports):
+    """Each named known defect once per control, with every audit checkpoint that saw it."""
+    out = {}
+    for renderer, report in reports.items():
+        found = {}
+        for screen in report['screens']:
+            for node in screen['items']:
+                defect = node.get('known_defect')
+                if defect:
+                    entry = found.setdefault((defect['name'], defect['for']), {**defect, 'occurrences': 0, 'screens': []})
+                    entry['occurrences'] += 1
+                    if screen['screen'] not in entry['screens']:
+                        entry['screens'].append(screen['screen'])
+        out[renderer] = sorted(found.values(), key=lambda e: (e['name'], e['for']))
+    return out
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('baseline', type=Path)
@@ -92,7 +109,14 @@ def main():
             assert identical, 'Complete preference files differ'
             d.save('accessibility-comparison.json', accessibility_comparison(reports))
             accessibility_passed = all(r['accessibility_passed'] and r['system_ime_picker'] for r in reports.values())
-            d.save('accessibility-result.json', {'passed': accessibility_passed, 'compose_violations': reports['compose']['accessibility_violations'], 'rust_violations': reports['rust']['accessibility_violations'], 'picker_presented': {k: r['system_ime_picker'] for k,r in reports.items()}, 'real_talkback_phone_session': 'owed'})
+            known = known_defects(reports)
+            assert not known['rust'], 'The Rust path has no known accessibility defects to excuse'
+            d.save('accessibility-result.json', {'passed': accessibility_passed, 'compose_violations': reports['compose']['accessibility_violations'], 'rust_violations': reports['rust']['accessibility_violations'],
+                'compose_known_defects_owed': known['compose'],
+                # Passing excludes the named defects; acceptance does not, until each is fixed.
+                'acceptance_complete': accessibility_passed and not known['compose'], 'picker_presented': {k: r['system_ime_picker'] for k,r in reports.items()}, 'real_talkback_phone_session': 'owed'})
+            for defect in known['compose']:
+                print(f"KNOWN DEFECT, OWED (Compose/Jetpref): {defect['name']} for {defect['for']!r}: {defect['occurrences']} audit node(s) on {', '.join(defect['screens'])}", flush=True)
         if args.mode == 'metrics':
             run('metrics', 'compose')
         if args.mode in ('all', 'text'):
