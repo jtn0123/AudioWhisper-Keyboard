@@ -18,7 +18,8 @@ impl App {
             .min(560.0 * d)
             .min(w - 32.0 * d);
         let left = (w - width) / 2.0;
-        let padding = if h < 600.0 * d { 8.0 * d } else { 32.0 * d };
+        // Compose's AlertDialog keeps 16 dp from the window edge on tall screens (measured on device: 42 px at 2.625).
+        let padding = if h < 600.0 * d { 8.0 * d } else { 16.0 * d };
         let (button_height, button_widths, footer) = self.button_metrics(width, text);
         let title = self.label(if matches!(r.kind, Kind::Confirm(..)) {
             "action__reset_confirm_title"

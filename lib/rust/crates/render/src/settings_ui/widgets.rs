@@ -7,6 +7,17 @@ use crate::{
 use keys::Rect;
 impl App {
     pub(super) fn paint_box(&self, p: &mut Panel, b: Rect, color: u32, radius: f32) {
+        self.paint_clipped_box(p, b, color, radius, b);
+    }
+    /// A box drawn only inside `clip`, for shapes inside a scrolling list or dialog.
+    pub(super) fn paint_clipped_box(
+        &self,
+        p: &mut Panel,
+        b: Rect,
+        color: u32,
+        radius: f32,
+        clip: Rect,
+    ) {
         let mut item = Item::new(
             -10000 - p.items.len() as i32,
             b,
@@ -20,6 +31,7 @@ impl App {
             ..Default::default()
         };
         item.styles = [style.clone(), style];
+        item.clip = clip;
         p.items.push(item);
     }
     pub(super) fn paint_text(
@@ -209,24 +221,27 @@ impl App {
                     },
                     c.enabled,
                 );
-                self.paint_box(
+                self.paint_clipped_box(
                     p,
                     rect(cx - 10.0 * d, cy - 10.0 * d, 20.0 * d, 20.0 * d),
                     ink,
                     10.0 * d,
+                    clip,
                 );
-                self.paint_box(
+                self.paint_clipped_box(
                     p,
                     rect(cx - 8.0 * d, cy - 8.0 * d, 16.0 * d, 16.0 * d),
                     self.colors[11],
                     8.0 * d,
+                    clip,
                 );
                 if c.selected {
-                    self.paint_box(
+                    self.paint_clipped_box(
                         p,
                         rect(cx - 6.0 * d, cy - 6.0 * d, 12.0 * d, 12.0 * d),
                         ink,
                         6.0 * d,
+                        clip,
                     );
                 }
             }

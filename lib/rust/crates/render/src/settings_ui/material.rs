@@ -55,14 +55,15 @@ impl App {
         let color = |c| self.enabled_color(c, enabled);
         if linked {
             // Jetpref draws a 2 physical-pixel divider through 80% of its switch box.
-            self.paint_box(
+            self.paint_clipped_box(
                 p,
                 rect(b.left, b.top + b.height() * 0.1, 2.0, b.height() * 0.8),
                 color(self.colors[10]),
                 0.0,
+                clip,
             );
         }
-        self.paint_box(
+        self.paint_clipped_box(
             p,
             rect(x, y - 16.0 * d, 52.0 * d, 32.0 * d),
             color(if checked {
@@ -71,18 +72,20 @@ impl App {
                 self.colors[7]
             }),
             16.0 * d,
+            clip,
         );
         if !checked {
-            self.paint_box(
+            self.paint_clipped_box(
                 p,
                 rect(x + 2.0 * d, y - 14.0 * d, 48.0 * d, 28.0 * d),
                 color(self.colors[5]),
                 14.0 * d,
+                clip,
             );
         }
         let size = if checked { 24.0 } else { 16.0 } * d;
         let cx = x + if checked { 36.0 } else { 16.0 } * d;
-        self.paint_box(
+        self.paint_clipped_box(
             p,
             rect(cx - size / 2.0, y - size / 2.0, size, size),
             color(if checked {
@@ -91,10 +94,8 @@ impl App {
                 self.colors[7]
             }),
             size / 2.0,
+            clip,
         );
-        for item in p.items.iter_mut().rev().take(if checked { 2 } else { 3 }) {
-            item.clip = clip;
-        }
     }
 }
 
@@ -117,11 +118,12 @@ impl App {
         let x = left + at.round();
         let gap = 8.0 * d; // 4dp thumb / 2 + 6dp track gap.
         if x - gap - left > 8.0 * d {
-            self.paint_box(
+            self.paint_clipped_box(
                 p,
                 rect(left, y - 8.0 * d, x - gap - left, 16.0 * d),
                 self.colors[3],
                 8.0 * d,
+                clip,
             );
             let item = p.items.last_mut().unwrap();
             for style in &mut item.styles {
@@ -130,32 +132,32 @@ impl App {
             }
         }
         if right - x - gap > 8.0 * d {
-            self.paint_box(
+            self.paint_clipped_box(
                 p,
                 rect(x + gap, y - 8.0 * d, right - x - gap, 16.0 * d),
                 self.colors[4],
                 8.0 * d,
+                clip,
             );
             let item = p.items.last_mut().unwrap();
             for style in &mut item.styles {
                 style.corners[0] = 2.0 * d;
                 style.corners[3] = 2.0 * d;
             }
-            self.paint_box(
+            self.paint_clipped_box(
                 p,
                 rect(right - 10.0 * d, y - 2.0 * d, 4.0 * d, 4.0 * d),
                 self.colors[3],
                 2.0 * d,
+                clip,
             );
         }
-        self.paint_box(
+        self.paint_clipped_box(
             p,
             rect(x - 2.0 * d, y - 22.0 * d, 4.0 * d, 44.0 * d),
             self.colors[3],
             2.0 * d,
+            clip,
         );
-        for item in p.items.iter_mut().rev().take(5) {
-            item.clip = crate::panel_layout::intersection(item.clip, clip);
-        }
     }
 }

@@ -389,3 +389,60 @@ fn a_pushed_screen_opens_at_the_top_like_a_new_back_stack_entry() {
     a.scene(&mut text);
     assert_eq!(a.scroll(), 0.0);
 }
+#[test]
+fn long_dialog_keeps_compose_margin_and_clips_radios_to_its_list() {
+    // The device suite found both: a 32 dp margin hid Compose's last visible radio,
+    // and radio circles were drawn over the buttons below the list.
+    let mut a = App {
+        config: [480.0, 1000.0, 1.0, 1.0],
+        ..App::default()
+    };
+    a.navigate("settings/gestures");
+    let row = a
+        .rows()
+        .iter()
+        .position(|r| r.key == "gestures__space_bar_swipe_up")
+        .unwrap() as i32;
+    let mut text = Text::new(Vec::<Vec<u8>>::new());
+    a.focus = 1000 + row;
+    a.reveal_focus = true;
+    a.scene(&mut text);
+    assert!(a.activate(1000 + row));
+    for scroll in [0.0, 37.0, 10_000.0] {
+        a.modal.as_mut().unwrap().scroll = scroll;
+        let panel = a.scene(&mut text).panel.unwrap();
+        let list = a.controls.iter().find(|c| c.id == 4).unwrap().bounds;
+        let card = panel
+            .items
+            .iter()
+            .position(|i| i.element == "settings-box" && i.styles[0].corners[0] == 28.0)
+            .unwrap();
+        let area = panel.items[card].bounds;
+        assert_eq!(
+            (area.top, area.bottom),
+            (16.0, 984.0),
+            "Compose keeps 16 dp from the window"
+        );
+        let radios = panel.items[card + 1..]
+            .iter()
+            .filter(|i| i.element == "settings-box")
+            .map(|i| {
+                let (b, c) = (i.bounds, i.clip);
+                (
+                    b.left.max(c.left),
+                    b.top.max(c.top),
+                    b.right.min(c.right),
+                    b.bottom.min(c.bottom),
+                )
+            })
+            .filter(|&(l, t, r, b)| r > l && b > t)
+            .collect::<Vec<_>>();
+        assert!(!radios.is_empty());
+        for v in radios {
+            assert!(
+                v.1 >= list.top && v.3 <= list.bottom,
+                "a radio is drawn outside the dialog list at scroll {scroll}: {v:?} vs {list:?}"
+            );
+        }
+    }
+}

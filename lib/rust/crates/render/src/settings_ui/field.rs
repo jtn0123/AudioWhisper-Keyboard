@@ -132,10 +132,7 @@ impl App {
         self.editor_origin = [x, y];
     }
     fn field_box(&self, p: &mut Panel, b: Rect, color: u32, clip: Rect) {
-        self.paint_box(p, b, color, 0.0);
-        if let Some(last) = p.items.last_mut() {
-            last.clip = clip;
-        }
+        self.paint_clipped_box(p, b, color, 0.0, clip);
     }
     pub(super) fn place_editor_caret(&mut self, x: f32, y: f32) {
         if let Some(layout) = &self.editor_layout {
