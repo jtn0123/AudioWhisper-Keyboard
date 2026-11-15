@@ -108,9 +108,8 @@ internal class SettingsGroupOneDevice(private val h: SettingsHarness, private va
     private fun primary(n: Node) = h.label(n).substringBefore('\n')
 
     private fun next(done: Set<String>): String? {
-        val rows = h.nodes().filter { it.isClickable && !it.isEditable && it.rangeInfo == null && h.label(it).isNotBlank() && primary(it) !in chrome }
         // A linked switch lies inside its row; it is exercised with that row, not as one.
-        val own = rows.filter { n -> rows.none { o -> o != n && bounds(o) != bounds(n) && bounds(o).contains(bounds(n)) } }
+        val own = h.rows(chrome)
         for (n in own) if (n.isEnabled) seenEnabled.add(primary(n)) else seenDisabled.add(primary(n))
         return own.filter { it.isEnabled && primary(it) !in done }.minByOrNull { bounds(it).top }?.let(::primary)
     }

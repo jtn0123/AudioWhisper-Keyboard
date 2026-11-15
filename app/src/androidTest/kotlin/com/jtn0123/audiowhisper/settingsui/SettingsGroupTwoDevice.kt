@@ -62,8 +62,6 @@ internal class SettingsGroupTwoDevice(private val h: SettingsHarness, private va
     private lateinit var launches: Launches
     private val seenDisabled = mutableSetOf<String>()
     private val seenEnabled = mutableSetOf<String>()
-    /** Each later line of a row's label, to that row's title. */
-    private val titles = mutableMapOf<String, String>()
     private var rust = false
 
     fun run(report: JSONObject, out: JSONArray) {
@@ -78,7 +76,6 @@ internal class SettingsGroupTwoDevice(private val h: SettingsHarness, private va
                 log = JSONArray()
                 seenDisabled.clear()
                 seenEnabled.clear()
-                titles.clear()
                 walk(screen)
                 result.put(screen.name, JSONObject().put("exercised", log)
                     .put("never_enabled", JSONArray((seenDisabled - seenEnabled).sorted())))
@@ -139,23 +136,11 @@ internal class SettingsGroupTwoDevice(private val h: SettingsHarness, private va
 
     private fun bounds(n: Node) = Rect().also(n::getBoundsInScreen)
 
-    /**
-     * A row by its title. Compose leaves a child scrolled out of view out of its row's node, so a
-     * row whose title is above the viewport is labelled from its summary down; that row is the
-     * one whose whole label held the summary. Rust labels a row whole however it is clipped.
-     */
-    private fun primary(n: Node): String {
-        val lines = h.label(n).lines()
-        val title = titles[lines.first()] ?: lines.first()
-        lines.drop(1).forEach { titles.putIfAbsent(it, title) }
-        return title
-    }
+    private fun primary(n: Node) = h.label(n).substringBefore('\n')
 
     private fun next(done: Set<String>): String? {
-        // A disabled row is clickable on Compose, as a disabled View is, but not on Rust; neither
-        // offers ACTION_CLICK. Disabled nodes count as rows on both, so both see Languages.
-        val rows = h.nodes().filter { (it.isClickable || !it.isEnabled) && !it.isEditable && it.rangeInfo == null && h.label(it).isNotBlank() && primary(it) !in chrome }
-        val own = rows.filter { n -> rows.none { o -> o != n && bounds(o) != bounds(n) && bounds(o).contains(bounds(n)) } }
+        // Disabled rows count on both renderers (SettingsHarness.rows), so both see Languages.
+        val own = h.rows(chrome)
         for (n in own) if (n.isEnabled) seenEnabled.add(primary(n)) else seenDisabled.add(primary(n))
         return own.filter { it.isEnabled && primary(it) !in done }.minByOrNull { bounds(it).top }?.let(::primary)
     }

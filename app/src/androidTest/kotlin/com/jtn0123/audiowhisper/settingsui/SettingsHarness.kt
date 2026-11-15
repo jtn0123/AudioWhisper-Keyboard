@@ -154,6 +154,25 @@ internal class SettingsHarness(val instrumentation: Instrumentation, explore: Bo
         check(checkNotNull(toggle).performAction(Node.ACTION_CLICK))
         SystemClock.sleep(100)
     }
+    /**
+     * The rows a walk names by sight: labelled nodes that are clickable or disabled (Compose keeps
+     * a disabled row clickable, as a disabled View is; Rust does not, and neither offers
+     * ACTION_CLICK), not editable, not a range, not [chrome], and not inside another row. A row
+     * clipped by the top of the scroll container is left out. Compose drops a child scrolled out
+     * of view from its row's node, so that row is labelled from its summary down. A walk from the
+     * top has already counted it, whole or clipped only at the bottom, one scroll earlier.
+     */
+    fun rows(chrome: Set<String>): List<Node> {
+        fun bounds(n: Node) = android.graphics.Rect().also(n::getBoundsInScreen)
+        val all = nodes()
+        val candidates = all.filter { n -> (n.isClickable || !n.isEnabled) && !n.isEditable && n.rangeInfo == null &&
+            label(n).isNotBlank() && label(n).substringBefore('\n') !in chrome }
+        // Containment over every candidate first, so a switch inside a clipped row stays inside it.
+        val own = candidates.filter { n -> candidates.none { o -> o != n && bounds(o) != bounds(n) && bounds(o).contains(bounds(n)) } }
+        val list = all.filter { it.isScrollable }.maxByOrNull { bounds(it).let { b -> b.width().toLong() * b.height() } }
+        val top = list?.let { bounds(it).top } ?: Int.MIN_VALUE
+        return own.filter { bounds(it).top >= top }
+    }
     fun scroll(forward: Boolean): Boolean {
         val action = if (forward) Node.ACTION_SCROLL_FORWARD else Node.ACTION_SCROLL_BACKWARD
         val node = nodes().firstOrNull { n -> n.isScrollable && n.actionList.any { it.id == action } } ?: return false
