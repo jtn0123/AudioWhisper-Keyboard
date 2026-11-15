@@ -59,6 +59,8 @@ class SettingsInstrumentation : Instrumentation() {
                         report.put("copy_details_sanitized", true).put("clipboard_restored", true)
                     }
                     report.put("native_load_failure", true).put("non_compose", true)
+                    SettingsCrashThemeDevice(h).run(report)
+                    SettingsImeFallbackDevice(h).run(report)
                 }
                 "metrics" -> {
                     SettingsTypographyDevice(h).run(report)

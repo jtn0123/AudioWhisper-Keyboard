@@ -6,4 +6,7 @@
     <string name="settings__selection_start">Start of selection</string>
     <string name="settings__selection_end">End of selection</string>
     <string name="crash__copy_details">Copy details</string>
+    <string name="crash__native_load_summary">AudioWhisper could not load its keyboard engine. Reinstall the app, then open it again.</string>
+    <string name="crash__keyboard_unavailable">AudioWhisper could not load its keyboard engine, so it cannot type. Reinstall the app, and switch to another keyboard until then.</string>
+    <string name="crash__switch_keyboard">Switch keyboard</string>
 </resources>

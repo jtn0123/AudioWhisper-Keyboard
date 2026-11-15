@@ -43,6 +43,7 @@ import com.jtn0123.audiowhisper.dictation.DictationFields
 import com.jtn0123.audiowhisper.gif.GifSearch
 import com.jtn0123.audiowhisper.rust.DictationRules
 import dev.patrickgold.florisboard.app.FlorisAppActivity
+import dev.patrickgold.florisboard.app.FlorisPreferenceModel
 import dev.patrickgold.florisboard.app.FlorisPreferenceStore
 import dev.patrickgold.florisboard.ime.ImeUiMode
 import dev.patrickgold.florisboard.ime.core.isSubtypeSelectionShowing
@@ -158,7 +159,9 @@ class FlorisImeService : LifecycleInputMethodService() {
         }
     }
 
-    internal val prefs by FlorisPreferenceStore
+    // Lazy, like FlorisAppActivity's: building the model reads native defaults, which a
+    // service constructed without its engine must not do (the system would crash-loop it).
+    internal val prefs: FlorisPreferenceModel by lazy { val model by FlorisPreferenceStore; model }
     internal val editorInstance by editorInstance()
     internal val keyboardManager by keyboardManager()
     private val nlpManager by nlpManager()
@@ -176,11 +179,19 @@ class FlorisImeService : LifecycleInputMethodService() {
 
     private var dictation: Dictation? = null
 
+    /**
+     * False when the native engine failed to load. FlorisApplication then skipped its setup,
+     * and every manager here reaches the engine, so the service touches none of them: it
+     * shows [PlatformCrashScreen.inputView] and leaves the rest to InputMethodService.
+     */
+    private val engine = com.jtn0123.audiowhisper.rust.NativeRuntime.load()
+
     init {
         setTheme(R.style.FlorisImeTheme)
     }
     override fun onCreate() {
         super.onCreate()
+        if (!engine) return
         FlorisImeServiceReference = WeakReference(this)
         WindowCompat.setDecorFitsSystemWindows(window.window!!, false)
         dictation = Dictation(this, dictationEditor)
@@ -204,6 +215,7 @@ class FlorisImeService : LifecycleInputMethodService() {
         }
     }
     override fun onCreateInputView(): View {
+        if (!engine) return com.jtn0123.audiowhisper.settingsui.PlatformCrashScreen.inputView(this)
         val timingStart = com.jtn0123.audiowhisper.render.RendererHostTiming.start()
         super.installViewTreeOwners()
         // Instantiate and install bottom sheet host UI view
@@ -218,7 +230,8 @@ class FlorisImeService : LifecycleInputMethodService() {
         // Disable the default candidates view
         return null
     }
-    override fun onCreateExtractTextView(): View {
+    override fun onCreateExtractTextView(): View? {
+        if (!engine) return super.onCreateExtractTextView()
         super.installViewTreeOwners()
         val defaultExtractView = super.onCreateExtractTextView()
         if (defaultExtractView == null || defaultExtractView !is ViewGroup) {
@@ -234,6 +247,7 @@ class FlorisImeService : LifecycleInputMethodService() {
     }
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
+        if (!engine) return
         themeManager.configurationChangeCounter.update { it + 1 }
     }
     override fun onDestroy() {
@@ -245,6 +259,7 @@ class FlorisImeService : LifecycleInputMethodService() {
     }
     override fun onStartInput(info: EditorInfo?, restarting: Boolean) {
         super.onStartInput(info, restarting)
+        if (!engine) return
         // AudioWhisper: input started again, perhaps in another field. Chrome reports a move
         // between a page's fields as a restart of the same one, with nothing to tell them
         // apart, so any start ends a dictation rather than let it type into the wrong field (a
@@ -256,7 +271,7 @@ class FlorisImeService : LifecycleInputMethodService() {
     }
     override fun onStartInputView(info: EditorInfo?, restarting: Boolean) {
         super.onStartInputView(info, restarting)
-        if (info == null) return
+        if (info == null || !engine) return
         val editorInfo = FlorisEditorInfo.wrap(info)
         // AudioWhisper: a new field starts on its own text, not a half-typed GIF search.
         if (!restarting) GifSearch.stopTyping()
@@ -272,10 +287,11 @@ class FlorisImeService : LifecycleInputMethodService() {
         val config = resources.configuration
         return super.onEvaluateInputViewShown()
             || config.keyboard == Configuration.KEYBOARD_NOKEYS
-            || prefs.physicalKeyboard.showOnScreenKeyboard.get()
+            || engine && prefs.physicalKeyboard.showOnScreenKeyboard.get()
     }
     override fun onUpdateExtractedText(token: Int, text: android.view.inputmethod.ExtractedText) {
         super.onUpdateExtractedText(token, text)
+        if (!engine) return
         editorInstance.handleExtractedTextUpdate(text)
     }
     override fun onUpdateSelection(
@@ -288,6 +304,7 @@ class FlorisImeService : LifecycleInputMethodService() {
     ) {
         flogInfo { "old={start=$oldSelStart,end=$oldSelEnd} new={start=$newSelStart,end=$newSelEnd} composing={start=$candidatesStart,end=$candidatesEnd}" }
         super.onUpdateSelection(oldSelStart, oldSelEnd, newSelStart, newSelEnd, candidatesStart, candidatesEnd)
+        if (!engine) return
         activeState.batchEdit {
             activeState.isSelectionMode = (newSelEnd - newSelStart) != 0
             editorInstance.handleSelectionUpdate(
@@ -300,11 +317,13 @@ class FlorisImeService : LifecycleInputMethodService() {
     override fun onFinishInputView(finishingInput: Boolean) {
         flogInfo { "finishing=$finishingInput" }
         super.onFinishInputView(finishingInput)
+        if (!engine) return
         editorInstance.handleFinishInputView()
     }
     override fun onFinishInput() {
         flogInfo { "(no args)" }
         super.onFinishInput()
+        if (!engine) return
         editorInstance.handleFinishInput()
         NlpInlineAutofill.clearInlineSuggestions()
         // AudioWhisper: the field is gone (another app, the screen off), so a phrase still
@@ -313,6 +332,7 @@ class FlorisImeService : LifecycleInputMethodService() {
     }
     override fun onWindowShown() {
         super.onWindowShown()
+        if (!engine) return
         if (isWindowShown) {
             flogWarning(LogTopic.IMS_EVENTS) { "Ignoring (is already shown)" }
             return
@@ -327,6 +347,7 @@ class FlorisImeService : LifecycleInputMethodService() {
     }
     override fun onWindowHidden() {
         super.onWindowHidden()
+        if (!engine) return
         if (!isWindowShown) {
             flogWarning(LogTopic.IMS_EVENTS) { "Ignoring (is already hidden)" }
             return
@@ -373,7 +394,7 @@ class FlorisImeService : LifecycleInputMethodService() {
     }
     override fun onEvaluateFullscreenMode(): Boolean {
         val config = resources.configuration
-        if (config.orientation != Configuration.ORIENTATION_LANDSCAPE) {
+        if (!engine || config.orientation != Configuration.ORIENTATION_LANDSCAPE) {
             return false
         }
         return when (prefs.keyboard.landscapeInputUiMode.get()) {
@@ -384,10 +405,12 @@ class FlorisImeService : LifecycleInputMethodService() {
     }
     override fun updateFullscreenMode() {
         super.updateFullscreenMode()
+        if (!engine) return
         isFullscreenUiMode = isFullscreenMode
         updateSoftInputWindowLayoutParameters()
     }
     override fun onUpdateExtractingVisibility(info: EditorInfo?) {
+        if (!engine) return super.onUpdateExtractingVisibility(info)
         if (info != null) {
             editorInstance.handleStartInputView(FlorisEditorInfo.wrap(info), isRestart = true)
         }
@@ -401,11 +424,11 @@ class FlorisImeService : LifecycleInputMethodService() {
         super.setExtractViewShown(shown)
         isExtractUiShown = shown
     }
-    override fun onCreateInlineSuggestionsRequest(uiExtras: Bundle) = createInlineSuggestionsRequest()
-    override fun onInlineSuggestionsResponse(response: InlineSuggestionsResponse) = receiveInlineSuggestions(response)
+    override fun onCreateInlineSuggestionsRequest(uiExtras: Bundle) = if (engine) createInlineSuggestionsRequest() else null
+    override fun onInlineSuggestionsResponse(response: InlineSuggestionsResponse) = engine && receiveInlineSuggestions(response)
     override fun onComputeInsets(outInsets: Insets?) {
         super.onComputeInsets(outInsets)
-        if (outInsets == null) return
+        if (outInsets == null || !engine) return
 
         val inputWindowView = inputWindowView ?: return
         // TODO: Check also if the keyboard is currently suppressed by a hardware keyboard
@@ -470,10 +493,10 @@ class FlorisImeService : LifecycleInputMethodService() {
         }
     }
     override fun onKeyDown(keyCode: Int, event: KeyEvent?): Boolean {
-        return keyboardManager.onHardwareKeyDown(keyCode, event) || super.onKeyDown(keyCode, event)
+        return engine && keyboardManager.onHardwareKeyDown(keyCode, event) || super.onKeyDown(keyCode, event)
     }
     override fun onKeyUp(keyCode: Int, event: KeyEvent?): Boolean {
-        return keyboardManager.onHardwareKeyUp(keyCode, event) || super.onKeyUp(keyCode, event)
+        return engine && keyboardManager.onHardwareKeyUp(keyCode, event) || super.onKeyUp(keyCode, event)
     }
 
 }

@@ -1,7 +1,10 @@
 package com.jtn0123.audiowhisper.settingsui
 
+import androidx.annotation.StringRes
+import dev.patrickgold.florisboard.R
+
 /** Bootstrap diagnostics have an allowlist, never a Throwable formatter or app-state dump. */
-internal data class CrashReport(val summary: String, val details: String) {
+internal data class CrashReport(@param:StringRes val summary: Int, val details: String) {
     companion object {
         private val bootstrapSites = mapOf(
             "com.jtn0123.audiowhisper.rust.NativeRuntime" to setOf("load", "requireLoaded"),
@@ -24,7 +27,7 @@ internal data class CrashReport(val summary: String, val details: String) {
                     "${frame.className}.${frame.methodName}:${frame.lineNumber.coerceAtLeast(0)}"
                 } else null
             }
-            return CrashReport("AudioWhisper could not load its keyboard engine. Reinstall the app, then open it again.",
+            return CrashReport(R.string.crash__native_load_summary,
                 (listOf("AudioWhisper native engine unavailable", "library=awnative", "category=$category") + frames).joinToString("\n"))
         }
     }

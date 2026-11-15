@@ -57,17 +57,24 @@ def main():
         d.private_write(MODULE.PREFS, data)
         d.adb('shell', 'run-as', MODULE.PKG, 'rm', '-f', 'files/settings-device-failure.json')
 
-    def run(mode, renderer='rust'):
+    def run(mode, renderer='rust', label=None):
         fixture(renderer)
+        name = f'{renderer}-{label or mode}'
         result = subprocess.run(['adb', '-s', d.serial, 'shell', 'am', 'instrument', '-w', '-e', 'mode', mode, COMPONENT], check=True, capture_output=True, timeout=300).stdout
-        (d.output / f'{renderer}-{mode}.log').write_bytes(result)
+        (d.output / f'{name}.log').write_bytes(result)
         if b'PASS ' + mode.encode() not in result:
             detail = d.adb('exec-out', 'run-as', MODULE.PKG, 'cat', 'files/settings-device-failure.json')
-            (d.output / f'{renderer}-{mode}-failure.json').write_bytes(detail)
-            raise RuntimeError(f'{renderer}/{mode} failed; see sanitized failure receipt')
+            (d.output / f'{name}-failure.json').write_bytes(detail)
+            raise RuntimeError(f'{name} failed; see sanitized failure receipt')
         report = json.loads(d.adb('exec-out', 'run-as', MODULE.PKG, 'cat', f'files/settings-device-{mode}.json'))
-        d.save(f'{renderer}-{mode}.json', report)
+        d.save(f'{name}.json', report)
         return report
+
+    def appearance(mode):
+        # Through the agent session, then closed again before UiAutomation claims the device.
+        d.launch('settings/home')
+        d.ui('settings', 'appearance', mode)
+        d.ui('close')
 
     accessibility_passed = True
     try:
@@ -127,7 +134,13 @@ def main():
             finally:
                 d.ui('close')
         if args.mode in ('all', 'crash'):
-            run('crash')
+            assert not run('crash')['crash_theme_night']
+            # The crash screen follows the system theme: repeat it in dark mode.
+            appearance('dark')
+            try:
+                assert run('crash', label='crash-dark')['crash_theme_night']
+            finally:
+                appearance('light')
     finally:
         d.cleanup()
         for name in ('settings-death-ready', 'settings-death-result.json', 'settings-death-expected.json', 'settings-death-arm',

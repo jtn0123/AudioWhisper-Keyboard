@@ -20,6 +20,7 @@ import android.service.textservice.SpellCheckerService
 import android.view.textservice.SentenceSuggestionsInfo
 import android.view.textservice.SuggestionsInfo
 import android.view.textservice.TextInfo
+import dev.patrickgold.florisboard.app.FlorisPreferenceModel
 import dev.patrickgold.florisboard.app.FlorisPreferenceStore
 import dev.patrickgold.florisboard.ime.core.Subtype
 import dev.patrickgold.florisboard.ime.dictionary.DictionaryManager
@@ -31,18 +32,28 @@ import kotlinx.coroutines.runBlocking
 import org.florisboard.lib.kotlin.map
 
 class FlorisSpellCheckerService : SpellCheckerService() {
-    private val prefs by FlorisPreferenceStore
+    // Lazy: the model reads native defaults, which a service without its engine must not do.
+    private val prefs: FlorisPreferenceModel by lazy { val model by FlorisPreferenceStore; model }
     private val dictionaryManager get() = DictionaryManager.default()
     private val nlpManager by nlpManager()
     private val subtypeManager by subtypeManager()
 
+    /** False when the native engine failed to load: the managers below all reach it. */
+    private val engine = com.jtn0123.audiowhisper.rust.NativeRuntime.load()
+
     override fun onCreate() {
         super.onCreate()
-        dictionaryManager.loadUserDictionariesIfNecessary()
+        if (engine) dictionaryManager.loadUserDictionariesIfNecessary()
     }
 
     override fun createSession(): Session {
-        return FlorisSpellCheckerSession()
+        return if (engine) FlorisSpellCheckerSession() else InertSession()
+    }
+
+    /** With no engine there is nothing to check against: offer no opinion rather than crash-loop. */
+    private class InertSession : Session() {
+        override fun onCreate() = Unit
+        override fun onGetSuggestions(textInfo: TextInfo?, suggestionsLimit: Int) = SuggestionsInfo(0, emptyArray())
     }
 
     private inner class FlorisSpellCheckerSession : Session() {
