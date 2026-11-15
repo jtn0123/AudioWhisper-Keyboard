@@ -316,6 +316,7 @@ impl App {
         }
         let content = y + self.shown_scroll() - header;
         self.max_scroll = (content - viewport.height()).max(0.0);
+        self.stretch.extent = viewport.height();
         if self.modal.is_none() {
             self.set_scroll(self.scroll());
         }

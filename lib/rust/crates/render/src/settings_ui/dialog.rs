@@ -191,6 +191,7 @@ impl App {
             _ => {}
         }
         self.max_scroll = (y + super::shown(m.scroll) - clip.bottom).max(0.0);
+        self.stretch.extent = clip.height();
         self.set_scroll(m.scroll);
         self.paint_scrollbar(p, clip);
         for (id, key, action, x, button_y, button_width) in

@@ -1,4 +1,5 @@
-"""Require fresh JVM assertion failures for each UI, editor and group 1 mutation; always restore bytes."""
+"""Require fresh JVM assertion failures for each UI, editor and group 1 mutation, and fresh Rust test
+panics for each layout and scroll mutation that only Rust tests see; always restore bytes."""
 import argparse
 import hashlib
 import json
@@ -33,10 +34,31 @@ CASES = [
     ('stale-string-id', ROOT / 'app/src/main/kotlin/com/jtn0123/audiowhisper/settingsui/SettingsStringIds.kt',
      '    "action__yes" to R.string.action__yes,\n', ''),
     ('route-dropped', BASE / 'render/src/settings_ui/catalogue.rs', '    media::SCREEN,\n];', '];'),
+    # The group 1 gallery's differences (stage4-followup4.md, part 1): each must fail a Rust test.
+    ('no-stretch', BASE / 'render/src/settings_ui/overscroll.rs',
+     '        let left = self.relax(delta);', '        let left = delta;'),
+    ('fling-not-absorbed', BASE / 'render/src/settings_ui/overscroll.rs',
+     'if velocity != 0.0 && self.stretch.edges[toward] > 0.0 {', 'if velocity != 0.0 && toward > 2 {'),
 ]
+# The Rust test binary that must panic for each Rust-only case.
+RUST = dict.fromkeys([
+    'no-stretch',
+    'fling-not-absorbed',
+], 'settings_ui_overscroll')
+
+
+def run_rust(output, name, target):
+    with (output / (name + '.log')).open('wb') as log:
+        result = subprocess.run(['cargo', 'test', '-q', '-p', 'render', '--test', target],
+                                cwd=ROOT / 'lib/rust', stdout=log, stderr=subprocess.STDOUT)
+    text = (output / (name + '.log')).read_text(errors='replace')
+    failures = [{'suite': target, 'type': 'panic'} for line in text.splitlines() if 'panicked at' in line]
+    return result.returncode, failures
 
 
 def run(output, name):
+    if name in RUST:
+        return run_rust(output, name, RUST[name])
     started = time.time_ns()
     with (output / (name + '.log')).open('wb') as log:
         result = subprocess.run(['./gradlew', ':app:testDebugUnitTest', '--tests', '*SettingsEditorMatchTest',
@@ -81,6 +103,9 @@ def main():
             path.write_bytes(original)
     restored, failures = run(args.output, 'restored')
     assert restored == 0 and not failures
+    for target in sorted({RUST[name] for name, _, _, _ in cases if name in RUST}):
+        restored, failures = run_rust(args.output, 'restored-' + target, target)
+        assert restored == 0 and not failures, target
     report = {'mutations': results, 'restored_exit': restored,
               'source_sha256': {str(p.relative_to(ROOT)): hashlib.sha256(p.read_bytes()).hexdigest() for p in originals}}
     (args.output / 'result.json').write_text(json.dumps(report, indent=2) + '\n')

@@ -1,5 +1,5 @@
 use super::{Action, App, Modal, catalogue::Kind};
-use crate::{panel_scroll::Fling, touch::Motion};
+use crate::touch::Motion;
 impl App {
     pub fn activate(&mut self, id: i32) -> bool {
         let Some(c) = self
@@ -12,6 +12,7 @@ impl App {
         };
         self.focus = id;
         self.fling = None;
+        self.end_scroll_cycle();
         match c.action {
             Action::None => return false,
             Action::Back => self.back(),
@@ -288,7 +289,7 @@ impl App {
             delta = total - total.signum() * slop;
         }
         self.velocity.change(&samples);
-        self.set_scroll(self.scroll() - delta);
+        self.drag_by(-delta);
         self.last = (x, y);
         true
     }
@@ -297,6 +298,7 @@ impl App {
             self.down = None;
             self.dragging = false;
             self.fling = None;
+            self.end_scroll_cycle();
             return;
         }
         if e.action == 2 && self.scroll_drag(e) {
@@ -371,7 +373,7 @@ impl App {
                         // ViewConfiguration's default 8000 dp/s, as getDimensionPixelSize rounds it.
                         let maximum = (8000.0 * self.config[2] + 0.5).floor();
                         let velocity = -self.velocity.velocity(maximum);
-                        self.fling = Fling::new(t, self.scroll(), self.config[2], velocity);
+                        self.release_drag(t, velocity);
                     } else if let Some(c) = self
                         .controls
                         .iter()

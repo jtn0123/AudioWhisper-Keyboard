@@ -8,6 +8,7 @@ mod events;
 mod field;
 mod layout;
 mod material;
+mod overscroll;
 mod rows;
 pub use rows::CODE_KEYS;
 mod scrollbar;
@@ -87,6 +88,7 @@ pub struct App {
     pub vibrator: [bool; 2],
     pub effects: Vec<Vec<String>>,
     pub fling: Option<Fling>,
+    pub stretch: overscroll::Stretch,
     pub down: Option<(i32, f32, f32, i64)>,
     pub handle_drag_offset: f32,
     pub handle_drag_other: usize,
@@ -130,6 +132,7 @@ impl Default for App {
             vibrator: [false; 2],
             effects: vec![],
             fling: None,
+            stretch: overscroll::Stretch::default(),
             down: None,
             handle_drag_offset: 0.0,
             handle_drag_other: 0,
@@ -154,6 +157,7 @@ impl App {
     }
     pub fn navigate(&mut self, route: &str) {
         self.fling = None;
+        self.end_scroll_cycle();
         if self.editor.focused {
             self.editor.focused = false;
             self.editor.composing = None;
@@ -230,6 +234,7 @@ impl App {
     }
     pub fn back(&mut self) {
         self.fling = None;
+        self.end_scroll_cycle();
         self.back_progress = 0.0;
         if self.modal.take().is_some() {
             self.focus = -1;
@@ -256,12 +261,18 @@ impl App {
             }
         }
         self.clock = now;
-        if let Some(f) = &self.fling {
-            let value = f.value(now);
-            let done = now >= f.start + f.duration || value <= 0.0 || value >= self.max_scroll;
+        if let Some(f) = self.fling.take() {
+            let value = self.fling_value(&f, now);
+            // Only the edge the fling moves toward stops it: one that starts at the bottom
+            // and runs backward (relaxing a stretch first) carries on.
+            let done = now >= f.start + f.duration
+                || (f.distance < 0.0 && value <= 0.0)
+                || (f.distance > 0.0 && value >= self.max_scroll);
             self.set_scroll(value);
             if done {
-                self.fling = None;
+                self.end_scroll_cycle();
+            } else {
+                self.fling = Some(f);
             }
         }
         self.animating()
