@@ -26,7 +26,6 @@ import android.widget.FrameLayout
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.compose.runtime.DisposableEffect
-import androidx.navigation.NavDestination.Companion.hasRoute
 import com.jtn0123.audiowhisper.settingsui.RustSettingsView
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -166,7 +165,8 @@ open class FlorisAppActivity : ComponentActivity() {
             if (intent.action == Intent.ACTION_VIEW && uri?.scheme == "ui" && uri.host == "florisboard") {
                 host.navigate(uri.toString().removePrefix("ui://florisboard/"))
             } else if (intent.action == Intent.ACTION_SEND || intent.action == Intent.ACTION_VIEW) {
-                composeFallback.launch(Intent(intent).setClass(this, ComposeSettingsFallbackActivity::class.java).setFlags(0))
+                composeFallback.launch(Intent(intent).setClass(this, ComposeSettingsFallbackActivity::class.java).setFlags(0)
+                    .putExtra("native-routes", host.nativeRoutes.toTypedArray()))
             }
             return
         }
@@ -188,9 +188,10 @@ open class FlorisAppActivity : ComponentActivity() {
 
     private fun installRustSettings() {
         val host = RustSettingsView(this).apply { restoreInputFocus = rustInputFocus }
-        host.bind(this, prefs, rustState) { route ->
+        host.bind(this, prefs, rustState) { route, native ->
             val target = Intent(Intent.ACTION_VIEW, "ui://florisboard/$route".toUri())
                 .addCategory(Intent.CATEGORY_BROWSABLE).setClass(this, ComposeSettingsFallbackActivity::class.java)
+                .putExtra("native-routes", native.toTypedArray())
             composeFallback.launch(target)
         }
         rustSettings = host
@@ -233,11 +234,9 @@ open class FlorisAppActivity : ComponentActivity() {
         DisposableEffect(navController) {
             val listener = NavController.OnDestinationChangedListener { _, destination, _ ->
                 if (!allowRustSettings && fallbackReady) {
-                    val route = when {
-                        destination.hasRoute<Routes.Settings.Home>() -> "settings/home"
-                        destination.hasRoute<Routes.Settings.Keyboard>() -> "settings/keyboard"
-                        else -> null
-                    }
+                    // The routes Rust draws, as it listed them: hand any of them back.
+                    val native = intent?.getStringArrayExtra("native-routes").orEmpty()
+                    val route = native.firstOrNull { destination.hasDeepLink("ui://florisboard/$it".toUri()) }
                     if (route != null) { if (route != "settings/home") setResult(RESULT_OK, Intent().putExtra("native-route", route)); finish() }
                 }
             }

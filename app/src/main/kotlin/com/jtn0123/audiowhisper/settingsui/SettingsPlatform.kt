@@ -9,10 +9,13 @@ import androidx.lifecycle.lifecycleScope
 import dev.patrickgold.florisboard.app.AppTheme
 import dev.patrickgold.florisboard.app.FlorisAppActivity
 import dev.patrickgold.florisboard.app.FlorisPreferenceModel
+import dev.patrickgold.florisboard.ime.media.emoji.EmojiHistoryHelper
 import dev.patrickgold.florisboard.lib.util.InputMethodUtils
 import dev.patrickgold.jetpref.datastore.model.PreferenceData
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.channels.Channel
+import org.florisboard.lib.android.systemVibratorOrNull
+import org.florisboard.lib.android.vibrate
 import org.florisboard.lib.color.neutralDynamicColorScheme
 
 /** Android facts and effects. No navigation/widget policy is implemented here. */
@@ -23,6 +26,10 @@ internal class SettingsPlatform(private val activity: FlorisAppActivity, private
     init { activity.lifecycleScope.launch {
         for (plan in queue) {
             for (effect in plan) {
+                if (effect[0] == "deleteEmojiHistory") {
+                    if (effect[1] == "pinned") EmojiHistoryHelper.deletePinned(prefs) else EmojiHistoryHelper.deleteHistory(prefs)
+                    continue
+                }
                 val pref = prefs.declaredPreferenceEntries.values.single { it.key == effect[1] }
                 if (effect[0] == "reset") pref.reset().getOrThrow() else write(pref, effect[2])
             }
@@ -54,6 +61,11 @@ internal class SettingsPlatform(private val activity: FlorisAppActivity, private
             else android.util.TypedValue.complexToDimension(value.data, metrics)
     }
     fun facts() = arrayOf(InputMethodUtils.isFlorisboardEnabled(activity).toString(), InputMethodUtils.isFlorisboardSelected(activity).toString())
+    private val vibrator = activity.systemVibratorOrNull()
+    /** InputFeedbackScreen's `vibrator != null && vibrator.hasVibrator()` and `hasAmplitudeControl()`. */
+    fun vibratorFacts() = arrayOf((vibrator?.hasVibrator() == true).toString(), (vibrator?.hasAmplitudeControl() == true).toString())
+    /** A haptic slider's `onPreviewSelectedValue`. */
+    fun vibrate(duration: Int, strength: Int) { vibrator?.vibrate(duration, strength) }
     private fun <T : Any> raw(pref: PreferenceData<T>) = pref.serializer.serialize(pref.get()).orEmpty()
     fun snapshot() = prefs.declaredPreferenceEntries.values.flatMap { listOf(it.key, raw(it)) }.toTypedArray()
     private suspend fun <T : Any> write(pref: PreferenceData<T>, value: String) {

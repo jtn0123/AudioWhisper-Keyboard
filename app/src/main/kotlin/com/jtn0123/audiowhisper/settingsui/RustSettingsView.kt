@@ -29,8 +29,10 @@ internal class RustSettingsView(context: Context) : FrameLayout(context), Surfac
     private lateinit var activity: FlorisAppActivity
     private lateinit var platform: SettingsPlatform
     var backAvailability: (Boolean) -> Unit = {}
-    private var fallback: (String) -> Unit = {}
+    private var fallback: (String, List<String>) -> Unit = { _, _ -> }
     private val native = KeyboardRenderer(systemRendererFonts())
+    /** The routes native code draws; a Compose fallback hands any of them back. */
+    internal val nativeRoutes: List<String> = native.settings(19)[2].split("\n")
     private val surface = SurfaceView(context)
     private val endpoint = SettingsInputView(context, this)
     private val selectionMenu = SettingsSelectionMenu(endpoint, this)
@@ -39,7 +41,8 @@ internal class RustSettingsView(context: Context) : FrameLayout(context), Surfac
     var restoreInputFocus = false
     private val choreographer = Choreographer.getInstance()
     private val imm = context.getSystemService(InputMethodManager::class.java)
-    private var state = Json.parseToJsonElement(native.settings(1, settingsResources(context) + settingsIcons())[0]).jsonObject
+    private var state = Json.parseToJsonElement(native.settings(1,
+        settingsResources(context, native.settings(16)[2].split("\n")) + settingsIcons())[0]).jsonObject
     private var live = false
     private var pending = false
     private var released = false
@@ -74,7 +77,7 @@ internal class RustSettingsView(context: Context) : FrameLayout(context), Surfac
         addView(endpoint, LayoutParams(1, 1))
         surface.holder.addCallback(this)
     }
-    fun bind(activity: FlorisAppActivity, prefs: FlorisPreferenceModel, restored: Array<String>?, fallback: (String) -> Unit) {
+    fun bind(activity: FlorisAppActivity, prefs: FlorisPreferenceModel, restored: Array<String>?, fallback: (String, List<String>) -> Unit) {
         check(!::platform.isInitialized)
         this.activity = activity
         this.platform = SettingsPlatform(activity, prefs, ::preferencesPersisted)
@@ -126,11 +129,12 @@ internal class RustSettingsView(context: Context) : FrameLayout(context), Surfac
         val composing = editor["composing"]?.takeUnless { it == JsonNull }?.jsonArray
         imm.updateSelection(endpoint, anchor, selectionEnd, composing?.get(0)?.jsonPrimitive?.int ?: -1, composing?.get(1)?.jsonPrimitive?.int ?: -1)
         val effects = state.getValue("effects").jsonArray.map { packet -> packet.jsonArray.map { it.jsonPrimitive.content } }
-        platform.enqueue(effects.filter { it[0] == "write" || it[0] == "reset" })
+        platform.enqueue(effects.filter { it[0] == "write" || it[0] == "reset" || it[0] == "deleteEmojiHistory" })
         for (p in effects) {
             when (p[0]) {
-                "compose" -> fallback(p[1])
+                "compose" -> fallback(p[1], p[2].split("|"))
                 "finish" -> activity.finish()
+                "vibrate" -> platform.vibrate(p[1].toInt(), p[2].toInt())
                 "enable" -> InputMethodUtils.showImeEnablerActivity(activity)
                 "picker" -> InputMethodUtils.showImePicker(activity)
                 "editor" -> { endpoint.requestFocus(); activity.window.insetsController?.show(android.view.WindowInsets.Type.ime()) }
@@ -154,7 +158,7 @@ internal class RustSettingsView(context: Context) : FrameLayout(context), Surfac
             colors.take(6).map { it.toUInt().toString() }.toTypedArray() + platform.facts() +
             colors.drop(6).take(6).map { it.toUInt().toString() }.toTypedArray() + (0..32).map {
                 android.util.TypedValue.applyDimension(android.util.TypedValue.COMPLEX_UNIT_SP, it.toFloat(), metrics).toString()
-            }.toTypedArray() + arrayOf(platform.dialogWindowWidth().toString(), colors[12].toUInt().toString())
+            }.toTypedArray() + arrayOf(platform.dialogWindowWidth().toString(), colors[12].toUInt().toString()) + platform.vibratorFacts()
         receive(native.settings(3, config))
     }
     private fun requestFrame() {
