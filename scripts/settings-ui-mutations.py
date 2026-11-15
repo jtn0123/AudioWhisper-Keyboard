@@ -1,4 +1,4 @@
-"""Require fresh JVM assertion failures for four UI/editor mutations; always restore bytes."""
+"""Require fresh JVM assertion failures for each UI, editor and group 1 mutation; always restore bytes."""
 import argparse
 import hashlib
 import json
@@ -9,6 +9,10 @@ import xml.etree.ElementTree as ET
 
 ROOT = Path(__file__).resolve().parent.parent
 BASE = ROOT / 'lib/rust/crates'
+CAT = BASE / 'render/src/settings_ui/catalogue'
+SYNC_CLEAR, SYNC_SET = ('    (\n        "ONLY_{0}_EVENTS",\n        "enum__clipboard_sync_behavior__only_{1}_events",\n'
+                         '        "enum__clipboard_sync_behavior__only_{1}_events__description",\n    ),\n'
+                         .format(event, event.lower()) for event in ('CLEAR', 'SET'))
 CASES = [
     ('toggle', BASE / 'render/src/settings_ui/events.rs',
      'self.write(r.key, (!self.yes(r.key)).to_string())', 'self.write(r.key, self.yes(r.key).to_string())'),
@@ -19,6 +23,16 @@ CASES = [
      'right += if pair { 2 } else { 1 };', 'right += if pair { 1 } else { 1 };'),
     ('predictive-cancel-commits', BASE / 'awnative/src/render_settings.rs',
      '2 => a.back_progress = 0.0,', '2 => a.back(),'),
+    # Group 1: each must fail SettingsGroupOneMatchTest or SettingsResourcesTest.
+    ('condition', CAT / 'clipboard.rs', '        &MINUTES,\n    )\n    .on(All(&[\n        HISTORY,\n'
+     '        Yes("clipboard__history_auto_clean_old_enabled"),\n    ])),', '        &MINUTES,\n    )\n    .on(HISTORY),'),
+    ('entry-order', CAT / 'clipboard.rs', SYNC_CLEAR + SYNC_SET, SYNC_SET + SYNC_CLEAR),
+    ('no-preview', CAT / 'input_feedback.rs', '    hardware: 1,\n    preview: true,', '    hardware: 1,\n    preview: false,'),
+    ('confirm-swap', CAT / 'media.rs', 'Kind::Confirm("pinned"', 'Kind::Confirm("recent"'),
+    ('visible-fixed', CAT / 'smartbar.rs', '    .shown(SHARED),', '    .shown(Any(&[SHARED, EXTENDED])),'),
+    ('stale-string-id', ROOT / 'app/src/main/kotlin/com/jtn0123/audiowhisper/settingsui/SettingsStringIds.kt',
+     '    "action__yes" to R.string.action__yes,\n', ''),
+    ('route-dropped', BASE / 'render/src/settings_ui/catalogue.rs', '    media::SCREEN,\n];', '];'),
 ]
 
 
@@ -26,9 +40,10 @@ def run(output, name):
     started = time.time_ns()
     with (output / (name + '.log')).open('wb') as log:
         result = subprocess.run(['./gradlew', ':app:testDebugUnitTest', '--tests', '*SettingsEditorMatchTest',
-                                 '--tests', '*SettingsUi*MatchTest'], cwd=ROOT, stdout=log, stderr=subprocess.STDOUT)
+                                 '--tests', '*SettingsUi*MatchTest', '--tests', '*SettingsGroupOneMatchTest',
+                                 '--tests', '*SettingsResourcesTest'], cwd=ROOT, stdout=log, stderr=subprocess.STDOUT)
     failures = []
-    for path in (ROOT / 'app/build/test-results/testDebugUnitTest').glob('TEST-*settingsui.Settings*MatchTest.xml'):
+    for path in (ROOT / 'app/build/test-results/testDebugUnitTest').glob('TEST-*settingsui.Settings*Test.xml'):
         if path.stat().st_mtime_ns < started:
             continue
         suite = ET.parse(path).getroot()
@@ -41,12 +56,16 @@ def run(output, name):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('output', type=Path)
+    parser.add_argument('cases', nargs='*', help='case names to run (default: all)')
     args = parser.parse_args()
+    unknown = set(args.cases) - {name for name, _, _, _ in CASES}
+    assert not unknown, f'unknown cases: {sorted(unknown)}'
+    cases = [case for case in CASES if not args.cases or case[0] in args.cases]
     args.output.mkdir(parents=True, exist_ok=False)
     results = []
-    originals = {path: path.read_bytes() for _, path, _, _ in CASES}
+    originals = {path: path.read_bytes() for _, path, _, _ in cases}
     try:
-        for name, path, old, new in CASES:
+        for name, path, old, new in cases:
             source = path.read_text()
             assert source.count(old) == 1, name
             path.write_text(source.replace(old, new))
