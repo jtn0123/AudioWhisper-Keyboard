@@ -9,6 +9,7 @@ import android.view.SurfaceView
 import android.view.accessibility.AccessibilityNodeInfo
 import android.view.inputmethod.InputMethodManager
 import android.widget.FrameLayout
+import androidx.core.view.SoftwareKeyboardControllerCompat
 import androidx.lifecycle.lifecycleScope
 import com.jtn0123.audiowhisper.render.RendererAccessibility
 import com.jtn0123.audiowhisper.render.rendererPacket
@@ -140,7 +141,9 @@ internal class RustSettingsView(context: Context) : FrameLayout(context), Surfac
                 "vibrate" -> platform.vibrate(p[1].toInt(), p[2].toInt())
                 "enable" -> InputMethodUtils.showImeEnablerActivity(activity)
                 "picker" -> InputMethodUtils.showImePicker(activity)
-                "editor" -> { endpoint.requestFocus(); activity.window.insetsController?.show(android.view.WindowInsets.Type.ime()) }
+                // Compose's text field shows the keyboard this way: the insets request alone is
+                // dropped when no IME is attached yet, and is not retried.
+                "editor" -> { endpoint.requestFocus(); SoftwareKeyboardControllerCompat(endpoint).show() }
                 "hideEditor" -> { endpoint.clearFocus(); imm.hideSoftInputFromWindow(endpoint.windowToken, 0) }
                 "restartInput" -> imm.restartInput(endpoint)
                 "checkModels" -> facts.checkModels { if (!released) pushFacts() }
