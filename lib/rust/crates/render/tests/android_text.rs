@@ -202,3 +202,26 @@ fn empty_text_keeps_one_line_for_the_caret() {
     assert!(layout.height > 40.0);
     assert_eq!(layout.caret(0), (0, 0.0));
 }
+
+#[test]
+fn line_boxes_are_compose_whole_pixel_lines() {
+    use render::android_text::line_metrics;
+    // Roboto's hhea metrics at the device's 2.625 density. The Compose trees in the pictures
+    // show a 16 sp bodyLarge line (no line height) 49 px tall, 14/20 sp lines 53 px each (two
+    // lines 106, six 318, never 52.5 apart) with the baseline 39 px down, and 22/28 sp 74.
+    let roboto = |px: f32| line_metrics(px * 1900.0 / 2048.0, px * 500.0 / 2048.0, 0.0);
+    let spaced = |px: f32, line: f32| line_metrics(px * 1900.0 / 2048.0, px * 500.0 / 2048.0, line);
+    assert_eq!(roboto(42.0), (49.0, 39.0));
+    assert_eq!(spaced(36.75, 52.5), (53.0, 39.0));
+    assert_eq!(spaced(57.75, 73.5).0, 74.0);
+    let mut text = font();
+    let long = "The initial character selected after long press is dynamically decided";
+    let layout = text.android(long, 36.75, 400, [52.5, 0.0], Some(260.0));
+    assert!(layout.lines.len() >= 4, "{} lines", layout.lines.len());
+    for (i, line) in layout.lines.iter().enumerate() {
+        assert_eq!(line.top, 53.0 * i as f32);
+        assert_eq!(line.height, 53.0);
+        assert_eq!(line.baseline.fract(), 0.0);
+    }
+    assert_eq!(layout.height, 53.0 * layout.lines.len() as f32);
+}

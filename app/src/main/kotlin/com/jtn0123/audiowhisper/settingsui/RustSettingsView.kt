@@ -22,6 +22,7 @@ import kotlinx.coroutines.launch
 import kotlinx.serialization.json.*
 
 private const val SETTINGS_TRACE_TAG = "aw-profile"
+private const val UNBUFFERED_TAG = "aw-unbuffered"
 
 /** Surface, lifecycle and Android transport. Native code supplies every drawn control and action. */
 internal class RustSettingsView(context: Context) : FrameLayout(context), SurfaceHolder.Callback, Choreographer.FrameCallback {
@@ -109,10 +110,10 @@ internal class RustSettingsView(context: Context) : FrameLayout(context), Surfac
         val barColor = state.getValue("systemBarColor").jsonPrimitive.long.toInt()
         activity.window.decorView.setBackgroundColor(barColor)
         (parent as? android.view.View)?.setBackgroundColor(barColor)
-        androidx.core.view.WindowCompat.getInsetsController(activity.window, activity.window.decorView).apply {
-            val light = state.getValue("lightSystemBars").jsonPrimitive.boolean
-            isAppearanceLightStatusBars = light; isAppearanceLightNavigationBars = light
-        }
+        // Like FlorisAppTheme, only the status bar: Compose never sets the navigation bar's
+        // appearance, so the system tints its buttons against what is behind them.
+        androidx.core.view.WindowCompat.getInsetsController(activity.window, activity.window.decorView)
+            .isAppearanceLightStatusBars = state.getValue("lightSystemBars").jsonPrimitive.boolean
         backAvailability(state.getValue("canBack").jsonPrimitive.boolean)
         editorText = reply[1]
         val editor = state.getValue("editor").jsonObject
@@ -184,7 +185,10 @@ internal class RustSettingsView(context: Context) : FrameLayout(context), Surfac
     override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) { super.onSizeChanged(w,h,oldw,oldh); configure() }
     override fun onInterceptTouchEvent(event: MotionEvent) = true
     override fun onTouchEvent(event: MotionEvent): Boolean {
-        if (event.actionMasked == MotionEvent.ACTION_DOWN) requestUnbufferedDispatch(event)
+        // Batched, as Compose gets them: Android resamples a batched drag to the frame time, so
+        // only the same events make the same gesture scroll as far. Unbuffered (measurement only)
+        // arrives sooner but lands a fling up to 9 px from Compose's (stage4-followup3.md).
+        if (event.actionMasked == MotionEvent.ACTION_DOWN && android.util.Log.isLoggable(UNBUFFERED_TAG, android.util.Log.DEBUG)) requestUnbufferedDispatch(event)
         if (accessibility.touch(event)) return true
         android.os.Trace.beginSection("aw.settings.input")
         try {

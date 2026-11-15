@@ -147,12 +147,29 @@ struct Paragraph {
     height: f32,
 }
 
+/// A line's height and baseline as StaticLayout gives them to Compose: whole pixels from the
+/// font's rounded `FontMetricsInt` ascent and descent (no font padding). With a `line_height`
+/// (> 0), Compose's `LineHeightStyleSpan` makes every line `ceil(line_height)` tall and splits
+/// the difference as M3's `LineHeightStyle(Center, Trim.None)` does, the descent taking
+/// `ceil(diff / 2)`.
+pub fn line_metrics(ascent: f32, descent: f32, line_height: f32) -> (f32, f32) {
+    let (ascent, descent) = (ascent.round(), descent.round());
+    if line_height <= 0.0 {
+        return (ascent + descent, ascent);
+    }
+    let height = line_height.ceil();
+    let descent = descent + ((height - ascent - descent) * 0.5).ceil();
+    (height, height - descent)
+}
+
 /// Convert an unwrapped Parley layout, shaped at the real size without letter spacing, into
 /// Android's wrapped layout. Runs are taken in logical order; mixed-direction lines keep
-/// logical run order (settings strings are single-direction).
+/// logical run order (settings strings are single-direction). `line_height` is the style's
+/// explicit line height in px, or 0 for the font's own.
 pub(crate) fn build(
     shaped: &parley::Layout<()>,
     text: &str,
+    line_height: f32,
     letter_spacing: f32,
     max_width: Option<f32>,
     hinting: &mut Hinting,
@@ -162,10 +179,12 @@ pub(crate) fn build(
     let mut atoms = Vec::new();
     for (paragraph, line) in shaped.lines().enumerate() {
         let m = line.metrics();
-        paragraphs.push(Paragraph {
-            baseline: m.baseline - m.block_min_coord,
-            height: m.line_height,
-        });
+        let (height, baseline) = line_metrics(
+            m.baseline - m.content_block_min_coord,
+            m.content_block_max_coord - m.baseline,
+            line_height,
+        );
+        paragraphs.push(Paragraph { baseline, height });
         let mut line_runs: Vec<_> = line.runs().collect();
         line_runs.sort_by_key(|r| r.text_range().start);
         for run in line_runs {
@@ -175,7 +194,7 @@ pub(crate) fn build(
         }
     }
     let mut layout = Layout::default();
-    let mut y = 0.0f64;
+    let mut y = 0.0f32;
     for range in break_lines(text, &atoms, max_width) {
         let line_atoms = &atoms[range];
         let paragraph = line_atoms
@@ -184,7 +203,7 @@ pub(crate) fn build(
         let Some(p) = paragraphs.get(paragraph) else {
             continue;
         };
-        let top = y.round() as f32;
+        let top = y;
         let start = line_atoms.first().map_or(text.len(), |a| a.range.start);
         let mut line = place(line_atoms, &runs, start);
         line.top = top;
@@ -192,9 +211,9 @@ pub(crate) fn build(
         line.height = p.height;
         layout.width = layout.width.max(line.width);
         layout.lines.push(line);
-        y += f64::from(p.height);
+        y += p.height;
     }
-    layout.height = y as f32;
+    layout.height = y;
     layout
 }
 

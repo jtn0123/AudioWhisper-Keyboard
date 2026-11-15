@@ -18,12 +18,19 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('baseline', type=Path)
     parser.add_argument('--renderer', choices=['compose', 'rust', 'all'], default='all')
+    parser.add_argument('--output', type=Path, default=Path('build/stage4-followup3/pictures'))
+    parser.add_argument('--appearance', choices=['light', 'dark', 'font2', 'all'], default='all')
     args = parser.parse_args()
-    base = Path('build/stage4-followup2/pictures')
+    base = args.output
     d = MODULE.SettingsDevice(base, args.baseline)
+    assert d.adb('emu', 'avd', 'name').decode().splitlines()[0] == 'aw_keyboard_ssd'
+    # Muted, and verified, before any app runs.
+    for stream, volume in [(1, 0), (2, 0), (3, 0), (5, 0), (4, 1), (10, 1)]:
+        d.adb('shell', 'cmd', 'audio', 'set-volume', str(stream), str(volume))
+        assert d.adb('shell', 'cmd', 'audio', 'get-stream-volume', str(stream)).decode().strip().endswith(f'-> {volume}')
     try:
         d.launch('settings/home')
-        for appearance in ('light', 'dark', 'font2'):
+        for appearance in ('light', 'dark', 'font2') if args.appearance == 'all' else (args.appearance,):
             d.ui('settings', 'appearance', 'dark' if appearance == 'dark' else 'light')
             if appearance == 'font2':
                 for preset in ('accessibility-extra-extra-large', 'accessibility-extra-large', 'accessibility-extra-extra-extra-large'):

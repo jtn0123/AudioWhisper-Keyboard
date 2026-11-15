@@ -38,9 +38,7 @@ internal class SettingsPlatform(private val activity: FlorisAppActivity, private
             if (it.isUnspecified) Color(activity.resources.getColor(android.R.color.system_accent1_500, activity.theme)) else it
         }
         val colors = neutralDynamicColorScheme(accent, dark, theme == AppTheme.AMOLED_DARK || theme == AppTheme.AUTO_AMOLED)
-        WindowCompat.getInsetsController(activity.window, activity.window.decorView).apply {
-            isAppearanceLightStatusBars = !dark; isAppearanceLightNavigationBars = !dark
-        }
+        WindowCompat.getInsetsController(activity.window, activity.window.decorView).isAppearanceLightStatusBars = !dark
         return intArrayOf(colors.background.toArgb(), colors.onSurface.toArgb(), colors.onSurfaceVariant.toArgb(),
             colors.primary.toArgb(), colors.primaryContainer.toArgb(), colors.surfaceContainerHighest.toArgb(),
             colors.onPrimary.toArgb(), colors.outline.toArgb(), colors.surface.toArgb(),

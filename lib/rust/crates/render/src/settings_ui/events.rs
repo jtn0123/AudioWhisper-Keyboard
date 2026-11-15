@@ -209,11 +209,58 @@ impl App {
         self.focus = eligible[next];
         self.reveal_focus = true;
     }
+    /// A move that scrolls, handled per event like Compose's DragGestureNode: the touch slop is
+    /// judged at the event's final position, crossing it scrolls by the over-slop only, and the
+    /// velocity tracker gets the down, then every sample from the crossing event on, except
+    /// that `awaitDragOrUp` passes over an event whose pointer has not moved: it neither scrolls
+    /// nor reaches the tracker, so holding still before lifting stops the fling. Returns false
+    /// for drags that belong to a slider or a selection handle.
+    fn scroll_drag(&mut self, e: &Motion) -> bool {
+        let Some((id, _, down_y, down_t)) = self.down else {
+            return true;
+        };
+        if id == 20
+            || id == 21
+            || self
+                .controls
+                .iter()
+                .any(|c| c.id == id && matches!(c.action, Action::Slider(_)))
+        {
+            return false;
+        }
+        let samples: Vec<(i64, f32)> = (0..e.times.len() - 1)
+            .map(|s| (e.times[s + 1].div_euclid(1_000_000), e.coords[s * 2 + 1]))
+            .collect();
+        let (x, y) = (e.coords[e.coords.len() - 2], e.coords[e.coords.len() - 1]);
+        if self.dragging && (x, y) == self.last {
+            return true;
+        }
+        let mut delta = y - self.last.1;
+        if !self.dragging {
+            // ViewConfiguration's default 8 dp touch slop, as getDimensionPixelSize rounds it.
+            let slop = (8.0 * self.config[2] + 0.5).floor();
+            let total = y - down_y;
+            if total == 0.0 || total.abs() < slop {
+                self.last = (x, y);
+                return true;
+            }
+            self.dragging = true;
+            self.velocity.down(down_t.div_euclid(1_000_000), down_y);
+            delta = total - total.signum() * slop;
+        }
+        self.velocity.change(&samples);
+        self.set_scroll(self.scroll() - delta);
+        self.last = (x, y);
+        true
+    }
     pub fn motion(&mut self, e: &Motion) {
         if !e.valid() || e.action == 3 || e.ids.len() != 1 {
             self.down = None;
             self.dragging = false;
             self.fling = None;
+            return;
+        }
+        if e.action == 2 && self.scroll_drag(e) {
             return;
         }
         let count = e.ids.len();
@@ -223,7 +270,6 @@ impl App {
             if e.action == 0 {
                 self.fling = None;
                 self.dragging = false;
-                self.velocity = 0.0;
                 let id = self
                     .controls
                     .iter()
@@ -250,9 +296,9 @@ impl App {
                     };
                 }
                 self.down = Some((id, x, y, t));
-                self.last = (y, t);
+                self.last = (x, y);
             } else if e.action == 2 {
-                let Some((id, _, down_y, _)) = self.down else {
+                let Some((id, ..)) = self.down else {
                     continue;
                 };
                 if let Some(c) = self.controls.iter().find(|c| c.id == id).cloned()
@@ -268,20 +314,16 @@ impl App {
                     // The handles disappear at a collapsed range. Keep the original
                     // grabbed endpoint/opposite anchor so the same drag can cross it.
                     self.drag_editor_handle(x + self.handle_drag_offset);
-                } else if (y - down_y).abs() > 8.0 * self.config[2] || self.dragging {
-                    self.dragging = true;
-                    let dt = (t - self.last.1) as f32 / 1_000_000_000.0;
-                    if dt > 0.0 {
-                        self.velocity = ((self.last.0 - y) / dt)
-                            .clamp(-12000.0 * self.config[2], 12000.0 * self.config[2]);
-                    }
-                    self.set_scroll(self.scroll() + self.last.0 - y);
                 }
-                self.last = (y, t);
+                self.last = (x, y);
             } else if e.action == 1 {
                 if let Some((id, _, _, _)) = self.down.take() {
                     if self.dragging {
-                        self.fling = Fling::new(t, self.scroll(), self.config[2], self.velocity);
+                        self.velocity.up(t.div_euclid(1_000_000));
+                        // ViewConfiguration's default 8000 dp/s, as getDimensionPixelSize rounds it.
+                        let maximum = (8000.0 * self.config[2] + 0.5).floor();
+                        let velocity = -self.velocity.velocity(maximum);
+                        self.fling = Fling::new(t, self.scroll(), self.config[2], velocity);
                     } else if let Some(c) = self
                         .controls
                         .iter()

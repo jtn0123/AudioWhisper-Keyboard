@@ -5,6 +5,7 @@ pub mod accessibility;
 pub mod accessibility_labels;
 pub mod android_text;
 mod backend;
+pub mod compose_velocity;
 pub mod gesture_config;
 mod glide_touch;
 pub mod hybrid;

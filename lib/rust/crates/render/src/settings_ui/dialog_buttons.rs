@@ -1,4 +1,8 @@
 //! Jetpref's neutral/spacer/dismiss+confirm FlowRow, using Material TextButton metrics.
+//!
+//! Compose measures in whole pixels: each dp padding and minimum is `roundToPx`'d on its own,
+//! the label is `ceil`'d text width wide, and centring offsets round. A 12 dp padding is
+//! 32 px at 2.625x, not 31.5.
 use super::{Action, App};
 use crate::{
     panels::{Panel, rect},
@@ -9,19 +13,10 @@ impl App {
     pub(super) fn button_metrics(&self, width: f32, text: &mut Text) -> (f32, [f32; 3], f32) {
         let d = self.config[2];
         let widths = ["action__default", "action__cancel", "action__ok"].map(|key| {
-            (text
-                .android(
-                    &self.label(key),
-                    self.sp(14),
-                    500,
-                    [self.sp(20), 0.1 * d * self.config[3]],
-                    None,
-                )
-                .width
-                + 24.0 * d)
-                .max(58.0 * d)
+            let label = self.button_label(text, &self.label(key));
+            (label.width.ceil() + 2.0 * (12.0 * d).round()).max((58.0 * d).round())
         });
-        let height = (self.sp(20) + 16.0 * d).max(48.0 * d);
+        let height = self.button_box(self.line_height(self.sp(14)).ceil())[0];
         let lines = if widths.iter().sum::<f32>() + 16.0 * d > width - 32.0 * d {
             2.0
         } else {
@@ -36,22 +31,22 @@ impl App {
         footer: f32,
     ) -> Vec<(i32, &'static str, Action, f32, f32, f32)> {
         let [left, bottom, width, height] = area;
-        let d = self.config[2];
-        let y = bottom - 8.0 * d - height;
+        let px = |dp: f32| (dp * self.config[2]).round();
+        let y = bottom - px(8.0) - height;
         vec![
             (
                 5,
                 "action__default",
                 Action::Default,
-                left + 16.0 * d,
-                bottom - footer + 16.0 * d,
+                left + px(16.0),
+                bottom - footer + px(16.0),
                 widths[0],
             ),
             (
                 6,
                 "action__cancel",
                 Action::Cancel,
-                left + width - 16.0 * d - widths[2] - 8.0 * d - widths[1],
+                left + width - px(16.0) - widths[2] - px(8.0) - widths[1],
                 y,
                 widths[1],
             ),
@@ -59,10 +54,38 @@ impl App {
                 7,
                 "action__ok",
                 Action::Confirm,
-                left + width - 16.0 * d - widths[2],
+                left + width - px(16.0) - widths[2],
                 y,
                 widths[2],
             ),
+        ]
+    }
+    /// labelLarge: 14/20 sp, medium weight, 0.1 sp tracking.
+    fn button_label(
+        &self,
+        text: &mut Text,
+        label: &str,
+    ) -> std::sync::Arc<crate::android_text::Layout> {
+        let spacing = 0.1 * self.config[2] * self.config[3];
+        text.android(
+            label,
+            self.sp(14),
+            500,
+            [self.line_height(self.sp(14)), spacing],
+            None,
+        )
+    }
+    /// The 48 dp touch box around a 40 dp TextButton (8 dp vertical padding) whose label is
+    /// `label_height` tall: the box height and the label's offset from the box top.
+    fn button_box(&self, label_height: f32) -> [f32; 2] {
+        let d = self.config[2];
+        let padding = (8.0 * d).round();
+        let button = (40.0 * d).round().max(label_height + 2.0 * padding);
+        let touch = (48.0 * d).round().max(button);
+        let inner = button - 2.0 * padding;
+        [
+            touch,
+            ((touch - button) / 2.0).round() + padding + ((inner - label_height) / 2.0).round(),
         ]
     }
     pub(super) fn paint_button(
@@ -74,14 +97,17 @@ impl App {
         clip: Rect,
     ) {
         let spacing = 0.1 * self.config[2] * self.config[3];
-        let layout = text.android(label, self.sp(14), 500, [self.sp(20), spacing], None);
+        let layout = self.button_label(text, label);
+        let width = layout.width.ceil();
+        let padding = (12.0 * self.config[2]).round();
+        let [_, top] = self.button_box(layout.height);
         self.paint_text(
             p,
             label,
             rect(
-                b.left + (b.width() - layout.width) / 2.0,
-                b.top + (b.height() - layout.height) / 2.0,
-                layout.width + 1.0,
+                b.left + padding + ((b.width() - 2.0 * padding - width) / 2.0).round(),
+                b.top + top,
+                width + 1.0,
                 layout.height,
             ),
             self.sp(14),

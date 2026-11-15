@@ -55,7 +55,7 @@ impl App {
             area,
         );
         let clip = rect(left, top + th, width, (bottom - top - th - footer).max(1.0));
-        let mut y = clip.top - m.scroll;
+        let mut y = clip.top - super::shown(m.scroll);
         self.controls.push(Control {
             id: 4,
             bounds: clip,
@@ -176,7 +176,7 @@ impl App {
             }
             _ => {}
         }
-        self.max_scroll = (y + m.scroll - clip.bottom).max(0.0);
+        self.max_scroll = (y + super::shown(m.scroll) - clip.bottom).max(0.0);
         self.set_scroll(m.scroll);
         self.paint_scrollbar(p, clip);
         for (id, key, action, x, button_y, button_width) in

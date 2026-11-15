@@ -47,7 +47,7 @@ impl App {
             return;
         }
         let height = clip.height() * clip.height() / (clip.height() + self.max_scroll);
-        let top = clip.top + (clip.height() - height) * (self.scroll() / self.max_scroll);
+        let top = clip.top + (clip.height() - height) * (self.shown_scroll() / self.max_scroll);
         let alpha = (self.scrollbar_alpha(slot) * 0.28 * 255.0).round() as u32;
         self.paint_box(
             panel,

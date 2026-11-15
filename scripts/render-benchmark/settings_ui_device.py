@@ -118,7 +118,9 @@ class SettingsDevice:
                 self.ui('press', 'role=' + node['kind'] + ' label=' + json.dumps(self.label(node)))
                 return
             if scroll:
-                self.ui('scroll', 'down', 480)
+                # Slow enough to leave no fling: a fling's end depends on where its batched events
+                # fall between frames, and a next gesture can catch one still running.
+                self.ui('scroll', 'down', 480, '--duration-ms', 1200)
         raise RuntimeError('Settings target absent: ' + label)
 
     def prototype(self, renderer):

@@ -54,9 +54,9 @@ impl App {
         let color = self.enabled_color(self.colors[1], c.enabled);
         if self.reveal_focus && c.id == self.focus {
             if b.top < clip.top {
-                self.reveal_target = Some(self.scroll() + b.top - clip.top);
+                self.reveal_target = Some(self.shown_scroll() + b.top - clip.top);
             } else if b.bottom > clip.bottom {
-                self.reveal_target = Some(self.scroll() + b.bottom - clip.bottom);
+                self.reveal_target = Some(self.shown_scroll() + b.bottom - clip.bottom);
             }
         }
         if c.id == self.focus {
@@ -72,7 +72,9 @@ impl App {
                     24.0 * d,
                     24.0 * d,
                 ),
-                color,
+                // An M3 top bar's navigation icon is onSurface; a text field's trailing icon is
+                // onSurfaceVariant, focused or not.
+                if c.id == 1 { color } else { self.colors[2] },
                 clip,
             );
         } else if c.role == "edit" {
@@ -118,7 +120,7 @@ impl App {
             let top = b.top
                 + if c.role == "radio" && !summary.is_empty() {
                     8.0 * d
-                } else if screen_row && sh > self.sp(20) + 0.5 {
+                } else if screen_row && self.multiline(sh) {
                     12.0 * d
                 } else {
                     ((b.height() - lh - sh) / 2.0).max(0.0)
@@ -174,7 +176,7 @@ impl App {
             if let Some(checked) = c.checked.filter(|_| c.role == "toggle") {
                 self.paint_switch(
                     p,
-                    if screen_row && sh > self.sp(20) + 0.5 {
+                    if screen_row && self.multiline(sh) {
                         rect(b.left, b.top, b.width(), 72.0 * d)
                     } else {
                         b

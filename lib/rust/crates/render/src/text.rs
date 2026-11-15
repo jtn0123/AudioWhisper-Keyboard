@@ -175,6 +175,7 @@ impl Text {
         let layout = Arc::new(crate::android_text::build(
             &shaped,
             text,
+            line_height,
             letter_spacing,
             width,
             &mut self.hinting,

@@ -86,9 +86,10 @@ pub struct App {
     pub down: Option<(i32, f32, f32, i64)>,
     pub handle_drag_offset: f32,
     pub handle_drag_other: usize,
-    pub last: (f32, i64),
+    /// The pointer's position at the last event, as Compose's `previousPosition`.
+    pub last: (f32, f32),
     pub dragging: bool,
-    pub velocity: f32,
+    pub velocity: crate::compose_velocity::ComposeVelocity,
 }
 impl Default for App {
     fn default() -> Self {
@@ -127,9 +128,9 @@ impl Default for App {
             down: None,
             handle_drag_offset: 0.0,
             handle_drag_other: 0,
-            last: (0.0, 0),
+            last: (0.0, 0.0),
             dragging: false,
-            velocity: 0.0,
+            velocity: Default::default(),
         }
     }
 }
@@ -192,7 +193,10 @@ impl App {
             } else if let Some(at) = self.stack.iter().position(|r| r == route) {
                 self.stack.truncate(at + 1);
             } else {
+                // A pushed destination is a new back-stack entry: Compose gives it a fresh
+                // ScrollState, so it opens at the top whatever an earlier visit left.
                 self.stack.push(route.into());
+                self.scrolls[self.screen_index()] = 0.0;
             }
             self.modal = None;
             self.scrollbar_start[0] = -1;
@@ -211,6 +215,11 @@ impl App {
         self.modal
             .as_ref()
             .map_or(self.scrolls[self.screen_index()], |m| m.scroll)
+    }
+    /// Where content sits: Compose's ScrollState and LazyListState move layout by whole pixels
+    /// and carry the remainder, so they show round(position).
+    pub fn shown_scroll(&self) -> f32 {
+        shown(self.scroll())
     }
     pub fn set_scroll(&mut self, value: f32) {
         let v = value.clamp(0.0, self.max_scroll);
@@ -271,4 +280,7 @@ impl App {
         }
         self.animating()
     }
+}
+pub(super) fn shown(scroll: f32) -> f32 {
+    (scroll + 0.5).floor()
 }

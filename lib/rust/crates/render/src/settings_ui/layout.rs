@@ -16,17 +16,27 @@ impl App {
             value as f32 * self.config[2] * self.config[3]
         }
     }
+    /// Compose's `resolveLineHeightInPx`: under nonlinear font scaling a line height keeps its
+    /// ratio to the font size (20/14 of the scaled 14 sp), not the separately scaled 20 sp.
     pub(super) fn line_height(&self, size: f32) -> f32 {
         for (font, line) in [(14, 20), (22, 28), (24, 32)] {
             if (size - self.sp(font)).abs() < 0.01 {
-                return self.sp(line);
+                return size * line as f32 / font as f32;
             }
         }
         0.0 // The app overrides bodyLarge with an unspecified lineHeight: use real font metrics.
     }
+    /// Material 3 ListItem's `isSupportingMultilineHeuristic`: supporting text taller than
+    /// `30.sp.roundToPx()` makes a three-line item (12 dp padding, 88 dp minimum).
+    pub(super) fn multiline(&self, supporting: f32) -> bool {
+        supporting.ceil() > self.sp(30).round()
+    }
+    /// Material 3 1.4.0's bodyMedium tracking (`TypeScaleTokens.BodyMediumTracking`, 0.2 sp, not
+    /// the 0.25 sp of the published type scale) for 14 sp body text; the app's bodyLarge override
+    /// has none. SettingsTypographyTokensTest pins both against the resolved library.
     pub(super) fn letter_spacing(&self, size: f32) -> f32 {
         if (size - self.sp(14)).abs() < 0.01 {
-            0.25 * self.config[2] * self.config[3]
+            0.2 * self.config[2] * self.config[3]
         } else {
             0.0
         }
@@ -68,8 +78,20 @@ impl App {
         if layout.lines.len() <= max {
             return label.into();
         }
-        let end = layout.lines[max - 1].range.end;
-        let mut fitted = label[..end].trim_end().to_owned();
+        // StaticLayout's END ellipsis: the last line holds all the remaining text and keeps whole
+        // clusters, spaces included, while their advances plus the ellipsis's fit the width.
+        let start = layout.lines[max - 1].range.start;
+        let spacing = self.letter_spacing(size) * crate::android_text::layout_size(size) / size;
+        let ellipsis = self.android(text, "…", size, None).width + spacing;
+        let rest = self.android(text, &label[start..], size, None);
+        let carets = &rest.lines[0].carets;
+        // Carets drop the first cluster's leading half spacing; Android's widths keep it.
+        let cut = carets
+            .windows(2)
+            .find(|pair| pair[1].1 + spacing / 2.0 > width - ellipsis)
+            .map_or(label.len(), |pair| start + pair[0].0);
+        let mut fitted = label[..cut].to_owned();
+        // Kerning against the ellipsis can tip the line over; drop clusters until it fits.
         loop {
             let candidate = format!("{fitted}…");
             if self
@@ -127,7 +149,7 @@ impl App {
             action: Action::None,
             range: None,
         });
-        let mut y = header - self.scroll();
+        let mut y = header - self.shown_scroll();
         if self.screen_index() == 0 {
             if !self.ime_enabled || !self.ime_selected {
                 let label = self.label(if self.ime_enabled {
@@ -161,7 +183,8 @@ impl App {
             }
             for (i, (route, label)) in HOME.iter().enumerate() {
                 let label = self.label(label);
-                let rh = (self.measure(text, &label, self.sp(16), w - 72.0 * d) + 32.0 * d)
+                // A one-line M3 ListItem: 8 dp vertical padding, 56 dp minimum.
+                let rh = (self.measure(text, &label, self.sp(16), w - 72.0 * d) + 16.0 * d)
                     .max(56.0 * d);
                 self.add(
                     &mut p,
@@ -229,8 +252,7 @@ impl App {
                 } else {
                     (self.measure(text, &drawn_label, self.sp(16), width)
                         + self.measure(text, &drawn_summary, self.sp(14), width)
-                        + if self.measure(text, &drawn_summary, self.sp(14), width)
-                            > self.sp(20) + 0.5
+                        + if self.multiline(self.measure(text, &drawn_summary, self.sp(14), width))
                         {
                             24.0
                         } else {
@@ -239,9 +261,12 @@ impl App {
                         .max(
                             if summary.is_empty() {
                                 56.0
-                            } else if self.measure(text, &drawn_summary, self.sp(14), width)
-                                > self.sp(20) + 0.5
-                            {
+                            } else if self.multiline(self.measure(
+                                text,
+                                &drawn_summary,
+                                self.sp(14),
+                                width,
+                            )) {
                                 88.0
                             } else {
                                 72.0
@@ -282,9 +307,12 @@ impl App {
                             id: 2000 + i as i32,
                             bounds: rect(
                                 offset + w - 72.0 * d,
-                                y + if self.measure(text, &drawn_summary, self.sp(14), width)
-                                    > self.sp(20) + 0.5
-                                {
+                                y + if self.multiline(self.measure(
+                                    text,
+                                    &drawn_summary,
+                                    self.sp(14),
+                                    width,
+                                )) {
                                     12.0 * d
                                 } else {
                                     (rh - 48.0 * d) / 2.0
@@ -308,7 +336,7 @@ impl App {
                 y += rh;
             }
         }
-        let content = y + self.scroll() - header;
+        let content = y + self.shown_scroll() - header;
         self.max_scroll = (content - viewport.height()).max(0.0);
         if self.modal.is_none() {
             self.set_scroll(self.scroll());

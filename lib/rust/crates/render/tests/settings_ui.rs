@@ -12,9 +12,11 @@ fn scroll_fling_cancel_and_pointer_loss_do_not_activate_a_control() {
     let (mut a, mut text) = app();
     a.scene(&mut text);
     let original = a.prefs.clone();
+    // Compose fits at least three samples no more than 40 ms apart, so swipe in 10 ms steps.
     for (action, y, time) in [
         (0, 400.0, 1),
-        (2, 200.0, 50_000_001),
+        (2, 300.0, 50_000_001),
+        (2, 200.0, 60_000_001),
         (2, 100.0, 70_000_001),
         (1, 100.0, 80_000_001),
     ] {
@@ -189,38 +191,6 @@ fn material_switch_metrics_palette_and_link_divider_match_tokens() {
 }
 
 #[test]
-fn platform_nonlinear_sp_values_and_material_line_heights_are_used_verbatim() {
-    let (mut a, mut text) = app();
-    a.config = [1080.0, 8192.0, 2.625, 2.0];
-    for (sp, px) in [
-        (14, 68.25),
-        (16, 75.6),
-        (20, 89.25),
-        (22, 94.5),
-        (24, 99.75),
-        (28, 110.25),
-        (32, 120.75),
-    ] {
-        a.sp_pixels[sp] = px;
-    }
-    let panel = a.scene(&mut text).panel.unwrap();
-    let title = panel
-        .items
-        .iter()
-        .find(|i| i.label == "pref__keyboard__number_row__label")
-        .unwrap();
-    assert_eq!(title.text.size, 75.6);
-    assert_eq!(title.text.line_height, 0.0); // The app bodyLarge override uses natural font metrics.
-    let summary = panel
-        .items
-        .iter()
-        .find(|i| i.label == "pref__keyboard__number_row__summary")
-        .unwrap();
-    assert_eq!(summary.text.size, 68.25);
-    assert_eq!(summary.text.line_height, 89.25);
-}
-
-#[test]
 fn selection_handles_are_native_primary_teardrops_and_drag_selection() {
     let (mut a, _) = app();
     let mut text = Text::new(vec![
@@ -256,29 +226,6 @@ fn selection_handles_are_native_primary_teardrops_and_drag_selection() {
     assert_eq!(a.editor.anchor, 1);
     assert!(a.editor.focus > 3);
     assert_eq!(a.editor.text, "abcdef".encode_utf16().collect::<Vec<_>>());
-}
-
-#[test]
-fn shaping_owners_share_the_platform_font_blob_without_copying_its_payload() {
-    use parley::PositionedLayoutItem;
-    let blob = render::text::FontBlob::from(
-        include_bytes!("../../../../../fastlane/staging/fonts/Roboto-Light.ttf").to_vec(),
-    );
-    let mut first = Text::shared(vec![blob.clone()]);
-    let mut second = Text::shared(vec![blob.clone()]);
-    for owner in [&mut first, &mut second] {
-        let layout = owner.layout("Settings", 16.0);
-        let mut runs = 0;
-        for line in layout.lines() {
-            for item in line.items() {
-                if let PositionedLayoutItem::GlyphRun(run) = item {
-                    assert_eq!(run.run().font().data.id(), blob.id());
-                    runs += 1;
-                }
-            }
-        }
-        assert!(runs > 0);
-    }
 }
 
 #[test]
@@ -392,4 +339,53 @@ fn reversed_requests_normalize_like_compose_and_off_center_grabs_can_cross_a_col
     assert_eq!((a.editor.anchor, a.editor.focus), (0, 1));
     assert_eq!(a.scrolls[1], 0.0);
     assert!(a.fling.is_none());
+}
+
+#[test]
+fn content_sits_at_the_rounded_scroll_like_compose_scroll_state() {
+    // ScrollState consumes whole pixels and carries the remainder, so it shows round(position).
+    let (mut a, mut text) = app();
+    let mut top = |scroll: f32| {
+        a.scrolls[1] = scroll;
+        a.scene(&mut text);
+        assert_eq!(a.scroll(), scroll, "the float position is kept");
+        a.controls.iter().find(|c| c.id == 1003).unwrap().bounds.top
+    };
+    let (whole, below, half, above) = (top(100.0), top(100.4), top(100.5), top(101.0));
+    assert_eq!(below, whole);
+    assert_eq!(half, above);
+    assert_eq!(whole - above, 1.0);
+}
+#[test]
+fn top_bar_and_preview_field_icons_use_their_material_roles() {
+    let (mut a, mut text) = app();
+    for name in ["@icon:back", "@icon:picker"] {
+        a.strings.insert(name.into(), "M0 0h24v24H0z".into());
+    }
+    let panel = a.scene(&mut text).panel.unwrap();
+    let icons: Vec<_> = panel
+        .items
+        .iter()
+        .filter(|i| i.element == "settings-icon")
+        .collect();
+    let back = icons.iter().find(|i| i.bounds.left == 16.0).unwrap();
+    let picker = icons
+        .iter()
+        .find(|i| i.bounds.left == 480.0 - 36.0)
+        .unwrap();
+    assert_eq!(back.icon_style.foreground, a.colors[1]);
+    assert_eq!(picker.icon_style.foreground, a.colors[2]);
+}
+#[test]
+fn a_pushed_screen_opens_at_the_top_like_a_new_back_stack_entry() {
+    let (mut a, mut text) = app();
+    a.scrolls[1] = 300.0;
+    a.scene(&mut text);
+    assert_eq!(a.scroll(), 300.0);
+    a.navigate("settings/keyboard"); // Already on top: the entry, and its scroll, stay.
+    assert_eq!(a.scroll(), 300.0);
+    a.navigate("settings/home");
+    a.navigate("settings/keyboard");
+    a.scene(&mut text);
+    assert_eq!(a.scroll(), 0.0);
 }
