@@ -71,7 +71,9 @@ class SettingsDragMatchTest {
             ))
             var flings = 0
             for ((name, steps) in gestures) {
-                val reference = ReferenceSettingsDrag(density, now.getValue("scroll").jsonPrimitive.float, max)
+                // The scroller's viewport: the screen less the 64 dp app bar and 56 dp preview field.
+                val extent = 2340 - Math.round(64 * density) - Math.round(56 * density).toFloat()
+                val reference = ReferenceSettingsDrag(density, now.getValue("scroll").jsonPrimitive.float, max, extent)
                 val downMs = (steps.first() as Down).ms
                 var lastX = 20f
                 var lastY = 0f

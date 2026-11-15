@@ -16,8 +16,20 @@ import kotlin.math.sign
  * up but forgets a gesture whose up came over 40 ms after the last change; ScrollState keeps the
  * float position and shows round(position). The fit is the real `VelocityTracker` (Lsq2) and the
  * fling distance the real `FlingCalculator` at Android's scroll friction.
+ *
+ * `verticalScroll`'s default overscroll is foundation's AndroidEdgeEffectOverscrollEffect, and
+ * where content rests follows its rules: `applyToScroll` relaxes the edge stretched the other
+ * way before it scrolls and pulls an edge with what the scroll could not take (more than half a
+ * pixel, one for one, up to the viewport's [extent]); `applyToFling` lets a stretched edge absorb
+ * a fling toward it, and a fling away from it relaxes the stretch before it moves content. The
+ * stretch is gone when the gesture's scrolling ends.
  */
-internal class ReferenceSettingsDrag(private val density: Float, var position: Float, private val max: Float) {
+internal class ReferenceSettingsDrag(
+    private val density: Float,
+    var position: Float,
+    private val max: Float,
+    private val extent: Float,
+) {
     private val slop = (8 * density + .5f).toInt().toFloat()
     private val maximum = (8000 * density + .5f).toInt().toFloat()
     private val tracker = VelocityTracker()
@@ -27,6 +39,8 @@ internal class ReferenceSettingsDrag(private val density: Float, var position: F
     private var lastY = 0f
     private var lastChange = 0L
     private var dragging = false
+    /** Pixels the stretch holds past the top and the bottom. */
+    private val edges = floatArrayOf(0f, 0f)
     val value get() = Math.round(position)
 
     fun down(ms: Long, x: Float, y: Float) {
@@ -47,7 +61,7 @@ internal class ReferenceSettingsDrag(private val density: Float, var position: F
         }
         for ((ms, sample) in samples) tracker.addPosition(ms, Offset(0f, sample))
         lastChange = samples.last().first
-        scrollBy(-delta)
+        dragBy(-delta)
         lastX = x; lastY = y
     }
 
@@ -56,12 +70,29 @@ internal class ReferenceSettingsDrag(private val density: Float, var position: F
         if (!dragging) return null
         if (ms - lastChange > 40) tracker.resetTracking()
         val velocity = -tracker.calculateVelocity(Velocity(maximum, maximum)).y
-        if (abs(velocity) > 1f) scrollBy(flingDistance(velocity) * sign(velocity))
+        val absorbed = velocity != 0f && edges[if (velocity > 0f) 1 else 0] > 0f
+        if (!absorbed && abs(velocity) > 1f) {
+            val moved = flingDistance(velocity) * sign(velocity)
+            val used = abs(moved).coerceAtMost(edges[if (moved < 0f) 1 else 0])
+            position = (position + moved - used * sign(moved)).coerceIn(0f, max)
+        }
+        edges.fill(0f)
         return velocity
     }
 
-    private fun scrollBy(delta: Float) {
-        position = (position + delta).coerceIn(0f, max)
+    /** A drag's scroll delta, positive forward: relax, scroll, then pull with what is left. */
+    private fun dragBy(delta: Float) {
+        val relaxed = if (delta < 0f) 1 else 0
+        val used = abs(delta).coerceAtMost(edges[relaxed])
+        edges[relaxed] -= used
+        val left = delta - used * sign(delta)
+        val before = position
+        position = (position + left).coerceIn(0f, max)
+        val over = left - (position - before)
+        if (abs(over) > .5f) {
+            val pulled = if (over > 0f) 1 else 0
+            edges[pulled] = (edges[pulled] + abs(over)).coerceAtMost(extent.coerceAtLeast(0f))
+        }
     }
 
     private fun flingDistance(velocity: Float): Float {
