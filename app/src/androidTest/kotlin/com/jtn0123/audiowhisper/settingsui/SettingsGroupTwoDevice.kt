@@ -3,7 +3,6 @@ package com.jtn0123.audiowhisper.settingsui
 import android.app.Instrumentation
 import android.content.Intent
 import android.graphics.Rect
-import android.os.SystemClock
 import android.provider.Settings
 import android.view.accessibility.AccessibilityNodeInfo as Node
 import org.json.JSONArray
@@ -24,6 +23,13 @@ internal class SettingsGroupTwoDevice(private val h: SettingsHarness, private va
     private class Screen(val name: String, val path: List<String>, val title: String, val ensureOn: List<String> = emptyList())
     private val chrome = setOf("Back", "Switch Keyboard")
     private val notClicked = setOf("Version")
+    /**
+     * Rows leading to screens that stay in Compose on both renderers (Rust hands them to
+     * ComposeSettingsFallbackActivity). Their routes are walked but not audited: the audit covers
+     * the settings UI that Rust draws. On Rust the list checks itself against the activity.
+     */
+    private val outside = setOf("Manage system user dictionary", "Manage internal user dictionary",
+        "Project license", "Third-party licenses")
     private val screens = listOf(
         Screen("typing", listOf("Typing"), "Typing", ensureOn = listOf("Display suggestions", "Auto-space after punctuation")),
         Screen("dictionary", listOf("Typing", "User dictionaries"), "User dictionaries",
@@ -56,6 +62,9 @@ internal class SettingsGroupTwoDevice(private val h: SettingsHarness, private va
     private lateinit var launches: Launches
     private val seenDisabled = mutableSetOf<String>()
     private val seenEnabled = mutableSetOf<String>()
+    /** Each later line of a row's label, to that row's title. */
+    private val titles = mutableMapOf<String, String>()
+    private var rust = false
 
     fun run(report: JSONObject, out: JSONArray) {
         this.out = out
@@ -69,6 +78,7 @@ internal class SettingsGroupTwoDevice(private val h: SettingsHarness, private va
                 log = JSONArray()
                 seenDisabled.clear()
                 seenEnabled.clear()
+                titles.clear()
                 walk(screen)
                 result.put(screen.name, JSONObject().put("exercised", log)
                     .put("never_enabled", JSONArray((seenDisabled - seenEnabled).sorted())))
@@ -85,9 +95,10 @@ internal class SettingsGroupTwoDevice(private val h: SettingsHarness, private va
         for (step in screen.path) {
             h.reveal(step)
             h.click(step)
-            SystemClock.sleep(300)
+            h.settle()
         }
         h.waitFor("${screen.name} did not open") { h.find("Languages & Layouts") == null && h.find(screen.title) != null }
+        rust = h.views(RustSettingsView::class.java).isNotEmpty()
         out.put(h.audit("two:${screen.name}-top"))
     }
 
@@ -96,7 +107,7 @@ internal class SettingsGroupTwoDevice(private val h: SettingsHarness, private va
         repeat(3) {
             if (h.find("Languages & Layouts") != null) return
             h.back()
-            SystemClock.sleep(300)
+            h.settle()
         }
         h.waitFor("home did not return") { h.find("Languages & Layouts") != null }
     }
@@ -127,10 +138,23 @@ internal class SettingsGroupTwoDevice(private val h: SettingsHarness, private va
     }
 
     private fun bounds(n: Node) = Rect().also(n::getBoundsInScreen)
-    private fun primary(n: Node) = h.label(n).substringBefore('\n')
+
+    /**
+     * A row by its title. Compose leaves a child scrolled out of view out of its row's node, so a
+     * row whose title is above the viewport is labelled from its summary down; that row is the
+     * one whose whole label held the summary. Rust labels a row whole however it is clipped.
+     */
+    private fun primary(n: Node): String {
+        val lines = h.label(n).lines()
+        val title = titles[lines.first()] ?: lines.first()
+        lines.drop(1).forEach { titles.putIfAbsent(it, title) }
+        return title
+    }
 
     private fun next(done: Set<String>): String? {
-        val rows = h.nodes().filter { it.isClickable && !it.isEditable && it.rangeInfo == null && h.label(it).isNotBlank() && primary(it) !in chrome }
+        // A disabled row is clickable on Compose, as a disabled View is, but not on Rust; neither
+        // offers ACTION_CLICK. Disabled nodes count as rows on both, so both see Languages.
+        val rows = h.nodes().filter { (it.isClickable || !it.isEnabled) && !it.isEditable && it.rangeInfo == null && h.label(it).isNotBlank() && primary(it) !in chrome }
         val own = rows.filter { n -> rows.none { o -> o != n && bounds(o) != bounds(n) && bounds(o).contains(bounds(n)) } }
         for (n in own) if (n.isEnabled) seenEnabled.add(primary(n)) else seenDisabled.add(primary(n))
         return own.filter { it.isEnabled && primary(it) !in done }.minByOrNull { bounds(it).top }?.let(::primary)
@@ -162,8 +186,14 @@ internal class SettingsGroupTwoDevice(private val h: SettingsHarness, private va
                 log.put(JSONObject().put("row", label).put("kind", "launch").put("intent", launches.last()))
             }
             h.find("Cancel") == null -> {
-                out.put(h.audit("two:${screen.name}>$label"))
+                val resumed = (h.instrumentation as SettingsInstrumentation).resumedActivity
+                if (rust) check((resumed?.javaClass?.simpleName == "ComposeSettingsFallbackActivity") == (label in outside)) {
+                    "outside the port, or not: $label"
+                }
+                if (label !in outside) out.put(h.audit("two:${screen.name}>$label"))
                 h.back()
+                // Until the popped screen's exit ends, its rows are still nodes the walk would take.
+                h.settle("did not return from: $label")
                 h.waitFor("did not return from: $label") { h.find(screen.title) != null }
                 log.put(JSONObject().put("row", label).put("kind", "route"))
             }

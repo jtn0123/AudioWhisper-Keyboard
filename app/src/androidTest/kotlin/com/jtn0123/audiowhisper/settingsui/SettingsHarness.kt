@@ -35,7 +35,27 @@ internal class SettingsHarness(val instrumentation: Instrumentation, explore: Bo
         }
         error(stage)
     }
+    /**
+     * Waits out a navigation transition. Compose keeps the leaving screen's nodes, visible, until
+     * its exit animation ends, so a walk reading too early sees two screens' rows. Settled is one
+     * app bar's Back at most, and the same labels at the same bounds twice, 250 ms apart.
+     */
+    fun settle(stage: String = "navigation did not settle") {
+        fun shot() = nodes().map { label(it) to android.graphics.Rect().also(it::getBoundsInScreen) }
+        waitFor(stage) {
+            val before = shot()
+            SystemClock.sleep(250)
+            before.count { it.first == "Back" } <= 1 && before == shot()
+        }
+    }
     fun launch(route: String = "settings/home") {
+        // startActivitySync waits for a new activity. Compose's NavController restarts the task
+        // for a deep link, but Rust navigates a live activity in place (onNewIntent), so the
+        // wait never ended. A live activity is finished first, on both renderers.
+        activity?.let { live ->
+            main { live.finish() }
+            waitFor("settings activity did not finish") { var gone = false; main { gone = live.isDestroyed }; gone }
+        }
         val intent = Intent(Intent.ACTION_VIEW, "ui://florisboard/$route".toUri())
             .setClass(instrumentation.targetContext, FlorisAppActivity::class.java)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK).addCategory(Intent.CATEGORY_BROWSABLE)
@@ -159,6 +179,15 @@ internal class SettingsHarness(val instrumentation: Instrumentation, explore: Bo
      * radio button. Only inside a dialog, and named for that dialog.
      */
     private fun roleless(n: Node, label: String, screen: String): JSONObject? {
+        // This repository's own Compose, on Typing: FlorisSimpleCard's Card(onClick) (the spell
+        // checker card) and FlorisHyperlinkText's clickable Text (the auto-space feedback link)
+        // set no Role, so they are a View and a TextView. Rust exposes both as buttons.
+        if (screen.startsWith("two:typing") && n.isClickable && !n.isCheckable && label.isNotBlank()) {
+            when (n.className) {
+                "android.view.View" -> return JSONObject().put("name", "floris-card-no-role").put("for", label.substringBefore('\n'))
+                "android.widget.TextView" -> return JSONObject().put("name", "floris-hyperlink-no-role").put("for", label.substringBefore('\n'))
+            }
+        }
         if (!n.isCheckable || !n.isClickable || n.className != "android.view.View" || label.isBlank()) return null
         if (find("Cancel") == null) return null
         return JSONObject().put("name", "jetpref-list-entry-no-role").put("for", screen)
