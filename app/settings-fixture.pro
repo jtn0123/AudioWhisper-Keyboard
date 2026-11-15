@@ -4,6 +4,8 @@
 -keep class dev.patrickgold.florisboard.app.FlorisAppActivity { *; }
 -keep class dev.patrickgold.florisboard.app.FlorisPreferenceModel** { *; }
 -keep class dev.patrickgold.florisboard.app.AppPrefsKt { *; }
+# The harness waits for the in-process IME before editing a field.
+-keep class dev.patrickgold.florisboard.FlorisImeServiceKt { *; }
 # Test APK calls JVM facades which main R8 would otherwise inline or remove.
 -keep class kotlin.** { *; }
 -keep class kotlinx.coroutines.** { *; }

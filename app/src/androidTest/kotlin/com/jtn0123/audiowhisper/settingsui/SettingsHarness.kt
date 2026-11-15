@@ -2,8 +2,10 @@ package com.jtn0123.audiowhisper.settingsui
 
 import android.app.Instrumentation
 import android.content.Intent
+import android.inputmethodservice.InputMethodService
 import android.os.Bundle
 import android.os.SystemClock
+import android.text.InputType
 import android.view.View
 import android.view.ViewGroup
 import android.view.accessibility.AccessibilityNodeInfo as Node
@@ -11,6 +13,8 @@ import androidx.core.net.toUri
 import dev.patrickgold.florisboard.app.FlorisAppActivity
 import org.json.JSONArray
 import org.json.JSONObject
+import java.lang.ref.WeakReference
+import java.lang.reflect.Modifier
 
 /** UiAutomation transport. Never persists node text from an editable node. */
 internal class SettingsHarness(val instrumentation: Instrumentation, explore: Boolean = true) {
@@ -48,6 +52,37 @@ internal class SettingsHarness(val instrumentation: Instrumentation, explore: Bo
             before.count { it.first == "Back" } <= 1 && before == shot()
         }
     }
+    /**
+     * Waits until the IME shows for the focused field. An IME finishes any composition when it
+     * starts input (FlorisBoard's start plan does), so edits sent before then race it, as no typing
+     * user can: the keyboard is up before the first key. FlorisImeService runs in this process, so
+     * it is asked directly. Its start plan runs on the main thread inside onStartInputView, and its
+     * connection calls land on the main looper, so an idle main looper means the plan has landed.
+     * ([settle] would read the IME's own window, which is this package's too, and never settle.)
+     */
+    fun awaitIme(stage: String = "IME did not show for the field") {
+        var seen = ""
+        try {
+            waitFor(stage) {
+                var shown = false
+                main {
+                    val ime = ime()
+                    val multiLine = (ime?.currentInputEditorInfo?.inputType ?: 0) and InputType.TYPE_TEXT_FLAG_MULTI_LINE != 0
+                    seen = "service=${ime != null} shown=${ime?.isInputViewShown} multiLine=$multiLine"
+                    shown = ime != null && ime.isInputViewShown && multiLine
+                }
+                shown
+            }
+        } catch (error: IllegalStateException) {
+            lastStep = "$stage ($seen)"
+            throw IllegalStateException(lastStep, error)
+        }
+        instrumentation.waitForIdleSync()
+    }
+    /** This app's live IME, found as FixtureInstrumentation finds it. */
+    private fun ime(): InputMethodService? = Class.forName("dev.patrickgold.florisboard.FlorisImeServiceKt").declaredFields
+        .filter { Modifier.isStatic(it.modifiers) && WeakReference::class.java.isAssignableFrom(it.type) }
+        .firstNotNullOfOrNull { field -> field.setAccessible(true); (field.get(null) as? WeakReference<*>)?.get() as? InputMethodService }
     fun launch(route: String = "settings/home") {
         // startActivitySync waits for a new activity. Compose's NavController restarts the task
         // for a deep link, but Rust navigates a live activity in place (onNewIntent), so the

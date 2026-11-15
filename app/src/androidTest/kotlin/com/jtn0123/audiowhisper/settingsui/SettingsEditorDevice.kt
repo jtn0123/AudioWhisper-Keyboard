@@ -114,6 +114,7 @@ internal class SettingsEditorDevice(private val h: SettingsHarness) {
         val info = EditorInfo()
         lateinit var connection: InputConnection
         h.main { connection = checkNotNull(endpoint().onCreateInputConnection(info)) }
+        h.awaitIme()
         SettingsVocabularyDevice(h).run(report, info, connection)
         h.main { check(host().edit("focus", "2") && !host().multiLine) }
     }

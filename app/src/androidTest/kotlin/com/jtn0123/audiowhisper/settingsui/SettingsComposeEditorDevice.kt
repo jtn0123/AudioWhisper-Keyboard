@@ -75,6 +75,7 @@ internal class SettingsComposeEditorDevice(private val h: SettingsHarness) {
             found?.let { connection = it }
             found != null && info.inputType and android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE != 0
         }
+        h.awaitIme()
         SettingsVocabularyDevice(h).run(report, info, connection)
     }
 }
