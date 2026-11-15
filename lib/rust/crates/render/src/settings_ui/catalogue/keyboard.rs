@@ -249,5 +249,6 @@ pub(super) const SCREEN: Screen = Screen {
     route: "settings/keyboard",
     title: "settings__keyboard__title",
     icon_space: true,
+    preview: true,
     rows: KEYBOARD,
 };

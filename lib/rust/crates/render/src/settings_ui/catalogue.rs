@@ -1,11 +1,16 @@
 //! Settings screen descriptions, as data: each FlorisScreen's rows in source order with their
 //! enabledIf/visibleIf conditions. Defaults, ranges and enum membership remain in settings.
+mod about;
 mod clipboard;
+mod dictation;
+mod dictionary;
 mod gestures;
 mod input_feedback;
 mod keyboard;
 mod media;
+mod physical_keyboard;
 mod smartbar;
+mod typing;
 pub use keyboard::KEYBOARD;
 
 /// A JetPref `enabledIf` / `visibleIf` lambda over stored preferences and device facts.
@@ -23,6 +28,10 @@ pub enum Cond {
     Vibrator,
     /// `vibrator.hasAmplitudeControl()`.
     Amplitude,
+    /// A device fact Kotlin reports (settings op 20) has this value.
+    Fact(&'static str, &'static str),
+    /// The Floris spell checker is the system's enabled one (`florisSpellCheckerEnabled`).
+    FlorisSpellChecker,
 }
 /// One `listPrefEntries` entry: stored value, label and description string keys.
 pub type Entry = (&'static str, &'static str, &'static str);
@@ -63,11 +72,57 @@ pub enum Kind {
     Choice(&'static Choices),
     Slider(&'static Slider),
     Route(&'static str),
-    /// A plain Preference whose onClick asks to confirm an effect: (effect argument, message
-    /// `{name}` argument string key).
-    Confirm(&'static str, &'static str),
+    /// A plain Preference whose onClick asks to confirm an effect.
+    Confirm(&'static Ask),
     /// A disabled Preference with a disabled, checked trailing switch.
     Fixed,
+    /// A Preference with no onClick: enabled styling, not clickable.
+    Info,
+    /// A Preference whose onClick is a platform effect.
+    Effect(Do),
+    /// An M3 Card of body text with a hyperlink under it.
+    Card(&'static Card),
+    /// SpellCheckerServiceSelector's error, warning or app card.
+    Spell,
+    /// AboutScreen's centred app icon and name.
+    Header,
+    /// ModelStatus's Preference for the "speech" or "voice" model: no onClick, its summary
+    /// from the model facts.
+    Status(&'static str),
+    /// A bodyMedium Text in 16 dp by 8 dp padding.
+    Note,
+    /// An OutlinedTextField over the row's string preference, its label the placeholder.
+    Field,
+}
+/// A JetPrefAlertDialog asking to confirm an effect.
+#[derive(Clone, Copy, Debug)]
+pub struct Ask {
+    pub title: &'static str,
+    pub message: &'static str,
+    /// The message's `{name}` argument string key, or empty.
+    pub name: &'static str,
+    pub dismiss: &'static str,
+    pub confirm: &'static str,
+    /// The effect plan confirming returns; the toast's string key is appended when not empty.
+    pub effect: &'static [&'static str],
+    pub toast: &'static str,
+}
+/// A platform effect a row's onClick returns as a plan.
+#[derive(Clone, Copy, Debug)]
+pub enum Do {
+    /// `launchUrl` of this string resource, `{version}` filled from the version fact.
+    Url(&'static str),
+    /// Copy the row's summary to the clipboard and toast the result.
+    Copy,
+    /// Start a system activity Kotlin knows by this name.
+    Intent(&'static str),
+}
+/// Body text and a FlorisHyperlinkText to `url`, all string keys.
+#[derive(Clone, Copy, Debug)]
+pub struct Card {
+    pub text: &'static str,
+    pub link: &'static str,
+    pub url: &'static str,
 }
 #[derive(Clone, Copy, Debug)]
 pub struct Row {
@@ -83,6 +138,8 @@ pub struct Row {
     pub icon: &'static str,
     pub enabled: Cond,
     pub visible: Cond,
+    /// The summary's one template argument: its name and a literal value, or empty.
+    pub arg: (&'static str, &'static str),
 }
 pub(super) const fn row(
     key: &'static str,
@@ -100,6 +157,7 @@ pub(super) const fn row(
         icon: "",
         enabled: Cond::Always,
         visible: Cond::Always,
+        arg: ("", ""),
     }
 }
 impl Row {
@@ -118,6 +176,10 @@ impl Row {
     }
     pub(super) const fn icon(mut self, icon: &'static str) -> Self {
         self.icon = icon;
+        self
+    }
+    pub(super) const fn arg(mut self, name: &'static str, value: &'static str) -> Self {
+        self.arg = (name, value);
         self
     }
 }
@@ -172,12 +234,13 @@ pub(super) const fn dual(second: &'static str, unit: Unit, labels: [&'static str
         preview: false,
     }
 }
-/// A FlorisScreen: its route, title, `iconSpaceReserved` and content rows.
+/// A FlorisScreen: its route, title, `iconSpaceReserved`, `previewFieldVisible` and rows.
 #[derive(Debug)]
 pub struct Screen {
     pub route: &'static str,
     pub title: &'static str,
     pub icon_space: bool,
+    pub preview: bool,
     pub rows: &'static [Row],
 }
 pub const HOME: &[(&str, &str)] = &[
@@ -202,6 +265,11 @@ pub const SCREENS: &[Screen] = &[
     gestures::SCREEN,
     clipboard::SCREEN,
     media::SCREEN,
+    typing::SCREEN,
+    dictionary::SCREEN,
+    physical_keyboard::SCREEN,
+    about::SCREEN,
+    dictation::SCREEN,
 ];
 /// The native screen at `route`, if Rust draws it.
 pub fn screen(route: &str) -> Option<&'static Screen> {

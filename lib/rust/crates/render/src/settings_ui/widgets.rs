@@ -71,7 +71,8 @@ impl App {
                 self.reveal_target = Some(self.shown_scroll() + b.bottom - clip.bottom);
             }
         }
-        if c.id == self.focus {
+        // A text field shows keyboard focus with its own focused outline.
+        if c.id == self.focus && !matches!(c.action, Action::Field(_)) {
             self.paint_box(p, b, self.colors[4], 8.0 * d);
         }
         if c.id == 1 || c.id == 3 {

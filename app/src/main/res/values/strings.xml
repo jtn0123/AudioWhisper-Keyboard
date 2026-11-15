@@ -508,6 +508,8 @@
     <string name="pref__correction__auto_capitalization__summary" comment="Preference summary">Capitalize words based on the current input context</string>
     <string name="pref__correction__auto_space_punctuation__label" comment="Preference title">Auto-space after punctuation</string>
     <string name="pref__correction__auto_space_punctuation__summary" comment="Preference summary">Automatically insert a space after a punctuation</string>
+    <string name="pref__correction__auto_space_punctuation__feedback" comment="Card shown while auto-space after punctuation is on">Auto-space after punctuation is an experimental feature which may break or behave unexpectedly. If you want, please give feedback about it in below linked feedback thread. This helps a lot in improving this feature. Thanks!</string>
+    <string name="pref__correction__auto_space_punctuation__feedback_link" comment="Link under the auto-space card">Feedback thread (GitHub)</string>
     <string name="pref__correction__remember_caps_lock_state__label" comment="Preference title">Remember caps lock state</string>
     <string name="pref__correction__remember_caps_lock_state__summary" comment="Preference summary">Caps lock will stay on when moving to another text field</string>
     <string name="pref__correction__double_space_period__label" comment="Preference title">Double-space period</string>
@@ -515,6 +517,7 @@
     <string name="pref__spelling__title" comment="Preference group title">Spelling</string>
     <string name="pref__spelling__active_spellchecker__summary_disabled">Disabled system-wide. No red lines will appear in text fields for incorrect words. Tap to change.</string>
     <string name="pref__spelling__active_spellchecker__summary_none">No inline text spell checker service set. Tap to change.</string>
+    <string name="pref__spelling__active_spellchecker__unknown" comment="Label of a spell checker app whose name cannot be read">Unknown</string>
     <string name="pref__spelling__language_mode__label" comment="Label of Language mode pref">Languages</string>
     <string name="pref__spelling__use_contacts__label" comment="Label of Use contact list pref">Use names from contacts</string>
     <string name="pref__spelling__use_contacts__summary" comment="Summary of Use contact list pref">Look up names from your contact list</string>
@@ -585,6 +588,7 @@
     <string name="about__version__title" comment="Preference title">Version</string>
     <string name="about__version_copied__title" comment="Title of the toast for copying the version string">Version copied to clipboard</string>
     <string name="about__version_copied__error" comment="Title of the error toast for copying the version string">Something went wrong: {error_message}</string>
+    <string name="about__app_icon__description" comment="Content description of the app icon on the About screen">FlorisBoard app icon</string>
     <string name="about__changelog__title" comment="Preference title">Changelog</string>
     <string name="about__changelog__summary" comment="Preference summary">What\'s new</string>
     <string name="about__repository__title" comment="Preference title">Repository (GitHub)</string>

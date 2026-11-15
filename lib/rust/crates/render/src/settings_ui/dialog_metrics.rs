@@ -52,10 +52,11 @@ impl App {
                 })
                 .collect(),
             // JetPrefAlertDialog's content: bodyLarge text in 24 dp horizontal padding.
-            Kind::Confirm(_, name) => {
-                let message = self
-                    .label("action__reset_confirm_message")
-                    .replace("{name}", &self.label(name));
+            Kind::Confirm(ask) => {
+                let mut message = self.label(ask.message);
+                if !ask.name.is_empty() {
+                    message = message.replace("{name}", &self.label(ask.name));
+                }
                 let rh = self.measure(text, &message, self.sp(16), width - 48.0 * d);
                 vec![(message, String::new(), rh)]
             }

@@ -122,16 +122,10 @@ fun TypingScreen() = FlorisScreen {
             if (isAutoSpacePunctuationEnabled) {
                 Card(modifier = Modifier.padding(8.dp)) {
                     Column(modifier = Modifier.padding(8.dp)) {
-                        Text(
-                            text = """
-                                Auto-space after punctuation is an experimental feature which may break or behave
-                                unexpectedly. If you want, please give feedback about it in below linked feedback
-                                thread. This helps a lot in improving this feature. Thanks!
-                            """.trimIndent().replace('\n', ' '),
-                        )
+                        Text(text = stringRes(R.string.pref__correction__auto_space_punctuation__feedback))
                         FlorisHyperlinkText(
-                            text = "Feedback thread (GitHub)",
-                            url = "https://github.com/florisboard/florisboard/discussions/1935",
+                            text = stringRes(R.string.pref__correction__auto_space_punctuation__feedback_link),
+                            url = stringRes(R.string.florisboard__auto_space_feedback_url),
                         )
                     }
                 }

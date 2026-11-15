@@ -180,5 +180,6 @@ pub(super) const SCREEN: Screen = Screen {
     route: "settings/keyboard/input-feedback",
     title: "settings__input_feedback__title",
     icon_space: false,
+    preview: true,
     rows: ROWS,
 };

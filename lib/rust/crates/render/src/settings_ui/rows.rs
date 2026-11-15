@@ -1,7 +1,7 @@
 //! A screen's row model: JetPref's enabledIf/visibleIf, list entries and value labels.
 use super::{
     App,
-    catalogue::{Choices, Cond, Kind, Row, Screen, Slider, Unit},
+    catalogue::{Choices, Cond, Do, Kind, Row, Screen, Slider, Unit},
 };
 impl App {
     /// The native screen on top of the back stack; None on home.
@@ -27,7 +27,21 @@ impl App {
             Cond::All(all) => all.iter().all(|c| self.cond(c)),
             Cond::Vibrator => self.vibrator[0],
             Cond::Amplitude => self.vibrator[1],
+            Cond::Fact(key, value) => self.fact(key) == *value,
+            Cond::FlorisSpellChecker => {
+                self.fact("spell_enabled") == "1"
+                    && self.facts.contains_key("package")
+                    && self.fact("spell_package") == self.fact("package")
+            }
         }
+    }
+    /// `"${VERSION_NAME} (${VERSION_CODE})"`, as AboutScreen shows and copies it.
+    pub fn version(&self) -> String {
+        format!(
+            "{} ({})",
+            self.fact("version_name"),
+            self.fact("version_code")
+        )
     }
     pub fn visible(&self, i: usize) -> bool {
         self.rows().get(i).is_some_and(|r| self.cond(&r.visible))
@@ -118,8 +132,13 @@ impl App {
                     )
                 }
             }
+            Kind::Effect(Do::Copy) => self.version(),
+            Kind::Status(model) => self.model_summary(model),
             _ if r.summary.is_empty() => String::new(),
-            _ => self.label(r.summary),
+            _ if r.arg.0.is_empty() => self.label(r.summary),
+            _ => self
+                .label(r.summary)
+                .replace(&format!("{{{}}}", r.arg.0), r.arg.1),
         }
     }
     /// Every string resource key the native screens can show, for Kotlin to resolve; plurals
@@ -143,7 +162,17 @@ impl App {
                         out.push(s.unit.zero);
                         out.extend(s.labels);
                     }
-                    Kind::Confirm(_, name) => out.push(name),
+                    Kind::Confirm(ask) => out.extend([
+                        ask.title,
+                        ask.message,
+                        ask.name,
+                        ask.dismiss,
+                        ask.confirm,
+                        ask.toast,
+                    ]),
+                    Kind::Effect(Do::Url(key)) => out.push(key),
+                    Kind::Card(card) => out.extend([card.text, card.link, card.url]),
+                    Kind::Status(_) => out.extend(super::fields::MODEL_KEYS),
                     _ => {}
                 }
             }
@@ -177,6 +206,9 @@ impl App {
 }
 /// Keys the settings code names directly rather than through a catalogue row.
 pub const CODE_KEYS: &[&str] = &[
+    "about__app_icon__description",
+    "about__version_copied__error",
+    "about__version_copied__title",
     "action__cancel",
     "action__default",
     "action__no",
@@ -186,6 +218,9 @@ pub const CODE_KEYS: &[&str] = &[
     "action__yes",
     "pref__input_feedback__haptic_vibration_strength__summary_no_amplitude_ctrl",
     "pref__input_feedback__haptic_vibration_strength__summary_no_vibrator",
+    "pref__spelling__active_spellchecker__summary_disabled",
+    "pref__spelling__active_spellchecker__summary_none",
+    "pref__spelling__active_spellchecker__unknown",
     "settings__home__ime_not_enabled",
     "settings__home__ime_not_selected",
     "settings__home__title",

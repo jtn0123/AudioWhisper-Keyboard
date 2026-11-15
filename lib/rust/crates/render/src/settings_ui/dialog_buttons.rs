@@ -11,15 +11,11 @@ use crate::{
 use keys::Rect;
 impl App {
     /// The neutral, dismiss and confirm labels: ListPreference and DialogSliderPreference's
-    /// default/cancel/ok, or the emoji history confirmation's no/yes with no neutral button.
+    /// default/cancel/ok, or a confirmation's own dismiss and confirm with no neutral button.
     pub(super) fn button_keys(&self) -> [&'static str; 3] {
-        let confirm = self.modal.as_ref().is_some_and(|m| {
-            matches!(self.rows()[m.row].kind, super::catalogue::Kind::Confirm(..))
-        });
-        if confirm {
-            ["", "action__no", "action__yes"]
-        } else {
-            ["action__default", "action__cancel", "action__ok"]
+        match self.modal.as_ref().map(|m| self.rows()[m.row].kind) {
+            Some(super::catalogue::Kind::Confirm(ask)) => ["", ask.dismiss, ask.confirm],
+            _ => ["action__default", "action__cancel", "action__ok"],
         }
     }
     pub(super) fn button_metrics(&self, width: f32, text: &mut Text) -> (f32, [f32; 3], f32) {

@@ -1,11 +1,14 @@
 //! Native settings UI. Platform effects and persisted IO are returned as plans.
+mod cards;
 pub mod catalogue;
 mod dialog;
 mod dialog_buttons;
 mod dialog_metrics;
 pub mod editor;
 mod events;
+pub use cards::SpellCard;
 mod field;
+mod fields;
 mod layout;
 mod material;
 mod overscroll;
@@ -31,6 +34,8 @@ pub enum Action {
     Default,
     Slider(usize),
     Editor,
+    /// The text field row `i` draws (DictationScreen's vocabulary).
+    Field(usize),
     SelectionHandle(bool),
     Picker,
 }
@@ -63,7 +68,19 @@ pub struct App {
     pub modal: Option<Modal>,
     pub prefs: BTreeMap<String, String>,
     pub strings: BTreeMap<String, String>,
+    /// Device facts Kotlin reads for the screens (settings op 20): the app version, whether a
+    /// physical keyboard is attached, the system spell checker. Replaced whole on each report.
+    pub facts: BTreeMap<String, String>,
+    /// Pictures Kotlin rasterises at their intrinsic size (the app icon, the spell checker's).
+    pub images: BTreeMap<String, crate::media_cache::Frame>,
+    /// The editor of the field being edited: the preview field's unless `field` names a row's.
     pub editor: Editor,
+    /// The row whose text field owns `editor`; None while the preview field does.
+    pub field: Option<usize>,
+    /// The preview field's editor while a row's field owns `editor`.
+    pub parked: Editor,
+    /// Each painted field's text layout and origin, for placing the caret where a tap lands.
+    pub field_layouts: Vec<(i32, std::sync::Arc<crate::android_text::Layout>, [f32; 2])>,
     pub config: [f32; 4],
     pub colors: [u32; 13],
     pub dialog_window_width: f32,
@@ -105,7 +122,12 @@ impl Default for App {
             modal: None,
             prefs: BTreeMap::new(),
             strings: BTreeMap::new(),
+            facts: BTreeMap::new(),
+            images: BTreeMap::new(),
             editor: Editor::default(),
+            field: None,
+            parked: Editor::default(),
+            field_layouts: vec![],
             config: [1.0, 1.0, 1.0, 1.0],
             colors: [
                 0xfff8f8f8, 0xff161616, 0xff555555, 0xff376a20, 0xffdce9d0, 0xffe9e9e9, 0xffffffff,
@@ -155,6 +177,10 @@ impl App {
     pub fn label(&self, key: &str) -> String {
         self.strings.get(key).cloned().unwrap_or_else(|| key.into())
     }
+    /// A device fact, or empty when Kotlin reported none (a null setting).
+    pub fn fact(&self, key: &str) -> &str {
+        self.facts.get(key).map_or("", String::as_str)
+    }
     pub fn navigate(&mut self, route: &str) {
         self.fling = None;
         self.end_scroll_cycle();
@@ -164,6 +190,7 @@ impl App {
             self.effects.push(vec!["hideEditor".into()]);
         }
         if catalogue::native(route) {
+            self.release_field();
             if route == catalogue::HOME_ROUTE {
                 self.stack = vec![route.into()];
                 self.scrolls.truncate(1);
@@ -180,6 +207,7 @@ impl App {
             self.scrollbar_start[0] = -1;
             self.scrollbar_last[0] = -1;
             self.focus = -1;
+            self.check_models();
         } else if route == "@enable" {
             self.effects.push(vec!["enable".into()]);
         } else {
@@ -243,6 +271,7 @@ impl App {
             self.editor.composing = None;
             self.effects.push(vec!["hideEditor".into()]);
         } else if self.stack.len() > 1 {
+            self.release_field();
             self.stack.pop();
             self.scrolls.pop();
             self.focus = -1;

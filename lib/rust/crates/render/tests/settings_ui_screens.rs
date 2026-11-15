@@ -39,7 +39,8 @@ fn open_row(a: &mut App, text: &mut Text, i: usize) {
     assert!(a.activate(1000 + i as i32), "row {i} not activatable");
     a.scene(text);
 }
-/// `<string name="…">` and `<plurals name="…">` names in the app's only resource locale.
+/// `<string name="…">` and `<plurals name="…">` names in the app's only resource locale,
+/// with the build types' `resValue` strings.
 fn resources() -> (BTreeSet<String>, BTreeSet<String>) {
     let dir = concat!(
         env!("CARGO_MANIFEST_DIR"),
@@ -58,7 +59,20 @@ fn resources() -> (BTreeSet<String>, BTreeSet<String>) {
             .map(|s| s.split('"').next().unwrap().to_owned())
             .collect::<BTreeSet<_>>()
     };
-    (names("string"), names("plurals"))
+    // Every build type also defines `resValue` strings (the app's name among them).
+    let gradle = concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../../../app/build.gradle.kts"
+    );
+    let gradle = std::fs::read_to_string(gradle).unwrap();
+    let mut strings = names("string");
+    strings.extend(
+        gradle
+            .split("resValue(\"string\", \"")
+            .skip(1)
+            .map(|s| s.split('"').next().unwrap().to_owned()),
+    );
+    (strings, names("plurals"))
 }
 
 #[test]
@@ -119,13 +133,15 @@ fn group_one_routes_are_native_and_other_routes_fall_back_with_the_native_list()
         assert!(a.effects.is_empty(), "{route} fell back");
         assert!(!a.rows().is_empty());
     }
-    let (mut a, _) = app("settings/typing");
+    let (mut a, _) = app("settings/other");
     assert_eq!(a.stack, ["settings/home"]);
     let native = "settings/home|settings/keyboard|settings/keyboard/input-feedback|settings/smartbar|\
-                  settings/gestures|settings/clipboard|settings/media";
+                  settings/gestures|settings/clipboard|settings/media|settings/typing|\
+                  settings/dictionary|settings/other/physical-keyboard|settings/about|\
+                  settings/dictation";
     assert_eq!(
         a.effects.pop().unwrap(),
-        ["compose", "settings/typing", native]
+        ["compose", "settings/other", native]
     );
 }
 
@@ -284,7 +300,7 @@ fn emoji_history_resets_ask_yes_or_no_before_deleting() {
     let pinned = a
         .rows()
         .iter()
-        .position(|r| matches!(r.kind, Kind::Confirm("pinned", _)))
+        .position(|r| matches!(r.kind, Kind::Confirm(ask) if ask.effect == ["deleteEmojiHistory", "pinned"]))
         .unwrap();
     open_row(&mut a, &mut text, pinned);
     let ids = a
@@ -311,7 +327,7 @@ fn emoji_history_resets_ask_yes_or_no_before_deleting() {
     let recent = a
         .rows()
         .iter()
-        .position(|r| matches!(r.kind, Kind::Confirm("recent", _)))
+        .position(|r| matches!(r.kind, Kind::Confirm(ask) if ask.effect == ["deleteEmojiHistory", "recent"]))
         .unwrap();
     a.effects.clear();
     open_row(&mut a, &mut text, recent);

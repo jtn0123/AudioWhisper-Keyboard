@@ -104,5 +104,6 @@ pub(super) const SCREEN: Screen = Screen {
     route: "settings/smartbar",
     title: "settings__smartbar__title",
     icon_space: true,
+    preview: true,
     rows: ROWS,
 };

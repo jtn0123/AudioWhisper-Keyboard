@@ -242,5 +242,6 @@ pub(super) const SCREEN: Screen = Screen {
     route: "settings/gestures",
     title: "settings__gestures__title",
     icon_space: true,
+    preview: true,
     rows: ROWS,
 };

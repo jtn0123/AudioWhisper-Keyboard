@@ -1,8 +1,28 @@
 //! MediaScreen (`iconSpaceReserved = true`) and its DeleteEmojiHistoryConfirmDialog.
 use super::{
-    Choices, Cond::*, Kind, Row, Screen, Slider, dual, entries, heading, list, plural, row, single,
-    slider, toggle,
+    Ask, Choices, Cond::*, Kind, Row, Screen, Slider, dual, entries, heading, list, plural, row,
+    single, slider, toggle,
 };
+/// DeleteEmojiHistoryConfirmDialog: the reset confirmation naming what it deletes.
+const fn reset(which: &'static [&'static str], name: &'static str) -> Ask {
+    Ask {
+        title: "action__reset_confirm_title",
+        message: "action__reset_confirm_message",
+        name,
+        dismiss: "action__no",
+        confirm: "action__yes",
+        effect: which,
+        toast: "",
+    }
+}
+const RESET_PINNED: Ask = reset(
+    &["deleteEmojiHistory", "pinned"],
+    "prefs__media__emoji_history_pinned_reset__name",
+);
+const RESET_RECENT: Ask = reset(
+    &["deleteEmojiHistory", "recent"],
+    "prefs__media__emoji_history_reset__name",
+);
 const SKIN_TONE: Choices = Choices {
     entries: &[
         ("DEFAULT", "enum__emoji_skin_tone__default", ""),
@@ -121,14 +141,14 @@ const ROWS: &[Row] = &[
         "prefs__media__emoji_history_pinned_reset",
         "prefs__media__emoji_history_pinned_reset",
         "",
-        Kind::Confirm("pinned", "prefs__media__emoji_history_pinned_reset__name"),
+        Kind::Confirm(&RESET_PINNED),
     )
     .on(HISTORY),
     row(
         "prefs__media__emoji_history_reset",
         "prefs__media__emoji_history_reset",
         "",
-        Kind::Confirm("recent", "prefs__media__emoji_history_reset__name"),
+        Kind::Confirm(&RESET_RECENT),
     )
     .on(HISTORY),
     heading("prefs__media__emoji_suggestion__title"),
@@ -173,5 +193,6 @@ pub(super) const SCREEN: Screen = Screen {
     route: "settings/media",
     title: "settings__media__title",
     icon_space: true,
+    preview: true,
     rows: ROWS,
 };

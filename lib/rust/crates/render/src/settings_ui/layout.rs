@@ -133,6 +133,7 @@ impl App {
     }
     fn scene_pass(&mut self, text: &mut Text, replay: bool) -> Scene {
         self.controls.clear();
+        self.field_layouts.clear();
         self.scrollbar_exists = [false; 2];
         self.reveal_target = None;
         let [w, h, d, _] = self.config;
@@ -143,7 +144,9 @@ impl App {
         let title_left = if self.is_home() { 16.0 * d } else { 56.0 * d };
         let header = (64.0 * d)
             .max(self.measure(text, &title, self.sp(22), w - title_left - 16.0 * d) + 16.0 * d);
-        let footer = 56.0 * d;
+        // PreviewKeyboardField shows under screens with `previewFieldVisible` (home included).
+        let preview = self.screen().is_none_or(|s| s.preview);
+        let footer = if preview { 56.0 * d } else { 0.0 };
         let mut p = Panel {
             kind: 9,
             density: d,
@@ -224,6 +227,10 @@ impl App {
                 if !self.visible(i) {
                     continue;
                 }
+                if let Some(rh) = self.card_row(&mut p, i, (offset, y), viewport, text) {
+                    y += rh;
+                    continue;
+                }
                 let summary = self.summary(i);
                 let label = self.label(r.label);
                 // Match widgets::add's icon/text/switch bounds when measuring wrapped rows.
@@ -263,10 +270,12 @@ impl App {
                 let role = match r.kind {
                     Kind::Heading => "heading",
                     Kind::Toggle => "toggle",
+                    // JetPref's Preference without onClick is not clickable.
+                    Kind::Info | Kind::Status(_) => "text",
                     _ => "button",
                 };
                 let action = match r.kind {
-                    Kind::Heading | Kind::Fixed => Action::None,
+                    Kind::Heading | Kind::Fixed | Kind::Info | Kind::Status(_) => Action::None,
                     Kind::Route(route) => Action::Route(route.into()),
                     _ => Action::Row(i),
                 };
@@ -361,46 +370,9 @@ impl App {
             self.colors[1],
             rect(0.0, 0.0, w, h),
         );
-        self.paint_box(
-            &mut p,
-            rect(0.0, h - footer, w, footer),
-            self.colors[5],
-            0.0,
-        );
-        self.add(
-            &mut p,
-            Control {
-                id: 2,
-                bounds: rect(0.0, h - footer, w - 48.0 * d, footer),
-                label: self.label("settings__preview_keyboard"),
-                summary: String::new(),
-                role: "edit",
-                enabled: true,
-                checked: None,
-                selected: false,
-                action: Action::Editor,
-                range: None,
-            },
-            rect(0.0, 0.0, w, h),
-            text,
-        );
-        self.add(
-            &mut p,
-            Control {
-                id: 3,
-                bounds: rect(w - 48.0 * d, h - footer, 48.0 * d, footer),
-                label: self.label("setup__select_ime__switch_keyboard_btn"),
-                summary: String::new(),
-                role: "button",
-                enabled: true,
-                checked: None,
-                selected: false,
-                action: Action::Picker,
-                range: None,
-            },
-            rect(0.0, 0.0, w, h),
-            text,
-        );
+        if preview {
+            self.preview_field(&mut p, footer, text);
+        }
         self.modal = modal;
         if self.modal.is_some() {
             self.dialog(&mut p, text);

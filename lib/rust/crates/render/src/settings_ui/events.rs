@@ -1,4 +1,7 @@
-use super::{Action, App, Modal, catalogue::Kind};
+use super::{
+    Action, App, Modal,
+    catalogue::{Do, Kind},
+};
 use crate::touch::Motion;
 impl App {
     pub fn activate(&mut self, id: i32) -> bool {
@@ -18,7 +21,11 @@ impl App {
             Action::Back => self.back(),
             Action::Route(route) => self.navigate(&route),
             Action::Picker => self.effects.push(vec!["picker".into()]),
-            Action::Editor => {
+            Action::Editor | Action::Field(_) => {
+                self.own_field(match c.action {
+                    Action::Field(i) => Some(i),
+                    _ => None,
+                });
                 self.editor.focused = true;
                 self.effects.push(vec!["editor".into()]);
             }
@@ -35,6 +42,14 @@ impl App {
                 let r = self.rows()[i];
                 match r.kind {
                     Kind::Toggle => self.write(r.key, (!self.yes(r.key)).to_string()),
+                    Kind::Effect(effect) => self.effect(effect),
+                    Kind::Card(card) => {
+                        let url = self.label(card.url);
+                        self.effects.push(vec!["url".into(), url]);
+                    }
+                    Kind::Spell => self
+                        .effects
+                        .push(vec!["intent".into(), "spellCheckerSettings".into()]),
                     Kind::Choice(_) | Kind::Slider(_) | Kind::Confirm(..) => {
                         if self.editor.focused {
                             self.editor.focused = false;
@@ -87,9 +102,14 @@ impl App {
                                 self.write(s.second, m.values[1].clone());
                             }
                         }
-                        Kind::Confirm(which, _) => self
-                            .effects
-                            .push(vec!["deleteEmojiHistory".into(), which.into()]),
+                        Kind::Confirm(ask) => {
+                            let mut plan: Vec<String> =
+                                ask.effect.iter().map(|s| (*s).to_owned()).collect();
+                            if !ask.toast.is_empty() {
+                                plan.push(self.label(ask.toast));
+                            }
+                            self.effects.push(plan);
+                        }
                         _ => {}
                     }
                 }
@@ -113,6 +133,25 @@ impl App {
             Action::Slider(_) | Action::SelectionHandle(_) => {}
         }
         true
+    }
+    /// A row's platform effect, as the plan Kotlin executes.
+    fn effect(&mut self, effect: Do) {
+        let plan = match effect {
+            Do::Url(key) => vec![
+                "url".into(),
+                self.label(key)
+                    .replace("{version}", self.fact("version_name")),
+            ],
+            // Kotlin fills `{error_message}` from the exception a failed copy throws.
+            Do::Copy => vec![
+                "copy".into(),
+                self.version(),
+                self.label("about__version_copied__title"),
+                self.label("about__version_copied__error"),
+            ],
+            Do::Intent(name) => vec!["intent".into(), name.into()],
+        };
+        self.effects.push(plan);
     }
     pub fn set_slider(&mut self, slot: usize, value: f32) -> bool {
         let rows = self.rows();
@@ -219,14 +258,22 @@ impl App {
             if !self.is_home() {
                 eligible.push(1);
                 for (i, row) in self.rows().iter().enumerate() {
-                    if self.visible(i)
-                        && self.enabled(i)
-                        && !matches!(row.kind, Kind::Heading | Kind::Fixed)
-                    {
-                        eligible.push(1000 + i as i32);
-                        if !row.switch.is_empty() {
-                            eligible.push(2000 + i as i32);
-                        }
+                    if !self.visible(i) || !self.enabled(i) {
+                        continue;
+                    }
+                    match row.kind {
+                        Kind::Heading
+                        | Kind::Fixed
+                        | Kind::Info
+                        | Kind::Header
+                        | Kind::Status(_)
+                        | Kind::Note => {}
+                        // The card's text is not focusable; its hyperlink is.
+                        Kind::Card(_) => eligible.push(6000 + i as i32),
+                        _ => eligible.push(1000 + i as i32),
+                    }
+                    if !row.switch.is_empty() {
+                        eligible.push(2000 + i as i32);
                     }
                 }
             } else {
@@ -235,7 +282,9 @@ impl App {
                 }
                 eligible.extend(100..112);
             }
-            eligible.extend([2, 3]);
+            if self.screen().is_none_or(|s| s.preview) {
+                eligible.extend([2, 3]);
+            }
         }
         if eligible.is_empty() {
             return;
@@ -354,7 +403,7 @@ impl App {
                 } else if id == 20 || id == 21 {
                     // The handles disappear at a collapsed range. Keep the original
                     // grabbed endpoint/opposite anchor so the same drag can cross it.
-                    self.drag_editor_handle(x + self.handle_drag_offset);
+                    self.drag_editor_handle(x + self.handle_drag_offset, y);
                 }
                 self.last = (x, y);
             } else if e.action == 1 {
@@ -388,10 +437,11 @@ impl App {
                                 );
                             }
                         } else {
-                            if c.action == Action::Editor {
-                                self.place_editor_caret(x, y);
-                            }
+                            let field = matches!(c.action, Action::Editor | Action::Field(_));
                             self.activate(id);
+                            if field {
+                                self.place_editor_caret(id, x, y);
+                            }
                         }
                     }
                 }

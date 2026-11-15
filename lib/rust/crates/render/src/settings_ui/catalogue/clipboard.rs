@@ -154,5 +154,6 @@ pub(super) const SCREEN: Screen = Screen {
     route: "settings/clipboard",
     title: "settings__clipboard__title",
     icon_space: true,
+    preview: true,
     rows: ROWS,
 };
