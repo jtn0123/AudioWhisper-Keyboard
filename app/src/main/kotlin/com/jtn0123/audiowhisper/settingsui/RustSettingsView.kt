@@ -28,6 +28,7 @@ private const val UNBUFFERED_TAG = "aw-unbuffered"
 internal class RustSettingsView(context: Context) : FrameLayout(context), SurfaceHolder.Callback, Choreographer.VsyncCallback {
     private lateinit var activity: FlorisAppActivity
     private lateinit var platform: SettingsPlatform
+    private lateinit var facts: SettingsFacts
     var backAvailability: (Boolean) -> Unit = {}
     private var fallback: (String, List<String>) -> Unit = { _, _ -> }
     private val native = KeyboardRenderer(systemRendererFonts())
@@ -42,7 +43,7 @@ internal class RustSettingsView(context: Context) : FrameLayout(context), Surfac
     private val choreographer = Choreographer.getInstance()
     private val imm = context.getSystemService(InputMethodManager::class.java)
     private var state = Json.parseToJsonElement(native.settings(1,
-        settingsResources(context, native.settings(16)[2].split("\n")) + settingsIcons())[0]).jsonObject
+        settingsResources(context, native.settings(16)[2].split("\n")) + settingsIcons(context.resources))[0]).jsonObject
     private var live = false
     private var pending = false
     private var released = false
@@ -51,6 +52,7 @@ internal class RustSettingsView(context: Context) : FrameLayout(context), Surfac
         private set
     internal val anchor get() = state.getValue("editor").jsonObject.getValue("anchor").jsonPrimitive.int
     internal val selectionEnd get() = state.getValue("editor").jsonObject.getValue("focus").jsonPrimitive.int
+    internal val multiLine get() = state.getValue("editor").jsonObject["multiLine"]?.jsonPrimitive?.boolean == true
     private val accessibility = RendererAccessibility(this, { state.toString() }, { id, action ->
         if (action == 4 || action == 5) send(17, id.toString(), action.toString()) else send(5, id.toString())
         true
@@ -81,6 +83,7 @@ internal class RustSettingsView(context: Context) : FrameLayout(context), Surfac
         check(!::platform.isInitialized)
         this.activity = activity
         this.platform = SettingsPlatform(activity, prefs, ::preferencesPersisted)
+        this.facts = SettingsFacts(activity).also { it.observe { if (!released) pushFacts() } }
         this.fallback = fallback
         receive(native.settings(2, platform.snapshot()))
         if (restored != null) receive(native.settings(11, restored))
@@ -139,6 +142,9 @@ internal class RustSettingsView(context: Context) : FrameLayout(context), Surfac
                 "picker" -> InputMethodUtils.showImePicker(activity)
                 "editor" -> { endpoint.requestFocus(); activity.window.insetsController?.show(android.view.WindowInsets.Type.ime()) }
                 "hideEditor" -> { endpoint.clearFocus(); imm.hideSoftInputFromWindow(endpoint.windowToken, 0) }
+                "restartInput" -> imm.restartInput(endpoint)
+                "checkModels" -> facts.checkModels { if (!released) pushFacts() }
+                "url", "intent", "copy", "forgetLearnedWords" -> facts.execute(p)
             }
         }
         selectionMenu.update(state.getValue("selectionToolbar").jsonPrimitive.boolean)
@@ -160,6 +166,11 @@ internal class RustSettingsView(context: Context) : FrameLayout(context), Surfac
                 android.util.TypedValue.applyDimension(android.util.TypedValue.COMPLEX_UNIT_SP, it.toFloat(), metrics).toString()
             }.toTypedArray() + arrayOf(platform.dialogWindowWidth().toString(), colors[12].toUInt().toString()) + platform.vibratorFacts()
         receive(native.settings(3, config))
+        pushFacts()
+    }
+    private fun pushFacts() {
+        facts.images { name, w, h, pixels -> receive(native.settingsImage(name, w, h, pixels)) }
+        receive(native.settings(20, facts.pairs()))
     }
     private fun requestFrame() {
         if (live && !pending && !released) { pending = true; choreographer.postVsyncCallback(this) }
@@ -214,6 +225,7 @@ internal class RustSettingsView(context: Context) : FrameLayout(context), Surfac
     override fun performClick(): Boolean { super.performClick(); return true }
     override fun onDetachedFromWindow() {
         super.onDetachedFromWindow(); released = true; live = false; choreographer.removeVsyncCallback(this)
+        if (::facts.isInitialized) facts.release()
         selectionMenu.close(); accessibility.release(); native.detach(); native.close()
     }
 }

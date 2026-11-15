@@ -290,7 +290,10 @@ internal class RendererAccessibility(
         return Rect(floor(a[0]).toInt(), floor(a[1]).toInt(), ceil(a[2]).toInt(), ceil(a[3]).toInt())
     }
     private fun nodeClass(n: JsonObject): String = when (n.string("role")) {
-        "text", "heading" -> "android.widget.TextView"
+        "text", "heading", "link" -> "android.widget.TextView"
+        "image" -> "android.widget.ImageView"
+        // A clickable Card has no Role, so Compose reports a plain View.
+        "card" -> "android.view.View"
         "scroll" -> "android.widget.ScrollView"
         "key" -> "android.inputmethodservice.Keyboard\$Key"
         "toggle" -> "android.widget.Switch"

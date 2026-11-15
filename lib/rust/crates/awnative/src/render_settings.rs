@@ -55,21 +55,25 @@ fn reply(
         let mut actions=if !c.enabled || matches!(c.action,Action::None){vec![]}else{vec![1]};
         if c.enabled && c.role=="slider" {actions.extend([4,5]);} else if c.role=="scroll" {let [back,forward]=a.can_scroll(); if forward {actions.push(4);}
             if back {actions.push(5);}}
-        let label=if c.role=="edit"{String::from_utf16_lossy(&a.editor.text)}else{c.label.clone()};
+        // An image has a content description and no text, as Compose's Image does.
+        let edited=(c.role=="edit").then(|| a.field_editor(c.id).0);
+        let shown=edited.as_ref().map(|e| String::from_utf16_lossy(&e.text));
+        let (anchor,focus)=edited.as_ref().map_or((a.editor.anchor,a.editor.focus),|e| (e.anchor,e.focus));
+        let label=if let Some(t)=&shown{t.clone()}else if c.role=="image"{String::new()}else{c.label.clone()};
         json!({"id":c.id,"bounds":[c.bounds.left,c.bounds.top,c.bounds.right,c.bounds.bottom],"label":label,
-            "description":c.label,"hint":if c.role=="edit"{c.label.as_str()}else{""},"hintShowing":c.role=="edit" && a.editor.text.is_empty(),"role":c.role,"state":c.summary,"enabled":c.enabled,"pressed":false,"selected":c.selected,
+            "description":c.label,"hint":if c.role=="edit"{c.label.as_str()}else{""},"hintShowing":shown.as_ref().is_some_and(|t| t.is_empty()),"role":c.role,"state":c.summary,"enabled":c.enabled,"pressed":false,"selected":c.selected,
             "checked":if c.role=="radio"{Some(c.selected)}else{c.checked},"locked":false,"actions":actions,"longClickLabel":"","holdDelayMillis":500,
-            "range":c.range,"anchor":a.editor.anchor,"focus":a.editor.focus})
+            "range":c.range,"anchor":anchor,"focus":focus})
     }).collect();
     let field = a
         .controls
         .iter()
-        .find(|c| c.role == "edit")
+        .find(|c| c.id == a.field_id())
         .map(|c| [c.bounds.left, c.bounds.top, c.bounds.right, c.bounds.bottom]);
     let effects = std::mem::take(&mut a.effects);
     let result = json!({"nodes":nodes,"mode":"","shift":"","popup":a.modal.is_some(),"effects":effects,
         "systemBarColor":a.system_bar_color(),"lightSystemBars":a.light_system_bars(),"route":a.stack.last(),"canBack":a.stack.len()>1 || a.modal.is_some() || a.editor.focused,"scroll":a.scroll(),"maxScroll":a.max_scroll,"focus":a.focus,
-        "animating":a.animating(),"scrollbarAlpha":a.scrollbar_alpha(usize::from(a.modal.is_some())),"selectionToolbar":a.editor.focused && a.editor.anchor!=a.editor.focus && !a.toolbar_dismissed,"accepted":a.accepted,"editor":{"anchor":a.editor.anchor,"focus":a.editor.focus,"composing":a.editor.composing,"focused":a.editor.focused,"bounds":field}});
+        "animating":a.animating(),"scrollbarAlpha":a.scrollbar_alpha(usize::from(a.modal.is_some())),"selectionToolbar":a.editor.focused && a.editor.anchor!=a.editor.focus && !a.toolbar_dismissed,"accepted":a.accepted,"editor":{"anchor":a.editor.anchor,"focus":a.editor.focus,"composing":a.editor.composing,"focused":a.editor.focused,"bounds":field,"multiLine":a.field.is_some()}});
     let mut out = vec![
         settings::text(&result.to_string()),
         a.editor.text.clone(),
@@ -167,6 +171,12 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_settings(
                         if a.editor.focused {
                             match key {
                                 67 => a.editor.backspace(),
+                                // A multi-line field takes Enter as a new line, finishing any
+                                // composition first as Compose's TextFieldKeyInput does.
+                                66 if a.field.is_some() => {
+                                    a.editor.composing = None;
+                                    a.accepted = a.editor.replace(&[10], 1, false);
+                                }
                                 66 => {
                                     a.editor.focused = false;
                                     a.editor.composing = None;
@@ -247,7 +257,14 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_settings(
                                 a.editor.query(field(&p, 1)?, int(&p, 2)?.max(0) as usize)
                             };
                         }
-                        "focus" => a.editor.focused = true,
+                        // An optional control id hands the editor to that field first, as a
+                        // tap does, without the effect that shows the IME.
+                        "focus" => {
+                            if p.len() > 1 {
+                                a.accepted = a.focus_field(int(&p, 1)?);
+                            }
+                            a.editor.focused = true;
+                        }
                         "dismissToolbar" => a.toolbar_dismissed = true,
                         "selectAll" => {
                             a.editor.select(0, a.editor.text.len() as i32);
@@ -312,6 +329,17 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_settings(
                 19 => {
                     query = settings::text(&catalogue::native_routes().join("\n"));
                 }
+                20 => {
+                    if p.len() % 2 != 0 {
+                        return Err(illegal("settings facts"));
+                    }
+                    a.facts = p
+                        .as_chunks::<2>()
+                        .0
+                        .iter()
+                        .map(|[k, v]| (k.clone(), v.clone()))
+                        .collect();
+                }
                 17 => {
                     let id = int(&p, 0)?;
                     let direction = if int(&p, 1)? == 4 { 1.0 } else { -1.0 };
@@ -321,7 +349,44 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_settings(
                 }
                 _ => return Err(illegal("settings operation")),
             }
+            if op == 7 || op == 9 {
+                a.sync_field();
+            }
             reply(s, env, query, op == 10)
+        })
+    }
+}
+/// A picture for the settings screens (`values` = name, width, height) as ARGB pixels at its
+/// intrinsic size; an empty one removes it.
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_settingsImage(
+    env: *mut JNIEnv,
+    _: jclass,
+    native: jlong,
+    values: jobjectArray,
+    pixels: jintArray,
+) -> jobjectArray {
+    // SAFETY: the synchronized wrapper retains the live handle; the name and pixel arrays are
+    // copied before use.
+    unsafe {
+        handle::with_locked::<Session, _>(env, native, "renderer", ptr::null_mut(), |s, env| {
+            let raw = input(env, values)?;
+            let p: Vec<_> = raw.iter().map(|v| String::from_utf16_lossy(v)).collect();
+            let (w, h) = (int(&p, 1)?, int(&p, 2)?);
+            let pixels = env.read::<i32>(pixels, "settings image")?;
+            let a = s.settings.get_or_insert_with(App::default);
+            let name = field(&p, 0)?.to_owned();
+            if w == 0 || h == 0 {
+                a.images.remove(&name);
+            } else {
+                let (Ok(w), Ok(h)) = (u16::try_from(w), u16::try_from(h)) else {
+                    return Err(illegal("settings image size"));
+                };
+                let frame = render::media_cache::Frame::argb(w, h, &pixels, 0)
+                    .ok_or_else(|| illegal("settings image pixels"))?;
+                a.images.insert(name, frame);
+            }
+            reply(s, env, vec![], false)
         })
     }
 }

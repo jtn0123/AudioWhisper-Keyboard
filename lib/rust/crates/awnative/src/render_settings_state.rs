@@ -6,6 +6,7 @@ use render::settings_ui::{
 use settings::{Text, text};
 pub fn save(a: &App) -> Vec<Text> {
     let m = a.modal.as_ref();
+    let e = a.preview_editor();
     vec![
         text("2"),
         text(&a.stack.join("|")),
@@ -20,12 +21,12 @@ pub fn save(a: &App) -> Vec<Text> {
         text(&m.map_or(String::new(), |m| m.selected.clone())),
         text(&m.map_or(String::new(), |m| m.values.join("|"))),
         text(&m.map_or(0.0, |m| m.scroll).to_string()),
-        a.editor.text.clone(),
-        text(&a.editor.anchor.to_string()),
-        text(&a.editor.focus.to_string()),
-        text(&a.editor.composing.map_or(-1, |(s, _)| s as i32).to_string()),
-        text(&a.editor.composing.map_or(-1, |(_, e)| e as i32).to_string()),
-        text(&a.editor.focused.to_string()),
+        e.text.clone(),
+        text(&e.anchor.to_string()),
+        text(&e.focus.to_string()),
+        text(&e.composing.map_or(-1, |(s, _)| s as i32).to_string()),
+        text(&e.composing.map_or(-1, |(_, e)| e as i32).to_string()),
+        text(&e.focused.to_string()),
         text(&a.focus.to_string()),
         text(&m.is_none_or(|m| m.enabled).to_string()),
     ]
@@ -105,6 +106,9 @@ pub fn restore(a: &mut App, packet: &[Text]) -> Result<(), &'static str> {
     a.stack = stack;
     a.scrolls = scrolls;
     a.modal = modal;
+    // A saved state keeps the preview field's editor; a row's field restores from its preference.
+    a.field = None;
+    a.parked = Default::default();
     a.editor.text = packet[7].clone();
     a.editor.anchor = anchor as usize;
     a.editor.focus = focus as usize;

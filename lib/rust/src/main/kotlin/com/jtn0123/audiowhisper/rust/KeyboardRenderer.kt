@@ -9,6 +9,10 @@ class KeyboardRenderer(fontPaths: Array<String>) : AutoCloseable {
     fun settings(operation: Int, input: Array<String> = emptyArray()): Array<String> = RenderNative.settings(handle, operation, input)
     @Synchronized
     fun settingsTouch(metadata: IntArray, times: LongArray, coords: FloatArray): Array<String> = RenderNative.settingsTouch(handle, metadata, times, coords)
+    /** A settings picture by name, as ARGB pixels at its intrinsic size; 0×0 removes it. */
+    @Synchronized
+    fun settingsImage(name: String, width: Int, height: Int, pixels: IntArray): Array<String> =
+        RenderNative.settingsImage(handle, arrayOf(name, width.toString(), height.toString()), pixels)
 
     @Synchronized
     fun theme(json: String, names: Array<String>, colors: IntArray, scale: FloatArray) =
@@ -126,6 +130,7 @@ class KeyboardRenderer(fontPaths: Array<String>) : AutoCloseable {
 internal object RenderNative {
     @JvmStatic external fun settings(handle: Long, operation: Int, input: Array<String>): Array<String>
     @JvmStatic external fun settingsTouch(handle: Long, metadata: IntArray, times: LongArray, coords: FloatArray): Array<String>
+    @JvmStatic external fun settingsImage(handle: Long, input: Array<String>, pixels: IntArray): Array<String>
     init { RustLibrary.load() }
     external fun create(fontPaths: Array<String>): Long
     external fun theme(handle: Long, json: String, names: Array<String>, colors: IntArray, scale: FloatArray)
