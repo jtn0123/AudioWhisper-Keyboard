@@ -19,6 +19,8 @@
     <string name="prefs__media__emoji_history_max_size">Maximum items to keep</string>
     <string name="prefs__media__emoji_history_pinned_reset">Reset pinned emojis</string>
     <string name="prefs__media__emoji_history_reset">Reset recent emojis</string>
+    <string name="prefs__media__emoji_history_pinned_reset__name" comment="The {name} of action__reset_confirm_message">pinned emojis</string>
+    <string name="prefs__media__emoji_history_reset__name" comment="The {name} of action__reset_confirm_message">emoji history</string>
     <string name="prefs__media__emoji_suggestion__title" comment="Preference group title">Emoji suggestions</string>
     <string name="prefs__media__emoji_suggestion_enabled" comment="Preference title">Enable emoji suggestions</string>
     <string name="prefs__media__emoji_suggestion_enabled__summary" comment="Preference summary">Provide emoji suggestions while you type</string>
@@ -480,6 +482,7 @@
     <string name="pref__smartbar__flip_toggles__label" comment="Preference title">Flip toggle buttons</string>
     <string name="pref__smartbar__flip_toggles__summary" comment="Preference summary">Flips action row toggles</string>
     <string name="pref__smartbar__shared_actions_auto_expand_collapse__label" comment="Preference title">Auto-expand/collapse</string>
+    <string name="pref__smartbar__shared_actions_auto_expand_collapse__summary" comment="Preference summary">[Since v0.4.1] Always enabled due to UX issues</string>
     <string name="pref__smartbar__extended_actions_placement__label" comment="Preference title">Action row placement</string>
 
     <!-- Typing strings -->
@@ -1026,6 +1029,7 @@
     <string name="enum__swipe_action__select_characters_precisely" comment="Enum value label">Select characters precisely</string>
     <string name="enum__swipe_action__select_words_precisely" comment="Enum value label">Select words precisely</string>
     <string name="enum__swipe_action__show_input_method_picker" comment="Enum value label">Show input method picker</string>
+    <string name="enum__swipe_action__show_subtype_picker" comment="Enum value label">Show subtype picker</string>
     <string name="enum__swipe_action__switch_to_prev_keyboard" comment="Enum value label">Switch to previous keyboard</string>
     <string name="enum__swipe_action__switch_to_prev_subtype" comment="Enum value label">Switch to previous subtype</string>
     <string name="enum__swipe_action__switch_to_next_subtype" comment="Enum value label">Switch to next subtype</string>

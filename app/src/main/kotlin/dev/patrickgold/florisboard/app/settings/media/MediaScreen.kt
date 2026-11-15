@@ -205,9 +205,9 @@ fun DeleteEmojiHistoryConfirmDialog(
             onConfirm = onConfirm,
         ) {
             if (it.pinned) {
-                Text(stringRes(R.string.action__reset_confirm_message, "name" to "pinned emojis"))
+                Text(stringRes(R.string.action__reset_confirm_message, "name" to stringRes(R.string.prefs__media__emoji_history_pinned_reset__name)))
             } else {
-                Text(stringRes(R.string.action__reset_confirm_message, "name" to "emoji history"))
+                Text(stringRes(R.string.action__reset_confirm_message, "name" to stringRes(R.string.prefs__media__emoji_history_reset__name)))
             }
 
         }

@@ -83,7 +83,7 @@ fun SmartbarScreen() = FlorisScreen {
             //  the setting is not available anymore. The preference itself is gone, so show it as always on.
             Preference(
                 title = stringRes(R.string.pref__smartbar__shared_actions_auto_expand_collapse__label),
-                summary = "[Since v0.4.1] Always enabled due to UX issues",
+                summary = stringRes(R.string.pref__smartbar__shared_actions_auto_expand_collapse__summary),
                 trailing = {
                     Switch(
                         checked = true,
