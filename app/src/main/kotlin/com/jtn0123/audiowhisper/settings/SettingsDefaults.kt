@@ -6,6 +6,7 @@ import dev.patrickgold.florisboard.ime.smartbar.quickaction.QuickActionArrangeme
 import dev.patrickgold.florisboard.ime.media.emoji.EmojiHistory
 import dev.patrickgold.florisboard.lib.ext.ExtensionComponentName
 import dev.patrickgold.jetpref.datastore.model.LocalTime
+import dev.patrickgold.jetpref.datastore.model.PreferenceData
 import dev.patrickgold.jetpref.datastore.model.PreferenceModel
 import dev.patrickgold.jetpref.datastore.model.PreferenceSerializer
 
@@ -36,7 +37,12 @@ abstract class SettingsPreferenceModel : PreferenceModel() {
     protected fun nativeFloat(key: String) = nativeScalar(float(key,SettingsDefaults.float(key))) { Float.fromBits(it.toInt()) }
     protected fun nativeString(key: String) = nativeScalar(string(key,SettingsDefaults.string(key))) { it }
 
-    protected inline fun <reified E : Enum<E>> nativeEnum(key: String) = custom(
+    // Typed PreferenceData, not SettingsPreference: Jetpref's KSP processor declares only
+    // properties of that type, and the store neither loads nor persists the rest.
+    protected inline fun <reified E : Enum<E>> nativeEnum(key: String): PreferenceData<E> = SettingsPreference(custom(
         key, SettingsDefaults.enum<E>(key), SettingsEnumSerializer(key, enumValues<E>().toList()),
-    )
+    ))
+    /** Jetpref's `custom`, with writes that finish (see [SettingsPreference]). */
+    protected fun <V : Any> customPreference(key: String, default: V, serializer: PreferenceSerializer<V>): PreferenceData<V> =
+        SettingsPreference(custom(key, default, serializer))
 }

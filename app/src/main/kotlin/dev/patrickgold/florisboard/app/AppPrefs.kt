@@ -115,7 +115,7 @@ abstract class FlorisPreferenceModel : SettingsPreferenceModel() {
         val preferredSkinTone = nativeEnum<EmojiSkinTone>(key = "emoji__preferred_skin_tone")
         val preferredHairStyle = nativeEnum<EmojiHairStyle>(key = "emoji__preferred_hair_style")
         val historyEnabled = nativeBoolean(key = "emoji__history_enabled")
-        val historyData = custom(key = "emoji__history_data", default = SettingsDefaults.history("emoji__history_data"), serializer = EmojiHistory.Serializer)
+        val historyData = customPreference(key = "emoji__history_data", default = SettingsDefaults.history("emoji__history_data"), serializer = EmojiHistory.Serializer)
         val historyPinnedUpdateStrategy = nativeEnum<EmojiHistory.UpdateStrategy>(key = "emoji__history_pinned_update_strategy")
         val historyPinnedMaxSize = nativeInt(key = "emoji__history_pinned_max_size")
         val historyRecentUpdateStrategy = nativeEnum<EmojiHistory.UpdateStrategy>(key = "emoji__history_recent_update_strategy")
@@ -255,7 +255,7 @@ abstract class FlorisPreferenceModel : SettingsPreferenceModel() {
         val rustSettingsPrototype = nativeBoolean(key = "other__rust_settings_prototype")
 
         val settingsTheme = nativeEnum<AppTheme>(key = "other__settings_theme")
-        val accentColor = custom(key = "other__accent_color", default = SettingsDefaults.color("other__accent_color"), serializer = ColorPreferenceSerializer)
+        val accentColor = customPreference(key = "other__accent_color", default = SettingsDefaults.color("other__accent_color"), serializer = ColorPreferenceSerializer)
     }
 
     val physicalKeyboard = PhysicalKeyboard()
@@ -267,7 +267,7 @@ abstract class FlorisPreferenceModel : SettingsPreferenceModel() {
     inner class Smartbar {
         val enabled = nativeBoolean(key = "smartbar__enabled")
         val layout = nativeEnum<SmartbarLayout>(key = "smartbar__layout")
-        val actionArrangement = custom(key = "smartbar__action_arrangement", default = SettingsDefaults.arrangement("smartbar__action_arrangement"), serializer = QuickActionArrangement.Serializer)
+        val actionArrangement = customPreference(key = "smartbar__action_arrangement", default = SettingsDefaults.arrangement("smartbar__action_arrangement"), serializer = QuickActionArrangement.Serializer)
         // Flipped so the pinned mic (the sticky action) sits at the left end of the suggestion bar and
         // the quick-actions arrow at the right.
         val flipToggles = nativeBoolean(key = "smartbar__flip_toggles")
@@ -313,11 +313,11 @@ abstract class FlorisPreferenceModel : SettingsPreferenceModel() {
     val theme = Theme()
     inner class Theme {
         val mode = nativeEnum<ThemeMode>(key = "theme__mode")
-        val dayThemeId = custom(key = "theme__day_theme_id", default = SettingsDefaults.component("theme__day_theme_id"), serializer = com.jtn0123.audiowhisper.settings.SettingsComponentSerializer)
-        val nightThemeId = custom(key = "theme__night_theme_id", default = SettingsDefaults.component("theme__night_theme_id"), serializer = com.jtn0123.audiowhisper.settings.SettingsComponentSerializer)
-        val accentColor = custom(key = "theme__accent_color", default = SettingsDefaults.color("theme__accent_color"), serializer = ColorPreferenceSerializer)
-        val sunriseTime = custom(key = "theme__sunrise_time", default = SettingsDefaults.time("theme__sunrise_time"), serializer = com.jtn0123.audiowhisper.settings.SettingsTimeSerializer)
-        val sunsetTime = custom(key = "theme__sunset_time", default = SettingsDefaults.time("theme__sunset_time"), serializer = com.jtn0123.audiowhisper.settings.SettingsTimeSerializer)
+        val dayThemeId = customPreference(key = "theme__day_theme_id", default = SettingsDefaults.component("theme__day_theme_id"), serializer = com.jtn0123.audiowhisper.settings.SettingsComponentSerializer)
+        val nightThemeId = customPreference(key = "theme__night_theme_id", default = SettingsDefaults.component("theme__night_theme_id"), serializer = com.jtn0123.audiowhisper.settings.SettingsComponentSerializer)
+        val accentColor = customPreference(key = "theme__accent_color", default = SettingsDefaults.color("theme__accent_color"), serializer = ColorPreferenceSerializer)
+        val sunriseTime = customPreference(key = "theme__sunrise_time", default = SettingsDefaults.time("theme__sunrise_time"), serializer = com.jtn0123.audiowhisper.settings.SettingsTimeSerializer)
+        val sunsetTime = customPreference(key = "theme__sunset_time", default = SettingsDefaults.time("theme__sunset_time"), serializer = com.jtn0123.audiowhisper.settings.SettingsTimeSerializer)
         val editorColorRepresentation = nativeEnum<ColorRepresentation>(key = "theme__editor_color_representation")
         val editorDisplayKbdAfterDialogs = nativeEnum<DisplayKbdAfterDialogs>(key = "theme__editor_display_kbd_after_dialogs")
         val editorLevel = nativeEnum<SnyggLevel>(key = "theme__editor_level")

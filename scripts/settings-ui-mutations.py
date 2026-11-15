@@ -11,6 +11,7 @@ import xml.etree.ElementTree as ET
 ROOT = Path(__file__).resolve().parent.parent
 BASE = ROOT / 'lib/rust/crates'
 CAT = BASE / 'render/src/settings_ui/catalogue'
+SETTINGS = ROOT / 'app/src/main/kotlin/com/jtn0123/audiowhisper/settings'
 SYNC_CLEAR, SYNC_SET = ('    (\n        "ONLY_{0}_EVENTS",\n        "enum__clipboard_sync_behavior__only_{1}_events",\n'
                          '        "enum__clipboard_sync_behavior__only_{1}_events__description",\n    ),\n'
                          .format(event, event.lower()) for event in ('CLEAR', 'SET'))
@@ -78,6 +79,14 @@ CASES = [
      'let padded = 2.0 * self.px(12.0) + self.px(24.0);', 'let padded = self.px(48.0);'),
     ('advance-linear-round', BASE / 'render/src/android_text.rs',
      'hinted.unwrap_or_else(|| pixel_round(base * k))', 'hinted.unwrap_or_else(|| (base * k).round())'),
+    # Jetpref's store dies when a write's caller is cancelled mid-write: each must fail
+    # SettingsUiWriteCancellationMatchTest.
+    ('write-cancellable', SETTINGS / 'SettingsScalars.kt',
+     'withContext(NonCancellable) { data.set(value) }', 'data.set(value)'),
+    ('reset-cancellable', SETTINGS / 'SettingsScalars.kt',
+     'withContext(NonCancellable) { data.reset() }', 'data.reset()'),
+    ('custom-unwrapped', SETTINGS / 'SettingsDefaults.kt',
+     '        SettingsPreference(custom(key, default, serializer))', '        custom(key, default, serializer)'),
 ]
 # The Rust test binary that must panic for each Rust-only case.
 RUST = dict.fromkeys([
