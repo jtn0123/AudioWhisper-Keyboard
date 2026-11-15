@@ -152,6 +152,17 @@ internal class SettingsHarness(val instrumentation: Instrumentation, explore: Bo
             .firstOrNull { it != n && it.isClickable && !it.isCheckable && label(it).isNotBlank() } ?: return null
         return JSONObject().put("name", "jetpref-linked-switch-unlabeled").put("for", label(row).substringBefore('\n'))
     }
+    /**
+     * ListPreference's dialog entry (Jetpref d6e12dda, ListPreference.kt): a Row with
+     * `Modifier.selectable` and no `role = Role.RadioButton`, whose RadioButton has `onClick = null`
+     * and so no semantics of its own. Labelled and selectable, but TalkBack is not told it is a
+     * radio button. Only inside a dialog, and named for that dialog.
+     */
+    private fun roleless(n: Node, label: String, screen: String): JSONObject? {
+        if (!n.isCheckable || !n.isClickable || n.className != "android.view.View" || label.isBlank()) return null
+        if (find("Cancel") == null) return null
+        return JSONObject().put("name", "jetpref-list-entry-no-role").put("for", screen)
+    }
     fun audit(screen: String): JSONObject {
         val items = JSONArray()
         val compose = views(RustSettingsView::class.java).isEmpty()
@@ -174,8 +185,12 @@ internal class SettingsHarness(val instrumentation: Instrumentation, explore: Bo
                 violations.add("missing focus action")
             if (n.isClickable && n.isEnabled && Node.ACTION_CLICK !in actions) violations.add("missing click action")
             if (n.rangeInfo != null && n.isEnabled && Node.AccessibilityAction.ACTION_SET_PROGRESS.id !in actions) violations.add("missing progress action")
-            val known = if (compose && "missing label" in violations) knownDefect(n, screen) else null
-            if (known != null) violations.remove("missing label")
+            val known = when {
+                !compose -> null
+                "missing label" in violations -> knownDefect(n, screen)?.also { violations.remove("missing label") }
+                violations == listOf("missing semantic role") -> roleless(n, label, screen)?.also { violations.clear() }
+                else -> null
+            }
             items.put(JSONObject().put("label", label).put("role", semanticRole.ifEmpty { n.className?.toString().orEmpty() }).put("raw_class", n.className).put("heading", n.isHeading).put("enabled", n.isEnabled)
                 .put("checkable", n.isCheckable).put("checked", (n.checked == Node.CHECKED_STATE_TRUE)).put("selected", n.isSelected)
                 .put("value", n.rangeInfo?.current)
