@@ -123,6 +123,11 @@ impl App {
         };
         [left * d, right * d]
     }
+    /// Rows whose trailing content is a Switch: a toggle, a linked list switch, the fixed row.
+    pub(super) fn has_switch(&self, i: usize) -> bool {
+        let r = &self.rows()[i];
+        matches!(r.kind, Kind::Toggle | Kind::Fixed) || !r.switch.is_empty()
+    }
     pub fn scene(&mut self, text: &mut Text) -> Scene {
         self.scene_pass(text, true)
     }
@@ -237,7 +242,11 @@ impl App {
                             16.0
                         } * d)
                         .max(
-                            if summary.is_empty() {
+                            if summary.is_empty() && self.has_switch(i) {
+                                // ListItem's 8 dp padding around the Switch's 48 dp minimum
+                                // interactive size, taller than a one-line item's 56 dp.
+                                64.0
+                            } else if summary.is_empty() {
                                 56.0
                             } else if self.multiline(self.measure(
                                 text,

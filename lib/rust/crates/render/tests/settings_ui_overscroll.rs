@@ -1,6 +1,10 @@
-//! Where content rests after a drag past an end: Compose's stretch overscroll, which the
-//! group 1 gallery found Rust lacked (stage4-followup4.md, part 1).
-use render::{settings_ui::App, text::Text, touch::Motion};
+//! Where content rests after a drag past an end (Compose's stretch overscroll) and one-line
+//! switch rows' height: differences the group 1 gallery found (stage4-followup4.md, part 1).
+use render::{
+    settings_ui::{App, catalogue::Kind},
+    text::Text,
+    touch::Motion,
+};
 
 const FRAME: i64 = 16_000_000;
 
@@ -121,4 +125,27 @@ fn a_reverse_drag_relaxes_the_pull_before_it_moves_content() {
     assert_eq!(a.stretch.edges, [0.0; 2]);
     a.drag_by(-3.0);
     assert_eq!(a.stretch.edges, [3.0, 0.0]);
+}
+
+#[test]
+fn one_line_switch_rows_leave_room_for_the_switch_touch_target() {
+    let (mut a, mut text) = app("settings/clipboard");
+    a.config = [480.0, 4000.0, 1.0, 1.0];
+    a.scene(&mut text);
+    let height = |a: &App, i: usize| {
+        let c = a.controls.iter().find(|c| c.id == 1000 + i as i32).unwrap();
+        c.bounds.height()
+    };
+    let mut one_line = 0;
+    for (i, r) in a.rows().iter().enumerate() {
+        if a.visible(i) && a.summary(i).is_empty() {
+            let expected = match r.kind {
+                Kind::Toggle => 64.0,
+                _ => 56.0,
+            };
+            assert_eq!(height(&a, i), expected, "{}", r.key);
+            one_line += usize::from(matches!(r.kind, Kind::Toggle));
+        }
+    }
+    assert!(one_line >= 3, "clipboard has one-line toggles");
 }

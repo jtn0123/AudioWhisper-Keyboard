@@ -39,11 +39,14 @@ CASES = [
      '        let left = self.relax(delta);', '        let left = delta;'),
     ('fling-not-absorbed', BASE / 'render/src/settings_ui/overscroll.rs',
      'if velocity != 0.0 && self.stretch.edges[toward] > 0.0 {', 'if velocity != 0.0 && toward > 2 {'),
+    ('one-line-switch-56', BASE / 'render/src/settings_ui/layout.rs',
+     '                                64.0\n', '                                56.0\n'),
 ]
 # The Rust test binary that must panic for each Rust-only case.
 RUST = dict.fromkeys([
     'no-stretch',
     'fling-not-absorbed',
+    'one-line-switch-56',
 ], 'settings_ui_overscroll')
 
 
