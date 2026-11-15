@@ -1,5 +1,6 @@
 package com.jtn0123.audiowhisper.settingsui
 
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.*
 import com.jtn0123.audiowhisper.rust.KeyboardRenderer
 import kotlinx.serialization.json.*
@@ -21,9 +22,59 @@ class SettingsEditorMatchTest {
         }
     }
     @Test fun nativeUtf16EditorMatchesComposeEditProcessor() {
-        val random=Random(1404)
-        val reference=EditProcessor()
+        KeyboardRenderer(emptyArray()).use { n -> editorMatches(n, Random(1404), EditProcessor()) }
+    }
+
+    /**
+     * DictationScreen's vocabulary OutlinedTextField is the same editor: the InputConnection
+     * edits it once it is focused, every change is saved to its preference (onValueChange), Enter
+     * is a new line, and the preview field keeps its own text across the hand-overs.
+     */
+    @Test fun vocabularyFieldIsTheSameEditorAndSavesEveryChange() {
         KeyboardRenderer(emptyArray()).use { n ->
+            n.settings(2, arrayOf("dictation__vocabulary", "Kubernetes"))
+            n.settings(3, arrayOf("1080", "8192", "1", "1", "4294967295", "4278190080", "4283782485", "4281558681", "4291611852", "4293848814", "true", "true"))
+            n.settings(9, arrayOf("commit", "preview", "1"))
+            assertEquals(listOf(listOf("checkModels")), effects(n.settings(4, arrayOf("settings/dictation"))))
+            val field = 1000 + 6
+            val opened = Json.parseToJsonElement(n.settings(5, arrayOf(field.toString()))[0]).jsonObject
+            assertEquals(listOf(listOf("restartInput"), listOf("editor")), effects(opened))
+            assertTrue(opened.getValue("editor").jsonObject.getValue("multiLine").jsonPrimitive.boolean)
+            val reference = EditProcessor()
+            reference.reset(TextFieldValue("Kubernetes", TextRange(10)), null)
+            editorMatches(n, Random(1505), reference) { reply, text ->
+                val writes = effects(Json.parseToJsonElement(reply[0]).jsonObject)
+                assertTrue(writes.isEmpty() || writes == listOf(listOf("write", "dictation__vocabulary", lossy(text))), "a change is saved as it is")
+            }
+            val end = n.settings(9, arrayOf("select", "0", "0"))[1].length.toString()
+            n.settings(9, arrayOf("select", end, end))
+            val before = n.settings(9, arrayOf("query", "before", "65536"))[2]
+            n.settings(7, arrayOf("0", "66", "10", "false"))
+            assertEquals(before + "\n", n.settings(9, arrayOf("query", "before", "65536"))[2], "Enter is a new line")
+            // The preview field gets its own editor back, and the vocabulary its saved text.
+            val preview = Json.parseToJsonElement(n.settings(5, arrayOf("2"))[0]).jsonObject
+            assertEquals(listOf(listOf("restartInput"), listOf("editor")), effects(preview))
+            assertFalse(preview.getValue("editor").jsonObject.getValue("multiLine").jsonPrimitive.boolean)
+            assertEquals("preview", n.settings(10)[1])
+        }
+    }
+    /**
+     * Rust's `String::from_utf16_lossy`, which the saved text goes through: an unpaired
+     * surrogate (only a malformed InputConnection sends one) is saved as U+FFFD.
+     */
+    private fun lossy(s: String) = buildString {
+        var i = 0
+        while (i < s.length) {
+            val pair = s[i].isHighSurrogate() && i + 1 < s.length && s[i + 1].isLowSurrogate()
+            if (pair) { append(s, i, i + 2); i += 2 } else { append(if (s[i].isSurrogate()) '\uFFFD' else s[i]); i++ }
+        }
+    }
+    private fun effects(s: JsonObject) = s.getValue("effects").jsonArray.map { a -> a.jsonArray.map { it.jsonPrimitive.content } }
+    private fun effects(reply: Array<String>) = effects(Json.parseToJsonElement(reply[0]).jsonObject)
+
+    private fun editorMatches(n: KeyboardRenderer, random: Random, reference: EditProcessor,
+                              saved: (Array<String>, String) -> Unit = { _, _ -> }) {
+        run {
             repeat(10000) {
                 val previous=reference.toTextFieldValue();val length=previous.text.length
                 val args:Array<String>; val command:EditCommand
@@ -48,6 +99,7 @@ class SettingsEditorMatchTest {
                 assertEquals(expected.selection.end,editor.getValue("focus").jsonPrimitive.int,"focus $it")
                 val comp=editor["composing"]?.takeUnless { it==JsonNull }?.jsonArray?.map { it.jsonPrimitive.int }
                 assertEquals(expected.composition?.let { listOf(it.start,it.end) },comp,"composition $it")
+                saved(reply, expected.text)
             }
         }
     }
