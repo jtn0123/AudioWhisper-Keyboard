@@ -31,5 +31,7 @@ internal object SwipeNative {
 
     @JvmStatic external fun frequency(probability: Int, userProbability: Int): Double
 
+    @JvmStatic external fun tunedFrequency(probability: Int, userProbability: Int, boost: Int): Double
+
     @JvmStatic external fun userWords(learned: Array<String>, personalWords: Array<String>, personalFrequencies: IntArray): IntArray
 }

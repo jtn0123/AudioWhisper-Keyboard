@@ -35,6 +35,19 @@ class WordStoresTest {
     }
 
     @Test
+    fun swipeBoostsGrowWithUseAndGoWithTheWords() {
+        val store = LearnedWordStore()
+        repeat(4) { store.add("Zorblax", null, keepSpelling = false) }
+        repeat(2) { store.add("later", null, keepSpelling = false) }
+        store.add("once", null, keepSpelling = false)
+        val words = listOf("Zorblax", "zorblax", "later", "once", "never")
+        assertContentEquals(intArrayOf(10, 0, 5, 0, 0), store.swipeBoosts(words))
+        store.clear()
+        assertContentEquals(IntArray(words.size), store.swipeBoosts(words))
+        assertContentEquals(intArrayOf(), store.swipeBoosts(emptyList()))
+    }
+
+    @Test
     fun savedTextReadsBack() {
         val store = LearnedWordStore()
         repeat(3) { store.add("later", "you", keepSpelling = false) }

@@ -62,6 +62,25 @@ class SwipeWordsTest {
     }
 
     @Test
+    fun theKeyboardWeighsACommonerWordMoreAndTheUsersWordsByTheirUse() {
+        val tuned = { probability: Int -> exp(-0.007 * (255 - probability)) }
+        assertEquals(tuned(222), fromDictionary.tunedFrequency("the"), 1e-9)
+        assertEquals(tuned(185), fromDictionary.tunedFrequency("I'm"), 1e-9)
+        assertEquals(0.0, fromDictionary.tunedFrequency("tou"), "an unknown word has none")
+        val learned = listOf("yeet", "rare")
+        val boosts = SwipeWords.boosts(learned, intArrayOf(10, 0))
+        assertEquals(mapOf("yeet" to 10), boosts, "a word its use doesn't raise isn't listed")
+        val words = fromDictionary.withUserWords(SwipeWords.userWords(emptyList(), learned), boosts)
+        assertEquals(tuned(SwipeWords.LEARNED_PROBABILITY + 10), words.tunedFrequency("yeet"), 1e-9)
+        assertEquals(tuned(SwipeWords.LEARNED_PROBABILITY), words.tunedFrequency("rare"), 1e-9)
+        assertEquals(weight(SwipeWords.LEARNED_PROBABILITY), words.frequency("yeet"), "FlorisBoard's frequency has no boost")
+        assertSame(words, words.withUserWords(SwipeWords.userWords(emptyList(), learned), mapOf("yeet" to 10)))
+        val moreUsed = words.withUserWords(SwipeWords.userWords(emptyList(), learned), mapOf("yeet" to 15))
+        assertNotSame(words.words, moreUsed.words, "a new boost is a new list, so the classifier re-weighs its words")
+        assertEquals(tuned(SwipeWords.LEARNED_PROBABILITY + 15), moreUsed.tunedFrequency("yeet"), 1e-9)
+    }
+
+    @Test
     fun aPersonalEntryOutranksTheSameLearnedWordOnlyWhenHigher() {
         val user = SwipeWords.userWords(
             personal = listOf(PersonalWords.Entry("Kaito", 200), PersonalWords.Entry("bae", 5), PersonalWords.Entry("R2D2", 255)),

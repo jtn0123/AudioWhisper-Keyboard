@@ -179,7 +179,7 @@ class LatinLanguageProvider(context: Context) : SpellingProvider, SuggestionProv
             val started = SystemClock.elapsedRealtime()
             val fromDictionary = SwipeWords.fromDictionary(engine)
             synchronized(swipeWordsLock) {
-                swipeWords = fromDictionary.withUserWords(userSwipeWords())
+                swipeWords = withUserSwipeWords(fromDictionary)
                 swipeWordsFromDictionary = true
             }
             mutableSwipeWordsVersion.update { it + 1 }
@@ -187,18 +187,22 @@ class LatinLanguageProvider(context: Context) : SpellingProvider, SuggestionProv
         }
     }
 
-    /** Makes the user's current personal and learned words swipeable, and forgotten ones not. */
+    /**
+     * Makes the user's current personal and learned words swipeable, and forgotten ones not, each
+     * learned word raised as much as its uses now raise it.
+     */
     private fun refreshSwipeWords() {
         val changed = synchronized(swipeWordsLock) {
-            val updated = swipeWords.withUserWords(userSwipeWords())
+            val updated = withUserSwipeWords(swipeWords)
             (updated !== swipeWords).also { swipeWords = updated }
         }
         if (changed) mutableSwipeWordsVersion.update { it + 1 }
     }
 
-    private fun userSwipeWords(): Map<String, Int> {
+    private fun withUserSwipeWords(words: SwipeWords): SwipeWords {
         val learned = if (prefs.suggestion.learnFromTyping.get()) learnedWords.knownSpellings() else emptyList()
-        return SwipeWords.userWords(personalWords.entries, learned)
+        val boosts = SwipeWords.boosts(learned, learnedWords.swipeBoosts(learned))
+        return words.withUserWords(SwipeWords.userWords(personalWords.entries, learned), boosts)
     }
 
     /** Opens the bundled dictionary on first use; later calls return at once. */
@@ -434,7 +438,7 @@ class LatinLanguageProvider(context: Context) : SpellingProvider, SuggestionProv
     }
 
     override suspend fun getFrequencyForWord(subtype: Subtype, word: String): Double {
-        if (usesDictionary(subtype)) return swipeWords.frequency(word)
+        if (usesDictionary(subtype)) return swipeWords.tunedFrequency(word)
         return wordData.withLock { it.getOrDefault(word, 0) / 255.0 }
     }
 

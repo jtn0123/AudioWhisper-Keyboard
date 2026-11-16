@@ -70,6 +70,20 @@ class SwipeRulesTest {
     }
 
     @Test
+    fun theKeyboardsFrequenciesHaveOneSlopeAllTheWayUp() {
+        assertEquals(1.0, SwipeRules.tunedFrequency(255, -1))
+        val step = exp(-SwipeRules.costPerStep)
+        assertEquals(step, SwipeRules.tunedFrequency(254, -1), 1e-12)
+        assertEquals(SwipeRules.tunedFrequency(SwipeRules.common, -1) * step, SwipeRules.tunedFrequency(SwipeRules.common - 1, -1), 1e-12)
+        assertEquals(0.0, SwipeRules.tunedFrequency(-1, -1))
+        assertEquals(SwipeRules.tunedFrequency(SwipeRules.learnedProbability, -1), SwipeRules.tunedFrequency(10, 120))
+        // A boost raises the higher of the two probabilities, and can't make a word up.
+        assertEquals(SwipeRules.tunedFrequency(130, -1), SwipeRules.tunedFrequency(10, 120, 10))
+        assertEquals(1.0, SwipeRules.tunedFrequency(250, -1, 20))
+        assertEquals(0.0, SwipeRules.tunedFrequency(-1, -1, 20))
+    }
+
+    @Test
     fun badInputThrows() {
         assertFailsWith<IllegalArgumentException> { SwipeRules.rankGlide(floatArrayOf(1f), emptyList()) }
         assertFailsWith<IllegalArgumentException> { SwipeRules.userWords(emptyList(), listOf("a"), intArrayOf()) }

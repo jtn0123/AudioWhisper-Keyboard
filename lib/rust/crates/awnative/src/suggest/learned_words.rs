@@ -5,8 +5,9 @@
 use std::ptr;
 use std::sync::Mutex;
 
-use jni_sys::{JNIEnv, jboolean, jclass, jint, jlong, jobjectArray, jstring};
+use jni_sys::{JNIEnv, jboolean, jclass, jint, jintArray, jlong, jobjectArray, jstring};
 use suggest::learned_words::{self, LearnedWords, Saved};
+use suggest::swipe_words::Boost;
 
 use super::boolean;
 use crate::handle::{free, into_handle, locked, with_locked};
@@ -203,6 +204,31 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_WordStoresNative_learn
     unsafe {
         with_store(env, store, ptr::null_mut(), |store, env| {
             env.make_strings(&store.known_spellings())
+        })
+    }
+}
+
+/// How many steps the user's use of each of `words` raises it for swipe typing
+/// (`swipe_words::Boost::DEFAULT`): 0 for a null, or a word that isn't theirs as spelt.
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_WordStoresNative_learnedSwipeBoosts(
+    env: *mut JNIEnv,
+    _: jclass,
+    store: jlong,
+    words: jobjectArray,
+) -> jintArray {
+    // SAFETY: the JVM passes its environment; Kotlin holds the store while it calls.
+    unsafe {
+        with_store(env, store, ptr::null_mut(), |store, env| {
+            let boosts: Vec<i32> = env
+                .read_strings(words, "words")?
+                .iter()
+                .map(|word| {
+                    word.as_ref()
+                        .map_or(0, |word| Boost::DEFAULT.of(store, word))
+                })
+                .collect();
+            env.make(&boosts)
         })
     }
 }

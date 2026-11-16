@@ -42,6 +42,8 @@ internal object WordStoresNative {
 
     @JvmStatic external fun learnedSpellingOf(store: Long, word: String): String?
 
+    @JvmStatic external fun learnedSwipeBoosts(store: Long, words: Array<String>): IntArray
+
     @JvmStatic external fun learnedCompletions(store: Long, typed: String, maxCount: Int): Array<String>
 
     @JvmStatic external fun learnedFollowers(

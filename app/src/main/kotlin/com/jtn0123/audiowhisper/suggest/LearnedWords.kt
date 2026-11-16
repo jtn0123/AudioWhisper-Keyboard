@@ -40,6 +40,9 @@ class LearnedWords(
     /** How the user spells each word they have used [TypingHistory.KNOWN_AFTER] times. */
     fun knownSpellings(): List<String> = store.knownSpellings()
 
+    /** How many steps swipe typing raises each of [words] for the user's use of it (see SwipeWords). */
+    fun swipeBoosts(words: List<String>): IntArray = store.swipeBoosts(words)
+
     override fun spellingOf(word: String): String? = store.spellingOf(word)
 
     override fun completions(typed: String, maxCount: Int, accept: (String) -> Boolean): List<String> {
