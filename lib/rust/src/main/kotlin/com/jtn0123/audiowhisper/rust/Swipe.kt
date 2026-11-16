@@ -58,6 +58,14 @@ object SwipeRules {
     fun frequency(probability: Int, userProbability: Int): Double = SwipeNative.frequency(probability, userProbability)
 
     /**
+     * As [frequency], as the keyboard swipes: on one slope all the way up, where [frequency] counts
+     * every word from [common] up the same, and [boost] steps higher for the user's use of the word
+     * (LearnedWordStore.swipeBoosts; lib/rust/crates/suggest/src/swipe_words.rs).
+     */
+    fun tunedFrequency(probability: Int, userProbability: Int, boost: Int = 0): Double =
+        SwipeNative.tunedFrequency(probability, userProbability, boost)
+
+    /**
      * The user's words with their probabilities, from their [learned] spellings and their personal
      * dictionary's [personalWords] at [personalFrequencies]. A HashMap filled in the order the
      * Kotlin it replaced filled one, so it lists its words in the same order.

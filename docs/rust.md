@@ -702,8 +702,18 @@ cargo run --release -p scoreboard -- --dict path/to/main.dict [--model path/to/m
 ```
 
 `--limit N`, `--seed N` and `--threads N` change the sample, the taps and swipes, and the
-parallelism; `--typing W` and `--swipe L` change how much the session leans on the model
+parallelism; `--skip N` scores the sentences after the first N instead, to tune on text the
+results don't use; `--typing W` and `--swipe L` change how much the session leans on the model
 (`suggest::language_model::Tuning`). Neither crate ships: `awnative` doesn't depend on them.
+
+Swipes are drawn by two simulators, each with a neutral hand and a left thumb: `trace`, a path by
+rule, and `lognormal`, the sigma-lognormal model of human movement, so a change tuned to one
+can't pass for free ([swipe-accuracy.md](swipe-accuracy.md)). They are decoded as the keyboard
+does unless told otherwise: `--original` is FlorisBoard's classifier on the flat frequency curve,
+and `--ends E`, `--dwell D`, `--reach R` (`glide::Tuning`), `--above A` (the curve's cost a step
+above common) and `--boost B,M` (`swipe_words::Boost`) each change one thing from there.
+`--history FROM` has the user type each test file's 5,000 sentences from FROM on first, into the
+learned words; keep it clear of the scored ones. `--swipe-only` skips everything but swipes.
 
 ### Learning where the user taps
 

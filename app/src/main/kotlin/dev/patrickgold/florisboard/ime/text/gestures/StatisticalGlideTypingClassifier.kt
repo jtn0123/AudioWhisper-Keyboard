@@ -86,6 +86,9 @@ class StatisticalGlideTypingClassifier(context: Context) : GlideTypingClassifier
          * For multiple subtypes, the index is cached.
          */
         private const val INDEX_CACHE_SIZE = 5
+
+        /** A [GlideTypingGesture.Detector.Position]'s time is in microseconds; a [Gesture]'s in ms. */
+        private const val MICROS_PER_MS = 1000f
     }
 
     override fun addGesturePoint(position: GlideTypingGesture.Detector.Position) {
@@ -94,10 +97,10 @@ class StatisticalGlideTypingClassifier(context: Context) : GlideTypingClassifier
             val dy = gesture.getLastY() - position.y
 
             if (dx * dx + dy * dy > distanceThresholdSquared) {
-                gesture.addPoint(position.x, position.y)
+                gesture.addPoint(position.x, position.y, position.time / MICROS_PER_MS)
             }
         } else {
-            gesture.addPoint(position.x, position.y)
+            gesture.addPoint(position.x, position.y, position.time / MICROS_PER_MS)
         }
     }
 
@@ -210,7 +213,7 @@ class StatisticalGlideTypingClassifier(context: Context) : GlideTypingClassifier
 
     private fun unCachedGetSuggestions(swipe: Gesture, maxSuggestionCount: Int): List<GlideGuess> {
         val subtype = currentSubtype ?: return emptyList()
-        return index.suggestions(swipe, keys, maxSuggestionCount) { nlpManager.getFrequencyForWord(subtype, it) }
+        return index.tunedSuggestions(swipe, keys, maxSuggestionCount) { nlpManager.getFrequencyForWord(subtype, it) }
     }
 
     override fun clear() {
@@ -219,14 +222,16 @@ class StatisticalGlideTypingClassifier(context: Context) : GlideTypingClassifier
 
     /**
      * A gesture's points. AudioWhisper: the storage grows as points are added, up to [MAX_SIZE],
-     * instead of every gesture taking 500 points of memory.
+     * instead of every gesture taking 500 points of memory; and each point keeps when it was drawn,
+     * which the scorer weighs (see [SwipeIndex.tunedSuggestions]).
      */
     class Gesture private constructor(
         private var xs: FloatArray,
         private var ys: FloatArray,
+        private var ts: FloatArray,
         private var size: Int,
     ) {
-        constructor(capacity: Int = MAX_SIZE) : this(FloatArray(capacity), FloatArray(capacity), 0)
+        constructor(capacity: Int = MAX_SIZE) : this(FloatArray(capacity), FloatArray(capacity), FloatArray(capacity), 0)
 
         companion object {
             // TODO: Find out optimal max size
@@ -236,7 +241,8 @@ class StatisticalGlideTypingClassifier(context: Context) : GlideTypingClassifier
         val isEmpty: Boolean
             get() = size == 0
 
-        fun addPoint(x: Float, y: Float) {
+        /** Adds a point at ([x], [y]), drawn at [time] in milliseconds (0 when unknown). */
+        fun addPoint(x: Float, y: Float, time: Float = 0f) {
             if (size >= MAX_SIZE) {
                 return
             }
@@ -244,9 +250,11 @@ class StatisticalGlideTypingClassifier(context: Context) : GlideTypingClassifier
                 val capacity = min(MAX_SIZE, max(xs.size * 2, 8))
                 xs = xs.copyOf(capacity)
                 ys = ys.copyOf(capacity)
+                ts = ts.copyOf(capacity)
             }
             xs[size] = x
             ys[size] = y
+            ts[size] = time
             size += 1
         }
 
@@ -256,6 +264,9 @@ class StatisticalGlideTypingClassifier(context: Context) : GlideTypingClassifier
         /** The points' y coordinates, in order. */
         fun ys(): FloatArray = ys.copyOf(size)
 
+        /** When each point was drawn, in milliseconds, in order. */
+        fun times(): FloatArray = ts.copyOf(size)
+
         fun getLastX(): Float = xs.getOrElse(size - 1) { 0f }
         fun getLastY(): Float = ys.getOrElse(size - 1) { 0f }
 
@@ -264,7 +275,7 @@ class StatisticalGlideTypingClassifier(context: Context) : GlideTypingClassifier
         }
 
         fun clone(): Gesture {
-            return Gesture(xs.copyOf(size), ys.copyOf(size), size)
+            return Gesture(xs.copyOf(size), ys.copyOf(size), ts.copyOf(size), size)
         }
 
         override fun equals(other: Any?): Boolean {
@@ -276,7 +287,7 @@ class StatisticalGlideTypingClassifier(context: Context) : GlideTypingClassifier
             if (this.size != other.size) return false
 
             for (i in 0 until size) {
-                if (xs[i] != other.xs[i] || ys[i] != other.ys[i]) return false
+                if (xs[i] != other.xs[i] || ys[i] != other.ys[i] || ts[i] != other.ts[i]) return false
             }
 
             return true
@@ -289,6 +300,7 @@ class StatisticalGlideTypingClassifier(context: Context) : GlideTypingClassifier
             for (i in 0 until size) {
                 result = 31 * result + xs[i].hashCode()
                 result = 31 * result + ys[i].hashCode()
+                result = 31 * result + ts[i].hashCode()
             }
             return result
         }

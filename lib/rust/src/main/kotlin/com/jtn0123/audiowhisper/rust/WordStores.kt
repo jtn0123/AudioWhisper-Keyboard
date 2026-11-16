@@ -77,6 +77,14 @@ class LearnedWordStore(
     fun knownSpellings(): List<String> =
         WordStoresNative.learnedKnownSpellings(handle).asList().also { Reference.reachabilityFence(this) }
 
+    /**
+     * How many steps swipe typing raises each of [words] for the user's use of it
+     * ([SwipeRules.tunedFrequency]): more each time its uses double, up to a limit, and none for a
+     * word that isn't theirs as spelt. Cleared with the words.
+     */
+    fun swipeBoosts(words: List<String>): IntArray =
+        WordStoresNative.learnedSwipeBoosts(handle, words.toTypedArray()).also { Reference.reachabilityFence(this) }
+
     /** How the user spells [word], once it is one of theirs, or null. */
     fun spellingOf(word: String): String? =
         WordStoresNative.learnedSpellingOf(handle, word).also { Reference.reachabilityFence(this) }

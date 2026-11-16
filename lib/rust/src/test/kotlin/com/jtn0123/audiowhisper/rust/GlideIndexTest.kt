@@ -137,4 +137,74 @@ class GlideIndexTest {
             assertContentEquals(intArrayOf(0), query.candidates())
         }
     }
+
+    /** The best of [words] for the swipe through [xs] and [ys] (drawn at [times]), each at its frequency in [frequencies]. */
+    private fun best(words: List<String>, frequencies: FloatArray, xs: FloatArray, ys: FloatArray, times: FloatArray, tuned: Boolean): String {
+        val index = GlideIndex.build(GlideWords(words)) { describe(it) }
+        return index.query(xs, ys, times, keys).use { query ->
+            val candidates = query.candidates()
+            val candidateFrequencies = FloatArray(candidates.size) { frequencies[candidates[it]] }
+            val scores = if (tuned) query.scoreTuned(candidates, candidateFrequencies, 2) else query.score(candidates, candidateFrequencies, 2)
+            words[scores.words[0]]
+        }
+    }
+
+    @Test
+    fun theKeyboardsScoringWeighsTheKeyTheSwipeEndsOn() {
+        // From "a" to 35 px past "s", towards "d": at these frequencies FlorisBoard's classifier
+        // picks "ad", and the keyboard the "s" the swipe stops on.
+        val words = listOf("as", "ad")
+        val frequencies = floatArrayOf(0.9f, 1f)
+        val xs = FloatArray(28) { 100f + 5f * it }
+        val ys = FloatArray(28) { 225f }
+        assertEquals("ad", best(words, frequencies, xs, ys, FloatArray(0), tuned = false))
+        assertEquals("as", best(words, frequencies, xs, ys, FloatArray(0), tuned = true))
+    }
+
+    @Test
+    fun theKeyboardsScoringWeighsWhereTheFingerSlowed() {
+        // Through "w" and "e" from "a" to "d": "awd" and "aed" are mirror images, and where the
+        // finger slows tells them apart.
+        val words = listOf("awd", "aed")
+        val frequencies = floatArrayOf(1f, 1f)
+        val (xs, ys) = swipe("awed")
+        fun slowAt(c: Char): FloatArray {
+            val (x, y) = centre(c)
+            var t = 0f
+            return FloatArray(xs.size) { i ->
+                if (i > 0) t += if (hypot(xs[i] - x, ys[i] - y) < 60f) 8f else 1f
+                t
+            }
+        }
+        assertEquals("awd", best(words, frequencies, xs, ys, slowAt('w'), tuned = true))
+        assertEquals("aed", best(words, frequencies, xs, ys, slowAt('e'), tuned = true))
+    }
+
+    @Test
+    fun theOriginalScoreIgnoresTimes() {
+        val words = listOf("hello", "help", "hell", "jello")
+        val index = GlideIndex.build(GlideWords(words)) { describe(it) }
+        val (xs, ys) = swipe("hello")
+        val times = FloatArray(xs.size) { it * it.toFloat() }
+        fun scores(times: FloatArray?) = (if (times == null) index.query(xs, ys, keys) else index.query(xs, ys, times, keys)).use { query ->
+            val candidates = query.candidates()
+            query.score(candidates, FloatArray(candidates.size) { 1f }, 8)
+        }
+        val untimed = scores(null)
+        val timed = scores(times)
+        assertContentEquals(untimed.words, timed.words)
+        assertContentEquals(untimed.weights, timed.weights)
+    }
+
+    @Test
+    fun timesAreOnePerPointOrNone() {
+        val index = GlideIndex.build(GlideWords(listOf("hello"))) { describe(it) }
+        val (xs, ys) = swipe("hello")
+
+        assertFailsWith<IllegalArgumentException> { index.query(xs, ys, FloatArray(2), keys) }
+        index.query(xs, ys, FloatArray(0), keys).use { query ->
+            val candidates = query.candidates()
+            assertContentEquals(intArrayOf(0), query.scoreTuned(candidates, floatArrayOf(1f), 3).words)
+        }
+    }
 }

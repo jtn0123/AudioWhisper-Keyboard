@@ -46,6 +46,9 @@ pub const CAPS_LOCK: i32 = 36;
 pub const INPUT_METHOD_PICKER: i32 = 37;
 pub const KEY_FEEDBACK: i32 = 38;
 pub const LONG_PRESS_FEEDBACK: i32 = 39;
+/// Before each GLIDE_POINT when the gesture config asks for it: the point's time, in microseconds
+/// after the touch went down.
+pub const GLIDE_TIME: i32 = 42;
 pub const PREF_SWIPE_UP: i32 = 0;
 pub const PREF_SWIPE_DOWN: i32 = 1;
 pub const PREF_SWIPE_LEFT: i32 = 2;

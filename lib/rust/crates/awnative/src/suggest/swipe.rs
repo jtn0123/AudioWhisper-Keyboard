@@ -179,6 +179,19 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_SwipeNative_frequency(
     swipe_words::frequency(probability, user_probability)
 }
 
+/// As `frequency`, as the keyboard weighs it (`swipe_words::tuned_frequency`): its curve, and
+/// `boost` steps from the user's use of the word.
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_SwipeNative_tunedFrequency(
+    _: *mut JNIEnv,
+    _: jclass,
+    probability: jint,
+    user_probability: jint,
+    boost: jint,
+) -> jdouble {
+    swipe_words::tuned_frequency(probability, user_probability, boost)
+}
+
 /// The user's words (`swipe_words::user_words`), packed: for each, where it first appears among
 /// `learned` followed by `personalWords`, then its probability.
 #[unsafe(no_mangle)]

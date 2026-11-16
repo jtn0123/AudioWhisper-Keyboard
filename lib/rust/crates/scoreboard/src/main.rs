@@ -6,25 +6,43 @@
 //!   --typing W      the model's weight on typed candidates (default: the session's)
 //!   --swipe L       the least lift the swipe ranker counts (default: the session's)
 //!   --limit N       score the first N sentences of each test file (default: all)
+//!   --skip N        ... after skipping its first N (default 0): tune on sentences the results
+//!                   don't use
 //!   --seed N        the seed for taps and swipes (default 20261116)
 //!   --threads N     scoring threads (default: the machine's)
-//!   --learning      run the tap-aim learning run instead (see `scoreboard::learning`)
-//!   --warm-up N     learning run: sentences typed before scoring starts (default 2000)
-//!   --from-corrected nothing|unchanged|rebased
-//!                   learning run: what a kept auto-correction teaches (default nothing)
+//!   --swipe-only    score swipes only
 //!
-//! Prints a markdown table: a column for each test file, then one for all of them; for the
-//! learning run, a row for each user and a column for each way of using what was learned.
+//! How swipes are decoded (default: as the keyboard does; each flag changes one thing):
+//!   --original      FlorisBoard's classifier and the flat frequency curve
+//!   --ends E        `glide::Tuning::ends`
+//!   --dwell D       `glide::Tuning::dwell`
+//!   --reach R       `glide::Tuning::reach`
+//!   --above A       the frequency curve's cost a step above common (`swipe_words::Curve`)
+//!   --history FROM  the user has typed each test file's 5,000 sentences from FROM on before
+//!                   (into the learned words, which swipes weigh); keep it clear of the scored ones
+//!   --boost B,M     `swipe_words::Boost`: B steps per doubling of a learned word's uses, at most M
+//!
+//! The tap-aim learning run (see `scoreboard::learning`), instead of the above:
+//!   --learning      run it
+//!   --warm-up N     sentences typed before scoring starts (default 2000)
+//!   --from-corrected nothing|unchanged|rebased
+//!                   what a kept auto-correction teaches (default nothing)
+//!
+//! Prints a markdown table: a column for each test file, then one for all of them; then each
+//! swipe variant's counts over all of them. For the learning run, a row for each user and a
+//! column for each way of using what was learned.
 
 use scoreboard::geometry::Keyboard;
 use scoreboard::learning::FromCorrected;
 use scoreboard::report::{Tally, table};
-use scoreboard::{Source, text};
+use scoreboard::swipe::{Decoder, VARIANTS};
+use scoreboard::{Settings, Source, text};
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 use std::sync::Arc;
 use std::time::Instant;
 use suggest::language_model::Tuning;
+use suggest::swipe_words::Boost;
 
 struct Options {
     dict: PathBuf,
@@ -32,12 +50,16 @@ struct Options {
     tuning: Tuning,
     tests: Vec<(String, PathBuf)>,
     limit: usize,
-    seed: u64,
-    threads: usize,
+    skip: usize,
+    history: Option<usize>,
+    settings: Settings,
     learning: bool,
     warm_up: usize,
     from_corrected: FromCorrected,
 }
+
+/// How many sentences of each test file `--history` learns from.
+const HISTORY: usize = 5000;
 
 fn app() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../../app/src/main")
@@ -50,8 +72,14 @@ fn options() -> Result<Options, String> {
         tuning: Tuning::DEFAULT,
         tests: Vec::new(),
         limit: usize::MAX,
-        seed: 20261116,
-        threads: std::thread::available_parallelism().map_or(4, |n| n.get()),
+        skip: 0,
+        history: None,
+        settings: Settings {
+            seed: 20261116,
+            threads: std::thread::available_parallelism().map_or(4, |n| n.get()),
+            decoder: Decoder::DEFAULT,
+            swipe_only: false,
+        },
         learning: false,
         warm_up: 2000,
         from_corrected: FromCorrected::Nothing,
@@ -72,8 +100,25 @@ fn options() -> Result<Options, String> {
                 options.tests.push((name.to_string(), file.into()));
             }
             "--limit" => options.limit = number(value()?)? as usize,
-            "--seed" => options.seed = number(value()?)?,
-            "--threads" => options.threads = number(value()?)? as usize,
+            "--skip" => options.skip = number(value()?)? as usize,
+            "--seed" => options.settings.seed = number(value()?)?,
+            "--threads" => options.settings.threads = number(value()?)? as usize,
+            "--swipe-only" => options.settings.swipe_only = true,
+            "--original" => options.settings.decoder = Decoder::ORIGINAL,
+            "--ends" => options.settings.decoder.glide.ends = real(value()?)?,
+            "--dwell" => options.settings.decoder.glide.dwell = real(value()?)?,
+            "--reach" => options.settings.decoder.glide.reach = real(value()?)?,
+            "--history" => options.history = Some(number(value()?)? as usize),
+            "--boost" => {
+                let v = value()?;
+                let (per, most) = v.split_once(',').ok_or("--boost takes B,M")?;
+                let step = |v: &str| v.parse::<i32>().map_err(|e| format!("--boost: {e}"));
+                options.settings.decoder.boost = Boost {
+                    per_doubling: step(per)?,
+                    most: step(most)?,
+                };
+            }
+            "--above" => options.settings.decoder.curve.above = f64::from(real(value()?)?),
             "--learning" => options.learning = true,
             "--warm-up" => options.warm_up = number(value()?)? as usize,
             "--from-corrected" => {
@@ -118,10 +163,15 @@ fn run() -> Result<(), String> {
     };
     let keyboard = Keyboard::phone(&app().join("assets"))?;
     let mut sources = Vec::new();
+    let mut history = Vec::new();
     for (name, file) in &options.tests {
         let contents =
             std::fs::read_to_string(file).map_err(|e| format!("{}: {e}", file.display()))?;
         let mut sentences = text::sentences(&contents);
+        if let Some(from) = options.history {
+            history.extend(sentences.iter().skip(from).take(HISTORY).cloned());
+        }
+        sentences.drain(..options.skip.min(sentences.len()));
         sentences.truncate(options.limit);
         sources.push(Source {
             name: name.clone(),
@@ -131,7 +181,7 @@ fn run() -> Result<(), String> {
     if options.learning {
         let sentences: Vec<_> = sources.into_iter().map(|s| s.sentences).collect();
         let learning = scoreboard::learning_run::Options {
-            seed: options.seed,
+            seed: options.settings.seed,
             warm_up: options.warm_up,
             from_corrected: options.from_corrected,
         };
@@ -151,8 +201,8 @@ fn run() -> Result<(), String> {
         model.as_ref(),
         &keyboard,
         &sources,
-        options.seed,
-        options.threads,
+        options.settings,
+        &history,
     )?;
     let mut all = Tally::default();
     for tally in &tallies {
@@ -167,13 +217,15 @@ fn run() -> Result<(), String> {
         columns.push(("all", &all));
     }
     println!(
-        "Dictionary: {} ({} bytes); seed {}; {} sentences",
+        "Dictionary: {} ({} bytes); seed {}; {} sentences after {}; {:?}",
         std::fs::canonicalize(&options.dict)
             .unwrap_or_else(|_| options.dict.clone())
             .display(),
         std::fs::metadata(&options.dict).map_or(0, |m| m.len()),
-        options.seed,
+        options.settings.seed,
         sources.iter().map(|s| s.sentences.len()).sum::<usize>(),
+        options.skip,
+        options.settings.decoder,
     );
     if let Some(file) = &options.model {
         println!(
@@ -187,6 +239,18 @@ fn run() -> Result<(), String> {
     }
     println!();
     print!("{}", table(&columns));
+    println!();
+    for (v, (simulator, hand)) in VARIANTS.iter().enumerate() {
+        let swipes = &all.swipe[v];
+        println!(
+            "swipes {} {}: {} top-1 {} top-3 of {}",
+            simulator.name(),
+            hand.name(),
+            swipes.top1,
+            swipes.top3,
+            swipes.swipes
+        );
+    }
     eprintln!("scored in {:.1} s", started.elapsed().as_secs_f64());
     Ok(())
 }

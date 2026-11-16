@@ -70,6 +70,15 @@ class GlideIndex private constructor(private val handle: Long) {
         return GlideQuery(this, query)
     }
 
+    /**
+     * As [query], with when each point was drawn: [times] in milliseconds, one per point, or none.
+     * [GlideQuery.scoreTuned] weighs the points the finger slowed at.
+     */
+    fun query(xs: FloatArray, ys: FloatArray, times: FloatArray, keys: GlideKeys): GlideQuery {
+        val query = GlideNative.queryTimed(handle, xs, ys, times, keys.codes, keys.bounds)
+        return GlideQuery(this, query)
+    }
+
     private class Free(private val handle: Long) : Runnable {
         override fun run() = GlideNative.free(handle)
     }
@@ -115,6 +124,20 @@ class GlideQuery internal constructor(
         val words = IntArray(max)
         val weights = FloatArray(max)
         val count = GlideNative.score(handle, candidates, frequencies, words, weights)
+        Reference.reachabilityFence(index)
+        return GlideScores(words.copyOf(count), weights.copyOf(count))
+    }
+
+    /**
+     * As [score], as the keyboard scores: FlorisBoard's classifier, which [score] keeps exactly,
+     * plus what measured better (lib/rust/crates/glide/src/tuning.rs): how near the swipe's ends
+     * are to the word's, how far it strays from the word's path, and where the finger slowed.
+     */
+    @Synchronized
+    fun scoreTuned(candidates: IntArray, frequencies: FloatArray, max: Int): GlideScores {
+        val words = IntArray(max)
+        val weights = FloatArray(max)
+        val count = GlideNative.scoreTuned(handle, candidates, frequencies, words, weights)
         Reference.reachabilityFence(index)
         return GlideScores(words.copyOf(count), weights.copyOf(count))
     }

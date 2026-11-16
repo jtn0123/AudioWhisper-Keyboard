@@ -6,7 +6,7 @@
 
 use std::ptr;
 
-use glide::{CharKeys, Gesture, GlideIndex, Key, Layout};
+use glide::{CharKeys, Gesture, GlideIndex, Key, Layout, Swipe, Tuning};
 use jni_sys::{JNIEnv, jcharArray, jclass, jfloatArray, jint, jintArray, jlong};
 
 use crate::handle::{free, into_handle, object};
@@ -17,6 +17,8 @@ use crate::jni::{self, Env, Result, illegal};
 struct Query {
     index: *const GlideIndex,
     swipe: Gesture,
+    /// Each point's time in milliseconds, or none.
+    times: Vec<f32>,
     keys: Vec<Key>,
 }
 
@@ -125,19 +127,62 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_GlideNative_query(
     // SAFETY: the JVM passes its environment for this call, and the index is live (see `object`).
     unsafe {
         jni::run(env, 0, |env| {
-            let index = object::<GlideIndex>(index, "index")?;
-            let (xs, ys) = (env.read::<f32>(xs, "xs")?, env.read::<f32>(ys, "ys")?);
-            if xs.len() != ys.len() {
-                return Err(illegal("xs and ys differ in length"));
-            }
-            let query = Query {
-                index,
-                swipe: Gesture::from_points(&xs, &ys),
-                keys: keys(env, key_codes, key_bounds)?,
-            };
-            Ok(into_handle(query))
+            open_query(env, index, (xs, ys, None), key_codes, key_bounds)
         })
     }
+}
+
+/// As `query`, with each point's time in milliseconds in `times`, which `scoreTuned` weighs.
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_GlideNative_queryTimed(
+    env: *mut JNIEnv,
+    _: jclass,
+    index: jlong,
+    xs: jfloatArray,
+    ys: jfloatArray,
+    times: jfloatArray,
+    key_codes: jintArray,
+    key_bounds: jfloatArray,
+) -> jlong {
+    // SAFETY: as for `query`.
+    unsafe {
+        jni::run(env, 0, |env| {
+            open_query(env, index, (xs, ys, Some(times)), key_codes, key_bounds)
+        })
+    }
+}
+
+/// A query's handle, for the swipe through `xs` and `ys` (drawn at `times`, if given).
+///
+/// # Safety
+/// `index` must be live (see `object`).
+unsafe fn open_query(
+    env: &Env,
+    index: jlong,
+    (xs, ys, times): (jfloatArray, jfloatArray, Option<jfloatArray>),
+    key_codes: jintArray,
+    key_bounds: jfloatArray,
+) -> Result<jlong> {
+    // SAFETY: as the caller promises.
+    let index = unsafe { object::<GlideIndex>(index, "index")? };
+    let (xs, ys) = (env.read::<f32>(xs, "xs")?, env.read::<f32>(ys, "ys")?);
+    if xs.len() != ys.len() {
+        return Err(illegal("xs and ys differ in length"));
+    }
+    let times = match times {
+        Some(times) => env.read::<f32>(times, "times")?,
+        None => Vec::new(),
+    };
+    if !times.is_empty() && times.len() != xs.len() {
+        return Err(illegal("times and xs differ in length"));
+    }
+    let query = Query {
+        index,
+        swipe: Gesture::from_points(&xs, &ys),
+        times,
+        keys: keys(env, key_codes, key_bounds)?,
+    };
+    Ok(into_handle(query))
 }
 
 #[unsafe(no_mangle)]
@@ -181,7 +226,8 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_GlideNative_candidates
 }
 
 /// Scores `candidates` at their `frequencies`, writing the likeliest words and their weights to
-/// `out_words` and `out_weights`, as many as `out_words` holds. Returns how many it wrote.
+/// `out_words` and `out_weights`, as many as `out_words` holds. Returns how many it wrote. Scores
+/// as FlorisBoard's classifier did (`glide::Tuning::ORIGINAL`), which the reference tests check.
 #[unsafe(no_mangle)]
 pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_GlideNative_score(
     env: *mut JNIEnv,
@@ -192,21 +238,58 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_GlideNative_score(
     out_words: jintArray,
     out_weights: jfloatArray,
 ) -> jint {
+    let to = (candidates, frequencies, out_words, out_weights);
     // SAFETY: the JVM passes its environment for this call, and the query is live (see `object`).
-    unsafe {
-        jni::run(env, 0, |env| {
-            let (query, index) = open(query)?;
-            let candidates = unsigned(env.read::<i32>(candidates, "candidates")?, "candidates")?;
-            let frequencies = env.read::<f32>(frequencies, "frequencies")?;
-            let max = env.read::<i32>(out_words, "outWords")?.len();
-            let layout = Layout::new(&query.keys, index.codes());
-            let ranking = index
-                .score(&candidates, &frequencies, &query.swipe, &layout, max)
-                .map_err(|e| illegal(e.to_string()))?;
-            let words: Vec<i32> = ranking.words().iter().map(|&w| w as i32).collect();
-            env.write(out_words, &words, "outWords")?;
-            env.write(out_weights, ranking.weights(), "outWeights")?;
-            Ok(words.len() as jint)
-        })
-    }
+    unsafe { jni::run(env, 0, |env| score(env, query, to, &Tuning::ORIGINAL)) }
+}
+
+/// As `score`, as the keyboard scores: with the additions of `glide::Tuning::DEFAULT`.
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_GlideNative_scoreTuned(
+    env: *mut JNIEnv,
+    _: jclass,
+    query: jlong,
+    candidates: jintArray,
+    frequencies: jfloatArray,
+    out_words: jintArray,
+    out_weights: jfloatArray,
+) -> jint {
+    let to = (candidates, frequencies, out_words, out_weights);
+    // SAFETY: as for `score`.
+    unsafe { jni::run(env, 0, |env| score(env, query, to, &Tuning::DEFAULT)) }
+}
+
+/// Scores the query's `candidates` at their `frequencies` with `tuning` into `out_words` and
+/// `out_weights`; how many it wrote.
+///
+/// # Safety
+/// `query` must be live (see `object`).
+unsafe fn score(
+    env: &Env,
+    query: jlong,
+    (candidates, frequencies, out_words, out_weights): (
+        jintArray,
+        jfloatArray,
+        jintArray,
+        jfloatArray,
+    ),
+    tuning: &Tuning,
+) -> Result<jint> {
+    // SAFETY: as the caller promises.
+    let (query, index) = unsafe { open(query)? };
+    let candidates = unsigned(env.read::<i32>(candidates, "candidates")?, "candidates")?;
+    let frequencies = env.read::<f32>(frequencies, "frequencies")?;
+    let max = env.read::<i32>(out_words, "outWords")?.len();
+    let layout = Layout::new(&query.keys, index.codes());
+    let swipe = Swipe {
+        gesture: &query.swipe,
+        times: &query.times,
+    };
+    let ranking = index
+        .score_with(&candidates, &frequencies, swipe, &layout, max, tuning)
+        .map_err(|e| illegal(e.to_string()))?;
+    let words: Vec<i32> = ranking.words().iter().map(|&w| w as i32).collect();
+    env.write(out_words, &words, "outWords")?;
+    env.write(out_weights, ranking.weights(), "outWeights")?;
+    Ok(words.len() as jint)
 }

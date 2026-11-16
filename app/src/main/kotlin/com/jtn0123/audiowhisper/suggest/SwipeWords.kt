@@ -13,24 +13,46 @@ import com.jtn0123.audiowhisper.rust.SwipeRules
  * probability becomes the classifier's frequency) are in Rust ([SwipeRules],
  * lib/rust/crates/suggest/src/swipe_words.rs).
  */
-class SwipeWords internal constructor(
+class SwipeWords private constructor(
     private val dictionaryWords: List<String>,
     private val probability: (String) -> Int,
     private val userWords: Map<String, Int>,
+    private val boosts: Map<String, Int>,
     private val unknownWords: (List<String>) -> List<String>,
 ) {
+    internal constructor(
+        dictionaryWords: List<String>,
+        probability: (String) -> Int,
+        userWords: Map<String, Int>,
+        unknownWords: (List<String>) -> List<String>,
+    ) : this(dictionaryWords, probability, userWords, emptyMap(), unknownWords)
+
     /** Every word: the dictionary's first, then the user's that it lacks. */
     val words: List<String> = when {
         userWords.isEmpty() -> dictionaryWords
         else -> dictionaryWords + unknownWords(userWords.keys.toList())
     }
 
-    /** How strongly the classifier favours [word] (see [frequencyOf]); 0 for a word it doesn't know. */
+    /**
+     * How strongly FlorisBoard's classifier favoured [word] (see [frequencyOf]); 0 for a word it
+     * doesn't know. The keyboard swipes with [tunedFrequency].
+     */
     fun frequency(word: String): Double = SwipeRules.frequency(probability(word), userWords[word] ?: NOT_A_PROBABILITY)
 
-    /** These dictionary words with [userWords] (see [userWords]); this same instance if they are unchanged. */
-    fun withUserWords(userWords: Map<String, Int>): SwipeWords =
-        if (userWords == this.userWords) this else SwipeWords(dictionaryWords, probability, userWords, unknownWords)
+    /**
+     * How strongly the keyboard favours [word]: as [frequency], but a commoner word always counts
+     * for more, and the user's own words more the more they use them ([boosts]).
+     */
+    fun tunedFrequency(word: String): Double =
+        SwipeRules.tunedFrequency(probability(word), userWords[word] ?: NOT_A_PROBABILITY, boosts[word] ?: 0)
+
+    /**
+     * These dictionary words with [userWords] (see [userWords]) raised by [boosts] (see [boosts]);
+     * this same instance if they are unchanged.
+     */
+    fun withUserWords(userWords: Map<String, Int>, boosts: Map<String, Int> = emptyMap()): SwipeWords =
+        if (userWords == this.userWords && boosts == this.boosts) this
+        else SwipeWords(dictionaryWords, probability, userWords, boosts, unknownWords)
 
     companion object {
         val NONE = SwipeWords(emptyList(), { NOT_A_PROBABILITY }, emptyMap(), { it })
@@ -54,6 +76,14 @@ class SwipeWords internal constructor(
          */
         fun userWords(personal: List<PersonalWords.Entry>, learned: Collection<String>): Map<String, Int> =
             SwipeRules.userWords(learned.toList(), personal.map { it.word }, IntArray(personal.size) { personal[it].frequency })
+
+        /**
+         * The user's [learned] spellings that their use raises, with how many steps each
+         * ([LearnedWords.swipeBoosts]): it changes only when a word's uses double, so it seldom
+         * makes the classifier re-index.
+         */
+        fun boosts(learned: List<String>, steps: IntArray): Map<String, Int> =
+            learned.indices.filter { steps[it] > 0 }.associate { learned[it] to steps[it] }
 
         /**
          * The classifier's frequency for a word of [probability] (0-255): 1 from [COMMON] up, then

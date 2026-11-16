@@ -195,6 +195,11 @@ impl LearnedWords {
         self.pairs.clear();
     }
 
+    /// How many times the user has used `word` (ignoring case).
+    pub fn uses(&self, word: &[u16]) -> i32 {
+        self.words.get(&key(word)).map_or(0, |entry| entry.count)
+    }
+
     /// How the user spells each word they have used [`KNOWN_AFTER`] times, least recently used
     /// first.
     pub fn known_spellings(&self) -> Vec<&[u16]> {

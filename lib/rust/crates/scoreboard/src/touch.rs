@@ -81,16 +81,10 @@ pub fn land(
         .filter(|&index| keyboard.keys[index].is_letter())?;
     let (pitch_x, pitch_y) = keyboard.pitch();
     let (cx, cy) = keyboard.keys[target].center();
-    let (mut bias_x, mut bias_y, mut spread) = (aim.0 * pitch_x, aim.1 * pitch_y, 1.0);
-    let reach = match hand {
-        Hand::Neutral => 0.0,
-        Hand::LeftThumb => thumb_reach(keyboard, cx, cy, 0.0),
-        Hand::RightThumb => thumb_reach(keyboard, cx, cy, keyboard.width),
-    };
-    let toward = if hand == Hand::RightThumb { 1.0 } else { -1.0 };
-    bias_x += toward * THUMB_SHORT_X * reach * pitch_x;
-    bias_y += THUMB_SHORT_Y * reach * pitch_y;
-    spread += THUMB_SPREAD * reach;
+    let thumb = self::aim(keyboard, hand, cx, cy);
+    let bias_x = aim.0 * pitch_x + thumb.bias_x;
+    let bias_y = aim.1 * pitch_y + thumb.bias_y;
+    let spread = thumb.spread;
     for _ in 0..REDRAWS {
         let x = cx + bias_x + rng.gaussian() as f32 * SPREAD_X * spread * pitch_x;
         let y = cy + bias_y + rng.gaussian() as f32 * SPREAD_Y * spread * pitch_y;
@@ -104,11 +98,47 @@ pub fn land(
     Some((target, cx, cy))
 }
 
-/// How far (cx, cy) is from a thumb's pivot at the keyboard's bottom edge, `pivot_x` across, as a
-/// share of the keyboard's width.
-fn thumb_reach(keyboard: &Keyboard, cx: f32, cy: f32, pivot_x: f32) -> f32 {
-    let py = keyboard.height;
-    ((cx - pivot_x).hypot(cy - py) / keyboard.width).min(1.0)
+/// Where a thumb aiming at (cx, cy) lands on average, and how much more it scatters.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Aim {
+    /// How far it falls from the point aimed at, in pixels.
+    pub bias_x: f32,
+    pub bias_y: f32,
+    /// Its scatter as a multiple of a neutral tap's.
+    pub spread: f32,
+}
+
+/// How `hand` aims at (cx, cy) on `keyboard`: a thumb falls short of far keys and scatters more
+/// there, as the module's comment says; a neutral hand aims true.
+pub fn aim(keyboard: &Keyboard, hand: Hand, cx: f32, cy: f32) -> Aim {
+    let (pivot, toward) = match hand {
+        Hand::Neutral => {
+            return Aim {
+                bias_x: 0.0,
+                bias_y: 0.0,
+                spread: 1.0,
+            };
+        }
+        Hand::LeftThumb => (thumb_pivot(keyboard), -1.0),
+        Hand::RightThumb => ((keyboard.width, keyboard.height), 1.0),
+    };
+    let (pitch_x, pitch_y) = keyboard.pitch();
+    let reach = thumb_reach(keyboard, cx, cy, pivot);
+    Aim {
+        bias_x: toward * THUMB_SHORT_X * reach * pitch_x,
+        bias_y: THUMB_SHORT_Y * reach * pitch_y,
+        spread: 1.0 + THUMB_SPREAD * reach,
+    }
+}
+
+/// Where the left thumb pivots: the keyboard's bottom left corner.
+pub fn thumb_pivot(keyboard: &Keyboard) -> (f32, f32) {
+    (0.0, keyboard.height)
+}
+
+/// How far (cx, cy) is from a thumb's pivot, as a share of the keyboard's width.
+fn thumb_reach(keyboard: &Keyboard, cx: f32, cy: f32, (px, py): (f32, f32)) -> f32 {
+    ((cx - px).hypot(cy - py) / keyboard.width).min(1.0)
 }
 
 /// What a tap at (x, y) on `hit` types when the user meant `unit`: `hit`'s letter in `unit`'s case.

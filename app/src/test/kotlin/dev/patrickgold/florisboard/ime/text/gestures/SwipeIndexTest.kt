@@ -20,6 +20,7 @@ import kotlin.math.hypot
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotEquals
 import kotlin.test.assertTrue
 
 /**
@@ -219,6 +220,35 @@ class SwipeIndexTest {
         swipe(portrait, "hello", Random(1)).forEach { (x, y) -> swipe.addPoint(x, y) }
 
         assertEquals(emptyList(), portrait.index.suggestions(swipe, emptyList(), 8, ::frequency))
+    }
+
+    @Test
+    fun theKeyboardsScoringFindsTheWordAndWeighsWhereTheFingerSlowed() {
+        for (word in listOf("hello", "keyboard", "swipe", "typing")) {
+            val points = swipe(portrait, word, Random(3), wobble = 10f)
+            val centres = word.mapNotNull(portrait::centre)
+            // The finger lingers within 30 px of each key it means, and hurries between them.
+            var time = 0f
+            val timed = StatisticalGlideTypingClassifier.Gesture()
+            val untimed = StatisticalGlideTypingClassifier.Gesture()
+            for ((x, y) in points) {
+                val near = centres.any { (cx, cy) -> hypot(cx - x, cy - y) < 30f }
+                time += if (near) 40f else 4f
+                timed.addPoint(x, y, time)
+                untimed.addPoint(x, y)
+            }
+            val slowed = portrait.index.tunedSuggestions(timed, portrait.keys, 8, ::frequency)
+            val steady = portrait.index.tunedSuggestions(untimed, portrait.keys, 8, ::frequency)
+            val original = portrait.index.suggestions(untimed, portrait.keys, 8, ::frequency)
+            assertEquals(word, slowed.first().word, word)
+            assertEquals(word, steady.first().word, word)
+            assertNotEquals(steady.first().cost, slowed.first().cost, "$word: the times count")
+            assertNotEquals(original.first().cost, steady.first().cost, "$word: so do the ends and reach")
+        }
+        val empty = StatisticalGlideTypingClassifier.Gesture()
+        assertEquals(emptyList(), portrait.index.tunedSuggestions(empty, portrait.keys, 8, ::frequency))
+        val swipe = StatisticalGlideTypingClassifier.Gesture().apply { addPoint(1f, 1f, 1f) }
+        assertEquals(emptyList(), portrait.index.tunedSuggestions(swipe, emptyList(), 8, ::frequency))
     }
 
     private companion object {

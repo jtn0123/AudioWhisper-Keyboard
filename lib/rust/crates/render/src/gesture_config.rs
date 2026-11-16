@@ -11,6 +11,9 @@ pub struct GestureConfig {
     pub trail_duration: i64,
     pub distance: i32,
     pub velocity: i32,
+    /// Whether each glide point comes with its time (GLIDE_TIME), which the keyboard's swipe
+    /// scoring weighs. Off unless asked for, so a config without it glides as before.
+    pub glide_times: bool,
     /// Up, down, left, right, space-up/left/right/hold, delete-left.
     pub actions: [String; 9],
 }
@@ -27,13 +30,14 @@ impl Default for GestureConfig {
             trail_duration: 200_000_000,
             distance: 32,
             velocity: 1900,
+            glide_times: false,
             actions: std::array::from_fn(|_| "NO_ACTION".into()),
         }
     }
 }
 impl GestureConfig {
     pub fn decode(values: &[f32], actions: Vec<String>) -> Option<Self> {
-        if ![9, 10].contains(&values.len())
+        if ![9, 10, 11].contains(&values.len())
             || actions.len() != 9
             || values.iter().any(|v| !v.is_finite())
             || values[0] <= 0.0
@@ -54,6 +58,7 @@ impl GestureConfig {
             trail_duration: (values[6].max(0.0) * 1_000_000.0) as i64,
             distance: values[7] as i32,
             velocity: values[8] as i32,
+            glide_times: values.get(10).is_some_and(|v| *v != 0.0),
             actions: actions.try_into().ok()?,
         })
     }

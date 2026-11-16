@@ -4,6 +4,7 @@ import androidx.collection.SparseArrayCompat
 import com.jtn0123.audiowhisper.rust.GlideChar
 import com.jtn0123.audiowhisper.rust.GlideIndex
 import com.jtn0123.audiowhisper.rust.GlideKeys
+import com.jtn0123.audiowhisper.rust.GlideScores
 import com.jtn0123.audiowhisper.rust.GlideWords
 import com.jtn0123.audiowhisper.suggest.GlideGuess
 import dev.patrickgold.florisboard.ime.keyboard.KeyData
@@ -25,13 +26,14 @@ class SwipeIndex private constructor(
 ) {
     /**
      * Each word's frequency, NaN until a swipe needs it: a lookup costs a native dictionary call,
-     * and a word's frequency doesn't change without the word list changing.
+     * and a word's frequency doesn't change without the word list changing. An index serves one
+     * frequency, so a caller uses either [suggestions] or [tunedSuggestions].
      */
     private val frequencies = FloatArray(words.size) { Float.NaN }
 
     /**
-     * The [max] likeliest words for [swipe], drawn on [keys], with their costs; [frequency] gives
-     * a word's (see SwipeWords.frequency).
+     * The [max] likeliest words for [swipe], drawn on [keys], with their costs, as FlorisBoard's
+     * classifier ranked them; [frequency] gives a word's (see SwipeWords.frequency).
      */
     fun suggestions(
         swipe: StatisticalGlideTypingClassifier.Gesture,
@@ -41,11 +43,35 @@ class SwipeIndex private constructor(
     ): List<GlideGuess> {
         if (keys.isEmpty() || swipe.isEmpty) return emptyList()
         return index.query(swipe.xs(), swipe.ys(), glideKeys(keys)).use { query ->
-            val candidates = query.candidates()
-            val candidateFrequencies = FloatArray(candidates.size) { frequencyOf(candidates[it], frequency) }
-            val scores = query.score(candidates, candidateFrequencies, max)
-            List(scores.words.size) { GlideGuess(words[scores.words[it]], ln(scores.weights[it])) }
+            guesses(query.candidates(), frequency) { candidates, frequencies -> query.score(candidates, frequencies, max) }
         }
+    }
+
+    /**
+     * As [suggestions], as the keyboard ranks them: with what measured better than FlorisBoard's
+     * classifier (GlideQuery.scoreTuned), which also weighs where the finger slowed by [swipe]'s
+     * times; [frequency] gives a word's as SwipeWords.tunedFrequency does.
+     */
+    fun tunedSuggestions(
+        swipe: StatisticalGlideTypingClassifier.Gesture,
+        keys: List<TextKey>,
+        max: Int,
+        frequency: (String) -> Double,
+    ): List<GlideGuess> {
+        if (keys.isEmpty() || swipe.isEmpty) return emptyList()
+        return index.query(swipe.xs(), swipe.ys(), swipe.times(), glideKeys(keys)).use { query ->
+            guesses(query.candidates(), frequency) { candidates, frequencies -> query.scoreTuned(candidates, frequencies, max) }
+        }
+    }
+
+    private fun guesses(
+        candidates: IntArray,
+        frequency: (String) -> Double,
+        score: (IntArray, FloatArray) -> GlideScores,
+    ): List<GlideGuess> {
+        val candidateFrequencies = FloatArray(candidates.size) { frequencyOf(candidates[it], frequency) }
+        val scores = score(candidates, candidateFrequencies)
+        return List(scores.words.size) { GlideGuess(words[scores.words[it]], ln(scores.weights[it])) }
     }
 
     private fun frequencyOf(word: Int, frequency: (String) -> Double): Float {

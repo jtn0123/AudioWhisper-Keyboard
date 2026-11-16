@@ -11,7 +11,8 @@ use gestures::glide_start::{GlideStart, Touch};
 pub(crate) struct GlideTouch {
     detector: GlideStart,
     key_size: f32,
-    points: Vec<(f32, f32)>,
+    /// Each point and its time, in microseconds after the touch went down.
+    points: Vec<(f32, f32, i32)>,
     owns: bool,
     tracked_id: i32,
     active: bool,
@@ -106,14 +107,25 @@ impl GlideTouch {
             return (actions, true);
         }
         let mut points = Vec::new();
+        let mut times = Vec::new();
         if matches!(event.action, 0 | 5) {
             points.extend([x, y - scene.strip]);
+            times.push(since_down(event, event.times.len().saturating_sub(1)));
         } else if event.action == 2 {
-            for sample in event.coords.chunks_exact(event.ids.len() * 2) {
+            let samples = event.coords.chunks_exact(event.ids.len() * 2);
+            let count = samples.len();
+            for (i, sample) in samples.enumerate() {
                 points.extend([
                     sample[event.index * 2],
                     sample[event.index * 2 + 1] - scene.strip,
                 ]);
+                // Down time, then one time a sample; the last time for any without one.
+                let at = if event.times.len() == count + 1 {
+                    i + 1
+                } else {
+                    event.times.len().saturating_sub(1)
+                };
+                times.push(since_down(event, at));
             }
         }
         let touch = Touch::of(event.action, event.ids[event.index], &points)
@@ -128,17 +140,18 @@ impl GlideTouch {
             self.points.clear();
         }
         if outcome.took {
-            self.points
-                .extend(points.as_chunks::<2>().0.iter().map(|p| (p[0], p[1])));
+            let taken = points.as_chunks::<2>().0.iter().zip(times);
+            self.points.extend(taken.map(|(p, t)| (p[0], p[1], t)));
         }
         let mut actions = Vec::new();
         if let Some(from) = outcome.emit_from {
             self.active = true;
-            actions.extend(
-                self.points[from..]
-                    .iter()
-                    .map(|&(x, y)| Action(GLIDE_POINT, x.to_bits() as i32, y.to_bits() as i32)),
-            );
+            for &(x, y, t) in &self.points[from..] {
+                if c.glide_times {
+                    actions.push(Action(GLIDE_TIME, t, 0));
+                }
+                actions.push(Action(GLIDE_POINT, x.to_bits() as i32, y.to_bits() as i32));
+            }
         }
         if outcome.complete {
             actions.push(Action(GLIDE_COMPLETE, 0, 0));
@@ -153,4 +166,14 @@ impl GlideTouch {
         }
         (actions, outcome.gesture)
     }
+}
+
+/// The time of `event`'s `at`th time after its down time (its first), in microseconds, as far as
+/// an `i32` holds.
+fn since_down(event: &Motion, at: usize) -> i32 {
+    let (Some(&down), Some(&time)) = (event.times.first(), event.times.get(at)) else {
+        return 0;
+    };
+    let micros = time.saturating_sub(down) / 1_000;
+    micros.clamp(0, i64::from(i32::MAX)) as i32
 }

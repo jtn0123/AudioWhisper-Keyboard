@@ -20,7 +20,12 @@ use geometry::Keyboard;
 use report::Tally;
 use rng::Rng;
 use std::sync::Arc;
-use swipe::Swiper;
+use std::time::Instant;
+use suggest::learned_words::{LearnedWords, WORD_CAPACITY};
+use suggest::raw::NOT_A_PROBABILITY;
+use suggest::session::Session;
+use suggest::word_case::WordCase;
+use swipe::{Decoder, Swiper, VARIANTS};
 use text::Sentence;
 use touch::Hand;
 use typing::{Engine, WithModel};
@@ -35,21 +40,36 @@ pub struct Source {
 /// Seeds for the separate random streams, so adding one doesn't change the others.
 const NEUTRAL_STREAM: u64 = 1;
 const LEFT_THUMB_STREAM: u64 = 2;
-const SWIPE_STREAM: u64 = 3;
+/// One for each of [`VARIANTS`], in order: the first was the only one once.
+const SWIPE_STREAMS: [u64; 4] = [3, 4, 5, 6];
 
-/// Scores every source with `threads` threads, each with its own session on `dictionary` (and
-/// `model`, shared).
+/// How a run scores.
+#[derive(Clone, Copy, Debug)]
+pub struct Settings {
+    /// The seed for taps and swipes.
+    pub seed: u64,
+    pub threads: usize,
+    /// How swipes are decoded.
+    pub decoder: Decoder,
+    /// Score swipes only, not next words, keystrokes or auto-correction.
+    pub swipe_only: bool,
+}
+
+/// Scores every source with `settings.threads` threads, each with its own session on
+/// `dictionary` (and `model`, shared), for a user who has typed `history` before.
 pub fn run(
     dictionary: Arc<[u8]>,
     model: Option<&WithModel>,
     keyboard: &Keyboard,
     sources: &[Source],
-    seed: u64,
-    threads: usize,
+    settings: Settings,
+    history: &[Sentence],
 ) -> Result<Vec<Tally>, String> {
     let probe = Engine::open(dictionary.clone(), model).ok_or("the dictionary did not open")?;
-    let swiper = Swiper::new(probe.session(), keyboard)?;
+    let learned = learn(probe.session(), history);
+    let swiper = Swiper::new(probe.session(), keyboard, settings.decoder, &learned)?;
     drop(probe);
+    let Settings { seed, threads, .. } = settings;
     let threads = threads.max(1);
     let mut tallies = Vec::with_capacity(sources.len());
     for (s, source) in sources.iter().enumerate() {
@@ -66,7 +86,9 @@ pub fn run(
                         for (i, sentence) in source.sentences.iter().enumerate() {
                             if i % threads == t {
                                 let at = (stream | i as u64, seed);
-                                score(&mut engine, keyboard, swiper, sentence, at, &mut tally);
+                                let only = settings.swipe_only;
+                                let tally = &mut tally;
+                                score(&mut engine, keyboard, swiper, sentence, at, only, tally);
                             }
                         }
                         tally.typing_time.append(&mut engine.typing_time);
@@ -93,41 +115,78 @@ pub fn run(
     Ok(tallies)
 }
 
-/// Scores every word of `sentence` (item `at.0` under seed `at.1`).
+/// What the keyboard learns from a user typing `sentences`: each word in the spelling its word
+/// learner keeps (`suggest::word_learner`), so a capital that only starts a sentence is dropped
+/// when the dictionary has the word without it.
+pub fn learn(session: &Session, sentences: &[Sentence]) -> LearnedWords {
+    let mut learned = LearnedWords::new(WORD_CAPACITY, 0);
+    for sentence in sentences {
+        for w in 0..sentence.words.len() {
+            let word = sentence.word(w);
+            let case = WordCase::of(word);
+            let starts_sentence = w == 0;
+            let lower = chars::lowercase(word);
+            let recased =
+                (case == WordCase::Capitalized && starts_sentence) || case == WordCase::AllCaps;
+            let spelling = if lower != word
+                && recased
+                && session.probability(word) == NOT_A_PROBABILITY
+                && session.probability(&lower) != NOT_A_PROBABILITY
+            {
+                lower
+            } else {
+                word.to_vec()
+            };
+            let keep = starts_sentence && spelling == word && case == WordCase::Capitalized;
+            learned.add(&spelling, None, keep);
+        }
+    }
+    learned
+}
+
+/// Scores every word of `sentence` (item `at.0` under seed `at.1`); only its swipes if
+/// `swipe_only`.
 fn score(
     engine: &mut Engine,
     keyboard: &Keyboard,
     swiper: &Swiper,
     sentence: &Sentence,
     at: (u64, u64),
+    swipe_only: bool,
     tally: &mut Tally,
 ) {
     let (item, seed) = at;
     for w in 0..sentence.words.len() {
         let word = sentence.word(w);
         tally.words += 1;
-        let shown = engine.next_word(sentence, w);
-        tally.next_top1 += usize::from(shown == Some(0));
-        tally.next_top3 += usize::from(shown.is_some());
-        tally.letters += word.len();
-        tally.keystrokes += engine.keystrokes(sentence, w);
-        for (hand, stream, ac) in [
-            (Hand::Neutral, NEUTRAL_STREAM, &mut tally.neutral),
-            (Hand::LeftThumb, LEFT_THUMB_STREAM, &mut tally.left_thumb),
-        ] {
-            let mut rng = Rng::for_item(seed ^ stream, item, w as u64);
-            ac.add(engine.autocorrect(keyboard, sentence, w, hand, &mut rng));
+        if !swipe_only {
+            let shown = engine.next_word(sentence, w);
+            tally.next_top1 += usize::from(shown == Some(0));
+            tally.next_top3 += usize::from(shown.is_some());
+            tally.letters += word.len();
+            tally.keystrokes += engine.keystrokes(sentence, w);
+            for (hand, stream, ac) in [
+                (Hand::Neutral, NEUTRAL_STREAM, &mut tally.neutral),
+                (Hand::LeftThumb, LEFT_THUMB_STREAM, &mut tally.left_thumb),
+            ] {
+                let mut rng = Rng::for_item(seed ^ stream, item, w as u64);
+                ac.add(engine.autocorrect(keyboard, sentence, w, hand, &mut rng));
+            }
         }
-        if let Some(path) = swiper.path(word) {
-            let mut rng = Rng::for_item(seed ^ SWIPE_STREAM, item, w as u64);
-            let guesses = swiper.guesses(&path, sentence.before(w), engine.session(), &mut rng);
+        let Some(path) = swiper.path(word) else {
+            continue;
+        };
+        for (v, (simulator, hand)) in VARIANTS.into_iter().enumerate() {
+            let mut rng = Rng::for_item(seed ^ SWIPE_STREAMS[v], item, w as u64);
+            let samples = swiper.draw(simulator, hand, &path, &mut rng);
+            let started = Instant::now();
+            let guesses = swiper.guesses(&samples, sentence.before(w), engine.session());
+            tally.swipe_time.push(started.elapsed());
             let at = guesses
                 .iter()
                 .take(typing::SHOWN)
                 .position(|guess| chars::equals_ignore_case(guess, word));
-            tally.swipes += 1;
-            tally.swipe_top1 += usize::from(at == Some(0));
-            tally.swipe_top3 += usize::from(at.is_some());
+            tally.swipe[v].add(at);
         }
     }
 }
