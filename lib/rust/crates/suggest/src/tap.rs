@@ -68,6 +68,8 @@ pub struct TapTrail {
 
 /// No key is pressed.
 const NONE: i32 = -1;
+/// The space bar, whose press types nothing into the trail: the space goes round it.
+const SPACE: i32 = 32;
 
 impl TapTrail {
     /// Longer than any word worth correcting.
@@ -158,6 +160,18 @@ impl TapTrail {
     /// Whether the last `count` characters were all typed since the last deletion.
     pub fn typed_since_deletion(&self, count: usize) -> bool {
         count <= self.since_deletion
+    }
+
+    /// Whether what was worked out for `word`, the word being typed as the suggester last saw it,
+    /// still holds for the key about to go down: the last key pressed typed its text and the last
+    /// characters typed spell `word`; or `word` is empty and the last key pressed was the space
+    /// bar. A key still held as the next goes down (rollover) has typed nothing yet, and a
+    /// backspace or shift types nothing at all, so nothing worked out holds after them.
+    pub fn at_word(&self, word: &[u16]) -> bool {
+        if word.is_empty() {
+            return self.pressed_code_point == SPACE;
+        }
+        self.pressed_code_point == NONE && self.typed_for(word).is_some()
     }
 }
 
@@ -279,5 +293,31 @@ mod tests {
         trail.pressed(0x212A, Some(RIGHT));
         trail.typed(&utf16("k"));
         assert_eq!(trail.offsets_for(&utf16("K")), vec![Some(RIGHT)]);
+    }
+
+    #[test]
+    fn what_was_worked_out_for_a_word_holds_until_the_next_key_goes_down() {
+        let mut trail = TapTrail::new(TapTrail::CAPACITY);
+        let (t, th) = (utf16("t"), utf16("th"));
+        assert!(!trail.at_word(&t) && !trail.at_word(&[]), "nothing typed");
+        trail.pressed('t' as i32, Some(LEFT));
+        trail.typed(&t);
+        assert!(trail.at_word(&t));
+        // Rollover: h is down and has typed nothing yet, so "t" is a letter behind.
+        trail.pressed('h' as i32, Some(RIGHT));
+        assert!(!trail.at_word(&t) && !trail.at_word(&th));
+        trail.typed(&utf16("h"));
+        assert!(trail.at_word(&th) && trail.at_word(&utf16("TH")));
+        assert!(!trail.at_word(&t), "a letter behind");
+        assert!(!trail.at_word(&[]), "inside a word");
+        // The space bar types nothing into the trail: a word starts after it.
+        trail.pressed(SPACE, None);
+        assert!(trail.at_word(&[]));
+        assert!(!trail.at_word(&th), "the word before");
+        // Nor does a backspace or a shift.
+        for key in [-7, -11] {
+            trail.pressed(key, None);
+            assert!(!trail.at_word(&[]) && !trail.at_word(&th) && !trail.at_word(&t));
+        }
     }
 }

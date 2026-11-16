@@ -11,6 +11,12 @@
 //!   --seed N        the seed for taps and swipes (default 20261116)
 //!   --threads N     scoring threads (default: the machine's)
 //!   --swipe-only    score swipes only
+//!   --correction-only
+//!                   score auto-correction only
+//!   --resize A,D,C[,F]
+//!                   the hit test leans on the letter odds (`keys::resize::Resize`: A across,
+//!                   D down, a border moves at most C; F of the odds spread over every letter,
+//!                   default `LetterOdds::FLOOR`)
 //!
 //! How swipes are decoded (default: as the keyboard does; each flag changes one thing):
 //!   --original      FlorisBoard's classifier and the flat frequency curve
@@ -32,16 +38,19 @@
 //! swipe variant's counts over all of them. For the learning run, a row for each user and a
 //! column for each way of using what was learned.
 
+use keys::resize::Resize;
 use scoreboard::geometry::Keyboard;
 use scoreboard::learning::FromCorrected;
 use scoreboard::report::{Tally, table};
 use scoreboard::swipe::{Decoder, VARIANTS};
+use scoreboard::touch::KeyResize;
 use scoreboard::{Settings, Source, text};
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 use std::sync::Arc;
 use std::time::Instant;
 use suggest::language_model::Tuning;
+use suggest::letter_odds::LetterOdds;
 use suggest::swipe_words::Boost;
 
 struct Options {
@@ -79,6 +88,8 @@ fn options() -> Result<Options, String> {
             threads: std::thread::available_parallelism().map_or(4, |n| n.get()),
             decoder: Decoder::DEFAULT,
             swipe_only: false,
+            correction_only: false,
+            resize: None,
         },
         learning: false,
         warm_up: 2000,
@@ -104,6 +115,8 @@ fn options() -> Result<Options, String> {
             "--seed" => options.settings.seed = number(value()?)?,
             "--threads" => options.settings.threads = number(value()?)? as usize,
             "--swipe-only" => options.settings.swipe_only = true,
+            "--correction-only" => options.settings.correction_only = true,
+            "--resize" => options.settings.resize = Some(resize(&value()?)?),
             "--original" => options.settings.decoder = Decoder::ORIGINAL,
             "--ends" => options.settings.decoder.glide.ends = real(value()?)?,
             "--dwell" => options.settings.decoder.glide.dwell = real(value()?)?,
@@ -136,6 +149,21 @@ fn options() -> Result<Options, String> {
         return Err("give at least one --test NAME=FILE".to_string());
     }
     Ok(options)
+}
+
+/// `--resize A,D,C[,F]`.
+fn resize(value: &str) -> Result<KeyResize, String> {
+    let numbers = value
+        .split(',')
+        .map(|v| v.parse::<f32>().map_err(|e| format!("--resize: {e}")))
+        .collect::<Result<Vec<f32>, String>>()?;
+    let (across, down, cap, floor) = match numbers[..] {
+        [a, d, c] => (a, d, c, LetterOdds::FLOOR),
+        [a, d, c, f] => (a, d, c, f),
+        _ => return Err("--resize takes A,D,C[,F]".to_string()),
+    };
+    let tuning = Resize { across, down, cap };
+    Ok(KeyResize { tuning, floor })
 }
 
 fn main() -> ExitCode {
@@ -184,6 +212,7 @@ fn run() -> Result<(), String> {
             seed: options.settings.seed,
             warm_up: options.warm_up,
             from_corrected: options.from_corrected,
+            resize: options.settings.resize,
         };
         let table = scoreboard::learning_run::run(
             dictionary.into(),
@@ -217,7 +246,7 @@ fn run() -> Result<(), String> {
         columns.push(("all", &all));
     }
     println!(
-        "Dictionary: {} ({} bytes); seed {}; {} sentences after {}; {:?}",
+        "Dictionary: {} ({} bytes); seed {}; {} sentences after {}; {:?}; {:?}",
         std::fs::canonicalize(&options.dict)
             .unwrap_or_else(|_| options.dict.clone())
             .display(),
@@ -226,6 +255,7 @@ fn run() -> Result<(), String> {
         sources.iter().map(|s| s.sentences.len()).sum::<usize>(),
         options.skip,
         options.settings.decoder,
+        options.settings.resize,
     );
     if let Some(file) = &options.model {
         println!(

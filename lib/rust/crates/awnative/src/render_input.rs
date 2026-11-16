@@ -61,9 +61,10 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_touch(
     metadata: jintArray,
     times: jlongArray,
     coords: jfloatArray,
-    aim: jlong,
+    trail: jlong,
+    aimed: jboolean,
 ) -> jintArray {
-    // SAFETY: the wrapper owns the live handle and JVM arrays for this call; `aim` is 0 or a tap
+    // SAFETY: the wrapper owns the live handle and JVM arrays for this call; `trail` is 0 or a tap
     // trail its Kotlin owner keeps alive while it calls.
     unsafe {
         handle::with_locked::<Session, _>(env, native, "renderer", ptr::null_mut(), |s, env| {
@@ -71,9 +72,10 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_touch(
             if meta.len() < 2 {
                 return Err(illegal("missing action/index"));
             }
-            // A key goes down: where this user aims, as of now (`aimed_key_at`).
+            // A key goes down: where this user aims and which letters come next, as of now
+            // (`aimed_key_at`).
             if matches!(meta[0], 0 | 5) {
-                s.scene.aims = crate::suggest::tap_aim::key_shifts(aim, &s.scene.keys)?;
+                crate::suggest::tap_aim::lean(trail, aimed != 0, &mut s.scene)?;
             }
             let event = Motion {
                 action: meta[0],

@@ -186,13 +186,14 @@ class TapPositions(capacity: Int = SuggestRules.tapTrailCapacity) {
         SuggestNative.tapAimedOffsetsFor(handle, word, aimed).also { Reference.reachabilityFence(this) }
 
     /**
-     * Which key a tap at ([x], [y]) types, given where this user is known to tap: [layout] is the
-     * key the plain hit test found, the row count, each row's size, then each key's code; [bounds]
-     * is six values per key, its touch bounds (left, top, right, bottom) then its drawn width and
-     * height. -1 if they don't fit together.
+     * Which key a tap at ([x], [y]) types, given which letters come next in the word being typed
+     * and, if [aimed], where this user is known to tap: [layout] is the key the plain hit test
+     * found, the row count, each row's size, then each key's code; [bounds] is six values per key,
+     * its touch bounds (left, top, right, bottom) then its drawn width and height. -1 if they don't
+     * fit together.
      */
-    fun retarget(layout: IntArray, bounds: FloatArray, x: Float, y: Float): Int =
-        SuggestNative.tapRetarget(handle, layout, bounds, x, y).also { Reference.reachabilityFence(this) }
+    fun retarget(layout: IntArray, bounds: FloatArray, x: Float, y: Float, aimed: Boolean): Int =
+        SuggestNative.tapRetarget(handle, layout, bounds, x, y, aimed).also { Reference.reachabilityFence(this) }
 
     /** Where this user taps, as saved: numbers only. */
     fun aimText(): String = SuggestNative.tapAimText(handle).also { Reference.reachabilityFence(this) }

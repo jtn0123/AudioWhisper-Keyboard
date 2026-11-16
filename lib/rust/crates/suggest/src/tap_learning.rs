@@ -18,6 +18,8 @@
 use crate::java;
 use crate::tap::{TapOffset, TapTrail};
 use crate::tap_aim::{AimKey, Orientation, TapAim};
+use keys::Rect;
+use keys::resize::Resize;
 
 /// Characters of the next word that confirm the word before it was kept.
 pub const CONFIRM_CHARACTERS: usize = 2;
@@ -155,15 +157,25 @@ impl Taps {
             .collect()
     }
 
-    /// See [`TapAim::retarget`], in the current orientation.
-    pub fn retarget(
+    /// Which of `keys` a tap at `at` types when the plain hit test (`key_at`) found `hit`: moved
+    /// by the learned aim in the current orientation if `aimed` (see [`TapAim::retarget`]), and
+    /// near a border by each key's letter odds, `priors` (see `keys::resize::key_for`), each key's
+    /// touch bounds being `bounds`.
+    pub fn key_for(
         &self,
         keys: &[AimKey],
-        hit: usize,
-        at: (f32, f32),
+        (hit, at): (usize, (f32, f32)),
+        aimed: bool,
+        priors: &[Option<f32>],
+        bounds: impl Fn(usize) -> Option<Rect>,
         key_at: impl Fn(f32, f32) -> Option<usize>,
     ) -> usize {
-        self.aim.retarget(self.orientation, keys, hit, at, key_at)
+        let shift = |index: usize| {
+            let key = keys.get(index).filter(|_| aimed)?;
+            self.aim.shift(self.orientation, key)
+        };
+        let prior = |index: usize| priors.get(index).copied().flatten();
+        keys::resize::key_for(hit, at, &Resize::SHIPPED, shift, prior, bounds, key_at)
     }
 
     /// Whether the aim changed since this was last asked, so it needs saving.

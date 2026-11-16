@@ -93,9 +93,10 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_SuggestNative_tapAimed
     }
 }
 
-/// Which key a tap at (`x`, `y`) types (`TapAim::retarget`). `layout` holds the key the plain hit
-/// test found, the number of rows, each row's size, then each key's code; `bounds` holds six values
-/// per key: its touch bounds (left, top, right, bottom) and its drawn width and height.
+/// Which key a tap at (`x`, `y`) types (`Taps::key_for`): moved by the learned aim if `aimed`, and
+/// by the letter odds near a border while they hold. `layout` holds the key the plain hit test
+/// found, the number of rows, each row's size, then each key's code; `bounds` holds six values per
+/// key: its touch bounds (left, top, right, bottom) and its drawn width and height.
 #[unsafe(no_mangle)]
 pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_SuggestNative_tapRetarget(
     env: *mut JNIEnv,
@@ -105,6 +106,7 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_SuggestNative_tapRetar
     bounds: jfloatArray,
     x: jfloat,
     y: jfloat,
+    aimed: jboolean,
 ) -> jint {
     // SAFETY: the JVM passes its environment; Kotlin holds the trail while it calls.
     unsafe {
@@ -141,36 +143,46 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_SuggestNative_tapRetar
                 })
                 .collect();
             let key_at = |x, y| keys::key_at(&rows, x, y);
+            let priors = super::letter_odds::priors(&taps.trail, codes.iter().copied());
+            let bounds = |index: usize| touch.get(index).copied();
+            let key = taps.key_for(&keys, (hit, (x, y)), aimed != 0, &priors, bounds, key_at);
             // The index fits in an Int: Kotlin's arrays held that many keys.
-            Ok(taps.retarget(&keys, hit, (x, y), key_at) as jint)
+            Ok(key as jint)
         })
     }
 }
 
-/// How far, in pixels, this user's taps for each of `keys` land from where they mean, if that is
-/// known: what the Rust renderer's hit test moves a tap back by (see `keys::aim::retarget`). None
-/// for every key without a trail (`trail` 0: the setting is off).
+/// What the Rust renderer's hit test leans on as a key goes down on `scene`: how far, in pixels,
+/// this user's taps for each key land from where they mean, if `aimed` and that is known (see
+/// `keys::aim::retarget`), and each key's letter odds while they hold (see `keys::resize`). Nothing
+/// without a trail (`trail` 0).
 ///
 /// # Safety
 /// `trail` must be 0 or a live trail handle: its Kotlin owner is still reachable.
-pub(crate) unsafe fn key_shifts(
+pub(crate) unsafe fn lean(
     trail: jlong,
-    keys: &[render::scene::Key],
-) -> crate::jni::Result<Vec<Option<(f32, f32)>>> {
+    aimed: bool,
+    scene: &mut render::scene::Scene,
+) -> crate::jni::Result<()> {
+    scene.aims.clear();
+    scene.priors.clear();
     if trail == 0 {
-        return Ok(Vec::new());
+        return Ok(());
     }
     // SAFETY: as the caller promises.
     let taps = unsafe { handle::locked::<Taps>(trail, "tap trail")? };
     let orientation = taps.orientation();
-    Ok(keys
-        .iter()
-        .map(|key| {
-            let bias = taps.aim.bias(orientation, key.code)?;
-            let size = key.bounds.visible;
-            Some((bias.dx * size.width(), bias.dy * size.height()))
-        })
-        .collect())
+    if aimed {
+        scene.aims = (scene.keys.iter())
+            .map(|key| {
+                let bias = taps.aim.bias(orientation, key.code)?;
+                let size = key.bounds.visible;
+                Some((bias.dx * size.width(), bias.dy * size.height()))
+            })
+            .collect();
+    }
+    scene.priors = super::letter_odds::priors(&taps.trail, scene.keys.iter().map(|key| key.code));
+    Ok(())
 }
 
 /// The learned aim as saved text (`TapAim::text`): numbers only.

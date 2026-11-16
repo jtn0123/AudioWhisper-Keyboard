@@ -27,7 +27,7 @@ use suggest::session::Session;
 use suggest::word_case::WordCase;
 use swipe::{Decoder, Swiper, VARIANTS};
 use text::Sentence;
-use touch::Hand;
+use touch::{Hand, KeyResize};
 use typing::{Engine, WithModel};
 
 /// A named set of test sentences.
@@ -37,9 +37,18 @@ pub struct Source {
     pub sentences: Vec<Sentence>,
 }
 
+/// The typists auto-correction is scored for, each with its own stream of taps; in the order of
+/// [`report::Tally::hands`].
+pub const HANDS: [(Hand, u64); 3] = [
+    (Hand::Neutral, NEUTRAL_STREAM),
+    (Hand::LeftThumb, LEFT_THUMB_STREAM),
+    (Hand::RightThumb, RIGHT_THUMB_STREAM),
+];
+
 /// Seeds for the separate random streams, so adding one doesn't change the others.
 const NEUTRAL_STREAM: u64 = 1;
 const LEFT_THUMB_STREAM: u64 = 2;
+const RIGHT_THUMB_STREAM: u64 = 7;
 /// One for each of [`VARIANTS`], in order: the first was the only one once.
 const SWIPE_STREAMS: [u64; 4] = [3, 4, 5, 6];
 
@@ -53,6 +62,10 @@ pub struct Settings {
     pub decoder: Decoder,
     /// Score swipes only, not next words, keystrokes or auto-correction.
     pub swipe_only: bool,
+    /// Score auto-correction only, not next words, keystrokes or swipes.
+    pub correction_only: bool,
+    /// The hit test leans on the letter odds, so (`keys::resize`).
+    pub resize: Option<KeyResize>,
 }
 
 /// Scores every source with `settings.threads` threads, each with its own session on
@@ -86,13 +99,14 @@ pub fn run(
                         for (i, sentence) in source.sentences.iter().enumerate() {
                             if i % threads == t {
                                 let at = (stream | i as u64, seed);
-                                let only = settings.swipe_only;
                                 let tally = &mut tally;
-                                score(&mut engine, keyboard, swiper, sentence, at, only, tally);
+                                let typing = (keyboard, swiper);
+                                score(&mut engine, typing, sentence, at, &settings, tally);
                             }
                         }
                         tally.typing_time.append(&mut engine.typing_time);
                         tally.prediction_time.append(&mut engine.prediction_time);
+                        tally.hit_time.append(&mut engine.hit_time);
                         tally
                     })
                 })
@@ -144,34 +158,76 @@ pub fn learn(session: &Session, sentences: &[Sentence]) -> LearnedWords {
     learned
 }
 
-/// Scores every word of `sentence` (item `at.0` under seed `at.1`); only its swipes if
-/// `swipe_only`.
+/// Where a word stands with the keyboard's vocabulary.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct Rarity {
+    /// The n-gram model doesn't have it, so the letter odds don't know it.
+    pub outside_model: bool,
+    /// Nor does the dictionary.
+    pub outside_dictionary: bool,
+}
+
+impl Rarity {
+    /// `word` as the session looks it up: as written, else lower-cased.
+    pub fn of(session: &Session, word: &[u16]) -> Rarity {
+        let known = |w: &[u16]| session.probability(w) != NOT_A_PROBABILITY;
+        let outside_dictionary = !known(word) && !known(&chars::lowercase(word));
+        let outside_model = (session.language_model())
+            .map_or(outside_dictionary, |m| m.model().word(word).is_none());
+        Rarity {
+            outside_model,
+            outside_dictionary,
+        }
+    }
+}
+
+/// Scores every word of `sentence` (item `at.0` under seed `at.1`), as `settings` say.
 fn score(
     engine: &mut Engine,
-    keyboard: &Keyboard,
-    swiper: &Swiper,
+    (keyboard, swiper): (&Keyboard, &Swiper),
     sentence: &Sentence,
     at: (u64, u64),
-    swipe_only: bool,
+    settings: &Settings,
     tally: &mut Tally,
 ) {
     let (item, seed) = at;
     for w in 0..sentence.words.len() {
         let word = sentence.word(w);
         tally.words += 1;
-        if !swipe_only {
-            let shown = engine.next_word(sentence, w);
-            tally.next_top1 += usize::from(shown == Some(0));
-            tally.next_top3 += usize::from(shown.is_some());
-            tally.letters += word.len();
-            tally.keystrokes += engine.keystrokes(sentence, w);
-            for (hand, stream, ac) in [
-                (Hand::Neutral, NEUTRAL_STREAM, &mut tally.neutral),
-                (Hand::LeftThumb, LEFT_THUMB_STREAM, &mut tally.left_thumb),
-            ] {
-                let mut rng = Rng::for_item(seed ^ stream, item, w as u64);
-                ac.add(engine.autocorrect(keyboard, sentence, w, hand, &mut rng));
+        if !settings.swipe_only {
+            if !settings.correction_only {
+                let shown = engine.next_word(sentence, w);
+                tally.next_top1 += usize::from(shown == Some(0));
+                tally.next_top3 += usize::from(shown.is_some());
+                tally.letters += word.len();
+                tally.keystrokes += engine.keystrokes(sentence, w);
             }
+            let rarity = Rarity::of(engine.session(), word);
+            for (h, (hand, stream)) in HANDS.into_iter().enumerate() {
+                let rng = Rng::for_item(seed ^ stream, item, w as u64);
+                let typist = (hand, settings.resize.as_ref());
+                let mut corrected =
+                    engine.autocorrect(keyboard, sentence, w, typist, &mut rng.clone());
+                if settings.resize.is_some() {
+                    // The same taps through the plain hit test, to count what each gets right; its
+                    // time is not the one scored.
+                    let timed = engine.hit_time.len();
+                    let plain =
+                        engine.autocorrect(keyboard, sentence, w, (hand, None), &mut rng.clone());
+                    corrected.plain_right = plain.right;
+                    engine.hit_time.truncate(timed);
+                }
+                tally.hands[h].add(corrected);
+                if rarity.outside_model {
+                    tally.outside_model[h].add(corrected);
+                }
+                if rarity.outside_dictionary {
+                    tally.outside_dictionary[h].add(corrected);
+                }
+            }
+        }
+        if settings.correction_only {
+            continue;
         }
         let Some(path) = swiper.path(word) else {
             continue;

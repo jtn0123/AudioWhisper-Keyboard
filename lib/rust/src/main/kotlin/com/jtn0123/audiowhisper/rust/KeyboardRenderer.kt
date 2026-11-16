@@ -75,10 +75,13 @@ class KeyboardRenderer(fontPaths: Array<String>) : AutoCloseable {
     @Synchronized
     fun semanticCancel(): IntArray = RenderNative.semanticCancel(handle)
 
-    /** A touch; with [aim], a key going down types the key this user meant (see [TapPositions.retarget]). */
+    /**
+     * A touch. With [trail], a key going down types the key this user meant (see
+     * [TapPositions.retarget]): by which letters come next, and by where they tap if [aimed].
+     */
     @Synchronized
-    fun touch(metadata: IntArray, times: LongArray, coords: FloatArray, aim: TapPositions? = null): IntArray =
-        RenderNative.touch(handle, metadata, times, coords, aim?.handle ?: 0L).also { Reference.reachabilityFence(aim) }
+    fun touch(metadata: IntArray, times: LongArray, coords: FloatArray, trail: TapPositions? = null, aimed: Boolean = false): IntArray =
+        RenderNative.touch(handle, metadata, times, coords, trail?.handle ?: 0L, aimed).also { Reference.reachabilityFence(trail) }
 
     @Synchronized
     fun tooltipShown(pointer: Int, shown: Boolean) = RenderNative.tooltipShown(handle, pointer, shown)
@@ -159,7 +162,7 @@ internal object RenderNative {
     external fun semanticSnapshot(handle: Long): String
     external fun semanticAction(handle: Long, id: Int, action: Int): IntArray
     external fun semanticCancel(handle: Long): IntArray
-    external fun touch(handle: Long, metadata: IntArray, times: LongArray, coords: FloatArray, aim: Long): IntArray
+    external fun touch(handle: Long, metadata: IntArray, times: LongArray, coords: FloatArray, trail: Long, aimed: Boolean): IntArray
     external fun tooltipShown(handle: Long, pointer: Int, shown: Boolean)
     external fun candidateBindings(handle: Long, tokens: IntArray): IntArray
     external fun gestures(handle: Long, values: FloatArray, actions: Array<String>)

@@ -50,9 +50,10 @@ class TextKeyboard(
     }
 
     /**
-     * AudioWhisper: [getKeyForPos], or the neighbour [retarget] picks for this user's aim. It gets
-     * the hit key's index, this layout packed as [com.jtn0123.audiowhisper.suggest.TapTrail.retarget]
-     * takes it, and the pointer, and answers the index of the key that types.
+     * AudioWhisper: [getKeyForPos], or the neighbour [retarget] picks for this user's aim or the
+     * letters likely to come next. It gets the hit key's index, this layout packed as
+     * [com.jtn0123.audiowhisper.suggest.TapTrail.retarget] takes it, and the pointer, and answers
+     * the index of the key that types.
      */
     fun getAimedKeyForPos(
         pointerX: Float,

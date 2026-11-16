@@ -214,12 +214,9 @@ internal class TextKeyboardLayoutController(
 
         val x = event.getX(pointer.index)
         val y = event.getY(pointer.index)
-        // AudioWhisper: a tap near a border types the key this user meant, if their aim is learned.
-        val key = if (prefs.suggestion.learnTapAim.get()) {
-            keyboard.getAimedKeyForPos(x, y, nlpManager::aimedKey)
-        } else {
-            keyboard.getKeyForPos(x, y)
-        }
+        // AudioWhisper: a tap near a border types the key this user meant: by the letters likely
+        // to come next, and by where they tap if that is learned.
+        val key = keyboard.getAimedKeyForPos(x, y, nlpManager::aimedKey)
         if (key != null && key.isEnabled) {
             key.computedDataOnDown = key.computedData
             noteTapPosition(key, event.getX(pointer.index), event.getY(pointer.index))

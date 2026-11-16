@@ -15,6 +15,7 @@ pub mod java;
 pub mod kept_words;
 pub mod language_model;
 pub mod learned_words;
+pub mod letter_odds;
 mod lines;
 mod ordered;
 pub mod personal_words;
