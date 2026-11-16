@@ -197,11 +197,14 @@ internal class SettingsHarness(val instrumentation: Instrumentation, explore: Bo
         main { walk(checkNotNull(activity).window.decorView) }
         return found
     }
-    private fun role(node: Node): String {
+    fun role(node: Node): String {
         val name = node.className?.toString().orEmpty()
         val roles = listOf("Button", "CheckBox", "RadioButton", "Switch", "SeekBar", "EditText", "ScrollView")
         if (roles.any { name == "android.widget.$it" }) return name
         node.extras.getCharSequence("AccessibilityNodeInfo.roleDescription")?.takeIf { it.isNotBlank() }?.let { return it.toString() }
+        // A lazy list is a View with CollectionInfo, which is what TalkBack announces as a list
+        // (Compose names a scrollable node a ScrollView only when it has no CollectionInfo).
+        if (node.collectionInfo != null) return "collection"
         // Compose can expose a semantic role through a separate non-clickable child.
         for (i in 0 until node.childCount) {
             val child = node.getChild(i) ?: continue
@@ -242,6 +245,11 @@ internal class SettingsHarness(val instrumentation: Instrumentation, explore: Bo
                 "android.widget.TextView" -> return JSONObject().put("name", "floris-hyperlink-no-role").put("for", label.substringBefore('\n'))
             }
         }
+        // AboutLibraries 15.3.0's library row (LibrariesContainer) is a Modifier.clickable with no
+        // Role, so Compose reports a View. Rust exposes each row as a button.
+        if ((screen.startsWith("licences") || screen.endsWith(">Third-party licenses")) && n.isClickable && !n.isCheckable &&
+            !n.isScrollable && n.className == "android.view.View" && label.isNotBlank())
+            return JSONObject().put("name", "aboutlibraries-row-no-role").put("for", label.substringBefore('\n'))
         if (!n.isCheckable || !n.isClickable || n.className != "android.view.View" || label.isBlank()) return null
         if (find("Cancel") == null) return null
         return JSONObject().put("name", "jetpref-list-entry-no-role").put("for", screen)
