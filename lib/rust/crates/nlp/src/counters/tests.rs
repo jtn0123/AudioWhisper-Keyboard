@@ -205,8 +205,9 @@ fn a_swipe_replaced_by_a_suggestion_or_a_backspace() {
 }
 
 #[test]
-fn a_word_taken_back_counts_once() {
-    // An auto-correction undone: the word put back is the one that counts.
+fn a_word_put_back_or_taken_back_counts_once() {
+    // An auto-correction undone puts the word typed back in its place: one word, counted once,
+    // even if it is finished again there.
     let mut s = session("teh", 3, (0, 3));
     s.automatic = Some(Candidate {
         text: text("the"),
@@ -214,12 +215,21 @@ fn a_word_taken_back_counts_once() {
     });
     call(&mut s, "pick", &["a"]);
     call(&mut s, "learn", &["1", "-1", "the", "", "0", "1", ""]);
-    assert_eq!(count(&s, "words"), 1);
     call(&mut s, "tally", &["undone", "0", "0"]);
-    assert_eq!(count(&s, "words"), 0);
+    assert_eq!(count(&s, "words"), 1);
+    keep(&mut s, "teh", 0);
+    assert_eq!((count(&s, "words"), count(&s, "kept_as_typed")), (1, 0));
+    // So does the undo key's.
+    s.automatic = Some(Candidate {
+        text: text("the"),
+        ..word("b", 0)
+    });
+    call(&mut s, "pick", &["b"]);
+    call(&mut s, "learn", &["1", "-1", "the", "", "0", "1", ""]);
+    call(&mut s, "tally", &["undo", "0", "0"]);
     keep(&mut s, "teh", 0);
     assert_eq!(count(&s, "words"), 1);
-    // A swipe replaced by a suggestion, deleted, or undone.
+    // A swipe replaced by a suggestion, deleted, or undone: what replaces it counts instead.
     call(&mut s, "learn", &["2", "-1", "hello", "", "4", "1", ""]);
     s.candidates = vec![word("hallo", 0)];
     call(&mut s, "pick", &["hallo"]);
@@ -230,11 +240,8 @@ fn a_word_taken_back_counts_once() {
     call(&mut s, "learn", &["2", "-1", "hello", "", "10", "1", ""]);
     call(&mut s, "tally", &["undo", "0", "0"]);
     assert_eq!(count(&s, "words"), 2);
-    // Never below nothing.
-    call(&mut s, "tally", &["undone", "0", "0"]);
-    call(&mut s, "tally", &["undone", "0", "0"]);
-    call(&mut s, "tally", &["undone", "0", "0"]);
-    assert_eq!(count(&s, "words"), 0);
+    keep(&mut s, "there", 10);
+    assert_eq!(count(&s, "words"), 3);
 }
 
 #[test]

@@ -755,7 +755,7 @@ kept_as_typed 655
 
 | Counter | Counts |
 |---|---|
-| `words` | Words entered by any means: kept as typed, corrected, picked or swiped. One finished again where it starts (its space deleted and retyped, a letter fixed) counts once; one taken back (an undone auto-correction, a swipe replaced) leaves the count, and what replaces it counts instead |
+| `words` | Words entered by any means: kept as typed, corrected, picked or swiped. A word in one place counts once: finished again there (its space deleted and retyped, a letter fixed) or put back as typed by undoing its auto-correction. A swipe taken back (deleted, undone or replaced) leaves the count, and what replaces it counts instead |
 | `kept_as_typed` | Words finished as typed, with no auto-correction |
 | `autocorrected` | Auto-corrections committed (a space or punctuation replaced the word) |
 | `autocorrect_undone` | Auto-corrections taken back by the backspace or the undo key straight after |

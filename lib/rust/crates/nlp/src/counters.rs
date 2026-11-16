@@ -92,8 +92,8 @@ impl Counters {
         self.changed = true;
     }
 
-    /// A word just counted was taken back: an auto-correction undone, or a swipe deleted, undone
-    /// or replaced. Whatever replaces it counts when it is finished, so `words` counts it once.
+    /// A swiped word just counted was taken back: deleted, undone or replaced. Whatever replaces
+    /// it counts when it is finished, so `words` counts that place once.
     fn take_back_word(&mut self) {
         self.counts[WORDS] = self.counts[WORDS].saturating_sub(1);
         self.changed = true;
@@ -199,24 +199,28 @@ impl Counters {
         }
     }
 
-    /// The backspace straight after an auto-correction put back what was typed.
+    /// The backspace straight after an auto-correction put back what was typed. The word typed
+    /// takes the corrected word's place, which is already counted, so it is not counted again.
     pub fn undone(&mut self) {
         self.add(AUTOCORRECT_UNDONE);
-        self.take_back_word();
-        self.recent = Recent::default();
+        self.recent = Recent {
+            last: self.recent.last,
+            ..Recent::default()
+        };
     }
 
-    /// The undo key: it takes back an auto-correction or a swipe made just before.
+    /// The undo key: it takes back an auto-correction (as [`Counters::undone`]) or a swipe made
+    /// just before.
     pub fn undo(&mut self) {
-        if self.recent.correction {
+        let recent = std::mem::take(&mut self.recent);
+        if recent.correction {
             self.add(AUTOCORRECT_UNDONE);
-            self.take_back_word();
+            self.recent.last = recent.last;
         }
-        if self.recent.swipe {
+        if recent.swipe {
             self.add(SWIPE_REPLACED);
             self.take_back_word();
         }
-        self.recent = Recent::default();
     }
 
     /// Input moved to another field: nothing just done relates to it.
