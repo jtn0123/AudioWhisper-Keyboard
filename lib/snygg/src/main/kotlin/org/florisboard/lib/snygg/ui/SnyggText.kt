@@ -17,6 +17,8 @@
 package org.florisboard.lib.snygg.ui
 
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.text.TextAutoSize
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -26,8 +28,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.unit.takeOrElse
 import org.florisboard.lib.snygg.SnyggQueryAttributes
 import org.florisboard.lib.snygg.SnyggSelector
 import org.florisboard.lib.snygg.SnyggStylesheet
@@ -45,6 +49,7 @@ import org.florisboard.lib.snygg.SnyggStylesheet
  * @param text The text of the element.
  * @param maxLines Overrides the style's line limit when not `null` (AudioWhisper).
  * @param overflow Overrides the style's overflow when not `null` (AudioWhisper).
+ * @param autoSize Builds a [TextAutoSize] from the style's font size when not `null` (AudioWhisper).
  *
  * @since 0.5.0-alpha01
  *
@@ -59,8 +64,11 @@ fun SnyggText(
     text: String,
     maxLines: Int? = null,
     overflow: TextOverflow? = null,
+    autoSize: ((fontSize: TextUnit) -> TextAutoSize)? = null,
 ) {
     ProvideSnyggStyle(elementName, attributes, selector) { style ->
+        val fontSize = style.fontSize()
+        val fit = autoSize?.invoke(fontSize.takeOrElse { LocalTextStyle.current.fontSize })
         Text(
             modifier = modifier
                 .snyggMargin(style)
@@ -70,7 +78,8 @@ fun SnyggText(
                 .snyggPadding(style),
             text = text,
             color = style.foreground(),
-            fontSize = style.fontSize(),
+            fontSize = fontSize,
+            autoSize = fit,
             fontStyle = style.fontStyle(),
             fontWeight = style.fontWeight(),
             fontFamily = style.fontFamily(LocalSnyggPreloadedCustomFontFamilies.current),

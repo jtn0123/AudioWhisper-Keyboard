@@ -66,52 +66,56 @@ impl Raster {
             }
             self.box_at(r, &style.container);
             let mut r = inset(r, style.container.padding);
-            if let Some((icon, second)) = bar.aux.get(i) {
-                if !icon.is_empty() {
-                    let icon_style = &bar.icons[i];
-                    let width =
-                        icon_style.size.round() + icon_style.margin[0] + icon_style.margin[2];
-                    self.icon(
-                        icon,
-                        icon_style,
-                        inset(
-                            Rect {
-                                right: r.left + width,
-                                ..r
-                            },
-                            icon_style.margin,
-                        ),
-                    )?;
-                    r.left += width;
-                }
-                if !second.is_empty() {
-                    let secondary = &bar.secondary[i];
-                    let primary_height = self.text.height(
-                        &scene.candidates[i],
-                        style.text.size,
-                        style.text.mono,
-                        style.text.weight,
-                    );
-                    let second_height =
-                        self.text
-                            .height(second, secondary.size, secondary.mono, secondary.weight);
-                    let total =
-                        primary_height + second_height + secondary.margin[1] + secondary.margin[3];
-                    let top = r.top + (r.height() - total) / 2.0;
-                    self.fitted_label(
-                        second,
-                        secondary,
+            let (icon, second) = bar
+                .aux
+                .get(i)
+                .map_or(("", ""), |(a, b)| (a.as_str(), b.as_str()));
+            if !icon.is_empty() {
+                let icon_style = &bar.icons[i];
+                let width = icon_style.size.round() + icon_style.margin[0] + icon_style.margin[2];
+                self.icon(
+                    icon,
+                    icon_style,
+                    inset(
                         Rect {
-                            top: top + primary_height + secondary.margin[1],
-                            bottom: top + total - secondary.margin[3],
+                            right: r.left + width,
                             ..r
                         },
-                    )?;
-                    r.top = top;
-                    r.bottom = top + primary_height;
-                }
+                        icon_style.margin,
+                    ),
+                )?;
+                r.left += width;
             }
-            self.fitted_label(&scene.candidates[i], &style.text, r)?;
+            // The word shrinks toward MIN_TEXT_SCALE before it ellipsises, as Compose's autoSize.
+            let text = &scene.candidates[i];
+            let t = &style.text;
+            let size = t.size
+                * crate::smartbar::fit_text(r.width(), |scale| {
+                    self.text.measure(text, t.size * scale, t.mono, t.weight)
+                });
+            if !second.is_empty() {
+                let secondary = &bar.secondary[i];
+                let primary_height = self.text.height(text, size, t.mono, t.weight);
+                let second_height =
+                    self.text
+                        .height(second, secondary.size, secondary.mono, secondary.weight);
+                let total =
+                    primary_height + second_height + secondary.margin[1] + secondary.margin[3];
+                let top = r.top + (r.height() - total) / 2.0;
+                self.fitted_label(
+                    second,
+                    secondary,
+                    secondary.size,
+                    Rect {
+                        top: top + primary_height + secondary.margin[1],
+                        bottom: top + total - secondary.margin[3],
+                        ..r
+                    },
+                )?;
+                r.top = top;
+                r.bottom = top + primary_height;
+            }
+            self.fitted_label(text, t, size, r)?;
         }
         self.context.pop_clip();
         Ok(())
@@ -203,26 +207,22 @@ impl Raster {
         self.context.reset_transform();
         Ok(())
     }
-    fn fitted_label(&mut self, text: &str, style: &Style, r: Rect) -> Result<(), String> {
-        let measured = self
-            .text
-            .measure(text, style.size, style.mono, style.weight);
+    fn fitted_label(
+        &mut self,
+        text: &str,
+        style: &Style,
+        size: f32,
+        r: Rect,
+    ) -> Result<(), String> {
+        let measured = self.text.measure(text, size, style.mono, style.weight);
         if measured <= r.width() {
-            return self.label(
-                text,
-                style.size,
-                style.foreground,
-                r,
-                style.mono,
-                style.weight,
-            );
+            return self.label(text, size, style.foreground, r, style.mono, style.weight);
         }
         let mut ends = vec![0];
         ends.extend(text.grapheme_indices(true).map(|(i, s)| i + s.len()));
         let low = crate::smartbar::fit_prefix(ends.len(), r.width(), |mid| {
             let label = format!("{}…", &text[..ends[mid]]);
-            self.text
-                .measure(&label, style.size, style.mono, style.weight)
+            self.text.measure(&label, size, style.mono, style.weight)
         });
         let label = if low == 0 {
             String::new()
@@ -231,12 +231,10 @@ impl Raster {
         };
         // Compose's overflowing Text occupies the constrained column and draws from its start.
         // Center only text which fit intrinsically (the early return above).
-        let fitted = self
-            .text
-            .measure(&label, style.size, style.mono, style.weight);
+        let fitted = self.text.measure(&label, size, style.mono, style.weight);
         self.label(
             &label,
-            style.size,
+            size,
             style.foreground,
             Rect {
                 right: r.left + fitted,

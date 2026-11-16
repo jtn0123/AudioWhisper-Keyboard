@@ -79,4 +79,22 @@ class SmartbarMatchTest {
         // sticky are free (24); shared collapsed or extended either way (3); speaker and reading not both (3).
         assertEquals(24 * 3 * 3, roomy)
     }
+
+    @Test fun wordsShrinkStepForStepWithTheReference() {
+        val random = Random(0x3b05)
+        repeat(20_000) {
+            val scale = listOf(1f, 0.9f, 0.83f, 0.75f, 0.6f, random.nextFloat() + 0.01f)[it % 6]
+            val available = random.nextFloat() * 600f
+            val measured = random.nextFloat() * 900f
+            assertEquals(ReferenceSmartbar.textScale(scale, measured, available),
+                SmartbarRules.textScale(scale, measured, available), "scale=$scale measured=$measured available=$available")
+        }
+        // The fitting loop, with a hinted (slightly superlinear) measure.
+        assertEquals(0.79f, SmartbarRules.fitText(100f) { 120f * it + 5f })
+        assertEquals(0.75f, SmartbarRules.fitText(100f) { 200f * it })
+        assertEquals(1f, SmartbarRules.fitText(100f) { 90f * it })
+        var measures = 0
+        SmartbarRules.fitText(100f) { measures++; 1000f * kotlin.math.sqrt(it) }
+        assertTrue(measures <= SmartbarRules.TEXT_FIT_STEPS)
+    }
 }

@@ -4,7 +4,7 @@ import kotlin.math.roundToInt
 
 /** Test-only transcription of Smartbar.kt, QuickActionsRow.kt and CandidatesRow.kt.
  * Intrinsics are supplied independently, as Compose's text measurement supplies them to Row.
- * AudioWhisper's roomy row is restated from its spec, not from the Rust.
+ * AudioWhisper's roomy row and word shrink are restated from their spec, not from the Rust.
  */
 internal object ReferenceSmartbar {
     /** While words show, a shared or extended main row drops its toggle, sticky, speaker and emoji,
@@ -18,6 +18,10 @@ internal object ReferenceSmartbar {
         return fact(0) && (mode == 2 || mode == 3) && fact(14) && !(mode == 2 && shared) && !showInline &&
             !preview && !fact(15) && !(fact(16) && fact(6))
     }
+    /** A word shrinks to the whole percent that fits, never below three quarters. */
+    fun textScale(scale: Float, measured: Float, available: Float): Float =
+        if (measured <= available || !measured.isFinite() || !available.isFinite()) scale
+        else minOf(scale, maxOf(0.75f, kotlin.math.floor(scale * maxOf(available, 0f) / measured * 100f) / 100f))
     fun layout(c: FloatArray, width: Float, words: FloatArray): FloatArray {
         if (c[0] == 0f) return FloatArray(8)
         val mode = c[1].toInt()
