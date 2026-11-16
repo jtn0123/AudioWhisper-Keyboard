@@ -39,7 +39,7 @@ struct Fake {
 type Decoded = (&'static str, i32, i32);
 
 /// Each input's results.
-const RESULTS: [(&str, &[Decoded]); 16] = [
+const RESULTS: [(&str, &[Decoded]); 17] = [
     (
         "teh",
         &[("the", 477_893, CORRECTION), ("ten", 400_787, CORRECTION)],
@@ -63,6 +63,10 @@ const RESULTS: [(&str, &[Decoded]); 16] = [
     (
         "ok",
         &[("OK", 1_740_557, EXACT), ("on", 521_841, CORRECTION)],
+    ),
+    (
+        "korea",
+        &[("Korea", 1_600_000, EXACT), ("Korean", 471_045, CORRECTION)],
     ),
     ("london", &[("London", 1_801_319, EXACT)]),
     (
@@ -128,7 +132,7 @@ fn results(input: &str) -> Vec<RawSuggestion> {
         .collect()
 }
 
-const PROBABILITIES: [(&str, i32); 12] = [
+const PROBABILITIES: [(&str, i32); 14] = [
     ("jello", 120),
     ("WOR", 79),
     ("work", 200),
@@ -141,6 +145,8 @@ const PROBABILITIES: [(&str, i32); 12] = [
     ("fro", 73),
     ("yeah", 135),
     ("nit", 59),
+    ("Korea", 140),
+    ("Korean", 135),
 ];
 
 impl Lookup for Fake {
@@ -160,7 +166,8 @@ impl Dictionary for Fake {
             .words
             .first()
             .map(|word| String::from_utf16_lossy(word));
-        let known = previous.as_deref() == Some("came") && word == utf16("from");
+        let known = (previous.as_deref() == Some("came") && word == utf16("from"))
+            || (previous.as_deref() == Some("South") && word == utf16("Korean"));
         Ok(if known { 194 } else { NOT_A_PROBABILITY })
     }
 
@@ -328,6 +335,15 @@ fn leaves_valid_words_alone_unless_much_rarer_in_context() {
     );
     assert_eq!(none.auto_correction("and ", "fro", ""), None);
     assert_eq!(none.auto_correction("", "fro", ""), None);
+}
+
+#[test]
+fn a_name_typed_right_is_not_taken_for_an_unknown_word() {
+    let none = Words::none();
+    // The decoder is asked for "korea", which is no word; "Korea" is, and no rarer than
+    // "Korean", which the dictionary knows after "South".
+    assert_eq!(none.words("South ", "Korea", ""), ["Korea", "Korean"]);
+    assert_eq!(none.auto_correction("South ", "Korea", ""), None);
 }
 
 #[test]

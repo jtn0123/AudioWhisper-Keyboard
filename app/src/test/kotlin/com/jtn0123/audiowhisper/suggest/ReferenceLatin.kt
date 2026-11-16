@@ -182,19 +182,23 @@ object ReferenceLatin {
             val typed = state.typed
             if (typed.codePointCount(0, typed.length) <= 1) return false
             if (isCaseOnlyAcronym(typed, top.display)) return false
-            return !isTypedValid || isMuchRarer(input, top.raw, state.previousWords)
+            return !isTypedValid || isMuchRarer(typed, input, top.raw, state.previousWords)
         }
 
         /**
          * A valid word that is a likely slip: the dictionary knows the suggestion after the previous
          * word but not the typed word, and the suggestion is at least [RARER_BY] steps more frequent
-         * on the 0-255 log scale ("came fro" -> "came from", "a lit" -> "a lot").
+         * on the 0-255 log scale ("came fro" -> "came from", "a lit" -> "a lot"). The typed word is
+         * asked about as the dictionary holds it: the decoder's lower-cased [input], or as [typed]
+         * when only that is a word, so a name typed right ("South Korea") is not taken for an
+         * unknown word and corrected to another ("South Korean").
          */
-        private fun isMuchRarer(input: String, suggestion: RawSuggestion, previous: PreviousWords): Boolean {
+        private fun isMuchRarer(typed: String, input: String, suggestion: RawSuggestion, previous: PreviousWords): Boolean {
             if (previous.words.isEmpty()) return false
-            if (decoder.ngramProbability(previous, input) != NOT_A_PROBABILITY) return false
+            val word = if (input != typed && decoder.probability(input) == NOT_A_PROBABILITY) typed else input
+            if (decoder.ngramProbability(previous, word) != NOT_A_PROBABILITY) return false
             if (decoder.ngramProbability(previous, suggestion.word) == NOT_A_PROBABILITY) return false
-            val typedProbability = decoder.probability(input).coerceAtLeast(0)
+            val typedProbability = decoder.probability(word).coerceAtLeast(0)
             return decoder.probability(suggestion.word) - typedProbability >= RARER_BY
         }
 

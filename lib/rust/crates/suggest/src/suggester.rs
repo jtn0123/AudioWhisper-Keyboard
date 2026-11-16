@@ -427,14 +427,18 @@ where
         if is_case_only_acronym(typed, &top.display) {
             return Ok(false);
         }
-        Ok(!is_typed_valid || self.is_much_rarer(input, &top.raw, &state.previous_words)?)
+        Ok(!is_typed_valid || self.is_much_rarer(typed, input, &top.raw, &state.previous_words)?)
     }
 
     /// A valid word that is a likely slip: the dictionary knows the suggestion after the previous
     /// word but not the typed word, and the suggestion is at least [`RARER_BY`] steps more
-    /// frequent on the 0-255 log scale ("came fro" -> "came from", "a lit" -> "a lot").
+    /// frequent on the 0-255 log scale ("came fro" -> "came from", "a lit" -> "a lot"). The typed
+    /// word is asked about as the dictionary holds it: the decoder's lower-cased `input`, or as
+    /// typed when only that is a word, so a name typed right ("South Korea") is not taken for an
+    /// unknown word and corrected to another ("South Korean").
     fn is_much_rarer(
         &mut self,
+        typed: &[u16],
         input: &[u16],
         suggestion: &RawSuggestion,
         previous: &PreviousWords,
@@ -442,13 +446,18 @@ where
         if previous.words.is_empty() {
             return Ok(false);
         }
-        if self.dictionary.ngram_probability(input)? != NOT_A_PROBABILITY {
+        let word = if input != typed && self.dictionary.probability(input)? == NOT_A_PROBABILITY {
+            typed
+        } else {
+            input
+        };
+        if self.dictionary.ngram_probability(word)? != NOT_A_PROBABILITY {
             return Ok(false);
         }
         if self.dictionary.ngram_probability(&suggestion.word)? == NOT_A_PROBABILITY {
             return Ok(false);
         }
-        let typed_probability = self.dictionary.probability(input)?.max(0);
+        let typed_probability = self.dictionary.probability(word)?.max(0);
         // An Int's subtraction, which wraps.
         let rise = (self.dictionary.probability(&suggestion.word)?).wrapping_sub(typed_probability);
         Ok(rise >= RARER_BY)
