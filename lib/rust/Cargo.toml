@@ -20,6 +20,7 @@ default-members = [
     "crates/keys",
     "crates/input",
     "crates/latin",
+    "crates/lexicon",
     "crates/nlp",
     "crates/popup",
     "crates/reader",
