@@ -25,6 +25,8 @@ pub mod session;
 pub mod suggester;
 pub mod swipe_words;
 pub mod tap;
+pub mod tap_aim;
+pub mod tap_learning;
 pub mod undo;
 pub mod word_case;
 pub mod word_characters;

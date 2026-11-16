@@ -62,6 +62,8 @@ pub struct TapTrail {
     pressed_code_point: i32,
     pressed_offset: Option<TapOffset>,
     trail: VecDeque<Typed>,
+    /// Characters typed since the last deletion (or since the trail was cleared).
+    since_deletion: usize,
 }
 
 /// No key is pressed.
@@ -78,6 +80,7 @@ impl TapTrail {
             pressed_code_point: NONE,
             pressed_offset: None,
             trail: VecDeque::new(),
+            since_deletion: 0,
         }
     }
 
@@ -97,6 +100,7 @@ impl TapTrail {
                 None
             };
             self.trail.push_back(Typed { code_point, offset });
+            self.since_deletion = self.since_deletion.saturating_add(1);
             while self.trail.len() > self.capacity {
                 self.trail.pop_front();
             }
@@ -108,10 +112,12 @@ impl TapTrail {
     /// The last typed character was deleted.
     pub fn deleted(&mut self) {
         self.trail.pop_back();
+        self.since_deletion = 0;
     }
 
     pub fn clear(&mut self) {
         self.trail.clear();
+        self.since_deletion = 0;
         self.pressed_code_point = NONE;
         self.pressed_offset = None;
     }
@@ -119,24 +125,39 @@ impl TapTrail {
     /// Where each character of `word` was tapped, if the last characters typed spell `word` (in
     /// any case) and at least one was tapped; otherwise nothing.
     pub fn offsets_for(&self, word: &[u16]) -> Vec<Option<TapOffset>> {
-        let code_points = java::code_points(word);
-        if code_points.is_empty() || code_points.len() > self.trail.len() {
+        let Some(typed) = self.typed_for(word) else {
             return Vec::new();
-        }
-        let start = self.trail.len() - code_points.len();
-        let typed = self.trail.range(start..);
-        if !typed
-            .clone()
-            .zip(&code_points)
-            .all(|(typed, &cp)| same_key(typed.code_point, cp))
-        {
-            return Vec::new();
-        }
-        let offsets: Vec<_> = typed.map(|typed| typed.offset).collect();
+        };
+        let offsets: Vec<_> = typed.iter().map(|&(_, offset)| offset).collect();
         if offsets.iter().all(Option::is_none) {
             return Vec::new();
         }
         offsets
+    }
+
+    /// The last characters typed, if they spell `word` (in any case): each as typed, with where
+    /// it was tapped. `None` for an empty word or one the trail doesn't end with.
+    pub fn typed_for(&self, word: &[u16]) -> Option<Vec<(i32, Option<TapOffset>)>> {
+        let code_points = java::code_points(word);
+        if code_points.is_empty() || code_points.len() > self.trail.len() {
+            return None;
+        }
+        let start = self.trail.len() - code_points.len();
+        let typed: Vec<_> = self
+            .trail
+            .range(start..)
+            .map(|typed| (typed.code_point, typed.offset))
+            .collect();
+        let spells = typed
+            .iter()
+            .zip(&code_points)
+            .all(|(&(typed, _), &cp)| same_key(typed, cp));
+        spells.then_some(typed)
+    }
+
+    /// Whether the last `count` characters were all typed since the last deletion.
+    pub fn typed_since_deletion(&self, count: usize) -> bool {
+        count <= self.since_deletion
     }
 }
 
@@ -219,6 +240,29 @@ mod tests {
         trail.pressed('a' as i32, Some(LEFT));
         trail.typed(&utf16("aa"));
         assert_eq!(trail.offsets_for(&utf16("aa")), vec![Some(LEFT), None]);
+    }
+
+    #[test]
+    fn knows_what_was_typed_since_the_last_deletion() {
+        let mut trail = TapTrail::new(TapTrail::CAPACITY);
+        trail.pressed('a' as i32, Some(LEFT));
+        trail.typed(&utf16("ab"));
+        assert!(trail.typed_since_deletion(2));
+        assert!(!trail.typed_since_deletion(3));
+        trail.deleted();
+        assert!(trail.typed_since_deletion(0));
+        assert!(!trail.typed_since_deletion(1));
+        trail.typed(&utf16("c"));
+        assert_eq!(
+            trail.typed_for(&utf16("AC")),
+            Some(vec![('a' as i32, Some(LEFT)), ('c' as i32, None)])
+        );
+        assert!(trail.typed_since_deletion(1));
+        assert!(!trail.typed_since_deletion(2));
+        assert_eq!(trail.typed_for(&utf16("xc")), None);
+        assert_eq!(trail.typed_for(&utf16("")), None);
+        trail.clear();
+        assert!(!trail.typed_since_deletion(1));
     }
 
     #[test]

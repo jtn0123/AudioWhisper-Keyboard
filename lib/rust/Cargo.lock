@@ -1883,6 +1883,7 @@ name = "suggest"
 version = "0.1.0"
 dependencies = [
  "chars",
+ "keys",
  "latin",
  "ngram",
 ]

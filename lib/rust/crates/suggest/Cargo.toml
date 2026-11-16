@@ -9,6 +9,7 @@ rust-version.workspace = true
 
 [dependencies]
 chars = { path = "../chars" }
+keys = { path = "../keys" }
 latin = { path = "../latin" }
 ngram = { path = "../ngram" }
 
