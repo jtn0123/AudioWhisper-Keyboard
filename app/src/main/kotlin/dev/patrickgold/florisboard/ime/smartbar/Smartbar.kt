@@ -351,7 +351,6 @@ private fun SmartbarMainRow(modifier: Modifier = Modifier) {
                 !flipToggles -> {
                     SharedActionsToggle()
                     CenterContent()
-                    PinnedEmojiAction()
                     PinnedReadAloudAction()
                     StickyAction()
                 }
@@ -359,7 +358,6 @@ private fun SmartbarMainRow(modifier: Modifier = Modifier) {
                     StickyAction()
                     PinnedReadAloudAction()
                     CenterContent()
-                    PinnedEmojiAction()
                     SharedActionsToggle()
                 }
             }
@@ -369,7 +367,6 @@ private fun SmartbarMainRow(modifier: Modifier = Modifier) {
                 !flipToggles -> {
                     ExtendedActionsToggle()
                     CenterContent()
-                    PinnedEmojiAction()
                     PinnedReadAloudAction()
                     StickyAction()
                 }
@@ -377,29 +374,11 @@ private fun SmartbarMainRow(modifier: Modifier = Modifier) {
                     StickyAction()
                     PinnedReadAloudAction()
                     CenterContent()
-                    PinnedEmojiAction()
                     ExtendedActionsToggle()
                 }
             }
         }
     }
-}
-
-private val PinnedEmoji = QuickAction.InsertKey(TextKeyData.IME_UI_MODE_MEDIA)
-
-/**
- * Emoji, always one tap away just right of the suggestions. It replaces the emoji key that sat beside the
- * space bar (the utility key, now off by default), which is what lets the space bar be wider.
- */
-@Composable
-private fun PinnedEmojiAction() {
-    val keyboardManager by LocalContext.current.keyboardManager()
-    val evaluator by keyboardManager.activeSmartbarEvaluator.collectAsState()
-    QuickActionButton(
-        modifier = Modifier.padding(horizontal = 4.dp),
-        action = PinnedEmoji,
-        evaluator = evaluator,
-    )
 }
 
 private val PinnedReadAloud = QuickAction.InsertKey(TextKeyData.READ_ALOUD)

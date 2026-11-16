@@ -199,10 +199,10 @@ abstract class ReferencePreferenceModel : PreferenceModel() {
         val hintedNumberRowMode = enum(key = "keyboard__hinted_number_row_mode", default = KeyHintMode.SMART_PRIORITY)
         val hintedSymbolsEnabled = boolean(key = "keyboard__hinted_symbols_enabled", default = true)
         val hintedSymbolsMode = enum(key = "keyboard__hinted_symbols_mode", default = KeyHintMode.SMART_PRIORITY)
-        // Off so the space bar is wider: emoji has its own button in the suggestion bar instead
-        // (see Smartbar.kt). Turning it back on brings back the emoji/language key beside the space bar.
-        val utilityKeyEnabled = boolean(key = "keyboard__utility_key_enabled", default = false)
-        val utilityKeyAction = enum(key = "keyboard__utility_key_action", default = UtilityKeyAction.DYNAMIC_SWITCH_LANGUAGE_EMOJIS)
+        // On, as emoji: the emoji key sits between the comma and the space bar, as in Gboard, and
+        // the suggestion bar no longer pins an emoji button (see docs/decisions.md).
+        val utilityKeyEnabled = boolean(key = "keyboard__utility_key_enabled", default = true)
+        val utilityKeyAction = enum(key = "keyboard__utility_key_action", default = UtilityKeyAction.SWITCH_TO_EMOJIS)
         val spaceBarMode = enum(key = "keyboard__space_bar_display_mode", default = SpaceBarMode.CURRENT_LANGUAGE)
         val capitalizationBehavior = enum(key = "keyboard__capitalization_behavior", default = CapitalizationBehavior.CAPSLOCK_BY_DOUBLE_TAP)
         val fontSizeMultiplierPortrait = int(key = "keyboard__font_size_multiplier_portrait", default = 100)

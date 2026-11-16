@@ -96,9 +96,9 @@ internal fun rendererSmartbar(preview: Boolean, inline: Boolean = false): Render
     val incognitoMode by prefs.keyboard.incognitoDisplayMode.observeAsState()
     val scope = rememberCoroutineScope()
     val expanded = if (layout == SmartbarLayout.SUGGESTIONS_ACTIONS_EXTENDED) extended else shared
+    // Slot 2 was the pinned emoji, now the bottom row's emoji key; Rust never places it.
     val actions = listOf(arrangement.stickyAction, QuickAction.InsertKey(TextKeyData.READ_ALOUD),
-        QuickAction.InsertKey(TextKeyData.IME_UI_MODE_MEDIA), QuickAction.InsertKey(TextKeyData.TOGGLE_ACTIONS_OVERFLOW),
-        null) + arrangement.dynamicActions
+        null, QuickAction.InsertKey(TextKeyData.TOGGLE_ACTIONS_OVERFLOW), null) + arrangement.dynamicActions
     val arrow = if (flip xor (expanded && incognitoMode == IncognitoDisplayMode.DISPLAY_BEHIND_KEYBOARD)) {
         Icons.AutoMirrored.Default.KeyboardArrowLeft
     } else Icons.AutoMirrored.Default.KeyboardArrowRight

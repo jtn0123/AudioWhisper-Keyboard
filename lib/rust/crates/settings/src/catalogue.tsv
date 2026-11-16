@@ -83,8 +83,8 @@ keyboard__hinted_number_row_enabled	b	true					#
 keyboard__hinted_number_row_mode	s	SMART_PRIORITY				DISABLED|HINT_PRIORITY|ACCENT_PRIORITY|SMART_PRIORITY	#
 keyboard__hinted_symbols_enabled	b	true					#
 keyboard__hinted_symbols_mode	s	SMART_PRIORITY				DISABLED|HINT_PRIORITY|ACCENT_PRIORITY|SMART_PRIORITY	#
-keyboard__utility_key_enabled	b	false					#
-keyboard__utility_key_action	s	DYNAMIC_SWITCH_LANGUAGE_EMOJIS				SWITCH_TO_EMOJIS|SWITCH_LANGUAGE|SWITCH_KEYBOARD_APP|DYNAMIC_SWITCH_LANGUAGE_EMOJIS|DISABLED	#
+keyboard__utility_key_enabled	b	true					#
+keyboard__utility_key_action	s	SWITCH_TO_EMOJIS				SWITCH_TO_EMOJIS|SWITCH_LANGUAGE|SWITCH_KEYBOARD_APP|DYNAMIC_SWITCH_LANGUAGE_EMOJIS|DISABLED	#
 keyboard__space_bar_display_mode	s	CURRENT_LANGUAGE				NOTHING|CURRENT_LANGUAGE|SPACE_BAR_KEY	#
 keyboard__capitalization_behavior	s	CAPSLOCK_BY_DOUBLE_TAP				CAPSLOCK_BY_DOUBLE_TAP|CAPSLOCK_BY_CYCLE	#
 keyboard__font_size_multiplier_portrait	i	100	50	150	5		#

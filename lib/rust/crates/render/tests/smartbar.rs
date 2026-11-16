@@ -152,9 +152,10 @@ fn fractional_density_and_row_height_do_not_add_an_extra_quick_action() {
     ])
     .unwrap();
     let l = smartbar::layout(&c, 1080.0, &[], 0.0);
-    assert_eq!(l.visible_dynamic, 3);
-    assert_eq!(l.center.width(), 562.0);
-    assert_eq!(l.actions.len(), 8); // four pinned/toggle actions plus overflow and three dynamic.
+    // 1080 - 113 (arrow) - 2 * 135 (mic and speaker, each 113 + 2 * 11 edge) = 697: six slots.
+    assert_eq!(l.visible_dynamic, 5);
+    assert_eq!(l.center.width(), 697.0);
+    assert_eq!(l.actions.len(), 9); // mic, speaker and arrow plus overflow and five dynamic.
 }
 
 #[test]
@@ -180,4 +181,46 @@ fn disabled_action_regions_still_deliver_tooltip_gestures_to_the_host() {
         t.event(&mut s, &event(1, 20.0, 20.0)),
         vec![Event(render::protocol::TOOLTIP_UP, 0, 7)]
     );
+}
+
+#[test]
+fn the_pinned_emoji_is_never_placed_in_any_state() {
+    // Emoji is the bottom row's utility key now; slot 2 stays in the packet but never in a row.
+    let mut placed = 0;
+    for bits in 0..1 << 12 {
+        let bit = |n: u32| f32::from(u8::from(bits & (1 << n) != 0));
+        for layout in 0..4 {
+            let a = [
+                1.0,
+                layout as f32,
+                bit(0),
+                bit(1),
+                bit(2),
+                bit(3) + bit(4),
+                bit(5),
+                bit(6),
+                19.0,
+                0.0,
+                2.625,
+                113.0,
+                bit(7),
+                bit(8),
+                bit(9),
+                bit(10),
+                bit(11),
+            ];
+            let c = Config::decode(&a).unwrap();
+            for words in [&[][..], &[60.0, 300.0, 900.0][..]] {
+                let l = smartbar::layout(&c, 1080.0, words, 0.0);
+                placed += l.actions.len();
+                assert!(l.actions.iter().all(|s| s.id != 2), "{a:?}");
+                let packed = l.packed(&c);
+                assert!(
+                    packed[8..].chunks(6).all(|s| !(s[0] == 1.0 && s[1] == 2.0)),
+                    "{a:?}"
+                );
+            }
+        }
+    }
+    assert!(placed > 0);
 }

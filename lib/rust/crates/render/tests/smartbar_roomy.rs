@@ -43,12 +43,14 @@ fn words_take_the_whole_main_row_in_every_shared_and_extended_arrangement() {
                     let (before, after) = (row(&idle), row(&words));
                     let mut ids: Vec<_> = before.actions.iter().map(|s| s.id).collect();
                     ids.sort_unstable();
-                    let mut today = vec![2, 4];
+                    let mut today = vec![4];
                     today.extend((speaker != 0.0).then_some(1));
                     today.extend((sticky != 0.0).then_some(0));
                     today.sort_unstable();
                     assert_eq!(ids, today, "today's row: {case}");
-                    assert!(before.center.width() < 300.0, "{case}");
+                    // Arrow 40, the mic's slot 48 (reserved even when empty) and the speaker 48.
+                    let today = 400.0 - 40.0 - 48.0 - 48.0 * speaker;
+                    assert_eq!(before.center.width(), today, "{case}");
                     assert!(after.actions.is_empty(), "{case}");
                     assert_eq!((after.center.left, after.center.right), (0.0, 400.0));
                     let spans: Vec<_> = after
@@ -88,12 +90,13 @@ fn an_empty_row_keeps_todays_controls_and_auto_expansion() {
         let idle = decode(&a);
         assert!(!idle.roomy());
         let empty = smartbar::layout(&idle, 400.0, &[], 0.0);
-        assert_eq!(empty.actions.len(), 4);
+        let ids: Vec<_> = empty.actions.iter().map(|s| s.id).collect();
+        assert_eq!(ids, [0, 1, 4], "mic, speaker and arrow; no pinned emoji");
     }
     // Shared and expanded with no words: the actions toolbar, between the same pinned controls.
     (a[1], a[3]) = (2.0, 1.0);
     let expanded = smartbar::layout(&decode(&a), 400.0, &[], 0.0);
-    assert!(expanded.actions.len() > 4);
+    assert!(expanded.actions.len() > 3);
 }
 
 #[test]

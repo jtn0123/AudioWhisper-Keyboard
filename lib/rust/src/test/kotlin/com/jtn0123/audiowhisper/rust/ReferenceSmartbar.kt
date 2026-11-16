@@ -7,7 +7,7 @@ import kotlin.math.roundToInt
  * AudioWhisper's roomy row and word shrink are restated from their spec, not from the Rust.
  */
 internal object ReferenceSmartbar {
-    /** While words show, a shared or extended main row drops its toggle, sticky, speaker and emoji,
+    /** While words show, a shared or extended main row drops its toggle, sticky and speaker,
      * unless dictation owns the row or read-aloud does through the speaker. */
     fun roomy(c: FloatArray): Boolean {
         fun fact(at: Int) = c.getOrElse(at) { 0f } != 0f
@@ -54,21 +54,20 @@ internal object ReferenceSmartbar {
             val edge = (4*dp).roundToInt().toFloat()
             val pinned = h + 2*edge
             val read = if (speaker) pinned else 0f
+            // The pinned emoji (2) left the bar for the bottom row's emoji key.
             if (flip) {
                 if (sticky || (mode == 2 && shared)) action(if (sticky) 0 else 3, edge)
                 if (speaker) action(1, pinned+edge)
-                action(2, width-h-pinned+edge)
                 action(4, width-h)
                 left = pinned+read
-                right = maxOf(left, width-h-pinned)
+                right = maxOf(left, width-h)
             } else {
                 action(4, 0f)
                 val end = width-pinned-read
-                action(2, end-pinned+edge)
                 if (speaker) action(1, end+edge)
                 if (sticky || (mode == 2 && shared)) action(if (sticky) 0 else 3, width-pinned+edge)
                 left = h
-                right = maxOf(h, end-pinned)
+                right = maxOf(h, end)
             }
         }
         fun quickActions(l: Float, r: Float, y: Float) {

@@ -67,7 +67,7 @@ impl Config {
         self.enabled && self.inline && !self.preview && !(self.layout == 2 && self.shared)
     }
     /// Words fill the main row: while suggestions show in a shared or extended layout, the
-    /// pinned toggle, sticky action, speaker and emoji give way so long words fit. The row stays
+    /// pinned toggle, sticky action and speaker give way so long words fit. The row stays
     /// as it was while dictating, and while reading aloud with the speaker as the way to stop.
     pub fn roomy(&self) -> bool {
         self.enabled
@@ -96,7 +96,9 @@ impl Config {
     }
 }
 
-/// Host action ids: sticky=0, speaker=1, emoji=2, overflow=3, toggle=4, dynamic=5+.
+/// Host action ids: sticky=0, speaker=1, overflow=3, toggle=4, dynamic=5+. Id 2 was the pinned
+/// emoji; emoji is now the bottom row's utility key, so 2 is never placed. Its packet slot stays,
+/// so the ids the host, touch and TalkBack share do not move.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Slot {
     pub id: usize,
@@ -207,14 +209,12 @@ pub fn layout(c: &Config, width: f32, intrinsic: &[f32], scroll: f32) -> Layout 
             if c.speaker {
                 add(1, pinned + edge, h);
             }
-            add(2, width - h - pinned + edge, h);
             add(4, width - h, h);
             out.center.left = pinned + speaker;
-            out.center.right = (width - h - pinned).max(out.center.left);
+            out.center.right = (width - h).max(out.center.left);
         } else {
             add(4, 0.0, h);
             let right = width - pinned - speaker;
-            add(2, right - pinned + edge, h);
             if c.speaker {
                 add(1, right + edge, h);
             }
@@ -222,7 +222,7 @@ pub fn layout(c: &Config, width: f32, intrinsic: &[f32], scroll: f32) -> Layout 
                 add(if c.sticky { 0 } else { 3 }, width - pinned + edge, h);
             }
             out.center.left = h;
-            out.center.right = (right - pinned).max(h);
+            out.center.right = right.max(h);
         }
     }
     if c.inline_visible() {
