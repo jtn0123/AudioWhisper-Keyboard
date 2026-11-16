@@ -32,9 +32,11 @@ def main():
         if result.returncode or 'INSTRUMENTATION_CODE: -1' not in result.stdout:
             raise RuntimeError('Device comparison failed; retained instrumentation log')
         if args.a1:
+            # The shipped dictionary's A1 replay, as A1SessionMatchTest writes it on the host to
+            # app/build/stage2-a1/main_en-US/current/. The AOSP fixture's were daea23ac... / 658c8914...
             for key, value in {
-                'decoder_sha256': 'daea23ac4c96fcf41d7c8d165faf3fde16e9fbf9ed5c6f5693be19e397e54019',
-                'pipeline_sha256': '658c8914602e62d97572366074775389d3f6c49c4941b41d0b90949b253555ba',
+                'decoder_sha256': 'a1c7aaa3bc37af33523b7e33be258c68b7ff1f7786e0a27a4b0b1cd79a887fd3',
+                'pipeline_sha256': '26b57744452561b2309b2d24185e63a58222ea5f46acdacd53e29bd1d7d8ce51',
             }.items():
                 if key + '=' + value not in result.stdout:
                     raise RuntimeError('A1 digest mismatch')

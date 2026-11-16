@@ -683,14 +683,16 @@ module's comment says exactly how it simulates; the results and their history ar
 The test text is held out from a public corpus, which is never committed, so get it first:
 
 ```bash
-scripts/build-language-model.sh                        # download (pinned, checked), split, score
+scripts/build-language-model.sh                        # download (pinned, checked), split, build, score
 scripts/build-language-model.sh --run build/language-model/run-<time> score   # score again
+scripts/build-language-model.sh --run build/language-model/run-<time> install # ship what was built
 ```
 
 The script downloads into a new `build/language-model/run-<time>/` folder, checks each file's
 SHA-256, splits it with `cargo run -p lexicon -- prepare` (one sentence in a hundred held out, by
-a hash of its words) and runs the scoreboard on the first 5,000 held-out sentences of each source.
-That takes under a minute. To score another dictionary on the same text:
+a hash of its words), builds the dictionary (below) and runs the scoreboard on the first 5,000
+held-out sentences of each source, for the AOSP dictionary and the one it built. That takes
+about two minutes. To score another dictionary on the same text:
 
 ```bash
 cd lib/rust
@@ -700,6 +702,24 @@ cargo run --release -p scoreboard -- --dict path/to/main.dict \
 
 `--limit N`, `--seed N` and `--threads N` change the sample, the taps and swipes, and the
 parallelism. Neither crate ships: `awnative` doesn't depend on them.
+
+### The dictionary build
+
+The app's `main_en-US.dict` is AOSP's English dictionary rebuilt from that corpus by
+`lexicon dictionary` (the script's `dictionary` step): AOSP's words, flags and shortcuts, with
+each word's frequency and up to 32 next words a word counted from the training sentences.
+`crates/lexicon` holds the pieces: `v202` reads and writes the format (writing AOSP's file back
+gives its bytes exactly), `count` counts words and pairs the way the keyboard looks them up, and
+`dictionary` turns counts into values on AOSP's scale. The build is reproducible: the same corpus
+gives the same bytes, and the script says whether they are the app's. Why this corpus and these
+settings, and what would change them: [decisions.md](decisions.md#word-statistics-from-a-public-corpus);
+the numbers: [language-model-results.md](language-model-results.md).
+
+AOSP's original is kept, unchanged, as `crates/latin/tests/fixtures/aosp_main_en-US.dict`. Tests
+that pin what the decoder answers (the C++ oracle's spot checks, `LatinImeJniTest`, the
+scoreboard's own tests) read that file, so their answers stay pinned; tests that compare two
+implementations (the port against the C++, Rust against the Kotlin references) run on both
+dictionaries.
 
 ## Layout
 
@@ -733,7 +753,7 @@ lib/rust/
   crates/awnative/            libawnative.so: the JNI functions Kotlin calls, and nothing else
   crates/latin-oracle/        test-only: LatinIME's C++ built for this computer, to compare the port with
   crates/scoreboard/          host-only: the typing scoreboard (see above)
-  crates/lexicon/             host-only: corpus split, and the tools that build word statistics from it
+  crates/lexicon/             host-only: corpus split, the v202 dictionary writer, and the dictionary build
   tools/                      generates crates/chars' tables (generate-char-tables.sh)
   src/main/kotlin/            the Kotlin side: loads the library and wraps each handle
   src/test/kotlin/            JVM tests that go through JNI

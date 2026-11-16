@@ -1,0 +1,14 @@
+{
+  "uniqueId": "globalvoices-sentences",
+  "name": "Global Voices English sentences (word statistics)",
+  "developers": [
+    {
+      "name": "Global Voices contributors",
+      "organisationUrl": "https://globalvoices.org"
+    }
+  ],
+  "website": "https://opus.nlpl.eu/GlobalVoices/corpus/version/GlobalVoices",
+  "licenses": [
+    "globalvoices-cc-by-3.0"
+  ]
+}

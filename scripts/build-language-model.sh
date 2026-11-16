@@ -11,9 +11,13 @@
 #   tatoeba       OPUS Tatoeba v2023-04-12, English sentences. CC BY 2.0 FR.
 #   globalvoices  OPUS GlobalVoices v2018q4, English sentences. CC BY 3.0.
 #
-# Steps, in order (each needs the ones before it; with none given, all run):
-#   split    held-out split: corpus/train-*.txt and corpus/test-*.txt (lexicon prepare)
-#   score    the scoreboard on the app's dictionary (and any built here), to score.md
+# Steps, in order (each needs the ones before it; with none given, split, dictionary and score
+# run):
+#   split       held-out split: corpus/train-*.txt and corpus/test-*.txt (lexicon prepare)
+#   dictionary  the AOSP dictionary (the test fixture) rebuilt from the training sentences, to
+#               dictionary/next-32.dict, and whether it is the app's dictionary byte for byte
+#   score       the scoreboard on the AOSP dictionary and the one built here, to score-*.md
+#   install     copies the dictionary built here over the app's (only when named)
 #
 # Usage: scripts/build-language-model.sh [--run DIR] [--limit N] [step ...]
 #   --run DIR   continue in an earlier run's folder instead of a new one
@@ -28,11 +32,11 @@ while [ $# -gt 0 ]; do
   case "$1" in
     --limit) LIMIT="${2:?--limit needs a number}"; shift 2 ;;
     --run) RUN="${2:?--run needs a folder}"; shift 2 ;;
-    split|score) STEPS+=("$1"); shift ;;
+    split|dictionary|score|install) STEPS+=("$1"); shift ;;
     *) echo "unknown step or option: $1" >&2; exit 2 ;;
   esac
 done
-[ ${#STEPS[@]} -gt 0 ] || STEPS=(split score)
+[ ${#STEPS[@]} -gt 0 ] || STEPS=(split dictionary score)
 wants() { local step; for step in "${STEPS[@]}"; do [ "$step" = "$1" ] && return 0; done; return 1; }
 
 NAMES=(tatoeba globalvoices)
@@ -44,6 +48,13 @@ SHA256=(
   a32c5500cd76b9479859764fb78537a4b9b53fab8fa3bdc0fc04dd70f28bf29b
   79c2a1522c64a345d7def0b36c3c044daee81d819af6f59211b5bb9f068458d5
 )
+# The dictionary build: AOSP's dictionary supplies the words and flags (see docs/decisions.md).
+AOSP_DICT=lib/rust/crates/latin/tests/fixtures/aosp_main_en-US.dict
+APP_DICT=app/src/main/assets/dicts/main_en-US.dict
+NEXT_WORDS=32
+MIN_PAIR=2
+# The header's date, pinned so a rebuild writes the same bytes: 2026-11-16 00:00 UTC.
+DICT_DATE=1794787200
 # Neither file is near these; they stop a wrong or hostile file filling the disk.
 MAX_DOWNLOAD=100000000
 MAX_TEXT=1000000000
@@ -80,9 +91,38 @@ if wants split; then
   cargo_run -p lexicon -- prepare "$RUN/corpus" "${SOURCES[@]}"
 fi
 
+BUILT="$RUN/dictionary/next-$NEXT_WORDS.dict"
+
+if wants dictionary; then
+  [ -d "$RUN/corpus" ] || { echo "$RUN has no corpus: run the split step first" >&2; exit 2; }
+  TRAIN=()
+  for name in "${NAMES[@]}"; do TRAIN+=("$RUN/corpus/train-$name.txt"); done
+  cargo_run -p lexicon -- dictionary "$PWD/$AOSP_DICT" "$RUN/dictionary" "${TRAIN[@]}" \
+    --next "$NEXT_WORDS" --min-pair "$MIN_PAIR" --date "$DICT_DATE"
+  echo "SHA-256 $(shasum -a 256 "$BUILT" | cut -d' ' -f1)"
+  if cmp -s "$BUILT" "$APP_DICT"; then
+    echo "The app's dictionary is this build, byte for byte."
+  else
+    echo "The app's dictionary differs from this build (the install step copies it)."
+  fi
+fi
+
 if wants score; then
   [ -d "$RUN/corpus" ] || { echo "$RUN has no corpus: run the split step first" >&2; exit 2; }
   TESTS=()
   for name in "${NAMES[@]}"; do TESTS+=(--test "$name=$RUN/corpus/test-$name.txt"); done
-  cargo_run -p scoreboard -- --limit "$LIMIT" "${TESTS[@]}" | tee "$RUN/score.md"
+  echo "Scoring the AOSP dictionary"
+  cargo_run -p scoreboard -- --dict "$PWD/$AOSP_DICT" --limit "$LIMIT" "${TESTS[@]}" \
+    | tee "$RUN/score-aosp.md"
+  if [ -f "$BUILT" ]; then
+    echo "Scoring the rebuilt dictionary"
+    cargo_run -p scoreboard -- --dict "$BUILT" --limit "$LIMIT" "${TESTS[@]}" \
+      | tee "$RUN/score-rebuilt.md"
+  fi
+fi
+
+if wants install; then
+  [ -f "$BUILT" ] || { echo "$RUN has no dictionary: run the dictionary step first" >&2; exit 2; }
+  cp "$BUILT" "$APP_DICT"
+  echo "Copied $BUILT to $APP_DICT"
 fi

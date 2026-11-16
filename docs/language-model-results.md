@@ -92,3 +92,119 @@ What stands out: next-word prediction is weak (one word in eight is in the strip
 because the dictionary holds at most three next words for a word, and none for most. Correction
 and swipe are already good, so there the question is whether better statistics keep them there
 or help a little.
+
+### A correction fix, on the AOSP dictionary (2026-11-16)
+
+Building Stage B turned up a bug in when a word typed right may still be auto-corrected
+(`is_much_rarer`, in `crates/suggest/src/suggester.rs`, and the Kotlin reference it matches). The
+rule asks whether the word typed has a bigram and how probable it is, but asked it of the decoder's
+input, which lower-cases a leading capital. For a name the dictionary only knows capitalised,
+"South Korea" asked about "korea": not a word, so "Korea" looked infinitely rarer than "Korean"
+and was corrected to it. It now asks about the word as typed when the lower-cased form isn't a
+word. On the AOSP dictionary this changes only the left-thumb harmful corrections (0.5% to 0.4%)
+and the timings; the full table is the AOSP column below.
+
+### Stage B: the AOSP dictionary rebuilt from the corpus (2026-11-16)
+
+`main_en-US.dict`, 2,370,665 bytes (586,216 fewer): the same v202 format, the same 160,715 words
+with the same flags and shortcuts, built by `lexicon dictionary` (see
+[rust.md](rust.md#the-typing-scoreboard)) from the 2,852,509 training sentences (32.2 million
+words). Possibly-offensive and not-a-word entries keep their old values and are never a next
+word. The debug APK went from 62,389,835 to 61,804,235 bytes (585,600 fewer; the asset is
+stored uncompressed).
+
+- **Unigrams.** Each word's value is from how often the corpus writes it, on the old scale: the
+  dictionary hands out exactly the old set of values again, the most frequent word getting the
+  highest, so the decoder's weights and thresholds, tuned on AOSP's values, still fit. Words the
+  corpus never writes (82,307 of them) keep their old order, below the rest. A capital at a
+  sentence's start is shared between "Will" and "will" as the rest of the corpus writes them.
+- **Next words.** Up to 32 a word, each seen at least twice after it: 335,018 on 41,095 words
+  (AOSP: at most 3, 481,875 in all, spread over far more words). Each value is the word's
+  probability after its previous word, put on the same scale by a fit of value against log
+  frequency, then into AOSP's 4-bit encoding. A pair whose value the encoding can't put above the
+  word's own is left out.
+- **Pairs as typed.** A pair is counted exactly when the keyboard would ask for it: the previous
+  word is what `PreviousWords::from` finds before the word, looked up as the keyboard looks it up
+  (as written, then lower-cased).
+
+| Metric | tatoeba | globalvoices | all |
+|---|---:|---:|---:|
+| Words scored | 37781 | 86766 | 124547 |
+| Next word top-1 | 14.1% | 12.9% | 13.3% |
+| Next word top-3 | 23.9% | 19.8% | 21.0% |
+| Keystroke savings | 29.2% | 28.8% | 28.9% |
+| Typos made (neutral) | 18.0% | 21.1% | 20.1% |
+| Word accuracy after autocorrect (neutral) | 97.4% | 96.6% | 96.9% |
+| Harmful corrections (neutral, of clean words) | 0.3% | 0.7% | 0.6% |
+| Missed typos (neutral, of typos) | 11.6% | 11.3% | 11.3% |
+| Wrong fixes (neutral, of typos) | 1.8% | 2.1% | 2.0% |
+| Typos made (left thumb) | 34.8% | 39.2% | 37.9% |
+| Word accuracy after autocorrect (left thumb) | 93.9% | 93.4% | 93.5% |
+| Harmful corrections (left thumb, of clean words) | 0.3% | 0.6% | 0.5% |
+| Missed typos (left thumb, of typos) | 15.1% | 14.1% | 14.4% |
+| Wrong fixes (left thumb, of typos) | 2.0% | 1.8% | 1.9% |
+| Swipe words | 35956 | 84205 | 120161 |
+| Swipe top-1 | 93.5% | 90.2% | 91.2% |
+| Swipe top-3 | 97.5% | 94.5% | 95.4% |
+| Strip time per keystroke, mean (ms) | 1.00 | 1.03 | 1.02 |
+| Strip time per keystroke, p95 (ms) | 1.38 | 1.50 | 1.47 |
+
+Against the AOSP dictionary, all held-out text:
+
+| Metric | AOSP (Stage A) | AOSP, correction fix | Stage B |
+|---|---:|---:|---:|
+| Next word top-1 | 4.8% | 4.8% | **13.3%** |
+| Next word top-3 | 12.5% | 12.5% | **21.0%** |
+| Keystroke savings | 21.7% | 21.7% | **28.9%** |
+| Word accuracy (neutral) | 96.6% | 96.6% | **96.9%** |
+| Harmful corrections (neutral) | 0.5% | 0.5% | 0.6% |
+| Missed typos (neutral) | 12.8% | 12.8% | **11.3%** |
+| Wrong fixes (neutral) | 2.3% | 2.3% | **2.0%** |
+| Word accuracy (left thumb) | 92.5% | 92.5% | **93.5%** |
+| Harmful corrections (left thumb) | 0.5% | 0.4% | 0.5% |
+| Missed typos (left thumb) | 16.8% | 16.8% | **14.4%** |
+| Wrong fixes (left thumb) | 2.3% | 2.3% | **1.9%** |
+| Swipe top-1 | 89.4% | 89.4% | **91.2%** |
+| Swipe top-3 | 94.9% | 94.9% | **95.4%** |
+| Strip time, mean (ms) | 0.93 | 0.90 | 1.02 |
+| Strip time, p95 (ms) | 1.34 | 1.29 | 1.47 |
+
+**What got worse, and why.**
+
+- *Harmful corrections* rise 0.1 point on both hands. Most are words the dictionary doesn't
+  have, mostly names ("Layla", "Rima") and new words ("hashtag"), corrected into a word the
+  context now makes likely: with many more next words, the keyboard is more often sure enough of
+  a suggestion to replace an unknown word, the same confidence that fixes more typos. (Before the
+  correction fix above, dictionary words typed right were corrected away too; in one run's dump
+  those fell from 331 to 76 with it.) The net is more right words: accuracy rises 0.3 point
+  neutral and 1.0 point left-thumb.
+- *Strip time* rises about 0.1 ms per keystroke: more next words to walk. It stays far inside the
+  budget.
+
+**Choosing the settings.** Every variant built from the same counts and scored on the same text
+("all" column):
+
+| Variant | Size (bytes) | Next top-1 | Next top-3 | Savings | Accuracy neutral / left | Harmful neutral / left | Swipe top-1 |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| No next words | 1,043,435 | 0.0% | 0.0% | 20.2% | 96.7% / 93.0% | 0.5% / 0.5% | 91.0% |
+| Up to 16 | 2,019,303 | 13.2% | 21.0% | 28.3% | 96.8% / 93.4% | 0.6% / 0.5% | 91.2% |
+| **Up to 32 (shipped)** | 2,370,665 | 13.3% | 21.0% | 28.9% | 96.9% / 93.5% | 0.6% / 0.5% | 91.2% |
+| Up to 64 | 2,760,780 | 13.3% | 21.0% | 29.6% | 96.8% / 93.6% | 0.7% / 0.6% | 91.0% |
+| Up to 32, pairs seen once | 4,048,654 | 13.3% | 21.1% | 29.0% | 96.9% / 93.5% | 0.6% / 0.5% | 91.2% |
+| Up to 32, pairs seen 3 times | 1,956,532 | 13.2% | 21.0% | 28.9% | 96.9% / 93.5% | 0.6% / 0.5% | 91.1% |
+
+Unigrams alone already lift correction and swipe; with no next words the strip shows nothing
+after a space. 32 next words save 0.6 point more keystrokes than 16 and lose nothing; 64 save
+0.7 more again but correct more clean words and swipe a little worse. Counting pairs seen only
+once costs 1.7 MB for 0.1 point; requiring three sightings saves 0.4 MB and loses 0.1 point of
+next-word top-1 and swipe, so pairs seen twice it is. Also tried and dropped: keeping AOSP's own
+next words alongside (twice the size, no gain), and mixing AOSP's word order into the corpus's as
+a prior for rarely seen words (next-word accuracy fell, nothing gained).
+
+**Text unlike the corpus.** To see how this does on text unlike what it was built from, a
+dictionary built from Tatoeba alone was scored on the GlobalVoices held-out text. Next-word top-1
+still doubles (4.6% to 9.3%) and correction holds (96.5% / 92.5% to 96.5% / 92.7%), but swipe
+top-1 drops a point (89.3% to 88.3%): next words learnt from small talk mislead the swipe ranker
+on news-like text. Built from both sources, as shipped, swipe on GlobalVoices rises instead
+(89.2% to 90.2%). So the gains depend on the corpus being near what people type; on very
+different text, expect swipe to lose about a point.

@@ -222,3 +222,42 @@ in every state, in both renderers. Slot 2 stays reserved in the packet so the id
 the host, touch and TalkBack do not move. A setting the user has already saved overrides the
 new default, as with any jetpref value. **Would change if** a second language is installed and
 the language switch is needed on that key; then put emoji on the key's long press instead.
+
+## Word statistics from a public corpus (2026-11-16)
+
+The English dictionary's frequencies and next words are counted from public text we can name and
+rebuild, not taken as AOSP's dictionary had them. AOSP's file came from text nobody can see, held
+at most three next words a word, and gave next-word top-1 of 4.8% on held-out English
+([results](language-model-results.md)).
+
+**Corpus.** English sentences from two OPUS collections, pinned by version and SHA-256 in
+`scripts/build-language-model.sh`, never committed:
+
+- [Tatoeba v2023-04-12](https://opus.nlpl.eu/Tatoeba/corpus/version/Tatoeba): short everyday
+  sentences by volunteers, [CC BY 2.0 FR](https://tatoeba.org/en/terms_of_use) (terms of use
+  §6.2). The most conversational licence-clear English there is, which is what people type.
+- [GlobalVoices v2018q4](https://opus.nlpl.eu/GlobalVoices/corpus/version/GlobalVoices):
+  citizen-media articles, [CC BY 3.0](https://globalvoices.org/about/global-voices-attribution-policy/).
+  General written English, names and topics, so the statistics don't only know small talk.
+
+Both allow use with attribution, commercial use included. No sentence ships, only counts merged
+into AOSP's word list; the attribution and the change are in the app's third-party licences
+screen (`app/src/main/config/`, which AboutLibraries lists) and in the results doc. OPUS asks to
+be cited as J. Tiedemann, 2012, *Parallel Data, Tools and Interfaces in OPUS*, LREC 2012.
+Rejected: Wikipedia and OpenSubtitles (share-alike or unclear licences for a shipped derivative),
+Common Crawl and Reddit dumps (no licence to the text), and books corpora (old English, not
+typing).
+
+**Dictionary.** The same v202 format, written by our own writer (`crates/lexicon`), so the
+decoder, its C++ oracle and the APK's memory-mapped asset are unchanged. AOSP's words, flags and
+shortcuts are kept: its possibly-offensive and not-a-word marks were made by hand and the corpus
+can't remake them, so those entries keep their values and are never a next word. Unigram values
+are AOSP's own set of values handed out again by corpus frequency, keeping the scale the decoder
+was tuned on. Up to 32 next words a word, each seen at least twice: 2,370,665 bytes against
+AOSP's 2,956,881, so the APK is 585,600 bytes smaller. 16 save fewer keystrokes; 64 save a few more but correct more clean words and
+swipe a little worse; counting pairs seen once adds 1.7 MB for 0.1 point.
+
+**Would change if** a larger licence-clear conversational corpus appears (more next words would
+then pay), if a second language needs a dictionary (the same build, with its own corpus and
+AOSP's word list for it), or if harmful corrections of unknown names grow with the user's own
+writing; then the auto-correction threshold, not the statistics, is the place to fix it.

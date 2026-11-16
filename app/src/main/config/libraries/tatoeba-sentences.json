@@ -1,0 +1,14 @@
+{
+  "uniqueId": "tatoeba-sentences",
+  "name": "Tatoeba English sentences (word statistics)",
+  "developers": [
+    {
+      "name": "Tatoeba contributors",
+      "organisationUrl": "https://tatoeba.org"
+    }
+  ],
+  "website": "https://opus.nlpl.eu/Tatoeba/corpus/version/Tatoeba",
+  "licenses": [
+    "tatoeba-cc-by-2.0-fr"
+  ]
+}
