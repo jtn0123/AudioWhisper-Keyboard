@@ -67,6 +67,8 @@ fun ThirdPartyLicensesScreen() = FlorisScreen {
             // A tap shows the license text bundled in the app, as before AboutLibraries 15, rather
             // than a row of links whose "View license" leaves for the browser.
             detailMode = LibraryDetailMode.Dialog,
+            // The dialog's button in the app's language, as the Rust renderer draws it.
+            licenseDialogConfirmText = stringRes(R.string.action__ok),
             lazyListState = lazyListState,
         )
     }

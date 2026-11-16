@@ -18,8 +18,11 @@ import com.jtn0123.audiowhisper.rust.KeyboardRenderer
 import dev.patrickgold.florisboard.app.FlorisAppActivity
 import dev.patrickgold.florisboard.app.FlorisPreferenceModel
 import dev.patrickgold.florisboard.lib.util.InputMethodUtils
+import dev.patrickgold.florisboard.R
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.*
 
 private const val SETTINGS_TRACE_TAG = "aw-profile"
@@ -148,6 +151,7 @@ internal class RustSettingsView(context: Context) : FrameLayout(context), Surfac
                 "restartInput" -> imm.restartInput(endpoint)
                 "checkModels" -> facts.checkModels { if (!released) pushFacts() }
                 "url", "intent", "copy", "forgetLearnedWords" -> facts.execute(p)
+                "load" -> loadDocument(p[1])
             }
         }
         selectionMenu.update(state.getValue("selectionToolbar").jsonPrimitive.boolean)
@@ -168,9 +172,19 @@ internal class RustSettingsView(context: Context) : FrameLayout(context), Surfac
             colors.drop(6).take(6).map { it.toUInt().toString() }.toTypedArray() + (0..32).map {
                 android.util.TypedValue.applyDimension(android.util.TypedValue.COMPLEX_UNIT_SP, it.toFloat(), metrics).toString()
             }.toTypedArray() + arrayOf(platform.dialogWindowWidth().toString(), colors[12].toUInt().toString()) + platform.vibratorFacts() +
-            colors[13].toUInt().toString()
+            colors[13].toUInt().toString() + colors.drop(14).map { it.toUInt().toString() }.toTypedArray()
         receive(native.settings(3, config))
         pushFacts()
+    }
+    /** Reads a bundled document off the main thread, as `produceLibraries` does, and hands Rust its raw text. */
+    private fun loadDocument(name: String) {
+        if (name != "libraries") return
+        activity.lifecycleScope.launch {
+            val text = withContext(Dispatchers.IO) {
+                resources.openRawResource(R.raw.aboutlibraries).bufferedReader(Charsets.UTF_8).use { it.readText() }
+            }
+            if (!released) receive(native.settings(21, arrayOf(name, text)))
+        }
     }
     private fun pushFacts() {
         facts.images { name, w, h, pixels -> receive(native.settingsImage(name, w, h, pixels)) }
