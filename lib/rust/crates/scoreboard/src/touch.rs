@@ -65,13 +65,11 @@ pub fn tap(keyboard: &Keyboard, unit: u16, hand: Hand, rng: &mut Rng) -> Typed {
     };
     let (pitch_x, pitch_y) = keyboard.pitch();
     let (cx, cy) = target.center();
-    let (mut bias_x, mut bias_y, mut spread) = (0.0, 0.0, 1.0);
-    if hand == Hand::LeftThumb {
-        let reach = thumb_reach(keyboard, cx, cy);
-        bias_x = -THUMB_SHORT_X * reach * pitch_x;
-        bias_y = THUMB_SHORT_Y * reach * pitch_y;
-        spread += THUMB_SPREAD * reach;
-    }
+    let Aim {
+        bias_x,
+        bias_y,
+        spread,
+    } = aim(keyboard, hand, cx, cy);
     for _ in 0..REDRAWS {
         let x = cx + bias_x + rng.gaussian() as f32 * SPREAD_X * spread * pitch_x;
         let y = cy + bias_y + rng.gaussian() as f32 * SPREAD_Y * spread * pitch_y;
@@ -82,9 +80,42 @@ pub fn tap(keyboard: &Keyboard, unit: u16, hand: Hand, rng: &mut Rng) -> Typed {
     typed(target, unit, cx, cy)
 }
 
+/// Where a thumb aiming at (cx, cy) lands on average, and how much more it scatters.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Aim {
+    /// How far it falls from the point aimed at, in pixels.
+    pub bias_x: f32,
+    pub bias_y: f32,
+    /// Its scatter as a multiple of a neutral tap's.
+    pub spread: f32,
+}
+
+/// How `hand` aims at (cx, cy) on `keyboard`: the left thumb falls short of far keys and scatters
+/// more there, as the module's comment says; a neutral hand aims true.
+pub fn aim(keyboard: &Keyboard, hand: Hand, cx: f32, cy: f32) -> Aim {
+    let (mut bias_x, mut bias_y, mut spread) = (0.0, 0.0, 1.0);
+    if hand == Hand::LeftThumb {
+        let (pitch_x, pitch_y) = keyboard.pitch();
+        let reach = thumb_reach(keyboard, cx, cy);
+        bias_x = -THUMB_SHORT_X * reach * pitch_x;
+        bias_y = THUMB_SHORT_Y * reach * pitch_y;
+        spread += THUMB_SPREAD * reach;
+    }
+    Aim {
+        bias_x,
+        bias_y,
+        spread,
+    }
+}
+
+/// Where the left thumb pivots: the keyboard's bottom left corner.
+pub fn thumb_pivot(keyboard: &Keyboard) -> (f32, f32) {
+    (0.0, keyboard.height)
+}
+
 /// How far (cx, cy) is from the left thumb's pivot, as a share of the keyboard's width.
 fn thumb_reach(keyboard: &Keyboard, cx: f32, cy: f32) -> f32 {
-    let (px, py) = (0.0, keyboard.height);
+    let (px, py) = thumb_pivot(keyboard);
     ((cx - px).hypot(cy - py) / keyboard.width).min(1.0)
 }
 

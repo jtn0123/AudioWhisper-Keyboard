@@ -44,6 +44,30 @@ impl Corrections {
     }
 }
 
+/// Swipes of words a swipe can spell (two keys or more), and how many came out first or in the
+/// top 3.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct Swipes {
+    pub swipes: usize,
+    pub top1: usize,
+    pub top3: usize,
+}
+
+impl Swipes {
+    /// A swipe whose word came out at `at` of the strip, if at all.
+    pub fn add(&mut self, at: Option<usize>) {
+        self.swipes += 1;
+        self.top1 += usize::from(at == Some(0));
+        self.top3 += usize::from(at.is_some());
+    }
+
+    fn merge(&mut self, other: Swipes) {
+        self.swipes += other.swipes;
+        self.top1 += other.top1;
+        self.top3 += other.top3;
+    }
+}
+
 /// Everything counted over a set of sentences.
 #[derive(Clone, Debug, Default)]
 pub struct Tally {
@@ -54,10 +78,10 @@ pub struct Tally {
     pub keystrokes: usize,
     pub neutral: Corrections,
     pub left_thumb: Corrections,
-    /// Words a swipe can spell (two keys or more), and how many came out first or in the top 3.
-    pub swipes: usize,
-    pub swipe_top1: usize,
-    pub swipe_top3: usize,
+    /// Swipes, for each of [`crate::swipe::VARIANTS`].
+    pub swipe: [Swipes; 4],
+    /// How long each swipe took to decode.
+    pub swipe_time: Vec<Duration>,
     /// How long each strip took while typing a word.
     pub typing_time: Vec<Duration>,
     /// How long each strip of next words took after a space.
@@ -73,9 +97,10 @@ impl Tally {
         self.keystrokes += other.keystrokes;
         self.neutral.merge(other.neutral);
         self.left_thumb.merge(other.left_thumb);
-        self.swipes += other.swipes;
-        self.swipe_top1 += other.swipe_top1;
-        self.swipe_top3 += other.swipe_top3;
+        for (mine, theirs) in self.swipe.iter_mut().zip(other.swipe) {
+            mine.merge(theirs);
+        }
+        self.swipe_time.extend(other.swipe_time);
         self.typing_time.extend(other.typing_time);
         self.prediction_time.extend(other.prediction_time);
     }
@@ -83,6 +108,11 @@ impl Tally {
     /// The mean and 95th percentile of [`Tally::typing_time`], in milliseconds.
     pub fn latency(&self) -> (f64, f64) {
         latency(&self.typing_time)
+    }
+
+    /// The mean and 95th percentile of [`Tally::swipe_time`], in milliseconds.
+    pub fn swipe_latency(&self) -> (f64, f64) {
+        latency(&self.swipe_time)
     }
 
     /// The mean and 95th percentile of [`Tally::prediction_time`], in milliseconds.
@@ -110,6 +140,12 @@ fn percent(part: usize, whole: usize) -> String {
 }
 
 type Row = (&'static str, fn(&Tally) -> String);
+
+/// Variant `v`'s swipe top-1, or top-3.
+fn swipe(t: &Tally, v: usize, top1: bool) -> String {
+    let s = &t.swipe[v];
+    percent(if top1 { s.top1 } else { s.top3 }, s.swipes)
+}
 
 fn rows() -> Vec<Row> {
     vec![
@@ -149,9 +185,23 @@ fn rows() -> Vec<Row> {
         ("Wrong fixes (left thumb, of typos)", |t| {
             percent(t.left_thumb.wrong_fix, t.left_thumb.typos())
         }),
-        ("Swipe words", |t| t.swipes.to_string()),
-        ("Swipe top-1", |t| percent(t.swipe_top1, t.swipes)),
-        ("Swipe top-3", |t| percent(t.swipe_top3, t.swipes)),
+        ("Swipe words", |t| t.swipe[0].swipes.to_string()),
+        ("Swipe top-1 (trace, neutral)", |t| swipe(t, 0, true)),
+        ("Swipe top-3 (trace, neutral)", |t| swipe(t, 0, false)),
+        ("Swipe top-1 (trace, left thumb)", |t| swipe(t, 1, true)),
+        ("Swipe top-3 (trace, left thumb)", |t| swipe(t, 1, false)),
+        ("Swipe top-1 (lognormal, neutral)", |t| swipe(t, 2, true)),
+        ("Swipe top-3 (lognormal, neutral)", |t| swipe(t, 2, false)),
+        ("Swipe top-1 (lognormal, left thumb)", |t| swipe(t, 3, true)),
+        ("Swipe top-3 (lognormal, left thumb)", |t| {
+            swipe(t, 3, false)
+        }),
+        ("Swipe decode per gesture, mean (ms)", |t| {
+            format!("{:.2}", t.swipe_latency().0)
+        }),
+        ("Swipe decode per gesture, p95 (ms)", |t| {
+            format!("{:.2}", t.swipe_latency().1)
+        }),
         ("Strip time per keystroke, mean (ms)", |t| {
             format!("{:.2}", t.latency().0)
         }),
