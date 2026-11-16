@@ -1,6 +1,6 @@
 {
   "uniqueId": "tatoeba-sentences",
-  "name": "Tatoeba English sentences (word statistics)",
+  "name": "Tatoeba English sentences (word statistics and next-word model)",
   "developers": [
     {
       "name": "Tatoeba contributors",

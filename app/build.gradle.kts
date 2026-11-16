@@ -212,9 +212,10 @@ android {
     }
 
     androidResources {
-        // The AOSP dictionary engine mmaps assets/dicts/*.dict straight out of the APK,
-        // which needs the entries stored uncompressed.
+        // The dictionary and the n-gram model are read straight out of the APK at their
+        // offsets, which needs the entries stored uncompressed.
         noCompress += "dict"
+        noCompress += "lm"
         // The app is English only; this also leaves out the libraries' translations.
         // Typing languages are unaffected: layouts and dictionaries are assets.
         localeFilters += "en"

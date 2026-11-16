@@ -11,13 +11,16 @@
 #   tatoeba       OPUS Tatoeba v2023-04-12, English sentences. CC BY 2.0 FR.
 #   globalvoices  OPUS GlobalVoices v2018q4, English sentences. CC BY 3.0.
 #
-# Steps, in order (each needs the ones before it; with none given, split, dictionary and score
-# run):
+# Steps, in order (each needs the ones before it; with none given, split, dictionary, model and
+# score run):
 #   split       held-out split: corpus/train-*.txt and corpus/test-*.txt (lexicon prepare)
 #   dictionary  the AOSP dictionary (the test fixture) rebuilt from the training sentences, to
 #               dictionary/next-32.dict, and whether it is the app's dictionary byte for byte
-#   score       the scoreboard on the AOSP dictionary and the one built here, to score-*.md
-#   install     copies the dictionary built here over the app's (only when named)
+#   model       the n-gram model over that dictionary's words, to model/model-b3-t3.lm, and
+#               whether it is the app's model byte for byte
+#   score       the scoreboard on the AOSP dictionary, the one built here, and that with the
+#               model, to score-*.md
+#   install     copies the dictionary and model built here over the app's (only when named)
 #
 # Usage: scripts/build-language-model.sh [--run DIR] [--limit N] [step ...]
 #   --run DIR   continue in an earlier run's folder instead of a new one
@@ -32,11 +35,11 @@ while [ $# -gt 0 ]; do
   case "$1" in
     --limit) LIMIT="${2:?--limit needs a number}"; shift 2 ;;
     --run) RUN="${2:?--run needs a folder}"; shift 2 ;;
-    split|dictionary|score|install) STEPS+=("$1"); shift ;;
+    split|dictionary|model|score|install) STEPS+=("$1"); shift ;;
     *) echo "unknown step or option: $1" >&2; exit 2 ;;
   esac
 done
-[ ${#STEPS[@]} -gt 0 ] || STEPS=(split dictionary score)
+[ ${#STEPS[@]} -gt 0 ] || STEPS=(split dictionary model score)
 wants() { local step; for step in "${STEPS[@]}"; do [ "$step" = "$1" ] && return 0; done; return 1; }
 
 NAMES=(tatoeba globalvoices)
@@ -53,6 +56,10 @@ AOSP_DICT=lib/rust/crates/latin/tests/fixtures/aosp_main_en-US.dict
 APP_DICT=app/src/main/assets/dicts/main_en-US.dict
 NEXT_WORDS=32
 MIN_PAIR=2
+# The model keeps the pairs and triples the training sentences write at least this often.
+MIN_BIGRAM=3
+MIN_TRIGRAM=3
+APP_MODEL=app/src/main/assets/dicts/main_en-US.lm
 # The header's date, pinned so a rebuild writes the same bytes: 2026-11-16 00:00 UTC.
 DICT_DATE=1794787200
 # Neither file is near these; they stop a wrong or hostile file filling the disk.
@@ -107,6 +114,22 @@ if wants dictionary; then
   fi
 fi
 
+MODEL="$RUN/model/model-b$MIN_BIGRAM-t$MIN_TRIGRAM.lm"
+
+if wants model; then
+  [ -f "$BUILT" ] || { echo "$RUN has no dictionary: run the dictionary step first" >&2; exit 2; }
+  TRAIN=()
+  for name in "${NAMES[@]}"; do TRAIN+=("$RUN/corpus/train-$name.txt"); done
+  cargo_run -p lexicon -- model "$BUILT" "$RUN/model" "${TRAIN[@]}" \
+    --min-bigram "$MIN_BIGRAM" --min-trigram "$MIN_TRIGRAM"
+  echo "SHA-256 $(shasum -a 256 "$MODEL" | cut -d' ' -f1)"
+  if cmp -s "$MODEL" "$APP_MODEL"; then
+    echo "The app's model is this build, byte for byte."
+  else
+    echo "The app's model differs from this build (the install step copies it)."
+  fi
+fi
+
 if wants score; then
   [ -d "$RUN/corpus" ] || { echo "$RUN has no corpus: run the split step first" >&2; exit 2; }
   TESTS=()
@@ -119,10 +142,18 @@ if wants score; then
     cargo_run -p scoreboard -- --dict "$BUILT" --limit "$LIMIT" "${TESTS[@]}" \
       | tee "$RUN/score-rebuilt.md"
   fi
+  if [ -f "$BUILT" ] && [ -f "$MODEL" ]; then
+    echo "Scoring the rebuilt dictionary with the model"
+    cargo_run -p scoreboard -- --dict "$BUILT" --model "$MODEL" --limit "$LIMIT" "${TESTS[@]}" \
+      | tee "$RUN/score-model.md"
+  fi
 fi
 
 if wants install; then
   [ -f "$BUILT" ] || { echo "$RUN has no dictionary: run the dictionary step first" >&2; exit 2; }
+  [ -f "$MODEL" ] || { echo "$RUN has no model: run the model step first" >&2; exit 2; }
   cp "$BUILT" "$APP_DICT"
   echo "Copied $BUILT to $APP_DICT"
+  cp "$MODEL" "$APP_MODEL"
+  echo "Copied $MODEL to $APP_MODEL"
 fi

@@ -7,5 +7,6 @@
 pub mod corpus;
 pub mod count;
 pub mod dictionary;
+pub mod model;
 pub mod text;
 pub mod v202;

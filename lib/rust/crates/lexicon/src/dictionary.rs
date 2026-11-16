@@ -15,7 +15,8 @@
 use crate::count::{Counts, unpair};
 use crate::v202::{Dictionary, Entry};
 
-fn fixed(entry: &Entry) -> bool {
+/// Whether an entry keeps its old value and is never a next word.
+pub(crate) fn fixed(entry: &Entry) -> bool {
     entry.possibly_offensive || entry.not_a_word
 }
 
@@ -38,7 +39,7 @@ pub struct Scale {
 }
 
 impl Scale {
-    fn value(&self, probability: f64) -> f64 {
+    pub fn value(&self, probability: f64) -> f64 {
         self.a + self.b * probability.ln()
     }
 }
@@ -81,7 +82,7 @@ pub fn combined(unigram: u8, step: u8) -> f64 {
 pub fn rebuild(old: &Dictionary, counts: &Counts, options: Options) -> (Dictionary, Summary) {
     let mut new = old.clone();
     rank(&mut new, counts);
-    let scale = fit(&new, counts);
+    let scale = scale(&new, counts);
     for entry in &mut new.entries {
         entry.bigrams.clear();
     }
@@ -123,8 +124,9 @@ fn rank(new: &mut Dictionary, counts: &Counts) {
     }
 }
 
-/// Least squares of the new value on the log probability, over the words seen often enough.
-fn fit(new: &Dictionary, counts: &Counts) -> Option<Scale> {
+/// The value scale of a rebuilt dictionary `new`: least squares of its values on the log
+/// probability, over the words seen often enough.
+pub fn scale(new: &Dictionary, counts: &Counts) -> Option<Scale> {
     let total: f64 = counts.words.iter().sum();
     let points: Vec<(f64, f64)> = new
         .entries

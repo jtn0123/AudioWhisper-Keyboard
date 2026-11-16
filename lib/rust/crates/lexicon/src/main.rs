@@ -4,20 +4,26 @@
 //! `lexicon dictionary OLD OUT TRAIN [TRAIN ...] [--next N,N] [--min-pair N] [--date S]`: counts
 //! the training sentences and writes OLD rebuilt from them, once for each `--next` value, to
 //! OUT/next-N.dict (see `lexicon::dictionary`).
+//!
+//! `lexicon model DICT OUT TRAIN [TRAIN ...] [--min-bigram N,N] [--min-trigram N,N]`: counts the
+//! training sentences over DICT's words (the rebuilt dictionary) and writes the n-gram model,
+//! once for each pair of minimum counts, to OUT/model-bN-tN.lm (see `lexicon::model`).
 
-use lexicon::{corpus, count, dictionary, v202};
+use lexicon::{corpus, count, dictionary, model, v202};
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 
 const USAGE: &str = "usage: lexicon prepare OUT NAME=FILE [NAME=FILE ...]\n       \
-    lexicon dictionary OLD OUT TRAIN [TRAIN ...] [--next N,N] [--min-pair N] [--date S]";
+    lexicon dictionary OLD OUT TRAIN [TRAIN ...] [--next N,N] [--min-pair N] [--date S]\n       \
+    lexicon model DICT OUT TRAIN [TRAIN ...] [--min-bigram N,N] [--min-trigram N,N]";
 
 fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let result = match args.first().map(String::as_str) {
         Some("prepare") => prepare(&args[1..]),
         Some("dictionary") => build_dictionary(&args[1..]),
+        Some("model") => build_model(&args[1..]),
         _ => Err(USAGE.to_string()),
     };
     match result {
@@ -143,5 +149,57 @@ fn write_dictionary(
         summary.words_with_bigrams,
         summary.scale
     );
+    Ok(())
+}
+
+fn build_model(args: &[String]) -> Result<(), String> {
+    let (mut min_bigram, mut min_trigram) = (vec![2], vec![2]);
+    let mut files = Vec::new();
+    let mut rest = args.iter();
+    while let Some(arg) = rest.next() {
+        let mut value = || rest.next().ok_or(format!("{arg} needs a value"));
+        match arg.as_str() {
+            "--min-bigram" => min_bigram = list(value()?)?,
+            "--min-trigram" => min_trigram = list(value()?)?,
+            _ => files.push(PathBuf::from(arg)),
+        }
+    }
+    let [dict, out, train @ ..] = files.as_slice() else {
+        return Err(USAGE.to_string());
+    };
+    let bytes = std::fs::read(dict).map_err(|e| format!("{}: {e}", dict.display()))?;
+    let dict = v202::read(&bytes)?;
+    std::fs::create_dir_all(out).map_err(|e| format!("{}: {e}", out.display()))?;
+    let texts = train
+        .iter()
+        .map(|f| read(f))
+        .collect::<Result<Vec<_>, _>>()?;
+    let lines: Vec<&str> = texts.iter().flat_map(|t| t.lines()).collect();
+    let threads = std::thread::available_parallelism().map_or(4, |n| n.get());
+    let counts = count::count(&dict, &lines, threads);
+    let scale = dictionary::scale(&dict, &counts).ok_or("the dictionary's scale did not fit")?;
+    let counted = model::count(&dict, &counts, &lines, threads)?;
+    for &b in &min_bigram {
+        for &t in &min_trigram {
+            let options = model::Options {
+                min_bigram: b,
+                min_trigram: t,
+            };
+            let (bytes, summary) = model::build(&counted, scale, options)?;
+            let file = out.join(format!("model-b{b}-t{t}.lm"));
+            std::fs::write(&file, &bytes).map_err(|e| format!("{}: {e}", file.display()))?;
+            println!(
+                "{}: {} bytes; {} words, {} counted; {} bigrams, {} trigrams; {:?}; scale {:?}",
+                file.display(),
+                bytes.len(),
+                summary.words,
+                summary.counted,
+                summary.bigrams,
+                summary.trigrams,
+                summary.discounts,
+                scale
+            );
+        }
+    }
     Ok(())
 }

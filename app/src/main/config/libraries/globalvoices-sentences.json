@@ -1,6 +1,6 @@
 {
   "uniqueId": "globalvoices-sentences",
-  "name": "Global Voices English sentences (word statistics)",
+  "name": "Global Voices English sentences (word statistics and next-word model)",
   "developers": [
     {
       "name": "Global Voices contributors",

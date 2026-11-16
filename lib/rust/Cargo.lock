@@ -1036,6 +1036,7 @@ name = "lexicon"
 version = "0.1.0"
 dependencies = [
  "chars",
+ "ngram",
  "suggest",
 ]
 
