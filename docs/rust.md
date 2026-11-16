@@ -729,8 +729,8 @@ word may teach (the setting, the field, incognito).
 The app holds it in the same `TapTrail` handle as the tap positions (`awnative/src/suggest/tap_aim.rs`).
 `LatinLanguageProvider` loads and saves `files/tap-aim.txt` (numbers only) and hands the decoder
 aimed offsets. Compose's `TextKeyboard.getAimedKeyForPos` and the Rust renderer's
-`Scene::aimed_key_at` (fed by `RenderNative.touch`'s `aim` handle) pick the key. Why and the
-numbers: [decisions.md](decisions.md#learning-where-the-user-taps-2026-11-16),
+`Scene::aimed_key_at` (fed by `RenderNative.touch`'s trail handle and `aimed` flag) pick the key,
+with the letter odds too (below). Why and the numbers: [decisions.md](decisions.md#learning-where-the-user-taps-2026-11-16),
 [tap-aim-results.md](tap-aim-results.md).
 
 The scoreboard measures it with a learning run: a simulated user types one long stream while the
@@ -746,6 +746,29 @@ cargo run --release -p scoreboard -- --model ../../app/src/main/assets/dicts/mai
 
 `--from-corrected` tries teaching from kept auto-corrections too (not what ships).
 `crates/scoreboard/src/learning.rs` says how the users are simulated.
+
+### Keys resized by the letter odds
+
+`crates/keys/src/resize.rs` is the rule both hit tests share: near a border, the key whose letter
+is likelier to come next takes up to 0.15 key of its neighbour's room (`Resize::SHIPPED`), after
+the learned aim (`key_for`: the aim first, and the odds never undo it). The odds come from the
+n-gram model: `ngram::Model::next_units` sums the probability of the words that continue what was
+typed by their next letter, and `suggest::letter_odds` turns that into each key's prior.
+
+The suggest JNI works the odds out each time it suggests and keeps the latest
+(`awnative/src/suggest/letter_odds.rs`, the word being typed and 26 numbers, never logged). At key
+down, both hit tests take them only while `TapTrail::at_word` says they still hold: the letters
+typed end in their word and no other key is down, or the space bar was the key before a word's
+first letter. Compose asks through `TapPositions.retarget`, the renderer through `lean` in
+`RenderNative.touch`; both pass the trail handle and whether to use the learned aim, nothing
+else. Why and the numbers: [decisions.md](decisions.md#keys-resized-by-the-letter-odds-2026-11-16),
+[key-resize-results.md](key-resize-results.md).
+
+The scoreboard measures it with `--resize ACROSS,DOWN,CAP[,FLOOR]` (`0.04,0.025,0.15,0.1` ships):
+each word is typed twice with the same taps, through the plain hit test and the resized one, so
+the report counts the words each gets right that the other doesn't, the rare words outside the
+dictionary among them. It works with `--learning` too. `scripts/key-target-mutations.py` breaks
+each rule and requires a test to fail.
 
 ### The typing counters
 
