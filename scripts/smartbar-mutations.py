@@ -1,7 +1,7 @@
-"""Roomy Smartbar and word-shrink faults: each must trip fresh Rust test panics and/or fresh JVM
+"""Gboard-row Smartbar and word-fit faults: each must trip fresh Rust test panics and/or fresh JVM
 assertion failures in every checker it names; source bytes are always restored. python3 -I.
 
-    python3 -I scripts/smartbar-mutations.py build/smartbar-roomy/mutations [case ...]
+    python3 -I scripts/smartbar-mutations.py build/smartbar-gboard/mutations [case ...]
 
 Run with no other Gradle or Cargo operation in this checkout. A compilation failure never counts
 as caught: Rust needs a "panicked at" line, the JVM an AssertionFailedError in a fresh report.
@@ -18,13 +18,19 @@ import xml.etree.ElementTree as ET
 ROOT = Path(__file__).resolve().parent.parent
 RENDER = ROOT / 'lib/rust/crates/render/src'
 BAR = RENDER / 'smartbar.rs'
-RUST, JVM = 'rust:smartbar_roomy', 'jvm:SmartbarMatchTest'
+RUST, GBOARD, JVM = 'rust:smartbar_roomy', 'rust:smartbar_gboard', 'jvm:SmartbarMatchTest'
 CASES = [
     ('roomy-without-words', BAR, '            && self.words\n', '', [RUST, JVM]),
     ('roomy-while-dictating', BAR, '            && !self.dictating\n', '', [RUST, JVM]),
     ('roomy-hides-the-reading-stop', BAR, '            && !(self.reading && self.speaker)\n', '', [RUST, JVM]),
     ('roomy-over-inline-autofill', BAR, '            && !self.inline_visible()\n', '', [RUST, JVM]),
-    ('pinned-kept-with-words', BAR, 'if c.layout >= 2 && !c.roomy() {', 'if c.layout >= 2 {', [RUST, JVM]),
+    ('pinned-kept-with-words', BAR, '    if c.roomy() {\n        gboard(c, width, y, &mut out);\n    } else if c.layout >= 2 {',
+     '    if c.layout >= 2 {', [GBOARD, JVM]),
+    ('mic-padded', BAR, 'let mic = if c.sticky { c.row } else { 0.0 };',
+     'let mic = if c.sticky { c.row + (8.0 * c.density).round() } else { 0.0 };', [GBOARD, JVM]),
+    ('mic-not-mirrored', BAR, 'let (mic_left, arrow_left) = if c.flip {', 'let (mic_left, arrow_left) = if !c.flip {',
+     [GBOARD, JVM]),
+    ('arrow-square', BAR, '(self.row * GBOARD_TOGGLE).round()', 'self.row', [GBOARD, JVM]),
     ('extended-row-dropped', BAR, '    if c.extra() {\n        let top', '    if c.extra() && !c.roomy() {\n        let top',
      [RUST, JVM]),
     ('words-fact-not-decoded', BAR, 'words: a.get(14).is_some_and(|v| *v != 0.0),', 'words: a.get(15).is_some_and(|v| *v != 0.0),',

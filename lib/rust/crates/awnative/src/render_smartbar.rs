@@ -130,6 +130,21 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_SmartbarRules_roomy(
     }
 }
 #[unsafe(no_mangle)]
+pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_SmartbarRules_toggleWidth(
+    env: *mut JNIEnv,
+    _: jclass,
+    config: jfloatArray,
+) -> f32 {
+    // SAFETY: JVM local array is valid for this invocation and copied before use.
+    unsafe {
+        jni::run(env, 0.0, |env| {
+            let c = Config::decode(&env.read::<f32>(config, "config")?)
+                .ok_or_else(|| illegal("invalid smartbar config"))?;
+            Ok(c.toggle_width())
+        })
+    }
+}
+#[unsafe(no_mangle)]
 pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_SmartbarRules_textScale(
     env: *mut JNIEnv,
     _: jclass,

@@ -53,7 +53,7 @@ class SmartbarMatchTest {
                 }
     }
 
-    @Test fun wordsFillTheMainRowForEveryArrangementAndException() {
+    @Test fun wordsShowInGboardsRowForEveryArrangementAndException() {
         var roomy = 0
         var cases = 0
         for (enabled in 0..1) for (layout in 0..3) for (flip in 0..1) for (shared in 0..1)
@@ -65,6 +65,7 @@ class SmartbarMatchTest {
                             sticky.toFloat(), 19f, 0f, 3.75f, 150f, inline.toFloat(), preview.toFloat(),
                             words.toFloat(), dictating.toFloat(), reading.toFloat())
                         assertEquals(ReferenceSmartbar.roomy(config), SmartbarRules.roomy(config), config.toList().toString())
+                        assertEquals(ReferenceSmartbar.toggleWidth(config), SmartbarRules.toggleWidth(config), config.toList().toString())
                         if (SmartbarRules.roomy(config)) roomy++
                         for (width in listOf(1080f, 1440f)) {
                             val candidates = floatArrayOf(160f, 340f, 490f)

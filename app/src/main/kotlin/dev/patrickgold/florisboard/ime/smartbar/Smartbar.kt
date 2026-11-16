@@ -50,8 +50,10 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.isUnspecified
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.vectorResource
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import com.jtn0123.audiowhisper.dictation.Dictation
 import com.jtn0123.audiowhisper.render.smartbarConfig
@@ -69,6 +71,7 @@ import dev.patrickgold.florisboard.ime.theme.FlorisImeUi
 import dev.patrickgold.florisboard.keyboardManager
 import dev.patrickgold.florisboard.nlpManager
 import dev.patrickgold.jetpref.datastore.model.observeAsState
+import kotlin.math.roundToInt
 import kotlinx.coroutines.launch
 import org.florisboard.lib.compose.horizontalTween
 import org.florisboard.lib.compose.verticalTween
@@ -155,8 +158,11 @@ private fun SmartbarMainRow(modifier: Modifier = Modifier) {
     // ahead of autofill chips and the expanded actions.
     val dictationPreview by Dictation.preview.collectAsState()
     val shouldShowInlineSuggestionsUi = inlineSuggestions.isNotEmpty() && dictationPreview.isEmpty()
-    // AudioWhisper: while words show, they take the whole row; Rust decides, as for its own renderer.
-    val roomy = SmartbarRules.roomy(smartbarConfig(dictationPreview.isNotEmpty(), inlineSuggestions.isNotEmpty()))
+    // AudioWhisper: while words show, the row is Gboard's, mirrored for a left hand: the mic, the
+    // words and the arrow. Rust decides, and sizes the arrow's slot, as for its own renderer.
+    val config = smartbarConfig(dictationPreview.isNotEmpty(), inlineSuggestions.isNotEmpty())
+    val roomy = SmartbarRules.roomy(config)
+    val toggleSlot = SmartbarRules.toggleWidth(config)
 
     val smartbarLayout by prefs.smartbar.layout.observeAsState()
     val flipToggles by prefs.smartbar.flipToggles.observeAsState()
@@ -284,8 +290,9 @@ private fun SmartbarMainRow(modifier: Modifier = Modifier) {
         }
     }
 
+    /** [gboard]: while words show the mic has no padding, and no slot at all when none is set. */
     @Composable
-    fun StickyAction() {
+    fun StickyAction(gboard: Boolean = false) {
         val actionArrangement by prefs.smartbar.actionArrangement.observeAsState()
         val evaluator by keyboardManager.activeSmartbarEvaluator.collectAsState()
 
@@ -303,11 +310,11 @@ private fun SmartbarMainRow(modifier: Modifier = Modifier) {
 
         if (action != null) {
             QuickActionButton(
-                modifier = Modifier.padding(horizontal = 4.dp),
+                modifier = if (gboard) Modifier else Modifier.padding(horizontal = 4.dp),
                 action = action,
                 evaluator = evaluator,
             )
-        } else {
+        } else if (!gboard) {
             Spacer(
                 modifier = Modifier
                     .padding(horizontal = 4.dp)
@@ -347,7 +354,16 @@ private fun SmartbarMainRow(modifier: Modifier = Modifier) {
             }
 
             SmartbarLayout.SUGGESTIONS_ACTIONS_SHARED -> when {
-                roomy -> CenterContent()
+                roomy && flipToggles -> {
+                    StickyAction(gboard = true)
+                    CenterContent()
+                    ToggleSlot(toggleSlot) { SharedActionsToggle() }
+                }
+                roomy -> {
+                    ToggleSlot(toggleSlot) { SharedActionsToggle() }
+                    CenterContent()
+                    StickyAction(gboard = true)
+                }
                 !flipToggles -> {
                     SharedActionsToggle()
                     CenterContent()
@@ -363,7 +379,16 @@ private fun SmartbarMainRow(modifier: Modifier = Modifier) {
             }
 
             SmartbarLayout.SUGGESTIONS_ACTIONS_EXTENDED -> when {
-                roomy -> CenterContent()
+                roomy && flipToggles -> {
+                    StickyAction(gboard = true)
+                    CenterContent()
+                    ToggleSlot(toggleSlot) { ExtendedActionsToggle() }
+                }
+                roomy -> {
+                    ToggleSlot(toggleSlot) { ExtendedActionsToggle() }
+                    CenterContent()
+                    StickyAction(gboard = true)
+                }
                 !flipToggles -> {
                     ExtendedActionsToggle()
                     CenterContent()
@@ -378,6 +403,27 @@ private fun SmartbarMainRow(modifier: Modifier = Modifier) {
                 }
             }
         }
+    }
+}
+
+/**
+ * AudioWhisper: the arrow's slot while words show, [width] pixels from Rust
+ * (`smartbar::Config::toggle_width`). The toggle keeps its square button, centred; only its
+ * transparent margins overhang the slot, as the Rust renderer draws it.
+ */
+@Composable
+private fun ToggleSlot(width: Float, toggle: @Composable () -> Unit) {
+    Box(
+        modifier = Modifier
+            .height(FlorisImeSizing.smartbarHeight)
+            .layout { measurable, constraints ->
+                val slot = width.roundToInt()
+                val button = measurable.measure(constraints.copy(minWidth = 0, maxWidth = Constraints.Infinity))
+                layout(slot, button.height) { button.place((slot - button.width) / 2, 0) }
+            },
+        contentAlignment = Alignment.Center,
+    ) {
+        toggle()
     }
 }
 

@@ -1,6 +1,5 @@
-//! AudioWhisper's roomy Smartbar: while words show, the main row's pinned controls give way, and
-//! a word shrinks to fit (down to three quarters) before it ellipsises.
-use keys::Rect;
+//! AudioWhisper's roomy Smartbar: while words show, the main row is Gboard's (smartbar_gboard.rs
+//! has its ends); here, what stays as it is, and how a word shrinks to fit before it ellipsises.
 use render::{
     raster::Raster,
     scene::{CandidateStyle, Scene},
@@ -21,65 +20,6 @@ fn decode(a: &[f32]) -> Config {
 }
 fn row(c: &Config) -> Layout {
     smartbar::layout(c, 400.0, &[50.0; 3], 0.0)
-}
-fn mid(r: Rect) -> f32 {
-    (r.left + r.right) / 2.0
-}
-
-#[test]
-fn words_take_the_whole_main_row_in_every_shared_and_extended_arrangement() {
-    for layout in [2.0, 3.0] {
-        for flip in [0.0, 1.0] {
-            for speaker in [0.0, 1.0] {
-                for sticky in [0.0, 1.0] {
-                    let mut a = facts();
-                    (a[1], a[2], a[6], a[7]) = (layout, flip, speaker, sticky);
-                    let idle = decode(&a);
-                    a[14] = 1.0;
-                    let words = decode(&a);
-                    let case =
-                        format!("layout={layout} flip={flip} speaker={speaker} sticky={sticky}");
-                    assert!(!idle.roomy() && words.roomy(), "{case}");
-                    let (before, after) = (row(&idle), row(&words));
-                    let mut ids: Vec<_> = before.actions.iter().map(|s| s.id).collect();
-                    ids.sort_unstable();
-                    let mut today = vec![4];
-                    today.extend((speaker != 0.0).then_some(1));
-                    today.extend((sticky != 0.0).then_some(0));
-                    today.sort_unstable();
-                    assert_eq!(ids, today, "today's row: {case}");
-                    // Arrow 40, the mic's slot 48 (reserved even when empty) and the speaker 48.
-                    let today = 400.0 - 40.0 - 48.0 - 48.0 * speaker;
-                    assert_eq!(before.center.width(), today, "{case}");
-                    assert!(after.actions.is_empty(), "{case}");
-                    assert_eq!((after.center.left, after.center.right), (0.0, 400.0));
-                    let spans: Vec<_> = after
-                        .candidates
-                        .iter()
-                        .map(|s| (s.bounds.left, s.bounds.right))
-                        .collect();
-                    assert_eq!(
-                        spans,
-                        [(0.0, 132.0), (133.0, 266.0), (267.0, 400.0)],
-                        "{case}"
-                    );
-                    // Touch and TalkBack follow the layout: where a control was, a word is.
-                    for slot in &before.actions {
-                        let x = mid(slot.bounds);
-                        assert_eq!(before.hit(x, 20.0), Some((true, slot.id)), "{case}");
-                        assert_eq!(after.hit(x, 20.0).map(|h| h.0), Some(false), "{case}");
-                    }
-                    assert_eq!(after.hit(1.0, 20.0), Some((false, 0)), "{case}");
-                    assert_eq!(after.hit(399.0, 20.0), Some((false, 2)), "{case}");
-                    let packed = after.packed(&words);
-                    assert!(
-                        packed[8..].chunks(6).all(|s| s[0] == 0.0),
-                        "no action packets: {case}"
-                    );
-                }
-            }
-        }
-    }
 }
 
 #[test]
@@ -167,7 +107,7 @@ fn dictation_and_reading_with_the_speaker_keep_todays_row() {
 }
 
 #[test]
-fn an_expanded_extended_row_keeps_its_actions_while_words_fill_the_main_row() {
+fn an_expanded_extended_row_keeps_its_actions_while_words_show_in_the_main_row() {
     for placement in [0.0, 1.0, 2.0] {
         for flip in [0.0, 1.0] {
             let mut a = facts();
@@ -184,11 +124,23 @@ fn an_expanded_extended_row_keeps_its_actions_while_words_fill_the_main_row() {
                 .cloned()
                 .collect();
             assert!(extended.len() > 4);
-            assert_eq!(after.actions, extended, "placement={placement} flip={flip}");
+            let (main, second): (Vec<_>, Vec<_>) = after
+                .actions
+                .iter()
+                .cloned()
+                .partition(|s| s.bounds.top == top);
+            assert_eq!(second, extended, "placement={placement} flip={flip}");
+            let ids: Vec<_> = main.iter().map(|s| s.id).collect();
+            assert_eq!(ids, if flip == 1.0 { [0, 4] } else { [4, 0] });
             assert_eq!(after.visible_dynamic, before.visible_dynamic);
+            let center = if flip == 1.0 {
+                (40.0, 370.0)
+            } else {
+                (30.0, 360.0)
+            };
             assert_eq!(
                 (after.center.left, after.center.top, after.center.right),
-                (0.0, top, 400.0)
+                (center.0, top, center.1)
             );
             assert_eq!(words.height(), 80.0);
         }

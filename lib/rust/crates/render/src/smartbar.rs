@@ -66,9 +66,10 @@ impl Config {
     pub fn inline_visible(&self) -> bool {
         self.enabled && self.inline && !self.preview && !(self.layout == 2 && self.shared)
     }
-    /// Words fill the main row: while suggestions show in a shared or extended layout, the
-    /// pinned toggle, sticky action and speaker give way so long words fit. The row stays
-    /// as it was while dictating, and while reading aloud with the speaker as the way to stop.
+    /// Words show in Gboard's row: while suggestions show in a shared or extended layout, the main
+    /// row is just the sticky action (mic), the words and the arrow, its ends at Gboard's size and
+    /// mirrored by `flip` (mic left for a left hand). The speaker steps out. The row stays as it
+    /// was while dictating, and while reading aloud with the speaker as the way to stop.
     pub fn roomy(&self) -> bool {
         self.enabled
             && self.layout >= 2
@@ -78,6 +79,15 @@ impl Config {
             && !self.preview
             && !self.dictating
             && !(self.reading && self.speaker)
+    }
+    /// The arrow's slot: Gboard's features button is about 30 dp beside a 40 dp mic, so while words
+    /// show it is three quarters of the row. Otherwise it is square, as it always was.
+    pub fn toggle_width(&self) -> f32 {
+        if self.roomy() {
+            (self.row * GBOARD_TOGGLE).round()
+        } else {
+            self.row
+        }
     }
     pub fn height(&self) -> f32 {
         if self.enabled {
@@ -96,6 +106,10 @@ impl Config {
     }
 }
 
+/// The arrow's slot while words show, as a fraction of the row: Gboard 15.1 at 420 dpi gives its
+/// features button about 30 dp and its mic about 40 dp, the height of our Smartbar row.
+pub const GBOARD_TOGGLE: f32 = 0.75;
+
 /// Host action ids: sticky=0, speaker=1, overflow=3, toggle=4, dynamic=5+. Id 2 was the pinned
 /// emoji; emoji is now the bottom row's utility key, so 2 is never placed. Its packet slot stays,
 /// so the ids the host, touch and TalkBack share do not move.
@@ -103,6 +117,21 @@ impl Config {
 pub struct Slot {
     pub id: usize,
     pub bounds: Rect,
+}
+impl Slot {
+    /// Where an action draws: a square of the row's height, centred on its slot. Every slot is
+    /// that square but the arrow's narrower one while words show, where the button keeps its
+    /// look and only its transparent margins overhang. Touch and TalkBack keep the slot itself.
+    pub fn face(&self) -> Rect {
+        let b = self.bounds;
+        let half = b.height() / 2.0;
+        let middle = (b.left + b.right) / 2.0;
+        Rect {
+            left: middle - half,
+            right: middle + half,
+            ..b
+        }
+    }
 }
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Layout {
@@ -187,7 +216,9 @@ pub fn layout(c: &Config, width: f32, intrinsic: &[f32], scroll: f32) -> Layout 
         right: width,
         bottom: y + h,
     };
-    if c.layout >= 2 && !c.roomy() {
+    if c.roomy() {
+        gboard(c, width, y, &mut out);
+    } else if c.layout >= 2 {
         let edge = (4.0 * c.density).round();
         let pinned = h + 2.0 * edge;
         let speaker = if c.speaker { pinned } else { 0.0 };
@@ -317,6 +348,48 @@ pub fn layout(c: &Config, width: f32, intrinsic: &[f32], scroll: f32) -> Layout 
     }
     out
 }
+/// The main row while words show: the mic and the arrow at Gboard's size, with no padding, and
+/// the words between. Flipped (the default, for a left hand) the mic is on the left; otherwise
+/// it is Gboard's own order. With no sticky action the words run to that edge.
+fn gboard(c: &Config, width: f32, y: f32, out: &mut Layout) {
+    let arrow = c.toggle_width();
+    let mic = if c.sticky { c.row } else { 0.0 };
+    let (mic_left, arrow_left) = if c.flip {
+        (0.0, width - arrow)
+    } else {
+        (width - mic, 0.0)
+    };
+    let mut add = |id, left: f32, w: f32| {
+        out.actions.push(Slot {
+            id,
+            bounds: Rect {
+                left,
+                top: y,
+                right: left + w,
+                bottom: y + c.row,
+            },
+        })
+    };
+    // Left to right, as the other rows pack their slots.
+    if !c.flip {
+        add(BAR_TOGGLE, arrow_left, arrow);
+    }
+    if c.sticky {
+        add(0, mic_left, mic);
+    }
+    if c.flip {
+        add(BAR_TOGGLE, arrow_left, arrow);
+    }
+    let (left, right) = if c.flip {
+        (mic, width - arrow)
+    } else {
+        (arrow, width - mic)
+    };
+    out.center.left = left;
+    out.center.right = right.max(left);
+}
+/// The toggle's action id.
+const BAR_TOGGLE: usize = crate::protocol::BAR_TOGGLE_INDEX as usize;
 fn actions(c: &Config, r: Rect, out: &mut Layout) {
     let overflow = c.sticky || c.layout != 2 || !c.shared;
     let capacity = ((r.width() / c.row) as usize).saturating_sub(usize::from(overflow));

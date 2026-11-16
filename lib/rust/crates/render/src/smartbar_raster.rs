@@ -16,7 +16,7 @@ impl Raster {
         for slot in &bar.layout.actions {
             let action = &bar.actions[slot.id];
             let style = &action.styles[usize::from(bar.pressed.contains(&slot.id))];
-            let r = inset(slot.bounds, style.margin);
+            let r = inset(slot.face(), style.margin);
             self.shadow(r, style);
             if action.lit == 0 {
                 self.box_at(r, style);

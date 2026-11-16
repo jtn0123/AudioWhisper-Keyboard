@@ -7,8 +7,8 @@ import kotlin.math.roundToInt
  * AudioWhisper's roomy row and word shrink are restated from their spec, not from the Rust.
  */
 internal object ReferenceSmartbar {
-    /** While words show, a shared or extended main row drops its toggle, sticky and speaker,
-     * unless dictation owns the row or read-aloud does through the speaker. */
+    /** While words show, a shared or extended main row is Gboard's: the sticky action, the words
+     * and the arrow, unless dictation owns the row or read-aloud does through the speaker. */
     fun roomy(c: FloatArray): Boolean {
         fun fact(at: Int) = c.getOrElse(at) { 0f } != 0f
         val mode = c[1].toInt()
@@ -17,6 +17,11 @@ internal object ReferenceSmartbar {
         val showInline = fact(12) && !preview && !(mode == 2 && shared)
         return fact(0) && (mode == 2 || mode == 3) && fact(14) && !(mode == 2 && shared) && !showInline &&
             !preview && !fact(15) && !(fact(16) && fact(6))
+    }
+    /** The arrow's slot: Gboard's features button, three quarters of the row, while words show. */
+    fun toggleWidth(c: FloatArray): Float {
+        val h = c[11].roundToInt().toFloat()
+        return if (roomy(c)) (h*0.75f).roundToInt().toFloat() else h
     }
     /** A word shrinks to the whole percent that fits, never below three quarters. */
     fun textScale(scale: Float, measured: Float, available: Float): Float =
@@ -43,14 +48,30 @@ internal object ReferenceSmartbar {
         val top = if (extra && placement != 1) h else 0f
         val actions = mutableListOf<Float>()
         val candidates = mutableListOf<Float>()
-        fun action(id: Int, left: Float, y: Float = top) {
-            actions.addAll(listOf(1f, id.toFloat(), left, y, left+h, y+h))
+        fun action(id: Int, left: Float, y: Float = top, w: Float = h) {
+            actions.addAll(listOf(1f, id.toFloat(), left, y, left+w, y+h))
         }
         var left = 0f
         var right = width
         var visible = 0
         var content = 0f
-        if (mode >= 2 && !roomy) {
+        if (roomy) {
+            // Gboard's ends, mirrored for a left hand by flip: the mic a row-high square with no
+            // padding (absent with no sticky action), the arrow three quarters of the row.
+            val arrow = (h*0.75f).roundToInt().toFloat()
+            val mic = if (sticky) h else 0f
+            if (flip) {
+                if (sticky) action(0, 0f)
+                action(4, width-arrow, w = arrow)
+                left = mic
+                right = maxOf(left, width-arrow)
+            } else {
+                action(4, 0f, w = arrow)
+                if (sticky) action(0, width-mic)
+                left = arrow
+                right = maxOf(left, width-mic)
+            }
+        } else if (mode >= 2) {
             val edge = (4*dp).roundToInt().toFloat()
             val pinned = h + 2*edge
             val read = if (speaker) pinned else 0f

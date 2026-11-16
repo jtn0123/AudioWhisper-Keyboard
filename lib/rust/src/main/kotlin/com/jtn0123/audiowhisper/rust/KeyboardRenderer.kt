@@ -178,8 +178,10 @@ object SmartbarRules {
     init { RustLibrary.load() }
     external fun layout(config: FloatArray, width: Float, intrinsic: FloatArray): FloatArray
     external fun ellipsis(advances: FloatArray, width: Float): Int
-    /** Words fill the main row: the pinned toggle, sticky action, speaker and emoji give way. */
+    /** Words show in Gboard's row: the mic, the words and the arrow; see `smartbar::Config::roomy`. */
     external fun roomy(config: FloatArray): Boolean
+    /** The arrow's slot width in pixels: three quarters of the row while words show, else the row. */
+    external fun toggleWidth(config: FloatArray): Float
     /** One shrink-to-fit step for a candidate word; see `smartbar::text_scale`. */
     external fun textScale(scale: Float, measured: Float, available: Float): Float
     /** The scale a word draws at in [available], measuring with the renderer's own text layout. */
