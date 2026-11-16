@@ -663,6 +663,44 @@ autocorrect/suggestion-pick fixtures. See [the session proof and reproduction](s
 
 `lib/latinime/src/main/jni` stays unchanged as the reference `latin-oracle` compiles for tests.
 
+### The typing scoreboard
+
+`crates/scoreboard` measures how well the keyboard types held-out English, on this computer,
+through the same Rust the phone runs: the native `Session` and `Suggester` (offensive words
+blocked, the modest auto-correction threshold, eight candidates of which the strip shows three)
+and the `glide` index with `glide_ranker`. What Kotlin still does around them (the glide index's
+character table, `ln` of a swipe's weight, the "next" space, the point filter) is repeated as the
+Kotlin does it. The keyboard is the shipped en-US QWERTY layout at a Galaxy S24 Ultra's portrait
+size (1440 px at 3.75 px/dp), laid out by `crates/keys`. It is seeded: the same inputs give the
+same table.
+
+It reports next-word top-1 and top-3 after a space, keystroke savings (the word is tapped in the
+strip as soon as it is shown, counting the tap), auto-correction on simulated taps (neutral and
+left-thumb) through the tap-offset path, and swipe top-1 and top-3 on simulated paths. Each
+module's comment says exactly how it simulates; the results and their history are in
+[language-model-results.md](language-model-results.md).
+
+The test text is held out from a public corpus, which is never committed, so get it first:
+
+```bash
+scripts/build-language-model.sh                        # download (pinned, checked), split, score
+scripts/build-language-model.sh --run build/language-model/run-<time> score   # score again
+```
+
+The script downloads into a new `build/language-model/run-<time>/` folder, checks each file's
+SHA-256, splits it with `cargo run -p lexicon -- prepare` (one sentence in a hundred held out, by
+a hash of its words) and runs the scoreboard on the first 5,000 held-out sentences of each source.
+That takes under a minute. To score another dictionary on the same text:
+
+```bash
+cd lib/rust
+cargo run --release -p scoreboard -- --dict path/to/main.dict \
+    --test tatoeba=RUN/corpus/test-tatoeba.txt --test globalvoices=RUN/corpus/test-globalvoices.txt
+```
+
+`--limit N`, `--seed N` and `--threads N` change the sample, the taps and swipes, and the
+parallelism. Neither crate ships: `awnative` doesn't depend on them.
+
 ## Layout
 
 Everything lives in `lib/rust`, one Gradle module that is also a cargo workspace:
@@ -694,6 +732,8 @@ lib/rust/
   crates/chars/               Kotlin's character rules, for crates that judge text as Kotlin did
   crates/awnative/            libawnative.so: the JNI functions Kotlin calls, and nothing else
   crates/latin-oracle/        test-only: LatinIME's C++ built for this computer, to compare the port with
+  crates/scoreboard/          host-only: the typing scoreboard (see above)
+  crates/lexicon/             host-only: corpus split, and the tools that build word statistics from it
   tools/                      generates crates/chars' tables (generate-char-tables.sh)
   src/main/kotlin/            the Kotlin side: loads the library and wraps each handle
   src/test/kotlin/            JVM tests that go through JNI
