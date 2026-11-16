@@ -9,6 +9,7 @@ import android.text.InputType
 import android.view.View
 import android.view.ViewGroup
 import android.view.accessibility.AccessibilityNodeInfo as Node
+import android.view.inputmethod.InputMethodManager
 import androidx.core.net.toUri
 import dev.patrickgold.florisboard.app.FlorisAppActivity
 import org.json.JSONArray
@@ -59,14 +60,25 @@ internal class SettingsHarness(val instrumentation: Instrumentation, explore: Bo
      * it is asked directly. Its start plan runs on the main thread inside onStartInputView, and its
      * connection calls land on the main looper, so an idle main looper means the plan has landed.
      * ([settle] would read the IME's own window, which is this package's too, and never settle.)
+     *
+     * `am instrument` killed the keyboard with this package, and the system rebinds a dead
+     * keyboard only on a start of input at least 3 s after its last bind (InputMethodManagerService's
+     * TIME_TO_RECONNECT), which it tried at that kill. A field focused sooner is left unserved, so
+     * while no service has come, input is started again on the focused view, as focus would.
      */
     fun awaitIme(stage: String = "IME did not show for the field") {
         var seen = ""
+        var nudged = SystemClock.uptimeMillis()
         try {
             waitFor(stage) {
                 var shown = false
                 main {
                     val ime = ime()
+                    if (ime == null && SystemClock.uptimeMillis() - nudged >= 3500) {
+                        nudged = SystemClock.uptimeMillis()
+                        val focused = activity?.window?.decorView?.findFocus()
+                        if (focused != null) checkNotNull(focused.context.getSystemService(InputMethodManager::class.java)).restartInput(focused)
+                    }
                     val multiLine = (ime?.currentInputEditorInfo?.inputType ?: 0) and InputType.TYPE_TEXT_FLAG_MULTI_LINE != 0
                     seen = "service=${ime != null} shown=${ime?.isInputViewShown} multiLine=$multiLine"
                     shown = ime != null && ime.isInputViewShown && multiLine
