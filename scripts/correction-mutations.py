@@ -39,6 +39,23 @@ CASES = {
         'app/src/main/kotlin/com/jtn0123/audiowhisper/suggest/LatinSuggester.kt',
         'maxCount, strength().ordinal,', 'maxCount, AutoCorrectStrength.NORMAL.ordinal,',
         ('gradle', ':app', '*LatinImeJniTest')),
+    # Backspace undoes an auto-correction.
+    'late-updates-count-as-new': (
+        CRATES + 'editor/src/session.rs',
+        'let late = self.mass == 0 && own.is_some_and(|at| at + 1 < self.queue.len());', 'let late = false;',
+        ('gradle', ':app', '*AutoCorrectionUndoFlowTest')),
+    'late-updates-end-spacing': (
+        'app/src/main/kotlin/dev/patrickgold/florisboard/ime/editor/EditorInstance.kt',
+        '    if (late) return\n', '',
+        ('gradle', ':app', '*AutoCorrectionUndoFlowTest')),
+    'backspace-skips-the-undo': (
+        CRATES + 'input/src/delete.rs',
+        'out.extend([i64::from(DELETE_UNDO_AUTO), 0]);', 'out.extend([i64::from(DELETE_NOTIFY), 0]);',
+        ('cargo', 'input', None, 'undo')),
+    'other-keys-keep-the-undo': (
+        CRATES + 'input/src/routing.rs',
+        '    if code != DELETE {\n        add(CLEAR_UNDO, 0);\n    }\n', '',
+        ('cargo', 'input', None, 'undo')),
 }
 
 

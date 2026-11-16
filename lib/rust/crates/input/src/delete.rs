@@ -43,3 +43,35 @@ pub fn plan(v: &[i64]) -> Result<Vec<i64>, &'static str> {
     out.extend([i64::from(DELETE_BACKWARD_EDITOR), unit]);
     Ok(out)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The effects a plan asks for, without their arguments.
+    fn effects(plan: &[i64]) -> Vec<i32> {
+        plan[1..].chunks(2).map(|it| it[0] as i32).collect()
+    }
+
+    #[test]
+    fn one_backspace_undoes_an_auto_correction_and_deletes_nothing_more() {
+        let first = plan(&[0, 0, 0, 0, 0]).unwrap();
+        assert_eq!(
+            (first[0], effects(&first).last()),
+            (1, Some(&DELETE_UNDO_AUTO))
+        );
+        // Undone: that was the whole backspace.
+        assert_eq!(plan(&[1, 0, 1, 0, 0]).unwrap(), [-1]);
+        // Nothing to undo: a dictation, if any, then the character.
+        let next = plan(&[1, 0, 0, 0, 0]).unwrap();
+        assert_eq!(next, [2, i64::from(DELETE_UNDO_DICTATION), 0]);
+        assert!(effects(&plan(&[2, 0, 0, 0, 0]).unwrap()).contains(&DELETE_BACKWARD_EDITOR));
+    }
+
+    #[test]
+    fn deleting_a_word_or_forward_never_undoes_one() {
+        for fields in [[0, 1, 0, 0, 0], [0, 0, 0, 0, 1]] {
+            assert!(!effects(&plan(&fields).unwrap()).contains(&DELETE_UNDO_AUTO));
+        }
+    }
+}

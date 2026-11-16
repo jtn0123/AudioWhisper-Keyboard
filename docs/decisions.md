@@ -425,3 +425,34 @@ auto-corrects, not even the whitelist, while suggestions still show
 different default for this user, or a better language model moves the best threshold (re-run the
 sweep in [autocorrect-results.md](autocorrect-results.md)); a strength would then move, not the
 default's meaning.
+
+## Backspace undoes an auto-correction, however fast it is pressed (2026-11-16)
+
+One backspace straight after an auto-correction puts back the word as typed, as Gboard does, and
+the word is then kept as typed: it is not corrected again (for the session only, in incognito).
+Most of this already worked and is now held by tests: a single press, the punctuation that set the
+correction off kept in place ("teh," stays "teh,"), the space auto-space punctuation added after it,
+a word typed after an automatic space, the undo read from the editor's predicted text when the
+backspace comes before the app's cursor updates, and the Rust renderer's keys going through the
+same dispatcher. Any other key ends the chance to undo before it acts; Ctrl+backspace and forward
+delete never undo.
+
+One case was broken: typing on fast. Undoing "teh " → "the " leaves "teh" owing a space, so the
+next letter starts a new word ("teh y"). The app reports each edit's cursor separately, and when
+those reports arrived after the undo, each one ended the owed space, giving "tehy". Now the editor
+session (`editor` crate, its `late` call) recognises a report of one of its own edits that it has
+already followed with more, and such news of the past no longer ends the spacing the later edits
+set.
+
+- *Where it lives:* the judgement is Rust's: whether an update is late compares it against the
+  edits the session expects to be reported, the same queue that already decides which reports are
+  the keyboard's own. Kotlin asks and, if late, skips ending the spacing (`followUpdate`).
+- *Why not move the rest of the undo into Rust:* where to revert (`undo::revert_at`) and the
+  delete plan's first step already are; the remaining Kotlin is the edit itself and the stores.
+- *Proof:* Rust tests in `editor`, `input` (delete plan, routing order); five flows through the
+  native editor and a fake app in `AutoCorrectionUndoFlowTest`, including cursor reports delayed
+  past the undo; and four mutations in `scripts/correction-mutations.py`, each caught.
+
+**Would change if** the owed space should go (the next letter continuing the word instead), which
+would be a change to `undo::revert_at`, or the phone's typing counters show undone corrections
+being re-corrected; the late-update rule would stay either way.

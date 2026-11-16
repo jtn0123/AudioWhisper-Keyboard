@@ -49,6 +49,17 @@ import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.launch
 import org.florisboard.lib.android.showShortToast
 
+/**
+ * AudioWhisper: a cursor update ends the spacing the last edit set, unless it is [late] (the editor session's
+ * judgement): news of an edit the keyboard has already followed with more, typing faster than the app reports,
+ * leaves alone the spacing those later edits set, such as the space an undone correction owes.
+ */
+internal fun followUpdate(late: Boolean, autoSpace: EditorInstance.AutoSpaceState, phantomSpace: EditorInstance.PhantomSpaceState) {
+    if (late) return
+    autoSpace.setInactiveFromUpdate()
+    phantomSpace.setInactiveFromUpdate()
+}
+
 class EditorInstance(context: Context) : AbstractEditorInstance(context) {
     companion object {
         private const val GIF_MIME_TYPE = "image/gif"
@@ -91,8 +102,7 @@ class EditorInstance(context: Context) : AbstractEditorInstance(context) {
     }
 
     override fun handleSelectionUpdate(oldSelection: EditorRange, newSelection: EditorRange, composing: EditorRange) {
-        autoSpace.setInactiveFromUpdate()
-        phantomSpace.setInactiveFromUpdate()
+        followUpdate(isLateUpdate(newSelection, composing), autoSpace, phantomSpace)
         super.handleSelectionUpdate(oldSelection, newSelection, composing)
     }
 

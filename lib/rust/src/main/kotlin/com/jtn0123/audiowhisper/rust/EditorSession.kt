@@ -24,6 +24,12 @@ class EditorSession : EditorCalls, AutoCloseable {
     suspend fun <T> transaction(block: suspend (EditorCalls) -> T): T = gate.withLock {
         try { block(direct) } finally { java.lang.ref.Reference.reachabilityFence(this) }
     }
+    /**
+     * Whether a cursor update (selection, composing region) reports one of the keyboard's own edits that it has
+     * since followed with more: news of the past, typed faster than the app reports.
+     */
+    fun isLate(selectionStart: Int, selectionEnd: Int, composingStart: Int, composingEnd: Int): Boolean =
+        call("late", selectionStart.toString(), selectionEnd.toString(), composingStart.toString(), composingEnd.toString())[0] == "1"
     override fun close() = runBlocking { gate.withLock { cleanable.clean() } }
     private class Allocation(private var handle: Long) : Runnable {
         @Synchronized fun call(operation: String, fields: Array<out String>): Array<String> {

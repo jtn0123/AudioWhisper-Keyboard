@@ -240,3 +240,31 @@ fn shifted(raw: u64, event: shift::Event, v: &[i64]) -> i32 {
         },
     ) as i32
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The actions a key's release asks for: a character (kind 0) unless it is a function key.
+    fn released(code: i32) -> Vec<i32> {
+        let mut fields = [0i64; 15];
+        (fields[0], fields[1], fields[10]) = (i64::from(PHASE_UP), i64::from(code), -1);
+        route(&fields)
+            .unwrap()
+            .chunks(3)
+            .map(|it| it[0] as i32)
+            .collect()
+    }
+
+    #[test]
+    fn any_key_but_backspace_ends_the_undo_before_it_acts() {
+        assert!(!released(DELETE).contains(&CLEAR_UNDO));
+        for code in [i32::from(b','), i32::from(b'a'), SPACE, ENTER] {
+            assert_eq!(released(code).first(), Some(&CLEAR_UNDO), "{code}");
+        }
+        // Punctuation's own correction comes after, so a backspace can undo it.
+        let comma = released(i32::from(b','));
+        let at = |action| comma.iter().position(|&it| it == action);
+        assert!(at(CLEAR_UNDO) < at(AUTO_CORRECT));
+    }
+}

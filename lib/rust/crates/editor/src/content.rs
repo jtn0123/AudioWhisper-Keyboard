@@ -76,6 +76,13 @@ impl Content {
             self.composing
         }
     }
+    /// Whether a cursor update reporting `selection` and `composing` is this content's: the
+    /// keyboard's own edit, arrived, with enough text before it known to take as the editor's.
+    pub fn reported_by(&self, selection: Range, composing: Range) -> bool {
+        self.selection() == selection
+            && self.composing() == composing
+            && self.before().len() as i32 >= 128.min(selection.start)
+    }
     pub fn slice(&self, range: Range) -> Field {
         if !range.valid() {
             return vec![];

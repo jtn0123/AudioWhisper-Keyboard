@@ -92,6 +92,9 @@ abstract class AbstractEditorInstance(context: Context) {
         executeEditor("mass", newSelection.start.toString(), newSelection.end.toString(), composing.start.toString(), composing.end.toString())
         publish()
     }
+    /** AudioWhisper: [newSelection] reports one of the keyboard's own edits that it has since followed with more. */
+    protected fun isLateUpdate(newSelection: EditorRange, composing: EditorRange): Boolean =
+        editorSession.isLate(newSelection.start, newSelection.end, composing.start, composing.end)
     open fun handleSelectionUpdate(oldSelection: EditorRange, newSelection: EditorRange, composing: EditorRange) {
         executeEditor("update", newSelection.start.toString(), newSelection.end.toString(), composing.start.toString(), composing.end.toString(), "1")
         publish()

@@ -20,7 +20,7 @@ impl Session {
             "context" => 10,
             "start" => 3,
             "update" => 5,
-            "mass" => 4,
+            "mass" | "late" => 4,
             "read" => 3,
             "word" => 2,
             "caps" | "character" | "measure" | "extent" => 1,

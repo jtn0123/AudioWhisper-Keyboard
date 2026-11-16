@@ -233,6 +233,15 @@ impl Session {
                 self.query = Query::Read(selection, None, true);
                 vec![text("read"), number(1), number(1)]
             }
+            "late" => {
+                // An update reporting one of the keyboard's own edits that it has already followed
+                // with more: news of the past, which must not undo what those later edits set,
+                // such as the space an undone auto-correction owes. Asked before "update".
+                let (selection, composing) = (Range::read(fields, 0), Range::read(fields, 2));
+                let own = (self.queue.iter()).position(|it| it.reported_by(selection, composing));
+                let late = self.mass == 0 && own.is_some_and(|at| at + 1 < self.queue.len());
+                vec![number(i32::from(late))]
+            }
             "update" => {
                 if self.mass > 0 {
                     return self.call("mass", &fields[..4]);
@@ -248,10 +257,7 @@ impl Session {
                     self.last = -1;
                 }
                 while let Some(expected) = self.queue.pop_front() {
-                    if expected.selection() == selection
-                        && expected.composing() == composing
-                        && expected.before().len() as i32 >= 128.min(selection.start)
-                    {
+                    if expected.reported_by(selection, composing) {
                         let (mut value, mut cursor) =
                             (expected.text.clone(), expected.selection.start);
                         if self.space {
@@ -378,3 +384,6 @@ impl Session {
         }
     }
 }
+
+#[cfg(test)]
+mod tests;
