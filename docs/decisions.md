@@ -482,10 +482,20 @@ likelier than the other; when it isn't that sure, or lacks a word, AOSP's choice
   the shipped dictionary and model in context, the scoreboard's new typist, and six mutations in
   `scripts/correction-mutations.py`, each caught.
 
+*Requiring an n-gram (tried 2026-11-16, not shipped):* "we wed" → "we'd" and "my id" → "I'd" happen
+because the model has seen neither spelling after "we" or "my", so its odds are word frequency
+alone. Putting an apostrophe back only where the model has seen it after the words before keeps
+both, but on held-out text it puts back 2,498 instead of 2,527 apostrophes to avoid 4 harmful
+corrections in 121,594 words: frequency alone is right about ten times as often as it is wrong
+(possessives such as "Toms", "Obamas"; "cant", "wont"), and nothing the model knows separates
+"we wed" from "in the end wont" ([results](autocorrect-results.md#requiring-an-n-gram-to-put-an-apostrophe-back-tried-not-shipped)).
+On the emulator (Rust renderer and settings) the shipped rule gives "we we'd", "my I'd" and
+"don't" for "we wed ", "my id " and "dont ", as measured.
+
 **Would change if** a better model or a bigger corpus moves the knee (re-run the sweep), the
 phone's counters show restored apostrophes being undone, or possessives are wanted at a different
-risk; "we wed" → "we'd" (neither pair known to the model) would want the rule to require an n-gram
-rather than word frequency alone.
+risk. "We wed" and "my id" would want a model that knows word classes (a pronoun is not followed
+by a pronoun's contraction); requiring an n-gram is measured above and costs more than it saves.
 
 ## Field kinds: URL, e-mail, search, filter and password fields (2026-11-16)
 

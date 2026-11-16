@@ -127,6 +127,49 @@ In context (the shipped dictionary and model, `crates/suggest/tests/apostrophes.
 ill", "he lets", "the dog wagged its", "we were", "very well", "the shell", "go to hell" and "the
 shed" stay; "I think" followed by "ill", "its", "were", "well", "shed" or "hell" becomes "I'll",
 "it's", "we're", "we'll", "she'd" or "he'll", and "Lets" and "Its" starting a sentence become
-"Let's" and "It's". Known misses: "we wed" becomes "we'd", the model knowing neither pair and
-"we'd" being the commoner word; "my id" still becomes "I'd", as it always did, the model not being
-sure enough to overrule the whitelist.
+"Let's" and "It's". Known misses: "we wed" becomes "we'd" and "my id" becomes "I'd": the model has
+seen neither spelling after "we" or "my", so its odds are the two words' frequencies, and "my id"
+is whitelisted to "I'd" besides. They stay, for the reason below.
+
+### Requiring an n-gram to put an apostrophe back (tried, not shipped)
+
+Those two misses suggested putting an apostrophe back only on the n-grams' evidence: only where
+the model has seen the spelling with the apostrophe after the words before, never on word
+frequency alone. Three forms of that rule were scored (`ngram::Model` was given an "is this n-gram
+stored" question for it):
+
+* **A**: the model restores only a spelling it has seen after these words; otherwise AOSP decides.
+  Keeps "we wed", but "my id" still becomes "I'd" by the whitelist.
+* **B**: a spelling never seen after the words before is not put back at all, whitelisted or not;
+  with no context the model knows (after a comma or an unknown word), AOSP decides. Keeps both.
+* **B2**: B, but with no known context the frequencies decide as today.
+
+| Tuning sentences (`--skip 5000 --limit 2000`) | Today | A | B | B2 |
+|---|---:|---:|---:|---:|
+| Apostrophes put back (of 1,102) | **943 (85.6%)** | 935 (84.8%) | 929 (84.3%) | 932 (84.6%) |
+| Harmful, typist without apostrophes (of 48,091) | 453 | 452 | 452 | 452 |
+| Harmful, neutral typist (of 39,446) | 240 | 239 | 239 | 239 |
+| Harmful, left thumb (of 30,671) | 170 | 170 | 170 | 170 |
+
+| Report sentences (`--limit 5000`) | Today | A | B | B2 |
+|---|---:|---:|---:|---:|
+| Apostrophes put back (of 2,953) | **2,527 (85.6%)** | 2,508 (84.9%) | 2,498 (84.6%) | 2,500 (84.7%) |
+| Harmful, typist without apostrophes (of 121,594) | 1,181 | 1,180 | 1,177 | 1,178 |
+| Harmful, neutral typist (of 99,461) | 579 | 578 | 575 | 576 |
+| Harmful, left thumb (of 77,359) | 376 | 375 | 373 | 374 |
+| Words right, neutral / left thumb | 120,709 / 116,724 | 120,710 / 116,725 | 120,713 / 116,727 | 120,712 / 116,726 |
+
+Every form puts back fewer apostrophes, which the rule for this change did not allow. B gives up 29
+right restorations on the report text to avoid 4 wrong ones ("psychologically ill", "the owner say
+here lets", "ye have been wont", "These yahoos"); the right ones it loses are restorations with no
+n-gram behind them, made on frequency or by the whitelist: possessives ("I teach Toms", "Singing Obamas",
+"according to Law 5651, Turkeys"), "The orchestra cant", "These wont", "I expected Id". No
+pronoun clash like "we wed" occurs in the 124,547 held-out words.
+
+Nothing in the model tells those apart from "we wed": "we wed" and "If there had been a problem,
+wed" get the same odds (1.76 nats, neither pair seen), and "in the end wont" scores as "we wed" does
+on every measure tried: the odds, the backoff weight of the word before, and how often the corpus
+would have shown the pair if it were as common there as anywhere (the frequency of the word before
+times the contraction's). Telling them apart needs to know that a pronoun is not followed by a
+pronoun's contraction, which a trigram model of words doesn't. So the rule stays as it was, and
+both misses stay known.
