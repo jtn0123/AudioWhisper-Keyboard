@@ -91,8 +91,8 @@ There were 9 runs, about 35,000 inputs in all, and **0 differences**, with two e
 | Area | Status |
 | --- | --- |
 | Text, order, badges | Matched by `SettingsLicencesMatchTest`. It runs AboutLibraries' own parser, HashSet and sort, and TagSoup 1.2, over 18 generated resources: every row and every dialog. |
-| TalkBack | A row is a `card` node (a Button to TalkBack), as other Rust rows are. Its label is the name, and its state is the version, author and badges joined with ", ". The dialog has a scroll node, the licence text as one focusable text node (id 9), and the `OK` button (id 7). Keyboard focus goes through the back button and every row, scrolling each into view. In the dialog it goes text, then OK. |
-| Light and dark | Colours come from the palette. Pictures in both are owed (see the owed list). |
+| TalkBack | A row is a `card` node (a Button to TalkBack), as other Rust rows are. Its label is the name, and its state is the version, author and badges joined with ", ". The dialog has a scroll node, the licence text as one focusable text node (id 9), and the `OK` button (id 7). Keyboard focus goes through the back button and every row, scrolling each into view. In the dialog it goes text, then OK. TalkBack's scroll forward and backward move a list by its own height, as Compose's do. |
+| Light and dark | Colours come from the palette. The device pictures match in both (see Device results). |
 | Font scale | Row heights come from the sp tables, as other screens' do. The geometry is recomputed when the width, density or font scale changes. The first visible row stays at the top, as LazyListState keeps it. |
 | Forced LTR under an RTL locale | Applies to the project licence screen, which stays in Compose. Under RTL, the third-party screen mirrors in Compose. The Rust settings renderer has no RTL layout on any screen yet (the APK ships English only), so RTL is owed renderer-wide. |
 | Saved state | The dialog is not saved: LibrariesContainer keeps it in a plain `remember`. The list's scroll is saved like any screen's. Re-anchoring rows across activity recreation is not done: the saved pixel offset is restored. |
@@ -114,7 +114,7 @@ Known gaps, all documented and none of them visible with the shipped data:
 These are host numbers: `cargo run --release -p render --example settings_licences_timing`
 on an Apple-silicon Mac. They use the real 139-library `aboutlibraries.json` and Roboto, on a
 1080 by 2400 window at 2.625 density. Each frame includes the full CPU raster. Device
-numbers are owed, because no device work was done here.
+numbers are under Device results.
 
 | Step | Median | p95 | Max | Samples |
 | --- | --- | --- | --- | --- |
@@ -125,6 +125,91 @@ numbers are owed, because no device work was done here.
 Without the raster, opening takes 0.67 ms and a scroll frame 0.02 ms (scene only). A frame
 lays out only the 10–15 visible rows. A Rust test checks that with 500 libraries, fewer than
 20 rows are laid out.
+
+## Device results
+
+Run on 2026-11-15 on aw_keyboard_ssd (emulator-5556, Android 16, 1080 by 2400 at 2.625), from
+a clean `-PsettingsFixture=true` build of these commits. The device was muted and its private
+baseline verified before and after. adb stayed connected from boot to shutdown (1,336 health
+samples, 5 s apart, none dropped). Receipts are in `build/stage4-licences-device/`, which is
+not committed.
+
+**The suite.** `settings-device-tests.py ... all` passed every mode on both renderers
+(`suite4/`):
+
+- `ui`: 0 accessibility violations on either renderer, and byte-identical preference files
+  (5,289 bytes). The group 1, group 2 and licences walks are identical.
+  - The licences walk names 110 rows in the same order on both: 139 libraries with 110
+    distinct names.
+  - The first row's dialog has the same text hash on both, and its OK is a Button on both.
+  - Group 2 audits the third-party screen as a Rust screen.
+- `text`, `death` and `crash` (light and dark) passed. The text preference files are
+  byte-identical.
+- Compose's known defects: 286 audit nodes. 28 of them are new: `aboutlibraries-row-no-role`.
+  AboutLibraries' row is a `Modifier.clickable` with no Role, so it is a View; Rust's row is
+  a button. Rust has no known defects.
+
+The first two runs found one real difference and three faults in the test itself. All four
+are fixed:
+
+- **TalkBack paging (Rust).** Scroll forward and backward moved Rust lists by 0.6 of the
+  window. Compose moves a list by its own height. `App::accessibility_scroll` now does what
+  Compose does: on device, both lists are 2,106 px at y = 231, so a page is 2,106 px on
+  both. `talkback_pages_by_the_scroll_nodes_own_height_like_compose` pins it, and the
+  `talkback-page-fraction` mutation fails that test.
+- **The walk.** Compose labels a row clipped at the top from its first visible child, so a
+  row's name could read "Apache License 2.0". The walk now counts a row on the page where its
+  name line is inside the list. It also waits for Compose's animated page to stop, and hashes
+  the dialog's text leaves rather than every container.
+- **The keyboard bind.** `am instrument` kills the keyboard. The system rebinds it only on a
+  start of input at least 3 s after its last bind attempt, and the Rust field was focused
+  2.87 s after the kill. `awaitIme` now restarts input while no keyboard is bound.
+- **The gallery.** `scroll top` does not move Compose's LazyColumn, so the gallery opens the
+  screen again instead. The project licence screen is waited for by its title.
+
+**Pictures.** The strict diff (3/255 per channel, a one-pixel neighbour band, system bars
+masked), in `pictures/comparison.json`:
+
+| Appearance | Licences (4 pairs) | Every pair | Max error |
+| --- | --- | --- | --- |
+| Light | 4/4, max 0 | 80/80 | 1/255 |
+| Dark | 4/4, max 1 | 80/80 | 2/255 |
+| Font scale 2.0 | 1/4 | 1/80 | 250/255 |
+
+Font scale 2.0 is owed renderer-wide, as before. These counts are recorded, not chased. The
+one match is the project licence screen, which Compose draws on both renderers. The pixels
+over 3/255 are 10,507 on the list, 9,694 on the lower page and 2,504 on the dialog.
+
+**Timings.** `settings-licences-timing.py` ran the trials compose, rust, rust, compose with
+Gradle idle (`timing/summary.json`), using A5's method: a Perfetto frame timeline, with input
+joined to frames by vsync id. The figures are per trial.
+
+| | Compose | Rust |
+| --- | --- | --- |
+| Open: tap to first present | 25.2, 24.5 ms | 20.9, 14.7 ms |
+| Open: tap to settled | 520.9, 521.7 ms (32–33 frames) | One frame |
+| Licence dialog: tap to first present | 65.1, 56.1 ms | 23.7, 25.0 ms |
+| Licence dialog: tap to settled | 876.9, 874.5 ms (51–52 frames) | One frame |
+| Scroll: input to present, p50 / p95 | 31.0 / 50.1, 28.6 / 43.9 ms | 31.8 / 45.8, 31.2 / 47.6 ms |
+| Scroll: main-thread frame, p50 / p95 | 2.25 / 3.90, 2.18 / 3.87 ms | 1.60 / 2.72, 1.62 / 2.75 ms |
+| Scroll: Rust scene, p50 / p95 | – | 0.94 / 1.62, 0.94 / 1.74 ms |
+| Scroll: Rust raster, p50 / p95 | – | 2.09 / 2.43, 2.11 / 2.48 ms |
+| Scroll: missed app deadlines | 0, 0 | 0, 0 |
+| PSS after the trial | 90.0, 90.6 MiB | 112.1, 108.7 MiB |
+
+Compose's settled times are its route transition and its dialog's enter animation. Rust shows
+the screen and the dialog finished in one frame.
+
+Still owed after this run:
+
+- **Animation.** The Rust settings renderer has no route transition and no dialog enter
+  animation. Compose also animates TalkBack's page scroll, where Rust jumps. Both are
+  renderer-wide, not licences work.
+- **Font scale 2.0 pictures**, renderer-wide, as above.
+- **List semantics.** Compose's list is a View with CollectionInfo, which TalkBack calls a
+  list; Rust's is a ScrollView. AboutLibraries' role-less rows are a Compose defect.
+- **A real TalkBack session on a phone**, as for every settings screen.
+- **The project licence screen's text selection**, and RTL (both below).
 
 ## Text selection (project licence screen): owed
 
@@ -158,7 +243,9 @@ stays on Compose for both renderers.
     `blank-version-shown`, `html-legacy-block-lines` and `empty-licence-text-node` must fail
     the JVM match test.
   - `every-row-drawn` must fail the Rust licence tests.
-- **Device (written, not run):**
+  - `talkback-page-fraction` must fail the Rust screens tests. It was added after the device
+    walk found the paging difference.
+- **Device (run on 2026-11-15; see Device results):**
   - `SettingsLicencesDevice.kt` walks every row on both renderers, audits the top, a lower
     page and a dialog, and records the dialog's text hash and button.
   - `settings-device-tests.py` saves `licences.json` and requires the two walks to be equal.
