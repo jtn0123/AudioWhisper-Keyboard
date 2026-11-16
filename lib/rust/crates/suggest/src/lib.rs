@@ -13,6 +13,7 @@ pub mod dictionary;
 pub mod glide_ranker;
 pub mod java;
 pub mod kept_words;
+pub mod language_model;
 pub mod learned_words;
 mod lines;
 mod ordered;

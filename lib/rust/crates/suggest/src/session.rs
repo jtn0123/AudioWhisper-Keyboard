@@ -10,6 +10,7 @@ use latin::trie::{dictionary::Dictionary as LatinDictionary, jni::get_words, ngr
 
 use crate::dictionary::{Dictionary, Lookup, Purpose};
 use crate::java::code_points;
+use crate::language_model::{LanguageModel, Tuning};
 use crate::learned_words::NegativeCount;
 use crate::previous_words::PreviousWords;
 use crate::qwerty::{self, CannotRoundNaN};
@@ -38,6 +39,7 @@ pub struct Session {
     traversal: DicTraverseSession,
     proximity: ProximityInfo,
     output: Output,
+    model: Option<LanguageModel>,
 }
 
 impl Session {
@@ -48,7 +50,31 @@ impl Session {
             traversal,
             proximity: proximity()?,
             output: Output::new(0.0),
+            model: None,
         })
+    }
+
+    /// Lets `model` predict next words and re-weigh candidates in context (see
+    /// [`crate::language_model`]), as the scoreboard chose.
+    pub fn attach(&mut self, model: Arc<ngram::Model>) {
+        self.attach_tuned(model, Tuning::DEFAULT);
+    }
+
+    pub fn attach_tuned(&mut self, model: Arc<ngram::Model>, tuning: Tuning) {
+        self.model = Some(LanguageModel::new(model, tuning));
+    }
+
+    pub fn language_model(&self) -> Option<&LanguageModel> {
+        self.model.as_ref()
+    }
+
+    /// What the words before `word` say for it, for the swipe ranker: the model's
+    /// [`LanguageModel::swipe_ngram`] if there is a model, else the dictionary's n-gram.
+    pub fn context_probability(&self, previous: &PreviousWords, word: &[u16]) -> i32 {
+        match &self.model {
+            Some(model) => model.swipe_ngram(previous, word, self.probability(word)),
+            None => self.ngram_probability(previous, word),
+        }
     }
 
     pub fn probability(&self, word: &[u16]) -> i32 {
@@ -233,11 +259,23 @@ impl Dictionary for Request<'_> {
         } else {
             &PreviousWords::NONE
         };
-        self.session.decode(
-            input,
-            previous,
-            self.block,
-            if purpose.with_taps() { self.taps } else { &[] },
-        )
+        if purpose == Purpose::Predicting
+            && let Some(model) = &self.session.model
+        {
+            return Ok(model.predictions(previous));
+        }
+        let taps = if purpose.with_taps() { self.taps } else { &[] };
+        let mut results = self.session.decode(input, previous, self.block, taps)?;
+        if purpose == Purpose::Typing
+            && let Some(model) = &self.session.model
+        {
+            let session = &*self.session;
+            let size = code_points(input).len();
+            model.rescore(previous, size, &mut results, |word| {
+                let unigram = session.probability(word);
+                (unigram, session.ngram_probability(previous, word))
+            });
+        }
+        Ok(results)
     }
 }

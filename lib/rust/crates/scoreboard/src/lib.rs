@@ -21,7 +21,7 @@ use std::sync::Arc;
 use swipe::Swiper;
 use text::Sentence;
 use touch::Hand;
-use typing::Engine;
+use typing::{Engine, WithModel};
 
 /// A named set of test sentences.
 #[derive(Debug)]
@@ -35,15 +35,17 @@ const NEUTRAL_STREAM: u64 = 1;
 const LEFT_THUMB_STREAM: u64 = 2;
 const SWIPE_STREAM: u64 = 3;
 
-/// Scores every source with `threads` threads, each with its own session on `dictionary`.
+/// Scores every source with `threads` threads, each with its own session on `dictionary` (and
+/// `model`, shared).
 pub fn run(
     dictionary: Arc<[u8]>,
+    model: Option<&WithModel>,
     keyboard: &Keyboard,
     sources: &[Source],
     seed: u64,
     threads: usize,
 ) -> Result<Vec<Tally>, String> {
-    let probe = Engine::open(dictionary.clone()).ok_or("the dictionary did not open")?;
+    let probe = Engine::open(dictionary.clone(), model).ok_or("the dictionary did not open")?;
     let swiper = Swiper::new(probe.session(), keyboard)?;
     drop(probe);
     let threads = threads.max(1);
@@ -55,7 +57,8 @@ pub fn run(
                     let dictionary = dictionary.clone();
                     let swiper = &swiper;
                     scope.spawn(move || {
-                        let mut engine = Engine::open(dictionary).expect("opened once already");
+                        let mut engine =
+                            Engine::open(dictionary, model).expect("opened once already");
                         let mut tally = Tally::default();
                         let stream = (s as u64) << 32;
                         for (i, sentence) in source.sentences.iter().enumerate() {
@@ -65,6 +68,7 @@ pub fn run(
                             }
                         }
                         tally.typing_time.append(&mut engine.typing_time);
+                        tally.prediction_time.append(&mut engine.prediction_time);
                         tally
                     })
                 })

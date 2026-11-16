@@ -136,7 +136,7 @@ impl Swiper {
         let previous = PreviousWords::from(&next(before));
         let order = glide_ranker::rank_from(&costs, &words, &previous, |query| {
             Ok::<i32, ()>(match query {
-                Query::Ngram(previous, word) => session.ngram_probability(previous, word),
+                Query::Ngram(previous, word) => session.context_probability(previous, word),
                 Query::Probability(word) => session.probability(word),
                 Query::Pair(..) => 0,
             })

@@ -60,6 +60,8 @@ pub struct Tally {
     pub swipe_top3: usize,
     /// How long each strip took while typing a word.
     pub typing_time: Vec<Duration>,
+    /// How long each strip of next words took after a space.
+    pub prediction_time: Vec<Duration>,
 }
 
 impl Tally {
@@ -75,22 +77,28 @@ impl Tally {
         self.swipe_top1 += other.swipe_top1;
         self.swipe_top3 += other.swipe_top3;
         self.typing_time.extend(other.typing_time);
+        self.prediction_time.extend(other.prediction_time);
     }
 
     /// The mean and 95th percentile of [`Tally::typing_time`], in milliseconds.
     pub fn latency(&self) -> (f64, f64) {
-        let mut times: Vec<f64> = self
-            .typing_time
-            .iter()
-            .map(|t| t.as_secs_f64() * 1e3)
-            .collect();
-        if times.is_empty() {
-            return (0.0, 0.0);
-        }
-        times.sort_by(f64::total_cmp);
-        let mean = times.iter().sum::<f64>() / times.len() as f64;
-        (mean, times[(times.len() * 95 / 100).min(times.len() - 1)])
+        latency(&self.typing_time)
     }
+
+    /// The mean and 95th percentile of [`Tally::prediction_time`], in milliseconds.
+    pub fn prediction_latency(&self) -> (f64, f64) {
+        latency(&self.prediction_time)
+    }
+}
+
+fn latency(times: &[Duration]) -> (f64, f64) {
+    let mut times: Vec<f64> = times.iter().map(|t| t.as_secs_f64() * 1e3).collect();
+    if times.is_empty() {
+        return (0.0, 0.0);
+    }
+    times.sort_by(f64::total_cmp);
+    let mean = times.iter().sum::<f64>() / times.len() as f64;
+    (mean, times[(times.len() * 95 / 100).min(times.len() - 1)])
 }
 
 fn percent(part: usize, whole: usize) -> String {
@@ -149,6 +157,12 @@ fn rows() -> Vec<Row> {
         }),
         ("Strip time per keystroke, p95 (ms)", |t| {
             format!("{:.2}", t.latency().1)
+        }),
+        ("Next-word strip time, mean (ms)", |t| {
+            format!("{:.2}", t.prediction_latency().0)
+        }),
+        ("Next-word strip time, p95 (ms)", |t| {
+            format!("{:.2}", t.prediction_latency().1)
         }),
     ]
 }

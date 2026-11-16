@@ -10,6 +10,7 @@ use crate::touch::{self, Hand, Typed};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use suggest::auto_correction::MODEST_THRESHOLD;
+use suggest::language_model::Tuning;
 use suggest::personal_words::PersonalWords;
 use suggest::previous_words::PreviousWords;
 use suggest::session::Session;
@@ -28,14 +29,24 @@ pub struct Engine {
     personal: PersonalWords,
     /// Time spent asking for strips while typing a word, and how many were asked for.
     pub typing_time: Vec<Duration>,
+    /// The same for the strips of next words after a space.
+    pub prediction_time: Vec<Duration>,
 }
 
+/// An n-gram model to score with, and how the session uses it.
+pub type WithModel = (Arc<ngram::Model>, Tuning);
+
 impl Engine {
-    pub fn open(dictionary: Arc<[u8]>) -> Option<Engine> {
+    pub fn open(dictionary: Arc<[u8]>, model: Option<&WithModel>) -> Option<Engine> {
+        let mut session = Session::open(dictionary)?;
+        if let Some((model, tuning)) = model {
+            session.attach_tuned(model.clone(), *tuning);
+        }
         Some(Engine {
-            session: Session::open(dictionary)?,
+            session,
             personal: PersonalWords::new(Vec::new()),
             typing_time: Vec::new(),
+            prediction_time: Vec::new(),
         })
     }
 
@@ -71,7 +82,9 @@ impl Engine {
     fn shown_at(&mut self, before: &[u16], typed: &[u16], word: &[u16]) -> Option<usize> {
         let started = Instant::now();
         let strip = self.strip(before, typed, &[], MAX_CANDIDATES);
-        if !typed.is_empty() {
+        if typed.is_empty() {
+            self.prediction_time.push(started.elapsed());
+        } else {
             self.typing_time.push(started.elapsed());
         }
         strip
@@ -146,7 +159,7 @@ mod tests {
     fn engine() -> Engine {
         let path = Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("../latin/tests/fixtures/aosp_main_en-US.dict");
-        Engine::open(std::fs::read(path).unwrap().into()).unwrap()
+        Engine::open(std::fs::read(path).unwrap().into(), None).unwrap()
     }
 
     #[test]

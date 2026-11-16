@@ -1683,6 +1683,7 @@ dependencies = [
  "glide",
  "keys",
  "lexicon",
+ "ngram",
  "serde_json",
  "suggest",
 ]
@@ -1882,6 +1883,7 @@ version = "0.1.0"
 dependencies = [
  "chars",
  "latin",
+ "ngram",
 ]
 
 [[package]]

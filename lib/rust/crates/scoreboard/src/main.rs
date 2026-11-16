@@ -2,6 +2,9 @@
 //!
 //! Options:
 //!   --dict FILE     the dictionary to score (default: the app's main_en-US.dict)
+//!   --model FILE    an n-gram model to score with it (default: none)
+//!   --typing W      the model's weight on typed candidates (default: the session's)
+//!   --swipe L       the least lift the swipe ranker counts (default: the session's)
 //!   --limit N       score the first N sentences of each test file (default: all)
 //!   --seed N        the seed for taps and swipes (default 20261116)
 //!   --threads N     scoring threads (default: the machine's)
@@ -13,10 +16,14 @@ use scoreboard::report::{Tally, table};
 use scoreboard::{Source, text};
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
+use std::sync::Arc;
 use std::time::Instant;
+use suggest::language_model::Tuning;
 
 struct Options {
     dict: PathBuf,
+    model: Option<PathBuf>,
+    tuning: Tuning,
     tests: Vec<(String, PathBuf)>,
     limit: usize,
     seed: u64,
@@ -30,6 +37,8 @@ fn app() -> PathBuf {
 fn options() -> Result<Options, String> {
     let mut options = Options {
         dict: app().join("assets/dicts/main_en-US.dict"),
+        model: None,
+        tuning: Tuning::DEFAULT,
         tests: Vec::new(),
         limit: usize::MAX,
         seed: 20261116,
@@ -39,8 +48,12 @@ fn options() -> Result<Options, String> {
     while let Some(flag) = args.next() {
         let mut value = || args.next().ok_or(format!("{flag} needs a value"));
         let number = |v: String| v.parse::<u64>().map_err(|e| format!("{flag}: {e}"));
+        let real = |v: String| v.parse::<f32>().map_err(|e| format!("{flag}: {e}"));
         match flag.as_str() {
             "--dict" => options.dict = value()?.into(),
+            "--model" => options.model = Some(value()?.into()),
+            "--typing" => options.tuning.typing = real(value()?)?,
+            "--swipe" => options.tuning.swipe = real(value()?)?,
             "--test" => {
                 let v = value()?;
                 let (name, file) = v.split_once('=').ok_or("--test takes NAME=FILE")?;
@@ -73,6 +86,14 @@ fn run() -> Result<(), String> {
     let started = Instant::now();
     let dictionary =
         std::fs::read(&options.dict).map_err(|e| format!("{}: {e}", options.dict.display()))?;
+    let model = match &options.model {
+        Some(file) => {
+            let bytes = std::fs::read(file).map_err(|e| format!("{}: {e}", file.display()))?;
+            let model = ngram::Model::open(bytes).ok_or("the model did not open")?;
+            Some((Arc::new(model), options.tuning))
+        }
+        None => None,
+    };
     let keyboard = Keyboard::phone(&app().join("assets"))?;
     let mut sources = Vec::new();
     for (name, file) in &options.tests {
@@ -87,6 +108,7 @@ fn run() -> Result<(), String> {
     }
     let tallies = scoreboard::run(
         dictionary.into(),
+        model.as_ref(),
         &keyboard,
         &sources,
         options.seed,
@@ -113,6 +135,16 @@ fn run() -> Result<(), String> {
         options.seed,
         sources.iter().map(|s| s.sentences.len()).sum::<usize>(),
     );
+    if let Some(file) = &options.model {
+        println!(
+            "Model: {} ({} bytes); {:?}",
+            std::fs::canonicalize(file)
+                .unwrap_or_else(|_| file.clone())
+                .display(),
+            std::fs::metadata(file).map_or(0, |m| m.len()),
+            options.tuning,
+        );
+    }
     println!();
     print!("{}", table(&columns));
     eprintln!("scored in {:.1} s", started.elapsed().as_secs_f64());

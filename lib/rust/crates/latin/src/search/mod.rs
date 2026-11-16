@@ -62,7 +62,7 @@ mod error_type;
 mod heap;
 pub mod jni;
 mod result;
-mod scoring_params;
+pub mod scoring_params;
 mod session;
 mod suggest;
 mod suggest_options;
