@@ -161,14 +161,19 @@ def licences(d, renderer):
     picture(d, renderer+'-licences')
     d.ui('scroll', 'down', 1440)
     picture(d, renderer+'-licences-lower1')
-    d.ui('scroll', 'top')
+    # Back to the top by opening the screen again: agent-device reads Compose's LazyColumn (a
+    # View with CollectionInfo, not a ScrollView) as already at the top, so `scroll top` stays.
+    d.launch('settings/home')
+    d.launch('settings/about/third-party-licenses')
+    d.wait(lambda: d.find('Activity'), 'Screen absent')
     d.press('Activity')
     d.wait(lambda: d.find('OK'), 'Dialog absent')
     picture(d, renderer+'-dialog-licences-activity')
     d.press('OK')
     d.launch('settings/home')
     d.launch('settings/about/project-license')
-    d.wait(lambda: d.find('Apache License'), 'Screen absent')
+    # By its title: the licence is one Text node, the whole file, indented as the file is.
+    d.wait(lambda: d.find('Project license'), 'Screen absent')
     picture(d, renderer+'-project-license')
 
 
