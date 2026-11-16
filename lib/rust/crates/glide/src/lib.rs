@@ -12,8 +12,10 @@ mod gesture;
 mod index;
 mod layout;
 mod score;
+mod tuning;
 
 pub use gesture::{Gesture, MAX_POINTS, SAMPLES};
 pub use index::{CharKeys, GlideIndex, IndexError, NO_KEY, distinct_units};
 pub use layout::{Key, Layout};
-pub use score::{Ranking, ScoreError};
+pub use score::{Ranking, ScoreError, Swipe};
+pub use tuning::{ENDS_SPREAD, Tuning};

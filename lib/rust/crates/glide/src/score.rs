@@ -10,6 +10,7 @@ use std::fmt;
 use crate::gesture::{Gesture, SAMPLES, distance};
 use crate::index::GlideIndex;
 use crate::layout::Layout;
+use crate::tuning::{self, Tuning};
 
 /// How far a word's path may be from the swipe's length, in key radii, and still be scored.
 const LENGTH_THRESHOLD: f64 = 8.42;
@@ -67,6 +68,11 @@ impl Ranking {
         &self.weights
     }
 
+    /// Whether a word at `weight` would not get in: the ranking is full of likelier words.
+    pub(crate) fn would_drop(&self, weight: f32) -> bool {
+        self.words.len() >= self.max && self.weights.last().is_some_and(|&last| last <= weight)
+    }
+
     /// Adds `word` at `weight`, keeping the order and at most `max` words. A word already in at
     /// an equal or better weight stays; at a worse one, it moves up.
     pub fn insert(&mut self, word: u32, weight: f32) {
@@ -91,6 +97,14 @@ impl Ranking {
         self.words.truncate(self.max);
         self.weights.truncate(self.max);
     }
+}
+
+/// A swipe's points, and when each was drawn.
+#[derive(Clone, Copy, Debug)]
+pub struct Swipe<'a> {
+    pub gesture: &'a Gesture,
+    /// Each point's time in milliseconds, or none; [`Tuning::dwell`] needs them.
+    pub times: &'a [f32],
 }
 
 impl GlideIndex {
@@ -121,8 +135,8 @@ impl GlideIndex {
     }
 
     /// Scores `candidates` (from [`GlideIndex::candidates`]) against `swipe`, each at its
-    /// frequency in `frequencies` (0 to 1; 0 for a word the dictionary lacks). Returns the `max`
-    /// likeliest.
+    /// frequency in `frequencies` (0 to 1; 0 for a word the dictionary lacks), as FlorisBoard's
+    /// classifier did ([`Tuning::ORIGINAL`]). Returns the `max` likeliest.
     pub fn score(
         &self,
         candidates: &[u32],
@@ -131,6 +145,34 @@ impl GlideIndex {
         layout: &Layout,
         max: usize,
     ) -> Result<Ranking, ScoreError> {
+        let swipe = Swipe {
+            gesture: swipe,
+            times: &[],
+        };
+        self.score_with(
+            candidates,
+            frequencies,
+            swipe,
+            layout,
+            max,
+            &Tuning::ORIGINAL,
+        )
+    }
+
+    /// As [`GlideIndex::score`], with `tuning`'s additions.
+    pub fn score_with(
+        &self,
+        candidates: &[u32],
+        frequencies: &[f32],
+        swipe: Swipe<'_>,
+        layout: &Layout,
+        max: usize,
+        tuning: &Tuning,
+    ) -> Result<Ranking, ScoreError> {
+        let Swipe {
+            gesture: swipe,
+            times,
+        } = swipe;
         if candidates.len() != frequencies.len() {
             return Err(ScoreError::FrequencyCount);
         }
@@ -151,9 +193,11 @@ impl GlideIndex {
         swipe.resample_into(&mut g.swipe);
         g.swipe.normalize_into(&mut g.swipe_shape);
         let location_std = LOCATION_STD * radius;
+        let original = tuning.is_original();
+        let weights = tuning::dwell_weights(tuning.dwell, swipe, times, radius);
         for (&word, &frequency) in candidates.iter().zip(frequencies) {
             let Scratch {
-                swipe,
+                swipe: resampled,
                 swipe_shape,
                 plain,
                 loops,
@@ -165,16 +209,34 @@ impl GlideIndex {
                 continue;
             }
             let frequency = 255.0f32 * frequency;
+            let ends = if original {
+                1.0
+            } else {
+                let last = plain.len() - 1;
+                let (first, last) = ((plain.x(0), plain.y(0)), (plain.x(last), plain.y(last)));
+                tuning::ends_probability(tuning.ends, swipe, first, last, radius)
+            };
             let ideals = [&*plain, &*loops];
             for ideal in &ideals[..if has_loops { 2 } else { 1 }] {
                 ideal.resample_into(path);
                 path.normalize_into(shape);
                 let shape_probability = gaussian(shape_distance(shape, swipe_shape), SHAPE_STD);
-                let location_probability = gaussian(location_distance(path, swipe), location_std);
-                ranking.insert(
-                    self.spelling(word),
-                    1.0 / (shape_probability * location_probability * frequency),
-                );
+                let weight = if original {
+                    let location = location_distance(path, resampled);
+                    1.0 / (shape_probability * gaussian(location, location_std) * frequency)
+                } else {
+                    let location = tuning::weighted_location_distance(path, resampled, &weights);
+                    let location_probability = gaussian(location, location_std);
+                    let weight =
+                        1.0 / (shape_probability * location_probability * frequency * ends);
+                    // Reach only lowers a word's chances, so a word already out stays out.
+                    if tuning.reach == 0.0 || ranking.would_drop(weight) {
+                        weight
+                    } else {
+                        weight / tuning::reach_probability(tuning.reach, swipe, ideal, radius)
+                    }
+                };
+                ranking.insert(self.spelling(word), weight);
             }
         }
         Ok(ranking)
@@ -214,6 +276,10 @@ fn gaussian(value: f32, standard_deviation: f32) -> f32 {
     let z = (value / standard_deviation) as f64;
     (factor * (-1.0 / 2.0 * (z * z)).exp()) as f32
 }
+
+#[cfg(test)]
+#[path = "score_tuned_tests.rs"]
+mod tuned_tests;
 
 #[cfg(test)]
 mod tests {
@@ -270,7 +336,7 @@ mod tests {
     }
 
     /// A QWERTY letter layout with 100 x 150 keys, each row shifted half a key.
-    fn qwerty() -> Vec<Key> {
+    pub(super) fn qwerty() -> Vec<Key> {
         ["qwertyuiop", "asdfghjkl", "zxcvbnm"]
             .iter()
             .enumerate()
@@ -287,7 +353,7 @@ mod tests {
     }
 
     /// A swipe through `word`'s keys, with points every 20 px along the way.
-    fn swipe_through(word: &str, keys: &[Key]) -> Gesture {
+    pub(super) fn swipe_through(word: &str, keys: &[Key]) -> Gesture {
         let centre = |c: char| {
             keys.iter()
                 .find(|k| k.code == c as i32)
