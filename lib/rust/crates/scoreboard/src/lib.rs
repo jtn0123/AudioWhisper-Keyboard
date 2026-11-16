@@ -9,8 +9,8 @@
 pub mod geometry;
 pub mod report;
 pub mod rng;
+pub use lexicon::text;
 pub mod swipe;
-pub mod text;
 pub mod touch;
 pub mod typing;
 

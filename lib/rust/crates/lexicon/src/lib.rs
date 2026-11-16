@@ -5,3 +5,5 @@
 #![forbid(unsafe_code)]
 
 pub mod corpus;
+pub mod text;
+pub mod v202;

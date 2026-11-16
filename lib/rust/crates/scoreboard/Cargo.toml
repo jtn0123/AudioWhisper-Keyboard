@@ -11,6 +11,7 @@ rust-version.workspace = true
 chars = { path = "../chars" }
 glide = { path = "../glide" }
 keys = { path = "../keys" }
+lexicon = { path = "../lexicon" }
 suggest = { path = "../suggest" }
 serde_json = "=1.0.154"
 

@@ -100,36 +100,6 @@ pub fn split<'a>(lines: impl Iterator<Item = &'a str>, seen: &mut HashSet<u64>) 
     out
 }
 
-/// The words of `sentence` as the keyboard's dictionary spells them: letters, with apostrophes or
-/// hyphens inside. Anything touching a digit ("9pm", "MP3") is not a word.
-pub fn words(sentence: &str) -> impl Iterator<Item = &str> {
-    sentence.split_whitespace().filter_map(word_core)
-}
-
-fn is_connector(c: char) -> bool {
-    c == '\'' || c == '-'
-}
-
-fn word_core(token: &str) -> Option<&str> {
-    let start = token.find(|c: char| c.is_alphabetic())?;
-    let end = token.rfind(|c: char| c.is_alphabetic())?;
-    let end = end + token[end..].chars().next()?.len_utf8();
-    if token[..start]
-        .chars()
-        .chain(token[end..].chars())
-        .any(char::is_alphanumeric)
-    {
-        return None;
-    }
-    let core = &token[start..end];
-    let valid = core.chars().all(|c| c.is_alphabetic() || is_connector(c))
-        && !core
-            .as_bytes()
-            .windows(2)
-            .any(|w| is_connector(w[0] as char) && is_connector(w[1] as char));
-    valid.then_some(core)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -174,17 +144,5 @@ mod tests {
         let split = split(lines.iter().map(String::as_str), &mut HashSet::new());
         let hashes: Vec<u64> = split.test.iter().map(|s| hash(&key(s))).collect();
         assert!(hashes.windows(2).all(|w| w[0] <= w[1]));
-    }
-
-    #[test]
-    fn words_are_letters_with_inner_apostrophes_and_hyphens() {
-        let found: Vec<&str> =
-            words("\"Don't go,\" she said at 9pm -- e-mail me! 'Twas naïve.").collect();
-        assert_eq!(
-            found,
-            [
-                "Don't", "go", "she", "said", "at", "e-mail", "me", "Twas", "naïve"
-            ]
-        );
     }
 }

@@ -1673,6 +1673,7 @@ dependencies = [
  "chars",
  "glide",
  "keys",
+ "lexicon",
  "serde_json",
  "suggest",
 ]

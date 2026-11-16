@@ -1,4 +1,5 @@
-//! The held-out sentences, and the words in them the scoreboard asks the keyboard to type.
+//! Sentences as the keyboard sees text (UTF-16), and the words in them: the words the scoreboard
+//! types, and the words the dictionary's statistics are counted over.
 //!
 //! A sentence is typed as it is written, punctuation included, so the keyboard's own rules decide
 //! what context each word has (`PreviousWords::from`). The words scored are the letter words:
