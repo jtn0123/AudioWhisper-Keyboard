@@ -25,6 +25,9 @@ class KeptWords(private val file: File?, capacity: Int = CAPACITY) {
     /** Keeps [word]; true when the change needs [save]. */
     fun add(word: String, remember: Boolean): Boolean = store.add(word, remember)
 
+    /** Forgets every kept word; [save] then writes an empty file. */
+    fun clear() = store.clear()
+
     /** Reads the saved words, ahead of any added before it finished. Blocking. */
     fun load() {
         val saved = try {

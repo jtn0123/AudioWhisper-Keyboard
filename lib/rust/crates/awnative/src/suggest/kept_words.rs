@@ -90,6 +90,22 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_WordStoresNative_keptA
     }
 }
 
+/// Forgets every kept word.
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_WordStoresNative_keptClear(
+    env: *mut JNIEnv,
+    _: jclass,
+    store: jlong,
+) {
+    // SAFETY: the JVM passes its environment; Kotlin holds the store while it calls.
+    unsafe {
+        with_store(env, store, (), |store, _| {
+            store.clear();
+            Ok(())
+        })
+    }
+}
+
 /// Takes in a saved file's `text`, read before taking the lock.
 #[unsafe(no_mangle)]
 pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_WordStoresNative_keptMerge(

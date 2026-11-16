@@ -88,6 +88,12 @@ impl KeptWords {
         self.remembered.trim(self.capacity);
     }
 
+    /// Forgets every kept word, remembered or not, as forgetting what typing learned does.
+    pub fn clear(&mut self) {
+        self.remembered.clear();
+        self.session_only.clear();
+    }
+
     /// The text to save: each remembered word on a line of its own, oldest first.
     pub fn saved_text(&self) -> Vec<u16> {
         let mut text = Vec::new();
@@ -121,6 +127,20 @@ mod tests {
         assert!(kept.contains(&utf16("TEH")));
         assert!(!kept.contains(&utf16("the")));
         assert_eq!(saved(&kept), "teh\n");
+    }
+
+    #[test]
+    fn clearing_forgets_every_word() {
+        let mut kept = KeptWords::new(CAPACITY);
+        assert!(kept.add(&utf16("teh"), true));
+        assert!(!kept.add(&utf16("secret"), false));
+        kept.clear();
+        assert!(!kept.contains(&utf16("teh")));
+        assert!(!kept.contains(&utf16("secret")));
+        assert_eq!(saved(&kept), "\n");
+        // The store keeps working, and its capacity, afterwards.
+        assert!(kept.add(&utf16("hte"), true));
+        assert_eq!(saved(&kept), "hte\n");
     }
 
     #[test]

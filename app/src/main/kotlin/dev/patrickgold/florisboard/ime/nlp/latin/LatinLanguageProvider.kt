@@ -400,6 +400,8 @@ class LatinLanguageProvider(context: Context) : SpellingProvider, SuggestionProv
     fun forgetLearnedWords() {
         learnedWords.clear()
         saveLearnedWords()
+        keptAsTyped.clear()
+        saveKeptWords()
         tapTrail.forgetAim()
         tapAimFile.delete()
         refreshSwipeWords()

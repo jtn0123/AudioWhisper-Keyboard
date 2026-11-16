@@ -773,7 +773,7 @@ adb shell run-as com.jtn0123.audiowhisper.keyboard cat files/typing-counters.txt
 ```
 
 *Forget learned words* (Settings, Typing) resets every count, deletes the file, and erases the
-learned words and the tap aim with them. Deleting the file with run-as while the keyboard runs
+learned words, the words kept as typed and the tap aim with them. Deleting the file with run-as while the keyboard runs
 does not reset it: the next save writes the counts back.
 
 ### The dictionary build

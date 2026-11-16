@@ -49,6 +49,10 @@ class WordStoresTest {
         val restarted = KeptWordStore().apply { merge(" TEH \r\n\n") }
         assertTrue("teh" in restarted)
         assertFalse("secret" in restarted)
+        kept.clear()
+        assertFalse("teh" in kept)
+        assertFalse("secret" in kept)
+        assertEquals("\n", kept.savedText())
     }
 
     @Test

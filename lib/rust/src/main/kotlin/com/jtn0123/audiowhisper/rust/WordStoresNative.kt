@@ -66,6 +66,8 @@ internal object WordStoresNative {
 
     @JvmStatic external fun keptAdd(store: Long, word: String, remember: Boolean): Boolean
 
+    @JvmStatic external fun keptClear(store: Long)
+
     @JvmStatic external fun keptMerge(store: Long, text: String)
 
     @JvmStatic external fun keptSavedText(store: Long): String

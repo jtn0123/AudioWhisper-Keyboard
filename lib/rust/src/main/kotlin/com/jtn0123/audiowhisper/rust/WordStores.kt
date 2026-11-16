@@ -131,6 +131,12 @@ class KeptWordStore(capacity: Int = WordStoreRules.keptCapacity) {
     fun add(word: String, remember: Boolean): Boolean =
         WordStoresNative.keptAdd(handle, word, remember).also { Reference.reachabilityFence(this) }
 
+    /** Forgets every kept word, remembered or not. */
+    fun clear() {
+        WordStoresNative.keptClear(handle)
+        Reference.reachabilityFence(this)
+    }
+
     /** Takes in a saved file's [text], ahead of the words remembered before it was read. */
     fun merge(text: String) {
         WordStoresNative.keptMerge(handle, text)
