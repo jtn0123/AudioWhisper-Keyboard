@@ -4,12 +4,13 @@ import dev.patrickgold.florisboard.ime.text.gestures.StatisticalGlideTypingClass
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
+import kotlin.test.assertNotEquals
 import kotlin.test.assertNotSame
 import kotlin.test.assertTrue
 
 /**
  * The swipe as the classifier collects it. Its storage is reused and grows, so what it hands the
- * scorer ([Gesture.xs], [Gesture.ys]) and how it compares (the suggestion cache's key) must see only
+ * scorer ([Gesture.xs], [Gesture.ys], [Gesture.times]) and how it compares (the suggestion cache's key) must see only
  * the points in it now. The scoring itself is tested in lib/rust and by [SwipeIndexTest].
  */
 class GestureTest {
@@ -51,6 +52,22 @@ class GestureTest {
 
         assertEquals(fresh, reused)
         assertEquals(fresh.hashCode(), reused.hashCode())
+    }
+
+    @Test
+    fun eachPointKeepsItsTimeAndTimesCount() {
+        val gesture = Gesture(2)
+        for (i in 0 until 5) gesture.addPoint(i.toFloat(), 0f, i * 10f)
+        assertContentEquals(floatArrayOf(0f, 10f, 20f, 30f, 40f), gesture.times())
+        val clone = gesture.clone()
+        assertContentEquals(gesture.times(), clone.times())
+        gesture.clear()
+        gesture.addPoint(7f, 8f)
+        assertContentEquals(floatArrayOf(0f), gesture.times(), "a point added without a time has none")
+
+        val sooner = Gesture().apply { addPoint(1f, 1f, 5f) }
+        val later = Gesture().apply { addPoint(1f, 1f, 9f) }
+        assertNotEquals(sooner, later, "the same points drawn at other times may score differently")
     }
 
     @Test

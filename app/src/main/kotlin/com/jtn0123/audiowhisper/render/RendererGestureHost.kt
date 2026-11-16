@@ -21,6 +21,9 @@ import dev.patrickgold.florisboard.ime.text.key.KeyCode
 import dev.patrickgold.florisboard.ime.text.key.KeyVariation
 import dev.patrickgold.florisboard.ime.text.keyboard.TextKeyData
 
+/** Asks the renderer for each glide point's time, which the swipe scorer weighs. */
+private const val GLIDE_TIMES = 1f
+
 /** Android editor and glide callbacks only. Rust chooses when and with which arguments to call. */
 internal class RendererGestureHost(private val context: Context, private val native: KeyboardRenderer) {
     private val prefs by FlorisPreferenceStore
@@ -41,17 +44,22 @@ internal class RendererGestureHost(private val context: Context, private val nat
             if (editor.activeInfo.isRawInputEditor) 1f else 0f, if (manager.isTypingIntoGifSearch) 1f else 0f,
             if (prefs.glide.showTrail.get()) 1f else 0f, prefs.glide.trailDuration.get().toFloat(),
             prefs.gestures.swipeDistanceThreshold.get().toFloat(), prefs.gestures.swipeVelocityThreshold.get().toFloat(),
-            if (manager.inputEventDispatcher.isPressed(KeyCode.SHIFT)) 1f else 0f),
+            if (manager.inputEventDispatcher.isPressed(KeyCode.SHIFT)) 1f else 0f, GLIDE_TIMES),
             actions().map { it.name }.toTypedArray())
     }
     fun layout(snapshot: KeyboardSnapshot) {
         configure(snapshot)
         if (glideEnabled && snapshot.keyboard.mode == KeyboardMode.CHARACTERS) glide.setLayout(snapshot.keys)
     }
+    /** The time of the glide point that comes next: the renderer sends it just before the point. */
+    private var glideTime = 0
+
     fun dispatch(type: Int, value: Int, extra: Int) {
         val dispatcher = manager.inputEventDispatcher
         when (type) {
-            GLIDE_POINT -> glide.onGlideAddPoint(GlideTypingGesture.Detector.Position(Float.fromBits(value), Float.fromBits(extra)))
+            GLIDE_TIME -> glideTime = value
+            GLIDE_POINT -> glide.onGlideAddPoint(
+                GlideTypingGesture.Detector.Position(Float.fromBits(value), Float.fromBits(extra), glideTime))
             GLIDE_COMPLETE -> glide.onGlideComplete(GlideTypingGesture.Detector.PointerData(mutableListOf(), 0, true))
             GLIDE_CANCEL -> glide.onGlideCancelled()
             SWIPE_ACTION -> manager.executeSwipeAction(actions()[value])

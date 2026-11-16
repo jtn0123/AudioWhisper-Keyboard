@@ -17,11 +17,28 @@ internal object GlideNative {
 
     @JvmStatic external fun query(index: Long, xs: FloatArray, ys: FloatArray, keyCodes: IntArray, keyBounds: FloatArray): Long
 
+    @JvmStatic external fun queryTimed(
+        index: Long,
+        xs: FloatArray,
+        ys: FloatArray,
+        times: FloatArray,
+        keyCodes: IntArray,
+        keyBounds: FloatArray,
+    ): Long
+
     @JvmStatic external fun freeQuery(query: Long)
 
     @JvmStatic external fun candidates(query: Long): IntArray
 
     @JvmStatic external fun score(
+        query: Long,
+        candidates: IntArray,
+        frequencies: FloatArray,
+        outWords: IntArray,
+        outWeights: FloatArray,
+    ): Int
+
+    @JvmStatic external fun scoreTuned(
         query: Long,
         candidates: IntArray,
         frequencies: FloatArray,

@@ -73,7 +73,7 @@ class GlideTypingManager(context: Context) : GlideTypingGesture.Listener {
     }
 
     override fun onGlideAddPoint(point: GlideTypingGesture.Detector.Position) {
-        val normalized = GlideTypingGesture.Detector.Position(point.x, point.y)
+        val normalized = GlideTypingGesture.Detector.Position(point.x, point.y, point.time)
 
         this.glideTypingClassifier.addGesturePoint(normalized)
 

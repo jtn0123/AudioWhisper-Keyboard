@@ -133,7 +133,11 @@ class GlideTypingGesture {
             var isActuallyGesture: Boolean? = null,
         )
 
-        data class Position(val x: Float, val y: Float) {
+        /**
+         * A point of a gesture. AudioWhisper: with its [time] in microseconds after the touch went
+         * down, where the renderer gives it (RendererGestureHost), and 0 where nothing does.
+         */
+        data class Position(val x: Float, val y: Float, val time: Int = 0) {
             fun dist(p2: Position): Float {
                 return sqrt((p2.x - x).pow(2) + (p2.y - y).pow(2))
             }
