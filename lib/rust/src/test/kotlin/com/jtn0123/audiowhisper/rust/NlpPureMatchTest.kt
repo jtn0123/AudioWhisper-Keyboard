@@ -25,7 +25,11 @@ class NlpPureMatchTest {
     @Test fun namesAndUnknownSwipeWordsMatchOverNativeDictionaryAndPersonalStore() {
         val entries = listOf("Zorblax", "glorp")
         val personal = PersonalWordStore(entries, intArrayOf(255, 200), listOf(null, null))
-        val dictionary = requireNotNull(LatinSession.open(File("../../app/src/main/assets/dicts/main_en-US.dict").readBytes()))
+        for (file in TestDictionaries.both) namesAndUnknownSwipeWordsMatch(file, entries, personal)
+    }
+
+    private fun namesAndUnknownSwipeWordsMatch(file: File, entries: List<String>, personal: PersonalWordStore) {
+        val dictionary = requireNotNull(LatinSession.open(file.readBytes()))
         dictionary.use { session ->
             val words = listOf("John", "Maybe", "HELLO", "USA", "NASA", "hello", "", "Zorblax", "ZORBLAX", "Glorp", "Zorbaxq", "Teh", "a1", "café")
             repeat(20_000) { i ->

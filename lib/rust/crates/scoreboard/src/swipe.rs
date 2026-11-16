@@ -248,10 +248,13 @@ mod tests {
     use std::sync::Arc;
 
     fn setup() -> (Session, Keyboard) {
-        let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../../../app/src/main/assets");
-        let bytes: Arc<[u8]> = std::fs::read(root.join("dicts/main_en-US.dict"))
-            .unwrap()
-            .into();
+        let here = Path::new(env!("CARGO_MANIFEST_DIR"));
+        let root = here.join("../../../../app/src/main/assets");
+        // The AOSP dictionary, whose ranking the test below states.
+        let bytes: Arc<[u8]> =
+            std::fs::read(here.join("../latin/tests/fixtures/aosp_main_en-US.dict"))
+                .unwrap()
+                .into();
         (
             Session::open(bytes).unwrap(),
             Keyboard::phone(&root).unwrap(),

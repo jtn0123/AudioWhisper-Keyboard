@@ -8,7 +8,10 @@ import kotlin.test.assertFailsWith
 
 class BoundaryLearnerMatchTest {
     @Test fun nativeSessionLearningMatchesFrozenCallbackPath() {
-        val file = File("src/main/assets/dicts/main_en-US.dict")
+        for (file in TestDictionaries.both) nativeSessionLearningMatches(file)
+    }
+
+    private fun nativeSessionLearningMatches(file: File) {
         checkNotNull(LatinDictionaryEngine.open(file.path, 0, file.length(), "en_US")).use { engine ->
             repeat(100) { seed ->
                 val random = Random(20261114L + seed)
@@ -44,7 +47,7 @@ class BoundaryLearnerMatchTest {
                         4 -> { kotlin.dropSwiped(); expected.dropSwiped(); actual.dropSwiped() }
                     }
                     assertEquals(kotlinStore.store.savedText(), expectedStore.store.savedText(), "Kotlin seed $seed")
-                    assertEquals(expectedStore.store.savedText(), actualStore.store.savedText(), "seed $seed")
+                    assertEquals(expectedStore.store.savedText(), actualStore.store.savedText(), "${file.name} seed $seed")
                 }
             }
         }

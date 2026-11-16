@@ -152,30 +152,31 @@ impl TestKeyboard {
     }
 }
 
-/// The app's dictionary, available to Rust-only tests without linking the C++ oracle.
-fn bundled_dictionary_path() -> std::path::PathBuf {
-    std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../../../app/src/main/assets/dicts/main_en-US.dict")
+/// Google's AOSP dictionary, the fixture `latin_oracle::aosp_dictionary_path` names, available
+/// to Rust-only tests without linking the C++ oracle.
+fn aosp_dictionary_path() -> std::path::PathBuf {
+    std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/aosp_main_en-US.dict")
 }
 
-/// The bundled English dictionary, read for the Rust side.
-pub fn bundled_file() -> Arc<[u8]> {
-    let path = bundled_dictionary_path();
-    std::fs::read(path).expect("the bundled dictionary").into()
+/// The AOSP dictionary, read for the Rust side.
+pub fn aosp_file() -> Arc<[u8]> {
+    std::fs::read(aosp_dictionary_path())
+        .expect("the AOSP dictionary")
+        .into()
 }
 
 /// The Rust dictionary and the keyboard.
 pub fn rust_side() -> (Dictionary, ProximityInfo) {
     (
-        Dictionary::open(bundled_file()).expect("a valid dictionary"),
+        Dictionary::open(aosp_file()).expect("a valid dictionary"),
         qwerty_info(),
     )
 }
 
-/// A session for the bundled dictionary (a large one: the large node cache).
+/// A session for a dictionary as large as these (the large node cache, which both take).
 pub fn new_session() -> DicTraverseSession {
-    let size = std::fs::metadata(bundled_dictionary_path())
-        .expect("the bundled dictionary")
+    let size = std::fs::metadata(aosp_dictionary_path())
+        .expect("the AOSP dictionary")
         .len();
     DicTraverseSession::new(usize::try_from(size).expect("size fits"))
 }
@@ -219,10 +220,9 @@ pub fn assert_same(ours: &Output, theirs: &latin_oracle::Output, context: &str) 
     );
 }
 
-/// The words of the bundled dictionary, to draw typed words from.
+/// The words of `dictionary`, to draw typed words from.
 #[cfg(feature = "oracle")]
-pub fn words() -> Vec<Vec<char>> {
-    let dictionary = latin_oracle::Dictionary::bundled();
+pub fn words_of(dictionary: &latin_oracle::Dictionary) -> Vec<Vec<char>> {
     let text = String::from_utf16(&dictionary.words()).expect("UTF-16 words");
     text.lines().map(|it| it.chars().collect()).collect()
 }
@@ -236,24 +236,34 @@ pub struct Pair {
     pub dictionary: Dictionary,
     pub info: ProximityInfo,
     pub words: Vec<Vec<char>>,
+    /// Which dictionary, for failure messages.
+    pub name: String,
 }
 
 #[cfg(feature = "oracle")]
 impl Pair {
-    /// One pair for every test in the binary, made by the first that asks.
-    pub fn shared() -> &'static Self {
-        static PAIR: OnceLock<Pair> = OnceLock::new();
-        PAIR.get_or_init(Self::new)
+    /// Google's AOSP dictionary and the one the app ships (`latin_oracle::dictionary_paths`), one
+    /// pair each for every test in the binary, made by the first that asks.
+    pub fn each() -> [&'static Self; 2] {
+        static PAIRS: OnceLock<[Pair; 2]> = OnceLock::new();
+        let [aosp, shipped] =
+            PAIRS.get_or_init(|| latin_oracle::dictionary_paths().map(|path| Self::new(&path)));
+        [aosp, shipped]
     }
 
-    fn new() -> Self {
-        let (dictionary, info) = rust_side();
+    fn new(path: &std::path::Path) -> Self {
+        let file: Arc<[u8]> = std::fs::read(path).expect("the dictionary").into();
+        let cpp_dictionary = latin_oracle::Dictionary::at(path);
+        let words = words_of(&cpp_dictionary);
         Self {
-            cpp_dictionary: latin_oracle::Dictionary::bundled(),
+            cpp_dictionary,
             cpp_proximity: latin_oracle::Proximity::qwerty(),
-            dictionary,
-            info,
-            words: words(),
+            dictionary: Dictionary::open(file).expect("a valid dictionary"),
+            info: qwerty_info(),
+            words,
+            name: path
+                .file_name()
+                .map_or_else(String::new, |n| n.to_string_lossy().into_owned()),
         }
     }
 
@@ -272,7 +282,7 @@ impl Pair {
             latin_oracle::suggest(&self.cpp_dictionary, &self.cpp_proximity, sessions.1, query);
         let ours =
             crate::search::jni::suggest(&self.dictionary, &self.info, sessions.0, &convert(query));
-        assert_same(&ours, &theirs, context);
+        assert_same(&ours, &theirs, &format!("{}: {context}", self.name));
         ours
     }
 }

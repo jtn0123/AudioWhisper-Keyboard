@@ -2,7 +2,7 @@
 //! cannot be read, the previous-word rules of `NgramContext`, the multi-bigram cache's size, and the
 //! word collector's filtering and surrogate pairs.
 
-use super::pair;
+use super::pairs;
 use crate::defines::{MAX_WORD_LENGTH, NOT_A_DICT_POS, NOT_A_PROBABILITY};
 use crate::trie::bigram::{BigramIterator, BigramListPolicy};
 use crate::trie::interface::WordListener;
@@ -25,14 +25,16 @@ fn bigram_probability_steps_the_unigram_towards_255() {
 
 #[test]
 fn the_policy_backs_off_to_the_unigram_without_a_bigram() {
-    let policy = pair().ours.policy();
-    for unigram in 0..=255 {
-        assert_eq!(backoff(unigram), unigram);
-        assert_eq!(policy.get_probability(unigram, NOT_A_PROBABILITY), unigram);
-        assert_eq!(
-            policy.get_probability(unigram, 9),
-            compute_probability_for_bigram(unigram, 9)
-        );
+    for pair in pairs() {
+        let policy = pair.ours.policy();
+        for unigram in 0..=255 {
+            assert_eq!(backoff(unigram), unigram);
+            assert_eq!(policy.get_probability(unigram, NOT_A_PROBABILITY), unigram);
+            assert_eq!(
+                policy.get_probability(unigram, 9),
+                compute_probability_for_bigram(unigram, 9)
+            );
+        }
     }
 }
 

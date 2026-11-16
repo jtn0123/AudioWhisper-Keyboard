@@ -145,7 +145,7 @@ mod tests {
 
     fn engine() -> Engine {
         let path = Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("../../../../app/src/main/assets/dicts/main_en-US.dict");
+            .join("../latin/tests/fixtures/aosp_main_en-US.dict");
         Engine::open(std::fs::read(path).unwrap().into()).unwrap()
     }
 

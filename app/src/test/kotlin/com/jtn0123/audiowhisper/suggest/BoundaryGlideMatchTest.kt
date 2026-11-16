@@ -26,7 +26,10 @@ class BoundaryGlideMatchTest {
     }
 
     @Test fun nativeContextAndRankMatchFrozenPerGuessQueries() {
-        val file = File("src/main/assets/dicts/main_en-US.dict")
+        for (file in TestDictionaries.both) nativeContextAndRankMatch(file)
+    }
+
+    private fun nativeContextAndRankMatch(file: File) {
         checkNotNull(LatinDictionaryEngine.open(file.path, 0, file.length(), "en_US")).use { engine ->
             val random = Random(20261114L)
             val history = LearnedWords(null)

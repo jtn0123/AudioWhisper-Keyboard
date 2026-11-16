@@ -136,10 +136,22 @@ impl WordArrays {
     }
 }
 
-/// The app's bundled dictionary, `app/src/main/assets/dicts/main_en-US.dict`.
-pub fn bundled_dictionary_path() -> PathBuf {
+/// The dictionary the app ships, `app/src/main/assets/dicts/main_en-US.dict`.
+pub fn shipped_dictionary_path() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../../../../app/src/main/assets/dicts/main_en-US.dict")
+}
+
+/// Google's AOSP dictionary, which the app shipped until the corpus rebuild (docs/decisions.md,
+/// "Word statistics from a public corpus"), kept as a test fixture: tests that pin its answers
+/// read it, so they say the same whatever the app ships.
+pub fn aosp_dictionary_path() -> PathBuf {
+    Path::new(env!("CARGO_MANIFEST_DIR")).join("../latin/tests/fixtures/aosp_main_en-US.dict")
+}
+
+/// Both dictionaries, for the tests that hold the Rust to the C++ on whatever it reads.
+pub fn dictionary_paths() -> [PathBuf; 2] {
+    [aosp_dictionary_path(), shipped_dictionary_path()]
 }
 
 /// A dictionary opened read-only, as `BinaryDictionary` opens one.
@@ -172,13 +184,20 @@ impl Dictionary {
         }
     }
 
-    /// The app's bundled English dictionary.
-    pub fn bundled() -> Self {
-        let path = bundled_dictionary_path();
-        let size = std::fs::metadata(&path)
-            .expect("the bundled dictionary")
-            .len();
-        Self::open(&path, 0, i64::try_from(size).expect("size fits")).expect("a valid dictionary")
+    /// The whole dictionary file at `path`.
+    pub fn at(path: &Path) -> Self {
+        let size = std::fs::metadata(path).expect("the dictionary").len();
+        Self::open(path, 0, i64::try_from(size).expect("size fits")).expect("a valid dictionary")
+    }
+
+    /// Google's AOSP dictionary, the fixture of [`aosp_dictionary_path`].
+    pub fn aosp() -> Self {
+        Self::at(&aosp_dictionary_path())
+    }
+
+    /// The dictionary the app ships.
+    pub fn shipped() -> Self {
+        Self::at(&shipped_dictionary_path())
     }
 
     /// `BinaryDictionary.getProbability`.

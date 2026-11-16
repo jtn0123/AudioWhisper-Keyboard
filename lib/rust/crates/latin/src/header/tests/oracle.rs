@@ -1,5 +1,5 @@
 //! Differential tests: the port against LatinIME's C++ `HeaderPolicy` and header readers, on
-//! the bundled dictionary and on seeded random headers.
+//! each dictionary (the AOSP one and the one the app ships) and on seeded random headers.
 
 use super::*;
 use crate::bytes::{FormatVersion, detect_format_version};
@@ -387,18 +387,20 @@ fn assert_same_attributes(buffer: &[u8], random: &mut Random) {
 
 #[cfg(not(target_os = "android"))]
 #[test]
-fn the_bundled_dictionary_header_matches_the_cpp() {
-    let buffer =
-        std::fs::read(latin_oracle::bundled_dictionary_path()).expect("the bundled dictionary");
-    let version = detect_format_version(&buffer);
-    assert_eq!(version, FormatVersion::Version202);
-    let policy = HeaderPolicy::with_current_time(&buffer, version, 1_700_000_000);
+fn each_dictionary_header_matches_the_cpp() {
+    for path in latin_oracle::dictionary_paths() {
+        let buffer = std::fs::read(path).expect("a dictionary");
+        let version = detect_format_version(&buffer);
+        assert_eq!(version, FormatVersion::Version202);
+        assert_same_policy(&buffer, version, 1_700_000_000);
+        assert_same_attributes(&buffer, &mut Random(1));
+    }
+    let buffer = std::fs::read(latin_oracle::aosp_dictionary_path()).expect("the AOSP dictionary");
+    let policy = HeaderPolicy::with_current_time(&buffer, FormatVersion::Version202, 1_700_000_000);
     assert_eq!(policy.size(), 99);
     assert_eq!(policy.locale(), &text("en_US")[..]);
     assert_eq!(policy.date(), 1_414_726_260);
     assert_eq!(policy.code_point_table(), None);
-    assert_same_policy(&buffer, version, 1_700_000_000);
-    assert_same_attributes(&buffer, &mut Random(1));
 }
 
 #[cfg(not(target_os = "android"))]

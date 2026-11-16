@@ -8,7 +8,7 @@ use std::sync::Arc;
 
 use latin_oracle::hooks::trie as cpp;
 
-use super::{Pair, Random, pair};
+use super::{Pair, Random, pairs};
 use crate::trie::bigram::BigramIterator;
 use crate::trie::node::PtNodeParams;
 use crate::trie::patricia::PatriciaTriePolicy;
@@ -158,90 +158,94 @@ fn probe_shortcuts(probe: &cpp::Probe, list: i32, max_depth: usize) -> Vec<Short
 
 #[test]
 fn every_node_reads_the_same_as_the_cpp_reader() {
-    let pair = pair();
-    let probe = cpp::Probe::open(pair.ours.policy().body(), None);
-    let positions = all_node_positions(pair);
-    assert!(
-        positions.len() > 10_000,
-        "the trie has nodes to compare ({})",
-        positions.len()
-    );
-    let ours = pair.ours.policy().node_reader();
-    for pos in positions {
-        let label = format!("node {pos}");
-        let read = ours.read_info(pos);
-        same_node(&read, &probe.read_info(pos), &format!("{label} read"));
-        assert_eq!(
-            i32::from(read.flags()),
-            probe.read_info(pos).flags,
-            "{label}: flags"
+    for pair in pairs() {
+        let probe = cpp::Probe::open(pair.ours.policy().body(), None);
+        let positions = all_node_positions(pair);
+        assert!(
+            positions.len() > 10_000,
+            "the trie has nodes to compare ({})",
+            positions.len()
         );
-        same_node(
-            &ours.fetch(pos),
-            &probe.fetch(pos),
-            &format!("{label} fetch"),
-        );
+        let ours = pair.ours.policy().node_reader();
+        for pos in positions {
+            let label = format!("node {pos}");
+            let read = ours.read_info(pos);
+            same_node(&read, &probe.read_info(pos), &format!("{label} read"));
+            assert_eq!(
+                i32::from(read.flags()),
+                probe.read_info(pos).flags,
+                "{label}: flags"
+            );
+            same_node(
+                &ours.fetch(pos),
+                &probe.fetch(pos),
+                &format!("{label} fetch"),
+            );
+        }
     }
 }
 
 #[test]
 fn arrays_and_forward_links_match_the_cpp_at_random_positions() {
-    let pair = pair();
-    let probe = cpp::Probe::open(pair.ours.policy().body(), None);
-    let body_len = pair.ours.policy().body().len();
-    let mut random = Random(0x00A2_2A77);
-    let mut positions = all_node_positions(pair);
-    positions.extend((0..20_000).map(|_| random.below(body_len) as i32));
-    positions.push(body_len as i32);
-    for pos in positions {
-        let ours_array = pair.ours.policy().array_reader().read_info(pos);
-        assert_eq!(probe.array(pos), ours_array, "array at {pos}");
-        let ours_link = pair.ours.policy().array_reader().read_forward_link(pos);
-        assert_eq!(probe.forward_link(pos), ours_link, "forward link at {pos}");
+    for pair in pairs() {
+        let probe = cpp::Probe::open(pair.ours.policy().body(), None);
+        let body_len = pair.ours.policy().body().len();
+        let mut random = Random(0x00A2_2A77);
+        let mut positions = all_node_positions(pair);
+        positions.extend((0..20_000).map(|_| random.below(body_len) as i32));
+        positions.push(body_len as i32);
+        for pos in positions {
+            let ours_array = pair.ours.policy().array_reader().read_info(pos);
+            assert_eq!(probe.array(pos), ours_array, "array at {pos}");
+            let ours_link = pair.ours.policy().array_reader().read_forward_link(pos);
+            assert_eq!(probe.forward_link(pos), ours_link, "forward link at {pos}");
+        }
     }
 }
 
 #[test]
 fn bigram_lists_of_every_node_match_the_cpp_visits() {
-    let pair = pair();
-    let probe = cpp::Probe::open(pair.ours.policy().body(), None);
-    let mut checked = 0_usize;
-    for pos in all_node_positions(pair) {
-        let node = pair.ours.policy().node_reader().fetch(pos);
-        if !node.has_bigrams() {
-            continue;
+    for pair in pairs() {
+        let probe = cpp::Probe::open(pair.ours.policy().body(), None);
+        let mut checked = 0_usize;
+        for pos in all_node_positions(pair) {
+            let node = pair.ours.policy().node_reader().fetch(pos);
+            if !node.has_bigrams() {
+                continue;
+            }
+            checked += 1;
+            let list = node.bigram_pos();
+            assert!(
+                rust_bigrams(pair.ours.policy(), list) == probe.bigram_visits(list),
+                "bigram list at {list} differs"
+            );
         }
-        checked += 1;
-        let list = node.bigram_pos();
         assert!(
-            rust_bigrams(pair.ours.policy(), list) == probe.bigram_visits(list),
-            "bigram list at {list} differs"
+            checked > 1_000,
+            "the trie has bigram lists to compare ({checked})"
         );
     }
-    assert!(
-        checked > 1_000,
-        "the trie has bigram lists to compare ({checked})"
-    );
 }
 
 #[test]
 fn shortcut_lists_of_every_node_match_the_cpp_entries() {
-    let pair = pair();
-    let probe = cpp::Probe::open(pair.ours.policy().body(), None);
-    let mut checked = 0_usize;
-    for pos in all_node_positions(pair) {
-        let node = pair.ours.policy().node_reader().fetch(pos);
-        if !node.has_shortcut_targets() {
-            continue;
+    for pair in pairs() {
+        let probe = cpp::Probe::open(pair.ours.policy().body(), None);
+        let mut checked = 0_usize;
+        for pos in all_node_positions(pair) {
+            let node = pair.ours.policy().node_reader().fetch(pos);
+            if !node.has_shortcut_targets() {
+                continue;
+            }
+            checked += 1;
+            let list = node.shortcut_pos();
+            assert!(
+                rust_shortcuts(pair.ours.policy(), list, 48) == probe_shortcuts(&probe, list, 48),
+                "shortcut list at {list} differs"
+            );
         }
-        checked += 1;
-        let list = node.shortcut_pos();
-        assert!(
-            rust_shortcuts(pair.ours.policy(), list, 48) == probe_shortcuts(&probe, list, 48),
-            "shortcut list at {list} differs"
-        );
+        assert!(checked > 0, "the trie has shortcut lists to compare");
     }
-    assert!(checked > 0, "the trie has shortcut lists to compare");
 }
 
 /// A byte of a random body: the terminator and small values, which the readings branch on, and

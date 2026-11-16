@@ -82,7 +82,7 @@ fn init_and_compare(
 
 #[cfg(not(target_os = "android"))]
 fn words() -> Vec<Vec<char>> {
-    let dictionary = latin_oracle::Dictionary::bundled();
+    let dictionary = latin_oracle::Dictionary::aosp();
     let text = String::from_utf16(&dictionary.words()).expect("UTF-16 words");
     text.lines().map(|it| it.chars().collect()).collect()
 }
@@ -230,7 +230,7 @@ fn sessions_leave_the_state_the_rust_state_makes() {
     let proximity = latin_oracle::Proximity::qwerty();
     let cpp_info = cpp::Info::of(&proximity);
     let info = ProximityInfo::new(&keyboard.geometry()).expect("a valid keyboard");
-    let dictionary = latin_oracle::Dictionary::bundled();
+    let dictionary = latin_oracle::Dictionary::aosp();
     let session = latin_oracle::Session::new("en_US", &dictionary);
     let words = words();
     let mut random = Random::new(5);

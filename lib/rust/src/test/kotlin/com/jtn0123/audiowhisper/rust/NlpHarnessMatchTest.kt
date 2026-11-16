@@ -7,7 +7,10 @@ import kotlin.test.assertEquals
 /** Real dictionary answers over public fixture prefix/editor snapshots; never a user's text. */
 class NlpHarnessMatchTest {
     @Test fun everyPublicHarnessFixtureMatchesWithBundledDictionaryResults() {
-        val dictionary = File("../../app/src/main/assets/dicts/main_en-US.dict")
+        for (dictionary in TestDictionaries.both) everyFixtureMatches(dictionary)
+    }
+
+    private fun everyFixtureMatches(dictionary: File) {
         val personal = PersonalWordStore(emptyList(), IntArray(0), emptyList())
         val rows = requireNotNull(javaClass.getResourceAsStream("/nlp/harness.tsv")).bufferedReader().readLines()
         val names = mutableSetOf<String>()
@@ -49,6 +52,6 @@ class NlpHarnessMatchTest {
         }
         assertEquals(54, names.size)
         assertEquals(2056, checkpoints)
-        println("NLP public fixture replay: ${names.size} traces, $checkpoints prefix/cursor checkpoints, zero differences")
+        println("NLP public fixture replay on ${dictionary.name}: ${names.size} traces, $checkpoints prefix/cursor checkpoints, zero differences")
     }
 }

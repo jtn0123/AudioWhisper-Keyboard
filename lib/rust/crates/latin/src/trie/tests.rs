@@ -1,5 +1,6 @@
 //! Differential tests of the version 2 trie against LatinIME's C++, through `latin-oracle`. Each test
-//! asks the same question of the bundled dictionary both ways and asserts the answers agree. Random
+//! asks the same question of each dictionary (Google's AOSP one and the one the app ships) both
+//! ways and asserts the answers agree. Random
 //! inputs come from seeded SplitMix64 streams, so a failure reproduces from its seed. Assertion
 //! messages carry indices and numbers only: a dictionary word is never printed.
 
@@ -8,6 +9,7 @@ mod nodes;
 mod robust;
 mod units;
 
+use std::path::PathBuf;
 use std::sync::{Arc, OnceLock};
 
 use latin_oracle::hooks::trie as cpp;
@@ -20,28 +22,32 @@ use crate::defines::{MAX_WORD_LENGTH, NOT_A_WORD_ID};
 /// The C++ side's dictionary, as `latin-oracle` opens it.
 pub type CppDictionary = latin_oracle::Dictionary;
 
-/// The bundled dictionary, opened on both sides, with the C++'s word list as the reference.
+/// A dictionary, opened on both sides, with the C++'s word list as the reference.
 pub struct Pair {
     pub ours: Dictionary,
     pub theirs: CppDictionary,
     pub words: Vec<Vec<i32>>,
+    pub path: PathBuf,
 }
 
-/// The bundled dictionary, loaded once for the whole test binary.
-pub fn pair() -> &'static Pair {
-    static PAIR: OnceLock<Pair> = OnceLock::new();
-    PAIR.get_or_init(|| {
-        let file: Arc<[u8]> = std::fs::read(latin_oracle::bundled_dictionary_path())
-            .expect("the bundled dictionary")
-            .into();
-        let theirs = CppDictionary::bundled();
-        let words = cpp::words(&theirs);
-        Pair {
-            ours: Dictionary::open(file).expect("a version 2 dictionary"),
-            theirs,
-            words,
-        }
-    })
+fn open(path: PathBuf) -> Pair {
+    let file: Arc<[u8]> = std::fs::read(&path).expect("the dictionary").into();
+    let theirs = CppDictionary::at(&path);
+    let words = cpp::words(&theirs);
+    Pair {
+        ours: Dictionary::open(file).expect("a version 2 dictionary"),
+        theirs,
+        words,
+        path,
+    }
+}
+
+/// Google's AOSP dictionary and the one the app ships (`latin_oracle::dictionary_paths`), each
+/// loaded once for the whole test binary.
+pub fn pairs() -> [&'static Pair; 2] {
+    static PAIRS: OnceLock<[Pair; 2]> = OnceLock::new();
+    let [aosp, shipped] = PAIRS.get_or_init(|| latin_oracle::dictionary_paths().map(open));
+    [aosp, shipped]
 }
 
 /// SplitMix64, as `bytes/tests.rs` uses it.
@@ -232,67 +238,42 @@ pub fn check_code_points(pair: &Pair, word_id: i32, label: &str) {
 
 #[test]
 fn word_list_matches_the_cpp_in_content_and_order() {
-    let pair = pair();
-    let mut collected = Collect::default();
-    pair.ours.iterate_words(&mut collected);
-    assert_eq!(collected.words.len(), pair.words.len(), "word count");
-    for (index, (ours, theirs)) in collected.words.iter().zip(&pair.words).enumerate() {
-        assert!(ours == theirs, "word {index} differs");
+    for pair in pairs() {
+        let mut collected = Collect::default();
+        pair.ours.iterate_words(&mut collected);
+        assert_eq!(collected.words.len(), pair.words.len(), "word count");
+        for (index, (ours, theirs)) in collected.words.iter().zip(&pair.words).enumerate() {
+            assert!(ours == theirs, "word {index} differs");
+        }
     }
 }
 
 #[test]
 fn joined_word_text_matches_the_cpp_get_words() {
-    let pair = pair();
-    let ours = get_words(&pair.ours);
-    let theirs = pair.theirs.words();
-    assert_eq!(ours.len(), theirs.len(), "UTF-16 length");
-    assert!(ours == theirs, "UTF-16 text differs");
-}
-
-#[test]
-fn every_word_has_the_same_id_probability_attributes_and_code_points() {
-    let pair = pair();
-    for (index, word) in pair.words.iter().enumerate() {
-        let label = format!("word {index}");
-        let id = pair.ours.policy().get_word_id(word, false);
-        assert_eq!(
-            id,
-            cpp::word_id(&pair.theirs, word, false),
-            "{label}: word id"
-        );
-        assert_eq!(
-            pair.ours.probability(word),
-            pair.theirs.probability(word),
-            "{label}: probability"
-        );
-        check_attributes(pair, id, &[], &label);
-        check_code_points(pair, id, &label);
+    for pair in pairs() {
+        let ours = get_words(&pair.ours);
+        let theirs = pair.theirs.words();
+        assert_eq!(ours.len(), theirs.len(), "UTF-16 length");
+        assert!(ours == theirs, "UTF-16 text differs");
     }
 }
 
 #[test]
-fn random_words_match_the_cpp_in_id_probability_and_attributes() {
-    let pair = pair();
-    let mut random = Random(0x5EED_0001);
-    for round in 0..40_000 {
-        let word = random_word(&mut random, &pair.words);
-        let force_lower = random.chance(2);
-        let label = format!("round {round}");
-        let id = pair.ours.policy().get_word_id(&word, force_lower);
-        assert_eq!(
-            id,
-            cpp::word_id(&pair.theirs, &word, force_lower),
-            "{label}: word id (length {}, lower {force_lower})",
-            word.len()
-        );
-        assert_eq!(
-            pair.ours.probability(&word),
-            pair.theirs.probability(&word),
-            "{label}: probability (length {})",
-            word.len()
-        );
-        if id != NOT_A_WORD_ID {
+fn every_word_has_the_same_id_probability_attributes_and_code_points() {
+    for pair in pairs() {
+        for (index, word) in pair.words.iter().enumerate() {
+            let label = format!("word {index}");
+            let id = pair.ours.policy().get_word_id(word, false);
+            assert_eq!(
+                id,
+                cpp::word_id(&pair.theirs, word, false),
+                "{label}: word id"
+            );
+            assert_eq!(
+                pair.ours.probability(word),
+                pair.theirs.probability(word),
+                "{label}: probability"
+            );
             check_attributes(pair, id, &[], &label);
             check_code_points(pair, id, &label);
         }
@@ -300,16 +281,46 @@ fn random_words_match_the_cpp_in_id_probability_and_attributes() {
 }
 
 #[test]
+fn random_words_match_the_cpp_in_id_probability_and_attributes() {
+    for pair in pairs() {
+        let mut random = Random(0x5EED_0001);
+        for round in 0..40_000 {
+            let word = random_word(&mut random, &pair.words);
+            let force_lower = random.chance(2);
+            let label = format!("round {round}");
+            let id = pair.ours.policy().get_word_id(&word, force_lower);
+            assert_eq!(
+                id,
+                cpp::word_id(&pair.theirs, &word, force_lower),
+                "{label}: word id (length {}, lower {force_lower})",
+                word.len()
+            );
+            assert_eq!(
+                pair.ours.probability(&word),
+                pair.theirs.probability(&word),
+                "{label}: probability (length {})",
+                word.len()
+            );
+            if id != NOT_A_WORD_ID {
+                check_attributes(pair, id, &[], &label);
+                check_code_points(pair, id, &label);
+            }
+        }
+    }
+}
+
+#[test]
 fn random_ids_and_missing_ids_match_the_cpp_code_points() {
-    let pair = pair();
-    let mut random = Random(0x1D5);
-    for round in 0..5_000 {
-        let id = if random.chance(10) {
-            NOT_A_WORD_ID
-        } else {
-            let word = &pair.words[random.below(pair.words.len())];
-            pair.ours.policy().get_word_id(word, false)
-        };
-        check_code_points(pair, id, &format!("round {round}"));
+    for pair in pairs() {
+        let mut random = Random(0x1D5);
+        for round in 0..5_000 {
+            let id = if random.chance(10) {
+                NOT_A_WORD_ID
+            } else {
+                let word = &pair.words[random.below(pair.words.len())];
+                pair.ours.policy().get_word_id(word, false)
+            };
+            check_code_points(pair, id, &format!("round {round}"));
+        }
     }
 }

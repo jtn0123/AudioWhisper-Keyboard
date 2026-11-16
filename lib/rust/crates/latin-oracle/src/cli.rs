@@ -1,5 +1,5 @@
 //! The `oracle` example's commands. `oracle gen COUNT SEED` writes COUNT seeded queries, one per
-//! line; `oracle run` answers the queries on stdin with the C++ decoder and the bundled dictionary,
+//! line; `oracle run` answers the queries on stdin with the C++ decoder and the dictionary the app ships,
 //! one output line each. The lines are [`queries`]' format, which the emulator check reads and
 //! writes too.
 
@@ -11,7 +11,7 @@ use crate::{Dictionary, Proximity, Session, suggest};
 /// Runs the command `args` (the program name first) names.
 pub fn run(args: &[String]) -> io::Result<()> {
     let mut out = BufWriter::new(io::stdout().lock());
-    let dictionary = Dictionary::bundled();
+    let dictionary = Dictionary::shipped();
     match args.get(1).map(String::as_str) {
         Some("gen") => {
             let count: usize = args[2].parse().expect("COUNT");

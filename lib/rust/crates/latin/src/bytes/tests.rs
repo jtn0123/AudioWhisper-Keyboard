@@ -100,12 +100,14 @@ fn format_versions_match_the_cpp() {
             cpp::detect_format_version(broken)
         );
     }
-    let bundled = std::fs::read(latin_oracle::bundled_dictionary_path()).unwrap();
-    assert_eq!(detect_format_version(&bundled), FormatVersion::Version202);
-    assert_eq!(
-        detect_format_version(&bundled) as i32,
-        cpp::detect_format_version(&bundled)
-    );
+    for path in latin_oracle::dictionary_paths() {
+        let bytes = std::fs::read(path).unwrap();
+        assert_eq!(detect_format_version(&bytes), FormatVersion::Version202);
+        assert_eq!(
+            detect_format_version(&bytes) as i32,
+            cpp::detect_format_version(&bytes)
+        );
+    }
 }
 
 #[test]

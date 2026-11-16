@@ -12,7 +12,8 @@ import kotlin.test.assertTrue
 
 /** In :app, which already depends on LatinIME and loads the host libawnative for JVM tests. */
 class LatinImeJniTest {
-    private val dictionaryFile = File("src/main/assets/dicts/main_en-US.dict")
+    // The answers pinned below are the AOSP dictionary's.
+    private val dictionaryFile = TestDictionaries.aosp
 
     private class Fixture(file: File) : AutoCloseable {
         val dictionary = BinaryDictionary(file.absolutePath, 0, file.length())

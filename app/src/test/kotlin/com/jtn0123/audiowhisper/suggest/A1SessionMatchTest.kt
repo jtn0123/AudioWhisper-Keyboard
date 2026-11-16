@@ -21,9 +21,11 @@ class A1SessionMatchTest {
     }
 
     @Test fun bundledDecoderAndFullPipelineMatch() {
-        val dictionary = File("src/main/assets/dicts/main_en-US.dict")
-        val baseline = A1Replay.capture(dictionary, File("build/stage2-a1/reference"), reference = true)
-        val actual = A1Replay.capture(dictionary, File("build/stage2-a1/current"))
-        assertEquals(baseline, actual)
+        for (dictionary in TestDictionaries.both) {
+            val output = File("build/stage2-a1", dictionary.nameWithoutExtension)
+            val baseline = A1Replay.capture(dictionary, File(output, "reference"), reference = true)
+            val actual = A1Replay.capture(dictionary, File(output, "current"))
+            assertEquals(baseline, actual, dictionary.name)
+        }
     }
 }
