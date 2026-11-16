@@ -85,6 +85,7 @@ class LatinLanguageProvider(context: Context) : SpellingProvider, SuggestionProv
 
         /** The AOSP en_US main dictionary, stored uncompressed so native code can mmap it from the APK. */
         private const val DICTIONARY_ASSET = "dicts/main_en-US.dict"
+        private const val MODEL_ASSET = "dicts/main_en-US.lm"
         private const val DICTIONARY_LOCALE = "en_US"
         private const val DICTIONARY_LANGUAGE = "en"
 
@@ -219,12 +220,26 @@ class LatinLanguageProvider(context: Context) : SpellingProvider, SuggestionProv
         appContext.assets.openFd(DICTIONARY_ASSET).use { fd ->
             LatinDictionaryEngine.open(appContext.applicationInfo.sourceDir, fd.startOffset, fd.length, DICTIONARY_LOCALE)
         }.also { if (it == null) Log.w(TAG, "The bundled dictionary is not a valid AOSP dictionary") }
+            ?.also(::attachBundledModel)
     } catch (e: IOException) {
         Log.w(TAG, "Could not open the bundled dictionary", e)
         null
     } catch (e: LinkageError) {
         Log.w(TAG, "Could not load the native dictionary library", e)
         null
+    }
+
+    /** The n-gram model; without it the dictionary alone predicts and weighs context. */
+    private fun attachBundledModel(engine: LatinDictionaryEngine) {
+        try {
+            appContext.assets.openFd(MODEL_ASSET).use { fd ->
+                if (!engine.attachModel(appContext.applicationInfo.sourceDir, fd.startOffset, fd.length)) {
+                    Log.w(TAG, "The bundled language model is not a valid model")
+                }
+            }
+        } catch (e: IOException) {
+            Log.w(TAG, "Could not open the bundled language model", e)
+        }
     }
 
     private fun suggesterFor(subtype: Subtype): LatinSuggester? =

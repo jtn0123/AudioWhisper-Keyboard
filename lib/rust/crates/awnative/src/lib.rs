@@ -12,6 +12,7 @@ mod dictation;
 mod editor;
 mod emoji;
 mod extensions;
+mod files;
 mod gestures;
 mod gif;
 mod giphy;

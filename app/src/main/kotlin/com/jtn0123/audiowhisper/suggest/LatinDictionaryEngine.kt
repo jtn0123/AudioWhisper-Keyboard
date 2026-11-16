@@ -13,6 +13,10 @@ class LatinDictionaryEngine private constructor(internal val session: LatinSessi
     override fun probability(word: String): Int = session.probability(word)
     override fun ngramProbability(previous: PreviousWords, word: String): Int = session.ngram(word, previous.words, previous.isBeginningOfSentence)
     fun words(): List<String> = session.words()
+
+    /** Adds the n-gram model at [offset] of [path]: next words, and context for typing and swiping. */
+    fun attachModel(path: String, offset: Long, length: Long): Boolean =
+        offset >= 0 && length in 0..Int.MAX_VALUE && session.attachModel(path, offset, length)
     override fun close() = session.close()
 
     companion object {

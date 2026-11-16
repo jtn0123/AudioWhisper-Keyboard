@@ -4,6 +4,7 @@ use super::{
     suggester::{stores, write_strip},
 };
 use crate::{
+    files::read_range,
     handle::{free, into_handle, locked},
     jni::{self, Env, Result, illegal},
 };
@@ -76,6 +77,36 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_LatinSessionNative_fre
 ) {
     // SAFETY: the Kotlin cleaner owns this allocation and releases it exactly once under its wrapper lock.
     unsafe { free::<Mutex<Session>>(handle) }
+}
+/// Reads the n-gram model at `[offset, offset + length)` of the file at `path` (an uncompressed
+/// APK entry) into the session. False, with the session left as it was, if it can't be read or
+/// isn't a model.
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_LatinSessionNative_attachModel(
+    env: *mut JNIEnv,
+    _: jclass,
+    handle: jlong,
+    path: jstring,
+    offset: jlong,
+    length: jlong,
+) -> jboolean {
+    // SAFETY: the wrapper holds its live handle under the same monitor as close; the JVM provides env.
+    unsafe {
+        jni::run(env, 0, |env| {
+            let path = String::from_utf16_lossy(&env.read_string(path, "model path")?);
+            let (Ok(offset), Ok(length)) = (u64::try_from(offset), usize::try_from(length)) else {
+                return Ok(0);
+            };
+            let Ok(bytes) = read_range(&path, offset, length) else {
+                return Ok(0);
+            };
+            let Some(model) = ngram::Model::open(bytes) else {
+                return Ok(0);
+            };
+            locked::<Session>(handle, "session")?.attach(Arc::new(model));
+            Ok(1)
+        })
+    }
 }
 #[unsafe(no_mangle)]
 pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_LatinSessionNative_probability(

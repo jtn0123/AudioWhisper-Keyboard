@@ -16,6 +16,9 @@ class LatinSession private constructor(private var handle: Long) : AutoCloseable
         return NlpNative.isName(handle, personal.handle, word).also { Reference.reachabilityFence(personal) }
     }
     @Synchronized fun unknownWords(words: List<String>): List<String> = NlpNative.unknownWords(handle, words.toTypedArray()).asList()
+    /** Reads the n-gram model at [offset] of [path] (an uncompressed APK entry) into the session. */
+    @Synchronized fun attachModel(path: String, offset: Long, length: Long): Boolean =
+        LatinSessionNative.attachModel(handle, path, offset, length)
     @Synchronized fun probability(word: String): Int = LatinSessionNative.probability(handle, word)
     @Synchronized fun ngram(word: String, previous: List<String>, sentenceStart: Boolean): Int =
         LatinSessionNative.ngram(handle, word, previous.toTypedArray(), sentenceStart)
@@ -77,6 +80,7 @@ internal object LatinSessionNative {
     init { RustLibrary.load() }
     @JvmStatic external fun open(bytes: ByteArray): Long
     @JvmStatic external fun free(handle: Long)
+    @JvmStatic external fun attachModel(handle: Long, path: String, offset: Long, length: Long): Boolean
     @JvmStatic external fun probability(handle: Long, word: String): Int
     @JvmStatic external fun ngram(handle: Long, word: String, previous: Array<String>, sentenceStart: Boolean): Int
     @JvmStatic external fun words(handle: Long): String

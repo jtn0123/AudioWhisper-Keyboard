@@ -5,8 +5,6 @@
 
 mod suggestions;
 
-use std::fs::File;
-use std::io::{self, Read, Seek, SeekFrom};
 use std::sync::{Arc, Mutex};
 
 use jni_sys::{JNI_TRUE, JNIEnv, jboolean, jbooleanArray, jclass, jint, jintArray, jlong};
@@ -18,6 +16,7 @@ use latin::trie::dictionary::Dictionary;
 use latin::trie::jni::get_words;
 use latin::trie::ngram::NgramContext;
 
+use crate::files::read_range;
 use crate::handle::{free, into_handle, object};
 use crate::jni::{self, Env, Result};
 
@@ -29,16 +28,6 @@ const _: fn() = || {
     shared::<ProximityInfo>();
     shared::<Mutex<DicTraverseSession>>();
 };
-
-/// The bytes `[offset, offset + size)` of the file at `path`, which may be an uncompressed entry
-/// inside an APK.
-fn read_range(path: &str, offset: u64, size: usize) -> io::Result<Vec<u8>> {
-    let mut file = File::open(path)?;
-    file.seek(SeekFrom::Start(offset))?;
-    let mut bytes = vec![0; size];
-    file.read_exact(&mut bytes)?;
-    Ok(bytes)
-}
 
 /// `BinaryDictionary.openNative`: the dictionary at `[offset, offset + size)` of `sourceDir`, or 0
 /// if it can't be read or isn't a dictionary of a ported format. The bytes are read into memory

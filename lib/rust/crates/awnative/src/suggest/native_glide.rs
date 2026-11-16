@@ -51,7 +51,7 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_NativeGlideNative_rank
                             if session == -1 {
                                 NOT_A_PROBABILITY
                             } else {
-                                locked::<Session>(session, "session")?.ngram_probability(p, w)
+                                locked::<Session>(session, "session")?.context_probability(p, w)
                             }
                         }
                         Query::Probability(w) => {
