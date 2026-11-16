@@ -690,18 +690,20 @@ scripts/build-language-model.sh --run build/language-model/run-<time> install # 
 
 The script downloads into a new `build/language-model/run-<time>/` folder, checks each file's
 SHA-256, splits it with `cargo run -p lexicon -- prepare` (one sentence in a hundred held out, by
-a hash of its words), builds the dictionary (below) and runs the scoreboard on the first 5,000
-held-out sentences of each source, for the AOSP dictionary and the one it built. That takes
-about two minutes. To score another dictionary on the same text:
+a hash of its words), builds the dictionary and the n-gram model (below) and runs the scoreboard
+on the first 5,000 held-out sentences of each source: for the AOSP dictionary, the one it built,
+and that with the model. That takes about four minutes. To score another dictionary or model on
+the same text:
 
 ```bash
 cd lib/rust
-cargo run --release -p scoreboard -- --dict path/to/main.dict \
+cargo run --release -p scoreboard -- --dict path/to/main.dict [--model path/to/main.lm] \
     --test tatoeba=RUN/corpus/test-tatoeba.txt --test globalvoices=RUN/corpus/test-globalvoices.txt
 ```
 
 `--limit N`, `--seed N` and `--threads N` change the sample, the taps and swipes, and the
-parallelism. Neither crate ships: `awnative` doesn't depend on them.
+parallelism; `--typing W` and `--swipe L` change how much the session leans on the model
+(`suggest::language_model::Tuning`). Neither crate ships: `awnative` doesn't depend on them.
 
 ### The dictionary build
 
@@ -715,11 +717,38 @@ gives the same bytes, and the script says whether they are the app's. Why this c
 settings, and what would change them: [decisions.md](decisions.md#word-statistics-from-a-public-corpus);
 the numbers: [language-model-results.md](language-model-results.md).
 
+### The n-gram model
+
+The app's `main_en-US.lm` is a word trigram model over the dictionary's words, built by
+`lexicon model` (the script's `model` step) from the same training sentences and the dictionary
+it built: interpolated Kneser-Ney, pairs and triples kept if seen at least three times, each log
+probability and backoff quantised to a byte. The build is reproducible like the dictionary's.
+`crates/lexicon/src/model` counts (`count`, the same sentence splitting and look-ups the keyboard
+uses), smooths and prunes (`smooth`), and writes (`write`).
+
+`crates/ngram` reads it, in the app and on the host: `format` is the file layout (its comment has
+the table), `context` turns the words before the cursor into the model's context exactly as the
+builder did, and `Model` answers a word's probability after one or two words and the likeliest
+next words. It reads straight from the bytes, with every read checked, so a damaged file gives no
+answers rather than a panic, and one that doesn't add up doesn't open.
+
+`crates/suggest/src/language_model.rs` is how the session uses it: next-word predictions come
+from the model; each typed candidate's language term is redone with the model's lift (how much
+likelier the word is after these words than anywhere) on the dictionary's scale; and the swipe
+ranker hears the lifted value as its n-gram. The user's learned next words still come first, and
+without a model the session is the dictionary alone, as before. The app stores the file
+uncompressed and `awnative` reads it from the APK at its offset, so it never passes through the
+JVM heap (`LatinLanguageProvider.attachBundledModel`). Why a trigram model and these sizes:
+[decisions.md](decisions.md#word-statistics-from-a-public-corpus).
+
 AOSP's original is kept, unchanged, as `crates/latin/tests/fixtures/aosp_main_en-US.dict`. Tests
 that pin what the decoder answers (the C++ oracle's spot checks, `LatinImeJniTest`, the
 scoreboard's own tests) read that file, so their answers stay pinned; tests that compare two
 implementations (the port against the C++, Rust against the Kotlin references) run on both
-dictionaries.
+dictionaries. The app attaches the model when it opens the dictionary; tests attach it only where
+they test it (`crates/suggest/tests/language_model.rs`, `LatinSessionModelTest`, the scoreboard's
+`--model`), so the decoder's pinned answers and the A1 replay digests, which open the engine
+without it, are the dictionary's alone.
 
 ## Layout
 
@@ -753,7 +782,8 @@ lib/rust/
   crates/awnative/            libawnative.so: the JNI functions Kotlin calls, and nothing else
   crates/latin-oracle/        test-only: LatinIME's C++ built for this computer, to compare the port with
   crates/scoreboard/          host-only: the typing scoreboard (see above)
-  crates/lexicon/             host-only: corpus split, the v202 dictionary writer, and the dictionary build
+  crates/lexicon/             host-only: corpus split, the v202 dictionary writer, the dictionary and n-gram model builds
+  crates/ngram/               the n-gram model file and its reader: a word's probability after the words before it
   tools/                      generates crates/chars' tables (generate-char-tables.sh)
   src/main/kotlin/            the Kotlin side: loads the library and wraps each handle
   src/test/kotlin/            JVM tests that go through JNI

@@ -208,3 +208,120 @@ top-1 drops a point (89.3% to 88.3%): next words learnt from small talk mislead 
 on news-like text. Built from both sources, as shipped, swipe on GlobalVoices rises instead
 (89.2% to 90.2%). So the gains depend on the corpus being near what people type; on very
 different text, expect swipe to lose about a point.
+
+### Stage C: a trigram model (2026-11-16)
+
+`main_en-US.lm`, 12,188,272 bytes, alongside the Stage B dictionary: a word trigram model over
+the dictionary's words with interpolated Kneser-Ney smoothing, built by `lexicon model` (see
+[rust.md](rust.md#the-n-gram-model)) from the same training sentences. 77,757 words (the
+dictionary's that the corpus writes, less the possibly-offensive and not-a-word ones, so it can
+never predict them), 712,166 pairs and 1,081,773 triples, each kept if seen at least three times;
+each log probability and backoff is a byte. Discounts 0.716 for pairs and 0.790 for triples.
+
+- **Next words** after a space are the model's, from the last two words (a sentence start counts
+  as one), likeliest first. The user's learned next words still come before them.
+- **Typing.** The decoder scores each candidate partly by the dictionary's value for it after
+  the previous word. For each candidate the session redoes that term: the word's own value,
+  raised by three quarters of the model's lift (how much likelier the model finds it after these
+  words than anywhere, on the dictionary's scale), and the candidates are sorted again.
+- **Swipe.** The ranker's n-gram for a guess is the word's own value raised by the model's lift,
+  when the lift is positive (the context favours it); otherwise it has none.
+
+| Metric | tatoeba | globalvoices | all |
+|---|---:|---:|---:|
+| Words scored | 37781 | 86766 | 124547 |
+| Next word top-1 | 22.8% | 17.4% | 19.0% |
+| Next word top-3 | 38.4% | 27.3% | 30.7% |
+| Keystroke savings | 39.7% | 35.0% | 36.2% |
+| Typos made (neutral) | 18.0% | 21.1% | 20.1% |
+| Word accuracy after autocorrect (neutral) | 97.5% | 96.7% | 96.9% |
+| Harmful corrections (neutral, of clean words) | 0.3% | 0.7% | 0.6% |
+| Missed typos (neutral, of typos) | 11.4% | 11.3% | 11.3% |
+| Wrong fixes (neutral, of typos) | 1.5% | 1.9% | 1.8% |
+| Typos made (left thumb) | 34.8% | 39.2% | 37.9% |
+| Word accuracy after autocorrect (left thumb) | 94.2% | 93.5% | 93.7% |
+| Harmful corrections (left thumb, of clean words) | 0.2% | 0.6% | 0.5% |
+| Missed typos (left thumb, of typos) | 14.6% | 14.1% | 14.2% |
+| Wrong fixes (left thumb, of typos) | 1.6% | 1.6% | 1.6% |
+| Swipe words | 35956 | 84205 | 120161 |
+| Swipe top-1 | 95.0% | 90.6% | 91.9% |
+| Swipe top-3 | 97.6% | 94.5% | 95.4% |
+| Strip time per keystroke, mean (ms) | 1.21 | 1.29 | 1.27 |
+| Strip time per keystroke, p95 (ms) | 1.78 | 1.86 | 1.84 |
+| Next-word strip time, mean (ms) | 0.03 | 0.03 | 0.03 |
+| Next-word strip time, p95 (ms) | 0.08 | 0.11 | 0.10 |
+
+Against the earlier stages, all held-out text:
+
+| Metric | AOSP (Stage A) | Stage B | Stage C |
+|---|---:|---:|---:|
+| Next word top-1 | 4.8% | 13.3% | **19.0%** |
+| Next word top-3 | 12.5% | 21.0% | **30.7%** |
+| Keystroke savings | 21.7% | 28.9% | **36.2%** |
+| Word accuracy (neutral) | 96.6% | 96.9% | 96.9% |
+| Harmful corrections (neutral) | 0.5% | 0.6% | 0.6% |
+| Missed typos (neutral) | 12.8% | 11.3% | 11.3% |
+| Wrong fixes (neutral) | 2.3% | 2.0% | **1.8%** |
+| Word accuracy (left thumb) | 92.5% | 93.5% | **93.7%** |
+| Harmful corrections (left thumb) | 0.5% | 0.5% | 0.5% |
+| Missed typos (left thumb) | 16.8% | 14.4% | **14.2%** |
+| Wrong fixes (left thumb) | 2.3% | 1.9% | **1.6%** |
+| Swipe top-1 | 89.4% | 91.2% | **91.9%** |
+| Swipe top-3 | 94.9% | 95.4% | 95.4% |
+| Strip time, mean (ms) | 0.93 | 1.02 | 1.27 |
+| Strip time, p95 (ms) | 1.34 | 1.47 | 1.84 |
+
+Nothing got worse. **Latency.** With 18 threads sharing the machine, the strip takes about a
+quarter of a millisecond longer a keystroke (1.04 to 1.27 ms mean in the same script run), mostly
+the threads' cache misses in the larger tables. Timed alone
+(`--threads 1`, 500 sentences a source, back to back), Stage B takes 0.74 ms mean and 1.03 ms p95
+a keystroke and Stage C 0.79 ms and 1.08 ms: 0.05 ms more, against a budget of 5 ms. The strip
+after a space takes 0.02 ms either way. **Memory.** The model is read once into native memory,
+12.2 MB, at its exact size and without a copy; nothing is on the JVM heap. **APK.** The asset is
+stored uncompressed: the debug APK went from 61,804,235 to 74,009,087 bytes (12,204,852 more:
+the model and 16,580 bytes of code).
+
+**What the model changes.** "See you" now predicts "again", "in", "at", "tomorrow"; the
+dictionary alone predicted "have", "know", "can", the same as after "Can you" and "What do you",
+since it only knows the last word. After "Can you" the model predicts "tell", "give", "help".
+Typing "fo" after "I want to" now offers "do" and "go" before "to".
+
+**Choosing the settings.** Every variant scored on the same text ("all" column). Model size
+first, each with the typing weight 1 and the swipe threshold 1 the grid started from:
+
+| Model (pairs, triples kept if seen at least) | Size (bytes) | Next top-1 | Next top-3 | Savings | Missed neutral / left | Wrong fixes neutral / left | Swipe top-1 |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| Pairs only (3) | 5,730,388 | 13.6% | 23.7% | 32.1% | 11.7% / 15.2% | 1.8% / 1.6% | 90.5% |
+| 2, 3 | 14,137,240 | 19.0% | 30.7% | 36.9% | 11.4% / 14.2% | 1.8% / 1.6% | 91.6% |
+| 2, 4 | 12,152,536 | 18.9% | 30.5% | 36.7% | 11.4% / 14.3% | 1.9% / 1.6% | 91.5% |
+| **3, 3 (shipped)** | 12,188,272 | 19.0% | 30.7% | 36.6% | 11.5% / 14.3% | 1.9% / 1.6% | 91.5% |
+| 3, 4 | 10,203,568 | 18.9% | 30.4% | 36.5% | 11.5% / 14.4% | 1.9% / 1.6% | 91.5% |
+| 4, 3 | 11,154,896 | 19.0% | 30.6% | 36.5% | 11.5% / 14.4% | 1.9% / 1.6% | 91.6% |
+| 4, 4 | 9,341,924 | 18.9% | 30.4% | 36.3% | 11.5% / 14.5% | 1.9% / 1.6% | 91.5% |
+
+(The pairs-only row is with the shipped tuning.) Accuracy and harmful corrections were the same
+in every row (neutral 96.9% / 0.6%, left thumb 93.7% / 0.5%) but two: left-thumb accuracy is
+93.6% for 4, 4 and 93.3% for pairs only. The word before last is what pays: without triples the model predicts barely better than
+the dictionary and swipes worse. Pairs seen twice add 0.3 point of savings and at most 0.1
+elsewhere for 1.9 MB more APK and memory; triples seen twice need 16.8 MB and more, over the
+15 MB budget, so 4-grams were not tried: after triples seen three times there are 2.8 MB left for
+them, and pruning harder to make room loses up to 0.3 point.
+
+Then the session's tuning, on the shipped model:
+
+| Typing weight, swipe threshold | Savings | Missed neutral / left | Wrong fixes neutral / left | Accuracy left | Swipe top-1 |
+|---|---:|---:|---:|---:|---:|
+| 0 (typing untouched), 1 | 32.0% | 11.3% / 14.4% | 2.0% / 1.9% | 93.5% | 91.5% |
+| 0.5, 1 | 35.2% | 11.3% / 14.3% | 1.8% / 1.6% | 93.7% | 91.5% |
+| **0.75, 0 (shipped)** | 36.2% | 11.3% / 14.2% | 1.8% / 1.6% | 93.7% | 91.9% |
+| 1, 1 | 36.6% | 11.5% / 14.3% | 1.9% / 1.6% | 93.7% | 91.5% |
+| 1.5, 1 | 36.9% | 11.7% / 14.6% | 2.1% / 1.7% | 93.5% | 91.5% |
+| 1, 0 | 36.6% | 11.5% / 14.3% | 1.9% / 1.6% | 93.7% | 91.9% |
+| 1, 0.5 | 36.6% | 11.5% / 14.3% | 1.9% / 1.6% | 93.7% | 91.7% |
+| 1, 2 | 36.6% | 11.5% / 14.3% | 1.9% / 1.6% | 93.7% | 91.6% |
+| 1, never | 36.6% | 11.5% / 14.3% | 1.9% / 1.6% | 93.7% | 91.0% |
+
+Next words don't depend on either setting (19.0% / 30.7% throughout). The full weight saves
+0.4 point more keystrokes than three quarters but leaves 0.2 point more typos uncorrected than
+Stage B did; three quarters leaves every correction measure at least as good as Stage B. For swipe, any positive lift counts best; ignoring the model (never) is worse than the
+dictionary's own pairs (91.2%).

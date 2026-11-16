@@ -254,10 +254,45 @@ shortcuts are kept: its possibly-offensive and not-a-word marks were made by han
 can't remake them, so those entries keep their values and are never a next word. Unigram values
 are AOSP's own set of values handed out again by corpus frequency, keeping the scale the decoder
 was tuned on. Up to 32 next words a word, each seen at least twice: 2,370,665 bytes against
-AOSP's 2,956,881, so the APK is 585,600 bytes smaller. 16 save fewer keystrokes; 64 save a few more but correct more clean words and
-swipe a little worse; counting pairs seen once adds 1.7 MB for 0.1 point.
+AOSP's 2,956,881, so the APK is 585,600 bytes smaller. 16 save fewer keystrokes; 64 save a few
+more but correct more clean words and swipe a little worse; counting pairs seen once adds 1.7 MB
+for 0.1 point.
 
-**Would change if** a larger licence-clear conversational corpus appears (more next words would
-then pay), if a second language needs a dictionary (the same build, with its own corpus and
-AOSP's word list for it), or if harmful corrections of unknown names grow with the user's own
-writing; then the auto-correction threshold, not the statistics, is the place to fix it.
+**Model.** On top of the dictionary, a word trigram model from the same counts and over the same
+words (`main_en-US.lm`, `crates/ngram`, built by `lexicon model`): interpolated Kneser-Ney, pairs
+and triples kept if seen at least three times, each log probability and backoff a byte. 77,757
+words (the dictionary's words the corpus writes, less the flagged ones, so it can never predict
+them), 712,166 pairs, 1,081,773 triples: 12,188,272 bytes, stored uncompressed and read from the
+APK into native memory (12.2 MB; nothing on the JVM heap). It predicts the next word from the
+last two, re-weighs typed candidates in context (three quarters of its lift on the dictionary's
+scale) and tells the swipe ranker which guesses the context favours; the user's learned next
+words still come first. Next-word top-1 goes from 13.3% to 19.0% and top-3 from 21.0% to 30.7%,
+keystroke savings from 28.9% to 36.2%, with correction as good or better on every measure and
+swipe top-1 from 91.2% to 91.9%, for 0.05 ms more per keystroke
+([results](language-model-results.md#stage-c-a-trigram-model-2026-11-16)).
+
+- *Why trigrams, not bigrams:* the same pairs without triples (5.7 MB) predict little better
+  than the dictionary (top-1 13.6%) and swipe worse; the word before last is what pays.
+- *Why not 4-grams:* the budget. Triples seen twice are already 16.8 MB; triples seen three times
+  leave 2.8 MB for 4-grams, which 31 million words would fill with few that recur. Pruning harder
+  to make room costs what 4-grams might add (seen four times, top-3 falls 0.3 point).
+- *Why these thresholds:* keeping pairs seen twice (14.1 MB) adds 0.3 point of savings and at
+  most 0.1 elsewhere, for 1.9 MB more APK and memory. Pairs or triples seen four times save
+  1.0–2.8 MB and lose 0.1–0.3 point.
+- *Why stupid backoff isn't used:* Kneser-Ney's probabilities add up, so the lift on the
+  dictionary's scale means the same in every context; the reader's cost is the same.
+- *Neural model:* not built. onnxruntime is already in the APK, but the numbers say little is
+  left for it to win. Correction and swipe hardly depend on the language model any more: the
+  whole trigram model moved them by at most 0.7 point, so a better one could only help next words
+  and savings. There, a neural model's edge over counts is longer context and sharing what it
+  learns between similar words, and it would be trained on the same 32 million licence-clear
+  words, small for one; its gain here is unmeasured, and it would cost megabytes and an inference
+  per keystroke against the n-gram's 0.05 ms. Worth measuring only with a larger licence-clear
+  conversational corpus, and then first for next words alone (once a word, after the space).
+
+**Would change if** a larger licence-clear conversational corpus appears (more next words and
+4-grams would then pay, and a neural model could be trained on it), if a second language needs a
+dictionary (the same build, with its own corpus and AOSP's word list for it), if the APK or the
+keyboard's memory gets tighter (pairs and triples seen four times give 9.3 MB for 0.3 point), or if
+harmful corrections of unknown names grow with the user's own writing; then the auto-correction
+threshold, not the statistics, is the place to fix it.
