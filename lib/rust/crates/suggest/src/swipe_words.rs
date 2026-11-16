@@ -45,6 +45,52 @@ pub fn frequency_of(probability: i32) -> f64 {
     (-COST_PER_STEP * f64::from(steps)).exp()
 }
 
+/// How a 0-255 probability becomes the classifier's frequency: `below` nats a step below
+/// `common`, and `above` nats a step from there up to [`MAX_PROBABILITY`].
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Curve {
+    pub common: i32,
+    pub below: f64,
+    pub above: f64,
+}
+
+impl Curve {
+    /// [`frequency_of`]: common words count the same.
+    pub const FLAT: Curve = Curve {
+        common: COMMON,
+        below: COST_PER_STEP,
+        above: 0.0,
+    };
+
+    /// What the keyboard uses: [`COST_PER_STEP`] all the way up, so a commoner word always
+    /// counts for more. The flat top tied words that share a path ("the" and "three", "to" and
+    /// "too"); one slope swipes better on both of the scoreboard's simulators
+    /// (docs/swipe-accuracy.md).
+    pub const DEFAULT: Curve = Curve {
+        common: COMMON,
+        below: COST_PER_STEP,
+        above: COST_PER_STEP,
+    };
+
+    /// The classifier's frequency for a word of `probability`.
+    pub fn frequency_of(&self, probability: i32) -> f64 {
+        let probability = probability.clamp(0, MAX_PROBABILITY);
+        let below = (self.common - probability).max(0);
+        let above = MAX_PROBABILITY - probability.max(self.common);
+        (-(self.below * f64::from(below) + self.above * f64::from(above))).exp()
+    }
+
+    /// [`frequency`] on this curve.
+    pub fn frequency(&self, probability: i32, user_probability: i32) -> f64 {
+        let best = probability.max(user_probability);
+        if best == NOT_A_PROBABILITY {
+            0.0
+        } else {
+            self.frequency_of(best)
+        }
+    }
+}
+
 /// How strongly the classifier favours a word the dictionary gives `probability` and the user's
 /// words `user_probability` (either [`NOT_A_PROBABILITY`]): the higher one's [`frequency_of`], or
 /// 0 for a word neither knows.
@@ -55,6 +101,12 @@ pub fn frequency(probability: i32, user_probability: i32) -> f64 {
     } else {
         frequency_of(best)
     }
+}
+
+/// [`frequency`] on the curve the keyboard uses, [`Curve::DEFAULT`]. [`frequency`] stays the
+/// flat curve, which the Kotlin reference holds it to.
+pub fn tuned_frequency(probability: i32, user_probability: i32) -> f64 {
+    Curve::DEFAULT.frequency(probability, user_probability)
 }
 
 /// The user's words as probabilities: `learned` spellings at [`LEARNED_PROBABILITY`], `personal`
@@ -134,6 +186,39 @@ mod tests {
         assert_eq!(user_words(&[(&kaito[..], -4)], &[]), [(0, 0)]);
         let louder = [(&bae[..], 200)];
         assert_eq!(user_words(&louder, &learned), [(0, 200)]);
+    }
+
+    #[test]
+    fn the_flat_curve_is_frequency_of() {
+        for probability in -3..=258 {
+            assert_eq!(
+                Curve::FLAT.frequency_of(probability),
+                frequency_of(probability)
+            );
+            assert_eq!(
+                Curve::FLAT.frequency(probability, 120),
+                frequency(probability, 120)
+            );
+        }
+    }
+
+    #[test]
+    fn the_keyboards_curve_has_one_slope_all_the_way_up() {
+        let curve = Curve::DEFAULT;
+        assert_eq!(curve.frequency_of(MAX_PROBABILITY), 1.0);
+        for probability in 0..MAX_PROBABILITY {
+            let step = curve.frequency_of(probability) / curve.frequency_of(probability + 1);
+            assert!(
+                (step - (-COST_PER_STEP).exp()).abs() < 1e-12,
+                "{probability}"
+            );
+        }
+        assert_eq!(tuned_frequency(NOT_A_PROBABILITY, NOT_A_PROBABILITY), 0.0);
+        assert_eq!(
+            tuned_frequency(10, LEARNED_PROBABILITY),
+            curve.frequency_of(LEARNED_PROBABILITY)
+        );
+        assert_eq!(tuned_frequency(300, -1), 1.0);
     }
 
     #[test]
