@@ -147,6 +147,7 @@ impl App {
             Kind::Spell => Some(self.spell(p, i, at, clip, text)),
             Kind::Note => Some(self.note(p, i, at, clip, text)),
             Kind::Field => Some(self.text_field(p, i, at, clip, text)),
+            Kind::Libraries => Some(self.libraries(p, at, clip, text)),
             _ => None,
         }
     }

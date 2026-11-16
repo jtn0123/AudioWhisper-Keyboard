@@ -5,6 +5,9 @@ use crate::{
 };
 impl App {
     pub(super) fn dialog(&mut self, p: &mut Panel, text: &mut Text) {
+        if self.licence_modal() {
+            return self.licence_dialog(p, text);
+        }
         let m = self.modal.as_ref().unwrap().clone();
         let r = self.rows()[m.row];
         let [w, h, d, _] = self.config;

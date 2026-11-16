@@ -163,7 +163,7 @@ class SettingsGroupOneMatchTest {
     @Test fun nativeRoutesAreHomeKeyboardAndGroupsOneAndTwoAndOthersFallBackWithThem() {
         KeyboardRenderer(emptyArray()).use { n ->
             val native = listOf("settings/home", "settings/keyboard") + ref.screens.map { it.route } +
-                ReferenceGroupTwoScreens.screens.map { it.route }
+                ReferenceGroupTwoScreens.screens.map { it.route } + "settings/about/third-party-licenses"
             assertEquals(native, n.settings(19)[2].split("\n"))
             prepare(n, defaults())
             assertEquals(listOf(listOf("compose", "settings/theme", native.joinToString("|"))), effects(state(n, 4, "settings/theme")))

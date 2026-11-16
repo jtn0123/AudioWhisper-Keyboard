@@ -2,6 +2,10 @@
 
 ## Status and boundary
 
+**Licences:** [the third-party licences screen](stage4-licences.md) is drawn in Rust: the
+AboutLibraries data path, a virtualised list, and the licence dialog with a TagSoup 1.2 port.
+The project licence screen stays in Compose until its text selection is ported.
+
 **Follow-up 4:** [the device suite, emoji tiles, then group 2](stage4-followup4.md). The whole
 instrumented suite and a fresh gallery ran on both renderers, and what they found was fixed.
 That includes a Jetpref store defect that stopped all preference writes after one cancelled

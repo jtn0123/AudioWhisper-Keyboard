@@ -42,21 +42,27 @@ impl App {
     }
     pub(super) fn paint_scrollbar(&mut self, panel: &mut Panel, clip: Rect) {
         let slot = usize::from(self.modal.is_some());
-        self.scrollbar_exists[slot] = self.max_scroll > 0.0;
-        if self.max_scroll <= 0.0 {
-            return;
-        }
-        let height = clip.height() * clip.height() / (clip.height() + self.max_scroll);
-        let top = clip.top + (clip.height() - height) * (self.shown_scroll() / self.max_scroll);
-        let alpha = (self.scrollbar_alpha(slot) * 0.28 * 255.0).round() as u32;
-        self.paint_box(
-            panel,
-            rect(
+        // The libraries list is a LazyColumn: its bar follows the visible rows, not pixels.
+        let bar = if slot == 0 && self.on_licences() {
+            self.licence_scrollbar(clip)
+        } else if self.max_scroll > 0.0 {
+            let height = clip.height() * clip.height() / (clip.height() + self.max_scroll);
+            let top = clip.top + (clip.height() - height) * (self.shown_scroll() / self.max_scroll);
+            Some(rect(
                 clip.right - 4.0 * self.config[2],
                 top,
                 4.0 * self.config[2],
                 height,
-            ),
+            ))
+        } else {
+            None
+        };
+        self.scrollbar_exists[slot] = bar.is_some();
+        let Some(bar) = bar else { return };
+        let alpha = (self.scrollbar_alpha(slot) * 0.28 * 255.0).round() as u32;
+        self.paint_box(
+            panel,
+            bar,
             (self.colors[1] & 0x00ffffff) | (alpha << 24),
             0.0,
         );

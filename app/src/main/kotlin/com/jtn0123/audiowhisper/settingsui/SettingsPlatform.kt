@@ -52,7 +52,9 @@ internal class SettingsPlatform(private val activity: FlorisAppActivity, private
             colors.onPrimary.toArgb(), colors.outline.toArgb(), colors.surface.toArgb(),
             colors.secondary.toArgb(), colors.outlineVariant.toArgb(), colors.surfaceContainerHigh.toArgb(), colors.surfaceContainer.toArgb(),
             // M3 Card's content colour, as Material resolves it for this scheme.
-            colors.contentColorFor(colors.surfaceContainerHighest).toArgb())
+            colors.contentColorFor(colors.surfaceContainerHighest).toArgb(),
+            // The libraries' license badge text and row text.
+            colors.onPrimaryContainer.toArgb(), colors.onBackground.toArgb())
     }
     fun dialogWindowWidth(): Float {
         val value = android.util.TypedValue()

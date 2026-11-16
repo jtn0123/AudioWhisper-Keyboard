@@ -129,7 +129,10 @@ class SettingsGroupTwoMatchTest {
         val native = n.settings(19)[2].split("\n")
         val reply = state(n, 5, (1000 + i).toString())
         if (row.route in native) {
-            assertEquals(row.route, reply.text("route")); assertEquals(emptyList(), effects(reply))
+            assertEquals(row.route, reply.text("route"))
+            // The licences list asks Kotlin for the AboutLibraries resource as it opens.
+            val plans = if (row.route == "settings/about/third-party-licenses") listOf(listOf("load", "libraries")) else emptyList()
+            assertEquals(plans, effects(reply))
             state(n, 6, "3", "0")
         } else assertEquals(listOf(listOf("compose", row.route, native.joinToString("|"))), effects(reply))
         assertEquals(screen.route, route(n))
@@ -203,7 +206,7 @@ class SettingsGroupTwoMatchTest {
     @Test fun nativeRoutesAddGroupTwoAndKeepTheirScreensAcrossRecreation() {
         KeyboardRenderer(arrayOf(font)).use { n ->
             val native = n.settings(19)[2].split("\n")
-            assertEquals(ref.screens.map { it.route }, native.takeLast(ref.screens.size))
+            assertEquals(ref.screens.map { it.route } + "settings/about/third-party-licenses", native.takeLast(ref.screens.size + 1))
             val f = ReferenceGroupTwoScreens.Facts(defaults(), false, "1", null, null)
             prepare(n, f)
             state(n, 4, "settings/typing"); state(n, 4, "settings/dictionary")

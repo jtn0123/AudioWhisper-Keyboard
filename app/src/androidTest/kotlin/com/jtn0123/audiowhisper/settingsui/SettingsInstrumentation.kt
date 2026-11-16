@@ -202,6 +202,7 @@ class SettingsInstrumentation : Instrumentation() {
         screens.put(h.audit("keyboard-returned"))
         SettingsGroupOneDevice(h) { stage = it }.run(report, screens)
         SettingsGroupTwoDevice(h) { stage = it }.run(report, screens)
+        SettingsLicencesDevice(h) { stage = it }.run(report, screens)
         stage = "ui"
         h.click("Keyboard")
         h.waitFor("Keyboard unavailable") { h.find("Number row") != null }

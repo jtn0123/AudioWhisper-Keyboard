@@ -5,7 +5,11 @@ use render::settings_ui::{
 };
 use settings::{Text, text};
 pub fn save(a: &App) -> Vec<Text> {
-    let m = a.modal.as_ref();
+    // LibrariesContainer keeps its open library in a plain `remember`: recreation closes it.
+    let m = a
+        .modal
+        .as_ref()
+        .filter(|m| !matches!(a.rows()[m.row].kind, Kind::Libraries));
     let e = a.preview_editor();
     vec![
         text("2"),

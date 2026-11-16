@@ -27,7 +27,8 @@ class SettingsUiMatchTest {
             // told every route it must hand back.
             val native=listOf("settings/home","settings/keyboard","settings/keyboard/input-feedback","settings/smartbar",
                 "settings/gestures","settings/clipboard","settings/media","settings/typing","settings/dictionary",
-                "settings/other/physical-keyboard","settings/about","settings/dictation")
+                "settings/other/physical-keyboard","settings/about","settings/dictation",
+                "settings/about/third-party-licenses")
             for (i in ref.home.indices) {
                 if (ref.home[i] in native) {
                     assertEquals(ref.home[i],state(n,5,(100+i).toString()).getValue("route").jsonPrimitive.content)

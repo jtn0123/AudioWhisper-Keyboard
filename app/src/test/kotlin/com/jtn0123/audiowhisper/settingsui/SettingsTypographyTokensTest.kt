@@ -22,6 +22,11 @@ class SettingsTypographyTokensTest {
         assertEquals(14.sp, material.labelLarge.fontSize)
         assertEquals(listOf(16.sp, 24.sp, 0.2.sp), material.titleMedium.let { listOf(it.fontSize, it.lineHeight, it.letterSpacing) })
         assertEquals(listOf(14.sp, 20.sp, 0.1.sp), material.titleSmall.let { listOf(it.fontSize, it.lineHeight, it.letterSpacing) })
+        // licences/style.rs: AboutLibraries' Traditional rows copy these (its own line heights aside).
+        assertEquals(listOf(11.sp, 16.sp, 0.5.sp), material.labelSmall.let { listOf(it.fontSize, it.lineHeight, it.letterSpacing) })
+        assertEquals(androidx.compose.ui.text.font.FontWeight.Medium, material.labelSmall.fontWeight)
+        assertEquals(listOf(12.sp, 0.4.sp), material.bodySmall.let { listOf(it.fontSize, it.letterSpacing) })
+        assertEquals(androidx.compose.ui.text.font.FontWeight.Medium, material.titleSmall.fontWeight)
         val app = dev.patrickgold.florisboard.app.apptheme.Typography
         assertEquals(TextUnit.Unspecified, app.bodyLarge.letterSpacing)
         assertEquals(16.sp, app.bodyLarge.fontSize)

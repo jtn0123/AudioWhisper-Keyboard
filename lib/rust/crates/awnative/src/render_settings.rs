@@ -154,6 +154,13 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_settings(
                             .parse()
                             .map_err(|_| illegal("settings card content color"))?;
                     }
+                    if p.len() > 57 {
+                        for (i, color) in colors.iter_mut().enumerate().skip(14) {
+                            *color = field(&p, 42 + i)?
+                                .parse()
+                                .map_err(|_| illegal("settings library colors"))?;
+                        }
+                    }
                     a.config = c;
                     a.colors = colors;
                     a.ime_enabled = field(&p, 10)? == "true";
@@ -344,6 +351,15 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_settings(
                         .iter()
                         .map(|[k, v]| (k.clone(), v.clone()))
                         .collect();
+                }
+                21 => {
+                    // Documents Kotlin read for a `load` plan, as name and text pairs.
+                    if p.len() % 2 != 0 {
+                        return Err(illegal("settings documents"));
+                    }
+                    for [name, text] in p.as_chunks::<2>().0 {
+                        a.set_document(name, text);
+                    }
                 }
                 17 => {
                     let id = int(&p, 0)?;
