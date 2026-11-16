@@ -38,6 +38,7 @@ class SpacingComparison {
         override var autoSpacePunctuation = true
         override var isRawInputEditor = false
         override var keyVariation = KeyVariation.NORMAL
+        override var inputType = 0x4001
         override var selection = EditorRange(3, 3)
         override var locale: FlorisLocale = FlorisLocale.from("en")
         override var punctuationRule = DEFAULT_RULE
@@ -56,7 +57,7 @@ class SpacingComparison {
         }
 
         override fun toString() =
-            "pref=$autoSpacePunctuation raw=$isRawInputEditor $keyVariation $selection ${locale.language} " +
+            "pref=$autoSpacePunctuation raw=$isRawInputEditor $keyVariation ${inputType.toString(16)} $selection ${locale.language} " +
                 "rule=[${punctuationRule.symbolsPrecedingAutoSpace.show()}|${punctuationRule.symbolsFollowingAutoSpace.show()}|" +
                 "${punctuationRule.symbolsPrecedingPhantomSpace.show()}|${punctuationRule.symbolsFollowingPhantomSpace.show()}] " +
                 "before1=${before1.show()} before3=${before3.show()} word=${currentWordText.show()}"
@@ -118,6 +119,8 @@ class SpacingComparison {
         check("determine: looked up", input, oldAsked, editor.asked.toList())
         see("determine: $old${if (forceActive) " forced" else ""}")
         see("determine: unspaced language", !ReferenceSpacing.supportsAutoSpace(editor.locale) && oldAsked.isNotEmpty())
+        val address = editor.keyVariation == KeyVariation.EMAIL_ADDRESS || editor.keyVariation == KeyVariation.URI
+        see("determine: true in an address asking for corrections", old && address)
         return old
     }
 
@@ -252,7 +255,8 @@ class SpacingComparison {
     private fun randomize(random: Random, editor: Editor) {
         editor.autoSpacePunctuation = random.nextInt(4) != 0
         editor.isRawInputEditor = random.nextInt(6) == 0
-        editor.keyVariation = if (random.nextInt(3) == 0) KeyVariation.entries.random(random) else KeyVariation.NORMAL
+        editor.keyVariation = if (random.nextInt(2) == 0) KeyVariation.entries.random(random) else KeyVariation.NORMAL
+        editor.inputType = if (random.nextInt(4) != 0) 0x8001 else 0x1
         editor.selection = when (random.nextInt(8)) {
             0 -> EditorRange.Unspecified
             1 -> EditorRange(0, random.nextInt(-1, 3))

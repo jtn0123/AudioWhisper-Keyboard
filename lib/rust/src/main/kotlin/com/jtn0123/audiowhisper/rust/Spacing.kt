@@ -30,13 +30,14 @@ object SpacingRules {
         val currentWordText: String
     }
 
-    /** What is known before any text is looked up. */
+    /** What is known before any text is looked up; [inputType] is the field's raw `EditorInfo.inputType`. */
     class Typing(
         val autoSpacePunctuation: Boolean,
         val rawEditor: Boolean,
         val keyVariation: Int,
         val selectionValid: Boolean,
         val selectionStart: Int,
+        val inputType: Int,
     )
 
     /** What typing a character does with spaces, and the flags after it. */
@@ -71,7 +72,7 @@ object SpacingRules {
         if (typing.rawEditor) flags = flags or RAW_EDITOR
         if (typing.selectionValid) flags = flags or SELECTION_VALID
         if (forceActive) flags = flags or FORCE_ACTIVE
-        val known = intArrayOf(flags, typing.keyVariation, typing.selectionStart, autoSpace, phantomSpace)
+        val known = intArrayOf(flags, typing.keyVariation, typing.selectionStart, autoSpace, phantomSpace, typing.inputType)
         val first = Spaces(rule(text, known, null, null))
         val needs = first.needs
         if (needs == 0) return first

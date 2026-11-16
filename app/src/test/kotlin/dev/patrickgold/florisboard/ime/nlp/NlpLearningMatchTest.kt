@@ -22,7 +22,7 @@ class NlpLearningMatchTest {
             val keptOld = KeptWordStore(); val keptNew = KeptWordStore()
             NlpSession().use { nlp ->
                 repeat(250) {
-                    val raw = listOf(1, 0x81, 0x91, 0xe1, 0x11, 0x21, 0xd1, 0xb1, 0x80001)[random.nextInt(9)]
+                    val raw = listOf(1, 0x81, 0x91, 0xe1, 0x11, 0x21, 0xd1, 0xb1, 0x80001, 0x8021, 0x8011)[random.nextInt(11)]
                     val incognito = random.nextBoolean()
                     val enabled = random.nextBoolean()
                     val setting = random.nextBoolean()
@@ -35,10 +35,10 @@ class NlpLearningMatchTest {
                         "a zorblax", "seed", "", ready.bit(), "1", "1", "0", "0")
                     nlp.call("context", *context)
                     val password = raw and 0xff0 in setOf(0x80, 0x90, 0xe0)
-                    // Not prose: a URL, an e-mail address or a filter.
+                    // Not prose: a URL, an e-mail address or a filter, even one asking for corrections.
                     val address = raw and 0xff0 in setOf(0x10, 0x20, 0xb0, 0xd0)
-                    val corrected = ready && english && enabled && !password && !address && raw and 0x80000 == 0
-                    val mayLearn = !incognito && setting && corrected
+                    val prose = ready && english && enabled && !password && !address && raw and 0x80000 == 0
+                    val mayLearn = !incognito && setting && prose
                     val action = random.nextInt(6)
                     val trigger = if (random.nextBoolean()) -1 else 39
                     if (action <= 2) {
@@ -58,7 +58,7 @@ class NlpLearningMatchTest {
                     } else if (action == 4) { old.reset(); actual.reset(); nlp.call("field") }
                     else if (action == 5) {
                         val remembered = nlp.call("keep", word)[0] == "1"
-                        assertEquals(keptOld.add(word, !incognito && corrected), keptNew.add(word, remembered))
+                        assertEquals(keptOld.add(word, !incognito && prose), keptNew.add(word, remembered))
                     }
                     assertEquals(oldStore.store.savedText(), newStore.store.savedText(), "learned effects seed $seed")
                     assertEquals(keptOld.savedText(), keptNew.savedText(), "kept effects seed $seed")

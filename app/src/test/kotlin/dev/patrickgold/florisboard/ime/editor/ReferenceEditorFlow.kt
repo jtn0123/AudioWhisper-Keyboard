@@ -11,6 +11,7 @@ internal class ReferenceEditorFlow(val base: ReferenceAbstractEditorInstance) : 
     override var autoSpacePunctuation=false
     override val isRawInputEditor get()=base.activeInfo.isRawInputEditor
     override var keyVariation=KeyVariation.NORMAL
+    override val inputType get()=base.activeInfo.inputAttributes.raw
     override val selection get()=base.activeContent.selection.let{EditorRange(it.start,it.end)}
     override val locale=FlorisLocale.fromTag("en")
     override val punctuationRule=PunctuationRule.Fallback

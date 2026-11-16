@@ -56,7 +56,7 @@ class NlpMatchTest {
                             p.call("context", *context.toTypedArray())
                         }
                         5 -> {
-                            context = context.toMutableList().also { it[0] = listOf(1, 0x81, 0x91, 0xe1, 0x12, 0x21, 0x11, 0x80001)[random.nextInt(8)].toString() }
+                            context = context.toMutableList().also { it[0] = listOf(1, 0x81, 0x91, 0xe1, 0x12, 0x21, 0x11, 0x80001, 0x8021, 0x8011, 0x80b1)[random.nextInt(11)].toString() }
                             p.call("context", *context.toTypedArray()); p.call("policy", *context.toTypedArray())
                         }
                         6 -> {

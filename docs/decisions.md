@@ -508,6 +508,7 @@ of field now all live in Rust, and Kotlin's wiring is unchanged.
 | Text, search box (action Search) | yes | yes | yes | yes |
 | Filter (`TYPE_TEXT_VARIATION_FILTER`) | yes | **no** (was yes) | yes | **no** (was yes) |
 | URL, e-mail, web e-mail | yes | no | **no** (was after a pick or swipe) | no; kept words **not remembered** (were) |
+| The same, asking for auto-correction (`TYPE_TEXT_FLAG_AUTO_CORRECT`) | yes | **yes** | after a pick or swipe, **not** after punctuation | no |
 | Password (text, visible, web, number) | no | no | no (nothing to pick or swipe) | no |
 | No-suggestions flag | no | no | yes | no |
 
@@ -526,22 +527,35 @@ is taken back. A whole address was already never stored (a learned word is lette
   treats it as text, as it already did. In a filter field (Private DNS hostname, `0x200b1`) Gboard
   left "wprld" alone, so filter fields are now not corrected (AOSP hides suggestions there).
 - *E-mail, against Gboard:* the user's rule (no correction, no auto-space in URL and e-mail fields)
-  is followed. One observation runs the other way: in Contacts' e-mail field, which asks for
-  auto-correction (`0x8021`), Gboard corrected "wprld" and spaced after a pick. A URL field wasn't
-  checked against Gboard: the only one on the emulator is Chrome's, behind its terms of service.
-- *Where it lives:* `nlp::policy` (`NOT_PROSE`, `remember_kept`), `spacing::spaces`
-  (`phantom_space_before` checks the key variation, as AOSP's `isAutoSpaceFriendlyType`),
+  is followed for a field that doesn't ask. In Contacts' e-mail field, which asks for
+  auto-correction (`0x8021`), Gboard corrected "wprld" and spaced after a pick, so since the later
+  2026-11-16 follow-up a URL or e-mail field that sets `TYPE_TEXT_FLAG_AUTO_CORRECT` is corrected
+  and a word picked or swiped there is spaced (`nlp::policy::Context::autocorrect`,
+  `spacing::spaces::spaces_words`). Still, nothing typed there is learned or remembered as kept,
+  and tap aim isn't learned from it (`Context::prose`): an address is not the user's vocabulary,
+  whatever the field asks. Punctuation is not auto-spaced there either ("example. com" would break
+  the address). A filter or password field is never corrected, whatever it asks. A URL field
+  wasn't checked against Gboard: the only one on the emulator is Chrome's, behind its terms of
+  service; it follows the e-mail field, as both are addresses.
+- *Where it lives:* `nlp::policy` (`NOT_PROSE`, `ADDRESSES`, `prose`, `autocorrect`,
+  `remember_kept`), `spacing::spaces` (`phantom_space_before` asks `spaces_words`: the key
+  variation, as AOSP's `isAutoSpaceFriendlyType`, and for an address the field's raw `inputType`,
+  which the editor session already had from its `config` op),
   `suggest::addresses` and the word learner. The frozen Kotlin references (`ReferenceNlp`,
   `ReferenceSpacing`, `ReferenceLatin`'s word learner, `NlpLearningMatchTest`) carry the same
   changes, noted in their headers.
 - *Proof:* Rust tests per rule, `FieldKindFlowTest` from the raw `EditorInfo` values through the
-  native editor and NLP session, and eight mutations in `scripts/correction-mutations.py`, each
-  caught.
+  native editor and NLP session, and sixteen mutations in `scripts/correction-mutations.py` (eight
+  more for the fields that ask for correction: the clause itself, the flag check, learning, tap
+  aim, both spacing directions, and the input type dropped by the editor session or the JNI
+  bridge), each caught. On the emulator, in Contacts' e-mail field (0x8021): a picked "the" was
+  spaced before the next letter, "adn " became "and ", one backspace undid it, and the learned
+  and kept word files were unchanged afterwards.
 
-**Would change if** the user wants Gboard's behaviour where an e-mail field asks for correction
-(honour `TYPE_TEXT_FLAG_AUTO_CORRECT` there), a URL field on Gboard turns out to space after a pick,
-or prose writers miss words after "and/" or "e.g." (the address test is deliberately broad: a word
-it wrongly skips is simply not learned this once).
+**Would change if** a URL field on Gboard turns out not to correct or space when it asks for
+correction, the user wants addresses typed in such a field learned, or prose writers miss words
+after "and/" or "e.g." (the address test is deliberately broad: a word it wrongly skips is simply
+not learned this once).
 
 ## Keys resized by the letter odds (2026-11-16)
 

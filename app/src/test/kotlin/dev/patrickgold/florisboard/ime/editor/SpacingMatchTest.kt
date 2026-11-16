@@ -40,6 +40,7 @@ class SpacingMatchTest {
             "determine: true forced",
             "determine: false forced",
             "determine: unspaced language",
+            "determine: true in an address asking for corrections",
             "update: candidate kept",
             "update: candidate dropped",
             "update: still active",

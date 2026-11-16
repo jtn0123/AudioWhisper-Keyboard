@@ -15,6 +15,8 @@ internal interface SpacingEditor {
     val autoSpacePunctuation: Boolean
     val isRawInputEditor: Boolean
     val keyVariation: KeyVariation
+    /** The field's raw `EditorInfo.inputType`. */
+    val inputType: Int
     val selection: EditorRange
     val locale: FlorisLocale
     val punctuationRule: PunctuationRule
@@ -68,6 +70,7 @@ internal object Spacing {
             keyVariation = editor.keyVariation.value,
             selectionValid = selection.isValid,
             selectionStart = selection.start,
+            inputType = editor.inputType,
         )
     }
 
