@@ -1,4 +1,4 @@
-"""Four deliberate NLP faults, actual JVM assertion failures, exact restoration. python3 -I.
+"""Six deliberate NLP faults, actual JVM assertion failures, exact restoration. python3 -I.
 
 Run with no other Gradle operation in this checkout. Never count a compilation failure as caught.
 """
@@ -25,6 +25,10 @@ def main():
          '(password || raw >= 0) && !(raw & 15 == 1 && raw & 0x80000 != 0)'),
         ('wrong-auto-expand', 'session.rs', 'self.visible().is_empty() && self.inline.is_empty() || self.context.selection()',
          'self.visible().is_empty() || self.inline.is_empty() || self.context.selection()'),
+        # The Smartbar's words hold: typing must carry it, and an empty refill must end it.
+        ('no-hold-across-keystroke', 'session.rs', 'self.carry = typing && holding;', 'self.carry = false;'),
+        ('hold-outlives-empty-refill', 'session.rs', '|| self.carry || self.pending && self.held',
+         '|| self.carry || self.held'),
     ]
     if len(sys.argv) > 2:
         mutations = [edit for edit in mutations if edit[0] == sys.argv[2]]
