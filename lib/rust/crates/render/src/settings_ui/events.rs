@@ -193,6 +193,24 @@ impl App {
         };
         true
     }
+    /// TalkBack's scroll forward or backward: a key step on a slider, else a page on a scroll
+    /// node. Compose's accessibility delegate pages a node by its own height (`ScrollBy` with
+    /// `boundsInParent().height`, as no settings screen declares PageUp or PageDown), so a page
+    /// is the list's viewport, the same on a screen, a dialog and the licences list.
+    pub fn accessibility_scroll(&mut self, id: i32, forward: bool) {
+        let direction = if forward { 1.0 } else { -1.0 };
+        if self.adjust(id, direction) {
+            return;
+        }
+        let page = self
+            .controls
+            .iter()
+            .find(|c| c.id == id && c.role == "scroll")
+            .map(|c| c.bounds.height());
+        if let Some(page) = page {
+            self.set_scroll(self.scroll() + direction * page);
+        }
+    }
     pub fn adjust(&mut self, id: i32, direction: f32) -> bool {
         let Some(c) = self.controls.iter().find(|c| c.id == id).cloned() else {
             return false;

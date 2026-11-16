@@ -363,10 +363,7 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_settings(
                 }
                 17 => {
                     let id = int(&p, 0)?;
-                    let direction = if int(&p, 1)? == 4 { 1.0 } else { -1.0 };
-                    if !a.adjust(id, direction) {
-                        a.set_scroll(a.scroll() + direction * a.config[1] * 0.6);
-                    }
+                    a.accessibility_scroll(id, int(&p, 1)? == 4);
                 }
                 _ => return Err(illegal("settings operation")),
             }

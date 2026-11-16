@@ -102,7 +102,9 @@ CASES = [
     ('html-legacy-block-lines', LIC / 'html.rs', '            self.newlines(1);\n            self.marks += 1;',
      '            self.newlines(2);\n            self.marks += 1;'),
     ('empty-licence-text-node', LIC / 'dialog.rs', '        if !body.is_empty() {\n', '        if !body.is_empty() || true {\n'),
-    ('every-row-drawn', LIC / 'list.rs', '            if top >= clip.bottom {\n                break;\n            }\n', ''),
+    ('every-row-drawn', LIC / 'list.rs', '            if top >= clip.bottom {\n                break;\n            }\n', ''),    # TalkBack pages a list by the scroll node's own height, as Compose does: must fail a Rust test.
+    ('talkback-page-fraction', BASE / 'render/src/settings_ui/events.rs',
+     'self.set_scroll(self.scroll() + direction * page);', 'self.set_scroll(self.scroll() + direction * page * 0.6);'),
 ]
 # The Rust test binary that must panic for each Rust-only case.
 RUST = dict.fromkeys([
@@ -119,7 +121,8 @@ RUST = dict.fromkeys([
     'card-content-onsurface',
     'title-medium-published-tracking',
     'card-icon-box-48dp',
-], 'settings_ui_group_two') | {'advance-linear-round': 'android_text', 'every-row-drawn': 'settings_ui_licences'}
+], 'settings_ui_group_two') | {'advance-linear-round': 'android_text', 'every-row-drawn': 'settings_ui_licences',
+                            'talkback-page-fraction': 'settings_ui_screens'}
 
 
 def run_rust(output, name, target):

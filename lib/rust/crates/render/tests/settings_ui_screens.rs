@@ -176,6 +176,38 @@ fn scrolling_stops_being_offered_at_the_whole_pixel_end_the_screen_shows() {
     a.set_scroll(max - 1.0);
     assert_eq!(a.can_scroll(), [true, true]);
 }
+/// TalkBack's scroll forward and backward page by the scroll node's own height, as Compose's
+/// accessibility delegate does (`ScrollBy(0, boundsInParent.height)`), so a walk that pages a
+/// list sees the same rows on both renderers.
+#[test]
+fn talkback_pages_by_the_scroll_nodes_own_height_like_compose() {
+    let (mut a, mut text) = app("settings/clipboard");
+    a.scene(&mut text);
+    let page = a.controls.iter().find(|c| c.id == 4 && c.role == "scroll");
+    let page = page.expect("the screen's scroll node").bounds.height();
+    assert!(
+        page > 0.0 && page < 640.0,
+        "the list sits between the header and the edge"
+    );
+    assert!(
+        a.max_scroll > page,
+        "the clipboard screen is over a page long at 480x640"
+    );
+    a.accessibility_scroll(4, true);
+    assert_eq!(a.scroll(), page);
+    a.accessibility_scroll(4, false);
+    assert_eq!(a.scroll(), 0.0);
+    for _ in 0..50 {
+        a.accessibility_scroll(4, true);
+    }
+    assert_eq!(a.scroll(), a.max_scroll);
+    // A row is not a scroll node: paging it moves nothing.
+    a.set_scroll(0.0);
+    a.scene(&mut text);
+    let row = a.controls.iter().find(|c| c.id >= 1000).expect("a row").id;
+    a.accessibility_scroll(row, true);
+    assert_eq!(a.scroll(), 0.0);
+}
 #[test]
 fn haptic_sliders_follow_the_vibrator_facts_like_input_feedback_screen() {
     let (mut a, _) = app("settings/keyboard/input-feedback");
