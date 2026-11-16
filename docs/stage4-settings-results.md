@@ -2,6 +2,17 @@
 
 ## Status and boundary
 
+**Follow-up 4:** [the device suite, emoji tiles, then group 2](stage4-followup4.md). The whole
+instrumented suite and a fresh gallery ran on both renderers, and what they found was fixed.
+That includes a Jetpref store defect that stopped all preference writes after one cancelled
+write, a Rust field whose keyboard request could be dropped, and Smartbar's fixed row, which
+Rust exposed as a disabled button where Compose has plain text. Colour emoji no longer allocate
+vello_cpu's 64 MiB atlas page: the emoji points drop by 55–64 MiB of PSS. Five more screens are
+drawn in Rust (Typing, User dictionaries, Physical keyboard, About, Dictation), still behind
+the default-off selector; Other and Theme wait for a colour picker. Owed: font scale 2.0
+pixels, Jetpref's own accessibility and store defects (upstream), queued Rust writes on
+destroy, the colour-picker screens, and a real TalkBack session.
+
 **Follow-up 3:** [prototype debts closed, then group 1](stage4-followup3.md). Font advances,
 line boxes, frame timing (the CPU raster is recommended), keyboard memory and native-load
 failure were fixed and measured. Five more screens are drawn in Rust (Sounds & Vibration,
