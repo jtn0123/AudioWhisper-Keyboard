@@ -128,6 +128,10 @@ def main():
             group_two = {renderer: report['group_two'] for renderer, report in reports.items()}
             d.save('group-two.json', group_two)
             assert group_two['compose'] == group_two['rust'], 'Group 2 walks differ'
+            # Every library row in order, and the first row's licence dialog text and button.
+            licences = {renderer: report['licences'] for renderer, report in reports.items()}
+            d.save('licences.json', licences)
+            assert licences['compose'] == licences['rust'], 'Licences walks differ'
             d.save('accessibility-comparison.json', accessibility_comparison(reports))
             accessibility_passed = all(r['accessibility_passed'] and r['system_ime_picker'] for r in reports.values())
             known = known_defects(reports)

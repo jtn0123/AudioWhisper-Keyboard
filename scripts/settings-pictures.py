@@ -150,14 +150,36 @@ def group_two(d, renderer):
     d.save(renderer+'-group-two-skipped.json', skipped)
 
 
+def licences(d, renderer):
+    """The third-party licences list at its top and a page down, the first library's licence
+    dialog, and the project licence screen, which stays in Compose on both renderers."""
+    d.fixture()
+    d.prototype(renderer)
+    d.launch('settings/home')
+    d.launch('settings/about/third-party-licenses')
+    d.wait(lambda: d.find('Activity'), 'Screen absent')
+    picture(d, renderer+'-licences')
+    d.ui('scroll', 'down', 1440)
+    picture(d, renderer+'-licences-lower1')
+    d.ui('scroll', 'top')
+    d.press('Activity')
+    d.wait(lambda: d.find('OK'), 'Dialog absent')
+    picture(d, renderer+'-dialog-licences-activity')
+    d.press('OK')
+    d.launch('settings/home')
+    d.launch('settings/about/project-license')
+    d.wait(lambda: d.find('Apache License'), 'Screen absent')
+    picture(d, renderer+'-project-license')
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('baseline', type=Path)
     parser.add_argument('--renderer', choices=['compose', 'rust', 'all'], default='all')
     parser.add_argument('--output', type=Path, default=Path('build/stage4-followup3/pictures'))
     parser.add_argument('--appearance', choices=['light', 'dark', 'font2', 'all'], default='all')
-    parser.add_argument('--sections', nargs='+', choices=['keyboard', 'group-one', 'group-two'],
-                        default=['keyboard', 'group-one', 'group-two'])
+    parser.add_argument('--sections', nargs='+', choices=['keyboard', 'group-one', 'group-two', 'licences'],
+                        default=['keyboard', 'group-one', 'group-two', 'licences'])
     args = parser.parse_args()
     base = args.output
     d = MODULE.SettingsDevice(base, args.baseline)
@@ -225,6 +247,9 @@ def main():
                 if 'group-two' in args.sections:
                     group_two(d, renderer)
                     print(appearance, renderer, 'group 2 pictures', flush=True)
+                if 'licences' in args.sections:
+                    licences(d, renderer)
+                    print(appearance, renderer, 'licences pictures', flush=True)
     finally:
         d.ui('settings', 'text-size', 'large')
         d.ui('settings', 'appearance', 'light')
