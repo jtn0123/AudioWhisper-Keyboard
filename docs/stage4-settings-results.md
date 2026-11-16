@@ -2,6 +2,10 @@
 
 ## Status and boundary
 
+**Licences:** [the third-party licences screen](stage4-licences.md) is drawn in Rust: the
+AboutLibraries data path, a virtualised list, and the licence dialog with a TagSoup 1.2 port.
+The project licence screen stays in Compose until its text selection is ported.
+
 **Follow-up 3:** [prototype debts closed, then group 1](stage4-followup3.md). Font advances,
 line boxes, frame timing (the CPU raster is recommended), keyboard memory and native-load
 failure were fixed and measured. Five more screens are drawn in Rust (Sounds & Vibration,
