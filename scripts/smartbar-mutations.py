@@ -18,7 +18,10 @@ import xml.etree.ElementTree as ET
 ROOT = Path(__file__).resolve().parent.parent
 RENDER = ROOT / 'lib/rust/crates/render/src'
 BAR = RENDER / 'smartbar.rs'
+FIT = RENDER / 'smartbar_fit.rs'
+RASTER = RENDER / 'smartbar_raster.rs'
 RUST, GBOARD, JVM = 'rust:smartbar_roomy', 'rust:smartbar_gboard', 'jvm:SmartbarMatchTest'
+FITS = 'rust:smartbar_fit'
 CASES = [
     ('roomy-without-words', BAR, '            && self.words\n', '', [RUST, JVM]),
     ('roomy-while-dictating', BAR, '            && !self.dictating\n', '', [RUST, JVM]),
@@ -35,11 +38,21 @@ CASES = [
      [RUST, JVM]),
     ('words-fact-not-decoded', BAR, 'words: a.get(14).is_some_and(|v| *v != 0.0),', 'words: a.get(15).is_some_and(|v| *v != 0.0),',
      [RUST, JVM]),
-    ('no-shrink-floor', BAR, 'fit.max(MIN_TEXT_SCALE).min(scale)', 'fit.max(0.5).min(scale)', [RUST, JVM]),
-    ('shrink-not-whole-percent', BAR, '(scale * available.max(0.0) / measured * 100.0).floor() / 100.0',
-     'scale * available.max(0.0) / measured', [RUST, JVM]),
-    ('raster-never-shrinks', RENDER / 'smartbar_raster.rs', '* crate::smartbar::fit_text(r.width(), |scale| {',
-     '* crate::smartbar::fit_text(f32::INFINITY, |scale| {', [RUST]),
+    ('no-shrink-floor', FIT, 'fit.max(MIN_TEXT_SCALE).min(scale)', 'fit.max(0.5).min(scale)', [FITS, JVM]),
+    ('shrink-not-whole-percent', FIT, '(scale * available.max(0.0) / measured * 100.0).floor() / 100.0',
+     'scale * available.max(0.0) / measured', [FITS, JVM]),
+    ('no-squeeze-floor', FIT, '        .max(MIN_TEXT_SQUEEZE)\n', '        .max(0.5)\n', [FITS, JVM]),
+    ('squeeze-not-whole-percent', FIT, '((available.max(0.0) / measured * 100.0).floor() / 100.0)',
+     '(available.max(0.0) / measured)', [FITS, JVM]),
+    ('shrink-before-squeeze', FIT,
+     '    if measured * squeeze <= available {\n        return TextFit { squeeze, ..fit };\n    }\n'
+     '    let scale = text_scale(fit.scale, measured * squeeze, available);\n',
+     '    let scale = text_scale(fit.scale, measured * fit.squeeze, available);\n'
+     '    if scale != fit.scale {\n        return TextFit { scale, ..fit };\n    }\n', [FITS, JVM]),
+    ('raster-never-fits', RASTER, 'let fit = crate::smartbar_fit::fit_text(r.width(), |scale| {',
+     'let fit = crate::smartbar_fit::fit_text(f32::INFINITY, |scale| {', [FITS]),
+    ('raster-never-squeezes', RASTER, 'self.fitted_label(text, t, (size, fit.squeeze), r)?;',
+     'self.fitted_label(text, t, (size, 1.0), r)?;', [FITS]),
 ]
 
 

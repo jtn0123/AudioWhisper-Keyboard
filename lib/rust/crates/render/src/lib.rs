@@ -19,6 +19,7 @@ pub mod protocol;
 pub mod raster;
 pub mod scene;
 pub mod smartbar;
+pub mod smartbar_fit;
 mod smartbar_raster;
 pub mod smartbar_scene;
 mod smartbar_touch;

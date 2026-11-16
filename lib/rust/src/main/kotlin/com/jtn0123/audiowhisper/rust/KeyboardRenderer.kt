@@ -182,18 +182,40 @@ object SmartbarRules {
     external fun roomy(config: FloatArray): Boolean
     /** The arrow's slot width in pixels: three quarters of the row while words show, else the row. */
     external fun toggleWidth(config: FloatArray): Float
-    /** One shrink-to-fit step for a candidate word; see `smartbar::text_scale`. */
-    external fun textScale(scale: Float, measured: Float, available: Float): Float
-    /** The scale a word draws at in [available], measuring with the renderer's own text layout. */
-    fun fitText(available: Float, measure: (Float) -> Float): Float {
-        var scale = 1f
-        repeat(TEXT_FIT_STEPS) {
-            val next = textScale(scale, measure(scale), available)
-            if (next == scale) return scale
-            scale = next
-        }
-        return scale
+    /** One step fitting a word, `smartbar_fit::fit_step`: squeeze first, then shrink. */
+    fun fitStep(fit: TextFit, measured: Float, available: Float): TextFit {
+        val packed = fitStepBits(fit.squeeze, fit.scale, measured, available)
+        return TextFit(Float.fromBits((packed ushr 32).toInt()), Float.fromBits(packed.toInt()))
     }
-    /** `smartbar::TEXT_FIT_STEPS`: most measurements made while fitting one word. */
+    private external fun fitStepBits(squeeze: Float, scale: Float, measured: Float, available: Float): Long
+    /**
+     * How a word draws in [available], `smartbar_fit::fit_text`: [measure] gives its unsqueezed
+     * width at a font scale, with the renderer's own text layout. Measures once at full size,
+     * then again only when the font shrinks.
+     */
+    fun fitText(available: Float, measure: (Float) -> Float): TextFit {
+        var fit = TextFit.NATURAL
+        var measured = measure(fit.scale)
+        var measures = 1
+        while (true) {
+            val next = fitStep(fit, measured, available)
+            if (next == fit) return fit
+            if (next.scale != fit.scale) {
+                if (measures == TEXT_FIT_STEPS) return next
+                measured = measure(next.scale)
+                measures++
+            }
+            fit = next
+        }
+    }
+    /** `smartbar_fit::TEXT_FIT_STEPS`: most measurements made while fitting one word. */
     const val TEXT_FIT_STEPS = 3
+}
+
+/** How a word draws, `smartbar_fit::TextFit`: [squeeze] narrows its glyphs only (text scale X),
+ * [scale] sizes its font. */
+data class TextFit(val squeeze: Float, val scale: Float) {
+    companion object {
+        val NATURAL = TextFit(1f, 1f)
+    }
 }

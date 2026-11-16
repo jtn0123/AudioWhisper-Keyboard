@@ -438,32 +438,3 @@ pub fn fit_prefix(count: usize, available: f32, mut measure: impl FnMut(usize) -
     }
     low
 }
-
-/// Candidate words shrink to fit before they ellipsise, down to three quarters of their size.
-pub const MIN_TEXT_SCALE: f32 = 0.75;
-/// Most measurements a renderer makes while fitting one word.
-pub const TEXT_FIT_STEPS: usize = 3;
-/// One shrink-to-fit step: the text measured `measured` wide at `scale` and has `available`.
-/// Width is near linear in font size, so one step lands on the fit. Scales are whole percents,
-/// rounded down, so a float error cannot leave a fitted word a hair too wide and ellipsised.
-/// The renderer measures again at the new scale and steps until the word fits or reaches the
-/// floor, where it then ellipsises.
-pub fn text_scale(scale: f32, measured: f32, available: f32) -> f32 {
-    if measured <= available || !measured.is_finite() || !available.is_finite() {
-        return scale;
-    }
-    let fit = (scale * available.max(0.0) / measured * 100.0).floor() / 100.0;
-    fit.max(MIN_TEXT_SCALE).min(scale)
-}
-/// The scale a word draws at in `available`, given the renderer's measure at a scale.
-pub fn fit_text(available: f32, mut measure: impl FnMut(f32) -> f32) -> f32 {
-    let mut scale = 1.0;
-    for _ in 0..TEXT_FIT_STEPS {
-        let next = text_scale(scale, measure(scale), available);
-        if next == scale {
-            break;
-        }
-        scale = next;
-    }
-    scale
-}

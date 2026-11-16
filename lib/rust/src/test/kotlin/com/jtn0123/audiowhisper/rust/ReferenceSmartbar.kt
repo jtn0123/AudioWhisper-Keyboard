@@ -23,10 +23,19 @@ internal object ReferenceSmartbar {
         val h = c[11].roundToInt().toFloat()
         return if (roomy(c)) (h*0.75f).roundToInt().toFloat() else h
     }
-    /** A word shrinks to the whole percent that fits, never below three quarters. */
+    /** A word's font shrinks to the whole percent that fits, never below three quarters. */
     fun textScale(scale: Float, measured: Float, available: Float): Float =
         if (measured <= available || !measured.isFinite() || !available.isFinite()) scale
         else minOf(scale, maxOf(0.75f, kotlin.math.floor(scale * maxOf(available, 0f) / measured * 100f) / 100f))
+    /** Gboard's order: a word first squeezes (text scale X) to the whole percent that fits, never
+     * below AOSP LatinIME's MIN_TEXT_XSCALE of 0.70; only a word that still does not fit shrinks.
+     * [measured] is its unsqueezed width at [scale]; returns (squeeze, scale). */
+    fun fitStep(squeeze: Float, scale: Float, measured: Float, available: Float): Pair<Float, Float> {
+        if (measured * squeeze <= available || !measured.isFinite() || !available.isFinite()) return squeeze to scale
+        val narrower = minOf(squeeze, maxOf(0.70f, kotlin.math.floor(maxOf(available, 0f) / measured * 100f) / 100f))
+        if (measured * narrower <= available) return narrower to scale
+        return narrower to textScale(scale, measured * narrower, available)
+    }
     fun layout(c: FloatArray, width: Float, words: FloatArray): FloatArray {
         if (c[0] == 0f) return FloatArray(8)
         val mode = c[1].toInt()

@@ -7,6 +7,7 @@ use jni_sys::{JNIEnv, jboolean, jclass, jfloatArray, jintArray, jlong, jobjectAr
 use render::protocol::*;
 use render::{
     smartbar::{self, Config},
+    smartbar_fit::{self, TextFit},
     smartbar_scene::{Action, Smartbar},
 };
 use std::ptr;
@@ -144,21 +145,25 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_SmartbarRules_toggleWi
         })
     }
 }
+/// One fitting step, `smartbar_fit::fit_step`; returns the squeeze's bits high, the scale's low.
 #[unsafe(no_mangle)]
-pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_SmartbarRules_textScale(
+pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_SmartbarRules_fitStepBits(
     env: *mut JNIEnv,
     _: jclass,
+    squeeze: f32,
     scale: f32,
     measured: f32,
     available: f32,
-) -> f32 {
+) -> jlong {
     // SAFETY: only primitives cross; env is valid for this invocation to raise the exception.
     unsafe {
-        jni::run(env, 0.0, |_| {
-            if !scale.is_finite() || scale <= 0.0 || measured.is_nan() || available.is_nan() {
-                return Err(illegal("invalid text scale"));
+        jni::run(env, 0, |_| {
+            let fit = |v: f32| v.is_finite() && v > 0.0;
+            if !fit(squeeze) || !fit(scale) || measured.is_nan() || available.is_nan() {
+                return Err(illegal("invalid text fit"));
             }
-            Ok(smartbar::text_scale(scale, measured, available))
+            let next = smartbar_fit::fit_step(TextFit { squeeze, scale }, measured, available);
+            Ok((i64::from(next.squeeze.to_bits()) << 32) | i64::from(next.scale.to_bits()))
         })
     }
 }

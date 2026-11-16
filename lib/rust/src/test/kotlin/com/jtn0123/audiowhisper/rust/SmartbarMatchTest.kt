@@ -81,20 +81,26 @@ class SmartbarMatchTest {
         assertEquals(24 * 3 * 3, roomy)
     }
 
-    @Test fun wordsShrinkStepForStepWithTheReference() {
+    @Test fun wordsSqueezeThenShrinkStepForStepWithTheReference() {
         val random = Random(0x3b05)
         repeat(20_000) {
-            val scale = listOf(1f, 0.9f, 0.83f, 0.75f, 0.6f, random.nextFloat() + 0.01f)[it % 6]
+            val squeeze = listOf(1f, 0.9f, 0.7f, 0.7f, 0.83f, random.nextFloat() * 0.3f + 0.7f)[it % 6]
+            val scale = listOf(1f, 1f, 0.9f, 0.75f, 0.6f, random.nextFloat() + 0.01f)[it % 6]
             val available = random.nextFloat() * 600f
             val measured = random.nextFloat() * 900f
-            assertEquals(ReferenceSmartbar.textScale(scale, measured, available),
-                SmartbarRules.textScale(scale, measured, available), "scale=$scale measured=$measured available=$available")
+            val (narrower, smaller) = ReferenceSmartbar.fitStep(squeeze, scale, measured, available)
+            assertEquals(TextFit(narrower, smaller), SmartbarRules.fitStep(TextFit(squeeze, scale), measured, available),
+                "squeeze=$squeeze scale=$scale measured=$measured available=$available")
         }
-        // The fitting loop, with a hinted (slightly superlinear) measure.
-        assertEquals(0.79f, SmartbarRules.fitText(100f) { 120f * it + 5f })
-        assertEquals(0.75f, SmartbarRules.fitText(100f) { 200f * it })
-        assertEquals(1f, SmartbarRules.fitText(100f) { 90f * it })
+        // The fitting loop: squeeze alone while it can, one measure; then a smaller font.
         var measures = 0
+        assertEquals(TextFit(0.8f, 1f), SmartbarRules.fitText(100f) { measures++; 125f * it })
+        assertEquals(1, measures)
+        assertEquals(TextFit(0.7f, 0.95f), SmartbarRules.fitText(100f) { 150f * it })
+        assertEquals(TextFit(0.7f, 0.91f), SmartbarRules.fitText(100f) { 150f * it + 5f })
+        assertEquals(TextFit(0.7f, 0.75f), SmartbarRules.fitText(100f) { 400f * it }, "both floors: ellipsis")
+        assertEquals(TextFit.NATURAL, SmartbarRules.fitText(100f) { 90f * it })
+        measures = 0
         SmartbarRules.fitText(100f) { measures++; 1000f * kotlin.math.sqrt(it) }
         assertTrue(measures <= SmartbarRules.TEXT_FIT_STEPS)
     }

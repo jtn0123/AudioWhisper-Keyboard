@@ -25,8 +25,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentWidth
-import androidx.compose.foundation.text.TextAutoSize
-import androidx.compose.foundation.text.modifiers.TextAutoSizeLayoutScope
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -40,9 +38,6 @@ import androidx.compose.ui.input.pointer.PointerInputChange
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.unit.Constraints
-import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import com.jtn0123.audiowhisper.dictation.Dictation
 import com.jtn0123.audiowhisper.dictation.DictationPreview
@@ -65,6 +60,7 @@ import org.florisboard.lib.snygg.ui.SnyggIcon
 import org.florisboard.lib.snygg.ui.SnyggRow
 import org.florisboard.lib.snygg.ui.SnyggSpacer
 import org.florisboard.lib.snygg.ui.SnyggText
+import org.florisboard.lib.snygg.ui.SnyggTextFit
 
 
 
@@ -231,7 +227,7 @@ private fun CandidateItem(
                 attributes = attributes,
                 selector = selector,
                 text = candidate.text.toString(),
-                autoSize = ::CandidateTextFit,
+                fit = CandidateTextFit,
             )
             if (candidate.secondaryText != null) {
                 SnyggText(
@@ -246,14 +242,9 @@ private fun CandidateItem(
 }
 
 /**
- * AudioWhisper: a word shrinks to fit its slot, down to Rust's floor, before it ellipsises. Rust
- * takes each step from Compose's own measure, as it does from Parley's in the Rust renderer.
+ * AudioWhisper: a word squeezes, then shrinks, to fit its slot before it ellipsises, as Gboard's
+ * strip does. Rust takes each step from Compose's own measure, as from Parley's in its renderer.
  */
-private data class CandidateTextFit(val base: TextUnit) : TextAutoSize {
-    override fun TextAutoSizeLayoutScope.getFontSize(constraints: Constraints, text: AnnotatedString): TextUnit {
-        if (!constraints.hasBoundedWidth) return base
-        return base * SmartbarRules.fitText(constraints.maxWidth.toFloat()) { scale ->
-            performLayout(constraints, text, base * scale).multiParagraph.intrinsics.maxIntrinsicWidth
-        }
-    }
+private val CandidateTextFit = SnyggTextFit { available, measure ->
+    SmartbarRules.fitText(available, measure).let { it.squeeze to it.scale }
 }

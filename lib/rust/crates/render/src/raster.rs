@@ -398,6 +398,19 @@ impl Raster {
         mono: bool,
         weight: i32,
     ) -> Result<(), String> {
+        self.squeezed_label(text, (size, mono, weight), 1.0, argb, r)
+    }
+    /// A label centred in `r` whose glyphs are `squeeze` as wide at the same height, as Android's
+    /// text scale X draws them. `font` is (size, mono, weight).
+    pub(crate) fn squeezed_label(
+        &mut self,
+        text: &str,
+        font: (f32, bool, i32),
+        squeeze: f32,
+        argb: u32,
+        r: Rect,
+    ) -> Result<(), String> {
+        let (size, mono, weight) = font;
         if text.is_empty() {
             return Ok(());
         }
@@ -418,9 +431,11 @@ impl Raster {
         self.profile.shape_ns += elapsed(shape);
         self.profile.layout_misses += u32::from(missed && self.profiling);
         self.profile.labels += u32::from(self.profiling);
-        let x = (r.left + (r.width() - layout.width()) / 2.0) as f64;
+        let x = (r.left + (r.width() - layout.width() * squeeze) / 2.0) as f64;
         let y = (r.top + (r.height() - layout.height()) / 2.0) as f64;
-        self.context.set_transform(Affine::translate((x, y)));
+        self.context.set_transform(
+            Affine::translate((x, y)) * Affine::scale_non_uniform(f64::from(squeeze), 1.0),
+        );
         self.context.set_paint(color(argb));
         for line in layout.lines() {
             for item in line.items() {

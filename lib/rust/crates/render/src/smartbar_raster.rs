@@ -86,13 +86,13 @@ impl Raster {
                 )?;
                 r.left += width;
             }
-            // The word shrinks toward MIN_TEXT_SCALE before it ellipsises, as Compose's autoSize.
+            // The word squeezes, then shrinks, before it ellipsises, as Compose draws it.
             let text = &scene.candidates[i];
             let t = &style.text;
-            let size = t.size
-                * crate::smartbar::fit_text(r.width(), |scale| {
-                    self.text.measure(text, t.size * scale, t.mono, t.weight)
-                });
+            let fit = crate::smartbar_fit::fit_text(r.width(), |scale| {
+                self.text.measure(text, t.size * scale, t.mono, t.weight)
+            });
+            let size = t.size * fit.scale;
             if !second.is_empty() {
                 let secondary = &bar.secondary[i];
                 let primary_height = self.text.height(text, size, t.mono, t.weight);
@@ -105,7 +105,7 @@ impl Raster {
                 self.fitted_label(
                     second,
                     secondary,
-                    secondary.size,
+                    (secondary.size, 1.0),
                     Rect {
                         top: top + primary_height + secondary.margin[1],
                         bottom: top + total - secondary.margin[3],
@@ -115,7 +115,7 @@ impl Raster {
                 r.top = top;
                 r.bottom = top + primary_height;
             }
-            self.fitted_label(text, t, size, r)?;
+            self.fitted_label(text, t, (size, fit.squeeze), r)?;
         }
         self.context.pop_clip();
         Ok(())
@@ -207,22 +207,25 @@ impl Raster {
         self.context.reset_transform();
         Ok(())
     }
+    /// `fit` is (size, squeeze): a word too wide at both ellipsises from its start.
     fn fitted_label(
         &mut self,
         text: &str,
         style: &Style,
-        size: f32,
+        fit: (f32, f32),
         r: Rect,
     ) -> Result<(), String> {
-        let measured = self.text.measure(text, size, style.mono, style.weight);
+        let (size, squeeze) = fit;
+        let font = (size, style.mono, style.weight);
+        let measured = self.text.measure(text, size, style.mono, style.weight) * squeeze;
         if measured <= r.width() {
-            return self.label(text, size, style.foreground, r, style.mono, style.weight);
+            return self.squeezed_label(text, font, squeeze, style.foreground, r);
         }
         let mut ends = vec![0];
         ends.extend(text.grapheme_indices(true).map(|(i, s)| i + s.len()));
         let low = crate::smartbar::fit_prefix(ends.len(), r.width(), |mid| {
             let label = format!("{}…", &text[..ends[mid]]);
-            self.text.measure(&label, size, style.mono, style.weight)
+            self.text.measure(&label, size, style.mono, style.weight) * squeeze
         });
         let label = if low == 0 {
             String::new()
@@ -231,17 +234,11 @@ impl Raster {
         };
         // Compose's overflowing Text occupies the constrained column and draws from its start.
         // Center only text which fit intrinsically (the early return above).
-        let fitted = self.text.measure(&label, size, style.mono, style.weight);
-        self.label(
-            &label,
-            size,
-            style.foreground,
-            Rect {
-                right: r.left + fitted,
-                ..r
-            },
-            style.mono,
-            style.weight,
-        )
+        let fitted = self.text.measure(&label, size, style.mono, style.weight) * squeeze;
+        let r = Rect {
+            right: r.left + fitted,
+            ..r
+        };
+        self.squeezed_label(&label, font, squeeze, style.foreground, r)
     }
 }

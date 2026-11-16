@@ -16,22 +16,25 @@
 
 package org.florisboard.lib.snygg.ui
 
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.style.TextGeometricTransform
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.unit.takeOrElse
+import androidx.compose.ui.unit.isSpecified
 import org.florisboard.lib.snygg.SnyggQueryAttributes
 import org.florisboard.lib.snygg.SnyggSelector
 import org.florisboard.lib.snygg.SnyggStylesheet
@@ -49,7 +52,9 @@ import org.florisboard.lib.snygg.SnyggStylesheet
  * @param text The text of the element.
  * @param maxLines Overrides the style's line limit when not `null` (AudioWhisper).
  * @param overflow Overrides the style's overflow when not `null` (AudioWhisper).
- * @param autoSize Builds a [TextAutoSize] from the style's font size when not `null` (AudioWhisper).
+ * @param fit Fits the text to its width when not `null` (AudioWhisper): given the width and a measure of
+ *  the text's unsqueezed width at a font scale, returns its squeeze (text scale X, 1 for none) and
+ *  font scale.
  *
  * @since 0.5.0-alpha01
  *
@@ -64,31 +69,83 @@ fun SnyggText(
     text: String,
     maxLines: Int? = null,
     overflow: TextOverflow? = null,
-    autoSize: ((fontSize: TextUnit) -> TextAutoSize)? = null,
+    fit: SnyggTextFit? = null,
 ) {
     ProvideSnyggStyle(elementName, attributes, selector) { style ->
-        val fontSize = style.fontSize()
-        val fit = autoSize?.invoke(fontSize.takeOrElse { LocalTextStyle.current.fontSize })
+        val styled = modifier
+            .snyggMargin(style)
+            .snyggShadow(style)
+            .snyggBorder(style)
+            .snyggBackground(style, allowClip = false)
+            .snyggPadding(style)
+        if (fit != null) {
+            val textStyle = TextStyle(
+                color = style.foreground(),
+                fontSize = style.fontSize(),
+                fontStyle = style.fontStyle(),
+                fontWeight = style.fontWeight(),
+                fontFamily = style.fontFamily(LocalSnyggPreloadedCustomFontFamilies.current),
+                letterSpacing = style.letterSpacing(),
+                lineHeight = style.lineHeight(),
+                textAlign = style.textAlign() ?: TextAlign.Unspecified,
+                textDecoration = style.textDecorationLine(),
+            )
+            FittedText(styled, text, LocalTextStyle.current.merge(textStyle), fit,
+                maxLines ?: style.textMaxLines(), overflow ?: style.textOverflow())
+        } else {
+            Text(
+                modifier = styled,
+                text = text,
+                color = style.foreground(),
+                fontSize = style.fontSize(),
+                fontStyle = style.fontStyle(),
+                fontWeight = style.fontWeight(),
+                fontFamily = style.fontFamily(LocalSnyggPreloadedCustomFontFamilies.current),
+                letterSpacing = style.letterSpacing(),
+                lineHeight = style.lineHeight(),
+                textAlign = style.textAlign(),
+                textDecoration = style.textDecorationLine(),
+                maxLines = maxLines ?: style.textMaxLines(),
+                overflow = overflow ?: style.textOverflow(),
+            )
+        }
+    }
+}
+
+/** AudioWhisper: how [SnyggText] fits a text to [available] pixels; see its `fit` parameter. */
+fun interface SnyggTextFit {
+    /** Returns (squeeze, font scale); [measure] gives the unsqueezed width at a font scale. */
+    fun fit(available: Float, measure: (scale: Float) -> Float): Pair<Float, Float>
+}
+
+@Composable
+private fun FittedText(
+    modifier: Modifier,
+    text: String,
+    style: TextStyle,
+    fit: SnyggTextFit,
+    maxLines: Int,
+    overflow: TextOverflow,
+) {
+    val measurer = rememberTextMeasurer()
+    BoxWithConstraints(modifier) {
+        val size = style.fontSize
+        val (squeeze, scale) = if (constraints.hasBoundedWidth && size.isSpecified) {
+            fit.fit(constraints.maxWidth.toFloat()) { scale ->
+                measurer.measure(text, style.copy(fontSize = size * scale), softWrap = false, maxLines = 1)
+                    .multiParagraph.intrinsics.maxIntrinsicWidth
+            }
+        } else {
+            1f to 1f
+        }
         Text(
-            modifier = modifier
-                .snyggMargin(style)
-                .snyggShadow(style)
-                .snyggBorder(style)
-                .snyggBackground(style, allowClip = false)
-                .snyggPadding(style),
             text = text,
-            color = style.foreground(),
-            fontSize = fontSize,
-            autoSize = fit,
-            fontStyle = style.fontStyle(),
-            fontWeight = style.fontWeight(),
-            fontFamily = style.fontFamily(LocalSnyggPreloadedCustomFontFamilies.current),
-            letterSpacing = style.letterSpacing(),
-            lineHeight = style.lineHeight(),
-            textAlign = style.textAlign(),
-            textDecoration = style.textDecorationLine(),
-            maxLines = maxLines ?: style.textMaxLines(),
-            overflow = overflow ?: style.textOverflow(),
+            style = style.copy(
+                fontSize = if (size.isSpecified) size * scale else size,
+                textGeometricTransform = TextGeometricTransform(scaleX = squeeze),
+            ),
+            maxLines = maxLines,
+            overflow = overflow,
         )
     }
 }
