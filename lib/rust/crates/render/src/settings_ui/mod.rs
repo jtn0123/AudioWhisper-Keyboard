@@ -10,6 +10,7 @@ pub use cards::SpellCard;
 mod field;
 mod fields;
 mod layout;
+pub mod licences;
 mod material;
 mod overscroll;
 mod rows;
@@ -38,6 +39,8 @@ pub enum Action {
     Field(usize),
     SelectionHandle(bool),
     Picker,
+    /// A library row (its index in the sorted list) opens its license dialog.
+    Library(usize),
 }
 #[derive(Clone, Debug)]
 pub struct Control {
@@ -82,8 +85,9 @@ pub struct App {
     /// Each painted field's text layout and origin, for placing the caret where a tap lands.
     pub field_layouts: Vec<(i32, std::sync::Arc<crate::android_text::Layout>, [f32; 2])>,
     pub config: [f32; 4],
-    /// The palette; 13 is M3 Card's content colour, `contentColorFor(surfaceContainerHighest)`.
-    pub colors: [u32; 14],
+    /// The palette; 13 is M3 Card's content colour, `contentColorFor(surfaceContainerHighest)`,
+    /// 14 onPrimaryContainer and 15 onBackground.
+    pub colors: [u32; 16],
     pub dialog_window_width: f32,
     pub sp_pixels: [f32; 33],
     pub controls: Vec<Control>,
@@ -114,6 +118,7 @@ pub struct App {
     pub last: (f32, f32),
     pub dragging: bool,
     pub velocity: crate::compose_velocity::ComposeVelocity,
+    pub licences: licences::State,
 }
 impl Default for App {
     fn default() -> Self {
@@ -133,6 +138,7 @@ impl Default for App {
             colors: [
                 0xfff8f8f8, 0xff161616, 0xff555555, 0xff376a20, 0xffdce9d0, 0xffe9e9e9, 0xffffffff,
                 0xff777777, 0xfff8f8f8, 0xff555b66, 0xffc5c5c5, 0xffeeeeee, 0xffeeeeee, 0xff161616,
+                0xff0b2000, 0xff161616,
             ],
             dialog_window_width: 0.0,
             sp_pixels: [0.0; 33],
@@ -162,6 +168,7 @@ impl Default for App {
             last: (0.0, 0.0),
             dragging: false,
             velocity: Default::default(),
+            licences: Default::default(),
         }
     }
 }
@@ -192,6 +199,13 @@ impl App {
         }
         if catalogue::native(route) {
             self.release_field();
+            if route == licences::ROUTE {
+                // A new LazyListState: `visibleItems` is remembered again at the first frame.
+                self.licences.visible_items = None;
+                self.licences.first = None;
+                // A load lost with an earlier view is asked for again.
+                self.licences.requested = false;
+            }
             if route == catalogue::HOME_ROUTE {
                 self.stack = vec![route.into()];
                 self.scrolls.truncate(1);

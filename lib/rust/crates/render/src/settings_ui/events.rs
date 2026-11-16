@@ -21,6 +21,15 @@ impl App {
             Action::Back => self.back(),
             Action::Route(route) => self.navigate(&route),
             Action::Picker => self.effects.push(vec!["picker".into()]),
+            Action::Library(j) => {
+                if let Some(row) = self
+                    .rows()
+                    .iter()
+                    .position(|r| matches!(r.kind, Kind::Libraries))
+                {
+                    self.open_licence(row, j);
+                }
+            }
             Action::Editor | Action::Field(_) => {
                 self.own_field(match c.action {
                     Action::Field(i) => Some(i),
@@ -238,7 +247,9 @@ impl App {
     }
     pub fn focus_next(&mut self, reverse: bool) {
         let mut eligible = vec![];
-        if let Some(m) = &self.modal {
+        if self.licence_modal() {
+            eligible.extend([super::licences::BODY_ID, 7]);
+        } else if let Some(m) = &self.modal {
             let r = self.rows()[m.row];
             if !r.switch.is_empty() {
                 eligible.push(8);
@@ -270,6 +281,7 @@ impl App {
                         | Kind::Note => {}
                         // The card's text is not focusable; its hyperlink is.
                         Kind::Card(_) => eligible.push(6000 + i as i32),
+                        Kind::Libraries => eligible.extend(self.licence_focus()),
                         _ => eligible.push(1000 + i as i32),
                     }
                     if !row.switch.is_empty() {

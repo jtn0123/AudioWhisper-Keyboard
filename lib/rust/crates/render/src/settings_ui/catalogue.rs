@@ -7,6 +7,7 @@ mod dictionary;
 mod gestures;
 mod input_feedback;
 mod keyboard;
+mod licences;
 mod media;
 mod physical_keyboard;
 mod smartbar;
@@ -93,6 +94,8 @@ pub enum Kind {
     Note,
     /// An OutlinedTextField over the row's string preference, its label the placeholder.
     Field,
+    /// AboutLibraries' LibrariesContainer: every library row, then its license dialog.
+    Libraries,
 }
 /// A JetPrefAlertDialog asking to confirm an effect.
 #[derive(Clone, Copy, Debug)]
@@ -270,6 +273,7 @@ pub const SCREENS: &[Screen] = &[
     physical_keyboard::SCREEN,
     about::SCREEN,
     dictation::SCREEN,
+    licences::SCREEN,
 ];
 /// The native screen at `route`, if Rust draws it.
 pub fn screen(route: &str) -> Option<&'static Screen> {
