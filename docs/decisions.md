@@ -154,7 +154,7 @@ and all editable/clipboard/transcript/learned/audio data. **Would change if** ph
 requires a measured, explicitly agreed platform exception; the full port and fallback
 deletion remain separately gated.
 
-## Suggestions take the whole Smartbar row while words show (2026-11-15)
+## Suggestions take the whole Smartbar row while words show (2026-11-15; superseded 2026-11-16 by Gboard's row, below)
 
 On a 384 dp phone the shared row gave three suggestions about 250 px each between the mic,
 the speaker, the emoji and the arrow, so any word longer than five letters was cut off. Now,
@@ -172,3 +172,53 @@ end it. A word still too wide shrinks in whole-percent steps down to 75% before 
 ellipsis, measured by each renderer's own text engine with the scale from
 `smartbar::text_scale`. **Would change if** using the phone shows the mic or emoji are missed
 while typing; then keep just that one action beside the words, not the old four.
+
+## Words show in Gboard's row, mirrored for a left hand (2026-11-16)
+
+Giving the words the whole row hid the mic exactly when you are typing, and the row no longer
+looked like Gboard's, the reference keyboard. So while words show in the shared or extended
+layout, the row is now Gboard's: the sticky action (the mic), the three words, and the
+expand arrow. The user is left-handed, so with flipToggles on (the default) the mic is on the
+left and the arrow on the right; with it off the row mirrors. With no sticky action the mic's
+slot is absent, not left empty, and the speaker steps out while words show. The ends are
+Gboard's sizes. In Gboard 15.1 at 420 dpi (411 dp wide), the mic's slot measures about 40 dp
+(a 34 dp circle) and the features button about 30 dp, leaving about 114 dp per word. Our
+Smartbar row is 40 dp at the default keyboard height (`row * 0.753`, 150 px on the phone), so
+the mic gets a row-high square with no padding and the arrow three quarters of the row
+(`GBOARD_TOGGLE = 0.75`, rounded to the pixel). Both scale with the row if the keyboard
+height changes. The arrow keeps its 40 dp button, drawn centred on the narrower slot, so only
+the button's transparent 6 dp margins overhang it and its 28 dp circle still fits inside. Touch
+and TalkBack keep the slot itself. On the phone (1440 px at density 3.75, 384 dp) that is a
+mic of 150 px (40 dp) and an arrow of 113 px (30.1 dp). That leaves 1177 px for the words, and
+after two 1 dp (4 px) gaps, 389, 390 and 390 px each (103.7 to 104 dp). Inside each word's 4 dp
+margins and 8 dp padding, 300 px (80 dp) holds the text: at 14 sp (52.5 px) "the" needs 73 px,
+"wonderful" 231 px and "unfortunately" 308 px (Roboto Light, host measure), so
+"unfortunately" squeezes to 0.97 and all three show whole. A long word fits the way AOSP
+LatinIME's suggestion strip (the base for Gboard's) does it. First it squeezes: its glyphs get
+narrower at the same height (text scale X), in whole percents rounded down, down to 0.70. That
+floor is LatinIME's `MIN_TEXT_XSCALE = 0.70f`
+(`java/src/com/android/inputmethod/latin/suggestions/SuggestionStripLayoutHelper.java`,
+line 67, platform/packages/inputmethods/LatinIME `main` at 127336e9f29d, read 2026-11-16).
+Only then does the font shrink, down to the existing 0.75, and only past both does the word
+ellipsise. We keep our end ellipsis, where LatinIME's goes in the middle. On the phone a word
+squeezes until it needs 428 px and ellipsises only past about 571 px. `smartbar_fit::fit_step`
+is the one rule, and each renderer gives it its own text measure: Compose draws the result
+with `TextGeometricTransform(scaleX)` and Rust with a non-uniform glyph transform. These are
+unchanged: dictation and its preview, read-aloud with the speaker shown, the NLP hold across
+a keystroke's refill, suggestions-only, actions-only, inline autofill, the opened shared row,
+the extended second row, and the row with no words (minus the emoji, below). **Would change
+if** a mic on the left proves wrong for typing in use; then flip it back with flipToggles, or,
+if Gboard's sizes change, re-measure them.
+
+## Emoji is the key beside the space bar (2026-11-16)
+
+The Smartbar's pinned emoji button took about 48 dp of the row and had nowhere in Gboard's row
+(above). Gboard keeps emoji beside the space bar instead, so we do too. The utility key now
+defaults to on, with the action `SWITCH_TO_EMOJIS` (`catalogue.tsv`). Every characters layout
+(default, Dvorak, Dvorak DE and SE, Neo 2) already has it right before the space bar as
+`IME_UI_MODE_MEDIA`, and that action keeps the language-switch key beside it hidden, so the
+bottom row gains just the emoji key, which takes its width from the space bar. The pinned emoji (`PinnedEmojiAction`, Rust action 2) is gone from the main row
+in every state, in both renderers. Slot 2 stays reserved in the packet so the ids shared by
+the host, touch and TalkBack do not move. A setting the user has already saved overrides the
+new default, as with any jetpref value. **Would change if** a second language is installed and
+the language switch is needed on that key; then put emoji on the key's long press instead.
