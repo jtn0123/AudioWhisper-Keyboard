@@ -46,3 +46,7 @@ path = "../../../../benchmark/settings-font-probe.rs"
 [[example]]
 name = "settings_licences_timing"
 path = "../../../../benchmark/settings-licences-timing.rs"
+
+[[example]]
+name = "smartbar_roomy_pictures"
+path = "../../../../benchmark/smartbar-roomy-pictures.rs"
