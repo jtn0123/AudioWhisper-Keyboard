@@ -5,6 +5,7 @@
 
 use std::collections::HashMap;
 
+use crate::learned_words::{KNOWN_AFTER, LearnedWords};
 use crate::raw::NOT_A_PROBABILITY;
 use crate::word_characters::is_word;
 
@@ -20,6 +21,50 @@ pub const COST_PER_STEP: f64 = 0.007;
 /// dictionary has "hello" at 120), whatever the dictionary says. One value for every learned word,
 /// so using a word again doesn't change the list and re-index the classifier.
 pub const LEARNED_PROBABILITY: i32 = 120;
+
+/// How much the user's own use of a word raises its probability: `per_doubling` steps each time
+/// its uses double from [`KNOWN_AFTER`], at most `most`. It changes only when the uses double,
+/// and goes with the learned words when they are cleared.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Boost {
+    pub per_doubling: i32,
+    pub most: i32,
+}
+
+impl Boost {
+    /// No boost: every learned word at [`LEARNED_PROBABILITY`].
+    pub const NONE: Boost = Boost {
+        per_doubling: 0,
+        most: 0,
+    };
+
+    /// What the keyboard uses: 5 steps a doubling, up to 20 (16 uses). Measured with the
+    /// scoreboard's simulated history on top of [`Curve::DEFAULT`] (docs/swipe-accuracy.md); on
+    /// the flat curve it lost more than it won.
+    pub const DEFAULT: Boost = Boost {
+        per_doubling: 5,
+        most: 20,
+    };
+
+    /// The steps a word used `uses` times gains.
+    pub fn steps(&self, uses: i32) -> i32 {
+        if uses < KNOWN_AFTER {
+            return 0;
+        }
+        let doublings = (uses / KNOWN_AFTER).ilog2() as i32 + 1;
+        self.per_doubling.saturating_mul(doublings).min(self.most)
+    }
+
+    /// The steps `learned` gives `word`: none unless it is the user's word, spelt as they spell
+    /// it, so "Rust" learned doesn't raise "rust".
+    pub fn of(&self, learned: &LearnedWords, word: &[u16]) -> i32 {
+        if learned.spelling_of(word) == Some(word) {
+            self.steps(learned.uses(word))
+        } else {
+            0
+        }
+    }
+}
 
 /// Whether a swipe can spell `word` on a letters layout: whether it [`is_word`], letters with
 /// apostrophes or hyphens inside, which a swipe skips over. Not "MP3" or "US$".
@@ -82,11 +127,16 @@ impl Curve {
 
     /// [`frequency`] on this curve.
     pub fn frequency(&self, probability: i32, user_probability: i32) -> f64 {
+        self.boosted_frequency(probability, user_probability, 0)
+    }
+
+    /// [`Curve::frequency`] for a word the user's use of it raises `boost` steps ([`Boost`]).
+    pub fn boosted_frequency(&self, probability: i32, user_probability: i32, boost: i32) -> f64 {
         let best = probability.max(user_probability);
         if best == NOT_A_PROBABILITY {
             0.0
         } else {
-            self.frequency_of(best)
+            self.frequency_of(best.saturating_add(boost))
         }
     }
 }
@@ -103,10 +153,11 @@ pub fn frequency(probability: i32, user_probability: i32) -> f64 {
     }
 }
 
-/// [`frequency`] on the curve the keyboard uses, [`Curve::DEFAULT`]. [`frequency`] stays the
-/// flat curve, which the Kotlin reference holds it to.
-pub fn tuned_frequency(probability: i32, user_probability: i32) -> f64 {
-    Curve::DEFAULT.frequency(probability, user_probability)
+/// [`frequency`] as the keyboard weighs it: on [`Curve::DEFAULT`], raised `boost` steps by the
+/// user's use of the word ([`Boost::of`] at [`Boost::DEFAULT`]). [`frequency`] stays the flat
+/// curve, which the Kotlin reference holds it to.
+pub fn tuned_frequency(probability: i32, user_probability: i32, boost: i32) -> f64 {
+    Curve::DEFAULT.boosted_frequency(probability, user_probability, boost)
 }
 
 /// The user's words as probabilities: `learned` spellings at [`LEARNED_PROBABILITY`], `personal`
@@ -213,12 +264,54 @@ mod tests {
                 "{probability}"
             );
         }
-        assert_eq!(tuned_frequency(NOT_A_PROBABILITY, NOT_A_PROBABILITY), 0.0);
         assert_eq!(
-            tuned_frequency(10, LEARNED_PROBABILITY),
+            tuned_frequency(NOT_A_PROBABILITY, NOT_A_PROBABILITY, 0),
+            0.0
+        );
+        assert_eq!(
+            tuned_frequency(10, LEARNED_PROBABILITY, 0),
             curve.frequency_of(LEARNED_PROBABILITY)
         );
-        assert_eq!(tuned_frequency(300, -1), 1.0);
+        assert_eq!(tuned_frequency(300, -1, 0), 1.0);
+    }
+
+    #[test]
+    fn a_boost_rises_each_time_the_uses_double_up_to_its_most() {
+        let boost = Boost::DEFAULT;
+        let steps: Vec<i32> = [0, 1, 2, 3, 4, 7, 8, 15, 16, 1000, i32::MAX]
+            .iter()
+            .map(|&uses| boost.steps(uses))
+            .collect();
+        assert_eq!(steps, [0, 0, 5, 5, 10, 10, 15, 15, 20, 20, 20]);
+        assert!((0..100).all(|uses| Boost::NONE.steps(uses) == 0));
+    }
+
+    #[test]
+    fn a_boost_raises_the_users_spelling_and_goes_when_the_words_are_forgotten() {
+        let units = |s: &str| s.encode_utf16().collect::<Vec<u16>>();
+        let mut learned = LearnedWords::new(100, 0);
+        for _ in 0..4 {
+            learned.add(&units("Rust"), None, false);
+        }
+        learned.add(&units("once"), None, false);
+        assert_eq!(learned.uses(&units("rust")), 4);
+        assert_eq!(Boost::DEFAULT.of(&learned, &units("Rust")), 10);
+        assert_eq!(Boost::DEFAULT.of(&learned, &units("rust")), 0);
+        assert_eq!(Boost::DEFAULT.of(&learned, &units("once")), 0);
+        assert_eq!(Boost::DEFAULT.of(&learned, &units("never")), 0);
+        // On the keyboard's curve: ten steps more, whichever probability is the higher.
+        let raised = tuned_frequency(100, LEARNED_PROBABILITY, 10);
+        assert_eq!(
+            raised,
+            Curve::DEFAULT.frequency_of(LEARNED_PROBABILITY + 10)
+        );
+        assert_eq!(tuned_frequency(250, LEARNED_PROBABILITY, 10), 1.0);
+        assert_eq!(
+            tuned_frequency(NOT_A_PROBABILITY, NOT_A_PROBABILITY, 10),
+            0.0
+        );
+        learned.clear();
+        assert_eq!(Boost::DEFAULT.of(&learned, &units("Rust")), 0);
     }
 
     #[test]
