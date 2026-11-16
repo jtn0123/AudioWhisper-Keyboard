@@ -166,7 +166,7 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_SuggestNative_tapDelet
     }
 }
 
-/// Everything typed is forgotten.
+/// Everything typed is forgotten, and the letter odds with it (a new field started).
 #[unsafe(no_mangle)]
 pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_SuggestNative_tapCleared(
     env: *mut JNIEnv,
@@ -177,6 +177,7 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_SuggestNative_tapClear
     unsafe {
         with_trail(env, trail, (), |trail, _| {
             trail.clear();
+            super::letter_odds::forget();
             Ok(())
         })
     }

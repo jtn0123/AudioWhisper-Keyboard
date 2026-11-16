@@ -759,7 +759,9 @@ The suggest JNI works the odds out each time it suggests and keeps the latest
 (`awnative/src/suggest/letter_odds.rs`, the word being typed and 26 numbers, never logged). At key
 down, both hit tests take them only while `TapTrail::at_word` says they still hold: the letters
 typed end in their word and no other key is down, or the space bar was the key before a word's
-first letter. Compose asks through `TapPositions.retarget`, the renderer through `lean` in
+first letter. A new field clears the trail and forgets the odds with it, so a field where the
+suggester never runs (a password, one without suggestions) never leans on another field's odds.
+Compose asks through `TapPositions.retarget`, the renderer through `lean` in
 `RenderNative.touch`; both pass the trail handle and whether to use the learned aim, nothing
 else. Why and the numbers: [decisions.md](decisions.md#keys-resized-by-the-letter-odds-2026-11-16),
 [key-resize-results.md](key-resize-results.md).

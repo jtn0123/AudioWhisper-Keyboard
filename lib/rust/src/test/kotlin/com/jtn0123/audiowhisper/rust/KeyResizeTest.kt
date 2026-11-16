@@ -49,6 +49,14 @@ class KeyResizeTest {
             // Once the next key is down the odds are for a word no longer being typed.
             trail.pressed('e'.code, false, 0f, 0f)
             assertEquals(1, trail.at(103f))
+            // A new field clears the trail and the odds with it: typing "th" again there, with
+            // no suggesting (a password), leans on nothing.
+            trail.clear()
+            for (letter in "th") {
+                trail.pressed(letter.code, false, 0f, 0f)
+                trail.typed(letter.toString())
+            }
+            assertEquals(1, trail.at(103f))
         }
     }
 

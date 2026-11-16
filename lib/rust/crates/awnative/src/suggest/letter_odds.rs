@@ -25,6 +25,12 @@ pub(crate) fn note(session: &Session, state: &TypingState) {
     *LATEST.lock().unwrap_or_else(PoisonError::into_inner) = latest;
 }
 
+/// A new field started (the trail was cleared): nothing worked out before holds there, and where
+/// the suggester never runs (a password, a field without suggestions) nothing ever leans on odds.
+pub(crate) fn forget() {
+    *LATEST.lock().unwrap_or_else(PoisonError::into_inner) = None;
+}
+
 /// The prior of each key, by its code, for a key going down on `trail` (see
 /// `LetterOdds::priors`); empty when the odds don't hold.
 pub(crate) fn priors(trail: &TapTrail, codes: impl IntoIterator<Item = i32>) -> Vec<Option<f32>> {

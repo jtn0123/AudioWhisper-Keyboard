@@ -74,6 +74,10 @@ CASES = {
         CRATES + 'awnative/src/suggest/session.rs',
         'super::letter_odds::note(&session, &state);', 'let _ = (&session, &state);',
         ('gradle', ':lib:rust', '*KeyResizeTest')),
+    'new-field-keeps-odds': (
+        CRATES + 'awnative/src/suggest/tap.rs',
+        'super::letter_odds::forget();', '',
+        ('gradle', ':lib:rust', '*KeyResizeTest')),
     'compose-hit-test-ignores-odds': (
         CRATES + 'awnative/src/suggest/tap_aim.rs',
         'let priors = super::letter_odds::priors(&taps.trail, codes.iter().copied());',
