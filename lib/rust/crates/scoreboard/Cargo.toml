@@ -1,0 +1,18 @@
+[package]
+name = "scoreboard"
+version = "0.1.0"
+description = "Host-only typing accuracy benchmark: next word, keystroke savings, autocorrect and swipe, through the keyboard's own suggest and glide code"
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+chars = { path = "../chars" }
+glide = { path = "../glide" }
+keys = { path = "../keys" }
+suggest = { path = "../suggest" }
+serde_json = "=1.0.154"
+
+[lints]
+workspace = true

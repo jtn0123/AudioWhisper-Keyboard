@@ -24,6 +24,7 @@ default-members = [
     "crates/popup",
     "crates/reader",
     "crates/render",
+    "crates/scoreboard",
     "crates/shift",
     "crates/sherpa-ffi",
     "crates/spacing",
