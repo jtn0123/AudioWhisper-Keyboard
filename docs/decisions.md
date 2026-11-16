@@ -296,3 +296,39 @@ dictionary (the same build, with its own corpus and AOSP's word list for it), if
 keyboard's memory gets tighter (pairs and triples seen four times give 9.3 MB for 0.3 point), or if
 harmful corrections of unknown names grow with the user's own writing; then the auto-correction
 threshold, not the statistics, is the place to fix it.
+
+## Swipes decoded beyond FlorisBoard's classifier, checked on two simulators (2026-11-16)
+
+The swipe scorer keeps FlorisBoard's classifier exactly (`glide::Tuning::ORIGINAL`, the flat
+frequency curve), which the Kotlin reference tests still hold it to, and the keyboard decodes
+with four cheap additions on top: one frequency slope all the way up, the swipe's ends weighed
+against the word's end keys, its slow stretches counted for more (the renderer now sends each
+glide point's time), and a word held to the swipe's reach. With a learned word boosted the more
+the user uses it, that takes swipe top-1 on the report text from 91.9% to 93.9% with a neutral
+hand and from 87.5% to 91.1% on the second simulator, top-3 up on all four variants, for about
+0.1 ms more per swipe ([results](swipe-accuracy.md)).
+
+- *Why a second simulator:* every change was tuned against a simulated finger, and a change can
+  learn that finger instead of a person's. The scoreboard's own swipe is a path by rule; the second
+  is the sigma-lognormal model of human movement (Plamondon 1995; Plamondon & Djioua 2006), as
+  Leiva, Martín-Albo & Plamondon synthesise gestures with it (2015). It slows at every letter and
+  cuts corners by stroke overlap, and was frozen before any change was measured. It earned its
+  place: a strong reach that kept paying on the first cost the second up to 2 points.
+- *Why the keep rule:* top-1 up on both simulators, with a neutral hand and a left thumb, and top-3
+  down on neither, chosen on sentences the report doesn't use. Each change passed alone, the
+  boost on top of the curve.
+- *Why the boost only with the curve:* on FlorisBoard's flat top, a boosted "three" or "too" ties
+  "the" and "to" and the boost costs about 0.8 point of top-1 everywhere. On one slope it gains
+  0.02–0.4 point; small on the rule-drawn finger, and measured with a long in-domain history,
+  so a real user's gain depends on their typing. It is capped (20 steps from 16 uses) and goes
+  with the learned words.
+- *Why not double letters or subset paths:* neither leaves a mark a swipe can show ("hello",
+  "to"/"too"), so nothing was measurable. The curve, reach and the ranker's words-before already
+  separate them as far as anything can.
+- *Dwell at 1.5, not 2:* 2 was at most 0.09 point better on the tuning text; the gains flatten,
+  and a stronger weight trusts the simulators' speed profiles more than a real finger may deserve.
+
+**Would change if** real swipes can be measured without logging them and show a change helps
+less than both simulators say; then re-tune on those, starting with dwell and reach, which depend
+most on how a finger moves. A better language model would shift the boost's and the
+curve's balance against the ranker and should be re-measured with them.

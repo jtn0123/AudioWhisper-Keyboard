@@ -56,7 +56,9 @@ personal dictionary, no learned words.
   smooth curve with a little tremor, and keeps points as the keyboard does (a quarter of a key
   apart). The eight best words are re-ranked by the words before them; the first is committed.
   Top-1 is the committed word; top-3 adds the strip's next two. Words needing fewer than two keys
-  ("I", "a") aren't swiped.
+  ("I", "a") aren't swiped. This is the `trace` simulator with a neutral hand; the scoreboard now
+  also swipes with a left thumb and with a second, published model of movement, and the keyboard
+  decodes swipes better than in the rows here ([swipe accuracy](swipe-accuracy.md)).
 - *Strip time*: how long one strip takes while typing a word, on this computer (an M-series Mac,
   release build, 18 threads at once), to compare models; not a phone timing.
 
