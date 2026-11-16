@@ -7,8 +7,71 @@ use chars::code_point;
 use crate::java;
 use crate::raw::RawSuggestion;
 
-/// AOSP's "modest" auto-correction threshold, the HeliBoard default.
+/// AOSP's "modest" auto-correction threshold, the HeliBoard default, and this keyboard's
+/// [`Strength::Normal`].
 pub const MODEST_THRESHOLD: f32 = 0.185;
+
+/// How readily typing is auto-corrected: the setting `correction__auto_correct` (Settings,
+/// Typing, Corrections). Each strength is a threshold for [`suggestion_exceeds_threshold`]; the
+/// numbers and why are in docs/autocorrect-results.md and docs/decisions.md.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Strength {
+    /// Never auto-correct; suggestions still show.
+    Off,
+    /// Fewer corrections: fewer correct words changed, more typos left.
+    Modest,
+    /// The default, AOSP's modest threshold: what the keyboard always did.
+    Normal,
+    /// More corrections: fewer typos left, more correct words changed.
+    Aggressive,
+}
+
+impl Strength {
+    /// In the order Kotlin's `AutoCorrectStrength` declares them, which is how a strength crosses
+    /// JNI (its ordinal), and the stored names the settings catalogue lists.
+    pub const ALL: [Strength; 4] = [
+        Strength::Off,
+        Strength::Modest,
+        Strength::Normal,
+        Strength::Aggressive,
+    ];
+    pub const DEFAULT: Strength = Strength::Normal;
+
+    /// The strength with Kotlin ordinal `ordinal`; the default for anything else.
+    pub fn from_ordinal(ordinal: i32) -> Strength {
+        usize::try_from(ordinal)
+            .ok()
+            .and_then(|at| Self::ALL.get(at).copied())
+            .unwrap_or(Self::DEFAULT)
+    }
+
+    /// The name it is stored and listed under.
+    pub fn name(self) -> &'static str {
+        match self {
+            Strength::Off => "OFF",
+            Strength::Modest => "MODEST",
+            Strength::Normal => "NORMAL",
+            Strength::Aggressive => "AGGRESSIVE",
+        }
+    }
+
+    /// The threshold a correction's normalized score must reach, or `None` for never.
+    pub fn threshold(self) -> Option<f32> {
+        match self {
+            Strength::Off => None,
+            Strength::Modest => Some(MODEST_LEVEL),
+            Strength::Normal => Some(MODEST_THRESHOLD),
+            Strength::Aggressive => Some(AGGRESSIVE_LEVEL),
+        }
+    }
+}
+
+/// [`Strength::Modest`]'s threshold, chosen on the scoreboard (docs/autocorrect-results.md): the
+/// lowest that halves harmful corrections for both typists.
+const MODEST_LEVEL: f32 = 0.25;
+/// [`Strength::Aggressive`]'s threshold, chosen the same way: the highest at which a left thumb's
+/// word accuracy peaks. AOSP's own aggressive 0.067 changes more correct words and fixes no more.
+const AGGRESSIVE_LEVEL: f32 = 0.12;
 
 /// The native SUGGEST_INTERFACE_OUTPUT_SCALE: decoder scores are fixed-point with this scale.
 const OUTPUT_SCALE: f32 = 1_000_000.0;
@@ -172,6 +235,39 @@ mod tests {
             &utf16("teh"),
             MODEST_THRESHOLD
         ));
+    }
+
+    #[test]
+    fn normal_is_the_default_and_what_the_keyboard_always_did() {
+        assert_eq!(Strength::DEFAULT, Strength::Normal);
+        assert_eq!(Strength::Normal.threshold(), Some(0.185));
+        assert_eq!(Strength::Off.threshold(), None);
+        let names: Vec<&str> = Strength::ALL.iter().map(|it| it.name()).collect();
+        assert_eq!(names, ["OFF", "MODEST", "NORMAL", "AGGRESSIVE"]);
+        assert_eq!(Strength::from_ordinal(0), Strength::Off);
+        assert_eq!(Strength::from_ordinal(3), Strength::Aggressive);
+        assert_eq!(Strength::from_ordinal(4), Strength::Normal);
+        assert_eq!(Strength::from_ordinal(-1), Strength::Normal);
+    }
+
+    #[test]
+    fn a_stronger_setting_corrects_on_less_evidence() {
+        let appropriate = KIND_CORRECTION | FLAG_APPROPRIATE_FOR_AUTO_CORRECTION;
+        // "teh" to "the" is one edit in three: these score 0.22, 0.17 and 0.10.
+        let corrects = |score, strength: Strength| {
+            let suggestion = RawSuggestion {
+                word: utf16("the"),
+                score,
+                kind_and_flags: appropriate,
+            };
+            let threshold = strength.threshold();
+            threshold.is_some_and(|it| suggestion_exceeds_threshold(&suggestion, &utf16("teh"), it))
+        };
+        let levels = |score| Strength::ALL.map(|strength| corrects(score, strength));
+        assert_eq!(levels(330_000), [false, false, true, true]);
+        assert_eq!(levels(255_000), [false, false, false, true]);
+        assert_eq!(levels(150_000), [false, false, false, false]);
+        assert_eq!(levels(1_000_000), [false, true, true, true]);
     }
 
     #[test]

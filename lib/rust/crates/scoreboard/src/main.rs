@@ -11,6 +11,8 @@
 //!   --seed N        the seed for taps and swipes (default 20261116)
 //!   --threads N     scoring threads (default: the machine's)
 //!   --swipe-only    score swipes only
+//!   --strength S    auto-correction strength: off, modest, normal (default) or aggressive
+//!   --threshold T   ... or any threshold, for choosing the strengths' (`off` for none)
 //!
 //! How swipes are decoded (default: as the keyboard does; each flag changes one thing):
 //!   --original      FlorisBoard's classifier and the flat frequency curve
@@ -41,6 +43,7 @@ use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 use std::sync::Arc;
 use std::time::Instant;
+use suggest::auto_correction::Strength;
 use suggest::language_model::Tuning;
 use suggest::swipe_words::Boost;
 
@@ -79,6 +82,7 @@ fn options() -> Result<Options, String> {
             threads: std::thread::available_parallelism().map_or(4, |n| n.get()),
             decoder: Decoder::DEFAULT,
             swipe_only: false,
+            threshold: Strength::DEFAULT.threshold(),
         },
         learning: false,
         warm_up: 2000,
@@ -104,6 +108,16 @@ fn options() -> Result<Options, String> {
             "--seed" => options.settings.seed = number(value()?)?,
             "--threads" => options.settings.threads = number(value()?)? as usize,
             "--swipe-only" => options.settings.swipe_only = true,
+            "--strength" => {
+                let v = value()?.to_ascii_uppercase();
+                let strength = Strength::ALL.into_iter().find(|s| s.name() == v);
+                options.settings.threshold =
+                    strength.ok_or(format!("--strength {v}?"))?.threshold();
+            }
+            "--threshold" => {
+                let v = value()?;
+                options.settings.threshold = if v == "off" { None } else { Some(real(v)?) };
+            }
             "--original" => options.settings.decoder = Decoder::ORIGINAL,
             "--ends" => options.settings.decoder.glide.ends = real(value()?)?,
             "--dwell" => options.settings.decoder.glide.dwell = real(value()?)?,
@@ -217,7 +231,7 @@ fn run() -> Result<(), String> {
         columns.push(("all", &all));
     }
     println!(
-        "Dictionary: {} ({} bytes); seed {}; {} sentences after {}; {:?}",
+        "Dictionary: {} ({} bytes); seed {}; {} sentences after {}; threshold {:?}; {:?}",
         std::fs::canonicalize(&options.dict)
             .unwrap_or_else(|_| options.dict.clone())
             .display(),
@@ -225,6 +239,7 @@ fn run() -> Result<(), String> {
         options.settings.seed,
         sources.iter().map(|s| s.sentences.len()).sum::<usize>(),
         options.skip,
+        options.settings.threshold,
         options.settings.decoder,
     );
     if let Some(file) = &options.model {

@@ -20,6 +20,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
+import com.jtn0123.audiowhisper.suggest.AutoCorrectStrength
 import dev.patrickgold.florisboard.app.settings.theme.ColorPreferenceSerializer
 import dev.patrickgold.florisboard.app.settings.theme.DisplayKbdAfterDialogs
 import dev.patrickgold.florisboard.app.settings.theme.SnyggLevel
@@ -102,6 +103,8 @@ abstract class ReferencePreferenceModel : PreferenceModel() {
 
     val correction = Correction()
     inner class Correction {
+        // AudioWhisper: how readily typing is auto-corrected.
+        val autoCorrect = enum(key = "correction__auto_correct", default = AutoCorrectStrength.NORMAL)
         val autoCapitalization = boolean(key = "correction__auto_capitalization", default = true)
         val autoSpacePunctuation = boolean(key = "correction__auto_space_punctuation", default = false)
         val doubleSpacePeriod = boolean(key = "correction__double_space_period", default = true)

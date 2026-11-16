@@ -30,6 +30,10 @@ internal object SuggestNative {
 
     @JvmStatic external fun modestThreshold(): Float
 
+    @JvmStatic external fun defaultStrength(): Int
+
+    @JvmStatic external fun strengthNames(): Array<String>
+
     @JvmStatic external fun exceedsThreshold(word: String, score: Int, kindAndFlags: Int, typed: String, threshold: Float): Boolean
 
     @JvmStatic external fun normalizedScore(before: String, after: String, score: Int): Float

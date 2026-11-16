@@ -22,6 +22,7 @@ internal class ReferenceSettingsModel : ReferencePreferenceModel() {
             clipboard.historyHideOnPaste,
             clipboard.historyHideOnNextTextField,
             clipboard.clearPrimaryClipAffectsHistoryIfUnpinned,
+            correction.autoCorrect,
             correction.autoCapitalization,
             correction.autoSpacePunctuation,
             correction.doubleSpacePeriod,

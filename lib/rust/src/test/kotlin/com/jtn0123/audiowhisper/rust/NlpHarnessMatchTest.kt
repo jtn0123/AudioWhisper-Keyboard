@@ -33,7 +33,7 @@ class NlpHarnessMatchTest {
                         val generation = p.call("begin", checkpoints.toString())[0]
                         p.call("ready", generation, (checkpoints + 8).toString())
                         val typed = text.takeLastWhile { it.isLetterOrDigit() || it in "'-’" }
-                        val strip = decoder.suggest(personal, null, typed, emptyList(), true, false, true, FloatArray(0), 8, SuggestRules.modestThreshold)
+                        val strip = decoder.suggest(personal, null, typed, emptyList(), true, false, true, FloatArray(0), 8, SuggestRules.defaultStrength)
                         val flags = p.call("candidatePlan", *context.toTypedArray(), "0",
                             *strip.words.indices.map { if (it == strip.autoCorrection) "1" else "0" }.toTypedArray())
                         val values = strip.words.flatMapIndexed { i, word -> listOf("$checkpoints-$i", word, "0", flags[i]) }.toTypedArray()

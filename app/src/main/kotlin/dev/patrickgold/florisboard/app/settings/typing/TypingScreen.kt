@@ -36,6 +36,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.unit.dp
+import com.jtn0123.audiowhisper.suggest.AutoCorrectStrength
 import dev.patrickgold.florisboard.R
 import dev.patrickgold.florisboard.app.LocalNavController
 import dev.patrickgold.florisboard.app.Routes
@@ -114,6 +115,13 @@ fun TypingScreen() = FlorisScreen {
         }
 
         PreferenceGroup(title = stringRes(R.string.pref__correction__title)) {
+            // AudioWhisper: how readily typing is auto-corrected (suggest/auto_correction.rs, Strength).
+            ListPreference(
+                prefs.correction.autoCorrect,
+                title = stringRes(R.string.pref__correction__auto_correct__label),
+                entries = enumDisplayEntriesOf(AutoCorrectStrength::class),
+                enabledIf = { prefs.suggestion.enabled isEqualTo true },
+            )
             SwitchPreference(
                 prefs.correction.autoCapitalization,
                 title = stringRes(R.string.pref__correction__auto_capitalization__label),

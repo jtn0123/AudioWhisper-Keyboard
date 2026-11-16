@@ -202,7 +202,7 @@ fn what_the_user_types_next_comes_first() {
         dictionary: &mut request,
         personal: &personal,
         learned: Some(&learned),
-        threshold: suggest::auto_correction::MODEST_THRESHOLD,
+        threshold: Some(suggest::auto_correction::MODEST_THRESHOLD),
     };
     let strip = suggester.suggest(&state, 5).unwrap();
     let words: Vec<String> = (strip.iter())

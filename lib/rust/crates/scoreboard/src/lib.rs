@@ -53,6 +53,8 @@ pub struct Settings {
     pub decoder: Decoder,
     /// Score swipes only, not next words, keystrokes or auto-correction.
     pub swipe_only: bool,
+    /// The auto-correction threshold, `None` for off (`suggest::auto_correction::Strength`).
+    pub threshold: Option<f32>,
 }
 
 /// Scores every source with `settings.threads` threads, each with its own session on
@@ -81,6 +83,7 @@ pub fn run(
                     scope.spawn(move || {
                         let mut engine =
                             Engine::open(dictionary, model).expect("opened once already");
+                        engine.threshold = settings.threshold;
                         let mut tally = Tally::default();
                         let stream = (s as u64) << 32;
                         for (i, sentence) in source.sentences.iter().enumerate() {

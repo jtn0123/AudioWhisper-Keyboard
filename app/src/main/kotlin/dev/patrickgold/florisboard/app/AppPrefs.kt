@@ -17,6 +17,7 @@
 package dev.patrickgold.florisboard.app
 
 import com.jtn0123.audiowhisper.settings.SettingsDefaults
+import com.jtn0123.audiowhisper.suggest.AutoCorrectStrength
 import com.jtn0123.audiowhisper.settings.SettingsPreferenceModel
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -98,6 +99,8 @@ abstract class FlorisPreferenceModel : SettingsPreferenceModel() {
 
     val correction = Correction()
     inner class Correction {
+        // AudioWhisper: how readily typing is auto-corrected (suggest/auto_correction.rs, Strength).
+        val autoCorrect = nativeEnum<AutoCorrectStrength>(key = "correction__auto_correct")
         val autoCapitalization = nativeBoolean(key = "correction__auto_capitalization")
         val autoSpacePunctuation = nativeBoolean(key = "correction__auto_space_punctuation")
         val doubleSpacePeriod = nativeBoolean(key = "correction__double_space_period")

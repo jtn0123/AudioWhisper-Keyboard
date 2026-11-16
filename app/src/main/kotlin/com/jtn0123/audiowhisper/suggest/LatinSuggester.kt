@@ -44,7 +44,8 @@ data class SpellCheck(val isValid: Boolean, val suggestions: List<String>, val i
  */
 class LatinSuggester(
     private val decoder: LatinDictionaryEngine,
-    private val threshold: Float = SuggestRules.modestThreshold,
+    /** How readily to auto-correct, read on every strip (the setting can change while typing). */
+    private val strength: () -> AutoCorrectStrength = { AutoCorrectStrength.NORMAL },
     /** The user's personal dictionaries as they stand now (read on every call, so it can be swapped). */
     private val personalWords: () -> PersonalWords = { PersonalWords.NONE },
     /** What the user has typed before ([LearnedWords]), or null if not learning. */
@@ -55,15 +56,16 @@ class LatinSuggester(
         val previous = state.previousWords
         val strip = decoder.session.suggest(
             personalWords().store, history()?.store, state.typed, previous.words, previous.isBeginningOfSentence,
-            state.isCursorMidWord, blockOffensiveWords, state.taps.packed(), maxCount, threshold,
+            state.isCursorMidWord, blockOffensiveWords, state.taps.packed(), maxCount, strength().ordinal,
         )
         return strip.words.mapIndexed { index, word ->
             ArrangedWord(word, isAutoCorrection = index == strip.autoCorrection, isTypedWord = index == strip.typedWord)
         }
     }
 
-    /** Spell-checks [word] with no context. */
+    /** Spell-checks [word] with no context, as confident as the default strength whatever the setting. */
     fun spell(word: String, maxCount: Int, blockOffensiveWords: Boolean): SpellCheck {
+        val threshold = SuggestRules.modestThreshold
         val verdict = decoder.session.spell(personalWords().store, history()?.store, word, blockOffensiveWords, maxCount, threshold)
         return SpellCheck(verdict.isValid, verdict.suggestions, verdict.isHighConfidence)
     }

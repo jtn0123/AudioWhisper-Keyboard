@@ -100,6 +100,27 @@ class LatinImeJniTest {
     }
 
     @Test
+    fun theStrengthSettingReachesTheNativeSuggester() {
+        val decoder = requireNotNull(
+            LatinDictionaryEngine.open(dictionaryFile.absolutePath, 0, dictionaryFile.length(), "en_US"),
+        )
+        decoder.use {
+            fun strip(strength: AutoCorrectStrength) =
+                LatinSuggester(it, strength = { strength }).suggest(TypingState.of("", "helo", ""), 3, true)
+            val corrected = AutoCorrectStrength.entries.associateWith { strength ->
+                strip(strength).firstOrNull { word -> word.isAutoCorrection }?.text
+            }
+            val expected = mapOf(
+                AutoCorrectStrength.OFF to null, AutoCorrectStrength.MODEST to "help",
+                AutoCorrectStrength.NORMAL to "help", AutoCorrectStrength.AGGRESSIVE to "help",
+            )
+            assertEquals(expected, corrected)
+            // Off still offers the same words, the typed one first as when no correction is sure enough.
+            assertEquals(listOf("helo", "help", "hell"), strip(AutoCorrectStrength.OFF).map { word -> word.text })
+        }
+    }
+
+    @Test
     fun closedDictionaryHandleThrowsFromNative() {
         Fixture(dictionaryFile).use { fixture ->
             fixture.dictionary.close()

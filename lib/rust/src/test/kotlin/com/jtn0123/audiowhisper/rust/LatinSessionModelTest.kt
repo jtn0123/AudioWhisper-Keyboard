@@ -16,7 +16,7 @@ class LatinSessionModelTest {
 
     /** The strip after a space, for the words before it, newest first, after a sentence start. */
     private fun LatinSession.next(vararg newestFirst: String): List<String> =
-        suggest(personal, null, "", newestFirst.asList(), true, false, true, FloatArray(0), 3, SuggestRules.modestThreshold).words
+        suggest(personal, null, "", newestFirst.asList(), true, false, true, FloatArray(0), 3, SuggestRules.defaultStrength).words
 
     @Test fun theShippedModelPredictsFromTheWordsBefore() {
         session().use { session ->

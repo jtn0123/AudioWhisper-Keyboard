@@ -24,6 +24,33 @@ const INCOGNITO: Choices = Choices {
     selected_only: true,
     emoji: &[],
 };
+/// How readily typing is auto-corrected (`suggest::auto_correction::Strength`).
+const STRENGTH: Choices = Choices {
+    entries: &[
+        (
+            "OFF",
+            "enum__auto_correct_strength__off",
+            "enum__auto_correct_strength__off__description",
+        ),
+        (
+            "MODEST",
+            "enum__auto_correct_strength__modest",
+            "enum__auto_correct_strength__modest__description",
+        ),
+        (
+            "NORMAL",
+            "enum__auto_correct_strength__normal",
+            "enum__auto_correct_strength__normal__description",
+        ),
+        (
+            "AGGRESSIVE",
+            "enum__auto_correct_strength__aggressive",
+            "enum__auto_correct_strength__aggressive__description",
+        ),
+    ],
+    selected_only: true,
+    emoji: &[],
+};
 const LANGUAGE_MODE: Choices = entries(&[
     (
         "USE_SYSTEM_LANGUAGES",
@@ -95,6 +122,12 @@ const ROWS: &[Row] = &[
         Kind::Confirm(&FORGET),
     ),
     heading("pref__correction__title"),
+    list(
+        "correction__auto_correct",
+        "pref__correction__auto_correct__label",
+        &STRENGTH,
+    )
+    .on(SUGGESTIONS),
     toggle(
         "correction__auto_capitalization",
         "pref__correction__auto_capitalization__label",

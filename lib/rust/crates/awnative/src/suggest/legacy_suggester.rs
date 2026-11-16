@@ -160,7 +160,7 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_LegacyFixtureNative_su
                 dictionary: &mut dictionary,
                 personal,
                 learned,
-                threshold,
+                threshold: Some(threshold),
             };
             let strip = suggester.suggest(&state, max_count)?;
             write_strip(env, &strip, marks)
@@ -193,7 +193,7 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_LegacyFixtureNative_sp
                 dictionary: &mut dictionary,
                 personal,
                 learned,
-                threshold,
+                threshold: Some(threshold),
             };
             let check = suggester.spell(&word, max_count)?;
             let flags = [check.is_valid, check.is_high_confidence].map(i32::from);

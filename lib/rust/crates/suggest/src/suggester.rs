@@ -89,8 +89,9 @@ pub struct Suggester<'a, D: ?Sized> {
     /// What the user has typed before, or `None` if the keyboard isn't learning. Locked for each
     /// question only, as the keyboard learns on another thread.
     pub learned: Option<&'a Mutex<LearnedWords>>,
-    /// The auto-correction threshold (see [`crate::auto_correction`]).
-    pub threshold: f32,
+    /// The auto-correction threshold (see [`crate::auto_correction`]), or `None` to never
+    /// auto-correct (the setting's [`Off`](crate::auto_correction::Strength::Off)).
+    pub threshold: Option<f32>,
 }
 
 impl<D> Suggester<'_, D>
@@ -197,6 +198,9 @@ where
         ranked: &[Ranked],
         own_spelling: Option<Vec<u16>>,
     ) -> Result<Option<Vec<u16>>, D::Error> {
+        if self.threshold.is_none() {
+            return Ok(None);
+        }
         let typed = &state.typed[..];
         let is_typed_valid = self.is_valid(typed, input, ranked)?;
         if let Some(spelling) = own_spelling {
@@ -400,9 +404,12 @@ where
         if top.raw.is_prediction() || top.raw.is_shortcut() {
             return Ok(false);
         }
+        let Some(threshold) = self.threshold else {
+            return Ok(false);
+        };
         Ok(
             self.is_allowed_to_auto_correct(state, input, top, is_typed_valid)?
-                && suggestion_exceeds_threshold(&top.raw, input, self.threshold),
+                && suggestion_exceeds_threshold(&top.raw, input, threshold),
         )
     }
 

@@ -73,6 +73,7 @@ internal object ReferenceGroupTwoScreens {
         Row("pref__suggestion__forget_learned__label", "confirm",
             click = { _, s -> listOf("forgetLearnedWords", s("pref__suggestion__forget_learned__done")) }),
         Row("pref__correction__title", "heading"),
+        Row("correction__auto_correct", "choice", listOf("OFF", "MODEST", "NORMAL", "AGGRESSIVE"), enabled = ::suggestions),
         Row("correction__auto_capitalization", "toggle"),
         Row("correction__auto_space_punctuation", "toggle"),
         Row("pref__correction__auto_space_punctuation__feedback", "card", click = url("florisboard__auto_space_feedback_url"),

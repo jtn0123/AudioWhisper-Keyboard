@@ -44,13 +44,14 @@ class LatinSession private constructor(private var handle: Long) : AutoCloseable
         return results
     }
 
+    /** The strip for [typed]; [strength] is the auto-correction strength's ordinal ([SuggestRules.strengthNames]). */
     @Synchronized fun suggest(
         personal: PersonalWordStore, learned: LearnedWordStore?, typed: String, previous: List<String>,
-        sentenceStart: Boolean, midWord: Boolean, block: Boolean, taps: FloatArray, maxCount: Int, threshold: Float,
+        sentenceStart: Boolean, midWord: Boolean, block: Boolean, taps: FloatArray, maxCount: Int, strength: Int,
     ): Suggester.Strip {
         val marks = IntArray(2)
         val words = LatinSessionNative.suggest(handle, personal.handle, learned?.handle ?: 0L, typed,
-            previous.toTypedArray(), sentenceStart, midWord, block, taps, maxCount, threshold, marks)
+            previous.toTypedArray(), sentenceStart, midWord, block, taps, maxCount, strength, marks)
         Reference.reachabilityFence(personal)
         Reference.reachabilityFence(learned)
         return Suggester.Strip(words.asList(), marks[0], marks[1])
@@ -87,6 +88,6 @@ internal object LatinSessionNative {
     @JvmStatic external fun wordLengths(handle: Long): IntArray
     @JvmStatic external fun decode(handle: Long, input: String, previous: Array<String>, sentenceStart: Boolean, block: Boolean, taps: FloatArray): IntArray
     @JvmStatic external fun suggest(handle: Long, personal: Long, learned: Long, typed: String, previous: Array<String>, sentenceStart: Boolean,
-        midWord: Boolean, block: Boolean, taps: FloatArray, maxCount: Int, threshold: Float, marks: IntArray): Array<String>
+        midWord: Boolean, block: Boolean, taps: FloatArray, maxCount: Int, strength: Int, marks: IntArray): Array<String>
     @JvmStatic external fun spell(handle: Long, personal: Long, learned: Long, word: String, block: Boolean, maxCount: Int, threshold: Float, verdict: IntArray): Array<String>
 }

@@ -170,6 +170,38 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_SuggestNative_modestTh
     auto_correction::MODEST_THRESHOLD
 }
 
+/// The ordinal of the default auto-correction strength (`auto_correction::Strength::DEFAULT`).
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_SuggestNative_defaultStrength(
+    _: *mut JNIEnv,
+    _: jclass,
+) -> jint {
+    let all = auto_correction::Strength::ALL;
+    let at = all
+        .iter()
+        .position(|&it| it == auto_correction::Strength::DEFAULT);
+    at.map_or(0, |at| at as jint)
+}
+
+/// The auto-correction strengths' stored names, in the order of their ordinals
+/// (`auto_correction::Strength::ALL`), so Kotlin's enum can be held to them.
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_SuggestNative_strengthNames(
+    env: *mut JNIEnv,
+    _: jclass,
+) -> jobjectArray {
+    // SAFETY: the JVM passes its environment for this call.
+    unsafe {
+        jni::run(env, ptr::null_mut(), |env| {
+            let names: Vec<Vec<u16>> = auto_correction::Strength::ALL
+                .iter()
+                .map(|strength| strength.name().encode_utf16().collect())
+                .collect();
+            env.make_strings(&names)
+        })
+    }
+}
+
 /// The most previous words a context holds (`previous_words::MAX_COUNT`).
 #[unsafe(no_mangle)]
 pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_SuggestNative_maxPreviousWords(

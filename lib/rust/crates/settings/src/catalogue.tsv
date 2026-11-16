@@ -15,6 +15,7 @@ clipboard__history_size_limit	i	20	5	100	5		#
 clipboard__history_hide_on_paste	b	false					#
 clipboard__history_hide_on_next_text_field	b	true					#
 clipboard__clear_primary_clip_affects_history_if_unpinned	b	true					#
+correction__auto_correct	s	NORMAL				OFF|MODEST|NORMAL|AGGRESSIVE	#
 correction__auto_capitalization	b	true					#
 correction__auto_space_punctuation	b	false					#
 correction__double_space_period	b	true					#

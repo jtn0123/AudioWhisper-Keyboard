@@ -21,6 +21,12 @@ object SuggestRules {
     /** AOSP's "modest" auto-correction threshold. */
     val modestThreshold: Float = SuggestNative.modestThreshold()
 
+    /** The auto-correction strengths' names, in ordinal order: how [LatinSession.suggest] takes one. */
+    val strengthNames: List<String> = SuggestNative.strengthNames().asList()
+
+    /** The default strength's ordinal: what the keyboard always did. */
+    val defaultStrength: Int = SuggestNative.defaultStrength()
+
     /** The most words a [Context] holds. */
     val maxPreviousWords: Int = SuggestNative.maxPreviousWords()
 

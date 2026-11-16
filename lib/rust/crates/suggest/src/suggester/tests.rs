@@ -1,4 +1,5 @@
 use super::*;
+use crate::auto_correction::Strength;
 use crate::dictionary::Lookup;
 use crate::personal_words::Entry;
 use crate::raw::{FLAG_APPROPRIATE_FOR_AUTO_CORRECTION, FLAG_EXACT_MATCH, KIND_CORRECTION};
@@ -186,6 +187,7 @@ impl Dictionary for Fake {
 struct Words {
     personal: PersonalWords,
     learned: Option<Mutex<LearnedWords>>,
+    threshold: Option<f32>,
 }
 
 impl Words {
@@ -193,6 +195,7 @@ impl Words {
         Words {
             personal: PersonalWords::new(Vec::new()),
             learned: None,
+            threshold: Strength::DEFAULT.threshold(),
         }
     }
 
@@ -205,6 +208,7 @@ impl Words {
         Words {
             personal: PersonalWords::new(entries.collect()),
             learned: None,
+            threshold: Strength::DEFAULT.threshold(),
         }
     }
 
@@ -219,6 +223,7 @@ impl Words {
         Words {
             personal: PersonalWords::new(Vec::new()),
             learned: Some(Mutex::new(learned)),
+            threshold: Strength::DEFAULT.threshold(),
         }
     }
 
@@ -227,7 +232,7 @@ impl Words {
             dictionary: fake,
             personal: &self.personal,
             learned: self.learned.as_ref(),
-            threshold: crate::auto_correction::MODEST_THRESHOLD,
+            threshold: self.threshold,
         }
     }
 
@@ -512,4 +517,19 @@ fn predicts_the_users_habits_first() {
         ["later", "you", "God", "there"]
     );
     assert_eq!(learned.words("thank ", "", ""), ["you", "God"]);
+}
+
+#[test]
+fn off_never_corrects_but_still_suggests_and_spell_checks() {
+    let mut off = Words::personal(&[("iPhone", 250)]);
+    off.threshold = Strength::Off.threshold();
+    assert_eq!(off.auto_correction("", "teh", ""), None);
+    assert_eq!(off.words("", "teh", ""), ["teh", "the", "ten"]);
+    // Not even the whitelist, or the user's own spelling of a word.
+    assert_eq!(off.auto_correction("", "im", ""), None);
+    assert_eq!(off.auto_correction("", "iphone", ""), None);
+    // Confidence is "would auto-correct", so the spell checker keeps the normal strength.
+    assert_eq!(off.spell("teh", 1), Ok((false, vec!["the".into()], false)));
+    off.threshold = Strength::Normal.threshold();
+    assert_eq!(off.auto_correction("", "teh", "").as_deref(), Some("the"));
 }

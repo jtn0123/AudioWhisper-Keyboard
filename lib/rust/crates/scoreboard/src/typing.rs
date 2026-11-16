@@ -1,7 +1,7 @@
 //! Typing a sentence word by word through the keyboard's own suggestion code, as the phone does:
 //! the same [`Session`] and [`Suggester`] the JNI calls, with the settings it passes by default
-//! (offensive words blocked, the modest auto-correction threshold, eight candidates) and nothing
-//! learned. The strip shows the first three.
+//! (offensive words blocked, the default auto-correction strength unless a run asks for another,
+//! eight candidates) and nothing learned. The strip shows the first three.
 
 use crate::geometry::Keyboard;
 use crate::rng::Rng;
@@ -9,7 +9,7 @@ use crate::text::Sentence;
 use crate::touch::{self, Hand, Typed};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
-use suggest::auto_correction::MODEST_THRESHOLD;
+use suggest::auto_correction::Strength;
 use suggest::language_model::Tuning;
 use suggest::personal_words::PersonalWords;
 use suggest::previous_words::PreviousWords;
@@ -27,6 +27,8 @@ pub const SHOWN: usize = 3;
 pub struct Engine {
     session: Session,
     personal: PersonalWords,
+    /// The auto-correction threshold, `None` for off (`Suggester::threshold`).
+    pub threshold: Option<f32>,
     /// Time spent asking for strips while typing a word, and how many were asked for.
     pub typing_time: Vec<Duration>,
     /// The same for the strips of next words after a space.
@@ -45,6 +47,7 @@ impl Engine {
         Some(Engine {
             session,
             personal: PersonalWords::new(Vec::new()),
+            threshold: Strength::DEFAULT.threshold(),
             typing_time: Vec::new(),
             prediction_time: Vec::new(),
         })
@@ -72,7 +75,7 @@ impl Engine {
             dictionary: &mut dictionary,
             personal: &self.personal,
             learned: None,
-            threshold: MODEST_THRESHOLD,
+            threshold: self.threshold,
         }
         .suggest(&state, max)
         .unwrap_or_default()

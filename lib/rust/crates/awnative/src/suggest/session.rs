@@ -17,6 +17,7 @@ use std::{
     sync::{Arc, Mutex},
 };
 use suggest::{
+    auto_correction::Strength,
     previous_words::PreviousWords,
     raw::RawSuggestion,
     session::{Error as SessionError, Session},
@@ -218,7 +219,7 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_LatinSessionNative_sug
     block: jboolean,
     offsets: jfloatArray,
     max_count: jint,
-    threshold: jfloat,
+    strength: jint,
     marks: jintArray,
 ) -> jobjectArray {
     // SAFETY: Kotlin holds the session and both stores for the call, serializing close with the wrapper monitor.
@@ -237,7 +238,7 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_LatinSessionNative_sug
                 dictionary: &mut dictionary,
                 personal,
                 learned,
-                threshold,
+                threshold: Strength::from_ordinal(strength).threshold(),
             }
             .suggest(&state, max_count)?;
             write_strip(env, &strip, marks)
@@ -269,7 +270,7 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_LatinSessionNative_spe
                 dictionary: &mut dictionary,
                 personal,
                 learned,
-                threshold,
+                threshold: Some(threshold),
             }
             .spell(&word, max_count)?;
             env.write(

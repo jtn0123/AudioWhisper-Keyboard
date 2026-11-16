@@ -397,3 +397,31 @@ hand and from 87.5% to 91.1% on the second simulator, top-3 up on all four varia
 less than both simulators say; then re-tune on those, starting with dwell and reach, which depend
 most on how a finger moves. A better language model would shift the boost's and the
 curve's balance against the ranker and should be re-measured with them.
+
+## Auto-correction strength: Off, Modest, Normal, Aggressive (2026-11-16)
+
+*Typing → Corrections → Auto-correction* sets how readily typing is auto-corrected. Normal, the
+default, is the 0.185 threshold the keyboard always used (AOSP calls that value "modest"), so
+nothing changes unless the user picks another. Modest is 0.25, Aggressive 0.12, and Off never
+auto-corrects, not even the whitelist, while suggestions still show
+([results](autocorrect-results.md#auto-correction-strength)).
+
+- *Why these thresholds:* chosen on sentences the report doesn't use. Modest is the lowest that
+  halves harmful corrections for both a neutral hand and a left thumb; Aggressive is the highest
+  at which a left thumb's word accuracy peaks (93.7% → 94.3% on the report text, harmful 0.5% →
+  0.9%). AOSP's aggressive 0.067 is worse than 0.12 on every row.
+- *Why Normal stays the default:* it is still the best neutral accuracy, and it is what the user
+  has been typing with. Aggressive is the better choice for this user's left thumb by 0.6 point at
+  the price of about one more changed word in 250; that is a preference, so it is offered, not
+  imposed.
+- *Why the names:* Gboard has only on/off; HeliBoard's "modest/aggressive/very aggressive" would
+  call today's behaviour "modest", which reads as the weak end. Normal for what it always did keeps
+  the list honest.
+- *Where it lives:* the thresholds and the rule are Rust's (`suggest::auto_correction::Strength`);
+  Kotlin reads the preference and passes the strength's ordinal, which a test holds to Rust's order
+  and to the settings catalogue. The spell checker keeps Normal's confidence whatever the setting.
+
+**Would change if** the phone's typing counters show corrections undone at a rate that points to a
+different default for this user, or a better language model moves the best threshold (re-run the
+sweep in [autocorrect-results.md](autocorrect-results.md)); a strength would then move, not the
+default's meaning.

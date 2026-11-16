@@ -17,6 +17,7 @@
 package dev.patrickgold.florisboard.app
 
 import androidx.compose.runtime.Composable
+import com.jtn0123.audiowhisper.suggest.AutoCorrectStrength
 import dev.patrickgold.florisboard.R
 import dev.patrickgold.florisboard.app.settings.theme.DisplayKbdAfterDialogs
 import dev.patrickgold.florisboard.ime.clipboard.ClipboardSyncBehavior
@@ -330,6 +331,34 @@ private val ENUM_DISPLAY_ENTRIES = mapOf<Pair<KClass<*>, String>, @Composable ()
             entry(
                 key = IncognitoDisplayMode.DISPLAY_BEHIND_KEYBOARD,
                 label = stringRes(id = R.string.enum__incognito_display_mode__display_behind_keyboard),
+            )
+        }
+    },
+    AutoCorrectStrength::class to DEFAULT to {
+        listPrefEntries {
+            entry(
+                key = AutoCorrectStrength.OFF,
+                label = stringRes(R.string.enum__auto_correct_strength__off),
+                description = stringRes(R.string.enum__auto_correct_strength__off__description),
+                showDescriptionOnlyIfSelected = true,
+            )
+            entry(
+                key = AutoCorrectStrength.MODEST,
+                label = stringRes(R.string.enum__auto_correct_strength__modest),
+                description = stringRes(R.string.enum__auto_correct_strength__modest__description),
+                showDescriptionOnlyIfSelected = true,
+            )
+            entry(
+                key = AutoCorrectStrength.NORMAL,
+                label = stringRes(R.string.enum__auto_correct_strength__normal),
+                description = stringRes(R.string.enum__auto_correct_strength__normal__description),
+                showDescriptionOnlyIfSelected = true,
+            )
+            entry(
+                key = AutoCorrectStrength.AGGRESSIVE,
+                label = stringRes(R.string.enum__auto_correct_strength__aggressive),
+                description = stringRes(R.string.enum__auto_correct_strength__aggressive__description),
+                showDescriptionOnlyIfSelected = true,
             )
         }
     },

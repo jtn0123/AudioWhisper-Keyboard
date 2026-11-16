@@ -228,7 +228,8 @@ class LatinLanguageProvider(context: Context) : SpellingProvider, SuggestionProv
         val started = SystemClock.elapsedRealtime()
         val opened = openBundledDictionary() ?: return
         engine = opened
-        suggester = LatinSuggester(opened, personalWords = { personalWords }, history = ::learnedHistory)
+        suggester = LatinSuggester(opened, strength = { prefs.correction.autoCorrect.get() },
+            personalWords = { personalWords }, history = ::learnedHistory)
         Log.d(TAG, "Dictionary loaded in ${SystemClock.elapsedRealtime() - started} ms")
     }
 

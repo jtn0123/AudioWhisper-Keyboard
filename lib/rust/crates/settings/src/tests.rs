@@ -2,7 +2,7 @@ use super::*;
 #[test]
 fn catalogue_is_complete_unique_and_defaults_are_valid() {
     let rows = catalogue::all();
-    assert_eq!(rows.len(), 145);
+    assert_eq!(rows.len(), 146);
     let mut keys = std::collections::HashSet::new();
     for row in rows {
         assert!(keys.insert(row.key));
@@ -51,4 +51,14 @@ fn learning_how_the_user_taps_is_on_by_default_like_learning_words() {
     assert_eq!((aim.kind, aim.default), ("b", "true"));
     let words = row("suggestion__learn_from_typing");
     assert_eq!((aim.kind, aim.default), (words.kind, words.default));
+}
+#[test]
+fn auto_correction_is_normal_by_default_and_lists_every_strength() {
+    let rows = catalogue::all();
+    let row = rows
+        .iter()
+        .find(|row| row.key == "correction__auto_correct")
+        .unwrap();
+    assert_eq!((row.kind, row.default), ("s", "NORMAL"));
+    assert_eq!(row.choices, "OFF|MODEST|NORMAL|AGGRESSIVE");
 }

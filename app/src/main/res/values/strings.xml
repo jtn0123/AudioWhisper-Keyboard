@@ -506,6 +506,8 @@
     <string name="pref__suggestion__forget_learned__confirm">Erase all the words and phrases learned from your typing, where your taps land on the keys, and the counts of how often corrections and suggestions were used? This cannot be undone.</string>
     <string name="pref__suggestion__forget_learned__done">Learned words erased</string>
     <string name="pref__correction__title" comment="Preference group title">Corrections</string>
+    <!-- AudioWhisper: how readily typing is auto-corrected (AutoCorrectStrength) -->
+    <string name="pref__correction__auto_correct__label" comment="Preference title">Auto-correction</string>
     <string name="pref__correction__auto_capitalization__label" comment="Preference title">Auto-capitalization</string>
     <string name="pref__correction__auto_capitalization__summary" comment="Preference summary">Capitalize words based on the current input context</string>
     <string name="pref__correction__auto_space_punctuation__label" comment="Preference title">Auto-space after punctuation</string>
@@ -950,6 +952,14 @@
     <string name="enum__incognito_display_mode__replace_shared_actions_toggle" comment="Enum value label">Replace shared actions toggle icon with the incognito indicator</string>
     <string name="enum__incognito_display_mode__display_behind_keyboard" comment="Enum value label">Display the incognito indicator behind the keyboard</string>
 
+    <string name="enum__auto_correct_strength__off" comment="Enum value label">Off</string>
+    <string name="enum__auto_correct_strength__off__description" comment="Enum value description">Never change what you type. Suggestions still show.</string>
+    <string name="enum__auto_correct_strength__modest" comment="Enum value label">Modest</string>
+    <string name="enum__auto_correct_strength__modest__description" comment="Enum value description">Fix only clear typos: about half as many correct words changed as Normal, more typos left.</string>
+    <string name="enum__auto_correct_strength__normal" comment="Enum value label">Normal</string>
+    <string name="enum__auto_correct_strength__normal__description" comment="Enum value description">Recommended. Fix typos while rarely changing a word you meant.</string>
+    <string name="enum__auto_correct_strength__aggressive" comment="Enum value label">Aggressive</string>
+    <string name="enum__auto_correct_strength__aggressive__description" comment="Enum value description">Fix more typos, sometimes changing a word you meant.</string>
     <string name="enum__incognito_mode__force_off" comment="Enum value label">Force off</string>
     <string name="enum__incognito_mode__force_off__description" comment="Enum value description">Incognito mode will always be disabled, regardless of the target app\'s passed options. The incognito quick action in the Smartbar will not be available with this option.</string>
     <string name="enum__incognito_mode__force_on" comment="Enum value label">Force on</string>
