@@ -27,6 +27,8 @@ pub struct Session {
     pub held: bool,
     /// Typing emptied a row of words; the request for the new text always follows.
     pub carry: bool,
+    /// The private accuracy counters (see crate::counters).
+    pub counters: crate::counters::Counters,
 }
 /// Context fields that change as the user types: selection validity and bounds, composing
 /// bounds, text and offset. A change to only these is answered by a request for the new text.

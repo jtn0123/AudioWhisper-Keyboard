@@ -1,10 +1,13 @@
 //! NLP orchestration. Android executes plans; no JVM references or callbacks enter this crate.
 #![forbid(unsafe_code)]
 
+pub mod counters;
 mod policy;
 mod protocol;
 mod session;
 pub mod stores;
+#[cfg(test)]
+mod tests;
 pub use policy::Context;
 pub use session::Session;
 pub type Field = Vec<u16>;

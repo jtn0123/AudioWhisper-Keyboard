@@ -16,6 +16,9 @@ fn candidates(fields: &[Field]) -> Vec<Candidate> {
 }
 impl Session {
     pub fn checked_call(&mut self, op: &str, f: &[Field]) -> Result<Vec<Field>, &'static str> {
+        if let Some(result) = self.counter_call(op, f) {
+            return result;
+        }
         let count = match op {
             "context" | "policy" | "clipboardBeginFor" => Some(22),
             "typingPolicy" => Some(25),
@@ -27,6 +30,7 @@ impl Session {
             "clear" | "snapshot" | "field" | "externalBegin" | "words" => Some(0),
             "typing" | "preview" | "glidePlan" => Some(3),
             "learn" => Some(7),
+            "aim" => Some(4),
             "autoCandidate" => Some(48),
             "composing" => Some(4),
             "keep" | "pick" | "externalValid" => Some(1),
@@ -195,6 +199,7 @@ impl Session {
                 self.snapshot()
             }
             "field" => {
+                self.counters.field();
                 self.external_generation = self.external_generation.wrapping_add(1);
                 self.invalidate();
                 self.inline_begin(0);
@@ -222,6 +227,9 @@ impl Session {
             "pick" => {
                 let automatic = self.automatic.as_ref().is_some_and(|v| v.id == f[0]);
                 let accepted = automatic || self.visible().iter().any(|v| v.id == f[0]);
+                if accepted {
+                    self.count_pick(&f[0], automatic);
+                }
                 if automatic {
                     self.automatic = None;
                 }
@@ -230,12 +238,14 @@ impl Session {
             "learn" => {
                 // Rust returns the whole learner operation and context, Kotlin executes its store call.
                 let kind = int(f, 0);
-                if !self.context.learn()
-                    || kind == 0
-                        && (suggest::word_characters::continues_word(int(f, 1) as i32)
-                            || f[2].is_empty()
-                            || int(f, 5) == 0)
-                {
+                let finished = kind != 0
+                    || !(suggest::word_characters::continues_word(int(f, 1) as i32)
+                        || f[2].is_empty()
+                        || int(f, 5) == 0);
+                if finished {
+                    self.count_finished(kind, f);
+                }
+                if !self.context.learn() || !finished {
                     vec![]
                 } else {
                     let replaces = int(f, 5) != 0 && self.context.0[12] != self.context.0[13];
@@ -261,6 +271,19 @@ impl Session {
                     ]
                 }
             }
+            // Whether the word `f[2]` that `f[1]` finished, kept as typed, may teach where this
+            // user taps (`suggest::tap_learning`): the setting `f[0]` is on, the field takes
+            // corrected prose, nothing is incognito, and the word ended with a valid composing
+            // region `f[3]`, as "learn" asks of a kept word.
+            "aim" => boolean(
+                int(f, 0) != 0
+                    && self.context.autocorrect()
+                    && !self.context.flag(7)
+                    && !self.context.flag(1)
+                    && !suggest::word_characters::continues_word(int(f, 1) as i32)
+                    && !f[2].is_empty()
+                    && int(f, 3) != 0,
+            ),
             "save" => {
                 let now = int(f, 0);
                 if self.save_due.is_some_and(|due| now >= due) {
