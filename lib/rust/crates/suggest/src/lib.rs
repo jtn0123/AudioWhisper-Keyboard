@@ -8,6 +8,7 @@
 
 #![forbid(unsafe_code)]
 
+pub mod apostrophes;
 pub mod auto_correction;
 pub mod dictionary;
 pub mod glide_ranker;

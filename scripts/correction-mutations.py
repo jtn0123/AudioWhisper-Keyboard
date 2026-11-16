@@ -56,6 +56,31 @@ CASES = {
         CRATES + 'input/src/routing.rs',
         '    if code != DELETE {\n        add(CLEAR_UNDO, 0);\n    }\n', '',
         ('cargo', 'input', None, 'undo')),
+    # Apostrophes: the language model decides between a word and its spelling with one.
+    'model-never-restores': (
+        CRATES + 'suggest/src/apostrophes.rs',
+        'Some(odds) if odds >= MARGIN => Verdict::Restore,', 'Some(odds) if odds >= f32::MAX => Verdict::Restore,',
+        ('cargo', 'suggest', None, 'apostrophe')),
+    'whitelist-always-wins': (
+        CRATES + 'suggest/src/suggester.rs',
+        '                Some((Verdict::Keep, pair)) if std::ptr::eq(pair, top) => return Ok(None),\n', '',
+        ('cargo', 'suggest', None, 'apostrophe')),
+    'model-asked-in-lower-case': (
+        CRATES + 'suggest/src/suggester.rs',
+        'self.dictionary.ln_odds(&pair.display, typed)?', 'self.dictionary.ln_odds(&pair.raw.word, &lowercase(typed))?',
+        ('cargo', 'suggest', None, 'apostrophe')),
+    'restores-mid-word': (
+        CRATES + 'suggest/src/suggester.rs',
+        'if is_typed_valid && is_correctable(state) {', 'if is_typed_valid {',
+        ('cargo', 'suggest', None, 'apostrophe')),
+    'session-has-no-odds': (
+        CRATES + 'suggest/src/session.rs',
+        'Ok(model.and_then(|model| model.ln_odds(self.previous, word, other)))', 'Ok(model.and(None))',
+        ('cargo', 'suggest', 'apostrophes', '')),
+    'typist-types-apostrophes': (
+        CRATES + 'scoreboard/src/typing.rs',
+        '.filter(|&unit| !APOSTROPHES.contains(&unit))', '.filter(|&unit| unit != 0 || APOSTROPHES.is_empty())',
+        ('cargo', 'scoreboard', None, 'apostrophes')),
 }
 
 

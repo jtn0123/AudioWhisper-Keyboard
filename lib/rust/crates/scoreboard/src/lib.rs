@@ -175,6 +175,9 @@ fn score(
                 let mut rng = Rng::for_item(seed ^ stream, item, w as u64);
                 ac.add(engine.autocorrect(keyboard, sentence, w, hand, &mut rng));
             }
+            tally
+                .no_apostrophes
+                .add(engine.without_apostrophes(sentence, w));
         }
         let Some(path) = swiper.path(word) else {
             continue;

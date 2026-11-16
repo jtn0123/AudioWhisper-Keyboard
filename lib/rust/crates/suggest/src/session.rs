@@ -253,6 +253,10 @@ impl Dictionary for Request<'_> {
     fn ngram_probability(&mut self, word: &[u16]) -> Result<i32, Error> {
         Ok(self.session.ngram_probability(self.previous, word))
     }
+    fn ln_odds(&mut self, word: &[u16], other: &[u16]) -> Result<Option<f32>, Error> {
+        let model = self.session.model.as_ref();
+        Ok(model.and_then(|model| model.ln_odds(self.previous, word, other)))
+    }
     fn decode(&mut self, input: &[u16], purpose: Purpose) -> Result<Vec<RawSuggestion>, Error> {
         let previous = if purpose.in_context() {
             self.previous

@@ -21,6 +21,12 @@ pub trait Dictionary: Lookup {
     /// previous word.
     fn ngram_probability(&mut self, word: &[u16]) -> Result<i32, Self::Error>;
 
+    /// How much likelier, in nats, the language model finds `word` than `other` after the
+    /// request's previous words; none without a model or if it lacks either word.
+    fn ln_odds(&mut self, _word: &[u16], _other: &[u16]) -> Result<Option<f32>, Self::Error> {
+        Ok(None)
+    }
+
     /// The decoder's corrections and completions of `input`, or its predictions when `input` is
     /// empty, highest score first, decoded for `purpose`.
     fn decode(

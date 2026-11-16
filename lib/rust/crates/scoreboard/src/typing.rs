@@ -128,12 +128,34 @@ impl Engine {
             .collect();
         let typed: Vec<u16> = taps.iter().map(|tap| tap.unit).collect();
         let offsets: Vec<Option<TapOffset>> = taps.iter().map(|tap| tap.offset).collect();
+        self.end_word(sentence.before(index), &typed, &offsets, word)
+    }
+
+    /// Types word `index` of `sentence` as a user who never types an apostrophe ("dont", "im",
+    /// "its" for "it's"), every letter's key hit, then ends it as the space bar does.
+    pub fn without_apostrophes(&mut self, sentence: &Sentence, index: usize) -> Corrected {
+        let word = sentence.word(index);
+        let typed: Vec<u16> = (word.iter().copied())
+            .filter(|&unit| !APOSTROPHES.contains(&unit))
+            .collect();
+        self.end_word(sentence.before(index), &typed, &[], word)
+    }
+
+    /// Ends `typed` (meant as `word`) after `before` as the space bar does: committing the
+    /// auto-correction if there is one.
+    fn end_word(
+        &mut self,
+        before: &[u16],
+        typed: &[u16],
+        taps: &[Option<TapOffset>],
+        word: &[u16],
+    ) -> Corrected {
         // `autoCommitCandidateFor`: one candidate, and only if it is the auto-correction.
-        let strip = self.strip(sentence.before(index), &typed, &offsets, 1);
+        let strip = self.strip(before, typed, taps, 1);
         let committed = strip
             .into_iter()
             .find(|candidate| candidate.is_auto_correction)
-            .map_or_else(|| typed.clone(), |candidate| candidate.text);
+            .map_or_else(|| typed.to_vec(), |candidate| candidate.text);
         Corrected {
             clean: typed == word,
             changed: committed != typed,
@@ -141,6 +163,9 @@ impl Engine {
         }
     }
 }
+
+/// The apostrophes a word may hold: the typewriter one and the typographer's.
+const APOSTROPHES: [u16; 2] = [b'\'' as u16, 0x2019];
 
 /// What auto-correction made of one word.
 #[derive(Clone, Copy, Debug)]
@@ -174,6 +199,16 @@ mod tests {
             .sum();
         let letters: usize = sentence.words.iter().map(|(s, e)| e - s).sum();
         assert!(taps < letters * 3 / 4, "{taps} of {letters}");
+    }
+
+    #[test]
+    fn a_typist_without_apostrophes_types_every_other_letter() {
+        let mut engine = engine();
+        let sentence = Sentence::new("I don't think it's here.");
+        let dont = engine.without_apostrophes(&sentence, 1);
+        assert!(!dont.clean && dont.changed && dont.right, "{dont:?}");
+        let here = engine.without_apostrophes(&sentence, 4);
+        assert!(here.clean && !here.changed && here.right, "{here:?}");
     }
 
     #[test]

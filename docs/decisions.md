@@ -456,3 +456,33 @@ set.
 **Would change if** the owed space should go (the next letter continuing the word instead), which
 would be a change to `undo::revert_at`, or the phone's typing counters show undone corrections
 being re-corrected; the late-update rule would stay either way.
+
+## Apostrophes: the language model decides between "its" and "it's" (2026-11-16)
+
+Typing a contraction without its apostrophe already worked where the letters spell no word
+("dont", "im", "youre", "cant"): AOSP's decoder and whitelist put it right, as Gboard does. Where
+they spell a word too, AOSP decided by kind, not by meaning: a valid word was never corrected ("I
+think its" stayed), a whitelisted one always was ("he is ill" became "he is I'll"). Now the bundled
+n-gram model decides those from the words before, when it finds one spelling at least 1.5 nats
+likelier than the other; when it isn't that sure, or lacks a word, AOSP's choice stands
+([results](autocorrect-results.md#apostrophes)).
+
+- *Why the model and not a list:* "ill", "lets", "its", "were", "well", "shed", "hell" are each
+  right in some sentences and wrong in others, which no word list can know; the model can, and it
+  is already loaded and already re-weighing candidates. For a typist who drops apostrophes it puts
+  back 85.6% of them instead of 73.5% (2,527 of 2,953 instead of 2,170).
+- *Why 1.5 nats:* the knee of the tuning sweep; it costs 10 harmful corrections in 121,594 clean
+  words for that typist, and 6 in 99,461 for one who types apostrophes, mostly plurals read as
+  possessives.
+- *Where it lives:* `suggest::apostrophes` (the rule and margin) and the suggester's
+  auto-correction decision; the session answers the model's odds (`Dictionary::ln_odds`). Without
+  a model the trait answers none, so AOSP's behaviour, and every reference-parity test, is
+  unchanged. Nothing in Kotlin changed.
+- *Proof:* unit tests over a fake model (kept, restored, unsure, capitals, mid-word, Off), tests on
+  the shipped dictionary and model in context, the scoreboard's new typist, and six mutations in
+  `scripts/correction-mutations.py`, each caught.
+
+**Would change if** a better model or a bigger corpus moves the knee (re-run the sweep), the
+phone's counters show restored apostrophes being undone, or possessives are wanted at a different
+risk; "we wed" → "we'd" (neither pair known to the model) would want the rule to require an n-gram
+rather than word frequency alone.

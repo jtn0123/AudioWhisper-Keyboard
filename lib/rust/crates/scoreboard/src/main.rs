@@ -266,6 +266,16 @@ fn run() -> Result<(), String> {
             swipes.swipes
         );
     }
+    for (typist, c) in [
+        ("neutral", &all.neutral),
+        ("left thumb", &all.left_thumb),
+        ("no apostrophes", &all.no_apostrophes),
+    ] {
+        println!(
+            "corrections {typist}: {} words, {} clean, {} right, {} harmful, {} missed, {} wrong fixes",
+            c.words, c.clean, c.right, c.harmful, c.missed, c.wrong_fix
+        );
+    }
     eprintln!("scored in {:.1} s", started.elapsed().as_secs_f64());
     Ok(())
 }

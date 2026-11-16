@@ -78,6 +78,8 @@ pub struct Tally {
     pub keystrokes: usize,
     pub neutral: Corrections,
     pub left_thumb: Corrections,
+    /// Every key hit, but no apostrophe typed: the words with one are its "typos".
+    pub no_apostrophes: Corrections,
     /// Swipes, for each of [`crate::swipe::VARIANTS`].
     pub swipe: [Swipes; 4],
     /// How long each swipe took to decode.
@@ -97,6 +99,7 @@ impl Tally {
         self.keystrokes += other.keystrokes;
         self.neutral.merge(other.neutral);
         self.left_thumb.merge(other.left_thumb);
+        self.no_apostrophes.merge(other.no_apostrophes);
         for (mine, theirs) in self.swipe.iter_mut().zip(other.swipe) {
             mine.merge(theirs);
         }
@@ -184,6 +187,26 @@ fn rows() -> Vec<Row> {
         }),
         ("Wrong fixes (left thumb, of typos)", |t| {
             percent(t.left_thumb.wrong_fix, t.left_thumb.typos())
+        }),
+        ("Words with an apostrophe", |t| {
+            t.no_apostrophes.typos().to_string()
+        }),
+        ("Word accuracy after autocorrect (no apostrophes)", |t| {
+            percent(t.no_apostrophes.right, t.no_apostrophes.words)
+        }),
+        ("Apostrophes put back (of words with one)", |t| {
+            let a = &t.no_apostrophes;
+            percent(a.typos() - a.missed - a.wrong_fix, a.typos())
+        }),
+        (
+            "Harmful corrections (no apostrophes, of words without one)",
+            |t| percent(t.no_apostrophes.harmful, t.no_apostrophes.clean),
+        ),
+        ("Left without (no apostrophes, of words with one)", |t| {
+            percent(t.no_apostrophes.missed, t.no_apostrophes.typos())
+        }),
+        ("Wrong fixes (no apostrophes, of words with one)", |t| {
+            percent(t.no_apostrophes.wrong_fix, t.no_apostrophes.typos())
         }),
         ("Swipe words", |t| t.swipe[0].swipes.to_string()),
         ("Swipe top-1 (trace, neutral)", |t| swipe(t, 0, true)),

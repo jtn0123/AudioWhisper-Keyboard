@@ -135,6 +135,15 @@ impl LanguageModel {
         results.sort_by_key(|r| Reverse(r.score));
     }
 
+    /// How much likelier, in nats, the model finds `word` than `other` after `previous`; none if
+    /// it lacks either.
+    pub fn ln_odds(&self, previous: &PreviousWords, word: &[u16], other: &[u16]) -> Option<f32> {
+        let context = self.context(previous);
+        let ln =
+            |word| (self.model.word(word)).and_then(|id| self.model.ln_probability(context, id));
+        Some(ln(word)? - ln(other)?)
+    }
+
     /// The swipe ranker's n-gram for `word` after `previous` (see `glide_ranker`): the word's
     /// own dictionary value `unigram` raised by the model's lift, if the lift is at least
     /// [`Tuning::swipe`]; else none.

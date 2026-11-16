@@ -676,9 +676,13 @@ same table.
 
 It reports next-word top-1 and top-3 after a space, keystroke savings (the word is tapped in the
 strip as soon as it is shown, counting the tap), auto-correction on simulated taps (neutral and
-left-thumb) through the tap-offset path, and swipe top-1 and top-3 on simulated paths. Each
-module's comment says exactly how it simulates; the results and their history are in
-[language-model-results.md](language-model-results.md).
+left-thumb) through the tap-offset path, auto-correction for a typist who hits every key but never
+types an apostrophe ("dont", "its" for "it's"), and swipe top-1 and top-3 on simulated paths.
+Below the table it prints each typist's exact counts, for differences too small for its rounded
+percentages. Each module's comment says exactly how it simulates; the results and their history
+are in [language-model-results.md](language-model-results.md) and
+[autocorrect-results.md](autocorrect-results.md). `--strength S` or `--threshold T` scores
+another auto-correction strength.
 
 The test text is held out from a public corpus, which is never committed, so get it first:
 

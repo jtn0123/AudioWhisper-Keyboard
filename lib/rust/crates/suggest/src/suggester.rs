@@ -12,6 +12,7 @@ use chars::starts_with_ignore_case;
 use chars::text::code_point_count;
 use chars::{equals_ignore_case, is_upper_case, lowercase};
 
+use crate::apostrophes::{self, Verdict};
 use crate::auto_correction::suggestion_exceeds_threshold;
 use crate::dictionary::{Dictionary, Purpose};
 use crate::learned_words::{KNOWN_AFTER, LearnedWords, NegativeCount};
@@ -210,8 +211,33 @@ where
         let Some(top) = ranked.iter().find(|it| it.display != typed) else {
             return Ok(None);
         };
+        if is_typed_valid && is_correctable(state) {
+            match self.apostrophe_verdict(typed, ranked)? {
+                Some((Verdict::Restore, pair)) => return Ok(Some(pair.display.clone())),
+                Some((Verdict::Keep, pair)) if std::ptr::eq(pair, top) => return Ok(None),
+                _ => {}
+            }
+        }
         let corrects = self.should_auto_correct(state, input, top, is_typed_valid)?;
         Ok(corrects.then(|| top.display.clone()))
+    }
+
+    /// For a valid word that is also another with an apostrophe ("its", "it's"), what the
+    /// language model says about the two (see [`crate::apostrophes`]), and the other. Both are
+    /// asked about as shown, so a name keeps its capital ("United Nations", not "nations").
+    fn apostrophe_verdict<'r>(
+        &mut self,
+        typed: &[u16],
+        ranked: &'r [Ranked],
+    ) -> Result<Option<(Verdict, &'r Ranked)>, D::Error> {
+        let Some(pair) = ranked
+            .iter()
+            .find(|it| apostrophes::restores(typed, &it.display))
+        else {
+            return Ok(None);
+        };
+        let odds = self.dictionary.ln_odds(&pair.display, typed)?;
+        Ok(Some((apostrophes::verdict(odds), pair)))
     }
 
     /// Spell-checks `word` with no context, suggesting at most `max_count` corrections; a
@@ -471,5 +497,7 @@ where
     }
 }
 
+#[cfg(test)]
+mod apostrophe_tests;
 #[cfg(test)]
 mod tests;
