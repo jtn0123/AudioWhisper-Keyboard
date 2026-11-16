@@ -8,7 +8,7 @@
 //! [`Hand::LeftThumb`] types one-handed with the left thumb, pivoting near the keyboard's bottom
 //! left corner: the further a key is from the pivot, the more the thumb falls short of it (up to
 //! 0.15 of a key towards the left and 0.1 of a row down at the far right) and the wider it
-//! scatters (up to 15% more).
+//! scatters (up to 15% more). [`Hand::RightThumb`] is its mirror image.
 //!
 //! A tap that lands on a key that types no letter (space, shift, delete, the comma) or off the
 //! keys is drawn again: those are other mistakes (a stray space, a lost letter) than the typos
@@ -34,6 +34,8 @@ pub enum Hand {
     Neutral,
     /// One-handed, left thumb.
     LeftThumb,
+    /// One-handed, right thumb.
+    RightThumb,
 }
 
 impl Hand {
@@ -41,6 +43,7 @@ impl Hand {
         match self {
             Hand::Neutral => "neutral",
             Hand::LeftThumb => "left thumb",
+            Hand::RightThumb => "right thumb",
         }
     }
 }
@@ -56,40 +59,60 @@ pub struct Typed {
 /// Types `unit` aiming at its key. A character with no key of its own (an accented letter, an
 /// apostrophe) is typed as it is, with no position, as from a long-press or the symbols page.
 pub fn tap(keyboard: &Keyboard, unit: u16, hand: Hand, rng: &mut Rng) -> Typed {
-    let lower = chars::to_lower(unit);
-    let Some(target) = keyboard
-        .key_for(i32::from(lower))
-        .filter(|key| key.is_letter())
-    else {
-        return Typed { unit, offset: None };
-    };
-    let (pitch_x, pitch_y) = keyboard.pitch();
-    let (cx, cy) = target.center();
-    let (mut bias_x, mut bias_y, mut spread) = (0.0, 0.0, 1.0);
-    if hand == Hand::LeftThumb {
-        let reach = thumb_reach(keyboard, cx, cy);
-        bias_x = -THUMB_SHORT_X * reach * pitch_x;
-        bias_y = THUMB_SHORT_Y * reach * pitch_y;
-        spread += THUMB_SPREAD * reach;
+    match land(keyboard, unit, hand, (0.0, 0.0), rng) {
+        Some((index, x, y)) => typed(&keyboard.keys[index], unit, x, y),
+        None => Typed { unit, offset: None },
     }
+}
+
+/// Where a tap aimed at `unit`'s key lands, and the letter key it lands on (its index in
+/// [`Keyboard::keys`]), when the user's own aim at that key is `aim` key pitches across and row
+/// pitches down off its centre. `None` for a character with no key of its own.
+pub fn land(
+    keyboard: &Keyboard,
+    unit: u16,
+    hand: Hand,
+    aim: (f32, f32),
+    rng: &mut Rng,
+) -> Option<(usize, f32, f32)> {
+    let lower = chars::to_lower(unit);
+    let target = keyboard
+        .index_for(i32::from(lower))
+        .filter(|&index| keyboard.keys[index].is_letter())?;
+    let (pitch_x, pitch_y) = keyboard.pitch();
+    let (cx, cy) = keyboard.keys[target].center();
+    let (mut bias_x, mut bias_y, mut spread) = (aim.0 * pitch_x, aim.1 * pitch_y, 1.0);
+    let reach = match hand {
+        Hand::Neutral => 0.0,
+        Hand::LeftThumb => thumb_reach(keyboard, cx, cy, 0.0),
+        Hand::RightThumb => thumb_reach(keyboard, cx, cy, keyboard.width),
+    };
+    let toward = if hand == Hand::RightThumb { 1.0 } else { -1.0 };
+    bias_x += toward * THUMB_SHORT_X * reach * pitch_x;
+    bias_y += THUMB_SHORT_Y * reach * pitch_y;
+    spread += THUMB_SPREAD * reach;
     for _ in 0..REDRAWS {
         let x = cx + bias_x + rng.gaussian() as f32 * SPREAD_X * spread * pitch_x;
         let y = cy + bias_y + rng.gaussian() as f32 * SPREAD_Y * spread * pitch_y;
-        if let Some(hit) = keyboard.key_at(x, y).filter(|key| key.is_letter()) {
-            return typed(hit, unit, x, y);
+        if let Some(hit) = keyboard
+            .index_at(x, y)
+            .filter(|&index| keyboard.keys[index].is_letter())
+        {
+            return Some((hit, x, y));
         }
     }
-    typed(target, unit, cx, cy)
+    Some((target, cx, cy))
 }
 
-/// How far (cx, cy) is from the left thumb's pivot, as a share of the keyboard's width.
-fn thumb_reach(keyboard: &Keyboard, cx: f32, cy: f32) -> f32 {
-    let (px, py) = (0.0, keyboard.height);
-    ((cx - px).hypot(cy - py) / keyboard.width).min(1.0)
+/// How far (cx, cy) is from a thumb's pivot at the keyboard's bottom edge, `pivot_x` across, as a
+/// share of the keyboard's width.
+fn thumb_reach(keyboard: &Keyboard, cx: f32, cy: f32, pivot_x: f32) -> f32 {
+    let py = keyboard.height;
+    ((cx - pivot_x).hypot(cy - py) / keyboard.width).min(1.0)
 }
 
 /// What a tap at (x, y) on `hit` types when the user meant `unit`: `hit`'s letter in `unit`'s case.
-fn typed(hit: &Key, unit: u16, x: f32, y: f32) -> Typed {
+pub fn typed(hit: &Key, unit: u16, x: f32, y: f32) -> Typed {
     let letter = hit.code as u16;
     let unit = if chars::is_upper_case(unit) {
         chars::to_upper(letter)

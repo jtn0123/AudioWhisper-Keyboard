@@ -8,10 +8,16 @@
 //!   --limit N       score the first N sentences of each test file (default: all)
 //!   --seed N        the seed for taps and swipes (default 20261116)
 //!   --threads N     scoring threads (default: the machine's)
+//!   --learning      run the tap-aim learning run instead (see `scoreboard::learning`)
+//!   --warm-up N     learning run: sentences typed before scoring starts (default 2000)
+//!   --from-corrected nothing|unchanged|rebased
+//!                   learning run: what a kept auto-correction teaches (default nothing)
 //!
-//! Prints a markdown table: a column for each test file, then one for all of them.
+//! Prints a markdown table: a column for each test file, then one for all of them; for the
+//! learning run, a row for each user and a column for each way of using what was learned.
 
 use scoreboard::geometry::Keyboard;
+use scoreboard::learning::FromCorrected;
 use scoreboard::report::{Tally, table};
 use scoreboard::{Source, text};
 use std::path::{Path, PathBuf};
@@ -28,6 +34,9 @@ struct Options {
     limit: usize,
     seed: u64,
     threads: usize,
+    learning: bool,
+    warm_up: usize,
+    from_corrected: FromCorrected,
 }
 
 fn app() -> PathBuf {
@@ -43,6 +52,9 @@ fn options() -> Result<Options, String> {
         limit: usize::MAX,
         seed: 20261116,
         threads: std::thread::available_parallelism().map_or(4, |n| n.get()),
+        learning: false,
+        warm_up: 2000,
+        from_corrected: FromCorrected::Nothing,
     };
     let mut args = std::env::args().skip(1);
     while let Some(flag) = args.next() {
@@ -62,6 +74,16 @@ fn options() -> Result<Options, String> {
             "--limit" => options.limit = number(value()?)? as usize,
             "--seed" => options.seed = number(value()?)?,
             "--threads" => options.threads = number(value()?)? as usize,
+            "--learning" => options.learning = true,
+            "--warm-up" => options.warm_up = number(value()?)? as usize,
+            "--from-corrected" => {
+                options.from_corrected = match value()?.as_str() {
+                    "nothing" => FromCorrected::Nothing,
+                    "unchanged" => FromCorrected::Unchanged,
+                    "rebased" => FromCorrected::Rebased,
+                    other => return Err(format!("--from-corrected {other}?")),
+                }
+            }
             _ => return Err(format!("unknown option {flag}")),
         }
     }
@@ -105,6 +127,24 @@ fn run() -> Result<(), String> {
             name: name.clone(),
             sentences,
         });
+    }
+    if options.learning {
+        let sentences: Vec<_> = sources.into_iter().map(|s| s.sentences).collect();
+        let learning = scoreboard::learning_run::Options {
+            seed: options.seed,
+            warm_up: options.warm_up,
+            from_corrected: options.from_corrected,
+        };
+        let table = scoreboard::learning_run::run(
+            dictionary.into(),
+            model.as_ref(),
+            &keyboard,
+            &sentences,
+            &learning,
+        )?;
+        print!("{table}");
+        eprintln!("scored in {:.1} s", started.elapsed().as_secs_f64());
+        return Ok(());
     }
     let tallies = scoreboard::run(
         dictionary.into(),

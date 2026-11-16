@@ -117,11 +117,21 @@ impl Keyboard {
 
     /// The key that types `code`.
     pub fn key_for(&self, code: i32) -> Option<&Key> {
-        self.keys.iter().find(|key| key.code == code)
+        self.index_for(code).map(|index| &self.keys[index])
+    }
+
+    /// Where in [`Keyboard::keys`] the key that types `code` is.
+    pub fn index_for(&self, code: i32) -> Option<usize> {
+        self.keys.iter().position(|key| key.code == code)
     }
 
     /// The key a touch at (x, y) lands on, as the keyboard finds it.
     pub fn key_at(&self, x: f32, y: f32) -> Option<&Key> {
+        self.index_at(x, y).map(|index| &self.keys[index])
+    }
+
+    /// Where in [`Keyboard::keys`] the key a touch at (x, y) lands on is.
+    pub fn index_at(&self, x: f32, y: f32) -> Option<usize> {
         let mut rows = Vec::with_capacity(self.row_lengths.len());
         let mut start = 0;
         let touches: Vec<Rect> = self.keys.iter().map(|key| key.touch).collect();
@@ -129,7 +139,7 @@ impl Keyboard {
             rows.push(&touches[start..start + length]);
             start += length;
         }
-        keys::key_at(&rows, x, y).map(|index| &self.keys[index])
+        keys::key_at(&rows, x, y)
     }
 
     /// The letter keys' centres and sizes, as glide typing reads every key.

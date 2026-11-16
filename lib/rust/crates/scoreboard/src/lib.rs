@@ -7,6 +7,8 @@
 #![forbid(unsafe_code)]
 
 pub mod geometry;
+pub mod learning;
+pub mod learning_run;
 pub mod report;
 pub mod rng;
 pub use lexicon::text;
