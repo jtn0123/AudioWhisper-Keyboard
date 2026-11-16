@@ -233,6 +233,7 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_LatinSessionNative_sug
             };
             let offsets = taps(env, offsets)?;
             let mut session = locked::<Session>(handle, "session")?;
+            super::letter_odds::note(&session, &state);
             let mut dictionary = session.request(&state.previous_words, block != 0, &offsets);
             let strip = Suggester {
                 dictionary: &mut dictionary,

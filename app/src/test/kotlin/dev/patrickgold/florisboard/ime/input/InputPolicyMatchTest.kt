@@ -2,6 +2,7 @@ package dev.patrickgold.florisboard.ime.input
 
 import com.jtn0123.audiowhisper.rust.*
 import dev.patrickgold.florisboard.ime.input.reference.*
+import dev.patrickgold.florisboard.ime.text.key.KeyCode
 import kotlin.random.Random
 import kotlin.test.*
 
@@ -20,6 +21,10 @@ class InputPolicyMatchTest {
         val r=Random(20261113)
         for(code in KeyModels.codes()) {
             assertEquals(ReferenceInputPointer.suitable(code),InputRules.pointer(floatArrayOf(code.toFloat())),"Rolling pointer rule")
+            // AudioWhisper: a still space or delete goes up too, so a letter tapped over it comes after it.
+            val still=code==KeyCode.SPACE||code==KeyCode.CJK_SPACE||code==KeyCode.DELETE
+            assertEquals(ReferenceInputPointer.suitable(code),InputRules.pointer(floatArrayOf(code.toFloat(),0f)),"Moved pointer")
+            assertEquals(ReferenceInputPointer.suitable(code)||still,InputRules.pointer(floatArrayOf(code.toFloat(),1f)),"Still pointer")
             for(bits in 0..7) assertEquals(ReferenceInputPointer.hold(code,bits and 1!=0,bits and 2!=0,bits and 4!=0),
                 InputRules.hold(code,bits and 1!=0,bits and 2!=0,bits and 4!=0))
         }

@@ -8,6 +8,7 @@ import dev.patrickgold.florisboard.lib.PointerMap
 
 /** Test-only transcription of 7c0b8183 TextKeyboardLayoutController. Android drawing, coroutine
  * jobs and editor calls become explicit inputs and action traces; swipe policy stays verbatim.
+ * Since then, a still space or delete goes up too when another finger lands ([rolls]).
  */
 internal class ReferenceRendererTouch(val codes: IntArray,val settings: List<SwipeAction>,val isGlideEnabled: Boolean,
     val density: Float=1f,val raw: Boolean=false,val gif: Boolean=false): SwipeGesture.Listener, GlideTypingGesture.Listener {
@@ -26,6 +27,11 @@ internal class ReferenceRendererTouch(val codes: IntArray,val settings: List<Swi
     private val velocity=ReferenceRendererVelocity()
     private val output=mutableListOf<Int>()
     init {glide.registerListener(this)}
+    /** Whether [key], held by [p], goes up when another finger lands: a character key, or a space
+     * or delete whose finger hasn't swiped or been held long. */
+    private fun rolls(key: RefKey,p: RefPointer)=popupUiController.isSuitableForPopups(key) ||
+        (!p.hasTriggeredGestureMove && !p.hasTriggeredLongPress &&
+            key.computedData.code.let {it==KeyCode.SPACE || it==KeyCode.CJK_SPACE || it==KeyCode.DELETE})
     fun index(data: TextKeyData)=keys.indexOfFirst {it.computedData.code==data.code}
     fun emit(type: Int,value: Int,extra: Int) {output.addAll(listOf(type,value,extra))}
     override fun onSwipe(event: SwipeGesture.Event)=handleSwipe(event)
@@ -96,7 +102,7 @@ internal class ReferenceRendererTouch(val codes: IntArray,val settings: List<Swi
             }
             5 -> {
                 pointerMap.findById(ids[index])?.let {p ->swipe.onTouchCancel(p.id);cancel(p);pointerMap.removeById(p.id)}
-                for(p in pointerMap) if(p.activeKey?.let {popupUiController.isSuitableForPopups(it)}==true) {
+                for(p in pointerMap) if(p.activeKey?.let {rolls(it,p)}==true) {
                     currentPointer=p.id;swipe.onTouchCancel(p.id);up(p)
                 }
                 currentPointer=ids[index]

@@ -361,15 +361,19 @@ class NlpManager(context: Context) {
     /** AudioWhisper: the screen's orientation, which where this user taps is learned per. */
     fun noteOrientation(landscape: Boolean) = tapTrail.landscape(landscape)
 
-    /** AudioWhisper: where this user taps, for the Rust renderer's hit test; null when the setting is off. */
-    val tapAim get() = latinProvider.tapTrail.positions.takeIf { prefs.suggestion.learnTapAim.get() }
+    /** AudioWhisper: what was typed and where, for the Rust renderer's hit test. */
+    val tapPositions get() = latinProvider.tapTrail.positions
+
+    /** AudioWhisper: whether the hit tests use where this user is known to tap (the setting). */
+    val aimsTaps get() = prefs.suggestion.learnTapAim.get()
 
     /**
-     * AudioWhisper: [hit], or its neighbour if this user's learned aim says a tap at ([x], [y])
-     * meant it (see [com.jtn0123.audiowhisper.suggest.TapTrail.retarget]); [hit] when the setting is off.
+     * AudioWhisper: [hit], or its neighbour if the letters likely to come next or, with the
+     * setting on, this user's learned aim say a tap at ([x], [y]) meant it (see
+     * [com.jtn0123.audiowhisper.suggest.TapTrail.retarget]).
      */
     fun aimedKey(hit: Int, layout: IntArray, bounds: FloatArray, x: Float, y: Float): Int =
-        if (prefs.suggestion.learnTapAim.get()) tapTrail.retarget(hit, layout, bounds, x, y) else hit
+        tapTrail.retarget(hit, layout, bounds, x, y, aimsTaps)
 
     /** Schedules a save if where this user taps or the counters changed. */
     private fun noteTypingChanged() {

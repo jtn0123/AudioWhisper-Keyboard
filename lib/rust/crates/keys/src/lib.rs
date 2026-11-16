@@ -15,6 +15,7 @@ mod flex;
 mod layout;
 pub mod model_data;
 pub mod models;
+pub mod resize;
 
 pub use desired::desired_key;
 pub use flex::{Flex, flex, mode};

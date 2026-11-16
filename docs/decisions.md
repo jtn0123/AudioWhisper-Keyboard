@@ -532,3 +532,54 @@ is taken back. A whole address was already never stored (a learned word is lette
 (honour `TYPE_TEXT_FLAG_AUTO_CORRECT` there), a URL field on Gboard turns out to space after a pick,
 or prose writers miss words after "and/" or "e.g." (the address test is deliberately broad: a word
 it wrongly skips is simply not learned this once).
+
+## Keys resized by the letter odds (2026-11-16)
+
+A tap near the border between two letter keys types the one likelier to come next in the word,
+by the n-gram model's odds for the words before and the letters typed: the border moves towards
+the less likely key by 0.04 × the log odds key widths across (0.025 between rows), at most 0.15
+key, so a tap further inside its key than that always types it. It ships, always on, in both
+hit tests (`keys::resize`), and costs about 8 µs a tap on the host with the odds worked out at the
+tap (the phone works them out on the suggest path). On held-out text it cuts typos made from 38%
+to 20% for a left thumb and from 20% to 8.5% for a neutral hand; word accuracy after autocorrect
+goes from 93.72% to 95.18% (left) and 96.92% to 97.62% (neutral), with harmful corrections down
+on every hand ([results](key-resize-results.md)). With tap-aim learning on as well, the left
+thumb goes from 94.84% to 95.85%.
+
+- *How it combines with the learned aim:* the aim goes first and the odds never undo it. Where
+  the aim keeps a tap, the odds act on where the user meant it, stopped at the key's border.
+  The aim is this user's own evidence about their finger; the odds are a guess about the text.
+- *Why weaker than the theory:* Bayes' rule with the simulator's own tap spread gives 0.0625 and
+  0.04. That is 0.04–0.16 point more accurate on the report text but loses about 40% more words
+  the plain hit test had right, and a real finger isn't the simulator's. The factor is the
+  simulated spread scaled to 0.2 key across.
+- *Why the rare words are safe enough:* words outside the dictionary are typed right more often
+  with it on every hand (64.42% → 65.65% neutral, 46.75% → 49.30% left), and more of them are
+  committed right (3,149 → 3,209 and 2,285 → 2,410). The odds turn themselves off as soon as no
+  known word starts with what was typed. Their harmful-correction *rate* rises (14.45% → 14.88%
+  neutral) only because more rare words are now tapped cleanly, which autocorrect then sometimes
+  changes; counted by word they gain (175 won against 115 lost, neutral).
+- *Why the odds are checked against the tap trail:* suggesting runs off the hit test's path and
+  can be a keystroke behind. A key going down uses the odds only while the letters typed end in
+  the word they were worked out for and no other key is down; for a first letter, only straight
+  after the space bar. Rollover therefore gets no resize (the odds would be a letter behind), nor
+  does the first key after a backspace or shift press. Two stale cases remain: a word that ends
+  in its own prefix ("t" then another "t") and an empty-word deposit from an earlier word boundary;
+  both only move a tap within 0.15 key of a border.
+- *Tried and dropped:* backing the prior off as the typed prefix gets unlikely (no better on rare
+  words, worse overall), leaving first letters alone (0.58 point worse for the left thumb), caps of
+  0.2 and above (a little better overall, worse for the neutral hand's rare words), and floors of
+  0.05 and 0.2 (no clear gain over 0.1).
+
+The fast-typing check found that a letter tapped over a held space was typed before the space
+("thec " for "the c"), and one tapped over a held delete was deleted by it: both keys act when
+they go up, and neither renderer let them go when another finger landed. Now a still space or
+delete goes up, typed, when another finger goes down (`input::pointer::rolls`), as letters
+already did; one that has swiped or been held long stays, so a cursor swipe goes on and a hold
+keeps its action. Shift stays down, so shift-and-tap still capitalises.
+
+**Would change if** the phone's counters ([rust.md](rust.md#the-typing-counters)) show more
+backspaces or undone corrections with it than without; if a layout's keys are much smaller than
+QWERTY's (the factor is in key widths, so it scales, but the cap may need to shrink); if a
+better language model is shipped (re-tune the factor against it); or if real taps can be measured
+without logging them and spread wider or narrower than 0.2 key, which sets the factor.

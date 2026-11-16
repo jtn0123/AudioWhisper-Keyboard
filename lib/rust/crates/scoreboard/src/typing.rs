@@ -6,7 +6,7 @@
 use crate::geometry::Keyboard;
 use crate::rng::Rng;
 use crate::text::Sentence;
-use crate::touch::{self, Hand, Typed};
+use crate::touch::{self, Hand, KeyResize, Typed};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use suggest::auto_correction::Strength;
@@ -33,6 +33,9 @@ pub struct Engine {
     pub typing_time: Vec<Duration>,
     /// The same for the strips of next words after a space.
     pub prediction_time: Vec<Duration>,
+    /// Time spent finding each tap's key after the plain hit test: the letter odds, when on, and
+    /// the hit test that leans on them.
+    pub hit_time: Vec<Duration>,
 }
 
 /// An n-gram model to score with, and how the session uses it.
@@ -50,6 +53,7 @@ impl Engine {
             threshold: Strength::DEFAULT.threshold(),
             typing_time: Vec::new(),
             prediction_time: Vec::new(),
+            hit_time: Vec::new(),
         })
     }
 
@@ -112,23 +116,37 @@ impl Engine {
     }
 
     /// Types word `index` of `sentence` with simulated taps, then ends it as the space bar does:
-    /// committing the auto-correction if there is one.
+    /// committing the auto-correction if there is one. With `resize`, each tap's key leans on the
+    /// odds of each letter coming next after what was typed so far ([`touch::key_for`]).
     pub fn autocorrect(
         &mut self,
         keyboard: &Keyboard,
         sentence: &Sentence,
         index: usize,
-        hand: Hand,
+        (hand, resize): (Hand, Option<&KeyResize>),
         rng: &mut Rng,
     ) -> Corrected {
         let word = sentence.word(index);
-        let taps: Vec<Typed> = word
-            .iter()
-            .map(|&unit| touch::tap(keyboard, unit, hand, rng))
-            .collect();
-        let typed: Vec<u16> = taps.iter().map(|tap| tap.unit).collect();
-        let offsets: Vec<Option<TapOffset>> = taps.iter().map(|tap| tap.offset).collect();
-        self.end_word(sentence.before(index), &typed, &offsets, word)
+        let previous = PreviousWords::from(sentence.before(index));
+        let mut typed: Vec<u16> = Vec::with_capacity(word.len());
+        let mut offsets: Vec<Option<TapOffset>> = Vec::with_capacity(word.len());
+        let mut plain = true;
+        for &unit in word {
+            let tap = match touch::land(keyboard, unit, hand, (0.0, 0.0), rng) {
+                Some((hit, x, y)) => {
+                    plain &= touch::typed(&keyboard.keys[hit], unit, x, y).unit == unit;
+                    let key = self.key_for(keyboard, hit, (x, y), (&previous, &typed), resize);
+                    touch::typed(&keyboard.keys[key], unit, x, y)
+                }
+                None => Typed { unit, offset: None },
+            };
+            typed.push(tap.unit);
+            offsets.push(tap.offset);
+        }
+        Corrected {
+            plain,
+            ..self.end_word(sentence.before(index), &typed, &offsets, word)
+        }
     }
 
     /// Types word `index` of `sentence` as a user who never types an apostrophe ("dont", "im",
@@ -142,7 +160,8 @@ impl Engine {
     }
 
     /// Ends `typed` (meant as `word`) after `before` as the space bar does: committing the
-    /// auto-correction if there is one.
+    /// auto-correction if there is one. No hit test retargeted what was typed, so the plain one
+    /// typed it as cleanly.
     fn end_word(
         &mut self,
         before: &[u16],
@@ -156,11 +175,34 @@ impl Engine {
             .into_iter()
             .find(|candidate| candidate.is_auto_correction)
             .map_or_else(|| typed.to_vec(), |candidate| candidate.text);
+        let right = chars::equals_ignore_case(&committed, word);
         Corrected {
             clean: typed == word,
             changed: committed != typed,
-            right: chars::equals_ignore_case(&committed, word),
+            right,
+            plain: typed == word,
+            // Set by the caller when it scores the plain hit test too.
+            plain_right: right,
         }
+    }
+
+    /// The key a tap at `at` on `hit` types after `typed` (and the words before), as
+    /// [`touch::key_for`] finds it with this session's letter odds; `hit` without `resize`.
+    pub fn key_for(
+        &mut self,
+        keyboard: &Keyboard,
+        hit: usize,
+        at: (f32, f32),
+        (previous, typed): (&PreviousWords, &[u16]),
+        resize: Option<&KeyResize>,
+    ) -> usize {
+        let started = Instant::now();
+        let odds = resize
+            .and(self.session.language_model())
+            .and_then(|m| m.letter_odds(previous, typed));
+        let key = touch::key_for(keyboard, hit, at, |_| None, odds.as_ref(), resize);
+        self.hit_time.push(started.elapsed());
+        key
     }
 }
 
@@ -176,6 +218,10 @@ pub struct Corrected {
     pub changed: bool,
     /// The word committed is the word meant.
     pub right: bool,
+    /// The plain hit test, before any retargeting, would have typed the word as meant.
+    pub plain: bool,
+    /// The word committed with the plain hit test is the word meant.
+    pub plain_right: bool,
 }
 
 #[cfg(test)]

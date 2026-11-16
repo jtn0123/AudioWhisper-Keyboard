@@ -168,3 +168,100 @@ fn packs_and_quantises() {
     assert_eq!(format::quantise(0.5, 0.1), 0);
     assert_eq!(format::ln(10, 0.1), -1.0);
 }
+
+/// The probability of each word after `context`, summed over the words that start with
+/// `prefix` and go on with each next unit: what [`Model::next_units`] must give.
+fn brute_next_units(m: &Model, context: Context, prefix: &[u16]) -> Vec<(u16, f64)> {
+    let mut next: Vec<(u16, f64)> = Vec::new();
+    for id in 0..m.words() {
+        let word = m.spelling(id).unwrap();
+        if word.len() > prefix.len() && word.starts_with(prefix) {
+            let p = f64::from(m.ln_probability(context, id).unwrap()).exp();
+            match next.last_mut() {
+                Some((unit, mass)) if *unit == word[prefix.len()] => *mass += p,
+                _ => next.push((word[prefix.len()], p)),
+            }
+        }
+    }
+    next
+}
+
+#[test]
+fn next_units_add_up_the_words_they_continue() {
+    let m = model();
+    let contexts = [
+        Context::default(),
+        Context {
+            newest: Some(0),
+            older: None,
+        },
+        Context {
+            newest: Some(0),
+            older: Some(3),
+        },
+        Context {
+            newest: Some(1),
+            older: Some(0),
+        },
+    ];
+    for context in contexts {
+        let next = m.next_units(context, &[]);
+        let expected = brute_next_units(&m, context, &[]);
+        assert_eq!(next.len(), 3, "{context:?}");
+        for ((unit, mass), (want_unit, want)) in next.iter().zip(&expected) {
+            assert_eq!(unit, want_unit);
+            assert!(
+                (mass - want).abs() < 1e-6,
+                "{context:?} {unit}: {mass} {want}"
+            );
+        }
+    }
+    // c by its trigram, b by a's bigram after the pair's backoff, a by both backoffs.
+    let start_a = m.next_units(contexts[2], &[]);
+    let masses: Vec<f64> = start_a.iter().map(|&(_, p)| p).collect();
+    let want = [
+        (-0.6f64 - 0.5 - 1.0).exp(),
+        (-0.6f64 - 1.2).exp(),
+        (-0.8f64).exp(),
+    ];
+    for (mass, want) in masses.iter().zip(want) {
+        assert!((mass - want).abs() < 1e-6, "{mass} {want}");
+    }
+    // No word goes on after a whole word, and none starts with "d".
+    assert!(m.next_units(contexts[1], &utf16("a")).is_empty());
+    assert!(m.next_units(contexts[1], &utf16("d")).is_empty());
+}
+
+#[test]
+fn next_units_match_the_shipped_model_word_by_word() {
+    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../../../app/src/main/assets/dicts/main_en-US.lm");
+    let m = Model::open(std::fs::read(path).unwrap()).unwrap();
+    let words = |text: &str| -> Vec<Vec<u16>> { text.split(' ').map(utf16).collect() };
+    for (before, prefix) in [
+        ("", ""),
+        ("the", "th"),
+        ("in the", "c"),
+        ("I want to", "g"),
+        ("of", "qu"),
+        ("zzqx", "re"),
+    ] {
+        let before: Vec<Vec<u16>> = if before.is_empty() {
+            Vec::new()
+        } else {
+            words(before).into_iter().rev().collect()
+        };
+        let context = m.context(&before, true);
+        let next = m.next_units(context, &utf16(prefix));
+        let expected = brute_next_units(&m, context, &utf16(prefix));
+        assert!(!next.is_empty(), "{prefix}");
+        assert_eq!(next.len(), expected.len(), "{prefix}");
+        for ((unit, mass), (want_unit, want)) in next.iter().zip(&expected) {
+            assert_eq!(unit, want_unit, "{prefix}");
+            assert!(
+                (mass - want).abs() <= 1e-9 + want * 1e-6,
+                "{prefix} {unit}: {mass} {want}"
+            );
+        }
+    }
+}

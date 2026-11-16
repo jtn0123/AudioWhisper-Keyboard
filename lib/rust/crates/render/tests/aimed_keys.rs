@@ -83,3 +83,37 @@ fn a_key_going_down_is_the_aimed_key() {
     };
     assert_eq!(Touch::default().event(&mut scene, &down), [Action(0, 1, 7)]);
 }
+
+/// Key 1's letter is far likelier to come next than key 0's.
+fn likelier_middle() -> Vec<Option<f32>> {
+    vec![Some(0.01f32.ln()), Some(0.9f32.ln()), Some(0.09f32.ln())]
+}
+
+#[test]
+fn a_tap_near_a_likelier_neighbour_types_it() {
+    let mut scene = scene();
+    // 3 px (0.06 key) inside key 0: the border moves at most 0.15 key, 7.5 px.
+    assert_eq!(scene.aimed_key_at(47.0, 40.0), Some(0), "no odds");
+    scene.priors = likelier_middle();
+    assert_eq!(scene.aimed_key_at(47.0, 40.0), Some(1));
+    // Further inside than the cap, or towards a less likely key, the tap stays.
+    assert_eq!(scene.aimed_key_at(42.0, 40.0), Some(0));
+    assert_eq!(scene.aimed_key_at(53.0, 40.0), Some(1));
+    // Key 2 is less likely than key 1, so its side of their border is key 1's too.
+    assert_eq!(scene.aimed_key_at(103.0, 40.0), Some(1));
+    // The strip is still no key.
+    assert_eq!(scene.aimed_key_at(47.0, 10.0), None);
+}
+
+#[test]
+fn the_learned_aim_goes_before_the_odds() {
+    let mut scene = scene();
+    scene.priors = likelier_middle();
+    // Taps for every key land 10 to the right: a tap at 55 means 45, key 0, though key 1 is
+    // likelier; measured from 45 (0.1 key inside key 0) the odds can't reach it.
+    scene.aims = vec![Some((10.0, 0.0)); 3];
+    assert_eq!(scene.aimed_key_at(55.0, 40.0), Some(0));
+    // Where the aim keeps a tap, the odds still move it from where it was meant.
+    scene.aims = vec![Some((1.0, 0.0)); 3];
+    assert_eq!(scene.aimed_key_at(48.0, 40.0), Some(1));
+}

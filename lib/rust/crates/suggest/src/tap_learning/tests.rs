@@ -194,9 +194,51 @@ fn retargets_in_the_current_orientation() {
         height: 10.0,
     });
     let key_at = |x: f32, _: f32| Some(usize::from(x >= 10.0));
-    assert_eq!(taps.retarget(&keys, 0, (8.0, 5.0), key_at), 1);
+    let none = |_| None;
+    assert_eq!(
+        taps.key_for(&keys, (0, (8.0, 5.0)), true, &[], none, key_at),
+        1
+    );
+    assert_eq!(
+        taps.key_for(&keys, (0, (8.0, 5.0)), false, &[], none, key_at),
+        0,
+        "the aim isn't used"
+    );
     taps.set_orientation(Orientation::Landscape);
-    assert_eq!(taps.retarget(&keys, 0, (8.0, 5.0), key_at), 0);
+    assert_eq!(
+        taps.key_for(&keys, (0, (8.0, 5.0)), true, &[], none, key_at),
+        0
+    );
+}
+
+#[test]
+fn the_letter_odds_move_a_tap_the_aim_leaves() {
+    let taps = taps();
+    let keys = ['o', 'p'].map(|c| AimKey {
+        code: c as i32,
+        width: 10.0,
+        height: 10.0,
+    });
+    let key_at = |x: f32, _: f32| Some(usize::from(x >= 10.0));
+    let bounds = |i: usize| {
+        let left = i as f32 * 10.0;
+        Some(keys::Rect {
+            left,
+            top: 0.0,
+            right: left + 10.0,
+            bottom: 10.0,
+        })
+    };
+    // P far likelier than O: a tap 0.1 key inside O types P; one 0.3 inside stays an O.
+    let priors = [Some(0.01f32.ln()), Some(0.9f32.ln())];
+    for aimed in [false, true] {
+        let key_for = |x| taps.key_for(&keys, (0, (x, 5.0)), aimed, &priors, bounds, key_at);
+        assert_eq!((key_for(9.0), key_for(7.0)), (1, 0));
+    }
+    assert_eq!(
+        taps.key_for(&keys, (0, (9.0, 5.0)), false, &[], bounds, key_at),
+        0
+    );
 }
 
 #[test]

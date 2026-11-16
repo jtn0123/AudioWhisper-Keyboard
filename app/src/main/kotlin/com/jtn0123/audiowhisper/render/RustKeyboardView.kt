@@ -242,8 +242,9 @@ class RustKeyboardView(context: Context) : FrameLayout(context), SurfaceHolder.C
         if (accessibility.touch(event)) return true
         val packet = event.rendererPacket()
         snapshot?.let(gestureHost::configure)
-        // AudioWhisper: a key going down types the key this user meant, if their aim is learned.
-        val actions = native.touch(packet.metadata, packet.times, packet.coords, nlp.tapAim)
+        // AudioWhisper: a key going down types the key this user meant: by the letters likely to
+        // come next, and by where they tap if that is learned.
+        val actions = native.touch(packet.metadata, packet.times, packet.coords, nlp.tapPositions, nlp.aimsTaps)
         dispatchActions(actions, event)
         scheduleDeadline()
         snapshot?.let { state -> mediaBuffers.update(state.panels.clipboard.takeIf { state.panels.kind==4 },state.panels.gif.takeIf { state.panels.kind==5 }) }

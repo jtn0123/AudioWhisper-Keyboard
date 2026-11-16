@@ -220,12 +220,15 @@ impl TapAim {
         at: (f32, f32),
         key_at: impl Fn(f32, f32) -> Option<usize>,
     ) -> usize {
-        let shift = |index: usize| {
-            let key = keys.get(index)?;
-            let bias = self.bias(orientation, key.code)?;
-            Some((bias.dx * key.width, bias.dy * key.height))
-        };
+        let shift = |index: usize| self.shift(orientation, keys.get(index)?);
         keys::aim::retarget(hit, at, shift, key_at)
+    }
+
+    /// How far, in pixels, this user's taps for `key` land from where they mean, where that is
+    /// known: its learned bias in its own size.
+    pub fn shift(&self, orientation: Orientation, key: &AimKey) -> Option<(f32, f32)> {
+        let bias = self.bias(orientation, key.code)?;
+        Some((bias.dx * key.width, bias.dy * key.height))
     }
 
     /// The saved text: a header, then one line per key, numbers only.

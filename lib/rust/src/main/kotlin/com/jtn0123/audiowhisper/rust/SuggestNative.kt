@@ -70,7 +70,7 @@ internal object SuggestNative {
 
     @JvmStatic external fun tapAimedOffsetsFor(trail: Long, word: String, aimed: Boolean): FloatArray
 
-    @JvmStatic external fun tapRetarget(trail: Long, layout: IntArray, bounds: FloatArray, x: Float, y: Float): Int
+    @JvmStatic external fun tapRetarget(trail: Long, layout: IntArray, bounds: FloatArray, x: Float, y: Float, aimed: Boolean): Int
 
     @JvmStatic external fun tapAimText(trail: Long): String
 

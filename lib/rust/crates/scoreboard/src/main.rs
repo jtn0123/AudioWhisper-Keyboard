@@ -13,6 +13,12 @@
 //!   --swipe-only    score swipes only
 //!   --strength S    auto-correction strength: off, modest, normal (default) or aggressive
 //!   --threshold T   ... or any threshold, for choosing the strengths' (`off` for none)
+//!   --correction-only
+//!                   score auto-correction only
+//!   --resize A,D,C[,F]
+//!                   the hit test leans on the letter odds (`keys::resize::Resize`: A across,
+//!                   D down, a border moves at most C; F of the odds spread over every letter,
+//!                   default `LetterOdds::FLOOR`)
 //!
 //! How swipes are decoded (default: as the keyboard does; each flag changes one thing):
 //!   --original      FlorisBoard's classifier and the flat frequency curve
@@ -34,10 +40,12 @@
 //! swipe variant's counts over all of them. For the learning run, a row for each user and a
 //! column for each way of using what was learned.
 
+use keys::resize::Resize;
 use scoreboard::geometry::Keyboard;
 use scoreboard::learning::FromCorrected;
 use scoreboard::report::{Tally, table};
 use scoreboard::swipe::{Decoder, VARIANTS};
+use scoreboard::touch::KeyResize;
 use scoreboard::{Settings, Source, text};
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
@@ -45,6 +53,7 @@ use std::sync::Arc;
 use std::time::Instant;
 use suggest::auto_correction::Strength;
 use suggest::language_model::Tuning;
+use suggest::letter_odds::LetterOdds;
 use suggest::swipe_words::Boost;
 
 struct Options {
@@ -83,6 +92,8 @@ fn options() -> Result<Options, String> {
             decoder: Decoder::DEFAULT,
             swipe_only: false,
             threshold: Strength::DEFAULT.threshold(),
+            correction_only: false,
+            resize: None,
         },
         learning: false,
         warm_up: 2000,
@@ -118,6 +129,8 @@ fn options() -> Result<Options, String> {
                 let v = value()?;
                 options.settings.threshold = if v == "off" { None } else { Some(real(v)?) };
             }
+            "--correction-only" => options.settings.correction_only = true,
+            "--resize" => options.settings.resize = Some(resize(&value()?)?),
             "--original" => options.settings.decoder = Decoder::ORIGINAL,
             "--ends" => options.settings.decoder.glide.ends = real(value()?)?,
             "--dwell" => options.settings.decoder.glide.dwell = real(value()?)?,
@@ -150,6 +163,21 @@ fn options() -> Result<Options, String> {
         return Err("give at least one --test NAME=FILE".to_string());
     }
     Ok(options)
+}
+
+/// `--resize A,D,C[,F]`.
+fn resize(value: &str) -> Result<KeyResize, String> {
+    let numbers = value
+        .split(',')
+        .map(|v| v.parse::<f32>().map_err(|e| format!("--resize: {e}")))
+        .collect::<Result<Vec<f32>, String>>()?;
+    let (across, down, cap, floor) = match numbers[..] {
+        [a, d, c] => (a, d, c, LetterOdds::FLOOR),
+        [a, d, c, f] => (a, d, c, f),
+        _ => return Err("--resize takes A,D,C[,F]".to_string()),
+    };
+    let tuning = Resize { across, down, cap };
+    Ok(KeyResize { tuning, floor })
 }
 
 fn main() -> ExitCode {
@@ -198,6 +226,7 @@ fn run() -> Result<(), String> {
             seed: options.settings.seed,
             warm_up: options.warm_up,
             from_corrected: options.from_corrected,
+            resize: options.settings.resize,
         };
         let table = scoreboard::learning_run::run(
             dictionary.into(),
@@ -231,7 +260,7 @@ fn run() -> Result<(), String> {
         columns.push(("all", &all));
     }
     println!(
-        "Dictionary: {} ({} bytes); seed {}; {} sentences after {}; threshold {:?}; {:?}",
+        "Dictionary: {} ({} bytes); seed {}; {} sentences after {}; threshold {:?}; {:?}; {:?}",
         std::fs::canonicalize(&options.dict)
             .unwrap_or_else(|_| options.dict.clone())
             .display(),
@@ -241,6 +270,7 @@ fn run() -> Result<(), String> {
         options.skip,
         options.settings.threshold,
         options.settings.decoder,
+        options.settings.resize,
     );
     if let Some(file) = &options.model {
         println!(
@@ -266,11 +296,11 @@ fn run() -> Result<(), String> {
             swipes.swipes
         );
     }
-    for (typist, c) in [
-        ("neutral", &all.neutral),
-        ("left thumb", &all.left_thumb),
-        ("no apostrophes", &all.no_apostrophes),
-    ] {
+    let hands = scoreboard::HANDS.iter().map(|(hand, _)| hand.name());
+    for (typist, c) in hands
+        .zip(&all.hands)
+        .chain([("no apostrophes", &all.no_apostrophes)])
+    {
         println!(
             "corrections {typist}: {} words, {} clean, {} right, {} harmful, {} missed, {} wrong fixes",
             c.words, c.clean, c.right, c.harmful, c.missed, c.wrong_fix

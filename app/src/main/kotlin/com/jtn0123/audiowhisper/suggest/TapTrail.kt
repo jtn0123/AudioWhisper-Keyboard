@@ -91,13 +91,14 @@ class TapTrail(capacity: Int = SuggestRules.tapTrailCapacity) {
     fun swiped() = positions.event(TapPositions.SWIPED)
 
     /**
-     * The key a tap at ([x], [y]) types when where this user taps is taken into account: [hit]
-     * unless it lies near a border that both keys' learned aims say the tap was meant across.
-     * [layout] and [bounds] are as [TapPositions.retarget] takes them, less the hit.
+     * The key a tap at ([x], [y]) types: [hit] unless it lies near a border that, if [aimed], both
+     * keys' learned aims say the tap was meant across, or else that the neighbour's letter, being
+     * likelier to come next, takes a little of [hit]'s room. [layout] and [bounds] are as
+     * [TapPositions.retarget] takes them, less the hit.
      */
-    fun retarget(hit: Int, layout: IntArray, bounds: FloatArray, x: Float, y: Float): Int {
+    fun retarget(hit: Int, layout: IntArray, bounds: FloatArray, x: Float, y: Float, aimed: Boolean): Int {
         layout[0] = hit
-        return positions.retarget(layout, bounds, x, y).takeIf { it >= 0 } ?: hit
+        return positions.retarget(layout, bounds, x, y, aimed).takeIf { it >= 0 } ?: hit
     }
 
     /** Where this user taps, as saved in the app's private files: numbers only. */

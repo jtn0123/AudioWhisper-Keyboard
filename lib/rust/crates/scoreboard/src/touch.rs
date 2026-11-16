@@ -16,6 +16,8 @@
 
 use crate::geometry::{Key, Keyboard};
 use crate::rng::Rng;
+use keys::resize::Resize;
+use suggest::letter_odds::LetterOdds;
 use suggest::tap::TapOffset;
 
 /// The spread of a tap, in key pitches across and row pitches down.
@@ -139,6 +141,37 @@ pub fn thumb_pivot(keyboard: &Keyboard) -> (f32, f32) {
 /// How far (cx, cy) is from a thumb's pivot, as a share of the keyboard's width.
 fn thumb_reach(keyboard: &Keyboard, cx: f32, cy: f32, (px, py): (f32, f32)) -> f32 {
     ((cx - px).hypot(cy - py) / keyboard.width).min(1.0)
+}
+
+/// How the hit test leans on the letter odds ([`keys::resize`]), and how much of the odds is spread
+/// over every letter ([`LetterOdds::prior`]).
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct KeyResize {
+    pub tuning: Resize,
+    pub floor: f32,
+}
+
+/// The key a tap at `at` types once the plain hit test found `hit`: moved by this user's learned
+/// aim (`shift`, as [`keys::aim::retarget`] takes it) and, if `resize`, by the letter `odds`
+/// ([`keys::resize::key_for`]).
+pub fn key_for(
+    keyboard: &Keyboard,
+    hit: usize,
+    at: (f32, f32),
+    shift: impl Fn(usize) -> Option<(f32, f32)>,
+    odds: Option<&LetterOdds>,
+    resize: Option<&KeyResize>,
+) -> usize {
+    let key_at = |x, y| keyboard.index_at(x, y);
+    let Some(resize) = resize else {
+        return keys::aim::retarget(hit, at, shift, key_at);
+    };
+    let prior = |index: usize| {
+        let key = keyboard.keys.get(index).filter(|key| key.is_letter())?;
+        Some(odds?.prior(key.code, resize.floor))
+    };
+    let bounds = |index: usize| keyboard.keys.get(index).map(|key| key.touch);
+    keys::resize::key_for(hit, at, &resize.tuning, shift, prior, bounds, key_at)
 }
 
 /// What a tap at (x, y) on `hit` types when the user meant `unit`: `hit`'s letter in `unit`'s case.

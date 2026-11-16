@@ -12,11 +12,13 @@
 
 mod context;
 pub mod format;
+mod letters;
 
 pub use context::{Context, Spellings, context, resolve};
 use format::{Header, Layout, Unigram, ln, unpack};
 use std::cmp::Ordering;
 use std::fmt;
+use std::sync::OnceLock;
 
 /// The likeliest words on their own, kept for predicting after a word the model doesn't know.
 const TOP_WORDS: usize = 64;
@@ -28,6 +30,8 @@ pub struct Model {
     layout: Layout,
     /// The words with the highest lowest-order probability, best first.
     top: Vec<u32>,
+    /// For [`Model::next_units`], made when first asked.
+    sums: OnceLock<letters::Sums>,
 }
 
 impl fmt::Debug for Model {
@@ -88,6 +92,7 @@ impl Model {
             header,
             layout,
             top: Vec::new(),
+            sums: OnceLock::new(),
         };
         let starts_end = model.u32_at(layout.bigram_starts, header.words as usize + 1)?;
         let trigrams_end = model.u32_at(layout.trigram_starts, header.contexts as usize)?;

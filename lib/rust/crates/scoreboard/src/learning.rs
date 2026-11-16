@@ -15,11 +15,12 @@ use crate::geometry::Keyboard;
 use crate::report::Corrections;
 use crate::rng::Rng;
 use crate::text::Sentence;
-use crate::touch::{self, Hand, Typed};
+use crate::touch::{self, Hand, KeyResize, Typed};
 use crate::typing::{Corrected, Engine, WithModel};
 use std::ops::Range;
 use std::sync::Arc;
 use suggest::java;
+use suggest::previous_words::PreviousWords;
 use suggest::qwerty;
 use suggest::tap::{TapOffset, TapTrail};
 use suggest::tap_aim::AimKey;
@@ -163,6 +164,15 @@ pub struct Run<'a> {
     pub from_corrected: FromCorrected,
     pub seed: u64,
     pub windows: Vec<Range<usize>>,
+    /// Whether the hit test leans on the letter odds too.
+    pub resize: Option<KeyResize>,
+}
+
+/// What the keyboard knows at a tap: the learned aim's keys and what was typed before it.
+struct AtTap<'a> {
+    aim_keys: &'a [AimKey],
+    previous: &'a PreviousWords,
+    typed: &'a [u16],
 }
 
 impl Run<'_> {
@@ -181,11 +191,17 @@ impl Run<'_> {
             for w in 0..sentence.words.len() {
                 let mut rng = Rng::for_item(self.seed, i as u64, w as u64);
                 let word = sentence.word(w);
-                let typed: Vec<u16> = word
-                    .iter()
-                    .map(|&unit| self.tap(unit, hand, aims, &aim_keys, &mut taps, &mut rng))
-                    .map(|typed| typed.unit)
-                    .collect();
+                let previous = PreviousWords::from(sentence.before(w));
+                let mut typed: Vec<u16> = Vec::with_capacity(word.len());
+                for &unit in word {
+                    let at = AtTap {
+                        aim_keys: &aim_keys,
+                        previous: &previous,
+                        typed: &typed,
+                    };
+                    let tap = self.tap(unit, (hand, aims), at, (&mut taps, &engine), &mut rng);
+                    typed.push(tap.unit);
+                }
                 let offsets = taps.offsets_for(&typed, self.mode != Mode::Off);
                 let strip = engine.strip(sentence.before(w), &typed, &offsets, 1);
                 let committed = strip
@@ -193,6 +209,9 @@ impl Run<'_> {
                     .find(|candidate| candidate.is_auto_correction)
                     .map_or_else(|| typed.clone(), |candidate| candidate.text);
                 let corrected = Corrected {
+                    // This run compares ways of using the aim, not against the plain hit test.
+                    plain: typed == word,
+                    plain_right: chars::equals_ignore_case(&committed, word),
                     clean: typed == word,
                     changed: committed != typed,
                     right: chars::equals_ignore_case(&committed, word),
@@ -214,22 +233,32 @@ impl Run<'_> {
     fn tap(
         &self,
         unit: u16,
-        hand: Hand,
-        aims: &[(f32, f32)],
-        aim_keys: &[AimKey],
-        taps: &mut Taps,
+        (hand, aims): (Hand, &[(f32, f32)]),
+        at: AtTap,
+        (taps, engine): (&mut Taps, &Engine),
         rng: &mut Rng,
     ) -> Typed {
         let keyboard = self.keyboard;
         let target = keyboard.index_for(i32::from(chars::to_lower(unit)));
         let aim = target.map_or((0.0, 0.0), |index| aims[index]);
-        let Some((mut hit, x, y)) = touch::land(keyboard, unit, hand, aim, rng) else {
+        let Some((hit, x, y)) = touch::land(keyboard, unit, hand, aim, rng) else {
             taps.typed(&[unit]);
             return Typed { unit, offset: None };
         };
-        if self.mode == Mode::DecoderAndKeys {
-            hit = taps.retarget(aim_keys, hit, (x, y), |x, y| keyboard.index_at(x, y));
-        }
+        let orientation = taps.orientation();
+        let shift = |index: usize| {
+            let key = at
+                .aim_keys
+                .get(index)
+                .filter(|_| self.mode == Mode::DecoderAndKeys)?;
+            let bias = taps.aim.bias(orientation, key.code)?;
+            Some((bias.dx * key.width, bias.dy * key.height))
+        };
+        let resize = self.resize.as_ref();
+        let odds = resize
+            .and(engine.session().language_model())
+            .and_then(|model| model.letter_odds(at.previous, at.typed));
+        let hit = touch::key_for(keyboard, hit, (x, y), shift, odds.as_ref(), resize);
         let key = &keyboard.keys[hit];
         let typed = touch::typed(key, unit, x, y);
         taps.trail.pressed(key.code, typed.offset);

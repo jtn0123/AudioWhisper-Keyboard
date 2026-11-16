@@ -5,6 +5,7 @@ use crate::geometry::Keyboard;
 use crate::learning::{self, FromCorrected, Mode, Run};
 use crate::report::Corrections;
 use crate::text::Sentence;
+use crate::touch::KeyResize;
 use crate::typing::WithModel;
 use std::fmt::Write;
 use std::sync::Arc;
@@ -16,6 +17,8 @@ pub struct Options {
     /// Sentences typed before scoring starts.
     pub warm_up: usize,
     pub from_corrected: FromCorrected,
+    /// Whether the hit test leans on the letter odds too.
+    pub resize: Option<KeyResize>,
 }
 
 /// Seeds each user's taps apart from the main scoreboard's.
@@ -50,6 +53,7 @@ pub fn run(
                     from_corrected: options.from_corrected,
                     seed: options.seed ^ LEARNING_STREAM ^ u,
                     windows: windows.into_iter().map(|(_, range)| range).collect(),
+                    resize: options.resize,
                 };
                 let dictionary = dictionary.clone();
                 scope.spawn(move || run.score(dictionary, model))
@@ -81,11 +85,12 @@ pub fn run(
         })
         .collect();
     let mut out = format!(
-        "{} sentences, the first {} not scored; seed {}; kept corrections teach: {:?}\n",
+        "{} sentences, the first {} not scored; seed {}; kept corrections teach: {:?}; {:?}\n",
         stream.len(),
         options.warm_up,
         options.seed,
-        options.from_corrected
+        options.from_corrected,
+        options.resize
     );
     for (title, value) in metrics() {
         let _ = writeln!(out, "\n{title}\n");

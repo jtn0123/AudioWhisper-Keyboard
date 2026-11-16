@@ -121,10 +121,14 @@ internal class TextKeyboardLayoutController(
                     onTouchCancelInternal(oldPointer)
                     pointerMap.removeById(oldPointer.id)
                 }
-                // Search for active character keys and cancel them
+                // Keys held by other fingers go up first, typed, so keys type in the order they
+                // went down (`input::pointer::rolls`): character keys, and a space or delete that
+                // hasn't swiped or been held long.
                 for (pointer in pointerMap) {
                     val activeKey = pointer.activeKey
-                    if (activeKey != null && com.jtn0123.audiowhisper.rust.InputRules.pointer(floatArrayOf(activeKey.computedData.code.toFloat()))) {
+                    val still = !pointer.hasTriggeredGestureMove && !pointer.hasTriggeredLongPress
+                    if (activeKey != null && com.jtn0123.audiowhisper.rust.InputRules.pointer(
+                            floatArrayOf(activeKey.computedData.code.toFloat(), if (still) 1f else 0f))) {
                         swipeGestureDetector.onTouchCancel(event, pointer)
                         onTouchUpInternal(pointer)
                     }
@@ -214,12 +218,9 @@ internal class TextKeyboardLayoutController(
 
         val x = event.getX(pointer.index)
         val y = event.getY(pointer.index)
-        // AudioWhisper: a tap near a border types the key this user meant, if their aim is learned.
-        val key = if (prefs.suggestion.learnTapAim.get()) {
-            keyboard.getAimedKeyForPos(x, y, nlpManager::aimedKey)
-        } else {
-            keyboard.getKeyForPos(x, y)
-        }
+        // AudioWhisper: a tap near a border types the key this user meant: by the letters likely
+        // to come next, and by where they tap if that is learned.
+        val key = keyboard.getAimedKeyForPos(x, y, nlpManager::aimedKey)
         if (key != null && key.isEnabled) {
             key.computedDataOnDown = key.computedData
             noteTapPosition(key, event.getX(pointer.index), event.getY(pointer.index))

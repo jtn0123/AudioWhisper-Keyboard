@@ -10,6 +10,7 @@
 //! dictionary's units. The score changes by that difference, weighted as the decoder weighs its
 //! language cost (`calculate_final_score`), and the candidates are sorted again.
 
+use crate::letter_odds::LetterOdds;
 use crate::previous_words::PreviousWords;
 use crate::raw::{KIND_CORRECTION, KIND_PREDICTION, NOT_A_PROBABILITY, RawSuggestion};
 use latin::defines::{MAX_RESULTS, SUGGEST_INTERFACE_OUTPUT_SCALE};
@@ -89,6 +90,11 @@ impl LanguageModel {
                 })
             })
             .collect()
+    }
+
+    /// How likely each letter is to come next in `typed` after `previous` (see [`LetterOdds`]).
+    pub fn letter_odds(&self, previous: &PreviousWords, typed: &[u16]) -> Option<LetterOdds> {
+        LetterOdds::of(&self.model, self.context(previous), typed)
     }
 
     /// Redoes the language term of each of the decoder's single-word candidates for `input_size`

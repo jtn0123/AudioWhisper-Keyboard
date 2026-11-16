@@ -57,6 +57,10 @@ pub struct Scene {
     /// How far, in pixels, this user's taps for each key land from where they mean, where that is
     /// learned (`suggest::tap_aim`); empty when it isn't used. See [`Scene::aimed_key_at`].
     pub aims: Vec<Option<(f32, f32)>>,
+    /// The natural log of how likely each key's letter is to come next in the word being typed,
+    /// where that is known (`suggest::letter_odds`); empty when it isn't. See
+    /// [`Scene::aimed_key_at`].
+    pub priors: Vec<Option<f32>>,
 }
 
 impl Scene {
@@ -87,13 +91,31 @@ impl Scene {
     }
 
     /// The key a tap at (x, y) types: [`Scene::key_at`], moved to a neighbour when this user's
-    /// learned aim at both keys says it was meant for it (see `keys::aim::retarget`).
+    /// learned aim at both keys says it was meant for it (see `keys::aim::retarget`), or else when
+    /// it lands near the border of a neighbour whose letter is likelier to come next (see
+    /// `keys::resize`).
     pub fn aimed_key_at(&self, x: f32, y: f32) -> Option<usize> {
         let hit = self.key_at(x, y)?;
         let shift = |index: usize| self.aims.get(index).copied().flatten();
-        Some(keys::aim::retarget(hit, (x, y), shift, |x, y| {
-            self.key_at(x, y)
-        }))
+        let prior = |index: usize| self.priors.get(index).copied().flatten();
+        let bounds = |index: usize| {
+            let r = self.keys.get(index)?.bounds.touch;
+            Some(Rect {
+                top: r.top + self.strip,
+                bottom: r.bottom + self.strip,
+                ..r
+            })
+        };
+        let tuning = &keys::resize::Resize::SHIPPED;
+        Some(keys::resize::key_for(
+            hit,
+            (x, y),
+            tuning,
+            shift,
+            prior,
+            bounds,
+            |x, y| self.key_at(x, y),
+        ))
     }
 
     pub fn popup_bounds(&self) -> Option<Rect> {
