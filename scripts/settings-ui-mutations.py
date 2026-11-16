@@ -1,4 +1,4 @@
-"""Require fresh JVM assertion failures for each UI, editor, group 1 and group 2 mutation, and
+"""Require fresh JVM assertion failures for each UI, editor, group 1, group 2 and licences mutation, and
 fresh Rust test panics for each mutation that only Rust tests see; always restore bytes."""
 import argparse
 import hashlib
@@ -11,6 +11,7 @@ import xml.etree.ElementTree as ET
 ROOT = Path(__file__).resolve().parent.parent
 BASE = ROOT / 'lib/rust/crates'
 CAT = BASE / 'render/src/settings_ui/catalogue'
+LIC = BASE / 'render/src/settings_ui/licences'
 SETTINGS = ROOT / 'app/src/main/kotlin/com/jtn0123/audiowhisper/settings'
 SYNC_CLEAR, SYNC_SET = ('    (\n        "ONLY_{0}_EVENTS",\n        "enum__clipboard_sync_behavior__only_{1}_events",\n'
                          '        "enum__clipboard_sync_behavior__only_{1}_events__description",\n    ),\n'
@@ -87,6 +88,16 @@ CASES = [
      'withContext(NonCancellable) { data.reset() }', 'data.reset()'),
     ('custom-unwrapped', SETTINGS / 'SettingsDefaults.kt',
      '        SettingsPreference(custom(key, default, serializer))', '        custom(key, default, serializer)'),
+    # Third-party licences: each must fail SettingsLicencesMatchTest, or a Rust test where named.
+    ('licence-set-file-order', LIC / 'data.rs', '    order.sort();\n', '    order.sort_by_key(|o| o.1);\n'),
+    ('library-order-code-points', LIC / 'data.rs', 'a.encode_utf16().cmp(b.encode_utf16())', 'a.cmp(b)'),
+    ('author-organisation-first', LIC / 'data.rs', 'let author = if developers.is_empty() {',
+     'let author = if organisation.is_some() || developers.is_empty() {'),
+    ('blank-version-shown', LIC / 'list.rs', '.filter(|v| !blank(v))', '.filter(|v| !v.is_empty())'),
+    ('html-legacy-block-lines', LIC / 'html.rs', '            self.newlines(1);\n            self.marks += 1;',
+     '            self.newlines(2);\n            self.marks += 1;'),
+    ('empty-licence-text-node', LIC / 'dialog.rs', '        if !body.is_empty() {\n', '        if !body.is_empty() || true {\n'),
+    ('every-row-drawn', LIC / 'list.rs', '            if top >= clip.bottom {\n                break;\n            }\n', ''),
 ]
 # The Rust test binary that must panic for each Rust-only case.
 RUST = dict.fromkeys([
@@ -103,7 +114,7 @@ RUST = dict.fromkeys([
     'card-content-onsurface',
     'title-medium-published-tracking',
     'card-icon-box-48dp',
-], 'settings_ui_group_two') | {'advance-linear-round': 'android_text'}
+], 'settings_ui_group_two') | {'advance-linear-round': 'android_text', 'every-row-drawn': 'settings_ui_licences'}
 
 
 def run_rust(output, name, target):
@@ -122,6 +133,7 @@ def run(output, name):
     with (output / (name + '.log')).open('wb') as log:
         result = subprocess.run(['./gradlew', ':app:testDebugUnitTest', '--tests', '*SettingsEditorMatchTest',
                                  '--tests', '*SettingsUi*MatchTest', '--tests', '*SettingsGroupOneMatchTest', '--tests', '*SettingsGroupTwoMatchTest',
+                                 '--tests', '*SettingsLicencesMatchTest',
                                  '--tests', '*SettingsResourcesTest'], cwd=ROOT, stdout=log, stderr=subprocess.STDOUT)
     failures = []
     for path in (ROOT / 'app/build/test-results/testDebugUnitTest').glob('TEST-*settingsui.Settings*Test.xml'):
