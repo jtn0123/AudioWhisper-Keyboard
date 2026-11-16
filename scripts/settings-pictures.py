@@ -231,6 +231,9 @@ def main():
         d.output = base / 'cleanup'
         d.output.mkdir(parents=True, exist_ok=True)
         d.cleanup()
+        # Leave no agent session behind: its helper holds UiAutomation, and the next
+        # instrumented run fails to start ("UiAutomationService ... already registered").
+        d.ui('close')
 
 
 if __name__ == '__main__':
