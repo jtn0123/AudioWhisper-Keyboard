@@ -121,10 +121,14 @@ internal class TextKeyboardLayoutController(
                     onTouchCancelInternal(oldPointer)
                     pointerMap.removeById(oldPointer.id)
                 }
-                // Search for active character keys and cancel them
+                // Keys held by other fingers go up first, typed, so keys type in the order they
+                // went down (`input::pointer::rolls`): character keys, and a space or delete that
+                // hasn't swiped or been held long.
                 for (pointer in pointerMap) {
                     val activeKey = pointer.activeKey
-                    if (activeKey != null && com.jtn0123.audiowhisper.rust.InputRules.pointer(floatArrayOf(activeKey.computedData.code.toFloat()))) {
+                    val still = !pointer.hasTriggeredGestureMove && !pointer.hasTriggeredLongPress
+                    if (activeKey != null && com.jtn0123.audiowhisper.rust.InputRules.pointer(
+                            floatArrayOf(activeKey.computedData.code.toFloat(), if (still) 1f else 0f))) {
                         swipeGestureDetector.onTouchCancel(event, pointer)
                         onTouchUpInternal(pointer)
                     }

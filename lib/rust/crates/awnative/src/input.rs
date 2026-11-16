@@ -94,6 +94,7 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_InputRules_pointer(
             let v = env.read::<f32>(fields, "pointer fields")?;
             Ok(jni::boolean(match v.as_slice() {
                 [code] => input::pointer::roll_release(*code as i32),
+                [code, still] => input::pointer::rolls(*code as i32, *still != 0.0),
                 [x, y, left, top, right, bottom] => {
                     input::pointer::slide(*x, *y, *left, *top, *right, *bottom)
                 }

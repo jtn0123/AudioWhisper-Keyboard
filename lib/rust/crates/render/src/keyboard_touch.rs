@@ -116,9 +116,10 @@ impl KeyboardTouch {
                         self.swipes.cancel(id);
                     }
                     for p in &mut self.pointers {
+                        let still = !p.moved && !p.long;
                         if p.active
                             .and_then(|k| scene.keys.get(k))
-                            .is_some_and(|k| input::pointer::roll_release(k.code))
+                            .is_some_and(|k| input::pointer::rolls(k.code, still))
                         {
                             self.swipes.cancel(p.id);
                             Self::release(scene, p, false, &mut actions);
