@@ -114,6 +114,21 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_SmartbarRules_ellipsis
         })
     }
 }
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_SmartbarRules_roomy(
+    env: *mut JNIEnv,
+    _: jclass,
+    config: jfloatArray,
+) -> jboolean {
+    // SAFETY: JVM local array is valid for this invocation and copied before use.
+    unsafe {
+        jni::run(env, 0, |env| {
+            let c = Config::decode(&env.read::<f32>(config, "config")?)
+                .ok_or_else(|| illegal("invalid smartbar config"))?;
+            Ok(jboolean::from(c.roomy()))
+        })
+    }
+}
 
 #[unsafe(no_mangle)]
 pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_candidateLongPress(

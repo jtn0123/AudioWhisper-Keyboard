@@ -18,10 +18,16 @@ pub struct Config {
     pub row: f32,
     pub inline: bool,
     pub preview: bool,
+    /// The main row shows words, or holds their place across a keystroke's refill (Rust NLP).
+    pub words: bool,
+    /// Dictation is listening or finishing.
+    pub dictating: bool,
+    /// Read-aloud is speaking.
+    pub reading: bool,
 }
 impl Config {
     pub fn decode(a: &[f32]) -> Option<Self> {
-        if ![12, 14].contains(&a.len())
+        if ![12, 14, 17].contains(&a.len())
             || a.iter().any(|v| !v.is_finite())
             || a[10] <= 0.0
             || a[11] <= 0.0
@@ -47,6 +53,9 @@ impl Config {
             row: a[11].round(),
             inline: a.get(12).is_some_and(|v| *v != 0.0),
             preview: a.get(13).is_some_and(|v| *v != 0.0),
+            words: a.get(14).is_some_and(|v| *v != 0.0),
+            dictating: a.get(15).is_some_and(|v| *v != 0.0),
+            reading: a.get(16).is_some_and(|v| *v != 0.0),
         })
     }
     pub fn extra(&self) -> bool {
@@ -56,6 +65,19 @@ impl Config {
     /// An explicitly expanded shared row still takes precedence over inline suggestions.
     pub fn inline_visible(&self) -> bool {
         self.enabled && self.inline && !self.preview && !(self.layout == 2 && self.shared)
+    }
+    /// Words fill the main row: while suggestions show in a shared or extended layout, the
+    /// pinned toggle, sticky action, speaker and emoji give way so long words fit. The row stays
+    /// as it was while dictating, and while reading aloud with the speaker as the way to stop.
+    pub fn roomy(&self) -> bool {
+        self.enabled
+            && self.layout >= 2
+            && self.words
+            && !(self.layout == 2 && self.shared)
+            && !self.inline_visible()
+            && !self.preview
+            && !self.dictating
+            && !(self.reading && self.speaker)
     }
     pub fn height(&self) -> f32 {
         if self.enabled {
@@ -163,7 +185,7 @@ pub fn layout(c: &Config, width: f32, intrinsic: &[f32], scroll: f32) -> Layout 
         right: width,
         bottom: y + h,
     };
-    if c.layout >= 2 {
+    if c.layout >= 2 && !c.roomy() {
         let edge = (4.0 * c.density).round();
         let pinned = h + 2.0 * edge;
         let speaker = if c.speaker { pinned } else { 0.0 };

@@ -52,4 +52,31 @@ class SmartbarMatchTest {
                     }
                 }
     }
+
+    @Test fun wordsFillTheMainRowForEveryArrangementAndException() {
+        var roomy = 0
+        var cases = 0
+        for (enabled in 0..1) for (layout in 0..3) for (flip in 0..1) for (shared in 0..1)
+            for (extended in 0..1) for (placement in 0..2) for (speaker in 0..1) for (sticky in 0..1)
+                for (inline in 0..1) for (preview in 0..1) for (words in 0..1) for (dictating in 0..1)
+                    for (reading in 0..1) {
+                        val config = floatArrayOf(enabled.toFloat(), layout.toFloat(), flip.toFloat(),
+                            shared.toFloat(), extended.toFloat(), placement.toFloat(), speaker.toFloat(),
+                            sticky.toFloat(), 19f, 0f, 3.75f, 150f, inline.toFloat(), preview.toFloat(),
+                            words.toFloat(), dictating.toFloat(), reading.toFloat())
+                        assertEquals(ReferenceSmartbar.roomy(config), SmartbarRules.roomy(config), config.toList().toString())
+                        if (SmartbarRules.roomy(config)) roomy++
+                        for (width in listOf(1080f, 1440f)) {
+                            val candidates = floatArrayOf(160f, 340f, 490f)
+                            val expected = ReferenceSmartbar.layout(config, width, candidates)
+                            val actual = SmartbarRules.layout(config, width, candidates)
+                            assertEquals(expected.toList(), actual.toList(), config.toList().toString())
+                        }
+                        cases++
+                    }
+        assertEquals(24576, cases)
+        // Enabled with words and no inline chips, preview or dictation: flip, extended, placement and
+        // sticky are free (24); shared collapsed or extended either way (3); speaker and reading not both (3).
+        assertEquals(24 * 3 * 3, roomy)
+    }
 }

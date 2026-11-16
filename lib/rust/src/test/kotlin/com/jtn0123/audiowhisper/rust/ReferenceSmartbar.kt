@@ -4,8 +4,20 @@ import kotlin.math.roundToInt
 
 /** Test-only transcription of Smartbar.kt, QuickActionsRow.kt and CandidatesRow.kt.
  * Intrinsics are supplied independently, as Compose's text measurement supplies them to Row.
+ * AudioWhisper's roomy row is restated from its spec, not from the Rust.
  */
 internal object ReferenceSmartbar {
+    /** While words show, a shared or extended main row drops its toggle, sticky, speaker and emoji,
+     * unless dictation owns the row or read-aloud does through the speaker. */
+    fun roomy(c: FloatArray): Boolean {
+        fun fact(at: Int) = c.getOrElse(at) { 0f } != 0f
+        val mode = c[1].toInt()
+        val preview = fact(13)
+        val shared = fact(3) && !preview
+        val showInline = fact(12) && !preview && !(mode == 2 && shared)
+        return fact(0) && (mode == 2 || mode == 3) && fact(14) && !(mode == 2 && shared) && !showInline &&
+            !preview && !fact(15) && !(fact(16) && fact(6))
+    }
     fun layout(c: FloatArray, width: Float, words: FloatArray): FloatArray {
         if (c[0] == 0f) return FloatArray(8)
         val mode = c[1].toInt()
@@ -14,6 +26,7 @@ internal object ReferenceSmartbar {
         val inline = c.getOrElse(12) { 0f } != 0f && !preview
         val shared = c[3] != 0f && !preview
         val showInline = inline && !(mode == 2 && shared)
+        val roomy = roomy(c)
         val extra = mode == 3 && c[4] != 0f
         val placement = c[5].toInt()
         val speaker = c[6] != 0f
@@ -33,7 +46,7 @@ internal object ReferenceSmartbar {
         var right = width
         var visible = 0
         var content = 0f
-        if (mode >= 2) {
+        if (mode >= 2 && !roomy) {
             val edge = (4*dp).roundToInt().toFloat()
             val pinned = h + 2*edge
             val read = if (speaker) pinned else 0f

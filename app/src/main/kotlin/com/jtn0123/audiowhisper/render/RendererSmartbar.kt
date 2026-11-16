@@ -31,6 +31,7 @@ import dev.patrickgold.florisboard.ime.smartbar.quickaction.keyData
 import dev.patrickgold.florisboard.ime.smartbar.quickaction.computeTooltip
 import dev.patrickgold.florisboard.ime.text.keyboard.TextKeyData
 import dev.patrickgold.florisboard.keyboardManager
+import dev.patrickgold.florisboard.nlpManager
 import dev.patrickgold.jetpref.datastore.model.observeAsState
 import kotlinx.coroutines.launch
 
@@ -47,17 +48,17 @@ internal data class RendererSmartbar(
     fun measure(width: Float) = SmartbarRules.layout(config, width, floatArrayOf())
 }
 
-/** Platform settings, evaluated action icons and handlers; all placement decisions are native. */
+/**
+ * The packed facts Rust places the Smartbar from (see `smartbar::Config`). The Rust renderer and
+ * Compose's Smartbar read the same array, so both ask Rust the same question.
+ */
 @Composable
-internal fun rendererSmartbar(preview: Boolean, inline: Boolean = false): RendererSmartbar = with(LocalDensity.current) {
-    val context = LocalContext.current
+internal fun smartbarConfig(preview: Boolean, inline: Boolean): FloatArray = with(LocalDensity.current) {
     val prefs by FlorisPreferenceStore
-    val manager by context.keyboardManager()
+    val nlp by LocalContext.current.nlpManager()
     val dictation by Dictation.status.collectAsState()
-    val level by Dictation.level.collectAsState()
-    val warming by Dictation.warming.collectAsState()
     val reading by ReadAloud.status.collectAsState()
-    val evaluator by manager.activeSmartbarEvaluator.collectAsState()
+    val words by nlp.activeCandidatesWordsFlow.collectAsState()
     val enabled by prefs.smartbar.enabled.observeAsState()
     val layout by prefs.smartbar.layout.observeAsState()
     val flip by prefs.smartbar.flipToggles.observeAsState()
@@ -67,6 +68,31 @@ internal fun rendererSmartbar(preview: Boolean, inline: Boolean = false): Render
     val speaker by prefs.smartbar.showReadAloud.observeAsState()
     val arrangement by prefs.smartbar.actionArrangement.observeAsState()
     val display by prefs.suggestion.displayMode.observeAsState()
+    fun bit(value: Boolean) = if (value) 1f else 0f
+    floatArrayOf(bit(enabled), layout.ordinal.toFloat(), bit(flip), bit(shared), bit(extended),
+        placement.ordinal.toFloat(), bit(speaker), bit(arrangement.stickyAction != null),
+        arrangement.dynamicActions.size.toFloat(), display.ordinal.toFloat(), density,
+        FlorisImeSizing.smartbarHeight.toPx(), bit(inline), bit(preview), bit(words),
+        bit(dictation != Dictation.Status.IDLE), bit(reading == ReadAloud.Status.READING))
+}
+
+/** Platform settings, evaluated action icons and handlers; all placement decisions are native. */
+@Composable
+internal fun rendererSmartbar(preview: Boolean, inline: Boolean = false): RendererSmartbar {
+    val context = LocalContext.current
+    val prefs by FlorisPreferenceStore
+    val manager by context.keyboardManager()
+    val dictation by Dictation.status.collectAsState()
+    val level by Dictation.level.collectAsState()
+    val warming by Dictation.warming.collectAsState()
+    val reading by ReadAloud.status.collectAsState()
+    val evaluator by manager.activeSmartbarEvaluator.collectAsState()
+    val config = smartbarConfig(preview, inline)
+    val layout by prefs.smartbar.layout.observeAsState()
+    val flip by prefs.smartbar.flipToggles.observeAsState()
+    val shared by prefs.smartbar.sharedActionsExpanded.observeAsState()
+    val extended by prefs.smartbar.extendedActionsExpanded.observeAsState()
+    val arrangement by prefs.smartbar.actionArrangement.observeAsState()
     val incognitoMode by prefs.keyboard.incognitoDisplayMode.observeAsState()
     val scope = rememberCoroutineScope()
     val expanded = if (layout == SmartbarLayout.SUGGESTIONS_ACTIONS_EXTENDED) extended else shared
@@ -98,10 +124,7 @@ internal fun rendererSmartbar(preview: Boolean, inline: Boolean = false): Render
             null -> ""
         })
     }.toTypedArray()
-    RendererSmartbar(floatArrayOf(if (enabled) 1f else 0f, layout.ordinal.toFloat(), if (flip) 1f else 0f,
-        if (shared) 1f else 0f, if (extended) 1f else 0f, placement.ordinal.toFloat(), if (speaker) 1f else 0f,
-        if (arrangement.stickyAction != null) 1f else 0f, arrangement.dynamicActions.size.toFloat(),
-        display.ordinal.toFloat(), density, FlorisImeSizing.smartbarHeight.toPx(), if (inline) 1f else 0f, if (preview) 1f else 0f), actions, codes, labels, tooltips, warming,
+    return RendererSmartbar(config, actions, codes, labels, tooltips, warming,
         listOfNotNull(KeyCode.TOGGLE_INCOGNITO_MODE.takeIf { evaluator.state.isIncognitoMode },
             KeyCode.TOGGLE_COMPACT_LAYOUT.takeIf { prefs.keyboard.oneHandedModeEnabled.get() }).toIntArray()) {
         if (expanded) manager.activeState.isActionsOverflowVisible = false

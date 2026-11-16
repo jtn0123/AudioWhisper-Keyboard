@@ -178,4 +178,6 @@ object SmartbarRules {
     init { RustLibrary.load() }
     external fun layout(config: FloatArray, width: Float, intrinsic: FloatArray): FloatArray
     external fun ellipsis(advances: FloatArray, width: Float): Int
+    /** Words fill the main row: the pinned toggle, sticky action, speaker and emoji give way. */
+    external fun roomy(config: FloatArray): Boolean
 }
