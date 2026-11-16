@@ -62,10 +62,20 @@ fn a_word_kept_as_typed_counts_once() {
     call(&mut s, "learn", &["0", "-1", "", "", "0", "1", ""]);
     call(&mut s, "learn", &["0", "-1", "hello", "", "0", "0", ""]);
     assert_eq!(count(&s, "words"), 1);
-    // After a keystroke the same place is a new word.
+    // Its space deleted and typed again, or a letter fixed, it is still the same word.
+    call(&mut s, "tally", &["deleted", "6", "6"]);
     call(&mut s, "tally", &["key", "0", "0"]);
     keep(&mut s, "hello", 0);
-    assert_eq!(count(&s, "words"), 2);
+    call(&mut s, "tally", &["deleted", "5", "5"]);
+    call(&mut s, "tally", &["key", "0", "0"]);
+    keep(&mut s, "help", 0);
+    assert_eq!((count(&s, "words"), count(&s, "kept_as_typed")), (1, 1));
+    // A word somewhere else is a new one, and so is one in another field.
+    keep(&mut s, "there", 6);
+    keep(&mut s, "hello", 0);
+    call(&mut s, "field", &[]);
+    keep(&mut s, "hello", 0);
+    assert_eq!(count(&s, "words"), 4);
 }
 
 #[test]

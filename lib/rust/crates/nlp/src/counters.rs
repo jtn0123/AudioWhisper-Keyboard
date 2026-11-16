@@ -59,8 +59,9 @@ struct Recent {
     /// The last word finished: where it starts and ends in the text, and how many keystrokes
     /// are left in which deleting into it counts as a typo left.
     word: Option<(i64, i64, u32)>,
-    /// The last word counted as kept as typed, so one reported twice counts once.
-    kept: Option<(i64, usize)>,
+    /// Where the last word counted starts. A word finished there again (its space deleted and
+    /// typed again, or a letter fixed) is the same word, and counts once.
+    last: Option<i64>,
 }
 
 /// A suggestion tapped, as [`Counters::picked`] counts it.
@@ -96,6 +97,7 @@ impl Counters {
     fn take_back_word(&mut self) {
         self.counts[WORDS] = self.counts[WORDS].saturating_sub(1);
         self.changed = true;
+        self.recent.last = None;
     }
 
     /// The count called `name` in [`NAMES`].
@@ -109,14 +111,12 @@ impl Counters {
     /// A word was finished: kept as typed (`kind` 0), a suggestion committed (1) or swiped (2),
     /// starting at `start` in the text and `length` UTF-16 units long.
     pub fn finished(&mut self, kind: i64, start: i64, length: usize) {
-        if kind == 0 {
-            if self.recent.kept == Some((start, length)) {
-                return;
+        if self.recent.last.replace(start) != Some(start) {
+            self.add(WORDS);
+            if kind == 0 {
+                self.add(KEPT_AS_TYPED);
             }
-            self.recent.kept = Some((start, length));
-            self.add(KEPT_AS_TYPED);
         }
-        self.add(WORDS);
         if kind == 2 {
             self.add(SWIPED);
             self.recent.swipe = true;
@@ -162,14 +162,12 @@ impl Counters {
     pub fn key(&mut self) {
         self.recent.swipe = false;
         self.recent.correction = false;
-        self.recent.kept = None;
         self.spend();
     }
 
     /// A backspace with the selection at `start`..`end`, before it deleted anything.
     pub fn deleted(&mut self, start: i64, end: i64) {
         self.recent.correction = false;
-        self.recent.kept = None;
         if std::mem::take(&mut self.recent.swipe) {
             self.add(SWIPE_REPLACED);
             self.take_back_word();
