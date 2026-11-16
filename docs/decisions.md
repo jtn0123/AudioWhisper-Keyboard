@@ -296,3 +296,68 @@ dictionary (the same build, with its own corpus and AOSP's word list for it), if
 keyboard's memory gets tighter (pairs and triples seen four times give 9.3 MB for 0.3 point), or if
 harmful corrections of unknown names grow with the user's own writing; then the auto-correction
 threshold, not the statistics, is the place to fix it.
+
+## Learning where the user taps (2026-11-16)
+
+**Decision.** The keyboard learns, per key and per orientation, where this user's taps land
+in the key: a running mean of their tap offsets (in key widths and heights, as `TapOffset`
+measures them) and the spread about it (`crates/suggest/src/tap_aim.rs`). It uses that in two
+places: **(a)** the decoder hears each tap moved back by its key's learned bias, so a tap where the
+user usually hits P reads as a centred P; and **(b)** the hit test moves a tap near a border to
+the neighbour the user meant, but only when both keys' learned aims agree. Both are on by default
+behind *Learn how I tap* (Typing), which incognito, password, e-mail and URL fields override like
+learning words. The model is `files/tap-aim.txt`, numbers only (a key's code point and its
+statistics), left out of backups like `learned-words.txt`, and *Forget learned words* erases it.
+
+**What it learns from.** Only words committed as typed and kept (`crates/suggest/src/tap_learning.rs`):
+
+- finished by a space, punctuation or Enter with no auto-correction, in a field where words are
+  learned (the NLP session's "aim" rule: the setting, a corrected-prose field, not incognito, not
+  a raw editor);
+- with no backspace inside the word: every letter typed since the last deletion, so a word fixed
+  in place teaches nothing;
+- only the characters that were tapped (a long-press popup's letter has no position);
+- and only once nothing takes it back. The word waits until two more characters are typed, the
+  next word is kept, a prediction is tapped or a word is swiped. A backspace, the undo key, a
+  suggestion that replaces the word, or a new field throws it away.
+
+Auto-corrected words the user kept do not teach. Measured: their letters add at most 0.12 point,
+and at most 0.18 point even with each tap re-measured from the corrected key's centre. And a wrong
+correction the user missed would teach the wrong key.
+
+**Safety limits** (`tap_aim.rs`):
+
+- A key applies nothing until it has 16 samples.
+- One standard error of the mean is taken off as noise, and what is left applies only from 0.03
+  key.
+- A shift is capped at 0.25 key. A sample counts at most 0.75 key from the centre.
+- The mean follows a key's last 200 samples. Every sample fades every other key, so a key the user
+  stops hitting drops back below 16 samples and stops applying.
+- Portrait and landscape are learned apart, because the grip and the keys' shape change with
+  them. A key is learned under its lower case, and at most 64 keys are kept per orientation.
+
+**(a) against (b).** On the scoreboard's learning run, the left-thumb user's word accuracy after
+autocorrect goes from 93.67% with learning off to 93.88% with (a) alone, and 94.84% with (a) and
+(b). (b) is most of the gain because it stops typos rather than repairing them: typos made fall
+from 37.8% to 33.0%, while (a) only helps the decoder guess (missed typos 14.2% → 13.7%). The
+neutral typist is exactly unchanged by both: 96,795 of 99,893 words right in all three columns,
+the same 79,445 words tapped cleanly. Without the 0.03 floor the neutral typist lost 2 words with
+(a) and 3 with (a) and (b), 2 of them tapped wrong; with it, nothing. A user whose grip changes halfway is better
+from the first 500 sentences after the change (94.20% against 93.61% off), and by the rest matches
+a user who always had the new grip (94.02% against 94.00%), so the decay works. The full tables:
+[tap-aim-results.md](tap-aim-results.md).
+
+- *Why (b) ships though the brief said "conservative":* it is conservative where it counts. It
+  moves a tap only where both keys' aims say so, never for a key without 16 samples, and never
+  by more than a quarter key. It measurably never hurt the neutral typist, and it is 80% of the
+  gain.
+- *Why not learn from corrected words:* see above. It is little gain, for a risk the scoreboard
+  can't see.
+- *Why per key, not one offset for the whole hand:* a thumb's error differs across the keyboard
+  (short on the far side, low near the bottom). The scoreboard's users with their own aim per key
+  gain as much as the plain left thumb (93.11% → 94.50%).
+
+**Would change if** the phone's counters (`files/typing-counters.txt`, see
+[rust.md](rust.md#the-typing-counters)) show more typos left or more corrections undone with it on
+than off, if users with very different grips share a phone (the window and fade would then need a
+per-user switch), or if a layout with keys much smaller than QWERTY's needs a smaller cap.
