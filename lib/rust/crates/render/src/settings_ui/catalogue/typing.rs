@@ -82,6 +82,12 @@ const ROWS: &[Row] = &[
         "pref__suggestion__learn_from_typing__summary",
     )
     .on(SUGGESTIONS),
+    toggle(
+        "suggestion__learn_tap_aim",
+        "pref__suggestion__learn_tap_aim__label",
+        "pref__suggestion__learn_tap_aim__summary",
+    )
+    .on(SUGGESTIONS),
     row(
         "pref__suggestion__forget_learned__label",
         "pref__suggestion__forget_learned__label",

@@ -131,6 +131,7 @@ suggestion__display_mode	s	CLASSIC				CLASSIC|DYNAMIC|DYNAMIC_SCROLLABLE	#
 suggestion__block_possibly_offensive	b	true					#
 suggestion__incognito_mode	s	DYNAMIC_ON_OFF				FORCE_OFF|FORCE_ON|DYNAMIC_ON_OFF	#
 suggestion__learn_from_typing	b	true					#
+suggestion__learn_tap_aim	b	true					#
 suggestion__force_incognito_mode_from_dynamic	b	false					#
 theme__mode	s	FOLLOW_SYSTEM				ALWAYS_DAY|ALWAYS_NIGHT|FOLLOW_SYSTEM|FOLLOW_TIME	#
 theme__day_theme_id	s	org.florisboard.themes:floris_day					#

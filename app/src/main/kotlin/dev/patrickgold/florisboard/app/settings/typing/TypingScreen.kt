@@ -96,6 +96,13 @@ fun TypingScreen() = FlorisScreen {
                 summary = stringRes(R.string.pref__suggestion__learn_from_typing__summary),
                 enabledIf = { prefs.suggestion.enabled isEqualTo true },
             )
+            // AudioWhisper: where this user's taps land in each key (suggest/tap_aim.rs).
+            SwitchPreference(
+                prefs.suggestion.learnTapAim,
+                title = stringRes(R.string.pref__suggestion__learn_tap_aim__label),
+                summary = stringRes(R.string.pref__suggestion__learn_tap_aim__summary),
+                enabledIf = { prefs.suggestion.enabled isEqualTo true },
+            )
             Preference(
                 title = stringRes(R.string.pref__suggestion__forget_learned__label),
                 summary = stringRes(R.string.pref__suggestion__forget_learned__summary),

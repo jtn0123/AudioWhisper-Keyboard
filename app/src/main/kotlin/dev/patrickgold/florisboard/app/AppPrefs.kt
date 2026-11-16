@@ -306,6 +306,8 @@ abstract class FlorisPreferenceModel : SettingsPreferenceModel() {
         val incognitoMode = nativeEnum<IncognitoMode>(key = "suggestion__incognito_mode")
         // AudioWhisper: words and phrases learned from typing (never in incognito), see WordLearner.
         val learnFromTyping = nativeBoolean(key = "suggestion__learn_from_typing")
+        // AudioWhisper: where this user's taps land in each key, learned and corrected for (suggest/tap_aim.rs).
+        val learnTapAim = nativeBoolean(key = "suggestion__learn_tap_aim")
         // Internal pref
         val forceIncognitoModeFromDynamic = nativeBoolean(key = "suggestion__force_incognito_mode_from_dynamic")
     }

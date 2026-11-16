@@ -139,6 +139,7 @@ internal class ReferenceSettingsModel : ReferencePreferenceModel() {
             suggestion.blockPossiblyOffensive,
             suggestion.incognitoMode,
             suggestion.learnFromTyping,
+            suggestion.learnTapAim,
             suggestion.forceIncognitoModeFromDynamic,
             theme.mode,
             theme.dayThemeId,

@@ -326,6 +326,8 @@ internal val settingsStringIds: Map<String, Int> = mapOf(
     "pref__suggestion__incognito_mode__label" to R.string.pref__suggestion__incognito_mode__label,
     "pref__suggestion__learn_from_typing__label" to R.string.pref__suggestion__learn_from_typing__label,
     "pref__suggestion__learn_from_typing__summary" to R.string.pref__suggestion__learn_from_typing__summary,
+    "pref__suggestion__learn_tap_aim__label" to R.string.pref__suggestion__learn_tap_aim__label,
+    "pref__suggestion__learn_tap_aim__summary" to R.string.pref__suggestion__learn_tap_aim__summary,
     "pref__suggestion__title" to R.string.pref__suggestion__title,
     "prefs__media__emoji_history__title" to R.string.prefs__media__emoji_history__title,
     "prefs__media__emoji_history_enabled" to R.string.prefs__media__emoji_history_enabled,

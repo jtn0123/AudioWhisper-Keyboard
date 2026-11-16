@@ -68,6 +68,7 @@ internal object ReferenceGroupTwoScreens {
         Row("suggestion__api30_inline_suggestions_enabled", "toggle"),
         Row("suggestion__incognito_mode", "choice", listOf("FORCE_OFF", "DYNAMIC_ON_OFF", "FORCE_ON")),
         Row("suggestion__learn_from_typing", "toggle", enabled = ::suggestions),
+        Row("suggestion__learn_tap_aim", "toggle", enabled = ::suggestions),
         // ForgetLearnedWordsDialog's onConfirm: forget, then the short toast.
         Row("pref__suggestion__forget_learned__label", "confirm",
             click = { _, s -> listOf("forgetLearnedWords", s("pref__suggestion__forget_learned__done")) }),
