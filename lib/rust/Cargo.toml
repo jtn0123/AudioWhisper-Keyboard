@@ -21,6 +21,7 @@ default-members = [
     "crates/input",
     "crates/latin",
     "crates/lexicon",
+    "crates/ngram",
     "crates/nlp",
     "crates/popup",
     "crates/reader",
