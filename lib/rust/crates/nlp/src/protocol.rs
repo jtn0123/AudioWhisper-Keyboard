@@ -24,7 +24,7 @@ impl Session {
             "spell" => Some(2),
             "begin" | "inlineBegin" | "inlineCancel" | "save" => Some(1),
             "ready" | "auto" => Some(2),
-            "clear" | "snapshot" | "field" | "externalBegin" => Some(0),
+            "clear" | "snapshot" | "field" | "externalBegin" | "words" => Some(0),
             "typing" | "preview" | "glidePlan" => Some(3),
             "learn" => Some(7),
             "autoCandidate" => Some(48),
@@ -205,6 +205,7 @@ impl Session {
                 self.snapshot()
             }
             "snapshot" => self.snapshot(),
+            "words" => boolean(self.words()),
             "typing" => self.context.typing(&f[0], &f[1], &f[2]),
             "auto" => {
                 let trigger = int(f, 0) as i32;

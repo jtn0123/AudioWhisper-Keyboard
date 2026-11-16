@@ -44,6 +44,9 @@ internal object NlpState {
     val candidates = candidatesMutable.asStateFlow()
     private val inlineMutable = MutableStateFlow<List<NlpInlineAutofillSuggestion>>(emptyList())
     val inline = inlineMutable.asStateFlow()
+    private val wordsShownMutable = MutableStateFlow(false)
+    /** Rust's one fact for the Smartbar: words show, or typing emptied them and the refill is due. */
+    val wordsShown = wordsShownMutable.asStateFlow()
     val expanded = MutableStateFlow(-1)
     @Synchronized fun call(op: String, vararg fields: String): Array<String> = native.call(op, *fields)
     @Synchronized fun configure(fields: Array<String>) { publish(native.call("context", *fields)) }
@@ -111,6 +114,7 @@ internal object NlpState {
         val inlineCount = snapshot[at++].toInt()
         inlineMutable.value = List(inlineCount) { views.getValue(snapshot[at++]) }
         expanded.value = snapshot[1].toInt()
+        wordsShownMutable.value = native.call("words")[0] == "1"
         // Bound retained Java objects after invalidation; in-flight results retain their own lists.
         val visibleIds = snapshot.slice(4 until 4 + count).toSet()
         if (count == 0) words = emptyMap()

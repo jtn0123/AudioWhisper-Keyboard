@@ -17,6 +17,7 @@ class NlpMatchTest {
             assertEquals(expected, actual, "NLP $op at checkpoint $checks")
             checks++
             assertEquals(reference.call("snapshot"), rust.call("snapshot").toList(), "state after $op")
+            assertEquals(reference.call("words"), rust.call("words").toList(), "Smartbar words after $op")
             return actual
         }
         override fun close() = rust.close()
@@ -207,6 +208,37 @@ class NlpMatchTest {
             assertEquals("-1", p.call("snapshot")[1], "Pending leaves the existing expansion binding unchanged")
             p.call("complete", generation)
             assertEquals("1", p.call("snapshot")[1], "An empty completed response expands actions")
+        }
+    }
+    @Test fun typingHoldsTheSmartbarWordsAcrossTheRefillOnly() {
+        Pairing().use { p ->
+            fun words() = p.call("words").single()
+            p.call("context", *ReferenceNlp.context("h").toTypedArray())
+            p.call("begin", "0")
+            assertEquals("0", words(), "An empty row holds nothing while its first request is in flight")
+            p.call("direct", "help", "help", "0", "0")
+            assertEquals("1", words())
+            // A collector's configure lands before the keystroke's beginFor: typing-only change.
+            p.call("context", *ReferenceNlp.context("he").toTypedArray())
+            assertEquals(listOf("1", "-1"), listOf(words(), p.call("snapshot")[1]), "Carry holds the row and the expansion")
+            val generation = p.call("beginFor", *ReferenceNlp.context("he").toTypedArray(), "10")[0]
+            assertEquals(listOf("1", "0"), listOf(words(), p.call("snapshot")[3]), "The begin gap holds an empty list")
+            p.call("complete", generation, "hello", "hello", "0", "0")
+            assertEquals("1", words(), "The refill shows words")
+            val empty = p.call("beginFor", *ReferenceNlp.context("hex").toTypedArray(), "20")[0]
+            assertEquals("1", words())
+            p.call("complete", empty)
+            assertEquals(listOf("0", "1"), listOf(words(), p.call("snapshot")[1]), "An empty refill ends the hold")
+            // Changes that are not typing never hold: incognito, a selection, a cleared row.
+            p.call("direct", "help", "help", "0", "0")
+            p.call("context", *ReferenceNlp.context("hex", 0x81).toTypedArray())
+            assertEquals("0", words(), "Incognito does not hold")
+            p.call("context", *ReferenceNlp.context("hex").toTypedArray()); p.call("direct", "help", "help", "0", "0")
+            p.call("context", *ReferenceNlp.context("hex").toMutableList().also { it[10] = "0" }.toTypedArray())
+            assertEquals("0", words(), "A selection does not hold")
+            p.call("context", *ReferenceNlp.context("hex").toTypedArray()); p.call("direct", "help", "help", "0", "0")
+            p.call("clear")
+            assertEquals("0", words(), "Clear does not hold")
         }
     }
     @Test fun glidePreviewClockAndCommitSliceMatchTheFrozenManager() {
