@@ -1,6 +1,7 @@
 //! JNI entry points for where keys were tapped (`suggest::tap` and `suggest::qwerty`), called by
-//! `SuggestNative`. A `TapTrail` is a handle to a trail behind a lock: the keyboard writes it on
-//! the main thread and reads it while suggesting.
+//! `SuggestNative`. A `TapTrail` is a handle to the trail and the learned tap aim
+//! (`suggest::tap_learning::Taps`, see tap_aim.rs) behind a lock: the keyboard writes it on the
+//! main thread and reads it while suggesting.
 
 use std::ptr;
 use std::sync::Mutex;
@@ -8,6 +9,7 @@ use std::sync::Mutex;
 use jni_sys::{JNIEnv, jboolean, jclass, jfloat, jfloatArray, jint, jintArray, jlong, jstring};
 use suggest::qwerty;
 use suggest::tap::{TapOffset, TapTrail};
+use suggest::tap_learning::Taps;
 
 use crate::handle::{free, into_handle, with_locked};
 use crate::jni::{self, Env, Result, illegal};
@@ -53,6 +55,17 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_SuggestNative_tapOffse
     }
 }
 
+/// Three values per character: 1 if it was tapped and 0 if not, then dx and dy.
+pub(super) fn packed(offsets: &[Option<TapOffset>]) -> Vec<f32> {
+    offsets
+        .iter()
+        .flat_map(|offset| match offset {
+            Some(offset) => [1.0, offset.dx, offset.dy],
+            None => [0.0, 0.0, 0.0],
+        })
+        .collect()
+}
+
 fn offset(has_offset: jboolean, dx: jfloat, dy: jfloat) -> Option<TapOffset> {
     (has_offset != 0).then_some(TapOffset { dx, dy })
 }
@@ -70,7 +83,7 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_SuggestNative_newTapTr
         jni::run(env, 0, |_| {
             let capacity =
                 usize::try_from(capacity).map_err(|_| illegal("capacity is negative"))?;
-            Ok(into_handle(Mutex::new(TapTrail::new(capacity))))
+            Ok(into_handle(Mutex::new(Taps::new(capacity))))
         })
     }
 }
@@ -82,7 +95,7 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_SuggestNative_freeTapT
     trail: jlong,
 ) {
     // SAFETY: the Kotlin side frees each trail once, when nothing can reach it.
-    unsafe { free::<Mutex<TapTrail>>(trail) }
+    unsafe { free::<Mutex<Taps>>(trail) }
 }
 
 /// Runs `body` on the trail behind `handle`, locked.
@@ -90,11 +103,11 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_SuggestNative_freeTapT
 /// # Safety
 /// `env` must be the environment the JVM passed to this call, and `handle` a trail that hasn't been
 /// freed: its Kotlin owner is still reachable.
-unsafe fn with_trail<T>(
+pub(super) unsafe fn with_trail<T>(
     env: *mut JNIEnv,
     handle: jlong,
     fallback: T,
-    body: impl FnOnce(&mut TapTrail, &Env) -> Result<T>,
+    body: impl FnOnce(&mut Taps, &Env) -> Result<T>,
 ) -> T {
     // SAFETY: as the caller promises.
     unsafe { with_locked(env, handle, "tap trail", fallback, body) }
@@ -114,7 +127,7 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_SuggestNative_tapPress
     // SAFETY: the JVM passes its environment; Kotlin holds the trail while it calls.
     unsafe {
         with_trail(env, trail, (), |trail, _| {
-            trail.pressed(code_point, offset(has_offset, dx, dy));
+            trail.trail.pressed(code_point, offset(has_offset, dx, dy));
             Ok(())
         })
     }
@@ -181,15 +194,8 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_SuggestNative_tapOffse
     // SAFETY: the JVM passes its environment; Kotlin holds the trail while it calls.
     unsafe {
         with_trail(env, trail, ptr::null_mut(), |trail, env| {
-            let offsets = trail.offsets_for(&env.read_string(word, "word")?);
-            let packed: Vec<f32> = offsets
-                .iter()
-                .flat_map(|offset| match offset {
-                    Some(offset) => [1.0, offset.dx, offset.dy],
-                    None => [0.0, 0.0, 0.0],
-                })
-                .collect();
-            env.make(&packed)
+            let offsets = trail.trail.offsets_for(&env.read_string(word, "word")?);
+            env.make(&packed(&offsets))
         })
     }
 }

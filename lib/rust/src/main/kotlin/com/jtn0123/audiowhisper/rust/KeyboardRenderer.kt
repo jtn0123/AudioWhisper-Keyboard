@@ -1,5 +1,7 @@
 package com.jtn0123.audiowhisper.rust
 
+import java.lang.ref.Reference
+
 /** Plain scene and MotionEvent packets. This wrapper has no Android dependency, including in JVM tests. */
 class KeyboardRenderer(fontPaths: Array<String>) : AutoCloseable {
     private var handle = RenderNative.create(fontPaths)
@@ -73,9 +75,10 @@ class KeyboardRenderer(fontPaths: Array<String>) : AutoCloseable {
     @Synchronized
     fun semanticCancel(): IntArray = RenderNative.semanticCancel(handle)
 
+    /** A touch; with [aim], a key going down types the key this user meant (see [TapPositions.retarget]). */
     @Synchronized
-    fun touch(metadata: IntArray, times: LongArray, coords: FloatArray): IntArray =
-        RenderNative.touch(handle, metadata, times, coords)
+    fun touch(metadata: IntArray, times: LongArray, coords: FloatArray, aim: TapPositions? = null): IntArray =
+        RenderNative.touch(handle, metadata, times, coords, aim?.handle ?: 0L).also { Reference.reachabilityFence(aim) }
 
     @Synchronized
     fun tooltipShown(pointer: Int, shown: Boolean) = RenderNative.tooltipShown(handle, pointer, shown)
@@ -156,7 +159,7 @@ internal object RenderNative {
     external fun semanticSnapshot(handle: Long): String
     external fun semanticAction(handle: Long, id: Int, action: Int): IntArray
     external fun semanticCancel(handle: Long): IntArray
-    external fun touch(handle: Long, metadata: IntArray, times: LongArray, coords: FloatArray): IntArray
+    external fun touch(handle: Long, metadata: IntArray, times: LongArray, coords: FloatArray, aim: Long): IntArray
     external fun tooltipShown(handle: Long, pointer: Int, shown: Boolean)
     external fun candidateBindings(handle: Long, tokens: IntArray): IntArray
     external fun gestures(handle: Long, values: FloatArray, actions: Array<String>)

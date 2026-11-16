@@ -503,7 +503,7 @@
     <string name="pref__suggestion__learn_tap_aim__summary">Learn where your taps land on each key and allow for it, so a tap just off the key you meant still types it. Never in incognito or password fields; kept on this phone and left out of backups</string>
     <string name="pref__suggestion__forget_learned__label">Forget learned words</string>
     <string name="pref__suggestion__forget_learned__summary">Erase everything learned from your typing</string>
-    <string name="pref__suggestion__forget_learned__confirm">Erase all the words and phrases learned from your typing? This cannot be undone.</string>
+    <string name="pref__suggestion__forget_learned__confirm">Erase all the words and phrases learned from your typing, where your taps land on the keys, and the counts of how often corrections and suggestions were used? This cannot be undone.</string>
     <string name="pref__suggestion__forget_learned__done">Learned words erased</string>
     <string name="pref__correction__title" comment="Preference group title">Corrections</string>
     <string name="pref__correction__auto_capitalization__label" comment="Preference title">Auto-capitalization</string>

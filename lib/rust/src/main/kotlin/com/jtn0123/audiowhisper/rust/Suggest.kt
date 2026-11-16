@@ -120,7 +120,11 @@ object QwertyLayout {
  * thread. Its native memory is freed once nothing can reach it.
  */
 class TapPositions(capacity: Int = SuggestRules.tapTrailCapacity) {
-    private val handle = SuggestNative.newTapTrail(capacity)
+    /** For [KeyboardRenderer.touch], which hands it to the renderer's hit test. */
+    internal val handle = SuggestNative.newTapTrail(capacity)
+
+    /** The orientation last passed to [landscape], so an unchanged one costs no native call. */
+    @Volatile private var landscape: Boolean? = null
 
     init {
         RustLibrary.cleaner.register(this, Free(handle))
@@ -156,6 +160,65 @@ class TapPositions(capacity: Int = SuggestRules.tapTrailCapacity) {
      */
     fun offsetsFor(word: String): FloatArray =
         SuggestNative.tapOffsetsFor(handle, word).also { Reference.reachabilityFence(this) }
+
+    /** The screen is in landscape or not: where this user taps is learned and used per orientation. */
+    fun landscape(landscape: Boolean) {
+        if (this.landscape == landscape) return
+        this.landscape = landscape
+        SuggestNative.tapLandscape(handle, landscape)
+        Reference.reachabilityFence(this)
+    }
+
+    /** [word] was committed as typed: it may teach where this user taps, once nothing takes it back. */
+    fun kept(word: String) {
+        SuggestNative.tapKept(handle, word)
+        Reference.reachabilityFence(this)
+    }
+
+    /** One of the [BACKSPACE], [UNDO], [PICKED], [PICKED_FOR_WORD] or [SWIPED] events. */
+    fun event(event: Int) {
+        SuggestNative.tapEvent(handle, event)
+        Reference.reachabilityFence(this)
+    }
+
+    /** [offsetsFor], each offset moved by where this user is known to tap that key if [aimed]. */
+    fun offsetsFor(word: String, aimed: Boolean): FloatArray =
+        SuggestNative.tapAimedOffsetsFor(handle, word, aimed).also { Reference.reachabilityFence(this) }
+
+    /**
+     * Which key a tap at ([x], [y]) types, given where this user is known to tap: [layout] is the
+     * key the plain hit test found, the row count, each row's size, then each key's code; [bounds]
+     * is six values per key, its touch bounds (left, top, right, bottom) then its drawn width and
+     * height. -1 if they don't fit together.
+     */
+    fun retarget(layout: IntArray, bounds: FloatArray, x: Float, y: Float): Int =
+        SuggestNative.tapRetarget(handle, layout, bounds, x, y).also { Reference.reachabilityFence(this) }
+
+    /** Where this user taps, as saved: numbers only. */
+    fun aimText(): String = SuggestNative.tapAimText(handle).also { Reference.reachabilityFence(this) }
+
+    /** Replaces where this user taps with the saved [text]. */
+    fun loadAim(text: String) {
+        SuggestNative.tapAimLoad(handle, text)
+        Reference.reachabilityFence(this)
+    }
+
+    /** Forgets where this user taps. */
+    fun forgetAim() {
+        SuggestNative.tapAimForget(handle)
+        Reference.reachabilityFence(this)
+    }
+
+    /** Whether where this user taps changed since this was last asked. */
+    fun aimChanged(): Boolean = SuggestNative.tapAimChanged(handle).also { Reference.reachabilityFence(this) }
+
+    companion object {
+        const val BACKSPACE = 0
+        const val UNDO = 1
+        const val PICKED = 2
+        const val PICKED_FOR_WORD = 3
+        const val SWIPED = 4
+    }
 
     private class Free(private val handle: Long) : Runnable {
         override fun run() = SuggestNative.freeTapTrail(handle)

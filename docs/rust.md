@@ -705,6 +705,77 @@ cargo run --release -p scoreboard -- --dict path/to/main.dict [--model path/to/m
 parallelism; `--typing W` and `--swipe L` change how much the session leans on the model
 (`suggest::language_model::Tuning`). Neither crate ships: `awnative` doesn't depend on them.
 
+### Learning where the user taps
+
+`crates/suggest/src/tap_aim.rs` is the model: per key and orientation, a running mean of the
+user's tap offsets and their spread, with the limits that keep it safe (16 samples before a key
+applies, one standard error and 0.03 key taken off, a 0.25-key cap, a 200-sample window, fading
+for keys not used). `tap_learning.rs` decides what teaches it: words kept as typed, with no
+backspace inside, confirmed by typing on and thrown away by a backspace, an undo or a replacing
+suggestion. `crates/keys/src/aim.rs` is the hit-test rule both renderers share: a tap moves to a
+neighbour only when both keys' aims agree. The NLP session's "aim" operation says whether a kept
+word may teach (the setting, the field, incognito).
+
+The app holds it in the same `TapTrail` handle as the tap positions (`awnative/src/suggest/tap_aim.rs`).
+`LatinLanguageProvider` loads and saves `files/tap-aim.txt` (numbers only) and hands the decoder
+aimed offsets. Compose's `TextKeyboard.getAimedKeyForPos` and the Rust renderer's
+`Scene::aimed_key_at` (fed by `RenderNative.touch`'s `aim` handle) pick the key. Why and the
+numbers: [decisions.md](decisions.md#learning-where-the-user-taps-2026-11-16),
+[tap-aim-results.md](tap-aim-results.md).
+
+The scoreboard measures it with a learning run: a simulated user types one long stream while the
+keyboard learns from the words they keep, scored after a warm-up, with learning off, with (a)
+alone and with (a) and (b):
+
+```bash
+cd lib/rust
+cargo run --release -p scoreboard -- --model ../../app/src/main/assets/dicts/main_en-US.lm \
+    --test tatoeba=RUN/corpus/test-tatoeba.txt --test globalvoices=RUN/corpus/test-globalvoices.txt \
+    --limit 5000 --learning [--warm-up 2000] [--from-corrected nothing|unchanged|rebased]
+```
+
+`--from-corrected` tries teaching from kept auto-corrections too (not what ships).
+`crates/scoreboard/src/learning.rs` says how the users are simulated.
+
+### The typing counters
+
+The phone counts, privately, how typing goes: integers only, never a word, a character or a
+position. `crates/nlp/src/counters.rs` counts what the NLP session sees ("learn" and "pick") and
+what Kotlin passes through its "tally" operation (`TypingCounters.kt`: a keystroke, a backspace,
+an undo). Nothing is counted in incognito or in fields without word suggestions (passwords, for
+one). The file is `files/typing-counters.txt` in the app's private storage, saved with the learned
+words (about five seconds after a change) and left out of backups:
+
+```
+typing-counters 1
+words 812
+kept_as_typed 655
+...
+```
+
+| Counter | Counts |
+|---|---|
+| `words` | Words entered by any means: kept as typed, corrected, picked or swiped |
+| `kept_as_typed` | Words finished as typed, with no auto-correction |
+| `autocorrected` | Auto-corrections committed (a space or punctuation replaced the word) |
+| `autocorrect_undone` | Auto-corrections taken back by the backspace or the undo key straight after |
+| `picked_typing_left`, `_middle`, `_right`, `_further` | Suggestions tapped while a word was being typed, by place in the row |
+| `picked_after_space_left`, `_middle`, `_right`, `_further` | Suggestions tapped right after a space, by place |
+| `predicted` | Suggestions tapped with no word being typed: next-word predictions, after a space or not |
+| `swiped` | Words swiped |
+| `swipe_replaced` | Swiped words replaced straight after: a suggestion tapped for it, a backspace or the undo key |
+| `typos_left` | Finished words the user deleted back into within 6 keystrokes: a typo left and then fixed |
+
+Read it from a debug build (run-as needs one):
+
+```bash
+adb shell run-as com.jtn0123.audiowhisper.keyboard cat files/typing-counters.txt
+```
+
+*Forget learned words* (Settings, Typing) resets every count, deletes the file, and erases the
+learned words and the tap aim with them. Deleting the file with run-as while the keyboard runs
+does not reset it: the next save writes the counts back.
+
 ### The dictionary build
 
 The app's `main_en-US.dict` is AOSP's English dictionary rebuilt from that corpus by

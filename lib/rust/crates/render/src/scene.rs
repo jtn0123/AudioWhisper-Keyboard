@@ -54,6 +54,9 @@ pub struct Scene {
     pub desired_key: [f32; 2],
     pub trail: Vec<crate::trail::Circle>,
     pub trail_color: u32,
+    /// How far, in pixels, this user's taps for each key land from where they mean, where that is
+    /// learned (`suggest::tap_aim`); empty when it isn't used. See [`Scene::aimed_key_at`].
+    pub aims: Vec<Option<(f32, f32)>>,
 }
 
 impl Scene {
@@ -81,6 +84,16 @@ impl Scene {
         }
         let rects: Vec<_> = self.keys.iter().map(|k| k.bounds.touch).collect();
         keys::key_at(&[&rects], x, y - self.strip).filter(|&i| self.keys[i].enabled)
+    }
+
+    /// The key a tap at (x, y) types: [`Scene::key_at`], moved to a neighbour when this user's
+    /// learned aim at both keys says it was meant for it (see `keys::aim::retarget`).
+    pub fn aimed_key_at(&self, x: f32, y: f32) -> Option<usize> {
+        let hit = self.key_at(x, y)?;
+        let shift = |index: usize| self.aims.get(index).copied().flatten();
+        Some(keys::aim::retarget(hit, (x, y), shift, |x, y| {
+            self.key_at(x, y)
+        }))
     }
 
     pub fn popup_bounds(&self) -> Option<Rect> {

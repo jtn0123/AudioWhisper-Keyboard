@@ -11,7 +11,7 @@ use keys::{Bounds, KeyFlex, Rect};
 
 use crate::jni::{self, Env, Result, illegal};
 
-fn rect(&[left, top, right, bottom]: &[f32; 4]) -> Rect {
+pub(crate) fn rect(&[left, top, right, bottom]: &[f32; 4]) -> Rect {
     Rect {
         left,
         top,
@@ -25,7 +25,7 @@ fn floats(rect: Rect) -> [f32; 4] {
 }
 
 /// `items` cut into rows of `sizes` items each, which must cover them exactly.
-fn rows<'a, T>(items: &'a [T], sizes: &[i32]) -> Result<Vec<&'a [T]>> {
+pub(crate) fn rows<'a, T>(items: &'a [T], sizes: &[i32]) -> Result<Vec<&'a [T]>> {
     let mut rest = items;
     let mut rows = Vec::with_capacity(sizes.len());
     for &size in sizes {

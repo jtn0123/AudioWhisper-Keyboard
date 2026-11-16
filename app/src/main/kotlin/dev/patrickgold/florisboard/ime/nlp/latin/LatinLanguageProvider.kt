@@ -30,6 +30,7 @@ import com.jtn0123.audiowhisper.suggest.LatinSuggester
 import com.jtn0123.audiowhisper.suggest.NOT_A_PROBABILITY
 import com.jtn0123.audiowhisper.suggest.PersonalWords
 import com.jtn0123.audiowhisper.suggest.PreviousWords
+import com.jtn0123.audiowhisper.suggest.PrivateTextFile
 import com.jtn0123.audiowhisper.suggest.SwipeWords
 import com.jtn0123.audiowhisper.suggest.TapTrail
 import com.jtn0123.audiowhisper.suggest.TypingHistory
@@ -95,6 +96,9 @@ class LatinLanguageProvider(context: Context) : SpellingProvider, SuggestionProv
         /** What the keyboard learned from typing; like [KEPT_WORDS_FILE], never backed up. */
         private const val LEARNED_WORDS_FILE = "learned-words.txt"
 
+        /** Where this user's taps land in each key (see [TapTrail.aimText]); numbers only, never backed up. */
+        private const val TAP_AIM_FILE = "tap-aim.txt"
+
 
     }
 
@@ -136,6 +140,10 @@ class LatinLanguageProvider(context: Context) : SpellingProvider, SuggestionProv
     /** AudioWhisper: where the letters being typed were tapped, for the decoder (B13). */
     val tapTrail = TapTrail()
 
+    /** Where [tapTrail] keeps what it learned of this user's aim. Loaded by [preload], saved by [saveTapAim]. */
+    private val tapAimFile by lazy { PrivateTextFile(File(appContext.filesDir, TAP_AIM_FILE)) }
+    @Volatile private var tapAimLoaded = false
+
     override val providerId = ProviderId
 
     override suspend fun create() {
@@ -152,6 +160,10 @@ class LatinLanguageProvider(context: Context) : SpellingProvider, SuggestionProv
         if (!learnedWordsLoaded) {
             learnedWords.load()
             learnedWordsLoaded = true
+        }
+        if (!tapAimLoaded) {
+            tapTrail.loadAim(tapAimFile.read())
+            tapAimLoaded = true
         }
         if (english) loadSwipeWords()
     }
@@ -379,10 +391,17 @@ class LatinLanguageProvider(context: Context) : SpellingProvider, SuggestionProv
         if (!learnedWords.save()) Log.w(TAG, "Could not save the learned words")
     }
 
+    /** AudioWhisper: writes where this user's taps land to filesDir. Blocking; call off the main thread. */
+    fun saveTapAim() {
+        if (!tapAimFile.write(tapTrail.aimText())) Log.w(TAG, "Could not save the tap aim")
+    }
+
     /** AudioWhisper: forgets everything learned from typing, on disk too. Blocking. */
     fun forgetLearnedWords() {
         learnedWords.clear()
         saveLearnedWords()
+        tapTrail.forgetAim()
+        tapAimFile.delete()
         refreshSwipeWords()
     }
 
@@ -404,7 +423,8 @@ class LatinLanguageProvider(context: Context) : SpellingProvider, SuggestionProv
             if (content.composingText.isEmpty()) content.textBeforeSelection else content.text.safeSubstring(0, content.localComposing.start),
             content.composingText, content.textAfterSelection)
         if (plan.isEmpty()) return null
-        return TypingState.of(plan[0], plan[1], plan[2]).copy(taps = tapTrail.offsetsFor(plan[1]))
+        val taps = tapTrail.offsetsFor(plan[1], aimed = prefs.suggestion.learnTapAim.get())
+        return TypingState.of(plan[0], plan[1], plan[2]).copy(taps = taps)
     }
 
     private fun ArrangedWord.toCandidate(autoCorrectAllowed: Boolean) = WordSuggestionCandidate(

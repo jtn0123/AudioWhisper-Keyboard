@@ -28,6 +28,7 @@ import dev.patrickgold.florisboard.ime.smartbar.quickaction.QuickAction
 import com.jtn0123.audiowhisper.reader.ReadAloud
 import dev.patrickgold.florisboard.ime.popup.GlobalStateNumPopupsShowing
 import kotlinx.coroutines.flow.update
+import org.florisboard.lib.android.isOrientationLandscape
 import org.florisboard.lib.android.showShortToast
 
 private const val PROFILE_LOG_TAG = "aw-profile"
@@ -241,7 +242,8 @@ class RustKeyboardView(context: Context) : FrameLayout(context), SurfaceHolder.C
         if (accessibility.touch(event)) return true
         val packet = event.rendererPacket()
         snapshot?.let(gestureHost::configure)
-        val actions = native.touch(packet.metadata, packet.times, packet.coords)
+        // AudioWhisper: a key going down types the key this user meant, if their aim is learned.
+        val actions = native.touch(packet.metadata, packet.times, packet.coords, nlp.tapAim)
         dispatchActions(actions, event)
         scheduleDeadline()
         snapshot?.let { state -> mediaBuffers.update(state.panels.clipboard.takeIf { state.panels.kind==4 },state.panels.gif.takeIf { state.panels.kind==5 }) }
@@ -327,6 +329,7 @@ class RustKeyboardView(context: Context) : FrameLayout(context), SurfaceHolder.C
                 val p = event?.findPointerIndex(pointer) ?: -1
                 if (p >= 0 && event != null) {
                     val v = key.visibleBounds
+                    nlp.noteOrientation(resources.configuration.isOrientationLandscape())
                     nlp.tapTrail.pressed(data.code, TapOffset.of(event.getX(p), event.getY(p) - s.stripHeight,
                         v.center.x, v.center.y, v.width, v.height))
                 }

@@ -100,17 +100,17 @@ private fun KeyboardManager.executeInput(phase: Int,data: KeyData) {
             SUBTYPE -> if(arg<0) subtypeManager.switchToPrevSubtype() else subtypeManager.switchToNextSubtype()
             NEXT_IME -> FlorisImeService.switchToNextInputMethod()
             PREV_IME -> FlorisImeService.switchToPrevInputMethod()
-            UNDO_KEY -> editorInstance.performUndo()
+            UNDO_KEY -> { nlpManager.noteUndo(); editorInstance.performUndo() }
             REDO_KEY -> editorInstance.performRedo()
             SETTINGS_UI -> FlorisImeService.launchSettings()
-            SPACE_KEY -> handleSpace(data)
+            SPACE_KEY -> { nlpManager.noteKey(); handleSpace(data) }
             IME_PICKER -> InputMethodUtils.showImePicker(appContext)
             SMARTBAR -> scope.launch {prefs.smartbar.enabled.set(arg != 0L)}
             INCOGNITO -> scope.launch {handleToggleIncognitoMode(arg and 1 != 0L, (arg ushr 1).toInt())}
             AUTOCORRECT_TOGGLE -> handleToggleAutocorrect()
             AUTO_CORRECT -> autoCorrect(if(arg<0) null else UCharacter.codePointAt(text,0))
             COMMIT_TEXT -> editorInstance.commitText(text)
-            TAP_TYPED -> nlpManager.tapTrail.typed(text)
+            TAP_TYPED -> { nlpManager.noteKey(); nlpManager.tapTrail.typed(text) }
             COMMIT_CHAR -> editorInstance.commitChar(text)
             UNKNOWN_KEY -> flogError(LogTopic.KEY_EVENTS) {"Received unknown key"}
             FEEDBACK_REPEAT -> FlorisImeService.inputFeedbackController()?.keyRepeatedAction(data)

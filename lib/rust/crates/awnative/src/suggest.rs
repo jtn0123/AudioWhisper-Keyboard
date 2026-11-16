@@ -12,6 +12,7 @@ mod session;
 mod suggester;
 mod swipe;
 mod tap;
+pub(crate) mod tap_aim;
 mod word_learner;
 
 use std::ptr;

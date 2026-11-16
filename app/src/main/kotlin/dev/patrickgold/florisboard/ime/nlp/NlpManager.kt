@@ -59,6 +59,9 @@ class NlpManager(context: Context) {
     private val emojiSuggestionProvider = EmojiSuggestionProvider(context)
     // AudioWhisper: kept directly so auto-correction and learning reach it without the providers map.
     private val latinProvider = LatinLanguageProvider(context)
+
+    /** AudioWhisper: the private accuracy counters (see [TypingCounters]). */
+    private val counters = TypingCounters(context.filesDir)
     private val providers = guardedByLock {
         mapOf(
             LatinLanguageProvider.ProviderId to ProviderInstanceWrapper(latinProvider),
@@ -88,6 +91,7 @@ class NlpManager(context: Context) {
         editorInstance.activeInfoFlow.collectLatestIn(scope) { configure() }
         prefs.suggestion.incognitoMode.asFlow().collectLatestIn(scope) { configure() }
         prefs.suggestion.learnFromTyping.asFlow().collectLatestIn(scope) { configure() }
+        scope.launch(Dispatchers.IO) { counters.load() }
         prefs.suggestion.blockPossiblyOffensive.asFlow().collectLatestIn(scope) { clearSuggestions() }
         prefs.suggestion.api30InlineSuggestionsEnabled.asFlow().collectLatestIn(scope) { configure() }
         prefs.smartbar.enabled.asFlow().collectLatestIn(scope) { configure() }
@@ -257,7 +261,13 @@ class NlpManager(context: Context) {
      * apostrophes, hyphens and `@` continue a word instead of ending it (see [com.jtn0123.audiowhisper.rust.SuggestRules.continuesWord]).
      */
     fun canCommit(candidate: SuggestionCandidate): Boolean =
-        NlpState.pick(candidate, environment.fields(subtypeManager.activeSubtype))
+        NlpState.pick(candidate, environment.fields(subtypeManager.activeSubtype)).also {
+            // AudioWhisper: a word tapped keeps the word typed before it, or replaces the one being typed.
+            if (it && candidate is WordSuggestionCandidate) {
+                tapTrail.picked(forWord = editorInstance.activeContent.composingText.isNotEmpty())
+            }
+            noteTypingChanged()
+        }
 
     fun getAutoCommitCandidate(triggerCodePoint: Int? = null): SuggestionCandidate? {
         val requested = environment.fields(subtypeManager.activeSubtype)
@@ -288,6 +298,11 @@ class NlpManager(context: Context) {
      */
     fun learnTypedWord(content: EditorContent, triggerCodePoint: Int? = null) {
         learningPlan(0, content.composingText, content, triggerCodePoint)
+        // The word kept as typed may teach where this user taps (see suggest/tap_learning.rs).
+        val aim = NlpState.call("aim", prefs.suggestion.learnTapAim.get().bit(), (triggerCodePoint ?: -1).toString(),
+            content.composingText, content.localComposing.isValid.bit())
+        if (aim[0] == "1") tapTrail.kept(content.composingText)
+        noteTypingChanged()
     }
 
     fun learnCandidate(text: String, content: EditorContent) {
@@ -295,7 +310,11 @@ class NlpManager(context: Context) {
         learningPlan(1, text, content)
     }
 
-    fun learnSwipedWord(word: String, content: EditorContent) { learningPlan(2, word, content) }
+    fun learnSwipedWord(word: String, content: EditorContent) {
+        learningPlan(2, word, content)
+        tapTrail.swiped()
+        noteTypingChanged()
+    }
 
     private fun learningPlan(kind: Int, word: String, content: EditorContent, trigger: Int? = null) {
         configure(subtypeManager.activeSubtype, content)
@@ -309,8 +328,53 @@ class NlpManager(context: Context) {
         } }
     }
 
-    /** AudioWhisper: a backspace; a swiped word waiting to be learned is being taken out. */
-    fun dropSwipedWord() = latinProvider.dropSwipedWord()
+    /**
+     * AudioWhisper: a backspace; a swiped word waiting to be learned is being taken out, and so
+     * is a typed word waiting to teach where this user taps.
+     */
+    fun dropSwipedWord() {
+        latinProvider.dropSwipedWord()
+        tapTrail.backspace()
+        val selection = editorInstance.activeContent.selection
+        counters.deleted(selection.start, selection.end)
+        noteTypingChanged()
+    }
+
+    /** AudioWhisper: a key that types went down (a character, a space or Enter), for the counters. */
+    fun noteKey() {
+        counters.key()
+    }
+
+    /** AudioWhisper: the backspace straight after an auto-correction undid it. */
+    fun noteCorrectionUndone() {
+        counters.undone()
+        noteTypingChanged()
+    }
+
+    /** AudioWhisper: the undo key; nothing just typed may teach where this user taps. */
+    fun noteUndo() {
+        tapTrail.undo()
+        counters.undo()
+        noteTypingChanged()
+    }
+
+    /** AudioWhisper: the screen's orientation, which where this user taps is learned per. */
+    fun noteOrientation(landscape: Boolean) = tapTrail.landscape(landscape)
+
+    /** AudioWhisper: where this user taps, for the Rust renderer's hit test; null when the setting is off. */
+    val tapAim get() = latinProvider.tapTrail.positions.takeIf { prefs.suggestion.learnTapAim.get() }
+
+    /**
+     * AudioWhisper: [hit], or its neighbour if this user's learned aim says a tap at ([x], [y])
+     * meant it (see [com.jtn0123.audiowhisper.suggest.TapTrail.retarget]); [hit] when the setting is off.
+     */
+    fun aimedKey(hit: Int, layout: IntArray, bounds: FloatArray, x: Float, y: Float): Int =
+        if (prefs.suggestion.learnTapAim.get()) tapTrail.retarget(hit, layout, bounds, x, y) else hit
+
+    /** Schedules a save if where this user taps or the counters changed. */
+    private fun noteTypingChanged() {
+        if (tapTrail.aimChanged() or counters.changed()) saveLearnedWordsSoon()
+    }
 
     /** AudioWhisper: the auto-correction that started at [start] was undone; what it taught goes too. */
     fun unlearnAutoCorrection(start: Int) {
@@ -325,7 +389,10 @@ class NlpManager(context: Context) {
 
     /** AudioWhisper: erases everything learned from typing, on the phone too. */
     fun forgetLearnedWords() {
-        scope.launch(Dispatchers.IO) { latinProvider.forgetLearnedWords() }
+        scope.launch(Dispatchers.IO) {
+            latinProvider.forgetLearnedWords()
+            counters.reset()
+        }
     }
 
     /** Applies [change] to the learner unless incognito or the field rules learning out. */
@@ -342,6 +409,8 @@ class NlpManager(context: Context) {
             delay(delayMs)
             NlpState.call("save", SystemClock.uptimeMillis().toString())
             latinProvider.saveLearnedWords()
+            latinProvider.saveTapAim()
+            counters.save()
         }
     }
 

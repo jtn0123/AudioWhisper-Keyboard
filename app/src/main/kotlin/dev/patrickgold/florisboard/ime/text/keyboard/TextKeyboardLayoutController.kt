@@ -47,6 +47,7 @@ import dev.patrickgold.florisboard.lib.Pointer
 import dev.patrickgold.florisboard.lib.PointerMap
 import dev.patrickgold.florisboard.nlpManager
 import kotlin.math.sqrt
+import org.florisboard.lib.android.isOrientationLandscape
 
 internal class TextKeyboardLayoutController(
     context: Context,
@@ -55,6 +56,10 @@ internal class TextKeyboardLayoutController(
     internal val editorInstance by context.editorInstance()
     internal val keyboardManager by context.keyboardManager()
     internal val nlpManager by context.nlpManager()
+
+    /** AudioWhisper: where this user taps is learned per orientation. */
+    private val resources = context.resources
+    private val isLandscape get() = resources.configuration.isOrientationLandscape()
 
     internal val inputEventDispatcher get() = keyboardManager.inputEventDispatcher
     internal val inputFeedbackController get() = FlorisImeService.inputFeedbackController()
@@ -207,7 +212,14 @@ internal class TextKeyboardLayoutController(
 
     internal fun onTouchDownInternal(event: MotionEvent, pointer: TouchPointer) {
 
-        val key = keyboard.getKeyForPos(event.getX(pointer.index), event.getY(pointer.index))
+        val x = event.getX(pointer.index)
+        val y = event.getY(pointer.index)
+        // AudioWhisper: a tap near a border types the key this user meant, if their aim is learned.
+        val key = if (prefs.suggestion.learnTapAim.get()) {
+            keyboard.getAimedKeyForPos(x, y, nlpManager::aimedKey)
+        } else {
+            keyboard.getKeyForPos(x, y)
+        }
         if (key != null && key.isEnabled) {
             key.computedDataOnDown = key.computedData
             noteTapPosition(key, event.getX(pointer.index), event.getY(pointer.index))
@@ -246,6 +258,7 @@ internal class TextKeyboardLayoutController(
 
     /** AudioWhisper: where in [key] the tap landed, for the decoder (B13). */
     internal fun noteTapPosition(key: TextKey, x: Float, y: Float) {
+        nlpManager.noteOrientation(isLandscape)
         val bounds = key.visibleBounds
         val center = bounds.center
         val offset = TapOffset.of(x, y, center.x, center.y, bounds.width, bounds.height)

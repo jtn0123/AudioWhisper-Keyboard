@@ -58,6 +58,24 @@ internal object SuggestNative {
 
     @JvmStatic external fun tapOffsetsFor(trail: Long, word: String): FloatArray
 
+    @JvmStatic external fun tapLandscape(trail: Long, landscape: Boolean)
+
+    @JvmStatic external fun tapKept(trail: Long, word: String)
+
+    @JvmStatic external fun tapEvent(trail: Long, event: Int)
+
+    @JvmStatic external fun tapAimedOffsetsFor(trail: Long, word: String, aimed: Boolean): FloatArray
+
+    @JvmStatic external fun tapRetarget(trail: Long, layout: IntArray, bounds: FloatArray, x: Float, y: Float): Int
+
+    @JvmStatic external fun tapAimText(trail: Long): String
+
+    @JvmStatic external fun tapAimLoad(trail: Long, text: String)
+
+    @JvmStatic external fun tapAimForget(trail: Long)
+
+    @JvmStatic external fun tapAimChanged(trail: Long): Boolean
+
     @JvmStatic external fun qwertySizes(): IntArray
 
     @JvmStatic external fun qwertyKeys(): IntArray

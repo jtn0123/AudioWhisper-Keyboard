@@ -127,7 +127,7 @@ impl KeyboardTouch {
                 }
                 // The Compose controller has four pointer slots; smartbar input is a separate owner.
                 if self.pointers.len() < 4 && y >= scene.strip {
-                    let key = scene.key_at(x, y);
+                    let key = scene.aimed_key_at(x, y);
                     self.swipes.down(id, x, y, config.density);
                     let slot = (0..4)
                         .find(|slot| self.pointers.iter().all(|p| p.slot != *slot))

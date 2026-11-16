@@ -140,7 +140,7 @@ internal fun KeyboardManager.undoAutoCorrection(): Boolean {
     // Not corrected again this session if the user goes back into the word and finishes it.
     nlpManager.keepAsTyped(undo.typed)
     nlpManager.unlearnAutoCorrection(undo.start)
-    return editorInstance.revertAutoCorrection(revert)
+    return editorInstance.revertAutoCorrection(revert).also { if (it) nlpManager.noteCorrectionUndone() }
 }
 
 /**
@@ -152,6 +152,7 @@ internal fun KeyboardManager.handleForwardDelete(unit: OperationUnit) = executeD
  * Handles a [KeyCode.ENTER] event.
  */
 internal fun KeyboardManager.handleEnter() {
+    nlpManager.noteKey()
     nlpManager.learnTypedWord(editorInstance.activeContent)
     val info = editorInstance.activeInfo
     val isShiftPressed = inputEventDispatcher.isPressed(KeyCode.SHIFT)

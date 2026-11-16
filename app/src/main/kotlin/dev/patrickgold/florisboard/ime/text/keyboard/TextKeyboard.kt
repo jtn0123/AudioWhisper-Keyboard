@@ -50,6 +50,32 @@ class TextKeyboard(
     }
 
     /**
+     * AudioWhisper: [getKeyForPos], or the neighbour [retarget] picks for this user's aim. It gets
+     * the hit key's index, this layout packed as [com.jtn0123.audiowhisper.suggest.TapTrail.retarget]
+     * takes it, and the pointer, and answers the index of the key that types.
+     */
+    fun getAimedKeyForPos(
+        pointerX: Float,
+        pointerY: Float,
+        retarget: (Int, IntArray, FloatArray, Float, Float) -> Int,
+    ): TextKey? {
+        val hit = KeyGeometry.keyAt(rowSizes, touchBounds, pointerX, pointerY)
+        if (hit < 0) return null
+        val touch = touchBounds
+        val layout = IntArray(2 + rowSizes.size + flatKeys.size)
+        layout[1] = rowSizes.size
+        rowSizes.copyInto(layout, 2)
+        val bounds = FloatArray(6 * flatKeys.size)
+        for ((i, key) in flatKeys.withIndex()) {
+            layout[2 + rowSizes.size + i] = key.computedData.code
+            touch.copyInto(bounds, 6 * i, 4 * i, 4 * i + 4)
+            bounds[6 * i + 4] = key.visibleBounds.width
+            bounds[6 * i + 5] = key.visibleBounds.height
+        }
+        return flatKeys.getOrNull(retarget(hit, layout, bounds, pointerX, pointerY)) ?: flatKeys[hit]
+    }
+
+    /**
      * Lays the keys out from [desiredKey] in Rust (lib/rust/crates/keys): each row's keys grow or
      * shrink by their flex factors to fill the width, the rows spread down the height, and the end
      * keys' touch bounds reach the keyboard's edges.
