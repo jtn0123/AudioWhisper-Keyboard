@@ -114,6 +114,39 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_SmartbarRules_ellipsis
         })
     }
 }
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_SmartbarRules_roomy(
+    env: *mut JNIEnv,
+    _: jclass,
+    config: jfloatArray,
+) -> jboolean {
+    // SAFETY: JVM local array is valid for this invocation and copied before use.
+    unsafe {
+        jni::run(env, 0, |env| {
+            let c = Config::decode(&env.read::<f32>(config, "config")?)
+                .ok_or_else(|| illegal("invalid smartbar config"))?;
+            Ok(jboolean::from(c.roomy()))
+        })
+    }
+}
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_SmartbarRules_textScale(
+    env: *mut JNIEnv,
+    _: jclass,
+    scale: f32,
+    measured: f32,
+    available: f32,
+) -> f32 {
+    // SAFETY: only primitives cross; env is valid for this invocation to raise the exception.
+    unsafe {
+        jni::run(env, 0.0, |_| {
+            if !scale.is_finite() || scale <= 0.0 || measured.is_nan() || available.is_nan() {
+                return Err(illegal("invalid text scale"));
+            }
+            Ok(smartbar::text_scale(scale, measured, available))
+        })
+    }
+}
 
 #[unsafe(no_mangle)]
 pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_candidateLongPress(

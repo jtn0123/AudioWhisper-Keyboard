@@ -23,11 +23,24 @@ pub struct Session {
     pub inline: Vec<Field>,
     pub save_due: Option<i64>,
     pub preview_time: i64,
+    /// Words filled the row when the in-flight request began.
+    pub held: bool,
+    /// Typing emptied a row of words; the request for the new text always follows.
+    pub carry: bool,
 }
+/// Context fields that change as the user types: selection validity and bounds, composing
+/// bounds, text and offset. A change to only these is answered by a request for the new text.
+const TYPING: [usize; 7] = [9, 10, 11, 12, 13, 14, 20];
 impl Session {
     pub fn configure(&mut self, context: Context) {
         if self.context != context {
+            let typing = context.query()
+                && self.context.0.len() == context.0.len()
+                && (self.context.0.iter().zip(&context.0).enumerate())
+                    .all(|(i, (a, b))| a == b || TYPING.contains(&i));
+            let holding = self.words();
             self.invalidate();
+            self.carry = typing && holding;
             self.external_generation = self.external_generation.wrapping_add(1);
             self.context = context;
             // An editor/privacy/subtype change invalidates platform inflations as well.
@@ -43,12 +56,21 @@ impl Session {
         self.automatic = None;
         self.clipboard.clear();
         self.clipboard_generation = self.clipboard_generation.wrapping_add(1);
+        self.held = false;
+        self.carry = false;
+    }
+    /// The main row shows words, or holds their place: typing emptied a row of words and the
+    /// refill is due. The Smartbar keeps the suggestions' full width across that empty list.
+    pub fn words(&self) -> bool {
+        !self.visible().is_empty() || self.carry || self.pending && self.held
     }
     pub fn begin(&mut self, now: i64) -> Vec<Field> {
+        let held = self.words();
         let automatic = self.automatic.take();
         self.invalidate();
         self.automatic = automatic;
         self.pending = self.context.query();
+        self.held = held && self.pending;
         // One short coalescing window, cancelled by the next input. No wall-clock identity.
         self.due = now.saturating_add(8);
         vec![
@@ -107,8 +129,8 @@ impl Session {
         }
     }
     pub fn expanded(&self) -> i32 {
-        if !self.context.flag(8) || self.pending && !self.context.selection() {
-            // Clearing stale words for an in-flight request must not flash the actions toolbar.
+        if !self.context.flag(8) || self.pending && !self.context.selection() || self.carry {
+            // Clearing stale words for an in-flight or due request must not flash the actions toolbar.
             return -1;
         }
         i32::from(self.visible().is_empty() && self.inline.is_empty() || self.context.selection())

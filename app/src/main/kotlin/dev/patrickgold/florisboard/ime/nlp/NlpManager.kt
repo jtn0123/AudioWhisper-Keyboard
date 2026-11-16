@@ -69,6 +69,7 @@ class NlpManager(context: Context) {
     private val environment = NlpEnvironment(context)
     private var requestJob: Job? = null
     val activeCandidatesFlow = NlpState.candidates
+    val activeCandidatesWordsFlow = NlpState.wordsShown
     val activeCandidates get() = activeCandidatesFlow.value
 
     private fun configure(subtype: Subtype = subtypeManager.activeSubtype, content: EditorContent = editorInstance.activeContent) {

@@ -153,3 +153,22 @@ all crashes after Compose deletion. Details exclude exception messages/causes, f
 and all editable/clipboard/transcript/learned/audio data. **Would change if** phone evidence
 requires a measured, explicitly agreed platform exception; the full port and fallback
 deletion remain separately gated.
+
+## Suggestions take the whole Smartbar row while words show (2026-11-15)
+
+On a 384 dp phone the shared row gave three suggestions about 250 px each between the mic,
+the speaker, the emoji and the arrow, so any word longer than five letters was cut off. Now,
+in the shared and extended layouts, the row's actions step aside whenever there are words to
+show, flipped or not, and the words get the whole width. With no words, the row is exactly
+as before, and so are suggestions-only, actions-only, inline autofill and the opened action
+row. Two exceptions keep it as before: dictation (running, or its preview showing), because
+its controls must stay under the finger, and read-aloud while it plays with the speaker
+shown, because the speaker is the stop button. `Config::roomy` in the render crate is the
+one rule. Compose asks it over JNI, and touch and TalkBack follow the same layout. Every
+keystroke empties the suggestion list for a moment before the new words arrive, which would
+make the icons blink in and out while typing. So the NLP session's `words` fact holds across
+that gap, and only across that gap: an empty refill, incognito, a selection or a clear all
+end it. A word still too wide shrinks in whole-percent steps down to 75% before it gets an
+ellipsis, measured by each renderer's own text engine with the scale from
+`smartbar::text_scale`. **Would change if** using the phone shows the mic or emoji are missed
+while typing; then keep just that one action beside the words, not the old four.

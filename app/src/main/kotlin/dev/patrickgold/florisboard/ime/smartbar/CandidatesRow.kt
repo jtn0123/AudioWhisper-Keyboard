@@ -25,6 +25,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentWidth
+import androidx.compose.foundation.text.TextAutoSize
+import androidx.compose.foundation.text.modifiers.TextAutoSizeLayoutScope
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -38,10 +40,14 @@ import androidx.compose.ui.input.pointer.PointerInputChange
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import com.jtn0123.audiowhisper.dictation.Dictation
 import com.jtn0123.audiowhisper.dictation.DictationPreview
 import com.jtn0123.audiowhisper.render.rendererEmojiSamples
+import com.jtn0123.audiowhisper.rust.SmartbarRules
 import dev.patrickgold.florisboard.app.FlorisPreferenceStore
 import dev.patrickgold.florisboard.ime.nlp.ClipboardSuggestionCandidate
 import dev.patrickgold.florisboard.ime.nlp.SuggestionCandidate
@@ -225,6 +231,7 @@ private fun CandidateItem(
                 attributes = attributes,
                 selector = selector,
                 text = candidate.text.toString(),
+                autoSize = ::CandidateTextFit,
             )
             if (candidate.secondaryText != null) {
                 SnyggText(
@@ -234,6 +241,19 @@ private fun CandidateItem(
                     text = candidate.secondaryText!!.toString(),
                 )
             }
+        }
+    }
+}
+
+/**
+ * AudioWhisper: a word shrinks to fit its slot, down to Rust's floor, before it ellipsises. Rust
+ * takes each step from Compose's own measure, as it does from Parley's in the Rust renderer.
+ */
+private data class CandidateTextFit(val base: TextUnit) : TextAutoSize {
+    override fun TextAutoSizeLayoutScope.getFontSize(constraints: Constraints, text: AnnotatedString): TextUnit {
+        if (!constraints.hasBoundedWidth) return base
+        return base * SmartbarRules.fitText(constraints.maxWidth.toFloat()) { scale ->
+            performLayout(constraints, text, base * scale).multiParagraph.intrinsics.maxIntrinsicWidth
         }
     }
 }

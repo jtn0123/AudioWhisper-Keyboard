@@ -4,6 +4,7 @@ package com.jtn0123.audiowhisper.rust
  * Generations replace legacy timestamps, stable dedup rejects repeated provider entries, and
  * password/settings eligibility covers every provider. These deliberate safety changes have
  * directed legacy-counterexample tests; the remaining rules are the original Kotlin decisions.
+ * AudioWhisper's Smartbar hold is new: words emptied by typing keep the row until the refill.
  */
 internal class ReferenceNlp {
     var context = List(22) { "0" }
@@ -20,6 +21,8 @@ internal class ReferenceNlp {
     var inline = emptyList<String>()
     var saveDue: Long? = null
     var previewTime = 0L
+    var held = false
+    var carry = false
     private fun flag(at: Int) = context[at] == "1"
     private val allowed: Boolean get() {
         val raw = context[0].toInt()
@@ -37,7 +40,8 @@ internal class ReferenceNlp {
     private val selection get() = context[10] != context[11]
     private val query get() = on && flag(9) && !selection
     private val visible get() = if (!on) emptyList() else clipboard.ifEmpty { candidates }
-    private fun invalidate() { generation++; clipboardGeneration++; pending = false; automatic = null; candidates = emptyList(); clipboard = emptyList() }
+    private fun invalidate() { generation++; clipboardGeneration++; pending = false; automatic = null; candidates = emptyList(); clipboard = emptyList(); held = false; carry = false }
+    private val holding get() = visible.isNotEmpty() || carry || pending && held
     private fun policy() = listOf(on, words, emoji, auto, learning, flag(4) || flag(5)).map { it.bit() }
     private fun filter(values: List<List<String>>): List<List<String>> {
         if (!query) return emptyList()
@@ -46,7 +50,7 @@ internal class ReferenceNlp {
             .distinctBy { it[2] to it[1] }.map { v -> v.take(3) + (v[3] == "1" && auto && v[2] == "0").bit() }
     }
     private fun snapshot(): List<String> {
-        val expanded = if (!flag(8) || pending && !selection) -1 else if (visible.isEmpty() && inline.isEmpty() || selection) 1 else 0
+        val expanded = if (!flag(8) || pending && !selection || carry) -1 else if (visible.isEmpty() && inline.isEmpty() || selection) 1 else 0
         return listOf(generation.toString(), expanded.toString(), (automatic ?: visible.firstOrNull { it[3] == "1" })?.get(0).orEmpty(), visible.size.toString()) +
             visible.map { it[0] } + inline.size.toString() + inline
     }
@@ -65,7 +69,12 @@ internal class ReferenceNlp {
                 listOf(1.coerceAtMost(minOf(commit.compareTo(false), size)), max.coerceAtMost(size), if (commit && size > 0) 0 else -1).map(Int::toString)
             }
             "context" -> {
-                if (context != f) { invalidate(); externalGeneration++; context = f; inlineGeneration++; inlinePending = false; inline = emptyList() }
+                if (context != f) {
+                    val typed = f.indices.all { it in TYPING || context[it] == f[it] }
+                    val wasHolding = holding
+                    invalidate(); externalGeneration++; context = f; inlineGeneration++; inlinePending = false; inline = emptyList()
+                    carry = typed && query && wasHolding
+                }
                 snapshot()
             }
             "beginFor" -> {
@@ -99,7 +108,12 @@ internal class ReferenceNlp {
                 bool(accepted)
             }
             "policy" -> { val old = context; context = f; val result = policy(); context = old; result }
-            "begin" -> { val a = automatic; invalidate(); automatic = a; pending = query; due = f[0].toLong() + 8; listOf(generation.toString(), if (pending) "8" else "-1") }
+            "begin" -> {
+                val wasHolding = holding
+                val a = automatic; invalidate(); automatic = a; pending = query; held = wasHolding && pending; due = f[0].toLong() + 8
+                listOf(generation.toString(), if (pending) "8" else "-1")
+            }
+            "words" -> bool(holding)
             "ready" -> bool(pending && f[0].toLong() == generation && f[1].toLong() >= due)
             "complete" -> {
                 val accepted = pending && f[0].toLong() == generation
@@ -173,6 +187,8 @@ internal class ReferenceNlp {
     }
     companion object {
         const val LATIN = "org.florisboard.nlp.providers.latin"
+        /** Selection validity and bounds, composing bounds, text and offset: what typing changes. */
+        val TYPING = setOf(9, 10, 11, 12, 13, 14, 20)
         fun Boolean.bit() = if (this) "1" else "0"
         fun continues(cp: Int) = Character.isDigit(cp) || cp in listOf(39, 0x2019, 45, 64)
         fun beforeNextWord(text: String) = if (text.isNotEmpty() && !text.last().isWhitespace()) "$text " else text

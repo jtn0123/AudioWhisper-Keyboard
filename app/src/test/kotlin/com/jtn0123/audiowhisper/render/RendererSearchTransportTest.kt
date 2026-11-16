@@ -13,6 +13,10 @@ class RendererSearchTransportTest {
             val config=gifSearchBarConfig(original,48f)
             val measurement=SmartbarRules.layout(config,400f,floatArrayOf())
             assertEquals(48f,measurement[0]);assertEquals(48f,measurement[1]);assertEquals(dynamic.toFloat(),config[8])
+            // Words, dictation and reading facts never reach the search row's own layout.
+            val roomy=gifSearchBarConfig(original+floatArrayOf(1f,1f,1f),48f)
+            assertEquals(List(5){0f},roomy.drop(12));assertTrue(!SmartbarRules.roomy(roomy))
+            assertEquals(measurement.toList(),SmartbarRules.layout(roomy,400f,floatArrayOf()).toList())
             val font=java.io.File("../fastlane/staging/fonts/Roboto-Light.ttf").absolutePath
             KeyboardRenderer(arrayOf(font)).use { native ->
                 native.theme("""{"${'$'}schema":"https://schemas.florisboard.org/snygg/v2/stylesheet"}""",emptyArray(),intArrayOf(),floatArrayOf(1f,1f,1f))

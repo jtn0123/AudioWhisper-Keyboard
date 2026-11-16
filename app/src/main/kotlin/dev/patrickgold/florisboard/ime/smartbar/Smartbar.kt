@@ -54,6 +54,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.unit.dp
 import com.jtn0123.audiowhisper.dictation.Dictation
+import com.jtn0123.audiowhisper.render.smartbarConfig
+import com.jtn0123.audiowhisper.rust.SmartbarRules
 import dev.patrickgold.florisboard.R
 import dev.patrickgold.florisboard.app.FlorisPreferenceStore
 import dev.patrickgold.florisboard.ime.keyboard.FlorisImeSizing
@@ -153,6 +155,8 @@ private fun SmartbarMainRow(modifier: Modifier = Modifier) {
     // ahead of autofill chips and the expanded actions.
     val dictationPreview by Dictation.preview.collectAsState()
     val shouldShowInlineSuggestionsUi = inlineSuggestions.isNotEmpty() && dictationPreview.isEmpty()
+    // AudioWhisper: while words show, they take the whole row; Rust decides, as for its own renderer.
+    val roomy = SmartbarRules.roomy(smartbarConfig(dictationPreview.isNotEmpty(), inlineSuggestions.isNotEmpty()))
 
     val smartbarLayout by prefs.smartbar.layout.observeAsState()
     val flipToggles by prefs.smartbar.flipToggles.observeAsState()
@@ -342,14 +346,16 @@ private fun SmartbarMainRow(modifier: Modifier = Modifier) {
                 }
             }
 
-            SmartbarLayout.SUGGESTIONS_ACTIONS_SHARED -> {
-                if (!flipToggles) {
+            SmartbarLayout.SUGGESTIONS_ACTIONS_SHARED -> when {
+                roomy -> CenterContent()
+                !flipToggles -> {
                     SharedActionsToggle()
                     CenterContent()
                     PinnedEmojiAction()
                     PinnedReadAloudAction()
                     StickyAction()
-                } else {
+                }
+                else -> {
                     StickyAction()
                     PinnedReadAloudAction()
                     CenterContent()
@@ -358,14 +364,16 @@ private fun SmartbarMainRow(modifier: Modifier = Modifier) {
                 }
             }
 
-            SmartbarLayout.SUGGESTIONS_ACTIONS_EXTENDED -> {
-                if (!flipToggles) {
+            SmartbarLayout.SUGGESTIONS_ACTIONS_EXTENDED -> when {
+                roomy -> CenterContent()
+                !flipToggles -> {
                     ExtendedActionsToggle()
                     CenterContent()
                     PinnedEmojiAction()
                     PinnedReadAloudAction()
                     StickyAction()
-                } else {
+                }
+                else -> {
                     StickyAction()
                     PinnedReadAloudAction()
                     CenterContent()

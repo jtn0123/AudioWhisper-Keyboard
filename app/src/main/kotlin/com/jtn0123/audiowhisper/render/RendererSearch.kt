@@ -20,5 +20,6 @@ internal fun rendererSearch(): RendererSearch {
 internal fun gifSearchBarConfig(original: FloatArray,row: Float): FloatArray = original.copyOf().apply {
     this[0]=1f;this[1]=0f
     for(index in 2..7)this[index]=0f
-    this[9]=0f;this[11]=row;this[12]=0f;this[13]=0f
+    this[9]=0f;this[11]=row
+    for(index in 12 until size)this[index]=0f
 }

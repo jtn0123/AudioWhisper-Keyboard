@@ -178,4 +178,20 @@ object SmartbarRules {
     init { RustLibrary.load() }
     external fun layout(config: FloatArray, width: Float, intrinsic: FloatArray): FloatArray
     external fun ellipsis(advances: FloatArray, width: Float): Int
+    /** Words fill the main row: the pinned toggle, sticky action, speaker and emoji give way. */
+    external fun roomy(config: FloatArray): Boolean
+    /** One shrink-to-fit step for a candidate word; see `smartbar::text_scale`. */
+    external fun textScale(scale: Float, measured: Float, available: Float): Float
+    /** The scale a word draws at in [available], measuring with the renderer's own text layout. */
+    fun fitText(available: Float, measure: (Float) -> Float): Float {
+        var scale = 1f
+        repeat(TEXT_FIT_STEPS) {
+            val next = textScale(scale, measure(scale), available)
+            if (next == scale) return scale
+            scale = next
+        }
+        return scale
+    }
+    /** `smartbar::TEXT_FIT_STEPS`: most measurements made while fitting one word. */
+    const val TEXT_FIT_STEPS = 3
 }
