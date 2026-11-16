@@ -223,7 +223,7 @@ impl Session {
                         && (visible.is_empty() || visible.iter().any(|v| v.kind == 0)),
                 )
             }
-            "keep" => boolean(!self.context.flag(7)),
+            "keep" => boolean(self.context.remember_kept()),
             "pick" => {
                 let automatic = self.automatic.as_ref().is_some_and(|v| v.id == f[0]);
                 let accepted = automatic || self.visible().iter().any(|v| v.id == f[0]);

@@ -161,6 +161,9 @@ class LatinComparison(private val sigmaExact: Boolean) {
                 val changed = reference.finished(word, textBefore, start)
                 check("finished", input, changed, rust.finished(word, textBefore, start))
                 see("finished", changed)
+                val address = ReferenceLatin.WordLearner.isInsideAddress(textBefore, word)
+                see("an address piece", address)
+                see("an address piece took one back", address && changed)
             }
             in 10..13 -> {
                 val changed = reference.swiped(word, textBefore)
@@ -315,7 +318,7 @@ class LatinComparison(private val sigmaExact: Boolean) {
 
         val DIGITS = listOf("1", "٣", "²")
 
-        val SEPARATORS = listOf(" ", " ", ". ", ", ", "! ", "\n", "", "'", " - ", "? ")
+        val SEPARATORS = listOf(" ", " ", ". ", ", ", "! ", "\n", "", "'", " - ", "? ", "@", "/", ":", ".")
 
         /**
          * On the 0-255 log scale, many exactly [ReferenceLatin.LatinSuggester.RARER_BY] apart, and

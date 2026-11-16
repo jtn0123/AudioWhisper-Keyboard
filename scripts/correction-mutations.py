@@ -81,6 +81,42 @@ CASES = {
         CRATES + 'scoreboard/src/typing.rs',
         '.filter(|&unit| !APOSTROPHES.contains(&unit))', '.filter(|&unit| unit != 0 || APOSTROPHES.is_empty())',
         ('cargo', 'scoreboard', None, 'apostrophes')),
+    # Field kinds: what URL, e-mail, filter and password fields allow.
+    'url-is-corrected': (
+        CRATES + 'nlp/src/policy.rs',
+        'const NOT_PROSE: [i64; 4] = [0x10, 0x20, 0xb0, 0xd0];',
+        'const NOT_PROSE: [i64; 4] = [0x00, 0x20, 0xb0, 0xd0];',
+        ('cargo', 'nlp', None, 'each_kind_of_field')),
+    'filter-is-corrected': (
+        CRATES + 'nlp/src/policy.rs',
+        'const NOT_PROSE: [i64; 4] = [0x10, 0x20, 0xb0, 0xd0];',
+        'const NOT_PROSE: [i64; 4] = [0x10, 0x20, 0x00, 0xd0];',
+        ('gradle', ':app', '*FieldKindFlowTest')),
+    'password-gets-suggestions': (
+        CRATES + 'nlp/src/policy.rs',
+        'matches!(raw & 0xff0, 0x80 | 0x90 | 0xe0)', 'matches!(raw & 0xff0, 0x90 | 0xe0)',
+        ('cargo', 'nlp', None, 'each_kind_of_field')),
+    'kept-word-remembered-anywhere': (
+        CRATES + 'nlp/src/policy.rs',
+        '        self.autocorrect() && !self.flag(7)\n', '        !self.flag(7)\n',
+        ('cargo', 'nlp', None, 'a_kept_word_is_remembered')),
+    'phantom-space-in-any-field': (
+        CRATES + 'spacing/src/spaces.rs',
+        '        || typing.key_variation != NORMAL_VARIATION\n        || !typing.selection_valid',
+        '        || !typing.selection_valid',
+        ('gradle', ':app', '*FieldKindFlowTest')),
+    'address-pieces-learned': (
+        CRATES + 'suggest/src/word_learner.rs',
+        'if addresses::is_inside(text_before, word) {', 'if addresses::is_inside(text_before, word) && start < -1 {',
+        ('cargo', 'suggest', None, 'address')),
+    'first-address-piece-kept': (
+        CRATES + 'suggest/src/word_learner.rs',
+        '        if earlier {\n            self.take_back(store);\n        }\n', '',
+        ('cargo', 'suggest', None, 'address')),
+    'domain-dots-ignored': (
+        CRATES + 'suggest/src/addresses.rs',
+        '.any(|w| w[1] == DOT && is_letter_or_digit(w[0]) && is_letter_or_digit(w[2]))', '.any(|_| false)',
+        ('cargo', 'suggest', None, 'address')),
 }
 
 

@@ -8,6 +8,7 @@
 
 #![forbid(unsafe_code)]
 
+pub mod addresses;
 pub mod apostrophes;
 pub mod auto_correction;
 pub mod dictionary;

@@ -5,6 +5,8 @@ package com.jtn0123.audiowhisper.rust
  * password/settings eligibility covers every provider. These deliberate safety changes have
  * directed legacy-counterexample tests; the remaining rules are the original Kotlin decisions.
  * AudioWhisper's Smartbar hold is new: words emptied by typing keep the row until the refill.
+ * So are its field kinds: a filter field is not corrected, like a URL or e-mail field, and a word
+ * kept as typed is remembered only where it could have been corrected (docs/decisions.md).
  */
 internal class ReferenceNlp {
     var context = List(22) { "0" }
@@ -35,7 +37,7 @@ internal class ReferenceNlp {
     private val on get() = allowed && (flag(4) || flag(5))
     private val words get() = allowed && flag(4) && latin
     private val emoji get() = allowed && flag(5)
-    private val auto get() = words && !(context[0].toInt() and 15 == 1 && context[0].toInt() and 0xff0 in listOf(0x10, 0x20, 0xd0))
+    private val auto get() = words && !(context[0].toInt() and 15 == 1 && context[0].toInt() and 0xff0 in listOf(0x10, 0x20, 0xb0, 0xd0))
     private val learning get() = auto && flag(6) && !flag(7) && !flag(1)
     private val selection get() = context[10] != context[11]
     private val query get() = on && flag(9) && !selection
@@ -132,7 +134,7 @@ internal class ReferenceNlp {
                 if (a) automatic = null
                 bool(accept)
             }
-            "keep" -> bool(!flag(7))
+            "keep" -> bool(auto && !flag(7))
             "learn" -> {
                 val kind = f[0].toInt()
                 if (!learning || kind == 0 && (continues(f[1].toInt()) || f[2].isEmpty() || f[5] == "0")) emptyList()

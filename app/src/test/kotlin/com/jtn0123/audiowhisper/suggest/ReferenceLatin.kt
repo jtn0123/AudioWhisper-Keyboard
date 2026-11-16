@@ -10,6 +10,9 @@ import java.util.Locale
  * those now. They are what [LatinRulesMatchTest] holds the Rust to; don't change them.
  * [TypingDecoder], [PersonalWords], [LearnedWords], [WordCase], [AutoCorrection] and
  * [PreviousWords] are the app's.
+ *
+ * One deliberate change since, made in Rust and mirrored here: nothing of an e-mail address or URL
+ * typed into text is learned ([WordLearner.isInsideAddress]; docs/decisions.md "Field kinds").
  */
 object ReferenceLatin {
     /**
@@ -286,6 +289,7 @@ object ReferenceLatin {
 
         private fun learn(word: String, textBefore: CharSequence, start: Int): Boolean {
             if (!LearnedWords.isStorable(word)) return false
+            if (isInsideAddress(textBefore, word)) return takeBackAddress(textBefore, start)
             val context = PreviousWords.from(textBefore)
             val previous = LearnedWords.previousKey(context)
             val startsSentence = context.words.isEmpty() && context.isBeginningOfSentence
@@ -317,9 +321,33 @@ object ReferenceLatin {
             last = null
         }
 
-        private companion object {
+        /** The piece of an address before [start], learned before the address showed, is taken back. */
+        private fun takeBackAddress(textBefore: CharSequence, start: Int): Boolean {
+            val glued = glued(textBefore).length
+            val earlier = last?.takeIf { start >= 0 && it.start in (start - glued) until start } ?: return false
+            takeBack(earlier)
+            return true
+        }
+
+        companion object {
             /** Where a swiped word starts is not known: the space before it may be added later. */
-            const val NO_POSITION = -1
+            private const val NO_POSITION = -1
+
+            /** The text glued to a word typed after [textBefore]: what follows its last whitespace. */
+            private fun glued(textBefore: CharSequence) =
+                textBefore.substring(textBefore.indexOfLast { it.isWhitespace() } + 1)
+
+            /**
+             * Whether [word] after [textBefore] is a piece of an address: '@', '/' or ':' glued to it,
+             * or a '.' between letters or digits.
+             */
+            fun isInsideAddress(textBefore: CharSequence, word: String): Boolean {
+                val glued = glued(textBefore)
+                if (glued.any { it in "@/:" }) return true
+                return (glued + word.take(1)).windowed(3).any {
+                    it[1] == '.' && it[0].isLetterOrDigit() && it[2].isLetterOrDigit()
+                }
+            }
         }
     }
 }

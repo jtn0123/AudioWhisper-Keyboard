@@ -3,6 +3,7 @@
 //! word waits for what comes next: the next word or a separator keeps it, a candidate tap or a
 //! backspace means it was wrong. Finishing a different word where the last one began (the user
 //! went back and changed it) takes the last one back first, as does undoing its auto-correction.
+//! Nothing of an e-mail address or URL is learned ([`addresses`]).
 //!
 //! Was Kotlin's `WordLearner`, which still tells this when a word is finished. Each call gets the
 //! store to feed, locked only while it adds or removes a word (suggestions read it from another
@@ -12,6 +13,7 @@ use std::sync::{Mutex, MutexGuard, PoisonError};
 
 use chars::lowercase;
 
+use crate::addresses;
 use crate::dictionary::Lookup;
 use crate::learned_words::{LearnedWords, is_storable, previous_key};
 use crate::previous_words::PreviousWords;
@@ -131,6 +133,9 @@ impl WordLearner {
         if !is_storable(word) {
             return Ok(false);
         }
+        if addresses::is_inside(text_before, word) {
+            return Ok(self.take_back_address(store, text_before, start));
+        }
         let context = PreviousWords::from(text_before);
         let first_word = context.words.first().map(Vec::as_slice);
         let previous = previous_key(first_word, context.is_beginning_of_sentence);
@@ -148,6 +153,29 @@ impl WordLearner {
             start,
         });
         Ok(true)
+    }
+
+    /// A piece of an address or URL, typed at `start` after `text_before`, is not learned, and
+    /// the piece before it in the same address, learned before anything showed it was one
+    /// ("example" when the '.' of "example.com" was typed), is taken back. Returns whether `store`
+    /// changed.
+    fn take_back_address(
+        &mut self,
+        store: &Mutex<LearnedWords>,
+        text_before: &[u16],
+        start: i32,
+    ) -> bool {
+        let glued = i32::try_from(addresses::glued(text_before).len()).unwrap_or(i32::MAX);
+        let address = start.saturating_sub(glued)..start;
+        let earlier = start >= 0
+            && self
+                .last
+                .as_ref()
+                .is_some_and(|last| address.contains(&last.start));
+        if earlier {
+            self.take_back(store);
+        }
+        earlier
     }
 
     /// Takes back the last word learned.
@@ -317,6 +345,33 @@ mod tests {
         // Even with something that can't be learned.
         assert!(learning.finished("th3", "", 0));
         assert_eq!(learning.count(None, "the"), 0);
+    }
+
+    #[test]
+    fn nothing_of_an_address_or_url_is_learned() {
+        let mut learning = Learning::new();
+        // "example" ended by the '.' of "example.com" is learned, until "com" shows the address.
+        assert!(learning.finished("example", "see ", 4));
+        assert!(learning.finished("com", "see example.", 12));
+        assert_eq!(learning.count(Some("see"), "example"), 0);
+        assert_eq!(learning.count(None, "com"), 0);
+        // "bob" is never ended by its '@', which continues the word.
+        assert!(!learning.finished("example", "write to bob@", 13));
+        assert!(learning.finished("https", "read ", 5));
+        assert!(learning.finished("example", "read https://", 13));
+        assert!(!learning.finished("news", "read https://example.com/", 25));
+        for word in ["example", "com", "https", "news"] {
+            assert_eq!(
+                learning.store.lock().unwrap().uses(&utf16(word)),
+                0,
+                "{word}"
+            );
+        }
+        assert!(learning.after(Some("read")).is_empty());
+        // The word after an address is learned, alone.
+        assert!(learning.finished("wrote", "bob@example.com ", 16));
+        assert_eq!(learning.store.lock().unwrap().uses(&utf16("wrote")), 1);
+        assert!(learning.after(Some("bob@example.com")).is_empty());
     }
 
     #[test]

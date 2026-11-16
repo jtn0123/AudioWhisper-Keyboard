@@ -486,3 +486,49 @@ likelier than the other; when it isn't that sure, or lacks a word, AOSP's choice
 phone's counters show restored apostrophes being undone, or possessives are wanted at a different
 risk; "we wed" → "we'd" (neither pair known to the model) would want the rule to require an n-gram
 rather than word frequency alone.
+
+## Field kinds: URL, e-mail, search, filter and password fields (2026-11-16)
+
+Kotlin already handed Rust the field's raw `inputType` and `imeOptions` (`NlpEnvironment.fields`)
+and the key variation Rust reads from them (`EditorAttributes.keyboard`); the rules for each kind
+of field now all live in Rust, and Kotlin's wiring is unchanged.
+
+| Field | Suggestions | Auto-correction | Keyboard's own spaces | Learning, kept words |
+|---|---|---|---|---|
+| Text, search box (action Search) | yes | yes | yes | yes |
+| Filter (`TYPE_TEXT_VARIATION_FILTER`) | yes | **no** (was yes) | yes | **no** (was yes) |
+| URL, e-mail, web e-mail | yes | no | **no** (was after a pick or swipe) | no; kept words **not remembered** (were) |
+| Password (text, visible, web, number) | no | no | no (nothing to pick or swipe) | no |
+| No-suggestions flag | no | no | yes | no |
+
+And in ordinary text, **nothing of an e-mail address or URL is learned**: a word glued to an '@',
+'/' or ':', or to a '.' between letters ("example." before "com"), is not, and the piece before it
+in the same address, learned before anything showed it was one ("example" when the '.' was typed),
+is taken back. A whole address was already never stored (a learned word is letters only).
+
+- *What was already right:* no auto-correction or learning in URL and e-mail fields
+  (`nlp::policy`), no suggestions in passwords, no auto-space after punctuation outside ordinary
+  text. *What wasn't:* the phantom space a picked or swiped word owes was still typed in URL,
+  e-mail and password fields ("hello" swiped, then "world": "hello world"); a word kept as typed
+  was remembered whatever the field; URL paths and domain labels typed in prose were learned.
+- *Search, checked against Gboard on the emulator:* in Settings' search box (`0x100001`, action
+  Search) Gboard corrected "teh" and "wprld" and put a space after a picked word, so this keyboard
+  treats it as text, as it already did. In a filter field (Private DNS hostname, `0x200b1`) Gboard
+  left "wprld" alone, so filter fields are now not corrected (AOSP hides suggestions there).
+- *E-mail, against Gboard:* the user's rule (no correction, no auto-space in URL and e-mail fields)
+  is followed. One observation runs the other way: in Contacts' e-mail field, which asks for
+  auto-correction (`0x8021`), Gboard corrected "wprld" and spaced after a pick. A URL field wasn't
+  checked against Gboard: the only one on the emulator is Chrome's, behind its terms of service.
+- *Where it lives:* `nlp::policy` (`NOT_PROSE`, `remember_kept`), `spacing::spaces`
+  (`phantom_space_before` checks the key variation, as AOSP's `isAutoSpaceFriendlyType`),
+  `suggest::addresses` and the word learner. The frozen Kotlin references (`ReferenceNlp`,
+  `ReferenceSpacing`, `ReferenceLatin`'s word learner, `NlpLearningMatchTest`) carry the same
+  changes, noted in their headers.
+- *Proof:* Rust tests per rule, `FieldKindFlowTest` from the raw `EditorInfo` values through the
+  native editor and NLP session, and eight mutations in `scripts/correction-mutations.py`, each
+  caught.
+
+**Would change if** the user wants Gboard's behaviour where an e-mail field asks for correction
+(honour `TYPE_TEXT_FLAG_AUTO_CORRECT` there), a URL field on Gboard turns out to space after a pick,
+or prose writers miss words after "and/" or "e.g." (the address test is deliberately broad: a word
+it wrongly skips is simply not learned this once).

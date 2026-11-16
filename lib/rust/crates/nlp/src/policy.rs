@@ -1,5 +1,11 @@
 use crate::{Field, int, number, text};
 
+/// The text variations whose words aren't prose, so are neither auto-corrected nor learned: a URL
+/// (0x10), an e-mail address (0x20), a filter (0xb0) and a web e-mail address (0xd0). URL and
+/// e-mail as AOSP; filter as Gboard, which leaves "wprld" alone in one and corrects it in a search
+/// box (docs/decisions.md, "Field kinds").
+const NOT_PROSE: [i64; 4] = [0x10, 0x20, 0xb0, 0xd0];
+
 /// Full editor identity, including offsets, subtype, settings and privacy. Not a hash:
 /// colliding text hashes must never allow a result for a different composing word.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -31,9 +37,17 @@ impl Context {
     pub fn emoji(&self) -> bool {
         self.allowed() && self.flag(5)
     }
+    /// Whether the field takes prose to auto-correct and learn from: not a URL, e-mail address
+    /// or filter field ([`NOT_PROSE`]), nor one [`Context::words`] rules out.
     pub fn autocorrect(&self) -> bool {
         let raw = int(&self.0, 0);
-        self.words() && !(raw & 15 == 1 && matches!(raw & 0xff0, 0x10 | 0x20 | 0xd0))
+        self.words() && !(raw & 15 == 1 && NOT_PROSE.contains(&(raw & 0xff0)))
+    }
+    /// Whether a word the user kept as typed (by undoing its auto-correction) is remembered across
+    /// restarts: only where it could have been corrected, so never from a password, address or
+    /// URL field, and never incognito.
+    pub fn remember_kept(&self) -> bool {
+        self.autocorrect() && !self.flag(7)
     }
     pub fn learn(&self) -> bool {
         self.autocorrect() && self.flag(6) && !self.flag(7) && !self.flag(1)

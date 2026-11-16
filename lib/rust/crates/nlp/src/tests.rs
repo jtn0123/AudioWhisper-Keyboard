@@ -1,4 +1,5 @@
-//! The "aim" operation: which kept words may teach where this user taps.
+//! The "aim" operation: which kept words may teach where this user taps; and what each kind of
+//! field allows: suggestions, auto-correction, learning and remembering a word kept as typed.
 
 use crate::{Context, Field, Session, number, text};
 
@@ -43,4 +44,55 @@ fn a_kept_word_teaches_the_aim_only_when_allowed() {
     }
     let mut s = Session::default();
     assert!(s.checked_call("aim", &[text("1")]).is_err());
+}
+
+/// (on, words, emoji, auto-correct, learn) and whether a kept word is remembered.
+fn allows(session: &mut Session) -> ([bool; 5], bool) {
+    let policy = session
+        .checked_call("policy", &session.context.0.clone())
+        .unwrap();
+    let keep = session.checked_call("keep", &[text("zorb")]).unwrap() == [number(1)];
+    (std::array::from_fn(|i| policy[i] == number(1)), keep)
+}
+
+#[test]
+fn each_kind_of_field_allows_what_it_should() {
+    let prose = ([true, true, false, true, true], true);
+    let not_prose = ([true, true, false, false, false], false);
+    let secret = ([false, false, false, false, false], false);
+    // (inputType, imeOptions, what it allows)
+    for (input, options, expected) in [
+        (0x1, 0, prose),
+        (0x4001, 0, prose),
+        // A search box: Gboard corrects in Settings' search, so this keyboard does too.
+        (0x10_0001, 0x1000_0003, prose),
+        (0x11, 0, not_prose),
+        (0x21, 0, not_prose),
+        // An e-mail field that asks for auto-correction gets none either.
+        (0x8021, 0, not_prose),
+        (0xd1, 0, not_prose),
+        (0x200b1, 0x4000_0006, not_prose),
+        (0x81, 0, secret),
+        (0x91, 0, secret),
+        (0xe1, 0, secret),
+        (0x12, 0, secret),
+        (0x80001, 0, secret),
+    ] {
+        let mut s = session(|c| {
+            c[0] = number(input);
+            c[6] = number(1);
+            c[21] = number(options);
+        });
+        assert_eq!(allows(&mut s), expected, "{input:#x} {options:#x}");
+    }
+}
+
+#[test]
+fn a_kept_word_is_remembered_only_where_it_could_be_corrected() {
+    let mut learning_off = session(|c| c[6] = number(0));
+    assert!(allows(&mut learning_off).1, "keeping is not learning");
+    for change in [(7, 1), (0, 0x11), (0, 0x21), (0, 0xb1), (0, 0x81), (4, 0)] {
+        let mut s = session(|c| c[change.0] = number(change.1));
+        assert!(!allows(&mut s).1, "{change:?}");
+    }
 }

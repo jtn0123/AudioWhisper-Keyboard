@@ -37,6 +37,8 @@ class LatinRulesMatchTest {
             "valid", "misspelled", "confident", "spell threw",
         )
 
-        val LEARNER_OUTCOMES = listOf("finished", "swiped kept the last", "undone")
+        val LEARNER_OUTCOMES = listOf(
+            "finished", "swiped kept the last", "undone", "an address piece", "an address piece took one back",
+        )
     }
 }

@@ -10,8 +10,9 @@
 use crate::rule::{Rule, lists};
 use crate::{is_ascii, state};
 
-/// `KeyVariation.NORMAL`'s value: auto-spacing is only for ordinary text, not addresses or
-/// passwords.
+/// `KeyVariation.NORMAL`'s value: the keyboard spaces only ordinary text, not a URL, an e-mail
+/// address or a password, where a space it typed would break what is typed (AOSP's
+/// `isAutoSpaceFriendlyType`; docs/decisions.md, "Field kinds").
 pub const NORMAL_VARIATION: i32 = 2;
 
 /// Which text a rule needs before it can answer, as bits.
@@ -139,8 +140,8 @@ pub fn auto_space_after(
 }
 
 /// Whether to type the phantom space before `text` (`PhantomSpaceState.determine`): if one is
-/// owed (`phantom_space`) or `force_active`, after a letter, a digit or a symbol a phantom space
-/// may follow, and before a letter, a digit or a symbol it may come before.
+/// owed (`phantom_space`) or `force_active`, in ordinary text, after a letter, a digit or a symbol
+/// a phantom space may follow, and before a letter, a digit or a symbol it may come before.
 pub fn phantom_space_before(
     typing: &Typing,
     text: &[u16],
@@ -152,6 +153,7 @@ pub fn phantom_space_before(
         return Ok(false);
     };
     if !(state::is_active(phantom_space) || force_active)
+        || typing.key_variation != NORMAL_VARIATION
         || !typing.selection_valid
         || typing.selection_start <= 0
     {

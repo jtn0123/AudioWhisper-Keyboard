@@ -204,6 +204,28 @@ fn a_phantom_space_goes_between_words() {
 }
 
 #[test]
+fn no_phantom_space_is_typed_in_an_address_url_or_password() {
+    let texts = Texts::new("cat", "");
+    let owed = state::phantom_space_active(false, true);
+    // KeyVariation: e-mail address, password, URL; then "all", which no field gets.
+    for key_variation in [1, 3, 4, 0] {
+        let typing = Typing {
+            key_variation,
+            ..ON
+        };
+        for force_active in [false, true] {
+            assert_eq!(
+                phantom_space_before(&typing, &u("d"), owed, force_active, None),
+                Ok(false),
+                "{key_variation} {force_active}"
+            );
+        }
+        let commit = commit_char(&typing, &u("d"), 0, owed, Some(&texts.editor())).unwrap();
+        assert!(!commit.space_before, "{key_variation}");
+    }
+}
+
+#[test]
 fn a_phantom_space_follows_listed_symbols_not_spaces() {
     let texts = Texts::new("a.", "");
     let owed = state::phantom_space_active(false, true);
