@@ -195,6 +195,39 @@ fn a_swipe_replaced_by_a_suggestion_or_a_backspace() {
 }
 
 #[test]
+fn a_word_taken_back_counts_once() {
+    // An auto-correction undone: the word put back is the one that counts.
+    let mut s = session("teh", 3, (0, 3));
+    s.automatic = Some(Candidate {
+        text: text("the"),
+        ..word("a", 0)
+    });
+    call(&mut s, "pick", &["a"]);
+    call(&mut s, "learn", &["1", "-1", "the", "", "0", "1", ""]);
+    assert_eq!(count(&s, "words"), 1);
+    call(&mut s, "tally", &["undone", "0", "0"]);
+    assert_eq!(count(&s, "words"), 0);
+    keep(&mut s, "teh", 0);
+    assert_eq!(count(&s, "words"), 1);
+    // A swipe replaced by a suggestion, deleted, or undone.
+    call(&mut s, "learn", &["2", "-1", "hello", "", "4", "1", ""]);
+    s.candidates = vec![word("hallo", 0)];
+    call(&mut s, "pick", &["hallo"]);
+    call(&mut s, "learn", &["1", "-1", "hallo", "", "4", "1", ""]);
+    assert_eq!(count(&s, "words"), 2);
+    call(&mut s, "learn", &["2", "-1", "hello", "", "10", "1", ""]);
+    call(&mut s, "tally", &["deleted", "16", "16"]);
+    call(&mut s, "learn", &["2", "-1", "hello", "", "10", "1", ""]);
+    call(&mut s, "tally", &["undo", "0", "0"]);
+    assert_eq!(count(&s, "words"), 2);
+    // Never below nothing.
+    call(&mut s, "tally", &["undone", "0", "0"]);
+    call(&mut s, "tally", &["undone", "0", "0"]);
+    call(&mut s, "tally", &["undone", "0", "0"]);
+    assert_eq!(count(&s, "words"), 0);
+}
+
+#[test]
 fn a_typo_left_is_a_word_deleted_into_soon_after() {
     let mut s = session("hello", 5, (0, 5));
     keep(&mut s, "hello", 0);

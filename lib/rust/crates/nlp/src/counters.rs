@@ -91,6 +91,13 @@ impl Counters {
         self.changed = true;
     }
 
+    /// A word just counted was taken back: an auto-correction undone, or a swipe deleted, undone
+    /// or replaced. Whatever replaces it counts when it is finished, so `words` counts it once.
+    fn take_back_word(&mut self) {
+        self.counts[WORDS] = self.counts[WORDS].saturating_sub(1);
+        self.changed = true;
+    }
+
     /// The count called `name` in [`NAMES`].
     pub fn get(&self, name: &str) -> Option<u64> {
         NAMES
@@ -139,6 +146,7 @@ impl Counters {
                     // A suggestion for the swiped word, which is the word being typed, replaces it.
                     if std::mem::take(&mut self.recent.swipe) {
                         self.add(SWIPE_REPLACED);
+                        self.take_back_word();
                     }
                 } else {
                     if after_space {
@@ -164,6 +172,7 @@ impl Counters {
         self.recent.kept = None;
         if std::mem::take(&mut self.recent.swipe) {
             self.add(SWIPE_REPLACED);
+            self.take_back_word();
             self.recent.word = None;
             return;
         }
@@ -195,6 +204,7 @@ impl Counters {
     /// The backspace straight after an auto-correction put back what was typed.
     pub fn undone(&mut self) {
         self.add(AUTOCORRECT_UNDONE);
+        self.take_back_word();
         self.recent = Recent::default();
     }
 
@@ -202,9 +212,11 @@ impl Counters {
     pub fn undo(&mut self) {
         if self.recent.correction {
             self.add(AUTOCORRECT_UNDONE);
+            self.take_back_word();
         }
         if self.recent.swipe {
             self.add(SWIPE_REPLACED);
+            self.take_back_word();
         }
         self.recent = Recent::default();
     }
