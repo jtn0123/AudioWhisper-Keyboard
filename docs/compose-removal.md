@@ -39,7 +39,7 @@ its phone checks pass.
 * **What changed:** both switches default to on; an explicit off is kept.
 * **Blocked by:** nothing.
 
-### 2. Settings screens that Rust draws (this round)
+### 2. Settings screens that Rust draws (done)
 
 * **Deletes:** the Compose versions of every screen Rust draws and that was checked on the
   device: Home, Keyboard, Input feedback, Smartbar, Gestures, Clipboard, Media, Typing (with
@@ -68,12 +68,28 @@ its phone checks pass.
     only the spell checker card used;
   * Third-party licences: 1 file, 70 lines. Step 2 is done: 15 files, 1,915 lines.
 
-### 3. Dead code left behind by step 2 (this round)
+### 3. Dead code left behind by step 2 (done)
 
 * **Deletes:** helpers, enum display entries, resources and facades that no build path
   reaches once step 2 is in. Each needs a grep or lint result as proof.
 * **Blocked by:** step 2.
-* **Size:** measured when done; see the decision entry.
+* **Done:**
+  * the enum display entries: `KeyboardEnumDisplayEntries` is gone and `EnumDisplayEntries`
+    keeps the 8 enums the remaining Compose screens still ask for (App theme, colour
+    representation, keyboard after dialogs, language names, shift state, keyboard mode,
+    Snygg level, theme mode). The other 23 entries' strings all stay: Rust reads them
+    through `SettingsStringIds`;
+  * declarations nothing names, found by a scan of every top-level declaration in main
+    Kotlin against every tracked Kotlin, Java, XML and Gradle file: `apptheme/Color.kt`,
+    `ColorScheme.amoled`, `ExtensionList`, `FREQUENCY_DEFAULT`, `NativeStr` with
+    `toJavaString`/`toNativeStr`, `NativeInstanceWrapper`, `stripUnicodeCtrlChars` with its
+    matcher, `FlorisRef.hasAsset`, `ContentResolver.readAllText`/`writeAllText`,
+    `removeAndReturn`, `RegexSerializer` and `FlorisButton`;
+  * three baseline profile lines that named deleted code.
+* **Left for later:** the app no longer calls the AboutLibraries runtime libraries (core and
+  compose-m3); only `ReferenceLicenceScreens`, a JVM test, does. Moving them to
+  `testImplementation` also drops them from the shipped licence list, which the device
+  baseline compares, so it waits for a baseline refresh.
 
 ### 4. Other and Theme, with the colour picker
 
@@ -126,10 +142,10 @@ its phone checks pass.
 ### 12. The Compose settings host
 
 * **Deletes:** `Routes.kt` (295), the Compose branch of `FlorisAppActivity`,
-  `ComposeSettingsFallbackActivity`, `FB/app/apptheme` (4 files, 241), the settings-only
-  parts of `FB/lib/compose` (7 files, 509 in all), `EnumDisplayEntries` (392) and
-  `KeyboardEnumDisplayEntries` (400), and the Jetpref UI dependency.
-* **Blocked by:** steps 4–11. Shared primitives in `lib/compose` (20 files, 1,889) are
+  `ComposeSettingsFallbackActivity`, `FB/app/apptheme` (3 files, 142 after step 3), the
+  settings-only parts of `FB/lib/compose` (7 files, 509 in all), `EnumDisplayEntries` (220
+  after step 3), and the Jetpref UI dependency.
+* **Blocked by:** steps 4–11. Shared primitives in `lib/compose` (20 files, 1,832 after step 3) are
   also used by the Compose keyboard (17 keyboard files import them) and wait for step K.
 
 ### K. The Compose keyboard

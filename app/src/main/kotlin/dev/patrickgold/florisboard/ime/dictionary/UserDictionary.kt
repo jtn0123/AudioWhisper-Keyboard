@@ -45,7 +45,6 @@ private const val WORDS_TABLE = "words"
 
 const val FREQUENCY_MIN = 1
 const val FREQUENCY_MAX = 255
-const val FREQUENCY_DEFAULT = 128
 
 private const val SORT_BY_WORD_ASC = "${UserDictionary.Words.WORD} ASC"
 private const val SORT_BY_WORD_DESC = "${UserDictionary.Words.WORD} DESC"

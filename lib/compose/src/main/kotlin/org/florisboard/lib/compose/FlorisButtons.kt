@@ -19,7 +19,6 @@ package org.florisboard.lib.compose
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonColors
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
@@ -36,38 +35,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.takeOrElse
 import androidx.compose.ui.graphics.vector.ImageVector
-
-@Composable
-fun FlorisButton(
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    icon: ImageVector? = null,
-    text: String,
-    enabled: Boolean = true,
-    shape: Shape = MaterialTheme.shapes.small,
-    contentPadding: PaddingValues = ButtonDefaults.ContentPadding,
-    colors: ButtonColors = ButtonDefaults.buttonColors(),
-) {
-    Button(
-        modifier = modifier,
-        enabled = enabled,
-        shape = shape,
-        colors = colors,
-        contentPadding = contentPadding,
-        onClick = onClick,
-    ) {
-        if (icon != null) {
-            Icon(
-                modifier = Modifier
-                    .padding(end = ButtonDefaults.IconSpacing)
-                    .size(ButtonDefaults.IconSize),
-                imageVector = icon,
-                contentDescription = null,
-            )
-        }
-        Text(text = text)
-    }
-}
 
 @Composable
 fun FlorisOutlinedButton(
