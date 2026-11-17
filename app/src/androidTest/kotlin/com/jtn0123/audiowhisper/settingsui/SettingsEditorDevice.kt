@@ -100,7 +100,7 @@ internal class SettingsEditorDevice(private val h: SettingsHarness) {
         report.put("input_connection_operations", 18).put("selection_handles", 2).put("handle_drag", true)
             .put("recreate_mid_composition", true).put("ime_changed", false)
     }
-    /** The vocabulary field owns the same endpoint once it has the editor (DictationScreen's 7th row). */
+    /** The vocabulary field owns the same endpoint once it has the editor (the Dictation screen's 7th row). */
     private fun vocabulary(report: JSONObject) {
         h.launch("settings/dictation")
         h.waitFor("dictation absent") { h.views(RustSettingsView::class.java).size == 1 && h.find("Remove filler words") != null }

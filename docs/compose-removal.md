@@ -62,7 +62,10 @@ its phone checks pass.
 * **Progress** (non-blank lines deleted):
   * the settings switch, with every entry point routed to Rust;
   * Home, Keyboard and Input feedback: 3 files, 541 lines;
-  * Smartbar, Gestures, Clipboard and Media: 4 files, 613 lines.
+  * Smartbar, Gestures, Clipboard and Media: 4 files, 613 lines;
+  * Typing (with `SpellCheckerServiceSelector`), Dictionary, Physical keyboard, About and
+    Dictation (with `ModelStatus`): 7 files, 691 lines, plus `FlorisErrorCard` (24), which
+    only the spell checker card used.
 
 ### 3. Dead code left behind by step 2 (this round)
 
