@@ -684,3 +684,16 @@ the Samsung font check, font scale 2.0 and the CPU p95 gate); see
 [the removal plan](compose-removal.md). **Would change if** the phone shows a Rust-only failure
 that the fallback hides; then fix it in Rust rather than flip the default back, unless typing
 itself is broken.
+
+## Compose is frozen (2026-11-16)
+
+With Rust the default, the Compose keyboard and the Compose settings screens get no new features.
+New features go into Rust only. Compose takes two kinds of change: a fix for a crash, or a fix for
+lost or damaged user data. A feature for a settings screen that is still Compose waits for that
+screen's Rust port, or ports it first. The Compose keyboard falls behind as Rust gains features;
+it stays only as the fallback until its phone checks pass. Removing Compose code that Rust has
+replaced is always allowed, in the order of [the removal plan](compose-removal.md), which also
+says what blocks each step. Writing every feature twice was the cost this stops. **Would change
+if** a Compose fallback turns out to be needed by users for longer than its blockers suggest (for
+example the keyboard's CPU gate cannot be met on the phone); then a crash- or data-loss-free
+feature gap in it is still not a reason to add to Compose, but the plan's order is revisited.
