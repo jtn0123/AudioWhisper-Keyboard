@@ -218,3 +218,22 @@ fn the_previous_word_is_the_last_one_or_a_sentence_start() {
     assert_eq!(previous_key(None, true), Some(SENTENCE_START));
     assert_eq!(previous_key(None, false), None);
 }
+
+#[test]
+fn every_change_is_counted_and_reading_is_not() {
+    let mut learned = LearnedWords::new(WORD_CAPACITY, PAIR_CAPACITY);
+    let mut seen = vec![learned.changes()];
+    add(&mut learned, "Zorblax", None, 2);
+    seen.push(learned.changes());
+    learned.remove(&utf16("Zorblax"), None);
+    seen.push(learned.changes());
+    learned.merge(Saved::parse(&utf16("")));
+    seen.push(learned.changes());
+    learned.clear();
+    seen.push(learned.changes());
+    assert_eq!(seen, [0, 2, 3, 4, 5]);
+    let _ = learned.completions(&utf16("zor"), 2);
+    let _ = learned.spelling_of(&utf16("zorblax"));
+    let _ = learned.known_spellings();
+    assert_eq!(learned.changes(), 5);
+}

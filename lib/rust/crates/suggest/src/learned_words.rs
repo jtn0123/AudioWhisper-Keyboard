@@ -121,6 +121,8 @@ pub struct LearnedWords {
     words: Ordered<Vec<u16>, Entry>,
     /// "previous\tword", lower-cased -> use count, least recently used first.
     pairs: Ordered<Vec<u16>, i32>,
+    /// Goes up with every change, so an answer worked out from these words can tell it is stale.
+    changes: u64,
 }
 
 impl LearnedWords {
@@ -132,13 +134,21 @@ impl LearnedWords {
             pair_capacity,
             words: Ordered::default(),
             pairs: Ordered::default(),
+            changes: 0,
         }
+    }
+
+    /// How many times the words have been changed (by any of the `&mut self` methods); it wraps.
+    /// Equal counts mean nothing was learned, taken back, cleared or loaded in between.
+    pub fn changes(&self) -> u64 {
+        self.changes
     }
 
     /// Counts one use of `word` after `previous`: a word, [`SENTENCE_START`], or `None` when what
     /// came before is unknown. With `keep_spelling` an earlier spelling stands (a capital that may
     /// only be there because the word starts a sentence).
     pub fn add(&mut self, word: &[u16], previous: Option<&[u16]>, keep_spelling: bool) {
+        self.changes = self.changes.wrapping_add(1);
         if !is_storable(word) {
             return;
         }
@@ -170,6 +180,7 @@ impl LearnedWords {
 
     /// Takes back one [`LearnedWords::add`] of `word` after `previous`.
     pub fn remove(&mut self, word: &[u16], previous: Option<&[u16]>) {
+        self.changes = self.changes.wrapping_add(1);
         let key = key(word);
         if let Some(entry) = self.words.get_mut(&key) {
             entry.count = entry.count.wrapping_sub(1);
@@ -191,6 +202,7 @@ impl LearnedWords {
     }
 
     pub fn clear(&mut self) {
+        self.changes = self.changes.wrapping_add(1);
         self.words.clear();
         self.pairs.clear();
     }
@@ -279,6 +291,7 @@ impl LearnedWords {
     /// Takes in what a file held, keeping what was learned before it was read: a word or pair in
     /// both adds the counts, keeps the spelling learned since, and counts as most recently used.
     pub fn merge(&mut self, saved: Saved) {
+        self.changes = self.changes.wrapping_add(1);
         let Saved {
             mut words,
             mut pairs,

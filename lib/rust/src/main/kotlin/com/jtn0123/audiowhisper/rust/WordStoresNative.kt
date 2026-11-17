@@ -56,6 +56,8 @@ internal object WordStoresNative {
 
     @JvmStatic external fun learnedPairCount(store: Long, firstWord: String?, isBeginningOfSentence: Boolean, word: String): Int
 
+    @JvmStatic external fun learnedChanges(store: Long): Long
+
     @JvmStatic external fun learnedMerge(store: Long, text: String)
 
     @JvmStatic external fun learnedSavedText(store: Long): String

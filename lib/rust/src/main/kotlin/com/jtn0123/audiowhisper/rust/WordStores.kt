@@ -106,6 +106,12 @@ class LearnedWordStore(
         WordStoresNative.learnedPairCount(handle, firstWord, isBeginningOfSentence, word)
             .also { Reference.reachabilityFence(this) }
 
+    /**
+     * How many times the words have changed (learned, taken back, cleared or loaded). Equal
+     * counts mean nothing changed in between; only equality means anything.
+     */
+    fun changes(): Long = WordStoresNative.learnedChanges(handle).also { Reference.reachabilityFence(this) }
+
     /** Takes in a saved file's [text], keeping what was learned before it was read. */
     fun merge(text: String) {
         WordStoresNative.learnedMerge(handle, text)

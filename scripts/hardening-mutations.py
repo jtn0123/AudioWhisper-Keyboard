@@ -17,6 +17,7 @@ SPEC.loader.exec_module(RUNNER)
 
 CRATES = RUNNER.CRATES
 BOUNDS = CRATES + 'awnative/src/surface_bounds.rs'
+SUGGESTER = 'app/src/main/kotlin/com/jtn0123/audiowhisper/suggest/LatinSuggester.kt'
 # name: (file, before, after, how to test), as in glide-mutations.py.
 CASES = {
     'settings-frame-height-unchecked': (
@@ -35,6 +36,28 @@ CASES = {
         BOUNDS,
         'region: damage.clamped(width, height),', 'region: damage,',
         ('cargo', 'awnative', None, 'surface_bounds')),
+    'auto-commit-reuses-any-strip-for-the-word': (
+        SUGGESTER,
+        'last?.takeIf { it.inputs == inputs }', 'last?.takeIf { it.inputs.state.typed == inputs.state.typed }',
+        ('gradle', ':app', '*AutoCorrectionReuseTest')),
+    'auto-commit-ignores-learning': (
+        SUGGESTER,
+        'history?.changes() ?: 0)', '0L)',
+        ('gradle', ':app', '*AutoCorrectionReuseTest')),
+    'auto-commit-never-reuses': (
+        SUGGESTER,
+        '        last?.takeIf { it.inputs == inputs }?.let { return it.autoCorrection }\n', '',
+        ('gradle', ':app', '*AutoCorrectionReuseTest')),
+    'auto-commit-decodes-when-off': (
+        SUGGESTER,
+        '        if (inputs.strength == AutoCorrectStrength.OFF) return null\n', '',
+        ('gradle', ':app', '*AutoCorrectionReuseTest')),
+    'learned-words-uncounted': (
+        CRATES + 'suggest/src/learned_words.rs',
+        '    pub fn add(&mut self, word: &[u16], previous: Option<&[u16]>, keep_spelling: bool) {\n'
+        '        self.changes = self.changes.wrapping_add(1);\n',
+        '    pub fn add(&mut self, word: &[u16], previous: Option<&[u16]>, keep_spelling: bool) {\n',
+        ('cargo', 'suggest', None, 'learned_words')),
 }
 
 

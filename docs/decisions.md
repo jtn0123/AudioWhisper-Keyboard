@@ -237,6 +237,27 @@ was not worth it: it is one frame, mid-resize, drawn into buffers about to be re
 change if** the phone shows a blank frame when the Rust settings screen rotates or resizes; then
 keep the worker and skip only that frame, or remake the buffers in `onSizeChanged`.
 
+## The auto-commit reuses the strip's decode when nothing has changed (2026-11-16)
+
+Every space or punctuation key asks, on the main thread, what the word at the cursor is
+auto-corrected to. It used to decode afresh each time (about 0.65 ms on this Mac with the shipped
+dictionary and model, waiting for the session whenever the background strip was mid-decode). Now
+`LatinSuggester.autoCorrection` reuses the last strip's answer when that strip was decoded from
+exactly the same inputs: the typed word, the words before it, whether the cursor is mid-word, each
+letter's tap offset, the offensive-word switch, the strength, the personal words (replaced, never
+edited, so compared by identity) and the learned words' change count (`LearnedWords::changes`,
+bumped by every `&mut` method). The inputs are read before decoding, so anything that changes
+during a decode makes that answer stale, never wrongly fresh. Otherwise it decodes as before; Off
+answers "no correction" without decoding, which is what the decode would say. The strip's
+auto-correction is decided before the strip is cut to length, so an 8-word strip and the old
+1-word decode agree. In a host replay of 259 words typed letter by letter, with taps and learning,
+every word end reused the strip (259/259) and the check took about 0.5 µs instead of 0.65 ms. On
+the phone it misses when space follows the last letter before that letter's strip is decoded
+(the 8 ms coalescing window plus the decode), and then costs what it did. A miss still updates
+the letter odds, as before. **Would change if** the phone's hit rate turns out low (then keep
+the in-flight decode's answer too), or the decode gains an input not in the key; any new
+argument to `LatinSession.suggest` must join `Inputs`.
+
 ## Word statistics from a public corpus (2026-11-16)
 
 The English dictionary's frequencies and next words are counted from public text we can name and

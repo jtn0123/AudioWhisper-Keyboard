@@ -37,6 +37,9 @@ class LearnedWords(
 
     fun clear() = store.clear()
 
+    /** Goes up with every change to the words, however made (see [LearnedWordStore.changes]). */
+    fun changes(): Long = store.changes()
+
     /** How the user spells each word they have used [TypingHistory.KNOWN_AFTER] times. */
     fun knownSpellings(): List<String> = store.knownSpellings()
 

@@ -315,6 +315,17 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_WordStoresNative_learn
     }
 }
 
+/// How many times the words have changed, as a bit pattern: only equality means anything.
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_WordStoresNative_learnedChanges(
+    env: *mut JNIEnv,
+    _: jclass,
+    store: jlong,
+) -> jlong {
+    // SAFETY: the JVM passes its environment; Kotlin holds the store while it calls.
+    unsafe { with_store(env, store, -1, |store, _| Ok(store.changes() as jlong)) }
+}
+
 /// Takes in a saved file's `text`, read before taking the lock so learning needn't wait for it.
 #[unsafe(no_mangle)]
 pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_WordStoresNative_learnedMerge(

@@ -307,17 +307,16 @@ class LatinLanguageProvider(context: Context) : SpellingProvider, SuggestionProv
     }
 
     /**
-     * AudioWhisper: the auto-correction for the word at the cursor in [content] *now*. The
-     * candidate strip is filled asynchronously and can be a keystroke behind, so the cached result
-     * is used only when it was computed for exactly this input; otherwise it is recomputed here.
+     * AudioWhisper: the auto-correction for the word at the cursor in [content] *now*. It runs
+     * on the main thread at every space or punctuation key, so it reuses the decode the candidate
+     * strip just did when that was for exactly this word, context, taps and setting, and decodes
+     * here only when the strip is a keystroke behind ([LatinSuggester.autoCorrection]).
      */
     fun autoCommitCandidateFor(subtype: Subtype, content: EditorContent, allowPossiblyOffensive: Boolean): SuggestionCandidate? {
         val suggester = suggesterFor(subtype) ?: return null
         if (environment.policy(subtype, content)[3] != "1" || editorInstance.phantomSpace.isActive) return null
         val state = typingStateOf(subtype, content)?.takeIf { it.typed.isNotEmpty() && !isKeptAsTyped(it.typed) } ?: return null
-        val blockOffensiveWords = !allowPossiblyOffensive
-        return suggester.suggest(state, maxCount = 1, blockOffensiveWords)
-            .firstOrNull { it.isAutoCorrection }
+        return suggester.autoCorrection(state, blockOffensiveWords = !allowPossiblyOffensive)
             ?.toCandidate(autoCorrectAllowed = true)
     }
 
