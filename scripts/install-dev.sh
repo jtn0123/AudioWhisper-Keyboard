@@ -2,7 +2,11 @@
 # Installs the debug or personal build on the phone without losing anything set up on it.
 #
 #  1. Copies the phone's settings, themes and personal dictionary to the Mac first
-#     (.device-backup/, gitignored; the copy before that is kept as settings.prev.tar).
+#     (.device-backup/<device serial>/, gitignored; the copy before that is kept as
+#     settings.prev.tar). Each device has its own copy, named by its hardware serial
+#     (which stays the same when a wireless port changes), so installing on an emulator
+#     never replaces the phone's copy, nor puts the phone's settings on the emulator.
+#     The older shared copies at the top of .device-backup/ are no longer read.
 #  2. Installs as an update (adb install -r), which keeps the app's data. It never
 #     uninstalls: that is what erases settings and the speech model.
 #  3. If the settings are missing afterwards (a fresh install, or data cleared), puts
@@ -38,7 +42,9 @@ APK=app/build/outputs/apk/$VARIANT/app-$VARIANT.apk
 BUILD_TASK=":app:assemble$(tr '[:lower:]' '[:upper:]' <<<"${VARIANT:0:1}")${VARIANT:1}"
 PREFS=jetpref_datastore/florisboard-app-prefs.jetpref
 MODEL=files/models/sherpa-onnx-nemo-parakeet-tdt-0.6b-v2-int8/encoder.int8.onnx
-BACKUP_DIR=.device-backup
+DEVICE=$(adb shell getprop ro.serialno 2>/dev/null | tr -cd 'A-Za-z0-9._-' || true)
+[ -n "$DEVICE" ] || { echo "No device answered (adb shell getprop ro.serialno)." >&2; exit 1; }
+BACKUP_DIR=.device-backup/$DEVICE
 SNAPSHOT="$BACKUP_DIR/settings.tar"
 
 on_phone() { adb shell "run-as $PKG $*" 2>/dev/null | tr -d '\r'; }
