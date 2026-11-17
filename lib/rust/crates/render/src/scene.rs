@@ -193,14 +193,7 @@ impl Scene {
                 continue;
             }
             if let Some(key) = next.keys.get(i) {
-                let r = key.bounds.visible;
-                let margin = key.styles.iter().map(|s| s.shadow).fold(0.0, f32::max) * 6.0;
-                rects.push(Rect {
-                    left: r.left - margin,
-                    right: r.right + margin,
-                    top: r.top + next.strip - margin,
-                    bottom: r.bottom + next.strip + margin,
-                });
+                rects.push(press_damage(key, next.strip));
             }
         }
         // Popup styles paint only inside the popup, and the theme sets them as a popup opens.
@@ -213,6 +206,41 @@ impl Scene {
             rects.extend(next.popup_bounds());
         }
         rects
+    }
+}
+
+/// What a key's press or release repaints. A press that only recolours the key's box changes
+/// no pixel outside the box; anything else, its shadow too, as far as six elevations out.
+fn press_damage(key: &Key, strip: f32) -> Rect {
+    let [up, down] = &key.styles;
+    let r = key.bounds.visible;
+    let recolour = key.hints[0] == key.hints[1]
+        && *down
+            == Style {
+                background: down.background,
+                ..up.clone()
+            };
+    if recolour {
+        return crate::smartbar::inset(key_cell(r, strip), up.margin);
+    }
+    let margin = 6.0 * up.shadow.max(down.shadow);
+    Rect {
+        left: r.left - margin,
+        right: r.right + margin,
+        top: r.top + strip - margin,
+        bottom: r.bottom + strip + margin,
+    }
+}
+
+/// Where a key with `visible` bounds draws, below the strip: Compose uses truncated absolute
+/// offsets and independently rounded sizes.
+pub(crate) fn key_cell(visible: Rect, strip: f32) -> Rect {
+    let (left, top) = (visible.left.trunc(), visible.top.trunc() + strip);
+    Rect {
+        left,
+        top,
+        right: left + visible.width().round(),
+        bottom: top + visible.height().round(),
     }
 }
 

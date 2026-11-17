@@ -159,13 +159,7 @@ impl Raster {
             if r.is_empty() {
                 continue;
             }
-            // Compose uses truncated absolute offsets and independently rounded required sizes.
-            let r = Rect {
-                left: r.left.trunc(),
-                right: r.left.trunc() + r.width().round(),
-                top: r.top.trunc() + content.strip,
-                bottom: r.top.trunc() + r.height().round() + content.strip,
-            };
+            let r = crate::scene::key_cell(r, content.strip);
             let margin = key.styles.iter().map(|s| s.shadow).fold(0.0, f32::max) * 6.0;
             if r.right + margin < damage.left
                 || r.left - margin > damage.right
