@@ -274,6 +274,24 @@ long toast says so and where to install voice data; another language never reads
 **Would change if** Android gains a per-utterance guarantee that synthesis stays on the device
 (then that replaces the voice filter), or users want reading in another language over silence.
 
+## The GPU renderer is left out of every build that ships (2026-11-16)
+
+The keyboard and settings draw with Vello CPU. The Vello Hybrid experiment (wgpu over Vulkan,
+picked by the `aw-hybrid` log switch, which no user sets) was still compiled into every build,
+and with it wgpu, naga, ash, gpu-allocator, vello_hybrid and glifo 0.3: 172 crates in
+`cargo tree --target aarch64-linux-android -p awnative -e normal`, 146 of them from outside the
+workspace. It is now the `hybrid` Cargo feature of `render` and `awnative`, off by default.
+Without it, the switch only logs `hybrid_unavailable` and the CPU renderer draws; the JNI
+signature is unchanged, so no Kotlin call loses its symbol. A GIF frame no longer keeps a second
+copy of its pixels for the GPU. The tree falls to 124 crates (98 from outside), `libawnative.so`
+from 10,464,656 to 6,608,888 bytes and the debug APK, packaged fresh, from 74,092,707 to
+70,242,467 bytes. `:lib:rust:check` now runs clippy for Android with and without the feature,
+so the experiment keeps compiling and the Android-only code is linted at all; a test fails if
+anything turns the feature on by default. CI runs `cargo audit` on the lockfile, which still
+lists the optional crates, so they are audited too. **Would change if** the GPU renderer is
+measured again and wins (build with `-PhybridRenderer=true`), or is given up for good, in which
+case delete it rather than keep it compiling.
+
 ## Word statistics from a public corpus (2026-11-16)
 
 The English dictionary's frequencies and next words are counted from public text we can name and

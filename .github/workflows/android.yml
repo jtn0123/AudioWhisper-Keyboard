@@ -2,7 +2,9 @@ name: AudioWhisper Keyboard CI
 
 # Runs the same checks as a local `./gradlew test :app:lintDebug :lib:rust:check :lib:rust:oracleCheck assembleDebug`:
 # every JVM test (including those that go through the Rust and LatinIME JNI), Android lint, the
-# Rust tests and opt-in C++ oracle comparisons, clippy with warnings as errors and rustfmt, then a debug build.
+# Rust tests and opt-in C++ oracle comparisons, clippy with warnings as errors (on the host and for
+# Android, with and without the off-by-default GPU renderer) and rustfmt, then a debug build. Before
+# that, `cargo audit` checks the locked Rust crates against RustSec's advisories.
 #
 # It needs nothing from a developer's machine: jetpref comes from third_party/m2, the sherpa-onnx
 # AAR from Git LFS, Rust from rust-toolchain.toml and the NDK from tools.versions.toml. GIPHY has
@@ -65,6 +67,17 @@ jobs:
         # Android target.
         working-directory: lib/rust
         run: rustup show active-toolchain || rustup toolchain install
+
+      - name: Install cargo-audit
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-audit@0.22.2
+
+      - name: Check the Rust dependencies against RustSec advisories
+        # The lockfile, against RustSec's database as fetched now: a newly published advisory
+        # for any locked crate fails the build until that crate is updated.
+        working-directory: lib/rust
+        run: cargo audit
 
       - uses: Swatinem/rust-cache@v2
         with:

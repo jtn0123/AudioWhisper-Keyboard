@@ -6,6 +6,7 @@ use std::{
 #[derive(Clone, Debug)]
 pub struct Frame {
     pub cpu: Arc<vello_cpu::Pixmap>,
+    #[cfg(feature = "hybrid")]
     pub hybrid: Arc<vello_hybrid::Pixmap>,
     pub delay: i64,
 }
@@ -26,17 +27,21 @@ impl Frame {
                 [(p >> 16) as u8, (p >> 8) as u8, p as u8, (p >> 24) as u8]
             })
             .collect();
-        let data = vello_cpu::peniko::ImageData {
-            data: rgba.clone().into(),
-            format: vello_cpu::peniko::ImageFormat::Rgba8,
-            alpha_type: vello_cpu::peniko::ImageAlphaType::Alpha,
-            width: w as u32,
-            height: h as u32,
-        };
-        let vello_common_hybrid::paint::ImageSource::Pixmap(hybrid) =
-            vello_common_hybrid::paint::ImageSource::from_peniko_image_data(&data)
-        else {
-            return None;
+        #[cfg(feature = "hybrid")]
+        let hybrid = {
+            let data = vello_cpu::peniko::ImageData {
+                data: rgba.clone().into(),
+                format: vello_cpu::peniko::ImageFormat::Rgba8,
+                alpha_type: vello_cpu::peniko::ImageAlphaType::Alpha,
+                width: w as u32,
+                height: h as u32,
+            };
+            let vello_common_hybrid::paint::ImageSource::Pixmap(hybrid) =
+                vello_common_hybrid::paint::ImageSource::from_peniko_image_data(&data)
+            else {
+                return None;
+            };
+            hybrid
         };
         Some(Self {
             cpu: Arc::new(vello_cpu::Pixmap::from_parts(
@@ -45,6 +50,7 @@ impl Frame {
                 h,
                 vello_cpu::PixelMetadata::new(vello_cpu::peniko::ImageAlphaType::Alpha, true),
             )),
+            #[cfg(feature = "hybrid")]
             hybrid,
             delay: delay.max(10_000_000),
         })

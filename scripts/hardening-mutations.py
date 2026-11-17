@@ -2,8 +2,9 @@
 
 python3 -I scripts/hardening-mutations.py OUTPUT [CASE...]
 Host only: cargo tests and Gradle JVM tests, no device. Compilation errors do not count. The
-fixes are the settings presenter's buffer bounds, the auto-commit's cached lookup and read-aloud's
-offline voice (docs/decisions.md). The runner is glide-mutations.py's.
+fixes are the settings presenter's buffer bounds, the auto-commit's cached lookup, read-aloud's
+offline voice and the GPU renderer kept out of default builds (docs/decisions.md). The runner is
+glide-mutations.py's.
 """
 import importlib.util
 import sys
@@ -88,6 +89,10 @@ CASES = {
         OFFLINE_VOICE,
         'language, country, voices.indexOf(default))', 'language, country, -1)',
         ('gradle', ':app', '*OfflineVoiceTest')),
+    'gpu-renderer-on-by-default': (
+        CRATES + 'render/Cargo.toml',
+        '[features]\n', '[features]\ndefault = ["hybrid"]\n',
+        ('cargo', 'render', None, 'the_gpu_renderer')),
 }
 
 

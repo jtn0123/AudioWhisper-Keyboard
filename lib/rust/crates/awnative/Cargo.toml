@@ -16,6 +16,9 @@ legacy-fixture = []
 latin-fixture = ["legacy-fixture"]
 dictation-fixture = ["legacy-fixture"]
 tts-fixture = ["sherpa-ffi/tts-fixture", "legacy-fixture"]
+# The experimental GPU renderer behind the `aw-hybrid` log switch (render's `hybrid`). Off, the
+# switch is ignored and the CPU renderer draws; no build that ships turns it on.
+hybrid = ["render/hybrid", "dep:wgpu", "dep:raw-window-handle"]
 
 [dependencies]
 settings = { path = "../settings" }
@@ -49,8 +52,8 @@ transcript = { git = "https://github.com/jtn0123/AudioWhisper-Core", rev = "eb7c
 # jni.h as Rust declarations, nothing more. 0.3.0 has no dependencies of its own.
 jni-sys = "=0.3.0"
 serde_json = "=1.0.154"
-raw-window-handle = "=0.6.2"
-wgpu = { version = "=29.0.3", default-features = false, features = ["std", "vulkan", "wgsl"] }
+raw-window-handle = { version = "=0.6.2", optional = true }
+wgpu = { version = "=29.0.3", default-features = false, features = ["std", "vulkan", "wgsl"], optional = true }
 
 [lints]
 workspace = true

@@ -1,9 +1,10 @@
-//! Shared drawing interface: the same keyboard scene feeds both measured Vello backends.
+//! Shared drawing interface: the same keyboard scene feeds both measured Vello backends (Hybrid
+//! only with the `hybrid` feature).
 use parley::GlyphRun;
 use read_fonts::TableProvider;
 use vello_cpu::{
     Pixmap, RenderContext, Resources,
-    kurbo::{Affine, BezPath, Rect, Shape},
+    kurbo::{Affine, BezPath, Rect},
     peniko::color::{AlphaColor, Srgb},
 };
 
@@ -12,12 +13,14 @@ pub(crate) struct Cpu {
     resources: Resources,
     color: crate::color_glyphs::ColorGlyphs,
 }
+#[cfg(feature = "hybrid")]
 pub(crate) struct Hybrid {
     pub context: vello_hybrid::Scene,
     pub resources: vello_hybrid::Resources,
 }
 pub(crate) enum Backend {
     Cpu(Box<Cpu>),
+    #[cfg(feature = "hybrid")]
     Hybrid(Box<Hybrid>),
 }
 
@@ -32,6 +35,7 @@ macro_rules! forward {
         pub fn $name(&mut self, $($arg: $ty),*) {
             match self {
                 Self::Cpu(c) => c.context.$name($($arg),*),
+                #[cfg(feature = "hybrid")]
                 Self::Hybrid(c) => c.context.$name($($arg),*),
             }
         }
@@ -46,6 +50,7 @@ impl Backend {
             color: Default::default(),
         }))
     }
+    #[cfg(feature = "hybrid")]
     pub fn hybrid(width: u16, height: u16, resources: vello_hybrid::Resources) -> Self {
         Self::Hybrid(Box::new(Hybrid {
             context: vello_hybrid::Scene::new(width, height),
@@ -62,18 +67,23 @@ impl Backend {
     pub fn push_clip_rect(&mut self, rect: &Rect) {
         match self {
             Self::Cpu(c) => c.context.push_clip_rect(rect),
-            Self::Hybrid(c) => c.context.push_clip_path(&rect.to_path(0.1)),
+            #[cfg(feature = "hybrid")]
+            Self::Hybrid(c) => c
+                .context
+                .push_clip_path(&vello_cpu::kurbo::Shape::to_path(rect, 0.1)),
         }
     }
     pub fn pop_clip(&mut self) {
         match self {
             Self::Cpu(c) => c.context.pop_clip(),
+            #[cfg(feature = "hybrid")]
             Self::Hybrid(c) => c.context.pop_clip_path(),
         }
     }
     pub fn fill_blurred_rounded_rect(&mut self, rect: &Rect, radius: f32, sigma: f32) {
         match self {
             Self::Cpu(c) => c.context.fill_blurred_rounded_rect(rect, radius, sigma),
+            #[cfg(feature = "hybrid")]
             Self::Hybrid(c) => c
                 .context
                 .fill_blurred_rounded_rect(rect, radius, sigma, false),
@@ -113,6 +123,7 @@ impl Backend {
                 glyphs,
             )
             .map(|()| false),
+            #[cfg(feature = "hybrid")]
             Self::Hybrid(c) => {
                 // Hybrid requires bitmap glyphs to use its image atlas. Mixing outline
                 // glyphs into that atlas loses labels on the tested software Vulkan path;
@@ -143,6 +154,7 @@ impl Backend {
                 image: vello_cpu::ImageSource::Pixmap(frame.cpu.clone()),
                 sampler: Default::default(),
             }),
+            #[cfg(feature = "hybrid")]
             Self::Hybrid(c) => c.context.set_paint(vello_common_hybrid::paint::Image {
                 image: vello_common_hybrid::paint::ImageSource::Pixmap(frame.hybrid.clone()),
                 sampler: Default::default(),
@@ -152,18 +164,24 @@ impl Backend {
         self.reset_transform();
     }
     pub fn render(&mut self, pixmap: &mut Pixmap) {
-        if let Self::Cpu(c) = self {
-            c.context.render_with(
-                pixmap,
-                &mut c.resources,
-                vello_cpu::RasterizerSettings {
-                    target_init: vello_cpu::TargetInit::SrcOver,
-                    ..Default::default()
-                },
-            );
-            c.color.end_frame();
+        match self {
+            Self::Cpu(c) => {
+                c.context.render_with(
+                    pixmap,
+                    &mut c.resources,
+                    vello_cpu::RasterizerSettings {
+                        target_init: vello_cpu::TargetInit::SrcOver,
+                        ..Default::default()
+                    },
+                );
+                c.color.end_frame();
+            }
+            // The GPU renders the scene itself (`crate::hybrid`).
+            #[cfg(feature = "hybrid")]
+            Self::Hybrid(_) => {}
         }
     }
+    #[cfg(feature = "hybrid")]
     pub fn hybrid_parts(&mut self) -> Option<(&vello_hybrid::Scene, &mut vello_hybrid::Resources)> {
         match self {
             Self::Hybrid(c) => Some((&c.context, &mut c.resources)),

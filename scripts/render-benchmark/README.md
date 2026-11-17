@@ -27,8 +27,9 @@ installation and benchmark invocation. Never borrow another session's emulator.
    `scripts/install-dev.sh --probe build/render-benchmark/probe.apk`. Enable/select the keyboard's IME and mute the emulator's audio streams.
 3. With targeted adb, set `log.tag.aw-compose=DEBUG` for numeric Compose frame-commit timing
    and `log.tag.aw-emoji=DEBUG` for a synthetic colour-emoji strip when candidates are empty.
-   `log.tag.aw-hybrid=DEBUG` selects the Vulkan experiment when a prototype surface is created;
-   otherwise the prototype uses Vello CPU. `log.tag.aw-profile=DEBUG` at surface creation
+   `log.tag.aw-hybrid=DEBUG` selects the Vulkan experiment when a prototype surface is created,
+   in a build made with `-PhybridRenderer=true` (the `hybrid` Cargo feature); otherwise, and in
+   every other build, where the switch only logs `hybrid_unavailable`, the prototype uses Vello CPU. `log.tag.aw-profile=DEBUG` at surface creation
    enables numeric CPU-tail attribution. Set these properties back to `INFO` afterwards.
 4. In keyboard settings, turn **Rust keyboard renderer (prototype)** off for Compose and on
    for Rust. Open `com.jtn0123.renderprobe` through agent-device with `--no-test-ime` so the

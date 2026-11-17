@@ -229,23 +229,12 @@ fn run(
     );
     let initialization = profiling.then(Instant::now);
     let gpu = if hybrid {
-        match window.hybrid(width, height, fonts.clone()) {
-            Ok(gpu) => {
-                log(&format!("hybrid adapter={}", gpu.adapter));
-                Some(gpu)
-            }
-            Err(error) => {
-                log(&format!("hybrid_init_error={error}"));
-                None
-            }
-        }
+        window.gpu(width, height, &fonts)
     } else {
         None
     };
-    let mut engine = match gpu {
-        Some(gpu) => Engine::Hybrid(Box::new(gpu)),
-        None => Engine::Cpu(Box::new(Raster::shared(width, height, fonts))),
-    };
+    let mut engine =
+        gpu.unwrap_or_else(|| Engine::Cpu(Box::new(Raster::shared(width, height, fonts))));
     crate::render_profile::heap(3, 0, width as usize * height as usize * 4);
     // Declared after `window` (a parameter), so it is dropped, and detached, first.
     let mut presenter = match &engine {
@@ -264,7 +253,7 @@ fn run(
         _ => None,
     };
     let mut previous = Scene::default();
-    if let Engine::Cpu(raster) = &mut engine {
+    if let Some(raster) = engine.cpu() {
         raster.set_profiling(profiling);
     }
     if let Some(initialization) = initialization {
@@ -293,8 +282,7 @@ fn run(
         let worker_ns = monotonic_ns();
         let _trace = crate::render_profile::Span::new(c"aw.worker");
         let start = Instant::now();
-        let mut post_ns = 0;
-        let (draw, gpu_wait) = match &mut engine {
+        let (draw, gpu_wait, post_ns) = match &mut engine {
             Engine::Cpu(raster) => {
                 if raster.draw_regions(&scene, &regions).is_err() {
                     log("draw_error");
@@ -318,11 +306,11 @@ fn run(
                     log("post_error");
                     break;
                 }
-                post_ns = post_start.elapsed().as_nanos();
-                (draw, 0)
+                (draw, 0, post_start.elapsed().as_nanos())
             }
+            #[cfg(feature = "hybrid")]
             Engine::Hybrid(gpu) => match gpu.draw(&scene) {
-                Ok(timing) => timing,
+                Ok((draw, gpu_wait)) => (draw, gpu_wait, 0),
                 Err(error) => {
                     log(&format!("hybrid_draw_error={error}"));
                     break;
@@ -333,7 +321,7 @@ fn run(
         if previous.width == 0 {
             crate::render_profile::heap(4, 0, width as usize * height as usize * 4);
         }
-        if profiling && let Engine::Cpu(raster) = &engine {
+        if profiling && let Some(raster) = engine.cpu() {
             let p = raster.profile();
             let area = ((damage.right.ceil().min(scene.width as f32)
                 - damage.left.floor().max(0.0))
@@ -400,10 +388,46 @@ pub(crate) fn profile_enabled() -> bool {
 
 enum Engine {
     Cpu(Box<Raster>),
+    #[cfg(feature = "hybrid")]
     Hybrid(Box<render::hybrid::Hybrid>),
 }
 
+impl Engine {
+    /// The CPU renderer, which draws into memory this side presents; None for the GPU's.
+    fn cpu(&mut self) -> Option<&mut Raster> {
+        match self {
+            Self::Cpu(raster) => Some(raster),
+            #[cfg(feature = "hybrid")]
+            Self::Hybrid(_) => None,
+        }
+    }
+}
+
 impl Window {
+    /// The GPU renderer for this window, if the `aw-hybrid` switch asked for it and it starts.
+    #[cfg(feature = "hybrid")]
+    fn gpu(&self, width: u16, height: u16, fonts: &[render::text::FontBlob]) -> Option<Engine> {
+        match self.hybrid(width, height, fonts.to_vec()) {
+            Ok(gpu) => {
+                log(&format!("hybrid adapter={}", gpu.adapter));
+                Some(Engine::Hybrid(Box::new(gpu)))
+            }
+            Err(error) => {
+                log(&format!("hybrid_init_error={error}"));
+                None
+            }
+        }
+    }
+
+    /// Without the `hybrid` feature there is no GPU renderer: the switch is ignored and the CPU
+    /// one draws, so a phone with `aw-hybrid` set behaves as one without.
+    #[cfg(not(feature = "hybrid"))]
+    fn gpu(&self, _: u16, _: u16, _: &[render::text::FontBlob]) -> Option<Engine> {
+        log("hybrid_unavailable");
+        None
+    }
+
+    #[cfg(feature = "hybrid")]
     fn hybrid(
         &self,
         width: u16,

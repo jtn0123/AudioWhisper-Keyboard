@@ -58,6 +58,7 @@ impl Raster {
         self.profile
     }
 
+    #[cfg(feature = "hybrid")]
     pub(crate) fn hybrid(
         width: u16,
         height: u16,
@@ -69,6 +70,7 @@ impl Raster {
         raster
     }
 
+    #[cfg(feature = "hybrid")]
     pub(crate) fn hybrid_parts(
         &mut self,
     ) -> Option<(&vello_hybrid::Scene, &mut vello_hybrid::Resources)> {

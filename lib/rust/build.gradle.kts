@@ -180,6 +180,8 @@ val cargoBuildAndroid = tasks.register<CargoBuild>("cargoBuildAndroid") {
     if (providers.gradleProperty("suggestFixture").orNull == "true") args.addAll("--features", "latin-fixture")
     if (providers.gradleProperty("ttsFixture").orNull == "true") args.addAll("--features", "tts-fixture")
     if (providers.gradleProperty("dictationFixture").orNull == "true") args.addAll("--features", "dictation-fixture")
+    // The experimental GPU renderer, for measuring it again; no build that ships includes it.
+    if (providers.gradleProperty("hybridRenderer").orNull == "true") args.addAll("--features", "hybrid")
     val ndkDirectory = androidComponents.sdkComponents.ndkDirectory
     environment.put(
         "CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER",
@@ -220,6 +222,21 @@ val cargoClippy = tasks.register<Cargo>("cargoClippy") {
     configureCargo("clippy", "--all-targets", "--locked", "--", "-D", "warnings")
 }
 
+// The code only Android compiles (surfaces, the presenter, JNI windows) and the off-by-default GPU
+// renderer (the `hybrid` feature), which nothing else builds; host clippy sees neither.
+val cargoAndroidClippy = tasks.register<Cargo>("cargoAndroidClippy") {
+    description = "Lints libawnative as Android builds it, failing on any warning."
+    configureCargo("clippy", "--locked", "--package", "awnative", "--target", androidTarget, "--", "-D", "warnings")
+}
+
+val cargoAndroidHybridClippy = tasks.register<Cargo>("cargoAndroidHybridClippy") {
+    description = "Lints libawnative for Android with the experimental GPU renderer, failing on any warning."
+    configureCargo(
+        "clippy", "--locked", "--package", "awnative", "--target", androidTarget, "--features", "hybrid",
+        "--", "-D", "warnings",
+    )
+}
+
 val cargoOracleTest = tasks.register<Cargo>("cargoOracleTest") {
     description = "Runs the full Rust workspace tests, including LatinIME's C++ comparisons."
     configureCargo("test", "--workspace", "--features", "latin/oracle", "--locked")
@@ -236,7 +253,10 @@ val cargoFmtCheck = tasks.register<Cargo>("cargoFmtCheck") {
 }
 
 tasks.named("check") {
-    dependsOn(cargoTest, cargoClippy, cargoFmtCheck, ":app:checkNativeDeclarations")
+    dependsOn(
+        cargoTest, cargoClippy, cargoAndroidClippy, cargoAndroidHybridClippy, cargoFmtCheck,
+        ":app:checkNativeDeclarations",
+    )
 }
 
 tasks.register("oracleCheck") {

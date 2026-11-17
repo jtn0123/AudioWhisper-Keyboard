@@ -939,7 +939,8 @@ the shell's `PATH`.
 ## Checks
 
 ```bash
-./gradlew :lib:rust:check   # cargo test, clippy with warnings as errors, rustfmt --check
+./gradlew :lib:rust:check   # cargo test, clippy with warnings as errors (here, and for Android
+                            # with and without the GPU renderer), rustfmt --check
 ./gradlew test              # every JVM test, including those that go through JNI
 ```
 
@@ -947,7 +948,11 @@ the shell's `PATH`.
 needs a C++ toolchain, and CI runs it as its own task.
 
 Or, from `lib/rust`, plain `cargo test`, `cargo clippy --all-targets -- -D warnings` and
-`cargo fmt`.
+`cargo fmt`. CI also runs `cargo audit` there, against RustSec's advisories.
+
+The Vello Hybrid GPU renderer (wgpu over Vulkan, behind the `aw-hybrid` log switch) is built only
+on request, with the `hybrid` feature of `render` and `awnative`: `-PhybridRenderer=true` for an
+APK. Every other build ignores the switch and draws on the CPU (see docs/decisions.md).
 
 ## Rules
 

@@ -9,6 +9,7 @@ mod color_glyphs;
 pub mod compose_velocity;
 pub mod gesture_config;
 mod glide_touch;
+#[cfg(feature = "hybrid")]
 pub mod hybrid;
 pub mod key_content;
 mod keyboard_swipe;
@@ -69,3 +70,19 @@ pub mod key_preview;
 pub mod subtype_panel;
 
 pub mod settings_ui;
+
+#[cfg(test)]
+mod tests {
+    use std::{mem::size_of, sync::Arc};
+
+    /// The tests build what ships, and that leaves out the GPU renderer (docs/decisions.md): a
+    /// GIF frame then keeps only the CPU's copy of its pixels, not a second one for the GPU.
+    #[test]
+    fn the_gpu_renderer_is_built_only_on_request() {
+        assert_eq!(
+            size_of::<crate::media_cache::Frame>(),
+            size_of::<Arc<vello_cpu::Pixmap>>() + size_of::<i64>(),
+            "the hybrid feature must stay off unless asked for"
+        );
+    }
+}
