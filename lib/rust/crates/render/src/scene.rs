@@ -160,8 +160,6 @@ impl Scene {
             || self.strip != next.strip
             || self.background != next.background
             || self.strip_style != next.strip_style
-            || self.popup_style != next.popup_style
-            || self.popup_styles != next.popup_styles
             || self.keys != next.keys
         {
             return vec![Rect {
@@ -205,7 +203,12 @@ impl Scene {
                 });
             }
         }
-        if self.popup != next.popup || self.popup_geometry != next.popup_geometry {
+        // Popup styles paint only inside the popup, and the theme sets them as a popup opens.
+        if self.popup != next.popup
+            || self.popup_geometry != next.popup_geometry
+            || self.popup_style != next.popup_style
+            || self.popup_styles != next.popup_styles
+        {
             rects.extend(self.popup_bounds());
             rects.extend(next.popup_bounds());
         }
