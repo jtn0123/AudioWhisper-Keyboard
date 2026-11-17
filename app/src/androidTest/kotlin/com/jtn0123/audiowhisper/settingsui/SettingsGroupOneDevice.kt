@@ -192,7 +192,7 @@ internal class SettingsGroupOneDevice(private val h: SettingsHarness, private va
         log.put(JSONObject().put("row", label).put("kind", "flip").put("to", !before))
     }
 
-    /** InputFeedbackScreen enables duration with a vibrator and strength with amplitude control. */
+    /** Input feedback enables duration with a vibrator and strength with amplitude control. */
     private fun vibrationRows(facts: JSONObject) {
         val direct = prefs.inputFeedback.hapticVibrationMode.get().name == "USE_VIBRATOR_DIRECTLY"
         val haptic = prefs.inputFeedback.hapticEnabled.get()

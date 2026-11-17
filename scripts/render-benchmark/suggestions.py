@@ -52,7 +52,7 @@ def main():
     device = api["Device"](Path(sys.argv[1]))
     access = device.original_accessibility()
     expanded = device.prefs().get("smartbar__shared_actions_expanded", "false") == "true"
-    prototype = device.prefs().get("keyboard__rust_renderer_prototype") == "true"
+    prototype = device.prefs().get("keyboard__rust_renderer_prototype", "true") == "true"
     try:
         device.mute()
         chrome["set_preferences"](device, {"smartbar__shared_actions_expanded": False})

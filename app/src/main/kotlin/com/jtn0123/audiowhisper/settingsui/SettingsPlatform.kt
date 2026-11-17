@@ -67,7 +67,7 @@ internal class SettingsPlatform(private val activity: FlorisAppActivity, private
     }
     fun facts() = arrayOf(InputMethodUtils.isFlorisboardEnabled(activity).toString(), InputMethodUtils.isFlorisboardSelected(activity).toString())
     private val vibrator = activity.systemVibratorOrNull()
-    /** InputFeedbackScreen's `vibrator != null && vibrator.hasVibrator()` and `hasAmplitudeControl()`. */
+    /** Whether the device vibrates, and whether it has amplitude control: Input feedback enables its haptic rows on these. */
     fun vibratorFacts() = arrayOf((vibrator?.hasVibrator() == true).toString(), (vibrator?.hasAmplitudeControl() == true).toString())
     /** A haptic slider's `onPreviewSelectedValue`. */
     fun vibrate(duration: Int, strength: Int) { vibrator?.vibrate(duration, strength) }

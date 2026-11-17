@@ -116,7 +116,6 @@ internal class ReferenceSettingsModel : ReferencePreferenceModel() {
             localization.displayKeyboardLabelsInSubtypeLanguage,
             localization.activeSubtypeId,
             localization.subtypes,
-            other.rustSettingsPrototype,
             other.settingsTheme,
             other.accentColor,
             physicalKeyboard.showOnScreenKeyboard,

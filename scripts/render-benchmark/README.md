@@ -31,7 +31,7 @@ installation and benchmark invocation. Never borrow another session's emulator.
    in a build made with `-PhybridRenderer=true` (the `hybrid` Cargo feature); otherwise, and in
    every other build, where the switch only logs `hybrid_unavailable`, the prototype uses Vello CPU. `log.tag.aw-profile=DEBUG` at surface creation
    enables numeric CPU-tail attribution. Set these properties back to `INFO` afterwards.
-4. In keyboard settings, turn **Rust keyboard renderer (prototype)** off for Compose and on
+4. In keyboard settings, turn **Draw the keyboard in Rust** off for Compose and on
    for Rust. Open `com.jtn0123.renderprobe` through agent-device with `--no-test-ime` so the
    helper does not replace the selected keyboard. Focus the editor, warm it with a few presses,
    clear it, and wait for the candidate strip to settle before each run.

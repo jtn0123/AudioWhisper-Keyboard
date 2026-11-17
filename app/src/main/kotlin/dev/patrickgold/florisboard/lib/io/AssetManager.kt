@@ -72,25 +72,6 @@ fun FlorisRef.delete(context: Context) {
     }
 }
 
-fun FlorisRef.hasAsset(context: Context): Boolean {
-    return when {
-        isAssets -> {
-            try {
-                val file = File(relativePath)
-                val list = context.assets.list(file.parent ?: "")
-                list?.contains(file.name) == true
-            } catch (e: Exception) {
-                false
-            }
-        }
-        isCache || isInternal -> {
-            val file = File(absolutePath(context))
-            file.exists() && file.isFile
-        }
-        else -> false
-    }
-}
-
 fun FlorisRef.list(context: Context) = list(context, files = true, dirs = true)
 
 fun FlorisRef.listFiles(context: Context) = list(context, files = true, dirs = false)

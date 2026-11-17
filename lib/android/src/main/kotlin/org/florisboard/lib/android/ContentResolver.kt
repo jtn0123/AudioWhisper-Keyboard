@@ -80,14 +80,6 @@ inline fun ContentResolver.readText(uri: Uri, block: (BufferedReader) -> Unit) {
     }
 }
 
-inline fun ContentResolver.readAllText(uri: Uri): String {
-    val text: String
-    this.read(uri) { inStream ->
-        text = inStream.bufferedReader().use { it.readText() }
-    }
-    return text
-}
-
 inline fun ContentResolver.write(uri: Uri, block: (OutputStream) -> Unit) {
     contract {
         callsInPlace(block, InvocationKind.EXACTLY_ONCE)
@@ -111,11 +103,5 @@ inline fun ContentResolver.writeText(uri: Uri, block: (BufferedWriter) -> Unit) 
     }
     this.write(uri) { outStream ->
         outStream.bufferedWriter().use(block)
-    }
-}
-
-inline fun ContentResolver.writeAllText(uri: Uri, text: String) {
-    this.write(uri) { outStream ->
-        outStream.bufferedWriter().use { it.write(text) }
     }
 }

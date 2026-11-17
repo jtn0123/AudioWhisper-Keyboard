@@ -112,10 +112,10 @@ class SettingsDevice:
         self.restore_files()
         source = (self.baseline / self.original['files'][PREFS]['file']).read_bytes()
         lines = source.splitlines(keepends=True)
+        # Older builds stored the removed settings switch; the app's migration drops it on load.
         lines = [line for line in lines if b';other__rust_settings_prototype;' not in line]
         if lines and not lines[-1].endswith(b'\n'):
             lines[-1] += b'\n'
-        lines.append(b'b;other__rust_settings_prototype;false\n')
         self.private_write(PREFS, b''.join(lines))
 
     def launch(self, route):
@@ -150,12 +150,10 @@ class SettingsDevice:
         raise RuntimeError('Settings target absent: ' + label)
 
     def prototype(self, renderer):
-        self.launch('settings/other')
-        target = renderer == 'rust'
-        if (self.prefs().get('other__rust_settings_prototype', 'false') == 'true') != target:
-            self.press('Rust settings renderer (prototype)')
-            self.wait(lambda: (self.prefs().get('other__rust_settings_prototype', 'false') == 'true') == target,
-                      'Prototype selector did not persist')
+        """Opens Home. Rust is the only settings renderer: the switch and the Compose screens it
+        chose were removed (docs/compose-removal.md)."""
+        if renderer != 'rust':
+            raise SystemExit('The Compose settings screens were removed; only "rust" remains')
         self.launch('settings/home')
         self.wait(lambda: self.find('Keyboard'), 'Home did not appear')
 

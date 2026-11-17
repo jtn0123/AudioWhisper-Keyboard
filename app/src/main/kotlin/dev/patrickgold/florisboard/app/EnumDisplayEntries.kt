@@ -17,21 +17,13 @@
 package dev.patrickgold.florisboard.app
 
 import androidx.compose.runtime.Composable
-import com.jtn0123.audiowhisper.suggest.AutoCorrectStrength
 import dev.patrickgold.florisboard.R
 import dev.patrickgold.florisboard.app.settings.theme.DisplayKbdAfterDialogs
-import dev.patrickgold.florisboard.ime.clipboard.ClipboardSyncBehavior
+import dev.patrickgold.florisboard.app.settings.theme.SnyggLevel
 import dev.patrickgold.florisboard.ime.core.DisplayLanguageNamesIn
-import dev.patrickgold.florisboard.ime.input.CapitalizationBehavior
-import dev.patrickgold.florisboard.ime.input.HapticVibrationMode
-import dev.patrickgold.florisboard.ime.keyboard.IncognitoMode
-import dev.patrickgold.florisboard.ime.media.emoji.EmojiHistory
-import dev.patrickgold.florisboard.ime.media.emoji.EmojiSkinTone
-import dev.patrickgold.florisboard.ime.media.emoji.EmojiSuggestionType
-import dev.patrickgold.florisboard.ime.smartbar.CandidatesDisplayMode
-import dev.patrickgold.florisboard.ime.smartbar.ExtendedActionsPlacement
-import dev.patrickgold.florisboard.ime.smartbar.IncognitoDisplayMode
-import dev.patrickgold.florisboard.ime.text.key.KeyHintMode
+import dev.patrickgold.florisboard.ime.input.InputShiftState
+import dev.patrickgold.florisboard.ime.keyboard.KeyboardMode
+import dev.patrickgold.florisboard.ime.theme.ThemeMode
 import dev.patrickgold.jetpref.datastore.ui.ListPreferenceEntry
 import dev.patrickgold.jetpref.datastore.ui.listPrefEntries
 import dev.patrickgold.jetpref.material.ui.ColorRepresentation
@@ -63,58 +55,6 @@ private val ENUM_DISPLAY_ENTRIES = mapOf<Pair<KClass<*>, String>, @Composable ()
             entry(
                 key = AppTheme.AMOLED_DARK,
                 label = stringRes(R.string.pref__other__settings_theme__amoled_dark),
-            )
-        }
-    },
-    CandidatesDisplayMode::class to DEFAULT to {
-        listPrefEntries {
-            entry(
-                key = CandidatesDisplayMode.CLASSIC,
-                label = stringRes(R.string.enum__candidates_display_mode__classic),
-            )
-            entry(
-                key = CandidatesDisplayMode.DYNAMIC,
-                label = stringRes(R.string.enum__candidates_display_mode__dynamic),
-            )
-            entry(
-                key = CandidatesDisplayMode.DYNAMIC_SCROLLABLE,
-                label = stringRes(R.string.enum__candidates_display_mode__dynamic_scrollable),
-            )
-        }
-    },
-    CapitalizationBehavior::class to DEFAULT to {
-        listPrefEntries {
-            entry(
-                key = CapitalizationBehavior.CAPSLOCK_BY_DOUBLE_TAP,
-                label = stringRes(R.string.enum__capitalization_behavior__capslock_by_double_tap),
-            )
-            entry(
-                key = CapitalizationBehavior.CAPSLOCK_BY_CYCLE,
-                label = stringRes(R.string.enum__capitalization_behavior__capslock_by_cycle),
-            )
-        }
-    },
-    ClipboardSyncBehavior::class to DEFAULT to {
-        listPrefEntries {
-            entry(
-                key = ClipboardSyncBehavior.NO_EVENTS,
-                label = stringRes(R.string.enum__clipboard_sync_behavior__no_events),
-                description = stringRes(R.string.enum__clipboard_sync_behavior__no_events__description),
-            )
-            entry(
-                key = ClipboardSyncBehavior.ONLY_CLEAR_EVENTS,
-                label = stringRes(R.string.enum__clipboard_sync_behavior__only_clear_events),
-                description = stringRes(R.string.enum__clipboard_sync_behavior__only_clear_events__description),
-            )
-            entry(
-                key = ClipboardSyncBehavior.ONLY_SET_EVENTS,
-                label = stringRes(R.string.enum__clipboard_sync_behavior__only_set_events),
-                description = stringRes(R.string.enum__clipboard_sync_behavior__only_set_events__description),
-            )
-            entry(
-                key = ClipboardSyncBehavior.ALL_EVENTS,
-                label = stringRes(R.string.enum__clipboard_sync_behavior__all_events),
-                description = stringRes(R.string.enum__clipboard_sync_behavior__all_events__description),
             )
         }
     },
@@ -178,213 +118,101 @@ private val ENUM_DISPLAY_ENTRIES = mapOf<Pair<KClass<*>, String>, @Composable ()
             )
         }
     },
-    EmojiHistory.UpdateStrategy::class to DEFAULT to {
+    InputShiftState::class to DEFAULT to {
         listPrefEntries {
             entry(
-                key = EmojiHistory.UpdateStrategy.AUTO_SORT_PREPEND,
-                label = stringRes(R.string.enum__emoji_history_update_strategy__auto_sort_prepend),
-                description = stringRes(R.string.enum__emoji_history_update_strategy__auto_sort_prepend__description),
+                key = InputShiftState.UNSHIFTED,
+                label = stringRes(R.string.enum__input_shift_state__unshifted),
             )
             entry(
-                key = EmojiHistory.UpdateStrategy.AUTO_SORT_APPEND,
-                label = stringRes(R.string.enum__emoji_history_update_strategy__auto_sort_append),
-                description = stringRes(R.string.enum__emoji_history_update_strategy__auto_sort_append__description),
+                key = InputShiftState.SHIFTED_MANUAL,
+                label = stringRes(R.string.enum__input_shift_state__shifted_manual),
             )
             entry(
-                key = EmojiHistory.UpdateStrategy.MANUAL_SORT_PREPEND,
-                label = stringRes(R.string.enum__emoji_history_update_strategy__manual_sort_prepend),
-                description = stringRes(R.string.enum__emoji_history_update_strategy__manual_sort_prepend__description),
+                key = InputShiftState.SHIFTED_AUTOMATIC,
+                label = stringRes(R.string.enum__input_shift_state__shifted_automatic),
             )
             entry(
-                key = EmojiHistory.UpdateStrategy.MANUAL_SORT_APPEND,
-                label = stringRes(R.string.enum__emoji_history_update_strategy__manual_sort_append),
-                description = stringRes(R.string.enum__emoji_history_update_strategy__manual_sort_append__description),
+                key = InputShiftState.CAPS_LOCK,
+                label = stringRes(R.string.enum__input_shift_state__caps_lock),
             )
         }
     },
-    EmojiSkinTone::class to DEFAULT to {
+    KeyboardMode::class to DEFAULT to {
         listPrefEntries {
             entry(
-                key = EmojiSkinTone.DEFAULT,
-                label = stringRes(
-                    R.string.enum__emoji_skin_tone__default,
-                    "emoji" to "\uD83D\uDC4B" // 👋
-                ),
+                key = KeyboardMode.CHARACTERS,
+                label = stringRes(R.string.enum__keyboard_mode__characters),
             )
             entry(
-                key = EmojiSkinTone.LIGHT_SKIN_TONE,
-                label = stringRes(
-                    R.string.enum__emoji_skin_tone__light_skin_tone,
-                    "emoji" to "\uD83D\uDC4B\uD83C\uDFFB" // 👋🏻
-                ),
+                key = KeyboardMode.SYMBOLS,
+                label = stringRes(R.string.enum__keyboard_mode__symbols),
             )
             entry(
-                key = EmojiSkinTone.MEDIUM_LIGHT_SKIN_TONE,
-                label = stringRes(
-                    R.string.enum__emoji_skin_tone__medium_light_skin_tone,
-                    "emoji" to "\uD83D\uDC4B\uD83C\uDFFC" // 👋🏼
-                ),
+                key = KeyboardMode.SYMBOLS2,
+                label = stringRes(R.string.enum__keyboard_mode__symbols2),
             )
             entry(
-                key = EmojiSkinTone.MEDIUM_SKIN_TONE,
-                label = stringRes(
-                    R.string.enum__emoji_skin_tone__medium_skin_tone,
-                    "emoji" to "\uD83D\uDC4B\uD83C\uDFFD" // 👋🏽
-                ),
+                key = KeyboardMode.NUMERIC,
+                label = stringRes(R.string.enum__keyboard_mode__numeric),
             )
             entry(
-                key = EmojiSkinTone.MEDIUM_DARK_SKIN_TONE,
-                label = stringRes(
-                    R.string.enum__emoji_skin_tone__medium_dark_skin_tone,
-                    "emoji" to "\uD83D\uDC4B\uD83C\uDFFE" // 👋🏾
-                ),
+                key = KeyboardMode.NUMERIC_ADVANCED,
+                label = stringRes(R.string.enum__keyboard_mode__numeric_advanced),
             )
             entry(
-                key = EmojiSkinTone.DARK_SKIN_TONE,
-                label = stringRes(
-                    R.string.enum__emoji_skin_tone__dark_skin_tone,
-                    "emoji" to "\uD83D\uDC4B\uD83C\uDFFF" // 👋🏿
-                ),
+                key = KeyboardMode.PHONE,
+                label = stringRes(R.string.enum__keyboard_mode__phone),
+            )
+            entry(
+                key = KeyboardMode.PHONE2,
+                label = stringRes(R.string.enum__keyboard_mode__phone2),
             )
         }
     },
-    EmojiSuggestionType::class to DEFAULT to {
+    SnyggLevel::class to DEFAULT to {
         listPrefEntries {
             entry(
-                key = EmojiSuggestionType.LEADING_COLON,
-                label = stringRes(R.string.enum__emoji_suggestion_type__leading_colon),
-                description = stringRes(R.string.enum__emoji_suggestion_type__leading_colon__description),
-            )
-            entry(
-                key = EmojiSuggestionType.INLINE_TEXT,
-                label = stringRes(R.string.enum__emoji_suggestion_type__inline_text),
-                description = stringRes(R.string.enum__emoji_suggestion_type__inline_text__description),
-            )
-        }
-    },
-    ExtendedActionsPlacement::class to DEFAULT to {
-        listPrefEntries {
-            entry(
-                key = ExtendedActionsPlacement.ABOVE_CANDIDATES,
-                label = stringRes(R.string.enum__extended_actions_placement__above_candidates),
-                description = stringRes(R.string.enum__extended_actions_placement__above_candidates__description),
+                key = SnyggLevel.BASIC,
+                label = stringRes(R.string.enum__snygg_level__basic),
+                description = stringRes(R.string.enum__snygg_level__basic__description),
                 showDescriptionOnlyIfSelected = true,
             )
             entry(
-                key = ExtendedActionsPlacement.BELOW_CANDIDATES,
-                label = stringRes(R.string.enum__extended_actions_placement__below_candidates),
-                description = stringRes(R.string.enum__extended_actions_placement__below_candidates__description),
+                key = SnyggLevel.ADVANCED,
+                label = stringRes(R.string.enum__snygg_level__advanced),
+                description = stringRes(R.string.enum__snygg_level__advanced__description),
                 showDescriptionOnlyIfSelected = true,
             )
             entry(
-                key = ExtendedActionsPlacement.OVERLAY_APP_UI,
-                label = stringRes(R.string.enum__extended_actions_placement__overlay_app_ui),
-                description = stringRes(R.string.enum__extended_actions_placement__overlay_app_ui__description),
+                key = SnyggLevel.DEVELOPER,
+                label = stringRes(R.string.enum__snygg_level__developer),
+                description = stringRes(R.string.enum__snygg_level__developer__description),
                 showDescriptionOnlyIfSelected = true,
             )
         }
     },
-    HapticVibrationMode::class to DEFAULT to {
+    ThemeMode::class to DEFAULT to {
         listPrefEntries {
             entry(
-                key = HapticVibrationMode.USE_VIBRATOR_DIRECTLY,
-                label = stringRes(R.string.enum__haptic_vibration_mode__use_vibrator_directly),
-                description = stringRes(R.string.enum__haptic_vibration_mode__use_vibrator_directly__description),
-                showDescriptionOnlyIfSelected = true,
+                key = ThemeMode.ALWAYS_DAY,
+                label = stringRes(R.string.enum__theme_mode__always_day),
             )
             entry(
-                key = HapticVibrationMode.USE_HAPTIC_FEEDBACK_INTERFACE,
-                label = stringRes(R.string.enum__haptic_vibration_mode__use_haptic_feedback_interface),
-                description = stringRes(R.string.enum__haptic_vibration_mode__use_haptic_feedback_interface__description),
-                showDescriptionOnlyIfSelected = true,
+                key = ThemeMode.ALWAYS_NIGHT,
+                label = stringRes(R.string.enum__theme_mode__always_night),
+            )
+            entry(
+                key = ThemeMode.FOLLOW_SYSTEM,
+                label = stringRes(R.string.enum__theme_mode__follow_system),
+            )
+            entry(
+                key = ThemeMode.FOLLOW_TIME,
+                label = stringRes(R.string.enum__theme_mode__follow_time),
             )
         }
     },
-    KeyHintMode::class to DEFAULT to {
-        listPrefEntries {
-            entry(
-                key = KeyHintMode.ACCENT_PRIORITY,
-                label = stringRes(R.string.enum__key_hint_mode__accent_priority),
-                description = stringRes(R.string.enum__key_hint_mode__accent_priority__description),
-                showDescriptionOnlyIfSelected = true,
-            )
-            entry(
-                key = KeyHintMode.HINT_PRIORITY,
-                label = stringRes(R.string.enum__key_hint_mode__hint_priority),
-                description = stringRes(R.string.enum__key_hint_mode__hint_priority__description),
-                showDescriptionOnlyIfSelected = true,
-            )
-            entry(
-                key = KeyHintMode.SMART_PRIORITY,
-                label = stringRes(R.string.enum__key_hint_mode__smart_priority),
-                description = stringRes(R.string.enum__key_hint_mode__smart_priority__description),
-                showDescriptionOnlyIfSelected = true,
-            )
-        }
-    },
-    IncognitoDisplayMode::class to DEFAULT to {
-        listPrefEntries {
-            entry(
-                key = IncognitoDisplayMode.REPLACE_SHARED_ACTIONS_TOGGLE,
-                label = stringRes(id = R.string.enum__incognito_display_mode__replace_shared_actions_toggle),
-            )
-            entry(
-                key = IncognitoDisplayMode.DISPLAY_BEHIND_KEYBOARD,
-                label = stringRes(id = R.string.enum__incognito_display_mode__display_behind_keyboard),
-            )
-        }
-    },
-    AutoCorrectStrength::class to DEFAULT to {
-        listPrefEntries {
-            entry(
-                key = AutoCorrectStrength.OFF,
-                label = stringRes(R.string.enum__auto_correct_strength__off),
-                description = stringRes(R.string.enum__auto_correct_strength__off__description),
-                showDescriptionOnlyIfSelected = true,
-            )
-            entry(
-                key = AutoCorrectStrength.MODEST,
-                label = stringRes(R.string.enum__auto_correct_strength__modest),
-                description = stringRes(R.string.enum__auto_correct_strength__modest__description),
-                showDescriptionOnlyIfSelected = true,
-            )
-            entry(
-                key = AutoCorrectStrength.NORMAL,
-                label = stringRes(R.string.enum__auto_correct_strength__normal),
-                description = stringRes(R.string.enum__auto_correct_strength__normal__description),
-                showDescriptionOnlyIfSelected = true,
-            )
-            entry(
-                key = AutoCorrectStrength.AGGRESSIVE,
-                label = stringRes(R.string.enum__auto_correct_strength__aggressive),
-                description = stringRes(R.string.enum__auto_correct_strength__aggressive__description),
-                showDescriptionOnlyIfSelected = true,
-            )
-        }
-    },
-    IncognitoMode::class to DEFAULT to {
-        listPrefEntries {
-            entry(
-                key = IncognitoMode.FORCE_OFF,
-                label = stringRes(R.string.enum__incognito_mode__force_off),
-                description = stringRes(R.string.enum__incognito_mode__force_off__description),
-                showDescriptionOnlyIfSelected = true,
-            )
-            entry(
-                key = IncognitoMode.DYNAMIC_ON_OFF,
-                label = stringRes(R.string.enum__incognito_mode__dynamic_on_off),
-                description = stringRes(R.string.enum__incognito_mode__dynamic_on_off__description),
-                showDescriptionOnlyIfSelected = true,
-            )
-            entry(
-                key = IncognitoMode.FORCE_ON,
-                label = stringRes(R.string.enum__incognito_mode__force_on),
-                description = stringRes(R.string.enum__incognito_mode__force_on__description),
-                showDescriptionOnlyIfSelected = true,
-            )
-        }
-    },
-) + KEYBOARD_ENUM_DISPLAY_ENTRIES
+)
 
 @Composable
 fun <V : Any> enumDisplayEntriesOf(

@@ -255,8 +255,6 @@ abstract class FlorisPreferenceModel : SettingsPreferenceModel() {
 
     val other = Other()
     inner class Other {
-        val rustSettingsPrototype = nativeBoolean(key = "other__rust_settings_prototype")
-
         val settingsTheme = nativeEnum<AppTheme>(key = "other__settings_theme")
         val accentColor = customPreference(key = "other__accent_color", default = SettingsDefaults.color("other__accent_color"), serializer = ColorPreferenceSerializer)
     }

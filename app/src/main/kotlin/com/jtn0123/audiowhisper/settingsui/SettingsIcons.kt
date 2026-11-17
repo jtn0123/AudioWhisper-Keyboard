@@ -30,7 +30,7 @@ internal fun settingsIcons(resources: Resources): Array<String> {
         "@icon:back" to Icons.AutoMirrored.Filled.ArrowBack, "@icon:picker" to Icons.Default.Keyboard,
         // Row icons, named as the native screens' catalogue names them.
         "@icon:schedule" to Icons.Outlined.Schedule, "@icon:emoji_symbols" to Icons.Outlined.EmojiSymbols,
-        // Group 2: TypingScreen, AboutScreen and SpellCheckerServiceSelector's cards.
+        // Group 2: Typing (with its spell checker card) and About.
         "@icon:incognito" to ImageVector.vectorResource(null, resources, R.drawable.ic_incognito),
         "@icon:space_bar" to Icons.Default.SpaceBar, "@icon:language" to Icons.Default.Language,
         "@icon:contacts" to Icons.Default.Contacts, "@icon:library_books" to Icons.AutoMirrored.Filled.LibraryBooks,

@@ -40,7 +40,7 @@ internal class SettingsFacts(private val activity: Activity) {
     private var models: List<String> = emptyList()
     private val main = Handler(Looper.getMainLooper())
 
-    /** SpellCheckerServiceSelector observes these two while the screen is in the foreground. */
+    /** Typing's spell checker card follows these two while the screen is in the foreground. */
     fun observe(onChange: () -> Unit) {
         listener = onChange
         for (key in SPELL_KEYS) AndroidSettings.Secure.getUriFor(key)?.let {
@@ -61,7 +61,7 @@ internal class SettingsFacts(private val activity: Activity) {
             models.toTypedArray()
     }
 
-    /** ModelStatus: the names and sizes at once, then the SHA-256 check off the main thread. */
+    /** Dictation's model rows: the names and sizes at once, then the SHA-256 check off the main thread. */
     fun checkModels(onChange: () -> Unit) {
         val context = activity.applicationContext
         models = modelPairs(ModelFiles.quickState(context), VoiceEngine.quickState(context), checked = false)
@@ -109,7 +109,7 @@ internal class SettingsFacts(private val activity: Activity) {
                 }
                 else -> error("unknown settings intent")
             }
-            // AboutScreen's version row: the text is the version, never anything the user typed.
+            // About's version row: the text is the version, never anything the user typed.
             "copy" -> try {
                 activity.clipboardManager().value.addNewPlaintext(p[1])
                 Toast.makeText(activity, p[2], Toast.LENGTH_SHORT).show()
@@ -130,7 +130,7 @@ internal class SettingsFacts(private val activity: Activity) {
         private val SPELL_KEYS = listOf("spell_checker_enabled", "selected_spell_checker")
 
         /**
-         * SpellCheckerServiceSelector's `ComponentName.unflattenFromString(id)!!.packageName`, or
+         * The package of `ComponentName.unflattenFromString(id)!!`, as the Compose screen read it, or
          * "null" when that throws: the text before the first '/', which must not be the last
          * character. Spelled out so the JVM tests run the same parse the device does.
          */
@@ -139,7 +139,7 @@ internal class SettingsFacts(private val activity: Activity) {
             return if (id == null || sep < 0 || sep + 1 >= id.length) "null" else id.substring(0, sep)
         }
 
-        /** ModelStatus's two states as facts; the file names only for a damaged model, as it shows. */
+        /** The two model states as facts; the file names only for a damaged model, as the screen shows. */
         fun modelPairs(speech: ModelState, voice: ModelState, checked: Boolean): List<String> =
             listOf("speech" to speech, "voice" to voice).flatMap { (name, state) ->
                 when (state) {

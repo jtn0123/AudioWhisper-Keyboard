@@ -7,7 +7,6 @@ import android.os.SystemClock
 import android.view.accessibility.AccessibilityNodeInfo as Node
 import com.jtn0123.audiowhisper.rust.NativeRuntime
 import dev.patrickgold.florisboard.app.FlorisPreferenceStore
-import kotlinx.coroutines.runBlocking
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
@@ -67,15 +66,13 @@ class SettingsInstrumentation : Instrumentation() {
                     SettingsTypographyFixture(h).run(report)
                 }
                 "text" -> SettingsEditorDevice(h).run(report)
-                "compose-text" -> SettingsComposeEditorDevice(h).run(report)
                 "ui" -> runUi(h, report)
                 "prepare-death" -> SettingsEditorDevice(h).prepareDeath(report)
                 else -> error("unknown device suite")
             }
-            if (stage == "text" || stage == "compose-text") {
+            if (stage == "text") {
                 h.close()
-                val prefs by FlorisPreferenceStore
-                runBlocking { prefs.other.rustSettingsPrototype.set(false).getOrThrow() }
+                // Lets the closed Activity's last writes land before the file is read.
                 SystemClock.sleep(200)
                 val bytes = File(targetContext.dataDir, "jetpref_datastore/florisboard-app-prefs.jetpref").readBytes()
                 report.put("preference_bytes", bytes.size).put("preference_sha256", digest(bytes))
@@ -142,7 +139,7 @@ class SettingsInstrumentation : Instrumentation() {
         h.waitFor("switch preference did not change") { prefs.keyboard.numberRow.get() != original }
         h.click("Number row")
         h.waitFor("switch preference did not restore") { prefs.keyboard.numberRow.get() == original }
-        for ((label, preference) in listOf("Rust keyboard renderer (prototype)" to prefs.keyboard.rustRendererPrototype,
+        for ((label, preference) in listOf("Draw the keyboard in Rust" to prefs.keyboard.rustRendererPrototype,
             "Show utility key" to prefs.keyboard.utilityKeyEnabled, "Popup Visibility" to prefs.keyboard.popupEnabled,
             "Accents include symbol popups" to prefs.keyboard.mergeHintPopupsEnabled,
             "Space bar switches to characters" to prefs.keyboard.spaceBarSwitchesToCharacters)) {
@@ -240,9 +237,8 @@ class SettingsInstrumentation : Instrumentation() {
             check(h.automation.performGlobalAction(android.accessibilityservice.AccessibilityService.GLOBAL_ACTION_BACK))
             h.waitFor("picker did not dismiss") { h.automation.windows.none { it.id in pickerWindows } && h.find("Keyboard") != null }
         }
-        // Explicitly return the selector to the same stored value on both paths.
         h.close()
-        runBlocking { prefs.other.rustSettingsPrototype.set(false).getOrThrow() }
+        // Lets the closed Activity's last writes land before the file is read.
         SystemClock.sleep(200)
         val bytes = File(targetContext.dataDir, "jetpref_datastore/florisboard-app-prefs.jetpref").readBytes()
         report.put("preference_bytes", bytes.size).put("preference_sha256", digest(bytes))

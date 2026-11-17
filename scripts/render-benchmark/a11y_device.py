@@ -174,11 +174,11 @@ class Device:
         self.services(SERVICE)
         self.shell("am", "start", "-W", "-a", "android.intent.action.VIEW", "-c", "android.intent.category.BROWSABLE", "-d",
                    "ui://florisboard/settings/keyboard", "-p", PKG)
-        if (self.prefs().get("keyboard__rust_renderer_prototype") == "true") == enabled:
+        if (self.prefs().get("keyboard__rust_renderer_prototype", "true") == "true") == enabled:
             return
 
         def toggle():
-            request = self.request(setting="Rust keyboard renderer (prototype)")
+            request = self.request(setting="Draw the keyboard in Rust")
             result = self.wait(lambda: self.response(request), "Settings request timed out")
             return result.get("ok")
         try:
@@ -197,7 +197,7 @@ class Device:
                            input=("\n".join(rows) + "\n").encode(), check=True)
             self.shell("ime", "set", PKG + "/dev.patrickgold.florisboard.FlorisImeService")
             self.save("renderer-selection-" + renderer + ".json", {"renderer": renderer, "via": "persisted-fixture-flag", "warm_settings_control_missing": True})
-        self.wait(lambda: (self.prefs().get("keyboard__rust_renderer_prototype") == "true") == enabled,
+        self.wait(lambda: (self.prefs().get("keyboard__rust_renderer_prototype", "true") == "true") == enabled,
                   "Renderer setting was not persisted")
 
     def probe(self, no_suggestions=False, field="text"):

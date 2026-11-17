@@ -1,4 +1,7 @@
-"""Identical semantic settings actions on Compose and Rust; complete stored files must match."""
+"""Semantic settings actions on the Rust settings, with a receipt of the complete stored file.
+
+It compared Compose and Rust until the Compose screens were removed (docs/compose-removal.md).
+"""
 import argparse
 import hashlib
 from pathlib import Path
@@ -26,7 +29,7 @@ def actions(d):
     d.wait(lambda: d.prefs().get('keyboard__font_size_multiplier_portrait') == '50', 'Slider minimum absent')
     d.press('Popup Visibility', scroll=True)
     d.ui('back')
-    # The IME-picker control is the bottom-right button on both implementations.
+    # The IME-picker control is the bottom-right button.
     nodes = [n for n in d.app_nodes() if n.get('kind') == 'button' and n['rect']['y'] > 1800]
     if not nodes:
         raise RuntimeError('IME-picker control absent')
@@ -62,20 +65,11 @@ def main():
     parser.add_argument('baseline', type=Path)
     args = parser.parse_args()
     d = SettingsDevice(args.output, args.baseline)
-    reports = {}
     try:
-        for renderer in ('compose', 'rust'):
-            d.fixture()
-            d.prototype(renderer)
-            digest = actions(d)
-            d.prototype('compose')
-            # Both finish with the same explicit false selector. No stored file is normalized.
-            reports[renderer] = {'field': digest, 'preferences': d.file_receipt(renderer)}
-        before = Path(reports['compose']['preferences']['path']).read_bytes()
-        after = Path(reports['rust']['preferences']['path']).read_bytes()
-        if before != after:
-            raise RuntimeError('Complete run-as Jetpref files differ')
-        d.save('parity.json', {'identical_bytes': True, 'results': reports})
+        d.fixture()
+        d.prototype('rust')
+        digest = actions(d)
+        d.save('result.json', {'field': digest, 'preferences': d.file_receipt('rust')})
     finally:
         d.cleanup()
 

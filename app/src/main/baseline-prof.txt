@@ -4261,7 +4261,6 @@ HSPLdev/patrickgold/florisboard/app/Routes$AppNavHost$1;->invoke(Ljava/lang/Obje
 HSPLdev/patrickgold/florisboard/app/Routes;-><clinit>()V
 HSPLdev/patrickgold/florisboard/app/Routes;-><init>()V
 HSPLdev/patrickgold/florisboard/app/Routes;->AppNavHost(Landroidx/compose/ui/Modifier;Landroidx/navigation/NavHostController;Ljava/lang/String;Landroidx/compose/runtime/Composer;I)V
-HSPLdev/patrickgold/florisboard/app/apptheme/ColorKt;-><clinit>()V
 HSPLdev/patrickgold/florisboard/app/apptheme/ShapeKt;-><clinit>()V
 HSPLdev/patrickgold/florisboard/app/apptheme/ThemeKt$FlorisAppTheme$1;-><init>(Ldev/patrickgold/florisboard/app/AppTheme;Lkotlin/jvm/functions/Function2;I)V
 HSPLdev/patrickgold/florisboard/app/apptheme/ThemeKt$FlorisAppTheme$1;->invoke(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
@@ -4446,7 +4445,6 @@ HSPLdev/patrickgold/florisboard/lib/FlorisLocale$Companion;->from(Ljava/lang/Str
 HSPLdev/patrickgold/florisboard/lib/FlorisLocale$Companion;->from(Ljava/util/Locale;)Ldev/patrickgold/florisboard/lib/FlorisLocale;
 HSPLdev/patrickgold/florisboard/lib/FlorisLocale;-><clinit>()V
 HSPLdev/patrickgold/florisboard/lib/FlorisLocale;-><init>(Ljava/util/Locale;)V
-HSPLdev/patrickgold/florisboard/lib/NativeKt;->toNativeStr(Ljava/lang/String;)Ljava/nio/ByteBuffer;
 HSPLdev/patrickgold/florisboard/lib/android/AndroidSettings$Global$1;-><init>(Lkotlin/reflect/KClass;)V
 HSPLdev/patrickgold/florisboard/lib/android/AndroidSettings$Secure$1;-><init>(Lkotlin/reflect/KClass;)V
 HSPLdev/patrickgold/florisboard/lib/android/AndroidSettings$Secure$1;->getString(Landroid/content/Context;Ljava/lang/String;)Ljava/lang/String;
@@ -7449,7 +7447,6 @@ Ldev/patrickgold/florisboard/app/FlorisAppActivityKt$LocalNavController$1;
 Ldev/patrickgold/florisboard/app/FlorisAppActivityKt;
 Ldev/patrickgold/florisboard/app/Routes$AppNavHost$1;
 Ldev/patrickgold/florisboard/app/Routes;
-Ldev/patrickgold/florisboard/app/apptheme/ColorKt;
 Ldev/patrickgold/florisboard/app/apptheme/ShapeKt;
 Ldev/patrickgold/florisboard/app/apptheme/ThemeKt$FlorisAppTheme$1;
 Ldev/patrickgold/florisboard/app/apptheme/ThemeKt;

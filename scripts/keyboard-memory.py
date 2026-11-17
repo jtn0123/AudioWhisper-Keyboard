@@ -115,12 +115,12 @@ def main():
         if d.find('OK'):
             d.press('OK')
         d.wait(lambda: (d.prefs().get('emoji__suggestion_type') or '').strip('"') == 'INLINE_TEXT', 'Inline emoji suggestions did not persist')
-        # Through the app's own switch, as d.prototype() does: the running process has already
-        # read the preference file, so writing the file would not reach the keyboard.
+        # Through the app's own switch: the running process has already read the preference
+        # file, so writing the file would not reach the keyboard.
         d.launch('settings/keyboard')
         d.wait(lambda: d.find('Number row'), 'Keyboard settings absent')
-        if d.prefs().get('keyboard__rust_renderer_prototype', 'false') != 'true':
-            d.press('Rust keyboard renderer (prototype)')
+        if d.prefs().get('keyboard__rust_renderer_prototype', 'true') != 'true':
+            d.press('Draw the keyboard in Rust')
             d.wait(lambda: d.prefs().get('keyboard__rust_renderer_prototype') == 'true', 'Prototype did not persist')
         pid = d.adb('shell', 'pidof', MODULE.PKG).decode().split()[0]
         time.sleep(3)

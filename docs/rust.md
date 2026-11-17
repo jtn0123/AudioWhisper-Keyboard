@@ -4,6 +4,15 @@ AudioWhisper Keyboard is moving its own logic from Kotlin to Rust, one piece at 
 piece lands only when it gives the same results as the Kotlin it replaces, proven by a test that
 runs both, and has been checked on the emulator.
 
+## Rust is the default; Compose is frozen (2026-11-16)
+
+Rust draws the keyboard and settings by default; a user's explicit "off" is kept. Compose gets
+no new features, only fixes for crashes or lost data, and is removed in the order of
+[the removal plan](compose-removal.md). The Compose keyboard stays as the fallback until its
+phone checks pass (a real TalkBack session, the Samsung font check, font scale 2.0 and the CPU
+p95 gate). Where the stages below say "Compose stays the default" or "default-off", that was
+true when they were written. See [decisions](decisions.md#rust-draws-by-default-2026-11-16).
+
 ## Logic and drawing in Rust (decided 2026-11-14)
 
 The goal is **logic in Rust**: every decision and all UI drawing belong in Rust. Kotlin

@@ -196,7 +196,8 @@ abstract class ReferencePreferenceModel : PreferenceModel() {
 
     val keyboard = Keyboard()
     inner class Keyboard {
-        val rustRendererPrototype = boolean(key = "keyboard__rust_renderer_prototype", default = false)
+        // Deliberately true since 2026-11-16 (docs/decisions.md, "Rust draws by default"); was false.
+        val rustRendererPrototype = boolean(key = "keyboard__rust_renderer_prototype", default = true)
         val numberRow = boolean(key = "keyboard__number_row", default = false)
         val hintedNumberRowEnabled = boolean(key = "keyboard__hinted_number_row_enabled", default = true)
         val hintedNumberRowMode = enum(key = "keyboard__hinted_number_row_mode", default = KeyHintMode.SMART_PRIORITY)
@@ -266,8 +267,6 @@ abstract class ReferencePreferenceModel : PreferenceModel() {
 
     val other = Other()
     inner class Other {
-        val rustSettingsPrototype = boolean(key = "other__rust_settings_prototype", default = false)
-
         val settingsTheme = enum(key = "other__settings_theme", default = AppTheme.AUTO)
         val accentColor = custom(key = "other__accent_color", default = Color.Unspecified, serializer = ReferenceColorSerializer)
     }

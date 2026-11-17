@@ -2,7 +2,7 @@ use super::*;
 #[test]
 fn catalogue_is_complete_unique_and_defaults_are_valid() {
     let rows = catalogue::all();
-    assert_eq!(rows.len(), 146);
+    assert_eq!(rows.len(), 145);
     let mut keys = std::collections::HashSet::new();
     for row in rows {
         assert!(keys.insert(row.key));
@@ -61,4 +61,20 @@ fn auto_correction_is_normal_by_default_and_lists_every_strength() {
         .unwrap();
     assert_eq!((row.kind, row.default), ("s", "NORMAL"));
     assert_eq!(row.choices, "OFF|MODEST|NORMAL|AGGRESSIVE");
+}
+#[test]
+fn the_removed_settings_switch_is_dropped_whatever_it_stored() {
+    let key = text("other__rust_settings_prototype");
+    for raw in ["true", "false", ""] {
+        let plan = migration::migrate(&text("b"), &key, &text(raw)).unwrap();
+        assert_eq!(plan[0], text("reset"));
+    }
+    // The keyboard's switch is still a setting and is kept as stored.
+    let kept = migration::migrate(
+        &text("b"),
+        &text("keyboard__rust_renderer_prototype"),
+        &text("false"),
+    )
+    .unwrap();
+    assert_ne!(kept[0], text("reset"));
 }

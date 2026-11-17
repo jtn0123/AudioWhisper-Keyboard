@@ -30,7 +30,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.outlined.Warning
 import androidx.compose.material3.Card
@@ -117,31 +116,6 @@ fun FlorisSimpleCard(
             }
         }
     }
-}
-
-@Composable
-fun FlorisErrorCard(
-    text: String,
-    modifier: Modifier = Modifier,
-    showIcon: Boolean = true,
-    contentPadding: PaddingValues = FlorisCardDefaults.ContentPadding,
-    onClick: (() -> Unit)? = null,
-) {
-    FlorisSimpleCard(
-        modifier = modifier,
-        backgroundColor = Color.Red,
-        contentColor = Color.White,
-        onClick = onClick,
-        icon = if (showIcon) ({ Icon(
-            modifier = Modifier
-                .padding(all = FlorisCardDefaults.IconSpacing)
-                .requiredSize(FlorisCardDefaults.IconRequiredSize),
-            imageVector = Icons.Default.ErrorOutline,
-            contentDescription = null,
-        ) }) else null,
-        text = text,
-        contentPadding = contentPadding,
-    )
 }
 
 @Composable

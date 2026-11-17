@@ -63,6 +63,10 @@ internal fun referenceMigrateAppPreference(entry: PreferenceMigrationEntry): Pre
         "advanced__show_app_icon", "other__show_app_icon" -> {
             entry.reset()
         }
+        // AudioWhisper: Rust always draws settings, so the switch has nothing to choose.
+        "other__rust_settings_prototype" -> {
+            entry.reset()
+        }
         "advanced__incognito_mode" -> {
             entry.transform(key = "suggestion__incognito_mode")
         }

@@ -149,6 +149,8 @@ pub fn migrate(kind: &[u16], key: &[u16], raw: &[u16]) -> Result<Vec<Text>> {
                 | "other__settings_language"
                 | "advanced__show_app_icon"
                 | "other__show_app_icon"
+                // Rust always draws settings now, so the switch has nothing to choose.
+                | "other__rust_settings_prototype"
         )
         || (k == "keyboard__one_handed_mode" && raw == text("OFF"));
     if reset {

@@ -7,7 +7,7 @@ import dev.patrickgold.florisboard.app.FlorisPreferenceStore
 import org.json.JSONObject
 
 /**
- * DictationScreen's vocabulary field through each renderer's own InputConnection: the same edits,
+ * The Dictation screen's vocabulary field through the Rust host's InputConnection: a set of edits,
  * each checked in the stored preference (the screen saves every change), then the user's text put
  * back exactly. Only lengths and EditorInfo numbers enter the report, never the vocabulary.
  */
