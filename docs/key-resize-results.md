@@ -164,8 +164,19 @@ neutral rare words; the first letter ships.
 Within the 0.2 ms budget by an order of magnitude even if the odds were worked out at key down;
 on the phone they are worked out on the suggest path after the previous keystroke, and key down
 only reads them. The model's per-word running sums (one `f64` per word, about 0.6 MB for the
-shipped model) are built once, the first time odds are asked for; that one-off is not in the
-table.
+shipped model) are built once, the first time odds are asked for, so that one-off is not in the
+table. Timed on its own (2026-11-16, host Mac, Apple M5 Pro, release build, the shipped model, 3
+runs of 30 fresh opens, the first `next_units` call against the second):
+
+| | Min | Median | Max |
+|---|---:|---:|---:|
+| First call, building the sums | 88.6 µs | 106.5 µs | 126.4 µs |
+| A later call | 1.25 µs | 1.4 µs | 5.0 µs |
+
+So the build is about 0.1 ms, far under the 50 ms that would have justified building it ahead
+of time or in the background; nothing was changed. Its memory is 77,758 `f64`s (622 KB) plus two
+256-entry tables (4 KB), and the process's peak resident memory with 30 models open agrees: 18.9
+MB more with their sums built than without, 630 KB each.
 
 ## Fast typing
 
