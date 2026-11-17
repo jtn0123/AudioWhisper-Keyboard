@@ -3,6 +3,11 @@
 Framework wrappers and explicit virtual-key semantics differ intentionally. Every raw
 unmatched node is retained in the JSON report, with an explanation instead of discarded.
 Unexpected labels, action loss, state errors and displaced target centers are bugs.
+
+The Rust tree must also read in screen order (`order`): the strip above the keys first, then the
+keys row by row, each row left to right, with a popup's choices straight after the key that
+opened them, and each node's traversal hint naming the node before it. `--order DIR` checks
+label-free captures from a11y-order.py and prints only roles, indices and bounds.
 """
 import argparse
 from collections import Counter
@@ -23,6 +28,96 @@ SPOKEN = dict(zip(
      'Period', 'Slash', 'Colon', 'Semicolon', 'Less than', 'Equals', 'Greater than', 'Question mark',
      'At sign', 'Left bracket', 'Backslash', 'Right bracket', 'Caret', 'Underscore', 'Grave accent',
      'Left brace', 'Vertical bar', 'Right brace', 'Tilde', 'Symbols', 'More symbols', 'Letters', 'Numeric']))
+
+
+KEY = "android.inputmethodservice.Keyboard$Key"
+
+
+def reads_before(a, b):
+    """Whether b may be read straight after a: later in the same row, or in a later row. A node
+    shares a row with another while it starts above that node's middle, Rust's own rule."""
+    if b[1] < (a[1] + a[3]) / 2 and a[1] < (b[1] + b[3]) / 2:
+        return b[0] >= a[0]
+    return b[1] > a[1]
+
+
+def role(node):
+    if node["class"] == KEY:
+        return "key"
+    if node["textEntryKey"]:
+        return "popup item"
+    return node["class"].rsplit(".", 1)[-1].lower()
+
+
+def opener(nodes, keys, popup):
+    """Keys that could have opened a popup: under its span, in the row nearest its bottom edge."""
+    block = [nodes[i]["bounds"] for i in popup]
+    left, right, bottom = min(b[0] for b in block), max(b[2] for b in block), max(b[3] for b in block)
+    under = [k for k in keys if left <= center(nodes[k]["bounds"])[0] <= right]
+    if not under:
+        return []
+    gap = min(abs(nodes[k]["bounds"][1] - bottom) for k in under)
+    return [k for k in under if abs(nodes[k]["bounds"][1] - bottom) == gap]
+
+
+def order(nodes):
+    """Reading-order bugs in a Rust IME tree, by dump index. Labels are never read."""
+    hosts = {n["parent"] for n in nodes if n["class"] == KEY}
+    if len(hosts) != 1:
+        return [] if not hosts else [{"verdict": "bug", "reason": "Reading order: keys under more than one host"}]
+    host = hosts.pop()
+    children = [i for i, n in enumerate(nodes) if n["parent"] == host]
+    keys = [i for i in children if nodes[i]["class"] == KEY]
+    popup = [i for i in children if nodes[i]["textEntryKey"] and nodes[i]["class"] != KEY]
+    top = min(nodes[i]["bounds"][1] for i in keys)
+    strip = [i for i in children if not nodes[i]["textEntryKey"] and nodes[i]["bounds"][3] <= top]
+    issues = []
+    def bug(reason, *indices):
+        issues.append({"verdict": "bug", "reason": "Reading order: " + reason, "rust_indices": list(indices)})
+    late = [i for i in strip if children.index(i) > children.index(keys[0])]
+    if late:
+        bug("the strip above the keys is read after a key", *late)
+    for group, name in ((strip, "strip nodes"), (keys, "keys")):
+        for a, b in zip(group, group[1:]):
+            if not reads_before(nodes[a]["bounds"], nodes[b]["bounds"]):
+                bug(name + " are not read row by row, left to right", a, b)
+    if popup:
+        at = [children.index(i) for i in popup]
+        if at != list(range(at[0], at[0] + len(at))):
+            bug("a popup's choices are not read together", *popup)
+        if at[0] == 0 or children[at[0] - 1] not in opener(nodes, keys, popup):
+            bug("a popup's choices do not follow the key that opened them", *popup)
+        for a, b in zip(popup, popup[1:]):
+            if not reads_before(nodes[a]["bounds"], nodes[b]["bounds"]):
+                bug("a popup's choices are not read row by row, left to right", a, b)
+    # Without hints Android follows the child order; when Rust gives them, they must agree.
+    if any(nodes[i].get("traversalAfter", -1) != -1 for i in children):
+        for at, i in enumerate(children):
+            if nodes[i].get("traversalAfter") != (children[at - 1] if at else -1):
+                bug("the traversal hint does not name the node read before", i)
+    return issues
+
+
+def order_report(directory):
+    """Print each label-free capture's reading order and its bugs; return whether any were found."""
+    found = False
+    for path in sorted(directory.glob("*.json")):
+        data = json.loads(path.read_text())
+        if "nodes" not in data:
+            continue
+        nodes = data["nodes"]
+        keys = [n["parent"] for n in nodes if n["class"] == KEY]
+        host = keys[0] if keys else None
+        print(f"## {path.stem}")
+        print("| Read | Index | Role | Bounds | Traversal after |")
+        print("|---:|---:|---|---|---:|")
+        for read, i in enumerate(i for i, n in enumerate(nodes) if n["parent"] == host):
+            n = nodes[i]
+            print(f"| {read} | {i} | {role(n)} | {n['bounds']} | {n.get('traversalAfter', '')} |")
+        for issue in order(nodes):
+            found = True
+            print(path.stem, json.dumps(issue))
+    return found
 
 
 def center(bounds):
@@ -140,6 +235,7 @@ def compare(compose, rust, state):
         if ri not in semantic_ids:
             differences.append({"rust_index": ri, "compose_index": None, "rust": node,
                                 "verdict": "acceptable", "reason": "Rust host/framework wrapper"})
+    differences.extend(order(rust))
     if state in ("letters", "shifted", "caps-lock"):
         expected = {"letters": (False, "Shift"), "shifted": (True, "Shift enabled"),
                     "caps-lock": (True, "Caps lock enabled")}[state]
@@ -152,7 +248,10 @@ def compare(compose, rust, state):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("directory", type=Path)
+    parser.add_argument("--order", action="store_true", help="check label-free a11y-order.py captures")
     args = parser.parse_args()
+    if args.order:
+        raise SystemExit(order_report(args.directory))
     report = {}
     print("| State | Compose nodes | Rust nodes | Matches | Acceptable | Bugs | Verdict |")
     print("|---|---:|---:|---:|---:|---:|---|")
