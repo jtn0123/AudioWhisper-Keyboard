@@ -61,7 +61,8 @@ its phone checks pass.
 * **The fallback loses:** the choice of drawing these screens in Compose.
 * **Progress** (non-blank lines deleted):
   * the settings switch, with every entry point routed to Rust;
-  * Home, Keyboard and Input feedback: 3 files, 541 lines.
+  * Home, Keyboard and Input feedback: 3 files, 541 lines;
+  * Smartbar, Gestures, Clipboard and Media: 4 files, 613 lines.
 
 ### 3. Dead code left behind by step 2 (this round)
 

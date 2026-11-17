@@ -53,18 +53,14 @@ import dev.patrickgold.florisboard.app.settings.advanced.BackupScreen
 import dev.patrickgold.florisboard.app.settings.advanced.OtherScreen
 import dev.patrickgold.florisboard.app.settings.advanced.PhysicalKeyboardScreen
 import dev.patrickgold.florisboard.app.settings.advanced.RestoreScreen
-import dev.patrickgold.florisboard.app.settings.clipboard.ClipboardScreen
 import dev.patrickgold.florisboard.app.settings.dictionary.DictionaryScreen
 import dev.patrickgold.florisboard.app.settings.dictionary.UserDictionaryScreen
 import dev.patrickgold.florisboard.app.settings.dictionary.UserDictionaryType
-import dev.patrickgold.florisboard.app.settings.gestures.GesturesScreen
 import dev.patrickgold.florisboard.app.settings.localization.LanguagePackManagerScreen
 import dev.patrickgold.florisboard.app.settings.localization.LanguagePackManagerScreenAction
 import dev.patrickgold.florisboard.app.settings.localization.LocalizationScreen
 import dev.patrickgold.florisboard.app.settings.localization.SelectLocaleScreen
 import dev.patrickgold.florisboard.app.settings.localization.SubtypeEditorScreen
-import dev.patrickgold.florisboard.app.settings.media.MediaScreen
-import dev.patrickgold.florisboard.app.settings.smartbar.SmartbarScreen
 import dev.patrickgold.florisboard.app.settings.theme.ThemeManagerScreen
 import dev.patrickgold.florisboard.app.settings.theme.ThemeManagerScreenAction
 import dev.patrickgold.florisboard.app.settings.theme.ThemeScreen
@@ -282,7 +278,7 @@ object Routes {
             composableWithDeepLink(Settings.Keyboard::class) {}
             composableWithDeepLink(Settings.InputFeedback::class) {}
 
-            composableWithDeepLink(Settings.Smartbar::class) { SmartbarScreen() }
+            composableWithDeepLink(Settings.Smartbar::class) {}
             composableWithDeepLink(Settings.Dictation::class) { DictationScreen() }
 
             composableWithDeepLink(Settings.Typing::class) { TypingScreen() }
@@ -293,11 +289,11 @@ object Routes {
                 UserDictionaryScreen(payload.type)
             }
 
-            composableWithDeepLink(Settings.Gestures::class) { GesturesScreen() }
+            composableWithDeepLink(Settings.Gestures::class) {}
 
-            composableWithDeepLink(Settings.Clipboard::class) { ClipboardScreen() }
+            composableWithDeepLink(Settings.Clipboard::class) {}
 
-            composableWithDeepLink(Settings.Media::class) { MediaScreen() }
+            composableWithDeepLink(Settings.Media::class) {}
 
             composableWithDeepLink(Settings.Other::class) { OtherScreen() }
             composableWithDeepLink(Settings.PhysicalKeyboard::class) { PhysicalKeyboardScreen() }
