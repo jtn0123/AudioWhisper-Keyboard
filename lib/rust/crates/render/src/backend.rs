@@ -89,6 +89,23 @@ impl Backend {
                 .fill_blurred_rounded_rect(rect, radius, sigma, false),
         }
     }
+    /// `fill_blurred_rounded_rect`'s blur painted only into `path`. Hybrid paints the whole
+    /// blurred rectangle: its callers cover what `path` leaves out.
+    pub fn fill_blurred_rounded_rect_in(
+        &mut self,
+        path: &BezPath,
+        rect: &Rect,
+        radius: f32,
+        sigma: f32,
+    ) {
+        match self {
+            Self::Cpu(c) => c
+                .context
+                .fill_blurred_rounded_rect_in(path, rect, radius, sigma, false),
+            #[cfg(feature = "hybrid")]
+            Self::Hybrid(_) => self.fill_blurred_rounded_rect(rect, radius, sigma),
+        }
+    }
     /// Draws a shaped run; `Ok(true)` when it went through the glyph atlas (Hybrid only).
     pub fn glyphs(&mut self, run: &GlyphRun<'_, ()>, coords: &[i16]) -> Result<bool, String> {
         let glyphs = run.positioned_glyphs().map(|g| (g.id, g.x, g.y));

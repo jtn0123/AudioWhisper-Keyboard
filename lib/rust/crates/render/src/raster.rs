@@ -178,8 +178,7 @@ impl Raster {
             let style = &key.styles[pressed];
             let hint = &key.hints[pressed];
             let r = crate::smartbar::inset(r, style.margin);
-            self.shadow(r, style);
-            self.box_at(r, style);
+            self.shadowed_box(r, style);
             let telpad = content.telpad.get(i) == Some(&true);
             let label_bounds = if telpad {
                 crate::key_content::phone_label(

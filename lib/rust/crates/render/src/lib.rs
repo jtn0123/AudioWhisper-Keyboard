@@ -19,6 +19,7 @@ pub mod profile;
 pub mod protocol;
 pub mod raster;
 pub mod scene;
+mod shadow_raster;
 pub mod smartbar;
 pub mod smartbar_fit;
 mod smartbar_raster;
