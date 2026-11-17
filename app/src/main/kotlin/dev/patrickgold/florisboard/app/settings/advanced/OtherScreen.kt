@@ -33,7 +33,6 @@ import dev.patrickgold.florisboard.app.Routes
 import dev.patrickgold.florisboard.app.enumDisplayEntriesOf
 import dev.patrickgold.florisboard.lib.compose.FlorisScreen
 import dev.patrickgold.jetpref.datastore.ui.ColorPickerPreference
-import dev.patrickgold.jetpref.datastore.ui.SwitchPreference
 import dev.patrickgold.jetpref.datastore.ui.ListPreference
 import dev.patrickgold.jetpref.datastore.ui.Preference
 import dev.patrickgold.jetpref.datastore.ui.PreferenceGroup
@@ -50,11 +49,6 @@ fun OtherScreen() = FlorisScreen {
     val context = LocalContext.current
 
     content {
-        SwitchPreference(
-            prefs.other.rustSettingsPrototype,
-            title = stringRes(R.string.pref__other__rust_settings_prototype__label),
-            summary = stringRes(R.string.pref__other__rust_settings_prototype__summary),
-        )
         ListPreference(
             prefs.other.settingsTheme,
             icon = Icons.Default.Palette,

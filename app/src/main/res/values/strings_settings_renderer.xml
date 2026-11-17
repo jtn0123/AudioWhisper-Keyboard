@@ -1,7 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="pref__other__rust_settings_prototype__label">Draw settings in Rust</string>
-    <string name="pref__other__rust_settings_prototype__summary">The normal way settings draw. Turn off to use the old Compose screens, which are being removed.</string>
     <string name="settings__navigate_back">Back</string>
     <string name="settings__selection_start">Start of selection</string>
     <string name="settings__selection_end">End of selection</string>

@@ -697,3 +697,32 @@ says what blocks each step. Writing every feature twice was the cost this stops.
 if** a Compose fallback turns out to be needed by users for longer than its blockers suggest (for
 example the keyboard's CPU gate cannot be met on the phone); then a crash- or data-loss-free
 feature gap in it is still not a reason to add to Compose, but the plan's order is revisited.
+
+## Rust draws every settings screen it can (2026-11-16)
+
+The settings switch (`other__rust_settings_prototype`) is removed. Its "off" chose the Compose
+versions of the screens Rust draws, and those are being deleted ([plan](compose-removal.md), step
+2), so it would have nothing left to choose. The stored key is **migrated, not ignored**: the
+settings migration resets it (`crates/settings/src/migration.rs`, the same list as other removed
+keys), so a file that stored it, true or false, loses the line on its next load. A Rust test, the
+migration match test and `RustByDefaultTest` cover it. The keyboard's switch stays; the Compose
+keyboard is still the fallback.
+
+Every way in now opens the Rust host once the keyboard is set up: the launcher, the keyboard's
+settings button and any `ui://florisboard/…` link. Setup stays Compose; when it finishes, the
+Activity hands over to Rust's Home. **One behaviour change:** a settings link that arrives during
+Setup (Dictation's "model settings" button, say) used to show that Compose screen above Setup; now
+it opens the Rust host at that route, and Back ends at Rust's Home rather than Setup. Setup is still
+shown on the next launch, because finishing it is still what marks the keyboard as set up. Routes
+Rust does not draw still open in `ComposeSettingsFallbackActivity`, which hands back any it does.
+`SettingsEntry` holds the choice and `SettingsEntryTest` checks it for each intent the app sends or
+declares.
+
+The device scripts that compared the two renderers are Rust-only now. What they no longer check,
+because one side is gone: identical preference files after the same actions on both
+(`settings-ui.py`, `settings-device-tests.py` ui and text stages), the same rows walked in groups 1
+and 2 and the licences, the accessibility node comparison, the Compose vocabulary field
+(`SettingsComposeEditorDevice`, deleted with the `compose-text` stage), Compose's side of the
+timing and picture pairs. Their receipts stay in the stage 4 documents. **Would change if** a phone
+shows a settings screen that Rust cannot draw at all; then that screen's Compose version is
+restored from history behind the fallback Activity, not behind a switch.

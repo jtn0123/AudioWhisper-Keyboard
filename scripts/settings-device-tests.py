@@ -16,55 +16,18 @@ SPEC.loader.exec_module(MODULE)
 COMPONENT = MODULE.PKG + '.test/com.jtn0123.audiowhisper.settingsui.SettingsInstrumentation'
 
 
-def accessibility_comparison(reports):
-    """Retain every interactive node, including duplicate/empty labels and the editor."""
-    result = []
-    def groups(screen):
-        out = {}
-        for node in screen['items']:
-            primary = node['label'].split('\n', 1)[0]
-            fact = dict(node)
-            fact['actions'] = sorted(fact['actions'])
-            out.setdefault(primary, []).append(fact)
-        for facts in out.values():
-            facts.sort(key=lambda fact: json.dumps(fact, sort_keys=True))
-        return out
-    for left, right in zip(reports['compose']['screens'], reports['rust']['screens'], strict=True):
-        assert left['screen'] == right['screen']
-        lnodes, rnodes = groups(left), groups(right)
-        result.append({'screen': left['screen'], 'compose_count': len(left['items']), 'rust_count': len(right['items']),
-            'compose_only': sorted(lnodes.keys()-rnodes.keys()), 'rust_only': sorted(rnodes.keys()-lnodes.keys()),
-            'semantic_differences': [{'primary_label': label, 'compose': lnodes.get(label, []), 'rust': rnodes.get(label, [])}
-                for label in sorted(lnodes.keys() | rnodes.keys()) if lnodes.get(label) != rnodes.get(label)]})
-    return result
-
-
-def differing_keys(left, right):
-    """Preference keys whose lines differ, in file order; lines are `type;key;value`."""
-    def lines(data):
-        return [(line.split(b';', 2)[1].decode() if line.count(b';') >= 2 else '?', line) for line in data.splitlines()]
-    a, b = lines(left), lines(right)
-    keys = [key for (key, x), (_, y) in zip(a, b) if x != y]
-    if len(a) != len(b):
-        keys.append(f'line count {len(a)} vs {len(b)}')
-    return keys
-
-
-def known_defects(reports):
+def known_defects(report):
     """Each named known defect once per control, with every audit checkpoint that saw it."""
-    out = {}
-    for renderer, report in reports.items():
-        found = {}
-        for screen in report['screens']:
-            for node in screen['items']:
-                defect = node.get('known_defect')
-                if defect:
-                    entry = found.setdefault((defect['name'], defect['for']), {**defect, 'occurrences': 0, 'screens': []})
-                    entry['occurrences'] += 1
-                    if screen['screen'] not in entry['screens']:
-                        entry['screens'].append(screen['screen'])
-        out[renderer] = sorted(found.values(), key=lambda e: (e['name'], e['for']))
-    return out
+    found = {}
+    for screen in report['screens']:
+        for node in screen['items']:
+            defect = node.get('known_defect')
+            if defect:
+                entry = found.setdefault((defect['name'], defect['for']), {**defect, 'occurrences': 0, 'screens': []})
+                entry['occurrences'] += 1
+                if screen['screen'] not in entry['screens']:
+                    entry['screens'].append(screen['screen'])
+    return sorted(found.values(), key=lambda e: (e['name'], e['for']))
 
 
 def main():
@@ -78,16 +41,13 @@ def main():
         d.adb('shell', 'cmd', 'audio', 'set-volume', str(stream), str(volume))
         assert d.adb('shell', 'cmd', 'audio', 'get-stream-volume', str(stream)).decode().strip().endswith(f'-> {volume}')
 
-    def fixture(renderer):
+    def fixture():
         d.fixture()
-        data = d.read_prefs().replace(b'b;other__rust_settings_prototype;false',
-                                     b'b;other__rust_settings_prototype;' + str(renderer == 'rust').lower().encode())
-        d.private_write(MODULE.PREFS, data)
         d.adb('shell', 'run-as', MODULE.PKG, 'rm', '-f', 'files/settings-device-failure.json')
 
-    def run(mode, renderer='rust', label=None):
-        fixture(renderer)
-        name = f'{renderer}-{label or mode}'
+    def run(mode, label=None):
+        fixture()
+        name = f'rust-{label or mode}'
         result = subprocess.run(['adb', '-s', d.serial, 'shell', 'am', 'instrument', '-w', '-e', 'mode', mode, COMPONENT], check=True, capture_output=True, timeout=1200).stdout
         (d.output / f'{name}.log').write_bytes(result)
         if b'PASS ' + mode.encode() not in result:
@@ -109,56 +69,29 @@ def main():
         # Disconnect only this task's automation session before claiming UiAutomation.
         if os.environ.get('SETTINGS_AGENT_CLOSED') != '1':
             d.ui('close')
+        # Rust only. Until the Compose settings screens were removed (docs/compose-removal.md),
+        # each stage also ran on Compose and the two had to match; those receipts are in
+        # docs/stage4-followup3.md and docs/stage4-followup4.md.
         if args.mode in ('all', 'ui'):
-            reports, files = {}, {}
-            for renderer in ('compose', 'rust'):
-                reports[renderer] = run('ui', renderer)
-                files[renderer] = d.read_prefs()
-            identical = files['compose'] == files['rust']
-            d.save('preference-parity.json', {'identical_bytes': identical,
-                'compose_bytes': len(files['compose']), 'rust_bytes': len(files['rust']),
-                # Key names only: values can hold field text (vocabulary), so they stay private.
-                'differing_keys': differing_keys(files['compose'], files['rust'])})
-            assert identical, 'Complete preference files differ'
-            # Same rows exercised, in the same order, with the same rows never enabled.
-            group_one = {renderer: report['group_one'] for renderer, report in reports.items()}
-            d.save('group-one.json', group_one)
-            assert group_one['compose'] == group_one['rust'], 'Group 1 walks differ'
-            # Group 2 also lists every external launch its rows fired (blocked on device).
-            group_two = {renderer: report['group_two'] for renderer, report in reports.items()}
-            d.save('group-two.json', group_two)
-            assert group_two['compose'] == group_two['rust'], 'Group 2 walks differ'
+            report = run('ui')
+            d.save('preferences.json', {'bytes': len(d.read_prefs())})
+            # The rows exercised, in order; group 2 also lists every external launch its rows fired.
+            d.save('group-one.json', report['group_one'])
+            d.save('group-two.json', report['group_two'])
             # Every library row in order, and the first row's licence dialog text and button.
-            licences = {renderer: report['licences'] for renderer, report in reports.items()}
-            d.save('licences.json', licences)
-            assert licences['compose'] == licences['rust'], 'Licences walks differ'
-            d.save('accessibility-comparison.json', accessibility_comparison(reports))
-            accessibility_passed = all(r['accessibility_passed'] and r['system_ime_picker'] for r in reports.values())
-            known = known_defects(reports)
-            assert not known['rust'], 'The Rust path has no known accessibility defects to excuse'
-            d.save('accessibility-result.json', {'passed': accessibility_passed, 'compose_violations': reports['compose']['accessibility_violations'], 'rust_violations': reports['rust']['accessibility_violations'],
-                'compose_known_defects_owed': known['compose'],
-                # Passing excludes the named defects; acceptance does not, until each is fixed.
-                'acceptance_complete': accessibility_passed and not known['compose'], 'picker_presented': {k: r['system_ime_picker'] for k,r in reports.items()}, 'real_talkback_phone_session': 'owed'})
-            for defect in known['compose']:
-                print(f"KNOWN DEFECT, OWED (Compose): {defect['name']} for {defect['for']!r}: {defect['occurrences']} audit node(s) on {', '.join(defect['screens'])}", flush=True)
+            d.save('licences.json', report['licences'])
+            accessibility_passed = report['accessibility_passed'] and report['system_ime_picker']
+            known = known_defects(report)
+            assert not known, 'The Rust path has no known accessibility defects to excuse'
+            d.save('accessibility-result.json', {'passed': accessibility_passed, 'violations': report['accessibility_violations'],
+                'picker_presented': report['system_ime_picker'], 'real_talkback_phone_session': 'owed'})
         if args.mode == 'metrics':
-            run('metrics', 'compose')
+            run('metrics')
         if args.mode in ('all', 'text'):
-            compose_report = run('compose-text', 'compose')
-            compose_file = d.read_prefs()
-            rust_report = run('text')
-            rust_file = d.read_prefs()
-            # The vocabulary field: the same edits saved, the text restored, the same EditorInfo.
-            vocabulary = {'compose': compose_report['vocabulary'], 'rust': rust_report['vocabulary']}
-            d.save('vocabulary-field.json', vocabulary)
-            assert vocabulary['compose'] == vocabulary['rust'], 'Vocabulary fields differ'
-            d.save('text-preference-parity.json', {'identical_bytes': compose_file == rust_file, 'compose_bytes': len(compose_file), 'rust_bytes': len(rust_file),
-                # Key names only, as for the ui stage: the vocabulary value never enters a receipt.
-                'differing_keys': differing_keys(compose_file, rust_file)})
-            assert compose_file == rust_file, 'Text-only preference files differ'
+            # The vocabulary field: its edits saved, its text restored, its EditorInfo.
+            d.save('vocabulary-field.json', run('text')['vocabulary'])
         if args.mode in ('all', 'death'):
-            fixture('rust')
+            fixture()
             for name in ('settings-death-ready', 'settings-death-result.json', 'settings-death-expected.json'):
                 d.adb('shell', 'run-as', MODULE.PKG, 'rm', '-f', 'files/' + name)
             run('prepare-death')
@@ -199,7 +132,7 @@ def main():
     finally:
         d.cleanup()
         for name in ('settings-death-ready', 'settings-death-result.json', 'settings-death-expected.json', 'settings-death-arm',
-                     'settings-device-ui.json', 'settings-device-compose-text.json', 'settings-device-text.json', 'settings-device-crash.json', 'settings-device-failure.json'):
+                     'settings-device-ui.json', 'settings-device-text.json', 'settings-device-crash.json', 'settings-device-failure.json'):
             d.adb('shell', 'run-as', MODULE.PKG, 'rm', '-f', 'files/' + name)
     print('Settings action sequences and exact file restoration passed')
     if not accessibility_passed:

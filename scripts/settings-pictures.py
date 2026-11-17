@@ -180,7 +180,8 @@ def licences(d, renderer):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('baseline', type=Path)
-    parser.add_argument('--renderer', choices=['compose', 'rust', 'all'], default='all')
+    # Rust only: the Compose settings screens were removed (docs/compose-removal.md).
+    parser.add_argument('--renderer', choices=['rust'], default='rust')
     parser.add_argument('--output', type=Path, default=Path('build/stage4-followup3/pictures'))
     parser.add_argument('--appearance', choices=['light', 'dark', 'font2', 'all'], default='all')
     parser.add_argument('--sections', nargs='+', choices=['keyboard', 'group-one', 'group-two', 'licences'],
@@ -211,7 +212,7 @@ def main():
             d.output = base / appearance
             d.output.mkdir(parents=True, exist_ok=True)
             d.save('environment.json', {'font_scale': scale, 'appearance': appearance, 'width_px': 1080})
-            for renderer in (('compose', 'rust') if args.renderer == 'all' else (args.renderer,)):
+            for renderer in (args.renderer,):
                 if 'keyboard' in args.sections:
                     d.fixture()
                     d.prototype(renderer)

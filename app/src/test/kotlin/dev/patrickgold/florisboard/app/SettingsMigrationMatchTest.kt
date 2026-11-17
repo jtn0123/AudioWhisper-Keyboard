@@ -13,7 +13,8 @@ class SettingsMigrationMatchTest {
     private val historicalFamilies = listOf(
         listOf("media__emoji_recently_used","media__emoji_recently_used_max_size"),
         listOf("advanced__settings_theme","advanced__accent_color","advanced__settings_language","other__settings_language",
-            "advanced__show_app_icon","other__show_app_icon","advanced__incognito_mode","advanced__force_incognito_mode_from_dynamic"),
+            "advanced__show_app_icon","other__show_app_icon","advanced__incognito_mode","advanced__force_incognito_mode_from_dynamic",
+            "other__rust_settings_prototype"),
         listOf("suggestion__clipboard_content_enabled","suggestion__clipboard_content_timeout","keyboard__one_handed_mode","smartbar__action_arrangement"),
         listOf("theme__editor_display_colors_as","clipboard__sync_to_floris","clipboard__sync_to_system",
             "clipboard__num_history_grid_columns_portrait","clipboard__num_history_grid_columns_landscape","clipboard__clean_up_old","clipboard__clean_up_after",

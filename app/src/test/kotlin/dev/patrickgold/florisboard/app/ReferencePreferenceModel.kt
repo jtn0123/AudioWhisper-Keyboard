@@ -267,9 +267,6 @@ abstract class ReferencePreferenceModel : PreferenceModel() {
 
     val other = Other()
     inner class Other {
-        // Deliberately true since 2026-11-16 (docs/decisions.md, "Rust draws by default"); was false.
-        val rustSettingsPrototype = boolean(key = "other__rust_settings_prototype", default = true)
-
         val settingsTheme = enum(key = "other__settings_theme", default = AppTheme.AUTO)
         val accentColor = custom(key = "other__accent_color", default = Color.Unspecified, serializer = ReferenceColorSerializer)
     }

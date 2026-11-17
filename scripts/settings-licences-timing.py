@@ -177,7 +177,8 @@ def main():
     parser.add_argument('output', type=Path)
     parser.add_argument('baseline', type=Path)
     parser.add_argument('trace_processor', type=Path)
-    parser.add_argument('--trials', default='compose,rust,rust,compose')
+    # Rust only: the Compose settings screens were removed (docs/compose-removal.md).
+    parser.add_argument('--trials', default='rust,rust')
     args = parser.parse_args()
     d = DEVICE.SettingsDevice(args.output, args.baseline)
     assert d.adb('emu', 'avd', 'name').decode().splitlines()[0] == 'aw_keyboard_ssd'

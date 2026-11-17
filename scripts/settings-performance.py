@@ -45,13 +45,14 @@ data_sources { config { name: "linux.process_stats" process_stats_config { scan_
     switches = {tag: d.adb('shell', 'getprop', 'log.tag.' + tag).decode().strip() for tag in ('aw-hybrid', 'aw-unbuffered')}
     try:
         d.adb('shell', 'setprop', 'log.tag.aw-profile', 'DEBUG')
-        # Compose and the CPU raster interleaved, then the hybrid GPU path ("hybrid"), then the CPU
-        # raster taking unbuffered input ("unbuffered") rather than Compose's batched events.
-        for trial, renderer in enumerate(('compose', 'rust', 'rust', 'compose', 'hybrid', 'hybrid', 'unbuffered', 'unbuffered')):
+        # The CPU raster, then the hybrid GPU path ("hybrid"), then the CPU raster taking unbuffered
+        # input ("unbuffered") rather than batched events. Compose's settings screens were removed
+        # (docs/compose-removal.md), so it is no longer a trial.
+        for trial, renderer in enumerate(('rust', 'rust', 'hybrid', 'hybrid', 'unbuffered', 'unbuffered')):
             for tag, value in switches.items():
                 d.adb('shell', 'setprop', 'log.tag.' + tag, 'DEBUG' if tag == 'aw-' + renderer else value or "''")
             d.fixture()
-            d.prototype('compose' if renderer == 'compose' else 'rust')
+            d.prototype('rust')
             d.launch('settings/keyboard')
             time.sleep(1)
             label = f'{trial}-{renderer}'

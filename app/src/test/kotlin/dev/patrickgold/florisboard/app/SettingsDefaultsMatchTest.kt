@@ -16,7 +16,7 @@ class SettingsDefaultsMatchTest {
     } catch (_: Exception) { false to null }
 
     @Test fun everyDefaultAndStoredScalarBoundaryMatches() {
-        assertEquals(146,legacy.size)
+        assertEquals(145,legacy.size)
         assertEquals(legacy.keys,native.keys)
         assertEquals(legacy.keys,SettingsRules.catalogue.keys)
         for ((key,old) in legacy) {
