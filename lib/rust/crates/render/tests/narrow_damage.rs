@@ -1,10 +1,13 @@
 //! Damage no wider than what a change can paint. The theme sets a popup's styles as the popup
 //! opens; they paint only inside the popup, so they repaint the popup, not the whole keyboard.
-//! A press that only recolours a key's box repaints the box, not its shadow.
+//! A press that only recolours a key's box repaints the box, not its shadow. New words repaint
+//! the words' area, not the action buttons beside it.
 use keys::{Bounds, Rect};
 use render::{
     raster::Raster,
-    scene::{Key, Popup, Scene},
+    scene::{CandidateStyle, Key, Popup, Scene},
+    smartbar::Config,
+    smartbar_scene::{Action, Smartbar},
     style::Style,
 };
 
@@ -185,4 +188,91 @@ fn a_press_that_only_recolours_a_key_repaints_only_its_box() {
         assert!(wide[0].left < 50.0 && wide[0].right > 99.0, "{wide:?}");
         assert_dirty_matches_full(&[changed.clone(), pressed, changed]);
     }
+}
+
+/// `scene` with the shared-actions suggestion row showing `words`: four flat action icons and
+/// a raised round toggle, as the default theme draws them.
+fn with_words(scene: &Scene, words: &[&str]) -> Scene {
+    // Enabled, shared layout, flipped, speaker and sticky mic, words showing; density 1, row 30.
+    let facts = [
+        1.0, 2.0, 1.0, 0.0, 0.0, 0.0, 1.0, 1.0, 19.0, 0.0, 1.0, 30.0, 0.0, 0.0, 1.0, 0.0, 0.0,
+    ];
+    let flat = Style {
+        foreground: 0xff121212,
+        size: 16.0,
+        ..Style::default()
+    };
+    let toggle = Style {
+        background: 0xffffffff,
+        shape: snygg::value::ShapeKind::Circle,
+        margin: [4.0; 4],
+        shadow: 1.5,
+        ..flat.clone()
+    };
+    let actions = (0..5)
+        .map(|code| {
+            let style = if code == 4 { &toggle } else { &flat };
+            Action {
+                code,
+                enabled: true,
+                icon: "M12 2 L22 12 L12 22 L2 12 Z".into(),
+                styles: [style.clone(), style.clone()],
+                ..Action::default()
+            }
+        })
+        .collect();
+    let mut bar = Smartbar::new(Config::decode(&facts).expect("smartbar facts"), actions);
+    bar.intrinsic = words.iter().map(|w| w.len() as f32 * 7.0 + 8.0).collect();
+    bar.spacer = Style {
+        foreground: 0x40000000,
+        ..Style::default()
+    };
+    bar.relayout(f32::from(scene.width));
+    let word = CandidateStyle {
+        container: Style {
+            margin: [2.0; 4],
+            ..Style::default()
+        },
+        text: Style {
+            foreground: 0xff121212,
+            size: 12.0,
+            ..Style::default()
+        },
+    };
+    let pressed = CandidateStyle {
+        container: Style {
+            background: 0xffffffff,
+            ..word.container.clone()
+        },
+        ..word.clone()
+    };
+    Scene {
+        smartbar: Some(bar),
+        candidates: words.iter().map(|w| w.to_string()).collect(),
+        candidate_styles: vec![[word, pressed]; words.len()],
+        ..scene.clone()
+    }
+}
+
+#[test]
+fn new_words_repaint_only_the_words_area() {
+    let typed = with_words(&scene(), &["sun", "sum", "sung"]);
+    let refilled = with_words(&scene(), &["sunny", "sunk", "sunset"]);
+    let words = refilled.smartbar.as_ref().expect("bar").layout.center;
+    assert!(words.width() > 0.0 && words.width() < 150.0, "{words:?}");
+    assert_eq!(typed.damage_regions(&refilled), [words]);
+    let chosen = Scene {
+        candidate_pressed: vec![1],
+        ..refilled.clone()
+    };
+    assert_eq!(refilled.damage_regions(&chosen), [words]);
+    // A pressed action button repaints the whole row.
+    let mut acting = refilled.clone();
+    acting.smartbar.as_mut().expect("bar").pressed = vec![4];
+    let row = Rect {
+        bottom: 30.0,
+        ..FULL
+    };
+    assert_eq!(refilled.damage_regions(&acting), [row]);
+    assert_dirty_matches_full(&[typed.clone(), refilled, chosen, acting, typed]);
 }

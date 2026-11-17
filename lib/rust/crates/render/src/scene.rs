@@ -1,5 +1,5 @@
 //! Scene snapshots contain the evaluated keys and resolved Snygg values, never another layout.
-use crate::style::Style;
+use crate::{smartbar_scene::Smartbar, style::Style};
 use keys::{Bounds, Rect};
 
 #[derive(Clone, Debug, PartialEq)]
@@ -181,12 +181,7 @@ impl Scene {
             || self.smartbar != next.smartbar
             || self.candidate_styles != next.candidate_styles
         {
-            rects.push(Rect {
-                left: 0.0,
-                top: 0.0,
-                right: next.width as f32,
-                bottom: next.strip,
-            });
+            rects.push(self.strip_damage(next));
         }
         for &i in self.pressed.iter().chain(&next.pressed) {
             if self.pressed.contains(&i) == next.pressed.contains(&i) {
@@ -206,6 +201,34 @@ impl Scene {
             rects.extend(next.popup_bounds());
         }
         rects
+    }
+}
+
+impl Scene {
+    /// What a change in the strip repaints: only the words' area when nothing outside it, the
+    /// action buttons above all, changed. Words, their spacers and their pressed backgrounds
+    /// are clipped to that area.
+    fn strip_damage(&self, next: &Self) -> Rect {
+        let words_only = |a: &Smartbar, b: &Smartbar| {
+            next.panel.is_none()
+                && self.preview == next.preview
+                && self.search == next.search
+                && a.config == b.config
+                && a.actions == b.actions
+                && a.pressed == b.pressed
+                && a.phase == b.phase
+                && a.layout.actions == b.layout.actions
+                && a.layout.center == b.layout.center
+        };
+        match (&self.smartbar, &next.smartbar) {
+            (Some(a), Some(b)) if words_only(a, b) => b.layout.center,
+            _ => Rect {
+                left: 0.0,
+                top: 0.0,
+                right: next.width as f32,
+                bottom: next.strip,
+            },
+        }
     }
 }
 
