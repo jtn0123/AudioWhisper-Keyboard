@@ -145,6 +145,7 @@ impl App {
     /// come from [`App::plural_requests`] instead.
     pub fn string_keys() -> Vec<&'static str> {
         let mut out: Vec<&'static str> = CODE_KEYS.to_vec();
+        out.extend(super::color_dialog::KEYS);
         out.extend(super::catalogue::HOME.iter().map(|h| h.1));
         for screen in super::catalogue::SCREENS {
             out.push(screen.title);

@@ -178,6 +178,7 @@ impl App {
                     y += 48.0 * d;
                 }
             }
+            Kind::Color => y = self.color_content(p, text, (left, y), width, clip),
             Kind::Confirm(..) => {
                 let (message, _, rh) = &rows[0];
                 self.paint_text(

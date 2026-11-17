@@ -51,7 +51,8 @@ fn reply(
     #[cfg(target_os = "android")]
     let _trace = crate::render_profile::Span::new(c"aw.settings.scene_reply");
     s.scene = a.scene(text);
-    let nodes:Vec<_>=a.controls.iter().map(|c|{
+    // A drag surface (the colour plane and hue bar) has no node, as Compose's pointerInput has none.
+    let nodes:Vec<_>=a.controls.iter().filter(|c| c.role!="none").map(|c|{
         let mut actions=if !c.enabled || matches!(c.action,Action::None){vec![]}else{vec![1]};
         if c.enabled && c.role=="slider" {actions.extend([4,5]);} else if c.role=="scroll" {let [back,forward]=a.can_scroll(); if forward {actions.push(4);}
             if back {actions.push(5);}}
@@ -154,11 +155,13 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_settings(
                             .parse()
                             .map_err(|_| illegal("settings card content color"))?;
                     }
-                    if p.len() > 57 {
-                        for (i, color) in colors.iter_mut().enumerate().skip(14) {
+                    // onPrimaryContainer and onBackground, then the time picker's
+                    // tertiaryContainer and onTertiaryContainer and the text field's error.
+                    for (i, color) in colors.iter_mut().enumerate().skip(14) {
+                        if p.len() > 42 + i {
                             *color = field(&p, 42 + i)?
                                 .parse()
-                                .map_err(|_| illegal("settings library colors"))?;
+                                .map_err(|_| illegal("settings late colors"))?;
                         }
                     }
                     a.config = c;

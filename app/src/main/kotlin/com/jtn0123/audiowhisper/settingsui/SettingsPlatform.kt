@@ -54,7 +54,9 @@ internal class SettingsPlatform(private val activity: FlorisAppActivity, private
             // M3 Card's content colour, as Material resolves it for this scheme.
             colors.contentColorFor(colors.surfaceContainerHighest).toArgb(),
             // The libraries' license badge text and row text.
-            colors.onPrimaryContainer.toArgb(), colors.onBackground.toArgb())
+            colors.onPrimaryContainer.toArgb(), colors.onBackground.toArgb(),
+            // The time picker's selected period and the colour field's error.
+            colors.tertiaryContainer.toArgb(), colors.onTertiaryContainer.toArgb(), colors.error.toArgb())
     }
     fun dialogWindowWidth(): Float {
         val value = android.util.TypedValue()

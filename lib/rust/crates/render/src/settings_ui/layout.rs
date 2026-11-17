@@ -119,6 +119,8 @@ impl App {
         let right = match r.kind {
             Kind::Choice(_) if !r.switch.is_empty() => 88.0,
             Kind::Toggle | Kind::Fixed => 80.0,
+            // ListItem's 16 dp before the trailing 24 dp swatch.
+            Kind::Color => 56.0,
             _ => 16.0,
         };
         [left * d, right * d]
@@ -132,6 +134,7 @@ impl App {
         self.scene_pass(text, true)
     }
     fn scene_pass(&mut self, text: &mut Text, replay: bool) -> Scene {
+        self.settle_picker();
         self.controls.clear();
         self.field_layouts.clear();
         self.scrollbar_exists = [false; 2];
@@ -297,6 +300,13 @@ impl App {
                     viewport,
                     text,
                 );
+                if matches!(r.kind, Kind::Color) {
+                    // The trailing swatch: 24 dp, 16 dp from the end, centred.
+                    let size = self.px(24.0);
+                    let top = y + ((rh - size) / 2.0).round();
+                    let at = rect(offset + w - self.px(16.0) - size, top, size, size);
+                    self.swatch_circle(&mut p, at, self.swatch(r.key), viewport);
+                }
                 if !r.switch.is_empty() {
                     self.add(
                         &mut p,

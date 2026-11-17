@@ -1,6 +1,8 @@
 //! Native settings UI. Platform effects and persisted IO are returned as plans.
 mod cards;
 pub mod catalogue;
+pub mod color;
+mod color_dialog;
 mod dialog;
 mod dialog_buttons;
 mod dialog_metrics;
@@ -13,6 +15,7 @@ mod layout;
 pub mod licences;
 mod material;
 mod overscroll;
+mod picker;
 mod rows;
 pub use rows::CODE_KEYS;
 mod scrollbar;
@@ -41,6 +44,10 @@ pub enum Action {
     Picker,
     /// A library row (its index in the sorted list) opens its license dialog.
     Library(usize),
+    /// A tap on one of the colour or time dialog's own controls.
+    Tap(picker::Tap),
+    /// A surface the finger drags: the colour plane, the hue bar, the clock dial.
+    Drag(picker::Surface),
 }
 #[derive(Clone, Debug)]
 pub struct Control {
@@ -95,8 +102,9 @@ pub struct App {
     pub field_layouts: Vec<(i32, std::sync::Arc<crate::android_text::Layout>, [f32; 2])>,
     pub config: [f32; 4],
     /// The palette; 13 is M3 Card's content colour, `contentColorFor(surfaceContainerHighest)`,
-    /// 14 onPrimaryContainer and 15 onBackground.
-    pub colors: [u32; 16],
+    /// 14 onPrimaryContainer, 15 onBackground, 16 tertiaryContainer, 17 onTertiaryContainer and
+    /// 18 error.
+    pub colors: [u32; 19],
     pub dialog_window_width: f32,
     pub sp_pixels: [f32; 33],
     pub controls: Vec<Control>,
@@ -130,6 +138,8 @@ pub struct App {
     pub dragging: bool,
     pub velocity: crate::compose_velocity::ComposeVelocity,
     pub licences: licences::State,
+    /// The open colour or time dialog's state; only read while `modal` shows such a row.
+    pub picker: Option<picker::Picker>,
 }
 impl Default for App {
     fn default() -> Self {
@@ -149,7 +159,7 @@ impl Default for App {
             colors: [
                 0xfff8f8f8, 0xff161616, 0xff555555, 0xff376a20, 0xffdce9d0, 0xffe9e9e9, 0xffffffff,
                 0xff777777, 0xfff8f8f8, 0xff555b66, 0xffc5c5c5, 0xffeeeeee, 0xffeeeeee, 0xff161616,
-                0xff0b2000, 0xff161616,
+                0xff0b2000, 0xff161616, 0xffbcebf0, 0xff002022, 0xffba1a1a,
             ],
             dialog_window_width: 0.0,
             sp_pixels: [0.0; 33],
@@ -181,6 +191,7 @@ impl Default for App {
             dragging: false,
             velocity: Default::default(),
             licences: Default::default(),
+            picker: None,
         }
     }
 }

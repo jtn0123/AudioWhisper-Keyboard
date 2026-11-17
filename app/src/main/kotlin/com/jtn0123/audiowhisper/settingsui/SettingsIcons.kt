@@ -38,5 +38,7 @@ internal fun settingsIcons(resources: Resources): Array<String> {
         "@icon:policy" to Icons.Outlined.Policy, "@icon:description" to Icons.Outlined.Description,
         "@icon:error_outline" to Icons.Default.ErrorOutline, "@icon:warning" to Icons.Outlined.Warning,
         "@icon:help_outline" to Icons.AutoMirrored.Filled.HelpOutline,
+        // The colour picker's text field.
+        "@icon:edit" to Icons.Default.Edit, "@icon:done" to Icons.Default.Done, "@icon:clear" to Icons.Default.Clear,
     )).flatMap { (name, icon) -> listOf(name, iconPath(icon)) }.toTypedArray()
 }

@@ -58,8 +58,11 @@ internal class SettingsFacts(private val activity: Activity) {
             AndroidSettings.Secure.getString(activity, "spell_checker_enabled"),
             AndroidSettings.Secure.getString(activity, "selected_spell_checker"),
         ) { pkg -> runCatching { pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)).toString() }.getOrNull() } +
-            models.toTypedArray()
+            models.toTypedArray() + arrayOf("system_accent", systemAccent().toUInt().toString())
     }
+
+    /** Jetpref's `safeValue` of no colour: the colour pickers' Default, which OK stores as none. */
+    private fun systemAccent() = activity.resources.getColor(android.R.color.system_accent1_500, activity.theme)
 
     /** Dictation's model rows: the names and sizes at once, then the SHA-256 check off the main thread. */
     fun checkModels(onChange: () -> Unit) {

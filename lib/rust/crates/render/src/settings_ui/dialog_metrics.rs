@@ -60,6 +60,7 @@ impl App {
                 let rh = self.measure(text, &message, self.sp(16), width - 48.0 * d);
                 vec![(message, String::new(), rh)]
             }
+            Kind::Color => vec![(String::new(), String::new(), self.color_height(width, text))],
             _ => Vec::new(),
         }
     }

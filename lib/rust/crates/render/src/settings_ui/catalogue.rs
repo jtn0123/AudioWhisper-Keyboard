@@ -96,6 +96,9 @@ pub enum Kind {
     Field,
     /// AboutLibraries' LibrariesContainer: every library row, then its license dialog.
     Libraries,
+    /// Jetpref's ColorPickerPreference with the advanced layout: a swatch at the end, and a
+    /// dialog of presets or a hue, saturation and value picker (`picker.rs`).
+    Color,
 }
 /// A JetPrefAlertDialog asking to confirm an effect.
 #[derive(Clone, Copy, Debug)]
