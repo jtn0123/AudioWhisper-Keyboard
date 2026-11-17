@@ -1,7 +1,12 @@
-"""Require every production Kotlin native declaration to exist in the packaged debug ELF.
+"""Require every production Kotlin native declaration to exist in the packaged debug ELF, and
+every JNI export in it to have one.
 
 Scan source, not R8's surviving methods: unused declarations are still dangerous APIs.
-Unsupported declarations fail closed rather than disappearing from the inventory.
+Unsupported declarations fail closed rather than disappearing from the inventory. An export no
+production source declares is reported as test-only when only test sources (src/test,
+src/androidTest, src/testFixtures) declare it, which belongs off the phone (`cfg(not(target_os =
+"android"))` or a fixture feature), or as undeclared when no Kotlin does, which is dead code. Both
+fail. Fixture builds add exports their tests declare, so only the normal APK is checked.
 """
 import argparse
 from collections import Counter
@@ -104,9 +109,14 @@ def main():
     paths = subprocess.check_output(['git', 'ls-files', '--cached', '--others', '--exclude-standard', '-z'],
                                     cwd=ROOT).decode().split('\0')
     entries = []
+    tests = set()
     for path in paths:
-        if path.endswith('.kt') and any(f'/src/{kind}/' in path for kind in ('main', 'debug')):
+        if not path.endswith('.kt'):
+            continue
+        if any(f'/src/{kind}/' in path for kind in ('main', 'debug')):
             entries.extend(declarations(ROOT / path))
+        elif any(f'/src/{kind}/' in path for kind in ('test', 'androidTest', 'testFixtures')):
+            tests.update(name for name, _ in declarations(ROOT / path))
     duplicates = [name for name, count in Counter(name for name, _ in entries).items() if count > 1]
     if duplicates:
         raise ValueError('Overloaded native declarations need signature checking: ' + ', '.join(duplicates))
@@ -123,7 +133,15 @@ def main():
     if missing:
         raise RuntimeError('Production native declarations missing from normal APK:\n' +
                            '\n'.join(f'{name} ({path})' for name, path in missing))
-    print(json.dumps({'production_native_declarations': len(entries), 'missing': 0}))
+    exports = sorted(name for name in symbols if name.startswith('Java_'))
+    declared = {name for name, _ in entries}
+    unreferenced = [name for name in exports if name not in declared]
+    if unreferenced:
+        raise RuntimeError('JNI exports in normal APK that no production Kotlin declares:\n' +
+                           '\n'.join(f'{name} ({"test-only" if name in tests else "undeclared"})'
+                                      for name in unreferenced))
+    print(json.dumps({'production_native_declarations': len(entries), 'missing': 0,
+                      'jni_exports': len(exports), 'test_only': 0, 'undeclared': 0}))
 
 
 if __name__ == '__main__':

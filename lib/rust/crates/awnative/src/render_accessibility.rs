@@ -1,7 +1,7 @@
 //! JNI transport for the Rust semantic scene. Local strings are never logged.
 use crate::{
     handle,
-    jni::{self, illegal},
+    jni::illegal,
     render::{Session, strings},
 };
 use jni_sys::{JNIEnv, jclass, jint, jintArray, jlong, jobjectArray, jstring};
@@ -116,39 +116,52 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_semanticA
         })
     }
 }
-#[unsafe(no_mangle)]
-pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_SemanticRules_labels(
-    env: *mut JNIEnv,
-    _: jclass,
-    codes: jintArray,
-    labels: jobjectArray,
-    shift: jstring,
-    bar: jint,
-) -> jobjectArray {
-    // SAFETY: JVM local arrays/strings are copied during this invocation; output is a local array.
-    unsafe {
-        jni::run(env, ptr::null_mut(), |env| {
-            let codes = env.read::<i32>(codes, "codes")?;
-            let labels = strings(env, labels)?;
-            let shift = String::from_utf16_lossy(&env.read_string(shift, "shift")?);
-            if codes.len() != labels.len() {
-                return Err(illegal("semantic label count"));
-            }
-            let rules = Labels::default();
-            let result: Vec<Vec<u16>> = codes
-                .iter()
-                .zip(labels)
-                .map(|(&code, label)| {
-                    (if bar < 0 {
-                        rules.key(code, &label, &shift)
-                    } else {
-                        rules.action(code, &label, bar)
+/// The label rules alone, for the JVM tests. Only app/src/test declares it, so the phone's library
+/// leaves it out (scripts/native-declarations-check.py).
+#[cfg(not(target_os = "android"))]
+mod probe {
+    use crate::{
+        jni::{self, illegal},
+        render::strings,
+    };
+    use jni_sys::{JNIEnv, jclass, jint, jintArray, jobjectArray, jstring};
+    use render::accessibility_labels::Labels;
+    use std::ptr;
+
+    #[unsafe(no_mangle)]
+    pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_SemanticRules_labels(
+        env: *mut JNIEnv,
+        _: jclass,
+        codes: jintArray,
+        labels: jobjectArray,
+        shift: jstring,
+        bar: jint,
+    ) -> jobjectArray {
+        // SAFETY: JVM local arrays/strings are copied during this invocation; output is a local array.
+        unsafe {
+            jni::run(env, ptr::null_mut(), |env| {
+                let codes = env.read::<i32>(codes, "codes")?;
+                let labels = strings(env, labels)?;
+                let shift = String::from_utf16_lossy(&env.read_string(shift, "shift")?);
+                if codes.len() != labels.len() {
+                    return Err(illegal("semantic label count"));
+                }
+                let rules = Labels::default();
+                let result: Vec<Vec<u16>> = codes
+                    .iter()
+                    .zip(labels)
+                    .map(|(&code, label)| {
+                        (if bar < 0 {
+                            rules.key(code, &label, &shift)
+                        } else {
+                            rules.action(code, &label, bar)
+                        })
+                        .encode_utf16()
+                        .collect()
                     })
-                    .encode_utf16()
-                    .collect()
-                })
-                .collect();
-            env.make_strings(&result)
-        })
+                    .collect();
+                env.make_strings(&result)
+            })
+        }
     }
 }

@@ -942,7 +942,15 @@ the shell's `PATH`.
 ./gradlew :lib:rust:check   # cargo test, clippy with warnings as errors (here, and for Android
                             # with and without the GPU renderer), rustfmt --check
 ./gradlew test              # every JVM test, including those that go through JNI
+./gradlew :app:checkNativeDeclarations   # the debug APK's JNI exports against the Kotlin
 ```
+
+`:app:checkNativeDeclarations` (`scripts/native-declarations-check.py`, also run by
+`:lib:rust:check`) fails when a production Kotlin `external fun` has no export in the debug APK's
+`libawnative.so`, or an export there has no production declaration: one only tests declare
+belongs off the phone (`#[cfg(not(target_os = "android"))]`, as the host-only probes are, or a
+fixture feature), and one no Kotlin declares is dead. `scripts/native-declarations-mutation.py`
+breaks it each way.
 
 `./gradlew :lib:rust:oracleCheck` runs the LatinIME C++ comparison through `latin-oracle`; it
 needs a C++ toolchain, and CI runs it as its own task.

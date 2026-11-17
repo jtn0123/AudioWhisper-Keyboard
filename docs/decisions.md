@@ -292,6 +292,20 @@ lists the optional crates, so they are audited too. **Would change if** the GPU 
 measured again and wins (build with `-PhybridRenderer=true`), or is given up for good, in which
 case delete it rather than keep it compiling.
 
+## Every JNI export in the phone's library has a production declaration (2026-11-16)
+
+`:app:checkNativeDeclarations` already failed when a production Kotlin `external fun` had no
+export in the debug APK's `libawnative.so`; it ran only as a dependency of `:lib:rust:check`, and
+nothing checked the other direction. It now also fails on an export that no production source
+(`src/main`, `src/debug`) declares, naming it test-only when a test source declares it and
+undeclared when no Kotlin does. It found two test-only exports shipped to the phone,
+`SemanticRules.labels` and `RenderThemeProbe.resolve`, used only by host JVM tests; they are now
+`#[cfg(not(target_os = "android"))]`, like the other host-only entry points, which leaves 380
+declarations for 380 exports. The task is named in the CI command, the README and docs/rust.md.
+Only the normal APK is checked, since fixture builds add exports their device tests declare.
+**Would change if** an on-device test needs an export the normal build carries (then it belongs
+behind a fixture feature, or the check learns which androidTest declarations a build may serve).
+
 ## Word statistics from a public corpus (2026-11-16)
 
 The English dictionary's frequencies and next words are counted from public text we can name and
