@@ -35,6 +35,21 @@ on, in both renderers' hit tests. Why, and what would change it:
   key down before it was the space bar. So: no odds for a key pressed while the previous letter is
   still down (rollover: they would be a letter behind), none for the first key after a backspace
   or shift press, none with the cursor inside a word.
+* **Two stale cases left open (2026-11-16, looked at and not fixed).** The trail only tells that
+  the letters typed *end* in the odds' word. (1) Typing "t" then another "t" before the suggester
+  catches up leaves odds for "t" that the trail still matches, as "tt" ends in "t" (only a word
+  ending in its own start can do this: doubled first letters, mostly). (2) Two short words typed
+  faster than suggesting ("a b ", then a key) leave the odds from the first space, after "a",
+  standing at the second, as both are an empty word after the space bar. Neither the scoreboard
+  nor any host test can show them: the scoreboard works the odds out at each tap from the true
+  context (`scoreboard/src/typing.rs`), so its numbers can't move either way. No fix is clean in
+  Rust alone. The trail never sees spaces as text or cursor moves, so counting letters since the
+  last space bar fixes (1) only, and costs the odds for a new word typed after tapping the cursor
+  somewhere (the count then includes the letters before the move). Fixing both needs the odds to
+  name the content they were worked out for and the hit test to know the content now: a request
+  id carried from `NlpManager.suggest` through FlorisBoard's provider interface to the JNI
+  suggest call, or the native editor session publishing its content to the letter odds. Both
+  are more wiring than two cases bounded at 0.15 key are worth today.
 
 The cost lands on the suggest path; the hit test looks up 26 numbers under a mutex. Kotlin passes
 the tap trail handle and the learn-my-aim setting to both hit tests, which it already had; nothing

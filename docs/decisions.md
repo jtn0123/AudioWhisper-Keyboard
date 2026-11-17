@@ -604,7 +604,12 @@ thumb goes from 94.84% to 95.85%.
   after the space bar. Rollover therefore gets no resize (the odds would be a letter behind), nor
   does the first key after a backspace or shift press. Two stale cases remain: a word that ends
   in its own prefix ("t" then another "t") and an empty-word deposit from an earlier word boundary;
-  both only move a tap within 0.15 key of a border.
+  both only move a tap within 0.15 key of a border. *Looked at again the same day and left:* no
+  clean fix lives in Rust alone. The trail sees neither spaces as text nor cursor moves, so a
+  letter count since the space bar fixes only the first and loses the odds after a cursor tap;
+  an exact fix needs the odds tagged with the content they were worked out for, carried from
+  Kotlin's suggest request or published by the native editor session
+  ([results](key-resize-results.md#the-rule)).
 - *Tried and dropped:* backing the prior off as the typed prefix gets unlikely (no better on rare
   words, worse overall), leaving first letters alone (0.58 point worse for the left thumb), caps of
   0.2 and above (a little better overall, worse for the neutral hand's rare words), and floors of
@@ -618,7 +623,8 @@ already did; one that has swiped or been held long stays, so a cursor swipe goes
 keeps its action. Shift stays down, so shift-and-tap still capitalises.
 
 **Would change if** the phone's counters ([rust.md](rust.md#the-typing-counters)) show more
-backspaces or undone corrections with it than without; if a layout's keys are much smaller than
-QWERTY's (the factor is in key widths, so it scales, but the cap may need to shrink); if a
+backspaces or undone corrections with it than without; if the suggest request ever carries an id
+to the JNI call for another reason (then tag the odds with it and close both stale cases); if a
+layout's keys are much smaller than QWERTY's (the factor is in key widths, so it scales, but the cap may need to shrink); if a
 better language model is shipped (re-tune the factor against it); or if real taps can be measured
 without logging them and spread wider or narrower than 0.2 key, which sets the factor.
