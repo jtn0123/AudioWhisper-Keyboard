@@ -3,6 +3,7 @@ package com.jtn0123.audiowhisper.reader
 import android.content.Context
 import android.speech.tts.TextToSpeech
 import android.speech.tts.UtteranceProgressListener
+import dev.patrickgold.florisboard.R
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.channels.Channel
 import java.util.concurrent.ConcurrentHashMap
@@ -37,7 +38,8 @@ internal class ReferenceSpeaker(context: Context, onFocusLost: () -> Unit) : Voi
         tts.setOnUtteranceProgressListener(Progress())
     }
 
-    override suspend fun isReady(): Boolean = ready.await()
+    /** Before the offline-voice rule (E6): an engine that started could speak, with its own voice. */
+    override suspend fun unavailable(): Int? = if (ready.await()) null else R.string.read_aloud__no_engine
 
     override fun begin(): Boolean = focus.take()
 
