@@ -109,6 +109,8 @@ def profile(path):
     for name, group in groups.items():
         result[name] = {
             "draw": percentiles([f["draw_ns"] for f in group]),
+            # The render thread's CPU time for the same draws (logs before 2026-11-17 lack it).
+            "draw_cpu": percentiles([f["cpu_ns"] for f in group if "cpu_ns" in f]),
             "buffer_copy_post": percentiles([f["buffer_post_ns"] for f in group
                                              if "buffer_post_ns" in f]),
             "area_px_min": min((f.get("paint_px", f["area_px"]) for f in group), default=0),

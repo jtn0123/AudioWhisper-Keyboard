@@ -282,13 +282,15 @@ fn run(
         let worker_ns = monotonic_ns();
         let _trace = crate::render_profile::Span::new(c"aw.worker");
         let start = Instant::now();
-        let (draw, gpu_wait, post_ns) = match &mut engine {
+        let cpu_start = thread_cpu_ns();
+        let (draw, draw_cpu, gpu_wait, post_ns) = match &mut engine {
             Engine::Cpu(raster) => {
                 if raster.draw_regions(&scene, &regions).is_err() {
                     log("draw_error");
                     break;
                 }
                 let draw = start.elapsed().as_nanos();
+                let draw_cpu = thread_cpu_ns() - cpu_start;
                 let post_start = Instant::now();
                 let posted = match &mut presenter {
                     Some(presenter) => presenter.present(
@@ -306,11 +308,11 @@ fn run(
                     log("post_error");
                     break;
                 }
-                (draw, 0, post_start.elapsed().as_nanos())
+                (draw, draw_cpu, 0, post_start.elapsed().as_nanos())
             }
             #[cfg(feature = "hybrid")]
             Engine::Hybrid(gpu) => match gpu.draw(&scene) {
-                Ok((draw, gpu_wait)) => (draw, gpu_wait, 0),
+                Ok((draw, gpu_wait)) => (draw, thread_cpu_ns() - cpu_start, gpu_wait, 0),
                 Err(error) => {
                     log(&format!("hybrid_draw_error={error}"));
                     break;
@@ -340,7 +342,7 @@ fn run(
                 .zip(&scene.keys)
                 .any(|(a, b)| a.label != b.label && a.label.eq_ignore_ascii_case(&b.label));
             log(&format!(
-                "profile draw_ns={draw} buffer_post_ns={post_ns} press={} release={} recreate={} full={} area_px={area} paint_px={paint} regions={region_count} shift={} popup_change={} popup_open={} candidates={} encode_ns={} raster_ns={} shape_ns={} glyph_ns={} alloc_ns={} alloc_sites={} layout_misses={} labels={} cold_glyph_ns={} color_glyph_ns={} glyph_runs={} cold_runs={} color_runs={}",
+                "profile draw_ns={draw} cpu_ns={draw_cpu} buffer_post_ns={post_ns} press={} release={} recreate={} full={} area_px={area} paint_px={paint} regions={region_count} shift={} popup_change={} popup_open={} candidates={} encode_ns={} raster_ns={} shape_ns={} glyph_ns={} alloc_ns={} alloc_sites={} layout_misses={} labels={} cold_glyph_ns={} color_glyph_ns={} glyph_runs={} cold_runs={} color_runs={}",
                 u8::from(press),
                 u8::from(release),
                 u8::from(recreate),
@@ -455,6 +457,18 @@ impl Window {
 }
 
 fn monotonic_ns() -> i64 {
+    // CLOCK_MONOTONIC is 1 on Android.
+    clock_ns(1)
+}
+
+/// The CPU time this thread has used: where it is far below the wall time of the same work, the
+/// thread was waiting to run, not working.
+fn thread_cpu_ns() -> i64 {
+    // CLOCK_THREAD_CPUTIME_ID is 3 on Android.
+    clock_ns(3)
+}
+
+fn clock_ns(clock: i32) -> i64 {
     #[repr(C)]
     struct Timespec {
         seconds: i64,
@@ -467,8 +481,8 @@ fn monotonic_ns() -> i64 {
         seconds: 0,
         nanos: 0,
     };
-    // SAFETY: CLOCK_MONOTONIC is 1 on Android; the pointer is writable for one timespec.
-    if unsafe { clock_gettime(1, &mut time) } == 0 {
+    // SAFETY: both callers pass a clock Android defines; the pointer is writable for one timespec.
+    if unsafe { clock_gettime(clock, &mut time) } == 0 {
         time.seconds * 1_000_000_000 + time.nanos
     } else {
         0
