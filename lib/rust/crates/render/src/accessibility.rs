@@ -1,5 +1,7 @@
 //! Semantic scene and activation policy. No Android types, speech, logging or editor contents.
-use crate::{accessibility_labels::Labels, protocol::*, scene::Scene, touch::Action};
+use crate::{
+    accessibility_labels::Labels, protocol::*, reading_order::Place, scene::Scene, touch::Action,
+};
 use keys::{Rect, codes};
 
 #[derive(Clone, Debug, Default)]
@@ -37,6 +39,10 @@ pub struct Node {
     pub actions: Vec<i32>,
     pub long_click_label: String,
     pub target: Target,
+    /// Draw order: touch takes the node drawn on top, which the reading order no longer shows.
+    pub layer: usize,
+    /// The id of the node read just before this one, for Android's traversal hint.
+    pub after: Option<i32>,
 }
 impl Node {
     /// Same key-specific clock as InputEventDispatcher.determineLongPressDelay. A 400 ms
@@ -75,14 +81,61 @@ impl Node {
             actions: vec![ACCESS_CLICK],
             long_click_label: String::new(),
             target,
+            layer: 0,
+            after: None,
         }
     }
 }
 impl Semantics {
     /// Key ids are physical scene slots, independent of case/code/label. Bar ids are configured
     /// action slots. Candidate ids use the host's opaque object tokens, never a text hash.
-    /// Popup ids include their source slot, and survive selected-item changes.
+    /// Popup ids include their source slot, and survive selected-item changes. Nodes come in
+    /// reading order ([`crate::reading_order`]), each keeping its draw layer for touch.
     pub fn snapshot(&self, scene: &Scene, shift: &str) -> Vec<Node> {
+        // Draw order, bottom to top, as touch has always stacked them.
+        let mut placed: Vec<(Place, Node)> = Vec::new();
+        placed.extend(
+            self.keys(scene, shift)
+                .into_iter()
+                .map(|n| (Place::Body, n)),
+        );
+        placed.extend(self.bar(scene).into_iter().map(|n| (Place::Top, n)));
+        if let Some(p) = &scene.popup {
+            let source = Place::After(Some(p.key as i32 + 1));
+            placed.extend(self.popup(scene).into_iter().map(|n| (source, n)));
+        }
+        if let Some(preview) = &scene.preview {
+            let nodes = crate::panel_accessibility::nodes(preview);
+            placed.extend(nodes.into_iter().map(|n| (Place::Top, n)));
+        }
+        if let Some(panel) = &scene.panel {
+            let popup = crate::panel_accessibility::popup(panel);
+            placed.extend(
+                crate::panel_accessibility::nodes(panel)
+                    .into_iter()
+                    .map(|n| {
+                        let place = match (popup, &n.target) {
+                            (Some((start, source)), Target::Panel(i)) if *i >= start => {
+                                Place::After(source)
+                            }
+                            _ => Place::Body,
+                        };
+                        (place, n)
+                    }),
+            );
+        }
+        if let Some(search) = &scene.search {
+            let nodes = crate::panel_accessibility::nodes(search);
+            placed.extend(nodes.into_iter().map(|mut n| {
+                if let Target::Panel(i) = n.target {
+                    n.target = Target::Search(i);
+                }
+                (Place::Top, n)
+            }));
+        }
+        crate::reading_order::arrange(placed)
+    }
+    fn keys(&self, scene: &Scene, shift: &str) -> Vec<Node> {
         let mut nodes = Vec::new();
         for (i, k) in scene
             .keys
@@ -131,6 +184,11 @@ impl Semantics {
             }
             nodes.push(n);
         }
+        nodes
+    }
+    /// The Smartbar's buttons, then its words.
+    fn bar(&self, scene: &Scene) -> Vec<Node> {
+        let mut nodes = Vec::new();
         if let Some(bar) = &scene.smartbar
             && scene.panel.as_ref().is_none_or(|p| p.kind == 2)
         {
@@ -224,6 +282,11 @@ impl Semantics {
                 nodes.push(n);
             }
         }
+        nodes
+    }
+    /// A held key's choices.
+    fn popup(&self, scene: &Scene) -> Vec<Node> {
+        let mut nodes = Vec::new();
         if let Some(p) = &scene.popup {
             for (i, label) in p.labels.iter().enumerate() {
                 if let Some(bounds) = scene.popup_choice_bounds(i) {
@@ -239,24 +302,6 @@ impl Semantics {
                     nodes.push(n);
                 }
             }
-        }
-        if let Some(preview) = &scene.preview {
-            nodes.extend(crate::panel_accessibility::nodes(preview));
-        }
-        if let Some(panel) = &scene.panel {
-            nodes.extend(crate::panel_accessibility::nodes(panel));
-        }
-        if let Some(search) = &scene.search {
-            nodes.extend(
-                crate::panel_accessibility::nodes(search)
-                    .into_iter()
-                    .map(|mut n| {
-                        if let Target::Panel(i) = n.target {
-                            n.target = Target::Search(i);
-                        }
-                        n
-                    }),
-            );
         }
         nodes
     }

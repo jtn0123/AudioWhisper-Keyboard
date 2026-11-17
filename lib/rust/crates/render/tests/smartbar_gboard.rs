@@ -201,3 +201,29 @@ fn talkback_reads_the_mic_the_words_and_the_arrow_and_nothing_hidden() {
         );
     }
 }
+
+#[test]
+fn talkback_reads_the_row_left_to_right_as_drawn() {
+    for flip in [false, true] {
+        // Mirrored: the arrow sits left of the words unless flipped, and is read where it sits.
+        let mut row = vec![2000, -12, -22, -32, 2004];
+        if !flip {
+            row.reverse();
+            row[1..4].reverse();
+        }
+        let words = talkback(true, flip);
+        assert_eq!(
+            words.iter().map(|n| n.id).collect::<Vec<_>>(),
+            row,
+            "flip={flip}"
+        );
+        for nodes in [words, talkback(false, flip)] {
+            let lefts: Vec<f32> = nodes.iter().map(|n| n.bounds.left).collect();
+            assert!(lefts.is_sorted(), "flip={flip}: {lefts:?}");
+            assert_eq!(nodes[0].after, None);
+            for pair in nodes.windows(2) {
+                assert_eq!(pair[1].after, Some(pair[0].id), "flip={flip}");
+            }
+        }
+    }
+}

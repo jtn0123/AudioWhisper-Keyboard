@@ -95,6 +95,10 @@ fn scene() -> Scene {
         ..Default::default()
     }
 }
+/// The keys, in the order they are read.
+fn keys(nodes: &[render::accessibility::Node]) -> Vec<&render::accessibility::Node> {
+    nodes.iter().filter(|n| n.role == "key").collect()
+}
 #[test]
 fn stable_slots_states_and_control_labels() {
     let mut s = scene();
@@ -110,11 +114,12 @@ fn stable_slots_states_and_control_labels() {
         ("caps_lock", "Caps lock enabled", true, true),
     ] {
         s.keys[1].label = if checked { "E".into() } else { "e".into() };
-        let n = a.snapshot(&s, state);
+        let all = a.snapshot(&s, state);
         assert_eq!(
-            n.iter().map(|n| n.id).collect::<Vec<_>>(),
+            all.iter().map(|n| n.id).collect::<Vec<_>>(),
             before.iter().map(|n| n.id).collect::<Vec<_>>()
         );
+        let n = keys(&all);
         assert_eq!(n[0].description, label);
         assert_eq!(n[0].checked, Some(checked));
         assert_eq!(n[0].locked, locked);
@@ -127,7 +132,8 @@ fn stable_slots_states_and_control_labels() {
     s.keys[1].label = "!".into();
     s.keys[2].enabled = false;
     s.pressed = vec![1];
-    let n = a.snapshot(&s, "unshifted");
+    let all = a.snapshot(&s, "unshifted");
+    let n = keys(&all);
     assert_eq!(n[1].label, "Exclamation mark");
     assert!(n[1].pressed);
     assert!(n[2].actions.is_empty());
@@ -240,7 +246,10 @@ fn popup_focus_choices_have_exact_grid_bounds_and_restore_cancel() {
         labels: vec!["é".into()],
         selected: 0,
     });
-    let id = a.snapshot(&s, "unshifted").last().unwrap().id;
+    let popup_id = |n: Vec<render::accessibility::Node>| {
+        n.into_iter().find(|n| n.role == "popup item").unwrap().id
+    };
+    let id = popup_id(a.snapshot(&s, "unshifted"));
     assert_eq!(
         a.activate(&mut s, "unshifted", id, ACCESS_DISMISS),
         vec![Packet(KEY_CANCEL, 1, -1)]
@@ -259,7 +268,11 @@ fn popup_bounds_candidate_clipping_and_editor_action_labels_follow_the_scene() {
     let a = Semantics::default();
     let nodes = a.snapshot(&s, "unshifted");
     assert_eq!(
-        nodes.last().unwrap().bounds,
+        nodes
+            .iter()
+            .find(|n| n.role == "popup item")
+            .unwrap()
+            .bounds,
         Rect {
             left: -2.5,
             top: -50.0,
@@ -347,7 +360,8 @@ fn accessible_shift_uses_the_same_hold_threshold_as_ordinary_input() {
         (101, 300),
     ] {
         s.keys[0].code = code;
-        let node = semantics.snapshot(&s, "unshifted").remove(0);
+        let nodes = semantics.snapshot(&s, "unshifted");
+        let node = keys(&nodes)[0];
         assert_eq!(node.hold_delay(&s, 300), expected);
         if code == SHIFT {
             assert!(400 < node.hold_delay(&s, 300));

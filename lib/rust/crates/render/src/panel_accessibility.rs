@@ -73,7 +73,7 @@ pub fn nodes(panel: &Panel) -> Vec<Node> {
             Some(n)
         })
         .collect();
-    for i in &panel.items {
+    for (index, i) in panel.items.iter().enumerate() {
         if i.secondary.is_empty() {
             continue;
         }
@@ -97,13 +97,44 @@ pub fn nodes(panel: &Panel) -> Vec<Node> {
             bounds,
             i.secondary.clone(),
             "text",
-            Target::Panel(0),
+            // Never activated (no actions); names its item so it reads with it.
+            Target::Panel(index),
         );
         node.enabled = i.enabled;
         node.actions.clear();
         nodes.push(node);
     }
     nodes
+}
+/// An open popup's first item, which it and everything after it in the panel's items belong to,
+/// and the node id of the item that opened it: an emoji's variants or history menu, a clipboard
+/// item's menu, or the clear-history dialog. Each is drawn last, over the panel.
+pub fn popup(panel: &Panel) -> Option<(usize, Option<i32>)> {
+    let (start, opener) = if let Some((index, ..)) = panel.emoji.as_ref().and_then(|e| e.popup) {
+        (
+            panel
+                .items
+                .iter()
+                .position(|i| i.command == Command::Dismiss)?,
+            Command::Emoji(index),
+        )
+    } else {
+        let c = panel.clipboard.as_ref().filter(|c| c.modal())?;
+        (
+            panel
+                .items
+                .iter()
+                .position(|i| matches!(i.command, Command::Clipboard(10, _)))?,
+            c.popup.map_or(Command::Clipboard(2, 0), |index| {
+                Command::Clipboard(5, index)
+            }),
+        )
+    };
+    let source = panel.items[..start]
+        .iter()
+        .find(|i| i.command == opener)
+        .map(|i| 2_000_000 + i.id);
+    Some((start, source))
 }
 pub fn activate(panel: &mut Panel, index: usize, action: i32) -> Vec<Action> {
     let Some(i) = panel.items.get(index) else {

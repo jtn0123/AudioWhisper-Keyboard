@@ -102,6 +102,8 @@ internal class RendererAccessibility(
         return AccessibilityNodeInfo().apply {
             setSource(host, virtualViewId)
             setParent(host)
+            // Rust names the node read just before this one, so swipes follow screen order.
+            n["after"]?.jsonPrimitive?.intOrNull?.let { setTraversalAfter(host, it) }
             packageName = host.context.packageName
             className = nodeClass(n)
             text = n.string("label")
@@ -259,9 +261,10 @@ internal class RendererAccessibility(
     fun clear() { host.removeCallbacks(hold); down = View.NO_ID; hovered = View.NO_ID }
     fun release() { clear(); active = false; nodes.clear(); focused = View.NO_ID }
     private fun hit(x: Float, y: Float): Int = accessibilityHitTarget(x, y, host.width, host.height,
-        nodes.map { (id, n) ->
+        nodes.entries.mapIndexed { index, (id, n) ->
             val b = bounds(n)
-            AccessibilityTarget(id, intArrayOf(b.left, b.top, b.right, b.bottom), n.string("role") == "popup item")
+            AccessibilityTarget(id, intArrayOf(b.left, b.top, b.right, b.bottom), n.string("role") == "popup item",
+                n["layer"]?.jsonPrimitive?.intOrNull ?: index)
         }) ?: View.NO_ID
     private fun supports(id: Int, action: Int) = nodes[id]?.get("actions")?.jsonArray?.any { it.jsonPrimitive.int == action } == true
     private fun focus(id: Int): Boolean {

@@ -28,8 +28,8 @@ class AccessibilityReleaseTest {
     }
     @Test fun popupDragCanSelectAnAccentAboveTheHostRectangle() {
         val targets = listOf(
-            AccessibilityTarget(3, intArrayOf(0, 0, 100, 100), false),
-            AccessibilityTarget(101, intArrayOf(0, -60, 50, 20), true),
+            AccessibilityTarget(3, intArrayOf(0, 0, 100, 100), false, 0),
+            AccessibilityTarget(101, intArrayOf(0, -60, 50, 20), true, 1),
         )
         assertEquals(101, accessibilityHitTarget(25f, -20f, 100, 100, targets))
         assertEquals(101, accessibilityHitTarget(25f, 10f, 100, 100, targets))
@@ -37,8 +37,22 @@ class AccessibilityReleaseTest {
         assertNull(accessibilityHitTarget(25f, -61f, 100, 100, targets))
     }
 
+    @Test fun touchFindsTheTargetDrawnOnTopNotTheLastOneRead() {
+        // Reading order puts a key's popup right after the key, before the keys it covers.
+        val key = AccessibilityTarget(3, intArrayOf(0, 50, 50, 100), false, 0)
+        val popup = AccessibilityTarget(101, intArrayOf(0, 0, 100, 60), true, 4)
+        val covered = AccessibilityTarget(5, intArrayOf(50, 0, 100, 50), false, 2)
+        val targets = listOf(key, popup, covered)
+        assertEquals(101, accessibilityHitTarget(75f, 25f, 100, 100, targets))
+        assertEquals(101, accessibilityHitTarget(25f, 55f, 100, 100, targets))
+        assertEquals(3, accessibilityHitTarget(25f, 75f, 100, 100, targets))
+        // Equal layers keep the old rule: the later target wins.
+        val tied = listOf(covered, covered.copy(id = 6, layer = 2))
+        assertEquals(6, accessibilityHitTarget(75f, 25f, 100, 100, tied))
+    }
+
     @Test fun nonPopupTargetsNeverExtendTheAccessibleViewport() {
-        val targets = listOf(AccessibilityTarget(3, intArrayOf(-30, -30, 130, 130), false))
+        val targets = listOf(AccessibilityTarget(3, intArrayOf(-30, -30, 130, 130), false, 0))
         assertNull(accessibilityHitTarget(25f, -20f, 100, 100, targets))
         assertEquals(3, accessibilityHitTarget(25f, 20f, 100, 100, targets))
     }
