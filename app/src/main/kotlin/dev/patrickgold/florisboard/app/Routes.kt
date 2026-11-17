@@ -46,7 +46,6 @@ import dev.patrickgold.florisboard.app.ext.ExtensionListScreen
 import dev.patrickgold.florisboard.app.ext.ExtensionListScreenType
 import dev.patrickgold.florisboard.app.ext.ExtensionViewScreen
 import dev.patrickgold.florisboard.app.settings.about.ProjectLicenseScreen
-import dev.patrickgold.florisboard.app.settings.about.ThirdPartyLicensesScreen
 import dev.patrickgold.florisboard.app.settings.advanced.BackupScreen
 import dev.patrickgold.florisboard.app.settings.advanced.OtherScreen
 import dev.patrickgold.florisboard.app.settings.advanced.RestoreScreen
@@ -297,7 +296,7 @@ object Routes {
 
             composableWithDeepLink(Settings.About::class) {}
             composableWithDeepLink(Settings.ProjectLicense::class) { ProjectLicenseScreen() }
-            composableWithDeepLink(Settings.ThirdPartyLicenses::class) { ThirdPartyLicensesScreen() }
+            composableWithDeepLink(Settings.ThirdPartyLicenses::class) {}
 
             composableWithDeepLink(Ext.Home::class) { ExtensionHomeScreen() }
             composableWithDeepLink(Ext.List::class) { navBackStack ->

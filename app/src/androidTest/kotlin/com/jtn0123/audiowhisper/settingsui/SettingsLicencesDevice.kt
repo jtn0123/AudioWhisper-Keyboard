@@ -8,10 +8,10 @@ import java.security.MessageDigest
 import kotlin.math.roundToInt
 
 /**
- * The third-party licences screen on both renderers: every library row from top to bottom (by
- * its first line, which is the library's name on both), audits of the top, a lower page and a
+ * The third-party licences screen as Rust draws it: every library row from top to bottom (by
+ * its first line, which is the library's name), audits of the top, a lower page and a
  * license dialog, and the dialog's text (as a SHA-256: licence text is public, but long) and
- * button's role. The project licence screen stays in Compose on both renderers; Rust hands it back.
+ * button's role. The project licence screen is still Compose; Rust hands it back.
  *
  * The walk pages with TalkBack's scroll forward, which moves both lists by their own height, and
  * waits for Compose's animated page to stop. A row is counted on the page where its name line is
@@ -34,11 +34,9 @@ internal class SettingsLicencesDevice(private val h: SettingsHarness, private va
         h.click(title)
         h.settle()
         h.waitFor("licences did not open") { h.find("Version") == null && rows().isNotEmpty() }
-        val rust = h.views(RustSettingsView::class.java).isNotEmpty()
-        if (rust) {
-            val resumed = (h.instrumentation as SettingsInstrumentation).resumedActivity
-            check(resumed?.javaClass?.simpleName != "ComposeSettingsFallbackActivity") { "licences fell back to Compose" }
-        }
+        check(h.views(RustSettingsView::class.java).isNotEmpty()) { "licences not drawn by Rust" }
+        val resumed = (h.instrumentation as SettingsInstrumentation).resumedActivity
+        check(resumed?.javaClass?.simpleName != "ComposeSettingsFallbackActivity") { "licences fell back to Compose" }
         out.put(h.audit("licences-top"))
         // The name, while the row is on screen: on Compose, a node kept from here read back an
         // empty name once the walk had scrolled the row away.

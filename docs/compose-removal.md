@@ -65,7 +65,8 @@ its phone checks pass.
   * Smartbar, Gestures, Clipboard and Media: 4 files, 613 lines;
   * Typing (with `SpellCheckerServiceSelector`), Dictionary, Physical keyboard, About and
     Dictation (with `ModelStatus`): 7 files, 691 lines, plus `FlorisErrorCard` (24), which
-    only the spell checker card used.
+    only the spell checker card used;
+  * Third-party licences: 1 file, 70 lines. Step 2 is done: 15 files, 1,915 lines.
 
 ### 3. Dead code left behind by step 2 (this round)
 
