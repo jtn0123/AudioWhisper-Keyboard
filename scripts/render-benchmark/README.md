@@ -17,6 +17,11 @@ separating strip/key damage, plus a Hybrid trial. See `docs/stage3a-results.md` 
 per-trial numbers, cause breakdown and final runtime evidence. Incomplete samples are
 isolated under `tails-incomplete-*` and excluded.
 
+`cpu-trials.py` runs those alternating Compose/Rust trials end to end with attribution on
+(steps 3 to 5 below), each into a new folder; `dirty-vs-full.py` checks on the device that the
+keyboard after many narrowed frames equals a fresh full redraw. Their use and the 2026-11-17
+numbers are in `docs/cpu-p95-results.md`.
+
 Open the chosen emulator with the T3 device tools and use the returned agent-device command
 for all UI actions. After boot, use the returned runtime device ID (for example,
 `emulator-5556`) for screenshot/close; the AVD name may no longer resolve. Set `ANDROID_SERIAL` to that emulator's serial for every adb command,

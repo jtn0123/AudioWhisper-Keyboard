@@ -158,8 +158,9 @@ its phone checks pass.
   1. a real TalkBack session on the phone;
   2. the Samsung font check;
   3. font scale 2.0;
-  4. the CPU gate: warm scene p95 at most 2 ms. The last measurement was 4.7–5.5 ms
-     ([rust.md](rust.md)).
+  4. the CPU gate: warm scene p95 at most 2 ms, on the S24 Ultra at 120 Hz. The emulator
+     has passed it since 2026-11-17 (p95 1.257 and 1.107 ms, [results](cpu-p95-results.md));
+     the phone measurement that settles it is in [decisions](decisions.md#the-keyboards-cpu-gate-stays-2-ms-settled-on-the-phone-at-120-hz-2026-11-17).
 * **The fallback loses, meanwhile:** every keyboard feature added after 2026-11-16, under
   the freeze above.
 
