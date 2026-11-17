@@ -90,6 +90,16 @@ history, timestamps and cancel. It keeps inline autofill views, GIF fetching/dec
 AccessibilityNodeProvider. Rust supplies the TalkBack semantic snapshot (stable ids, bounds,
 labels, roles and actions), following AOSP LatinIME's accessibility delegate.
 
+Rust also decides the order a screen reader reads, in `render/src/reading_order.rs`: the order
+a sighted person scans. The strip above the keys comes first (the Smartbar's buttons and words,
+or the typed-text preview, or the search strip), then the keys or the open panel. Each reads
+row by row, top to bottom, and each row left to right as drawn. A popup's choices read as one
+block straight after the key or item that opened it: a held key's accents, an emoji's variants,
+a clipboard item's menu, the clear-history dialog after its button. A backdrop or scrolling area
+reads just before the first thing inside it. Each node names the one read before it, and Kotlin
+passes that to Android as a traversal hint. Each node also keeps its drawing layer, so a touch
+still lands on what is drawn on top, such as a popup over the keys.
+
 Rust takes ANativeWindow through JNI, owns a render thread with surface-generation ids, and
 renders only dirty or animating frames using Choreographer timestamps. It owns the scene,
 hit testing, keys, smartbar, candidates, panels, glide trail and popups inside an enlarged
