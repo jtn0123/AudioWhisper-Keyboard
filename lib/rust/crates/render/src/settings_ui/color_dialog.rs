@@ -216,7 +216,14 @@ impl App {
         }
         self.paint_image(p, &name, b, clip);
     }
-    fn tap_control(&mut self, id: i32, b: Rect, label: String, selected: bool, tap: Tap) {
+    pub(super) fn tap_control(
+        &mut self,
+        id: i32,
+        b: Rect,
+        label: String,
+        selected: bool,
+        tap: Tap,
+    ) {
         self.controls.push(Control {
             id,
             bounds: b,
@@ -281,7 +288,7 @@ impl App {
         top + height + self.px(12.0)
     }
     /// An image named `name` drawn at `w` x `h` pixels, made once; others of its kind dropped.
-    fn cached(
+    pub(super) fn cached(
         &mut self,
         name: &str,
         w: usize,

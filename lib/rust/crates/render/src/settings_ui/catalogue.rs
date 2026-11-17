@@ -100,6 +100,9 @@ pub enum Kind {
     /// Jetpref's ColorPickerPreference with the advanced layout: a swatch at the end, and a
     /// dialog of presets or a hue, saturation and value picker (`picker.rs`).
     Color,
+    /// Jetpref's LocalTimePickerPreference: the time as its summary, and Material's time
+    /// picker dialog (`time.rs`).
+    Time,
 }
 /// A JetPrefAlertDialog asking to confirm an effect.
 #[derive(Clone, Copy, Debug)]

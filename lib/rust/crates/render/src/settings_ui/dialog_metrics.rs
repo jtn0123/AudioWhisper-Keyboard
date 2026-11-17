@@ -61,6 +61,7 @@ impl App {
                 vec![(message, String::new(), rh)]
             }
             Kind::Color => vec![(String::new(), String::new(), self.color_height(width, text))],
+            Kind::Time => vec![(String::new(), String::new(), self.time_height(text))],
             _ => Vec::new(),
         }
     }

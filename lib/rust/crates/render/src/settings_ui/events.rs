@@ -59,7 +59,11 @@ impl App {
                     Kind::Spell => self
                         .effects
                         .push(vec!["intent".into(), "spellCheckerSettings".into()]),
-                    Kind::Choice(_) | Kind::Slider(_) | Kind::Confirm(..) | Kind::Color => {
+                    Kind::Choice(_)
+                    | Kind::Slider(_)
+                    | Kind::Confirm(..)
+                    | Kind::Color
+                    | Kind::Time => {
                         if self.editor.focused {
                             self.editor.focused = false;
                             self.editor.composing = None;
@@ -419,7 +423,7 @@ impl App {
                 }
                 self.down = Some((id, x, y, t));
                 self.last = (x, y);
-                self.drag_at(id, x, y);
+                self.drag_at(id, x, y, true);
             } else if e.action == 2 {
                 let Some((id, ..)) = self.down else {
                     continue;
@@ -433,7 +437,7 @@ impl App {
                             min + (max - min) * (x - c.bounds.left) / c.bounds.width(),
                         );
                     }
-                } else if self.drag_at(id, x, y) {
+                } else if self.drag_at(id, x, y, false) {
                 } else if id == 20 || id == 21 {
                     // The handles disappear at a collapsed range. Keep the original
                     // grabbed endpoint/opposite anchor so the same drag can cross it.
@@ -472,7 +476,7 @@ impl App {
                     }
                 }
                 if let Some(id) = held {
-                    self.released(id);
+                    self.released(id, x, y);
                 }
                 self.dragging = false;
             }

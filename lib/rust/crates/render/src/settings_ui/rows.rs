@@ -134,6 +134,10 @@ impl App {
             }
             Kind::Effect(Do::Copy) => self.version(),
             Kind::Status(model) => self.model_summary(model),
+            Kind::Time => {
+                let (hour, minute) = self.time_of(r.key);
+                super::time::shown(hour, minute, self.is24())
+            }
             _ if r.summary.is_empty() => String::new(),
             _ if r.arg.0.is_empty() => self.label(r.summary),
             _ => self
@@ -146,6 +150,7 @@ impl App {
     pub fn string_keys() -> Vec<&'static str> {
         let mut out: Vec<&'static str> = CODE_KEYS.to_vec();
         out.extend(super::color_dialog::KEYS);
+        out.extend(super::time_dialog::KEYS);
         out.extend(super::catalogue::HOME.iter().map(|h| h.1));
         for screen in super::catalogue::SCREENS {
             out.push(screen.title);

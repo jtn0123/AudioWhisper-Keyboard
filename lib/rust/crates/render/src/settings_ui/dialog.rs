@@ -16,10 +16,14 @@ impl App {
         } else {
             320.0 * d
         };
-        let width = (window - 32.0 * d)
-            .max(280.0 * d)
-            .min(560.0 * d)
-            .min(w - 32.0 * d);
+        let width = if matches!(r.kind, Kind::Time) {
+            self.time_width()
+        } else {
+            (window - 32.0 * d)
+                .max(280.0 * d)
+                .min(560.0 * d)
+                .min(w - 32.0 * d)
+        };
         let left = (w - width) / 2.0;
         // Compose's AlertDialog keeps 16 dp from the window edge on tall screens (measured on device: 42 px at 2.625).
         let padding = if h < 600.0 * d { 8.0 * d } else { 16.0 * d };
@@ -179,6 +183,7 @@ impl App {
                 }
             }
             Kind::Color => y = self.color_content(p, text, (left, y), width, clip),
+            Kind::Time => y = self.time_content(p, text, (left, y), width, clip),
             Kind::Confirm(..) => {
                 let (message, _, rh) = &rows[0];
                 self.paint_text(

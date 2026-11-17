@@ -19,6 +19,10 @@ mod picker;
 mod rows;
 pub use rows::CODE_KEYS;
 mod scrollbar;
+pub mod time;
+mod time_dial;
+mod time_dialog;
+mod time_events;
 mod widgets;
 use crate::panel_scroll::Fling;
 use editor::{Batches, Editor};
@@ -140,6 +144,12 @@ pub struct App {
     pub licences: licences::State,
     /// The open colour or time dialog's state; only read while `modal` shows such a row.
     pub picker: Option<picker::Picker>,
+    /// The time rows whose dialog opens on the keyboard: Jetpref remembers each one's display
+    /// mode while its screen stays composed.
+    pub time_inputs: Vec<&'static str>,
+    /// 45 sp and 57 sp in pixels as Android's `applyDimension` gives them, which grows large
+    /// text less than linearly; zero until Kotlin sends them.
+    pub display_pixels: [f32; 2],
 }
 impl Default for App {
     fn default() -> Self {
@@ -192,6 +202,8 @@ impl Default for App {
             velocity: Default::default(),
             licences: Default::default(),
             picker: None,
+            time_inputs: vec![],
+            display_pixels: [0.0; 2],
         }
     }
 }
@@ -214,6 +226,7 @@ impl App {
     }
     pub fn navigate(&mut self, route: &str) {
         self.fling = None;
+        self.time_inputs.clear();
         self.end_scroll_cycle();
         if self.editor.focused {
             self.editor.focused = false;
@@ -304,12 +317,14 @@ impl App {
         self.back_progress = 0.0;
         if self.modal.take().is_some() {
             self.focus = -1;
+            self.leave_dialog_field();
         } else if self.editor.focused {
             self.editor.focused = false;
             self.editor.composing = None;
             self.effects.push(vec!["hideEditor".into()]);
         } else if self.stack.len() > 1 {
             self.release_field();
+            self.time_inputs.clear();
             self.stack.pop();
             self.scrolls.pop();
             self.focus = -1;

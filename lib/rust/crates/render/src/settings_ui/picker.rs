@@ -1,4 +1,5 @@
-//! What the colour dialog's controls do. It is Jetpref's ColorPickerPreference with
+//! What the colour and time dialogs' controls do; the time dialog's own rules are in
+//! `time_events.rs`. The colour dialog is Jetpref's ColorPickerPreference with
 //! `enableAdvancedLayout = true` and no alpha slider: a Presets page (19 swatches and the system
 //! accent as Default) and a Custom page (JetPrefColorPicker: a saturation/value plane, a hue bar
 //! and a text field), the neutral button switching between them. Its state is Compose's, kept
@@ -9,6 +10,8 @@ use super::{
     Action, App,
     catalogue::Kind,
     color::{self, Format, PRESETS},
+    time::TimePicker,
+    time_events::TimeTap,
 };
 
 /// The dialog field index `App.field` holds for the colour text field (control 7000); the time
@@ -26,6 +29,8 @@ pub enum Tap {
     Edit,
     Apply,
     Discard,
+    /// One of the time dialog's.
+    Time(TimeTap),
 }
 
 /// A surface the finger drags.
@@ -33,12 +38,15 @@ pub enum Tap {
 pub enum Surface {
     Plane,
     Hue,
+    /// The time picker's clock dial.
+    Dial,
 }
 
 /// The open dialog's state.
 #[derive(Clone, Debug, PartialEq)]
 pub enum Picker {
     Color(ColorPicker),
+    Time(TimePicker),
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -118,8 +126,12 @@ impl App {
                 self.swatch(r.key),
                 self.system_accent(),
             ))),
+            Kind::Time => Some(self.open_time(r.key)),
             _ => None,
         };
+        if self.time_input_open() {
+            self.focus_time_field();
+        }
     }
     /// The open colour dialog's state.
     pub fn color_picker(&self) -> Option<&ColorPicker> {
@@ -138,7 +150,7 @@ impl App {
     }
     /// Whether the dialog showing is a colour or time picker, whose buttons act on it.
     pub(super) fn picker_open(&self) -> bool {
-        self.color_picker().is_some()
+        self.color_picker().is_some() || self.time_picker().is_some()
     }
     /// The neutral button (`confirm` false) or OK.
     pub(super) fn picker_button(&mut self, confirm: bool) {
@@ -146,6 +158,9 @@ impl App {
             return;
         };
         let key = self.rows()[m.row].key;
+        if self.time_picker().is_some() {
+            return self.time_button(key, confirm);
+        }
         let Some(p) = self.color_picker_mut() else {
             return;
         };
@@ -171,6 +186,9 @@ impl App {
         self.leave_dialog_field();
     }
     pub(super) fn tap(&mut self, t: Tap) {
+        if let Tap::Time(t) = t {
+            return self.time_tap(t);
+        }
         let typed =
             (self.field == Some(HEX_FIELD)).then(|| String::from_utf16_lossy(&self.editor.text));
         let Some(p) = self.color_picker_mut() else {
@@ -209,11 +227,12 @@ impl App {
                 (p.editing, p.error) = (false, false);
                 self.leave_dialog_field();
             }
+            Tap::Time(_) => {}
         }
     }
-    /// A finger down or moving on control `id`: the plane or hue bar follows it, clamped to its
-    /// ends. False when `id` is not such a surface.
-    pub(super) fn drag_at(&mut self, id: i32, x: f32, y: f32) -> bool {
+    /// A finger down (`first`) or moving on control `id`: the plane or hue bar follows it,
+    /// clamped to its ends, and the dial its own way. False when `id` is not such a surface.
+    pub(super) fn drag_at(&mut self, id: i32, x: f32, y: f32, first: bool) -> bool {
         let Some(c) = self.controls.iter().find(|c| c.id == id).cloned() else {
             return false;
         };
@@ -221,6 +240,10 @@ impl App {
             return false;
         };
         let b = c.bounds;
+        if surface == Surface::Dial {
+            self.dial_at(b, (x, y), first);
+            return true;
+        }
         let Some(p) = self.color_picker_mut() else {
             return true;
         };
@@ -235,25 +258,25 @@ impl App {
             }
             // The hue bar's control is the track, made 48 dp tall as a touch reaches it.
             Surface::Hue => p.hsv[0] = along(x, b.left, b.width()) * 360.0,
+            Surface::Dial => {}
         }
         p.value = p.color();
         true
     }
-    /// The finger lifted from control `id`: a slider reports its value.
-    pub(super) fn released(&mut self, id: i32) {
-        let action = self
-            .controls
-            .iter()
-            .find(|c| c.id == id)
-            .map(|c| c.action.clone());
-        if let Some(Action::Slider(slot)) = action {
-            self.slider_finished(slot);
+    /// The finger lifted at (`x`, `y`) from control `id`: a slider reports its value, the dial
+    /// ends its drag or takes the tap.
+    pub(super) fn released(&mut self, id: i32, x: f32, y: f32) {
+        let control = self.controls.iter().find(|c| c.id == id);
+        match control.map(|c| (c.action.clone(), c.bounds)) {
+            Some((Action::Slider(slot), _)) => self.slider_finished(slot),
+            Some((Action::Drag(Surface::Dial), b)) => self.dial_released(b, (x, y)),
+            _ => {}
         }
     }
     /// The dialog's focusable controls in order, ahead of its buttons.
     pub(super) fn picker_focus(&self) -> Vec<i32> {
         let Some(p) = self.color_picker() else {
-            return vec![];
+            return self.time_focus();
         };
         match (p.custom, p.editing) {
             (false, _) => (7100..7100 + PRESETS.len() as i32).chain([7120]).collect(),
@@ -273,12 +296,18 @@ impl App {
     }
     /// The text field a dialog shows as control `id`: its editor when it is open for editing.
     pub(super) fn dialog_field(&self, id: i32) -> Option<super::editor::Editor> {
-        let p = self.color_picker()?;
+        let Some(p) = self.color_picker() else {
+            return self.time_dialog_field(id);
+        };
         (id == 1000 + HEX_FIELD as i32 && p.custom && p.editing)
             .then(|| super::fields::with_text(&p.text))
     }
-    /// After an edit in a dialog field: the colour field keeps its text.
+    /// After an edit in a dialog field: the colour field keeps its text, a time field follows
+    /// TimeInput's rules.
     pub(super) fn sync_dialog_field(&mut self) {
+        if self.field != Some(HEX_FIELD) {
+            return self.time_typed();
+        }
         let typed = String::from_utf16_lossy(&self.editor.text);
         if let Some(p) = self.color_picker_mut() {
             p.text = typed;
@@ -286,7 +315,8 @@ impl App {
     }
     /// A dialog field still holding the keyboard after its dialog went away returns it.
     pub(super) fn settle_picker(&mut self) {
-        let open = self.color_picker().is_some_and(|p| p.custom && p.editing);
+        let open =
+            self.color_picker().is_some_and(|p| p.custom && p.editing) || self.time_input_open();
         if !open {
             self.leave_dialog_field();
         }

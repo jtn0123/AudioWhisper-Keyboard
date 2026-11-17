@@ -74,7 +74,7 @@ fn reply(
     let effects = std::mem::take(&mut a.effects);
     let result = json!({"nodes":nodes,"mode":"","shift":"","popup":a.modal.is_some(),"effects":effects,
         "systemBarColor":a.system_bar_color(),"lightSystemBars":a.light_system_bars(),"route":a.stack.last(),"canBack":a.stack.len()>1 || a.modal.is_some() || a.editor.focused,"scroll":a.scroll(),"maxScroll":a.max_scroll,"focus":a.focus,
-        "animating":a.animating(),"scrollbarAlpha":a.scrollbar_alpha(usize::from(a.modal.is_some())),"selectionToolbar":a.editor.focused && a.editor.anchor!=a.editor.focus && !a.toolbar_dismissed,"accepted":a.accepted,"editor":{"anchor":a.editor.anchor,"focus":a.editor.focus,"composing":a.editor.composing,"focused":a.editor.focused,"report":a.batches.report(),"bounds":field,"multiLine":a.field.is_some()}});
+        "animating":a.animating(),"scrollbarAlpha":a.scrollbar_alpha(usize::from(a.modal.is_some())),"selectionToolbar":a.editor.focused && a.editor.anchor!=a.editor.focus && !a.toolbar_dismissed,"accepted":a.accepted,"editor":{"anchor":a.editor.anchor,"focus":a.editor.focus,"composing":a.editor.composing,"focused":a.editor.focused,"report":a.batches.report(),"bounds":field,"multiLine":a.field.is_some() && a.number_field().is_none(),"number":a.number_field()}});
     let mut out = vec![
         settings::text(&result.to_string()),
         a.editor.text.clone(),
@@ -164,6 +164,10 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_settings(
                                 .map_err(|_| illegal("settings late colors"))?;
                         }
                     }
+                    // 45 sp and 57 sp, the time picker's display sizes, past the sp table.
+                    if p.len() > 62 {
+                        a.display_pixels = [float(&p, 61)?, float(&p, 62)?];
+                    }
                     a.config = c;
                     a.colors = colors;
                     a.ime_enabled = field(&p, 10)? == "true";
@@ -184,34 +188,37 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_settings(
                         let key = int(&p, 1)?;
                         let unicode = int(&p, 2)?;
                         if a.editor.focused {
-                            match key {
-                                67 => a.editor.backspace(),
-                                // A multi-line field takes Enter as a new line, finishing any
-                                // composition first as Compose's TextFieldKeyInput does.
-                                66 if a.field.is_some() => {
-                                    a.editor.composing = None;
-                                    a.accepted = a.editor.replace(&[10], 1, false);
-                                }
-                                66 => {
-                                    a.editor.focused = false;
-                                    a.editor.composing = None;
-                                    a.effects.push(vec!["hideEditor".into()]);
-                                }
-                                21 | 22 => {
-                                    let n = (a.editor.focus as i32
-                                        + if key == 21 { -1 } else { 1 })
-                                    .clamp(0, a.editor.text.len() as i32);
-                                    a.editor.select(n, n);
-                                }
-                                _ => {
-                                    if let Some(c) =
-                                        char::from_u32(unicode as u32).filter(|c| !c.is_control())
-                                    {
-                                        a.accepted = a.editor.replace(
-                                            &c.to_string().encode_utf16().collect::<Vec<_>>(),
-                                            1,
-                                            false,
-                                        );
+                            // A time field's Enter and step back to the hour come first.
+                            if !a.field_key(key, unicode) {
+                                match key {
+                                    67 => a.editor.backspace(),
+                                    // A multi-line field takes Enter as a new line, finishing any
+                                    // composition first as Compose's TextFieldKeyInput does.
+                                    66 if a.field.is_some() => {
+                                        a.editor.composing = None;
+                                        a.accepted = a.editor.replace(&[10], 1, false);
+                                    }
+                                    66 => {
+                                        a.editor.focused = false;
+                                        a.editor.composing = None;
+                                        a.effects.push(vec!["hideEditor".into()]);
+                                    }
+                                    21 | 22 => {
+                                        let n = (a.editor.focus as i32
+                                            + if key == 21 { -1 } else { 1 })
+                                        .clamp(0, a.editor.text.len() as i32);
+                                        a.editor.select(n, n);
+                                    }
+                                    _ => {
+                                        if let Some(c) = char::from_u32(unicode as u32)
+                                            .filter(|c| !c.is_control())
+                                        {
+                                            a.accepted = a.editor.replace(
+                                                &c.to_string().encode_utf16().collect::<Vec<_>>(),
+                                                1,
+                                                false,
+                                            );
+                                        }
                                     }
                                 }
                             }

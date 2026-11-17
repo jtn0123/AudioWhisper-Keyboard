@@ -1,5 +1,6 @@
 package com.jtn0123.audiowhisper.settingsui
 
+import android.accessibilityservice.AccessibilityServiceInfo
 import android.app.Activity
 import android.content.ComponentName
 import android.content.res.Configuration
@@ -10,6 +11,8 @@ import android.graphics.drawable.Drawable
 import android.os.Handler
 import android.os.Looper
 import android.provider.Settings
+import android.text.format.DateFormat
+import android.view.accessibility.AccessibilityManager
 import android.widget.Toast
 import androidx.core.content.res.ResourcesCompat
 import androidx.core.graphics.createBitmap
@@ -58,7 +61,22 @@ internal class SettingsFacts(private val activity: Activity) {
             AndroidSettings.Secure.getString(activity, "spell_checker_enabled"),
             AndroidSettings.Secure.getString(activity, "selected_spell_checker"),
         ) { pkg -> runCatching { pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)).toString() }.getOrNull() } +
-            models.toTypedArray() + arrayOf("system_accent", systemAccent().toUInt().toString())
+            models.toTypedArray() + arrayOf("system_accent", systemAccent().toUInt().toString()) +
+            arrayOf("is24hour", DateFormat.is24HourFormat(activity).toString(), "accessibility_touch", accessibilityTouch().toString())
+    }
+
+    /**
+     * Material's `rememberAccessibilityServiceState`, which turns the time picker's move to the
+     * minute off: accessibility on, with touch exploration, Switch Access or Voice Access.
+     */
+    private fun accessibilityTouch(): Boolean {
+        val am = activity.getSystemService(AccessibilityManager::class.java) ?: return false
+        if (!am.isEnabled) return false
+        return am.isTouchExplorationEnabled ||
+            am.getEnabledAccessibilityServiceList(AccessibilityServiceInfo.FEEDBACK_GENERIC).any { info ->
+                val name = info.settingsActivityName.orEmpty()
+                name.contains("SwitchAccess", ignoreCase = true) || name.contains("VoiceAccess", ignoreCase = true)
+            }
     }
 
     /** Jetpref's `safeValue` of no colour: the colour pickers' Default, which OK stores as none. */

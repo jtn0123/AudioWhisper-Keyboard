@@ -22,12 +22,20 @@ internal class SettingsInputView(context: Context) : View(context) {
         // A multi-line field (DictationScreen's vocabulary) gets what Compose's EditorInfo.update
         // makes of the default ImeAction there: no action, so Enter is a new line, and no
         // fullscreen mode.
+        // A time field gets TimeInput's KeyboardOptions: a number keyboard, Next on the hour and
+        // Done on the minute.
         val multiLine = host.multiLine
-        outAttrs.inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_AUTO_CORRECT or
-            (if (multiLine) InputType.TYPE_TEXT_FLAG_MULTI_LINE else 0)
-        outAttrs.imeOptions = if (multiLine) {
-            EditorInfo.IME_ACTION_UNSPECIFIED or EditorInfo.IME_FLAG_NO_ENTER_ACTION or EditorInfo.IME_FLAG_NO_FULLSCREEN
-        } else EditorInfo.IME_ACTION_DONE or EditorInfo.IME_FLAG_NO_EXTRACT_UI
+        val number = host.numberAction
+        outAttrs.inputType = when {
+            number != null -> InputType.TYPE_CLASS_NUMBER
+            else -> InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_AUTO_CORRECT or
+                (if (multiLine) InputType.TYPE_TEXT_FLAG_MULTI_LINE else 0)
+        }
+        outAttrs.imeOptions = when {
+            number == "next" -> EditorInfo.IME_ACTION_NEXT or EditorInfo.IME_FLAG_NO_EXTRACT_UI
+            multiLine -> EditorInfo.IME_ACTION_UNSPECIFIED or EditorInfo.IME_FLAG_NO_ENTER_ACTION or EditorInfo.IME_FLAG_NO_FULLSCREEN
+            else -> EditorInfo.IME_ACTION_DONE or EditorInfo.IME_FLAG_NO_EXTRACT_UI
+        }
         outAttrs.initialSelStart = host.anchor
         outAttrs.initialSelEnd = host.selectionEnd
         return object : BaseInputConnection(this, true) {

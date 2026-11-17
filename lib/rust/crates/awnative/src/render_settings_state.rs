@@ -5,12 +5,14 @@ use render::settings_ui::{
 };
 use settings::{Text, text};
 pub fn save(a: &App) -> Vec<Text> {
-    // LibrariesContainer keeps its open library, and Jetpref's colour preference its dialog, in a
-    // plain `remember`: recreation closes them.
-    let m = a
-        .modal
-        .as_ref()
-        .filter(|m| !matches!(a.rows()[m.row].kind, Kind::Libraries | Kind::Color));
+    // LibrariesContainer keeps its open library, and Jetpref's colour and time preferences their
+    // dialogs, in a plain `remember`: recreation closes them.
+    let m = a.modal.as_ref().filter(|m| {
+        !matches!(
+            a.rows()[m.row].kind,
+            Kind::Libraries | Kind::Color | Kind::Time
+        )
+    });
     let e = a.preview_editor();
     vec![
         text("2"),

@@ -57,6 +57,8 @@ internal class RustSettingsView(context: Context) : FrameLayout(context), Surfac
     internal val anchor get() = state.getValue("editor").jsonObject.getValue("anchor").jsonPrimitive.int
     internal val selectionEnd get() = state.getValue("editor").jsonObject.getValue("focus").jsonPrimitive.int
     internal val multiLine get() = state.getValue("editor").jsonObject["multiLine"]?.jsonPrimitive?.boolean == true
+    /** A time field's number keyboard: its action, "next" or "done"; null for a text field. */
+    internal val numberAction get() = state.getValue("editor").jsonObject["number"]?.jsonPrimitive?.contentOrNull
     private val accessibility = RendererAccessibility(this, { state.toString() }, { id, action ->
         if (action == 4 || action == 5) send(17, id.toString(), action.toString()) else send(5, id.toString())
         true
@@ -174,7 +176,11 @@ internal class RustSettingsView(context: Context) : FrameLayout(context), Surfac
             colors.drop(6).take(6).map { it.toUInt().toString() }.toTypedArray() + (0..32).map {
                 android.util.TypedValue.applyDimension(android.util.TypedValue.COMPLEX_UNIT_SP, it.toFloat(), metrics).toString()
             }.toTypedArray() + arrayOf(platform.dialogWindowWidth().toString(), colors[12].toUInt().toString()) + platform.vibratorFacts() +
-            colors[13].toUInt().toString() + colors.drop(14).map { it.toUInt().toString() }.toTypedArray()
+            colors[13].toUInt().toString() + colors.drop(14).map { it.toUInt().toString() }.toTypedArray() +
+            // The time picker's displayMedium and displayLarge, past the sp table above.
+            arrayOf(45f, 57f).map {
+                android.util.TypedValue.applyDimension(android.util.TypedValue.COMPLEX_UNIT_SP, it, metrics).toString()
+            }.toTypedArray()
         receive(native.settings(3, config))
         pushFacts()
     }
