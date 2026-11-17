@@ -1,7 +1,11 @@
 //! Theme (stage4-other-theme.md): the rows the theme mode enables, the day and night themes named
 //! from the extension index Kotlin reports, the links into the Compose theme manager and the
 //! extension list, and the sunrise and sunset dialog driven by finger and by keyboard.
-use render::{settings_ui::App, text::Text, touch::Motion};
+use render::{
+    settings_ui::{App, time},
+    text::Text,
+    touch::Motion,
+};
 
 const DAY: &str = "org.florisboard.themes:floris_day";
 const NIGHT: &str = "org.florisboard.themes:floris_night";
@@ -390,4 +394,27 @@ fn enter_on_the_hour_and_a_key_at_the_minute_s_start_move_between_the_fields() {
         a.effects.last().unwrap(),
         &["write", "theme__sunset_time", "01:00:00.000"]
     );
+}
+
+#[test]
+fn a_dragged_hand_trails_the_finger_by_the_touch_slop() {
+    let (mut a, mut text) = app(&[("theme__mode", "FOLLOW_TIME")], &[("is24hour", "true")]);
+    let row = id(&a, "theme__sunrise_time");
+    assert!(act(&mut a, &mut text, row));
+    assert!(act(&mut a, &mut text, 7151));
+    a.scene(&mut text);
+    let r = control(&a, 7132).bounds.width() * 101.0 / 256.0;
+    let slop = (8.0f32 * 2.625 + 0.5).floor();
+    let (x, y) = on_dial(&a, 0.0, 101.0);
+    touch(&mut a, 0, (x, y), 1);
+    // Sideways past the slop: detectDragGestures reports the finger less the slop, 30 px
+    // right of 12, not where the finger is.
+    touch(&mut a, 2, (x + slop + 30.0, y), 2);
+    let trailed = time::nearest(time::turn(30.0, -r), 60);
+    assert_ne!(trailed, time::nearest(time::turn(slop + 30.0, -r), 60));
+    assert_eq!(a.time_picker().unwrap().minute, trailed);
+    // Later moves keep the same offset.
+    touch(&mut a, 2, (x + slop + 30.0, y + r), 3);
+    let p = a.time_picker().unwrap();
+    assert_eq!(p.minute, time::nearest(time::turn(30.0, 0.0), 60));
 }

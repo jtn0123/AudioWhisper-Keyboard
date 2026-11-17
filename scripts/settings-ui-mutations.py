@@ -1,5 +1,5 @@
-"""Require fresh JVM assertion failures for each UI, editor, group 1, group 2 and licences mutation, and
-fresh Rust test panics for each mutation that only Rust tests see; always restore bytes."""
+"""Require fresh JVM assertion failures for each UI, editor, group 1, group 2, licences, Other and Theme
+mutation, and fresh Rust test panics for each mutation that only Rust tests see; always restore bytes."""
 import argparse
 import hashlib
 import json
@@ -13,6 +13,7 @@ BASE = ROOT / 'lib/rust/crates'
 CAT = BASE / 'render/src/settings_ui/catalogue'
 LIC = BASE / 'render/src/settings_ui/licences'
 SETTINGS = ROOT / 'app/src/main/kotlin/com/jtn0123/audiowhisper/settings'
+UI = BASE / 'render/src/settings_ui'
 SYNC_CLEAR, SYNC_SET = ('    (\n        "ONLY_{0}_EVENTS",\n        "enum__clipboard_sync_behavior__only_{1}_events",\n'
                          '        "enum__clipboard_sync_behavior__only_{1}_events__description",\n    ),\n'
                          .format(event, event.lower()) for event in ('CLEAR', 'SET'))
@@ -105,6 +106,39 @@ CASES = [
     ('every-row-drawn', LIC / 'list.rs', '            if top >= clip.bottom {\n                break;\n            }\n', ''),    # TalkBack pages a list by the scroll node's own height, as Compose does: must fail a Rust test.
     ('talkback-page-fraction', BASE / 'render/src/settings_ui/events.rs',
      'self.set_scroll(self.scroll() + direction * page);', 'self.set_scroll(self.scroll() + direction * page * 0.6);'),
+    # Other and Theme (stage4-other-theme.md): each must fail SettingsOtherThemeMatchTest or
+    # SettingsUiMatchTest, or the Rust test named below.
+    ('theme-day-enabled-by-night', CAT / 'theme.rs',
+     '.on(Cond::Not("theme__mode", "ALWAYS_NIGHT"))', '.on(Cond::Not("theme__mode", "ALWAYS_DAY"))'),
+    ('times-follow-system', CAT / 'theme.rs',
+     'Cond::Is("theme__mode", "FOLLOW_TIME")', 'Cond::Is("theme__mode", "FOLLOW_SYSTEM")'),
+    ('theme-no-preview', CAT / 'theme.rs', '    preview: true,\n    rows: ROWS,', '    preview: false,\n    rows: ROWS,'),
+    ('addon-list-without-update', CAT / 'theme.rs',
+     'route: "ext/list/EXT_THEME?showUpdate=true",', 'route: "ext/list/EXT_THEME",'),
+    ('backup-opens-restore', CAT / 'other.rs',
+     'Kind::Route("settings/other/backup")', 'Kind::Route("settings/other/restore")'),
+    ('theme-route-dropped', UI / 'catalogue.rs', '    theme::SCREEN,\n', ''),
+    ('theme-label-not-looked-up', UI / 'rows.rs', 'format!("theme_label:{id}")', 'format!("theme:{id}")'),
+    ('theme-id-any-colons', UI / 'rows.rs', "stored.matches(':').count() == 1", "stored.contains(':')"),
+    ('theme-label-facts-misnamed', ROOT / 'app/src/main/kotlin/com/jtn0123/audiowhisper/settingsui/SettingsFacts.kt',
+     'listOf("theme_label:$id", label)', 'listOf("theme:$id", label)'),
+    ('addon-title-not-lowercased', UI / 'addons.rs', '&self.label(a.title).to_lowercase()', '&self.label(a.title)'),
+    ('time-hour-padded', UI / 'time.rs', 'format!("{h}:{minute:02}")', 'format!("{h:02}:{minute:02}")'),
+    ('time-noon-am', UI / 'time.rs', 'if hour >= 12 { "PM" } else { "AM" }', 'if hour > 12 { "PM" } else { "AM" }'),
+    ('time-stored-milliseconds', UI / 'time.rs',
+     'format!("{hour:02}:{minute:02}:00.000")', 'format!("{hour:02}:{minute:02}:00.001")'),
+    ('time-enter-on-hour-finishes', UI / 'time_events.rs', 'if key == 66 && j == 1 {', 'if key == 66 {'),
+    ('accent-stored-as-colour', UI / 'color.rs', '    if argb == system_accent {', '    if argb == 0 {'),
+    ('time-drag-rounds-down', UI / 'time.rs',
+     '(angle / TAU * f32::from(marks) + 0.5).floor()', '(angle / TAU * f32::from(marks)).floor()'),
+    ('dial-moves-on-under-accessibility', UI / 'time_events.rs',
+     '        p.minutes |= autoswitch;\n        self.time_changed(was);', '        p.minutes = true;\n        self.time_changed(was);'),
+    ('drag-without-slop-trail', UI / 'time_events.rs',
+     'let (dx, dy) = (x - sx - centre.0, y - sy - centre.1);', 'let (dx, dy) = (x - centre.0 + 0.0 * sx, y - centre.1 + 0.0 * sy);'),
+    ('keyboard-mode-forgotten', UI / 'time_events.rs', '                        self.time_inputs.push(key);\n', ''),
+    ('time-default-button-keeps', UI / 'time_events.rs',
+     '        if confirm {\n            self.write(key, stored);\n        } else {\n            self.reset(key);\n        }',
+     '        if confirm {\n            self.write(key, stored);\n        }'),
 ]
 # The Rust test binary that must panic for each Rust-only case.
 RUST = dict.fromkeys([
@@ -116,6 +150,11 @@ RUST = dict.fromkeys([
     'switch-half-pixel-track',
     'linked-divider-inside',
 ], 'settings_ui_overscroll') | dict.fromkeys([
+    'dial-moves-on-under-accessibility',
+    'drag-without-slop-trail',
+    'keyboard-mode-forgotten',
+    'time-default-button-keeps',
+], 'settings_ui_theme') | {'time-drag-rounds-down': 'settings_ui_time'} | dict.fromkeys([
     'confirm-generic-buttons',
     'field-minimum-outside-padding',
     'card-content-onsurface',
@@ -141,7 +180,7 @@ def run(output, name):
     with (output / (name + '.log')).open('wb') as log:
         result = subprocess.run(['./gradlew', ':app:testDebugUnitTest', '--tests', '*SettingsEditorMatchTest',
                                  '--tests', '*SettingsUi*MatchTest', '--tests', '*SettingsGroupOneMatchTest', '--tests', '*SettingsGroupTwoMatchTest',
-                                 '--tests', '*SettingsLicencesMatchTest',
+                                 '--tests', '*SettingsLicencesMatchTest', '--tests', '*SettingsOtherThemeMatchTest',
                                  '--tests', '*SettingsResourcesTest'], cwd=ROOT, stdout=log, stderr=subprocess.STDOUT)
     failures = []
     for path in (ROOT / 'app/build/test-results/testDebugUnitTest').glob('TEST-*settingsui.Settings*Test.xml'):
