@@ -628,3 +628,21 @@ to the JNI call for another reason (then tag the odds with it and close both sta
 layout's keys are much smaller than QWERTY's (the factor is in key widths, so it scales, but the cap may need to shrink); if a
 better language model is shipped (re-tune the factor against it); or if real taps can be measured
 without logging them and spread wider or narrower than 0.2 key, which sets the factor.
+
+## The emulator's settings baseline restores itself (2026-11-16)
+
+`scripts/settings-device-baseline.py` had a capture mode and `--verify`, which only compares,
+so nothing but `SettingsDevice.cleanup` inside a device-test run put the AVD back, and a run
+that died before its cleanup left the AVD in its fixture state (follow-up 3). It now has
+`--restore`: put back whatever differs (the Android settings, dark mode and log tags, then the
+app's files while its process is dead), bind the original keyboard, mute every stream, then
+check exactly as `--verify` does. `--verify` stays a check that changes nothing, rather than
+restoring first, because "passed before anything changed" is what a run's receipt says about
+the state it found; a check that restored first could never fail and would hide a run that left
+the AVD dirty. A mismatch now names every differing part, still never a value. The device-test
+runner's exit trap restores. Tried on aw_keyboard_ssd the same day, after the polish checks:
+`--verify` failed naming `secure, files` (agent-device's keyboard had been enabled, and the app's
+files had changed), `--restore` put both back and checked them in about 3 s, a fresh `--verify`
+passed, and agent-device's keyboard was no longer enabled. **Would change if** the baseline gains a part the
+shell can't set back (then `--restore` must say so rather than pass), or a harness that owns the
+AVD's state replaces these scripts.

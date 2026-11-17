@@ -13,7 +13,7 @@ export ANDROID_SERIAL="$serial"
 if [[ ! -f "$baseline/baseline.json" ]]; then
     python3 -I scripts/settings-device-baseline.py "$serial" "$baseline"
 fi
-trap 'python3 -I scripts/settings-device-baseline.py "$serial" "$baseline" --verify' EXIT
+trap 'python3 -I scripts/settings-device-baseline.py "$serial" "$baseline" --restore' EXIT
 receipts="${SETTINGS_RECEIPTS:-build/stage4-followup3/instrumentation}"
 export SETTINGS_RECEIPTS="$receipts"
 mkdir -p "$receipts"
