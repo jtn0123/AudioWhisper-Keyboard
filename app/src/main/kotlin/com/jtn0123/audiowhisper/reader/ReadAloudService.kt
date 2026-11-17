@@ -94,8 +94,9 @@ class ReadAloudService : AccessibilityService() {
                 (engine?.let { NeuralVoice(this@ReadAloudService, it, onFocusLost = ::stopReading) }
                     ?: Speaker(this@ReadAloudService, onFocusLost = ::stopReading)).also { speaking = it }
             }
+            val unavailable = voice.unavailable()
             when {
-                !voice.isReady() -> tell(R.string.read_aloud__no_engine)
+                unavailable != null -> tell(unavailable, long = true)
                 voice.begin() -> readFrom(from, voice)
             }
         } finally {
@@ -250,8 +251,8 @@ class ReadAloudService : AccessibilityService() {
         return root to visible
     }
 
-    private suspend fun tell(@StringRes message: Int) = withContext(Dispatchers.Main) {
-        Toast.makeText(this@ReadAloudService, message, Toast.LENGTH_SHORT).show()
+    private suspend fun tell(@StringRes message: Int, long: Boolean = false) = withContext(Dispatchers.Main) {
+        Toast.makeText(this@ReadAloudService, message, if (long) Toast.LENGTH_LONG else Toast.LENGTH_SHORT).show()
     }
 
     private companion object {

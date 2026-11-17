@@ -59,7 +59,7 @@ internal class NeuralVoice(context: Context, private val engine: VoiceEngine, on
         scope.launch { follow() }
     }
 
-    override suspend fun isReady(): Boolean = true
+    override suspend fun unavailable(): Int? = null
 
     override fun begin(): Boolean = focus.take()
 

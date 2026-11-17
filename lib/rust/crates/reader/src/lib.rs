@@ -4,7 +4,8 @@
 //! a scroll and how text is cut for the speech engine ([`page_text`]); whether the block being
 //! read fits in view ([`follow_along`]); which of the screen's lists is the one that scrolls,
 //! what is in it and how to bring a web page's piece into view ([`screen`]); and whether a press
-//! of the speaker key was a tap or a hold ([`speaker_key`]).
+//! of the speaker key was a tap or a hold ([`speaker_key`]); and which of the phone's voices may
+//! read, never one that needs the network ([`voices`]).
 //!
 //! Text is UTF-16 units (`&[u16]`), as a Kotlin `String` is, judged by Kotlin's character rules
 //! (the `chars` crate).
@@ -15,6 +16,7 @@ pub mod follow_along;
 pub mod page_text;
 pub mod screen;
 pub mod speaker_key;
+pub mod voices;
 
 pub mod generator;
 pub mod play_queue;

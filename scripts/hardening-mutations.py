@@ -18,6 +18,9 @@ SPEC.loader.exec_module(RUNNER)
 CRATES = RUNNER.CRATES
 BOUNDS = CRATES + 'awnative/src/surface_bounds.rs'
 SUGGESTER = 'app/src/main/kotlin/com/jtn0123/audiowhisper/suggest/LatinSuggester.kt'
+VOICES = CRATES + 'reader/src/voices.rs'
+READER = 'lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/Reader.kt'
+OFFLINE_VOICE = 'app/src/main/kotlin/com/jtn0123/audiowhisper/reader/OfflineVoice.kt'
 # name: (file, before, after, how to test), as in glide-mutations.py.
 CASES = {
     'settings-frame-height-unchecked': (
@@ -58,6 +61,33 @@ CASES = {
         '        self.changes = self.changes.wrapping_add(1);\n',
         '    pub fn add(&mut self, word: &[u16], previous: Option<&[u16]>, keep_spelling: bool) {\n',
         ('cargo', 'suggest', None, 'learned_words')),
+    'read-aloud-network-voice-allowed': (
+        VOICES,
+        '!self.needs_network && self.installed', 'self.installed',
+        ('cargo', 'reader', None, 'voices')),
+    'read-aloud-uninstalled-voice-allowed': (
+        VOICES,
+        '!self.needs_network && self.installed', '!self.needs_network',
+        ('cargo', 'reader', None, 'voices')),
+    'read-aloud-any-default-kept': (
+        VOICES,
+        'voices.get(index).is_some_and(speaks)', 'index < voices.len()',
+        ('cargo', 'reader', None, 'voices')),
+    'read-aloud-other-language-reads': (
+        VOICES,
+        'facts.offline() && same(facts.language, language)', 'facts.offline()',
+        ('cargo', 'reader', None, 'voices')),
+    'read-aloud-facts-packed-swapped': (
+        READER,
+        '            numbers[at] = if (voice.needsNetwork) 1 else 0\n'
+        '            numbers[at + 1] = if (voice.installed) 1 else 0\n',
+        '            numbers[at] = if (voice.installed) 1 else 0\n'
+        '            numbers[at + 1] = if (voice.needsNetwork) 1 else 0\n',
+        ('gradle', ':app', '*OfflineVoiceTest')),
+    'read-aloud-default-forgotten': (
+        OFFLINE_VOICE,
+        'language, country, voices.indexOf(default))', 'language, country, -1)',
+        ('gradle', ':app', '*OfflineVoiceTest')),
 }
 
 

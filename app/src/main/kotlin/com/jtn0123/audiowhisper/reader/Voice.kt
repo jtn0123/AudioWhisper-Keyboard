@@ -10,8 +10,11 @@ import android.media.AudioManager
  * voice ([NeuralVoice]). One is made per reading and shut down at its end.
  */
 internal interface Voice {
-    /** Whether it can speak; waits for the engine to start the first time. */
-    suspend fun isReady(): Boolean
+    /**
+     * Null if it can speak, else a string resource saying why not; waits for the engine to start
+     * the first time.
+     */
+    suspend fun unavailable(): Int?
 
     /** Takes audio focus for a reading; false if Android refused it (a call is on). */
     fun begin(): Boolean

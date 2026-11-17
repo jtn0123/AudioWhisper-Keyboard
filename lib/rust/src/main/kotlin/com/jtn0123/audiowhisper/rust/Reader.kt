@@ -69,8 +69,43 @@ object ReaderRules {
     /** Whether a piece from [first] down to [last] fits in a view from [top] to [bottom]. */
     fun fits(first: Int, last: Int, top: Int, bottom: Int): Boolean = ReaderNative.fits(first, last, top, bottom)
 
+    /**
+     * A text-to-speech voice as Android describes it: its locale's [language] and [country],
+     * whether it [needsNetwork], whether it is [installed] (no "notInstalled" feature), and its
+     * [quality] and [latency] (Voice.QUALITY_* and LATENCY_*).
+     */
+    class VoiceFacts(
+        val language: String,
+        val country: String,
+        val needsNetwork: Boolean,
+        val installed: Boolean,
+        val quality: Int,
+        val latency: Int,
+    )
+
+    /**
+     * Which of [voices] may read text in [language]: the [preferred] one (an index, or -1) if it
+     * works offline, else the offline one for [language] that best fits [country], quality and
+     * latency; -1 if every voice for [language] needs the network or isn't installed.
+     */
+    fun offlineVoice(voices: List<VoiceFacts>, language: String, country: String, preferred: Int): Int {
+        val locales = Array(voices.size * 2) { if (it % 2 == 0) voices[it / 2].language else voices[it / 2].country }
+        val numbers = IntArray(voices.size * VOICE_NUMBERS)
+        voices.forEachIndexed { index, voice ->
+            val at = index * VOICE_NUMBERS
+            numbers[at] = if (voice.needsNetwork) 1 else 0
+            numbers[at + 1] = if (voice.installed) 1 else 0
+            numbers[at + 2] = voice.quality
+            numbers[at + 3] = voice.latency
+        }
+        return ReaderNative.offlineVoice(locales, numbers, language, country, preferred)
+    }
+
     /** How many values [join] writes for each block. */
     private const val PLACE = 4
+
+    /** How many numbers [offlineVoice] passes for each voice. */
+    private const val VOICE_NUMBERS = 4
 }
 
 /**

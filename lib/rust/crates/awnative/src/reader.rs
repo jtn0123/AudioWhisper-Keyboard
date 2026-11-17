@@ -11,6 +11,7 @@ use jni_sys::{jobjectArray, jstring};
 use reader::follow_along;
 use reader::page_text::{self, Edges, Piece};
 use reader::speaker_key::{self, Action, SpeakerKey};
+use reader::voices::{self, Facts};
 
 use crate::handle::{free, into_handle, with_locked};
 use crate::jni::{self, Env, Result, boolean, cut, illegal};
@@ -248,6 +249,53 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_ReaderNative_fits(
     bottom: jint,
 ) -> jboolean {
     boolean(follow_along::fits(first, last, top, bottom))
+}
+
+/// How many numbers `offlineVoice` takes for each voice.
+const VOICE_NUMBERS: usize = 4;
+
+/// Which of the engine's voices may read (`voices::offline_voice`), or -1 for none. `locales` is
+/// each voice's language then its country; `numbers` is each voice's needs-network and installed
+/// (1 or 0), quality and latency; `preferred` is the default voice's index, or -1.
+#[unsafe(no_mangle)]
+pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_ReaderNative_offlineVoice(
+    env: *mut JNIEnv,
+    _: jclass,
+    locales: jobjectArray,
+    numbers: jintArray,
+    language: jstring,
+    country: jstring,
+    preferred: jint,
+) -> jint {
+    // SAFETY: the JVM passes its environment for this call.
+    unsafe {
+        jni::run(env, NONE, |env| {
+            let locales = env.read_strings(locales, "locales")?;
+            let numbers = env.read::<i32>(numbers, "numbers")?;
+            let (rows, rest) = numbers.as_chunks::<VOICE_NUMBERS>();
+            if !rest.is_empty() || locales.len() != rows.len() * 2 {
+                return Err(illegal("two locale parts and four numbers for each voice"));
+            }
+            let locales: Vec<Vec<u16>> =
+                locales.into_iter().map(Option::unwrap_or_default).collect();
+            let voices: Vec<Facts> = (locales.as_chunks::<2>().0.iter().zip(rows))
+                .map(
+                    |([language, country], &[network, installed, quality, latency])| Facts {
+                        language,
+                        country,
+                        needs_network: network != 0,
+                        installed: installed != 0,
+                        quality,
+                        latency,
+                    },
+                )
+                .collect();
+            let language = env.read_string(language, "language")?;
+            let country = env.read_string(country, "country")?;
+            let preferred = usize::try_from(preferred).ok();
+            Ok(voices::offline_voice(&voices, &language, &country, preferred).map_or(NONE, index))
+        })
+    }
 }
 
 /// A new speaker key, not pressed.

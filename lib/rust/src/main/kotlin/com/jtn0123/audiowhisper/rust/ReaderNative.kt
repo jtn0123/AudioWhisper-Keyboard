@@ -36,6 +36,14 @@ internal object ReaderNative {
 
     @JvmStatic external fun fits(first: Int, last: Int, top: Int, bottom: Int): Boolean
 
+    @JvmStatic external fun offlineVoice(
+        locales: Array<String>,
+        numbers: IntArray,
+        language: String,
+        country: String,
+        preferred: Int,
+    ): Int
+
     @JvmStatic external fun newSpeakerKey(): Long
 
     @JvmStatic external fun freeSpeakerKey(key: Long)

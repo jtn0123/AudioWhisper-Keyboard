@@ -258,6 +258,22 @@ the letter odds, as before. **Would change if** the phone's hit rate turns out l
 the in-flight decode's answer too), or the decode gains an input not in the key; any new
 argument to `LatinSession.suggest` must join `Inputs`.
 
+## Read-aloud's phone voice must work offline (2026-11-16)
+
+Read-aloud promises that what it reads never leaves the phone. Pocket TTS keeps it, but the
+fallback, the phone's own text-to-speech, used whatever voice the engine was set to, and some
+engines' voices synthesise on a server. Now `Speaker` reads only with a voice that needs no
+network connection (`Voice.isNetworkConnectionRequired == false`) and whose data is installed
+(no `notInstalled` feature, or the engine would fetch it): the engine's default voice when it
+qualifies, otherwise the best one for the default voice's language (same country first, then
+quality, then latency). The rule is Rust's (`reader::voices::offline_voice`), Kotlin passes each
+voice's facts. Every utterance also carries `networkTts = "false"`, the old engine parameter
+(the platform constant is deprecated in favour of choosing the voice), as a second guard for an
+engine that picks its own voice. With no offline voice for the language, nothing is read and a
+long toast says so and where to install voice data; another language never reads in its place.
+**Would change if** Android gains a per-utterance guarantee that synthesis stays on the device
+(then that replaces the voice filter), or users want reading in another language over silence.
+
 ## Word statistics from a public corpus (2026-11-16)
 
 The English dictionary's frequencies and next words are counted from public text we can name and

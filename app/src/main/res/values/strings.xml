@@ -1098,6 +1098,7 @@
     <string name="read_aloud__turn_on">Turn on AudioWhisper Read aloud to have the screen read to you</string>
     <string name="read_aloud__starting">Read aloud is starting</string>
     <string name="read_aloud__no_engine">No text-to-speech engine is set up on this phone</string>
+    <string name="read_aloud__no_offline_voice">Nothing was read: the phone has no voice for this language that works offline. Add one in Android\'s Text-to-speech settings, under the engine\'s settings › Install voice data</string>
     <string name="read_aloud__nothing">Found no text on the screen to read</string>
     <string name="pref__keyboard__rust_renderer_prototype__label">Rust keyboard renderer (prototype)</string>
     <string name="pref__keyboard__rust_renderer_prototype__summary">Try Rust drawing for text keys, suggestions and accent popups. Turn off to use Compose.</string>
