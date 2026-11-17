@@ -18,6 +18,7 @@ pub mod popup_scene;
 pub mod profile;
 pub mod protocol;
 pub mod raster;
+pub mod reading_order;
 pub mod scene;
 pub mod smartbar;
 pub mod smartbar_fit;

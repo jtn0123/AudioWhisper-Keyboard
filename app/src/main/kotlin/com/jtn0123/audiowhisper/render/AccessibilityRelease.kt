@@ -16,15 +16,20 @@ internal fun accessibilityReleaseTarget(
     else -> null
 }
 
-internal data class AccessibilityTarget(val id: Int, val bounds: IntArray, val popup: Boolean)
+/** [layer] is Rust's draw order: higher is drawn on top. Targets come in reading order. */
+internal data class AccessibilityTarget(val id: Int, val bounds: IntArray, val popup: Boolean, val layer: Int)
 
-/** A captured popup drag can leave the host's rectangle while remaining on a popup choice. */
+/**
+ * The target drawn on top at a point, not the last one read: a popup is read after its key but
+ * drawn over the keys below it. A captured popup drag can leave the host's rectangle while
+ * remaining on a popup choice.
+ */
 internal fun accessibilityHitTarget(
     x: Float, y: Float, width: Int, height: Int, targets: List<AccessibilityTarget>,
 ): Int? {
     val inside = x >= 0 && y >= 0 && x < width && y < height
-    return targets.asReversed().firstOrNull { target ->
+    return targets.withIndex().filter { (_, target) ->
         val b = target.bounds
         (inside || target.popup) && x >= b[0] && y >= b[1] && x < b[2] && y < b[3]
-    }?.id
+    }.maxWithOrNull(compareBy({ it.value.layer }, { it.index }))?.value?.id
 }

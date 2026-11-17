@@ -4,7 +4,8 @@ from pathlib import Path
 import runpy
 import unittest
 
-compare = runpy.run_path(str(Path(__file__).with_name("compare-a11y.py")))["compare"]
+module = runpy.run_path(str(Path(__file__).with_name("compare-a11y.py")))
+compare, order = module["compare"], module["order"]
 
 
 def fixture():
@@ -98,6 +99,58 @@ class ComparatorTest(unittest.TestCase):
             self.assertFalse(any(row['verdict']=='bug' for row in compare(compose,rust,'onehand')))
             rust[1]['bounds'][0]+=1
             self.assertTrue(any(row['verdict']=='bug' for row in compare(compose,rust,'onehand')))
+
+
+def screen(after=False):
+    """A host, then a strip of mic, word and arrow, then two rows of two keys, in screen order."""
+    def node(parent, cls, bounds, key=False):
+        return {"parent": parent, "class": cls, "bounds": bounds, "textEntryKey": key}
+    keyboard = "android.inputmethodservice.Keyboard$Key"
+    nodes = [node(-1, "android.widget.FrameLayout", [0, 0, 300, 140]),
+             node(0, "android.widget.Button", [0, 0, 40, 40]),
+             node(0, "android.widget.Button", [40, 0, 270, 40]),
+             node(0, "android.widget.Button", [270, 0, 300, 40]),
+             node(0, keyboard, [0, 40, 150, 90], True), node(0, keyboard, [150, 40, 300, 90], True),
+             node(0, keyboard, [0, 90, 150, 140], True), node(0, keyboard, [150, 90, 300, 140], True)]
+    for i, n in enumerate(nodes):
+        n["traversalAfter"] = (i - 1 if i > 1 else -1) if after else -1
+    return nodes
+
+
+class ReadingOrderTest(unittest.TestCase):
+    def test_screen_order_passes_with_and_without_hints(self):
+        self.assertEqual(order(screen()), [])
+        self.assertEqual(order(screen(after=True)), [])
+
+    def test_keys_read_before_the_strip_are_a_bug(self):
+        nodes = screen()
+        nodes[1:] = nodes[4:] + nodes[1:4]
+        self.assertTrue(any("after a key" in d["reason"] for d in order(nodes)))
+
+    def test_the_arrow_before_the_words_to_its_left_is_a_bug(self):
+        nodes = screen()
+        nodes[2], nodes[3] = nodes[3], nodes[2]
+        self.assertTrue(any("strip nodes" in d["reason"] for d in order(nodes)))
+
+    def test_a_lower_row_before_a_higher_one_is_a_bug(self):
+        nodes = screen()
+        nodes[4:6], nodes[6:8] = nodes[6:8], nodes[4:6]
+        self.assertTrue(any("keys are" in d["reason"] for d in order(nodes)))
+
+    def test_popup_choices_follow_their_key_as_one_block(self):
+        nodes = screen()
+        choices = [{"parent": 0, "class": "android.widget.Button", "bounds": [x, 0, x + 40, 40],
+                    "textEntryKey": True} for x in (150, 190)]
+        self.assertEqual(order(nodes[:6] + choices + nodes[6:]), [])
+        self.assertTrue(order(nodes + choices))
+        self.assertTrue(order(nodes[:6] + choices[:1] + nodes[6:7] + choices[1:] + nodes[7:]))
+
+    def test_a_hint_naming_another_node_is_a_bug(self):
+        nodes = screen(after=True)
+        nodes[5]["traversalAfter"] = 2
+        self.assertTrue(any("traversal hint" in d["reason"] for d in order(nodes)))
+        nodes[5]["traversalAfter"] = -2
+        self.assertTrue(order(nodes))
 
 
 if __name__ == "__main__":

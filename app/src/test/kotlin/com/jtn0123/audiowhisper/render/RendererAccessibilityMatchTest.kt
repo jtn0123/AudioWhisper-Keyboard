@@ -58,9 +58,16 @@ class RendererAccessibilityMatchTest {
             assertContentEquals(intArrayOf(KEY_DOWN,1,-1,KEY_UP,1,-1),r.semanticAction(2,ACCESS_CLICK))
             assertContentEquals(intArrayOf(KEY_DOWN,1,-1,OPEN_POPUP,1,-1),r.semanticAction(2,ACCESS_LONG_CLICK))
             r.popup(1,arrayOf("é","è"),intArrayOf(233,232));r.popupGrid(0,false)
-            val popup = Json.parseToJsonElement(r.semanticSnapshot()).jsonObject.getValue("nodes").jsonArray
-                .map { it.jsonObject }.filter { it.getValue("role").jsonPrimitive.content == "popup item" }
+            val all = Json.parseToJsonElement(r.semanticSnapshot()).jsonObject.getValue("nodes").jsonArray.map { it.jsonObject }
+            val popup = all.filter { it.getValue("role").jsonPrimitive.content == "popup item" }
             assertEquals(2,popup.size)
+            // The choices read straight after the held key, each naming the node read before it,
+            // and stay drawn on top for touch.
+            val ids = all.map { it.getValue("id").jsonPrimitive.int }
+            assertEquals(ids.indexOf(2) + 1, ids.indexOf(popup[0].getValue("id").jsonPrimitive.int))
+            assertEquals(listOf<Int?>(null) + ids.dropLast(1), all.map { it.getValue("after").jsonPrimitive.intOrNull })
+            fun layer(n: JsonObject) = n.getValue("layer").jsonPrimitive.int
+            assertTrue(popup.minOf(::layer) > (all - popup.toSet()).maxOf(::layer))
             assertContentEquals(intArrayOf(POPUP_SELECT,0,-1),r.semanticAction(popup[0].getValue("id").jsonPrimitive.int,ACCESS_CLICK))
             assertFalse(Json.parseToJsonElement(r.semanticSnapshot()).jsonObject.getValue("popup").jsonPrimitive.boolean)
         }

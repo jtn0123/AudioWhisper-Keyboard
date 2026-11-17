@@ -15,6 +15,8 @@ import android.view.accessibility.AccessibilityWindowInfo;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -79,6 +81,7 @@ public final class ProbeAccessibilityService extends AccessibilityService {
             // Bypass that cache on each request, including virtual descendants.
             clearCache();
             String setting = intent.getStringExtra("setting");
+            boolean redact = intent.getBooleanExtra("redact", false);
             AccessibilityNodeInfo root = root(setting == null
                 ? AccessibilityWindowInfo.TYPE_INPUT_METHOD : AccessibilityWindowInfo.TYPE_APPLICATION);
             if (root == null) {
@@ -117,18 +120,21 @@ public final class ProbeAccessibilityService extends AccessibilityService {
                 JSONArray nodes = new JSONArray();
                 dumpStrip(root, nodes);
                 result.put("strip", nodes);
-            } else if (!ProbeActivity.emptyEditor) {
+            } else if (!ProbeActivity.emptyEditor && !redact) {
+                // A redacted tree writes no text at all, so it may follow typing; others may not.
                 result.put("error", "Tree capture requires an empty disposable editor");
             } else {
                 JSONArray nodes = new JSONArray();
-                dump(root, -1, nodes);
+                List<AccessibilityNodeInfo> infos = new ArrayList<>();
+                dump(root, -1, nodes, infos, redact);
                 // Compose emoji popups use a separate application window owned by the IME.
                 // Never inspect another package's application window or any editor contents.
                 for (AccessibilityWindowInfo window : getWindows()) {
                     if (window.getType() != AccessibilityWindowInfo.TYPE_APPLICATION) continue;
                     AccessibilityNodeInfo popup = window.getRoot();
-                    if (popup != null && KEYBOARD.contentEquals(popup.getPackageName())) dump(popup, -1, nodes);
+                    if (popup != null && KEYBOARD.contentEquals(popup.getPackageName())) dump(popup, -1, nodes, infos, redact);
                 }
+                traversal(nodes, infos);
                 result.put("nodes", nodes);
             }
             write(request + ".json", result.toString());
@@ -170,14 +176,18 @@ public final class ProbeAccessibilityService extends AccessibilityService {
         }
         return null;
     }
-    private void dump(AccessibilityNodeInfo node, int parent, JSONArray nodes) throws Exception {
+    private void dump(AccessibilityNodeInfo node, int parent, JSONArray nodes, List<AccessibilityNodeInfo> infos,
+                      boolean redact) throws Exception {
         Rect bounds = new Rect();
         node.getBoundsInScreen(bounds);
         JSONObject item = new JSONObject();
         int index = nodes.length();
+        infos.add(node);
         item.put("parent", parent).put("class", nullable(node.getClassName()))
-            .put("text", nullable(node.getText())).put("description", nullable(node.getContentDescription()))
-            .put("viewId", nullable(node.getViewIdResourceName())).put("stateDescription", nullable(node.getStateDescription()))
+            .put("text", redact ? JSONObject.NULL : nullable(node.getText()))
+            .put("description", redact ? JSONObject.NULL : nullable(node.getContentDescription()))
+            .put("viewId", redact ? JSONObject.NULL : nullable(node.getViewIdResourceName()))
+            .put("stateDescription", redact ? JSONObject.NULL : nullable(node.getStateDescription()))
             .put("bounds", new JSONArray(new int[]{bounds.left, bounds.top, bounds.right, bounds.bottom}))
             .put("checked", node.isChecked()).put("checkable", node.isCheckable())
             .put("selected", node.isSelected()).put("enabled", node.isEnabled())
@@ -186,7 +196,7 @@ public final class ProbeAccessibilityService extends AccessibilityService {
             .put("textEntryKey", node.isTextEntryKey());
         JSONArray actions = new JSONArray();
         for (AccessibilityNodeInfo.AccessibilityAction action : node.getActionList()) {
-            actions.put(new JSONObject().put("id", action.getId()).put("label", nullable(action.getLabel())));
+            actions.put(new JSONObject().put("id", action.getId()).put("label", redact ? JSONObject.NULL : nullable(action.getLabel())));
         }
         item.put("actions", actions);
         // Fixture history is targeted by digest; never write clipboard payloads to a dump.
@@ -203,8 +213,20 @@ public final class ProbeAccessibilityService extends AccessibilityService {
         nodes.put(item);
         for (int i = 0; i < node.getChildCount(); i++) {
             AccessibilityNodeInfo child = node.getChild(i);
-            if (child != null) dump(child, index, nodes);
+            if (child != null) dump(child, index, nodes, infos, redact);
         }
+    }
+    /** Each node's traversal hints as dump indices: -1 for none, -2 for a node outside the dump. */
+    private static void traversal(JSONArray nodes, List<AccessibilityNodeInfo> infos) throws Exception {
+        for (int i = 0; i < infos.size(); i++) {
+            nodes.getJSONObject(i).put("traversalAfter", index(infos, infos.get(i).getTraversalAfter()))
+                .put("traversalBefore", index(infos, infos.get(i).getTraversalBefore()));
+        }
+    }
+    private static int index(List<AccessibilityNodeInfo> infos, AccessibilityNodeInfo node) {
+        if (node == null) return -1;
+        int found = infos.indexOf(node);
+        return found < 0 ? -2 : found;
     }
     /** Hash only IME candidate labels from two allowlisted public fixtures, never editor nodes. */
     private void dumpStrip(AccessibilityNodeInfo node, JSONArray nodes) throws Exception {

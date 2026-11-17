@@ -155,7 +155,13 @@ its phone checks pass.
   Then the keyboard switch (`keyboard__rust_renderer_prototype`) goes the same way as the
   settings switch in step 2.
 * **Blocked by:** four phone checks, all still owed:
-  1. a real TalkBack session on the phone;
+  1. a real TalkBack session on the phone. Reading order (grade item C13) is fixed and
+     checked without TalkBack: Rust lists the strip before the keys and sends a hint for every
+     node, and the emulator probe shows the order and hints arriving
+     ([reading order](../scripts/render-benchmark/README.md#reading-order)). Still owed on
+     the phone: that TalkBack's swipes follow it, that touch exploration finds a held key's
+     choices over the keys, the one-handed side panel's place in the order, and right-to-left
+     layouts, which still read left to right;
   2. the Samsung font check;
   3. font scale 2.0;
   4. the CPU gate: warm scene p95 at most 2 ms. The last measurement was 4.7–5.5 ms

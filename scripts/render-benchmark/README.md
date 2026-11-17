@@ -170,6 +170,31 @@ missing clicks, displaced targets and incorrect Shift states are bugs. Symbols a
 existing Compose fallback on both renderer settings. Adversarial comparator tests reject
 wrong labels, missing keys/actions, displaced bounds, wrong classes and wrong Shift states.
 
+### Reading order
+
+A screen reader swipes through the keyboard's nodes in the order Android lists them, unless a
+node names the one before it (`traversalAfter`). The probe reports both hints as node indices
+(-1 for none). `compare-a11y.py` checks the order on every comparison, and on its own with
+`--order`:
+
+```bash
+ANDROID_SERIAL=<runtime-id> AGENT_DEVICE=<agent-device command> \
+    python3 -I scripts/render-benchmark/a11y-order.py build/a11y-order-run
+python3 -I scripts/render-benchmark/compare-a11y.py --order build/a11y-order-run
+```
+
+The order is right when the strip above the keys (buttons and words) is read before any key,
+the strip and the keys each read row by row, left to right, a held key's choices are one block
+straight after that key, and any hints form one chain. `--order` prints the order as a table of
+roles, indices and bounds, and exits 1 on any fault.
+
+`a11y-order.py` captures five states: letters, the expanded and collapsed bar, the row of words
+and a held `e`. It saves only parents, classes, bounds, text-entry flags and hints. For the row
+of words it types two letters, so it asks the probe for a redacted tree (`--ez redact true`,
+which drops every text, description, id and action label on the device) and erases them after.
+Holds use shell `input swipe` even under `AGENT_DEVICE`: while agent-device holds a press, the
+probe answers no requests.
+
 TalkBack is selected exclusively through secure settings; its exact installed component is
 parsed from `dumpsys package`. The probe must remain the foreground activity at every
 checkpoint. Its notification permission is temporarily granted with `pm` to avoid the
