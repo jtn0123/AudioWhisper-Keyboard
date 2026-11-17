@@ -32,5 +32,8 @@ class KeyboardToastTextTest {
         val text = Regex("""<string name="autocorrect_toggle__toast_unavailable"[^>]*>([^<]+)</string>""")
             .find(strings)?.groupValues?.get(1)
         assertTrue(text?.contains("Typing") == true, "the toast says where auto-correction is set: $text")
+        // Android shows only two lines of a toast; on a 411 dp wide screen the longer first wording
+        // was cut off at 75 characters, before it said where to go.
+        assertTrue(text!!.length <= 60, "the toast fits in two lines: ${text.length} characters")
     }
 }
