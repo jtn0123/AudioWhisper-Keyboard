@@ -47,7 +47,6 @@ import dev.patrickgold.florisboard.app.ext.ExtensionListScreenType
 import dev.patrickgold.florisboard.app.ext.ExtensionViewScreen
 import dev.patrickgold.florisboard.app.settings.about.ProjectLicenseScreen
 import dev.patrickgold.florisboard.app.settings.advanced.BackupScreen
-import dev.patrickgold.florisboard.app.settings.advanced.OtherScreen
 import dev.patrickgold.florisboard.app.settings.advanced.RestoreScreen
 import dev.patrickgold.florisboard.app.settings.dictionary.UserDictionaryScreen
 import dev.patrickgold.florisboard.app.settings.dictionary.UserDictionaryType
@@ -58,7 +57,6 @@ import dev.patrickgold.florisboard.app.settings.localization.SelectLocaleScreen
 import dev.patrickgold.florisboard.app.settings.localization.SubtypeEditorScreen
 import dev.patrickgold.florisboard.app.settings.theme.ThemeManagerScreen
 import dev.patrickgold.florisboard.app.settings.theme.ThemeManagerScreenAction
-import dev.patrickgold.florisboard.app.settings.theme.ThemeScreen
 import dev.patrickgold.florisboard.app.setup.SetupScreen
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -263,7 +261,7 @@ object Routes {
                 SubtypeEditorScreen(payload.id)
             }
 
-            composableWithDeepLink(Settings.Theme::class) { ThemeScreen() }
+            composableWithDeepLink(Settings.Theme::class) {}
             composableWithDeepLink(Settings.ThemeManager::class) { navBackStack ->
                 val payload = navBackStack.toRoute<Settings.ThemeManager>()
                 ThemeManagerScreen(payload.action)
@@ -289,7 +287,7 @@ object Routes {
 
             composableWithDeepLink(Settings.Media::class) {}
 
-            composableWithDeepLink(Settings.Other::class) { OtherScreen() }
+            composableWithDeepLink(Settings.Other::class) {}
             composableWithDeepLink(Settings.PhysicalKeyboard::class) {}
             composableWithDeepLink(Settings.Backup::class) { BackupScreen() }
             composableWithDeepLink(Settings.Restore::class) { RestoreScreen() }

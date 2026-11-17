@@ -10,7 +10,6 @@ import dev.patrickgold.jetpref.datastore.model.PreferenceData
 import dev.patrickgold.jetpref.material.ui.ColorRepresentation
 import dev.patrickgold.jetpref.material.ui.parseOrNull
 import kotlinx.serialization.json.*
-import org.florisboard.lib.color.ColorMappings
 import java.io.File
 import kotlin.random.Random
 import kotlin.test.*
@@ -25,8 +24,7 @@ class SettingsOtherThemeMatchTest {
     private val font = File("../fastlane/staging/fonts/Roboto-Light.ttf").absolutePath
     /** The system accent the device reports: no preset, so Default is a colour of its own. */
     private val accent = Color(0xff6750a4)
-    /** FlorisBoard's ColorMappings.colors, the Presets page. */
-    private val presets = ColorMappings.colors.toList()
+    private val presets = ref.presets
     /** Jetpref's LocalTime serializer, as the theme's time preferences hold it. */
     private val times = ReferenceSettingsModel().theme.sunriseTime.serializer
     private fun serialized(t: LocalTime) = times.serialize(t).orEmpty()

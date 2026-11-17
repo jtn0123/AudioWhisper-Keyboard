@@ -55,8 +55,8 @@ internal class SettingsFacts(private val activity: Activity) {
         for (key in SPELL_KEYS) AndroidSettings.Secure.getUriFor(key)?.let {
             activity.contentResolver.registerContentObserver(it, false, observer)
         }
-        // Theme's day and night rows name their themes from the extension index, as
-        // ThemeScreen's `getThemeLabel` collects `indexedThemeConfigs`.
+        // Theme's day and night rows name their themes from the extension index, as Compose's
+        // ThemeScreen did with `indexedThemeConfigs`.
         scope.launch {
             activity.themeManager().value.indexedThemeConfigs.collect { (configs, _) ->
                 themeLabels = themeLabelPairs(configs.mapKeys { it.key.toString() }.mapValues { it.value.label })

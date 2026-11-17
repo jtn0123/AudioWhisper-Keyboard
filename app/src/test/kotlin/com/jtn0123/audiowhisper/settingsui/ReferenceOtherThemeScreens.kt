@@ -48,6 +48,12 @@ internal object ReferenceOtherThemeScreens {
 
     /** `Color.Unspecified`, the stored form of "follow the system accent". */
     const val UNSPECIFIED = "0000000000000010"
+    /** FlorisBoard's `ColorMappings.colors` (Material's 500 shades), the Presets page in order. */
+    val presets = listOf(
+        0xFF4CAF50, 0xFFF44336, 0xFFE91E63, 0xFFFF2C93, 0xFF9C27B0, 0xFF673AB7, 0xFF3F51B5, 0xFF2196F3, 0xFF03A9F4,
+        0xFF00BCD4, 0xFF009688, 0xFF8BC34A, 0xFFCDDC39, 0xFFFFEB3B, 0xFFFFC107, 0xFFFF9800, 0xFF795548, 0xFF607D8B,
+        0xFF9E9E9E,
+    ).map { Color(it) }
     /** The colours a stored accent can hold: none, a preset, a colour of the user's own. */
     val accents = listOf(UNSPECIFIED, "ff673ab700000000", "ff12345600000000")
 
