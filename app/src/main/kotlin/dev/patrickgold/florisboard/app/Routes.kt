@@ -46,7 +46,6 @@ import dev.patrickgold.florisboard.app.ext.ExtensionImportScreenType
 import dev.patrickgold.florisboard.app.ext.ExtensionListScreen
 import dev.patrickgold.florisboard.app.ext.ExtensionListScreenType
 import dev.patrickgold.florisboard.app.ext.ExtensionViewScreen
-import dev.patrickgold.florisboard.app.settings.HomeScreen
 import dev.patrickgold.florisboard.app.settings.about.AboutScreen
 import dev.patrickgold.florisboard.app.settings.about.ProjectLicenseScreen
 import dev.patrickgold.florisboard.app.settings.about.ThirdPartyLicensesScreen
@@ -59,8 +58,6 @@ import dev.patrickgold.florisboard.app.settings.dictionary.DictionaryScreen
 import dev.patrickgold.florisboard.app.settings.dictionary.UserDictionaryScreen
 import dev.patrickgold.florisboard.app.settings.dictionary.UserDictionaryType
 import dev.patrickgold.florisboard.app.settings.gestures.GesturesScreen
-import dev.patrickgold.florisboard.app.settings.keyboard.InputFeedbackScreen
-import dev.patrickgold.florisboard.app.settings.keyboard.KeyboardScreen
 import dev.patrickgold.florisboard.app.settings.localization.LanguagePackManagerScreen
 import dev.patrickgold.florisboard.app.settings.localization.LanguagePackManagerScreenAction
 import dev.patrickgold.florisboard.app.settings.localization.LocalizationScreen
@@ -259,7 +256,10 @@ object Routes {
         ) {
             composable<Setup.Screen> { SetupScreen() }
 
-            composableWithDeepLink(Settings.Home::class) { HomeScreen() }
+            // An empty entry is a screen only Rust draws. It stays so that reaching it still
+            // works: finishing Setup hands Home to the Rust host, and the fallback activity
+            // hands any of these routes back to Rust (docs/compose-removal.md, step 2).
+            composableWithDeepLink(Settings.Home::class) {}
 
             composableWithDeepLink(Settings.Localization::class) { LocalizationScreen() }
             composableWithDeepLink(Settings.SelectLocale::class) { SelectLocaleScreen() }
@@ -279,8 +279,8 @@ object Routes {
                 ThemeManagerScreen(payload.action)
             }
 
-            composableWithDeepLink(Settings.Keyboard::class) { KeyboardScreen() }
-            composableWithDeepLink(Settings.InputFeedback::class) { InputFeedbackScreen() }
+            composableWithDeepLink(Settings.Keyboard::class) {}
+            composableWithDeepLink(Settings.InputFeedback::class) {}
 
             composableWithDeepLink(Settings.Smartbar::class) { SmartbarScreen() }
             composableWithDeepLink(Settings.Dictation::class) { DictationScreen() }

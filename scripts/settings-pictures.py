@@ -96,7 +96,7 @@ def group_one(d, renderer):
                 if node:
                     break
                 d.ui('scroll', 'down', 480, '--duration-ms', 1200)
-            # Duration and strength follow the vibrator facts, as InputFeedbackScreen does.
+            # Duration and strength follow the vibrator facts.
             if node is None or node.get('enabled') is False:
                 skipped.append(label)
                 continue

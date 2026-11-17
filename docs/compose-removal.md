@@ -59,6 +59,9 @@ its phone checks pass.
   ([checkpoint](stage4-settings-results.md), [follow-up 3](stage4-followup3.md),
   [follow-up 4](stage4-followup4.md), [licences](stage4-licences.md)).
 * **The fallback loses:** the choice of drawing these screens in Compose.
+* **Progress** (non-blank lines deleted):
+  * the settings switch, with every entry point routed to Rust;
+  * Home, Keyboard and Input feedback: 3 files, 541 lines.
 
 ### 3. Dead code left behind by step 2 (this round)
 
