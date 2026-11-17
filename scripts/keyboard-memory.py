@@ -119,8 +119,8 @@ def main():
         # read the preference file, so writing the file would not reach the keyboard.
         d.launch('settings/keyboard')
         d.wait(lambda: d.find('Number row'), 'Keyboard settings absent')
-        if d.prefs().get('keyboard__rust_renderer_prototype', 'false') != 'true':
-            d.press('Rust keyboard renderer (prototype)')
+        if d.prefs().get('keyboard__rust_renderer_prototype', 'true') != 'true':
+            d.press('Draw the keyboard in Rust')
             d.wait(lambda: d.prefs().get('keyboard__rust_renderer_prototype') == 'true', 'Prototype did not persist')
         pid = d.adb('shell', 'pidof', MODULE.PKG).decode().split()[0]
         time.sleep(3)

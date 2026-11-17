@@ -142,7 +142,7 @@ class SettingsInstrumentation : Instrumentation() {
         h.waitFor("switch preference did not change") { prefs.keyboard.numberRow.get() != original }
         h.click("Number row")
         h.waitFor("switch preference did not restore") { prefs.keyboard.numberRow.get() == original }
-        for ((label, preference) in listOf("Rust keyboard renderer (prototype)" to prefs.keyboard.rustRendererPrototype,
+        for ((label, preference) in listOf("Draw the keyboard in Rust" to prefs.keyboard.rustRendererPrototype,
             "Show utility key" to prefs.keyboard.utilityKeyEnabled, "Popup Visibility" to prefs.keyboard.popupEnabled,
             "Accents include symbol popups" to prefs.keyboard.mergeHintPopupsEnabled,
             "Space bar switches to characters" to prefs.keyboard.spaceBarSwitchesToCharacters)) {

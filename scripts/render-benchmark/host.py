@@ -60,7 +60,7 @@ def main():
         d.shell('setprop','log.tag.aw-host','INFO')
         for key,value in rotation.items():
             d.shell('settings','delete' if value=='null' else 'put','system',key,*([] if value=='null' else [value]))
-        chrome['set_preferences'](d,{'keyboard__rust_renderer_prototype':json.loads(original.get('keyboard__rust_renderer_prototype','false'))})
+        chrome['set_preferences'](d,{'keyboard__rust_renderer_prototype':json.loads(original.get('keyboard__rust_renderer_prototype','true'))})
         d.restore_accessibility(accessibility)
 
 

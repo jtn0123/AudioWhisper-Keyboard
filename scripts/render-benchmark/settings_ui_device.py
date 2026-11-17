@@ -152,9 +152,9 @@ class SettingsDevice:
     def prototype(self, renderer):
         self.launch('settings/other')
         target = renderer == 'rust'
-        if (self.prefs().get('other__rust_settings_prototype', 'false') == 'true') != target:
-            self.press('Rust settings renderer (prototype)')
-            self.wait(lambda: (self.prefs().get('other__rust_settings_prototype', 'false') == 'true') == target,
+        if (self.prefs().get('other__rust_settings_prototype', 'true') == 'true') != target:
+            self.press('Draw settings in Rust')
+            self.wait(lambda: (self.prefs().get('other__rust_settings_prototype', 'true') == 'true') == target,
                       'Prototype selector did not persist')
         self.launch('settings/home')
         self.wait(lambda: self.find('Keyboard'), 'Home did not appear')

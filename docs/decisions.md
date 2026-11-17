@@ -666,3 +666,21 @@ backspaces or undone corrections with it than without; if a layout's keys are mu
 QWERTY's (the factor is in key widths, so it scales, but the cap may need to shrink); if a
 better language model is shipped (re-tune the factor against it); or if real taps can be measured
 without logging them and spread wider or narrower than 0.2 key, which sets the factor.
+
+## Rust draws by default (2026-11-16)
+
+Both renderer switches now default to on: `keyboard__rust_renderer_prototype` (the Rust keyboard
+and Smartbar) and `other__rust_settings_prototype` (the Rust settings), in
+`crates/settings/src/catalogue.tsv`. The user had run both on the S24 Ultra for days, and every
+keyboard feature was being written twice. The stored keys and their meaning are unchanged, so
+existing files stay valid. Jetpref stores only values someone set, so a user who turned a switch
+off keeps it off, one who turned it on keeps it on, and one who never touched it moves to Rust;
+`RustByDefaultTest` loads each kind of file. The labels drop "prototype": the Rust path is the
+normal way the keyboard and settings draw, and the Compose one is "being removed". The resource
+names keep "prototype", like the stored keys, so nothing that reads them has to change. The
+frozen test reference (`ReferencePreferenceModel`) carries the new default with a note. The
+Compose keyboard stays as the fallback until its phone checks pass (a real TalkBack session,
+the Samsung font check, font scale 2.0 and the CPU p95 gate); see
+[the removal plan](compose-removal.md). **Would change if** the phone shows a Rust-only failure
+that the fallback hides; then fix it in Rust rather than flip the default back, unless typing
+itself is broken.

@@ -78,7 +78,7 @@ internal__version_on_install	s	0.0.0					#
 internal__version_last_use	s	0.0.0					#
 internal__version_last_changelog	s	0.0.0					#
 internal__notification_permission_state	s	NOT_SET				NOT_SET|GRANTED|DENIED	#
-keyboard__rust_renderer_prototype	b	false					#
+keyboard__rust_renderer_prototype	b	true					#
 keyboard__number_row	b	false					#
 keyboard__hinted_number_row_enabled	b	true					#
 keyboard__hinted_number_row_mode	s	SMART_PRIORITY				DISABLED|HINT_PRIORITY|ACCENT_PRIORITY|SMART_PRIORITY	#
@@ -143,4 +143,4 @@ theme__sunset_time	s	18:00:00.000					#
 theme__editor_color_representation	s	HEX				HEX|RGB|HSV	#
 theme__editor_display_kbd_after_dialogs	s	REMEMBER				ALWAYS|NEVER|REMEMBER	#
 theme__editor_level	s	ADVANCED				BASIC|ADVANCED|DEVELOPER	#
-other__rust_settings_prototype	b	false					#
+other__rust_settings_prototype	b	true					#
