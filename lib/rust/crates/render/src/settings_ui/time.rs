@@ -1,6 +1,7 @@
 //! Jetpref's LocalTimePickerPreference and the Material 3 (1.4.0) TimePicker and TimeInput its
 //! dialog shows, as plain state: the stored form, the summary, the dial's angles and the typed
-//! entry's rules. `time_events.rs` wires it to the dialog; `time_dialog.rs` and `time_dial.rs` draw it.
+//! entry's rules. `time_events.rs` wires it to the dialog; `time_dialog.rs` and `time_dial.rs`
+//! draw it.
 use super::editor::Editor;
 use std::f32::consts::TAU;
 

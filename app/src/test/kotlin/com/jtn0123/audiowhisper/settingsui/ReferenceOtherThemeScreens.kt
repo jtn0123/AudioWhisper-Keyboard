@@ -1,23 +1,32 @@
 package com.jtn0123.audiowhisper.settingsui
 
 import androidx.compose.ui.graphics.Color
+import dev.patrickgold.florisboard.app.ReferenceSettingsModel
+import dev.patrickgold.jetpref.datastore.model.LocalTime
 import dev.patrickgold.jetpref.material.ui.ColorRepresentation
 import dev.patrickgold.jetpref.material.ui.JetPrefColorPickerState
 import dev.patrickgold.jetpref.material.ui.parseOrNull
 
 /**
- * Frozen OtherScreen decisions, transcribed from its Compose source at b0d4a9a4f: the row order,
- * each list's entries (`enumDisplayEntriesOf`), each summary, and where each row goes. The colour
- * row is Jetpref's ColorPickerPreference with `enableAdvancedLayout`, whose dialog the match test
- * holds against Jetpref and Compose themselves. No production code.
+ * Frozen OtherScreen and ThemeScreen decisions, transcribed from their Compose sources at
+ * b0d4a9a4f: the row order, each list's entries (`enumDisplayEntriesOf`), each summary, each
+ * `enabledIf`, and where each row goes. The colour rows are Jetpref's ColorPickerPreference with
+ * `enableAdvancedLayout`, whose dialog the match test holds against Jetpref and Compose themselves;
+ * the time rows are Jetpref's LocalTimePickerPreference, whose summary is LocalTime's own
+ * `stringRepresentation`. No production code.
  */
 internal object ReferenceOtherThemeScreens {
-    /** What the screens read: the stored preferences, as their serializers write them. */
-    class Facts(val p: Map<String, String>)
+    /**
+     * What the screens read: the stored preferences, as their serializers write them; the theme
+     * index's labels by id (`indexedThemeConfigs`); the system's 24-hour setting.
+     */
+    class Facts(val p: Map<String, String>, val labels: Map<String, String> = emptyMap(), val is24: Boolean = false)
 
     /**
-     * A row in source order. `kind` is choice, color, heading or route. `labels` are a list's
-     * entry labels in order; `summary` is a fixed summary's string key.
+     * A row in source order. `kind` is choice, color, heading, route, theme (a Preference opening
+     * the theme manager), time or addons (AddonManagementReferenceBox, whose row node is its note).
+     * `labels` are a list's entry labels in order; `summary` is a fixed summary's string key;
+     * `extType` is an addon box's extension type title.
      */
     data class Row(
         val key: String,
@@ -29,8 +38,13 @@ internal object ReferenceOtherThemeScreens {
         val enabled: (Facts) -> Boolean = { true },
         /** The title's string key, when it is not the key itself. */
         val title: String = key,
+        val extType: String = "",
     )
-    data class Screen(val route: String, val preview: Boolean, val rows: List<Row>, val inputs: Map<String, List<String>>)
+    /** `inputs` are stored values to combine; `labelSets` and `clocks` the facts to cross them with. */
+    data class Screen(
+        val route: String, val preview: Boolean, val rows: List<Row>, val inputs: Map<String, List<String>>,
+        val labelSets: List<Map<String, String>> = listOf(emptyMap()), val clocks: List<Boolean> = listOf(false),
+    )
 
     /** `Color.Unspecified`, the stored form of "follow the system accent". */
     const val UNSPECIFIED = "0000000000000010"
@@ -56,7 +70,47 @@ internal object ReferenceOtherThemeScreens {
         "other__accent_color" to accents,
     ))
 
-    val screens = listOf(other)
+    const val DAY = "org.florisboard.themes:floris_day"
+    const val NIGHT = "org.florisboard.themes:floris_night"
+    private fun mode(f: Facts) = f.p.getValue("theme__mode")
+
+    val theme = Screen("settings/theme", true, listOf(
+        Row("theme__mode", "choice", listOf("ALWAYS_DAY", "ALWAYS_NIGHT", "FOLLOW_SYSTEM", "FOLLOW_TIME"), listOf(
+            "enum__theme_mode__always_day", "enum__theme_mode__always_night", "enum__theme_mode__follow_system",
+            "enum__theme_mode__follow_time"), title = "pref__theme__mode__label"),
+        Row("theme__day_theme_id", "theme", route = "settings/theme/manage/SELECT_DAY",
+            enabled = { mode(it) != "ALWAYS_NIGHT" }, title = "pref__theme__day"),
+        Row("theme__night_theme_id", "theme", route = "settings/theme/manage/SELECT_NIGHT",
+            enabled = { mode(it) != "ALWAYS_DAY" }, title = "pref__theme__night"),
+        Row("theme__sunrise_time", "time", enabled = { mode(it) == "FOLLOW_TIME" }, title = "pref__theme__sunrise_time__label"),
+        Row("theme__sunset_time", "time", enabled = { mode(it) == "FOLLOW_TIME" }, title = "pref__theme__sunset_time__label"),
+        Row("theme__accent_color", "color", title = "pref__theme__theme_accent_color__label"),
+        Row("ext_theme", "addons", route = "ext/list/EXT_THEME?showUpdate=true",
+            title = "ext__addon_management_box__addon_manager_info", extType = "ext__list__ext_theme"),
+    ), mapOf(
+        "theme__mode" to listOf("ALWAYS_DAY", "ALWAYS_NIGHT", "FOLLOW_SYSTEM", "FOLLOW_TIME"),
+        // The defaults, a theme in the index, one that is not, and texts that are no id at all.
+        "theme__day_theme_id" to listOf(DAY, "my.ext:sunny", "my.ext:gone", "no-colon"),
+        "theme__night_theme_id" to listOf(NIGHT, "my.ext:sunny", "a:b:c"),
+        "theme__sunrise_time" to listOf("06:00:00.000", "00:00:00.000", "12:30:59.999", "7:00"),
+        "theme__sunset_time" to listOf("18:00:00.000", "23:59:00.000"),
+    ), labelSets = listOf(emptyMap(), mapOf(DAY to "Floris Day", NIGHT to "Floris Night", "my.ext:sunny" to "Sunny")),
+        clocks = listOf(false, true))
+
+    val screens = listOf(other, theme)
+
+    private val model = ReferenceSettingsModel()
+    /** The preference as Jetpref reads it: its serializer's value, or the default when that fails. */
+    private fun read(key: String, f: Facts): Any {
+        val pref = model.declaredPreferenceEntries.values.first { it.key == key }
+        return pref.serializer.deserialize(f.p.getValue(key)) ?: pref.default
+    }
+
+    /** AddonManagementReferenceBox's title and button text, `curlyFormat` filled in. */
+    fun addonTitle(row: Row, s: (String) -> String) =
+        s("ext__addon_management_box__managing_placeholder").replace("{extensions}", s(row.extType).lowercase())
+    fun addonButton(row: Row, s: (String) -> String) =
+        s("ext__addon_management_box__go_to_page").replace("{ext_home_title}", s(row.extType))
 
     /** JetPrefColorPicker's state; its `setColor` and `color` are Jetpref's and Compose's own maths. */
     class PickerState(c: Color) : JetPrefColorPickerState {
@@ -112,9 +166,14 @@ internal object ReferenceOtherThemeScreens {
         fun stored(serialize: (Color) -> String) = if (value == accent) UNSPECIFIED else serialize(value)
     }
 
-    /** The row's summary as Compose shows it: a list's selected entry label, or the fixed summary. */
+    /**
+     * The row's summary as Compose shows it: a list's selected entry label, `getThemeLabel` (the
+     * indexed label, else the id), LocalTime's `stringRepresentation`, or the fixed summary.
+     */
     fun summary(row: Row, f: Facts, s: (String) -> String): String = when (row.kind) {
         "choice" -> s(row.labels[row.choices.indexOf(f.p.getValue(row.key))])
+        "theme" -> read(row.key, f).toString().let { f.labels[it] ?: it }
+        "time" -> (read(row.key, f) as LocalTime).stringRepresentation(f.is24)
         else -> if (row.summary.isEmpty()) "" else s(row.summary)
     }
 }

@@ -5,6 +5,7 @@ import androidx.compose.ui.graphics.toArgb
 import com.jtn0123.audiowhisper.rust.KeyboardRenderer
 import dev.patrickgold.florisboard.app.ReferenceColorSerializer
 import dev.patrickgold.florisboard.app.ReferenceSettingsModel
+import dev.patrickgold.jetpref.datastore.model.LocalTime
 import dev.patrickgold.jetpref.datastore.model.PreferenceData
 import dev.patrickgold.jetpref.material.ui.ColorRepresentation
 import dev.patrickgold.jetpref.material.ui.parseOrNull
@@ -16,7 +17,8 @@ import kotlin.test.*
 
 /**
  * Other and Theme as Rust draws them, against [ReferenceOtherThemeScreens], with the real strings;
- * the colour dialog against Jetpref's own parser, formats and picker state and Compose's `Color`.
+ * the colour dialog against Jetpref's own parser, formats and picker state and Compose's `Color`;
+ * the time rows against Jetpref's LocalTime.
  */
 class SettingsOtherThemeMatchTest {
     private val ref = ReferenceOtherThemeScreens
@@ -25,6 +27,9 @@ class SettingsOtherThemeMatchTest {
     private val accent = Color(0xff6750a4)
     /** FlorisBoard's ColorMappings.colors, the Presets page. */
     private val presets = ColorMappings.colors.toList()
+    /** Jetpref's LocalTime serializer, as the theme's time preferences hold it. */
+    private val times = ReferenceSettingsModel().theme.sunriseTime.serializer
+    private fun serialized(t: LocalTime) = times.serialize(t).orEmpty()
     private fun <T : Any> raw(p: PreferenceData<T>) = p.serializer.serialize(p.default).orEmpty()
     private fun defaults() = ReferenceSettingsModel().declaredPreferenceEntries.values.associate { it.key to raw(it) }
     private fun state(n: KeyboardRenderer, op: Int = 10, vararg input: String) = Json.parseToJsonElement(n.settings(op, arrayOf(*input))[0]).jsonObject
@@ -51,33 +56,55 @@ class SettingsOtherThemeMatchTest {
         val colors = listOf("4294967295", "4278190080", "4283782485", "4281558681", "4291611852", "4293848814")
         n.settings(3, (listOf("1080", "8192", "1", "1") + colors + listOf("true", "true") + colors +
             (0..32).map { it.toFloat().toString() } + listOf("0", "4294967295", "true", "true")).toTypedArray())
-        n.settings(20, arrayOf("system_accent", accent.toArgb().toUInt().toString()))
+        n.settings(20, facts(emptyMap(), false))
     }
+    /** SettingsFacts' packet: the system accent, the 24-hour setting, the theme index's labels. */
+    private fun facts(labels: Map<String, String>, is24: Boolean) =
+        arrayOf("system_accent", accent.toArgb().toUInt().toString(), "is24hour", is24.toString()) +
+            SettingsFacts.themeLabelPairs(labels)
     private fun combinations(inputs: Map<String, List<String>>): List<Map<String, String>> =
         inputs.entries.fold(listOf(emptyMap())) { acc, (key, values) -> acc.flatMap { m -> values.map { m + (key to it) } } }
 
+    private fun clicks(node: JsonObject) = 1 in node.getValue("actions").jsonArray.map { it.jsonPrimitive.int }
+
     @Test fun everyRowTitleSummaryRoleAndEnableStateMatchesFrozenCompose() {
-        for (screen in ref.screens) for (combo in combinations(screen.inputs)) KeyboardRenderer(arrayOf(font)).use { n ->
-            val f = ReferenceOtherThemeScreens.Facts(defaults() + combo)
-            prepare(n, f.p)
-            val reply = state(n, 4, screen.route)
-            val label = "${screen.route} $combo"
-            assertEquals(screen.route, reply.text("route"), label)
-            val all = nodes(reply)
-            val rows = all.filter { it.int("id") in 1000 until 2000 }
-            assertEquals(screen.rows.indices.map { 1000 + it }, rows.map { it.int("id") }, label)
-            for (node in rows) {
-                val i = node.int("id") - 1000
-                val row = screen.rows[i]
-                assertEquals(s(row.title), node.text("label"), "title row $i $label")
-                assertEquals(ref.summary(row, f, ::s), node.text("state"), "summary row $i $label")
-                assertEquals(row.enabled(f), node.bool("enabled"), "enabled row $i $label")
-                assertEquals(if (row.kind == "heading") "heading" else "button", node.text("role"), "role row $i $label")
-                val click = 1 in node.getValue("actions").jsonArray.map { it.jsonPrimitive.int }
-                assertEquals(row.kind != "heading" && row.enabled(f), click, "click row $i $label")
+        var checked = 0
+        for (screen in ref.screens) KeyboardRenderer(arrayOf(font)).use { n ->
+            prepare(n, defaults())
+            for (combo in combinations(screen.inputs)) for (labels in screen.labelSets) for (is24 in screen.clocks) {
+                val f = ReferenceOtherThemeScreens.Facts(defaults() + combo, labels, is24)
+                n.settings(2, f.p.flatMap { listOf(it.key, it.value) }.toTypedArray())
+                n.settings(20, facts(labels, is24))
+                val reply = state(n, 4, screen.route)
+                val label = "${screen.route} $combo ${labels.size} labels, 24h $is24"
+                assertEquals(screen.route, reply.text("route"), label)
+                val all = nodes(reply)
+                val byId = all.associateBy { it.int("id") }
+                val rows = all.filter { it.int("id") in 1000 until 2000 }
+                assertEquals(screen.rows.indices.map { 1000 + it }, rows.map { it.int("id") }, label)
+                for (node in rows) {
+                    val i = node.int("id") - 1000
+                    val row = screen.rows[i]
+                    assertEquals(s(row.title), node.text("label"), "title row $i $label")
+                    assertEquals(ref.summary(row, f, ::s), node.text("state"), "summary row $i $label")
+                    assertEquals(row.enabled(f), node.bool("enabled"), "enabled row $i $label")
+                    val role = when (row.kind) { "heading" -> "heading"; "addons" -> "text"; else -> "button" }
+                    assertEquals(role, node.text("role"), "role row $i $label")
+                    assertEquals(row.kind !in setOf("heading", "addons") && row.enabled(f), clicks(node), "click row $i $label")
+                    if (row.kind == "addons") {
+                        assertEquals(ref.addonTitle(row, ::s), byId.getValue(5000 + i).text("label"), "box title $label")
+                        val button = byId.getValue(6000 + i)
+                        assertEquals(ref.addonButton(row, ::s), button.text("label"), "box button $label")
+                        assertEquals("button", button.text("role"), label)
+                        assertTrue(clicks(button), label)
+                    }
+                }
+                assertEquals(screen.preview, all.any { it.int("id") == 2 }, "preview field $label")
+                checked++
             }
-            assertEquals(screen.preview, all.any { it.int("id") == 2 }, "preview field $label")
         }
+        // Other's 15 combinations and Theme's 4 x 4 x 3 x 4 x 2 stored values x 2 label sets x 2 clocks.
+        assertEquals(15 + 1536, checked)
     }
 
     @Test fun routesGoWhereComposeWent() {
@@ -85,8 +112,9 @@ class SettingsOtherThemeMatchTest {
             prepare(n, defaults())
             state(n, 4, screen.route)
             val native = n.settings(19)[2].split("\n")
-            for ((i, row) in screen.rows.withIndex()) if (row.kind == "route") {
-                val reply = tap(n, 1000 + i)
+            for ((i, row) in screen.rows.withIndex()) if (row.route.isNotEmpty()) {
+                // The addon box goes from its button; every other row from itself.
+                val reply = tap(n, (if (row.kind == "addons") 6000 else 1000) + i)
                 if (row.route in native) {
                     assertEquals(row.route, reply.text("route"))
                     state(n, 6, "3", "0")
@@ -229,6 +257,77 @@ class SettingsOtherThemeMatchTest {
                     check(n, d, editing, label)
                 }
                 assertFalse(state(n).bool("popup"))
+            }
+        }
+    }
+
+    @Test fun timeSummariesMatchJetprefAtEveryMinuteOnBothClocks() {
+        KeyboardRenderer(arrayOf(font)).use { n ->
+            prepare(n, defaults())
+            state(n, 4, "settings/theme")
+            val rows = listOf("theme__sunrise_time", "theme__sunset_time").map { key -> ref.theme.rows.indexOfFirst { it.key == key } }
+            for (is24 in listOf(false, true)) {
+                n.settings(20, facts(emptyMap(), is24))
+                for (minute in 0 until 24 * 60) {
+                    val time = LocalTime(minute / 60, minute % 60)
+                    val stored = serialized(time)
+                    n.settings(2, arrayOf("theme__sunrise_time", stored, "theme__sunset_time", stored))
+                    val nodes = byId(state(n))
+                    for (row in rows) assertEquals(time.stringRepresentation(is24), nodes.getValue(1000 + row).text("state"), "$stored $is24")
+                }
+            }
+        }
+    }
+
+    /** Opens the sunrise dialog: on the dial, or switched to the keyboard the first time it is asked for. */
+    private fun openTime(n: KeyboardRenderer, row: Int, keyboard: Boolean) {
+        assertTrue(tap(n, 1000 + row).bool("popup"))
+        val dial = byId(state(n)).containsKey(7160)
+        if (keyboard == dial) tap(n, 7154)
+    }
+
+    /** Clears the field holding the keyboard and types `digits` into it one by one. */
+    private fun type(n: KeyboardRenderer, digits: String) {
+        state(n, 9, "set", "")
+        for (c in digits) state(n, 9, "commit", c.toString(), "1")
+    }
+
+    @Test fun theTimeDialogStoresWhatJetprefStoresOnTheDialAndTyped() {
+        val random = Random(20261119)
+        KeyboardRenderer(arrayOf(font)).use { n ->
+            prepare(n, defaults() + ("theme__mode" to "FOLLOW_TIME"))
+            state(n, 4, "settings/theme")
+            val row = ref.theme.rows.indexOfFirst { it.key == "theme__sunrise_time" }
+            for (is24 in listOf(false, true)) {
+                n.settings(20, facts(emptyMap(), is24))
+                // On the dial: every hour by its number, then a minute on the face, then OK.
+                for (hour in 0 until 24) {
+                    val minute = 5 * random.nextInt(12)
+                    openTime(n, row, keyboard = false)
+                    if (!is24) tap(n, if (hour >= 12) 7153 else 7152)
+                    tap(n, 7160 + if (is24) hour else hour % 12)
+                    tap(n, 7160 + minute / 5)
+                    val stored = serialized(LocalTime(hour, minute))
+                    assertEquals(listOf(listOf("write", "theme__sunrise_time", stored)), effects(tap(n, 7)), "dial $stored $is24")
+                    assertEquals(LocalTime(hour, minute).stringRepresentation(is24), byId(state(n)).getValue(1000 + row).text("state"))
+                }
+                // Typed a digit at a time over a cleared field: every minute, each with a random hour.
+                for (minute in 0 until 60) {
+                    val hour = random.nextInt(24)
+                    openTime(n, row, keyboard = true)
+                    if (!is24) tap(n, if (hour >= 12) 7153 else 7152)
+                    tap(n, 7001)
+                    type(n, "%02d".format(if (is24) hour else (hour + 11) % 12 + 1))
+                    // TimeInput moves on by itself after a 12-hour clock's 2 to 12; otherwise Next.
+                    if (7002 !in byId(state(n))) state(n, 7, "0", "66", "0")
+                    assertTrue(7002 in byId(state(n)), "the minute field after $hour")
+                    type(n, "%02d".format(minute))
+                    val stored = serialized(LocalTime(hour, minute))
+                    assertEquals(listOf("write", "theme__sunrise_time", stored), effects(tap(n, 7)).last(), "typed $stored $is24")
+                }
+                tap(n, 1000 + row)
+                tap(n, 7154)
+                tap(n, 6)
             }
         }
     }

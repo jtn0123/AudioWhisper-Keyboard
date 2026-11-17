@@ -45,5 +45,10 @@ internal fun settingsIcons(resources: Resources): Array<String> {
         "@icon:edit" to Icons.Default.Edit, "@icon:done" to Icons.Default.Done, "@icon:clear" to Icons.Default.Clear,
         // The time picker's switch back from the keyboard to the dial.
         "@icon:clock" to Icons.Default.Schedule,
+        // Theme, and its addon box's button.
+        "@icon:brightness_auto" to Icons.Default.BrightnessAuto, "@icon:light_mode" to Icons.Default.LightMode,
+        "@icon:dark_mode" to Icons.Default.DarkMode, "@icon:wb_twilight" to Icons.Default.WbTwilight,
+        "@icon:brightness_2" to Icons.Default.Brightness2, "@icon:color_lens" to Icons.Default.ColorLens,
+        "@icon:shop" to Icons.Default.Shop,
     )).flatMap { (name, icon) -> listOf(name, iconPath(icon)) }.toTypedArray()
 }

@@ -109,6 +109,22 @@ impl App {
             self.label(unit.key).replace("{v}", value)
         }
     }
+    /// ThemeScreen's `getThemeLabel` for the theme id stored at `key`: the indexed theme's label,
+    /// else the id itself. An id without exactly one ':' reads back as the default, as
+    /// ExtensionComponentName's serializer turns it down.
+    pub fn theme_label(&self, key: &str) -> String {
+        let stored = self.value(key);
+        let id = if stored.matches(':').count() == 1 {
+            stored
+        } else {
+            settings::catalogue::get(&settings::text(key))
+                .map_or(String::new(), |p| p.default.into())
+        };
+        self.facts
+            .get(&format!("theme_label:{id}"))
+            .cloned()
+            .unwrap_or(id)
+    }
     /// The row's summary line, as its Preference composable words it.
     pub fn summary(&self, i: usize) -> String {
         let r = &self.rows()[i];
@@ -138,6 +154,7 @@ impl App {
                 let (hour, minute) = self.time_of(r.key);
                 super::time::shown(hour, minute, self.is24())
             }
+            Kind::Theme(_) => self.theme_label(r.key),
             _ if r.summary.is_empty() => String::new(),
             _ if r.arg.0.is_empty() => self.label(r.summary),
             _ => self
@@ -178,6 +195,7 @@ impl App {
                     ]),
                     Kind::Effect(Do::Url(key)) => out.push(key),
                     Kind::Card(card) => out.extend([card.text, card.link, card.url]),
+                    Kind::Addons(a) => out.extend(super::addons::KEYS.iter().chain([&a.title])),
                     Kind::Status(_) => out.extend(super::fields::MODEL_KEYS),
                     _ => {}
                 }

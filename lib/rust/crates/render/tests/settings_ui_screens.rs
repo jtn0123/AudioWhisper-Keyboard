@@ -140,7 +140,8 @@ fn group_one_routes_are_native_and_other_routes_fall_back_with_the_native_list()
     let native = "settings/home|settings/keyboard|settings/keyboard/input-feedback|settings/smartbar|\
                   settings/gestures|settings/clipboard|settings/media|settings/typing|\
                   settings/dictionary|settings/other/physical-keyboard|settings/about|\
-                  settings/dictation|settings/about/third-party-licenses|settings/other";
+                  settings/dictation|settings/about/third-party-licenses|settings/other|\
+                  settings/theme";
     assert_eq!(a.effects.pop().unwrap(), ["compose", manager, native]);
 }
 

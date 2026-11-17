@@ -280,7 +280,7 @@ impl App {
                 };
                 let action = match r.kind {
                     Kind::Heading | Kind::Fixed | Kind::Info | Kind::Status(_) => Action::None,
-                    Kind::Route(route) => Action::Route(route.into()),
+                    Kind::Route(route) | Kind::Theme(route) => Action::Route(route.into()),
                     _ => Action::Row(i),
                 };
                 self.add(

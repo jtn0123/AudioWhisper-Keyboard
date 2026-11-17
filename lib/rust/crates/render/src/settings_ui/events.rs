@@ -304,7 +304,7 @@ impl App {
                         | Kind::Status(_)
                         | Kind::Note => {}
                         // The card's text is not focusable; its hyperlink is.
-                        Kind::Card(_) => eligible.push(6000 + i as i32),
+                        Kind::Card(_) | Kind::Addons(_) => eligible.push(6000 + i as i32),
                         Kind::Libraries => eligible.extend(self.licence_focus()),
                         _ => eligible.push(1000 + i as i32),
                     }

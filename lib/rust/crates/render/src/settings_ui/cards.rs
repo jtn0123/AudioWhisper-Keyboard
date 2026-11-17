@@ -35,7 +35,20 @@ const TITLE_MEDIUM: Type = Type {
     tracking: 0.2,
     weight: 500,
 };
-const TITLE_SMALL: Type = Type {
+pub(super) const TITLE_SMALL: Type = Type {
+    size: 14,
+    line: 20.0,
+    tracking: 0.1,
+    weight: 500,
+};
+/// bodySmall and labelLarge: AddonManagementReferenceBox's note and its TextButton.
+pub(super) const BODY_SMALL: Type = Type {
+    size: 12,
+    line: 16.0,
+    tracking: 0.4,
+    weight: 400,
+};
+pub(super) const LABEL_LARGE: Type = Type {
     size: 14,
     line: 20.0,
     tracking: 0.1,
@@ -89,7 +102,15 @@ impl App {
             width.map(|w| w.max(1.0)),
         )
     }
-    fn paint_styled(&self, p: &mut Panel, label: &str, b: Rect, t: Type, color: u32, clip: Rect) {
+    pub(super) fn paint_styled(
+        &self,
+        p: &mut Panel,
+        label: &str,
+        b: Rect,
+        t: Type,
+        color: u32,
+        clip: Rect,
+    ) {
         self.paint_text(p, label, b, self.sp(t.size), color, clip);
         let [line, tracking] = self.metrics(t);
         let item = p.items.last_mut().expect("paint_text pushed an item");
@@ -148,6 +169,7 @@ impl App {
             Kind::Note => Some(self.note(p, i, at, clip, text)),
             Kind::Field => Some(self.text_field(p, i, at, clip, text)),
             Kind::Libraries => Some(self.libraries(p, at, clip, text)),
+            Kind::Addons(a) => Some(self.addons(p, i, a, at, clip, text)),
             _ => None,
         }
     }

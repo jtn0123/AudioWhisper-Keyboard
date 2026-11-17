@@ -1,4 +1,5 @@
 //! Native settings UI. Platform effects and persisted IO are returned as plans.
+mod addons;
 mod cards;
 pub mod catalogue;
 pub mod color;
