@@ -5,6 +5,8 @@ use crate::{
     protocol::*,
     touch::Action,
 };
+/// Panel node ids are this plus the item's id, apart from key slots and bar actions.
+const PANEL_IDS: i32 = 2_000_000;
 pub fn nodes(panel: &Panel) -> Vec<Node> {
     let mut nodes: Vec<Node> = panel
         .items
@@ -25,7 +27,7 @@ pub fn nodes(panel: &Panel) -> Vec<Node> {
                 return None;
             }
             let mut n = Node::new(
-                2_000_000 + i.id,
+                PANEL_IDS + i.id,
                 r,
                 i.label.clone(),
                 "button",
@@ -133,7 +135,7 @@ pub fn popup(panel: &Panel) -> Option<(usize, Option<i32>)> {
     let source = panel.items[..start]
         .iter()
         .find(|i| i.command == opener)
-        .map(|i| 2_000_000 + i.id);
+        .map(|i| PANEL_IDS + i.id);
     Some((start, source))
 }
 pub fn activate(panel: &mut Panel, index: usize, action: i32) -> Vec<Action> {
