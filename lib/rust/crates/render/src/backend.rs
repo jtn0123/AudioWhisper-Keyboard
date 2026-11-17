@@ -3,7 +3,7 @@
 use parley::GlyphRun;
 use read_fonts::TableProvider;
 use vello_cpu::{
-    Pixmap, RenderContext, Resources,
+    PixmapMut, RenderContext, Resources,
     kurbo::{Affine, BezPath, Rect},
     peniko::color::{AlphaColor, Srgb},
 };
@@ -163,14 +163,17 @@ impl Backend {
         self.fill_rect(&Rect::new(0.0, 0.0, w, h));
         self.reset_transform();
     }
-    pub fn render(&mut self, pixmap: &mut Pixmap) {
+    /// Composite the scene over `target`, the scene's origin at `offset` in it. Vello rasterizes
+    /// only the part of the scene the target covers.
+    pub fn render<'a>(&mut self, target: impl Into<PixmapMut<'a>>, offset: (i32, i32)) {
         match self {
             Self::Cpu(c) => {
                 c.context.render_with(
-                    pixmap,
+                    target,
                     &mut c.resources,
                     vello_cpu::RasterizerSettings {
                         target_init: vello_cpu::TargetInit::SrcOver,
+                        offset,
                         ..Default::default()
                     },
                 );

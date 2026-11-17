@@ -17,6 +17,8 @@ pub struct Raster {
     layouts: HashMap<(String, u32, bool, i32), Layout<()>>,
     pub(crate) context: crate::backend::Backend,
     pixmap: Pixmap,
+    /// The damaged rectangle's pixels while it renders, when it is not whole rows.
+    scratch: Vec<u8>,
     profiling: bool,
     profile: Profile,
 }
@@ -41,6 +43,7 @@ impl Raster {
             layouts: HashMap::new(),
             context: crate::backend::Backend::cpu(width, height),
             pixmap: Pixmap::new(width, height),
+            scratch: Vec::new(),
             profiling: false,
             profile: Profile::default(),
         }
@@ -330,17 +333,47 @@ impl Raster {
         self.context.pop_clip();
         self.profile.encode_ns = elapsed(encode);
         let raster = self.profiling.then(Instant::now);
-        let width = self.pixmap.width() as usize;
-        let left = damage.left.max(0.0).min(width as f32) as usize;
-        let right = damage.right.max(0.0).min(width as f32) as usize;
-        let top = damage.top.max(0.0).min(self.pixmap.height() as f32) as usize;
-        let bottom = damage.bottom.max(0.0).min(self.pixmap.height() as f32) as usize;
-        for y in top..bottom {
-            self.pixmap.data_as_u8_slice_mut()[(y * width + left) * 4..(y * width + right) * 4]
-                .fill(0);
-        }
-        self.context.render(&mut self.pixmap);
+        self.rasterize(damage)?;
         self.profile.raster_ns = elapsed(raster);
+        Ok(())
+    }
+
+    /// Composite the damaged rectangle over transparent and store it. Vello unpacks and repacks
+    /// every pixel of its target, drawn on or not, so the target is only the damage: a band of
+    /// whole rows in place, or else a scratch copied back. The scene keeps surface coordinates
+    /// and the target is placed by a negative offset, so each pixel comes out exactly as a full
+    /// redraw computes it.
+    pub(crate) fn rasterize(&mut self, damage: Rect) -> Result<(), String> {
+        let (width, height) = (self.pixmap.width(), self.pixmap.height());
+        let clamp = |v: f32, limit: u16| v.clamp(0.0, f32::from(limit)) as u16;
+        let (left, right) = (clamp(damage.left, width), clamp(damage.right, width));
+        let (top, bottom) = (clamp(damage.top, height), clamp(damage.bottom, height));
+        let (w, h) = (right.saturating_sub(left), bottom.saturating_sub(top));
+        if w == 0 || h == 0 {
+            return Ok(());
+        }
+        let row = usize::from(width) * 4;
+        let rows = usize::from(top) * row..usize::from(top + h) * row;
+        let offset = (-i32::from(left), -i32::from(top));
+        let pixels = self.pixmap.data_as_u8_slice_mut();
+        if w == width {
+            let band = &mut pixels[rows];
+            band.fill(0);
+            let target = vello_cpu::PixmapMut::new(w, h, band).ok_or("damage band size")?;
+            self.context.render(target, offset);
+            return Ok(());
+        }
+        self.scratch.clear();
+        self.scratch.resize(usize::from(w) * usize::from(h) * 4, 0);
+        let target = vello_cpu::PixmapMut::new(w, h, &mut self.scratch).ok_or("damage size")?;
+        self.context.render(target, offset);
+        let (start, span) = (usize::from(left) * 4, usize::from(w) * 4);
+        for (dst, src) in pixels[rows]
+            .chunks_exact_mut(row)
+            .zip(self.scratch.chunks_exact(span))
+        {
+            dst[start..start + span].copy_from_slice(src);
+        }
         Ok(())
     }
 
