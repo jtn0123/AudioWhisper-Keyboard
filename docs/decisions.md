@@ -452,10 +452,25 @@ set.
 - *Proof:* Rust tests in `editor`, `input` (delete plan, routing order); five flows through the
   native editor and a fake app in `AutoCorrectionUndoFlowTest`, including cursor reports delayed
   past the undo; and four mutations in `scripts/correction-mutations.py`, each caught.
+- *The Rust settings try-out field (follow-up, same day):* its `SettingsInputView` answered
+  `beginBatchEdit`/`endBatchEdit` without doing anything, and `RustSettingsView` reported the
+  cursor after every call. So the keyboard heard each step of its own batch ("the" committed, then
+  the space), steps it doesn't expect, which it reads as the user moving the cursor: the undo still
+  put back "teh", but the space it owes was ended and "y" gave "tehy". Now the settings editor
+  counts the open batches (`render::settings_ui::editor::Batches`, on the settings `App`) and
+  says in its state whether to report (`"report"`). Like EditText, it reports once the outermost
+  batch ends, `endBatchEdit` answers whether one is still open, and a closed connection ends the
+  batches it left open. `AutoCorrectionUndoFlowTest` runs the same flow against the native
+  settings editor through an adapter that maps calls as `SettingsInputView` does
+  (`SettingsFieldConnection`); before the change it fails on the owed space. Three more
+  mutations, each caught. On the emulator's try-out field: "teh " became "the ", one backspace
+  gave "teh" and "y" gave "teh y".
 
 **Would change if** the owed space should go (the next letter continuing the word instead), which
 would be a change to `undo::revert_at`, or the phone's typing counters show undone corrections
-being re-corrected; the late-update rule would stay either way.
+being re-corrected; the late-update rule would stay either way. The settings field's batches
+would change only if Android's EditText stopped deferring its cursor reports, the behaviour it
+copies.
 
 ## Apostrophes: the language model decides between "its" and "it's" (2026-11-16)
 

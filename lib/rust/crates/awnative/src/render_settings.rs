@@ -73,7 +73,7 @@ fn reply(
     let effects = std::mem::take(&mut a.effects);
     let result = json!({"nodes":nodes,"mode":"","shift":"","popup":a.modal.is_some(),"effects":effects,
         "systemBarColor":a.system_bar_color(),"lightSystemBars":a.light_system_bars(),"route":a.stack.last(),"canBack":a.stack.len()>1 || a.modal.is_some() || a.editor.focused,"scroll":a.scroll(),"maxScroll":a.max_scroll,"focus":a.focus,
-        "animating":a.animating(),"scrollbarAlpha":a.scrollbar_alpha(usize::from(a.modal.is_some())),"selectionToolbar":a.editor.focused && a.editor.anchor!=a.editor.focus && !a.toolbar_dismissed,"accepted":a.accepted,"editor":{"anchor":a.editor.anchor,"focus":a.editor.focus,"composing":a.editor.composing,"focused":a.editor.focused,"bounds":field,"multiLine":a.field.is_some()}});
+        "animating":a.animating(),"scrollbarAlpha":a.scrollbar_alpha(usize::from(a.modal.is_some())),"selectionToolbar":a.editor.focused && a.editor.anchor!=a.editor.focus && !a.toolbar_dismissed,"accepted":a.accepted,"editor":{"anchor":a.editor.anchor,"focus":a.editor.focus,"composing":a.editor.composing,"focused":a.editor.focused,"report":a.batches.report(),"bounds":field,"multiLine":a.field.is_some()}});
     let mut out = vec![
         settings::text(&result.to_string()),
         a.editor.text.clone(),
@@ -234,7 +234,7 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_settings(
                 }
                 9 => {
                     let kind = field(&p, 0)?;
-                    if kind != "query" {
+                    if !matches!(kind, "query" | "begin" | "end") {
                         a.toolbar_dismissed = false;
                     }
                     match kind {
@@ -250,6 +250,15 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_settings(
                         }
                         "region" => a.editor.region(int(&p, 1)?, int(&p, 2)?),
                         "finish" => a.editor.composing = None,
+                        "begin" => {
+                            a.batches.begin();
+                            a.accepted = true;
+                        }
+                        "end" => a.accepted = a.batches.end(),
+                        "close" => {
+                            a.batches.close();
+                            a.editor.composing = None;
+                        }
                         "delete" | "codepoints" => {
                             a.accepted =
                                 a.editor

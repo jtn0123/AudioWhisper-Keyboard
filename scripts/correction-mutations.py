@@ -56,6 +56,19 @@ CASES = {
         CRATES + 'input/src/routing.rs',
         '    if code != DELETE {\n        add(CLEAR_UNDO, 0);\n    }\n', '',
         ('cargo', 'input', None, 'undo')),
+    # The Rust settings field holds back cursor updates during the keyboard's batch edits.
+    'settings-field-reports-mid-batch': (
+        CRATES + 'awnative/src/render_settings.rs',
+        '"report":a.batches.report(),', '"report":true,',
+        ('gradle', ':app', '*AutoCorrectionUndoFlowTest')),
+    'settings-batches-not-nested': (
+        CRATES + 'render/src/settings_ui/editor.rs',
+        'self.0 = self.0.saturating_add(1);', 'self.0 = 1;',
+        ('cargo', 'render', None, 'batch')),
+    'closed-connection-keeps-batches': (
+        CRATES + 'render/src/settings_ui/editor.rs',
+        '    pub fn close(&mut self) {\n        self.0 = 0;\n    }', '    pub fn close(&mut self) {}',
+        ('gradle', ':app', '*SettingsEditorMatchTest')),
     # Apostrophes: the language model decides between a word and its spelling with one.
     'model-never-restores': (
         CRATES + 'suggest/src/apostrophes.rs',

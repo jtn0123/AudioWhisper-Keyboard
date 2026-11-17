@@ -18,7 +18,7 @@ pub use rows::CODE_KEYS;
 mod scrollbar;
 mod widgets;
 use crate::panel_scroll::Fling;
-use editor::Editor;
+use editor::{Batches, Editor};
 use keys::Rect;
 use std::collections::BTreeMap;
 #[derive(Clone, Debug, PartialEq)]
@@ -112,6 +112,8 @@ pub struct App {
     pub editor_layout: Option<std::sync::Arc<crate::android_text::Layout>>,
     pub editor_origin: [f32; 2],
     pub toolbar_dismissed: bool,
+    /// The keyboard's open batch edits on the field.
+    pub batches: Batches,
     pub back_progress: f32,
     pub ime_enabled: bool,
     pub ime_selected: bool,
@@ -164,6 +166,7 @@ impl Default for App {
             editor_layout: None,
             editor_origin: [0.0; 2],
             toolbar_dismissed: false,
+            batches: Batches::default(),
             back_progress: 0.0,
             ime_enabled: true,
             ime_selected: true,
