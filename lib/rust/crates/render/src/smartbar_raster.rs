@@ -17,10 +17,10 @@ impl Raster {
             let action = &bar.actions[slot.id];
             let style = &action.styles[usize::from(bar.pressed.contains(&slot.id))];
             let r = inset(slot.face(), style.margin);
-            self.shadow(r, style);
             if action.lit == 0 {
-                self.box_at(r, style);
+                self.shadowed_box(r, style);
             } else {
+                self.shadow(r, style);
                 self.lit_action(r, style, action, bar.phase, bar.config.density);
             }
             let r = inset(r, style.padding);
@@ -170,27 +170,6 @@ impl Raster {
             path.close_path();
             self.context.set_paint(color(style.background));
             self.context.fill_path(&path);
-        }
-    }
-    pub(crate) fn shadow(&mut self, r: Rect, style: &Style) {
-        if style.shadow <= 0.0 {
-            return;
-        }
-        // Android elevation has a centered ambient lobe and an offset spot lobe.
-        // Values are physical pixels; damage reserves six elevations around the original box.
-        for (alpha, offset, sigma) in [(0x10000000, 0.0, 0.30), (0x30000000, 1.20, 1.00)] {
-            self.context.set_paint(color(alpha));
-            let y = style.shadow * offset;
-            self.context.fill_blurred_rounded_rect(
-                &vello_cpu::kurbo::Rect::new(
-                    r.left as f64,
-                    (r.top + y) as f64,
-                    r.right as f64,
-                    (r.bottom + y) as f64,
-                ),
-                style.radii(r.width(), r.height())[0],
-                style.shadow * sigma,
-            );
         }
     }
     pub(crate) fn icon(&mut self, svg: &str, style: &Style, r: Rect) -> Result<(), String> {

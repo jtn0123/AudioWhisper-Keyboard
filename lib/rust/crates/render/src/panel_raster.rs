@@ -23,8 +23,7 @@ impl Raster {
                 ));
                 let style = &item.styles[usize::from(panel.pressed == Some(item.id))];
                 let r = inset(item.bounds, style.margin);
-                self.shadow(r, style);
-                self.box_at(r, style);
+                self.shadowed_box(r, style);
                 let mut r = inset(r, style.padding);
                 if item.element.ends_with("-tile") && !item.label.is_empty() {
                     let label = self.panel_text_layout(&item.label, &item.text, r.width(), true);

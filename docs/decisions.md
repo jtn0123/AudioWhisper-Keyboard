@@ -789,3 +789,41 @@ and 2 and the licences, the accessibility node comparison, the Compose vocabular
 timing and picture pairs. Their receipts stay in the stage 4 documents. **Would change if** a phone
 shows a settings screen that Rust cannot draw at all; then that screen's Compose version is
 restored from history behind the fallback Activity, not behind a switch.
+
+## The keyboard's CPU gate stays 2 ms, settled on the phone at 120 Hz (2026-11-17)
+
+The CPU gate for the Rust keyboard (K item 4 of [the removal plan](compose-removal.md)) stays what
+Milestone A set: **once warm, `draw` (building the scene and rasterizing it, timed per posted
+frame) at most 2.0 ms at the 95th percentile.** On the emulator it now passes, p95 1.257 and
+1.107 ms in two alternating trials, down from 4.6–6.8 ms ([results](cpu-p95-results.md)). The
+emulator does not settle it: the plan was always "first on the emulator, then on the S24 Ultra at
+120 Hz", and the phone is where the keyboard is used.
+
+**Why 2 ms, unchanged.** At 120 Hz a new frame starts every 8.33 ms. The keyboard draws on its own
+thread (`aw-render`): each frame it draws into its own pixels, waits for a free window buffer,
+copies the changed pixels in and posts it. A draw that runs long misses the frame, and the next
+scene replaces the one that was waiting. 2 ms is a quarter of the frame, which leaves room for that
+handoff and for the main thread, the suggestion engine and the compositor, all on the same cores.
+A looser number would let the emulator set the phone's target, and the emulator is not simply
+slower: its virtual CPUs run on the Mac's fast cores but are scheduled by the host, which is where
+its remaining slow frames come from ([results](cpu-p95-results.md#what-is-left)). The phone has its
+own risks (big and little cores, heat, a different screen size), so it gets its own measurement
+against the same number rather than a number derived from the emulator.
+
+**What settles it.** On the S24 Ultra, with Motion smoothness set to High and 120 Hz confirmed
+active during the run, not charging, battery saver off, and the build under test:
+
+1. two alternating Compose/Rust trials with `scripts/render-benchmark/cpu-trials.py` and
+   `log.tag.aw-profile=DEBUG`, the same 300 presses and eight popups, with the tap positions
+   remeasured for the phone (they fit the 1080×2400 emulator only);
+2. both Rust trials type the expected text, and **each one's `draw` p95 is 2.0 ms or less**.
+   Beside it, report p50, p99, the share of frames over 2 ms, the render thread's CPU time
+   (`cpu_ns`) and Compose's draw-recording p95 as the reference;
+3. one Perfetto trace with FrameTimeline over a Rust trial, for missed frames and touch to
+   present. It is reported, not part of the pass mark.
+
+If the phone misses 2 ms, the number stays. The attribution log names the kinds of frame over it,
+and `cpu_ns` says whether the thread was working (fix the drawing) or waiting to run (look at the
+render thread's priority). **Would change if** the phone passes `draw` but FrameTimeline shows the
+Rust keyboard missing 120 Hz frames that Compose does not; then CPU draw time is the wrong
+measure, and moving the gate to presented frames is decided here first.

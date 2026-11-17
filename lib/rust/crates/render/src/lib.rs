@@ -11,6 +11,7 @@ pub mod gesture_config;
 mod glide_touch;
 #[cfg(feature = "hybrid")]
 pub mod hybrid;
+mod ink;
 pub mod key_content;
 mod keyboard_swipe;
 mod keyboard_touch;
@@ -20,6 +21,7 @@ pub mod protocol;
 pub mod raster;
 pub mod reading_order;
 pub mod scene;
+mod shadow_raster;
 pub mod smartbar;
 pub mod smartbar_fit;
 mod smartbar_raster;

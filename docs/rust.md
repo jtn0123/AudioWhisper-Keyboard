@@ -10,8 +10,9 @@ Rust draws the keyboard and settings by default; a user's explicit "off" is kept
 no new features, only fixes for crashes or lost data, and is removed in the order of
 [the removal plan](compose-removal.md). The Compose keyboard stays as the fallback until its
 phone checks pass (a real TalkBack session, the Samsung font check, font scale 2.0 and the CPU
-p95 gate). Where the stages below say "Compose stays the default" or "default-off", that was
-true when they were written. See [decisions](decisions.md#rust-draws-by-default-2026-11-16).
+p95 gate, which the emulator has passed since 2026-11-17 and the phone has yet to; see
+[the results](cpu-p95-results.md)). Where the stages below say "Compose stays the default" or
+"default-off", that was true when they were written. See [decisions](decisions.md#rust-draws-by-default-2026-11-16).
 
 ## Logic and drawing in Rust (decided 2026-11-14)
 
@@ -135,7 +136,10 @@ trials. Separate strip/key damage reduces CPU frames over 2 ms from 42.9% to 10.
 two alternating final CPU scene+raster trials have p95 4.715 and 5.533 ms, versus
 7.809 and 8.479 ms before. Candidate edge cancellation, fresh light/dark/popup captures,
 and portrait/landscape recreation are checked on the final APK; window ownership ends at
-zero (5 acquired/5 released). **The 2/3 ms performance gate is not passed.** Compose stays
+zero (5 acquired/5 released). **The 2/3 ms performance gate is not passed.** (2026-11-17: the
+CPU half now passes on the emulator, p95 1.257 and 1.107 ms; see
+[the CPU gate results](cpu-p95-results.md). The phone is still owed, and the 3 ms GPU target
+applies only if the build-option Vulkan path is measured again.) Compose stays
 the default and the prototype was left off. Milestone B still needs Samsung font inspection,
 S24/120 Hz Perfetto and GPU timings, broader input parity and closer visual matching.
 See [the full results and reproduction notes](stage3a-results.md) for boundaries and evidence.

@@ -1,5 +1,5 @@
 //! Scene snapshots contain the evaluated keys and resolved Snygg values, never another layout.
-use crate::style::Style;
+use crate::{smartbar_scene::Smartbar, style::Style};
 use keys::{Bounds, Rect};
 
 #[derive(Clone, Debug, PartialEq)]
@@ -160,8 +160,6 @@ impl Scene {
             || self.strip != next.strip
             || self.background != next.background
             || self.strip_style != next.strip_style
-            || self.popup_style != next.popup_style
-            || self.popup_styles != next.popup_styles
             || self.keys != next.keys
         {
             return vec![Rect {
@@ -183,33 +181,89 @@ impl Scene {
             || self.smartbar != next.smartbar
             || self.candidate_styles != next.candidate_styles
         {
-            rects.push(Rect {
-                left: 0.0,
-                top: 0.0,
-                right: next.width as f32,
-                bottom: next.strip,
-            });
+            rects.push(self.strip_damage(next));
         }
         for &i in self.pressed.iter().chain(&next.pressed) {
             if self.pressed.contains(&i) == next.pressed.contains(&i) {
                 continue;
             }
             if let Some(key) = next.keys.get(i) {
-                let r = key.bounds.visible;
-                let margin = key.styles.iter().map(|s| s.shadow).fold(0.0, f32::max) * 6.0;
-                rects.push(Rect {
-                    left: r.left - margin,
-                    right: r.right + margin,
-                    top: r.top + next.strip - margin,
-                    bottom: r.bottom + next.strip + margin,
-                });
+                rects.push(press_damage(key, next.strip));
             }
         }
-        if self.popup != next.popup || self.popup_geometry != next.popup_geometry {
+        // Popup styles paint only inside the popup, and the theme sets them as a popup opens.
+        if self.popup != next.popup
+            || self.popup_geometry != next.popup_geometry
+            || self.popup_style != next.popup_style
+            || self.popup_styles != next.popup_styles
+        {
             rects.extend(self.popup_bounds());
             rects.extend(next.popup_bounds());
         }
         rects
+    }
+}
+
+impl Scene {
+    /// What a change in the strip repaints: only the words' area when nothing outside it, the
+    /// action buttons above all, changed. Words, their spacers and their pressed backgrounds
+    /// are clipped to that area.
+    fn strip_damage(&self, next: &Self) -> Rect {
+        let words_only = |a: &Smartbar, b: &Smartbar| {
+            next.panel.is_none()
+                && self.preview == next.preview
+                && self.search == next.search
+                && a.config == b.config
+                && a.actions == b.actions
+                && a.pressed == b.pressed
+                && a.phase == b.phase
+                && a.layout.actions == b.layout.actions
+                && a.layout.center == b.layout.center
+        };
+        match (&self.smartbar, &next.smartbar) {
+            (Some(a), Some(b)) if words_only(a, b) => b.layout.center,
+            _ => Rect {
+                left: 0.0,
+                top: 0.0,
+                right: next.width as f32,
+                bottom: next.strip,
+            },
+        }
+    }
+}
+
+/// What a key's press or release repaints. A press that only recolours the key's box changes
+/// no pixel outside the box; anything else, its shadow too, as far as six elevations out.
+fn press_damage(key: &Key, strip: f32) -> Rect {
+    let [up, down] = &key.styles;
+    let r = key.bounds.visible;
+    let recolour = key.hints[0] == key.hints[1]
+        && *down
+            == Style {
+                background: down.background,
+                ..up.clone()
+            };
+    if recolour {
+        return crate::smartbar::inset(key_cell(r, strip), up.margin);
+    }
+    let margin = 6.0 * up.shadow.max(down.shadow);
+    Rect {
+        left: r.left - margin,
+        right: r.right + margin,
+        top: r.top + strip - margin,
+        bottom: r.bottom + strip + margin,
+    }
+}
+
+/// Where a key with `visible` bounds draws, below the strip: Compose uses truncated absolute
+/// offsets and independently rounded sizes.
+pub(crate) fn key_cell(visible: Rect, strip: f32) -> Rect {
+    let (left, top) = (visible.left.trunc(), visible.top.trunc() + strip);
+    Rect {
+        left,
+        top,
+        right: left + visible.width().round(),
+        bottom: top + visible.height().round(),
     }
 }
 
