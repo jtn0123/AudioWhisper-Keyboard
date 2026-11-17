@@ -134,7 +134,9 @@ internal class RustSettingsView(context: Context) : FrameLayout(context), Surfac
             (bounds[3].jsonPrimitive.float - bounds[1].jsonPrimitive.float).toInt().coerceAtLeast(1),
         ).apply { leftMargin = bounds[0].jsonPrimitive.float.toInt(); topMargin = bounds[1].jsonPrimitive.float.toInt() }
         val composing = editor["composing"]?.takeUnless { it == JsonNull }?.jsonArray
-        imm.updateSelection(endpoint, anchor, selectionEnd, composing?.get(0)?.jsonPrimitive?.int ?: -1, composing?.get(1)?.jsonPrimitive?.int ?: -1)
+        if (editor.getValue("report").jsonPrimitive.boolean) {
+            imm.updateSelection(endpoint, anchor, selectionEnd, composing?.get(0)?.jsonPrimitive?.int ?: -1, composing?.get(1)?.jsonPrimitive?.int ?: -1)
+        }
         val effects = state.getValue("effects").jsonArray.map { packet -> packet.jsonArray.map { it.jsonPrimitive.content } }
         platform.enqueue(effects.filter { it[0] == "write" || it[0] == "reset" || it[0] == "deleteEmojiHistory" })
         for (p in effects) {

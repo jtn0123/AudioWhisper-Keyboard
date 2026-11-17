@@ -52,11 +52,12 @@ internal class SettingsInputView(context: Context) : View(context) {
                 text = host.editorText; startOffset = 0; partialStartOffset = -1; partialEndOffset = -1
                 selectionStart = host.anchor; selectionEnd = host.selectionEnd
             }
-            override fun beginBatchEdit() = true
-            override fun endBatchEdit() = true
+            // Rust holds back the cursor updates of a batch until it ends, as EditText does.
+            override fun beginBatchEdit() = host.edit("begin")
+            override fun endBatchEdit() = host.edit("end")
             override fun sendKeyEvent(event: KeyEvent) = host.forwardKey(event)
             override fun performEditorAction(actionCode: Int) = host.forwardKey(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_ENTER))
-            override fun closeConnection() { host.edit("finish"); super.closeConnection() }
+            override fun closeConnection() { host.edit("close"); super.closeConnection() }
         }
     }
 }

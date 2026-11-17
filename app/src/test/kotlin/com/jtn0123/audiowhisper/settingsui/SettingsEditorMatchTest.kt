@@ -21,6 +21,36 @@ class SettingsEditorMatchTest {
             }
         }
     }
+    /**
+     * The keyboard's batch edits, as SettingsInputView passes them on: the cursor is reported
+     * only once the outermost one ends, endBatchEdit answers whether one is still open, and a
+     * closed connection ends those it left open. Opening and closing a batch changes nothing else.
+     */
+    @Test fun batchEditsHoldBackCursorReportsUntilTheOutermostEnds() {
+        KeyboardRenderer(emptyArray()).use { n ->
+            fun editor(reply: Array<String>) = Json.parseToJsonElement(reply[0]).jsonObject.getValue("editor").jsonObject
+            fun accepted(reply: Array<String>) = Json.parseToJsonElement(reply[0]).jsonObject.getValue("accepted").jsonPrimitive.boolean
+            fun report(reply: Array<String>) = editor(reply).getValue("report").jsonPrimitive.boolean
+            val idle = n.settings(9, arrayOf("commit", "fixture", "1"))
+            assertTrue(report(idle))
+            assertTrue(accepted(n.settings(9, arrayOf("begin"))))
+            assertFalse(report(n.settings(9, arrayOf("begin"))))
+            assertFalse(report(n.settings(9, arrayOf("commit", " text", "1"))))
+            val inner = n.settings(9, arrayOf("end"))
+            assertTrue(accepted(inner), "one is still open")
+            assertFalse(report(inner))
+            val outer = n.settings(9, arrayOf("end"))
+            assertFalse(accepted(outer), "none is open")
+            assertTrue(report(outer))
+            assertEquals("fixture text", outer[1])
+            n.settings(9, arrayOf("begin")); n.settings(9, arrayOf("begin"))
+            assertTrue(report(n.settings(9, arrayOf("close"))))
+            assertFalse(accepted(n.settings(9, arrayOf("end"))), "an unmatched end opens nothing")
+            val before = editor(n.settings(9, arrayOf("select", "2", "5")))
+            n.settings(9, arrayOf("begin"))
+            assertEquals(before - "report", editor(n.settings(9, arrayOf("end"))) - "report")
+        }
+    }
     @Test fun nativeUtf16EditorMatchesComposeEditProcessor() {
         KeyboardRenderer(emptyArray()).use { n -> editorMatches(n, Random(1404), EditProcessor()) }
     }

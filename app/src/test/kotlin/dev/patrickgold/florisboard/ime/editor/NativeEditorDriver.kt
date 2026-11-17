@@ -4,8 +4,20 @@ import com.jtn0123.audiowhisper.rust.EditorSession
 import kotlinx.coroutines.runBlocking
 import java.util.Locale
 
+/** The app's side of an InputConnection, as the native editor's plans are run against it. */
+interface PlanConnection {
+    /** Everything in the field. */
+    val text: String
+    fun getTextBeforeCursor(n: Int, flags: Int): String?
+    fun getTextAfterCursor(n: Int, flags: Int): String?
+    fun getSelectedText(flags: Int): String?
+    fun apply(op: FakeInputConnection.Operation): Boolean
+    /** The cursor updates (selection, then composing span) the app sends for what it just did. */
+    fun cursorUpdates(): List<IntArray>
+}
+
 /** Only platform replies and verbatim InputConnection execution; no native expected-state model. */
-class NativeEditorDriver(val ic: FakeInputConnection) : AutoCloseable {
+class NativeEditorDriver<C : PlanConnection>(val ic: C) : AutoCloseable {
     val session=EditorSession()
     val breaks=ReferenceBreaks()
     init {session.call("composerRules","a\u0301","á")}

@@ -10,10 +10,18 @@
 use crate::rule::{Rule, lists};
 use crate::{is_ascii, state};
 
-/// `KeyVariation.NORMAL`'s value: the keyboard spaces only ordinary text, not a URL, an e-mail
-/// address or a password, where a space it typed would break what is typed (AOSP's
-/// `isAutoSpaceFriendlyType`; docs/decisions.md, "Field kinds").
+/// `KeyVariation.NORMAL`'s value: the keyboard spaces ordinary text, not a password, and not a URL
+/// or an e-mail address unless the field asks for auto-correction, where a space it typed would
+/// break what is typed (AOSP's `isAutoSpaceFriendlyType`; docs/decisions.md, "Field kinds").
 pub const NORMAL_VARIATION: i32 = 2;
+/// `KeyVariation.EMAIL_ADDRESS`'s value.
+pub const EMAIL_VARIATION: i32 = 1;
+/// `KeyVariation.URI`'s value.
+pub const URI_VARIATION: i32 = 4;
+
+/// `TYPE_TEXT_FLAG_AUTO_CORRECT`: a field that sets it asks for words to be corrected, so takes
+/// them as words. Gboard spaces a word picked in Contacts' e-mail field (0x8021), which sets it.
+pub const AUTO_CORRECT: i32 = 0x8000;
 
 /// Which text a rule needs before it can answer, as bits.
 pub type Needs = u8;
@@ -42,6 +50,8 @@ pub struct Typing {
     pub selection_valid: bool,
     /// Where it starts.
     pub selection_start: i32,
+    /// The field's raw `EditorInfo.inputType`.
+    pub input_type: i32,
 }
 
 /// What Kotlin looked up: the rule and language always, and the texts a rule asked for.
@@ -81,6 +91,18 @@ pub fn supports_auto_space(language: &[u16]) -> bool {
         .any(|&code| is_ascii(language, code))
 }
 
+/// Whether a phantom space may be typed in the field: ordinary text, or a URL or an e-mail address
+/// whose field asks for auto-correction. Never a password.
+fn spaces_words(typing: &Typing) -> bool {
+    match typing.key_variation {
+        NORMAL_VARIATION => true,
+        EMAIL_VARIATION | URI_VARIATION => typing.input_type & AUTO_CORRECT != 0,
+        _ => false,
+    }
+}
+
+/// Whether punctuation is auto-spaced: only in ordinary text, whatever an address field asks, as
+/// a space after its "." would break it.
 fn auto_spaces(typing: &Typing) -> bool {
     typing.auto_space_punctuation && !typing.raw_editor && typing.key_variation == NORMAL_VARIATION
 }
@@ -140,8 +162,9 @@ pub fn auto_space_after(
 }
 
 /// Whether to type the phantom space before `text` (`PhantomSpaceState.determine`): if one is
-/// owed (`phantom_space`) or `force_active`, in ordinary text, after a letter, a digit or a symbol
-/// a phantom space may follow, and before a letter, a digit or a symbol it may come before.
+/// owed (`phantom_space`) or `force_active`, in a field that [`spaces_words`], after a letter, a
+/// digit or a symbol a phantom space may follow, and before a letter, a digit or a symbol it may
+/// come before.
 pub fn phantom_space_before(
     typing: &Typing,
     text: &[u16],
@@ -153,7 +176,7 @@ pub fn phantom_space_before(
         return Ok(false);
     };
     if !(state::is_active(phantom_space) || force_active)
-        || typing.key_variation != NORMAL_VARIATION
+        || !spaces_words(typing)
         || !typing.selection_valid
         || typing.selection_start <= 0
     {

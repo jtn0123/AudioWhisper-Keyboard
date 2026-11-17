@@ -10,6 +10,7 @@ const ON: Typing = Typing {
     key_variation: NORMAL_VARIATION,
     selection_valid: true,
     selection_start: 5,
+    input_type: 0x4001,
 };
 
 struct Texts {
@@ -208,9 +209,10 @@ fn no_phantom_space_is_typed_in_an_address_url_or_password() {
     let texts = Texts::new("cat", "");
     let owed = state::phantom_space_active(false, true);
     // KeyVariation: e-mail address, password, URL; then "all", which no field gets.
-    for key_variation in [1, 3, 4, 0] {
+    for (key_variation, input_type) in [(1, 0x21), (3, 0x81), (4, 0x11), (0, 0x8001)] {
         let typing = Typing {
             key_variation,
+            input_type,
             ..ON
         };
         for force_active in [false, true] {
@@ -223,6 +225,35 @@ fn no_phantom_space_is_typed_in_an_address_url_or_password() {
         let commit = commit_char(&typing, &u("d"), 0, owed, Some(&texts.editor())).unwrap();
         assert!(!commit.space_before, "{key_variation}");
     }
+}
+
+#[test]
+fn an_address_field_asking_for_corrections_spaces_a_picked_word() {
+    let texts = Texts::new("cat", "");
+    let owed = state::phantom_space_active(false, true);
+    // An e-mail address (Contacts' 0x8021) and a URL that ask for auto-correction.
+    for (key_variation, input_type) in [(EMAIL_VARIATION, 0x8021), (URI_VARIATION, 0x8011)] {
+        let typing = Typing {
+            key_variation,
+            input_type,
+            ..ON
+        };
+        let editor = texts.editor();
+        let phantom = phantom_space_before(&typing, &u("d"), owed, false, Some(&editor));
+        assert_eq!(phantom, Ok(true), "{input_type:#x}");
+        let commit = commit_char(&typing, &u("d"), 0, owed, Some(&editor)).unwrap();
+        assert!(commit.space_before, "{input_type:#x}");
+        // Its punctuation is still not auto-spaced: "example. com" would break it.
+        assert_eq!(auto_space_after(&typing, &u("."), 0, None), Ok(false));
+    }
+    // A password never is, whatever it asks.
+    let password = Typing {
+        key_variation: 3,
+        input_type: 0x8081,
+        ..ON
+    };
+    let phantom = phantom_space_before(&password, &u("d"), owed, true, None);
+    assert_eq!(phantom, Ok(false));
 }
 
 #[test]

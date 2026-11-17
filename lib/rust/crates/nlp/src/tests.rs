@@ -37,8 +37,9 @@ fn a_kept_word_teaches_the_aim_only_when_allowed() {
     // It needs no "learn from typing": that is about words, this about taps.
     let mut learning_off = session(|c| c[6] = number(0));
     assert!(aim(&mut learning_off, ["1", "-1", "pop", "1"]));
-    // Incognito, a raw editor, a password, an e-mail address, or no suggestions.
-    for change in [(7, 1), (1, 1), (0, 0x81), (0, 0x21), (4, 0)] {
+    // Incognito, a raw editor, a password, an e-mail address (even one asking for corrections),
+    // or no suggestions.
+    for change in [(7, 1), (1, 1), (0, 0x81), (0, 0x21), (0, 0x8021), (4, 0)] {
         let mut s = session(|c| c[change.0] = number(change.1));
         assert!(!aim(&mut s, ["1", "-1", "pop", "1"]), "{change:?}");
     }
@@ -59,6 +60,8 @@ fn allows(session: &mut Session) -> ([bool; 5], bool) {
 fn each_kind_of_field_allows_what_it_should() {
     let prose = ([true, true, false, true, true], true);
     let not_prose = ([true, true, false, false, false], false);
+    // Corrected because it asks, but nothing of it learned or remembered.
+    let address_corrected = ([true, true, false, true, false], false);
     let secret = ([false, false, false, false, false], false);
     // (inputType, imeOptions, what it allows)
     for (input, options, expected) in [
@@ -68,10 +71,16 @@ fn each_kind_of_field_allows_what_it_should() {
         (0x10_0001, 0x1000_0003, prose),
         (0x11, 0, not_prose),
         (0x21, 0, not_prose),
-        // An e-mail field that asks for auto-correction gets none either.
-        (0x8021, 0, not_prose),
+        // An address field that asks for auto-correction gets it, as on Gboard (Contacts'
+        // e-mail field is 0x8021), and is still never learned from.
+        (0x8011, 0, address_corrected),
+        (0x8021, 0, address_corrected),
+        (0x80d1, 0, address_corrected),
         (0xd1, 0, not_prose),
         (0x200b1, 0x4000_0006, not_prose),
+        // A filter is never corrected, whatever it asks; nor is a password.
+        (0x80b1, 0, not_prose),
+        (0x8081, 0, secret),
         (0x81, 0, secret),
         (0x91, 0, secret),
         (0xe1, 0, secret),
@@ -88,10 +97,19 @@ fn each_kind_of_field_allows_what_it_should() {
 }
 
 #[test]
-fn a_kept_word_is_remembered_only_where_it_could_be_corrected() {
+fn a_kept_word_is_remembered_only_in_prose() {
     let mut learning_off = session(|c| c[6] = number(0));
     assert!(allows(&mut learning_off).1, "keeping is not learning");
-    for change in [(7, 1), (0, 0x11), (0, 0x21), (0, 0xb1), (0, 0x81), (4, 0)] {
+    for change in [
+        (7, 1),
+        (0, 0x11),
+        (0, 0x21),
+        (0, 0x8011),
+        (0, 0x8021),
+        (0, 0xb1),
+        (0, 0x81),
+        (4, 0),
+    ] {
         let mut s = session(|c| c[change.0] = number(change.1));
         assert!(!allows(&mut s).1, "{change:?}");
     }

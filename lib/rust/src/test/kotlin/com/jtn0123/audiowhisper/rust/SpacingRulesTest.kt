@@ -26,7 +26,7 @@ class SpacingRulesTest {
     }
 
     private fun typing(autoSpacePunctuation: Boolean = true, rawEditor: Boolean = false, keyVariation: Int = 2) =
-        SpacingRules.Typing(autoSpacePunctuation, rawEditor, keyVariation, selectionValid = true, selectionStart = 3)
+        SpacingRules.Typing(autoSpacePunctuation, rawEditor, keyVariation, selectionValid = true, selectionStart = 3, inputType = 0x4001)
 
     @Test
     fun theFlagsAreKotlins() {
@@ -95,11 +95,11 @@ class SpacingRulesTest {
 
     @Test
     fun badInputThrows() {
-        assertFailsWith<IllegalArgumentException> { SpacingNative.commitChar("a", IntArray(4), null, null) }
-        assertFailsWith<IllegalArgumentException> { SpacingNative.commitChar("a", IntArray(5), "", IntArray(7)) }
-        assertFailsWith<IllegalArgumentException> { SpacingNative.commitChar("a", IntArray(5), "ab", IntArray(8)) }
-        assertFailsWith<IllegalArgumentException> { SpacingNative.commitChar("a", IntArray(5), "", IntArray(8) { -2 }) }
-        assertFailsWith<IllegalArgumentException> { SpacingNative.phantomSpaceBefore("a", IntArray(5), "", IntArray(8) { -1 }) }
-        assertFailsWith<NullPointerException> { SpacingNative.commitChar("a", IntArray(5), "", null) }
+        assertFailsWith<IllegalArgumentException> { SpacingNative.commitChar("a", IntArray(5), null, null) }
+        assertFailsWith<IllegalArgumentException> { SpacingNative.commitChar("a", IntArray(6), "", IntArray(7)) }
+        assertFailsWith<IllegalArgumentException> { SpacingNative.commitChar("a", IntArray(6), "ab", IntArray(8)) }
+        assertFailsWith<IllegalArgumentException> { SpacingNative.commitChar("a", IntArray(6), "", IntArray(8) { -2 }) }
+        assertFailsWith<IllegalArgumentException> { SpacingNative.phantomSpaceBefore("a", IntArray(6), "", IntArray(8) { -1 }) }
+        assertFailsWith<NullPointerException> { SpacingNative.commitChar("a", IntArray(6), "", null) }
     }
 }

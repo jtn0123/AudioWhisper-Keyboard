@@ -208,7 +208,7 @@ internal fun KeyboardManager.handleToggleAutocorrect() {
     lastToastReference.get()?.cancel()
     scope.launch {
         lastToastReference = WeakReference(
-            appContext.showLongToast("Autocorrect toggle is a placeholder and not yet implemented")
+            appContext.showLongToast(R.string.autocorrect_toggle__toast_unavailable)
         )
     }
 }

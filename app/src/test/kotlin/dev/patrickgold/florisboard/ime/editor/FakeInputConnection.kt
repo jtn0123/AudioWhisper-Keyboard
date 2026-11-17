@@ -1,9 +1,9 @@
 package dev.patrickgold.florisboard.ime.editor
 
 /** EditText's UTF-16 replace/selection/composing rules, independent of the native expected model. */
-class FakeInputConnection {
+class FakeInputConnection : PlanConnection {
     data class Operation(val name: String, val a: Int = 0, val b: Int = 0, val text: String = "")
-    var text = ""
+    override var text = ""
     var start = 0
     var end = 0
     var composingStart = -1
@@ -17,9 +17,9 @@ class FakeInputConnection {
         text=value;start=cursor.coerceIn(0,text.length);end=anchor.coerceIn(0,text.length)
         composingStart=composing.start;composingEnd=composing.end
     }
-    fun getTextBeforeCursor(n: Int, flags: Int): String? = text.substring(0,minOf(start,end)).takeLast(n)
-    fun getTextAfterCursor(n: Int, flags: Int): String? = text.substring(maxOf(start,end)).take(n)
-    fun getSelectedText(flags: Int): String? = text.substring(minOf(start,end),maxOf(start,end))
+    override fun getTextBeforeCursor(n: Int, flags: Int): String? = text.substring(0,minOf(start,end)).takeLast(n)
+    override fun getTextAfterCursor(n: Int, flags: Int): String? = text.substring(maxOf(start,end)).take(n)
+    override fun getSelectedText(flags: Int): String? = text.substring(minOf(start,end),maxOf(start,end))
     fun requestCursorUpdates(flags: Int) = true
     fun beginBatchEdit() = record(Operation("begin")).also {batches++}
     fun endBatchEdit() = record(Operation("end")).also {batches--}
@@ -69,7 +69,7 @@ class FakeInputConnection {
     }
     fun down(code: Int, meta: Int, repeat: Int): Boolean = record(Operation("down",code,meta,repeat.toString()))
     fun up(code: Int, meta: Int) = record(Operation("up",code,meta))
-    fun apply(op: Operation): Boolean = when(op.name) {
+    override fun apply(op: Operation): Boolean = when(op.name) {
         "begin" -> beginBatchEdit();"end" -> endBatchEdit();"finish" -> finishComposingText()
         "composing" -> setComposingRegion(op.a,op.b);"composingText" -> setComposingText(op.text,op.a)
         "commit" -> commitText(op.text,op.a);"delete" -> deleteSurroundingText(op.a,op.b)
@@ -79,6 +79,8 @@ class FakeInputConnection {
         else -> error("Unsupported plan operation: ${op.name}")
     }
     private fun record(op: Operation): Boolean { operations.add(op);return true }
+    /** As EditText: one update, when the keyboard's batch of edits ends. */
+    override fun cursorUpdates() = listOf(intArrayOf(start, end, composingStart, composingEnd))
     companion object {
         const val CURSOR_UPDATE_MONITOR=1
         const val CURSOR_UPDATE_IMMEDIATE=2

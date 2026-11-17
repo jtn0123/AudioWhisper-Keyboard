@@ -55,14 +55,19 @@ class FieldKindFlowTest {
         override fun close() = driver.close()
     }
 
-    /** (inputType, imeOptions, what the field is), and whether the keyboard spaces words in it. */
+    /**
+     * (inputType, imeOptions, what the field is), and whether the keyboard spaces words in it. An
+     * address field that asks for auto-correction (Contacts' e-mail field is 0x8021) is spaced, as
+     * Gboard spaces a word picked there.
+     */
     private val fields = listOf(
         Triple(0x4001, 0, "text") to true,
         Triple(0x10_0001, 0x1000_0003, "a search box") to true,
         Triple(0x200b1, 0x4000_0006, "a filter") to true,
         Triple(0x11, 0x2, "a URL") to false,
         Triple(0x21, 0x6, "an e-mail address") to false,
-        Triple(0x8021, 0x6, "an e-mail address asking for corrections") to false,
+        Triple(0x8021, 0x6, "an e-mail address asking for corrections") to true,
+        Triple(0x8011, 0x2, "a URL asking for corrections") to true,
         Triple(0xd1, 0x6, "a web e-mail address") to false,
         Triple(0x81, 0x6, "a password") to false,
     )
@@ -94,12 +99,13 @@ class FieldKindFlowTest {
     )
 
     @Test
-    fun `only prose is corrected, learned from and remembered as kept`() = NlpSession().use { nlp ->
+    fun `only prose is learned from and remembered as kept, and addresses are corrected only when they ask`() = NlpSession().use { nlp ->
         // (suggests words, corrects them, learns them, remembers one kept as typed)
         val prose = listOf(true, true, true, true)
         val notProse = listOf(true, false, false, false)
+        val asks = listOf(true, true, false, false)
         val secret = listOf(false, false, false, false)
-        val expected = listOf(prose, prose, notProse, notProse, notProse, notProse, notProse, secret)
+        val expected = listOf(prose, prose, notProse, notProse, notProse, asks, asks, notProse, secret)
         for ((at, field) in fields.map { it.first }.withIndex()) {
             nlp.call("context", *context(field.first, field.second))
             val policy = nlp.call("policy", *context(field.first, field.second)).map { it == "1" }

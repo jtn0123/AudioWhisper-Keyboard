@@ -277,7 +277,7 @@ impl Session {
             // region `f[3]`, as "learn" asks of a kept word.
             "aim" => boolean(
                 int(f, 0) != 0
-                    && self.context.autocorrect()
+                    && self.context.prose()
                     && !self.context.flag(7)
                     && !self.context.flag(1)
                     && !suggest::word_characters::continues_word(int(f, 1) as i32)

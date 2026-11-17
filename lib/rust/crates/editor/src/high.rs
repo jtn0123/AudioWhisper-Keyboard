@@ -75,6 +75,7 @@ impl Session {
             key_variation: self.context.variation,
             selection_valid: selection.valid(),
             selection_start: selection.start,
+            input_type: self.input_type,
         };
         let needs_space = matches!(operation, "typeText" | "completion" | "gesture");
         let phantom = if needs_space {

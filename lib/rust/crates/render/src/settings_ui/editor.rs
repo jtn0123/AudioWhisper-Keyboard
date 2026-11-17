@@ -7,6 +7,33 @@ pub struct Editor {
     pub composing: Option<(usize, usize)>,
     pub focused: bool,
 }
+
+/// The keyboard's batch edits on the field (`InputConnection.beginBatchEdit`/`endBatchEdit`),
+/// however deeply nested. While one is open the app holds back the cursor updates it sends the
+/// keyboard, as EditText does: the keyboard then sees one update per batch, the state its edit
+/// leaves, not each step of it, which it would take for the user moving the cursor (and end the
+/// space it owes after undoing an auto-correction).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct Batches(u32);
+impl Batches {
+    pub fn begin(&mut self) {
+        self.0 = self.0.saturating_add(1);
+    }
+    /// Ends the innermost batch; whether one is still open, which is `endBatchEdit`'s answer.
+    pub fn end(&mut self) -> bool {
+        self.0 = self.0.saturating_sub(1);
+        self.0 > 0
+    }
+    /// A closed connection ends the batches it left open, as `EditableInputConnection` does.
+    pub fn close(&mut self) {
+        self.0 = 0;
+    }
+    /// Whether a change to the field is reported to the keyboard now.
+    pub fn report(&self) -> bool {
+        self.0 == 0
+    }
+}
+
 impl Editor {
     pub fn selection(&self) -> (usize, usize) {
         (self.anchor.min(self.focus), self.anchor.max(self.focus))
@@ -115,5 +142,37 @@ impl Editor {
             "selected" => self.text[a..b].to_vec(),
             _ => vec![],
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Batches;
+
+    #[test]
+    fn the_cursor_is_reported_only_once_the_outermost_batch_ends() {
+        let mut batches = Batches::default();
+        assert!(batches.report());
+        batches.begin();
+        batches.begin();
+        assert!(!batches.report());
+        assert!(batches.end(), "one is still open");
+        assert!(!batches.report());
+        assert!(!batches.end(), "none is open");
+        assert!(batches.report());
+        // An unmatched end opens nothing.
+        assert!(!batches.end());
+        assert!(batches.report());
+    }
+
+    #[test]
+    fn a_closed_connection_ends_the_batches_it_left_open() {
+        let mut batches = Batches::default();
+        batches.begin();
+        batches.begin();
+        batches.close();
+        assert!(batches.report());
+        batches.begin();
+        assert!(!batches.end());
     }
 }

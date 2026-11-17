@@ -535,10 +535,25 @@ set.
 - *Proof:* Rust tests in `editor`, `input` (delete plan, routing order); five flows through the
   native editor and a fake app in `AutoCorrectionUndoFlowTest`, including cursor reports delayed
   past the undo; and four mutations in `scripts/correction-mutations.py`, each caught.
+- *The Rust settings try-out field (follow-up, same day):* its `SettingsInputView` answered
+  `beginBatchEdit`/`endBatchEdit` without doing anything, and `RustSettingsView` reported the
+  cursor after every call. So the keyboard heard each step of its own batch ("the" committed, then
+  the space), steps it doesn't expect, which it reads as the user moving the cursor: the undo still
+  put back "teh", but the space it owes was ended and "y" gave "tehy". Now the settings editor
+  counts the open batches (`render::settings_ui::editor::Batches`, on the settings `App`) and
+  says in its state whether to report (`"report"`). Like EditText, it reports once the outermost
+  batch ends, `endBatchEdit` answers whether one is still open, and a closed connection ends the
+  batches it left open. `AutoCorrectionUndoFlowTest` runs the same flow against the native
+  settings editor through an adapter that maps calls as `SettingsInputView` does
+  (`SettingsFieldConnection`); before the change it fails on the owed space. Three more
+  mutations, each caught. On the emulator's try-out field: "teh " became "the ", one backspace
+  gave "teh" and "y" gave "teh y".
 
 **Would change if** the owed space should go (the next letter continuing the word instead), which
 would be a change to `undo::revert_at`, or the phone's typing counters show undone corrections
-being re-corrected; the late-update rule would stay either way.
+being re-corrected; the late-update rule would stay either way. The settings field's batches
+would change only if Android's EditText stopped deferring its cursor reports, the behaviour it
+copies.
 
 ## Apostrophes: the language model decides between "its" and "it's" (2026-11-16)
 
@@ -565,10 +580,20 @@ likelier than the other; when it isn't that sure, or lacks a word, AOSP's choice
   the shipped dictionary and model in context, the scoreboard's new typist, and six mutations in
   `scripts/correction-mutations.py`, each caught.
 
+*Requiring an n-gram (tried 2026-11-16, not shipped):* "we wed" → "we'd" and "my id" → "I'd" happen
+because the model has seen neither spelling after "we" or "my", so its odds are word frequency
+alone. Putting an apostrophe back only where the model has seen it after the words before keeps
+both, but on held-out text it puts back 2,498 instead of 2,527 apostrophes to avoid 4 harmful
+corrections in 121,594 words: frequency alone is right about ten times as often as it is wrong
+(possessives such as "Toms", "Obamas"; "cant", "wont"), and nothing the model knows separates
+"we wed" from "in the end wont" ([results](autocorrect-results.md#requiring-an-n-gram-to-put-an-apostrophe-back-tried-not-shipped)).
+On the emulator (Rust renderer and settings) the shipped rule gives "we we'd", "my I'd" and
+"don't" for "we wed ", "my id " and "dont ", as measured.
+
 **Would change if** a better model or a bigger corpus moves the knee (re-run the sweep), the
 phone's counters show restored apostrophes being undone, or possessives are wanted at a different
-risk; "we wed" → "we'd" (neither pair known to the model) would want the rule to require an n-gram
-rather than word frequency alone.
+risk. "We wed" and "my id" would want a model that knows word classes (a pronoun is not followed
+by a pronoun's contraction); requiring an n-gram is measured above and costs more than it saves.
 
 ## Field kinds: URL, e-mail, search, filter and password fields (2026-11-16)
 
@@ -581,6 +606,7 @@ of field now all live in Rust, and Kotlin's wiring is unchanged.
 | Text, search box (action Search) | yes | yes | yes | yes |
 | Filter (`TYPE_TEXT_VARIATION_FILTER`) | yes | **no** (was yes) | yes | **no** (was yes) |
 | URL, e-mail, web e-mail | yes | no | **no** (was after a pick or swipe) | no; kept words **not remembered** (were) |
+| The same, asking for auto-correction (`TYPE_TEXT_FLAG_AUTO_CORRECT`) | yes | **yes** | after a pick or swipe, **not** after punctuation | no |
 | Password (text, visible, web, number) | no | no | no (nothing to pick or swipe) | no |
 | No-suggestions flag | no | no | yes | no |
 
@@ -599,22 +625,35 @@ is taken back. A whole address was already never stored (a learned word is lette
   treats it as text, as it already did. In a filter field (Private DNS hostname, `0x200b1`) Gboard
   left "wprld" alone, so filter fields are now not corrected (AOSP hides suggestions there).
 - *E-mail, against Gboard:* the user's rule (no correction, no auto-space in URL and e-mail fields)
-  is followed. One observation runs the other way: in Contacts' e-mail field, which asks for
-  auto-correction (`0x8021`), Gboard corrected "wprld" and spaced after a pick. A URL field wasn't
-  checked against Gboard: the only one on the emulator is Chrome's, behind its terms of service.
-- *Where it lives:* `nlp::policy` (`NOT_PROSE`, `remember_kept`), `spacing::spaces`
-  (`phantom_space_before` checks the key variation, as AOSP's `isAutoSpaceFriendlyType`),
+  is followed for a field that doesn't ask. In Contacts' e-mail field, which asks for
+  auto-correction (`0x8021`), Gboard corrected "wprld" and spaced after a pick, so since the later
+  2026-11-16 follow-up a URL or e-mail field that sets `TYPE_TEXT_FLAG_AUTO_CORRECT` is corrected
+  and a word picked or swiped there is spaced (`nlp::policy::Context::autocorrect`,
+  `spacing::spaces::spaces_words`). Still, nothing typed there is learned or remembered as kept,
+  and tap aim isn't learned from it (`Context::prose`): an address is not the user's vocabulary,
+  whatever the field asks. Punctuation is not auto-spaced there either ("example. com" would break
+  the address). A filter or password field is never corrected, whatever it asks. A URL field
+  wasn't checked against Gboard: the only one on the emulator is Chrome's, behind its terms of
+  service; it follows the e-mail field, as both are addresses.
+- *Where it lives:* `nlp::policy` (`NOT_PROSE`, `ADDRESSES`, `prose`, `autocorrect`,
+  `remember_kept`), `spacing::spaces` (`phantom_space_before` asks `spaces_words`: the key
+  variation, as AOSP's `isAutoSpaceFriendlyType`, and for an address the field's raw `inputType`,
+  which the editor session already had from its `config` op),
   `suggest::addresses` and the word learner. The frozen Kotlin references (`ReferenceNlp`,
   `ReferenceSpacing`, `ReferenceLatin`'s word learner, `NlpLearningMatchTest`) carry the same
   changes, noted in their headers.
 - *Proof:* Rust tests per rule, `FieldKindFlowTest` from the raw `EditorInfo` values through the
-  native editor and NLP session, and eight mutations in `scripts/correction-mutations.py`, each
-  caught.
+  native editor and NLP session, and sixteen mutations in `scripts/correction-mutations.py` (eight
+  more for the fields that ask for correction: the clause itself, the flag check, learning, tap
+  aim, both spacing directions, and the input type dropped by the editor session or the JNI
+  bridge), each caught. On the emulator, in Contacts' e-mail field (0x8021): a picked "the" was
+  spaced before the next letter, "adn " became "and ", one backspace undid it, and the learned
+  and kept word files were unchanged afterwards.
 
-**Would change if** the user wants Gboard's behaviour where an e-mail field asks for correction
-(honour `TYPE_TEXT_FLAG_AUTO_CORRECT` there), a URL field on Gboard turns out to space after a pick,
-or prose writers miss words after "and/" or "e.g." (the address test is deliberately broad: a word
-it wrongly skips is simply not learned this once).
+**Would change if** a URL field on Gboard turns out not to correct or space when it asks for
+correction, the user wants addresses typed in such a field learned, or prose writers miss words
+after "and/" or "e.g." (the address test is deliberately broad: a word it wrongly skips is simply
+not learned this once).
 
 ## Keys resized by the letter odds (2026-11-16)
 
@@ -648,7 +687,12 @@ thumb goes from 94.84% to 95.85%.
   after the space bar. Rollover therefore gets no resize (the odds would be a letter behind), nor
   does the first key after a backspace or shift press. Two stale cases remain: a word that ends
   in its own prefix ("t" then another "t") and an empty-word deposit from an earlier word boundary;
-  both only move a tap within 0.15 key of a border.
+  both only move a tap within 0.15 key of a border. *Looked at again the same day and left:* no
+  clean fix lives in Rust alone. The trail sees neither spaces as text nor cursor moves, so a
+  letter count since the space bar fixes only the first and loses the odds after a cursor tap;
+  an exact fix needs the odds tagged with the content they were worked out for, carried from
+  Kotlin's suggest request or published by the native editor session
+  ([results](key-resize-results.md#the-rule)).
 - *Tried and dropped:* backing the prior off as the typed prefix gets unlikely (no better on rare
   words, worse overall), leaving first letters alone (0.58 point worse for the left thumb), caps of
   0.2 and above (a little better overall, worse for the neutral hand's rare words), and floors of
@@ -662,7 +706,26 @@ already did; one that has swiped or been held long stays, so a cursor swipe goes
 keeps its action. Shift stays down, so shift-and-tap still capitalises.
 
 **Would change if** the phone's counters ([rust.md](rust.md#the-typing-counters)) show more
-backspaces or undone corrections with it than without; if a layout's keys are much smaller than
-QWERTY's (the factor is in key widths, so it scales, but the cap may need to shrink); if a
+backspaces or undone corrections with it than without; if the suggest request ever carries an id
+to the JNI call for another reason (then tag the odds with it and close both stale cases); if a
+layout's keys are much smaller than QWERTY's (the factor is in key widths, so it scales, but the cap may need to shrink); if a
 better language model is shipped (re-tune the factor against it); or if real taps can be measured
 without logging them and spread wider or narrower than 0.2 key, which sets the factor.
+
+## The emulator's settings baseline restores itself (2026-11-16)
+
+`scripts/settings-device-baseline.py` had a capture mode and `--verify`, which only compares,
+so nothing but `SettingsDevice.cleanup` inside a device-test run put the AVD back, and a run
+that died before its cleanup left the AVD in its fixture state (follow-up 3). It now has
+`--restore`: put back whatever differs (the Android settings, dark mode and log tags, then the
+app's files while its process is dead), bind the original keyboard, mute every stream, then
+check exactly as `--verify` does. `--verify` stays a check that changes nothing, rather than
+restoring first, because "passed before anything changed" is what a run's receipt says about
+the state it found; a check that restored first could never fail and would hide a run that left
+the AVD dirty. A mismatch now names every differing part, still never a value. The device-test
+runner's exit trap restores. Tried on aw_keyboard_ssd the same day, after the polish checks:
+`--verify` failed naming `secure, files` (agent-device's keyboard had been enabled, and the app's
+files had changed), `--restore` put both back and checked them in about 3 s, a fresh `--verify`
+passed, and agent-device's keyboard was no longer enabled. **Would change if** the baseline gains a part the
+shell can't set back (then `--restore` must say so rather than pass), or a harness that owns the
+AVD's state replaces these scripts.

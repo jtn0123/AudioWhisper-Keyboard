@@ -56,6 +56,19 @@ CASES = {
         CRATES + 'input/src/routing.rs',
         '    if code != DELETE {\n        add(CLEAR_UNDO, 0);\n    }\n', '',
         ('cargo', 'input', None, 'undo')),
+    # The Rust settings field holds back cursor updates during the keyboard's batch edits.
+    'settings-field-reports-mid-batch': (
+        CRATES + 'awnative/src/render_settings.rs',
+        '"report":a.batches.report(),', '"report":true,',
+        ('gradle', ':app', '*AutoCorrectionUndoFlowTest')),
+    'settings-batches-not-nested': (
+        CRATES + 'render/src/settings_ui/editor.rs',
+        'self.0 = self.0.saturating_add(1);', 'self.0 = 1;',
+        ('cargo', 'render', None, 'batch')),
+    'closed-connection-keeps-batches': (
+        CRATES + 'render/src/settings_ui/editor.rs',
+        '    pub fn close(&mut self) {\n        self.0 = 0;\n    }', '    pub fn close(&mut self) {}',
+        ('gradle', ':app', '*SettingsEditorMatchTest')),
     # Apostrophes: the language model decides between a word and its spelling with one.
     'model-never-restores': (
         CRATES + 'suggest/src/apostrophes.rs',
@@ -98,12 +111,48 @@ CASES = {
         ('cargo', 'nlp', None, 'each_kind_of_field')),
     'kept-word-remembered-anywhere': (
         CRATES + 'nlp/src/policy.rs',
-        '        self.autocorrect() && !self.flag(7)\n', '        !self.flag(7)\n',
+        '        self.prose() && !self.flag(7)\n', '        !self.flag(7)\n',
         ('cargo', 'nlp', None, 'a_kept_word_is_remembered')),
     'phantom-space-in-any-field': (
         CRATES + 'spacing/src/spaces.rs',
-        '        || typing.key_variation != NORMAL_VARIATION\n        || !typing.selection_valid',
+        '        || !spaces_words(typing)\n        || !typing.selection_valid',
         '        || !typing.selection_valid',
+        ('gradle', ':app', '*FieldKindFlowTest')),
+    # An address field that asks for auto-correction (TYPE_TEXT_FLAG_AUTO_CORRECT).
+    'asking-address-not-corrected': (
+        CRATES + 'nlp/src/policy.rs',
+        'self.prose() || (self.words() && address && asks)', 'self.prose()',
+        ('cargo', 'nlp', None, 'each_kind_of_field')),
+    'address-corrected-unasked': (
+        CRATES + 'nlp/src/policy.rs',
+        'let asks = int(&self.0, 0) & AUTO_CORRECT != 0;', 'let asks = true;',
+        ('cargo', 'nlp', None, 'each_kind_of_field')),
+    'asking-address-learned': (
+        CRATES + 'nlp/src/policy.rs',
+        'self.prose() && self.flag(6) && !self.flag(7) && !self.flag(1)',
+        'self.autocorrect() && self.flag(6) && !self.flag(7) && !self.flag(1)',
+        ('gradle', ':app', '*FieldKindFlowTest')),
+    'asking-address-teaches-aim': (
+        CRATES + 'nlp/src/protocol.rs',
+        '                    && self.context.prose()\n', '                    && self.context.autocorrect()\n',
+        ('cargo', 'nlp', None, 'aim')),
+    'asking-address-not-spaced': (
+        CRATES + 'spacing/src/spaces.rs',
+        'EMAIL_VARIATION | URI_VARIATION => typing.input_type & AUTO_CORRECT != 0,',
+        'EMAIL_VARIATION | URI_VARIATION => false,',
+        ('cargo', 'spacing', None, 'address')),
+    'address-spaced-unasked': (
+        CRATES + 'spacing/src/spaces.rs',
+        'EMAIL_VARIATION | URI_VARIATION => typing.input_type & AUTO_CORRECT != 0,',
+        'EMAIL_VARIATION | URI_VARIATION => true,',
+        ('cargo', 'spacing', None, 'address')),
+    'jni-drops-input-type': (
+        CRATES + 'awnative/src/spacing.rs',
+        '            selection_start,\n            input_type,\n', '            selection_start,\n            input_type: input_type & 0,\n',
+        ('gradle', ':app', '*SpacingMatchTest')),
+    'editor-drops-input-type': (
+        CRATES + 'editor/src/high.rs',
+        'input_type: self.input_type,', 'input_type: self.input_type & 0,',
         ('gradle', ':app', '*FieldKindFlowTest')),
     'address-pieces-learned': (
         CRATES + 'suggest/src/word_learner.rs',

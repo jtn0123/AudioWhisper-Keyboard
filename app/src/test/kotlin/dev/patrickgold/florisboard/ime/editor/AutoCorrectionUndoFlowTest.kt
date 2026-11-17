@@ -1,5 +1,6 @@
 package dev.patrickgold.florisboard.ime.editor
 
+import com.jtn0123.audiowhisper.rust.KeyboardRenderer
 import com.jtn0123.audiowhisper.suggest.AutoCorrectionUndo
 import dev.patrickgold.florisboard.ime.nlp.PunctuationRule
 import dev.patrickgold.florisboard.ime.text.key.KeyVariation
@@ -13,8 +14,11 @@ import kotlin.test.assertTrue
  * read from the editor's expected content, and cursor updates that may come late.
  */
 class AutoCorrectionUndoFlowTest {
-    private class Editor(private val autoSpacePunctuation: Boolean = false) : AutoCloseable {
-        val ic = FakeInputConnection()
+    private class Editor(
+        val ic: PlanConnection = FakeInputConnection(),
+        private val autoSpacePunctuation: Boolean = false,
+        inputType: Int = 0x4001,
+    ) : AutoCloseable {
         private val driver = NativeEditorDriver(ic)
         private val auto = EditorInstance.AutoSpaceState()
         private val phantom = EditorInstance.PhantomSpaceState()
@@ -22,7 +26,10 @@ class AutoCorrectionUndoFlowTest {
         private val unseen = ArrayDeque<IntArray>()
         private var undo: AutoCorrectionUndo? = null
 
-        init { driver.run("start", "0", "0", "1") }
+        init {
+            driver.input = inputType
+            driver.run("start", "0", "0", "1")
+        }
 
         val phantomSpace get() = phantom.isActive
 
@@ -41,7 +48,7 @@ class AutoCorrectionUndoFlowTest {
             val spaces = driver.session.call("spaces")
             auto.bits = spaces[0].toInt()
             phantom.reset(spaces[1].toInt())
-            unseen += intArrayOf(ic.start, ic.end, ic.composingStart, ic.composingEnd)
+            unseen += ic.cursorUpdates()
         }
 
         /** The keyboard sees the updates the app sent, as EditorInstance.handleSelectionUpdate does. */
@@ -141,5 +148,27 @@ class AutoCorrectionUndoFlowTest {
         assertTrue(it.backspace())
         it.catchUp()
         assertEquals("hello teh", it.ic.text)
+    }
+
+    /**
+     * The Rust settings screen's try-out field (0x8001, asking for auto-correction), through the
+     * InputConnection SettingsInputView gives the keyboard. Like EditText, it holds back the cursor
+     * updates of the keyboard's batch of edits until the batch ends, so they match the edits the
+     * keyboard expects and the undo is still on offer.
+     */
+    @Test
+    fun `one backspace undoes in the Rust settings try-out field too`() = KeyboardRenderer(emptyArray()).use { native ->
+        Editor(SettingsFieldConnection(native), inputType = 0x8001).use {
+            it.type("I saw teh")
+            it.autoCorrect("the", " ")
+            it.catchUp()
+            assertEquals("I saw the ", it.ic.text)
+            assertTrue(it.backspace())
+            it.catchUp()
+            assertEquals("I saw teh", it.ic.text)
+            assertTrue(it.phantomSpace)
+            it.type("y")
+            assertEquals("I saw teh y", it.ic.text)
+        }
     }
 }

@@ -33,7 +33,7 @@ const PHANTOM_SPACE_SHIFT: u32 = 16;
 const PIECES: usize = 8;
 
 /// What is known before any text is looked up, and the flags, from `typing`: `[flags,
-/// keyVariation, selectionStart, autoSpace, phantomSpace]`.
+/// keyVariation, selectionStart, autoSpace, phantomSpace, inputType]`.
 struct Known {
     typing: Typing,
     force_active: bool,
@@ -49,9 +49,10 @@ fn typing(env: &Env, typing: jintArray) -> Result<Known> {
         selection_start,
         auto_space,
         phantom_space,
+        input_type,
     ] = values.as_slice()
     else {
-        return Err(jni::illegal("typing holds five ints"));
+        return Err(jni::illegal("typing holds six ints"));
     };
     Ok(Known {
         typing: Typing {
@@ -60,6 +61,7 @@ fn typing(env: &Env, typing: jintArray) -> Result<Known> {
             key_variation,
             selection_valid: flags & SELECTION_VALID != 0,
             selection_start,
+            input_type,
         },
         force_active: flags & FORCE_ACTIVE != 0,
         auto_space,

@@ -1,5 +1,6 @@
 package dev.patrickgold.florisboard.ime.editor
 
+import android.text.InputType
 import dev.patrickgold.florisboard.ime.nlp.PunctuationRule
 import dev.patrickgold.florisboard.ime.nlp.SuggestionCandidate
 import dev.patrickgold.florisboard.ime.text.key.KeyVariation
@@ -13,9 +14,11 @@ import java.util.concurrent.atomic.AtomicInteger
  * `PhantomSpaceState.determine`, `AutoSpaceState` and `PhantomSpaceState`, `PunctuationRule.Fallback`
  * and `FlorisLocale.supportsAutoSpace`. The only edits: what `EditorInstance` read from its
  * managers and content comes from [editor], and `commitChar` returns its flags instead of
- * committing. Each state class also shows its raw `Int`, for the comparison. One deliberate
- * change since: `determine` types no phantom space outside [KeyVariation.NORMAL], as AOSP spaces
- * no URL, e-mail address or password (docs/decisions.md, "Field kinds").
+ * committing. Each state class also shows its raw `Int`, for the comparison. Two deliberate
+ * changes since: `determine` types no phantom space outside [KeyVariation.NORMAL], as AOSP spaces
+ * no URL, e-mail address or password, except in a URL or e-mail field that asks for
+ * auto-correction (`TYPE_TEXT_FLAG_AUTO_CORRECT`), as Gboard spaces a word picked in one
+ * (docs/decisions.md, "Field kinds").
  */
 internal class ReferenceSpacing(private val editor: SpacingEditor) {
     val autoSpace = AutoSpaceState()
@@ -73,7 +76,9 @@ internal class ReferenceSpacing(private val editor: SpacingEditor) {
          val content = editor
          val selection = content.selection
          if (!(isActive || forceActive) || selection.isNotValid || selection.start <= 0 || text.isEmpty()) return false
-         if (editor.keyVariation != KeyVariation.NORMAL) return false
+         val asksCorrection = editor.inputType and InputType.TYPE_TEXT_FLAG_AUTO_CORRECT != 0
+         val address = editor.keyVariation == KeyVariation.EMAIL_ADDRESS || editor.keyVariation == KeyVariation.URI
+         if (editor.keyVariation != KeyVariation.NORMAL && !(address && asksCorrection)) return false
          val textBefore = content.textBeforeCursor(1)
          val punctuationRule = editor.punctuationRule
          if (!supportsAutoSpace(editor.locale)) return false;
