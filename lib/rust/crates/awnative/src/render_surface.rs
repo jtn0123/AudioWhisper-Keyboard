@@ -10,32 +10,13 @@ use std::{
     time::{Duration, Instant},
 };
 
+use crate::surface_bounds::{Allocated, Rect};
+
 /// What the CPU raster writes: one opaque frame of RGBA_8888 rows, `width` pixels apart.
 pub(crate) struct Frame<'a> {
     pub pixels: &'a [u8],
     pub width: i32,
     pub height: i32,
-}
-
-#[repr(C)]
-#[derive(Clone, Copy, Debug, Default, PartialEq)]
-pub(crate) struct Rect {
-    pub left: i32,
-    pub top: i32,
-    pub right: i32,
-    pub bottom: i32,
-}
-
-impl Rect {
-    fn union(self, other: Option<Rect>) -> Rect {
-        let Some(o) = other else { return self };
-        Rect {
-            left: self.left.min(o.left),
-            top: self.top.min(o.top),
-            right: self.right.max(o.right),
-            bottom: self.bottom.max(o.bottom),
-        }
-    }
 }
 
 #[repr(C)]
@@ -201,7 +182,8 @@ pub(crate) struct SurfacePresenter {
     api: &'static Api,
     control: *mut c_void,
     buffers: [*mut c_void; BUFFERS],
-    strides: [usize; BUFFERS],
+    /// Each buffer's size as allocated: a frame is copied only into a buffer of its own size.
+    allocated: [Allocated; BUFFERS],
     /// What each buffer missed since it was last written, so a partial frame can catch it up.
     stale: [Option<Rect>; BUFFERS],
     pool: Arc<Pool>,
@@ -230,7 +212,7 @@ impl SurfacePresenter {
             api,
             control,
             buffers: [std::ptr::null_mut(); BUFFERS],
-            strides: [0; BUFFERS],
+            allocated: [Allocated::default(); BUFFERS],
             stale: [Some(full); BUFFERS],
             pool: Arc::new(Pool {
                 free: Mutex::new(Slots {
@@ -260,26 +242,46 @@ impl SurfacePresenter {
                 }
                 (api.describe)(presenter.buffers[slot], &mut described);
             }
-            presenter.strides[slot] = described.stride as usize;
+            presenter.allocated[slot] = Allocated {
+                width: described.width,
+                height: described.height,
+                stride: described.stride,
+            };
         }
         Some(presenter)
     }
 
     /// Shows `frame` with `damage` repainted, as the frame Choreographer timed with `vsync`
-    /// (negative for none). False when no buffer came back in time or the platform refused one.
+    /// (negative for none). False when no buffer came back in time, the platform refused one,
+    /// or the frame is not the buffers' size (the scene was resized before its new buffers were
+    /// made): that frame is skipped, as `Window::post` skips one that isn't the window's size.
     pub(crate) fn present(&mut self, frame: &Frame, damage: Rect, vsync: i64) -> bool {
         let start = Instant::now();
         let Some((slot, fence)) = self.acquire() else {
             return false;
         };
+        let Some(plan) = crate::surface_bounds::plan(
+            self.allocated[slot],
+            frame.width,
+            frame.height,
+            frame.pixels.len(),
+            damage.union(self.stale[slot]),
+        ) else {
+            // Untouched, so it goes back with its fence still to wait on.
+            self.pool.slots().fences[slot] = Some(fence);
+            return false;
+        };
+        // The frame is the buffer's size (`plan` checked), so this is inside the buffer too.
+        let damage = damage.clamped(frame.width, frame.height);
         if !wait(fence) {
             self.pool.slots().fences[slot] = Some(-1);
             return false;
         }
-        let region = damage.union(self.stale[slot]);
+        let region = plan.region();
         let waited = start.elapsed();
         let mut bits = std::ptr::null_mut();
-        // SAFETY: the buffer is ours (SurfaceFlinger released it and its fence signalled).
+        // SAFETY: the buffer is ours (SurfaceFlinger released it and its fence signalled), and
+        // the region lies inside it.
         if unsafe {
             (self.api.lock)(
                 self.buffers[slot],
@@ -295,24 +297,17 @@ impl SurfacePresenter {
             return false;
         }
         let locked = start.elapsed();
-        let (left, right) = (
-            region.left.clamp(0, frame.width) as usize,
-            region.right.clamp(0, frame.width) as usize,
-        );
-        for y in region.top.clamp(0, frame.height) as usize
-            ..region.bottom.clamp(0, frame.height) as usize
-        {
-            let source = (y * frame.width as usize + left) * 4;
-            let destination = (y * self.strides[slot] + left) * 4;
-            if right > left && source + (right - left) * 4 <= frame.pixels.len() {
-                // SAFETY: the row lies inside the locked stride*height buffer and inside `pixels`.
-                unsafe {
-                    std::ptr::copy_nonoverlapping(
-                        frame.pixels.as_ptr().add(source),
-                        bits.cast::<u8>().add(destination),
-                        (right - left) * 4,
-                    );
-                }
+        for span in plan.spans() {
+            // SAFETY: `plan` copies only a frame exactly this buffer's size, from pixels that
+            // hold all of it, into rows at least that wide, with the region clamped to it; so
+            // each span ends inside `pixels` and inside the locked stride*height buffer, whose
+            // first pixel `bits` addresses (surface_bounds.rs tests every span against both).
+            unsafe {
+                std::ptr::copy_nonoverlapping(
+                    frame.pixels.as_ptr().add(span.source),
+                    bits.cast::<u8>().add(span.destination),
+                    span.bytes,
+                );
             }
         }
         let copied = start.elapsed();

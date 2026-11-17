@@ -10,7 +10,7 @@ use std::{
     time::Instant,
 };
 
-use crate::render_surface::Rect as ARect;
+use crate::surface_bounds::Rect as ARect;
 #[repr(C)]
 struct Buffer {
     width: i32,

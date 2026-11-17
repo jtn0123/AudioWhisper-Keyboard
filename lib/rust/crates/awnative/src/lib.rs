@@ -47,6 +47,8 @@ mod snygg_value;
 
 mod spacing;
 mod suggest;
+#[cfg(any(target_os = "android", test))]
+mod surface_bounds;
 mod text;
 
 /// Called once when Java loads the library.

@@ -223,6 +223,20 @@ the host, touch and TalkBack do not move. A setting the user has already saved o
 new default, as with any jetpref value. **Would change if** a second language is installed and
 the language switch is needed on that key; then put emoji on the key's long press instead.
 
+## Settings frames copied only into buffers of their own size (2026-11-16)
+
+The Rust settings screen's presenter (`render_surface.rs`) copies a frame into its hardware
+buffers only when the frame is exactly the buffers' allocated size, their rows are at least that
+wide and the pixels hold the whole frame, and it clamps the damage to the buffer before locking it
+(`surface_bounds::plan`, tested on the host span by span). A frame of any other size is skipped and
+`present` returns false, as the keyboard's `Window::post` already did; that ends the render worker,
+and `surfaceChanged` starts a new one with buffers of the new size. The scene changes size in
+`onSizeChanged`, before `surfaceChanged`, and the old check looked only at the source, so a
+narrower, taller frame could write rows past the buffer's end. Scaling or cropping the odd frame
+was not worth it: it is one frame, mid-resize, drawn into buffers about to be replaced. **Would
+change if** the phone shows a blank frame when the Rust settings screen rotates or resizes; then
+keep the worker and skip only that frame, or remake the buffers in `onSizeChanged`.
+
 ## Word statistics from a public corpus (2026-11-16)
 
 The English dictionary's frequencies and next words are counted from public text we can name and
