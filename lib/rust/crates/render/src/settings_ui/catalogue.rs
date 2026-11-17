@@ -9,6 +9,7 @@ mod input_feedback;
 mod keyboard;
 mod licences;
 mod media;
+mod other;
 mod physical_keyboard;
 mod smartbar;
 mod typing;
@@ -277,6 +278,7 @@ pub const SCREENS: &[Screen] = &[
     about::SCREEN,
     dictation::SCREEN,
     licences::SCREEN,
+    other::SCREEN,
 ];
 /// The native screen at `route`, if Rust draws it.
 pub fn screen(route: &str) -> Option<&'static Screen> {

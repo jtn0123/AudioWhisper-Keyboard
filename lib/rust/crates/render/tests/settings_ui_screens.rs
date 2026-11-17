@@ -133,16 +133,15 @@ fn group_one_routes_are_native_and_other_routes_fall_back_with_the_native_list()
         assert!(a.effects.is_empty(), "{route} fell back");
         assert!(!a.rows().is_empty());
     }
-    let (mut a, _) = app("settings/other");
+    // The theme manager stays in Compose.
+    let manager = "settings/theme/manage/SELECT_DAY";
+    let (mut a, _) = app(manager);
     assert_eq!(a.stack, ["settings/home"]);
     let native = "settings/home|settings/keyboard|settings/keyboard/input-feedback|settings/smartbar|\
                   settings/gestures|settings/clipboard|settings/media|settings/typing|\
                   settings/dictionary|settings/other/physical-keyboard|settings/about|\
-                  settings/dictation|settings/about/third-party-licenses";
-    assert_eq!(
-        a.effects.pop().unwrap(),
-        ["compose", "settings/other", native]
-    );
+                  settings/dictation|settings/about/third-party-licenses|settings/other";
+    assert_eq!(a.effects.pop().unwrap(), ["compose", manager, native]);
 }
 
 #[test]

@@ -32,7 +32,7 @@ fn utf16(s: &str) -> Vec<u16> {
 }
 
 #[test]
-fn group_two_routes_are_native_and_other_and_theme_are_not_yet() {
+fn group_two_routes_are_native() {
     for route in [
         "settings/typing",
         "settings/dictionary",
@@ -41,9 +41,6 @@ fn group_two_routes_are_native_and_other_and_theme_are_not_yet() {
         "settings/dictation",
     ] {
         assert!(catalogue::screen(route).is_some(), "{route}");
-    }
-    for route in ["settings/other", "settings/theme"] {
-        assert!(catalogue::screen(route).is_none(), "{route} is deferred");
     }
 }
 

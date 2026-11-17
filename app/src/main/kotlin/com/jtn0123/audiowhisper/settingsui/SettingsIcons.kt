@@ -38,7 +38,10 @@ internal fun settingsIcons(resources: Resources): Array<String> {
         "@icon:policy" to Icons.Outlined.Policy, "@icon:description" to Icons.Outlined.Description,
         "@icon:error_outline" to Icons.Default.ErrorOutline, "@icon:warning" to Icons.Outlined.Warning,
         "@icon:help_outline" to Icons.AutoMirrored.Filled.HelpOutline,
-        // The colour picker's text field.
+        // Other, and the colour picker's text field.
+        "@icon:palette" to Icons.Default.Palette, "@icon:format_color_fill" to Icons.Default.FormatColorFill,
+        "@icon:keyboard_keys" to ImageVector.vectorResource(null, resources, R.drawable.ic_keyboard_keys),
+        "@icon:archive" to Icons.Default.Archive, "@icon:settings_backup_restore" to Icons.Default.SettingsBackupRestore,
         "@icon:edit" to Icons.Default.Edit, "@icon:done" to Icons.Default.Done, "@icon:clear" to Icons.Default.Clear,
     )).flatMap { (name, icon) -> listOf(name, iconPath(icon)) }.toTypedArray()
 }

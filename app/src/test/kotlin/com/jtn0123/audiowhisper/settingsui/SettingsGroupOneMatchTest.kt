@@ -160,13 +160,16 @@ class SettingsGroupOneMatchTest {
         }
     }
 
-    @Test fun nativeRoutesAreHomeKeyboardAndGroupsOneAndTwoAndOthersFallBackWithThem() {
+    @Test fun nativeRoutesAreHomeKeyboardAndEveryDrawnScreenAndOthersFallBackWithThem() {
         KeyboardRenderer(emptyArray()).use { n ->
             val native = listOf("settings/home", "settings/keyboard") + ref.screens.map { it.route } +
-                ReferenceGroupTwoScreens.screens.map { it.route } + "settings/about/third-party-licenses"
+                ReferenceGroupTwoScreens.screens.map { it.route } + "settings/about/third-party-licenses" +
+                ReferenceOtherThemeScreens.screens.map { it.route }
             assertEquals(native, n.settings(19)[2].split("\n"))
             prepare(n, defaults())
-            assertEquals(listOf(listOf("compose", "settings/theme", native.joinToString("|"))), effects(state(n, 4, "settings/theme")))
+            // The theme manager stays in Compose.
+            val manager = "settings/theme/manage/SELECT_DAY"
+            assertEquals(listOf(listOf("compose", manager, native.joinToString("|"))), effects(state(n, 4, manager)))
             assertEquals("settings/home", state(n).getValue("route").jsonPrimitive.content)
         }
     }
@@ -195,7 +198,7 @@ class SettingsGroupOneMatchTest {
                 assertEquals("settings/keyboard", state(recreated).getValue("route").jsonPrimitive.content)
             }
             // A stack Rust cannot draw, or scrolls that do not match it, restores to home.
-            for (bad in listOf(saved.copyOf().apply { this[1] = "settings/home|settings/theme" },
+            for (bad in listOf(saved.copyOf().apply { this[1] = "settings/home|settings/theme/manage/SELECT_DAY" },
                 saved.copyOf().apply { this[2] = "0" })) KeyboardRenderer(emptyArray()).use { r ->
                 prepare(r, p); state(r, 11, *bad)
                 assertEquals("settings/home", state(r).getValue("route").jsonPrimitive.content)
