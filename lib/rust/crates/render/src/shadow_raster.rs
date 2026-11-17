@@ -16,6 +16,24 @@ use vello_cpu::kurbo::{self, BezPath};
 /// elevations around the box.
 const LOBES: [(u32, f32, f32); 2] = [(0x10000000, 0.0, 0.30), (0x30000000, 1.20, 1.00)];
 
+/// Whether a box at `r` with a `shadow` that elevation can paint inside `damage`: Vello paints
+/// each lobe into its rectangle widened by 2.5 blurs, and antialiasing reaches a pixel more.
+pub(crate) fn reaches(r: Rect, shadow: f32, damage: Rect) -> bool {
+    let [left, top, right, bottom] = LOBES.iter().fold([1.0_f32; 4], |a, &(_, offset, blur)| {
+        let (side, down) = (2.5 * blur * shadow.max(0.0), offset * shadow.max(0.0));
+        [
+            a[0].max(side + 1.0),
+            a[1].max(side - down + 1.0),
+            a[2].max(side + 1.0),
+            a[3].max(side + down + 1.0),
+        ]
+    });
+    r.left - left < damage.right
+        && r.right + right > damage.left
+        && r.top - top < damage.bottom
+        && r.bottom + bottom > damage.top
+}
+
 impl Raster {
     pub(crate) fn shadow(&mut self, r: Rect, style: &Style) {
         self.lobes(r, style, None);

@@ -11,6 +11,7 @@ pub mod gesture_config;
 mod glide_touch;
 #[cfg(feature = "hybrid")]
 pub mod hybrid;
+mod ink;
 pub mod key_content;
 mod keyboard_swipe;
 mod keyboard_touch;

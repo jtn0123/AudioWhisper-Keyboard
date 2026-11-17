@@ -19,6 +19,8 @@ pub struct Raster {
     pixmap: Pixmap,
     /// The damaged rectangle's pixels while it renders, when it is not whole rows.
     scratch: Vec<u8>,
+    /// The rectangle the frame being drawn repaints; nothing outside it shows.
+    damage: Rect,
     profiling: bool,
     profile: Profile,
 }
@@ -44,6 +46,7 @@ impl Raster {
             context: crate::backend::Backend::cpu(width, height),
             pixmap: Pixmap::new(width, height),
             scratch: Vec::new(),
+            damage: Rect::default(),
             profiling: false,
             profile: Profile::default(),
         }
@@ -102,6 +105,7 @@ impl Raster {
             right: damage.right.ceil(),
             bottom: damage.bottom.ceil(),
         };
+        self.damage = damage;
         self.context.reset();
         let rect = vello_cpu::kurbo::Rect::new(
             damage.left as f64,
@@ -172,7 +176,9 @@ impl Raster {
             let style = &key.styles[pressed];
             let hint = &key.hints[pressed];
             let r = crate::smartbar::inset(r, style.margin);
-            self.shadowed_box(r, style);
+            if crate::shadow_raster::reaches(r, style.shadow, damage) {
+                self.shadowed_box(r, style);
+            }
             let telpad = content.telpad.get(i) == Some(&true);
             let label_bounds = if telpad {
                 crate::key_content::phone_label(
@@ -467,7 +473,9 @@ impl Raster {
         self.context.set_paint(color(argb));
         for line in layout.lines() {
             for item in line.items() {
-                if let PositionedLayoutItem::GlyphRun(run) = item {
+                if let PositionedLayoutItem::GlyphRun(run) = item
+                    && crate::ink::may_paint(&run, (x, y), f64::from(squeeze), self.damage)
+                {
                     let allocation = self.profiling.then(Instant::now);
                     let coords: Vec<_> = run
                         .run()

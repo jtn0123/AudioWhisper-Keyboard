@@ -276,3 +276,44 @@ fn new_words_repaint_only_the_words_area() {
     assert_eq!(refilled.damage_regions(&acting), [row]);
     assert_dirty_matches_full(&[typed.clone(), refilled, chosen, acting, typed]);
 }
+
+#[test]
+fn text_reaching_past_its_key_still_repaints_in_a_neighbours_damage() {
+    let mut scene = scene();
+    // Wider than its key, and accents stacked up into the strip above the keys.
+    let labels = ["WWWWWW", "\u{1ea4}\u{301}", "gjpqy"];
+    for (key, (label, size)) in scene
+        .keys
+        .iter_mut()
+        .zip(labels.into_iter().zip([30.0, 90.0, 30.0]))
+    {
+        key.label = label.into();
+        key.hint = "\u{c9}".into();
+        key.hints = std::array::from_fn(|_| Style {
+            size: 16.0,
+            foreground: 0xff5f5f5f,
+            ..Style::default()
+        });
+        for style in &mut key.styles {
+            style.size = size;
+            style.margin = [2.0; 4];
+            // Raised enough that no key is skipped whole, so each run's own bounds decide.
+            style.shadow = 12.0;
+        }
+    }
+    let press = |pressed: Vec<usize>| Scene {
+        pressed,
+        ..scene.clone()
+    };
+    let words = with_words(&scene, &["sun", "sum"]);
+    let frames = [
+        scene.clone(),
+        press(vec![1]),
+        press(vec![0, 2]),
+        press(vec![2]),
+        words.clone(),
+        with_words(&scene, &["sunny", "sunk"]),
+        scene.clone(),
+    ];
+    assert_dirty_matches_full(&frames);
+}
