@@ -214,6 +214,13 @@ shown, and Android tells the views itself once it is. `scripts/render-benchmark/
 hides and shows the keyboard on the emulator four ways at four gaps and checks each time that
 a new native window drew a frame and the key rows match a settled screenshot.
 
+On the aw_keyboard_ssd emulator (1080x2400, Android 16), the build before the fix drew its keys
+in 7 of 16 trials: every path came back blank at 300 and 600 ms, and the app switch at 100 ms
+too. With the fix, 16 of 16. A 100 ms hide by the action, Back or an outside tap is too quick
+for Android to release the window at all, so those keep their keys either way. Rotation, the
+long-press popup, suggestions and switching the Rust drawing off and on again were checked on
+the fixed build afterwards. Not yet checked on the phone.
+
 ### Stage 4: Rust draws settings (decision 2026-11-14)
 
 Rust draws the settings Activity on the keyboard's Vello CPU / Parley / Skrifa stack.
