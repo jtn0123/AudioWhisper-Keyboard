@@ -200,7 +200,7 @@ class Device:
         self.wait(lambda: (self.prefs().get("keyboard__rust_renderer_prototype", "true") == "true") == enabled,
                   "Renderer setting was not persisted")
 
-    def probe(self, no_suggestions=False, field="text"):
+    def probe(self, no_suggestions=False, field="text", extras=()):
         # Unbind our observer before replacing its process. Android otherwise retains a
         # bound-service record whose receiver belonged to the killed probe process.
         restore_probe = self.original_accessibility()["enabled_accessibility_services"] == SERVICE
@@ -214,7 +214,8 @@ class Device:
         self.shell("am", "force-stop", PROBE)
         time.sleep(.5)
         self.shell("am", "start", "-W", "-f", "0x10008000",
-                   "-n", PROBE + "/.ProbeActivity", "--ez", "noSuggestions", str(no_suggestions).lower(), "--es", "field", field)
+                   "-n", PROBE + "/.ProbeActivity", "--ez", "noSuggestions", str(no_suggestions).lower(), "--es", "field", field,
+                   *extras)
         self.wait(lambda: any("topResumedActivity=" in line and PROBE + "/.ProbeActivity" in line
                               for line in self.shell("dumpsys", "activity", "activities").splitlines()),
                   "Disposable probe is not foreground")
