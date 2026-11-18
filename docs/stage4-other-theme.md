@@ -197,8 +197,9 @@ again.
 
 `scripts/settings-device-tests.py ... other-theme` drives both screens on the emulator through
 `SettingsOtherThemeDevice`, once with a 12-hour clock and once with a 24-hour clock, after
-`settings-device-baseline.py --restore`. **Every step passed on both clocks**, on the final build
-(`build/stage4-other-theme/device/other-theme-12-result.json` and `-24-result.json`):
+`settings-device-baseline.py --restore`. **Every step passed on both clocks**, on `04b031f9b`, the
+build before the dial's plurals (`build/stage4-other-theme/device/other-theme-12-result.json` and
+`-24-result.json`):
 
 * **Other:** opens and passes the accessibility audit; the settings theme list stores its choice;
   the accent colour through *Presets*, through *Custom* with the square and the hue bar dragged,
@@ -209,7 +210,7 @@ again.
   Back returns; the Material You accent is stored and the keyboard redraws with it (99.5 % of
   the sampled keyboard pixels changed, and a repeat of the same colour changed none); the sunrise
   time set on the dial (a tap to 7:30, a drag to 15:15) and typed (19:45) stores the right
-  `HH:mm:00.000`; a 24-hour dial reads 1 as "1 hour"; Back and rotation close the time dialog; *Follow time* follows the stored times;
+  `HH:mm:00.000`; Back and rotation close the time dialog; *Follow time* follows the stored times;
   the theme mode list survives a rotation; *Go to Theme extensions* opens in Compose and Back
   returns.
 * **Accessibility:** 0 violations over every screen and dialog visited.
@@ -270,6 +271,10 @@ Jetpref's `ColorPickerPreference` and `LocalTimePickerPreference` are no longer 
 * **Focus highlights after a touch.** Whether a tap should hide the focus highlight, as Android's
   touch mode does, is a question for every Rust screen, not just these.
 * **The thumbs' and glyphs' few anti-aliased pixels** on the *Custom* page.
+* **The dial's plurals on a device.** `b4b47eb0e` made the hour and minute names plurals after
+  the device run, and added a device step that looks for "1 hour" on a 24-hour dial. That step
+  and the rest of the check have not run on it: the device tools could not boot the emulator
+  again ("Could not communicate with device support"). The Rust, JVM and resource tests cover it.
 * **No phone check.** Everything above ran on the emulator only.
 * **Test-harness limits, noted so nobody trips on them:** Compose refuses accessibility focus
   unless touch exploration is on, so the check opens Compose rows with a plain click; and
