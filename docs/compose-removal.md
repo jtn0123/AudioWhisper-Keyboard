@@ -75,10 +75,10 @@ its phone checks pass.
 * **Blocked by:** step 2.
 * **Done:**
   * the enum display entries: `KeyboardEnumDisplayEntries` is gone and `EnumDisplayEntries`
-    keeps the 8 enums the remaining Compose screens still ask for (App theme, colour
+    kept the 8 enums the remaining Compose screens still asked for (App theme, colour
     representation, keyboard after dialogs, language names, shift state, keyboard mode,
-    Snygg level, theme mode). The other 23 entries' strings all stay: Rust reads them
-    through `SettingsStringIds`;
+    Snygg level, theme mode); step 4 took App theme and theme mode, leaving 6. The other 23
+    entries' strings all stay: Rust reads them through `SettingsStringIds`;
   * declarations nothing names, found by a scan of every top-level declaration in main
     Kotlin against every tracked Kotlin, Java, XML and Gradle file: `apptheme/Color.kt`,
     `ColorScheme.amoled`, `ExtensionList`, `FREQUENCY_DEFAULT`, `NativeStr` with
@@ -91,14 +91,21 @@ its phone checks pass.
   `testImplementation` also drops them from the shipped licence list, which the device
   baseline compares, so it waits for a baseline refresh.
 
-### 4. Other and Theme, with the colour picker
+### 4. Other and Theme, with the colour and time pickers (done)
 
-* **Deletes:** `OtherScreen` (95) and `ThemeScreen` (118), and Jetpref's colour picker use.
-* **Blocked by:** Rust widgets that do not exist yet (see
-  [follow-up 4](stage4-followup4.md)): the colour picker's saturation/value plane, hue bar,
-  gradient slider tracks and hex fields; a time picker dialog for the day and night theme
-  times; theme labels from the extension index; the add-on reference box.
-* **The fallback keeps:** both screens. Their Compose versions are the only ones until then.
+* **Deletes:** `OtherScreen` and `ThemeScreen`, and Jetpref's colour and time picker use.
+* **What changed:** Rust draws both screens, with a new colour picker (presets, a
+  saturation and brightness square, a hue bar and a hex field), a new time picker (a dial
+  and two number fields), theme names from the extension index, and the add-on reference
+  box. The theme manager and editor stay in Compose (step 9), and Back from them returns to
+  Rust. See [stage 4: Other and Theme](stage4-other-theme.md).
+* **Blocked by:** nothing.
+* **The fallback loses:** both screens. Their routes stay as empty entries that hand back to
+  Rust, as in step 2.
+* **Progress** (non-blank lines deleted): `OtherScreen` (89), `ThemeScreen` (118),
+  `AddonManagementReferenceBox` (39), the App theme and theme mode display entries (45) and
+  `ColorMappings` (24), which only these screens used, plus 6 lines in `Routes.kt` and
+  `SettingsFacts` rewritten as 4. Step 4 is done: 321 lines deleted, 4 added.
 
 ### 5. Backup and restore
 
@@ -124,13 +131,14 @@ its phone checks pass.
 
 ### 9. Theme manager and theme editor
 
-* **Deletes:** the rest of `FB/app/settings/theme`: 16 files, 3,802 lines in all, including
-  `EditPropertyDialog` (1,200) and `ThemeEditorScreen` (473).
+* **Deletes:** the rest of `FB/app/settings/theme`: 15 files, 3,684 lines after step 4,
+  including `EditPropertyDialog` (1,200) and `ThemeEditorScreen` (473).
 * **Blocked by:** step 4's widgets, and a Snygg rule and property editor in Rust.
 
 ### 10. Extensions
 
-* **Deletes:** `FB/app/ext`: 14 files, 2,590 lines (import, export, edit, view, lists).
+* **Deletes:** `FB/app/ext`: 13 files, 2,503 lines after step 4 (import, export, edit, view,
+  lists).
 * **Blocked by:** file pickers (step 5) and per-file editors in Rust.
 
 ### 11. Setup
@@ -141,10 +149,10 @@ its phone checks pass.
 
 ### 12. The Compose settings host
 
-* **Deletes:** `Routes.kt` (295), the Compose branch of `FlorisAppActivity`,
+* **Deletes:** `Routes.kt` (283 after step 4), the Compose branch of `FlorisAppActivity`,
   `ComposeSettingsFallbackActivity`, `FB/app/apptheme` (3 files, 142 after step 3), the
-  settings-only parts of `FB/lib/compose` (7 files, 509 in all), `EnumDisplayEntries` (220
-  after step 3), and the Jetpref UI dependency.
+  settings-only parts of `FB/lib/compose` (7 files, 509 in all), `EnumDisplayEntries` (175
+  after step 4), and the Jetpref UI dependency.
 * **Blocked by:** steps 4–11. Shared primitives in `lib/compose` (20 files, 1,832 after step 3) are
   also used by the Compose keyboard (17 keyboard files import them) and wait for step K.
 

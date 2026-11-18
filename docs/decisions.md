@@ -827,3 +827,20 @@ and `cpu_ns` says whether the thread was working (fix the drawing) or waiting to
 render thread's priority). **Would change if** the phone passes `draw` but FrameTimeline shows the
 Rust keyboard missing 120 Hz frames that Compose does not; then CPU draw time is the wrong
 measure, and moving the gate to presented frames is decided here first.
+
+## Other and Theme keep Compose's behaviour, quirks included (2026-11-17)
+
+The Rust Other and Theme screens, with their colour and time pickers ([stage 4](stage4-other-theme.md)),
+do what the Compose screens did, including three things that look like faults. **Rotating the
+phone closes an open colour or time dialog**, because Compose kept those two dialogs in
+`remember`, which a rotation drops; every other Rust dialog survives a rotation. **The strings that
+Jetpref and Material wrote into their code in English** ("Presets", "Select hour", "AM"…) stay
+English, now as app strings. **A stored day or night theme that is not a theme id** reads as the
+default theme, as Jetpref's reader does. Copying them keeps the frozen-reference tests exact, so a
+difference the tests find is always a mistake in the port, never a choice.
+
+The Rust versions add only what costs nothing and helps a TalkBack or keyboard user: preset
+colours are read out by their hex value, *Default* is one control, and focus outlines are drawn.
+Each is listed in the stage document. **Would change if** someone loses a colour or time to a
+rotation, or the app's strings are translated: either is then a new Rust feature, decided on its
+own, since Compose is frozen and these screens are gone from it.
