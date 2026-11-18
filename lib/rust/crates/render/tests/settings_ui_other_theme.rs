@@ -163,6 +163,33 @@ fn custom_follows_the_plane_the_hue_bar_and_a_typed_colour() {
 }
 
 #[test]
+fn the_hex_field_floats_its_label_over_the_colour() {
+    // A filled TextField with a value: the bodySmall label on its 16 sp line 8 dp into the
+    // field, the colour on the line below it. A 12 sp line height table miss once drew the label
+    // zero lines tall and the colour in its place.
+    let (mut a, mut text) = app("settings/other");
+    a.prefs
+        .insert("other__accent_color".into(), "ff2196f300000000".into());
+    let row = id(&a, "other__accent_color");
+    assert!(act(&mut a, &mut text, row));
+    assert!(act(&mut a, &mut text, 5));
+    let panel = a.scene(&mut text).panel.unwrap();
+    let field = bounds(&a, 7000).bounds;
+    let painted = |label: &str| panel.items.iter().find(|i| i.label == label).unwrap();
+    let (name, value) = (painted("settings__color_picker__field"), painted("#2196f3"));
+    let d = 2.625;
+    assert_eq!(name.bounds.top, field.top + 8.0 * d);
+    assert_eq!(name.bounds.height(), 16.0 * d);
+    assert_eq!(
+        (name.text.size, name.text.line_height),
+        (12.0 * d, 16.0 * d)
+    );
+    assert!((name.text.letter_spacing - 0.4 * d).abs() < 1e-4);
+    assert_eq!(value.bounds.top, name.bounds.bottom);
+    assert_eq!(field.height(), 56.0 * d);
+}
+
+#[test]
 fn the_editor_greys_the_plane_and_discard_keeps_the_colour() {
     let (mut a, mut text) = app("settings/other");
     let row = id(&a, "other__accent_color");

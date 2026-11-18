@@ -41,7 +41,8 @@ pub(super) const TITLE_SMALL: Type = Type {
     tracking: 0.1,
     weight: 500,
 };
-/// bodySmall and labelLarge: AddonManagementReferenceBox's note and its TextButton.
+/// bodySmall and labelLarge: AddonManagementReferenceBox's note (and the colour field's
+/// floating label) and its TextButton.
 pub(super) const BODY_SMALL: Type = Type {
     size: 12,
     line: 16.0,
@@ -77,7 +78,7 @@ pub enum SpellCard {
 }
 
 impl App {
-    fn metrics(&self, t: Type) -> [f32; 2] {
+    pub(super) fn metrics(&self, t: Type) -> [f32; 2] {
         let size = self.sp(t.size);
         let line = if t.line > 0.0 {
             // `resolveLineHeightInPx`: an sp line height keeps its ratio to the scaled size.

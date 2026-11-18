@@ -7,6 +7,7 @@
 //! no thumbs and take no touches.
 use super::{
     Action, App, Control,
+    cards::BODY_SMALL,
     color::{self, PRESETS},
     picker::{ColorPicker, HEX_FIELD, Surface, Tap},
 };
@@ -66,9 +67,13 @@ impl App {
         let shown = self.hex_text(p);
         let width = (w - self.px(16.0) - self.trailing(p)).max(1.0);
         let lines = self.android(text, &shown, self.sp(16), Some(width)).height;
-        (self.px(16.0) + self.sp(16).max(lines) + self.line_height(self.sp(12)))
+        (self.px(16.0) + self.sp(16).max(lines) + self.label_line())
             .max(self.px(56.0))
             .ceil()
+    }
+    /// The floating label's line: bodySmall's 16 sp.
+    fn label_line(&self) -> f32 {
+        self.metrics(BODY_SMALL)[0].ceil()
     }
     fn trailing(&self, p: &ColorPicker) -> f32 {
         self.px(48.0) * if p.editing { 2.0 } else { 1.0 }
@@ -392,14 +397,14 @@ impl App {
         );
         let label = self.label(FIELD_KEY);
         let shown = self.hex_text(s);
-        let label_line = self.line_height(self.sp(12)).ceil();
+        let label_line = self.label_line();
         let (pad, top) = (self.px(16.0), b.top + self.px(8.0));
         if !shown.is_empty() || focused {
-            self.paint_text(
+            self.paint_styled(
                 p,
                 &label,
                 rect(b.left + pad, top, b.width() - 2.0 * pad, label_line),
-                self.sp(12),
+                BODY_SMALL,
                 tone,
                 clip,
             );
