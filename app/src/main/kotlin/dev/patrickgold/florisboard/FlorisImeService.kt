@@ -333,6 +333,9 @@ class FlorisImeService : LifecycleInputMethodService() {
     override fun onWindowShown() {
         super.onWindowShown()
         if (!engine) return
+        // AudioWhisper: hiding told the input view its window was gone; showing again before
+        // the window really hid tells it nothing, and the Rust keyboard drew no keys.
+        (inputWindowView as? ComposeInputView)?.windowShown()
         if (isWindowShown) {
             flogWarning(LogTopic.IMS_EVENTS) { "Ignoring (is already shown)" }
             return

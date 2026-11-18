@@ -3,7 +3,8 @@
 python3 -I scripts/hardening-mutations.py OUTPUT [CASE...]
 Host only: cargo tests and Gradle JVM tests, no device. Compilation errors do not count. The
 fixes are the settings presenter's buffer bounds, the auto-commit's cached lookup, read-aloud's
-offline voice and the GPU renderer kept out of default builds (docs/decisions.md). The runner is
+offline voice, the GPU renderer kept out of default builds (docs/decisions.md) and the keyboard
+told its window is visible when shown again quickly (docs/rust.md). The runner is
 glide-mutations.py's.
 """
 import importlib.util
@@ -22,6 +23,8 @@ SUGGESTER = 'app/src/main/kotlin/com/jtn0123/audiowhisper/suggest/LatinSuggester
 VOICES = CRATES + 'reader/src/voices.rs'
 READER = 'lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/Reader.kt'
 OFFLINE_VOICE = 'app/src/main/kotlin/com/jtn0123/audiowhisper/reader/OfflineVoice.kt'
+IME_WINDOW = CRATES + 'awnative/src/ime_window.rs'
+INPUT_VIEW = 'app/src/main/kotlin/com/jtn0123/audiowhisper/render/InputViewVisibility.kt'
 # name: (file, before, after, how to test), as in glide-mutations.py.
 CASES = {
     'settings-frame-height-unchecked': (
@@ -89,6 +92,18 @@ CASES = {
         OFFLINE_VOICE,
         'language, country, voices.indexOf(default))', 'language, country, -1)',
         ('gradle', ':app', '*OfflineVoiceTest')),
+    'quick-reshow-never-retold': (
+        IME_WINDOW,
+        '    window == VISIBLE && told != VISIBLE\n', '    false && window == VISIBLE && told != VISIBLE\n',
+        ('cargo', 'awnative', None, 'ime_window')),
+    'hidden-window-retold-visible': (
+        IME_WINDOW,
+        '    window == VISIBLE && told != VISIBLE\n', '    told != VISIBLE\n',
+        ('cargo', 'awnative', None, 'ime_window')),
+    'quick-reshow-retell-dropped': (
+        INPUT_VIEW,
+        '        if (retold) retell(View.VISIBLE)\n', '',
+        ('gradle', ':app', '*InputViewVisibilityTest')),
     'gpu-renderer-on-by-default': (
         CRATES + 'render/Cargo.toml',
         '[features]\n', '[features]\ndefault = ["hybrid"]\n',
