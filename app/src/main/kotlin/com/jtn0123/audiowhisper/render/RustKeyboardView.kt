@@ -397,7 +397,7 @@ class RustKeyboardView(context: Context) : FrameLayout(context), SurfaceHolder.C
 
     private enum class SurfaceEvent(val code: Int) {
         CREATED(2), CHANGED(3), DESTROYED(4), RELEASE(5), ATTACHED(6), DETACHED(7),
-        REJECTED_TOUCH(10), REJECTED_UPDATE(11), KEYBOARD_REPLACED(12),
+        WINDOW_HIDDEN(8), WINDOW_VISIBLE(9), REJECTED_TOUCH(10), REJECTED_UPDATE(11), KEYBOARD_REPLACED(12),
     }
 
     private fun trace(event: SurfaceEvent) {
@@ -416,6 +416,11 @@ class RustKeyboardView(context: Context) : FrameLayout(context), SurfaceHolder.C
 
     override fun onAttachedToWindow() { super.onAttachedToWindow(); trace(SurfaceEvent.ATTACHED) }
     override fun onDetachedFromWindow() { super.onDetachedFromWindow(); trace(SurfaceEvent.DETACHED) }
+    /** What the surface is told of the window: it gives up its surface unless visible. */
+    override fun onWindowVisibilityChanged(visibility: Int) {
+        super.onWindowVisibilityChanged(visibility)
+        trace(if (visibility == VISIBLE) SurfaceEvent.WINDOW_VISIBLE else SurfaceEvent.WINDOW_HIDDEN)
+    }
 
     fun release() {
         mediaBuffers.close()
