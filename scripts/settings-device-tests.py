@@ -33,7 +33,7 @@ def known_defects(report):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('baseline', type=Path)
-    parser.add_argument('mode', choices=['all', 'ui', 'text', 'death', 'crash', 'metrics'])
+    parser.add_argument('mode', choices=['all', 'ui', 'text', 'death', 'crash', 'metrics', 'other-theme'])
     args = parser.parse_args()
     d = MODULE.SettingsDevice(os.environ.get('SETTINGS_RECEIPTS', 'build/stage4-followup3/instrumentation'), args.baseline)
     assert d.adb('emu', 'avd', 'name').decode().splitlines()[0] == 'aw_keyboard_ssd'
@@ -121,6 +121,24 @@ def main():
                 assert result['passed'] and result['restored_bundle']
             finally:
                 d.ui('close')
+        if args.mode in ('all', 'other-theme'):
+            # Other and Theme on both clocks: the device's own 12- or 24-hour setting, then the
+            # other one, which is put back afterwards (it is not in the device baseline).
+            original = d.adb('shell', 'settings', 'get', 'system', 'time_12_24').decode().strip()
+            first = 24 if original == '24' else 12
+            try:
+                for clock in (first, 12 if first == 24 else 24):
+                    if clock != first:
+                        d.adb('shell', 'settings', 'put', 'system', 'time_12_24', str(clock))
+                    report = run('other-theme', label=f'other-theme-{clock}')
+                    assert report['other_theme']['clock'] == clock, 'The app did not read the clock setting'
+                    assert report['accessibility_violations'] == 0
+                    d.save(f'other-theme-{clock}-result.json', report['other_theme'])
+            finally:
+                if original == 'null':
+                    d.adb('shell', 'settings', 'delete', 'system', 'time_12_24')
+                else:
+                    d.adb('shell', 'settings', 'put', 'system', 'time_12_24', original)
         if args.mode in ('all', 'crash'):
             assert not run('crash')['crash_theme_night']
             # The crash screen follows the system theme: repeat it in dark mode.
@@ -132,7 +150,8 @@ def main():
     finally:
         d.cleanup()
         for name in ('settings-death-ready', 'settings-death-result.json', 'settings-death-expected.json', 'settings-death-arm',
-                     'settings-device-ui.json', 'settings-device-text.json', 'settings-device-crash.json', 'settings-device-failure.json'):
+                     'settings-device-ui.json', 'settings-device-text.json', 'settings-device-crash.json',
+                     'settings-device-other-theme.json', 'settings-device-failure.json'):
             d.adb('shell', 'run-as', MODULE.PKG, 'rm', '-f', 'files/' + name)
     print('Settings action sequences and exact file restoration passed')
     if not accessibility_passed:

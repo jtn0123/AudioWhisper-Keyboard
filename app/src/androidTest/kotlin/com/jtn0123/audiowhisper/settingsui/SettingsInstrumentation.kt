@@ -66,6 +66,15 @@ class SettingsInstrumentation : Instrumentation() {
                     SettingsTypographyFixture(h).run(report)
                 }
                 "text" -> SettingsEditorDevice(h).run(report)
+                "other-theme" -> {
+                    val screens = JSONArray()
+                    report.put("screens", screens)
+                    SettingsOtherThemeDevice(h) { stage = it }.run(report, screens)
+                    val violations = violations(screens)
+                    report.put("accessibility_violations", violations)
+                    check(violations == 0) { "accessibility violations on Other or Theme" }
+                    stage = "other-theme"
+                }
                 "ui" -> runUi(h, report)
                 "prepare-death" -> SettingsEditorDevice(h).prepareDeath(report)
                 else -> error("unknown device suite")
@@ -87,7 +96,7 @@ class SettingsInstrumentation : Instrumentation() {
             failure.stackTrace.firstOrNull { it.className.startsWith("com.jtn0123.audiowhisper.settingsui.") }?.let {
                 report.put("failure_site", "${it.className}.${it.methodName}:${it.lineNumber}")
             }
-            if (options.getString("mode") == "ui") report.put("windows", JSONArray(h.automation.windows.map { window ->
+            if (options.getString("mode") in setOf("ui", "other-theme")) report.put("windows", JSONArray(h.automation.windows.map { window ->
                 JSONObject().put("type", window.type).put("layer", window.layer).put("active", window.isActive).put("focused", window.isFocused).put("package", window.root?.packageName)
             })).put("visible_nodes", JSONArray(h.nodes().map { node ->
                 JSONObject().put("class", node.className).put("clickable", node.isClickable).put("important", node.isImportantForAccessibility).put("bounds", android.graphics.Rect().also(node::getBoundsInScreen).toShortString()).put("label", if (node.isEditable) "<editable>" else h.label(node))
@@ -243,6 +252,11 @@ class SettingsInstrumentation : Instrumentation() {
         val bytes = File(targetContext.dataDir, "jetpref_datastore/florisboard-app-prefs.jetpref").readBytes()
         report.put("preference_bytes", bytes.size).put("preference_sha256", digest(bytes))
         stage = "ui"
+    }
+    /** Every audit item's violations, summed. */
+    private fun violations(screens: JSONArray): Int = (0 until screens.length()).sumOf { i ->
+        val items = screens.getJSONObject(i).getJSONArray("items")
+        (0 until items.length()).sumOf { items.getJSONObject(it).getJSONArray("violations").length() }
     }
     companion object {
         fun digest(bytes: ByteArray): String = MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { "%02x".format(it) }
