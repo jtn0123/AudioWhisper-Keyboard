@@ -127,6 +127,7 @@ Each one is deliberate.
 | A time field takes ASCII digits only; Material also takes other digits and a minus sign that then fails. | The keyboard is a number pad; the result is the same for every value it can type. |
 | A hardware digit key typed while a clock number has focus does not jump to the fields. | Material does this through a focus quirk; Rust's key focus works differently. |
 | Clock numbers are read as buttons; the AM/PM pair is two buttons, not a group. | Rust has no group role. Each one still says if it is selected. |
+| On a 24-hour clock the dial reads 1 as "1 hour"; Material says "1 hours". | Material's "%1$d hours" and "%1$d minutes" are plurals here, as Android's lint asks, so Android picks the right form. Every other number reads as before. |
 | The strings Jetpref and Material wrote in English ("Presets", "Custom", "Select hour"…) are English app strings. | Compose showed them in English too. Translating them is a separate change. |
 | Focus outlines are drawn for keyboard and D-pad focus, and the control last tapped in an open dialog keeps one (the *Presets*/*Custom* button, the clock button). | Every Rust screen does this today; whether a touch should hide them is owed for all of them. |
 | Selected text in a time field is the primary colour at 40 %. | Compose's default selection colour. |
@@ -158,10 +159,10 @@ Each one is deliberate.
 ## Mutations
 
 A mutation is a small deliberate mistake put into the code to check that some test notices it.
-`scripts/settings-ui-mutations.py` has 21 new ones for these screens; each must make a test fail,
-and the code is put back after each one. **All 21 were caught**, and the restored code passed
-(`build/stage4-other-theme/ui-mutations/result.json` for the first 20,
-`ui-mutations-label2/result.json` for the last, added with the label fix the pictures found).
+`scripts/settings-ui-mutations.py` has 22 new ones for these screens; each must make a test fail,
+and the code is put back after each one. **All 22 were caught**, and the restored code passed
+(`build/stage4-other-theme/ui-mutations/result.json` for the first 20, then
+`ui-mutations-label2/` and `ui-mutations-plural/` for the two added with the late fixes).
 
 | Mutation | What it breaks | Caught by |
 | --- | --- | --- |
@@ -186,6 +187,7 @@ and the code is put back after each one. **All 21 were caught**, and the restore
 | keyboard-mode-forgotten | Reopening a time dialog forgets it was in keyboard mode | Rust dialog test |
 | time-default-button-keeps | The time dialog's *Default* button leaves the stored time as it was | Rust dialog test |
 | hex-label-zero-line | The hex field's *Color* label is laid out zero lines tall, so the colour is drawn over it | Rust dialog test |
+| dial-minutes-read-as-hours | The dial's minutes are read out with the hour plural | Rust dialog test |
 
 `scripts/settings-mutations.py` gains one: the sunrise default changed by a millisecond in the
 settings catalogue, which `SettingsDefaultsMatchTest` caught. Its four older mutations were caught
@@ -207,7 +209,7 @@ again.
   Back returns; the Material You accent is stored and the keyboard redraws with it (99.5 % of
   the sampled keyboard pixels changed, and a repeat of the same colour changed none); the sunrise
   time set on the dial (a tap to 7:30, a drag to 15:15) and typed (19:45) stores the right
-  `HH:mm:00.000`; Back and rotation close the time dialog; *Follow time* follows the stored times;
+  `HH:mm:00.000`; a 24-hour dial reads 1 as "1 hour"; Back and rotation close the time dialog; *Follow time* follows the stored times;
   the theme mode list survives a rotation; *Go to Theme extensions* opens in Compose and Back
   returns.
 * **Accessibility:** 0 violations over every screen and dialog visited.
@@ -244,8 +246,8 @@ Rust test and a mutation now hold.
 `OtherScreen` and `ThemeScreen`, `AddonManagementReferenceBox`, the app theme and theme mode enum
 display entries, and `ColorMappings` with `DEFAULT_GREEN`: 321 non-blank production lines, with
 4 added where they were called. Over the whole branch, against `b0d4a9a4f`, production code gains
-2,830 non-blank Rust lines and loses 69 Rust lines it rewrote; Kotlin gains 120 (the facts,
-strings and icons) and loses 304; string resources gain 22.
+2,854 non-blank Rust lines and loses 71 Rust lines it rewrote; Kotlin gains 121 (the facts,
+string ids and icons) and loses 329; string resources gain 29.
 
 Jetpref's `ColorPickerPreference` and `LocalTimePickerPreference` are no longer called. Its
 `JetPrefColorPicker` stays, for the theme editor's colour dialog (step 9).

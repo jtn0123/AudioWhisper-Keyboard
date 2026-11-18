@@ -840,7 +840,8 @@ default theme, as Jetpref's reader does. Copying them keeps the frozen-reference
 difference the tests find is always a mistake in the port, never a choice.
 
 The Rust versions add only what costs nothing and helps a TalkBack or keyboard user: preset
-colours are read out by their hex value, *Default* is one control, and focus outlines are drawn.
-Each is listed in the stage document. **Would change if** someone loses a colour or time to a
+colours are read out by their hex value, *Default* is one control, focus outlines are drawn, and
+the dial's hour and minute names are plurals, so a 24-hour 1 reads "1 hour". Each is listed in the
+stage document. **Would change if** someone loses a colour or time to a
 rotation, or the app's strings are translated: either is then a new Rust feature, decided on its
 own, since Compose is frozen and these screens are gone from it.
