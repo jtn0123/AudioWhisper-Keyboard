@@ -1,5 +1,6 @@
 package com.jtn0123.audiowhisper.settingsui
 
+import android.accessibilityservice.AccessibilityServiceInfo
 import android.app.Activity
 import android.content.ComponentName
 import android.content.res.Configuration
@@ -10,6 +11,8 @@ import android.graphics.drawable.Drawable
 import android.os.Handler
 import android.os.Looper
 import android.provider.Settings
+import android.text.format.DateFormat
+import android.view.accessibility.AccessibilityManager
 import android.widget.Toast
 import androidx.core.content.res.ResourcesCompat
 import androidx.core.graphics.createBitmap
@@ -22,7 +25,11 @@ import dev.patrickgold.florisboard.clipboardManager
 import dev.patrickgold.florisboard.lib.util.launchActivity
 import dev.patrickgold.florisboard.lib.util.launchUrl
 import dev.patrickgold.florisboard.nlpManager
+import dev.patrickgold.florisboard.themeManager
 import org.florisboard.lib.android.AndroidSettings
+import kotlinx.coroutines.MainScope
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 import kotlin.concurrent.thread
 
 /**
@@ -38,6 +45,8 @@ internal class SettingsFacts(private val activity: Activity) {
     }
     private var listener: (() -> Unit)? = null
     private var models: List<String> = emptyList()
+    private var themeLabels: List<String> = emptyList()
+    private val scope = MainScope()
     private val main = Handler(Looper.getMainLooper())
 
     /** Typing's spell checker card follows these two while the screen is in the foreground. */
@@ -46,8 +55,16 @@ internal class SettingsFacts(private val activity: Activity) {
         for (key in SPELL_KEYS) AndroidSettings.Secure.getUriFor(key)?.let {
             activity.contentResolver.registerContentObserver(it, false, observer)
         }
+        // Theme's day and night rows name their themes from the extension index, as Compose's
+        // ThemeScreen did with `indexedThemeConfigs`.
+        scope.launch {
+            activity.themeManager().value.indexedThemeConfigs.collect { (configs, _) ->
+                themeLabels = themeLabelPairs(configs.mapKeys { it.key.toString() }.mapValues { it.value.label })
+                listener?.invoke()
+            }
+        }
     }
-    fun release() { listener = null; activity.contentResolver.unregisterContentObserver(observer) }
+    fun release() { listener = null; scope.cancel(); activity.contentResolver.unregisterContentObserver(observer) }
 
     /** Key/value pairs; a null setting is left out, so Rust can tell null from "null". */
     fun pairs(): Array<String> {
@@ -58,8 +75,26 @@ internal class SettingsFacts(private val activity: Activity) {
             AndroidSettings.Secure.getString(activity, "spell_checker_enabled"),
             AndroidSettings.Secure.getString(activity, "selected_spell_checker"),
         ) { pkg -> runCatching { pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)).toString() }.getOrNull() } +
-            models.toTypedArray()
+            models.toTypedArray() + themeLabels.toTypedArray() + arrayOf("system_accent", systemAccent().toUInt().toString()) +
+            arrayOf("is24hour", DateFormat.is24HourFormat(activity).toString(), "accessibility_touch", accessibilityTouch().toString())
     }
+
+    /**
+     * Material's `rememberAccessibilityServiceState`, which turns the time picker's move to the
+     * minute off: accessibility on, with touch exploration, Switch Access or Voice Access.
+     */
+    private fun accessibilityTouch(): Boolean {
+        val am = activity.getSystemService(AccessibilityManager::class.java) ?: return false
+        if (!am.isEnabled) return false
+        return am.isTouchExplorationEnabled ||
+            am.getEnabledAccessibilityServiceList(AccessibilityServiceInfo.FEEDBACK_GENERIC).any { info ->
+                val name = info.settingsActivityName.orEmpty()
+                name.contains("SwitchAccess", ignoreCase = true) || name.contains("VoiceAccess", ignoreCase = true)
+            }
+    }
+
+    /** Jetpref's `safeValue` of no colour: the colour pickers' Default, which OK stores as none. */
+    private fun systemAccent() = activity.resources.getColor(android.R.color.system_accent1_500, activity.theme)
 
     /** Dictation's model rows: the names and sizes at once, then the SHA-256 check off the main thread. */
     fun checkModels(onChange: () -> Unit) {
@@ -148,6 +183,10 @@ internal class SettingsFacts(private val activity: Activity) {
                     is ModelState.Damaged -> listOf("${name}_state", "damaged", "${name}_files", state.files.joinToString(", "))
                 }
             } + listOf("models_checked", checked.toString())
+
+        /** Each indexed theme's label under `theme_label:<extension>:<component>`. */
+        fun themeLabelPairs(labels: Map<String, String>): List<String> =
+            labels.flatMap { (id, label) -> listOf("theme_label:$id", label) }
 
         /** [pairs] from the values Android reports; `label` looks an app's label up, null when it fails. */
         fun factPairs(

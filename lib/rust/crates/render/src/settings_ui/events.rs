@@ -59,7 +59,11 @@ impl App {
                     Kind::Spell => self
                         .effects
                         .push(vec!["intent".into(), "spellCheckerSettings".into()]),
-                    Kind::Choice(_) | Kind::Slider(_) | Kind::Confirm(..) => {
+                    Kind::Choice(_)
+                    | Kind::Slider(_)
+                    | Kind::Confirm(..)
+                    | Kind::Color
+                    | Kind::Time => {
                         if self.editor.focused {
                             self.editor.focused = false;
                             self.editor.composing = None;
@@ -82,6 +86,7 @@ impl App {
                             enabled: r.switch.is_empty() || self.yes(r.switch),
                         });
                         self.focus = -1;
+                        self.open_picker(i);
                     }
                     _ => {}
                 }
@@ -91,10 +96,10 @@ impl App {
                     m.selected = choice;
                 }
             }
-            Action::Cancel => {
-                self.modal = None;
-                self.focus = -1;
+            Action::Default | Action::Confirm if self.picker_open() => {
+                self.picker_button(c.action == Action::Confirm)
             }
+            Action::Cancel => self.close_picker(),
             Action::Confirm => {
                 if let Some(m) = self.modal.take() {
                     let r = self.rows()[m.row];
@@ -139,7 +144,8 @@ impl App {
                 }
                 self.focus = -1;
             }
-            Action::Slider(_) | Action::SelectionHandle(_) => {}
+            Action::Tap(t) => self.tap(t),
+            Action::Slider(_) | Action::SelectionHandle(_) | Action::Drag(_) => {}
         }
         true
     }
@@ -277,7 +283,7 @@ impl App {
                     eligible.extend((0..self.choices(m.row).len()).map(|i| 3000 + i as i32))
                 }
                 Kind::Slider(_) => eligible.extend((0..m.values.len()).map(|i| 4000 + i as i32)),
-                _ => {}
+                _ => eligible.extend(self.picker_focus()),
             }
             if !matches!(r.kind, Kind::Confirm(..)) {
                 eligible.push(5);
@@ -298,7 +304,7 @@ impl App {
                         | Kind::Status(_)
                         | Kind::Note => {}
                         // The card's text is not focusable; its hyperlink is.
-                        Kind::Card(_) => eligible.push(6000 + i as i32),
+                        Kind::Card(_) | Kind::Addons(_) => eligible.push(6000 + i as i32),
                         Kind::Libraries => eligible.extend(self.licence_focus()),
                         _ => eligible.push(1000 + i as i32),
                     }
@@ -343,7 +349,7 @@ impl App {
             || self
                 .controls
                 .iter()
-                .any(|c| c.id == id && matches!(c.action, Action::Slider(_)))
+                .any(|c| c.id == id && matches!(c.action, Action::Slider(_) | Action::Drag(_)))
         {
             return false;
         }
@@ -417,6 +423,7 @@ impl App {
                 }
                 self.down = Some((id, x, y, t));
                 self.last = (x, y);
+                self.drag_at(id, x, y, true);
             } else if e.action == 2 {
                 let Some((id, ..)) = self.down else {
                     continue;
@@ -430,6 +437,7 @@ impl App {
                             min + (max - min) * (x - c.bounds.left) / c.bounds.width(),
                         );
                     }
+                } else if self.drag_at(id, x, y, false) {
                 } else if id == 20 || id == 21 {
                     // The handles disappear at a collapsed range. Keep the original
                     // grabbed endpoint/opposite anchor so the same drag can cross it.
@@ -437,15 +445,7 @@ impl App {
                 }
                 self.last = (x, y);
             } else if e.action == 1 {
-                let slider = self.down.and_then(|(id, ..)| {
-                    self.controls
-                        .iter()
-                        .find(|c| c.id == id)
-                        .and_then(|c| match c.action {
-                            Action::Slider(slot) => Some(slot),
-                            _ => None,
-                        })
-                });
+                let held = self.down.map(|(id, ..)| id);
                 if let Some((id, _, _, _)) = self.down.take() {
                     if self.dragging {
                         self.velocity.up(t.div_euclid(1_000_000));
@@ -475,8 +475,8 @@ impl App {
                         }
                     }
                 }
-                if let Some(slot) = slider {
-                    self.slider_finished(slot);
+                if let Some(id) = held {
+                    self.released(id, x, y);
                 }
                 self.dragging = false;
             }

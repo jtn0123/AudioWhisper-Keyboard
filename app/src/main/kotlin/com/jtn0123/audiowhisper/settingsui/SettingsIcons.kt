@@ -38,5 +38,17 @@ internal fun settingsIcons(resources: Resources): Array<String> {
         "@icon:policy" to Icons.Outlined.Policy, "@icon:description" to Icons.Outlined.Description,
         "@icon:error_outline" to Icons.Default.ErrorOutline, "@icon:warning" to Icons.Outlined.Warning,
         "@icon:help_outline" to Icons.AutoMirrored.Filled.HelpOutline,
+        // Other, and the colour picker's text field.
+        "@icon:palette" to Icons.Default.Palette, "@icon:format_color_fill" to Icons.Default.FormatColorFill,
+        "@icon:keyboard_keys" to ImageVector.vectorResource(null, resources, R.drawable.ic_keyboard_keys),
+        "@icon:archive" to Icons.Default.Archive, "@icon:settings_backup_restore" to Icons.Default.SettingsBackupRestore,
+        "@icon:edit" to Icons.Default.Edit, "@icon:done" to Icons.Default.Done, "@icon:clear" to Icons.Default.Clear,
+        // The time picker's switch back from the keyboard to the dial.
+        "@icon:clock" to Icons.Default.Schedule,
+        // Theme, and its addon box's button.
+        "@icon:brightness_auto" to Icons.Default.BrightnessAuto, "@icon:light_mode" to Icons.Default.LightMode,
+        "@icon:dark_mode" to Icons.Default.DarkMode, "@icon:wb_twilight" to Icons.Default.WbTwilight,
+        "@icon:brightness_2" to Icons.Default.Brightness2, "@icon:color_lens" to Icons.Default.ColorLens,
+        "@icon:shop" to Icons.Default.Shop,
     )).flatMap { (name, icon) -> listOf(name, iconPath(icon)) }.toTypedArray()
 }

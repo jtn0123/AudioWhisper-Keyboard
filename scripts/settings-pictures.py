@@ -150,6 +150,53 @@ def group_two(d, renderer):
     d.save(renderer+'-group-two-skipped.json', skipped)
 
 
+# Step 4 (docs/stage4-other-theme.md): every row enabled (Follow time), the stored colours and
+# times at their defaults, so the pictures hold no personal choice.
+# Stored strings are JSON: quoted.
+OTHER_THEME_PREFS = {'theme__mode': '"FOLLOW_TIME"', 'other__settings_theme': '"AUTO"', 'other__accent_color': '"0000000000000010"',
+                     'theme__accent_color': '"0000000000000010"', 'theme__sunrise_time': '"06:00:00.000"',
+                     'theme__sunset_time': '"18:00:00.000"', 'theme__day_theme_id': '"org.florisboard.themes:floris_day"',
+                     'theme__night_theme_id': '"org.florisboard.themes:floris_night"'}
+# (route, a label at its top, [(dialog row, [buttons pressed in turn, a picture after each])]).
+OTHER_THEME = [
+    ('other', 'Settings theme', [('Settings theme', []), ('Settings accent color', ['Custom'])]),
+    ('theme', 'Theme mode', [('Theme mode', []), ('Sunrise time', ['Switch time input to keyboard input']),
+                             ('Accent color (Material You themes)', ['Custom'])]),
+]
+
+
+def other_theme(d, renderer):
+    """Other and Theme from their tops, then each dialog and each of its other layouts."""
+    d.fixture()
+    data = with_prefs(d.read_prefs(), {}, OTHER_THEME_PREFS)
+    d.adb('shell', 'am', 'force-stop', MODULE.PKG)
+    d.private_write(MODULE.PREFS, data)
+    d.prototype(renderer)
+    for route, ready, dialogs in OTHER_THEME:
+        d.launch('settings/home')
+        d.launch('settings/'+route)
+        d.wait(lambda: d.find(ready), 'Screen absent')
+        picture(d, renderer+'-'+route)
+        for label, steps in dialogs:
+            d.launch('settings/home')
+            d.launch('settings/'+route)
+            d.wait(lambda: d.find(label), 'Row absent')
+            d.press(label)
+            d.wait(lambda: d.find('Cancel'), 'Dialog absent')
+            name = f"{renderer}-dialog-{route}-{label.lower().replace(' ', '-').replace('(', '').replace(')', '')}"
+            picture(d, name)
+            for step, button in enumerate(steps):
+                d.press(button)
+                # The time dialog's keyboard entry holds the time in text fields, and a tree with
+                # filled fields is never written, so that step keeps only its screenshot.
+                if button.endswith('keyboard input'):
+                    time.sleep(3.0)
+                    d.screenshot(f'{name}-{step+1}.png')
+                else:
+                    picture(d, f'{name}-{step+1}')
+            d.press('Cancel')
+
+
 def licences(d, renderer):
     """The third-party licences list at its top and a page down, the first library's licence
     dialog, and the project licence screen, which stays in Compose on both renderers."""
@@ -184,8 +231,8 @@ def main():
     parser.add_argument('--renderer', choices=['rust'], default='rust')
     parser.add_argument('--output', type=Path, default=Path('build/stage4-followup3/pictures'))
     parser.add_argument('--appearance', choices=['light', 'dark', 'font2', 'all'], default='all')
-    parser.add_argument('--sections', nargs='+', choices=['keyboard', 'group-one', 'group-two', 'licences'],
-                        default=['keyboard', 'group-one', 'group-two', 'licences'])
+    parser.add_argument('--sections', nargs='+', choices=['keyboard', 'group-one', 'group-two', 'licences', 'other-theme'],
+                        default=['keyboard', 'group-one', 'group-two', 'licences', 'other-theme'])
     args = parser.parse_args()
     base = args.output
     d = MODULE.SettingsDevice(base, args.baseline)
@@ -256,6 +303,9 @@ def main():
                 if 'licences' in args.sections:
                     licences(d, renderer)
                     print(appearance, renderer, 'licences pictures', flush=True)
+                if 'other-theme' in args.sections:
+                    other_theme(d, renderer)
+                    print(appearance, renderer, 'other and theme pictures', flush=True)
     finally:
         d.ui('settings', 'text-size', 'large')
         d.ui('settings', 'appearance', 'light')

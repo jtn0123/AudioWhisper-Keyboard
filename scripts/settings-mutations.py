@@ -39,6 +39,9 @@ def main():
         ('clamp-bound', 'catalogue.tsv', '300\t100\t700\t10', '300\t101\t700\t10', '*SettingsDefaultsMatchTest'),
         ('migration', 'migration.rs', '"advanced__settings_theme" => target = "other__settings_theme"',
          '"advanced__settings_theme" => target = "other__incorrect_theme"', '*SettingsMigrationMatchTest'),
+        # Theme's sunrise time as Jetpref's LocalTime default writes it.
+        ('time-default', 'catalogue.tsv', 'theme__sunrise_time\ts\t06:00:00.000', 'theme__sunrise_time\ts\t06:00:00.001',
+         '*SettingsDefaultsMatchTest'),
         ('active-fallback', 'subtype.rs', 'else { Some(0) }', 'else { Some(ids.len() - 1) }', '*SettingsSubtypeMatchTest'),
     ]
     results = []
@@ -61,7 +64,7 @@ def main():
     restored = run(output, 'restored', '*Settings*MatchTest')
     (output / 'restored.json').write_text(json.dumps(restored, indent=2) + '\n')
     assert restored['gradle_exit'] == 0 and restored['tests'] > 0, 'Restored suites failed'
-    print('Four mutations restored; all settings match suites pass', flush=True)
+    print(f'{len(edits)} mutations restored; all settings match suites pass', flush=True)
 
 
 if __name__ == '__main__':

@@ -3,6 +3,35 @@
     <string name="settings__navigate_back">Back</string>
     <string name="settings__selection_start">Start of selection</string>
     <string name="settings__selection_end">End of selection</string>
+    <!-- Jetpref's colour picker, which wrote these in English. -->
+    <string name="settings__color_picker__presets">Presets</string>
+    <string name="settings__color_picker__custom">Custom</string>
+    <string name="settings__color_picker__field">Color</string>
+    <string name="settings__color_picker__edit">Edit color</string>
+    <string name="settings__color_picker__apply">Apply changes</string>
+    <string name="settings__color_picker__discard">Discard changes</string>
+    <!-- Material 3's time picker (its own translated strings, copied in English) and Jetpref's
+         English toggle descriptions, for the theme's sunrise and sunset dialogs. -->
+    <string name="settings__time_picker__am">AM</string>
+    <string name="settings__time_picker__pm">PM</string>
+    <string name="settings__time_picker__select_hour">Select hour</string>
+    <string name="settings__time_picker__select_minutes">Select minutes</string>
+    <string name="settings__time_picker__hour_suffix">%1$d o\'clock</string>
+    <!-- Material's "%1$d hours" and "%1$d minutes", as plurals so a 1 reads "1 hour". -->
+    <plurals name="settings__time_picker__hour_24h_suffix">
+        <item quantity="one">{v} hour</item>
+        <item quantity="other">{v} hours</item>
+    </plurals>
+    <plurals name="settings__time_picker__minute_suffix">
+        <item quantity="one">{v} minute</item>
+        <item quantity="other">{v} minutes</item>
+    </plurals>
+    <string name="settings__time_picker__hour">Hour</string>
+    <string name="settings__time_picker__minute">Minute</string>
+    <string name="settings__time_picker__hour_field">for hour</string>
+    <string name="settings__time_picker__minute_field">for minutes</string>
+    <string name="settings__time_picker__to_keyboard">Switch time input to keyboard input</string>
+    <string name="settings__time_picker__to_picker">Switch time input to time picker</string>
     <string name="crash__copy_details">Copy details</string>
     <string name="crash__native_load_summary">AudioWhisper could not load its keyboard engine. Reinstall the app, then open it again.</string>
     <string name="crash__keyboard_unavailable">AudioWhisper could not load its keyboard engine, so it cannot type. Reinstall the app, and switch to another keyboard until then.</string>

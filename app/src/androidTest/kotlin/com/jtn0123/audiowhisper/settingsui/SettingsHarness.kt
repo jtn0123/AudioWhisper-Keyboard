@@ -92,7 +92,7 @@ internal class SettingsHarness(val instrumentation: Instrumentation, explore: Bo
         instrumentation.waitForIdleSync()
     }
     /** This app's live IME, found as FixtureInstrumentation finds it. */
-    private fun ime(): InputMethodService? = Class.forName("dev.patrickgold.florisboard.FlorisImeServiceKt").declaredFields
+    fun ime(): InputMethodService? = Class.forName("dev.patrickgold.florisboard.FlorisImeServiceKt").declaredFields
         .filter { Modifier.isStatic(it.modifiers) && WeakReference::class.java.isAssignableFrom(it.type) }
         .firstNotNullOfOrNull { field -> field.setAccessible(true); (field.get(null) as? WeakReference<*>)?.get() as? InputMethodService }
     fun launch(route: String = "settings/home") {
@@ -129,7 +129,10 @@ internal class SettingsHarness(val instrumentation: Instrumentation, explore: Bo
             for (i in 0 until n.childCount) walk(n.getChild(i))
         }
         automation.clearCache()
-        val root = automation.windows.sortedByDescending { it.layer }
+        // The app's window, not its keyboard's: FlorisImeService runs in this package too, and its
+        // window sits above the app while it is shown.
+        val root = automation.windows.filter { it.type != android.view.accessibility.AccessibilityWindowInfo.TYPE_INPUT_METHOD }
+            .sortedByDescending { it.layer }
             .mapNotNull { it.root }.firstOrNull { it.packageName?.toString() == instrumentation.targetContext.packageName }
             ?: automation.rootInActiveWindow
         walk(root)

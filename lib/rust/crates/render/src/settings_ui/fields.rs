@@ -36,7 +36,7 @@ pub(super) const MODEL_KEYS: [&str; 7] = [
     VOICE[2],
 ];
 
-fn with_text(value: &str) -> Editor {
+pub(super) fn with_text(value: &str) -> Editor {
     let text: Vec<u16> = value.encode_utf16().collect();
     let end = text.len();
     Editor {
@@ -56,6 +56,9 @@ impl App {
     pub fn field_editor(&self, id: i32) -> (Editor, bool) {
         if id == self.field_id() {
             return (self.editor.clone(), true);
+        }
+        if let Some(e) = self.dialog_field(id) {
+            return (e, false);
         }
         match usize::try_from(id - 1000) {
             Ok(i)
@@ -102,6 +105,7 @@ impl App {
     pub fn focus_field(&mut self, id: i32) -> bool {
         let target = match usize::try_from(id - 1000) {
             _ if id == 2 && self.screen().is_some_and(|s| s.preview) => None,
+            Ok(i) if self.dialog_field(id).is_some() => Some(i),
             Ok(i)
                 if self
                     .rows()
@@ -126,6 +130,9 @@ impl App {
         let Some(i) = self.field else {
             return;
         };
+        if i >= super::picker::HEX_FIELD {
+            return self.sync_dialog_field();
+        }
         let key = self.rows()[i].key;
         let value = String::from_utf16_lossy(&self.editor.text);
         if self.prefs.get(key) != Some(&value) {

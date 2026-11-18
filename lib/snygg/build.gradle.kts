@@ -86,7 +86,10 @@ tasks.withType<Test> {
     dependsOn(":lib:rust:cargoBuildHost")
     inputs.dir(rustHost).withPropertyName("rustHostLibrary").withPathSensitivity(PathSensitivity.RELATIVE)
     systemProperty("java.library.path", rustHost.path)
-    jvmArgs("--enable-native-access=ALL-UNNAMED")
+    // The match tests compare exception messages. Once the JIT compiles a cast that keeps failing,
+    // HotSpot throws a shared ClassCastException with no message (after about 6,300 throws on
+    // JDK 24), so without this flag whether a message is null depends on test order and timing.
+    jvmArgs("--enable-native-access=ALL-UNNAMED", "-XX:-OmitStackTraceInFastThrow")
 }
 
 kover {

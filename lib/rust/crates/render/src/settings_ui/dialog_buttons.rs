@@ -15,6 +15,16 @@ impl App {
     pub(super) fn button_keys(&self) -> [&'static str; 3] {
         match self.modal.as_ref().map(|m| self.rows()[m.row].kind) {
             Some(super::catalogue::Kind::Confirm(ask)) => ["", ask.dismiss, ask.confirm],
+            // Jetpref's neutral button names the page it switches to.
+            Some(super::catalogue::Kind::Color) => [
+                if self.color_picker().is_some_and(|p| p.custom) {
+                    super::color_dialog::PRESETS_KEY
+                } else {
+                    super::color_dialog::CUSTOM_KEY
+                },
+                "action__cancel",
+                "action__ok",
+            ],
             _ => ["action__default", "action__cancel", "action__ok"],
         }
     }

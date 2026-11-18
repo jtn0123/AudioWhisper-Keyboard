@@ -23,7 +23,6 @@ import dev.patrickgold.florisboard.app.settings.theme.SnyggLevel
 import dev.patrickgold.florisboard.ime.core.DisplayLanguageNamesIn
 import dev.patrickgold.florisboard.ime.input.InputShiftState
 import dev.patrickgold.florisboard.ime.keyboard.KeyboardMode
-import dev.patrickgold.florisboard.ime.theme.ThemeMode
 import dev.patrickgold.jetpref.datastore.ui.ListPreferenceEntry
 import dev.patrickgold.jetpref.datastore.ui.listPrefEntries
 import dev.patrickgold.jetpref.material.ui.ColorRepresentation
@@ -34,30 +33,6 @@ import kotlin.reflect.KClass
 private const val DEFAULT = ""
 
 private val ENUM_DISPLAY_ENTRIES = mapOf<Pair<KClass<*>, String>, @Composable () -> List<ListPreferenceEntry<*>>>(
-    AppTheme::class to DEFAULT to {
-        listPrefEntries {
-            entry(
-                key = AppTheme.AUTO,
-                label = stringRes(R.string.settings__system_default),
-            )
-            entry(
-                key = AppTheme.AUTO_AMOLED,
-                label = stringRes(R.string.pref__other__settings_theme__auto_amoled),
-            )
-            entry(
-                key = AppTheme.LIGHT,
-                label = stringRes(R.string.pref__other__settings_theme__light),
-            )
-            entry(
-                key = AppTheme.DARK,
-                label = stringRes(R.string.pref__other__settings_theme__dark),
-            )
-            entry(
-                key = AppTheme.AMOLED_DARK,
-                label = stringRes(R.string.pref__other__settings_theme__amoled_dark),
-            )
-        }
-    },
     ColorRepresentation::class to DEFAULT to {
         listPrefEntries {
             entry(
@@ -189,26 +164,6 @@ private val ENUM_DISPLAY_ENTRIES = mapOf<Pair<KClass<*>, String>, @Composable ()
                 label = stringRes(R.string.enum__snygg_level__developer),
                 description = stringRes(R.string.enum__snygg_level__developer__description),
                 showDescriptionOnlyIfSelected = true,
-            )
-        }
-    },
-    ThemeMode::class to DEFAULT to {
-        listPrefEntries {
-            entry(
-                key = ThemeMode.ALWAYS_DAY,
-                label = stringRes(R.string.enum__theme_mode__always_day),
-            )
-            entry(
-                key = ThemeMode.ALWAYS_NIGHT,
-                label = stringRes(R.string.enum__theme_mode__always_night),
-            )
-            entry(
-                key = ThemeMode.FOLLOW_SYSTEM,
-                label = stringRes(R.string.enum__theme_mode__follow_system),
-            )
-            entry(
-                key = ThemeMode.FOLLOW_TIME,
-                label = stringRes(R.string.enum__theme_mode__follow_time),
             )
         }
     },

@@ -1,6 +1,9 @@
 //! Native settings UI. Platform effects and persisted IO are returned as plans.
+mod addons;
 mod cards;
 pub mod catalogue;
+pub mod color;
+mod color_dialog;
 mod dialog;
 mod dialog_buttons;
 mod dialog_metrics;
@@ -13,9 +16,14 @@ mod layout;
 pub mod licences;
 mod material;
 mod overscroll;
+mod picker;
 mod rows;
 pub use rows::CODE_KEYS;
 mod scrollbar;
+pub mod time;
+mod time_dial;
+mod time_dialog;
+mod time_events;
 mod widgets;
 use crate::panel_scroll::Fling;
 use editor::{Batches, Editor};
@@ -41,6 +49,10 @@ pub enum Action {
     Picker,
     /// A library row (its index in the sorted list) opens its license dialog.
     Library(usize),
+    /// A tap on one of the colour or time dialog's own controls.
+    Tap(picker::Tap),
+    /// A surface the finger drags: the colour plane, the hue bar, the clock dial.
+    Drag(picker::Surface),
 }
 #[derive(Clone, Debug)]
 pub struct Control {
@@ -95,8 +107,9 @@ pub struct App {
     pub field_layouts: Vec<(i32, std::sync::Arc<crate::android_text::Layout>, [f32; 2])>,
     pub config: [f32; 4],
     /// The palette; 13 is M3 Card's content colour, `contentColorFor(surfaceContainerHighest)`,
-    /// 14 onPrimaryContainer and 15 onBackground.
-    pub colors: [u32; 16],
+    /// 14 onPrimaryContainer, 15 onBackground, 16 tertiaryContainer, 17 onTertiaryContainer and
+    /// 18 error.
+    pub colors: [u32; 19],
     pub dialog_window_width: f32,
     pub sp_pixels: [f32; 33],
     pub controls: Vec<Control>,
@@ -130,6 +143,14 @@ pub struct App {
     pub dragging: bool,
     pub velocity: crate::compose_velocity::ComposeVelocity,
     pub licences: licences::State,
+    /// The open colour or time dialog's state; only read while `modal` shows such a row.
+    pub picker: Option<picker::Picker>,
+    /// The time rows whose dialog opens on the keyboard: Jetpref remembers each one's display
+    /// mode while its screen stays composed.
+    pub time_inputs: Vec<&'static str>,
+    /// 45 sp and 57 sp in pixels as Android's `applyDimension` gives them, which grows large
+    /// text less than linearly; zero until Kotlin sends them.
+    pub display_pixels: [f32; 2],
 }
 impl Default for App {
     fn default() -> Self {
@@ -149,7 +170,7 @@ impl Default for App {
             colors: [
                 0xfff8f8f8, 0xff161616, 0xff555555, 0xff376a20, 0xffdce9d0, 0xffe9e9e9, 0xffffffff,
                 0xff777777, 0xfff8f8f8, 0xff555b66, 0xffc5c5c5, 0xffeeeeee, 0xffeeeeee, 0xff161616,
-                0xff0b2000, 0xff161616,
+                0xff0b2000, 0xff161616, 0xffbcebf0, 0xff002022, 0xffba1a1a,
             ],
             dialog_window_width: 0.0,
             sp_pixels: [0.0; 33],
@@ -181,6 +202,9 @@ impl Default for App {
             dragging: false,
             velocity: Default::default(),
             licences: Default::default(),
+            picker: None,
+            time_inputs: vec![],
+            display_pixels: [0.0; 2],
         }
     }
 }
@@ -203,6 +227,7 @@ impl App {
     }
     pub fn navigate(&mut self, route: &str) {
         self.fling = None;
+        self.time_inputs.clear();
         self.end_scroll_cycle();
         if self.editor.focused {
             self.editor.focused = false;
@@ -293,12 +318,14 @@ impl App {
         self.back_progress = 0.0;
         if self.modal.take().is_some() {
             self.focus = -1;
+            self.leave_dialog_field();
         } else if self.editor.focused {
             self.editor.focused = false;
             self.editor.composing = None;
             self.effects.push(vec!["hideEditor".into()]);
         } else if self.stack.len() > 1 {
             self.release_field();
+            self.time_inputs.clear();
             self.stack.pop();
             self.scrolls.pop();
             self.focus = -1;

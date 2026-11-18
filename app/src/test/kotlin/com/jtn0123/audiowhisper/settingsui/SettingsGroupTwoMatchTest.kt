@@ -206,7 +206,8 @@ class SettingsGroupTwoMatchTest {
     @Test fun nativeRoutesAddGroupTwoAndKeepTheirScreensAcrossRecreation() {
         KeyboardRenderer(arrayOf(font)).use { n ->
             val native = n.settings(19)[2].split("\n")
-            assertEquals(ref.screens.map { it.route } + "settings/about/third-party-licenses", native.takeLast(ref.screens.size + 1))
+            val group = native.dropLast(ReferenceOtherThemeScreens.screens.size)
+            assertEquals(ref.screens.map { it.route } + "settings/about/third-party-licenses", group.takeLast(ref.screens.size + 1))
             val f = ReferenceGroupTwoScreens.Facts(defaults(), false, "1", null, null)
             prepare(n, f)
             state(n, 4, "settings/typing"); state(n, 4, "settings/dictionary")

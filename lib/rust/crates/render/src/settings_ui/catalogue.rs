@@ -9,8 +9,10 @@ mod input_feedback;
 mod keyboard;
 mod licences;
 mod media;
+mod other;
 mod physical_keyboard;
 mod smartbar;
+mod theme;
 mod typing;
 pub use keyboard::KEYBOARD;
 
@@ -96,6 +98,24 @@ pub enum Kind {
     Field,
     /// AboutLibraries' LibrariesContainer: every library row, then its license dialog.
     Libraries,
+    /// Jetpref's ColorPickerPreference with the advanced layout: a swatch at the end, and a
+    /// dialog of presets or a hue, saturation and value picker (`picker.rs`).
+    Color,
+    /// Jetpref's LocalTimePickerPreference: the time as its summary, and Material's time
+    /// picker dialog (`time.rs`).
+    Time,
+    /// A Preference opening the theme manager at this route, its summary the label of the
+    /// theme the row's key names (ThemeScreen's `getThemeLabel`).
+    Theme(&'static str),
+    /// AddonManagementReferenceBox: an outlined box sending the user to the addon manager.
+    Addons(&'static Addons),
+}
+/// AddonManagementReferenceBox's extension type: its title's string key ("Theme extensions"),
+/// which the box names in lower case, and the route of its list.
+#[derive(Clone, Copy, Debug)]
+pub struct Addons {
+    pub title: &'static str,
+    pub route: &'static str,
 }
 /// A JetPrefAlertDialog asking to confirm an effect.
 #[derive(Clone, Copy, Debug)]
@@ -274,6 +294,8 @@ pub const SCREENS: &[Screen] = &[
     about::SCREEN,
     dictation::SCREEN,
     licences::SCREEN,
+    other::SCREEN,
+    theme::SCREEN,
 ];
 /// The native screen at `route`, if Rust draws it.
 pub fn screen(route: &str) -> Option<&'static Screen> {
