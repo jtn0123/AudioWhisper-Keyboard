@@ -106,10 +106,18 @@ proxy; the scripted letter/hold trial does not exercise manual Shift.
 
 Kotlin surface diagnostics also use the opt-in `aw-profile` tag. Numeric `view event`
 codes are 2 created, 3 changed, 4 destroyed, 5 released, 6 attached, 7 detached,
-10 rejected touch and 11 rejected update. The view identity and live/released flags are
+8 window hidden, 9 window visible, 10 rejected touch, 11 rejected update and 12 keyboard
+replaced. 8 and 9 are what the view is told of its window, which decides whether it holds a
+surface; `input view shown retold=1` means a quick reshow had to tell it again (docs/rust.md,
+"Shown again quickly, drawn blank"). The view identity and live/released flags are
 numeric; these events never include input contents. Use them with native acquired/released
 window generations when checking configuration changes. They add no logging to normal
 key/scene updates.
+
+`reshow.py` hides and shows the keyboard on the emulator by the Hide keyboard action, Back, a
+tap outside the field and an app switch, each at 100, 300, 600 and 1000 ms, and fails any trial
+where no new native window drew a frame or the key rows differ from a settled screenshot. It
+needs `ANDROID_SERIAL`, `AGENT_DEVICE` (the device_open command) and the probe installed.
 
 ## Package 3 gesture replay
 

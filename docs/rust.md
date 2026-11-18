@@ -194,6 +194,26 @@ input on the Rust surface. Emoji history and arrangement policies also moved to 
 Kotlin reference match tests and deliberate mutations. Clipboard history and GIF/search
 remain Compose; the prototype stays default-off. See [package 6 results](stage3b-package6.md).
 
+#### Shown again quickly, drawn blank (fixed 2026-11-17)
+
+Hiding the keyboard and showing it again within about three quarters of a second drew the
+background and no keys. Android hides the keyboard in two steps. First it tells the keyboard's
+views, not the window, that the window has gone, and the SurfaceView the keys are drawn on
+gives up its surface. Half a second later it really hides the window. Showing the keyboard
+only shows the window again, and a window that never really hid tells its views nothing. So
+the SurfaceView went on believing its window had gone and never asked for a new surface: no
+native window, no frames, until the next slow hide. The background survived because its
+SurfaceView is removed and added back each time, and a view added to a window asks the window
+itself. Compose draws into the window, not its own surface, so it never showed the fault.
+
+The rule now: when the keyboard is shown, an input view last told its window was anything
+but visible, in a window that is visible, is told again that it is visible
+(`awnative/src/ime_window.rs`; `InputViewVisibility` keeps what it was last told, and
+`FlorisImeService.onWindowShown` asks). A window that really hid is not visible yet when it is
+shown, and Android tells the views itself once it is. `scripts/render-benchmark/reshow.py`
+hides and shows the keyboard on the emulator four ways at four gaps and checks each time that
+a new native window drew a frame and the key rows match a settled screenshot.
+
 ### Stage 4: Rust draws settings (decision 2026-11-14)
 
 Rust draws the settings Activity on the keyboard's Vello CPU / Parley / Skrifa stack.
