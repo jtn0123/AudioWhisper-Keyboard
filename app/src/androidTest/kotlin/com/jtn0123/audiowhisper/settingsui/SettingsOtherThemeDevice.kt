@@ -349,10 +349,12 @@ internal class SettingsOtherThemeDevice(private val h: SettingsHarness, private 
         h.waitFor("the dial is absent") { h.find(number(3, false)) != null || h.find(number(15, true)) != null }
         if (h.find(number(3, false)) == null) h.click("Select hour")
         h.waitFor("the hours are absent") { h.find(number(3, false)) != null }
+        // The suffixes are plurals Kotlin resolves one number at a time; 1 is the number that shows it.
+        if (is24) h.waitFor("a 24-hour 1 is not read as one hour") { h.find(number(1, false)) != null }
     }
     private fun number(n: Int, minutes: Boolean) = when {
-        minutes -> "$n minutes"
-        is24 -> "$n hours"
+        minutes -> if (n == 1) "1 minute" else "$n minutes"
+        is24 -> if (n == 1) "1 hour" else "$n hours"
         else -> "$n o'clock"
     }
     private fun summary(row: String) = node(row).stateDescription?.toString()

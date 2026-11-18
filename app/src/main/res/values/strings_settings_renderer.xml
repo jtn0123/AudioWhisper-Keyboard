@@ -17,8 +17,15 @@
     <string name="settings__time_picker__select_hour">Select hour</string>
     <string name="settings__time_picker__select_minutes">Select minutes</string>
     <string name="settings__time_picker__hour_suffix">%1$d o\'clock</string>
-    <string name="settings__time_picker__hour_24h_suffix">%1$d hours</string>
-    <string name="settings__time_picker__minute_suffix">%1$d minutes</string>
+    <!-- Material's "%1$d hours" and "%1$d minutes", as plurals so a 1 reads "1 hour". -->
+    <plurals name="settings__time_picker__hour_24h_suffix">
+        <item quantity="one">{v} hour</item>
+        <item quantity="other">{v} hours</item>
+    </plurals>
+    <plurals name="settings__time_picker__minute_suffix">
+        <item quantity="one">{v} minute</item>
+        <item quantity="other">{v} minutes</item>
+    </plurals>
     <string name="settings__time_picker__hour">Hour</string>
     <string name="settings__time_picker__minute">Minute</string>
     <string name="settings__time_picker__hour_field">for hour</string>

@@ -21,11 +21,13 @@ const SELECT: [&str; 2] = [
     "settings__time_picker__select_hour",
     "settings__time_picker__select_minutes",
 ];
-/// A clock number's description: o'clock, a 24-hour clock's hours, minutes.
-pub(super) const SUFFIX: [&str; 3] = [
-    "settings__time_picker__hour_suffix",
-    "settings__time_picker__hour_24h_suffix",
-    "settings__time_picker__minute_suffix",
+/// A 12-hour clock number's description: "3 o'clock".
+pub(super) const HOUR_SUFFIX: &str = "settings__time_picker__hour_suffix";
+/// A 24-hour clock's and a minute's descriptions are plurals ("1 hour", "15 minutes"), each with
+/// the range of numbers the dial shows, which Kotlin resolves one by one.
+pub(super) const PLURALS: [(&str, u8, u8); 2] = [
+    ("settings__time_picker__hour_24h_suffix", 0, 23),
+    ("settings__time_picker__minute_suffix", 0, 55),
 ];
 pub(super) const LABEL: [&str; 2] = [
     "settings__time_picker__hour",
@@ -40,9 +42,18 @@ const MODE: [&str; 2] = [
     "settings__time_picker__to_keyboard",
     "settings__time_picker__to_picker",
 ];
-pub const KEYS: [&str; 13] = [
-    AM, PM, SELECT[0], SELECT[1], SUFFIX[0], SUFFIX[1], SUFFIX[2], LABEL[0], LABEL[1], FIELD[0],
-    FIELD[1], MODE[0], MODE[1],
+pub const KEYS: [&str; 11] = [
+    AM,
+    PM,
+    SELECT[0],
+    SELECT[1],
+    HOUR_SUFFIX,
+    LABEL[0],
+    LABEL[1],
+    FIELD[0],
+    FIELD[1],
+    MODE[0],
+    MODE[1],
 ];
 
 /// A text style of Material's type scale in pixels.

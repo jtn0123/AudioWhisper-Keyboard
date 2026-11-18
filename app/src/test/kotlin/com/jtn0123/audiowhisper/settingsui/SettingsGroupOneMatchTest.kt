@@ -149,14 +149,14 @@ class SettingsGroupOneMatchTest {
         }
     }
 
-    @Test fun pluralRequestsCoverEveryPluralSliderRange() {
+    @Test fun pluralRequestsCoverEveryPluralSliderRangeAndTheTimeDial() {
         KeyboardRenderer(emptyArray()).use { n ->
             val requests = n.settings(16)[2].split("\n").toSet()
             val expected = ref.plurals.map { (key, plural) ->
                 val (min, max) = referenceSettingsBounds.getValue(key).map { it.toInt() }
                 "$plural|$min|$max"
             }.toSet()
-            assertEquals(expected, requests)
+            assertEquals(expected + ReferenceOtherThemeScreens.dialPlurals, requests)
         }
     }
 

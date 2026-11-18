@@ -105,6 +105,12 @@ internal object ReferenceOtherThemeScreens {
 
     val screens = listOf(other, theme)
 
+    /**
+     * The numbers Material's ClockFace reads out with a plural suffix: a 24-hour clock's 0 to 23
+     * and the minutes, 0 to 55. A 12-hour clock's "o'clock" is a plain string.
+     */
+    val dialPlurals = setOf("settings__time_picker__hour_24h_suffix|0|23", "settings__time_picker__minute_suffix|0|55")
+
     private val model = ReferenceSettingsModel()
     /** The preference as Jetpref reads it: its serializer's value, or the default when that fails. */
     private fun read(key: String, f: Facts): Any {

@@ -99,6 +99,11 @@ fn every_string_key_rust_shows_is_an_android_resource() {
 #[test]
 fn every_resource_key_the_settings_code_names_is_in_the_key_list() {
     let keys = App::string_keys();
+    // A plural, such as the time dial's suffixes, is resolved through its request instead.
+    let plurals: Vec<String> = App::plural_requests()
+        .iter()
+        .map(|r| r.split('|').next().unwrap().to_owned())
+        .collect();
     let dir = concat!(env!("CARGO_MANIFEST_DIR"), "/src/settings_ui");
     let prefixes = [
         "action", "settings", "setup", "state", "pref", "unit", "general", "enum",
@@ -117,12 +122,15 @@ fn every_resource_key_the_settings_code_names_is_in_the_key_list() {
                 && literal
                     .chars()
                     .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_');
-            if resource && !keys.contains(&literal) {
+            if resource && !keys.contains(&literal) && !plurals.iter().any(|p| p == literal) {
                 unlisted.push(literal.to_owned());
             }
         }
     }
-    assert!(unlisted.is_empty(), "add to CODE_KEYS: {unlisted:?}");
+    assert!(
+        unlisted.is_empty(),
+        "add to CODE_KEYS or the plural requests: {unlisted:?}"
+    );
 }
 
 #[test]

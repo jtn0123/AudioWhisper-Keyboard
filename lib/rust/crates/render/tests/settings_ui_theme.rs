@@ -263,10 +263,24 @@ fn a_twelve_hour_dial_sets_the_sunrise_and_ok_stores_it_as_jetpref_does() {
 fn a_twenty_four_hour_dial_puts_the_afternoon_inside_and_accessibility_stays_on_the_hour() {
     let facts = [("is24hour", "true"), ("accessibility_touch", "true")];
     let (mut a, mut text) = app(&[("theme__mode", "FOLLOW_TIME")], &facts);
+    // The hour and minute descriptions are plurals, resolved by Kotlin one number at a time.
+    for (k, v) in [
+        ("settings__time_picker__hour_24h_suffix#1", "1 hour"),
+        ("settings__time_picker__hour_24h_suffix#13", "13 hours"),
+        ("settings__time_picker__minute_suffix#15", "15 minutes"),
+    ] {
+        a.strings.insert(k.into(), v.into());
+    }
     let i = index(&a, "theme__sunset_time");
     assert_eq!(a.summary(i), "18:00");
     assert!(act(&mut a, &mut text, 1000 + i as i32));
     a.scene(&mut text);
+    let labels = [7161, 7173, 7162].map(|id| control(&a, id).label.clone());
+    assert_eq!(
+        labels,
+        ["1 hour", "13 hours", "2"],
+        "an unresolved plural reads bare"
+    );
     // 24 numbers, 0..11 outside and 12..23 inside, and no period toggle.
     assert!(control(&a, 7178).selected);
     assert!(a.controls.iter().all(|c| c.id != 7152 && c.id != 7153));
@@ -278,10 +292,7 @@ fn a_twenty_four_hour_dial_puts_the_afternoon_inside_and_accessibility_stays_on_
     // The minute selector, then a minute's own button.
     assert!(act(&mut a, &mut text, 7151));
     a.scene(&mut text);
-    assert_eq!(
-        control(&a, 7163).label,
-        "settings__time_picker__minute_suffix"
-    );
+    assert_eq!(control(&a, 7163).label, "15 minutes");
     assert!(act(&mut a, &mut text, 7163));
     let p = a.time_picker().unwrap();
     assert_eq!((p.hour, p.minute, p.minutes), (3, 15, true));

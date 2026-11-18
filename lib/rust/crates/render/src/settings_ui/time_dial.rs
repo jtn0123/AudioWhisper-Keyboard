@@ -7,7 +7,7 @@ use super::{
     Action, App, Control,
     picker::{Surface, Tap},
     time::{self, TimePicker},
-    time_dialog::{FIELD, LABEL, SUFFIX, kround},
+    time_dialog::{FIELD, HOUR_SUFFIX, LABEL, PLURALS, kround},
     time_events::{HOUR_FIELD, TimeTap},
 };
 use crate::{
@@ -82,13 +82,12 @@ impl App {
                 .map(|i| (if i == 0 { 12 } else { i }, false))
                 .collect()
         };
-        let suffix = self.label(
-            SUFFIX[match (s.minutes, is24) {
-                (true, _) => 2,
-                (false, true) => 1,
-                (false, false) => 0,
-            }],
-        );
+        let plural = match (s.minutes, is24) {
+            (true, _) => Some(PLURALS[1].0),
+            (false, true) => Some(PLURALS[0].0),
+            (false, false) => None,
+        };
+        let hour = self.label(HOUR_SUFFIX);
         let cell = self.px(48.0);
         let offset = ((d as i32) / 2 - (cell as i32) / 2) as f32;
         let mut glyphs = vec![];
@@ -107,7 +106,15 @@ impl App {
             }
             let label = value.to_string();
             let glyph = self.centred(p, t, &label, (self.font(16), self.colors[1]), at, clip);
-            let description = suffix.replace("%1$d", &label);
+            // A plural Kotlin did not resolve reads as the bare number, as a slider's does.
+            let description = match plural {
+                Some(key) => self
+                    .strings
+                    .get(&format!("{key}#{value}"))
+                    .cloned()
+                    .unwrap_or_else(|| label.clone()),
+                None => hour.replace("%1$d", &label),
+            };
             let selected = at.contains(hand.0, hand.1);
             self.tap_control(
                 id,

@@ -206,9 +206,13 @@ impl App {
         out.dedup();
         out
     }
-    /// Every plural a slider can show, as `key|min|max`, for Kotlin to resolve per value.
+    /// Every plural a slider or the time dial can show, as `key|min|max`, for Kotlin to resolve
+    /// per value.
     pub fn plural_requests() -> Vec<String> {
-        let mut out: Vec<String> = vec![];
+        let mut out: Vec<String> = super::time_dialog::PLURALS
+            .iter()
+            .map(|(key, min, max)| format!("{key}|{min}|{max}"))
+            .collect();
         for screen in super::catalogue::SCREENS {
             for r in screen.rows {
                 let Kind::Slider(s) = r.kind else { continue };

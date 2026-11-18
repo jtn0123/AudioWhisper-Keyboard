@@ -415,12 +415,10 @@ internal val settingsStringIds: Map<String, Int> = mapOf(
     "settings__theme__title" to R.string.settings__theme__title,
     "settings__time_picker__am" to R.string.settings__time_picker__am,
     "settings__time_picker__hour" to R.string.settings__time_picker__hour,
-    "settings__time_picker__hour_24h_suffix" to R.string.settings__time_picker__hour_24h_suffix,
     "settings__time_picker__hour_field" to R.string.settings__time_picker__hour_field,
     "settings__time_picker__hour_suffix" to R.string.settings__time_picker__hour_suffix,
     "settings__time_picker__minute" to R.string.settings__time_picker__minute,
     "settings__time_picker__minute_field" to R.string.settings__time_picker__minute_field,
-    "settings__time_picker__minute_suffix" to R.string.settings__time_picker__minute_suffix,
     "settings__time_picker__pm" to R.string.settings__time_picker__pm,
     "settings__time_picker__select_hour" to R.string.settings__time_picker__select_hour,
     "settings__time_picker__select_minutes" to R.string.settings__time_picker__select_minutes,
@@ -435,8 +433,10 @@ internal val settingsStringIds: Map<String, Int> = mapOf(
     "unit__percent__symbol" to R.string.unit__percent__symbol,
 )
 
-/** The plurals a native slider label can use; ranges come from the native screens. */
+/** The plurals a native slider label or the time dial can use; ranges come from the native screens. */
 internal val settingsPluralIds: Map<String, Int> = mapOf(
+    "settings__time_picker__hour_24h_suffix" to R.plurals.settings__time_picker__hour_24h_suffix,
+    "settings__time_picker__minute_suffix" to R.plurals.settings__time_picker__minute_suffix,
     "unit__candidates__written" to R.plurals.unit__candidates__written,
     "unit__characters__written" to R.plurals.unit__characters__written,
     "unit__items__written" to R.plurals.unit__items__written,

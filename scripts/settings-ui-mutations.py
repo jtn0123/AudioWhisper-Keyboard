@@ -141,6 +141,8 @@ CASES = [
      '        if confirm {\n            self.write(key, stored);\n        }'),
     # The bug the step 4 pictures found: a 12 sp line height table miss, the label zero lines tall.
     ('hex-label-zero-line', UI / 'color_dialog.rs', 'self.metrics(BODY_SMALL)[0].ceil()', 'self.line_height(self.sp(12)).ceil()'),
+    # The minutes read with the hour plural: "15 hours", or a bare 15 when Kotlin sent none.
+    ('dial-minutes-read-as-hours', UI / 'time_dial.rs', '(true, _) => Some(PLURALS[1].0),', '(true, _) => Some(PLURALS[0].0),'),
 ]
 # The Rust test binary that must panic for each Rust-only case.
 RUST = dict.fromkeys([
@@ -156,6 +158,7 @@ RUST = dict.fromkeys([
     'drag-without-slop-trail',
     'keyboard-mode-forgotten',
     'time-default-button-keeps',
+    'dial-minutes-read-as-hours',
 ], 'settings_ui_theme') | {'hex-label-zero-line': 'settings_ui_other_theme'} | {'time-drag-rounds-down': 'settings_ui_time'} | dict.fromkeys([
     'confirm-generic-buttons',
     'field-minimum-outside-padding',
