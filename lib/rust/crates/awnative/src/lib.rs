@@ -18,6 +18,7 @@ mod gif;
 mod giphy;
 mod glide;
 mod handle;
+mod ime_window;
 mod jni;
 mod key_models;
 mod keys;

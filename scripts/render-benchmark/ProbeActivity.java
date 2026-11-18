@@ -170,6 +170,15 @@ public final class ProbeActivity extends Activity {
             fields.addView(button, new LinearLayout.LayoutParams(0, -2, 1));
         }
         root.addView(fields);
+        // Opt-in, as many apps do: a tap outside the editor hides the keyboard. Taps on the
+        // editor show it again; reshow.py uses this as its "tap outside" path.
+        root.setOnTouchListener((view, event) -> {
+            if (!getIntent().getBooleanExtra("outsideHides", false)
+                || event.getActionMasked() != android.view.MotionEvent.ACTION_DOWN) return false;
+            ((InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE))
+                .hideSoftInputFromWindow(editor.getWindowToken(), 0);
+            return true;
+        });
         editor.addTextChangedListener(new TextWatcher() {
             public void beforeTextChanged(CharSequence s, int start, int count, int after) { }
             public void onTextChanged(CharSequence s, int start, int before, int count) { }

@@ -57,6 +57,8 @@ import org.florisboard.lib.snygg.ui.SnyggRow
 import org.florisboard.lib.snygg.ui.SnyggText
 import org.florisboard.lib.snygg.ui.rememberSnyggThemeQuery
 
+private const val INPUT_VIEW_TRACE_TAG = "aw-profile"
+
 internal class ComposeInputView(context: Context) : AbstractComposeView(context) {
     private val service = context as? FlorisImeService
     init {
@@ -77,6 +79,23 @@ internal class ComposeInputView(context: Context) : AbstractComposeView(context)
     override fun onAttachedToWindow() {
         super.onAttachedToWindow()
         service?.updateSoftInputWindowLayoutParameters()
+    }
+
+    // AudioWhisper: a quick hide and show must not leave the keyboard's surfaces believing the
+    // window is gone (InputViewVisibility).
+    private val windowVisibility = com.jtn0123.audiowhisper.render.InputViewVisibility(::dispatchWindowVisibilityChanged)
+
+    override fun onWindowVisibilityChanged(visibility: Int) {
+        super.onWindowVisibilityChanged(visibility)
+        windowVisibility.told(visibility)
+    }
+
+    /** The input method window is being shown. */
+    fun windowShown() {
+        val retold = windowVisibility.shown(getWindowVisibility())
+        if (android.util.Log.isLoggable(INPUT_VIEW_TRACE_TAG, android.util.Log.DEBUG)) {
+            android.util.Log.d(INPUT_VIEW_TRACE_TAG, "input view shown retold=${if (retold) 1 else 0}")
+        }
     }
 }
 
