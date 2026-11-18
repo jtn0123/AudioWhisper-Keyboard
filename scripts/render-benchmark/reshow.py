@@ -10,13 +10,19 @@ PATH is any of self, back, outside, switch (default: all four):
   switch   another app comes to the front, then the probe does again
 
 Each path is tried at gaps of 100, 300, 600 and 1000 ms between hiding and showing. The hide and
-the show go in one adb shell call, so the gap is not stretched by adb's own start-up; that is the
-one place these key and tap events bypass agent-device. Three seconds after each show the check
-needs, since the hide: a native window released and a new one acquired, then a frame drawn on it;
-and the keyboard's key rows matching a settled screenshot taken before any hiding. A keyboard
-that draws only its background differs from that in most of those pixels. Coordinates are for
-the 1080x2400 portrait AVD. Prints numbers only; saves the screenshots and a results.json.
-OUTPUT must not exist yet.
+the show go in one adb shell call, so the gap is not stretched by adb's own start-up. Each trial
+starts from a keyboard hidden for 1.5 s and shown again, its keys checked drawn, so a blank one
+left by the trial before does not carry over. Those calls and the scroll down the action overflow
+to Hide keyboard are where these events bypass agent-device: its gesture helper holds a UI
+automation session, and while one is open Android unbinds the probe's accessibility service, which
+the check reads the keyboard through. Three seconds after each show the check needs, since the
+hide: a native window released and a new one acquired, then a frame drawn on it; and the
+keyboard's key rows matching a settled screenshot taken before any hiding (or, while the action
+overflow is still open, a picture of it). A keyboard that draws only its background differs from
+that in most of those pixels. A hide too quick for Android to release the window leaves the keys
+drawn: that trial passes if they still match, and prints as kept. Coordinates are for the
+1080x2400 portrait AVD. Prints numbers only; saves the screenshots and a results.json. OUTPUT must
+not exist yet.
 """
 import json
 import os
@@ -34,7 +40,8 @@ PROBE = api["PROBE"]
 PKG = api["PKG"]
 GAPS = (100, 300, 600, 1000)
 FIELD = (540, 480)
-OUTSIDE = (540, 200)
+# An empty part of the probe, below its buttons: the title above the field takes its own taps.
+OUTSIDE = (540, 1100)
 # The keys, below the suggestion strip and above the navigation bar, on the 1080x2400 AVD.
 KEY_ROWS = range(1700, 2250)
 # The share of key-row pixels a frame without keys still has right: well above any change a
@@ -104,6 +111,8 @@ def main():
             device.shell("setprop", "log.tag." + tag, "DEBUG")
         device.renderer("rust")
         device.probe(extras=("--ez", "outsideHides", "true"))
+        # node() finds the keyboard's actions through the probe's accessibility service.
+        device.services(api["SERVICE"])
         time.sleep(2.0)
         reference = out.resolve() / "reference.png"
         subprocess.check_output([agent, "screenshot", str(reference)], text=True)
@@ -111,9 +120,10 @@ def main():
         for path in paths:
             for gap in GAPS:
                 results.append(trial(device, agent, settled, path, gap, out))
+                r = results[-1]
+                status = "BLANK" if not r["ok"] else "ok" if r["window_released"] else "kept"
                 print("%-8s %5d ms  window=%d  keys=%.3f  %s" % (
-                    path, gap, results[-1]["new_window_drawn"], results[-1]["key_rows_matching"],
-                    "ok" if results[-1]["ok"] else "BLANK"))
+                    path, gap, r["new_window_drawn"], r["key_rows_matching"], status))
     finally:
         device.restore_accessibility(original)
         for tag in ("aw-render", "aw-profile"):
@@ -133,21 +143,43 @@ def settle_shown(device):
     time.sleep(1.5)
 
 
-def trial(device, agent, settled, path, gap, out):
+def start_drawn(device, agent, settled, out):
+    """Hide the keyboard long enough to draw again when shown, show it, and check its keys."""
+    device.adb("shell", hide_and_show("back", 1500, None))
+    time.sleep(1.5)
     settle_shown(device)
+    shot = out.resolve() / "start.png"
+    subprocess.check_output([agent, "screenshot", str(shot)], text=True)
+    if key_rows_match(settled, pixels(shot)) < MATCH:
+        raise RuntimeError("the keyboard did not draw its keys after a slow hide and show")
+
+
+def trial(device, agent, settled, path, gap, out):
+    start_drawn(device, agent, settled, out)
     hide_key = None
     if path == "self":
         hide_key = node(device, "Hide keyboard")
         if not hide_key:
+            if not node(device, "More actions"):
+                # The suggestions are showing in place of the action row: open the row first.
+                device.tap(*device.wait(lambda: node(device, "Expand actions"), "No Expand actions button"))
             device.tap(*device.wait(lambda: node(device, "More actions"), "No More actions button"))
+            time.sleep(1.0)
+            for _ in range(4):
+                # The action can sit below the overflow's first screen: scroll the grid up to it.
+                hide_key = node(device, "Hide keyboard")
+                if hide_key:
+                    break
+                device.adb("shell", "input swipe 540 2150 540 1800 400")
+                time.sleep(1.0)
             hide_key = device.wait(lambda: node(device, "Hide keyboard"), "No Hide keyboard action")
             time.sleep(1.0)
-    reference = settled
+    overflow = None
     if node(device, "Hide keyboard"):
-        # The action overflow is open in place of the keys: compare with it as drawn now.
-        reference = out.resolve() / ("%s-%d-before.png" % (path, gap))
-        subprocess.check_output([agent, "screenshot", str(reference)], text=True)
-        reference = pixels(reference)
+        # The action overflow is open in place of the keys: keep a picture of it as drawn now.
+        before = out.resolve() / ("%s-%d-before.png" % (path, gap))
+        subprocess.check_output([agent, "screenshot", str(before)], text=True)
+        overflow = pixels(before)
     device.adb("logcat", "-c")
     device.adb("shell", hide_and_show(path, gap, hide_key))
     time.sleep(3.0)
@@ -156,15 +188,21 @@ def trial(device, agent, settled, path, gap, out):
     events = native_events(log)
     shot = out.resolve() / ("%s-%d.png" % (path, gap))
     subprocess.check_output([agent, "screenshot", str(shot)], text=True)
-    if node(device, "Hide keyboard") and reference is settled:
-        # Shown again with the overflow open: the keyboard's state, not its drawing, changed.
-        raise RuntimeError("the action overflow opened during a %s trial" % path)
+    # Compare with what the keyboard should show now: the overflow if it is still open (the
+    # self path opens it, and a keyboard shown again may keep it), otherwise its keys.
+    reference = settled
+    if node(device, "Hide keyboard"):
+        if overflow is None:
+            raise RuntimeError("the action overflow opened during a %s trial" % path)
+        reference = overflow
     matching = key_rows_match(reference, pixels(shot))
+    released = any(kind == "released" for kind, _ in events)
     drawn = drew_new_window(events)
     views = [int(m.group(1)) for m in re.finditer(r"view event=(\d+)", log)]
-    return {"path": path, "gap_ms": gap, "shown": shown, "new_window_drawn": int(drawn),
-            "key_rows_matching": round(matching, 4), "native_events": [k for k, _ in events],
-            "view_events": views, "ok": shown and drawn and matching >= MATCH}
+    return {"path": path, "gap_ms": gap, "shown": shown, "window_released": int(released),
+            "new_window_drawn": int(drawn), "key_rows_matching": round(matching, 4),
+            "native_events": [k for k, _ in events], "view_events": views,
+            "ok": shown and matching >= MATCH and (drawn or not released)}
 
 
 def node(device, label):
