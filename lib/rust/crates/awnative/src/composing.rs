@@ -1,102 +1,42 @@
-//! JNI entry points for the text composers (the `composing` crate), called by `ComposingNative`
-//! in lib/rust's Kotlin.
+//! The text composers (the `composing` crate) for `ComposingNative`, whose generated entry points
+//! call these.
 //!
-//! An action comes back as one string: null for none (Kotlin's `0 to toInsert`), otherwise the
-//! number of units to delete as its first two units (the high 16 bits, then the low; it can be
-//! -1), followed by the text to type. A rule table crosses once, as its endings in one string and
-//! their texts in another, cut by their lengths (`jni::cut`), and is kept behind a handle.
-
-use std::ptr;
+//! A rule table crosses once, as its endings and their texts, and is kept behind a handle. An
+//! action comes back as a row of two: the number of units to delete as a decimal (it can be -1),
+//! then the text to type. With nothing to do, that is 0 and the keystroke itself.
 
 use composing::Action;
 use composing::rules::Rules;
-use jni_sys::{JNIEnv, jclass, jintArray, jlong, jstring};
 
 use crate::handle::{free, into_handle, object};
-use crate::jni::{self, Env, Result, illegal};
+use crate::jni::{Result, illegal};
 
-/// An action as `ComposingNative` reads it, or null for none.
-fn packed(env: &Env, action: Option<Action>) -> Result<jstring> {
-    let Some(action) = action else {
-        return Ok(ptr::null_mut());
-    };
-    // The count's two halves, as units.
-    let delete = action.delete as u32;
-    let mut units = vec![(delete >> 16) as u16, delete as u16];
-    units.extend(action.text);
-    env.make_string(&units)
-}
-
-/// Reads the two strings every composer takes and asks `compose` with them.
-fn with_text(
-    env: &Env,
-    preceding: jstring,
-    to_insert: jstring,
-    compose: impl FnOnce(&[u16], &[u16]) -> Option<Action>,
-) -> Result<jstring> {
-    let preceding = env.read_string(preceding, "precedingText")?;
-    let to_insert = env.read_string(to_insert, "toInsert")?;
-    packed(env, compose(&preceding, &to_insert))
-}
-
-/// Rules to try in order: ending `i` is the `i`th piece of `keys`, cut by `keyLengths`, and its
-/// text the `i`th of `values`, cut by `valueLengths`.
-#[unsafe(no_mangle)]
-pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_ComposingNative_newRules(
-    env: *mut JNIEnv,
-    _: jclass,
-    keys: jstring,
-    key_lengths: jintArray,
-    values: jstring,
-    value_lengths: jintArray,
-) -> jlong {
-    // SAFETY: the JVM passes its environment for this call.
-    unsafe {
-        jni::run(env, 0, |env| {
-            let keys = env.read_string(keys, "keys")?;
-            let key_lengths = env.read::<i32>(key_lengths, "keyLengths")?;
-            let values = env.read_string(values, "values")?;
-            let value_lengths = env.read::<i32>(value_lengths, "valueLengths")?;
-            let keys = jni::cut(&keys, &key_lengths)?;
-            let values = jni::cut(&values, &value_lengths)?;
-            if keys.len() != values.len() {
-                return Err(illegal("as many texts as endings"));
-            }
-            let rules = keys.iter().zip(&values);
-            let rules = rules.map(|(key, value)| (key.to_vec(), value.to_vec()));
-            Ok(into_handle(Rules::new(rules.collect())))
-        })
+/// Rules to try in order: ending `i` is `keys[i]`, and its text `values[i]`.
+pub fn new_rules(keys: &[Vec<u16>], values: &[Vec<u16>]) -> Result<i64> {
+    if keys.len() != values.len() {
+        return Err(illegal("as many texts as endings"));
     }
+    let rules = keys.iter().cloned().zip(values.iter().cloned());
+    Ok(into_handle(Rules::new(rules.collect())))
 }
 
-#[unsafe(no_mangle)]
-pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_ComposingNative_freeRules(
-    _: *mut JNIEnv,
-    _: jclass,
-    rules: jlong,
-) {
+pub fn free_rules(rules: i64) -> Result<()> {
     // SAFETY: the Kotlin side frees each rule table once, when nothing can reach it.
-    unsafe { free::<Rules>(rules) }
+    unsafe { free::<Rules>(rules) };
+    Ok(())
 }
 
-/// Typing `toInsert` after `precedingText` with the rules behind `rules` (`Rules::actions`).
-/// The rules never change, so calls from several threads may share them unlocked.
-#[unsafe(no_mangle)]
-pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_ComposingNative_rules(
-    env: *mut JNIEnv,
-    _: jclass,
-    rules: jlong,
-    preceding: jstring,
-    to_insert: jstring,
-) -> jstring {
-    // SAFETY: the JVM passes its environment for this call, and Kotlin holds the rules while it
-    // calls (see `object`).
-    unsafe {
-        jni::run(env, ptr::null_mut(), |env| {
-            let rules = object::<Rules>(rules, "rules")?;
-            with_text(env, preceding, to_insert, |preceding, to_insert| {
-                rules.actions(preceding, to_insert)
-            })
-        })
-    }
+/// Typing `to_insert` after `preceding` with the rules behind `rules` (`Rules::actions`). The
+/// rules never change, so calls from several threads may share them unlocked.
+pub fn rules(rules: i64, preceding: &[u16], to_insert: &[u16]) -> Result<Vec<Vec<u16>>> {
+    // SAFETY: Kotlin holds the rules while it calls (see `object`).
+    let rules = unsafe { object::<Rules>(rules, "rules")? };
+    let action = rules.actions(preceding, to_insert).unwrap_or(Action {
+        delete: 0,
+        text: to_insert.to_vec(),
+    });
+    Ok(vec![
+        action.delete.to_string().encode_utf16().collect(),
+        action.text,
+    ])
 }

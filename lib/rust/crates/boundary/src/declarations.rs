@@ -2,6 +2,7 @@
 //! the Gradle module each of crates/wire's groups is generated in.
 
 mod clipboard;
+mod composing;
 mod dictation;
 mod gif;
 mod layout;
@@ -35,6 +36,7 @@ pub const CLASSES: &[Class] = &[
     screen::SCREEN_NATIVE,
     dictation::DICTATION_NATIVE,
     gif::GIF_NATIVE,
+    composing::COMPOSING_NATIVE,
 ];
 
 /// Every generated api over those classes.
@@ -45,6 +47,7 @@ pub const APIS: &[Api] = &[
     dictation::MIC_KEY_STATE,
     gif::GIF_RULES,
     gif::GIF_RESULT_KEYS,
+    composing::COMPOSING_RULES,
 ];
 
 /// Every generated top-level record and enum, with the declarations file and the module it is in.
