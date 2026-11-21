@@ -42,7 +42,7 @@ Nothing else comes from your machine. jetpref, a snapshot Sonatype no longer ser
 ```bash
 ./gradlew assembleDebug                               # the debug build, used day to day
 ./gradlew assemblePersonal                            # shrunk and optimised, not debuggable
-./gradlew --stacktrace test :app:lintDebug :lib:rust:check :lib:rust:oracleCheck :app:checkNativeDeclarations assembleDebug :app:compileDebugAndroidTestKotlin
+./gradlew --stacktrace test :app:lintDebug :lib:rust:check :lib:rust:oracleCheck :app:checkNativeDeclarations :app:checkJvmLedger assembleDebug :app:compileDebugAndroidTestKotlin
 ```
 
 **GIPHY** needs a key, as `giphy.apiKey=...` in `local.properties` (never committed) or the
