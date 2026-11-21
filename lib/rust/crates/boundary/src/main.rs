@@ -15,10 +15,11 @@ fn main() -> ExitCode {
         eprintln!("usage: boundary RUST KOTLIN");
         return ExitCode::FAILURE;
     };
-    let classes = boundary::kotlin_files(boundary::CLASSES)
+    let classes = boundary::kotlin_files(boundary::CLASSES);
+    for (module, file) in classes
         .into_iter()
-        .map(|file| (Module::Rust, file));
-    for (module, file) in classes.chain(boundary::wire_files(boundary::WIRE)) {
+        .chain(boundary::wire_files(boundary::WIRE))
+    {
         let root = match module {
             Module::Rust => &rust,
             Module::Kotlin => &kotlin,

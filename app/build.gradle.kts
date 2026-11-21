@@ -415,6 +415,7 @@ val checkNativeDeclarations = tasks.register<Exec>("checkNativeDeclarations") {
         listOf("python3", "-I", "scripts/native-declarations-check.py", "app/build/outputs/apk/debug/app-debug.apk") +
             modules +
             listOf("--generated-kotlin", "lib/rust/build/generated/nativeBoundary/kotlin") +
+            listOf("--generated-kotlin", "lib/rust/build/generated/nativeBoundary/libKotlin") +
             listOf("--generated-rust", "lib/rust/build/rust/boundary/arm64-v8a.rs"),
     )
 }

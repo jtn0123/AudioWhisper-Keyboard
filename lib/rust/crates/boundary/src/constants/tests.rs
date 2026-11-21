@@ -54,8 +54,7 @@ const EXAMPLE: &[Wire] = &[Wire {
 fn generation_is_deterministic() {
     assert_eq!(wire_files(WIRE), wire_files(WIRE));
     let mut paths = HashSet::new();
-    let classes = kotlin_files(CLASSES).into_iter().map(|f| (Module::Rust, f));
-    for (module, file) in classes.chain(wire_files(WIRE)) {
+    for (module, file) in kotlin_files(CLASSES).into_iter().chain(wire_files(WIRE)) {
         assert!(paths.insert((module, file.path.clone())), "{}", file.path);
     }
 }

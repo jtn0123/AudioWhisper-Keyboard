@@ -69,32 +69,72 @@ pub fn kotlin_declaration(indent: &str, head: &str, params: &[String], tail: &st
 }
 
 /// A Rust function signature `head(params) -> returns {`, as rustfmt lays it out: on one line if
-/// it fits, else one parameter to a line.
+/// it fits, else one parameter to a line. A `returns` of `()` is left out.
 pub fn rust_signature(head: &str, params: &[String], returns: &str) -> String {
-    let one = format!("{head}({}) -> {returns} {{", params.join(", "));
+    let tail = if returns == "()" {
+        " {".to_owned()
+    } else {
+        format!(" -> {returns} {{")
+    };
+    let one = format!("{head}({}){tail}", params.join(", "));
     if one.len() <= RUST_WIDTH {
         return one + "\n";
     }
     let params: String = params.iter().map(|it| format!("    {it},\n")).collect();
-    format!("{head}(\n{params}) -> {returns} {{\n")
+    format!("{head}(\n{params}){tail}\n")
 }
 
-/// An entry point's body: in an `unsafe` block, `call(env, |env| { lets; callee(args) })`, as
-/// rustfmt lays it out. With nothing to read first and a closure narrow enough to be a call's
-/// argument on one line, it is all one line; otherwise the closure is a block.
-pub fn rust_body(lets: &[(String, String)], callee: &str, args: &[String]) -> String {
-    let close = if lets.is_empty() { "_" } else { "env" };
-    let one = format!("env, |_| {callee}({})", args.join(", "));
-    if lets.is_empty() && one.len() <= RUST_CALL_ARGS {
-        return format!("    unsafe {{ call({one}) }}\n");
+/// An entry point's body: in an `unsafe` block, `call::<returns>(env, |env| { lets; callee(args)
+/// })`, as rustfmt lays it out. With nothing to read first and a closure narrow enough to be a
+/// call's argument on one line, it is all one line; otherwise the closure is a block.
+pub fn rust_body(
+    returns: &str,
+    lets: &[(String, String)],
+    callee: &str,
+    args: &[String],
+) -> String {
+    let uses_env = !lets.is_empty() || args.first().is_some_and(|arg| arg == "env");
+    let close = if uses_env { "env" } else { "_" };
+    let call = format!("call::<{returns}>");
+    let one = format!("env, |{close}| {callee}({})", args.join(", "));
+    let line = format!("    unsafe {{ {call}({one}) }}");
+    if lets.is_empty() && one.len() <= RUST_CALL_ARGS && line.len() <= RUST_WIDTH {
+        return line + "\n";
     }
-    let mut body = format!("    unsafe {{\n        call(env, |{close}| {{\n");
+    let mut body = format!("    unsafe {{\n        {call}(env, |{close}| {{\n");
     for (name, value) in lets {
         body.push_str(&rust_let(12, name, value));
     }
     body.push_str(&rust_call(12, callee, args));
     body.push_str("        })\n    }\n");
     body
+}
+
+/// `use path::{names};`, as rustfmt lays it out: braces only for more than one name, and the
+/// names filling indented lines when they don't fit on one.
+pub fn rust_use(path: &str, names: &[String]) -> String {
+    if let [name] = names {
+        return format!("use {path}::{name};\n");
+    }
+    let one = format!("use {path}::{{{}}};", names.join(", "));
+    if one.len() <= RUST_WIDTH {
+        return one + "\n";
+    }
+    let mut text = format!("use {path}::{{\n");
+    let mut line = String::new();
+    for name in names {
+        let item = format!("{name},");
+        if !line.is_empty() && line.len() + 1 + item.len() > RUST_WIDTH {
+            text.push_str(&line);
+            text.push('\n');
+            line.clear();
+        }
+        line.push_str(if line.is_empty() { "    " } else { " " });
+        line.push_str(&item);
+    }
+    text.push_str(&line);
+    text.push_str("\n};\n");
+    text
 }
 
 /// A call `callee(args)` at `indent`, as rustfmt lays it out: on one line if it fits and the

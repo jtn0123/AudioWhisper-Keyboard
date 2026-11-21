@@ -1,7 +1,7 @@
 //! `ShiftNative`: the shift key's rules, wrapped by `ShiftRules` (lib/rust's Shift.kt) and
 //! answered by awnative's `shift` module.
 
-use crate::{Class, Method, Param, Return};
+use crate::{CLASS, Class, METHOD, Method, Param, Return};
 
 pub const SHIFT_NATIVE: Class = Class {
     name: "ShiftNative",
@@ -22,6 +22,7 @@ pub const SHIFT_NATIVE: Class = Class {
                 ("facts", Param::Int),
             ],
             returns: Return::Int,
+            ..METHOD
         },
         Method {
             name: "isConsecutive",
@@ -35,6 +36,7 @@ pub const SHIFT_NATIVE: Class = Class {
                 ("timeout", Param::Long),
             ],
             returns: Return::Boolean,
+            ..METHOD
         },
         Method {
             name: "isDoubleSpacePeriod",
@@ -42,6 +44,8 @@ pub const SHIFT_NATIVE: Class = Class {
                   (`shift::is_double_space_period`).",
             params: &[("text", Param::String)],
             returns: Return::Boolean,
+            ..METHOD
         },
     ],
+    ..CLASS
 };
