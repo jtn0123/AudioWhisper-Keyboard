@@ -3,7 +3,7 @@
 
 use super::{Api, Handle, constants, member_text, method, params_and_args, push_block};
 use crate::Class;
-use crate::format::kotlin_declaration;
+use crate::format::{KOTLIN_WIDTH, kotlin_declaration};
 
 /// A handle class's head, handle and freeing, filling `body` with its members.
 pub(super) fn handle_class(
@@ -32,10 +32,7 @@ pub(super) fn handle_class(
             &params,
             &format!("{close} {{"),
         );
-        (
-            head,
-            format!("{}.{}({})", api.native, handle.create, passed.join(", ")),
-        )
+        (head, create_call(api.native, handle.create, &passed))
     };
     head.push_str(&format!("    internal {field} handle = {create}\n"));
     if handle.close {
@@ -93,4 +90,15 @@ pub(super) fn handle_class(
         push_block(body, &format!("    companion object{inside}\n"));
     }
     head
+}
+
+/// `native.create(passed)`, as the handle's initialiser: on its line if it fits, else one argument
+/// to a line.
+fn create_call(native: &str, create: &str, passed: &[String]) -> String {
+    let one = format!("{native}.{create}({})", passed.join(", "));
+    if "    internal var handle = ".len() + one.len() <= KOTLIN_WIDTH {
+        return one;
+    }
+    let args: String = passed.iter().map(|it| format!("        {it},\n")).collect();
+    format!("{native}.{create}(\n{args}    )")
 }

@@ -7,7 +7,7 @@ const RUST_WIDTH: usize = 100;
 /// rustfmt's `fn_call_width`: arguments wider than this go one to a line.
 const RUST_CALL_ARGS: usize = 60;
 /// The Kotlin line length in .editorconfig.
-const KOTLIN_WIDTH: usize = 120;
+pub const KOTLIN_WIDTH: usize = 120;
 /// Where hand-written doc comments wrap.
 const DOC_WIDTH: usize = 100;
 
