@@ -61,7 +61,7 @@ fn jni_imports(classes: &[Class]) -> Vec<String> {
 
 /// The names from awnative's `boundary` module the entry points for `classes` use.
 fn boundary_imports(classes: &[Class]) -> Vec<String> {
-    let mut names = vec!["call"];
+    let mut names = vec!["Outcome", "call"];
     if methods(classes).any(|method| method.returns.rust().contains("Chars")) {
         names.push("Chars");
     }

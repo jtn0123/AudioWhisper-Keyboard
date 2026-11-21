@@ -87,8 +87,8 @@ pub struct Method {
     pub instance: bool,
     /// Whether the `external fun` is `private`, for a hand-written member of the object to call.
     pub private: bool,
-    /// The hand-written function's path under the module, when it is not the method's name in
-    /// snake case.
+    /// The function's path under the module, when it is not the method's name in snake case; or,
+    /// starting `::`, a function of another crate, called directly.
     pub rust: &'static str,
     /// Whether the hand-written function takes the call's `&Env` first. A parameter or result
     /// it handles as a JNI reference implies it.
@@ -153,8 +153,8 @@ fn rust_param(name: &str) -> String {
     }
 }
 
-/// The hand-written function `method` of `class` calls: its declared path, or its name in snake
-/// case, raw if that is a keyword, under the class's module.
+/// The function `method` of `class` calls: its declared path, or its name in snake case, raw if
+/// that is a keyword, under the class's module; or a declared path of another crate.
 fn callee(class: &Class, method: &Method) -> String {
     let name = if method.rust.is_empty() {
         let snake = snake_case(method.name);
@@ -163,6 +163,8 @@ fn callee(class: &Class, method: &Method) -> String {
         } else {
             snake
         }
+    } else if method.rust.starts_with("::") {
+        return method.rust.to_owned();
     } else {
         method.rust.to_owned()
     };

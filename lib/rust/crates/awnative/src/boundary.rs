@@ -1,7 +1,8 @@
 //! The JNI entry points crates/boundary generates from its declarations, and what they share.
 //! build.rs writes them into cargo's OUT_DIR. Each reads its arguments, calls the hand-written
 //! function named after it in the module its class names (`ShiftNative.next` calls
-//! `crate::shift::next`), and hands the result back through [`call`].
+//! `crate::shift::next`), or the function of another crate its declaration names, and hands the
+//! result back through [`call`]. That function returns the value, or a `jni::Result` of it.
 
 use std::ptr;
 
@@ -99,6 +100,25 @@ impl<T: Returned<Jni = jobject>> Returned for Option<T> {
     const FALLBACK: jobject = ptr::null_mut();
     fn into_jni(self, env: &Env) -> Result<jobject> {
         self.map_or(Ok(ptr::null_mut()), |value| value.into_jni(env))
+    }
+}
+
+/// What a hand-written function gives back: its value, or a `jni::Result` of it if it can fail.
+/// The generated entry points call `result` on it, so either compiles.
+pub trait Outcome<T> {
+    /// The value, or the error to throw.
+    fn result(self) -> Result<T>;
+}
+
+impl<T: Returned> Outcome<T> for T {
+    fn result(self) -> Result<T> {
+        Ok(self)
+    }
+}
+
+impl<T: Returned> Outcome<T> for Result<T> {
+    fn result(self) -> Result<T> {
+        self
     }
 }
 

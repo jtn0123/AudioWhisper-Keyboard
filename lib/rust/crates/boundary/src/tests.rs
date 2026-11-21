@@ -352,6 +352,11 @@ fn names_cross_as_jni_and_rust_spell_them() {
         ..METHOD
     };
     assert_eq!(callee(&EXAMPLE, &keyword), "crate::example::r#type");
+    let elsewhere = Method {
+        rust: "::shift::is_double_space_period",
+        ..METHOD
+    };
+    assert_eq!(callee(&EXAMPLE, &elsewhere), "::shift::is_double_space_period");
     let method = Method {
         name: "a_b",
         returns: Return::Int,
@@ -391,7 +396,7 @@ internal object ExampleNative {
 
 use jni_sys::{JNIEnv, jboolean, jclass, jint, jstring};
 
-use crate::boundary::call;
+use crate::boundary::{Outcome, call};
 
 /// The arguments of the methods that take more than a Rust function should one by one.
 pub mod args {}
@@ -410,7 +415,7 @@ pub extern \"system\" fn Java_com_jtn0123_audiowhisper_rust_ExampleNative_isWord
     unsafe {
         call::<bool>(env, |env| {
             let text = env.read_string(text, \"text\")?;
-            crate::example::is_word(&text, limit)
+            crate::example::is_word(&text, limit).result()
         })
     }
 }
