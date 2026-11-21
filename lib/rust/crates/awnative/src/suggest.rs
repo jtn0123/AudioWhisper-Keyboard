@@ -8,7 +8,7 @@ mod letter_odds;
 pub(crate) mod native_glide;
 pub(crate) mod session;
 mod suggester;
-mod swipe;
+pub(crate) mod swipe;
 mod tap;
 pub(crate) mod tap_aim;
 pub(crate) mod word_learner;
@@ -24,14 +24,6 @@ use suggest::word_case::{self, WordCase};
 use suggest::{auto_correction, previous_words, undo, word_characters};
 
 use crate::jni::{self, Error, Result, boolean, illegal};
-
-/// The strings of a `String[]` that may hold no null.
-fn non_null(strings: Vec<Option<Vec<u16>>>) -> Result<Vec<Vec<u16>>> {
-    strings
-        .into_iter()
-        .map(|string| string.ok_or(Error::NullPointer("a word")))
-        .collect()
-}
 
 /// Kotlin's `take` of a negative count throws this.
 impl From<NegativeCount> for Error {

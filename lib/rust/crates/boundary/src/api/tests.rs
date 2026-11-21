@@ -364,6 +364,25 @@ fn a_class_keeps_a_property_and_borrows_a_lent_handle() {
 }
 
 #[test]
+fn a_result_can_go_through_kotlin_after_it() {
+    const RULES: Api = Api {
+        name: "ExampleRules",
+        module: "example",
+        native: "ExampleNative",
+        members: &[Member {
+            name: "firstName",
+            call: "names",
+            result: Out::Then("String?", ".firstOrNull()"),
+            ..MEMBER
+        }],
+        ..API
+    };
+    let text = &api_files(&[RULES], NATIVE)[0].1.text;
+    let expected = "    fun firstName(): String? = ExampleNative.names().firstOrNull()\n";
+    assert!(text.contains(expected), "{expected}\nnot in\n{text}");
+}
+
+#[test]
 fn rows_read_as_records_and_numbers_as_bits() {
     const ROWS: &[Class] = &[Class {
         name: "RowsNative",

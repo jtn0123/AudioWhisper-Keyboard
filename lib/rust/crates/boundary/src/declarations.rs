@@ -15,6 +15,7 @@ mod rules;
 mod screen;
 mod shift;
 mod spacing;
+mod swipe;
 mod word_stores;
 
 use crate::{Api, Class, Module, Type, Wire};
@@ -52,6 +53,7 @@ pub const CLASSES: &[Class] = &[
     learner::SUGGESTER_NATIVE,
     learner::NATIVE_LEARNER_NATIVE,
     learner::NATIVE_GLIDE_NATIVE,
+    swipe::SWIPE_NATIVE,
 ];
 
 /// Every generated api over those classes.
@@ -76,6 +78,7 @@ pub const APIS: &[Api] = &[
     latin::NLP_NAMES,
     learner::LEARNER_API,
     learner::NATIVE_GLIDE,
+    swipe::SWIPE_RULES,
 ];
 
 /// Every generated top-level record and enum, with the declarations file and the module it is in.

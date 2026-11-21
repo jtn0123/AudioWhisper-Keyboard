@@ -215,6 +215,8 @@ pub enum Out {
     Records(&'static str),
     /// A row of two elements read as a `Pair` of these types, as a record's fields are read.
     Pair(&'static str, &'static str),
+    /// The result with this Kotlin after it, such as `.map { words[it] }`, as the first type.
+    Then(&'static str, &'static str),
 }
 
 /// A record or enum that an api's members take or return.
@@ -427,6 +429,7 @@ fn result_type(returns: Return, out: Out) -> Option<String> {
         Out::Record(ty) => Some(records::record_type(ty, false, returns)),
         Out::Records(ty) => Some(records::record_type(ty, true, returns)),
         Out::Pair(first, second) => Some(format!("Pair<{first}, {second}>")),
+        Out::Then(ty, _) => Some(ty.to_owned()),
     }
 }
 
@@ -574,6 +577,7 @@ fn converted(out: Out, returns: Return, api: &Api, apis: &[Api]) -> (String, Str
             String::new(),
             records::pair([first, second], returns, api, apis),
         ),
+        Out::Then(_, after) => (String::new(), after.to_owned()),
     }
 }
 
