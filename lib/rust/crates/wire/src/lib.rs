@@ -63,6 +63,9 @@ pub mod settings;
 pub mod settings_ui;
 pub mod utilities;
 
+#[cfg(test)]
+mod tests;
+
 /// A declared group: one operation set, packet or set of codes, and the Kotlin type it becomes.
 #[derive(Debug)]
 pub struct Group {
