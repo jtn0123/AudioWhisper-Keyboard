@@ -2,6 +2,7 @@
 //! the Gradle module each of crates/wire's groups is generated in.
 
 mod clipboard;
+mod dictation;
 mod layout;
 mod packets;
 mod rules;
@@ -31,10 +32,16 @@ pub const CLASSES: &[Class] = &[
     layout::PANEL_RULES,
     clipboard::CLIPBOARD_RULES,
     screen::SCREEN_NATIVE,
+    dictation::DICTATION_NATIVE,
 ];
 
 /// Every generated api over those classes.
-pub const APIS: &[Api] = &[shift::SHIFT_RULES, screen::SCREEN_WALK_RULES];
+pub const APIS: &[Api] = &[
+    shift::SHIFT_RULES,
+    screen::SCREEN_WALK_RULES,
+    dictation::DICTATION_RULES,
+    dictation::MIC_KEY_STATE,
+];
 
 /// Every generated top-level record and enum, with the declarations file and the module it is in.
 pub const TYPES: &[(&str, Module, Type)] = &[];
