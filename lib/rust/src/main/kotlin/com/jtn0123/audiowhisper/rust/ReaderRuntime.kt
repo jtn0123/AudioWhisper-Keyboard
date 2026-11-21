@@ -23,8 +23,8 @@ object ReaderTiming {
 class PlaybackQueue : AutoCloseable {
     private val allocation = Allocation(PlaybackNative.create())
     private val cleanable = RustLibrary.cleaner.register(this, allocation)
-    @Synchronized fun call(op: Int, id: Int = 0, frame: Long = 0): LongArray = allocation.call(op, id, frame)
-    @Synchronized fun system(op: Int, id: Int = 0, text: String = ""): LongArray = allocation.system(op, id, text)
+    @Synchronized fun call(op: PlaybackOp, id: Int = 0, frame: Long = 0): LongArray = allocation.call(op.code, id, frame)
+    @Synchronized fun system(op: PlaybackSpeechOp, id: Int = 0, text: String = ""): LongArray = allocation.system(op.code, id, text)
     @Synchronized override fun close() = cleanable.clean()
     private class Allocation(private var handle: Long) : Runnable {
         @Synchronized fun call(op: Int, id: Int, frame: Long): LongArray {

@@ -57,6 +57,7 @@ pub mod extensions;
 pub mod flag;
 pub mod input;
 pub mod nlp;
+pub mod playback;
 pub mod render;
 pub mod settings;
 pub mod utilities;

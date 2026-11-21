@@ -34,7 +34,7 @@ app/src/main/kotlin/com/jtn0123/audiowhisper/reader/ReadAloud.kt	M	87	Accessibil
 app/src/main/kotlin/com/jtn0123/audiowhisper/reader/ReadAloudService.kt	M	207	AccessibilityService; page/session/settle/resume choices and callbacks |
 app/src/main/kotlin/com/jtn0123/audiowhisper/reader/ReadFromHereActivity.kt	A	12	Activity / Intent ACTION_PROCESS_TEXT; forwards platform selection |
 app/src/main/kotlin/com/jtn0123/audiowhisper/reader/ScreenWalk.kt	A	67	AccessibilityNodeInfo; node facts and native traversal callbacks |
-app/src/main/kotlin/com/jtn0123/audiowhisper/reader/Speaker.kt	M	81	TextToSpeech; pending utterance and completion/error lifecycle |
+app/src/main/kotlin/com/jtn0123/audiowhisper/reader/Speaker.kt	M	77	TextToSpeech; pending utterance and completion/error lifecycle |
 app/src/main/kotlin/com/jtn0123/audiowhisper/reader/SpeakerKey.kt	A	14	SystemClock / ART JNI; native hold-state transport |
 app/src/main/kotlin/com/jtn0123/audiowhisper/reader/StopButton.kt	M	63	WindowManager TYPE_ACCESSIBILITY_OVERLAY; Rust must draw/layout the stop control |
 app/src/main/kotlin/com/jtn0123/audiowhisper/reader/Voice.kt	A	29	AudioManager.requestAudioFocus / abandonAudioFocusRequest |

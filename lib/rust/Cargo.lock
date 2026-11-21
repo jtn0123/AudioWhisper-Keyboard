@@ -1584,6 +1584,7 @@ name = "reader"
 version = "0.1.0"
 dependencies = [
  "chars",
+ "wire",
 ]
 
 [[package]]
