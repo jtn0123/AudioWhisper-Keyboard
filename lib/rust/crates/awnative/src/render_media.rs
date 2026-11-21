@@ -1,11 +1,11 @@
 //! Decoded pixel upload; no borrowed JVM buffer escapes this boundary.
 use crate::{handle, jni::illegal, render::Session};
-use jni_sys::{JNIEnv, jboolean, jclass, jint, jintArray, jlong, jlongArray};
+use jni_sys::{JNIEnv, jboolean, jint, jintArray, jlong, jlongArray, jobject};
 use std::ptr;
 #[unsafe(no_mangle)]
 pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_mediaRequests(
     env: *mut JNIEnv,
-    _: jclass,
+    _: jobject,
     native: jlong,
 ) -> jlongArray {
     // SAFETY: synchronized wrapper owns the session; ids are returned in a new local JVM array.
@@ -23,7 +23,7 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_mediaRequ
 #[unsafe(no_mangle)]
 pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_mediaUpload(
     env: *mut JNIEnv,
-    _: jclass,
+    _: jobject,
     native: jlong,
     id: jlong,
     index: jint,
@@ -70,7 +70,7 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_mediaUplo
 #[unsafe(no_mangle)]
 pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_mediaRepeat(
     env: *mut JNIEnv,
-    _: jclass,
+    _: jobject,
     native: jlong,
     id: jlong,
     count: jint,

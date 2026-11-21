@@ -4,11 +4,11 @@ use crate::{
     jni::illegal,
     render::{Session, strings},
 };
-use jni_sys::{JNIEnv, jclass, jfloat, jintArray, jlong, jobjectArray};
+use jni_sys::{JNIEnv, jfloat, jintArray, jlong, jobject, jobjectArray};
 #[unsafe(no_mangle)]
 pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_decorations(
     env: *mut JNIEnv,
-    _: jclass,
+    _: jobject,
     native: jlong,
     labels: jobjectArray,
     height: jfloat,
@@ -57,7 +57,7 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_decoratio
 #[unsafe(no_mangle)]
 pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_ImeChromeRules_watermark(
     env: *mut JNIEnv,
-    _: jclass,
+    _: jobject,
     flags: jintArray,
 ) -> jni_sys::jboolean {
     // SAFETY: JVM local input is copied and the result is a primitive boolean.

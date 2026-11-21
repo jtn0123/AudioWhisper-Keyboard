@@ -4,12 +4,12 @@ use crate::{
     jni::illegal,
     render::{Session, strings},
 };
-use jni_sys::{JNIEnv, jclass, jlong, jlongArray, jobjectArray};
+use jni_sys::{JNIEnv, jlong, jlongArray, jobject, jobjectArray};
 use render::clipboard_panel::{ClipEntry, ClipboardPanel};
 #[unsafe(no_mangle)]
 pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_clipboard(
     env: *mut JNIEnv,
-    _: jclass,
+    _: jobject,
     native: jlong,
     config: jlongArray,
     records: jlongArray,

@@ -4,7 +4,7 @@ use crate::{
     jni::illegal,
     render::{Session, strings},
 };
-use jni_sys::{JNIEnv, jclass, jint, jintArray, jlong, jobjectArray};
+use jni_sys::{JNIEnv, jint, jintArray, jlong, jobject, jobjectArray};
 use keys::{Bounds, Rect};
 use render::{
     scene::{Key, Scene},
@@ -14,7 +14,7 @@ use std::ptr;
 #[unsafe(no_mangle)]
 pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_keyPreview(
     env: *mut JNIEnv,
-    _: jclass,
+    _: jobject,
     native: jlong,
     code: jint,
     labels: jobjectArray,

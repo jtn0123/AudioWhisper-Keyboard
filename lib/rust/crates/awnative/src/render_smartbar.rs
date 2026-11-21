@@ -3,7 +3,7 @@ use crate::{
     handle,
     jni::{self, illegal},
 };
-use jni_sys::{JNIEnv, jboolean, jclass, jfloatArray, jintArray, jlong, jobjectArray};
+use jni_sys::{JNIEnv, jboolean, jfloatArray, jintArray, jlong, jobject, jobjectArray};
 use render::protocol::*;
 use render::{
     smartbar::{self, Config},
@@ -15,7 +15,7 @@ use std::ptr;
 #[unsafe(no_mangle)]
 pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_smartbar(
     env: *mut JNIEnv,
-    _: jclass,
+    _: jobject,
     native: jlong,
     config: jfloatArray,
     codes: jintArray,
@@ -80,7 +80,7 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_smartbar(
 #[unsafe(no_mangle)]
 pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_SmartbarRules_layout(
     env: *mut JNIEnv,
-    _: jclass,
+    _: jobject,
     config: jfloatArray,
     width: f32,
     intrinsic: jfloatArray,
@@ -104,7 +104,7 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_SmartbarRules_layout(
 #[unsafe(no_mangle)]
 pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_SmartbarRules_ellipsis(
     env: *mut JNIEnv,
-    _: jclass,
+    _: jobject,
     advances: jfloatArray,
     width: f32,
 ) -> i32 {
@@ -118,7 +118,7 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_SmartbarRules_ellipsis
 #[unsafe(no_mangle)]
 pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_SmartbarRules_roomy(
     env: *mut JNIEnv,
-    _: jclass,
+    _: jobject,
     config: jfloatArray,
 ) -> jboolean {
     // SAFETY: JVM local array is valid for this invocation and copied before use.
@@ -133,7 +133,7 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_SmartbarRules_roomy(
 #[unsafe(no_mangle)]
 pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_SmartbarRules_toggleWidth(
     env: *mut JNIEnv,
-    _: jclass,
+    _: jobject,
     config: jfloatArray,
 ) -> f32 {
     // SAFETY: JVM local array is valid for this invocation and copied before use.
@@ -149,7 +149,7 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_SmartbarRules_toggleWi
 #[unsafe(no_mangle)]
 pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_SmartbarRules_fitStepBits(
     env: *mut JNIEnv,
-    _: jclass,
+    _: jobject,
     squeeze: f32,
     scale: f32,
     measured: f32,
@@ -171,7 +171,7 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_SmartbarRules_fitStepB
 #[unsafe(no_mangle)]
 pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_candidateLongPress(
     env: *mut JNIEnv,
-    _: jclass,
+    _: jobject,
     native: jlong,
     pointer: i32,
 ) {
@@ -188,7 +188,7 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_candidate
 #[unsafe(no_mangle)]
 pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_tick(
     env: *mut JNIEnv,
-    _: jclass,
+    _: jobject,
     native: jlong,
     now: jlong,
 ) -> jintArray {
@@ -227,7 +227,7 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_tick(
 #[unsafe(no_mangle)]
 pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_nextDeadline(
     env: *mut JNIEnv,
-    _: jclass,
+    _: jobject,
     native: jlong,
 ) -> jlong {
     // SAFETY: the synchronized owner keeps the handle alive.
@@ -252,7 +252,7 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_nextDeadl
 #[unsafe(no_mangle)]
 pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_barSettings(
     env: *mut JNIEnv,
-    _: jclass,
+    _: jobject,
     native: jlong,
     delay: jlong,
     slots: jintArray,
@@ -283,7 +283,7 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_barSettin
 #[unsafe(no_mangle)]
 pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_candidateBindings(
     env: *mut JNIEnv,
-    _: jclass,
+    _: jobject,
     native: jlong,
     tokens: jintArray,
 ) -> jintArray {
@@ -305,7 +305,7 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_candidate
 #[unsafe(no_mangle)]
 pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_tooltipShown(
     env: *mut JNIEnv,
-    _: jclass,
+    _: jobject,
     native: jlong,
     pointer: i32,
     shown: jboolean,

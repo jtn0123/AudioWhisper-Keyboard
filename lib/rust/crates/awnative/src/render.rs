@@ -4,7 +4,7 @@ use crate::{
     jni::{self, Result, illegal},
 };
 use jni_sys::{
-    JNIEnv, jboolean, jclass, jfloatArray, jint, jintArray, jlong, jobject, jobjectArray, jstring,
+    JNIEnv, jboolean, jfloatArray, jint, jintArray, jlong, jobject, jobjectArray, jstring,
 };
 use keys::{Bounds, Rect};
 use render::{
@@ -44,7 +44,7 @@ fn rectangle(a: &[f32]) -> Rect {
 #[unsafe(no_mangle)]
 pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_create(
     env: *mut JNIEnv,
-    _: jclass,
+    _: jobject,
     paths: jobjectArray,
 ) -> jlong {
     // SAFETY: the JVM supplies this call's environment and array references.
@@ -74,7 +74,7 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_create(
 #[unsafe(no_mangle)]
 pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_theme(
     env: *mut JNIEnv,
-    _: jclass,
+    _: jobject,
     native: jlong,
     json: jstring,
     names: jobjectArray,
@@ -98,7 +98,7 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_theme(
 #[unsafe(no_mangle)]
 pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_update(
     env: *mut JNIEnv,
-    _: jclass,
+    _: jobject,
     native: jlong,
     dimensions: jfloatArray,
     metadata: jobjectArray,
@@ -235,7 +235,7 @@ pub(crate) fn strings(env: &jni::Env, array: jobjectArray) -> Result<Vec<String>
 #[unsafe(no_mangle)]
 pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_popup(
     env: *mut JNIEnv,
-    _: jclass,
+    _: jobject,
     native: jlong,
     key: jint,
     labels: jobjectArray,
@@ -282,7 +282,7 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_popup(
 #[unsafe(no_mangle)]
 pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_attach(
     env: *mut JNIEnv,
-    _: jclass,
+    _: jobject,
     native: jlong,
     surface: jobject,
     hybrid: jboolean,
@@ -316,7 +316,7 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_attach(
 #[unsafe(no_mangle)]
 pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_frame(
     env: *mut JNIEnv,
-    _: jclass,
+    _: jobject,
     native: jlong,
     time: jlong,
     vsync: jlong,
@@ -353,7 +353,7 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_frame(
 #[unsafe(no_mangle)]
 pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_detach(
     env: *mut JNIEnv,
-    _: jclass,
+    _: jobject,
     native: jlong,
 ) {
     // SAFETY: synchronized wrapper owns the handle. Dropping joins the thread before releasing the native window.
@@ -370,7 +370,7 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_detach(
 #[unsafe(no_mangle)]
 pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_close(
     _: *mut JNIEnv,
-    _: jclass,
+    _: jobject,
     native: jlong,
 ) {
     // SAFETY: the synchronized wrapper frees its handle once, then sets it to zero.
@@ -382,7 +382,7 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_close(
 #[unsafe(no_mangle)]
 pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_popupGrid(
     env: *mut JNIEnv,
-    _: jclass,
+    _: jobject,
     native: jlong,
     prioritized: jint,
     landscape: jboolean,

@@ -5,14 +5,14 @@ use crate::{
     render::{Session, strings},
 };
 use jni_sys::{
-    JNIEnv, jboolean, jclass, jfloatArray, jint, jintArray, jlong, jlongArray, jobjectArray,
+    JNIEnv, jboolean, jfloatArray, jint, jintArray, jlong, jlongArray, jobject, jobjectArray,
 };
 use render::{gesture_config::GestureConfig, touch::Motion};
 use std::ptr;
 #[unsafe(no_mangle)]
 pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_gestures(
     env: *mut JNIEnv,
-    _: jclass,
+    _: jobject,
     native: jlong,
     values: jfloatArray,
     actions: jobjectArray,
@@ -33,7 +33,7 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_gestures(
 #[unsafe(no_mangle)]
 pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_longPress(
     env: *mut JNIEnv,
-    _: jclass,
+    _: jobject,
     native: jlong,
     pointer: jint,
     popup: jboolean,
@@ -56,7 +56,7 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_longPress
 #[unsafe(no_mangle)]
 pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_touch(
     env: *mut JNIEnv,
-    _: jclass,
+    _: jobject,
     native: jlong,
     metadata: jintArray,
     times: jlongArray,

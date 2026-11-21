@@ -4,7 +4,7 @@ use crate::{
     jni::illegal,
     render::{Session, strings},
 };
-use jni_sys::{JNIEnv, jclass, jfloatArray, jintArray, jlong, jobjectArray};
+use jni_sys::{JNIEnv, jfloatArray, jintArray, jlong, jobject, jobjectArray};
 use render::{
     arrangement::Arrangement,
     panels::{Entry, Panel},
@@ -52,7 +52,7 @@ impl Session {
 #[unsafe(no_mangle)]
 pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_panels(
     env: *mut JNIEnv,
-    _: jclass,
+    _: jobject,
     native: jlong,
     config: jfloatArray,
     data: jintArray,
@@ -153,7 +153,7 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_panels(
 #[unsafe(no_mangle)]
 pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_panelArrangement(
     env: *mut JNIEnv,
-    _: jclass,
+    _: jobject,
     native: jlong,
 ) -> jobjectArray {
     // SAFETY: synchronized wrapper retains the session; outputs are JVM local arrays of ids.

@@ -4,12 +4,12 @@ use crate::{
     jni::illegal,
     render::{Session, strings},
 };
-use jni_sys::{JNIEnv, jclass, jfloatArray, jint, jlong, jlongArray, jobjectArray};
+use jni_sys::{JNIEnv, jfloatArray, jint, jlong, jlongArray, jobject, jobjectArray};
 use render::gif_panel::{GifEntry, GifPanel};
 #[unsafe(no_mangle)]
 pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_gifs(
     env: *mut JNIEnv,
-    _: jclass,
+    _: jobject,
     native: jlong,
     config: jfloatArray,
     labels: jobjectArray,
@@ -74,7 +74,7 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_gifs(
 #[unsafe(no_mangle)]
 pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_gifSent(
     env: *mut JNIEnv,
-    _: jclass,
+    _: jobject,
     native: jlong,
 ) {
     // SAFETY: synchronized wrapper owns the session for the completion notification.
