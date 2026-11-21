@@ -1,7 +1,7 @@
-//! `cargo run -p boundary -- RUST KOTLIN`: writes the Kotlin side of the generated boundary under
-//! RUST and KOTLIN, the generated source roots of lib/rust and lib/kotlin. Gradle's
-//! `generateNativeBoundary` task runs it, into lib/rust's build directory, before Kotlin compiles;
-//! awnative's build.rs writes the Rust side.
+//! `cargo run -p boundary -- RUST KOTLIN`: writes the Kotlin side of the generated boundary, the
+//! native objects and the public Kotlin over them, under RUST and KOTLIN, the generated source
+//! roots of lib/rust and lib/kotlin. Gradle's `generateNativeBoundary` task runs it, into lib/rust's
+//! build directory, before Kotlin compiles; awnative's build.rs writes the Rust side.
 
 use std::path::Path;
 use std::process::ExitCode;
@@ -15,11 +15,12 @@ fn main() -> ExitCode {
         eprintln!("usage: boundary RUST KOTLIN");
         return ExitCode::FAILURE;
     };
-    let classes = boundary::kotlin_files(boundary::CLASSES);
-    for (module, file) in classes
+    let files = boundary::kotlin_files(boundary::CLASSES)
         .into_iter()
-        .chain(boundary::wire_files(boundary::WIRE))
-    {
+        .chain(boundary::api_files(boundary::APIS, boundary::CLASSES))
+        .chain(boundary::type_files(boundary::TYPES))
+        .chain(boundary::wire_files(boundary::WIRE));
+    for (module, file) in files {
         let root = match module {
             Module::Rust => &rust,
             Module::Kotlin => &kotlin,

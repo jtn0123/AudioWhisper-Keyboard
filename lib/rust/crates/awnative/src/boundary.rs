@@ -136,3 +136,5 @@ pub unsafe fn call<T: Returned>(raw: *mut JNIEnv, body: impl FnOnce(&Env) -> Res
 mod generated {
     include!(concat!(env!("OUT_DIR"), "/boundary.rs"));
 }
+
+pub use generated::args;

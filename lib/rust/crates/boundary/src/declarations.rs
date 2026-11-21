@@ -9,7 +9,7 @@ use crate::{Api, Class, Module, Type, Wire};
 pub const CLASSES: &[Class] = &[shift::SHIFT_NATIVE];
 
 /// Every generated api over those classes.
-pub const APIS: &[Api] = &[];
+pub const APIS: &[Api] = &[shift::SHIFT_RULES];
 
 /// Every generated top-level record and enum, with the declarations file and the module it is in.
 pub const TYPES: &[(&str, Module, Type)] = &[];
