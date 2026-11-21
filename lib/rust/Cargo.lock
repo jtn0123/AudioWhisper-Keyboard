@@ -93,6 +93,7 @@ name = "awnative"
 version = "0.1.0"
 dependencies = [
  "backup",
+ "boundary",
  "chars",
  "composing",
  "dictation",

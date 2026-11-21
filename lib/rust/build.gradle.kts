@@ -9,6 +9,7 @@
 
 import org.gradle.process.ExecOperations
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import java.io.ByteArrayOutputStream
 import javax.inject.Inject
 
 plugins {
@@ -115,19 +116,38 @@ abstract class Cargo @Inject constructor(private val exec: ExecOperations) : Def
 
     @TaskAction
     fun run() {
+        beforeCargo()
+        val output = ByteArrayOutputStream()
         exec.exec {
             workingDir = workspace.get().asFile
-            commandLine(listOf(cargo.get()) + this@Cargo.args.get())
+            commandLine(listOf(cargo.get()) + this@Cargo.args.get() + outputArgs())
             environment(this@Cargo.environment.get())
+            if (readsOutput()) standardOutput = output
         }
-        afterCargo()
+        afterCargo(output.toString(Charsets.UTF_8))
     }
 
-    /** What to do once cargo has succeeded. */
-    protected open fun afterCargo() = Unit
+    /** What to do before cargo runs. */
+    protected open fun beforeCargo() = Unit
+
+    /**
+     * Arguments after [args] naming this task's outputs, which [args] cannot hold: an input made
+     * from an output would make the task depend on itself.
+     */
+    protected open fun outputArgs() = emptyList<String>()
+
+    /** Whether [afterCargo] reads cargo's standard output, which then stays off the console. */
+    protected open fun readsOutput() = false
+
+    /** What to do once cargo has succeeded, given its standard output if [readsOutput]. */
+    protected open fun afterCargo(output: String) = Unit
 }
 
-/** Builds libawnative with cargo and copies it to [outputDir]/[subdirectory]. */
+/**
+ * Builds libawnative with cargo and copies it to [outputDir]/[subdirectory], and the generated
+ * entry points compiled into it to [boundaryStubs]. Its arguments must ask for cargo's JSON
+ * messages, which say where awnative's build.rs wrote them.
+ */
 abstract class CargoBuild @Inject constructor(exec: ExecOperations) : Cargo(exec) {
     /** Where cargo leaves the library, relative to the workspace. */
     @get:Input abstract val builtFile: Property<String>
@@ -137,12 +157,46 @@ abstract class CargoBuild @Inject constructor(exec: ExecOperations) : Cargo(exec
 
     @get:OutputDirectory abstract val outputDir: DirectoryProperty
 
-    override fun afterCargo() {
+    /**
+     * A copy of the generated entry points (crates/boundary) this build compiled into the library,
+     * which :app:checkNativeDeclarations reads: the Rust side as built, even if the declarations
+     * have changed since.
+     */
+    @get:OutputFile abstract val boundaryStubs: RegularFileProperty
+
+    override fun readsOutput() = true
+
+    override fun afterCargo(output: String) {
         val built = workspace.file(builtFile).get().asFile
         val target = outputDir.get().asFile.resolve(subdirectory.get()).resolve(built.name)
         target.parentFile.mkdirs()
         built.copyTo(target, overwrite = true)
+        // Cargo reports each build script's OUT_DIR, whether it ran again or not.
+        val outDir = Regex("\"out_dir\":\"([^\"]+)\"")
+        val awnative = output.lineSequence()
+            .filter { "\"reason\":\"build-script-executed\"" in it && "/crates/awnative#" in it }
+            .mapNotNull { outDir.find(it)?.groupValues?.get(1) }
+            .singleOrNull() ?: throw GradleException("cargo did not say where awnative's build.rs wrote")
+        File(awnative, "boundary.rs").copyTo(boundaryStubs.get().asFile, overwrite = true)
     }
+}
+
+/**
+ * Writes the Kotlin side of the generated JNI boundary into [outputDir], by running crates/boundary
+ * on this computer; awnative's build.rs writes the Rust side.
+ */
+abstract class GenerateNativeBoundary @Inject constructor(
+    exec: ExecOperations,
+    private val fileSystem: FileSystemOperations,
+) : Cargo(exec) {
+    @get:OutputDirectory abstract val outputDir: DirectoryProperty
+
+    // A class dropped from the declarations must not leave its file behind.
+    override fun beforeCargo() {
+        fileSystem.delete { delete(outputDir) }
+    }
+
+    override fun outputArgs() = listOf(outputDir.get().asFile.path)
 }
 
 val rustWorkspace = layout.projectDirectory
@@ -176,7 +230,10 @@ val androidTarget = "aarch64-linux-android"
 
 val cargoBuildAndroid = tasks.register<CargoBuild>("cargoBuildAndroid") {
     description = "Builds libawnative.so for arm64 Android."
-    configureCargo("build", "--release", "--locked", "--package", "awnative", "--target", androidTarget)
+    configureCargo(
+        "build", "--release", "--locked", "--message-format=json-render-diagnostics",
+        "--package", "awnative", "--target", androidTarget,
+    )
     if (providers.gradleProperty("suggestFixture").orNull == "true") args.addAll("--features", "latin-fixture")
     if (providers.gradleProperty("ttsFixture").orNull == "true") args.addAll("--features", "tts-fixture")
     if (providers.gradleProperty("dictationFixture").orNull == "true") args.addAll("--features", "dictation-fixture")
@@ -190,14 +247,29 @@ val cargoBuildAndroid = tasks.register<CargoBuild>("cargoBuildAndroid") {
     builtFile.set("${releaseDir(androidTarget)}/libawnative.so")
     subdirectory.set("arm64-v8a")
     outputDir.set(layout.buildDirectory.dir("rust/jniLibs"))
+    boundaryStubs.set(layout.buildDirectory.file("rust/boundary/arm64-v8a.rs"))
 }
 
 val cargoBuildHost = tasks.register<CargoBuild>("cargoBuildHost") {
     description = "Builds libawnative for this computer, for the JVM unit tests."
-    configureCargo("build", "--release", "--locked", "--package", "awnative")
+    configureCargo(
+        "build", "--release", "--locked", "--message-format=json-render-diagnostics", "--package", "awnative",
+    )
     builtFile.set("${releaseDir(null)}/$hostLibrary")
     subdirectory.set("")
     outputDir.set(layout.buildDirectory.dir("rust/host"))
+    boundaryStubs.set(layout.buildDirectory.file("rust/boundary/host.rs"))
+}
+
+val generateNativeBoundary = tasks.register<GenerateNativeBoundary>("generateNativeBoundary") {
+    description = "Generates the Kotlin side of the JNI boundary from crates/boundary's declarations."
+    configureCargo("run", "--quiet", "--locked", "--package", "boundary", "--")
+    // Only the generator, and the manifests and toolchain cargo reads, decide what it writes.
+    sources.setFrom(
+        "Cargo.toml", "Cargo.lock", "rust-toolchain.toml", ".cargo/config.toml",
+        fileTree("crates") { include("*/Cargo.toml") }, fileTree("crates/boundary"),
+    )
+    outputDir.set(layout.buildDirectory.dir("generated/nativeBoundary/kotlin"))
 }
 
 /** The NDK's clang for linking arm64 code against Android [api]. */
@@ -269,6 +341,7 @@ androidComponents {
     onVariants { variant ->
         variant.sources.java?.addGeneratedSourceDirectory(generateRenderProtocol, GenerateRenderProtocol::outputDir)
         variant.sources.java?.addGeneratedSourceDirectory(generateInputProtocol, GenerateRenderProtocol::outputDir)
+        variant.sources.kotlin?.addGeneratedSourceDirectory(generateNativeBoundary, GenerateNativeBoundary::outputDir)
         variant.sources.jniLibs?.addGeneratedSourceDirectory(cargoBuildAndroid, CargoBuild::outputDir)
     }
 }
