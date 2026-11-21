@@ -3,15 +3,20 @@
 //! that converts the JNI values and calls a hand-written function in awnative. Both sides come
 //! from the one table in `declarations`, so their names and types cannot drift apart.
 //!
-//! `cargo run -p boundary -- DIR` writes the Kotlin under the source root DIR; Gradle's
-//! `generateNativeBoundary` task runs it before Kotlin compiles. awnative's build.rs writes the
-//! Rust into cargo's OUT_DIR. Neither is checked in. docs/rust.md says how to add a method.
+//! It also writes the Kotlin side of crates/wire: the operation codes, packet fields and boolean
+//! spelling those calls share, which the Rust side matches on directly.
+//!
+//! `cargo run -p boundary -- RUST KOTLIN` writes the Kotlin under the source roots of lib/rust
+//! and lib/kotlin; Gradle's `generateNativeBoundary` task runs it before Kotlin compiles.
+//! awnative's build.rs writes the Rust into cargo's OUT_DIR. Neither is checked in. docs/rust.md
+//! says how to add a method, an operation or a field.
 //!
 //! The generator runs on the build computer only. It writes `unsafe` code as text; the code
 //! itself compiles in awnative.
 
 #![forbid(unsafe_code)]
 
+mod constants;
 mod declarations;
 mod format;
 mod kotlin;
@@ -19,7 +24,8 @@ mod rust;
 #[cfg(test)]
 mod tests;
 
-pub use declarations::CLASSES;
+pub use constants::{Module, Wire, wire_files};
+pub use declarations::{CLASSES, WIRE};
 pub use kotlin::{KotlinFile, kotlin_files};
 pub use rust::rust_file;
 

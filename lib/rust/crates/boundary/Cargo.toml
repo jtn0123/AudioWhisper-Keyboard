@@ -7,5 +7,9 @@ license.workspace = true
 publish.workspace = true
 rust-version.workspace = true
 
+[dependencies]
+# The operation codes and packet fields whose Kotlin side this writes. A leaf crate of constants.
+wire = { path = "../wire" }
+
 [lints]
 workspace = true

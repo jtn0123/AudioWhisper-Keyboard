@@ -182,8 +182,9 @@ abstract class CargoBuild @Inject constructor(exec: ExecOperations) : Cargo(exec
 }
 
 /**
- * Writes the Kotlin side of the generated JNI boundary into [outputDir], by running crates/boundary
- * on this computer; awnative's build.rs writes the Rust side.
+ * Writes the Kotlin side of the generated JNI boundary into [outputDir], and the part lib/kotlin
+ * compiles (crates/wire's groups for its own calls) into [libKotlinDir], by running
+ * crates/boundary on this computer; awnative's build.rs writes the Rust side.
  */
 abstract class GenerateNativeBoundary @Inject constructor(
     exec: ExecOperations,
@@ -191,12 +192,14 @@ abstract class GenerateNativeBoundary @Inject constructor(
 ) : Cargo(exec) {
     @get:OutputDirectory abstract val outputDir: DirectoryProperty
 
+    @get:OutputDirectory abstract val libKotlinDir: DirectoryProperty
+
     // A class dropped from the declarations must not leave its file behind.
     override fun beforeCargo() {
-        fileSystem.delete { delete(outputDir) }
+        fileSystem.delete { delete(outputDir, libKotlinDir) }
     }
 
-    override fun outputArgs() = listOf(outputDir.get().asFile.path)
+    override fun outputArgs() = listOf(outputDir.get().asFile.path, libKotlinDir.get().asFile.path)
 }
 
 val rustWorkspace = layout.projectDirectory
@@ -264,12 +267,15 @@ val cargoBuildHost = tasks.register<CargoBuild>("cargoBuildHost") {
 val generateNativeBoundary = tasks.register<GenerateNativeBoundary>("generateNativeBoundary") {
     description = "Generates the Kotlin side of the JNI boundary from crates/boundary's declarations."
     configureCargo("run", "--quiet", "--locked", "--package", "boundary", "--")
-    // Only the generator, and the manifests and toolchain cargo reads, decide what it writes.
+    // Only the generator, its declarations, and the manifests and toolchain cargo reads, decide
+    // what it writes.
     sources.setFrom(
         "Cargo.toml", "Cargo.lock", "rust-toolchain.toml", ".cargo/config.toml",
-        fileTree("crates") { include("*/Cargo.toml") }, fileTree("crates/boundary"),
+        fileTree("crates") { include("*/Cargo.toml") }, fileTree("crates/boundary"), fileTree("crates/wire"),
     )
     outputDir.set(layout.buildDirectory.dir("generated/nativeBoundary/kotlin"))
+    // lib/kotlin adds this directory to its sources (see its build script).
+    libKotlinDir.set(layout.buildDirectory.dir("generated/nativeBoundary/libKotlin"))
 }
 
 /** The NDK's clang for linking arm64 code against Android [api]. */

@@ -1,19 +1,29 @@
-//! `cargo run -p boundary -- DIR`: writes the Kotlin side of the generated boundary under DIR, a
-//! Kotlin source root. Gradle's `generateNativeBoundary` task runs it, into lib/rust's build
-//! directory, before Kotlin compiles; awnative's build.rs writes the Rust side.
+//! `cargo run -p boundary -- RUST KOTLIN`: writes the Kotlin side of the generated boundary under
+//! RUST and KOTLIN, the generated source roots of lib/rust and lib/kotlin. Gradle's
+//! `generateNativeBoundary` task runs it, into lib/rust's build directory, before Kotlin compiles;
+//! awnative's build.rs writes the Rust side.
 
 use std::path::Path;
 use std::process::ExitCode;
 use std::{env, fs, io};
 
+use boundary::Module;
+
 fn main() -> ExitCode {
     let mut args = env::args_os().skip(1);
-    let (Some(root), None) = (args.next(), args.next()) else {
-        eprintln!("usage: boundary DIR");
+    let (Some(rust), Some(kotlin), None) = (args.next(), args.next(), args.next()) else {
+        eprintln!("usage: boundary RUST KOTLIN");
         return ExitCode::FAILURE;
     };
-    for file in boundary::kotlin_files(boundary::CLASSES) {
-        let path = Path::new(&root).join(&file.path);
+    let classes = boundary::kotlin_files(boundary::CLASSES)
+        .into_iter()
+        .map(|file| (Module::Rust, file));
+    for (module, file) in classes.chain(boundary::wire_files(boundary::WIRE)) {
+        let root = match module {
+            Module::Rust => &rust,
+            Module::Kotlin => &kotlin,
+        };
+        let path = Path::new(root).join(&file.path);
         if let Err(error) = write(&path, &file.text) {
             eprintln!("boundary: cannot write {}: {error}", path.display());
             return ExitCode::FAILURE;
