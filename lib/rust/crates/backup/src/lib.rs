@@ -1,6 +1,13 @@
 //! Backup/restore decisions. Kotlin owns SAF, codecs, ZIP/file I/O and Room.
 #![forbid(unsafe_code)]
 
+use wire::backup::{
+    self as ops, effect, layout, manifest, metadata_status as status, names, restore_request,
+    selection,
+};
+use wire::extensions::archive_entry as entry;
+use wire::flag;
+
 pub type Text = Vec<u16>;
 fn text(s: &str) -> Text {
     s.encode_utf16().collect()
@@ -10,9 +17,6 @@ fn string(s: &[u16]) -> String {
 }
 fn number(s: &[u16]) -> Result<i32, &'static str> {
     chars::text::to_int_or_null(s).ok_or("invalid backup policy integer")
-}
-fn bit(s: &[u16]) -> bool {
-    s == text("1")
 }
 
 pub const METADATA: &str = "backup_metadata.json";
@@ -26,30 +30,39 @@ const CLIPS: [&str; 3] = [
 
 /// Group order is preferences, keyboard extensions, themes, text, images, video.
 pub fn layout(preferences: &[u16]) -> Vec<Text> {
-    [
-        string(preferences),
-        "files/ime/keyboard".into(),
-        "files/ime/theme".into(),
-        format!("clipboard/{}", CLIPS[0]),
-        format!("clipboard/{}", CLIPS[1]),
-        format!("clipboard/{}", CLIPS[2]),
-    ]
-    .iter()
-    .map(|s| text(s))
-    .collect()
+    let mut paths = vec![vec![]; layout::SIZE];
+    paths[layout::PREFERENCES] = preferences.to_vec();
+    paths[layout::KEYBOARDS] = text("files/ime/keyboard");
+    paths[layout::THEMES] = text("files/ime/theme");
+    for (group, file) in CLIPBOARD.into_iter().zip(CLIPS) {
+        paths[group] = text(&format!("clipboard/{file}"));
+    }
+    paths
+}
+
+/// The clipboard's groups, in the order of [`CLIPS`].
+const CLIPBOARD: [usize; 3] = [
+    layout::CLIPBOARD_TEXT,
+    layout::CLIPBOARD_IMAGES,
+    layout::CLIPBOARD_VIDEO,
+];
+
+/// Whether `mask` selects `group`.
+fn selects(mask: i32, group: usize) -> bool {
+    mask & (1 << group) != 0
 }
 
 /// Restore preserves the historical warning precedence and accepts newer backups.
 pub fn metadata(package: &[u16], version: i32, current: i32) -> [&'static str; 2] {
     let warning = if version != current {
-        "different_version"
+        ops::DIFFERENT_VERSION
     } else if !package.starts_with(&text("dev.patrickgold.florisboard")) {
-        "different_vendor"
+        ops::DIFFERENT_VENDOR
     } else {
         ""
     };
     let error = if package.iter().all(|&u| chars::is_whitespace(u)) || version < 64 {
-        "invalid_metadata"
+        ops::INVALID_METADATA
     } else {
         ""
     };
@@ -60,39 +73,40 @@ pub fn metadata(package: &[u16], version: i32, current: i32) -> [&'static str; 2
 /// extension directories and ALL clipboard history even without incoming clipboard data.
 pub fn restore(mask: i32, erase: bool, paths: &[Text], present: &[Text]) -> Vec<Text> {
     let mut out = vec![];
-    let mut effect = |kind: &str, path: &[u16]| {
-        out.extend([text(kind), path.to_vec()]);
+    let mut step = |kind: &str, path: &[u16]| {
+        let mut row = vec![vec![]; effect::SIZE];
+        row[effect::EFFECT] = text(kind);
+        row[effect::PATH] = path.to_vec();
+        out.extend(row);
     };
-    for i in 0..3 {
-        if mask & (1 << i) == 0 {
+    let present = |group: usize| flag::decode(&present[group]);
+    let preferences = layout::PREFERENCES;
+    if selects(mask, preferences) && present(preferences) {
+        let kind = if erase {
+            ops::PREFERENCES_ERASE
+        } else {
+            ops::PREFERENCES_MERGE
+        };
+        step(kind, &paths[preferences]);
+    }
+    for group in [layout::KEYBOARDS, layout::THEMES] {
+        if !selects(mask, group) {
             continue;
         }
-        if i == 0 {
-            if bit(&present[i]) {
-                effect(
-                    if erase {
-                        "preferences-erase"
-                    } else {
-                        "preferences-merge"
-                    },
-                    &paths[i],
-                );
-            }
-        } else {
-            if erase {
-                effect("clear-directory", &paths[i]);
-            }
-            if bit(&present[i]) {
-                effect("copy-directory", &paths[i]);
-            }
+        if erase {
+            step(ops::CLEAR_DIRECTORY, &paths[group]);
+        }
+        if present(group) {
+            step(ops::COPY_DIRECTORY, &paths[group]);
         }
     }
     if erase {
-        effect("clear-clipboard", &[]);
+        step(ops::CLEAR_CLIPBOARD, &[]);
     }
-    for i in 3..6 {
-        if mask & (1 << i) != 0 && bit(&present[i]) {
-            effect(["text", "image", "video"][i - 3], &paths[i]);
+    let kinds = [ops::RESTORE_TEXT, ops::RESTORE_IMAGES, ops::RESTORE_VIDEO];
+    for (group, kind) in CLIPBOARD.into_iter().zip(kinds) {
+        if selects(mask, group) && present(group) {
+            step(kind, &paths[group]);
         }
     }
     out
@@ -101,15 +115,24 @@ pub fn restore(mask: i32, erase: bool, paths: &[Text], present: &[Text]) -> Vec<
 /// Protocol only packs plain values; decisions above are usable without JNI.
 pub fn call(op: i32, input: &[Text]) -> Result<Vec<Text>, &'static str> {
     Ok(match (op, input) {
-        (0, [package, version, current]) => metadata(package, number(version)?, number(current)?)
-            .iter()
-            .map(|s| text(s))
-            .collect(),
-        (1, [preferences]) => layout(preferences),
-        (2, [mask, erase, preferences, present @ ..]) if present.len() == 6 => {
-            restore(number(mask)?, bit(erase), &layout(preferences), present)
+        (ops::METADATA, [package, version, current]) => {
+            let [warning, error] = metadata(package, number(version)?, number(current)?);
+            let mut row = vec![vec![]; status::SIZE];
+            row[status::WARNING] = text(warning);
+            row[status::ERROR] = text(error);
+            row
         }
-        (3, [package, version, timestamp]) => {
+        (ops::LAYOUT, [preferences]) => layout(preferences),
+        (ops::RESTORE, input) if input.len() == restore_request::SIZE + layout::SIZE => {
+            use restore_request::{ERASE, MASK, PREFERENCES, SIZE};
+            restore(
+                number(&input[MASK])?,
+                flag::decode(&input[ERASE]),
+                &layout(&input[PREFERENCES]),
+                &input[SIZE..],
+            )
+        }
+        (ops::FILE_NAME, [package, version, timestamp]) => {
             let mut result = text("backup_");
             result.extend(package);
             result.push(95);
@@ -119,47 +142,55 @@ pub fn call(op: i32, input: &[Text]) -> Result<Vec<Text>, &'static str> {
             result.extend(text(".zip"));
             vec![result]
         }
-        (4, [mask, preferences]) => layout(preferences)
+        (ops::MANIFEST, [mask, preferences]) => layout(preferences)
             .into_iter()
             .enumerate()
-            .filter(|(i, _)| number(mask).is_ok_and(|m| m & (1 << i) != 0))
-            .flat_map(|(i, path)| [text(&i.to_string()), path])
+            .filter(|(group, _)| number(mask).is_ok_and(|mask| selects(mask, *group)))
+            .flat_map(|(group, path)| {
+                let mut row = vec![vec![]; manifest::SIZE];
+                row[manifest::GROUP] = text(&group.to_string());
+                row[manifest::PATH] = path;
+                row
+            })
             .collect(),
-        (5, [kind, types @ ..]) => types
+        (ops::ITEMS, [kind, types @ ..]) => types
             .iter()
             .enumerate()
             .filter(|(_, t)| *t == kind)
             .map(|(i, _)| text(&i.to_string()))
             .collect(),
-        (6, existing) => existing
+        (ops::INCOMING, existing) => existing
             .iter()
             .enumerate()
-            .filter(|(_, v)| !bit(v))
+            .filter(|(_, v)| !flag::decode(v))
             .map(|(i, _)| text(&i.to_string()))
             .collect(),
-        (7, [mask]) => {
+        (ops::SELECTION, [mask]) => {
             let mask = number(mask)?;
-            let clips = mask & 56;
-            vec![
-                text(if mask != 0 { "1" } else { "0" }),
-                text(if clips != 0 { "1" } else { "0" }),
-                text(if clips == 0 {
-                    "off"
-                } else if clips == 56 {
-                    "on"
-                } else {
-                    "mixed"
-                }),
-            ]
+            let all = CLIPBOARD.iter().fold(0, |all, group| all | (1 << group));
+            let clips = mask & all;
+            let mut row = vec![vec![]; selection::SIZE];
+            row[selection::ANY] = flag::utf16(mask != 0);
+            row[selection::CLIPBOARD] = flag::utf16(clips != 0);
+            row[selection::CLIPBOARD_STATE] = text(if clips == 0 {
+                ops::OFF
+            } else if clips == all {
+                ops::ON
+            } else {
+                ops::MIXED
+            });
+            row
         }
-        (8, []) => vec![
-            text(METADATA),
-            text(MISSING_METADATA),
-            text("clipboard/clipboard_files"),
-            text("backup.zip"),
-        ],
-        (9, [root, entries @ ..]) => {
-            let (chunks, rest) = entries.as_chunks::<4>();
+        (ops::NAMES, []) => {
+            let mut row = vec![vec![]; names::SIZE];
+            row[names::METADATA] = text(METADATA);
+            row[names::MISSING_METADATA] = text(MISSING_METADATA);
+            row[names::MEDIA_DIRECTORY] = text("clipboard/clipboard_files");
+            row[names::INPUT_ARCHIVE] = text("backup.zip");
+            row
+        }
+        (ops::ARCHIVE, [root, entries @ ..]) => {
+            let (chunks, rest) = entries.as_chunks::<{ entry::SIZE }>();
             if !rest.is_empty() {
                 return Err("invalid backup entries");
             }
@@ -167,10 +198,12 @@ pub fn call(op: i32, input: &[Text]) -> Result<Vec<Text>, &'static str> {
                 .iter()
                 .map(|v| {
                     Ok(extensions::archive::Entry {
-                        name: &v[0],
-                        canonical_path: &v[1],
-                        size: string(&v[2]).parse().map_err(|_| "invalid backup size")?,
-                        directory: bit(&v[3]),
+                        name: &v[entry::NAME],
+                        canonical_path: &v[entry::CANONICAL_PATH],
+                        size: string(&v[entry::BYTES])
+                            .parse()
+                            .map_err(|_| "invalid backup size")?,
+                        directory: flag::decode(&v[entry::DIRECTORY]),
                     })
                 })
                 .collect::<Result<Vec<_>, &'static str>>()?;

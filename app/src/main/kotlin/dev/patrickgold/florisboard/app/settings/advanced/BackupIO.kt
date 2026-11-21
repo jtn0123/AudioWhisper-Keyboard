@@ -2,7 +2,7 @@ package dev.patrickgold.florisboard.app.settings.advanced
 
 import android.content.ContentUris
 import android.content.Context
-import com.jtn0123.audiowhisper.rust.BackupPolicy
+import com.jtn0123.audiowhisper.rust.*
 import dev.patrickgold.florisboard.app.FlorisPreferenceModel
 import dev.patrickgold.florisboard.app.FlorisPreferenceStore
 import dev.patrickgold.florisboard.clipboardManager
@@ -23,18 +23,18 @@ internal object BackupIO {
 
     suspend fun backup(context: Context, root: File, mask: Int) {
         var clipboardHistory: List<ClipboardItem>? = null
-        for ((group, path) in BackupPolicy.manifest(mask, preferences)) {
+        for ((group, path) in BackupPolicy.manifest(mask, preferences).map { it[BackupManifestRow.GROUP].toInt() to it[BackupManifestRow.PATH] }) {
             val destination = File(root, path)
             when (group) {
-                "0" -> FlorisPreferenceStore.export(FileBasedStorage(destination.path)).getOrThrow()
-                "1", "2" -> File(context.filesDir, path.removePrefix("files/"))
+                BackupLayout.PREFERENCES -> FlorisPreferenceStore.export(FileBasedStorage(destination.path)).getOrThrow()
+                BackupLayout.KEYBOARDS, BackupLayout.THEMES -> File(context.filesDir, path.removePrefix("files/"))
                     .copyRecursively(destination)
                 else -> {
                     destination.parentFile?.mkdirs()
                     val history = clipboardHistory ?: context.clipboardManager().value.currentHistory.all.also {
                         clipboardHistory = it
                     }
-                    val kind = mapOf("3" to "TEXT", "4" to "IMAGE", "5" to "VIDEO").getValue(group)
+                    val kind = mapOf(BackupLayout.CLIPBOARD_TEXT to "TEXT", BackupLayout.CLIPBOARD_IMAGES to "IMAGE", BackupLayout.CLIPBOARD_VIDEO to "VIDEO").getValue(group)
                     val items = BackupPolicy.items(kind, history.map { it.type.name }).map { history[it] }
                     destination.writeJson(items)
                     for (index in BackupPolicy.items("IMAGE", items.map { it.type.name }) +
@@ -53,22 +53,22 @@ internal object BackupIO {
         val present = BackupPolicy.layout(preferences).map { File(root, it).exists() }
         val plan = BackupPolicy.restore(mask, strategy == ImportStrategy.Erase, preferences, present)
         val clipboard = context.clipboardManager().value
-        for ((operation, path) in plan) {
+        for ((operation, path) in plan.map { it[BackupEffectRow.EFFECT] to it[BackupEffectRow.PATH] }) {
             val source = File(root, path)
             when (operation) {
-                "preferences-merge", "preferences-erase" -> FlorisPreferenceStore.import(
-                    if (operation == "preferences-erase") ImportStrategy.Erase else ImportStrategy.Merge,
+                BackupEffect.PREFERENCES_MERGE, BackupEffect.PREFERENCES_ERASE -> FlorisPreferenceStore.import(
+                    if (operation == BackupEffect.PREFERENCES_ERASE) ImportStrategy.Erase else ImportStrategy.Merge,
                     FileBasedStorage(source.path),
                 ).getOrThrow()
-                "clear-directory" -> File(context.filesDir, path.removePrefix("files/")).deleteContentsRecursively()
-                "copy-directory" -> source.copyRecursively(File(context.filesDir, path.removePrefix("files/")), overwrite = true)
-                "clear-clipboard" -> {
+                BackupEffect.CLEAR_DIRECTORY -> File(context.filesDir, path.removePrefix("files/")).deleteContentsRecursively()
+                BackupEffect.COPY_DIRECTORY -> source.copyRecursively(File(context.filesDir, path.removePrefix("files/")), overwrite = true)
+                BackupEffect.CLEAR_CLIPBOARD -> {
                     clipboard.clearFullHistory()
                     ClipboardFileStorage.resetClipboardFileStorage(context)
                 }
-                "text", "image", "video" -> {
+                BackupEffect.RESTORE_TEXT, BackupEffect.RESTORE_IMAGES, BackupEffect.RESTORE_VIDEO -> {
                     val items = source.readJson<List<ClipboardItem>>()
-                    val kind = mapOf("text" to "TEXT", "image" to "IMAGE", "video" to "VIDEO").getValue(operation)
+                    val kind = mapOf(BackupEffect.RESTORE_TEXT to "TEXT", BackupEffect.RESTORE_IMAGES to "IMAGE", BackupEffect.RESTORE_VIDEO to "VIDEO").getValue(operation)
                     val selected = BackupPolicy.items(kind, items.map { it.type.name }).map { items[it] }
                     for (index in BackupPolicy.items("IMAGE", selected.map { it.type.name }) +
                         BackupPolicy.items("VIDEO", selected.map { it.type.name })) {

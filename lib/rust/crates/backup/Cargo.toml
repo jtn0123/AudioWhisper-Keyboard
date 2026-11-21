@@ -10,6 +10,7 @@ rust-version.workspace = true
 [dependencies]
 chars = { path = "../chars" }
 extensions = { path = "../extensions" }
+wire = { path = "../wire" }
 
 [lints]
 workspace = true

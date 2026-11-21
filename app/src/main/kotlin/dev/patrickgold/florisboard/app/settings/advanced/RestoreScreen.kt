@@ -50,7 +50,7 @@ import dev.patrickgold.florisboard.lib.compose.FlorisScreen
 import dev.patrickgold.florisboard.lib.io.ZipUtils
 import dev.patrickgold.jetpref.datastore.runtime.ImportStrategy
 import dev.patrickgold.jetpref.datastore.ui.Preference
-import com.jtn0123.audiowhisper.rust.BackupPolicy
+import com.jtn0123.audiowhisper.rust.*
 import java.io.FileNotFoundException
 import java.text.DateFormat
 import java.util.*
@@ -69,9 +69,9 @@ import org.florisboard.lib.kotlin.io.readJson
 import org.florisboard.lib.kotlin.io.subFile
 
 private fun restoreMessage(key: String): Int? = when (key) {
-    "different_version" -> R.string.backup_and_restore__restore__metadata_warn_different_version
-    "different_vendor" -> R.string.backup_and_restore__restore__metadata_warn_different_vendor
-    "invalid_metadata" -> R.string.backup_and_restore__restore__metadata_error_invalid_metadata
+    BackupMetadataMessage.DIFFERENT_VERSION -> R.string.backup_and_restore__restore__metadata_warn_different_version
+    BackupMetadataMessage.DIFFERENT_VENDOR -> R.string.backup_and_restore__restore__metadata_warn_different_vendor
+    BackupMetadataMessage.INVALID_METADATA -> R.string.backup_and_restore__restore__metadata_error_invalid_metadata
     else -> null
 }
 
@@ -111,8 +111,8 @@ fun RestoreScreen() = FlorisScreen {
                 }
                 val status = BackupPolicy.metadata(workspace.metadata.packageName,
                     workspace.metadata.versionCode, BuildConfig.VERSION_CODE)
-                workspace.restoreWarningId = restoreMessage(status[0])
-                workspace.restoreErrorId = restoreMessage(status[1])
+                workspace.restoreWarningId = restoreMessage(status[BackupMetadataStatus.WARNING])
+                workspace.restoreErrorId = restoreMessage(status[BackupMetadataStatus.ERROR])
                 restoreWorkspace = workspace
             }.onFailure { error ->
                 restoreScope.launch {

@@ -23,13 +23,20 @@ fn incompatible_versions_and_conflict_order_are_explicit() {
 }
 #[test]
 fn malformed_packets_fail_without_panics() {
-    for op in 0..10 {
-        if op != 6 && op != 8 {
-            assert!(call(op, &[]).is_err());
-        }
+    for op in [
+        ops::METADATA,
+        ops::LAYOUT,
+        ops::RESTORE,
+        ops::FILE_NAME,
+        ops::MANIFEST,
+        ops::ITEMS,
+        ops::SELECTION,
+        ops::ARCHIVE,
+    ] {
+        assert!(call(op, &[]).is_err());
     }
-    assert!(call(2, &[text("bad"), text("0"), text("prefs")]).is_err());
-    assert!(call(9, &[text("root"), text("truncated")]).is_err());
+    assert!(call(ops::RESTORE, &[text("bad"), text("0"), text("prefs")]).is_err());
+    assert!(call(ops::ARCHIVE, &[text("root"), text("truncated")]).is_err());
 }
 
 /// What the keyboard learned from typing stays on the phone, as Android's own backup rules keep

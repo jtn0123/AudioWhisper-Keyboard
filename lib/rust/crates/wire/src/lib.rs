@@ -50,6 +50,7 @@
 
 #![forbid(unsafe_code)]
 
+pub mod backup;
 pub mod extensions;
 pub mod flag;
 pub mod input;
