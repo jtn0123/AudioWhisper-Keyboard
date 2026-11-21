@@ -7,6 +7,9 @@ which files are covered: its ledger "Files already covered by settings/Compose-k
 lists every one with its size and scope (`stage4` = settings, `keyboard` = the Compose
 keyboard). This page does not repeat that list. It orders it and names what blocks each step.
 
+This is one part of [moving everything to Rust](all-rust.md): its phase 4 is steps 5–12 here,
+and its phase 1 is step K.
+
 Sizes are non-blank lines of production Kotlin, counted as [rust.md](rust.md) describes,
 on `d5f220b00` unless a step says otherwise.
 
@@ -134,12 +137,15 @@ its phone checks pass.
 * **Deletes:** the rest of `FB/app/settings/theme`: 15 files, 3,684 lines after step 4,
   including `EditPropertyDialog` (1,200) and `ThemeEditorScreen` (473).
 * **Blocked by:** step 4's widgets, and a Snygg rule and property editor in Rust.
+* **Ported and improved, not cut** ([decision](decisions.md#everything-moves-to-rust-2026-11-21)):
+  the port names each improvement it makes.
 
 ### 10. Extensions
 
 * **Deletes:** `FB/app/ext`: 13 files, 2,503 lines after step 4 (import, export, edit, view,
   lists).
 * **Blocked by:** file pickers (step 5) and per-file editors in Rust.
+* **Ported and improved, not cut,** as step 9.
 
 ### 11. Setup
 

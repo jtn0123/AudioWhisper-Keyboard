@@ -845,3 +845,29 @@ the dial's hour and minute names are plurals, so a 24-hour 1 reads "1 hour". Eac
 stage document. **Would change if** someone loses a colour or time to a
 rotation, or the app's strings are translated: either is then a new Rust feature, decided on its
 own, since Compose is frozen and these screens are gone from it.
+
+## Everything moves to Rust (2026-11-21)
+
+The goal is now the whole app in Rust, not a share of it: every decision, piece of state and
+drawing. Kotlin keeps only what Android forces (the IME service, InputConnection, the
+accessibility, clipboard, audio and file entry points), written by hand as thin adapters, plus
+whatever glue Gradle generates. The path is [all-rust.md](all-rust.md), from a council review by
+Claude Fable 5.2 and GPT-6.2 Astra. Three choices in it were the owner's:
+
+* **The theme editor and the extension editor are ported to Rust and improved**, not cut. They
+  are the two largest settings screens left (compose-removal steps 9 and 10), and each port
+  names its improvements, as the Other and Theme port did.
+* **The C++ LatinIME oracle and the frozen `Reference*.kt` copies become fixed test data, then
+  are deleted.** Keeping them means building 14,868 lines of C++ and about 16,300 lines of
+  reference Kotlin forever to check code that is meant to move away from them. The fixed data
+  must catch each mutation the existing mutation scripts make before its source goes.
+* **The phone checks come later.** Phase 0 (an inventory regenerated at HEAD and a ratchet on
+  hand-written Kotlin) and phase 2 (the boundary generated from Rust) need no phone; deleting
+  the Compose keyboard waits for them.
+
+**The boundary is generated in-repo, not with UniFFI**: UniFFI goes through JNA, passes text as
+UTF-8 where this project's rule is UTF-16 with lone surrogates kept, and its output carries the
+suppressions this project does not allow. **Would change if** UniFFI gains a JNI backend with
+UTF-16 strings and clean output, or the generator costs more upkeep than the bindings it
+replaces; or if a phone check fails in a way only the Compose keyboard can serve, in which case
+step K waits and the rest goes on.
