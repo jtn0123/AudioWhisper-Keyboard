@@ -239,9 +239,17 @@ fn a_closeable_class_locks_and_converts() {
             free: "free",
             close: true,
             synchronized: true,
+            lend: true,
             ..HANDLE
         }),
         members: &[
+            Member {
+                name: "open",
+                call: "create",
+                companion: true,
+                result: Out::NullableWrap("ExampleSession"),
+                ..MEMBER
+            },
             Member {
                 name: "add",
                 args: &[
@@ -277,7 +285,10 @@ fn a_closeable_class_locks_and_converts() {
         "            other.handle,\n            previous,\n",
         "        ).also { Reference.reachabilityFence(other) }\n",
         "    @Synchronized\n    override fun close() {\n        handle = 0\n        cleanable.clean()\n",
-        "    companion object {\n        fun case(word: String): Case? = \
+        "    @Synchronized\n    internal fun <T> withHandle(action: (Long) -> T): T = action(handle)\n",
+        "        fun open(capacity: Int): ExampleSession? =\n            \
+         ExampleNative.create(capacity).let { if (it == 0L) null else ExampleSession(it) }\n",
+        "\n        fun case(word: String): Case? = \
          ExampleNative.caseOf(word).let { if (it < 0) null else Case.entries[it] }\n",
     ] {
         assert!(text.contains(expected), "{expected}\nnot in\n{text}");

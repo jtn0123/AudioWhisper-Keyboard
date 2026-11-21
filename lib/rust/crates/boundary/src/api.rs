@@ -77,6 +77,9 @@ pub struct Handle {
     /// Whether every member is `@Synchronized`; otherwise each keeps the object reachable until
     /// its call returns.
     pub synchronized: bool,
+    /// Whether the class lends its handle to hand-written Kotlin in its module, with
+    /// `withHandle`, under the same lock as `close()`.
+    pub lend: bool,
 }
 
 /// A handle class's defaults, for `..HANDLE`.
@@ -86,6 +89,7 @@ pub const HANDLE: Handle = Handle {
     free: "",
     close: false,
     synchronized: false,
+    lend: false,
 };
 
 /// One member, calling one native method.
@@ -195,6 +199,8 @@ pub enum Out {
     NullableEntry(&'static str),
     /// The result passed to the constructor of this type.
     Wrap(&'static str),
+    /// A handle passed to the constructor of this type, or null for 0.
+    NullableWrap(&'static str),
     /// A row read as the record of this name, a field an element; a nullable row reads as null.
     Record(&'static str),
     /// A row read as a list of the record of this name, each in as many elements as it has
@@ -409,7 +415,7 @@ fn result_type(returns: Return, out: Out) -> Option<String> {
             other => panic!("no list of {other:?}"),
         }),
         Out::Entry(ty) | Out::Wrap(ty) => Some(ty.to_owned()),
-        Out::NullableEntry(ty) => Some(format!("{ty}?")),
+        Out::NullableEntry(ty) | Out::NullableWrap(ty) => Some(format!("{ty}?")),
         Out::Record(ty) => Some(records::record_type(ty, false, returns)),
         Out::Records(ty) => Some(records::record_type(ty, true, returns)),
         Out::Pair(first, second) => Some(format!("Pair<{first}, {second}>")),
@@ -494,6 +500,10 @@ fn converted(out: Out, returns: Return, api: &Api, apis: &[Api]) -> (String, Str
             format!(".let {{ if (it < 0) null else {ty}.entries[it] }}"),
         ),
         Out::Wrap(ty) => (format!("{ty}("), ")".to_owned()),
+        Out::NullableWrap(ty) => (
+            String::new(),
+            format!(".let {{ if (it == 0L) null else {ty}(it) }}"),
+        ),
         Out::Record(ty) => (
             String::new(),
             records::record(ty, false, returns, api, apis),

@@ -57,6 +57,18 @@ pub(super) fn handle_class(
             );
         }
     }
+    if handle.lend {
+        assert!(
+            handle.synchronized,
+            "{}: a lent handle needs the lock",
+            api.name
+        );
+        push_block(
+            body,
+            "    /** Lends the handle to [action], with `close()` kept out until it returns. */\n    \
+             @Synchronized\n    internal fun <T> withHandle(action: (Long) -> T): T = action(handle)\n",
+        );
+    }
     if handle.close {
         let lock = if handle.synchronized {
             "    @Synchronized\n"
