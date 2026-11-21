@@ -1,8 +1,8 @@
 //! The Kotlin side of crates/wire's declarations: one file for each declared Kotlin type, in the
 //! Gradle module `declarations::WIRE` places it in. An operation set becomes an `enum class` whose
 //! entries carry their code; packet fields and the boolean spelling become an `object` of
-//! `const val`s; plain codes become a Java class of static constants. The Rust side needs nothing generated: the crates that answer the calls match on
-//! wire's constants themselves.
+//! `const val`s; plain codes become a Java class of static constants. The Rust side needs nothing
+//! generated: the crates that answer the calls match on wire's constants themselves.
 
 use wire::{Constant, Form, Group, Value};
 

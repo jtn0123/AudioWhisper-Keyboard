@@ -992,8 +992,10 @@ the shell's `PATH`.
 
 ## The generated boundary
 
-Part of the JNI boundary is generated instead of written by hand. So far that is `ShiftNative`;
-the other bindings are still hand-written ([all-rust.md](all-rust.md), phase 2).
+Part of the JNI boundary is generated instead of written by hand. So far that is `ShiftNative`,
+and every operation code and packet field the `call`-style entry points pass
+([below](#operation-codes-and-packets-crateswire)). The other bindings are still hand-written
+([all-rust.md](all-rust.md), phase 2).
 
 `crates/boundary` holds typed declarations, one file for each Kotlin object in
 `src/declarations`: each method's name and doc, its parameters' names and types, and its return
@@ -1047,6 +1049,110 @@ To add a method to a generated object:
 To generate an object that is written by hand today, add `src/declarations/<module>.rs` with its
 `Class`, list it in `CLASSES` (`src/declarations.rs`), turn its entry points into plain functions,
 and delete the hand-written Kotlin object.
+
+## Operation codes and packets: `crates/wire`
+
+Many entry points take an operation and a packet of strings, such as `NlpNative.call(handle, op,
+fields)`. Their operation codes, their packets' field positions and the names they pass are
+declared once, in `crates/wire`. Rust matches on the declarations. Kotlin is generated from them.
+Nothing is copied by hand, and no regex reads Rust source.
+
+One module for each entry point:
+
+| Module | Entry point | Kotlin |
+|---|---|---|
+| `flag` | every packet's booleans | `WireFlag` |
+| `render`, `input` | the renderer's and the input dispatcher's codes | `RenderProtocol`, `InputProtocol` |
+| `extensions` | `ExtensionPolicyNative.call` | `ExtensionOp` and its packets |
+| `settings` | `SettingsNative.call` | `SettingsOp` and its packets |
+| `utilities` | `UtilityNative.call`, in lib/kotlin | `UtilityOp` and its packets |
+| `backup` | `BackupNative.call` | `BackupOp` and its packets |
+| `editor` | `EditorNative.call` and `.attributes` | `EditorOp`, `EditorAttributeOp` and their packets |
+| `nlp` | `NlpNative.call` | `NlpOp` and its packets |
+| `dictation` | `DictationSessionNative.call` and `.model` | `DictationEvent`, `DictationModelOp` and the plan |
+| `playback` | `PlaybackNative.call` and `.system` | `PlaybackOp`, `PlaybackSpeechOp` and their rows |
+| `settings_ui` | `RenderNative.settings` | `SettingsUiOp`, `SettingsUiEdit` and the reply |
+
+### The forms
+
+`wire::declare!` declares one group at a time. Each constant is a plain Rust `const`, and the
+group is a `wire::Group` the generator reads.
+
+- `enum NlpOp(str) { CONTEXT = "context", … }`: operations Kotlin sends. Kotlin gets an
+  `enum class NlpOp(val code: String)`. Each typed wrapper takes the enum and passes `code`, so a
+  call can't be given a bare number, a misspelt name or another family's operation.
+- `object DictationEffect(str) { CHECK = "check", … }`: codes Kotlin reads or writes as plain
+  values. Kotlin gets a Java class of `static final` constants, because Kotlin can import a Java
+  class's members with `*` and not an `object`'s. A `when` can use them as branches. Groups of
+  one name gather into one class, as `RenderProtocol` does.
+- `fields NlpSnapshot { GENERATION, EXPANDED, … }`: a packet's field positions, from 0 in order.
+  Rust gets `usize` constants and `SIZE`. Kotlin gets an `object` of `const val`s, `SIZE`, and
+  `row(FIELD to value, …)`, which fails if a field is given twice or missing.
+- `flag WireFlag { TRUE = "1", FALSE = "0" }`: how a boolean crosses.
+
+A group whose names clash with another's goes in its own submodule, since every constant lands in
+the module that declares it.
+
+### Booleans
+
+A boolean crosses as `"1"` or `"0"`. Rust has `wire::flag::encode`, `utf16` and `decode`; Kotlin
+has `WireFlag.encode` and `WireFlag.decode`. Only `"1"` decodes as true.
+
+### Why a leaf crate
+
+The domain crates (`nlp`, `editor`, `dictation`, …) need the constants to match on, and they
+build for Android. The generator needs them too, on the host. `wire` has no dependencies, so
+both can depend on it and neither depends on the other:
+
+- The domain crates don't become dependencies of the generator. `cargo run -p boundary` stays
+  small and doesn't rebuild `render` or `nlp` whenever Gradle writes the Kotlin again.
+- The generator's code doesn't reach the domain crates or the phone's library.
+- awnative's build script doesn't change. The Rust side needs no generated code: the constants
+  are ordinary `const`s, compiled where they are used. Only the Kotlin is generated, by the same
+  `:lib:rust:generateNativeBoundary` task that writes `ShiftNative`.
+
+Declaring them in each domain crate would make the generator depend on all of them. Declaring
+them in `boundary` would make the domain crates depend on the generator.
+
+### What fails, and when
+
+- Two constants of one group with one value: `declare!` runs `wire::check` in a `const`, so the
+  build fails ("two constants of one group share a value"). So does a name Kotlin would have to
+  escape.
+- Two of one name: Rust's own duplicate-definition error. Names gathered into one Kotlin class
+  from several groups are checked by `cargo test -p boundary`.
+- A renamed constant: whichever side still uses the old name doesn't compile.
+- A renumbered constant: both sides follow, since neither spells the value.
+
+`scripts/wire-mutation.py` makes each of these changes, requires the build to fail (or, for the
+renumbering, to pass with the new values in the generated Kotlin), and restores the source. Its
+last run:
+
+| Case | Change | Command | Mutant exit | Restored exit |
+|---|---|---|---|---|
+| duplicate-code | playback `BEGINS = 1` → `0` | `cargo check -p wire` | 101 | 0 |
+| duplicate-name | playback `ENDS` → `BEGINS` | `cargo check -p wire` | 101 | 0 |
+| renamed-kotlin-behind | `PRESS` → `TAP` in wire and dictation | `:app:compileDebugKotlin` | 1 | 0 |
+| renamed-rust-behind | `PRESS` → `TAP` in wire only | `cargo check -p dictation` | 101 | 0 |
+| renumbered-followed | `HEARD = 30`, `PRESS = "tap"` | reader and dictation JVM tests | 0 | 0 |
+
+The failing cases fail for the stated reason: the log must hold the error quoted above, or
+"Unresolved reference 'PRESS'" in `DictationSession.kt`. Run it as
+`python3 -I scripts/wire-mutation.py <empty output dir> [case…]`.
+
+### Adding an operation or a packet field
+
+1. Add the constant to its group in `crates/wire/src/<family>.rs`, with a doc comment. A field
+   goes where it falls in the packet; the fields after it move, and both sides follow.
+2. Handle it in the Rust that answers the call: a `match` arm on the constant, or
+   `row[FIELD] = …` in a row made as `vec![vec![]; SIZE]`.
+3. Build. Gradle writes the Kotlin again. Call `session.call(NlpOp.NEW, …)`, build a packet with
+   `with(NlpThing) { row(FIELD to value) }`, and read one with `result[NlpThing.FIELD]`.
+
+For a new entry point, add `crates/wire/src/<family>.rs` with its `GROUPS`, a `pub mod` in
+`wire`'s `lib.rs`, an entry in `WIRE` (`crates/boundary/src/declarations.rs`) naming the Gradle
+module that calls it, and `wire` as a dependency of the crate that answers it. lib/kotlin can't
+see lib/rust, so groups it calls with are generated there, with its own internal `WireFlag`.
 
 ## Checks
 
