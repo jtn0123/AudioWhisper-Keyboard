@@ -422,8 +422,6 @@ lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/Reader.kt	A	78	ART JNI (S
 lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/ReaderNative.kt	A	35	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
 lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/ReaderRuntime.kt	A	44	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
 lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/RustLibrary.kt	A	9	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
-lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/ScreenNative.kt	A	14	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
-lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/ScreenWalk.kt	A	19	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
 lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/SettingsRules.kt	A	48	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
 lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/SherpaAsr.kt	A	55	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
 lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/SherpaTts.kt	A	36	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |

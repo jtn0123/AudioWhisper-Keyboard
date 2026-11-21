@@ -5,6 +5,7 @@ mod clipboard;
 mod layout;
 mod packets;
 mod rules;
+mod screen;
 mod shift;
 
 use crate::{Api, Class, Module, Type, Wire};
@@ -29,10 +30,11 @@ pub const CLASSES: &[Class] = &[
     layout::LAYOUT_RULES,
     layout::PANEL_RULES,
     clipboard::CLIPBOARD_RULES,
+    screen::SCREEN_NATIVE,
 ];
 
 /// Every generated api over those classes.
-pub const APIS: &[Api] = &[shift::SHIFT_RULES];
+pub const APIS: &[Api] = &[shift::SHIFT_RULES, screen::SCREEN_WALK_RULES];
 
 /// Every generated top-level record and enum, with the declarations file and the module it is in.
 pub const TYPES: &[(&str, Module, Type)] = &[];
