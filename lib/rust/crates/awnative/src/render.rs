@@ -219,6 +219,14 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_update(
     }
 }
 
+/// `texts` as Rust strings, invalid UTF-16 shown as replacement glyphs, as `strings` reads them.
+pub(crate) fn texts(texts: &[Vec<u16>]) -> Vec<String> {
+    texts
+        .iter()
+        .map(|text| String::from_utf16_lossy(text))
+        .collect()
+}
+
 pub(crate) fn strings(env: &jni::Env, array: jobjectArray) -> Result<Vec<String>> {
     env.read_strings(array, "strings")?
         .into_iter()

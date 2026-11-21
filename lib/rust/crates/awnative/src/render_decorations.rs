@@ -1,7 +1,7 @@
 //! Resource/preview transport; never logs text or retains Java references.
 use crate::{
     handle,
-    jni::illegal,
+    jni::{Result, illegal},
     render::{Session, strings},
 };
 use jni_sys::{JNIEnv, jfloat, jintArray, jlong, jobject, jobjectArray};
@@ -54,23 +54,12 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_decoratio
         })
     }
 }
-#[unsafe(no_mangle)]
-pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_ImeChromeRules_watermark(
-    env: *mut JNIEnv,
-    _: jobject,
-    flags: jintArray,
-) -> jni_sys::jboolean {
-    // SAFETY: JVM local input is copied and the result is a primitive boolean.
-    unsafe {
-        crate::jni::run(env, 0, |env| {
-            let flags = env.read::<i32>(flags, "watermark flags")?;
-            if flags.len() != 2 {
-                return Err(illegal("watermark flags"));
-            }
-            Ok(u8::from(render::ime_decorations::show_watermark(
-                flags[0] != 0,
-                flags[1] != 0,
-            )))
-        })
+pub fn watermark(flags: &[i32]) -> Result<bool> {
+    if flags.len() != 2 {
+        return Err(illegal("watermark flags"));
     }
+    Ok(render::ime_decorations::show_watermark(
+        flags[0] != 0,
+        flags[1] != 0,
+    ))
 }

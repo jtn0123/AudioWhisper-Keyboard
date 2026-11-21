@@ -51,8 +51,11 @@ pub struct Class {
     /// Its KDoc.
     pub doc: &'static str,
     /// The awnative module with a hand-written function for each method, named as the method is
-    /// in snake case. The class is declared in `src/declarations/<module>.rs`.
+    /// in snake case.
     pub module: &'static str,
+    /// The file the class is declared in, `src/declarations/<file>.rs`, when not the module's
+    /// name.
+    pub file: &'static str,
     /// The Gradle module the object is generated in, whose package its JNI symbols name.
     pub kotlin: Module,
     /// Whether the object is public, for one whose methods are themselves the Kotlin API, rather
@@ -66,10 +69,22 @@ pub const CLASS: Class = Class {
     name: "",
     doc: "",
     module: "",
+    file: "",
     kotlin: Module::Rust,
     public: false,
     methods: &[],
 };
+
+impl Class {
+    /// The declarations file's name.
+    pub fn file(&self) -> &'static str {
+        if self.file.is_empty() {
+            self.module
+        } else {
+            self.file
+        }
+    }
+}
 
 /// One `external fun`, and the Rust entry point behind it.
 #[derive(Debug)]
@@ -88,7 +103,8 @@ pub struct Method {
     /// Whether the `external fun` is `private`, for a hand-written member of the object to call.
     pub private: bool,
     /// The function's path under the module, when it is not the method's name in snake case; or,
-    /// starting `::`, a function of another crate, called directly.
+    /// starting `crate::`, one in another of awnative's modules, or `::`, a function of another
+    /// crate, called directly.
     pub rust: &'static str,
     /// Whether the hand-written function takes the call's `&Env` first. A parameter or result
     /// it handles as a JNI reference implies it.
@@ -154,7 +170,7 @@ fn rust_param(name: &str) -> String {
 }
 
 /// The function `method` of `class` calls: its declared path, or its name in snake case, raw if
-/// that is a keyword, under the class's module; or a declared path of another crate.
+/// that is a keyword, under the class's module; or a declared path from `crate::` or `::`.
 fn callee(class: &Class, method: &Method) -> String {
     let name = if method.rust.is_empty() {
         let snake = snake_case(method.name);
@@ -163,7 +179,7 @@ fn callee(class: &Class, method: &Method) -> String {
         } else {
             snake
         }
-    } else if method.rust.starts_with("::") {
+    } else if method.rust.starts_with("::") || method.rust.starts_with("crate::") {
         return method.rust.to_owned();
     } else {
         method.rust.to_owned()

@@ -1,12 +1,21 @@
 //! The declared classes, one file each, named after the awnative module that answers them, and
 //! the Gradle module each of crates/wire's groups is generated in.
 
+mod rules;
 mod shift;
 
 use crate::{Api, Class, Module, Type, Wire};
 
 /// Every generated class, in the order their entry points are written.
-pub const CLASSES: &[Class] = &[shift::SHIFT_NATIVE];
+pub const CLASSES: &[Class] = &[
+    shift::SHIFT_NATIVE,
+    rules::IME_WINDOW_RULES,
+    rules::GLIDE_TRAIL_RULES,
+    rules::RENDER_CONTENT_RULES,
+    rules::SUBTYPE_RULES,
+    rules::MEDIA_RULES,
+    rules::IME_CHROME_RULES,
+];
 
 /// Every generated api over those classes.
 pub const APIS: &[Api] = &[shift::SHIFT_RULES];

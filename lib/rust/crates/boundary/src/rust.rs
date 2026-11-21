@@ -27,10 +27,11 @@ pub fn rust_file(classes: &[Class]) -> String {
     text.push('\n');
     text.push_str(&args_module(classes));
     for class in classes {
-        let module = class.module;
         let about = format!(
-            "{}, declared in src/declarations/{module}.rs, calls crate::{module}.",
-            class.name
+            "{}, declared in src/declarations/{}.rs, calls crate::{}.",
+            class.name,
+            class.file(),
+            class.module
         );
         text.push('\n');
         text.push_str(&rust_comment(&about, ""));

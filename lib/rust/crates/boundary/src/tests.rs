@@ -199,6 +199,7 @@ const STRESS: &[Class] = &[
                 ..METHOD
             },
         ],
+        ..CLASS
     },
 ];
 
@@ -314,9 +315,9 @@ fn declared_names_are_plain_and_distinct() {
             class.name
         );
         assert!(
-            declarations.join(format!("{}.rs", class.module)).is_file(),
+            declarations.join(format!("{}.rs", class.file())).is_file(),
             "{}",
-            class.module
+            class.file()
         );
         assert!(!class.doc.trim().is_empty() && !class.methods.is_empty());
         // One method of a name: overloaded JNI symbols are not supported.

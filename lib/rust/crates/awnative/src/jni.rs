@@ -260,6 +260,15 @@ impl Env {
         Ok(strings)
     }
 
+    /// The strings in a `String[]` that holds no nulls; a null array or element throws
+    /// `NullPointerException` naming `name`.
+    pub fn read_texts(&self, array: jobjectArray, name: &'static str) -> Result<Vec<Vec<u16>>> {
+        self.read_strings(array, name)?
+            .into_iter()
+            .map(|text| text.ok_or(Error::NullPointer(name)))
+            .collect()
+    }
+
     /// The arrays in an array of arrays such as `int[][]`, `None` for each null; `name` says which
     /// argument was null, if the outer array was.
     #[cfg(not(target_os = "android"))]

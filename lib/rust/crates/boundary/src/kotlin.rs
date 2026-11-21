@@ -65,7 +65,7 @@ fn kotlin_file(class: &Class) -> String {
         .collect();
     imports.sort();
     imports.dedup();
-    let source = format!("src/declarations/{}.rs", class.module);
+    let source = format!("src/declarations/{}.rs", class.file());
     let mut text = kotlin_header(&source, class.kotlin, &imports);
     text.push_str(&kdoc(class.doc, ""));
     let visibility = if class.public { "" } else { "internal " };
