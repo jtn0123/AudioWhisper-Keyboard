@@ -99,8 +99,16 @@ internal class SettingsOtherThemeDevice(private val h: SettingsHarness, private 
         h.back()
         h.settle()
         onRust("Settings theme")
-        compose("other", "Back up data", "Settings theme")
-        compose("other", "Restore data", "Settings theme")
+        // Back up and Restore are Rust screens since compose-removal step 5.
+        for ((row, shown) in listOf("Back up data" to "Local file system", "Restore data" to "Select file")) {
+            stage("other:$row")
+            h.click(row)
+            h.settle()
+            onRust(shown)
+            h.back()
+            h.settle()
+            onRust("Settings theme")
+        }
         result.put("other", true)
     }
 
