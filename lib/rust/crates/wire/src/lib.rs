@@ -51,6 +51,7 @@
 #![forbid(unsafe_code)]
 
 pub mod backup;
+pub mod dictation;
 pub mod editor;
 pub mod extensions;
 pub mod flag;

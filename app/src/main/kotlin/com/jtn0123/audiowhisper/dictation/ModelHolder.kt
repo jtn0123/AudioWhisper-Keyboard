@@ -1,6 +1,6 @@
 package com.jtn0123.audiowhisper.dictation
 
-import com.jtn0123.audiowhisper.rust.DictationSessionPlan
+import com.jtn0123.audiowhisper.rust.*
 
 class ModelLoadException(cause: Throwable) : Exception("The speech model could not be loaded", cause)
 
@@ -9,20 +9,20 @@ class ModelHolder<T : AutoCloseable>(private val policy: DictationSessionPlan, p
     constructor(load: () -> T) : this(DictationSessionPlan(), load)
     private var model: T? = null
     private var failure: ModelLoadException? = null
-    fun get(): T = when (policy.model("get")) {
-        1 -> checkNotNull(model)
-        2 -> throw checkNotNull(failure)
-        0 -> try {
-            load().also { model = it; policy.model("loaded") }
+    fun get(): T = when (policy.model(DictationModelOp.GET)) {
+        DictationModelState.LOADED -> checkNotNull(model)
+        DictationModelState.FAILED -> throw checkNotNull(failure)
+        DictationModelState.NONE -> try {
+            load().also { model = it; policy.model(DictationModelOp.LOADED) }
         } catch (error: Throwable) {
-            throw ModelLoadException(error).also { failure = it; policy.model("failed") }
+            throw ModelLoadException(error).also { failure = it; policy.model(DictationModelOp.FAILED) }
         }
         else -> error("Unknown native model disposition")
     }
-    val isLoaded: Boolean get() = policy.model("isLoaded") == 1
-    fun retry() { policy.model("retry"); failure = null }
+    val isLoaded: Boolean get() = policy.model(DictationModelOp.IS_LOADED) == 1
+    fun retry() { policy.model(DictationModelOp.RETRY); failure = null }
     fun close(): Boolean {
-        if (policy.model("close") == 0) return false
+        if (policy.model(DictationModelOp.CLOSE) == 0) return false
         val loaded = checkNotNull(model); model = null; loaded.close(); return true
     }
 }

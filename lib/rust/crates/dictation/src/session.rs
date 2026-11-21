@@ -1,5 +1,9 @@
 //! Session decisions. Android executes the ordered effects after the native lock is released.
 use crate::mic_key::{Action, MicKey, Status};
+use wire::dictation::{
+    self as events, effect, model, model_state, phase, plan, problem, ready, status,
+};
+use wire::flag;
 
 pub const KEEP_LOADED_MS: i64 = 300_000;
 pub const KEEP_HIDDEN_MS: i64 = 60_000;
@@ -7,14 +11,17 @@ pub const KEEP_HIDDEN_MS: i64 = 60_000;
 #[derive(Debug, Default)]
 pub struct Session {
     pub generation: i32,
+    /// A `DictationStatus`.
     status: i32,
+    /// A `DictationPhase`.
     pub phase: &'static str,
     warming: bool,
     level: String,
     preview: Vec<u16>,
     released: bool,
     previewing: bool,
-    model: u8,
+    /// A `DictationModelState`.
+    model: i32,
     shown: bool,
     idle_since: i64,
     typed: bool,
@@ -36,9 +43,9 @@ pub fn ending(typed: bool, failures: i32) -> &'static str {
     if typed {
         ""
     } else if failures > 0 {
-        "failed"
+        problem::FAILED
     } else {
-        "not_caught"
+        problem::NOT_CAUGHT
     }
 }
 fn text(s: impl ToString) -> Vec<u16> {
@@ -49,34 +56,35 @@ impl Session {
     pub fn speech(&mut self, id: i32, detected: bool) {
         if self.listening(id) {
             self.phase = if detected {
-                "speech"
+                phase::SPEECH
             } else {
-                "trailing_silence"
+                phase::TRAILING_SILENCE
             };
         }
     }
+    /// Answers a `DictationModelOp`.
     pub fn model(&mut self, operation: &str) -> Result<i32, String> {
         match operation {
-            "get" => Ok(i32::from(self.model)),
-            "loaded" => {
-                self.model = 1;
+            model::GET => Ok(self.model),
+            model::LOADED => {
+                self.model = model_state::LOADED;
                 Ok(0)
             }
-            "failed" => {
-                self.model = 2;
+            model::FAILED => {
+                self.model = model_state::FAILED;
                 Ok(0)
             }
-            "retry" => {
-                if self.model == 2 {
-                    self.model = 0;
+            model::RETRY => {
+                if self.model == model_state::FAILED {
+                    self.model = model_state::NONE;
                 }
                 Ok(0)
             }
-            "isLoaded" => Ok(i32::from(self.model == 1)),
-            "close" => {
-                let loaded = self.model == 1;
+            model::IS_LOADED => Ok(i32::from(self.model == model_state::LOADED)),
+            model::CLOSE => {
+                let loaded = self.model == model_state::LOADED;
                 if loaded {
-                    self.model = 0;
+                    self.model = model_state::NONE;
                 }
                 Ok(i32::from(loaded))
             }
@@ -97,25 +105,25 @@ impl Session {
     pub fn new() -> Self {
         Self {
             shown: true,
-            phase: "idle",
+            phase: phase::IDLE,
             level: "0.0".into(),
             ..Self::default()
         }
     }
     fn current(&self, id: i32) -> bool {
-        id == self.generation && self.status != 0
+        id == self.generation && self.status != status::IDLE
     }
     fn listening(&self, id: i32) -> bool {
-        id == self.generation && self.status == 1
+        id == self.generation && self.status == status::LISTENING
     }
     fn schedule(&self, now: i64, effects: &mut Vec<Vec<u16>>) {
         effects.extend([
-            text("schedule"),
+            text(effect::SCHEDULE),
             text(release_at(self.idle_since, now, self.shown)),
         ]);
     }
     fn idle(&mut self, now: i64, effects: &mut Vec<Vec<u16>>) {
-        self.status = 0;
+        self.status = status::IDLE;
         self.level = "0.0".into();
         self.warming = false;
         self.preview.clear();
@@ -123,28 +131,28 @@ impl Session {
         self.schedule(now, effects);
     }
     fn abandon(&mut self, now: i64, effects: &mut Vec<Vec<u16>>) {
-        if self.status == 0 {
+        if self.status == status::IDLE {
             return;
         }
         self.generation = self.generation.wrapping_add(1);
-        effects.push(text("discard"));
-        self.phase = "cancelled";
+        effects.push(text(effect::DISCARD));
+        self.phase = phase::CANCELLED;
         self.idle(now, effects);
     }
     fn finish(&mut self, effects: &mut Vec<Vec<u16>>) {
-        effects.push(text("flush"));
-        self.status = 2;
+        effects.push(text(effect::FLUSH));
+        self.status = status::FINISHING;
         self.level = "0.0".into();
-        self.phase = "flushing";
-        effects.extend([text("barrier"), text(self.generation)]);
+        self.phase = phase::FLUSHING;
+        effects.extend([text(effect::BARRIER), text(self.generation)]);
     }
     fn start(effects: &mut Vec<Vec<u16>>) {
-        effects.push(text("check"));
+        effects.push(text(effect::CHECK));
     }
     fn toggle(&mut self, effects: &mut Vec<Vec<u16>>) {
         match self.status {
-            0 => Self::start(effects),
-            1 => self.finish(effects),
+            status::IDLE => Self::start(effects),
+            status::LISTENING => self.finish(effects),
             _ => {}
         }
     }
@@ -168,159 +176,176 @@ impl Session {
         let mut effects = Vec::new();
         if !self.released {
             match op {
-                "press" => {
+                events::PRESS => {
                     let status = match self.status {
-                        0 => Status::Idle,
-                        1 => Status::Listening,
+                        status::IDLE => Status::Idle,
+                        status::LISTENING => Status::Listening,
                         _ => Status::Finishing,
                     };
                     if self.mic.press(status, now) == Action::Start {
                         Self::start(&mut effects);
                     }
                 }
-                "releaseMic" => match self.mic.release(now) {
-                    Action::Finish if self.status == 1 => self.finish(&mut effects),
-                    Action::EndHold if self.status == 1 => {
-                        effects.push(text("tick"));
+                events::RELEASE_MIC => match self.mic.release(now) {
+                    Action::Finish if self.status == status::LISTENING => self.finish(&mut effects),
+                    Action::EndHold if self.status == status::LISTENING => {
+                        effects.push(text(effect::TICK));
                         self.finish(&mut effects);
                     }
                     Action::Toggle => self.toggle(&mut effects),
                     _ => {}
                 },
-                "ready" => {
-                    let problem = if s(0)? != "true" {
-                        "field_off"
-                    } else if s(1)? != "true" {
-                        "allow_mic"
-                    } else {
-                        match s(2)?.as_str() {
-                            "ready" => "",
-                            "missing" => "not_installed",
-                            _ => "damaged",
-                        }
-                    };
-                    if problem.is_empty() {
-                        self.generation = self.generation.wrapping_add(1);
-                        effects.extend([text("listen"), text(self.generation)]);
-                    } else {
-                        self.phase = "error";
-                        effects.extend([text("problem"), text(problem)]);
-                        if problem == "allow_mic" {
-                            effects.push(text("appSettings"));
-                        }
-                        if problem == "not_installed" || problem == "damaged" {
-                            effects.push(text("modelSettings"));
-                        }
-                    }
-                }
-                "opened" => {
+                events::READY => self.ready(&mut effects, fields)?,
+                events::OPENED => {
                     self.typed = false;
                     self.failures = 0;
                     self.composition.reset();
                     self.explained = false;
-                    self.status = 1;
-                    self.phase = "listening";
-                    effects.extend([text("preload"), text(self.generation)]);
+                    self.status = status::LISTENING;
+                    self.phase = phase::LISTENING;
+                    effects.extend([text(effect::PRELOAD), text(self.generation)]);
                 }
-                "openError" => {
-                    self.phase = "error";
-                    effects.extend([text("problem"), text("mic_busy")]);
+                events::OPEN_ERROR => {
+                    self.phase = phase::ERROR;
+                    effects.extend([text(effect::PROBLEM), text(problem::MIC_BUSY)]);
                 }
-                "stop" if self.status == 1 => {
+                events::STOP if self.status == status::LISTENING => {
                     self.explained = true;
                     self.finish(&mut effects);
                 }
-                "cancel" => self.abandon(now, &mut effects),
-                "visible" => {
-                    self.shown = s(0)? == "true";
-                    if self.status == 0 && self.idle_since != 0 {
+                events::CANCEL => self.abandon(now, &mut effects),
+                events::VISIBLE => {
+                    self.shown = flag::decode(fields.first().ok_or("missing visibility")?);
+                    if self.status == status::IDLE && self.idle_since != 0 {
                         self.schedule(now, &mut effects);
                     }
                 }
-                "release" => {
+                events::RELEASE => {
                     self.abandon(now, &mut effects);
                     self.released = true;
-                    effects.extend([text("removeUnload"), text("closeWorker")]);
+                    effects.extend([text(effect::REMOVE_UNLOAD), text(effect::CLOSE_WORKER)]);
                 }
-                "free" if self.status == 0 => {
-                    effects.extend([text("removeUnload"), text("unload")])
+                events::FREE if self.status == status::IDLE => {
+                    effects.extend([text(effect::REMOVE_UNLOAD), text(effect::UNLOAD)])
                 }
-                "unload" => effects.push(text("unload")),
-                "warming" if self.current(id) => {
+                events::UNLOAD => effects.push(text(effect::UNLOAD)),
+                events::WARMING if self.current(id) => {
                     self.warming = true;
-                    self.phase = "warming";
+                    self.phase = phase::WARMING;
                 }
-                "warmed" => {
+                events::WARMED => {
                     self.warming = false;
-                    if self.phase == "warming" {
-                        self.phase = "listening";
+                    if self.phase == phase::WARMING {
+                        self.phase = phase::LISTENING;
                     }
                 }
-                "modelError" if self.current(id) => {
-                    effects.extend([text("problem"), text("model_failed")]);
+                events::MODEL_ERROR if self.current(id) => {
+                    effects.extend([text(effect::PROBLEM), text(problem::MODEL_FAILED)]);
                     self.abandon(now, &mut effects);
-                    self.phase = "error";
+                    self.phase = phase::ERROR;
                 }
-                "micError" if self.listening(id) => {
-                    effects.extend([text("problem"), text("mic_stopped")]);
+                events::MIC_ERROR if self.listening(id) => {
+                    effects.extend([text(effect::PROBLEM), text(problem::MIC_STOPPED)]);
                     self.explained = true;
                     self.finish(&mut effects);
                 }
-                "level" if self.listening(id) => self.level = s(0)?,
-                "preview" if self.listening(id) => {
+                events::LEVEL if self.listening(id) => self.level = s(0)?,
+                events::PREVIEW if self.listening(id) => {
                     self.preview = chars::trim(fields.first().ok_or("missing preview")?).to_vec()
                 }
-                "vadOn" if self.listening(id) => self.phase = "speech",
-                "vadOff" if self.listening(id) => self.phase = "trailing_silence",
-                "finalizing" if self.current(id) => self.phase = "finalizing",
-                "final" if id == self.generation => {
+                events::VAD_ON if self.listening(id) => self.phase = phase::SPEECH,
+                events::VAD_OFF if self.listening(id) => self.phase = phase::TRAILING_SILENCE,
+                events::FINALIZING if self.current(id) => self.phase = phase::FINALIZING,
+                events::FINAL if id == self.generation => {
                     self.preview.clear();
-                    if s(0)? == "true" {
+                    if flag::decode(fields.first().ok_or("missing dictation field")?) {
                         let raw = fields.get(1).ok_or("missing result")?;
                         if !chars::trim(raw).is_empty() {
                             self.typed = true;
-                            effects.extend([text("tidy"), raw.clone()]);
+                            effects.extend([text(effect::TIDY), raw.clone()]);
                         }
                     } else {
                         self.failures += 1;
                     }
                 }
-                "finished" if id == self.generation => {
+                events::FINISHED if id == self.generation => {
                     if !self.explained {
                         let msg = ending(self.typed, self.failures);
                         if !msg.is_empty() {
-                            effects.extend([text("problem"), text(msg)]);
+                            effects.extend([text(effect::PROBLEM), text(msg)]);
                         }
                     }
-                    self.phase = "committed";
+                    self.phase = phase::COMMITTED;
                     self.idle(now, &mut effects);
                 }
-                "tidied" => effects.extend(
+                events::TIDIED => effects.extend(
                     self.composition
                         .prepare(fields.first().ok_or("missing tidied phrase")?),
                 ),
-                "compose" => {
+                events::COMPOSE => {
                     let before = fields.first().ok_or("missing editor context")?.clone();
                     if fields.len() > 1 {
                         self.composition.set_names(&fields[1..]);
                     }
                     effects.extend(self.composition.plan(before));
                 }
-                "snapshot" | "stop" | "free" | "warming" | "modelError" | "micError" | "level"
-                | "preview" | "vadOn" | "vadOff" | "finalizing" | "final" | "finished" => {}
+                events::SNAPSHOT
+                | events::STOP
+                | events::FREE
+                | events::WARMING
+                | events::MODEL_ERROR
+                | events::MIC_ERROR
+                | events::LEVEL
+                | events::PREVIEW
+                | events::VAD_ON
+                | events::VAD_OFF
+                | events::FINALIZING
+                | events::FINAL
+                | events::FINISHED => {}
                 _ => return Err("unknown dictation event".into()),
             }
         }
-        let mut plan = vec![
-            text(self.status),
-            text(self.warming),
-            text(&self.level),
-            self.preview.clone(),
-            text(self.generation),
-            text(self.phase),
-        ];
-        plan.extend(effects);
-        Ok(plan)
+        let mut row = vec![vec![]; plan::SIZE];
+        row[plan::STATUS] = text(self.status);
+        row[plan::WARMING] = flag::utf16(self.warming);
+        row[plan::LEVEL] = text(&self.level);
+        row[plan::PREVIEW] = self.preview.clone();
+        row[plan::GENERATION] = text(self.generation);
+        row[plan::PHASE] = text(self.phase);
+        row.extend(effects);
+        Ok(row)
+    }
+
+    /// A `READY` row: listen, or explain why not.
+    fn ready(&mut self, effects: &mut Vec<Vec<u16>>, fields: &[Vec<u16>]) -> Result<(), String> {
+        if fields.len() < ready::SIZE {
+            return Err("missing dictation field".to_owned());
+        }
+        let problem = if !flag::decode(&fields[ready::ALLOWED]) {
+            problem::FIELD_OFF
+        } else if !flag::decode(&fields[ready::PERMISSION]) {
+            problem::ALLOW_MIC
+        } else {
+            match String::from_utf16_lossy(&fields[ready::MODEL]).as_str() {
+                ready::READY => "",
+                ready::MISSING => problem::NOT_INSTALLED,
+                _ => problem::DAMAGED,
+            }
+        };
+        if problem.is_empty() {
+            self.generation = self.generation.wrapping_add(1);
+            effects.extend([text(effect::LISTEN), text(self.generation)]);
+        } else {
+            self.phase = phase::ERROR;
+            effects.extend([text(effect::PROBLEM), text(problem)]);
+            if problem == problem::ALLOW_MIC {
+                effects.push(text(effect::APP_SETTINGS));
+            }
+            if problem == problem::NOT_INSTALLED || problem == problem::DAMAGED {
+                effects.push(text(effect::MODEL_SETTINGS));
+            }
+        }
+        Ok(())
     }
 }
 

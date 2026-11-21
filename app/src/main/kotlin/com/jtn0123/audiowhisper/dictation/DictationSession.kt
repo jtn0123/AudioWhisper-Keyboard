@@ -1,7 +1,7 @@
 package com.jtn0123.audiowhisper.dictation
 
 import androidx.annotation.StringRes
-import com.jtn0123.audiowhisper.rust.DictationSessionPlan
+import com.jtn0123.audiowhisper.rust.*
 import dev.patrickgold.florisboard.R
 import java.util.concurrent.atomic.AtomicReference
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -89,107 +89,107 @@ internal class DictationSession(
     private var listener: Listening? = null
     private val activeModel = AtomicReference<SpeechModel?>()
     @Volatile private var released = false
-    private val unload = Runnable { event("unload") }
+    private val unload = Runnable { event(DictationEvent.UNLOAD) }
 
-    fun pressMic() = event("press")
-    fun releaseMic() = event("releaseMic")
-    fun stopListening() = event("stop")
-    fun abandon() = event("cancel")
-    fun keyboardVisible(visible: Boolean) = event("visible", fields = arrayOf(visible.toString()))
-    fun release() { event("release"); released = true }
-    fun freeIfIdle() { post { event("free") } }
+    fun pressMic() = event(DictationEvent.PRESS)
+    fun releaseMic() = event(DictationEvent.RELEASE_MIC)
+    fun stopListening() = event(DictationEvent.STOP)
+    fun abandon() = event(DictationEvent.CANCEL)
+    fun keyboardVisible(visible: Boolean) = event(DictationEvent.VISIBLE, fields = arrayOf(WireFlag.encode(visible)))
+    fun release() { event(DictationEvent.RELEASE); released = true }
+    fun freeIfIdle() { post { event(DictationEvent.FREE) } }
 
     private fun post(action: Runnable) { platform.post { if (!released) action.run() } }
 
     /** Executes effects only. State, generation acceptance and scheduling are native decisions. */
-    private fun event(operation: String, id: Int = 0, fields: Array<String> = emptyArray()) {
+    private fun event(operation: DictationEvent, id: Int = 0, fields: Array<String> = emptyArray()) {
         val result = plan.call(operation, platform.uptimeMs(), id, *fields)
         if (result.isEmpty()) return
         // A flush can synchronously enqueue phrase work; publish UI after its ordered effects.
-        var i = 6
+        var i = DictationPlan.SIZE
         while (i < result.size) {
             when (val effect = result[i++]) {
-                "check" -> {
-                    val allowed = editor.allowsDictation()
-                    val permission = platform.hasMicPermission()
+                DictationEffect.CHECK -> {
                     val model = when (platform.modelState()) {
-                        ModelState.Ready -> "ready"
-                        is ModelState.Missing -> "missing"
-                        is ModelState.Damaged -> "damaged"
+                        ModelState.Ready -> DictationModelAvailability.READY
+                        is ModelState.Missing -> DictationModelAvailability.MISSING
+                        is ModelState.Damaged -> DictationModelAvailability.DAMAGED
                     }
-                    event("ready", fields = arrayOf(allowed.toString(), permission.toString(), model))
+                    val ready = with(DictationReady) { row(ALLOWED to WireFlag.encode(editor.allowsDictation()),
+                        PERMISSION to WireFlag.encode(platform.hasMicPermission()), MODEL to model) }
+                    event(DictationEvent.READY, fields = ready)
                     return
                 }
-                "problem" -> editor.problem(problem(result[i++]))
-                "appSettings" -> platform.openAppSettings()
-                "modelSettings" -> platform.openModelSettings()
-                "listen" -> {
+                DictationEffect.PROBLEM -> editor.problem(problem(result[i++]))
+                DictationEffect.APP_SETTINGS -> platform.openAppSettings()
+                DictationEffect.MODEL_SETTINGS -> platform.openModelSettings()
+                DictationEffect.LISTEN -> {
                     val generation = result[i++].toInt()
                     try { listener = platform.listen(callbacks(generation)) }
                     catch (error: IllegalStateException) {
                         platform.log(LogLevel.ERROR, "Could not start recording", error)
-                        event("openError"); return
+                        event(DictationEvent.OPEN_ERROR); return
                     }
-                    event("opened"); return
+                    event(DictationEvent.OPENED); return
                 }
-                "preload" -> {
+                DictationEffect.PRELOAD -> {
                     platform.removeCallbacks(unload)
                     preload(result[i++].toInt())
                 }
-                "discard" -> { activeModel.get()?.cancel(); listener?.stop(false); listener = null }
-                "flush" -> { listener?.stop(true); listener = null }
-                "barrier" -> {
+                DictationEffect.DISCARD -> { activeModel.get()?.cancel(); listener?.stop(false); listener = null }
+                DictationEffect.FLUSH -> { listener?.stop(true); listener = null }
+                DictationEffect.BARRIER -> {
                     val generation = result[i++].toInt()
-                    platform.work { post { event("finalizing", generation); event("finished", generation) } }
+                    platform.work { post { event(DictationEvent.FINALIZING, generation); event(DictationEvent.FINISHED, generation) } }
                 }
-                "schedule" -> {
+                DictationEffect.SCHEDULE -> {
                     platform.removeCallbacks(unload)
                     platform.postAtTime(unload, result[i++].toLong())
                 }
-                "removeUnload" -> platform.removeCallbacks(unload)
-                "unload" -> platform.work(::closeModel)
-                "closeWorker" -> { platform.work(::closeModel); platform.shutDownWorker() }
-                "tick" -> editor.tick()
-                "tidy" -> { event("tidied", fields = arrayOf(editor.tidy(result[i++]))); return }
-                "names" -> {
+                DictationEffect.REMOVE_UNLOAD -> platform.removeCallbacks(unload)
+                DictationEffect.UNLOAD -> platform.work(::closeModel)
+                DictationEffect.CLOSE_WORKER -> { platform.work(::closeModel); platform.shutDownWorker() }
+                DictationEffect.TICK -> editor.tick()
+                DictationEffect.TIDY -> { event(DictationEvent.TIDIED, fields = arrayOf(editor.tidy(result[i++]))); return }
+                DictationEffect.NAMES -> {
                     val count = result[i++].toInt()
-                    val names = Array(count) { editor.isName(result[i++]).toString() }
-                    event("compose", fields = arrayOf(editor.textBeforeCursor()?.toString() ?: "", *names)); return
+                    val names = Array(count) { WireFlag.encode(editor.isName(result[i++])) }
+                    event(DictationEvent.COMPOSE, fields = arrayOf(editor.textBeforeCursor()?.toString() ?: "", *names)); return
                 }
-                "insert" -> { val replacing = result[i++].toInt(); editor.type(result[i++], replacing) }
-                "undo" -> editor.undoLastPhrase()
-                "resume" -> { event("compose", fields = arrayOf(editor.textBeforeCursor()?.toString() ?: "")); return }
+                DictationEffect.INSERT -> { val replacing = result[i++].toInt(); editor.type(result[i++], replacing) }
+                DictationEffect.UNDO -> editor.undoLastPhrase()
+                DictationEffect.RESUME -> { event(DictationEvent.COMPOSE, fields = arrayOf(editor.textBeforeCursor()?.toString() ?: "")); return }
                 else -> error("Unknown dictation effect: $effect")
             }
         }
-        flows.status.value = Dictation.Status.entries[result[0].toInt()]
-        flows.warming.value = result[1].toBooleanStrict()
-        flows.level.value = result[2].toFloat()
-        flows.preview.value = result[3]
+        flows.status.value = Dictation.Status.entries[result[DictationPlan.STATUS].toInt()]
+        flows.warming.value = WireFlag.decode(result[DictationPlan.WARMING])
+        flows.level.value = result[DictationPlan.LEVEL].toFloat()
+        flows.preview.value = result[DictationPlan.PREVIEW]
     }
 
     private fun preload(id: Int) = platform.work {
         models.retry()
         val loading = !models.isLoaded
-        if (loading) post { event("warming", id) }
+        if (loading) post { event(DictationEvent.WARMING, id) }
         try { models.get() }
         catch (error: ModelLoadException) {
             platform.log(LogLevel.ERROR, "Could not load the model", error)
-            post { event("modelError", id) }
-        } finally { if (loading) post { event("warmed", id) } }
+            post { event(DictationEvent.MODEL_ERROR, id) }
+        } finally { if (loading) post { event(DictationEvent.WARMED, id) } }
     }
 
     private fun callbacks(id: Int) = Callbacks(
-        onLevel = { level -> post { event("level", id, arrayOf(level.toString())) } },
+        onLevel = { level -> post { event(DictationEvent.LEVEL, id, arrayOf(level.toString())) } },
         onMicError = { code ->
             platform.log(LogLevel.ERROR, "Microphone failed while recording: $code")
-            post { event("micError", id) }
+            post { event(DictationEvent.MIC_ERROR, id) }
         },
         onPhrase = { phrase -> if (!released) platform.work {
             val result = runCatching { timed(phrase) }
             post {
                 result.exceptionOrNull()?.let { platform.log(LogLevel.ERROR, "Transcription failed", it) }
-                event("final", id, arrayOf(result.isSuccess.toString(), result.getOrDefault("")))
+                event(DictationEvent.FINAL, id, arrayOf(WireFlag.encode(result.isSuccess), result.getOrDefault("")))
             }
         } },
         onPreview = { phrase -> preview(id, phrase) },
@@ -197,7 +197,7 @@ internal class DictationSession(
         callbacks.onSpeech = { speech -> plan.speech(id, speech) }
         callbacks.onModelError = { error ->
             platform.log(LogLevel.ERROR, "Speech model failed", error)
-            post { event("modelError", id) }
+            post { event(DictationEvent.MODEL_ERROR, id) }
         }
     }
 
@@ -208,7 +208,7 @@ internal class DictationSession(
             val text = try { runCatching { models.get().transcribe(phrase) }.getOrNull() }
             finally { plan.completePreview() }
             platform.log(LogLevel.DEBUG, "Previewed ${phrase.size} samples in ${platform.uptimeMs() - started} ms")
-            if (text != null) post { event("preview", id, arrayOf(text)) }
+            if (text != null) post { event(DictationEvent.PREVIEW, id, arrayOf(text)) }
         }
     }
 
@@ -232,14 +232,14 @@ internal fun releaseAt(idleSince: Long, now: Long, keyboardShown: Boolean): Long
     DictationSessionPlan.ending(typedAny, failures).takeIf { it.isNotEmpty() }?.let(::problem)
 
 @StringRes private fun problem(code: String): Int = when (code) {
-    "field_off" -> R.string.dictation__field_off
-    "allow_mic" -> R.string.dictation__allow_mic
-    "not_installed" -> R.string.dictation__not_installed
-    "damaged" -> R.string.dictation__damaged
-    "mic_busy" -> R.string.dictation__mic_busy
-    "model_failed" -> R.string.dictation__model_failed
-    "mic_stopped" -> R.string.dictation__mic_stopped
-    "failed" -> R.string.dictation__failed
-    "not_caught" -> R.string.dictation__not_caught
+    DictationProblem.FIELD_OFF -> R.string.dictation__field_off
+    DictationProblem.ALLOW_MIC -> R.string.dictation__allow_mic
+    DictationProblem.NOT_INSTALLED -> R.string.dictation__not_installed
+    DictationProblem.DAMAGED -> R.string.dictation__damaged
+    DictationProblem.MIC_BUSY -> R.string.dictation__mic_busy
+    DictationProblem.MODEL_FAILED -> R.string.dictation__model_failed
+    DictationProblem.MIC_STOPPED -> R.string.dictation__mic_stopped
+    DictationProblem.FAILED -> R.string.dictation__failed
+    DictationProblem.NOT_CAUGHT -> R.string.dictation__not_caught
     else -> error("Unknown dictation problem code")
 }
