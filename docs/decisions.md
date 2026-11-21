@@ -858,7 +858,7 @@ Claude Fable 5.2 and GPT-6.2 Astra. Three choices in it were the owner's:
   are the two largest settings screens left (compose-removal steps 9 and 10), and each port
   names its improvements, as the Other and Theme port did.
 * **The C++ LatinIME oracle and the frozen `Reference*.kt` copies become fixed test data, then
-  are deleted.** Keeping them means building 14,868 lines of C++ and about 16,300 lines of
+  are deleted.** Keeping them means building 14,868 lines of C++ and about 17,400 lines of
   reference Kotlin forever to check code that is meant to move away from them. The fixed data
   must catch each mutation the existing mutation scripts make before its source goes.
 * **The phone checks come later.** Phase 0 (an inventory regenerated at HEAD and a ratchet on
