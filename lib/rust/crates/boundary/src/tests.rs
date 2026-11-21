@@ -438,3 +438,15 @@ pub extern \"system\" fn Java_com_jtn0123_audiowhisper_rust_ExampleNative_isWord
 ";
     assert_eq!(rust_file(&[EXAMPLE]), rust);
 }
+
+#[test]
+fn docs_keep_their_paragraphs() {
+    assert_eq!(
+        crate::format::kdoc("One.\n\nTwo.", "    "),
+        "    /**\n     * One.\n     *\n     * Two.\n     */\n"
+    );
+    assert_eq!(
+        crate::format::rust_doc("One.\n\nTwo.", ""),
+        "/// One.\n///\n/// Two.\n"
+    );
+}

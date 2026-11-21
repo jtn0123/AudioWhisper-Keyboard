@@ -11,8 +11,19 @@ const KOTLIN_WIDTH: usize = 120;
 /// Where hand-written doc comments wrap.
 const DOC_WIDTH: usize = 100;
 
-/// `text` as `indent`ed lines of `prefix` and words, wrapped at the doc width.
+/// `text` as `indent`ed lines of `prefix` and words, wrapped at the doc width, with a line of
+/// `prefix` alone between paragraphs, which `text` separates with a blank line.
 fn wrap(text: &str, indent: &str, prefix: &str) -> String {
+    let blank = format!("{indent}{prefix}\n");
+    let paragraphs: Vec<String> = text
+        .split("\n\n")
+        .map(|paragraph| wrap_paragraph(paragraph, indent, prefix))
+        .collect();
+    paragraphs.join(&blank)
+}
+
+/// One paragraph of `text`, as [`wrap`] lays it out.
+fn wrap_paragraph(text: &str, indent: &str, prefix: &str) -> String {
     let start = format!("{indent}{prefix} ");
     let mut lines = String::new();
     let mut line = start.clone();
@@ -48,7 +59,7 @@ pub fn kdoc(text: &str, indent: &str) -> String {
         "{indent}/** {} */",
         text.split_whitespace().collect::<Vec<_>>().join(" ")
     );
-    if one.len() <= DOC_WIDTH {
+    if one.len() <= DOC_WIDTH && !text.contains("\n\n") {
         return one + "\n";
     }
     format!("{indent}/**\n{}{indent} */\n", wrap(text, indent, " *"))
