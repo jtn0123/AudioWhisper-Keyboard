@@ -149,7 +149,12 @@ impl App {
             .max(self.measure(text, &title, self.sp(22), w - title_left - 16.0 * d) + 16.0 * d);
         // PreviewKeyboardField shows under screens with `previewFieldVisible` (home included).
         let preview = self.screen().is_none_or(|s| s.preview);
-        let footer = if preview { 56.0 * d } else { 0.0 };
+        // Back up and Restore keep their buttons in a bar at the bottom instead.
+        let footer = if preview {
+            56.0 * d
+        } else {
+            self.backup_footer(text)
+        };
         let mut p = Panel {
             kind: 9,
             density: d,
@@ -383,6 +388,8 @@ impl App {
         );
         if preview {
             self.preview_field(&mut p, footer, text);
+        } else {
+            self.paint_backup_footer(&mut p, footer, text);
         }
         self.modal = modal;
         if self.modal.is_some() {

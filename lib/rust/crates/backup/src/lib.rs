@@ -47,9 +47,28 @@ const CLIPBOARD: [usize; 3] = [
     layout::CLIPBOARD_VIDEO,
 ];
 
+/// The clipboard's groups as a mask.
+pub const CLIPBOARD_MASK: i32 = (1 << layout::CLIPBOARD_TEXT)
+    | (1 << layout::CLIPBOARD_IMAGES)
+    | (1 << layout::CLIPBOARD_VIDEO);
+
 /// Whether `mask` selects `group`.
 fn selects(mask: i32, group: usize) -> bool {
     mask & (1 << group) != 0
+}
+
+/// How much of the clipboard `mask` selects out of the clipboard groups in `offered`: a
+/// `BackupClipboardState`. Nothing offered reads as off.
+pub fn clipboard_state(mask: i32, offered: i32) -> &'static str {
+    let offered = offered & CLIPBOARD_MASK;
+    let clips = mask & offered;
+    if clips == 0 {
+        ops::OFF
+    } else if clips == offered {
+        ops::ON
+    } else {
+        ops::MIXED
+    }
 }
 
 /// Restore preserves the historical warning precedence and accepts newer backups.
@@ -167,18 +186,10 @@ pub fn call(op: i32, input: &[Text]) -> Result<Vec<Text>, &'static str> {
             .collect(),
         (ops::SELECTION, [mask]) => {
             let mask = number(mask)?;
-            let all = CLIPBOARD.iter().fold(0, |all, group| all | (1 << group));
-            let clips = mask & all;
             let mut row = vec![vec![]; selection::SIZE];
             row[selection::ANY] = flag::utf16(mask != 0);
-            row[selection::CLIPBOARD] = flag::utf16(clips != 0);
-            row[selection::CLIPBOARD_STATE] = text(if clips == 0 {
-                ops::OFF
-            } else if clips == all {
-                ops::ON
-            } else {
-                ops::MIXED
-            });
+            row[selection::CLIPBOARD] = flag::utf16(mask & CLIPBOARD_MASK != 0);
+            row[selection::CLIPBOARD_STATE] = text(clipboard_state(mask, CLIPBOARD_MASK));
             row
         }
         (ops::NAMES, []) => {

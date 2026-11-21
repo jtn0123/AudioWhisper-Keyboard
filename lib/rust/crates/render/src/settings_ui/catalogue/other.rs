@@ -1,6 +1,6 @@
 //! OtherScreen (`iconSpaceReserved = true`, no preview field): the settings theme, the settings
 //! accent colour (a ColorPickerPreference whose system accent stores as no colour), Physical
-//! keyboard, and Back up and Restore, which stay in Compose.
+//! keyboard, and Back up and Restore, which Rust draws too (`backup.rs`).
 use super::{Choices, Kind, Row, Screen, entries, heading, list, row};
 const THEME: Choices = entries(&[
     ("AUTO", "settings__system_default", ""),

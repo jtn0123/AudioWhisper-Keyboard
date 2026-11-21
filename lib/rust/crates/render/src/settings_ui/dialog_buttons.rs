@@ -15,6 +15,7 @@ impl App {
     pub(super) fn button_keys(&self) -> [&'static str; 3] {
         match self.modal.as_ref().map(|m| self.rows()[m.row].kind) {
             Some(super::catalogue::Kind::Confirm(ask)) => ["", ask.dismiss, ask.confirm],
+            Some(super::catalogue::Kind::Backup(_)) => ["", "action__cancel", "action__restore"],
             // Jetpref's neutral button names the page it switches to.
             Some(super::catalogue::Kind::Color) => [
                 if self.color_picker().is_some_and(|p| p.custom) {
@@ -85,7 +86,7 @@ impl App {
         buttons
     }
     /// labelLarge: 14/20 sp, medium weight, 0.1 sp tracking.
-    fn button_label(
+    pub(super) fn button_label(
         &self,
         text: &mut Text,
         label: &str,

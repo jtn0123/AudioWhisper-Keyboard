@@ -19,7 +19,7 @@ import org.florisboard.lib.kotlin.io.writeJson
 
 /** Android/file effects for a complete Rust manifest or restore plan. */
 internal object BackupIO {
-    private val preferences get() = "${AndroidAppDataStorage.JETPREF_DIR_NAME}/${FlorisPreferenceModel.NAME}.${AndroidAppDataStorage.JETPREF_FILE_EXT}"
+    internal val preferences get() = "${AndroidAppDataStorage.JETPREF_DIR_NAME}/${FlorisPreferenceModel.NAME}.${AndroidAppDataStorage.JETPREF_FILE_EXT}"
 
     suspend fun backup(context: Context, root: File, mask: Int) {
         var clipboardHistory: List<ClipboardItem>? = null
@@ -48,7 +48,8 @@ internal object BackupIO {
         }
     }
 
-    suspend fun restore(context: Context, workspace: CacheManager.BackupAndRestoreWorkspace, mask: Int, strategy: ImportStrategy) {
+    /** Runs the restore plan; [step] is called after each step that finished. */
+    suspend fun restore(context: Context, workspace: CacheManager.BackupAndRestoreWorkspace, mask: Int, strategy: ImportStrategy, step: () -> Unit = {}) {
         val root = workspace.outputDir
         val present = BackupPolicy.layout(preferences).map { File(root, it).exists() }
         val plan = BackupPolicy.restore(mask, strategy == ImportStrategy.Erase, preferences, present)
@@ -80,6 +81,7 @@ internal object BackupIO {
                 }
                 else -> error("Unknown backup effect")
             }
+            step()
         }
     }
 }
