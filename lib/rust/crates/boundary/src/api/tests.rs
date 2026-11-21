@@ -147,7 +147,9 @@ fn the_kotlin_fits_the_style() {
         .into_iter()
         .chain(type_files(TYPES));
     for (_, file) in files.chain(api_files(EXAMPLES, NATIVE)) {
-        assert!(file.text.ends_with("}\n") && !file.text.contains("\n\n\n"));
+        // A record with no body ends its file with its parameters.
+        let ends = file.text.ends_with("}\n") || file.text.ends_with(")\n");
+        assert!(ends && !file.text.contains("\n\n\n"), "{}", file.path);
         for line in file.text.lines() {
             assert!(line.len() <= 120, "{}: {line}", file.path);
             assert_eq!(line.trim_end(), line, "{}", file.path);

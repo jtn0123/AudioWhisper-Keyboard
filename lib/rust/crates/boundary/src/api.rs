@@ -428,11 +428,21 @@ impl Expr {
         )
     }
 
-    /// The expression at `indent`, its arguments one to a line if it doesn't fit on one.
+    /// The expression at `indent`: if it doesn't fit on one line, the body of the lambda after
+    /// the call on a line of its own, else the arguments one to a line.
     fn lines(&self, indent: &str) -> String {
         let one = format!("{indent}{}", self.line());
         if one.len() <= 120 {
             return one + "\n";
+        }
+        if let Some((open, body, close)) = lambda(&self.after) {
+            let args = self.args.join(", ");
+            let head = format!("{indent}{}{}({args}){open}", self.before, self.call);
+            let body = format!("{indent}    {body}");
+            let close = format!("{indent}}}{close}");
+            if [&head, &body, &close].iter().all(|line| line.len() <= 120) {
+                return format!("{head}\n{body}\n{close}\n");
+            }
         }
         let args: String = self
             .args
@@ -444,6 +454,25 @@ impl Expr {
             self.before, self.call, self.after
         )
     }
+}
+
+/// The first lambda in `after`, such as `.map { Entry(it[0]) }.also { … }`: what opens it
+/// (`.map {`), its body, and what follows its closing brace.
+fn lambda(after: &str) -> Option<(&str, &str, &str)> {
+    let open = after.find(" { ")?;
+    let mut depth = 0;
+    for (at, c) in after.char_indices().skip(open + 1) {
+        match c {
+            '{' => depth += 1,
+            '}' if depth == 1 => {
+                let body = after[open + 3..at].trim_end();
+                return Some((&after[..open + 2], body, &after[at + 1..]));
+            }
+            '}' => depth -= 1,
+            _ => {}
+        }
+    }
+    None
 }
 
 /// The text around a native call that returns `returns` and `out` converts, for `api`.
@@ -506,7 +535,8 @@ pub(super) fn member_text(
         }
     }
     let synchronized = handle.is_some_and(|handle| handle.synchronized) && own;
-    if own && !synchronized {
+    // A property is read while the object is made, when nothing can free it.
+    if own && !synchronized && member.kind == Kind::Fun {
         fences.push("this".to_owned());
     }
     if !fences.is_empty() {
