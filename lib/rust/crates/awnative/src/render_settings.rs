@@ -384,6 +384,7 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_settings(
                         a.set_document(name, text);
                     }
                 }
+                ops::FILES => a.file_report(&p).map_err(illegal)?,
                 ops::ACCESSIBILITY_SCROLL => {
                     let id = int(&p, 0)?;
                     a.accessibility_scroll(id, int(&p, 1)? == ACCESS_SCROLL_FORWARD);

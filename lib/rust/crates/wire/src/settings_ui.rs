@@ -44,6 +44,9 @@ crate::declare! {
         FACTS = 20,
         /// Documents a load effect asked for, as name and text pairs.
         DOCUMENTS = 21,
+        /// A [`SettingsUiFiles`](files::report::KINDS) report: how the file picker closed, or
+        /// how file work ended.
+        FILES = 22,
     }
 }
 
@@ -127,6 +130,8 @@ pub mod query {
     }
 }
 
+pub mod files;
+
 /// The groups the generator writes as Kotlin.
 pub const GROUPS: &[&crate::Group] = &[
     &OPS,
@@ -134,4 +139,15 @@ pub const GROUPS: &[&crate::Group] = &[
     &back::PHASES,
     &edit::OPS,
     &query::KINDS,
+    &files::effect::KINDS,
+    &files::report::KINDS,
+    &files::mode::KINDS,
+    &files::outcome::KINDS,
+    &files::job::KINDS,
+    &files::result::KINDS,
+    &files::pick::FIELDS,
+    &files::picked::FIELDS,
+    &files::document::FIELDS,
+    &files::work::FIELDS,
+    &files::done::FIELDS,
 ];

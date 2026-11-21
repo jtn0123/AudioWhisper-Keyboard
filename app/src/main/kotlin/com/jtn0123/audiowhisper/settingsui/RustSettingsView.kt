@@ -33,6 +33,7 @@ internal class RustSettingsView(context: Context) : FrameLayout(context), Surfac
     private lateinit var activity: FlorisAppActivity
     private lateinit var platform: SettingsPlatform
     private lateinit var facts: SettingsFacts
+    private lateinit var files: SettingsFiles
     var backAvailability: (Boolean) -> Unit = {}
     private var fallback: (String, List<String>) -> Unit = { _, _ -> }
     private val native = KeyboardRenderer(systemRendererFonts())
@@ -93,6 +94,8 @@ internal class RustSettingsView(context: Context) : FrameLayout(context), Surfac
         this.fallback = fallback
         receive(native.settings(SettingsUiOp.PREFERENCES, platform.snapshot()))
         if (restored != null) receive(native.settings(SettingsUiOp.RESTORE, restored))
+        // After the saved state, so a picker answer or report that waited finds what it belongs to.
+        files = SettingsFiles(activity) { if (!released) receive(native.settings(SettingsUiOp.FILES, it)) }
         for (pref in prefs.declaredPreferenceEntries.values) activity.lifecycleScope.launch {
             pref.asFlow().drop(1).collect {
                 if (!released && platform.pending == 0) { receive(native.settings(SettingsUiOp.PREFERENCES, platform.snapshot())); configure() }
@@ -158,6 +161,7 @@ internal class RustSettingsView(context: Context) : FrameLayout(context), Surfac
                 "checkModels" -> facts.checkModels { if (!released) pushFacts() }
                 "url", "intent", "copy", "forgetLearnedWords" -> facts.execute(p)
                 "load" -> loadDocument(p[1])
+                SettingsUiFileEffect.PICK, SettingsUiFileEffect.WORK, SettingsUiFileEffect.TOAST -> files.execute(p)
             }
         }
         selectionMenu.update(state.getValue("selectionToolbar").jsonPrimitive.boolean)
@@ -254,6 +258,7 @@ internal class RustSettingsView(context: Context) : FrameLayout(context), Surfac
     override fun onDetachedFromWindow() {
         super.onDetachedFromWindow(); released = true; live = false; choreographer.removeVsyncCallback(this)
         if (::facts.isInitialized) facts.release()
+        if (::files.isInitialized) files.release()
         selectionMenu.close(); accessibility.release(); native.detach(); native.close()
     }
 }
