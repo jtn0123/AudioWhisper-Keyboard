@@ -1,7 +1,7 @@
 package dev.patrickgold.florisboard.app
 
 import androidx.compose.ui.graphics.Color
-import com.jtn0123.audiowhisper.rust.SettingsRules
+import com.jtn0123.audiowhisper.rust.*
 import com.jtn0123.audiowhisper.settings.SettingsSelection
 import com.jtn0123.audiowhisper.settings.SettingsTimeSerializer
 import dev.patrickgold.florisboard.app.settings.theme.ColorPreferenceSerializer
@@ -43,7 +43,10 @@ class SettingsDerivationMatchTest {
             assertEquals(options.indexOf(target).coerceAtLeast(0),SettingsSelection.index(target,options))
         }
         for(number in listOf(false,true)) for(symbol in listOf(false,true)) for(mode in listOf("DISABLED","SMART_PRIORITY","ACCENT_PRIORITY")) {
-            assertEquals(listOf(if(number)mode else "DISABLED",if(symbol)mode else "DISABLED"),SettingsRules.call(29,number.toString(),mode,symbol.toString(),mode))
+            val modes=SettingsRules.call(SettingsOp.KEY_HINTS,*with(SettingsKeyHints) {
+                row(NUMBER_ENABLED to WireFlag.encode(number),NUMBER to mode,SYMBOLS_ENABLED to WireFlag.encode(symbol),SYMBOLS to mode) })
+            assertEquals(if(number)mode else "DISABLED",modes[SettingsKeyHintModes.NUMBER])
+            assertEquals(if(symbol)mode else "DISABLED",modes[SettingsKeyHintModes.SYMBOLS])
         }
     }
     @Test fun colorsAndTimeEncodingRangesAndMalformedValuesMatch() {

@@ -30,6 +30,11 @@ pub const WIRE: &[Wire] = &[
         internal: false,
         groups: wire::extensions::GROUPS,
     },
+    Wire {
+        module: Module::Rust,
+        internal: false,
+        groups: wire::settings::GROUPS,
+    },
     // lib/kotlin can't see lib/rust, so it has its own copy for its own calls.
     Wire {
         module: Module::Kotlin,

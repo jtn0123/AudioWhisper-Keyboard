@@ -1,14 +1,14 @@
 package com.jtn0123.audiowhisper.settings
 
-import com.jtn0123.audiowhisper.rust.SettingsRules
+import com.jtn0123.audiowhisper.rust.*
 import dev.patrickgold.jetpref.datastore.model.LocalTime
 import dev.patrickgold.jetpref.datastore.model.PreferenceSerializer
 
 object SettingsTimeSerializer : PreferenceSerializer<LocalTime> {
     override fun deserialize(value: String): LocalTime? {
-        val fields=SettingsRules.call(26,value).map(String::toInt)
-        return if(fields.isEmpty()) null else LocalTime(fields[0],fields[1],fields[2],fields[3])
+        val fields=SettingsRules.call(SettingsOp.TIME_DECODE,value).map(String::toInt)
+        return if(fields.isEmpty()) null else with(SettingsTime) { LocalTime(fields[HOUR],fields[MINUTE],fields[SECOND],fields[MILLISECOND]) }
     }
-    override fun serialize(value: LocalTime) = SettingsRules.call(27,value.hour.toString(),value.minute.toString(),
-        value.second.toString(),value.millisecond.toString())[0]
+    override fun serialize(value: LocalTime) = SettingsRules.call(SettingsOp.TIME_ENCODE, *with(SettingsTime) { row(HOUR to "${value.hour}",
+        MINUTE to "${value.minute}", SECOND to "${value.second}", MILLISECOND to "${value.millisecond}") })[0]
 }

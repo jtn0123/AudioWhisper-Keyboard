@@ -16,15 +16,15 @@
 
 package dev.patrickgold.florisboard.app
 
-import com.jtn0123.audiowhisper.rust.SettingsRules
+import com.jtn0123.audiowhisper.rust.*
 import dev.patrickgold.jetpref.datastore.model.PreferenceMigrationEntry
 import dev.patrickgold.jetpref.datastore.model.PreferenceType
 
 internal fun migrateAppPreference(entry: PreferenceMigrationEntry): PreferenceMigrationEntry {
-    val plan = SettingsRules.call(12, entry.type.toString(), entry.key, entry.rawValue)
-    return when (plan[0]) {
-        "reset" -> entry.reset()
-        "keep" -> entry.keepAsIs()
-        else -> entry.transform(type = PreferenceType.from(plan[1]), key = plan[2], rawValue = plan[3])
+    val plan = SettingsRules.call(SettingsOp.MIGRATE, entry.type.toString(), entry.key, entry.rawValue)
+    return when (plan[SettingsMigration.ACTION]) {
+        SettingsMigrationAction.RESET -> entry.reset()
+        SettingsMigrationAction.KEEP -> entry.keepAsIs()
+        else -> with(SettingsMigration) { entry.transform(type = PreferenceType.from(plan[TYPE]), key = plan[KEY], rawValue = plan[VALUE]) }
     }
 }

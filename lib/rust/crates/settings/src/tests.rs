@@ -13,10 +13,36 @@ fn catalogue_is_complete_unique_and_defaults_are_valid() {
 }
 #[test]
 fn malformed_packets_are_errors() {
-    for op in [1, 2, 10, 11, 12, 21, 22] {
+    for op in [
+        ops::ENUM_INDEX,
+        ops::CLAMP,
+        ops::DECODE,
+        ops::ENCODE,
+        ops::MIGRATE,
+        ops::SUBTYPE,
+        ops::PRESET,
+    ] {
         assert!(call(op, &[]).is_err());
     }
-    assert!(call(21, &[text("a"), text("-1")]).is_err());
+    assert!(call(ops::SUBTYPE, &[text("a"), text("-1")]).is_err());
+}
+#[test]
+fn the_layout_packet_follows_the_layouts() {
+    use layouts::*;
+    let fields = [
+        (CHARACTERS, "characters"),
+        (SYMBOLS, "symbols"),
+        (SYMBOLS2, "symbols2"),
+        (NUMERIC, "numeric"),
+        (NUMERIC_ADVANCED, "numericAdvanced"),
+        (NUMERIC_ROW, "numericRow"),
+        (PHONE, "phone"),
+        (PHONE2, "phone2"),
+    ];
+    assert_eq!(fields.len(), SIZE);
+    for (field, name) in fields {
+        assert_eq!(codec::LAYOUTS[field].0, name);
+    }
 }
 #[test]
 fn subtype_fallback_and_removed_inputs() {

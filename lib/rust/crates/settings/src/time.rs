@@ -1,5 +1,9 @@
 //! Jetpref's fixed ASCII HH:mm:ss.SSS format and ranges.
 use crate::{Result, Text, integer, text};
+use wire::settings::time::{HOUR, MILLISECOND, MINUTE, SECOND, SIZE};
+
+/// The fields in the order the stored form writes them.
+const FIELDS: [usize; SIZE] = [HOUR, MINUTE, SECOND, MILLISECOND];
 pub fn decode(raw: &[u16]) -> Vec<Text> {
     if raw.len() != 12 || raw[2] != 58 || raw[5] != 58 || raw[8] != 46 {
         return vec![];
@@ -20,13 +24,22 @@ pub fn decode(raw: &[u16]) -> Vec<Text> {
     {
         return vec![];
     }
-    values.iter().map(|v| text(&v.to_string())).collect()
+    let mut row = vec![vec![]; SIZE];
+    for (field, value) in FIELDS.into_iter().zip(values) {
+        row[field] = text(&value.to_string());
+    }
+    row
 }
 pub fn encode(values: &[Text]) -> Result<Text> {
-    let [h, m, s, ms] = values else {
+    if values.len() != SIZE {
         return Err("invalid time fields");
-    };
-    let values = [integer(h)?, integer(m)?, integer(s)?, integer(ms)?];
+    }
+    let values = [
+        integer(&values[HOUR])?,
+        integer(&values[MINUTE])?,
+        integer(&values[SECOND])?,
+        integer(&values[MILLISECOND])?,
+    ];
     if values
         .iter()
         .zip([24, 60, 60, 1000])
