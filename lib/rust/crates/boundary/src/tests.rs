@@ -447,6 +447,17 @@ pub extern \"system\" fn Java_com_jtn0123_audiowhisper_rust_ExampleNative_isWord
 }
 
 #[test]
+fn only_another_packages_classes_are_imported() {
+    let buffer = crate::kotlin::simple_type("java.nio.ByteBuffer?");
+    assert_eq!(
+        buffer,
+        ("ByteBuffer?".into(), Some("java.nio.ByteBuffer".into()))
+    );
+    let nested = crate::kotlin::simple_type("SpacingRules.Editor");
+    assert_eq!(nested, ("SpacingRules.Editor".into(), None));
+}
+
+#[test]
 fn docs_keep_their_paragraphs() {
     assert_eq!(
         crate::format::kdoc("One.\n\nTwo.", "    "),

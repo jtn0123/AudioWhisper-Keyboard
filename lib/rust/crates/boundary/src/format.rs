@@ -244,7 +244,10 @@ const SHORT_ITEM: usize = 10;
 /// Whether rustfmt would fill a line with `arg` and the others: a name or a number of at most
 /// [`SHORT_ITEM`] characters, not an expression such as `flag != 0`.
 fn is_short_and_simple(arg: &str) -> bool {
-    arg.len() <= SHORT_ITEM && arg.bytes().all(|it| it.is_ascii_alphanumeric() || it == b'_')
+    arg.len() <= SHORT_ITEM
+        && arg
+            .bytes()
+            .all(|it| it.is_ascii_alphanumeric() || it == b'_')
 }
 
 /// `let name = value;` at `indent`, as rustfmt lays it out: on one line if it fits, else with the

@@ -47,11 +47,15 @@ pub fn kotlin_header(source: &str, module: Module, imports: &[String]) -> String
 }
 
 /// `kotlin`, a type that may name a class of another package in full, as written once that class
-/// is imported, and the import, if any.
+/// is imported, and the import, if any. A dotted name that starts with a capital, such as
+/// `SpacingRules.Editor`, is a nested class of this package and stays as it is.
 pub fn simple_type(kotlin: &str) -> (String, Option<String>) {
     let bare = kotlin.trim_end_matches('?');
+    let in_package = bare.starts_with(|it: char| it.is_ascii_lowercase());
     match bare.rfind('.') {
-        Some(dot) if !bare.contains('<') => (kotlin[dot + 1..].to_owned(), Some(bare.to_owned())),
+        Some(dot) if in_package && !bare.contains('<') => {
+            (kotlin[dot + 1..].to_owned(), Some(bare.to_owned()))
+        }
         _ => (kotlin.to_owned(), None),
     }
 }

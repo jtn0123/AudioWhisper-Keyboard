@@ -568,8 +568,10 @@ pub(super) fn member_text(
             }
             let operator = if member.operator { "operator " } else { "" };
             let head = format!("{operator}fun {}", member.name);
-            let signature = kotlin_declaration(indent, &head, &params, &typed);
-            text.push_str(&expression(signature.trim_end(), &expr));
+            // The ` =` after the signature counts towards its line's width.
+            let signature = kotlin_declaration(indent, &head, &params, &format!("{typed} ="));
+            let signature = signature.trim_end().trim_end_matches(" =");
+            text.push_str(&expression(signature, &expr));
         }
         Kind::Val | Kind::Lazy => {
             assert!(
