@@ -387,7 +387,6 @@ lib/kotlin/src/main/kotlin/org/florisboard/lib/kotlin/Strings.kt	P	66	portable S
 lib/kotlin/src/main/kotlin/org/florisboard/lib/kotlin/UtilityRules.kt	A	5	ART JNI; utility request/result packet transport |
 lib/kotlin/src/main/kotlin/org/florisboard/lib/kotlin/io/FsFile.kt	P	23	portable FsFile domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
 lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/BackupPolicy.kt	A	21	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
-lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/Composing.kt	A	3	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
 lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/DictationSessionPlan.kt	A	46	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
 lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/EditorSession.kt	A	57	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport | raised 50 to 57 (A6): typed EditorOp and EditorAttributeOp calls; the cursor and keyboard request packets built by field name
 lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/Emoji.kt	A	61	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |

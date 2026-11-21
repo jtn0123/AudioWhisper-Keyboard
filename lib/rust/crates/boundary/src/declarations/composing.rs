@@ -39,16 +39,27 @@ pub const COMPOSING_NATIVE: Class = Class {
 
 pub const COMPOSING_RULES: Api = Api {
     name: "ComposingRules",
-    doc: "A table of rules, each an ending in [keys] and what it becomes in [values] (such as \
-          Telex for Vietnamese), held in Rust and tried in the order given: the first whose \
-          ending the text, with the keystroke, ends with when lower-cased replaces it, \
-          upper-cased if the ending began upper-case. Composing.kt makes one from pairs. Safe to \
-          share between threads, as it never changes. Its native memory is freed once nothing \
-          can reach it.",
+    doc: "A table of [rules], each an ending and what it becomes (such as Telex for \
+          Vietnamese), held in Rust and tried in the order given: the first whose ending the \
+          text, with the keystroke, ends with when lower-cased replaces it, upper-cased if the \
+          ending began upper-case. Safe to share between threads, as it never changes. Its \
+          native memory is freed once nothing can reach it.",
     module: "composing",
     native: "ComposingNative",
     shape: Shape::Handle(Handle {
-        params: &[arg("keys", ArgKind::List), arg("values", ArgKind::List)],
+        params: &[
+            arg(
+                "keys",
+                ArgKind::As(
+                    "rules: List<Pair<String, String>>",
+                    "rules.map { it.first }.toTypedArray()",
+                ),
+            ),
+            arg(
+                "values",
+                ArgKind::Fixed("rules.map { it.second }.toTypedArray()"),
+            ),
+        ],
         create: "newRules",
         free: "freeRules",
         ..HANDLE
