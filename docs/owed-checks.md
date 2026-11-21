@@ -13,7 +13,7 @@ Two device names are used:
 
 ## Confirm on the phone
 
-These four come from a private report. Where the linked doc does not state a phone check, the
+These four come from the grade report. Where the linked doc does not state a phone check, the
 row says so.
 
 | # | What | Owed by |
@@ -21,7 +21,7 @@ row says so.
 | C1 | **E6.** The read-aloud fallback voice stays on the phone. Reading uses only a voice that needs no network and has its data installed. With none for the language, nothing is read. Check the phone's voice list, and a language with no offline voice. | [decisions: read-aloud's phone voice must work offline](decisions.md#read-alouds-phone-voice-must-work-offline-2026-11-16). The decision states the rule. It has no phone check. |
 | C2 | **E7.** Each settings frame fits the screen's buffers before it is copied. Rotate and resize the Rust settings screen on the phone. A blank frame would mean the rule is wrong. | [decisions: settings frames copied only into buffers of their own size](decisions.md#settings-frames-copied-only-into-buffers-of-their-own-size-2026-11-16) |
 | C3 | **E8.** The GPU drawing path is left out of the shipped library. Check that the phone's build draws the keyboard and settings with the CPU renderer. | [decisions: the GPU renderer is left out of every build that ships](decisions.md#the-gpu-renderer-is-left-out-of-every-build-that-ships-2026-11-16) |
-| C4 | **G1.** Decoding stays off the main thread at every space. | [decisions: the auto-commit reuses the strip's decode](decisions.md#the-auto-commit-reuses-the-strips-decode-when-nothing-has-changed-2026-11-16). **This does not match the doc.** The doc says the decode runs on the main thread, and that its phone hit rate is unmeasured. The owner should say what G1 means before anyone checks it. |
+| C4 | **G1.** How often a space or punctuation key reuses the strip's decode on the phone, and what a miss costs on the main thread. The host replay reused it at every word end (259/259); on the phone a fast space can arrive before the last letter's strip is decoded. Type at full speed with auto-correction on and count reuses and misses. | [decisions: the auto-commit reuses the strip's decode](decisions.md#the-auto-commit-reuses-the-strips-decode-when-nothing-has-changed-2026-11-16), which says a low hit rate would change it |
 
 ## Phone checks the docs owe
 
@@ -30,7 +30,7 @@ row says so.
 | P1 | Keyboard: a real TalkBack session on the phone. Swipes follow the reading order. Touch exploration finds a held key's choices over the keys. The one-handed side panel has its place in the order. Right-to-left layouts still read left to right. | [compose-removal, K item 1](compose-removal.md#k-the-compose-keyboard) |
 | P2 | Keyboard: the Samsung font check. | [compose-removal, K item 2](compose-removal.md#k-the-compose-keyboard); [rust.md, Milestone A](rust.md#milestone-a-prototype-2026-11-12) |
 | P3 | Keyboard: font scale 2.0. | [compose-removal, K item 3](compose-removal.md#k-the-compose-keyboard) |
-| P4 | Keyboard: warm scene draw p95 at most 2 ms at 120 Hz on the S24 Ultra. Run `cpu-trials.py` twice, remeasure tap positions for 1440x3120, and take a Perfetto trace. The emulator passed at 1.257 and 1.107 ms. | [compose-removal, K item 4](compose-removal.md#k-the-compose-keyboard); [decisions: the CPU gate](decisions.md#the-keyboards-cpu-gate-stays-2-ms-settled-on-the-phone-at-120-hz-2026-11-17). The heading says "settled on the phone", but the body says the phone run is what settles it. |
+| P4 | Keyboard: warm scene draw p95 at most 2 ms at 120 Hz on the S24 Ultra. Run `cpu-trials.py` twice, remeasure tap positions for 1440x3120, and take a Perfetto trace. The emulator passed at 1.257 and 1.107 ms. | [compose-removal, K item 4](compose-removal.md#k-the-compose-keyboard); [decisions: the CPU gate](decisions.md#the-keyboards-cpu-gate-stays-2-ms-settled-on-the-phone-at-120-hz-2026-11-17) |
 | P5 | Keyboard: the quick hide and show. Shown again within about a second of hiding, the keys must draw. The fix was checked on the emulator only. | [rust.md, shown again quickly](rust.md#shown-again-quickly-drawn-blank-fixed-2026-11-17); [stage4-other-theme, owed](stage4-other-theme.md#owed). [all-rust phase 1](all-rust.md#1-phone-checks-then-the-compose-keyboard-sm-waiting-on-the-owner) asks for it by hand. |
 | P6 | Settings: a real TalkBack session on the phone, for each settings screen, before compose-removal step 12. | [stage4-followup2, item 5](stage4-followup2.md#still-owed-before-prototype-acceptance); [stage4-followup3](stage4-followup3.md#still-owed); [stage4-followup4](stage4-followup4.md#still-owed); [stage4-licences](stage4-licences.md#device-results) |
 | P7 | Settings: the floating selection toolbar on a focused editor, and confirmation of predictive back and system animation. | [stage4-followup2, item 5](stage4-followup2.md#still-owed-before-prototype-acceptance) |
@@ -80,6 +80,4 @@ These need no device. They are listed so they are not lost.
 
 ## Notes
 
-* The CPU-gate heading in [decisions.md](decisions.md#the-keyboards-cpu-gate-stays-2-ms-settled-on-the-phone-at-120-hz-2026-11-17) says it was settled on the phone. Its body says the phone run is still what settles it. This page does not edit the decision.
-* G1 (C4) does not match the decision it links to. See the row.
 * This list has 4 confirm-on-the-phone items, 10 phone checks and 19 emulator checks.
