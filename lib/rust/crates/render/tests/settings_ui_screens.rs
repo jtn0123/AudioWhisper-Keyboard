@@ -149,7 +149,7 @@ fn group_one_routes_are_native_and_other_routes_fall_back_with_the_native_list()
                   settings/gestures|settings/clipboard|settings/media|settings/typing|\
                   settings/dictionary|settings/other/physical-keyboard|settings/about|\
                   settings/dictation|settings/about/third-party-licenses|settings/other|\
-                  settings/theme";
+                  settings/theme|settings/other/backup|settings/other/restore";
     assert_eq!(a.effects.pop().unwrap(), ["compose", manager, native]);
 }
 

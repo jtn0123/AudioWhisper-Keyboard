@@ -184,16 +184,15 @@ impl App {
             }
             Kind::Color => y = self.color_content(p, text, (left, y), width, clip),
             Kind::Time => y = self.time_content(p, text, (left, y), width, clip),
-            Kind::Confirm(..) => {
+            Kind::Confirm(..) | Kind::Backup(_) => {
                 let (message, _, rh) = &rows[0];
-                self.paint_text(
-                    p,
-                    message,
-                    rect(left + 24.0 * d, y, width - 48.0 * d, *rh),
-                    self.sp(16),
-                    self.colors[2],
-                    clip,
-                );
+                let at = rect(left + 24.0 * d, y, width - 48.0 * d, *rh);
+                self.paint_text(p, message, at, self.sp(16), self.colors[2], clip);
+                // What a restore replaces is read out, not only drawn.
+                if matches!(r.kind, Kind::Backup(_)) {
+                    let node = super::cards::plain(3000, at, message.clone(), "text");
+                    self.push_control(node, clip);
+                }
                 y += rh;
             }
             _ => {}

@@ -33,6 +33,7 @@ impl App {
                     && self.facts.contains_key("package")
                     && self.fact("spell_package") == self.fact("package")
             }
+            Cond::Restore(usable) => self.restore_shown(*usable),
         }
     }
     /// `"${VERSION_NAME} (${VERSION_CODE})"`, as AboutScreen shows and copies it.
@@ -47,7 +48,13 @@ impl App {
         self.rows().get(i).is_some_and(|r| self.cond(&r.visible))
     }
     pub fn enabled(&self, i: usize) -> bool {
-        self.rows().get(i).is_some_and(|r| self.cond(&r.enabled))
+        self.rows().get(i).is_some_and(|r| {
+            self.cond(&r.enabled)
+                && match r.kind {
+                    Kind::Backup(part) => self.part_enabled(part),
+                    _ => true,
+                }
+        })
     }
     fn list(&self, i: usize) -> Option<&'static Choices> {
         match self.rows().get(i)?.kind {
@@ -168,6 +175,7 @@ impl App {
         let mut out: Vec<&'static str> = CODE_KEYS.to_vec();
         out.extend(super::color_dialog::KEYS);
         out.extend(super::time_dialog::KEYS);
+        out.extend(super::backup_screens::KEYS);
         out.extend(super::catalogue::HOME.iter().map(|h| h.1));
         for screen in super::catalogue::SCREENS {
             out.push(screen.title);

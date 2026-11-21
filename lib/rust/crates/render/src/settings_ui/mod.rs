@@ -1,5 +1,9 @@
 //! Native settings UI. Platform effects and persisted IO are returned as plans.
 mod addons;
+mod backup_reports;
+mod backup_rows;
+pub mod backup_saved;
+pub mod backup_screens;
 mod cards;
 pub mod catalogue;
 pub mod color;
@@ -12,6 +16,7 @@ mod events;
 pub use cards::SpellCard;
 mod field;
 mod fields;
+pub mod files;
 mod layout;
 pub mod licences;
 mod material;
@@ -151,6 +156,10 @@ pub struct App {
     /// 45 sp and 57 sp in pixels as Android's `applyDimension` gives them, which grows large
     /// text less than linearly; zero until Kotlin sends them.
     pub display_pixels: [f32; 2],
+    /// The picker answer and file work Rust waits for.
+    pub files: files::Files,
+    /// Back up's and Restore's choices and the backup Restore read.
+    pub backups: backup_screens::Backups,
 }
 impl Default for App {
     fn default() -> Self {
@@ -205,6 +214,8 @@ impl Default for App {
             picker: None,
             time_inputs: vec![],
             display_pixels: [0.0; 2],
+            files: Default::default(),
+            backups: Default::default(),
         }
     }
 }
@@ -235,6 +246,7 @@ impl App {
             self.effects.push(vec!["hideEditor".into()]);
         }
         if catalogue::native(route) {
+            let had = self.backups_open();
             self.release_field();
             if route == licences::ROUTE {
                 // A new LazyListState: `visibleItems` is remembered again at the first frame.
@@ -259,6 +271,7 @@ impl App {
             self.scrollbar_start[0] = -1;
             self.scrollbar_last[0] = -1;
             self.focus = -1;
+            self.backups_left(had);
             self.check_models();
         } else if route == "@enable" {
             self.effects.push(vec!["enable".into()]);
@@ -324,11 +337,13 @@ impl App {
             self.editor.composing = None;
             self.effects.push(vec!["hideEditor".into()]);
         } else if self.stack.len() > 1 {
+            let had = self.backups_open();
             self.release_field();
             self.time_inputs.clear();
             self.stack.pop();
             self.scrolls.pop();
             self.focus = -1;
+            self.backups_left(had);
         } else {
             self.effects.push(vec!["finish".into()]);
         }

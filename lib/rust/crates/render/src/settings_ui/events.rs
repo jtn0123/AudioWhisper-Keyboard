@@ -1,6 +1,6 @@
 use super::{
     Action, App, Modal,
-    catalogue::{Do, Kind},
+    catalogue::{Do, Kind, Part},
 };
 use crate::touch::Motion;
 impl App {
@@ -59,6 +59,7 @@ impl App {
                     Kind::Spell => self
                         .effects
                         .push(vec!["intent".into(), "spellCheckerSettings".into()]),
+                    Kind::Backup(part) => self.backup_tap(part),
                     Kind::Choice(_)
                     | Kind::Slider(_)
                     | Kind::Confirm(..)
@@ -124,6 +125,7 @@ impl App {
                             }
                             self.effects.push(plan);
                         }
+                        Kind::Backup(_) => self.restore_confirmed(),
                         _ => {}
                     }
                 }
@@ -285,7 +287,7 @@ impl App {
                 Kind::Slider(_) => eligible.extend((0..m.values.len()).map(|i| 4000 + i as i32)),
                 _ => eligible.extend(self.picker_focus()),
             }
-            if !matches!(r.kind, Kind::Confirm(..)) {
+            if !matches!(r.kind, Kind::Confirm(..) | Kind::Backup(_)) {
                 eligible.push(5);
             }
             eligible.extend([6, 7]);
@@ -302,7 +304,8 @@ impl App {
                         | Kind::Info
                         | Kind::Header
                         | Kind::Status(_)
-                        | Kind::Note => {}
+                        | Kind::Note
+                        | Kind::Backup(Part::About(_) | Part::Warning | Part::Confirm) => {}
                         // The card's text is not focusable; its hyperlink is.
                         Kind::Card(_) | Kind::Addons(_) => eligible.push(6000 + i as i32),
                         Kind::Libraries => eligible.extend(self.licence_focus()),

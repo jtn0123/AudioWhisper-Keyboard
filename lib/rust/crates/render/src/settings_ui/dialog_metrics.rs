@@ -60,6 +60,11 @@ impl App {
                 let rh = self.measure(text, &message, self.sp(16), width - 48.0 * d);
                 vec![(message, String::new(), rh)]
             }
+            Kind::Backup(_) => {
+                let message = self.restore_question();
+                let rh = self.measure(text, &message, self.sp(16), width - 48.0 * d);
+                vec![(message, String::new(), rh)]
+            }
             Kind::Color => vec![(String::new(), String::new(), self.color_height(width, text))],
             Kind::Time => vec![(String::new(), String::new(), self.time_height(text))],
             _ => Vec::new(),

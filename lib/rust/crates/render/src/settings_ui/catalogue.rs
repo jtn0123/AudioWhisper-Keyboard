@@ -1,6 +1,7 @@
 //! Settings screen descriptions, as data: each FlorisScreen's rows in source order with their
 //! enabledIf/visibleIf conditions. Defaults, ranges and enum membership remain in settings.
 mod about;
+mod backup;
 mod clipboard;
 mod dictation;
 mod dictionary;
@@ -14,6 +15,7 @@ mod physical_keyboard;
 mod smartbar;
 mod theme;
 mod typing;
+pub use backup::{BACKUP_ROUTE, GROUP_NAMES, RESTORE_ROUTE};
 pub use keyboard::KEYBOARD;
 
 /// A JetPref `enabledIf` / `visibleIf` lambda over stored preferences and device facts.
@@ -35,6 +37,8 @@ pub enum Cond {
     Fact(&'static str, &'static str),
     /// The Floris spell checker is the system's enabled one (`florisSpellCheckerEnabled`).
     FlorisSpellChecker,
+    /// A backup to restore was read; with `true`, also one that can be restored.
+    Restore(bool),
 }
 /// One `listPrefEntries` entry: stored value, label and description string keys.
 pub type Entry = (&'static str, &'static str, &'static str);
@@ -109,6 +113,31 @@ pub enum Kind {
     Theme(&'static str),
     /// AddonManagementReferenceBox: an outlined box sending the user to the addon manager.
     Addons(&'static Addons),
+    /// A row of the Back up or Restore screen (`backup.rs`).
+    Backup(Part),
+}
+/// What a Back up or Restore row is. A group is its `wire::backup::layout` position.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum Part {
+    /// Back up's destination radio: 0 a file, 1 the share menu.
+    Destination(u8),
+    /// A group's checkbox; the clipboard's three are indented under [`Part::Clipboard`].
+    Group(usize),
+    /// The clipboard history's checkbox, which is mixed when only some of its groups are on.
+    Clipboard,
+    /// Restore's mode radio: erase first or not.
+    Mode(bool),
+    /// Restore's row that opens the picker, showing the file chosen.
+    Choose,
+    /// A line about the backup read: 0 when it was made, 1 its version, 2 its package.
+    About(u8),
+    /// The backup's metadata warning or error; empty when it has none.
+    Warning,
+    /// Restore's question before it changes anything: never shown as a row, only as its dialog.
+    Confirm,
+    /// The bottom bar's Cancel and its Back up or Restore.
+    Cancel,
+    Start,
 }
 /// AddonManagementReferenceBox's extension type: its title's string key ("Theme extensions"),
 /// which the box names in lower case, and the route of its list.
@@ -296,6 +325,8 @@ pub const SCREENS: &[Screen] = &[
     licences::SCREEN,
     other::SCREEN,
     theme::SCREEN,
+    backup::BACKUP,
+    backup::RESTORE,
 ];
 /// The native screen at `route`, if Rust draws it.
 pub fn screen(route: &str) -> Option<&'static Screen> {

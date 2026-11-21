@@ -9,6 +9,7 @@ rust-version.workspace = true
 
 [dependencies]
 wire = { path = "../wire" }
+backup = { path = "../backup" }
 settings = { path = "../settings" }
 input = { path = "../input" }
 keys = { path = "../keys" }

@@ -46,8 +46,6 @@ import dev.patrickgold.florisboard.app.ext.ExtensionListScreen
 import dev.patrickgold.florisboard.app.ext.ExtensionListScreenType
 import dev.patrickgold.florisboard.app.ext.ExtensionViewScreen
 import dev.patrickgold.florisboard.app.settings.about.ProjectLicenseScreen
-import dev.patrickgold.florisboard.app.settings.advanced.BackupScreen
-import dev.patrickgold.florisboard.app.settings.advanced.RestoreScreen
 import dev.patrickgold.florisboard.app.settings.dictionary.UserDictionaryScreen
 import dev.patrickgold.florisboard.app.settings.dictionary.UserDictionaryType
 import dev.patrickgold.florisboard.app.settings.localization.LanguagePackManagerScreen
@@ -289,8 +287,8 @@ object Routes {
 
             composableWithDeepLink(Settings.Other::class) {}
             composableWithDeepLink(Settings.PhysicalKeyboard::class) {}
-            composableWithDeepLink(Settings.Backup::class) { BackupScreen() }
-            composableWithDeepLink(Settings.Restore::class) { RestoreScreen() }
+            composableWithDeepLink(Settings.Backup::class) {}
+            composableWithDeepLink(Settings.Restore::class) {}
 
             composableWithDeepLink(Settings.About::class) {}
             composableWithDeepLink(Settings.ProjectLicense::class) { ProjectLicenseScreen() }

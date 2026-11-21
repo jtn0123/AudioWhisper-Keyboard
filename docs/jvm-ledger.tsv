@@ -42,7 +42,7 @@ app/src/main/kotlin/com/jtn0123/audiowhisper/reader/VoiceEngine.kt	M	107	Context
 app/src/main/kotlin/com/jtn0123/audiowhisper/render/AccessibilityRelease.kt	P	25	hover/hold release target choice and hit testing |
 app/src/main/kotlin/com/jtn0123/audiowhisper/render/InputViewVisibility.kt	M	12	View window visibility; the told-visibility state is Kotlin, and the retell rule is Rust (ImeWindowRules.retellVisible)
 app/src/main/kotlin/com/jtn0123/audiowhisper/render/RenderTiming.kt	M	12	ViewTreeObserver / Log; fallback-only timing scaffolding, remove with its callers |
-app/src/main/kotlin/com/jtn0123/audiowhisper/render/RendererAccessibility.kt	M	292	AccessibilityNodeProvider; focus recovery, hover/hit/hold/touch state still Kotlin |
+app/src/main/kotlin/com/jtn0123/audiowhisper/render/RendererAccessibility.kt	M	295	AccessibilityNodeProvider; focus recovery, hover/hit/hold/touch state still Kotlin | raised 292 to 295 (compose-removal step 5): a partly ticked checkbox, the polite live region for status notes, and the CheckBox class
 app/src/main/kotlin/com/jtn0123/audiowhisper/render/RendererAccessibilityResources.kt	A	98	Context.getString; localized semantic-label map |
 app/src/main/kotlin/com/jtn0123/audiowhisper/render/RendererActionTooltip.kt	M	41	PopupWindow / View; tooltip selection and lifetime around native text |
 app/src/main/kotlin/com/jtn0123/audiowhisper/render/RendererCandidateBindings.kt	A	19	ART JNI; object identity handles for native candidates |
@@ -81,14 +81,15 @@ app/src/main/kotlin/com/jtn0123/audiowhisper/settings/SettingsSubtypes.kt	A	15	J
 app/src/main/kotlin/com/jtn0123/audiowhisper/settings/SettingsTimeSerializer.kt	A	12	Jetpref typed serializer / java.time.LocalTime; native codec transport |
 app/src/main/kotlin/com/jtn0123/audiowhisper/settingsui/CrashReport.kt	P	29	bootstrap crash report: the category and allowlisted-frame rules are portable; the R.string id is the only Android fact (package 6 crash/report presentation)
 app/src/main/kotlin/com/jtn0123/audiowhisper/settingsui/PlatformCrashScreen.kt	A	68	bootstrap crash screen in platform Views, so it works when the native library fails to load (all-rust.md, the stays table)
-app/src/main/kotlin/com/jtn0123/audiowhisper/settingsui/RustSettingsView.kt	A	240	SurfaceView / Choreographer / BaseInputConnection; native effects, state and Android IME visibility transport only |
+app/src/main/kotlin/com/jtn0123/audiowhisper/settingsui/RustSettingsView.kt	A	244	SurfaceView / Choreographer / BaseInputConnection; native effects, state and Android IME visibility transport only | raised 240 to 244 (compose-removal step 5): the file picker and file work adapter, made, fed and released with the view
 app/src/main/kotlin/com/jtn0123/audiowhisper/settingsui/SettingsFacts.kt	M	163	device facts and effect execution for the Rust settings screens; the Android reads stay, the spell-package parse and fact shaping move to Rust
+app/src/main/kotlin/com/jtn0123/audiowhisper/settingsui/SettingsFiles.kt	A	105	ActivityResultRegistry / Intent / ContentResolver / Toast: the system file picker and the file work queue for the native settings screens; Rust decides what a pick is for and what follows
 app/src/main/kotlin/com/jtn0123/audiowhisper/settingsui/SettingsIcons.kt	A	46	Resources / Android Path; resource icon map |
 app/src/main/kotlin/com/jtn0123/audiowhisper/settingsui/SettingsInputView.kt	A	63	View / BaseInputConnection / InputMethodManager; native text endpoint | raised 62 to 63 (A6): the import of the generated SettingsUiEdit and SettingsUiQuery
 app/src/main/kotlin/com/jtn0123/audiowhisper/settingsui/SettingsPlatform.kt	M	78	Jetpref / Resources / WindowCompat; palette/appearance selection and write-queue binding |
 app/src/main/kotlin/com/jtn0123/audiowhisper/settingsui/SettingsResources.kt	A	16	Context.getString; batched string-resource map |
 app/src/main/kotlin/com/jtn0123/audiowhisper/settingsui/SettingsSelectionMenu.kt	A	42	Android floating ActionMode toolbar; Rust owns the selection and the edits it asks for; raised 41 to 42 (A6): the import of the generated SettingsUiEdit and SettingsUiQuery
-app/src/main/kotlin/com/jtn0123/audiowhisper/settingsui/SettingsStringIds.kt	A	439	explicit R.string ids for the native settings screens; a resource-only map
+app/src/main/kotlin/com/jtn0123/audiowhisper/settingsui/SettingsStringIds.kt	A	496	explicit R.string ids for the native settings screens; a resource-only map | raised 439 to 496 (compose-removal step 5): the ids of Back up and Restore's strings
 app/src/main/kotlin/com/jtn0123/audiowhisper/suggest/AutoCorrectStrength.kt	P	7	portable strength enum; its order and thresholds are Rust (suggest::auto_correction::Strength)
 app/src/main/kotlin/com/jtn0123/audiowhisper/suggest/AutoCorrectionUndo.kt	A	8	ART JNI / InputConnection consumer; native undo-result projection |
 app/src/main/kotlin/com/jtn0123/audiowhisper/suggest/GlideRanker.kt	A	31	ART JNI; copies scores/context into native ranking |
@@ -116,7 +117,7 @@ app/src/main/kotlin/dev/patrickgold/florisboard/app/AppPrefs.kt	M	276	Jetpref Pr
 app/src/main/kotlin/dev/patrickgold/florisboard/app/ComposeSettingsFallbackActivity.kt	A	4	ComponentActivity; retained fallback Activity identity |
 app/src/main/kotlin/dev/patrickgold/florisboard/app/EnumDisplayEntries.kt	A	160	Resources.getString; enum resource IDs/descriptions (split existing oversized map) |
 app/src/main/kotlin/dev/patrickgold/florisboard/app/FlorisAppActivity.kt	M	258	ComponentActivity / ActivityResultRegistry; retained routing/import/default-selection branches | raised 257 to 258 (A6): the import of the generated SettingsUiBack
-app/src/main/kotlin/dev/patrickgold/florisboard/app/Routes.kt	P	264	portable Routes domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
+app/src/main/kotlin/dev/patrickgold/florisboard/app/Routes.kt	P	262	portable Routes domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
 app/src/main/kotlin/dev/patrickgold/florisboard/app/SettingsEntry.kt	M	9	which host the settings Activity opens and settings link parsing; setup navigation moves to Rust (package 6)
 app/src/main/kotlin/dev/patrickgold/florisboard/app/apptheme/Shape.kt	P	9	portable Shape domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
 app/src/main/kotlin/dev/patrickgold/florisboard/app/apptheme/Theme.kt	M	62	Resources / WindowInsetsController; preference-to-theme choice still in Kotlin |
@@ -125,7 +126,7 @@ app/src/main/kotlin/dev/patrickgold/florisboard/app/ext/AddonBox.kt	S	87	Compose
 app/src/main/kotlin/dev/patrickgold/florisboard/app/ext/CheckUpdatesScreen.kt	S	17	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
 app/src/main/kotlin/dev/patrickgold/florisboard/app/ext/ExtensionComponentView.kt	S	160	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
 app/src/main/kotlin/dev/patrickgold/florisboard/app/ext/ExtensionEditFilesScreen.kt	S	260	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
-app/src/main/kotlin/dev/patrickgold/florisboard/app/ext/ExtensionEditScreen.kt	S	809	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
+app/src/main/kotlin/dev/patrickgold/florisboard/app/ext/ExtensionEditScreen.kt	S	808	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
 app/src/main/kotlin/dev/patrickgold/florisboard/app/ext/ExtensionExportScreen.kt	S	56	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
 app/src/main/kotlin/dev/patrickgold/florisboard/app/ext/ExtensionHomeScreen.kt	S	48	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
 app/src/main/kotlin/dev/patrickgold/florisboard/app/ext/ExtensionImportScreen.kt	S	294	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
@@ -134,10 +135,10 @@ app/src/main/kotlin/dev/patrickgold/florisboard/app/ext/ExtensionListScreen.kt	S
 app/src/main/kotlin/dev/patrickgold/florisboard/app/ext/ExtensionMaintainerChip.kt	S	98	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
 app/src/main/kotlin/dev/patrickgold/florisboard/app/ext/ExtensionNotFoundScreen.kt	S	21	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
 app/src/main/kotlin/dev/patrickgold/florisboard/app/ext/ExtensionViewScreen.kt	S	264	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
+app/src/main/kotlin/dev/patrickgold/florisboard/app/ext/RadioListItem.kt	S	25	Compose settings (stage4 scope): deleted at compose-removal steps 5-12 | moved unchanged out of BackupScreen (step 5); ExtensionEditScreen is its only user
 app/src/main/kotlin/dev/patrickgold/florisboard/app/settings/about/ProjectLicenseScreen.kt	S	47	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
-app/src/main/kotlin/dev/patrickgold/florisboard/app/settings/advanced/BackupIO.kt	M	80	ContentResolver / Room / File; backup traversal, selected records and restore effects |
-app/src/main/kotlin/dev/patrickgold/florisboard/app/settings/advanced/BackupScreen.kt	S	345	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
-app/src/main/kotlin/dev/patrickgold/florisboard/app/settings/advanced/RestoreScreen.kt	S	248	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
+app/src/main/kotlin/dev/patrickgold/florisboard/app/settings/advanced/BackupIO.kt	M	81	ContentResolver / Room / File; backup traversal, selected records and restore effects | raised 80 to 81 (compose-removal step 5): a callback after each restore step, so a restore that stops part-way can say what came back
+app/src/main/kotlin/dev/patrickgold/florisboard/app/settings/advanced/BackupWork.kt	A	183	CacheManager workspaces / ContentResolver / FileProvider / share Intent: Back up's and Restore's archive and file work, as Rust asks for it; zip and copy run on the IO dispatcher
 app/src/main/kotlin/dev/patrickgold/florisboard/app/settings/dictionary/UserDictionaryScreen.kt	S	362	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
 app/src/main/kotlin/dev/patrickgold/florisboard/app/settings/localization/LanguagePackManagerScreen.kt	S	165	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
 app/src/main/kotlin/dev/patrickgold/florisboard/app/settings/localization/LocalizationScreen.kt	S	164	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
@@ -308,7 +309,7 @@ app/src/main/kotlin/dev/patrickgold/florisboard/lib/Pointer.kt	P	81	pointer regi
 app/src/main/kotlin/dev/patrickgold/florisboard/lib/StateAdapters.kt	A	41	LiveData.observe / LifecycleOwner; observable platform bindings |
 app/src/main/kotlin/dev/patrickgold/florisboard/lib/Unicode.kt	A	15	android.icu.lang.UCharacter; Android character facts |
 app/src/main/kotlin/dev/patrickgold/florisboard/lib/Validation.kt	M	109	Resources; validation-result/model and message-choice ownership |
-app/src/main/kotlin/dev/patrickgold/florisboard/lib/cache/CacheManager.kt	M	186	Context.cacheDir / ContentResolver; workspace/import lifetime and selection |
+app/src/main/kotlin/dev/patrickgold/florisboard/lib/cache/CacheManager.kt	M	182	Context.cacheDir / ContentResolver; workspace/import lifetime and selection |
 app/src/main/kotlin/dev/patrickgold/florisboard/lib/compose/FlorisDialogs.kt	S	46	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
 app/src/main/kotlin/dev/patrickgold/florisboard/lib/compose/FlorisHyperlinkText.kt	S	30	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
 app/src/main/kotlin/dev/patrickgold/florisboard/lib/compose/FlorisScreen.kt	S	124	Compose settings (stage4 scope): deleted at compose-removal steps 5-12

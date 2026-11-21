@@ -1071,7 +1071,7 @@ One module for each entry point:
 | `nlp` | `NlpNative.call` | `NlpOp` and its packets |
 | `dictation` | `DictationSessionNative.call` and `.model` | `DictationEvent`, `DictationModelOp` and the plan |
 | `playback` | `PlaybackNative.call` and `.system` | `PlaybackOp`, `PlaybackSpeechOp` and their rows |
-| `settings_ui` | `RenderNative.settings` | `SettingsUiOp`, `SettingsUiEdit` and the reply |
+| `settings_ui` | `RenderNative.settings` | `SettingsUiOp`, `SettingsUiEdit` and the reply; in `settings_ui::files`, the file picker and file work (`SettingsUiFileEffect`, `SettingsUiFiles`, `SettingsUiPick`, `SettingsUiWork`, `SettingsUiDone` and their codes) |
 
 ### The forms
 

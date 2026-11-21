@@ -6,7 +6,7 @@ use crate::{
 };
 use jni_sys::{JNIEnv, jclass, jfloatArray, jint, jintArray, jlong, jlongArray, jobjectArray};
 use render::{
-    settings_ui::{Action, App, catalogue},
+    settings_ui::{Action, App, Control, catalogue},
     touch::Motion,
 };
 use serde_json::json;
@@ -35,6 +35,15 @@ fn float(p: &[String], i: usize) -> Result<f32> {
         .ok()
         .filter(|v| v.is_finite())
         .ok_or_else(|| illegal("settings number"))
+}
+/// A node's checked state: a radio button's selection, a checkbox's with "partial" when it is
+/// partly on, or null for a control that cannot be checked.
+fn checked(c: &Control) -> serde_json::Value {
+    match (c.role, c.checked) {
+        ("radio", _) => c.selected.into(),
+        ("checkbox", None) => "partial".into(),
+        (_, state) => state.map_or(serde_json::Value::Null, Into::into),
+    }
 }
 fn reply(
     s: &mut Session,
@@ -65,7 +74,7 @@ fn reply(
         let label=if let Some(t)=&shown{t.clone()}else if c.role=="image"{String::new()}else{c.label.clone()};
         json!({"id":c.id,"bounds":[c.bounds.left,c.bounds.top,c.bounds.right,c.bounds.bottom],"label":label,
             "description":c.label,"hint":if c.role=="edit"{c.label.as_str()}else{""},"hintShowing":shown.as_ref().is_some_and(|t| t.is_empty()),"role":c.role,"state":c.summary,"enabled":c.exposed_enabled(),"pressed":false,"selected":c.selected,
-            "checked":if c.role=="radio"{Some(c.selected)}else{c.checked},"locked":false,"actions":actions,"longClickLabel":"","holdDelayMillis":500,
+            "checked":checked(c),"live":c.role=="status","locked":false,"actions":actions,"longClickLabel":"","holdDelayMillis":500,
             "range":c.range,"anchor":anchor,"focus":focus})
     }).collect();
     let field = a
@@ -384,6 +393,7 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_settings(
                         a.set_document(name, text);
                     }
                 }
+                ops::FILES => a.file_report(&p).map_err(illegal)?,
                 ops::ACCESSIBILITY_SCROLL => {
                     let id = int(&p, 0)?;
                     a.accessibility_scroll(id, int(&p, 1)? == ACCESS_SCROLL_FORWARD);

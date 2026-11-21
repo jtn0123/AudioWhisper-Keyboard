@@ -1,9 +1,11 @@
 //! Versioned saved-state transport. No preference values or native handles are restored.
 use render::settings_ui::{
-    App, Modal,
+    App, Modal, backup_saved,
     catalogue::{self, Kind},
 };
 use settings::{Text, text};
+/// The saved state's layout; 3 added Back up's and Restore's state.
+const VERSION: &str = "3";
 pub fn save(a: &App) -> Vec<Text> {
     // LibrariesContainer keeps its open library, and Jetpref's colour and time preferences their
     // dialogs, in a plain `remember`: recreation closes them.
@@ -15,7 +17,7 @@ pub fn save(a: &App) -> Vec<Text> {
     });
     let e = a.preview_editor();
     vec![
-        text("2"),
+        text(VERSION),
         text(&a.stack.join("|")),
         text(
             &a.scrolls
@@ -36,10 +38,11 @@ pub fn save(a: &App) -> Vec<Text> {
         text(&e.focused.to_string()),
         text(&a.focus.to_string()),
         text(&m.is_none_or(|m| m.enabled).to_string()),
+        text(&a.backups_saved()),
     ]
 }
 pub fn restore(a: &mut App, packet: &[Text]) -> Result<(), &'static str> {
-    if packet.len() != 15 || packet[0] != text("2") || packet[7].len() > 65_536 {
+    if packet.len() != 16 || packet[0] != text(VERSION) || packet[7].len() > 65_536 {
         return Err("settings saved state version or size");
     }
     let p: Vec<_> = packet.iter().map(|s| String::from_utf16_lossy(s)).collect();
@@ -86,7 +89,7 @@ pub fn restore(a: &mut App, packet: &[Text]) -> Result<(), &'static str> {
             {
                 values
             }
-            Kind::Confirm(..) if p[5].is_empty() => vec![],
+            Kind::Confirm(..) | Kind::Backup(catalogue::Part::Confirm) if p[5].is_empty() => vec![],
             _ => return Err("settings saved modal values"),
         };
         Some(Modal {
@@ -110,6 +113,7 @@ pub fn restore(a: &mut App, packet: &[Text]) -> Result<(), &'static str> {
     }
     let focused = p[12].parse::<bool>().map_err(|_| "settings saved focus")?;
     let id = number(13)?;
+    let (files, backups) = backup_saved::parse_backups(&p[15])?;
     a.stack = stack;
     a.scrolls = scrolls;
     a.modal = modal;
@@ -124,5 +128,7 @@ pub fn restore(a: &mut App, packet: &[Text]) -> Result<(), &'static str> {
     a.focus = id;
     a.fling = None;
     a.down = None;
+    a.files = files;
+    a.backups = backups;
     Ok(())
 }

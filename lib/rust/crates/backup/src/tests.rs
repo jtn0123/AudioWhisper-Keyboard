@@ -63,3 +63,17 @@ fn what_typing_taught_stays_on_the_phone() {
         }
     }
 }
+
+/// Compose's clipboard TriStateCheckbox, counted over the clips a screen offers: Restore offers
+/// only those a backup holds, so a backup with no images is all on with text and video.
+#[test]
+fn the_clipboard_checkbox_counts_only_offered_clips() {
+    let [text_, images, video] = [3, 4, 5].map(|g| 1 << g);
+    assert_eq!(clipboard_state(0b111, CLIPBOARD_MASK), ops::OFF);
+    assert_eq!(clipboard_state(text_, CLIPBOARD_MASK), ops::MIXED);
+    assert_eq!(clipboard_state(CLIPBOARD_MASK, CLIPBOARD_MASK), ops::ON);
+    assert_eq!(clipboard_state(text_ | video, text_ | video), ops::ON);
+    assert_eq!(clipboard_state(text_ | images, text_ | video), ops::MIXED);
+    assert_eq!(clipboard_state(CLIPBOARD_MASK, 0b111), ops::OFF);
+    assert_eq!(CLIPBOARD_MASK, text_ | images | video);
+}
