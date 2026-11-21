@@ -119,7 +119,9 @@ hand.
   side, make the raw `call` internal.
   **Done (2026-11-21):** declared once in `crates/wire` for eleven families of entry points,
   Kotlin generated into `build/` without a regex, and a clash or one-sided rename fails the
-  build ([rust.md](rust.md#operation-codes-and-packets-crateswire)).
+  build ([rust.md](rust.md#operation-codes-and-packets-crateswire)). On the emulator, "teh"
+  composed with "the" offered and a space corrected it, next-word suggestions followed, and two
+  quick spaces typed ". ".
 * **Then every binding file** in `lib/rust/src/main/kotlin` (66 files, 3,078 lines).
 * **Exit:** all `external fun`s generated, at most about 300 hand-written lines left in the
   bindings, existing match tests unchanged.
