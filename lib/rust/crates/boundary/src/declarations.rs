@@ -13,6 +13,7 @@ mod rules;
 mod screen;
 mod shift;
 mod spacing;
+mod word_stores;
 
 use crate::{Api, Class, Module, Type, Wire};
 
@@ -43,6 +44,7 @@ pub const CLASSES: &[Class] = &[
     giphy::GIPHY_NATIVE,
     emoji::EMOJI_NATIVE,
     spacing::SPACING_NATIVE,
+    word_stores::WORD_STORES_NATIVE,
 ];
 
 /// Every generated api over those classes.
@@ -58,6 +60,10 @@ pub const APIS: &[Api] = &[
     emoji::EMOJI_TABLE,
     emoji::EMOJI_RULES,
     spacing::SPACING_RULES,
+    word_stores::WORD_STORE_RULES,
+    word_stores::LEARNED_WORD_STORE,
+    word_stores::KEPT_WORD_STORE,
+    word_stores::PERSONAL_WORD_STORE,
 ];
 
 /// Every generated top-level record and enum, with the declarations file and the module it is in.

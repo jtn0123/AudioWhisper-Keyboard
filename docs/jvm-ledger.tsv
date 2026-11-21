@@ -424,8 +424,6 @@ lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/SuggesterNative.kt	A	11	A
 lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/Swipe.kt	A	37	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
 lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/SwipeNative.kt	A	19	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
 lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/Utf16Batch.kt	A	5	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
-lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/WordStores.kt	A	94	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
-lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/WordStoresNative.kt	A	47	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
 lib/snygg/src/main/kotlin/org/florisboard/lib/snygg/Snygg.kt	P	56	portable Snygg domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
 lib/snygg/src/main/kotlin/org/florisboard/lib/snygg/SnyggCompilerAdapter.kt	M	123	Resources colour/font materialization / ART JNI; retire Compose-domain object tokens after ports |
 lib/snygg/src/main/kotlin/org/florisboard/lib/snygg/SnyggEditorProperties.kt	P	57	editor map ownership and concurrent-modification semantics |

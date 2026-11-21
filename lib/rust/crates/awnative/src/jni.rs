@@ -294,11 +294,6 @@ impl Env {
         Ok(arrays)
     }
 
-    /// A new Java string of these UTF-16 units, or null for `None`.
-    pub fn make_nullable_string(&self, units: Option<&[u16]>) -> Result<jstring> {
-        units.map_or(Ok(ptr::null_mut()), |units| self.make_string(units))
-    }
-
     /// A new array of `class` (a JNI class name) holding what `make` makes of each item.
     fn make_array<T>(
         &self,
