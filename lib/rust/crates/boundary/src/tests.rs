@@ -66,6 +66,13 @@ const STRESS: &[Class] = &[
                 ..METHOD
             },
             Method {
+                name: "aMethodTakingFlagsLongEnoughToWrap",
+                doc: "Narrow arguments that are expressions, one to a line all the same.",
+                params: &[("first", Param::Boolean), ("second", Param::Boolean)],
+                returns: Return::Boolean,
+                ..METHOD
+            },
+            Method {
                 name: "readsStrings",
                 doc: "A string read that fits on its line and one that does not.",
                 params: &[

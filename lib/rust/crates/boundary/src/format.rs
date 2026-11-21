@@ -221,7 +221,7 @@ pub fn rust_use(path: &str, names: &[String]) -> String {
 
 /// A call `callee(args)` at `indent`, as rustfmt lays it out: on one line if it fits and the
 /// arguments are narrow enough; else, on the next line, the arguments together if they are narrow
-/// enough or one to a line if not.
+/// enough and each short and simple, or one to a line if not.
 fn rust_call(indent: usize, callee: &str, args: &[String]) -> String {
     let pad = " ".repeat(indent);
     let joined = args.join(", ");
@@ -230,12 +230,21 @@ fn rust_call(indent: usize, callee: &str, args: &[String]) -> String {
         return format!("{pad}{callee}({joined})\n");
     }
     let inner = " ".repeat(indent + 4);
-    let args = if narrow {
+    let args = if narrow && args.iter().all(|it| is_short_and_simple(it)) {
         format!("{inner}{joined},\n")
     } else {
         args.iter().map(|it| format!("{inner}{it},\n")).collect()
     };
     format!("{pad}{callee}(\n{args}{pad})\n")
+}
+
+/// rustfmt's `short_array_element_width_threshold`.
+const SHORT_ITEM: usize = 10;
+
+/// Whether rustfmt would fill a line with `arg` and the others: a name or a number of at most
+/// [`SHORT_ITEM`] characters, not an expression such as `flag != 0`.
+fn is_short_and_simple(arg: &str) -> bool {
+    arg.len() <= SHORT_ITEM && arg.bytes().all(|it| it.is_ascii_alphanumeric() || it == b'_')
 }
 
 /// `let name = value;` at `indent`, as rustfmt lays it out: on one line if it fits, else with the
