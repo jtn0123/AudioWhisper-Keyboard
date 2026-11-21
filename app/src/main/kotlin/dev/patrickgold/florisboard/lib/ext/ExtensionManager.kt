@@ -16,7 +16,7 @@
 
 package dev.patrickgold.florisboard.lib.ext
 
-import com.jtn0123.audiowhisper.rust.ExtensionPolicy
+import com.jtn0123.audiowhisper.rust.*
 import android.content.Context
 import android.net.Uri
 import android.os.FileObserver
@@ -73,7 +73,7 @@ val ExtensionJsonConfig = Json {
             subclass(WithRules::class, WithRules.serializer())
             defaultDeserializer { serial ->
                 when (ExtensionPolicy.composerType(serial)) {
-                    "with-rules" -> WithRules.serializer()
+                    ExtensionComposerType.WITH_RULES -> WithRules.serializer()
                     else -> Appender.serializer()
                 }
             }

@@ -83,9 +83,12 @@ fn number(input: &[u16]) -> Result<Value> {
 
 fn component(input: &[u16]) -> Result<Value> {
     let value = string(input)?;
-    let plan =
-        extensions::call(3, &[value.string_value()?.to_vec()]).map_err(|_| "invalid component")?;
-    if !plan[0].is_empty() {
+    let name = extensions::call(
+        wire::extensions::COMPONENT_NAME,
+        &[value.string_value()?.to_vec()],
+    )
+    .map_err(|_| "invalid component")?;
+    if !name[wire::extensions::component::ERROR].is_empty() {
         return Err("invalid component");
     }
     Ok(value)

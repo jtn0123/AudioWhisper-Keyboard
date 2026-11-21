@@ -1,5 +1,10 @@
 //! Domain errors are resource keys, so Compose retains identical translated UI messages.
 use crate::{Text, text};
+use wire::extensions::validation::{ARGUMENT, PATTERN, RESOURCE, SIZE, STATUS};
+use wire::extensions::{
+    COMPONENT_AUTHORS, COMPONENT_ID, COMPONENT_LABEL, ID, INVALID, LICENSE, MAINTAINERS,
+    STYLESHEET_PATH, TITLE, VALID, VERSION,
+};
 
 pub const META_ID_REGEX: &str = r"^[a-z][a-z0-9_]*(\.[a-z0-9][a-z0-9_]*)*$";
 pub const COMPONENT_ID_REGEX: &str = r"^[a-z][a-z0-9_]*$";
@@ -27,27 +32,26 @@ fn package_id(value: &[u16]) -> bool {
         .all(|(i, part)| id_part(part, i == 0))
 }
 
+/// A `wire::extensions::validation` row: the status, the resource key for `key` (none if empty),
+/// and the regex's name and pattern.
+fn row(status: &str, key: &str, argument: &str, pattern: &str) -> Vec<Text> {
+    let mut row = vec![vec![]; SIZE];
+    row[STATUS] = text(status);
+    if !key.is_empty() {
+        row[RESOURCE] = text(&format!("ext__validation__{key}"));
+    }
+    row[ARGUMENT] = text(argument);
+    row[PATTERN] = text(pattern);
+    row
+}
+
 /// Status, resource key, optional substitution name and regex. These are policy, not Android IDs.
 pub fn validate(rule: &str, value: &[u16]) -> Vec<Text> {
-    let error = |key: &str| {
-        vec![
-            text("invalid"),
-            text(&format!("ext__validation__{key}")),
-            vec![],
-            vec![],
-        ]
-    };
-    let valid = || vec![text("valid"), vec![], vec![], vec![]];
-    let pattern_error = |key, arg, pattern| {
-        vec![
-            text("invalid"),
-            text(&format!("ext__validation__{key}")),
-            text(arg),
-            text(pattern),
-        ]
-    };
+    let error = |key: &str| row(INVALID, key, "", "");
+    let valid = || row(VALID, "", "", "");
+    let pattern_error = |key, arg, pattern| row(INVALID, key, arg, pattern);
     match rule {
-        "id" => {
+        ID => {
             if blank(value) {
                 error("enter_package_name")
             } else if package_id(value) {
@@ -56,35 +60,35 @@ pub fn validate(rule: &str, value: &[u16]) -> Vec<Text> {
                 pattern_error("error_package_name", "id_regex", META_ID_REGEX)
             }
         }
-        "version" => {
+        VERSION => {
             if blank(value) {
                 error("enter_version")
             } else {
                 valid()
             }
         }
-        "title" => {
+        TITLE => {
             if blank(value) {
                 error("enter_title")
             } else {
                 valid()
             }
         }
-        "maintainers" => {
+        MAINTAINERS => {
             if blank(value) {
                 error("enter_maintainer")
             } else {
                 valid()
             }
         }
-        "license" => {
+        LICENSE => {
             if blank(value) {
                 error("enter_license")
             } else {
                 valid()
             }
         }
-        "componentId" => {
+        COMPONENT_ID => {
             if blank(value) {
                 error("enter_component_id")
             } else if id_part(value, true) {
@@ -97,7 +101,7 @@ pub fn validate(rule: &str, value: &[u16]) -> Vec<Text> {
                 )
             }
         }
-        "componentLabel" => {
+        COMPONENT_LABEL => {
             if blank(value) {
                 return error("enter_component_label");
             }
@@ -105,24 +109,19 @@ pub fn validate(rule: &str, value: &[u16]) -> Vec<Text> {
             let start = value.iter().position(|&u| u > 32).unwrap_or(value.len());
             let end = value.iter().rposition(|&u| u > 32).map_or(start, |i| i + 1);
             if end - start > 30 {
-                vec![
-                    text("valid"),
-                    text("ext__validation__hint_component_label_to_long"),
-                    vec![],
-                    vec![],
-                ]
+                row(VALID, "hint_component_label_to_long", "", "")
             } else {
                 valid()
             }
         }
-        "componentAuthors" => {
+        COMPONENT_AUTHORS => {
             if blank(value) {
                 error("error_author")
             } else {
                 valid()
             }
         }
-        "stylesheet" => {
+        STYLESHEET_PATH => {
             if value.is_empty() {
                 valid()
             } else if blank(value) {

@@ -128,6 +128,7 @@ fn kotlin_type(entry: &Wire, group: &Group) -> String {
         if group.form == Form::Fields {
             text.push_str(&kdoc("How many fields the packet has.", "    "));
             text.push_str(&format!("    const val SIZE = {}\n", group.constants.len()));
+            text.push_str(ROW_FUNCTION);
         }
         if group.form == Form::Flag {
             text.push_str(FLAG_FUNCTIONS);
@@ -172,6 +173,19 @@ fn java_class(entry: &Wire, groups: &[&Group]) -> String {
     text.push_str("}\n");
     text
 }
+
+/// What a packet's fields object adds: a builder that sets each field by name, once.
+const ROW_FUNCTION: &str = "
+    /** A row of [fields], each given once by its position. */
+    fun row(vararg fields: Pair<Int, String>): Array<String> {
+        val row = arrayOfNulls<String>(SIZE)
+        for ((field, value) in fields) {
+            check(row[field] == null) { \"field $field given twice\" }
+            row[field] = value
+        }
+        return Array(SIZE) { checkNotNull(row[it]) { \"field $it missing\" } }
+    }
+";
 
 /// What a boolean flag object adds to its `TRUE` and `FALSE`.
 const FLAG_FUNCTIONS: &str = "

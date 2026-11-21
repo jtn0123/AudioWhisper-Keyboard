@@ -16,7 +16,7 @@
 
 package dev.patrickgold.florisboard.lib.ext
 
-import com.jtn0123.audiowhisper.rust.ExtensionPolicy
+import com.jtn0123.audiowhisper.rust.*
 import dev.patrickgold.florisboard.lib.ValidationResult
 import dev.patrickgold.florisboard.R
 import dev.patrickgold.florisboard.ime.theme.ThemeExtensionComponent
@@ -25,14 +25,14 @@ import org.florisboard.lib.snygg.SnyggStylesheet
 import org.florisboard.lib.snygg.value.SnyggVarValue
 
 object ExtensionValidation {
-    private fun native(rule: String, value: String): ValidationResult {
+    private fun native(rule: ExtensionRule, value: String): ValidationResult = with(ExtensionValidationPlan) {
         val plan = ExtensionPolicy.validate(rule, value)
-        if (plan[1].isEmpty()) return ValidationResult.resultValid()
-        val resource = resources.getValue(plan[1])
-        return when {
-            plan[0] == "valid" -> ValidationResult.resultValid(hint = resource)
-            plan[2].isEmpty() -> ValidationResult.resultInvalid(error = resource)
-            else -> ValidationResult.resultInvalid(resource, plan[2] to plan[3])
+        if (plan[RESOURCE].isEmpty()) return@with ValidationResult.resultValid()
+        val resource = resources.getValue(plan[RESOURCE])
+        when {
+            plan[STATUS] == ExtensionValidity.VALID -> ValidationResult.resultValid(hint = resource)
+            plan[ARGUMENT].isEmpty() -> ValidationResult.resultInvalid(error = resource)
+            else -> ValidationResult.resultInvalid(resource, plan[ARGUMENT] to plan[PATTERN])
         }
     }
 
@@ -55,55 +55,55 @@ object ExtensionValidation {
     val MetaId = ValidationRule<String> {
         forKlass = ExtensionMeta::class
         forProperty = "id"
-        validator { str -> native("id", str) }
+        validator { str -> native(ExtensionRule.ID, str) }
     }
 
     val MetaVersion = ValidationRule<String> {
         forKlass = ExtensionMeta::class
         forProperty = "version"
-        validator { str -> native("version", str) }
+        validator { str -> native(ExtensionRule.VERSION, str) }
     }
 
     val MetaTitle = ValidationRule<String> {
         forKlass = ExtensionMeta::class
         forProperty = "title"
-        validator { str -> native("title", str) }
+        validator { str -> native(ExtensionRule.TITLE, str) }
     }
 
     val MetaMaintainers = ValidationRule<String> {
         forKlass = ExtensionMeta::class
         forProperty = "maintainers"
-        validator { str -> native("maintainers", str) }
+        validator { str -> native(ExtensionRule.MAINTAINERS, str) }
     }
 
     val MetaLicense = ValidationRule<String> {
         forKlass = ExtensionMeta::class
         forProperty = "license"
-        validator { str -> native("license", str) }
+        validator { str -> native(ExtensionRule.LICENSE, str) }
     }
 
     val ComponentId = ValidationRule<String> {
         forKlass = ExtensionComponent::class
         forProperty = "id"
-        validator { str -> native("componentId", str) }
+        validator { str -> native(ExtensionRule.COMPONENT_ID, str) }
     }
 
     val ComponentLabel = ValidationRule<String> {
         forKlass = ExtensionComponent::class
         forProperty = "label"
-        validator { str -> native("componentLabel", str) }
+        validator { str -> native(ExtensionRule.COMPONENT_LABEL, str) }
     }
 
     val ComponentAuthors = ValidationRule<String> {
         forKlass = ExtensionComponent::class
         forProperty = "authors"
-        validator { str -> native("componentAuthors", str) }
+        validator { str -> native(ExtensionRule.COMPONENT_AUTHORS, str) }
     }
 
     val ThemeComponentStylesheetPath = ValidationRule<String> {
         forKlass = ThemeExtensionComponent::class
         forProperty = "stylesheetPath"
-        validator { str -> native("stylesheet", str) }
+        validator { str -> native(ExtensionRule.STYLESHEET_PATH, str) }
     }
 
     val ThemeComponentVariableName = ValidationRule<String> {

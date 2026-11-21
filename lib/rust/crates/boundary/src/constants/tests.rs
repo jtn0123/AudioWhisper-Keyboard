@@ -149,6 +149,16 @@ object ExamplePoint {
     const val Y = 1
     /** How many fields the packet has. */
     const val SIZE = 2
+
+    /** A row of [fields], each given once by its position. */
+    fun row(vararg fields: Pair<Int, String>): Array<String> {
+        val row = arrayOfNulls<String>(SIZE)
+        for ((field, value) in fields) {
+            check(row[field] == null) { \"field $field given twice\" }
+            row[field] = value
+        }
+        return Array(SIZE) { checkNotNull(row[it]) { \"field $it missing\" } }
+    }
 }
 "
     );

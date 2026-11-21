@@ -428,6 +428,7 @@ name = "extensions"
 version = "0.1.0"
 dependencies = [
  "chars",
+ "wire",
 ]
 
 [[package]]
@@ -1758,6 +1759,7 @@ dependencies = [
  "extensions",
  "gif",
  "keys",
+ "wire",
 ]
 
 [[package]]

@@ -124,10 +124,12 @@ pub fn call(op: i32, input: &[Text]) -> Result<Vec<Text>> {
             Ok(vec![out])
         }
         (32, [raw]) => {
-            let result = extensions::call(3, std::slice::from_ref(raw))
+            use wire::extensions::COMPONENT_NAME;
+            use wire::extensions::component::{COMPONENT, ERROR, EXTENSION};
+            let name = extensions::call(COMPONENT_NAME, std::slice::from_ref(raw))
                 .map_err(|_| "invalid component packet")?;
-            Ok(if result[0].is_empty() {
-                result[1..].to_vec()
+            Ok(if name[ERROR].is_empty() {
+                vec![name[EXTENSION].clone(), name[COMPONENT].clone()]
             } else {
                 vec![]
             })

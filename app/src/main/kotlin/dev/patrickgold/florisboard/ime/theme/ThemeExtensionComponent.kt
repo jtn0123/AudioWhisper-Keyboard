@@ -16,7 +16,7 @@
 
 package dev.patrickgold.florisboard.ime.theme
 
-import com.jtn0123.audiowhisper.rust.ExtensionPolicy
+import com.jtn0123.audiowhisper.rust.*
 import dev.patrickgold.florisboard.lib.ext.ExtensionComponent
 import dev.patrickgold.florisboard.lib.ext.ExtensionComponentName
 import kotlinx.serialization.EncodeDefault
@@ -88,14 +88,14 @@ class ThemeExtensionComponentEditor(
 
     fun build(): ThemeExtensionComponentImpl {
         val plan = ExtensionPolicy.themeComponent(id, label, stylesheetPath, authors)
-        check(plan[0].isEmpty()) { plan[0] }
+        check(plan[ExtensionThemePlan.ERROR].isEmpty()) { plan[ExtensionThemePlan.ERROR] }
         return ThemeExtensionComponentImpl(
-            id = plan[1],
-            label = plan[2],
-            authors = plan.drop(5),
+            id = plan[ExtensionThemePlan.ID],
+            label = plan[ExtensionThemePlan.LABEL],
+            authors = plan.drop(ExtensionThemePlan.AUTHORS),
             isNightTheme = isNightTheme,
             materialYouFlags = materialYouFlags,
-            stylesheetPath = if (plan[4] == "1") plan[3] else null,
+            stylesheetPath = plan[ExtensionThemePlan.STYLESHEET].takeIf { WireFlag.decode(plan[ExtensionThemePlan.STYLESHEET_PRESENT]) },
         )
     }
 }
