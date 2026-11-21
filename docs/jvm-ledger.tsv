@@ -183,7 +183,7 @@ app/src/main/kotlin/dev/patrickgold/florisboard/ime/core/SubtypeManager.kt	M	87	
 app/src/main/kotlin/dev/patrickgold/florisboard/ime/core/SubtypeSelectionState.kt	P	3	portable SubtypeSelectionState domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
 app/src/main/kotlin/dev/patrickgold/florisboard/ime/dictionary/DictionaryManager.kt	M	138	Room / UserDictionary provider; dictionary readiness/query composition |
 app/src/main/kotlin/dev/patrickgold/florisboard/ime/dictionary/UserDictionary.kt	M	406	Room / ContentResolver / Cursor; import/export/filter and locale rules |
-app/src/main/kotlin/dev/patrickgold/florisboard/ime/dictionary/UserDictionaryValidation.kt	P	57	portable UserDictionaryValidation domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/dictionary/UserDictionaryValidation.kt	P	62	portable UserDictionaryValidation domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs | raised 57 to 62 (A6): imports of the generated UtilityOp, UtilityRule, UtilityValidation and UtilityValidity, and the request built by field name
 app/src/main/kotlin/dev/patrickgold/florisboard/ime/editor/AbstractEditorInstance.kt	M	151	InputConnection; composing setup, reconciliation and content publication guards |
 app/src/main/kotlin/dev/patrickgold/florisboard/ime/editor/EditorContent.kt	P	34	portable EditorContent domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
 app/src/main/kotlin/dev/patrickgold/florisboard/ime/editor/EditorInstance.kt	M	313	InputConnection / ClipboardManager; rich-content and editor operation orchestration |
@@ -301,7 +301,7 @@ app/src/main/kotlin/dev/patrickgold/florisboard/ime/theme/ThemeExtension.kt	P	37
 app/src/main/kotlin/dev/patrickgold/florisboard/ime/theme/ThemeExtensionComponent.kt	P	74	portable ThemeExtensionComponent domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
 app/src/main/kotlin/dev/patrickgold/florisboard/ime/theme/ThemeManager.kt	M	309	Resources / InlineSuggestionUi; active-theme/day-night choice and inline styles |
 app/src/main/kotlin/dev/patrickgold/florisboard/ime/theme/ThemeMode.kt	P	7	portable ThemeMode domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
-app/src/main/kotlin/dev/patrickgold/florisboard/lib/FlorisLocale.kt	M	102	Android Locale/ICU locale names; tag/selection/cache behavior needs explicit native ownership |
+app/src/main/kotlin/dev/patrickgold/florisboard/lib/FlorisLocale.kt	M	107	Android Locale/ICU locale names; tag/selection/cache behavior needs explicit native ownership | raised 102 to 107 (A6): imports of UtilityOp, the three locale packets and WireFlag; a star import would pull in lib/kotlin's Array.map
 app/src/main/kotlin/dev/patrickgold/florisboard/lib/FlorisRect.kt	P	185	rectangle geometry/intersection/containment |
 app/src/main/kotlin/dev/patrickgold/florisboard/lib/Native.kt	A	3	ART JNI / ByteBuffer; native string and pointer wrapper ownership |
 app/src/main/kotlin/dev/patrickgold/florisboard/lib/Pointer.kt	P	81	pointer registry, reuse and reset rules |
@@ -331,9 +331,9 @@ app/src/main/kotlin/dev/patrickgold/florisboard/lib/ext/ExtensionMeta.kt	P	22	po
 app/src/main/kotlin/dev/patrickgold/florisboard/lib/ext/ExtensionValidation.kt	P	138	portable ExtensionValidation domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
 app/src/main/kotlin/dev/patrickgold/florisboard/lib/io/AssetManager.kt	M	125	Context.assets / File; source selection, admission and operation composition |
 app/src/main/kotlin/dev/patrickgold/florisboard/lib/io/FileRegistry.kt	P	56	portable FileRegistry domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
-app/src/main/kotlin/dev/patrickgold/florisboard/lib/io/FlorisRef.kt	M	147	Context / Uri / File; scheme/subpath validation and model ownership |
+app/src/main/kotlin/dev/patrickgold/florisboard/lib/io/FlorisRef.kt	M	153	Context / Uri / File; scheme/subpath validation and model ownership | raised 147 to 153 (A6): imports of UtilityOp, the reference packets, UtilityReferenceKind and WireFlag, and a kind property read by name
 app/src/main/kotlin/dev/patrickgold/florisboard/lib/io/ZipUtils.kt	M	131	ContentResolver / ZipFile; archive traversal and path/admission policy |
-app/src/main/kotlin/dev/patrickgold/florisboard/lib/util/AppVersionUtils.kt	M	50	Context / Jetpref; version/changelog choice and comparison |
+app/src/main/kotlin/dev/patrickgold/florisboard/lib/util/AppVersionUtils.kt	M	56	Context / Jetpref; version/changelog choice and comparison | raised 50 to 56 (A6): imports of UtilityOp, the version packets and WireFlag, and the parsed version read by field name
 app/src/main/kotlin/dev/patrickgold/florisboard/lib/util/InputMethodUtils.kt	A	66	InputMethodManager / Settings.Secure; IME status/picker/enabler |
 app/src/main/kotlin/dev/patrickgold/florisboard/lib/util/LaunchUtils.kt	A	63	Context.startActivity / Intent / Toast; executes requested effects |
 app/src/main/kotlin/dev/patrickgold/florisboard/lib/util/NetworkUtils.kt	P	29	portable NetworkUtils domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
@@ -380,7 +380,7 @@ lib/kotlin/src/main/kotlin/org/florisboard/lib/kotlin/Collections.kt	P	11	portab
 lib/kotlin/src/main/kotlin/org/florisboard/lib/kotlin/Flow.kt	P	13	portable Flow domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
 lib/kotlin/src/main/kotlin/org/florisboard/lib/kotlin/GuardedByLock.kt	P	25	portable GuardedByLock domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
 lib/kotlin/src/main/kotlin/org/florisboard/lib/kotlin/Library.kt	P	13	portable Library domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
-lib/kotlin/src/main/kotlin/org/florisboard/lib/kotlin/MimeTypeFilter.kt	P	31	portable MimeTypeFilter domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
+lib/kotlin/src/main/kotlin/org/florisboard/lib/kotlin/MimeTypeFilter.kt	P	30	portable MimeTypeFilter domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
 lib/kotlin/src/main/kotlin/org/florisboard/lib/kotlin/Numbers.kt	P	2	portable Numbers domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
 lib/kotlin/src/main/kotlin/org/florisboard/lib/kotlin/Result.kt	P	28	portable Result domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
 lib/kotlin/src/main/kotlin/org/florisboard/lib/kotlin/Strings.kt	P	66	portable Strings domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |

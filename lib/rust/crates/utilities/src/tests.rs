@@ -1,14 +1,24 @@
 use super::*;
 #[test]
 fn malformed_packets_and_collection_boundaries() {
-    assert!(call(15, &[text("0"), text("8")]).is_err());
-    assert!(call(10, &[text("0")]).is_err());
-    assert!(call(6, &[text("-1"), vec![], vec![], vec![]]).is_err());
-    assert!(call(11, &[vec![], vec![], vec![], vec![], vec![]]).is_err());
-    for mode in 0..4 {
+    assert!(call(ops::MIME_MATCH, &[text("0"), text("8")]).is_err());
+    assert!(call(ops::COMPARE_VERSIONS, &[text("0")]).is_err());
+    assert!(call(ops::LOCALE_TAG, &[text("-1"), vec![], vec![], vec![]]).is_err());
+    assert!(
+        call(
+            ops::FORMAT_VERSION,
+            &[vec![], vec![], vec![], vec![], vec![]]
+        )
+        .is_err()
+    );
+    for mode in [ops::SINGLE, ops::ALL, ops::ANY, ops::ONE] {
         assert_eq!(
-            call(15, &[text(&mode.to_string()), text("0"), text("0")]).unwrap(),
-            vec![text("0")]
+            call(
+                ops::MIME_MATCH,
+                &[text(&mode.to_string()), text("0"), text("0")]
+            )
+            .unwrap(),
+            vec![text(flag::FALSE)]
         );
     }
 }

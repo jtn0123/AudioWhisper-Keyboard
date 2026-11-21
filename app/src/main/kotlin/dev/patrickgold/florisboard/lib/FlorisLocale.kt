@@ -16,7 +16,12 @@
 
 package dev.patrickgold.florisboard.lib
 
+import org.florisboard.lib.kotlin.UtilityLocale
+import org.florisboard.lib.kotlin.UtilityLocaleDisplay
+import org.florisboard.lib.kotlin.UtilityLocaleTag
+import org.florisboard.lib.kotlin.UtilityOp
 import org.florisboard.lib.kotlin.UtilityRules
+import com.jtn0123.audiowhisper.rust.WireFlag
 import android.content.Context
 import com.jtn0123.audiowhisper.rust.SpacingRules
 import dev.patrickgold.florisboard.extensionManager
@@ -100,8 +105,8 @@ class FlorisLocale private constructor(val base: Locale) {
          * @return A new [FlorisLocale].
          */
         fun fromTag(str: String): FlorisLocale {
-            val parts = UtilityRules.call(5, str)
-            return from(parts[0], parts[1], parts[2])
+            val parts = UtilityRules.call(UtilityOp.PARSE_LOCALE, str)
+            return with(UtilityLocale) { from(parts[LANGUAGE], parts[COUNTRY], parts[VARIANT]) }
         }
 
         /**
@@ -153,8 +158,8 @@ class FlorisLocale private constructor(val base: Locale) {
      * @return The generated tag for this locale. May be an empty string if
      *  [language], [country] and [variant] are not specified.
      */
-    private fun buildLocaleString(delimiter: Char): String = UtilityRules.call(6,
-        delimiter.code.toString(), base.language, base.country, base.variant)[0]
+    private fun buildLocaleString(delimiter: Char): String = UtilityRules.call(UtilityOp.LOCALE_TAG, *with(UtilityLocaleTag) {
+        row(DELIMITER to "${delimiter.code}", LANGUAGE to base.language, COUNTRY to base.country, VARIANT to base.variant) })[0]
 
     /**
      * Returns the language code of this locale.
@@ -196,7 +201,7 @@ class FlorisLocale private constructor(val base: Locale) {
      * TODO: this is absolutely not exhaustive and hard-coded, find solution based on ICU or system
      */
     val supportsCapitalization: Boolean
-        get() = UtilityRules.call(8, language)[0] == "1"
+        get() = WireFlag.decode(UtilityRules.call(UtilityOp.CAPITALIZES, language)[0])
 
     /**
      * Returns true if suggestions in this language should have spaces added after, false otherwise. Decided in
@@ -266,9 +271,9 @@ class FlorisLocale private constructor(val base: Locale) {
      * @return The display name for this locale. May be an empty string if
      *  [language], [country] and [variant] are not specified.
      */
-    fun displayName(locale: FlorisLocale = default()): String = UtilityRules.call(7,
-        displayLanguage(locale), displayCountry(locale), displayVariant(locale),
-        base.language, base.country, base.variant)[0]
+    fun displayName(locale: FlorisLocale = default()): String = UtilityRules.call(UtilityOp.LOCALE_DISPLAY_NAME, *with(UtilityLocaleDisplay) {
+        row(LANGUAGE to displayLanguage(locale), COUNTRY to displayCountry(locale), VARIANT to displayVariant(locale),
+        RAW_LANGUAGE to base.language, RAW_COUNTRY to base.country, RAW_VARIANT to base.variant) })[0]
 
     /**
      * Generate a debug string representing this locale. Not to be confused

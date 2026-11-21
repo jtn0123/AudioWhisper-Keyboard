@@ -55,6 +55,7 @@ pub mod flag;
 pub mod input;
 pub mod render;
 pub mod settings;
+pub mod utilities;
 
 /// A declared group: one operation set, packet or set of codes, and the Kotlin type it becomes.
 #[derive(Debug)]

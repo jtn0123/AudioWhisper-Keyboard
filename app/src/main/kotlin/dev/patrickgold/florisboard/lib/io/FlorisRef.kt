@@ -16,7 +16,12 @@
 
 package dev.patrickgold.florisboard.lib.io
 
+import org.florisboard.lib.kotlin.UtilityOp
+import org.florisboard.lib.kotlin.UtilityReference
+import org.florisboard.lib.kotlin.UtilityReferenceFacts
+import org.florisboard.lib.kotlin.UtilityReferenceKind
 import org.florisboard.lib.kotlin.UtilityRules
+import com.jtn0123.audiowhisper.rust.WireFlag
 import android.content.Context
 import android.net.Uri
 import androidx.annotation.VisibleForTesting
@@ -148,9 +153,9 @@ value class FlorisRef private constructor(val uri: Uri) {
          * @return The newly constructed reference.
          */
         fun from(str: String): FlorisRef {
-            val plan = UtilityRules.call(2, str)
-            return FlorisRef(if (plan[0].isEmpty()) plan[1].toUri() else Uri.Builder()
-                .scheme(SCHEME_FLORIS).authority(plan[0]).encodedPath(plan[1]).build())
+            val plan = UtilityRules.call(UtilityOp.NORMALIZE_REFERENCE, str)
+            return with(UtilityReference) { FlorisRef(if (plan[AUTHORITY].isEmpty()) plan[PATH].toUri() else Uri.Builder()
+                .scheme(SCHEME_FLORIS).authority(plan[AUTHORITY]).encodedPath(plan[PATH]).build()) }
         }
 
         /**
@@ -161,7 +166,7 @@ value class FlorisRef private constructor(val uri: Uri) {
          * @return The newly constructed reference.
          */
         fun fromUrl(url: String): FlorisRef {
-            return FlorisRef(UtilityRules.call(3, url)[0].toUri())
+            return FlorisRef(UtilityRules.call(UtilityOp.URL, url)[0].toUri())
         }
 
         /**
@@ -181,42 +186,43 @@ value class FlorisRef private constructor(val uri: Uri) {
     }
 
     private val facts: List<String>
-        get() = UtilityRules.call(4, uri.scheme.orEmpty(), uri.authority.orEmpty(), uri.path.orEmpty())
+        get() = UtilityRules.call(UtilityOp.REFERENCE_FACTS, uri.scheme.orEmpty(), uri.authority.orEmpty(), uri.path.orEmpty())
+    private val kind get() = facts[UtilityReferenceFacts.KIND].toInt()
 
     /**
      * True if the scheme and authority indicates a reference to an app user interface
      * component (screen), false otherwise.
      */
     val isAppUi: Boolean
-        get() = facts[0] == "1"
+        get() = kind == UtilityReferenceKind.APP_UI
 
     /**
      * True if the scheme and authority indicates a reference to a FlorisBoard APK asset
      * resource, false otherwise.
      */
     val isAssets: Boolean
-        get() = facts[0] == "2"
+        get() = kind == UtilityReferenceKind.ASSETS
 
     /**
      * True if the scheme indicates a reference to a FlorisBoard cache
      * resource, false otherwise.
      */
     val isCache: Boolean
-        get() = facts[0] == "3"
+        get() = kind == UtilityReferenceKind.CACHE
 
     /**
      * True if the scheme indicates a reference to a FlorisBoard internal
      * storage resource, false otherwise.
      */
     val isInternal: Boolean
-        get() = facts[0] == "4"
+        get() = kind == UtilityReferenceKind.INTERNAL
 
     /**
      * True if the scheme references any other external resource (URL, content
      * resolver, etc.), false otherwise.
      */
     val isExternal: Boolean
-        get() = facts[1] == "1"
+        get() = WireFlag.decode(facts[UtilityReferenceFacts.EXTERNAL])
 
     /**
      * Returns the scheme of this URI, or an empty string if no scheme is
@@ -237,13 +243,13 @@ value class FlorisRef private constructor(val uri: Uri) {
      * Works only for assets, cache or internal references.
      */
     val relativePath: String
-        get() = facts[3]
+        get() = facts[UtilityReferenceFacts.RELATIVE_PATH]
 
     /**
      * Returns if this URI contains data for all valid parts of a FlorisRef.
      */
     val isValid: Boolean
-        get() = facts[2] == "1"
+        get() = WireFlag.decode(facts[UtilityReferenceFacts.HAS_AUTHORITY])
 
     /**
      * Returns if this URI contains data for all valid parts of a FlorisRef.

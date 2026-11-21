@@ -41,4 +41,9 @@ pub const WIRE: &[Wire] = &[
         internal: true,
         groups: wire::flag::GROUPS,
     },
+    Wire {
+        module: Module::Kotlin,
+        internal: false,
+        groups: wire::utilities::GROUPS,
+    },
 ];

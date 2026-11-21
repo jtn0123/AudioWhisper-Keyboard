@@ -4,6 +4,8 @@ import dev.patrickgold.florisboard.lib.reference.ReferenceFlorisLocale
 import dev.patrickgold.florisboard.lib.reference.ReferenceUtilityRules as Reference
 import dev.patrickgold.florisboard.lib.reference.ReferenceVersionName
 import dev.patrickgold.florisboard.lib.util.VersionName
+import com.jtn0123.audiowhisper.rust.WireFlag
+import org.florisboard.lib.kotlin.UtilityOp
 import org.florisboard.lib.kotlin.UtilityRules
 import java.io.File
 import java.util.Locale
@@ -23,14 +25,14 @@ class UtilityRulesMatchTest {
         repeat(10_000) { values += listOf("assets:", "internal:", "https://", "", "mailto:").random(random) +
             String(CharArray(random.nextInt(20)) { random.nextInt(65536).toChar() }) }
         for (value in values) {
-            assertEquals(Reference.normalize(value), UtilityRules.call(2, value))
-            assertEquals(Reference.url(value), UtilityRules.call(3, value)[0])
+            assertEquals(Reference.normalize(value), UtilityRules.call(UtilityOp.NORMALIZE_REFERENCE, value))
+            assertEquals(Reference.url(value), UtilityRules.call(UtilityOp.URL, value)[0])
         }
         repeat(10_000) {
             val scheme = listOf("florisboard", "FLORISBOARD", "content", "", " ").random(random)
             val authority = listOf("app-ui", "assets", "cache", "internal", "", "\u00a0", "other").random(random)
             val path = values.random(random)
-            assertEquals(Reference.facts(scheme, authority, path), UtilityRules.call(4, scheme, authority, path))
+            assertEquals(Reference.facts(scheme, authority, path), UtilityRules.call(UtilityOp.REFERENCE_FACTS, scheme, authority, path))
         }
     }
     @Test fun installedLocalesSeededTagsAndDisplayLayout() {
@@ -69,7 +71,7 @@ class UtilityRulesMatchTest {
             val i = ReferenceVersionName.fromString(install) ?: ReferenceVersionName.DEFAULT
             val l = ReferenceVersionName.fromString(last) ?: ReferenceVersionName.DEFAULT
             val c = ReferenceVersionName.fromString(current)!!
-            assertEquals(l < c && i != c, UtilityRules.call(12, install, last, current)[0] == "1")
+            assertEquals(l < c && i != c, WireFlag.decode(UtilityRules.call(UtilityOp.SHOWS_CHANGELOG, install, last, current)[0]))
         }
     }
     @Test fun dictionaryValidationAllUtf16AndSeededValues() {
@@ -77,6 +79,6 @@ class UtilityRulesMatchTest {
         val values = (0..65535).map { it.toChar().toString() } + listOf("1", "255", "256", "-1", "2147483648", "١٢", " a b ", " a,b ", "a;b") +
             List(10_000) { String(CharArray(random.nextInt(16)) { random.nextInt(65536).toChar() }) }
         for (value in values) for (rule in listOf("word", "freq", "shortcut")) assertEquals(
-            Reference.validate(rule, value, 1, 255), UtilityRules.call(14, rule, value, "1", "255")[0])
+            Reference.validate(rule, value, 1, 255), UtilityRules.call(UtilityOp.VALIDATE, rule, value, "1", "255")[0])
     }
 }

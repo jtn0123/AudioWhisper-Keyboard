@@ -1,14 +1,13 @@
 //! Locale construction, ICU display names and locale-sensitive casing stay at the platform edge.
 use crate::{Text, blank, text};
 pub fn parse(tag: &[u16]) -> Vec<Text> {
-    let parts = tag
-        .split(|u| *u == 45 || *u == 95)
-        .take(3)
-        .map(<[u16]>::to_vec)
-        .collect::<Vec<_>>();
-    (0..3)
-        .map(|i| parts.get(i).cloned().unwrap_or_default())
-        .collect()
+    use wire::utilities::locale::{COUNTRY, LANGUAGE, SIZE, VARIANT};
+    let mut parts = tag.split(|u| *u == 45 || *u == 95);
+    let mut row = vec![vec![]; SIZE];
+    for field in [LANGUAGE, COUNTRY, VARIANT] {
+        row[field] = parts.next().map(<[u16]>::to_vec).unwrap_or_default();
+    }
+    row
 }
 pub fn tag(delimiter: u16, language: &[u16], country: &[u16], variant: &[u16]) -> Text {
     let mut out = language.to_vec();

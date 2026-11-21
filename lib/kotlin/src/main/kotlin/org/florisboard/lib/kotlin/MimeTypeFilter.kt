@@ -39,29 +39,28 @@ class MimeTypeFilter {
     internal constructor(filterTypes: List<String>) {
         types = filterTypes
         filters = filterTypes.map { filter ->
-            val plan = UtilityRules.call(0, filter)
-            require(plan[0].isEmpty()) { plan[0] }
+            val plan = UtilityRules.call(UtilityOp.MIME_FILTER, filter)
+            require(plan[UtilityMimeFilter.ERROR].isEmpty()) { plan[UtilityMimeFilter.ERROR] }
             // The platform compiler preserves its full regex grammar and exception messages.
-            plan[1].toRegex() to plan[2].toRegex()
+            plan[UtilityMimeFilter.TYPE].toRegex() to plan[UtilityMimeFilter.SUBTYPE].toRegex()
         }
     }
 
     private fun match(mode: Int, values: List<String?>?): Boolean {
         val input = values.orEmpty()
-        val facts = UtilityRules.call(1, *input.map { it.orEmpty() }.toTypedArray()).chunked(3).flatMap { row ->
-            listOf(row[0]) + filters.flatMap { (type, subtype) ->
-                listOf(type.matches(row[1]).bit(), subtype.matches(row[2]).bit())
+        val facts = UtilityRules.call(UtilityOp.MIME_INPUTS, *input.map { it.orEmpty() }.toTypedArray()).chunked(UtilityMimeInput.SIZE).flatMap { row ->
+            UtilityMimeFacts.row(UtilityMimeFacts.INDEX to row[UtilityMimeInput.INDEX]).asList() + filters.flatMap { (type, subtype) ->
+                with(UtilityMimeMatch) { row(TYPE to WireFlag.encode(type.matches(row[UtilityMimeInput.TYPE])), SUBTYPE to WireFlag.encode(subtype.matches(row[UtilityMimeInput.SUBTYPE]))).asList() }
             }
         }
-        return UtilityRules.call(15, mode.toString(), input.size.toString(), filters.size.toString(),
-            *facts.toTypedArray())[0] == "1"
+        val request = with(UtilityMimeRequest) { row(MODE to "$mode", COUNT to "${input.size}", FILTERS to "${filters.size}") }
+        return WireFlag.decode(UtilityRules.call(UtilityOp.MIME_MATCH, *request, *facts.toTypedArray())[0])
     }
-    private fun Boolean.bit() = if (this) "1" else "0"
 
-    fun matches(mimeType: String?): Boolean = match(0, listOf(mimeType))
-    fun matchesAll(mimeTypes: List<String?>?): Boolean = match(1, mimeTypes)
-    fun matchesAny(mimeTypes: List<String?>?): Boolean = match(2, mimeTypes)
-    fun matchesOne(mimeTypes: List<String?>?): Boolean = match(3, mimeTypes)
+    fun matches(mimeType: String?): Boolean = match(UtilityMimeMode.SINGLE, listOf(mimeType))
+    fun matchesAll(mimeTypes: List<String?>?): Boolean = match(UtilityMimeMode.ALL, mimeTypes)
+    fun matchesAny(mimeTypes: List<String?>?): Boolean = match(UtilityMimeMode.ANY, mimeTypes)
+    fun matchesOne(mimeTypes: List<String?>?): Boolean = match(UtilityMimeMode.ONE, mimeTypes)
 
 }
 

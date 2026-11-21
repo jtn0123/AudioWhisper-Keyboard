@@ -3,21 +3,26 @@ package dev.patrickgold.florisboard.ime.dictionary
 import dev.patrickgold.florisboard.R
 import dev.patrickgold.florisboard.lib.ValidationRule
 import dev.patrickgold.florisboard.lib.FlorisLocale
+import org.florisboard.lib.kotlin.UtilityOp
+import org.florisboard.lib.kotlin.UtilityRule
 import org.florisboard.lib.kotlin.UtilityRules
+import org.florisboard.lib.kotlin.UtilityValidation
+import org.florisboard.lib.kotlin.UtilityValidity
 import org.florisboard.lib.kotlin.tryOrNull
 
 object UserDictionaryValidation {
-    private fun rule(name: String, input: String) = UtilityRules.call(14, name, input, "$FREQUENCY_MIN", "$FREQUENCY_MAX")[0]
+    private fun rule(name: UtilityRule, input: String) = UtilityRules.call(UtilityOp.VALIDATE, *with(UtilityValidation) {
+        row(RULE to name.code, VALUE to input, MIN to "$FREQUENCY_MIN", MAX to "$FREQUENCY_MAX") })[0]
     private val WordRegex = """^[^\s;,]+${'$'}""".toRegex()
 
     val Word = ValidationRule<String> {
         forKlass = UserDictionaryEntry::class
         forProperty = "word"
         validator { input ->
-            val status = rule("word", input)
+            val status = rule(UtilityRule.WORD, input)
             when {
-                status == "empty" -> resultInvalid(error = R.string.settings__udm__dialog__word_error_empty)
-                status == "invalid" -> resultInvalid(error = R.string.settings__udm__dialog__word_error_invalid, "regex" to WordRegex)
+                status == UtilityValidity.EMPTY -> resultInvalid(error = R.string.settings__udm__dialog__word_error_empty)
+                status == UtilityValidity.INVALID -> resultInvalid(error = R.string.settings__udm__dialog__word_error_invalid, "regex" to WordRegex)
                 else -> resultValid()
             }
         }
@@ -27,10 +32,10 @@ object UserDictionaryValidation {
         forKlass = UserDictionaryEntry::class
         forProperty = "freq"
         validator { input ->
-            val status = rule("freq", input)
+            val status = rule(UtilityRule.FREQUENCY, input)
             when {
-                status == "empty" -> resultInvalid(error = R.string.settings__udm__dialog__freq_error_empty)
-                status == "invalid" -> resultInvalid(error = R.string.settings__udm__dialog__freq_error_invalid)
+                status == UtilityValidity.EMPTY -> resultInvalid(error = R.string.settings__udm__dialog__freq_error_empty)
+                status == UtilityValidity.INVALID -> resultInvalid(error = R.string.settings__udm__dialog__freq_error_invalid)
                 else -> resultValid()
             }
         }
@@ -40,10 +45,10 @@ object UserDictionaryValidation {
         forKlass = UserDictionaryEntry::class
         forProperty = "shortcut"
         validator { input ->
-            val status = rule("shortcut", input)
+            val status = rule(UtilityRule.SHORTCUT, input)
             when {
                 status == "" -> resultValid() // Is optional
-                status == "invalid" -> resultInvalid(error = R.string.settings__udm__dialog__shortcut_error_invalid, "regex" to WordRegex)
+                status == UtilityValidity.INVALID -> resultInvalid(error = R.string.settings__udm__dialog__shortcut_error_invalid, "regex" to WordRegex)
                 else -> resultValid()
             }
         }
