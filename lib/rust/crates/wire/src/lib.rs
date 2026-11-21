@@ -60,6 +60,7 @@ pub mod nlp;
 pub mod playback;
 pub mod render;
 pub mod settings;
+pub mod settings_ui;
 pub mod utilities;
 
 /// A declared group: one operation set, packet or set of codes, and the Kotlin type it becomes.

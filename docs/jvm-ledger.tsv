@@ -84,10 +84,10 @@ app/src/main/kotlin/com/jtn0123/audiowhisper/settingsui/PlatformCrashScreen.kt	A
 app/src/main/kotlin/com/jtn0123/audiowhisper/settingsui/RustSettingsView.kt	A	240	SurfaceView / Choreographer / BaseInputConnection; native effects, state and Android IME visibility transport only |
 app/src/main/kotlin/com/jtn0123/audiowhisper/settingsui/SettingsFacts.kt	M	163	device facts and effect execution for the Rust settings screens; the Android reads stay, the spell-package parse and fact shaping move to Rust
 app/src/main/kotlin/com/jtn0123/audiowhisper/settingsui/SettingsIcons.kt	A	46	Resources / Android Path; resource icon map |
-app/src/main/kotlin/com/jtn0123/audiowhisper/settingsui/SettingsInputView.kt	A	62	View / BaseInputConnection / InputMethodManager; native text endpoint |
+app/src/main/kotlin/com/jtn0123/audiowhisper/settingsui/SettingsInputView.kt	A	63	View / BaseInputConnection / InputMethodManager; native text endpoint | raised 62 to 63 (A6): the import of the generated SettingsUiEdit and SettingsUiQuery
 app/src/main/kotlin/com/jtn0123/audiowhisper/settingsui/SettingsPlatform.kt	M	78	Jetpref / Resources / WindowCompat; palette/appearance selection and write-queue binding |
 app/src/main/kotlin/com/jtn0123/audiowhisper/settingsui/SettingsResources.kt	A	16	Context.getString; batched string-resource map |
-app/src/main/kotlin/com/jtn0123/audiowhisper/settingsui/SettingsSelectionMenu.kt	A	41	Android floating ActionMode toolbar; Rust owns the selection and the edits it asks for
+app/src/main/kotlin/com/jtn0123/audiowhisper/settingsui/SettingsSelectionMenu.kt	A	42	Android floating ActionMode toolbar; Rust owns the selection and the edits it asks for; raised 41 to 42 (A6): the import of the generated SettingsUiEdit and SettingsUiQuery
 app/src/main/kotlin/com/jtn0123/audiowhisper/settingsui/SettingsStringIds.kt	A	439	explicit R.string ids for the native settings screens; a resource-only map
 app/src/main/kotlin/com/jtn0123/audiowhisper/suggest/AutoCorrectStrength.kt	P	7	portable strength enum; its order and thresholds are Rust (suggest::auto_correction::Strength)
 app/src/main/kotlin/com/jtn0123/audiowhisper/suggest/AutoCorrectionUndo.kt	A	8	ART JNI / InputConnection consumer; native undo-result projection |
@@ -115,7 +115,7 @@ app/src/main/kotlin/dev/patrickgold/florisboard/app/AppPreferenceMigration.kt	A	
 app/src/main/kotlin/dev/patrickgold/florisboard/app/AppPrefs.kt	M	276	Jetpref PreferenceModel; Android stores stay, derived UI/sizing values must move |
 app/src/main/kotlin/dev/patrickgold/florisboard/app/ComposeSettingsFallbackActivity.kt	A	4	ComponentActivity; retained fallback Activity identity |
 app/src/main/kotlin/dev/patrickgold/florisboard/app/EnumDisplayEntries.kt	A	160	Resources.getString; enum resource IDs/descriptions (split existing oversized map) |
-app/src/main/kotlin/dev/patrickgold/florisboard/app/FlorisAppActivity.kt	M	257	ComponentActivity / ActivityResultRegistry; retained routing/import/default-selection branches |
+app/src/main/kotlin/dev/patrickgold/florisboard/app/FlorisAppActivity.kt	M	258	ComponentActivity / ActivityResultRegistry; retained routing/import/default-selection branches | raised 257 to 258 (A6): the import of the generated SettingsUiBack
 app/src/main/kotlin/dev/patrickgold/florisboard/app/Routes.kt	P	264	portable Routes domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
 app/src/main/kotlin/dev/patrickgold/florisboard/app/SettingsEntry.kt	M	9	which host the settings Activity opens and settings link parsing; setup navigation moves to Rust (package 6)
 app/src/main/kotlin/dev/patrickgold/florisboard/app/apptheme/Shape.kt	P	9	portable Shape domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |

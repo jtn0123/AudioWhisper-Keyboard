@@ -1,6 +1,7 @@
 package com.jtn0123.audiowhisper.settingsui
 
 import com.jtn0123.audiowhisper.rust.KeyboardRenderer
+import com.jtn0123.audiowhisper.rust.SettingsUiOp
 import kotlinx.serialization.json.*
 import java.io.File
 import kotlin.random.Random
@@ -15,7 +16,7 @@ class SettingsLicencesMatchTest {
     private val font = File("../fastlane/staging/fonts/Roboto-Light.ttf").absolutePath
     private val route = "settings/about/third-party-licenses"
     private val rowId = 10000
-    private fun state(n: KeyboardRenderer, op: Int = 10, vararg input: String) = Json.parseToJsonElement(n.settings(op, arrayOf(*input))[0]).jsonObject
+    private fun state(n: KeyboardRenderer, op: SettingsUiOp = SettingsUiOp.SAVE, vararg input: String) = Json.parseToJsonElement(n.settings(op, arrayOf(*input))[0]).jsonObject
     private fun nodes(s: JsonObject) = s.getValue("nodes").jsonArray.map { it.jsonObject }
     private fun effects(s: JsonObject) = s.getValue("effects").jsonArray.map { a -> a.jsonArray.map { it.jsonPrimitive.content } }
     private fun JsonObject.int(key: String) = getValue(key).jsonPrimitive.int
@@ -27,9 +28,9 @@ class SettingsLicencesMatchTest {
     }
     /** RustSettingsView.configure's packets for a window tall enough for every row. */
     private fun prepare(n: KeyboardRenderer) {
-        n.settings(1, n.settings(18)[2].split("\n").filter { it in strings }.flatMap { listOf(it, strings.getValue(it)) }.toTypedArray())
+        n.settings(SettingsUiOp.RESOURCES, n.settings(SettingsUiOp.STRING_KEYS)[2].split("\n").filter { it in strings }.flatMap { listOf(it, strings.getValue(it)) }.toTypedArray())
         val colors = listOf("4294967295", "4278190080", "4283782485", "4281558681", "4291611852", "4293848814")
-        n.settings(3, (listOf("1080", "8192", "1", "1") + colors + listOf("true", "true") + colors +
+        n.settings(SettingsUiOp.CONFIG, (listOf("1080", "8192", "1", "1") + colors + listOf("true", "true") + colors +
             (0..32).map { it.toFloat().toString() } + listOf("0", "4294967295", "true", "true", "4278190080",
             "4278198272", "4278190080")).toTypedArray())
     }
@@ -71,11 +72,11 @@ class SettingsLicencesMatchTest {
 
     private fun open(n: KeyboardRenderer, json: String): JsonObject {
         prepare(n)
-        val s = state(n, 4, route)
+        val s = state(n, SettingsUiOp.NAVIGATE, route)
         assertEquals(route, s.text("route"))
         assertEquals(listOf(listOf("load", "libraries")), effects(s))
         assertTrue(nodes(s).none { it.int("id") >= rowId })
-        val loaded = state(n, 21, "libraries", json)
+        val loaded = state(n, SettingsUiOp.DOCUMENTS, "libraries", json)
         assertEquals(emptyList(), effects(loaded))
         return loaded
     }
@@ -102,7 +103,7 @@ class SettingsLicencesMatchTest {
             val expected = ReferenceLicenceScreens.rows(json)
             open(n, json)
             for ((j, row) in expected.withIndex()) {
-                val dialog = state(n, 5, (rowId + j).toString())
+                val dialog = state(n, SettingsUiOp.ACTIVATE, (rowId + j).toString())
                 assertTrue(dialog.getValue("popup").jsonPrimitive.boolean)
                 val shown = nodes(dialog)
                 val body = shown.filter { it.int("id") == 9 }
@@ -112,7 +113,7 @@ class SettingsLicencesMatchTest {
                 assertEquals(strings.getValue("action__ok"), ok.text("label"))
                 assertEquals("button", ok.text("role"))
                 assertTrue(shown.none { it.int("id") >= rowId }, "the dialog covers the list")
-                val closed = state(n, 5, "7")
+                val closed = state(n, SettingsUiOp.ACTIVATE, "7")
                 assertFalse(closed.getValue("popup").jsonPrimitive.boolean)
                 assertEquals(route, closed.text("route"))
             }
@@ -134,8 +135,8 @@ class SettingsLicencesMatchTest {
             assertEquals(expected.map { it.name }, rows.map { it.text("label") })
             assertEquals("Apache License\nVersion 2.0, January 2004\n\nTERMS", expected[0].dialog)
             for (j in expected.indices) {
-                assertEquals(expected[j].dialog, nodes(state(n, 5, (rowId + j).toString())).single { it.int("id") == 9 }.text("label"))
-                state(n, 5, "7")
+                assertEquals(expected[j].dialog, nodes(state(n, SettingsUiOp.ACTIVATE, (rowId + j).toString())).single { it.int("id") == 9 }.text("label"))
+                state(n, SettingsUiOp.ACTIVATE, "7")
             }
         }
     }

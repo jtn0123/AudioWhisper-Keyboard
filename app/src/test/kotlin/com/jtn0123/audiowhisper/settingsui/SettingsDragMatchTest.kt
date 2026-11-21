@@ -1,6 +1,7 @@
 package com.jtn0123.audiowhisper.settingsui
 
 import com.jtn0123.audiowhisper.rust.KeyboardRenderer
+import com.jtn0123.audiowhisper.rust.SettingsUiOp
 import kotlinx.serialization.json.*
 import kotlin.math.abs
 import kotlin.test.Test
@@ -56,10 +57,10 @@ class SettingsDragMatchTest {
     @Test fun dragsAndFlingsLandWhereComposeScrollStateDoes() {
         KeyboardRenderer(emptyArray()).use { native ->
             fun state(reply: Array<String>) = Json.parseToJsonElement(reply[0]).jsonObject
-            fun call(op: Int, vararg args: String) = state(native.settings(op, arrayOf(*args)))
+            fun call(op: SettingsUiOp, vararg args: String) = state(native.settings(op, arrayOf(*args)))
             val density = 2.625f
-            call(3, "1080", "2340", "$density", "1", "4294967295", "4278190080", "4283782485", "4281558681", "4291611852", "4293848814", "true", "true")
-            var now = call(4, "settings/keyboard")
+            call(SettingsUiOp.CONFIG, "1080", "2340", "$density", "1", "4294967295", "4278190080", "4283782485", "4281558681", "4291611852", "4293848814", "true", "true")
+            var now = call(SettingsUiOp.NAVIGATE, "settings/keyboard")
             val max = now.getValue("maxScroll").jsonPrimitive.float
             assertTrue(max > 2000f, "the keyboard screen scrolls: $max")
             // A varying sub-millisecond phase: MotionEvent nanoseconds truncate to Compose's millis.
@@ -88,8 +89,8 @@ class SettingsDragMatchTest {
                         val velocity = reference.up(step.ms)
                         if (velocity != null && abs(velocity) > 1f) flings++
                         touch(1, listOf(step.ms to lastY), downMs, lastX)
-                        call(8, ns(step.ms + 1).toString())
-                        now = call(8, ns(step.ms + 30_000).toString())
+                        call(SettingsUiOp.FRAME, ns(step.ms + 1).toString())
+                        now = call(SettingsUiOp.FRAME, ns(step.ms + 30_000).toString())
                         val rust = now.getValue("scroll").jsonPrimitive.float
                         assertEquals(reference.position, rust, .01f, "$name fling at $velocity px/s")
                         assertEquals(reference.value, Math.round(rust), "$name shown offset")

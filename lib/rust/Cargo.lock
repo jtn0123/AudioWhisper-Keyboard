@@ -123,6 +123,7 @@ dependencies = [
  "transcript",
  "utilities",
  "wgpu",
+ "wire",
 ]
 
 [[package]]

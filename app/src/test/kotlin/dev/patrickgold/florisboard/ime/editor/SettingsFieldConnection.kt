@@ -1,6 +1,7 @@
 package dev.patrickgold.florisboard.ime.editor
 
 import com.jtn0123.audiowhisper.rust.KeyboardRenderer
+import com.jtn0123.audiowhisper.rust.SettingsUiOp
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.boolean
@@ -23,7 +24,7 @@ class SettingsFieldConnection(private val native: KeyboardRenderer) : PlanConnec
         private set
 
     private fun edit(vararg input: String): Boolean {
-        val reply = native.settings(9, arrayOf(*input))
+        val reply = native.settings(SettingsUiOp.EDIT, arrayOf(*input))
         text = reply[1]
         val state = Json.parseToJsonElement(reply[0]).jsonObject
         val editor = state.getValue("editor").jsonObject
@@ -37,7 +38,7 @@ class SettingsFieldConnection(private val native: KeyboardRenderer) : PlanConnec
         return state.getValue("accepted").jsonPrimitive.boolean
     }
 
-    private fun query(kind: String, length: Int) = native.settings(9, arrayOf("query", kind, length.toString()))[2]
+    private fun query(kind: String, length: Int) = native.settings(SettingsUiOp.EDIT, arrayOf("query", kind, length.toString()))[2]
 
     override fun getTextBeforeCursor(n: Int, flags: Int): String = query("before", n)
     override fun getTextAfterCursor(n: Int, flags: Int): String = query("after", n)

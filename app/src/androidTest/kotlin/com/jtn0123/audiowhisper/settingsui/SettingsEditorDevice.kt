@@ -6,6 +6,7 @@ import android.view.MotionEvent
 import android.view.accessibility.AccessibilityNodeInfo as Node
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputConnection
+import com.jtn0123.audiowhisper.rust.SettingsUiEdit
 import org.json.JSONObject
 import java.io.File
 
@@ -32,7 +33,7 @@ internal class SettingsEditorDevice(private val h: SettingsHarness) {
         val heapBefore = android.os.Debug.getNativeHeapAllocatedSize()
         lateinit var connection: InputConnection
         h.main {
-            check(view.edit("focus")) // Focus native model without showing an IME.
+            check(view.edit(SettingsUiEdit.FOCUS)) // Focus native model without showing an IME.
             connection = checkNotNull(endpoint().onCreateInputConnection(EditorInfo()))
             check(connection.setComposingText("ab", 1))
             check(view.editorText == "ab")
@@ -116,7 +117,7 @@ internal class SettingsEditorDevice(private val h: SettingsHarness) {
         h.main { connection = checkNotNull(endpoint().onCreateInputConnection(info)) }
         h.awaitIme()
         SettingsVocabularyDevice(h).run(report, info, connection)
-        h.main { check(host().edit("focus", "2") && !host().multiLine) }
+        h.main { check(host().edit(SettingsUiEdit.FOCUS, "2") && !host().multiLine) }
     }
     fun prepareDeath(report: JSONObject) {
         // Finish instrumentation before ordinary process death. AMS tears down the task

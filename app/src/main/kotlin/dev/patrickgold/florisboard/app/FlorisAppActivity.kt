@@ -26,6 +26,7 @@ import android.widget.FrameLayout
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.compose.runtime.DisposableEffect
+import com.jtn0123.audiowhisper.rust.SettingsUiBack
 import com.jtn0123.audiowhisper.settingsui.RustSettingsView
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -205,10 +206,10 @@ open class FlorisAppActivity : ComponentActivity() {
         setContentView(root)
         ViewCompat.requestApplyInsets(root)
         val backCallback = object : OnBackPressedCallback(false) {
-            override fun handleOnBackStarted(backEvent: BackEventCompat) = host.back(0, backEvent.progress)
-            override fun handleOnBackProgressed(backEvent: BackEventCompat) = host.back(1, backEvent.progress)
-            override fun handleOnBackCancelled() = host.back(2)
-            override fun handleOnBackPressed() = host.back(3)
+            override fun handleOnBackStarted(backEvent: BackEventCompat) = host.back(SettingsUiBack.STARTED, backEvent.progress)
+            override fun handleOnBackProgressed(backEvent: BackEventCompat) = host.back(SettingsUiBack.PROGRESSED, backEvent.progress)
+            override fun handleOnBackCancelled() = host.back(SettingsUiBack.CANCELLED)
+            override fun handleOnBackPressed() = host.back(SettingsUiBack.PRESSED)
         }
         host.backAvailability = { backCallback.isEnabled = it }
         onBackPressedDispatcher.addCallback(this, backCallback)

@@ -8,7 +8,7 @@ class KeyboardRenderer(fontPaths: Array<String>) : AutoCloseable {
     private val cleanable = RustLibrary.cleaner.register(this, Free(handle))
 
     @Synchronized
-    fun settings(operation: Int, input: Array<String> = emptyArray()): Array<String> = RenderNative.settings(handle, operation, input)
+    fun settings(operation: SettingsUiOp, input: Array<String> = emptyArray()): Array<String> = RenderNative.settings(handle, operation.code, input)
     @Synchronized
     fun settingsTouch(metadata: IntArray, times: LongArray, coords: FloatArray): Array<String> = RenderNative.settingsTouch(handle, metadata, times, coords)
     /** A settings picture by name, as ARGB pixels at its intrinsic size; 0×0 removes it. */

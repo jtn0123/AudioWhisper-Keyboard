@@ -11,6 +11,8 @@ use render::{
 };
 use serde_json::json;
 use std::ptr;
+use wire::render::{ACCESS_CLICK, ACCESS_SCROLL_BACKWARD, ACCESS_SCROLL_FORWARD};
+use wire::settings_ui::{self as ops, back, edit, query, reply};
 fn input(env: &crate::jni::Env, values: jobjectArray) -> Result<Vec<Vec<u16>>> {
     env.read_strings(values, "settings input")?
         .into_iter()
@@ -53,9 +55,9 @@ fn reply(
     s.scene = a.scene(text);
     // A drag surface (the colour plane and hue bar) has no node, as Compose's pointerInput has none.
     let nodes:Vec<_>=a.controls.iter().filter(|c| c.role!="none").map(|c|{
-        let mut actions=if !c.enabled || matches!(c.action,Action::None){vec![]}else{vec![1]};
-        if c.enabled && c.role=="slider" {actions.extend([4,5]);} else if c.role=="scroll" {let [back,forward]=a.can_scroll(); if forward {actions.push(4);}
-            if back {actions.push(5);}}
+        let mut actions=if !c.enabled || matches!(c.action,Action::None){vec![]}else{vec![ACCESS_CLICK]};
+        if c.enabled && c.role=="slider" {actions.extend([ACCESS_SCROLL_FORWARD,ACCESS_SCROLL_BACKWARD]);} else if c.role=="scroll" {let [back,forward]=a.can_scroll(); if forward {actions.push(ACCESS_SCROLL_FORWARD);}
+            if back {actions.push(ACCESS_SCROLL_BACKWARD);}}
         // An image has a content description and no text, as Compose's Image does.
         let edited=(c.role=="edit").then(|| a.field_editor(c.id).0);
         let shown=edited.as_ref().map(|e| String::from_utf16_lossy(&e.text));
@@ -75,11 +77,10 @@ fn reply(
     let result = json!({"nodes":nodes,"mode":"","shift":"","popup":a.modal.is_some(),"effects":effects,
         "systemBarColor":a.system_bar_color(),"lightSystemBars":a.light_system_bars(),"route":a.stack.last(),"canBack":a.stack.len()>1 || a.modal.is_some() || a.editor.focused,"scroll":a.scroll(),"maxScroll":a.max_scroll,"focus":a.focus,
         "animating":a.animating(),"scrollbarAlpha":a.scrollbar_alpha(usize::from(a.modal.is_some())),"selectionToolbar":a.editor.focused && a.editor.anchor!=a.editor.focus && !a.toolbar_dismissed,"accepted":a.accepted,"editor":{"anchor":a.editor.anchor,"focus":a.editor.focus,"composing":a.editor.composing,"focused":a.editor.focused,"report":a.batches.report(),"bounds":field,"multiLine":a.field.is_some() && a.number_field().is_none(),"number":a.number_field()}});
-    let mut out = vec![
-        settings::text(&result.to_string()),
-        a.editor.text.clone(),
-        query,
-    ];
+    let mut out = vec![vec![]; reply::SIZE];
+    out[reply::STATE] = settings::text(&result.to_string());
+    out[reply::TEXT] = a.editor.text.clone();
+    out[reply::QUERY] = query;
     if saved {
         out.extend(crate::render_settings_state::save(a));
     }
@@ -102,19 +103,19 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_settings(
             a.accepted = true;
             let mut query = vec![];
             match op {
-                1 | 2 => {
+                ops::RESOURCES | ops::PREFERENCES => {
                     if p.len() % 2 != 0 {
                         return Err(illegal("settings pairs"));
                     }
                     for pair in p.as_chunks::<2>().0 {
-                        if op == 1 {
+                        if op == ops::RESOURCES {
                             a.strings.insert(pair[0].clone(), pair[1].clone());
                         } else {
                             a.prefs.insert(pair[0].clone(), pair[1].clone());
                         }
                     }
                 }
-                3 => {
+                ops::CONFIG => {
                     let c = [float(&p, 0)?, float(&p, 1)?, float(&p, 2)?, float(&p, 3)?];
                     if !(1.0..=8192.0).contains(&c[0])
                         || !(1.0..=8192.0).contains(&c[1])
@@ -173,17 +174,20 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_settings(
                     a.ime_enabled = field(&p, 10)? == "true";
                     a.ime_selected = field(&p, 11)? == "true";
                 }
-                4 => a.navigate(field(&p, 0)?),
-                5 => {
+                ops::NAVIGATE => a.navigate(field(&p, 0)?),
+                ops::ACTIVATE => {
                     a.activate(int(&p, 0)?);
                 }
-                6 => match int(&p, 0)? {
-                    0 | 1 => a.back_progress = float(&p, 1)?.clamp(0.0, 1.0),
-                    2 => a.back_progress = 0.0,
-                    3 => a.back(),
+                ops::BACK => match int(&p, 0)? {
+                    back::STARTED | back::PROGRESSED => {
+                        a.back_progress = float(&p, 1)?.clamp(0.0, 1.0)
+                    }
+                    back::CANCELLED => a.back_progress = 0.0,
+                    back::PRESSED => a.back(),
                     _ => return Err(illegal("settings back phase")),
                 },
-                7 => {
+                ops::KEY => {
+                    // Android's KeyEvent.ACTION_DOWN.
                     if int(&p, 0)? == 0 {
                         let key = int(&p, 1)?;
                         let unicode = int(&p, 2)?;
@@ -236,46 +240,46 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_settings(
                         }
                     }
                 }
-                8 => {
+                ops::FRAME => {
                     let now = field(&p, 0)?
                         .parse()
                         .map_err(|_| illegal("settings frame time"))?;
                     a.tick(now);
                 }
-                9 => {
+                ops::EDIT => {
                     let kind = field(&p, 0)?;
-                    if !matches!(kind, "query" | "begin" | "end") {
+                    if !matches!(kind, edit::QUERY | edit::BEGIN | edit::END) {
                         a.toolbar_dismissed = false;
                     }
                     match kind {
-                        "commit" | "compose" => {
+                        edit::COMMIT | edit::COMPOSE => {
                             a.accepted = a.editor.replace(
                                 raw.get(1).ok_or_else(|| illegal("settings editor text"))?,
                                 int(&p, 2)?,
-                                kind == "compose",
+                                kind == edit::COMPOSE,
                             );
                         }
-                        "select" => {
+                        edit::SELECT => {
                             a.accepted = a.editor.select(int(&p, 1)?, int(&p, 2)?);
                         }
-                        "region" => a.editor.region(int(&p, 1)?, int(&p, 2)?),
-                        "finish" => a.editor.composing = None,
-                        "begin" => {
+                        edit::REGION => a.editor.region(int(&p, 1)?, int(&p, 2)?),
+                        edit::FINISH => a.editor.composing = None,
+                        edit::BEGIN => {
                             a.batches.begin();
                             a.accepted = true;
                         }
-                        "end" => a.accepted = a.batches.end(),
-                        "close" => {
+                        edit::END => a.accepted = a.batches.end(),
+                        edit::CLOSE => {
                             a.batches.close();
                             a.editor.composing = None;
                         }
-                        "delete" | "codepoints" => {
+                        edit::DELETE | edit::CODEPOINTS => {
                             a.accepted =
                                 a.editor
-                                    .delete(int(&p, 1)?, int(&p, 2)?, kind == "codepoints");
+                                    .delete(int(&p, 1)?, int(&p, 2)?, kind == edit::CODEPOINTS);
                         }
-                        "query" => {
-                            query = if field(&p, 1)? == "caps" {
+                        edit::QUERY => {
+                            query = if field(&p, 1)? == query::CAPS {
                                 settings::text(
                                     &editor::caps::flags(
                                         &a.editor.text,
@@ -290,25 +294,25 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_settings(
                         }
                         // An optional control id hands the editor to that field first, as a
                         // tap does, without the effect that shows the IME.
-                        "focus" => {
+                        edit::FOCUS => {
                             if p.len() > 1 {
                                 a.accepted = a.focus_field(int(&p, 1)?);
                             }
                             a.editor.focused = true;
                         }
-                        "dismissToolbar" => a.toolbar_dismissed = true,
-                        "selectAll" => {
+                        edit::DISMISS_TOOLBAR => a.toolbar_dismissed = true,
+                        edit::SELECT_ALL => {
                             a.editor.select(0, a.editor.text.len() as i32);
                         }
-                        "cut" => {
+                        edit::CUT => {
                             a.editor.replace(&[], 1, false);
                             a.toolbar_dismissed = true;
                         }
-                        "blur" => {
+                        edit::BLUR => {
                             a.editor.focused = false;
                             a.editor.composing = None;
                         }
-                        "set" => {
+                        edit::SET => {
                             a.editor.composing = None;
                             a.editor.select(0, a.editor.text.len() as i32);
                             a.accepted = a.editor.replace(
@@ -320,8 +324,8 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_settings(
                         _ => return Err(illegal("settings editor operation")),
                     }
                 }
-                10 => {}
-                11 => {
+                ops::SAVE => {}
+                ops::RESTORE => {
                     if crate::render_settings_state::restore(a, &raw).is_err() {
                         let prefs = std::mem::take(&mut a.prefs);
                         let strings = std::mem::take(&mut a.strings);
@@ -332,15 +336,15 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_settings(
                         };
                     }
                 }
-                12 => {
+                ops::CANCEL_TOUCH => {
                     a.down = None;
                     a.fling = None;
                 }
-                14 => {
+                ops::SCROLL => {
                     let delta = float(&p, 0)?;
                     a.set_scroll(a.scroll() + delta * a.config[1] * 0.6);
                 }
-                15 => {
+                ops::SLIDER => {
                     let id = int(&p, 0)?;
                     let v = float(&p, 1)?;
                     if let Some(c) = a.controls.iter().find(|c| c.id == id)
@@ -351,16 +355,16 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_settings(
                         a.slider_finished(slot);
                     }
                 }
-                16 => {
+                ops::PLURALS => {
                     query = settings::text(&App::plural_requests().join("\n"));
                 }
-                18 => {
+                ops::STRING_KEYS => {
                     query = settings::text(&App::string_keys().join("\n"));
                 }
-                19 => {
+                ops::ROUTES => {
                     query = settings::text(&catalogue::native_routes().join("\n"));
                 }
-                20 => {
+                ops::FACTS => {
                     if p.len() % 2 != 0 {
                         return Err(illegal("settings facts"));
                     }
@@ -371,7 +375,7 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_settings(
                         .map(|[k, v]| (k.clone(), v.clone()))
                         .collect();
                 }
-                21 => {
+                ops::DOCUMENTS => {
                     // Documents Kotlin read for a `load` plan, as name and text pairs.
                     if p.len() % 2 != 0 {
                         return Err(illegal("settings documents"));
@@ -380,16 +384,16 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_settings(
                         a.set_document(name, text);
                     }
                 }
-                17 => {
+                ops::ACCESSIBILITY_SCROLL => {
                     let id = int(&p, 0)?;
-                    a.accessibility_scroll(id, int(&p, 1)? == 4);
+                    a.accessibility_scroll(id, int(&p, 1)? == ACCESS_SCROLL_FORWARD);
                 }
                 _ => return Err(illegal("settings operation")),
             }
-            if op == 7 || op == 9 {
+            if op == ops::KEY || op == ops::EDIT {
                 a.sync_field();
             }
-            reply(s, env, query, op == 10)
+            reply(s, env, query, op == ops::SAVE)
         })
     }
 }

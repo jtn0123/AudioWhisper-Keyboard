@@ -2,6 +2,7 @@ package com.jtn0123.audiowhisper.settingsui
 
 import com.jtn0123.audiowhisper.dictation.ModelState
 import com.jtn0123.audiowhisper.rust.KeyboardRenderer
+import com.jtn0123.audiowhisper.rust.SettingsUiOp
 import dev.patrickgold.florisboard.app.ReferenceSettingsModel
 import dev.patrickgold.jetpref.datastore.model.PreferenceData
 import kotlinx.serialization.json.*
@@ -20,7 +21,7 @@ class SettingsGroupTwoMatchTest {
     private val inert = passive - "card"
     private fun <T : Any> raw(p: PreferenceData<T>) = p.serializer.serialize(p.default).orEmpty()
     private fun defaults() = ReferenceSettingsModel().declaredPreferenceEntries.values.associate { it.key to raw(it) }
-    private fun state(n: KeyboardRenderer, op: Int = 10, vararg input: String) = Json.parseToJsonElement(n.settings(op, arrayOf(*input))[0]).jsonObject
+    private fun state(n: KeyboardRenderer, op: SettingsUiOp = SettingsUiOp.SAVE, vararg input: String) = Json.parseToJsonElement(n.settings(op, arrayOf(*input))[0]).jsonObject
     private fun nodes(s: JsonObject) = s.getValue("nodes").jsonArray.map { it.jsonObject }
     private fun effects(s: JsonObject) = s.getValue("effects").jsonArray.map { a -> a.jsonArray.map { it.jsonPrimitive.content } }
     private fun JsonObject.int(key: String) = getValue(key).jsonPrimitive.int
@@ -40,12 +41,12 @@ class SettingsGroupTwoMatchTest {
         f.keyboardAttached, f.spellEnabled, f.spellId) { f.spellLabel } + SettingsFacts.modelPairs(f.speech, f.voice, f.checked)
     /** RustSettingsView.configure's packets: strings, preferences, a window tall enough for every row, facts. */
     private fun prepare(n: KeyboardRenderer, f: ReferenceGroupTwoScreens.Facts) {
-        n.settings(1, n.settings(18)[2].split("\n").filter { it in strings }.flatMap { listOf(it, strings.getValue(it)) }.toTypedArray())
-        n.settings(2, f.p.flatMap { listOf(it.key, it.value) }.toTypedArray())
+        n.settings(SettingsUiOp.RESOURCES, n.settings(SettingsUiOp.STRING_KEYS)[2].split("\n").filter { it in strings }.flatMap { listOf(it, strings.getValue(it)) }.toTypedArray())
+        n.settings(SettingsUiOp.PREFERENCES, f.p.flatMap { listOf(it.key, it.value) }.toTypedArray())
         val colors = listOf("4294967295", "4278190080", "4283782485", "4281558681", "4291611852", "4293848814")
-        n.settings(3, (listOf("1080", "8192", "1", "1") + colors + listOf("true", "true") + colors +
+        n.settings(SettingsUiOp.CONFIG, (listOf("1080", "8192", "1", "1") + colors + listOf("true", "true") + colors +
             (0..32).map { it.toFloat().toString() } + listOf("0", "4294967295", "true", "true")).toTypedArray())
-        n.settings(20, facts(f))
+        n.settings(SettingsUiOp.FACTS, facts(f))
     }
     private fun combinations(inputs: Map<String, List<String>>): List<Map<String, String>> =
         inputs.entries.fold(listOf(emptyMap())) { acc, (key, values) -> acc.flatMap { m -> values.map { m + (key to it) } } }
@@ -69,7 +70,7 @@ class SettingsGroupTwoMatchTest {
     @Test fun everyRowVisibilityEnableStateRoleAndTextMatchesFrozenCompose() {
         for (screen in ref.screens) for (f in cases(screen)) KeyboardRenderer(arrayOf(font)).use { n ->
             prepare(n, f)
-            val s = state(n, 4, screen.route)
+            val s = state(n, SettingsUiOp.NAVIGATE, screen.route)
             val label = "${screen.route} ${f.p.filterKeys { it in screen.inputs }} ${f.spellEnabled} ${f.spellId} ${f.spellLabel} ${f.keyboardAttached}"
             assertEquals(screen.route, s.text("route"), label)
             val all = nodes(s)
@@ -103,37 +104,37 @@ class SettingsGroupTwoMatchTest {
 
     /** A list dialog: pick an entry, then confirm, cancel or reset to the default. */
     private fun choice(n: KeyboardRenderer, i: Int, row: ReferenceGroupTwoScreens.Row, p: MutableMap<String, String>, random: Random) {
-        assertTrue(state(n, 5, (1000 + i).toString()).bool("popup"))
+        assertTrue(state(n, SettingsUiOp.ACTIVATE, (1000 + i).toString()).bool("popup"))
         val at = random.nextInt(row.choices.size)
-        assertEquals(row.choices.size, nodes(state(n, 5, (3000 + at).toString())).count { it.text("role") == "radio" })
+        assertEquals(row.choices.size, nodes(state(n, SettingsUiOp.ACTIVATE, (3000 + at).toString())).count { it.text("role") == "radio" })
         val (button, expected) = when (random.nextInt(4)) {
             0 -> "6" to emptyList()
             1 -> "5" to listOf(listOf("reset", row.key)).also { p[row.key] = defaults().getValue(row.key) }
             else -> "7" to listOf(listOf("write", row.key, row.choices[at])).also { p[row.key] = row.choices[at] }
         }
-        val reply = state(n, 5, button)
+        val reply = state(n, SettingsUiOp.ACTIVATE, button)
         assertFalse(reply.bool("popup")); assertEquals(expected, effects(reply), "list row $i")
     }
     private fun confirm(n: KeyboardRenderer, i: Int, row: ReferenceGroupTwoScreens.Row, f: ReferenceGroupTwoScreens.Facts, random: Random) {
-        val open = state(n, 5, (1000 + i).toString())
+        val open = state(n, SettingsUiOp.ACTIVATE, (1000 + i).toString())
         assertTrue(open.bool("popup"))
         val dialog = nodes(open).associateBy { it.int("id") }
         assertNull(dialog[5], "the confirmation has no neutral button")
         assertEquals(s("action__cancel"), dialog.getValue(6).text("label")); assertEquals(s("action__delete"), dialog.getValue(7).text("label"))
         val yes = random.nextBoolean()
-        val reply = state(n, 5, if (yes) "7" else "6")
+        val reply = state(n, SettingsUiOp.ACTIVATE, if (yes) "7" else "6")
         assertFalse(reply.bool("popup"))
         assertEquals(if (yes) listOf(row.click(f, ::s)) else emptyList(), effects(reply), "confirm row $i")
     }
     private fun navigate(n: KeyboardRenderer, i: Int, row: ReferenceGroupTwoScreens.Row, screen: ReferenceGroupTwoScreens.Screen) {
-        val native = n.settings(19)[2].split("\n")
-        val reply = state(n, 5, (1000 + i).toString())
+        val native = n.settings(SettingsUiOp.ROUTES)[2].split("\n")
+        val reply = state(n, SettingsUiOp.ACTIVATE, (1000 + i).toString())
         if (row.route in native) {
             assertEquals(row.route, reply.text("route"))
             // The licences list asks Kotlin for the AboutLibraries resource as it opens.
             val plans = if (row.route == "settings/about/third-party-licenses") listOf(listOf("load", "libraries")) else emptyList()
             assertEquals(plans, effects(reply))
-            state(n, 6, "3", "0")
+            state(n, SettingsUiOp.BACK, "3", "0")
         } else assertEquals(listOf(listOf("compose", row.route, native.joinToString("|"))), effects(reply))
         assertEquals(screen.route, route(n))
     }
@@ -146,7 +147,7 @@ class SettingsGroupTwoMatchTest {
             var attached = random.nextBoolean()
             val f = { ReferenceGroupTwoScreens.Facts(p, attached, e, id, label) }
             prepare(n, f())
-            state(n, 4, screen.route)
+            state(n, SettingsUiOp.NAVIGATE, screen.route)
             val touched = mutableSetOf<Int>()
             var owner = -1
             repeat(400) {
@@ -156,7 +157,7 @@ class SettingsGroupTwoMatchTest {
                     (if (random.nextBoolean()) ref.spellStates[ref.spellStates.size - 7] else ref.spellStates.random(random))
                         .let { e = it.first; id = it.second; label = it.third }
                     attached = random.nextBoolean()
-                    n.settings(20, facts(f()))
+                    n.settings(SettingsUiOp.FACTS, facts(f()))
                 }
                 val i = screen.rows.indices.filter {
                     val r = screen.rows[it]
@@ -167,22 +168,22 @@ class SettingsGroupTwoMatchTest {
                 when (row.kind) {
                     "toggle" -> {
                         p[row.key] = (!p.getValue(row.key).toBoolean()).toString()
-                        assertEquals(listOf(listOf("write", row.key, p.getValue(row.key))), effects(state(n, 5, (1000 + i).toString())))
+                        assertEquals(listOf(listOf("write", row.key, p.getValue(row.key))), effects(state(n, SettingsUiOp.ACTIVATE, (1000 + i).toString())))
                     }
                     "choice" -> choice(n, i, row, p, random)
                     "confirm" -> confirm(n, i, row, f(), random)
                     "route" -> navigate(n, i, row, screen)
                     "field" -> {
                         // The first activation hands the editor over and restarts the IME's input.
-                        val opened = effects(state(n, 5, (1000 + i).toString()))
+                        val opened = effects(state(n, SettingsUiOp.ACTIVATE, (1000 + i).toString()))
                         assertEquals((if (owner != i) listOf(listOf("restartInput")) else emptyList()) + listOf(listOf("editor")), opened)
                         owner = i
                         val typed = listOf("a", "Kubernetes", "\n", "post gress -> Postgres", "é").random(random)
                         p[row.key] = p.getValue(row.key) + typed
-                        assertEquals(listOf(listOf("write", row.key, p.getValue(row.key))), effects(state(n, 9, "commit", typed, "1")))
+                        assertEquals(listOf(listOf("write", row.key, p.getValue(row.key))), effects(state(n, SettingsUiOp.EDIT, "commit", typed, "1")))
                     }
-                    "card" -> assertEquals(listOf(row.click(f(), ::s)), effects(state(n, 5, (6000 + i).toString())), "link row $i")
-                    else -> assertEquals(listOf(row.click(f(), ::s)), effects(state(n, 5, (1000 + i).toString())), "click row $i")
+                    "card" -> assertEquals(listOf(row.click(f(), ::s)), effects(state(n, SettingsUiOp.ACTIVATE, (6000 + i).toString())), "link row $i")
+                    else -> assertEquals(listOf(row.click(f(), ::s)), effects(state(n, SettingsUiOp.ACTIVATE, (1000 + i).toString())), "click row $i")
                 }
                 assertEquals(screen.route, route(n))
             }
@@ -205,16 +206,16 @@ class SettingsGroupTwoMatchTest {
 
     @Test fun nativeRoutesAddGroupTwoAndKeepTheirScreensAcrossRecreation() {
         KeyboardRenderer(arrayOf(font)).use { n ->
-            val native = n.settings(19)[2].split("\n")
+            val native = n.settings(SettingsUiOp.ROUTES)[2].split("\n")
             val group = native.dropLast(ReferenceOtherThemeScreens.screens.size)
             assertEquals(ref.screens.map { it.route } + "settings/about/third-party-licenses", group.takeLast(ref.screens.size + 1))
             val f = ReferenceGroupTwoScreens.Facts(defaults(), false, "1", null, null)
             prepare(n, f)
-            state(n, 4, "settings/typing"); state(n, 4, "settings/dictionary")
-            val saved = n.settings(10).drop(3).toTypedArray()
+            state(n, SettingsUiOp.NAVIGATE, "settings/typing"); state(n, SettingsUiOp.NAVIGATE, "settings/dictionary")
+            val saved = n.settings(SettingsUiOp.SAVE).drop(3).toTypedArray()
             assertEquals("settings/home|settings/typing|settings/dictionary", saved[1])
             KeyboardRenderer(arrayOf(font)).use { recreated ->
-                prepare(recreated, f); state(recreated, 11, *saved)
+                prepare(recreated, f); state(recreated, SettingsUiOp.RESTORE, *saved)
                 assertEquals("settings/dictionary", route(recreated))
             }
         }

@@ -14,7 +14,7 @@ import androidx.lifecycle.lifecycleScope
 import com.jtn0123.audiowhisper.render.RendererAccessibility
 import com.jtn0123.audiowhisper.render.rendererPacket
 import com.jtn0123.audiowhisper.render.systemRendererFonts
-import com.jtn0123.audiowhisper.rust.KeyboardRenderer
+import com.jtn0123.audiowhisper.rust.*
 import dev.patrickgold.florisboard.app.FlorisAppActivity
 import dev.patrickgold.florisboard.app.FlorisPreferenceModel
 import dev.patrickgold.florisboard.lib.util.InputMethodUtils
@@ -37,7 +37,7 @@ internal class RustSettingsView(context: Context) : FrameLayout(context), Surfac
     private var fallback: (String, List<String>) -> Unit = { _, _ -> }
     private val native = KeyboardRenderer(systemRendererFonts())
     /** The routes native code draws; a Compose fallback hands any of them back. */
-    internal val nativeRoutes: List<String> = native.settings(19)[2].split("\n")
+    internal val nativeRoutes: List<String> = native.settings(SettingsUiOp.ROUTES)[SettingsUiReply.QUERY].split("\n")
     private val surface = SurfaceView(context)
     private val endpoint = SettingsInputView(context, this)
     private val selectionMenu = SettingsSelectionMenu(endpoint, this)
@@ -46,8 +46,8 @@ internal class RustSettingsView(context: Context) : FrameLayout(context), Surfac
     var restoreInputFocus = false
     private val choreographer = Choreographer.getInstance()
     private val imm = context.getSystemService(InputMethodManager::class.java)
-    private var state = Json.parseToJsonElement(native.settings(1,
-        settingsResources(context, native.settings(16)[2].split("\n")) + settingsIcons(context.resources))[0]).jsonObject
+    private var state = Json.parseToJsonElement(native.settings(SettingsUiOp.RESOURCES,
+        settingsResources(context, native.settings(SettingsUiOp.PLURALS)[SettingsUiReply.QUERY].split("\n")) + settingsIcons(context.resources))[SettingsUiReply.STATE]).jsonObject
     private var live = false
     private var pending = false
     private var released = false
@@ -60,19 +60,19 @@ internal class RustSettingsView(context: Context) : FrameLayout(context), Surfac
     /** A time field's number keyboard: its action, "next" or "done"; null for a text field. */
     internal val numberAction get() = state.getValue("editor").jsonObject["number"]?.jsonPrimitive?.contentOrNull
     private val accessibility = RendererAccessibility(this, { state.toString() }, { id, action ->
-        if (action == 4 || action == 5) send(17, id.toString(), action.toString()) else send(5, id.toString())
+        if (action == RenderProtocol.ACCESS_SCROLL_FORWARD || action == RenderProtocol.ACCESS_SCROLL_BACKWARD) send(SettingsUiOp.ACCESSIBILITY_SCROLL, id.toString(), action.toString()) else send(SettingsUiOp.ACTIVATE, id.toString())
         true
-    }, { send(12) }, hoverCommits = false, platformAction = { id, action, args ->
+    }, { send(SettingsUiOp.CANCEL_TOUCH) }, hoverCommits = false, platformAction = { id, action, args ->
         when (action) {
             AccessibilityNodeInfo.ACTION_SET_TEXT -> {
-                edit("set", args?.getCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE)?.toString().orEmpty())
+                edit(SettingsUiEdit.SET, args?.getCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE)?.toString().orEmpty())
             }
             AccessibilityNodeInfo.ACTION_SET_SELECTION -> {
-                edit("select", (args?.getInt(AccessibilityNodeInfo.ACTION_ARGUMENT_SELECTION_START_INT) ?: 0).toString(),
+                edit(SettingsUiEdit.SELECT, (args?.getInt(AccessibilityNodeInfo.ACTION_ARGUMENT_SELECTION_START_INT) ?: 0).toString(),
                     (args?.getInt(AccessibilityNodeInfo.ACTION_ARGUMENT_SELECTION_END_INT) ?: 0).toString())
             }
             AccessibilityNodeInfo.AccessibilityAction.ACTION_SET_PROGRESS.id -> {
-                send(15, id.toString(), (args?.getFloat(AccessibilityNodeInfo.ACTION_ARGUMENT_PROGRESS_VALUE) ?: 0f).toString()); true
+                send(SettingsUiOp.SLIDER, id.toString(), (args?.getFloat(AccessibilityNodeInfo.ACTION_ARGUMENT_PROGRESS_VALUE) ?: 0f).toString()); true
             }
             else -> false
         }
@@ -91,34 +91,36 @@ internal class RustSettingsView(context: Context) : FrameLayout(context), Surfac
         this.platform = SettingsPlatform(activity, prefs, ::preferencesPersisted)
         this.facts = SettingsFacts(activity).also { it.observe { if (!released) pushFacts() } }
         this.fallback = fallback
-        receive(native.settings(2, platform.snapshot()))
-        if (restored != null) receive(native.settings(11, restored))
+        receive(native.settings(SettingsUiOp.PREFERENCES, platform.snapshot()))
+        if (restored != null) receive(native.settings(SettingsUiOp.RESTORE, restored))
         for (pref in prefs.declaredPreferenceEntries.values) activity.lifecycleScope.launch {
             pref.asFlow().drop(1).collect {
-                if (!released && platform.pending == 0) { receive(native.settings(2, platform.snapshot())); configure() }
+                if (!released && platform.pending == 0) { receive(native.settings(SettingsUiOp.PREFERENCES, platform.snapshot())); configure() }
             }
         }
     }
-    private fun preferencesPersisted() { if (!released) { receive(native.settings(2, platform.snapshot())); configure() } }
-    fun navigate(route: String) = send(4, route)
-    fun save(): Array<String> = if (released) emptyArray() else native.settings(10).drop(3).toTypedArray()
-    fun back(phase: Int, progress: Float = 0f) = send(6, phase.toString(), progress.toString())
-    internal fun edit(vararg input: String): Boolean {
+    private fun preferencesPersisted() { if (!released) { receive(native.settings(SettingsUiOp.PREFERENCES, platform.snapshot())); configure() } }
+    fun navigate(route: String) = send(SettingsUiOp.NAVIGATE, route)
+    fun save(): Array<String> = if (released) emptyArray() else native.settings(SettingsUiOp.SAVE).drop(SettingsUiReply.SIZE).toTypedArray()
+    /** [phase] is a [SettingsUiBack]. */
+    fun back(phase: Int, progress: Float = 0f) = send(SettingsUiOp.BACK, phase.toString(), progress.toString())
+    internal fun edit(operation: SettingsUiEdit, vararg input: String): Boolean {
         if (released) return false
-        send(9, *input); return state.getValue("accepted").jsonPrimitive.boolean
+        send(SettingsUiOp.EDIT, operation.code, *input); return state.getValue("accepted").jsonPrimitive.boolean
     }
-    internal fun query(kind: String, length: Int): String = if (released) "" else native.settings(9, arrayOf("query", kind, length.toString()))[2]
+    /** [kind] is a [SettingsUiQuery]. */
+    internal fun query(kind: String, length: Int): String = if (released) "" else native.settings(SettingsUiOp.EDIT, arrayOf(SettingsUiEdit.QUERY.code, kind, length.toString()))[SettingsUiReply.QUERY]
     internal fun forwardKey(event: KeyEvent): Boolean {
-        send(7, event.action.toString(), event.keyCode.toString(), event.unicodeChar.toString(), event.isShiftPressed.toString())
+        send(SettingsUiOp.KEY, event.action.toString(), event.keyCode.toString(), event.unicodeChar.toString(), event.isShiftPressed.toString())
         return true
     }
     override fun dispatchKeyEvent(event: KeyEvent): Boolean =
         if (event.keyCode == KeyEvent.KEYCODE_BACK) super.dispatchKeyEvent(event) else forwardKey(event)
-    private fun send(operation: Int, vararg input: String) {
+    private fun send(operation: SettingsUiOp, vararg input: String) {
         if (!released) receive(native.settings(operation, arrayOf(*input)))
     }
     private fun receive(reply: Array<String>) {
-        state = Json.parseToJsonElement(reply[0]).jsonObject
+        state = Json.parseToJsonElement(reply[SettingsUiReply.STATE]).jsonObject
         val barColor = state.getValue("systemBarColor").jsonPrimitive.long.toInt()
         activity.window.decorView.setBackgroundColor(barColor)
         (parent as? android.view.View)?.setBackgroundColor(barColor)
@@ -127,7 +129,7 @@ internal class RustSettingsView(context: Context) : FrameLayout(context), Surfac
         androidx.core.view.WindowCompat.getInsetsController(activity.window, activity.window.decorView)
             .isAppearanceLightStatusBars = state.getValue("lightSystemBars").jsonPrimitive.boolean
         backAvailability(state.getValue("canBack").jsonPrimitive.boolean)
-        editorText = reply[1]
+        editorText = reply[SettingsUiReply.TEXT]
         val editor = state.getValue("editor").jsonObject
         if (!editor.getValue("focused").jsonPrimitive.boolean && endpoint.hasFocus()) endpoint.clearFocus()
         val bounds = editor["bounds"]?.takeUnless { it == JsonNull }?.jsonArray
@@ -163,7 +165,7 @@ internal class RustSettingsView(context: Context) : FrameLayout(context), Surfac
     }
     fun refreshPlatform() = configure()
     fun imeVisibility(visible: Boolean) {
-        if (imeWasVisible && !visible) send(9, "blur")
+        if (imeWasVisible && !visible) send(SettingsUiOp.EDIT, SettingsUiEdit.BLUR.code)
         imeWasVisible = visible
     }
     private fun configure() {
@@ -181,7 +183,7 @@ internal class RustSettingsView(context: Context) : FrameLayout(context), Surfac
             arrayOf(45f, 57f).map {
                 android.util.TypedValue.applyDimension(android.util.TypedValue.COMPLEX_UNIT_SP, it, metrics).toString()
             }.toTypedArray()
-        receive(native.settings(3, config))
+        receive(native.settings(SettingsUiOp.CONFIG, config))
         pushFacts()
     }
     /** Reads a bundled document off the main thread, as `produceLibraries` does, and hands Rust its raw text. */
@@ -191,12 +193,12 @@ internal class RustSettingsView(context: Context) : FrameLayout(context), Surfac
             val text = withContext(Dispatchers.IO) {
                 resources.openRawResource(R.raw.aboutlibraries).bufferedReader(Charsets.UTF_8).use { it.readText() }
             }
-            if (!released) receive(native.settings(21, arrayOf(name, text)))
+            if (!released) receive(native.settings(SettingsUiOp.DOCUMENTS, arrayOf(name, text)))
         }
     }
     private fun pushFacts() {
         facts.images { name, w, h, pixels -> receive(native.settingsImage(name, w, h, pixels)) }
-        receive(native.settings(20, facts.pairs()))
+        receive(native.settings(SettingsUiOp.FACTS, facts.pairs()))
     }
     private fun requestFrame() {
         if (live && !pending && !released) { pending = true; choreographer.postVsyncCallback(this) }
@@ -208,7 +210,7 @@ internal class RustSettingsView(context: Context) : FrameLayout(context), Surfac
         try {
         pending = false
         if (!live || released) return
-        if (state.getValue("animating").jsonPrimitive.boolean) receive(native.settings(8, arrayOf(frameTimeNanos.toString())))
+        if (state.getValue("animating").jsonPrimitive.boolean) receive(native.settings(SettingsUiOp.FRAME, arrayOf(frameTimeNanos.toString())))
         if (android.util.Log.isLoggable(SETTINGS_TRACE_TAG, android.util.Log.DEBUG)) android.util.Log.d(SETTINGS_TRACE_TAG, "submit frame_ns=$frameTimeNanos submit_ns=${System.nanoTime()}")
         native.frame(frameTimeNanos, data.preferredFrameTimeline.vsyncId)
         if (state.getValue("animating").jsonPrimitive.boolean) requestFrame()
