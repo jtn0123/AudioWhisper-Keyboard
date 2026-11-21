@@ -16,6 +16,7 @@
 
 package dev.patrickgold.florisboard.ime.nlp
 
+import com.jtn0123.audiowhisper.rust.*
 import dev.patrickgold.florisboard.ime.core.Subtype
 import dev.patrickgold.florisboard.ime.editor.EditorContent
 import dev.patrickgold.florisboard.ime.editor.EditorRange
@@ -215,8 +216,8 @@ interface SuggestionProvider : NlpProvider {
             val end = it.last()
             val status = it.ruleStatus
             val start = it.previous()
-            val plan = NlpState.call("composing", status.toString(), start.toString(), end.toString(), textBeforeSelection.toString())
-            EditorRange(plan[0].toInt(), plan[1].toInt())
+            val plan = NlpState.call(NlpOp.COMPOSING, *with(NlpComposing) { row(STATUS to "$status", START to "$start", END to "$end", TEXT to "$textBeforeSelection") })
+            EditorRange(plan[NlpComposingRange.START].toInt(), plan[NlpComposingRange.END].toInt())
         }
     }
 

@@ -112,14 +112,14 @@ class GlideTypingManager(context: Context) : GlideTypingGesture.Listener {
             withContext(Dispatchers.Main) {
                 // A preview finishing after a later request would show a word for less of the swipe.
                 if (!nlpManager.canApplyExternalRequest(request)) return@withContext
-                val plan = nlpManager.glideResultPlan(suggestions.size, maxSuggestionsToShow, commit)
-                val suggestionList = (plan[0] until plan[1]).map { index ->
+                val (shown, committed) = nlpManager.glideResultPlan(suggestions.size, maxSuggestionsToShow, commit)
+                val suggestionList = shown.map { index ->
                     WordSuggestionCandidate(keyboardManager.fixCase(suggestions[index]), confidence = 1.0)
                 }
 
                 nlpManager.suggestDirectly(suggestionList)
-                if (plan[2] >= 0) {
-                    keyboardManager.commitGesture(suggestions[plan[2]])
+                if (committed >= 0) {
+                    keyboardManager.commitGesture(suggestions[committed])
                 }
             }
         }

@@ -1,5 +1,7 @@
 package dev.patrickgold.florisboard.ime.nlp
 
+import com.jtn0123.audiowhisper.rust.NlpContext
+import com.jtn0123.audiowhisper.rust.WireFlag
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -12,17 +14,17 @@ class NlpBindingMatchTest {
             NlpState.configure(context)
             NlpState.directly(listOf(glide))
             assertEquals(emptyList(), NlpState.candidates.value, "Emoji enabled must not enable glide word candidates")
-            context[4] = "1"
+            context[NlpContext.SUGGESTIONS] = WireFlag.TRUE
             NlpState.configure(context)
             NlpState.directly(listOf(glide, WordSuggestionCandidate("hello"), WordSuggestionCandidate("help")))
             assertEquals(listOf("hello", "help"), NlpState.candidates.value.map { it.text.toString() })
-            context[0] = "129"
+            context[NlpContext.INPUT_TYPE] = "129"
             NlpState.configure(context)
             NlpState.directly(listOf(glide))
             assertEquals(emptyList(), NlpState.candidates.value, "A password cannot expose providerless words")
         } finally {
             NlpState.field()
-            NlpState.configure(Array(22) { "0" })
+            NlpState.configure(Array(NlpContext.SIZE) { "0" })
         }
     }
 }

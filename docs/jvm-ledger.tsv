@@ -237,15 +237,15 @@ app/src/main/kotlin/dev/patrickgold/florisboard/ime/media/emoticon/EmoticonLayou
 app/src/main/kotlin/dev/patrickgold/florisboard/ime/nlp/BreakIteratorGroup.kt	M	95	android.icu.text.BreakIterator; keep boundaries, move count/clamp/cache policy |
 app/src/main/kotlin/dev/patrickgold/florisboard/ime/nlp/ClipboardSuggestionProvider.kt	M	66	ClipboardManager; candidate gating and removal sequencing |
 app/src/main/kotlin/dev/patrickgold/florisboard/ime/nlp/LanguagePackExtension.kt	P	34	portable LanguagePackExtension domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
-app/src/main/kotlin/dev/patrickgold/florisboard/ime/nlp/NlpInlineAutofill.kt	A	39	InlineSuggestion.inflate / InlineContentView; actual Android autofill views |
-app/src/main/kotlin/dev/patrickgold/florisboard/ime/nlp/NlpManager.kt	M	342	SystemClock / provider IO; remaining worker/transport and candidate publication orchestration |
-app/src/main/kotlin/dev/patrickgold/florisboard/ime/nlp/NlpProviders.kt	P	94	portable NlpProviders domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
-app/src/main/kotlin/dev/patrickgold/florisboard/ime/nlp/NlpState.kt	M	117	Context / InputConnection facts; native protocol projection and publication |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/nlp/NlpInlineAutofill.kt	A	40	InlineSuggestion.inflate / InlineContentView; actual Android autofill views | raised 39 to 40 (A6): import of the generated NLP names
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/nlp/NlpManager.kt	M	343	SystemClock / provider IO; remaining worker/transport and candidate publication orchestration | raised 342 to 343 (A6): import of the generated NLP names
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/nlp/NlpProviders.kt	P	95	portable NlpProviders domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs | raised 94 to 95 (A6): import of the generated NLP names
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/nlp/NlpState.kt	M	118	Context / InputConnection facts; native protocol projection and publication | raised 117 to 118 (A6): the context packet built by field name
 app/src/main/kotlin/dev/patrickgold/florisboard/ime/nlp/PunctuationRule.kt	P	29	portable PunctuationRule domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
 app/src/main/kotlin/dev/patrickgold/florisboard/ime/nlp/SpellingLanguageMode.kt	P	5	portable SpellingLanguageMode domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
 app/src/main/kotlin/dev/patrickgold/florisboard/ime/nlp/SpellingResult.kt	M	32	SuggestionsInfo; remaining result flag/result-list mapping |
 app/src/main/kotlin/dev/patrickgold/florisboard/ime/nlp/SuggestionCandidate.kt	M	66	Resources / ClipData / ImageVector; display/icon/removal decisions |
-app/src/main/kotlin/dev/patrickgold/florisboard/ime/nlp/TypingCounters.kt	A	29	private counter file IO and event forwarding into Rust NlpState; the counts are Rust
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/nlp/TypingCounters.kt	A	30	private counter file IO and event forwarding into Rust NlpState; the counts are Rust; raised 29 to 30 (A6): import of the generated NLP names
 app/src/main/kotlin/dev/patrickgold/florisboard/ime/nlp/latin/LatinLanguageProvider.kt	M	330	Room / File / SystemClock; dictionary/provider selection, caches and load/error state |
 app/src/main/kotlin/dev/patrickgold/florisboard/ime/onehanded/OneHandedMode.kt	P	5	portable OneHandedMode domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
 app/src/main/kotlin/dev/patrickgold/florisboard/ime/onehanded/OneHandedPanel.kt	K	89	Compose keyboard (keyboard scope): deleted at compose-removal step K

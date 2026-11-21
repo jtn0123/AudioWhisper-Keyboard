@@ -18,6 +18,7 @@ package dev.patrickgold.florisboard.ime.nlp
 
 import android.content.Context
 import android.os.SystemClock
+import com.jtn0123.audiowhisper.rust.*
 import com.jtn0123.audiowhisper.suggest.GlideGuess
 import com.jtn0123.audiowhisper.suggest.WordLearner
 import dev.patrickgold.florisboard.app.FlorisPreferenceStore
@@ -194,23 +195,23 @@ class NlpManager(context: Context) {
     }
 
     fun providerForcesSuggestionOn(subtype: Subtype): Boolean =
-        NlpState.call("force", subtype.nlpProviders.suggestion)[0] == "1"
+        WireFlag.decode(NlpState.call(NlpOp.FORCE, subtype.nlpProviders.suggestion)[0])
 
     // The editor's legacy composing switch is independent of candidate field eligibility.
-    fun isSuggestionOn(): Boolean = environment.policy(subtypeManager.activeSubtype)[5] == "1"
+    fun isSuggestionOn(): Boolean = WireFlag.decode(environment.policy(subtypeManager.activeSubtype)[NlpPolicy.ENABLED])
 
     @Synchronized fun suggest(subtype: Subtype, content: EditorContent) {
         requestJob?.cancel()
         val plan = NlpState.begin(SystemClock.uptimeMillis(), environment.fields(subtype, content))
-        if (plan[1].toLong() < 0) return
+        if (plan[NlpBegin.DELAY].toLong() < 0) return
         requestJob = scope.launch {
-            delay(plan[1].toLong())
-            if (NlpState.call("ready", plan[0], SystemClock.uptimeMillis().toString())[0] != "1") return@launch
+            delay(plan[NlpBegin.DELAY].toLong())
+            if (!WireFlag.decode(NlpState.call(NlpOp.READY, plan[NlpBegin.GENERATION], "${SystemClock.uptimeMillis()}")[0])) return@launch
             val values = try {
-                val emoji = if (plan[3] == "1") emojiSuggestionProvider.suggest(subtype, content,
+                val emoji = if (WireFlag.decode(plan[NlpBegin.EMOJI])) emojiSuggestionProvider.suggest(subtype, content,
                     prefs.emoji.suggestionCandidateMaxCount.get(), !prefs.suggestion.blockPossiblyOffensive.get(),
                     keyboardManager.activeState.isIncognitoMode) else emptyList()
-                val words = if (plan[2] == "1") getSuggestionProvider(subtype).suggest(subtype, content, 8,
+                val words = if (WireFlag.decode(plan[NlpBegin.WORDS])) getSuggestionProvider(subtype).suggest(subtype, content, 8,
                     !prefs.suggestion.blockPossiblyOffensive.get(), keyboardManager.activeState.isIncognitoMode) else emptyList()
                 emoji + words
             } catch (cancelled: kotlinx.coroutines.CancellationException) {
@@ -218,27 +219,28 @@ class NlpManager(context: Context) {
             } catch (_: Exception) {
                 emptyList()
             }
-            NlpState.complete(plan[0], values, environment.fields(subtypeManager.activeSubtype))
+            NlpState.complete(plan[NlpBegin.GENERATION], values, environment.fields(subtypeManager.activeSubtype))
             assembleCandidates()
         }
     }
 
     fun beginExternalRequest(): String {
         configure()
-        return NlpState.call("externalBegin")[0]
+        return NlpState.call(NlpOp.EXTERNAL_BEGIN)[0]
     }
 
-    fun startGlidePreviewClock(now: Long) { NlpState.call("previewStart", now.toString()) }
+    fun startGlidePreviewClock(now: Long) { NlpState.call(NlpOp.PREVIEW_START, now.toString()) }
 
     fun refreshGlidePreview(now: Long, enabled: Boolean, delay: Int): Boolean =
-        NlpState.call("preview", now.toString(), enabled.bit(), delay.toString())[0] == "1"
+        WireFlag.decode(NlpState.call(NlpOp.PREVIEW, now.toString(), WireFlag.encode(enabled), delay.toString())[0])
 
-    fun glideResultPlan(count: Int, max: Int, commit: Boolean): List<Int> =
-        NlpState.call("glidePlan", count.toString(), max.toString(), commit.bit()).map(String::toInt)
+    /** Of [count] glide suggestions, the ones to show and the one to commit (-1 for none), as an [NlpGlidePlan] row says. */
+    fun glideResultPlan(count: Int, max: Int, commit: Boolean): Pair<IntRange, Int> = with(NlpGlidePlan) {
+        NlpState.call(NlpOp.GLIDE_PLAN, "$count", "$max", WireFlag.encode(commit)).map(String::toInt).let { it[FIRST] until it[END] to it[COMMIT] } }
 
     fun canApplyExternalRequest(generation: String): Boolean {
         configure()
-        return NlpState.call("externalValid", generation)[0] == "1"
+        return WireFlag.decode(NlpState.call(NlpOp.EXTERNAL_VALID, generation)[0])
     }
 
     @Synchronized fun suggestDirectly(suggestions: List<SuggestionCandidate>) {
@@ -272,7 +274,7 @@ class NlpManager(context: Context) {
     fun getAutoCommitCandidate(triggerCodePoint: Int? = null): SuggestionCandidate? {
         val requested = environment.fields(subtypeManager.activeSubtype)
         NlpState.configure(requested)
-        if (NlpState.call("auto", (triggerCodePoint ?: -1).toString(), editorInstance.phantomSpace.isActive.bit())[0] != "1") return null
+        if (!WireFlag.decode(NlpState.call(NlpOp.AUTO, "${triggerCodePoint ?: -1}", WireFlag.encode(editorInstance.phantomSpace.isActive))[0])) return null
         val candidate = latinProvider.autoCommitCandidateFor(subtypeManager.activeSubtype, editorInstance.activeContent,
             !prefs.suggestion.blockPossiblyOffensive.get()) ?: return null
         return candidate.takeIf { NlpState.autoCandidate(it, requested, environment.fields(subtypeManager.activeSubtype)) }
@@ -284,7 +286,7 @@ class NlpManager(context: Context) {
      */
     fun keepAsTyped(word: String) {
         configure()
-        val remember = NlpState.call("keep", word)[0] == "1"
+        val remember = WireFlag.decode(NlpState.call(NlpOp.KEEP, word)[0])
         if (latinProvider.keepAsTyped(word, remember)) {
             scope.launch(Dispatchers.IO) { latinProvider.saveKeptWords() }
         }
@@ -297,35 +299,35 @@ class NlpManager(context: Context) {
      * for a space or Enter) and stays as typed. See [WordLearner.finished].
      */
     fun learnTypedWord(content: EditorContent, triggerCodePoint: Int? = null) {
-        learningPlan(0, content.composingText, content, triggerCodePoint)
+        learningPlan(NlpLearnKind.TYPED, content.composingText, content, triggerCodePoint)
         // The word kept as typed may teach where this user taps (see suggest/tap_learning.rs).
-        val aim = NlpState.call("aim", prefs.suggestion.learnTapAim.get().bit(), (triggerCodePoint ?: -1).toString(),
-            content.composingText, content.localComposing.isValid.bit())
-        if (aim[0] == "1") tapTrail.kept(content.composingText)
+        val aim = NlpState.call(NlpOp.AIM, *with(NlpAim) { row(SETTING to WireFlag.encode(prefs.suggestion.learnTapAim.get()),
+            TRIGGER to "${triggerCodePoint ?: -1}", WORD to content.composingText, COMPOSING_VALID to WireFlag.encode(content.localComposing.isValid)) })
+        if (WireFlag.decode(aim[0])) tapTrail.kept(content.composingText)
         noteTypingChanged()
     }
 
     fun learnCandidate(text: String, content: EditorContent) {
         latinProvider.dropSwipedWord()
-        learningPlan(1, text, content)
+        learningPlan(NlpLearnKind.PICKED, text, content)
     }
 
     fun learnSwipedWord(word: String, content: EditorContent) {
-        learningPlan(2, word, content)
+        learningPlan(NlpLearnKind.SWIPED, word, content)
         tapTrail.swiped()
         noteTypingChanged()
     }
 
     private fun learningPlan(kind: Int, word: String, content: EditorContent, trigger: Int? = null) {
         configure(subtypeManager.activeSubtype, content)
-        val plan = NlpState.call("learn", kind.toString(), (trigger ?: -1).toString(), word,
-            content.text.safeSubstring(0, content.localComposing.start), content.composing.start.toString(), content.localComposing.isValid.bit(),
-            content.textBeforeSelection)
+        val plan = NlpState.call(NlpOp.LEARN, *with(NlpLearn) { row(KIND to "$kind", TRIGGER to "${trigger ?: -1}", WORD to word,
+            BEFORE_COMPOSING to content.text.safeSubstring(0, content.localComposing.start), COMPOSING_START to "${content.composing.start}",
+            COMPOSING_VALID to WireFlag.encode(content.localComposing.isValid), TEXT_BEFORE_SELECTION to content.textBeforeSelection) })
         if (plan.isEmpty()) return
-        learn { learner -> when (plan[0].toInt()) {
-            2 -> learner.swiped(plan[1], plan[2])
-            else -> learner.finished(plan[1], plan[2], plan[3].toInt())
-        } }
+        learn { learner -> with(NlpLearnPlan) { when (plan[KIND].toInt()) {
+            NlpLearnKind.SWIPED -> learner.swiped(plan[WORD], plan[BEFORE])
+            else -> learner.finished(plan[WORD], plan[BEFORE], plan[START].toInt())
+        } } }
     }
 
     /**
@@ -401,17 +403,17 @@ class NlpManager(context: Context) {
 
     /** Applies [change] to the learner unless incognito or the field rules learning out. */
     private inline fun learn(change: (WordLearner) -> Boolean) {
-        if (environment.policy(subtypeManager.activeSubtype)[4] != "1") return
+        if (!WireFlag.decode(environment.policy(subtypeManager.activeSubtype)[NlpPolicy.LEARN])) return
         val learner = latinProvider.learnerFor(subtypeManager.activeSubtype) ?: return
         if (change(learner)) saveLearnedWordsSoon()
     }
 
     private fun saveLearnedWordsSoon() {
-        val delayMs = NlpState.call("save", SystemClock.uptimeMillis().toString())[0].toLong()
+        val delayMs = NlpState.call(NlpOp.SAVE, SystemClock.uptimeMillis().toString())[0].toLong()
         if (delayMs < 0) return
         scope.launch(Dispatchers.IO) {
             delay(delayMs)
-            NlpState.call("save", SystemClock.uptimeMillis().toString())
+            NlpState.call(NlpOp.SAVE, SystemClock.uptimeMillis().toString())
             latinProvider.saveLearnedWords()
             latinProvider.saveTapAim()
             counters.save()
@@ -427,7 +429,7 @@ class NlpManager(context: Context) {
 
     /** [textBefore] as the next word will see it: a word right before the cursor gets its space first. */
     private fun beforeNextWord(textBefore: String): String =
-        NlpState.call("next", textBefore)[0]
+        NlpState.call(NlpOp.NEXT, textBefore)[0]
 
     /** AudioWhisper: see [LatinLanguageProvider.isName]. */
     fun isName(word: String) = latinProvider.isName(word)

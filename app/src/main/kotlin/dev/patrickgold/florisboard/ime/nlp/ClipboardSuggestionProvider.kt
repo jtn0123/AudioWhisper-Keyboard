@@ -17,6 +17,7 @@
 package dev.patrickgold.florisboard.ime.nlp
 
 import android.content.Context
+import com.jtn0123.audiowhisper.rust.*
 import dev.patrickgold.florisboard.app.FlorisPreferenceStore
 import dev.patrickgold.florisboard.clipboardManager
 import dev.patrickgold.florisboard.ime.clipboard.provider.ClipboardItem
@@ -55,12 +56,11 @@ internal class ClipboardSuggestionProvider(private val context: Context) : Sugge
             addAll(NetworkUtils.getUrls(text))
             addAll(NetworkUtils.getPhoneNumbers(text))
         } else emptyList()
-        val fields = listOf(prefs.clipboard.suggestionEnabled.get().bit(), item.id.toString(),
-            lastClipboardItemId.toString(), content.text, item.text ?: "",
-            (System.currentTimeMillis() - item.creationTimestampMs).toString(),
-            (prefs.clipboard.suggestionTimeout.get() * 1000).toString(), item.isSensitive.bit()) +
-            matches.flatMap { listOf(it.value, it.range.first.toString(), it.range.last.toString()) }
-        return NlpState.call("clipboardPlan", *fields.toTypedArray()).map { index ->
+        val plan = with(NlpClipboardPlan) { row(ENABLED to WireFlag.encode(prefs.clipboard.suggestionEnabled.get()), ITEM_ID to "${item.id}",
+            LAST_ID to "$lastClipboardItemId", CONTENT_TEXT to content.text, ITEM_TEXT to (item.text ?: ""), SENSITIVE to WireFlag.encode(item.isSensitive),
+            AGE to "${System.currentTimeMillis() - item.creationTimestampMs}", TIMEOUT to "${prefs.clipboard.suggestionTimeout.get() * 1000}") }
+        val spans = matches.flatMap { with(NlpClipboardSpan) { row(VALUE to it.value, START to "${it.range.first}", END to "${it.range.last}").asList() } }
+        return NlpState.call(NlpOp.CLIPBOARD_PLAN, *plan, *spans.toTypedArray()).map { index ->
             val selected = index.toInt()
             val candidate = if (selected < 0) item else item.copy(text = matches[selected].value.removeSurrounding("(", ")"))
             ClipboardSuggestionCandidate(candidate, this, context)

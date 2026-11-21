@@ -2,7 +2,6 @@ package dev.patrickgold.florisboard.ime.editor
 
 import com.jtn0123.audiowhisper.rust.*
 import com.jtn0123.audiowhisper.rust.EditorAttributes
-import com.jtn0123.audiowhisper.rust.NlpSession
 import dev.patrickgold.florisboard.ime.nlp.PunctuationRule
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -108,12 +107,12 @@ class FieldKindFlowTest {
         val secret = listOf(false, false, false, false)
         val expected = listOf(prose, prose, notProse, notProse, notProse, asks, asks, notProse, secret)
         for ((at, field) in fields.map { it.first }.withIndex()) {
-            nlp.call("context", *context(field.first, field.second))
-            val policy = nlp.call("policy", *context(field.first, field.second)).map { it == "1" }
-            val kept = nlp.call("keep", "zorb")[0] == "1"
-            assertEquals(expected[at], listOf(policy[1], policy[3], policy[4], kept), field.third)
+            nlp.call(NlpOp.CONTEXT, *context(field.first, field.second))
+            val policy = nlp.call(NlpOp.POLICY, *context(field.first, field.second)).map(WireFlag::decode)
+            val kept = WireFlag.decode(nlp.call(NlpOp.KEEP, "zorb")[0])
+            assertEquals(expected[at], listOf(policy[NlpPolicy.WORDS], policy[NlpPolicy.AUTOCORRECT], policy[NlpPolicy.LEARN], kept), field.third)
         }
-        nlp.call("context", *context(0x4001, 0, incognito = true))
-        assertEquals("0", nlp.call("keep", "zorb")[0], "incognito")
+        nlp.call(NlpOp.CONTEXT, *context(0x4001, 0, incognito = true))
+        assertEquals("0", nlp.call(NlpOp.KEEP, "zorb")[0], "incognito")
     }
 }

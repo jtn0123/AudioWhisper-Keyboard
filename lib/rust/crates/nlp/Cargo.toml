@@ -9,6 +9,7 @@ rust-version.workspace = true
 [dependencies]
 chars = { path = "../chars" }
 suggest = { path = "../suggest" }
+wire = { path = "../wire" }
 
 [lints]
 workspace = true

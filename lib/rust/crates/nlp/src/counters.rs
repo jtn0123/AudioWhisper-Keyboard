@@ -3,12 +3,14 @@
 //! counters remember between events (where the last finished word sits, so a backspace into it can
 //! be noticed) lives in memory only and is forgotten with the field.
 //!
-//! The NLP session counts what it already sees (a word finished in "learn", a suggestion tapped in
-//! "pick"); Kotlin passes the rest through the "tally" operation: a keystroke, a backspace, an
+//! The NLP session counts what it already sees (a word finished in `LEARN`, a suggestion tapped in
+//! `PICK`); Kotlin passes the rest through the `TALLY` operation: a keystroke, a backspace, an
 //! undo. The counts are saved as `name value` lines (see [`Counters::text`]) in the app's private
 //! files; docs/rust.md says how to read them.
 
-use crate::{Field, Session, int, number, text};
+use crate::{Field, Session, flag_at, int, text};
+use wire::flag;
+use wire::nlp::{self as ops, candidate, context, learn, tally};
 
 /// Keystrokes after a word is finished within which deleting back into it counts as a typo the
 /// user left and then fixed.
@@ -108,16 +110,16 @@ impl Counters {
             .map(|at| self.counts[at])
     }
 
-    /// A word was finished: kept as typed (`kind` 0), a suggestion committed (1) or swiped (2),
-    /// starting at `start` in the text and `length` UTF-16 units long.
-    pub fn finished(&mut self, kind: i64, start: i64, length: usize) {
+    /// A word was finished, as an `NlpLearnKind` says: kept as typed, a suggestion committed or
+    /// swiped, starting at `start` in the text and `length` UTF-16 units long.
+    pub fn finished(&mut self, kind: i32, start: i64, length: usize) {
         if self.recent.last.replace(start) != Some(start) {
             self.add(WORDS);
-            if kind == 0 {
+            if kind == learn::TYPED {
                 self.add(KEPT_AS_TYPED);
             }
         }
-        if kind == 2 {
+        if kind == learn::SWIPED {
             self.add(SWIPED);
             self.recent.swipe = true;
             self.recent.word = None;
@@ -270,34 +272,35 @@ impl Counters {
 impl Session {
     /// Counting happens only where suggestions for words do and the user is not incognito.
     fn counting(&self) -> bool {
-        self.context.words() && !self.context.flag(7)
+        self.context.words() && !self.context.flag(context::INCOGNITO)
     }
 
     /// The word being typed, read from the context's text window, if it is all there.
     fn composing_text(&self) -> Option<&[u16]> {
         let c = &self.context.0;
-        let offset = int(c, 20);
-        let start = usize::try_from(int(c, 12) - offset).ok()?;
-        let end = usize::try_from(int(c, 13) - offset).ok()?;
-        c.get(14)?.get(start..end)
+        let offset = int(c, context::OFFSET);
+        let start = usize::try_from(int(c, context::COMPOSING_START) - offset).ok()?;
+        let end = usize::try_from(int(c, context::COMPOSING_END) - offset).ok()?;
+        c.get(context::TEXT)?.get(start..end)
     }
 
-    /// The "learn" operation's fields `f` finished a word (see protocol.rs).
-    pub(crate) fn count_finished(&mut self, kind: i64, f: &[Field]) {
+    /// The `LEARN` operation's `wire::nlp::learn` row `f` finished a word (see protocol.rs).
+    pub(crate) fn count_finished(&mut self, kind: i32, f: &[Field]) {
         if !self.counting() {
             return;
         }
         let c = &self.context.0;
-        let replaces = int(f, 5) != 0 && c[12] != c[13];
-        let start = if kind == 0 || replaces {
-            int(f, 4)
+        let replaces = flag_at(f, learn::COMPOSING_VALID)
+            && c[context::COMPOSING_START] != c[context::COMPOSING_END];
+        let start = if kind == learn::TYPED || replaces {
+            int(f, learn::COMPOSING_START)
         } else {
-            int(c, 10)
+            int(c, context::SELECTION_START)
         };
-        self.counters.finished(kind, start, f[2].len());
+        self.counters.finished(kind, start, f[learn::WORD].len());
     }
 
-    /// The candidate `id` was accepted by "pick": the auto-correction if `automatic`.
+    /// The candidate `id` was accepted by `PICK`: the auto-correction if `automatic`.
     pub(crate) fn count_pick(&mut self, id: &[u16], automatic: bool) {
         if !self.counting() {
             return;
@@ -314,15 +317,15 @@ impl Session {
         let Some(slot) = visible.iter().position(|v| v.id == id) else {
             return;
         };
-        if visible[slot].kind != 0 {
+        if !visible[slot].is(candidate::WORD) {
             return;
         }
         let c = &self.context.0;
-        let typing = c[12] != c[13];
-        let before = int(c, 10) - int(c, 20) - 1;
+        let typing = c[context::COMPOSING_START] != c[context::COMPOSING_END];
+        let before = int(c, context::SELECTION_START) - int(c, context::OFFSET) - 1;
         let after_space = usize::try_from(before)
             .ok()
-            .and_then(|at| c.get(14)?.get(at))
+            .and_then(|at| c.get(context::TEXT)?.get(at))
             .is_some_and(|&u| chars::is_whitespace(u));
         self.counters.picked(Pick::Suggestion {
             slot,
@@ -338,22 +341,22 @@ impl Session {
         f: &[Field],
     ) -> Option<Result<Vec<Field>, &'static str>> {
         let count = match op {
-            "tally" => 3,
-            "tallyLoad" => 1,
-            "tallyText" | "tallyChanged" | "tallyReset" => 0,
+            ops::TALLY => tally::SIZE,
+            ops::TALLY_LOAD => 1,
+            ops::TALLY_TEXT | ops::TALLY_CHANGED | ops::TALLY_RESET => 0,
             _ => return None,
         };
         if f.len() != count {
             return Some(Err("wrong NLP field count"));
         }
         Some(Ok(match op {
-            "tally" => return Some(self.tally(f)),
-            "tallyLoad" => {
+            ops::TALLY => return Some(self.tally(f)),
+            ops::TALLY_LOAD => {
                 self.counters.load(&String::from_utf16_lossy(&f[0]));
                 vec![]
             }
-            "tallyText" => vec![text(&self.counters.text())],
-            "tallyChanged" => vec![number(i32::from(self.counters.take_changed()))],
+            ops::TALLY_TEXT => vec![text(&self.counters.text())],
+            ops::TALLY_CHANGED => vec![flag::utf16(self.counters.take_changed())],
             _ => {
                 self.counters.reset();
                 vec![]
@@ -361,16 +364,17 @@ impl Session {
         }))
     }
 
-    /// An event Kotlin passes through: "key", "deleted" with the selection's start and end,
-    /// "undone" (a backspace undid the auto-correction) or "undo" (the undo key).
+    /// A [`tally`] row: an event Kotlin passes through.
     fn tally(&mut self, f: &[Field]) -> Result<Vec<Field>, &'static str> {
-        let event = String::from_utf16_lossy(&f[0]);
+        let event = String::from_utf16_lossy(&f[tally::EVENT]);
         match event.as_str() {
-            "key" => self.counters.key(),
-            "deleted" => self.counters.deleted(int(f, 1), int(f, 2)),
-            "undone" if self.counting() => self.counters.undone(),
-            "undone" => self.counters.field(),
-            "undo" => self.counters.undo(),
+            tally::KEY => self.counters.key(),
+            tally::DELETED => self
+                .counters
+                .deleted(int(f, tally::START), int(f, tally::END)),
+            tally::UNDONE if self.counting() => self.counters.undone(),
+            tally::UNDONE => self.counters.field(),
+            tally::UNDO => self.counters.undo(),
             _ => return Err("unknown tally event"),
         }
         Ok(vec![])

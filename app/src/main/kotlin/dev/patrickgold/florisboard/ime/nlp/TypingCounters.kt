@@ -1,6 +1,7 @@
 package dev.patrickgold.florisboard.ime.nlp
 
 import android.util.Log
+import com.jtn0123.audiowhisper.rust.*
 import com.jtn0123.audiowhisper.suggest.PrivateTextFile
 import java.io.File
 
@@ -15,37 +16,37 @@ internal class TypingCounters(filesDir: File) {
 
     /** Reads the saved counts. Blocking. */
     fun load() {
-        NlpState.call("tallyLoad", file.read())
+        NlpState.call(NlpOp.TALLY_LOAD, file.read())
     }
 
     /** Whether a count changed since this was last asked. */
-    fun changed(): Boolean = NlpState.call("tallyChanged")[0] == "1"
+    fun changed(): Boolean = WireFlag.decode(NlpState.call(NlpOp.TALLY_CHANGED)[0])
 
     /** Writes the counts. Blocking. */
     fun save() {
-        if (!file.write(NlpState.call("tallyText")[0])) Log.w(TAG, "Could not save the typing counters")
+        if (!file.write(NlpState.call(NlpOp.TALLY_TEXT)[0])) Log.w(TAG, "Could not save the typing counters")
     }
 
     /** Every count back to zero, on disk too. Blocking. */
     fun reset() {
-        NlpState.call("tallyReset")
+        NlpState.call(NlpOp.TALLY_RESET)
         file.delete()
     }
 
     /** A key that types went down: a character, a space or Enter. */
-    fun key() = tally("key")
+    fun key() = tally(NlpTallyEvent.KEY)
 
     /** A backspace, with the selection at [start]..[end] before it deleted anything. */
-    fun deleted(start: Int, end: Int) = tally("deleted", start, end)
+    fun deleted(start: Int, end: Int) = tally(NlpTallyEvent.DELETED, start, end)
 
     /** A backspace straight after an auto-correction put back what was typed. */
-    fun undone() = tally("undone")
+    fun undone() = tally(NlpTallyEvent.UNDONE)
 
     /** The undo key. */
-    fun undo() = tally("undo")
+    fun undo() = tally(NlpTallyEvent.UNDO)
 
-    private fun tally(event: String, start: Int = 0, end: Int = 0) {
-        NlpState.call("tally", event, start.toString(), end.toString())
+    private fun tally(event: NlpTallyEvent, start: Int = 0, end: Int = 0) {
+        NlpState.call(NlpOp.TALLY, *with(NlpTally) { row(EVENT to event.code, START to "$start", END to "$end") })
     }
 
     companion object {
