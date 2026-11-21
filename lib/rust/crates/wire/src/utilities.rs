@@ -8,7 +8,7 @@ crate::declare! {
         MIME_FILTER = 0,
         /// The MIME types worth matching: a [`mime_input`] row for each.
         MIME_INPUTS = 1,
-        /// A reference string as a [`reference`] row.
+        /// A reference string as a [`reference::FIELDS`] row.
         NORMALIZE_REFERENCE = 2,
         /// A web address, with `https://` if it had no scheme.
         URL = 3,
