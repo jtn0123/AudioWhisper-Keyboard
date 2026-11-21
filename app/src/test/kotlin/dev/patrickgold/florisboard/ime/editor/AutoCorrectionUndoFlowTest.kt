@@ -1,5 +1,6 @@
 package dev.patrickgold.florisboard.ime.editor
 
+import com.jtn0123.audiowhisper.rust.*
 import com.jtn0123.audiowhisper.rust.KeyboardRenderer
 import com.jtn0123.audiowhisper.suggest.AutoCorrectionUndo
 import dev.patrickgold.florisboard.ime.nlp.PunctuationRule
@@ -28,7 +29,7 @@ class AutoCorrectionUndoFlowTest {
 
         init {
             driver.input = inputType
-            driver.run("start", "0", "0", "1")
+            driver.run(EditorOp.START, "0", "0", "1")
         }
 
         val phantomSpace get() = phantom.isActive
@@ -38,16 +39,16 @@ class AutoCorrectionUndoFlowTest {
             driver.determine = phantom.isInactive || phantom.showComposingRegion
         }
 
-        private fun edit(operation: String, vararg fields: String) {
+        private fun edit(operation: EditorOp, vararg fields: String) {
             val rule = PunctuationRule.Fallback
             configure()
-            driver.session.call("context", auto.bits.toString(), phantom.bits.toString(), KeyVariation.NORMAL.value.toString(), if (autoSpacePunctuation) "1" else "0",
+            driver.session.call(EditorOp.CONTEXT, auto.bits.toString(), phantom.bits.toString(), KeyVariation.NORMAL.value.toString(), if (autoSpacePunctuation) "1" else "0",
                 "en", rule.symbolsPrecedingAutoSpace, rule.symbolsFollowingAutoSpace, rule.symbolsPrecedingPhantomSpace,
                 rule.symbolsFollowingPhantomSpace, "1")
             driver.run(operation, *fields)
-            val spaces = driver.session.call("spaces")
-            auto.bits = spaces[0].toInt()
-            phantom.reset(spaces[1].toInt())
+            val spaces = driver.session.call(EditorOp.SPACES)
+            auto.bits = spaces[EditorSpaces.AUTO_SPACE].toInt()
+            phantom.reset(spaces[EditorSpaces.PHANTOM_SPACE].toInt())
             unseen += ic.cursorUpdates()
         }
 
@@ -57,22 +58,22 @@ class AutoCorrectionUndoFlowTest {
                 val update = unseen.removeFirst()
                 followUpdate(driver.session.isLate(update[0], update[1], update[2], update[3]), auto, phantom)
                 configure()
-                driver.run("update", *update.map(Int::toString).toTypedArray(), "1")
+                driver.run(EditorOp.UPDATE, *update.map(Int::toString).toTypedArray(), "1")
             }
         }
 
-        private val content get() = EditorSnapshot(driver.session.call("snapshot")).content
+        private val content get() = EditorSnapshot(driver.session.call(EditorOp.SNAPSHOT)).content
 
-        fun type(text: String) = text.forEach { edit("typeChar", it.toString()); catchUp() }
+        fun type(text: String) = text.forEach { edit(EditorOp.TYPE_CHAR, it.toString()); catchUp() }
 
-        fun swipe(word: String) { edit("gesture", word); catchUp() }
+        fun swipe(word: String) { edit(EditorOp.GESTURE, word); catchUp() }
 
         /** KeyboardManager.autoCorrect committing [corrected], then [separator] as its key does. */
         fun autoCorrect(corrected: String, separator: String) {
             val typed = content.composingText
             undo = AutoCorrectionUndo(typed, corrected, content.composing.start)
-            edit("completion", corrected)
-            if (separator == " ") edit("typeText", " ") else edit("typeChar", separator)
+            edit(EditorOp.COMPLETION, corrected)
+            if (separator == " ") edit(EditorOp.TYPE_TEXT, " ") else edit(EditorOp.TYPE_CHAR, separator)
         }
 
         /** KeyboardManager.undoAutoCorrection, for the backspace. */
@@ -82,7 +83,7 @@ class AutoCorrectionUndoFlowTest {
             val content = content
             if (!content.selection.isCursorMode) return false
             val revert = undo.revertAt(content.selection.start, content.textBeforeSelection) ?: return false
-            edit("revert", revert.length.toString(), revert.text, if (revert.phantomSpace) "1" else "0")
+            edit(EditorOp.REVERT, revert.length.toString(), revert.text, if (revert.phantomSpace) "1" else "0")
             return true
         }
 

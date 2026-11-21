@@ -1,5 +1,6 @@
 package dev.patrickgold.florisboard.ime.editor
 
+import com.jtn0123.audiowhisper.rust.*
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -14,16 +15,16 @@ class EditorFlowMatchTest {
             val rule=flow.punctuationRule
             pair.new.phantom=s.phantomSpace.isActive
             pair.new.determine=pair.old.determine
-            pair.new.session.call("context",s.autoSpace.raw.toString(),s.phantomSpace.raw.toString(),flow.keyVariation.value.toString(),if(flow.autoSpacePunctuation)"1"else"0",
+            pair.new.session.call(EditorOp.CONTEXT,s.autoSpace.raw.toString(),s.phantomSpace.raw.toString(),flow.keyVariation.value.toString(),if(flow.autoSpacePunctuation)"1"else"0",
                 "en",rule.symbolsPrecedingAutoSpace,rule.symbolsFollowingAutoSpace,rule.symbolsPrecedingPhantomSpace,rule.symbolsFollowingPhantomSpace,if(flow.immediateWord)"1"else"0")
         }
-        fun run(op:String,vararg args:String) {
+        fun run(op:EditorOp,vararg args:String) {
             context()
-            val a=flow.run(op,*args)
+            val a=flow.run(op.code,*args)
             val b=pair.new.run(op,*args)
             assertEquals(a,b,"event result $op")
-            pair.compare(op)
-            assertEquals(listOf(flow.spacing.autoSpace.raw,flow.spacing.phantomSpace.raw),pair.new.session.call("spaces").take(2).map(String::toInt),"spacing $op")
+            pair.compare(op.code)
+            assertEquals(listOf(flow.spacing.autoSpace.raw,flow.spacing.phantomSpace.raw),pair.new.session.call(EditorOp.SPACES).let{s->listOf(EditorSpaces.AUTO_SPACE,EditorSpaces.PHANTOM_SPACE).map{s[it].toInt()}},"spacing $op")
         }
         fun update() {
             flow.update();pair.new.phantom=flow.spacing.phantomSpace.isActive;pair.new.determine=pair.old.determine
@@ -33,19 +34,19 @@ class EditorFlowMatchTest {
     }
     @Test fun `autocorrect suggestion phantom word delete and dictation traces match`() {
         FlowPair().use { p ->
-            for(c in "teh") {p.run("typeChar",c.toString());p.update()}
-            p.run("completion","the");p.update();p.run("typeText"," ");p.update()
-            p.run("revert","4","teh","1");p.update();p.run("typeChar","y");p.update()
-            p.run("gesture","world");p.update();p.run("backward","0");p.update()
-            p.run("dictation","Hello family.","0");p.update();p.run("undoDictation");p.update()
-            p.run("dictation","Hello family.","0");p.update();p.run("typeChar","a");p.update()
-            p.run("typeText","a ");p.update();p.run("doubleSpace");p.update()
-            p.run("typeText","more 👨‍👩‍👧‍👦 words");p.update()
-            p.run("selectAround","2","0","0");p.update()
-            p.run("selectAround","1","1","1");p.update()
-            p.run("selectAround","0","0","0");p.update()
+            for(c in "teh") {p.run(EditorOp.TYPE_CHAR,c.toString());p.update()}
+            p.run(EditorOp.COMPLETION,"the");p.update();p.run(EditorOp.TYPE_TEXT," ");p.update()
+            p.run(EditorOp.REVERT,"4","teh","1");p.update();p.run(EditorOp.TYPE_CHAR,"y");p.update()
+            p.run(EditorOp.GESTURE,"world");p.update();p.run(EditorOp.BACKWARD,"0");p.update()
+            p.run(EditorOp.DICTATION,"Hello family.","0");p.update();p.run(EditorOp.UNDO_DICTATION);p.update()
+            p.run(EditorOp.DICTATION,"Hello family.","0");p.update();p.run(EditorOp.TYPE_CHAR,"a");p.update()
+            p.run(EditorOp.TYPE_TEXT,"a ");p.update();p.run(EditorOp.DOUBLE_SPACE);p.update()
+            p.run(EditorOp.TYPE_TEXT,"more 👨‍👩‍👧‍👦 words");p.update()
+            p.run(EditorOp.SELECT_AROUND,"2","0","0");p.update()
+            p.run(EditorOp.SELECT_AROUND,"1","1","1");p.update()
+            p.run(EditorOp.SELECT_AROUND,"0","0","0");p.update()
             p.flow.autoSpacePunctuation=true
-            p.run("typeChar",".");p.update();p.run("typeChar",",");p.update()
+            p.run(EditorOp.TYPE_CHAR,".");p.update();p.run(EditorOp.TYPE_CHAR,",");p.update()
         }
     }
     @Test fun `25000 seeded editor events match final text state and ordered operations`() {
@@ -59,15 +60,15 @@ class EditorFlowMatchTest {
             repeat(250) {
                 val value=values[r.nextInt(values.size)]
                 when(r.nextInt(12)) {
-                    0,1,2 -> p.run("typeChar",value)
-                    3 -> p.run("typeText",value)
-                    4 -> p.run("completion",value)
-                    5 -> p.run("gesture",value)
-                    6 -> p.run("backward",if(r.nextBoolean())"1"else"0")
-                    7 -> p.run("forward",if(r.nextBoolean())"1"else"0")
-                    8 -> p.run("dictation",value,r.nextInt(3).toString())
-                    9 -> p.run("undoDictation")
-                    10 -> p.run("enter")
+                    0,1,2 -> p.run(EditorOp.TYPE_CHAR,value)
+                    3 -> p.run(EditorOp.TYPE_TEXT,value)
+                    4 -> p.run(EditorOp.COMPLETION,value)
+                    5 -> p.run(EditorOp.GESTURE,value)
+                    6 -> p.run(EditorOp.BACKWARD,if(r.nextBoolean())"1"else"0")
+                    7 -> p.run(EditorOp.FORWARD,if(r.nextBoolean())"1"else"0")
+                    8 -> p.run(EditorOp.DICTATION,value,r.nextInt(3).toString())
+                    9 -> p.run(EditorOp.UNDO_DICTATION)
+                    10 -> p.run(EditorOp.ENTER)
                     11 -> {
                         val text=values.shuffled(r).take(4).joinToString("")
                         val pos=r.nextInt(text.length+1)

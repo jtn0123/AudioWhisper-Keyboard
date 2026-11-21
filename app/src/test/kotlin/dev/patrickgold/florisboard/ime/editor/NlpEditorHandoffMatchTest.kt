@@ -1,5 +1,6 @@
 package dev.patrickgold.florisboard.ime.editor
 
+import com.jtn0123.audiowhisper.rust.*
 import com.jtn0123.audiowhisper.rust.NlpSession
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -16,8 +17,8 @@ class NlpEditorHandoffMatchTest {
         EditorPlanMatchTest.Pairing().use { editor ->
             editor.start("prefix ")
             editor.char("a") // InputConnection succeeded; its selection acknowledgement is still delayed.
-            val published = fields(EditorSnapshot(editor.new.session.call("published")).content)
-            val current = fields(EditorSnapshot(editor.new.session.call("snapshot")).content)
+            val published = fields(EditorSnapshot(editor.new.session.call(EditorOp.PUBLISHED)).content)
+            val current = fields(EditorSnapshot(editor.new.session.call(EditorOp.SNAPSHOT)).content)
             assertFalse(published.contentEquals(current), "Fixture must keep a newer prediction than its notification")
             NlpSession().use { nlp ->
                 val wrong = nlp.call("beginFor", *published, "100")[0]

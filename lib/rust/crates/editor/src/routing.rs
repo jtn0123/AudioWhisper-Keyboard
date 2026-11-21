@@ -1,6 +1,8 @@
 //! Editor operation routing. Key/domain codes have one canonical definition in `keys`.
-use crate::{Field, Session, integer, number, operations::keys as key_events};
+use crate::{Field, Session, integer, operations::keys as key_events};
 use keys::codes;
+use wire::editor as ops;
+use wire::flag;
 impl Session {
     pub(crate) fn arrow(&mut self, fields: &[Field]) -> Vec<Field> {
         let (code, alt) = match integer(fields, 0) {
@@ -14,7 +16,7 @@ impl Session {
             codes::MOVE_END_OF_LINE => (22, true),
             _ => return self.done(false, vec![]),
         };
-        let meta = (if alt { 0x12 } else { 0 }) | (if integer(fields, 2) != 0 { 0x41 } else { 0 });
+        let meta = (if alt { 0x12 } else { 0 }) | (if flag::decode(&fields[2]) { 0x41 } else { 0 });
         self.done(
             integer(fields, 1) > 0,
             key_events(code, meta, integer(fields, 1)),
@@ -22,19 +24,19 @@ impl Session {
     }
     pub(crate) fn mass_state(&mut self, operation: &str) -> Vec<Field> {
         match operation {
-            "massBegin" => {
+            ops::MASS_BEGIN => {
                 self.mass = self.mass.wrapping_add(1);
                 vec![]
             }
-            "massEnd" => {
+            ops::MASS_END => {
                 self.mass = self.mass.wrapping_sub(1);
-                vec![number(i32::from(self.mass == 0))]
+                vec![flag::utf16(self.mass == 0)]
             }
-            "massReset" => {
+            ops::MASS_RESET => {
                 self.mass = 0;
                 vec![]
             }
-            _ => vec![number(i32::from(self.mass > 0))],
+            _ => vec![flag::utf16(self.mass > 0)],
         }
     }
 }

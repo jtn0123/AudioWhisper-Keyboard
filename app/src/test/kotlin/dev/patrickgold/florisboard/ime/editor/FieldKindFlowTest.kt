@@ -1,5 +1,6 @@
 package dev.patrickgold.florisboard.ime.editor
 
+import com.jtn0123.audiowhisper.rust.*
 import com.jtn0123.audiowhisper.rust.EditorAttributes
 import com.jtn0123.audiowhisper.rust.NlpSession
 import dev.patrickgold.florisboard.ime.nlp.PunctuationRule
@@ -22,23 +23,23 @@ class FieldKindFlowTest {
 
         init {
             driver.input = inputType
-            driver.run("start", "0", "0", "1")
+            driver.run(EditorOp.START, "0", "0", "1")
         }
 
-        private fun edit(operation: String, vararg fields: String) {
+        private fun edit(operation: EditorOp, vararg fields: String) {
             val rule = PunctuationRule.Fallback
             configure()
-            driver.session.call("context", auto.bits.toString(), phantom.bits.toString(), variation.toString(), "1",
+            driver.session.call(EditorOp.CONTEXT, auto.bits.toString(), phantom.bits.toString(), variation.toString(), "1",
                 "en", rule.symbolsPrecedingAutoSpace, rule.symbolsFollowingAutoSpace, rule.symbolsPrecedingPhantomSpace,
                 rule.symbolsFollowingPhantomSpace, "1")
             driver.run(operation, *fields)
-            val spaces = driver.session.call("spaces")
-            auto.bits = spaces[0].toInt()
-            phantom.reset(spaces[1].toInt())
+            val spaces = driver.session.call(EditorOp.SPACES)
+            auto.bits = spaces[EditorSpaces.AUTO_SPACE].toInt()
+            phantom.reset(spaces[EditorSpaces.PHANTOM_SPACE].toInt())
             val update = intArrayOf(ic.start, ic.end, ic.composingStart, ic.composingEnd)
             followUpdate(driver.session.isLate(update[0], update[1], update[2], update[3]), auto, phantom)
             configure()
-            driver.run("update", *update.map(Int::toString).toTypedArray(), "1")
+            driver.run(EditorOp.UPDATE, *update.map(Int::toString).toTypedArray(), "1")
         }
 
         private fun configure() {
@@ -46,11 +47,11 @@ class FieldKindFlowTest {
             driver.determine = phantom.isInactive || phantom.showComposingRegion
         }
 
-        fun type(text: String) = text.forEach { edit("typeChar", it.toString()) }
+        fun type(text: String) = text.forEach { edit(EditorOp.TYPE_CHAR, it.toString()) }
 
-        fun swipe(word: String) = edit("gesture", word)
+        fun swipe(word: String) = edit(EditorOp.GESTURE, word)
 
-        fun pick(word: String) = edit("completion", word)
+        fun pick(word: String) = edit(EditorOp.COMPLETION, word)
 
         override fun close() = driver.close()
     }

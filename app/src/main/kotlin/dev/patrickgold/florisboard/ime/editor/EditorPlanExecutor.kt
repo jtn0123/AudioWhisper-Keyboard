@@ -5,8 +5,7 @@ import android.view.InputDevice
 import android.view.KeyCharacterMap
 import android.view.KeyEvent
 import android.view.inputmethod.InputConnection
-import com.jtn0123.audiowhisper.rust.EditorSession
-import com.jtn0123.audiowhisper.rust.EditorCalls
+import com.jtn0123.audiowhisper.rust.*
 import dev.patrickgold.florisboard.ime.nlp.BreakIteratorGroup
 import dev.patrickgold.florisboard.ime.text.composing.Composer
 import dev.patrickgold.florisboard.ime.text.composing.WithRules
@@ -27,67 +26,69 @@ internal class EditorPlanExecutor(
             val rules = (current as? WithRules)?.let { table ->
                 table.ruleOrder.flatMap { listOf(it, table.rules.getValue(it)) }
             }.orEmpty()
-            session.call("composerRules", *rules.toTypedArray())
+            session.call(EditorOp.COMPOSER_RULES, *rules.toTypedArray())
             loadedComposer = current
         }
     }
-    suspend fun execute(session: EditorSession, ic: InputConnection, operation: String, fields: Array<out String>): Boolean =
+    suspend fun execute(session: EditorSession, ic: InputConnection, operation: EditorOp, fields: Array<out String>): Boolean =
         session.transaction { executePlan(it, ic, operation, fields) }
 
-    private suspend fun executePlan(session: EditorCalls, ic: InputConnection, operation: String, fields: Array<out String>): Boolean {
+    private suspend fun executePlan(session: EditorCalls, ic: InputConnection, operation: EditorOp, fields: Array<out String>): Boolean {
         supplyComposer(session)
         var response = session.call(operation, *fields)
-        while (response[0] != "ready") {
-            val values = when (response[0]) {
-                "read" -> arrayOf(
-                    if (response[1] == "1") ic.getTextBeforeCursor(256, 0)?.toString().orEmpty() else "",
+        while (response[EditorPlan.STATUS] != EditorReply.READY) {
+            val query = EditorOp.entries.firstOrNull { it.code == response[EditorPlan.STATUS] } ?: error("Unknown native editor query")
+            val values = when (query) {
+                EditorOp.READ -> arrayOf(
+                    if (WireFlag.decode(response[EditorReadQuery.BEFORE])) ic.getTextBeforeCursor(256, 0)?.toString().orEmpty() else "",
                     ic.getTextAfterCursor(128, 0)?.toString().orEmpty(),
-                    if (response[2] == "1") ic.getSelectedText(0)?.toString().orEmpty() else "")
-                "word" -> word(response[1], response[2].toInt()).let { arrayOf(it.start.toString(), it.end.toString()) }
-                "character" -> arrayOf(breaks.measureUChars(response[1], 1, locale()).toString())
-                "spacing" -> arrayOf(
-                    response[1].takeLast(breaks.measureLastUChars(response[1], 1, locale())),
-                    response[1].takeLast(breaks.measureLastUChars(response[1], 3, locale())))
-                "measure", "extent" -> {
-                    val count = response[4].toInt()
-                    val length = when (response[2] + response[3]) {
-                        "00" -> breaks.measureLastUChars(response[1], count, locale())
-                        "01" -> breaks.measureLastUWords(response[1], count, locale())
-                        "10" -> breaks.measureUChars(response[1], count, locale())
-                        "11" -> breaks.measureUWords(response[1], count, locale())
-                        else -> error("Unknown native measurement")
+                    if (WireFlag.decode(response[EditorReadQuery.SELECTED])) ic.getSelectedText(0)?.toString().orEmpty() else "")
+                EditorOp.WORD -> word(response[EditorWordQuery.BEFORE], response[EditorWordQuery.LAST_COMMIT].toInt())
+                    .let { arrayOf(it.start.toString(), it.end.toString()) }
+                EditorOp.CHARACTER -> arrayOf(breaks.measureUChars(response[EditorTextQuery.TEXT], 1, locale()).toString())
+                EditorOp.SPACING -> response[EditorTextQuery.TEXT].let { text -> arrayOf(
+                    text.takeLast(breaks.measureLastUChars(text, 1, locale())),
+                    text.takeLast(breaks.measureLastUChars(text, 3, locale()))) }
+                EditorOp.MEASURE, EditorOp.EXTENT -> with(EditorMeasure) {
+                    val (text, count) = response[TEXT] to response[COUNT].toInt()
+                    val length = when (WireFlag.decode(response[FORWARD]) to WireFlag.decode(response[WORDS])) {
+                        false to false -> breaks.measureLastUChars(text, count, locale())
+                        false to true -> breaks.measureLastUWords(text, count, locale())
+                        true to false -> breaks.measureUChars(text, count, locale())
+                        else -> breaks.measureUWords(text, count, locale())
                     }
                     arrayOf(length.toString())
                 }
                 else -> error("Unknown native editor query")
             }
-            response = session.call(response[0], *values)
+            response = session.call(query, *values)
         }
         val results = mutableListOf<String>()
         val eventTime = uptimeMs()
-        for (op in response.drop(2).chunked(4)) {
-            val a = op[1].toInt()
-            val b = op[2].toInt()
-            val result = when (op[0]) {
-                "begin" -> ic.beginBatchEdit()
-                "end" -> ic.endBatchEdit()
-                "finish" -> ic.finishComposingText()
-                "composing" -> ic.setComposingRegion(a, b)
-                "composingText" -> ic.setComposingText(op[3], a)
-                "commit" -> ic.commitText(op[3], a)
-                "delete" -> ic.deleteSurroundingText(a, b)
-                "selection" -> ic.setSelection(a, b)
-                "action" -> ic.performEditorAction(a)
-                "contextMenu" -> ic.performContextMenuAction(a)
-                "down", "up" -> ic.sendKeyEvent(KeyEvent(eventTime,
-                    if (op[0] == "down") eventTime else uptimeMs(),
-                    if (op[0] == "down") KeyEvent.ACTION_DOWN else KeyEvent.ACTION_UP,
-                    a, op[3].toIntOrNull() ?: 0, b, KeyCharacterMap.VIRTUAL_KEYBOARD, 0,
+        for (op in response.drop(EditorPlan.SIZE).chunked(EditorEffectRow.SIZE)) {
+            val (effect, value) = op[EditorEffectRow.EFFECT] to op[EditorEffectRow.VALUE]
+            val a = op[EditorEffectRow.FIRST].toInt()
+            val b = op[EditorEffectRow.SECOND].toInt()
+            val result = when (effect) {
+                EditorEffect.BEGIN -> ic.beginBatchEdit()
+                EditorEffect.END -> ic.endBatchEdit()
+                EditorEffect.FINISH -> ic.finishComposingText()
+                EditorEffect.COMPOSING -> ic.setComposingRegion(a, b)
+                EditorEffect.COMPOSING_TEXT -> ic.setComposingText(value, a)
+                EditorEffect.COMMIT -> ic.commitText(value, a)
+                EditorEffect.DELETE -> ic.deleteSurroundingText(a, b)
+                EditorEffect.SELECTION -> ic.setSelection(a, b)
+                EditorEffect.ACTION -> ic.performEditorAction(a)
+                EditorEffect.CONTEXT_MENU -> ic.performContextMenuAction(a)
+                EditorEffect.DOWN, EditorEffect.UP -> ic.sendKeyEvent(KeyEvent(eventTime,
+                    if (effect == EditorEffect.DOWN) eventTime else uptimeMs(),
+                    if (effect == EditorEffect.DOWN) KeyEvent.ACTION_DOWN else KeyEvent.ACTION_UP,
+                    a, value.toIntOrNull() ?: 0, b, KeyCharacterMap.VIRTUAL_KEYBOARD, 0,
                     KeyEvent.FLAG_SOFT_KEYBOARD or KeyEvent.FLAG_KEEP_TOUCH_MODE, InputDevice.SOURCE_KEYBOARD))
                 else -> error("Unknown native InputConnection operation")
             }
-            results.add(if (result) "1" else "0")
+            results.add(WireFlag.encode(result))
         }
-        return session.call("results", *results.toTypedArray())[0] == "1"
+        return WireFlag.decode(session.call(EditorOp.RESULTS, *results.toTypedArray())[0])
     }
 }

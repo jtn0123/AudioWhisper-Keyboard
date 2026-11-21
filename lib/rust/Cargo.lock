@@ -385,6 +385,7 @@ dependencies = [
  "dictation",
  "keys",
  "spacing",
+ "wire",
 ]
 
 [[package]]

@@ -1,5 +1,6 @@
 package dev.patrickgold.florisboard.ime.editor
 
+import com.jtn0123.audiowhisper.rust.*
 import com.jtn0123.audiowhisper.rust.EditorAttributes
 import kotlinx.coroutines.runBlocking
 import kotlin.random.Random
@@ -20,7 +21,7 @@ class EditorPlanMatchTest {
             old.activeInfo=ReferenceFlorisEditorInfo(ReferenceInputAttributes.wrap(input),ReferenceEditorRange.cursor(cursor),raw)
             new.raw=raw;new.input=input
             old.handleStartInputView(old.activeInfo,false)
-            new.run("start",cursor.toString(),cursor.toString(),"1")
+            new.run(EditorOp.START,cursor.toString(),cursor.toString(),"1")
             compare("start")
         }
         fun compare(label: String) {
@@ -31,41 +32,41 @@ class EditorPlanMatchTest {
             assertEquals(oldIc.operations==newIc.operations,true,"$label InputConnection operation sequence differs at $calls")
             val c=old.activeContent
             val expected=listOf(c.text,c.offset,c.localSelection.start,c.localSelection.end,c.localComposing.start,c.localComposing.end,c.localCurrentWord.start,c.localCurrentWord.end).map{it.toString()}
-            assertEquals(expected==new.snapshot().take(8),true,"$label expected UTF-16 window differs at $calls")
+            assertEquals(expected==new.snapshot().take(EditorState.CAPS),true,"$label expected UTF-16 window differs at $calls")
             val published=old.activeContentFlow.value
             val oldPublished=listOf(published.text,published.offset,published.localSelection.start,published.localSelection.end,published.localComposing.start,published.localComposing.end,published.localCurrentWord.start,published.localCurrentWord.end).map{it.toString()}
-            assertEquals(oldPublished==new.session.call("published").take(8),true,"$label published state")
-            assertEquals(old.lastCommitPosition.pos,new.snapshot()[9].toInt(),"$label last commit")
-            assertEquals(old.expectedContent()!=null,new.snapshot()[10]=="1","$label expected queue")
+            assertEquals(oldPublished==new.session.call(EditorOp.PUBLISHED).take(EditorState.CAPS),true,"$label published state")
+            assertEquals(old.lastCommitPosition.pos,new.snapshot()[EditorState.LAST_COMMIT].toInt(),"$label last commit")
+            assertEquals(old.expectedContent()!=null,WireFlag.decode(new.snapshot()[EditorState.EXPECTED]),"$label expected queue")
             oldIc.operations.clear();newIc.operations.clear()
         }
         fun reconcile() {
             old.handleSelectionUpdate(ReferenceEditorRange.Unspecified,oldIc.selection,oldIc.composing)
-            new.run("update",newIc.selection.start.toString(),newIc.selection.end.toString(),newIc.composingStart.toString(),newIc.composingEnd.toString(),"1")
+            new.run(EditorOp.UPDATE,newIc.selection.start.toString(),newIc.selection.end.toString(),newIc.composingStart.toString(),newIc.composingEnd.toString(),"1")
             compare("reconcile")
-            assertEquals(old.activeCursorCapsMode.toInt(),new.snapshot()[8].toInt(),"caps")
+            assertEquals(old.activeCursorCapsMode.toInt(),new.snapshot()[EditorState.CAPS].toInt(),"caps")
         }
         fun external(text: String, cursor: Int) {
             oldIc.external(text,cursor);newIc.external(text,cursor);reconcile()
         }
         fun commit(value: String) {
-            assertEquals(old.commitText(value),new.run("commit",value));compare("commit")
+            assertEquals(old.commitText(value),new.run(EditorOp.COMMIT,value));compare("commit")
         }
         fun char(value: String, delete: Boolean=false, before: Boolean=false, after: Boolean=false) {
-            assertEquals(old.commitChar(value,delete,before,after),new.run("char",value,if(delete)"1"else"0",if(before)"1"else"0",if(after)"1"else"0"));compare("char")
+            assertEquals(old.commitChar(value,delete,before,after),new.run(EditorOp.CHAR,value,if(delete)"1"else"0",if(before)"1"else"0",if(after)"1"else"0"));compare("char")
         }
         fun delete(after: Boolean, words: Boolean, n: Int=1) = runBlocking {
             val result=old.deleteAroundCursor(if(words)OperationUnit.WORDS else OperationUnit.CHARACTERS,if(after)OperationScope.AFTER_CURSOR else OperationScope.BEFORE_CURSOR,n)
-            assertEquals(result,new.run("delete",if(after)"1"else"0",if(words)"1"else"0",n.toString()));compare("delete")
+            assertEquals(result,new.run(EditorOp.DELETE,if(after)"1"else"0",if(words)"1"else"0",n.toString()));compare("delete")
         }
         fun select(a: Int,b: Int) {
-            assertEquals(old.setSelection(ReferenceEditorRange(a,b)),new.run("select",a.toString(),b.toString()));compare("select")
+            assertEquals(old.setSelection(ReferenceEditorRange(a,b)),new.run(EditorOp.SELECT,a.toString(),b.toString()));compare("select")
         }
         fun finalize(value: String) {
-            assertEquals(old.finalizeComposingText(value),new.run("finalize",value));compare("finalize")
+            assertEquals(old.finalizeComposingText(value),new.run(EditorOp.FINALIZE,value));compare("finalize")
         }
         fun replace(length: Int,value: String) {
-            assertEquals(old.replaceTextBeforeCursor(length,value),new.run("replace",length.toString(),value));compare("replace")
+            assertEquals(old.replaceTextBeforeCursor(length,value),new.run(EditorOp.REPLACE,length.toString(),value));compare("replace")
         }
         override fun close()=new.close()
     }
@@ -103,8 +104,8 @@ class EditorPlanMatchTest {
                     7 -> {val text=samples.shuffled(r).take(5).joinToString("");p.external(text,r.nextInt(text.length+1))}
                     8 -> p.replace(r.nextInt(0,p.old.activeContent.textBeforeSelection.length+2),value)
                     9 -> if(p.old.activeContent.composing.isValid)p.finalize(value)else p.commit(value)
-                    10 -> {p.old.refreshComposing();p.new.run("refresh");p.compare("refresh")}
-                    11 -> {val action=r.nextInt(8);p.oldIc.performEditorAction(action);p.new.run("action",action.toString());p.compare("action")}
+                    10 -> {p.old.refreshComposing();p.new.run(EditorOp.REFRESH);p.compare("refresh")}
+                    11 -> {val action=r.nextInt(8);p.oldIc.performEditorAction(action);p.new.run(EditorOp.ACTION,action.toString());p.compare("action")}
                 }
                 // Leave some expected states pending, then reconcile a whole batch of notifications.
                 if(r.nextInt(4)!=0)p.reconcile()
@@ -137,7 +138,7 @@ class EditorPlanMatchTest {
     }
     @Test fun `closed handles reject use and close is idempotent`() {
         val session=com.jtn0123.audiowhisper.rust.EditorSession()
-        session.close();session.close();assertFailsWith<IllegalStateException>{session.call("snapshot")}
+        session.close();session.close();assertFailsWith<IllegalStateException>{session.call(EditorOp.SNAPSHOT)}
     }
     @Test fun `input attributes and IME options match all masks and seeded flags`() {
         val r=Random(20261113)

@@ -1,6 +1,11 @@
 //! Editor-level gestures expand into the same low-level plans, without a Kotlin policy loop.
-use crate::{Field, Session, integer, number, text};
+use crate::{Field, Session, edit::measure_query, integer, number, text};
 use spacing::{spaces, state};
+use wire::editor::{self as ops, char_input, context, effect, spaces as wire_spaces, text_query};
+use wire::flag;
+
+/// The event an `EXTENT` answer finishes. Never sent.
+const SELECT_EXTENT: &str = "selectExtent";
 
 #[derive(Debug, Default)]
 pub(crate) struct Context {
@@ -20,29 +25,35 @@ pub(crate) struct Context {
 }
 impl Session {
     pub(crate) fn high(&mut self, operation: &str, fields: &[Field]) -> Vec<Field> {
-        if operation == "spacing" {
+        if operation == ops::SPACING {
             self.context.before = Some((fields[0].clone(), fields[1].clone()));
             let (op, args) = self.context.event.take().expect("spacing response");
             return self.high(&op, &args);
         }
-        if operation == "context" {
-            self.context.candidate_mode = 0;
-            self.context.auto = integer(fields, 0);
-            self.context.phantom = integer(fields, 1);
-            self.context.variation = integer(fields, 2);
-            self.context.automatic = integer(fields, 3) != 0;
-            self.context.language = fields[4].clone();
-            self.context.symbols = std::array::from_fn(|i| fields[5 + i].clone());
-            self.context.immediate_word = integer(fields, 9) != 0;
+        if operation == ops::CONTEXT {
+            self.context.candidate_mode = wire_spaces::KEEP;
+            self.context.auto = integer(fields, context::AUTO_SPACE);
+            self.context.phantom = integer(fields, context::PHANTOM_SPACE);
+            self.context.variation = integer(fields, context::KEY_VARIATION);
+            self.context.automatic = flag::decode(&fields[context::AUTO_SPACE_PUNCTUATION]);
+            self.context.language = fields[context::LANGUAGE].clone();
+            self.context.symbols = [
+                context::PRECEDING_AUTO_SPACE,
+                context::FOLLOWING_AUTO_SPACE,
+                context::PRECEDING_PHANTOM_SPACE,
+                context::FOLLOWING_PHANTOM_SPACE,
+            ]
+            .map(|field| fields[field].clone());
+            self.context.immediate_word = flag::decode(&fields[context::IMMEDIATE_WORD]);
             self.context.before = None;
             return vec![];
         }
-        if operation == "spaces" {
-            return vec![
-                number(self.context.auto),
-                number(self.context.phantom),
-                number(self.context.candidate_mode),
-            ];
+        if operation == ops::SPACES {
+            let mut row = vec![vec![]; wire_spaces::SIZE];
+            row[wire_spaces::AUTO_SPACE] = number(self.context.auto);
+            row[wire_spaces::PHANTOM_SPACE] = number(self.context.phantom);
+            row[wire_spaces::CANDIDATE] = number(self.context.candidate_mode);
+            return row;
         }
         let c = self.content().clone();
         let selection = c.selection();
@@ -77,19 +88,19 @@ impl Session {
             selection_start: selection.start,
             input_type: self.input_type,
         };
-        let needs_space = matches!(operation, "typeText" | "completion" | "gesture");
+        let needs_space = matches!(operation, ops::TYPE_TEXT | ops::COMPLETION | ops::GESTURE);
         let phantom = if needs_space {
             spaces::phantom_space_before(
                 &typing,
                 &value,
                 self.context.phantom,
-                operation == "gesture",
+                operation == ops::GESTURE,
                 editor.as_ref(),
             )
         } else {
             Ok(false)
         };
-        let char_spaces = if operation == "typeChar" {
+        let char_spaces = if operation == ops::TYPE_CHAR {
             spaces::commit_char(
                 &typing,
                 &value,
@@ -103,24 +114,24 @@ impl Session {
         };
         let (Ok(phantom), Ok(char_spaces)) = (phantom, char_spaces) else {
             self.context.event = Some((operation.to_owned(), fields.to_vec()));
-            return vec![text("spacing"), c.before()];
+            let mut query = vec![vec![]; text_query::SIZE];
+            query[text_query::QUERY] = text(ops::SPACING);
+            query[text_query::TEXT] = c.before();
+            return query;
         };
         match operation {
-            "typeChar" => {
+            ops::TYPE_CHAR => {
                 let spaces = char_spaces.expect("character spaces");
                 self.context.auto = spaces.auto_space;
                 self.set_phantom(spaces.phantom_space);
-                self.edit(
-                    "char",
-                    &[
-                        value,
-                        number(i32::from(spaces.delete_previous_space)),
-                        number(i32::from(spaces.space_before)),
-                        number(i32::from(spaces.space_after)),
-                    ],
-                )
+                let mut row = vec![vec![]; char_input::SIZE];
+                row[char_input::TEXT] = value;
+                row[char_input::DELETE_SPACE_BEFORE] = flag::utf16(spaces.delete_previous_space);
+                row[char_input::SPACE_BEFORE] = flag::utf16(spaces.space_before);
+                row[char_input::SPACE_AFTER] = flag::utf16(spaces.space_after);
+                self.edit(ops::CHAR, &row)
             }
-            "typeText" => {
+            ops::TYPE_TEXT => {
                 self.context.auto = 0;
                 self.set_phantom(0);
                 let value = if phantom {
@@ -128,21 +139,21 @@ impl Session {
                 } else {
                     value
                 };
-                self.edit("commit", &[value])
+                self.edit(ops::COMMIT, &[value])
             }
-            "completion" | "gesture" => {
+            ops::COMPLETION | ops::GESTURE => {
                 if value.is_empty() || self.raw {
                     return self.done(false, vec![]);
                 }
-                self.set_phantom(state::phantom_space_active(operation == "gesture", true));
-                if operation == "completion" {
-                    self.context.candidate_mode = 2;
+                self.set_phantom(state::phantom_space_active(operation == ops::GESTURE, true));
+                if operation == ops::COMPLETION {
+                    self.context.candidate_mode = wire_spaces::ACCEPT;
                 }
-                if operation == "completion" && c.composing().valid() {
-                    self.edit("finalize", &[value])
+                if operation == ops::COMPLETION && c.composing().valid() {
+                    self.edit(ops::FINALIZE, &[value])
                 } else {
                     let output = self.edit(
-                        "commit",
+                        ops::COMMIT,
                         &[if phantom {
                             [vec![32], value].concat()
                         } else {
@@ -153,41 +164,41 @@ impl Session {
                     output
                 }
             }
-            "backward" | "forward" => {
+            ops::BACKWARD | ops::FORWARD => {
                 let words = integer(fields, 0) != 0
-                    || operation == "backward"
+                    || operation == ops::BACKWARD
                         && state::is_active(self.context.phantom)
                         && c.word.valid()
                         && self.context.immediate_word;
                 self.context.auto = 0;
                 self.set_phantom(0);
                 if selection.valid() && !selection.cursor_mode() {
-                    self.edit("commit", &[vec![]])
+                    self.edit(ops::COMMIT, &[vec![]])
                 } else {
                     self.edit(
-                        "delete",
+                        ops::DELETE,
                         &[
-                            number(i32::from(operation == "forward")),
+                            number(i32::from(operation == ops::FORWARD)),
                             number(i32::from(words)),
                             number(1),
                         ],
                     )
                 }
             }
-            "revert" => {
+            ops::REVERT => {
                 self.context.auto = 0;
                 self.set_phantom(if integer(fields, 2) != 0 {
                     state::phantom_space_active(false, true)
                 } else {
                     0
                 });
-                let output = self.edit("replace", &fields[..2]);
+                let output = self.edit(ops::REPLACE, &fields[..2]);
                 if output.get(1) == Some(&number(0)) {
                     self.set_phantom(0);
                 }
                 output
             }
-            "dictation" => {
+            ops::DICTATION => {
                 if value.is_empty() {
                     return self.done(false, vec![]);
                 }
@@ -211,14 +222,14 @@ impl Session {
                     None
                 };
                 let output = if replace {
-                    self.edit("replace", &[number(length), value])
+                    self.edit(ops::REPLACE, &[number(length), value])
                 } else {
-                    self.edit("commit", &[value])
+                    self.edit(ops::COMMIT, &[value])
                 };
                 self.mark_commit();
                 output
             }
-            "undoDictation" => {
+            ops::UNDO_DICTATION => {
                 let Some((typed, start, restore)) = self.context.undo.take() else {
                     return self.done(false, vec![]);
                 };
@@ -229,47 +240,52 @@ impl Session {
                 }
                 self.context.auto = 0;
                 self.set_phantom(0);
-                self.edit("replace", &[number(typed.len() as i32), restore])
+                self.edit(ops::REPLACE, &[number(typed.len() as i32), restore])
             }
-            "forgetDictation" => {
+            ops::FORGET_DICTATION => {
                 self.context.undo = None;
                 vec![]
             }
-            "doubleSpace" => {
-                self.context.next = Some(("typeText".into(), vec![text(". ")]));
-                self.high("backward", &[number(0)])
+            ops::DOUBLE_SPACE => {
+                self.context.next = Some((ops::TYPE_TEXT.into(), vec![text(". ")]));
+                self.high(ops::BACKWARD, &[number(0)])
             }
-            "rawEnter" => {
+            ops::RAW_ENTER => {
                 if value.starts_with(&text("zh"))
                     && c.composing().valid()
                     && c.composing().start != c.composing().end
                 {
-                    self.edit("finalize", &[c.slice(c.composing)])
+                    self.edit(ops::FINALIZE, &[c.slice(c.composing)])
                 } else {
                     self.done(false, vec![])
                 }
             }
-            "enter" => {
+            ops::ENTER => {
                 self.context.auto = 0;
                 self.set_phantom(0);
                 if self.raw {
-                    self.edit("keys", &[number(66), number(0), number(1)])
+                    self.edit(ops::KEYS, &[number(66), number(0), number(1)])
                 } else {
-                    self.edit("commit", &[vec![10]])
+                    self.edit(ops::COMMIT, &[vec![10]])
                 }
             }
-            "selectAll" => {
+            ops::SELECT_ALL => {
                 self.context.auto = 0;
                 self.set_phantom(0);
                 let mut output = if self.raw {
                     crate::operations::keys(29, 0x3000, 1)
                 } else {
-                    vec![crate::operations::Op::new("contextMenu", 16908319, 0, &[])]
+                    vec![crate::operations::Op::new(
+                        effect::CONTEXT_MENU,
+                        16908319,
+                        0,
+                        &[],
+                    )]
                 };
-                output.insert(0, crate::operations::Op::simple("finish"));
+                output.insert(0, crate::operations::Op::simple(effect::FINISH));
                 self.done(true, output)
             }
-            "selectAround" => {
+            ops::SELECT_AROUND => {
                 // ICU returns the requested extent; selection arithmetic is native.
                 let n = integer(fields, 0);
                 let after = integer(fields, 2) != 0;
@@ -284,23 +300,17 @@ impl Session {
                     } else {
                         selection.end
                     };
-                    return self.edit("select", &[number(pos), number(pos)]);
+                    return self.edit(ops::SELECT, &[number(pos), number(pos)]);
                 }
-                self.context.event = Some(("selectExtent".into(), fields.to_vec()));
+                self.context.event = Some((SELECT_EXTENT.into(), fields.to_vec()));
                 let value = if after {
                     c.text[(c.selection.start as usize).min(c.text.len())..].to_vec()
                 } else {
                     c.text[..(c.selection.end as usize).min(c.text.len())].to_vec()
                 };
-                vec![
-                    text("extent"),
-                    value,
-                    number(i32::from(after)),
-                    fields[1].clone(),
-                    number(n),
-                ]
+                measure_query(ops::EXTENT, value, after, fields[1].clone(), n)
             }
-            "extent" => {
+            ops::EXTENT => {
                 let (_, args) = self.context.event.take().expect("selection extent");
                 let length = integer(fields, 0);
                 let after = integer(&args, 2) != 0;
@@ -314,13 +324,16 @@ impl Session {
                 } else {
                     ((selection.end - length).max(0), selection.end)
                 };
-                self.edit("select", &[number(start.min(end)), number(start.max(end))])
+                self.edit(
+                    ops::SELECT,
+                    &[number(start.min(end)), number(start.max(end))],
+                )
             }
             _ => self.done(false, vec![]),
         }
     }
     fn set_phantom(&mut self, bits: i32) {
-        self.context.candidate_mode = 1;
+        self.context.candidate_mode = wire_spaces::RESET;
         self.context.phantom = bits;
         self.space = state::is_active(bits);
         self.determine = !self.raw

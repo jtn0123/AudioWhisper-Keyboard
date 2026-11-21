@@ -75,9 +75,9 @@ class InputFixtureMatchTest {
                 t.press(code);t.press('1'.code);t.press(KeyCode.VIEW_CHARACTERS)
                 assertEquals(0,KeyModels.read(t.state,0))
             }
-            t.editor.run("gesture","hello");t.editor.update()
-            t.editor.run("completion","help");t.editor.update()
-            t.editor.run("typeText","alpha beta gamma");t.editor.update()
+            t.editor.run(EditorOp.GESTURE,"hello");t.editor.update()
+            t.editor.run(EditorOp.COMPLETION,"help");t.editor.update()
+            t.editor.run(EditorOp.TYPE_TEXT,"alpha beta gamma");t.editor.update()
             val generation=t.down(KeyCode.DELETE)
             t.time+=t.call(DELAYS,KeyCode.DELETE.toLong(),300,50,0)[0]
             val repeat=t.call(HOLD_RESULT,KeyCode.DELETE.toLong(),0,0,generation)
@@ -89,7 +89,7 @@ class InputFixtureMatchTest {
             assertEquals(0,t.editor.pair.newIc.text.length)
             t.press(KeyCode.ENTER)
             t.editor.pair.oldIc.performEditorAction(3)
-            t.editor.pair.new.run("action","3")
+            t.editor.pair.new.run(EditorOp.ACTION,"3")
             t.editor.pair.compare("search action")
             assertEquals(3,EditorAttributes.enterAction(1,3,false))
             assertEquals(-1,EditorAttributes.enterAction(0x20001,0x40000003,false))

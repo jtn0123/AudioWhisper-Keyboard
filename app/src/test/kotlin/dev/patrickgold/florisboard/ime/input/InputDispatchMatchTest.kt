@@ -29,11 +29,11 @@ class InputDispatchMatchTest {
             when(action) {
                 STATE->state=KeyModels.write(state,(arg ushr 32).toInt(),arg.toInt())
                 INCOGNITO->state=KeyModels.write(state,9,(arg ushr 1).toInt())
-                COMMIT_CHAR,COMMIT_TEXT->editor?.run(if(action==COMMIT_CHAR)"typeChar" else "typeText",if(v[1] in 32..0x10ffff) String(Character.toChars(v[1].toInt())) else "x")
-                DELETE_BACK,DELETE_FORWARD->editor?.run(if(action==DELETE_BACK)"backward" else "forward",arg.toString())
-                SPACE_KEY->editor?.run("typeText"," ")
-                ENTER_KEY->editor?.run("enter")
-                SELECT_ALL->editor?.run("selectAll")
+                COMMIT_CHAR,COMMIT_TEXT->editor?.run(if(action==COMMIT_CHAR)EditorOp.TYPE_CHAR else EditorOp.TYPE_TEXT,if(v[1] in 32..0x10ffff) String(Character.toChars(v[1].toInt())) else "x")
+                DELETE_BACK,DELETE_FORWARD->editor?.run(if(action==DELETE_BACK)EditorOp.BACKWARD else EditorOp.FORWARD,arg.toString())
+                SPACE_KEY->editor?.run(EditorOp.TYPE_TEXT," ")
+                ENTER_KEY->editor?.run(EditorOp.ENTER)
+                SELECT_ALL->editor?.run(EditorOp.SELECT_ALL)
             }
         }
         assertEquals(reference.activeState.reference.rawValue.toLong(),state,"Final keyboard state differs")

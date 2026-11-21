@@ -1,5 +1,6 @@
 package dev.patrickgold.florisboard.ime.editor
 
+import com.jtn0123.audiowhisper.rust.*
 import android.view.inputmethod.InputConnection
 import com.jtn0123.audiowhisper.rust.EditorSession
 import dev.patrickgold.florisboard.ime.nlp.BreakIteratorGroup
@@ -30,7 +31,7 @@ class EditorPlanConcurrencyTest {
         withTimeout(5_000) {
             supervisorScope {
                 EditorSession().use { session ->
-                    session.call("config", "0", "1", "1", "0", "1")
+                    session.call(EditorOp.CONFIG, "0", "1", "1", "0", "1")
                     val entered = CompletableDeferred<Unit>()
                     val resume = CompletableDeferred<Unit>()
                     var words = 0
@@ -40,11 +41,11 @@ class EditorPlanConcurrencyTest {
                             EditorRange(0, 3)
                         }, { 1L })
                     val first = async(start = CoroutineStart.UNDISPATCHED) {
-                        executor.execute(session, connection(), "start", arrayOf("3", "3", "1"))
+                        executor.execute(session, connection(), EditorOp.START, arrayOf("3", "3", "1"))
                     }
                     entered.await()
                     val second = async(start = CoroutineStart.UNDISPATCHED) {
-                        executor.execute(session, connection(), "start", arrayOf("3", "3", "1"))
+                        executor.execute(session, connection(), EditorOp.START, arrayOf("3", "3", "1"))
                     }
                     try {
                         assertFalse(second.isCompleted, "Another plan consumed a pending native analysis")

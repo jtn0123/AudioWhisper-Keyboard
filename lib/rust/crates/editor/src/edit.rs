@@ -1,15 +1,17 @@
 use crate::{
     Content, Field, Range, Session, integer, number,
-    operations::{Op, keys},
+    operations::{NEW_COMPOSING, Op, keys},
     session::Query,
     text,
 };
+use wire::editor::{self as ops, char_input, effect, measure, text_query};
+use wire::flag;
 impl Session {
     pub(crate) fn edit(&mut self, operation: &str, fields: &[Field]) -> Vec<Field> {
         let c = self.content().clone();
         let s = c.selection();
         match operation {
-            "select" => {
+            ops::SELECT => {
                 let selection = Range::read(fields, 0);
                 if self.raw {
                     return self.done(false, vec![]);
@@ -30,10 +32,10 @@ impl Session {
                         &changed.selected(),
                     ),
                     vec![
-                        Op::simple("begin"),
-                        Op::new("selection", selection.start, selection.end, &[]),
-                        Op::simple("newComposing"),
-                        Op::simple("end"),
+                        Op::simple(effect::BEGIN),
+                        Op::new(effect::SELECTION, selection.start, selection.end, &[]),
+                        Op::simple(NEW_COMPOSING),
+                        Op::simple(effect::END),
                     ],
                     false,
                     false,
@@ -41,19 +43,24 @@ impl Session {
                     None,
                 )
             }
-            "commit" => self.commit(&fields[0]),
-            "char" => {
+            ops::COMMIT => self.commit(&fields[0]),
+            ops::CHAR => {
+                let value = &fields[char_input::TEXT];
                 self.query = Query::Composer(
-                    fields[0].clone(),
+                    value.clone(),
                     [
-                        integer(fields, 1) != 0,
-                        integer(fields, 2) != 0,
-                        integer(fields, 3) != 0,
-                    ],
+                        char_input::DELETE_SPACE_BEFORE,
+                        char_input::SPACE_BEFORE,
+                        char_input::SPACE_AFTER,
+                    ]
+                    .map(|field| flag::decode(&fields[field])),
                 );
-                vec![text("character"), fields[0].clone()]
+                let mut query = vec![vec![]; text_query::SIZE];
+                query[text_query::QUERY] = text(ops::CHARACTER);
+                query[text_query::TEXT] = value.clone();
+                query
             }
-            "character" => {
+            ops::CHARACTER => {
                 let Query::Composer(value, spaces) = self.query.clone() else {
                     return self.done(false, vec![]);
                 };
@@ -69,9 +76,9 @@ impl Session {
                     .as_ref()
                     .and_then(|rules| rules.actions(previous, &value));
                 let (remove, value) = action.map(|a| (a.delete, a.text)).unwrap_or((0, value));
-                self.edit("composer", &[number(remove), value])
+                self.edit(ops::COMPOSER, &[number(remove), value])
             }
-            "composer" => {
+            ops::COMPOSER => {
                 let Query::Composer(_, spaces) = std::mem::take(&mut self.query) else {
                     return self.done(false, vec![]);
                 };
@@ -98,11 +105,11 @@ impl Session {
                         &[],
                     ),
                     vec![
-                        Op::simple("begin"),
-                        Op::new("composing", s.start - rm, s.start, &[]),
-                        Op::new("composingText", 1, 0, &value),
-                        Op::simple("newComposing"),
-                        Op::simple("end"),
+                        Op::simple(effect::BEGIN),
+                        Op::new(effect::COMPOSING, s.start - rm, s.start, &[]),
+                        Op::new(effect::COMPOSING_TEXT, 1, 0, &value),
+                        Op::simple(NEW_COMPOSING),
+                        Op::simple(effect::END),
                     ],
                     false,
                     false,
@@ -110,11 +117,14 @@ impl Session {
                     None,
                 )
             }
-            "finalize" => {
+            ops::FINALIZE => {
                 let value = &fields[0];
                 let composing = c.composing();
                 if self.raw || !composing.valid() {
-                    return self.done(false, vec![Op::simple("begin"), Op::simple("end")]);
+                    return self.done(
+                        false,
+                        vec![Op::simple(effect::BEGIN), Op::simple(effect::END)],
+                    );
                 }
                 let old = c.slice(c.composing);
                 let mut before = c.before();
@@ -134,10 +144,10 @@ impl Session {
                         &[],
                     ),
                     vec![
-                        Op::simple("begin"),
-                        Op::new("composingText", 1, 0, value),
-                        Op::simple("finish"),
-                        Op::simple("end"),
+                        Op::simple(effect::BEGIN),
+                        Op::new(effect::COMPOSING_TEXT, 1, 0, value),
+                        Op::simple(effect::FINISH),
+                        Op::simple(effect::END),
                     ],
                     false,
                     true,
@@ -145,7 +155,7 @@ impl Session {
                     None,
                 )
             }
-            "replace" => {
+            ops::REPLACE => {
                 let length = integer(fields, 0);
                 let value = &fields[1];
                 let mut before = c.before();
@@ -166,12 +176,12 @@ impl Session {
                         &c.selected(),
                     ),
                     vec![
-                        Op::simple("begin"),
-                        Op::simple("finish"),
-                        Op::new("delete", length, 0, &[]),
-                        Op::new("commit", 1, 0, value),
-                        Op::simple("newComposing"),
-                        Op::simple("end"),
+                        Op::simple(effect::BEGIN),
+                        Op::simple(effect::FINISH),
+                        Op::new(effect::DELETE, length, 0, &[]),
+                        Op::new(effect::COMMIT, 1, 0, value),
+                        Op::simple(NEW_COMPOSING),
+                        Op::simple(effect::END),
                     ],
                     false,
                     true,
@@ -179,9 +189,9 @@ impl Session {
                     None,
                 )
             }
-            "delete" => {
-                let after = integer(fields, 0) != 0;
-                let words = integer(fields, 1) != 0;
+            ops::DELETE => {
+                let after = flag::decode(&fields[0]);
+                let words = flag::decode(&fields[1]);
                 let n = integer(fields, 2);
                 if n < 1 {
                     return self.done(false, vec![]);
@@ -202,15 +212,9 @@ impl Session {
                     return output;
                 }
                 self.query = Query::Delete(after);
-                vec![
-                    text("measure"),
-                    value,
-                    number(i32::from(after)),
-                    number(i32::from(words)),
-                    number(n),
-                ]
+                measure_query(ops::MEASURE, value, after, flag::utf16(words), n)
             }
-            "measure" => {
+            ops::MEASURE => {
                 let Query::Delete(after) = std::mem::take(&mut self.query) else {
                     return self.done(false, vec![]);
                 };
@@ -226,16 +230,16 @@ impl Session {
                 self.generated(
                     Content::generated(selection, &before, &following, &c.selected()),
                     vec![
-                        Op::simple("begin"),
-                        Op::simple("finish"),
+                        Op::simple(effect::BEGIN),
+                        Op::simple(effect::FINISH),
                         Op::new(
-                            "delete",
+                            effect::DELETE,
                             if after { 0 } else { length },
                             if after { length } else { 0 },
                             &[],
                         ),
-                        Op::simple("newComposing"),
-                        Op::simple("end"),
+                        Op::simple(NEW_COMPOSING),
+                        Op::simple(effect::END),
                     ],
                     false,
                     false,
@@ -243,7 +247,7 @@ impl Session {
                     None,
                 )
             }
-            "refresh" => {
+            ops::REFRESH => {
                 if self.raw {
                     return self.done(false, vec![]);
                 }
@@ -256,28 +260,31 @@ impl Session {
                     Some(c.composing()),
                 )
             }
-            "keys" => self.done(
+            ops::KEYS => self.done(
                 integer(fields, 2) > 0,
                 keys(integer(fields, 0), integer(fields, 1), integer(fields, 2)),
             ),
-            "action" => self.done(true, vec![Op::new("action", integer(fields, 0), 0, &[])]),
+            ops::ACTION => self.done(
+                true,
+                vec![Op::new(effect::ACTION, integer(fields, 0), 0, &[])],
+            ),
             _ => self.done(false, vec![]),
         }
     }
     fn commit(&mut self, value: &[u16]) -> Vec<Field> {
         let c = self.content().clone();
         let mut ops = vec![
-            Op::simple("begin"),
-            Op::simple("finish"),
-            Op::new("commit", 1, 0, value),
+            Op::simple(effect::BEGIN),
+            Op::simple(effect::FINISH),
+            Op::new(effect::COMMIT, 1, 0, value),
         ];
         if self.raw {
-            ops.push(Op::simple("end"));
+            ops.push(Op::simple(effect::END));
             return self.done(true, ops);
         }
         let mut before = c.before();
         before.extend(value);
-        ops.extend([Op::simple("newComposing"), Op::simple("end")]);
+        ops.extend([Op::simple(NEW_COMPOSING), Op::simple(effect::END)]);
         self.generated(
             Content::generated(
                 Range::cursor(c.selection().start.wrapping_add(value.len() as i32)),
@@ -292,4 +299,21 @@ impl Session {
             None,
         )
     }
+}
+
+/// A [`measure`] query, answered by `answer`: `count` characters or words of `value`.
+pub(crate) fn measure_query(
+    answer: &str,
+    value: Field,
+    forward: bool,
+    words: Field,
+    count: i32,
+) -> Vec<Field> {
+    let mut query = vec![vec![]; measure::SIZE];
+    query[measure::QUERY] = text(answer);
+    query[measure::TEXT] = value;
+    query[measure::FORWARD] = flag::utf16(forward);
+    query[measure::WORDS] = words;
+    query[measure::COUNT] = number(count);
+    query
 }

@@ -184,10 +184,10 @@ app/src/main/kotlin/dev/patrickgold/florisboard/ime/core/SubtypeSelectionState.k
 app/src/main/kotlin/dev/patrickgold/florisboard/ime/dictionary/DictionaryManager.kt	M	138	Room / UserDictionary provider; dictionary readiness/query composition |
 app/src/main/kotlin/dev/patrickgold/florisboard/ime/dictionary/UserDictionary.kt	M	406	Room / ContentResolver / Cursor; import/export/filter and locale rules |
 app/src/main/kotlin/dev/patrickgold/florisboard/ime/dictionary/UserDictionaryValidation.kt	P	62	portable UserDictionaryValidation domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs | raised 57 to 62 (A6): imports of the generated UtilityOp, UtilityRule, UtilityValidation and UtilityValidity, and the request built by field name
-app/src/main/kotlin/dev/patrickgold/florisboard/ime/editor/AbstractEditorInstance.kt	M	151	InputConnection; composing setup, reconciliation and content publication guards |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/editor/AbstractEditorInstance.kt	M	153	InputConnection; composing setup, reconciliation and content publication guards | raised 151 to 153 (A6): config, char and extracted packets built by field name; state read by name
 app/src/main/kotlin/dev/patrickgold/florisboard/ime/editor/EditorContent.kt	P	34	portable EditorContent domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
 app/src/main/kotlin/dev/patrickgold/florisboard/ime/editor/EditorInstance.kt	M	313	InputConnection / ClipboardManager; rich-content and editor operation orchestration |
-app/src/main/kotlin/dev/patrickgold/florisboard/ime/editor/EditorPlanExecutor.kt	A	89	InputConnection / KeyEvent; ordered native editor effects |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/editor/EditorPlanExecutor.kt	A	90	InputConnection / KeyEvent; ordered native editor effects | raised 89 to 90 (A6): queries and effects read by field name
 app/src/main/kotlin/dev/patrickgold/florisboard/ime/editor/EditorRange.kt	P	26	portable EditorRange domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
 app/src/main/kotlin/dev/patrickgold/florisboard/ime/editor/FlorisEditorInfo.kt	M	71	EditorInfo / EmojiCompat; field comparisons, compatibility and initial-text projection |
 app/src/main/kotlin/dev/patrickgold/florisboard/ime/editor/ImeOptions.kt	M	32	EditorInfo / InputType; native bit facts stay at edge, move Kotlin enum lookup/default fallback decisions |
@@ -393,7 +393,7 @@ lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/ComposingNative.kt	A	9	AR
 lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/Dictation.kt	A	42	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
 lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/DictationNative.kt	A	15	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
 lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/DictationSessionPlan.kt	A	46	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
-lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/EditorSession.kt	A	50	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
+lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/EditorSession.kt	A	57	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport | raised 50 to 57 (A6): typed EditorOp and EditorAttributeOp calls; the cursor and keyboard request packets built by field name
 lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/Emoji.kt	A	61	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
 lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/EmojiNative.kt	A	13	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
 lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/ExtensionPolicy.kt	A	34	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport | raised 31 to 34 (A6): a typed ExtensionOp call and the archive entry packet built by field name, which BackupPolicy shares

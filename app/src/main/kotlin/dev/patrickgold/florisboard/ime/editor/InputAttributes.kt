@@ -17,7 +17,7 @@
 package dev.patrickgold.florisboard.ime.editor
 
 import android.text.InputType
-import com.jtn0123.audiowhisper.rust.EditorAttributes
+import com.jtn0123.audiowhisper.rust.*
 import android.view.inputmethod.EditorInfo
 
 /**
@@ -28,16 +28,16 @@ import android.view.inputmethod.EditorInfo
  */
 data class InputAttributes(val raw: Int) {
     private val decoded = EditorAttributes.input(raw)
-    val type: Type get() = Type.fromInt(decoded[0])
-    val variation: Variation get() = Variation.fromInt(decoded[1])
-    val capsMode: CapsMode get() = CapsMode.fromInt(decoded[2])
-    val flagNumberDecimal: Boolean get() = decoded[3] != 0
-    val flagNumberSigned: Boolean get() = decoded[4] != 0
-    val flagTextAutoComplete: Boolean get() = decoded[5] != 0
-    val flagTextAutoCorrect: Boolean get() = decoded[6] != 0
-    val flagTextImeMultiLine: Boolean get() = decoded[7] != 0
-    val flagTextMultiLine: Boolean get() = decoded[8] != 0
-    val flagTextNoSuggestions: Boolean get() = decoded[9] != 0
+    val type: Type get() = Type.fromInt(decoded[EditorInputType.TYPE])
+    val variation: Variation get() = Variation.fromInt(decoded[EditorInputType.VARIATION])
+    val capsMode: CapsMode get() = CapsMode.fromInt(decoded[EditorInputType.CAPS_MODE])
+    val flagNumberDecimal: Boolean get() = decoded[EditorInputType.NUMBER_DECIMAL] != 0
+    val flagNumberSigned: Boolean get() = decoded[EditorInputType.NUMBER_SIGNED] != 0
+    val flagTextAutoComplete: Boolean get() = decoded[EditorInputType.TEXT_AUTO_COMPLETE] != 0
+    val flagTextAutoCorrect: Boolean get() = decoded[EditorInputType.TEXT_AUTO_CORRECT] != 0
+    val flagTextImeMultiLine: Boolean get() = decoded[EditorInputType.TEXT_IME_MULTI_LINE] != 0
+    val flagTextMultiLine: Boolean get() = decoded[EditorInputType.TEXT_MULTI_LINE] != 0
+    val flagTextNoSuggestions: Boolean get() = decoded[EditorInputType.TEXT_NO_SUGGESTIONS] != 0
 
     companion object {
         fun wrap(inputType: Int) = InputAttributes(inputType)
