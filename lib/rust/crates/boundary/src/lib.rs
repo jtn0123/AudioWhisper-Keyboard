@@ -3,6 +3,10 @@
 //! that converts the JNI values and calls a hand-written function in awnative. Both sides come
 //! from the one table in `declarations`, so their names and types cannot drift apart.
 //!
+//! Over those objects it writes the public Kotlin the bindings used to write by hand: objects
+//! whose members forward to native methods, classes that own a native handle, and the records
+//! and enums they use (see `api`). What is left to write by hand is logic, as extensions.
+//!
 //! It also writes the Kotlin side of crates/wire: the operation codes, packet fields and boolean
 //! spelling those calls share, which the Rust side matches on directly.
 //!
@@ -16,6 +20,7 @@
 
 #![forbid(unsafe_code)]
 
+mod api;
 mod constants;
 mod declarations;
 mod format;
@@ -25,8 +30,12 @@ mod rust;
 mod tests;
 mod types;
 
+pub use api::{
+    API, Api, Arg, ArgKind, HANDLE, Handle, Kind, MEMBER, Member, Out, Shape, Type, api_files, arg,
+    default, type_files,
+};
 pub use constants::{Module, Wire, wire_files};
-pub use declarations::{CLASSES, WIRE};
+pub use declarations::{APIS, CLASSES, TYPES, WIRE};
 pub use kotlin::{KotlinFile, kotlin_files};
 pub use rust::rust_file;
 pub use types::{Element, Param, Return};

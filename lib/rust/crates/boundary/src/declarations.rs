@@ -3,10 +3,16 @@
 
 mod shift;
 
-use crate::{Class, Module, Wire};
+use crate::{Api, Class, Module, Type, Wire};
 
 /// Every generated class, in the order their entry points are written.
 pub const CLASSES: &[Class] = &[shift::SHIFT_NATIVE];
+
+/// Every generated api over those classes.
+pub const APIS: &[Api] = &[];
+
+/// Every generated top-level record and enum, with the declarations file and the module it is in.
+pub const TYPES: &[(&str, Module, Type)] = &[];
 
 /// Every group crates/wire declares, and the Kotlin module that calls with it.
 pub const WIRE: &[Wire] = &[

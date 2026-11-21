@@ -385,4 +385,3 @@ pub extern \"system\" fn Java_com_jtn0123_audiowhisper_rust_ExampleNative_isWord
 ";
     assert_eq!(rust_file(&[EXAMPLE]), rust);
 }
-
