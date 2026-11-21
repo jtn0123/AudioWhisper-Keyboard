@@ -333,6 +333,11 @@ impl Env {
         })
     }
 
+    /// A new `int[][]` of these rows.
+    pub fn make_int_arrays(&self, rows: &[Vec<i32>]) -> Result<jobjectArray> {
+        self.make_array(c"[I", rows, |row| self.make(row))
+    }
+
     /// A new `Object[]` of what each of `makers` makes, such as arrays of different types.
     pub fn make_objects(&self, makers: &[&dyn Fn() -> Result<jobject>]) -> Result<jobjectArray> {
         self.make_array(c"java/lang/Object", makers, |make| make())

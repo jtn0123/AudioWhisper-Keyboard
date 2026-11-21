@@ -100,8 +100,11 @@ pub struct Method {
     /// Whether it is a member of the object rather than `@JvmStatic`, so that its entry point
     /// takes the object, a `jobject`, rather than the class.
     pub instance: bool,
-    /// Whether the `external fun` is `private`, for a hand-written member of the object to call.
-    pub private: bool,
+    /// Default values of parameters, as Kotlin: (name, value).
+    pub defaults: &'static [(&'static str, &'static str)],
+    /// Whether the `external fun` is `internal`, for a hand-written extension in its module to
+    /// call rather than the module's users.
+    pub internal: bool,
     /// The function's path under the module, when it is not the method's name in snake case; or,
     /// starting `crate::`, one in another of awnative's modules, or `::`, a function of another
     /// crate, called directly.
@@ -118,7 +121,8 @@ pub const METHOD: Method = Method {
     params: &[],
     returns: Return::Unit,
     instance: false,
-    private: false,
+    defaults: &[],
+    internal: false,
     rust: "",
     env: false,
 };

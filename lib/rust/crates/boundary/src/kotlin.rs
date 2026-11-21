@@ -79,7 +79,13 @@ fn kotlin_file(class: &Class) -> String {
         let params: Vec<String> = method
             .params
             .iter()
-            .map(|(name, param)| format!("{name}: {}", simple_type(&param.kotlin()).0))
+            .map(|(name, param)| {
+                let ty = simple_type(&param.kotlin()).0;
+                match method.defaults.iter().find(|(param, _)| param == name) {
+                    Some((_, value)) => format!("{name}: {ty} = {value}"),
+                    None => format!("{name}: {ty}"),
+                }
+            })
             .collect();
         text.push('\n');
         if !method.doc.is_empty() {
@@ -89,8 +95,8 @@ fn kotlin_file(class: &Class) -> String {
         if !method.instance {
             head.push_str("@JvmStatic ");
         }
-        if method.private {
-            head.push_str("private ");
+        if method.internal {
+            head.push_str("internal ");
         }
         head.push_str(&format!("external fun {}", method.name));
         let tail = if method.returns == Return::Unit {

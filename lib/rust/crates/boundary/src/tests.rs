@@ -80,7 +80,7 @@ const STRESS: &[Class] = &[
     },
     Class {
         name: "EveryType",
-        doc: "Every parameter and return type, an instance method, a private one, a declared \
+        doc: "Every parameter and return type, an instance method, an internal one, a declared \
               Rust path and lib/kotlin's package.",
         module: "every_type",
         kotlin: Module::Kotlin,
@@ -106,7 +106,7 @@ const STRESS: &[Class] = &[
                     ("holes", Param::NullableStrings),
                 ],
                 returns: Return::NullableString,
-                private: true,
+                internal: true,
                 ..METHOD
             },
             Method {
@@ -198,6 +198,13 @@ const STRESS: &[Class] = &[
                 returns: Return::Strings,
                 ..METHOD
             },
+            Method {
+                name: "rows",
+                params: &[("text", Param::String)],
+                defaults: &[("text", "\"\"")],
+                returns: Return::IntArrays,
+                ..METHOD
+            },
         ],
         ..CLASS
     },
@@ -262,6 +269,9 @@ fn the_kotlin_fits_the_style() {
             .contains("    @JvmStatic external fun takesManyNumbers(\n        firstNumber: Int,\n")
     );
     assert!(wrapped.contains("        sixthNumber: Long,\n    ): Int\n"));
+    let every = &kotlin_files(STRESS)[2].1.text;
+    assert!(every.contains("    @JvmStatic external fun rows(text: String = \"\"): Array<IntArray>\n"));
+    assert!(every.contains("    @JvmStatic internal external fun texts("));
 }
 
 /// Kotlin's hard keywords, which would not compile as a name there. Rust's are escaped.

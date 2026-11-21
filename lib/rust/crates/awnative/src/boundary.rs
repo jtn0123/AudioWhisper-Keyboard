@@ -85,6 +85,15 @@ impl Returned for Vec<Vec<u16>> {
     }
 }
 
+/// An `Array<IntArray>`.
+impl Returned for Vec<Vec<i32>> {
+    type Jni = jobject;
+    const FALLBACK: jobject = ptr::null_mut();
+    fn into_jni(self, env: &Env) -> Result<jobject> {
+        env.make_int_arrays(&self)
+    }
+}
+
 /// An object the hand-written function made itself.
 impl Returned for jobject {
     type Jni = jobject;
