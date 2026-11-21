@@ -281,3 +281,130 @@ fn a_closeable_class_locks_and_converts() {
         assert!(text.contains(expected), "{expected}\nnot in\n{text}");
     }
 }
+
+#[test]
+fn rows_read_as_records_and_numbers_as_bits() {
+    const ROWS: &[Class] = &[Class {
+        name: "RowsNative",
+        module: "rows",
+        methods: &[
+            Method {
+                name: "parts",
+                returns: Return::Strings,
+                ..METHOD
+            },
+            Method {
+                name: "context",
+                returns: Return::Strings,
+                ..METHOD
+            },
+            Method {
+                name: "facts",
+                returns: Return::NullableArray(crate::Element::Int),
+                ..METHOD
+            },
+        ],
+        ..CLASS
+    }];
+    const BITS: &[Bit] = &[
+        Bit {
+            name: "took",
+            shift: 2,
+            ..BIT
+        },
+        Bit {
+            name: "count",
+            kind: BitKind::Int(8),
+            shift: 8,
+            internal: true,
+            ..BIT
+        },
+        Bit {
+            name: "decision",
+            kind: BitKind::Maybe,
+            shift: 16,
+            ..BIT
+        },
+        Bit {
+            name: "from",
+            doc: "The first, or -1.",
+            kind: BitKind::Signed,
+            shift: 32,
+            ..BIT
+        },
+    ];
+    const ROWS_API: &[Api] = &[Api {
+        name: "RowRules",
+        doc: "Rows.",
+        module: "rows",
+        native: "RowsNative",
+        nested: &[
+            Type::Enum {
+                name: "Kind",
+                doc: "A kind.",
+                entries: &["WORDS", "MARK"],
+            },
+            Type::Record {
+                name: "Part",
+                doc: "A part.",
+                data: false,
+                fields: &[("kind", "Kind"), ("text", "String"), ("final", "Boolean")],
+            },
+            Type::Record {
+                name: "Context",
+                doc: "A context.",
+                data: false,
+                fields: &[("start", "Boolean"), ("words", "List<String>")],
+            },
+            Type::Record {
+                name: "Facts",
+                doc: "Facts.",
+                data: false,
+                fields: &[("digit", "Boolean"), ("upper", "Char"), ("kind", "Kind")],
+            },
+            Type::Bits {
+                name: "Outcome",
+                doc: "An outcome.",
+                long: true,
+                internal: false,
+                fields: BITS,
+            },
+        ],
+        members: &[
+            Member {
+                name: "parts",
+                result: Out::Records("Part"),
+                ..MEMBER
+            },
+            Member {
+                name: "context",
+                result: Out::Record("Context"),
+                ..MEMBER
+            },
+            Member {
+                name: "facts",
+                result: Out::Record("Facts"),
+                ..MEMBER
+            },
+        ],
+        ..API
+    }];
+    let text = &api_files(ROWS_API, ROWS)[0].1.text;
+    let expected = [
+        "    fun parts(): List<Part> =\n        RowsNative.parts().asList().chunked(3) { \
+         Part(Kind.entries[it[0].toInt()], it[1], WireFlag.decode(it[2])) }\n",
+        "    fun context(): Context =\n        RowsNative.context().let { \
+         Context(WireFlag.decode(it[0]), it.asList().subList(1, it.size)) }\n",
+        "    fun facts(): Facts? = RowsNative.facts()?.let { \
+         Facts(it[0] != 0, it[1].toChar(), Kind.entries[it[2]]) }\n",
+        "    @JvmInline\n    value class Outcome(private val bits: Long) {\n",
+        "        val took: Boolean get() = (bits ushr 2) and 1L != 0L\n",
+        "        internal val count: Int get() = ((bits ushr 8) and 0xFFL).toInt()\n",
+        "        val decision: Boolean?\n            get() = when (((bits ushr 16) and 0x3L)\
+         .toInt()) {\n                1 -> true\n",
+        "        /** The first, or -1. */\n        val from: Int get() = (bits shr 32).toInt()\n",
+    ];
+    for line in expected {
+        assert!(text.contains(line), "missing {line:?} in\n{text}");
+    }
+}

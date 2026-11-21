@@ -31,8 +31,8 @@ mod tests;
 mod types;
 
 pub use api::{
-    API, Api, Arg, ArgKind, HANDLE, Handle, Kind, MEMBER, Member, Out, Shape, Type, api_files, arg,
-    default, type_files,
+    API, Api, Arg, ArgKind, BIT, Bit, BitKind, HANDLE, Handle, Kind, MEMBER, Member, Out, Shape,
+    Type, api_files, arg, default, type_files,
 };
 pub use constants::{Module, Wire, wire_files};
 pub use declarations::{APIS, CLASSES, TYPES, WIRE};

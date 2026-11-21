@@ -8,8 +8,12 @@ use crate::format::{kdoc, kotlin_declaration};
 use crate::kotlin::{KotlinFile, kotlin_header, simple_type};
 use crate::{Class, Module, Param, Return};
 
+mod handle;
+mod records;
 #[cfg(test)]
 mod tests;
+
+pub use records::{BIT, Bit, BitKind};
 
 /// A public Kotlin type over native methods, in its own file.
 #[derive(Debug)]
@@ -184,6 +188,11 @@ pub enum Out {
     NullableEntry(&'static str),
     /// The result passed to the constructor of this type.
     Wrap(&'static str),
+    /// A row read as the record of this name, a field an element; a nullable row reads as null.
+    Record(&'static str),
+    /// A row read as a list of the record of this name, each in as many elements as it has
+    /// fields.
+    Records(&'static str),
 }
 
 /// A record or enum that an api's members take or return.
@@ -203,6 +212,15 @@ pub enum Type {
         doc: &'static str,
         entries: &'static [&'static str],
     },
+    /// `value class Name(private val bits: Int)`, a `Long` if `long`, whose properties read its
+    /// bits; its constructor is `internal` if `internal`.
+    Bits {
+        name: &'static str,
+        doc: &'static str,
+        long: bool,
+        internal: bool,
+        fields: &'static [Bit],
+    },
 }
 
 /// The Kotlin files for `apis`, whose members call methods of `classes`, each with its module.
@@ -217,7 +235,7 @@ pub fn api_files(apis: &[Api], classes: &[Class]) -> Vec<(Module, KotlinFile)> {
 }
 
 /// The native method `name` of the class `native`.
-fn method<'a>(classes: &'a [Class], native: &str, name: &str) -> &'a crate::Method {
+pub(super) fn method<'a>(classes: &'a [Class], native: &str, name: &str) -> &'a crate::Method {
     let class = classes.iter().find(|class| class.name == native);
     let class = class.unwrap_or_else(|| panic!("no native class {native}"));
     let method = class.methods.iter().find(|method| method.name == name);
@@ -242,7 +260,7 @@ fn api_file(api: &Api, apis: &[Api], classes: &[Class]) -> String {
             }
             format!("object {} {{\n", api.name)
         }
-        Shape::Handle(handle) => handle_class(api, handle, classes, apis, &mut body),
+        Shape::Handle(handle) => handle::handle_class(api, handle, classes, apis, &mut body),
     };
     let mut imports = Vec::new();
     if body.contains("Reference.reachabilityFence") {
@@ -261,14 +279,14 @@ fn api_file(api: &Api, apis: &[Api], classes: &[Class]) -> String {
 }
 
 /// Adds `block` to a type's body, after a blank line if it already has something.
-fn push_block(body: &mut String, block: &str) {
+pub(super) fn push_block(body: &mut String, block: &str) {
     if !body.is_empty() {
         body.push('\n');
     }
     body.push_str(block);
 }
 
-fn constants(constants: &[(&str, &str, &str, &str)], indent: &str) -> String {
+pub(super) fn constants(constants: &[(&str, &str, &str, &str)], indent: &str) -> String {
     let mut text = String::new();
     for (name, ty, value, doc) in constants {
         if !doc.is_empty() {
@@ -281,96 +299,6 @@ fn constants(constants: &[(&str, &str, &str, &str)], indent: &str) -> String {
         }
     }
     text
-}
-
-/// A handle class's head, handle and freeing, filling `body` with its members.
-fn handle_class(
-    api: &Api,
-    handle: Handle,
-    classes: &[Class],
-    apis: &[Api],
-    body: &mut String,
-) -> String {
-    let free = method(classes, api.native, handle.free);
-    assert_eq!(free.params.len(), 1, "{} frees with one handle", api.name);
-    let field = if handle.close { "var" } else { "val" };
-    let close = if handle.close { " : AutoCloseable" } else { "" };
-    let (mut head, create) = if handle.create.is_empty() {
-        let head = format!(
-            "class {} internal constructor(handle: Long){close} {{\n",
-            api.name
-        );
-        (head, "handle".to_owned())
-    } else {
-        let create = method(classes, api.native, handle.create);
-        let (params, passed) = params_and_args(create, handle.params, false);
-        let head = kotlin_declaration(
-            "",
-            &format!("class {}", api.name),
-            &params,
-            &format!("{close} {{"),
-        );
-        (
-            head,
-            format!("{}.{}({})", api.native, handle.create, passed.join(", ")),
-        )
-    };
-    head.push_str(&format!("    internal {field} handle = {create}\n"));
-    if handle.close {
-        head.push_str("        private set\n");
-        head.push_str(
-            "    private val cleanable = RustLibrary.cleaner.register(this, Free(handle))\n",
-        );
-    } else {
-        head.push_str(
-            "\n    init {\n        RustLibrary.cleaner.register(this, Free(handle))\n    }\n",
-        );
-    }
-    let mut companion = String::new();
-    for member in api.members {
-        if member.companion {
-            let text = member_text(api, member, Some(handle), classes, apis, "        ");
-            push_block(&mut companion, &text);
-        } else {
-            push_block(
-                body,
-                &member_text(api, member, Some(handle), classes, apis, "    "),
-            );
-        }
-    }
-    if handle.close {
-        let lock = if handle.synchronized {
-            "    @Synchronized\n"
-        } else {
-            ""
-        };
-        push_block(
-            body,
-            &format!(
-                "{lock}    override fun close() {{\n        handle = 0\n        cleanable.clean()\n    }}\n"
-            ),
-        );
-    }
-    push_block(
-        body,
-        &format!(
-            "    private class Free(private val handle: Long) : Runnable {{\n        \
-             override fun run() = {}.{}(handle)\n    }}\n",
-            api.native, handle.free
-        ),
-    );
-    if !api.constants.is_empty() {
-        push_block(&mut companion, &constants(api.constants, "        "));
-    }
-    if !companion.is_empty() || api.companion {
-        let inside = if companion.is_empty() {
-            String::new()
-        } else {
-            format!(" {{\n{companion}    }}")
-        };
-        push_block(body, &format!("    companion object{inside}\n"));
-    }
-    head
 }
 
 /// A parameter as Kotlin declares it, with `native`'s type unless the arg says otherwise.
@@ -393,7 +321,7 @@ fn param_text(arg: &Arg, native: Param) -> String {
 }
 
 /// How each of a native method's parameters is declared publicly, and what it is passed.
-fn params_and_args(
+pub(super) fn params_and_args(
     native: &crate::Method,
     args: &[Arg],
     skip_handle: bool,
@@ -450,6 +378,8 @@ fn result_type(returns: Return, out: Out) -> Option<String> {
         }),
         Out::Entry(ty) | Out::Wrap(ty) => Some(ty.to_owned()),
         Out::NullableEntry(ty) => Some(format!("{ty}?")),
+        Out::Record(ty) => Some(records::record_type(ty, false, returns)),
+        Out::Records(ty) => Some(records::record_type(ty, true, returns)),
     }
 }
 
@@ -491,8 +421,8 @@ impl Expr {
     }
 }
 
-/// The text around a native call that `out` converts its result with.
-fn converted(out: Out) -> (String, String) {
+/// The text around a native call that returns `returns` and `out` converts, for `api`.
+fn converted(out: Out, returns: Return, api: &Api, apis: &[Api]) -> (String, String) {
     match out {
         Out::Same => (String::new(), String::new()),
         Out::List => (String::new(), ".asList()".to_owned()),
@@ -502,11 +432,16 @@ fn converted(out: Out) -> (String, String) {
             format!(".let {{ if (it < 0) null else {ty}.entries[it] }}"),
         ),
         Out::Wrap(ty) => (format!("{ty}("), ")".to_owned()),
+        Out::Record(ty) => (
+            String::new(),
+            records::record(ty, false, returns, api, apis),
+        ),
+        Out::Records(ty) => (String::new(), records::record(ty, true, returns, api, apis)),
     }
 }
 
 /// One member: its signature and the native call it makes.
-fn member_text(
+pub(super) fn member_text(
     api: &Api,
     member: &Member,
     handle: Option<Handle>,
@@ -527,7 +462,7 @@ fn member_text(
     let native = method(classes, native_name, call);
     let own = handle.is_some() && !member.companion;
     let (params, passed) = params_and_args(native, member.args, own);
-    let (before, after) = converted(member.result);
+    let (before, after) = converted(member.result, native.returns, api, apis);
     let mut expr = Expr {
         before,
         call: format!("{native_name}.{call}"),
@@ -622,6 +557,7 @@ fn type_text(ty: &Type, indent: &str) -> String {
                 entries.join(", ")
             )
         }
+        Type::Bits { .. } => records::bits_text(ty, indent),
     }
 }
 
@@ -631,7 +567,9 @@ pub fn type_files(types: &[(&str, Module, Type)]) -> Vec<(Module, KotlinFile)> {
         .iter()
         .map(|(module, kotlin, ty)| {
             let name = match ty {
-                Type::Record { name, .. } | Type::Enum { name, .. } => *name,
+                Type::Record { name, .. } | Type::Enum { name, .. } | Type::Bits { name, .. } => {
+                    *name
+                }
             };
             let source = format!("src/declarations/{module}.rs");
             let mut text = kotlin_header(&source, *kotlin, &[]);
