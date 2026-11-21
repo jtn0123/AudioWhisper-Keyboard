@@ -463,11 +463,46 @@ impl Expr {
             .iter()
             .map(|arg| format!("{indent}    {arg},\n"))
             .collect();
-        format!(
-            "{indent}{}{}(\n{args}{indent}){}\n",
-            self.before, self.call, self.after
-        )
+        let mut close = format!("{indent}){}", self.after);
+        if close.len() > 120 {
+            // Each call chained after the first on a line of its own.
+            let calls = chain(&self.after);
+            close = format!("{indent}){}", calls[0]);
+            for call in &calls[1..] {
+                close.push_str(&format!("\n{indent}    {call}"));
+            }
+        }
+        format!("{indent}{}{}(\n{args}{close}\n", self.before, self.call)
     }
+}
+
+/// The calls chained in `after`, such as `.let { … }` and `?.also { … }`, split where a `.` or
+/// `?.` starts one outside any braces or parentheses.
+fn chain(after: &str) -> Vec<&str> {
+    let bytes = after.as_bytes();
+    let mut calls = Vec::new();
+    let (mut depth, mut start) = (0, 0);
+    for (at, &c) in bytes.iter().enumerate() {
+        let starts = match c {
+            b'{' | b'(' | b'[' => {
+                depth += 1;
+                false
+            }
+            b'}' | b')' | b']' => {
+                depth -= 1;
+                false
+            }
+            b'?' => bytes.get(at + 1) == Some(&b'.'),
+            b'.' => at == 0 || bytes[at - 1] != b'?',
+            _ => false,
+        };
+        if starts && depth == 0 && at > start {
+            calls.push(&after[start..at]);
+            start = at;
+        }
+    }
+    calls.push(&after[start..]);
+    calls
 }
 
 /// The first lambda in `after`, such as `.map { Entry(it[0]) }.also { … }`: what opens it

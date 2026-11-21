@@ -626,3 +626,16 @@ fn an_interface_lists_what_rust_calls_back() {
                     fun before(n: Int): String\n    }\n";
     assert!(text.contains(expected), "{text}");
 }
+
+#[test]
+fn chained_calls_split_outside_their_lambdas() {
+    let after = ".let { Strip(it[0], it.size) }?.also { fence(a); fence(b) }.toList()";
+    assert_eq!(
+        super::chain(after),
+        [
+            ".let { Strip(it[0], it.size) }",
+            "?.also { fence(a); fence(b) }",
+            ".toList()"
+        ]
+    );
+}
