@@ -147,6 +147,10 @@ Stage 5 packages 1–3, one event family at a time:
 
 * **Backup and restore first.** It sets up the Rust file-picker boundary that dictionaries and
   extensions reuse.
+  **Done (2026-11-21):** Rust draws Back up and Restore, and the Compose screens are gone
+  (636 lines). Rust asks for the picker and decides what follows; Kotlin keeps documents under
+  handles and runs the file work one job at a time. Every Compose backup restores as before,
+  proven over all 63 group sets ([stage 4: Back up and Restore](stage4-backup-restore.md)).
 * **Languages and dictionaries share editable lists.**
 * **The theme editor and extension editor are ported and improved**, not dropped (owner,
   2026-11-21). Each port says which improvements it makes, as the Other and Theme port did.

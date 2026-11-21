@@ -37,6 +37,7 @@ row says so.
 | P8 | Settings: the presenter breakdown (buffer wait, lock, copy, apply) on a device run. Confirm the CPU raster's 1.7–2.0 ms headroom at 120 Hz. | [stage4-followup3, A5](stage4-followup3.md#still-owed) |
 | P9 | Other and Theme: every step ran on the emulator. None ran on the phone. | [stage4-other-theme, no phone check](stage4-other-theme.md#owed) |
 | P10 | Emoji: pull the Samsung emoji font, inspect it, and render it with the same probe. The probe ran only on the other fonts. | [stage3a, system emoji fonts](stage3a-results.md#system-emoji-fonts) |
+| P11 | Back up and Restore: every step ran on the emulator. None ran on the phone. | [stage4-backup-restore, owed](stage4-backup-restore.md#owed) |
 
 ## Emulator checks the docs owe
 
@@ -60,7 +61,8 @@ row says so.
 | E16 | Final device hold on `aw_keyboard_ssd`: corrected final volume and DND readback, a literal `FATAL` or `AndroidRuntime` logcat scan, and `shutdown`. Five stage 2 documents share this wording. The TTS document has the full hold. | [stage2-input](stage2-input.md#final-fresh-device-gate-and-hold); [stage2-editor](stage2-editor.md#final-fresh-device-gate-and-hold); [stage2-dictation](stage2-dictation.md#final-fresh-device-gate-and-hold); [stage2-settings](stage2-settings.md#final-fresh-device-gate-and-hold); [stage2-backup-utils](stage2-backup-utils.md#final-fresh-device-gate-and-hold); [stage2-tts](stage2-tts.md#final-gate-and-device-hold) |
 | E17 | Dictation: final prototype-off, Always day and Floris Day, accessibility and permission restoration. Not verified. The exact microphone and notification grant flags were seen earlier. | [stage2-dictation, final device hold](stage2-dictation.md#final-device-hold-and-recovery-state) |
 | E18 | Settings device checks: Part A and backup/utils first; install with `scripts/install-dev.sh`; mixed synthetic settings and two subtypes; upgrade and compare; remove the active subtype through the UI; the existing fixtures on both renderers; the long-delete oracle; a clean `FATAL` scan; restore; `shutdown`. None of it ran. | [stage2-settings, owed device checks](stage2-settings.md#owed-device-checks) |
-| E19 | Backup and utils: back up and restore through the real SAF UI, compare values and store hashes, check the incompatible-archive message against the pre-change build, and check MIME and locale on Android. Android URI round trips and ICU and device parity are also owed. | [stage2-backup-utils, owed device acceptance](stage2-backup-utils.md#owed-device-acceptance) |
+| E19 | Backup and utils: back up and restore through the real SAF UI, compare values and store hashes, check the incompatible-archive message against the pre-change build, and check MIME and locale on Android. Android URI round trips and ICU and device parity are also owed. Back up and restore through the system picker ran on the emulator for compose-removal step 5; the rest is still owed. | [stage2-backup-utils, owed device acceptance](stage2-backup-utils.md#owed-device-acceptance); [stage4-backup-restore, emulator check](stage4-backup-restore.md#emulator-check) |
+| E20 | `SettingsOtherThemeDevice`: its Back up and Restore step now expects the Rust screens. It compiles but has not run. | [stage4-backup-restore, owed](stage4-backup-restore.md#owed) |
 
 ## Not device checks, but still owed
 
@@ -77,7 +79,10 @@ These need no device. They are listed so they are not lost.
 * Writes queued when a Rust settings screen is destroyed are dropped. Nothing in the suite hit this. ([stage4-followup4, still owed](stage4-followup4.md#still-owed))
 * A disabled row's node is clickable on Compose and not on Rust. Neither offers the click action. ([stage4-followup4, still owed](stage4-followup4.md#still-owed))
 * Jetpref's store defect is upstream. `SettingsPreference` works around it. ([stage4-followup4, still owed](stage4-followup4.md#still-owed))
+* A Merge restore cannot bring back a setting left at its default, because the backup does not hold it. ([stage4-backup-restore, owed](stage4-backup-restore.md#owed))
+* A ZIP missing its folder entries reads as unreadable, in Restore and extension import. ([stage4-backup-restore, owed](stage4-backup-restore.md#owed))
+* Restore runs on the main thread, as Compose's did. ([stage4-backup-restore, owed](stage4-backup-restore.md#owed))
 
 ## Notes
 
-* This list has 4 confirm-on-the-phone items, 10 phone checks and 19 emulator checks.
+* This list has 4 confirm-on-the-phone items, 11 phone checks and 20 emulator checks.

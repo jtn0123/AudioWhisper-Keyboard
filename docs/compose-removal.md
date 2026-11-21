@@ -110,11 +110,24 @@ its phone checks pass.
   `ColorMappings` (24), which only these screens used, plus 6 lines in `Routes.kt` and
   `SettingsFacts` rewritten as 4. Step 4 is done: 321 lines deleted, 4 added.
 
-### 5. Backup and restore
+### 5. Backup and restore (done)
 
 * **Deletes:** `BackupScreen` (362) and `RestoreScreen` (265). `BackupIO` (81) is file
   input and output and stays as an adapter.
-* **Blocked by:** file picker (SAF) plans, progress and error screens in Rust.
+* **What changed:** Rust draws both screens, with progress and errors in plain language, a
+  confirmation before a restore, and the backup's details shown first. A new file picker
+  boundary lets Rust ask for the system picker and decide what follows; Kotlin opens it, keeps
+  documents under handles and runs the file work. Steps 7 and 10 reuse it. Restore now offers
+  only the groups a backup holds ([decision](decisions.md#restore-offers-only-the-groups-a-backup-holds-2026-11-21)).
+  See [stage 4: Back up and Restore](stage4-backup-restore.md).
+* **Blocked by:** nothing.
+* **The fallback loses:** both screens. Their routes stay as empty entries that hand back to
+  Rust, as in step 2.
+* **Progress** (non-blank lines deleted): `BackupScreen` (362), `RestoreScreen` (265),
+  `CacheManager`'s Compose-only fields (4), 4 lines in `Routes.kt` rewritten as 2, and an
+  import in `ExtensionEditScreen` (1), plus Compose's two failure strings. `RadioListItem`
+  (42) moved unchanged into its own file for `ExtensionEditScreen` (step 10). Step 5 is done:
+  636 lines deleted, 2 added.
 
 ### 6. Languages and layouts
 
@@ -142,9 +155,9 @@ its phone checks pass.
 
 ### 10. Extensions
 
-* **Deletes:** `FB/app/ext`: 13 files, 2,503 lines after step 4 (import, export, edit, view,
-  lists).
-* **Blocked by:** file pickers (step 5) and per-file editors in Rust.
+* **Deletes:** `FB/app/ext`: 14 files, 2,544 lines after step 5 (import, export, edit, view,
+  lists, and `RadioListItem`, moved here from step 5).
+* **Blocked by:** per-file editors in Rust. The file picker is ready (step 5).
 * **Ported and improved, not cut,** as step 9.
 
 ### 11. Setup
@@ -155,7 +168,7 @@ its phone checks pass.
 
 ### 12. The Compose settings host
 
-* **Deletes:** `Routes.kt` (283 after step 4), the Compose branch of `FlorisAppActivity`,
+* **Deletes:** `Routes.kt` (281 after step 5), the Compose branch of `FlorisAppActivity`,
   `ComposeSettingsFallbackActivity`, `FB/app/apptheme` (3 files, 142 after step 3), the
   settings-only parts of `FB/lib/compose` (7 files, 509 in all), `EnumDisplayEntries` (175
   after step 4), and the Jetpref UI dependency.

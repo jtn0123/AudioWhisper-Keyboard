@@ -871,3 +871,18 @@ suppressions this project does not allow. **Would change if** UniFFI gains a JNI
 UTF-16 strings and clean output, or the generator costs more upkeep than the bindings it
 replaces; or if a phone check fails in a way only the Compose keyboard can serve, in which case
 step K waits and the rest goes on.
+
+## Restore offers only the groups a backup holds (2026-11-21)
+
+The Rust Restore screen ([stage 4](stage4-backup-restore.md)) lets a group be ticked only if the
+backup holds it and it reads. Compose let any group be ticked. With *Erase and overwrite*, a
+keyboard or theme group the backup lacked was emptied and nothing came back, so a backup of
+preferences alone could delete every keyboard extension. That is lost data with no gain, so the
+port fixes it rather than copying it, as the freeze allows for a data-loss fix.
+
+Everything else restores as Compose did. With merge, or with groups the backup holds, the
+restore plan is Compose's exactly, which `BackupFilesTest` checks over all 63 group sets. Erase
+still clears the whole clipboard history even if only some clipboard groups are ticked, as
+Compose did; the confirmation now says so. **Would change if** someone needs erase to empty a
+group on purpose: that is then its own control, not a side effect of ticking a group with no
+data.
