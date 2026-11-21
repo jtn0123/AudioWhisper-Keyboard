@@ -15,7 +15,7 @@ internal class SettingsEditorDevice(private val h: SettingsHarness) {
     private companion object {
         // Saved state v2: version, stack, scrolls, modal row/selected/values/scroll, editor text,
         // anchor, focus, then the composing span.
-        const val SAVED_VERSION = "2"
+        const val SAVED_VERSION = "3"
         const val STACK = 1
         const val EDITOR_TEXT = 7
         const val COMPOSING_START = 10

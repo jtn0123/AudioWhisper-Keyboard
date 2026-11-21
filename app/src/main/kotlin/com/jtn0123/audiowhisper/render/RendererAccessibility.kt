@@ -114,7 +114,10 @@ internal class RendererAccessibility(
             isSelected = n.bool("selected")
             val checked = n["checked"]
             isCheckable = checked != JsonNull
-            setChecked(if (checked?.jsonPrimitive?.booleanOrNull == true) AccessibilityNodeInfo.CHECKED_STATE_TRUE else AccessibilityNodeInfo.CHECKED_STATE_FALSE)
+            // A checkbox only partly on (the clipboard's, when some of its kinds are) is "partial".
+            setChecked(when (checked?.jsonPrimitive?.contentOrNull) { "true" -> AccessibilityNodeInfo.CHECKED_STATE_TRUE
+                "partial" -> AccessibilityNodeInfo.CHECKED_STATE_PARTIAL else -> AccessibilityNodeInfo.CHECKED_STATE_FALSE })
+            if (n["live"]?.jsonPrimitive?.booleanOrNull == true) liveRegion = android.view.View.ACCESSIBILITY_LIVE_REGION_POLITE
             isHeading = n.string("role") == "heading"
             val range = n["range"]?.takeUnless { it == JsonNull }?.jsonArray
             if (range != null) {
@@ -293,7 +296,7 @@ internal class RendererAccessibility(
         return Rect(floor(a[0]).toInt(), floor(a[1]).toInt(), ceil(a[2]).toInt(), ceil(a[3]).toInt())
     }
     private fun nodeClass(n: JsonObject): String = when (n.string("role")) {
-        "text", "heading" -> "android.widget.TextView"
+        "text", "heading", "status" -> "android.widget.TextView"
         "image" -> "android.widget.ImageView"
         // FlorisSimpleCard's Card(onClick) and FlorisHyperlinkText's clickable Text carry no Role,
         // so Compose reports a View and a TextView that TalkBack cannot name. Both act as buttons.
@@ -302,6 +305,7 @@ internal class RendererAccessibility(
         "key" -> "android.inputmethodservice.Keyboard\$Key"
         "toggle" -> "android.widget.Switch"
         "radio" -> "android.widget.RadioButton"
+        "checkbox" -> "android.widget.CheckBox"
         "slider" -> "android.widget.SeekBar"
         "edit" -> "android.widget.EditText"
         else -> "android.widget.Button"
