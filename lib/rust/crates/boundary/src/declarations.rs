@@ -3,6 +3,7 @@
 
 mod clipboard;
 mod dictation;
+mod gif;
 mod layout;
 mod packets;
 mod rules;
@@ -33,6 +34,7 @@ pub const CLASSES: &[Class] = &[
     clipboard::CLIPBOARD_RULES,
     screen::SCREEN_NATIVE,
     dictation::DICTATION_NATIVE,
+    gif::GIF_NATIVE,
 ];
 
 /// Every generated api over those classes.
@@ -41,6 +43,8 @@ pub const APIS: &[Api] = &[
     screen::SCREEN_WALK_RULES,
     dictation::DICTATION_RULES,
     dictation::MIC_KEY_STATE,
+    gif::GIF_RULES,
+    gif::GIF_RESULT_KEYS,
 ];
 
 /// Every generated top-level record and enum, with the declarations file and the module it is in.

@@ -396,8 +396,7 @@ lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/EmojiNative.kt	A	13	ART J
 lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/ExtensionPolicy.kt	A	30	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport | raised 31 to 34 (A6): a typed ExtensionOp call and the archive entry packet built by field name, which BackupPolicy shares
 lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/Gestures.kt	A	93	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
 lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/GesturesNative.kt	A	46	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
-lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/Gif.kt	M	44	ART JNI; residual signed-order decoding helpers and cache payload lifetime |
-lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/GifNative.kt	A	28	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
+lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/Gif.kt	M	3	ART JNI; residual signed-order decoding helpers and cache payload lifetime |
 lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/Giphy.kt	A	25	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
 lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/GiphyNative.kt	A	10	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
 lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/Glide.kt	A	93	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |

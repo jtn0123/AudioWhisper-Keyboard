@@ -1,6 +1,6 @@
 package com.jtn0123.audiowhisper.gif
 
-import com.jtn0123.audiowhisper.rust.GifRules
+import com.jtn0123.audiowhisper.rust.*
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
 import java.io.File
