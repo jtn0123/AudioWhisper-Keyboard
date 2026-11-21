@@ -1,0 +1,493 @@
+path	class	budget	note
+app/src/main/kotlin/com/jtn0123/audiowhisper/dictation/Dictation.kt	M	114	permission/model/platform-effect adapter; recheck field gates and model-selection facts |
+app/src/main/kotlin/com/jtn0123/audiowhisper/dictation/DictationFields.kt	P	11	field admission and secret-field classification |
+app/src/main/kotlin/com/jtn0123/audiowhisper/dictation/DictationPreview.kt	K	26	Compose keyboard (keyboard scope): deleted at compose-removal step K
+app/src/main/kotlin/com/jtn0123/audiowhisper/dictation/DictationSession.kt	M	196	Handler/worker adapter; released-event and callback forwarding guards around native plan |
+app/src/main/kotlin/com/jtn0123/audiowhisper/dictation/DictationUndo.kt	A	7	ART JNI; native undo-result DTO |
+app/src/main/kotlin/com/jtn0123/audiowhisper/dictation/LargeModels.kt	P	15	cross-model idle eviction registration and choice |
+app/src/main/kotlin/com/jtn0123/audiowhisper/dictation/LitMic.kt	K	93	Compose keyboard (keyboard scope): deleted at compose-removal step K
+app/src/main/kotlin/com/jtn0123/audiowhisper/dictation/MicAudio.kt	M	84	AudioRecord; PCM16 conversion/replay admission and audio buffer policy |
+app/src/main/kotlin/com/jtn0123/audiowhisper/dictation/MicRecorder.kt	M	50	AudioRecord via MicAudio; RMS/level math and pump error decisions |
+app/src/main/kotlin/com/jtn0123/audiowhisper/dictation/ModelCheck.kt	M	59	Context files / SharedPreferences; file verification cache and readiness decisions |
+app/src/main/kotlin/com/jtn0123/audiowhisper/dictation/ModelFiles.kt	A	21	Context.filesDir / java.io.File; model-path and native-config transport |
+app/src/main/kotlin/com/jtn0123/audiowhisper/dictation/ModelHolder.kt	A	24	ART JNI; executes native model lifetime plans |
+app/src/main/kotlin/com/jtn0123/audiowhisper/dictation/PhraseListener.kt	M	45	AudioRecord / ByteBuffer; VAD result delivery/flush boundaries |
+app/src/main/kotlin/com/jtn0123/audiowhisper/dictation/Transcriber.kt	A	19	ART JNI / ByteBuffer; sherpa recognizer handle and cancellation |
+app/src/main/kotlin/com/jtn0123/audiowhisper/gif/GifDataSource.kt	A	6	HttpURLConnection / ImageDecoder adapter interface; asynchronous network/preview effects only |
+app/src/main/kotlin/com/jtn0123/audiowhisper/gif/GifFrames.kt	P	58	GIF container block/frame parsing |
+app/src/main/kotlin/com/jtn0123/audiowhisper/gif/GifImages.kt	M	50	ImageDecoder / HttpURLConnection / LruCache; preview budget/cache ownership |
+app/src/main/kotlin/com/jtn0123/audiowhisper/gif/GifPanel.kt	K	309	Compose keyboard (keyboard scope): deleted at compose-removal step K
+app/src/main/kotlin/com/jtn0123/audiowhisper/gif/GifRecents.kt	M	49	Context files / File; startup merge and persistence sequencing |
+app/src/main/kotlin/com/jtn0123/audiowhisper/gif/GifResultCache.kt	M	26	native key cache plus Kotlin payload-map lifetime |
+app/src/main/kotlin/com/jtn0123/audiowhisper/gif/GifSearch.kt	M	150	SystemClock / network IO; request jobs, generations, loading/publication state |
+app/src/main/kotlin/com/jtn0123/audiowhisper/gif/GifSearchKeys.kt	P	23	key/search routing facade; consolidate native protocol, retain only boundary tags |
+app/src/main/kotlin/com/jtn0123/audiowhisper/gif/GifSender.kt	M	60	InputConnection.commitContent / FileProvider; fallback-link and pruning choices |
+app/src/main/kotlin/com/jtn0123/audiowhisper/gif/Giphy.kt	M	54	HttpURLConnection; response/error dispatch and domain result mapping |
+app/src/main/kotlin/com/jtn0123/audiowhisper/gif/LimitedRead.kt	P	19	bounded stream-copy byte/overflow rules (leave Java stream IO adapter) |
+app/src/main/kotlin/com/jtn0123/audiowhisper/reader/FollowAlong.kt	M	50	AccessibilityNodeInfo.performAction; reveal/scroll/selection sequencing |
+app/src/main/kotlin/com/jtn0123/audiowhisper/reader/LitSpeaker.kt	K	27	Compose keyboard (keyboard scope): deleted at compose-removal step K
+app/src/main/kotlin/com/jtn0123/audiowhisper/reader/NeuralVoice.kt	M	113	AudioTrack; queue/idle/error handling around native synthesis |
+app/src/main/kotlin/com/jtn0123/audiowhisper/reader/OfflineVoice.kt	M	25	TextToSpeech.Voice facts are platform; the rule is Rust (ReaderRules.offlineVoice), but the language and country fallback chosen before the call is Kotlin and moves to Rust
+app/src/main/kotlin/com/jtn0123/audiowhisper/reader/PageText.kt	M	52	Java BreakIterator sentence facts; consolidate portable block/reveal DTO orchestration |
+app/src/main/kotlin/com/jtn0123/audiowhisper/reader/PlayQueue.kt	A	20	ART JNI; native playback queue transport |
+app/src/main/kotlin/com/jtn0123/audiowhisper/reader/ReadAloud.kt	M	87	AccessibilityService / Intent / Toast; reading status and attachment orchestration |
+app/src/main/kotlin/com/jtn0123/audiowhisper/reader/ReadAloudService.kt	M	207	AccessibilityService; page/session/settle/resume choices and callbacks |
+app/src/main/kotlin/com/jtn0123/audiowhisper/reader/ReadFromHereActivity.kt	A	12	Activity / Intent ACTION_PROCESS_TEXT; forwards platform selection |
+app/src/main/kotlin/com/jtn0123/audiowhisper/reader/ScreenWalk.kt	A	67	AccessibilityNodeInfo; node facts and native traversal callbacks |
+app/src/main/kotlin/com/jtn0123/audiowhisper/reader/Speaker.kt	M	81	TextToSpeech; pending utterance and completion/error lifecycle |
+app/src/main/kotlin/com/jtn0123/audiowhisper/reader/SpeakerKey.kt	A	14	SystemClock / ART JNI; native hold-state transport |
+app/src/main/kotlin/com/jtn0123/audiowhisper/reader/StopButton.kt	M	63	WindowManager TYPE_ACCESSIBILITY_OVERLAY; Rust must draw/layout the stop control |
+app/src/main/kotlin/com/jtn0123/audiowhisper/reader/Voice.kt	A	29	AudioManager.requestAudioFocus / abandonAudioFocusRequest |
+app/src/main/kotlin/com/jtn0123/audiowhisper/reader/VoiceEngine.kt	M	107	Context files / SystemClock; model idle/failure/cross-model eviction state |
+app/src/main/kotlin/com/jtn0123/audiowhisper/render/AccessibilityRelease.kt	P	25	hover/hold release target choice and hit testing |
+app/src/main/kotlin/com/jtn0123/audiowhisper/render/InputViewVisibility.kt	M	12	View window visibility; the told-visibility state is Kotlin, and the retell rule is Rust (ImeWindowRules.retellVisible)
+app/src/main/kotlin/com/jtn0123/audiowhisper/render/RenderTiming.kt	M	12	ViewTreeObserver / Log; fallback-only timing scaffolding, remove with its callers |
+app/src/main/kotlin/com/jtn0123/audiowhisper/render/RendererAccessibility.kt	M	292	AccessibilityNodeProvider; focus recovery, hover/hit/hold/touch state still Kotlin |
+app/src/main/kotlin/com/jtn0123/audiowhisper/render/RendererAccessibilityResources.kt	A	98	Context.getString; localized semantic-label map |
+app/src/main/kotlin/com/jtn0123/audiowhisper/render/RendererActionTooltip.kt	M	41	PopupWindow / View; tooltip selection and lifetime around native text |
+app/src/main/kotlin/com/jtn0123/audiowhisper/render/RendererCandidateBindings.kt	A	19	ART JNI; object identity handles for native candidates |
+app/src/main/kotlin/com/jtn0123/audiowhisper/render/RendererClipboard.kt	M	58	Room / KeyguardManager; item projections and eligible preview/resource choices |
+app/src/main/kotlin/com/jtn0123/audiowhisper/render/RendererClipboardActions.kt	M	33	ClipboardManager / Room; conditional unpin/delete and feedback dispatch |
+app/src/main/kotlin/com/jtn0123/audiowhisper/render/RendererDecorations.kt	M	18	Resources; watermark visibility and icon selection |
+app/src/main/kotlin/com/jtn0123/audiowhisper/render/RendererEmoji.kt	M	67	Paint / Typeface / KeyguardManager; label/availability projection and bindings |
+app/src/main/kotlin/com/jtn0123/audiowhisper/render/RendererGestureHost.kt	M	80	MotionEvent / Resources; action-index mapping and gesture-plan execution |
+app/src/main/kotlin/com/jtn0123/audiowhisper/render/RendererGif.kt	M	41	network/resource adapter; loaded/error/empty state selection |
+app/src/main/kotlin/com/jtn0123/audiowhisper/render/RendererGifActions.kt	M	42	InputConnection / Toast; send-outcome transitions and panel return state |
+app/src/main/kotlin/com/jtn0123/audiowhisper/render/RendererGifDecoder.kt	M	41	Bitmap / ImageDecoder; frame/animation eligibility and upload lifecycle |
+app/src/main/kotlin/com/jtn0123/audiowhisper/render/RendererHostTiming.kt	A	22	ViewTreeObserver / SystemClock / Log; numeric creation/layout measurement only |
+app/src/main/kotlin/com/jtn0123/audiowhisper/render/RendererIcons.kt	A	29	Resources / Android Path; resource vector serialization, no widget layout |
+app/src/main/kotlin/com/jtn0123/audiowhisper/render/RendererMediaBuffers.kt	M	61	ContentResolver / Bitmap; decode-size and upload/cache ownership |
+app/src/main/kotlin/com/jtn0123/audiowhisper/render/RendererMotionPacket.kt	A	21	MotionEvent; complete pointer/history/timestamp transport |
+app/src/main/kotlin/com/jtn0123/audiowhisper/render/RendererPanels.kt	M	45	Resources / Jetpref; panel choice, action assembly and label fallbacks |
+app/src/main/kotlin/com/jtn0123/audiowhisper/render/RendererSearch.kt	M	21	Resources; search-strip state/label projection |
+app/src/main/kotlin/com/jtn0123/audiowhisper/render/RendererSmartbar.kt	M	126	Resources / Paint; item choice, fallback labels, measurement and action binding |
+app/src/main/kotlin/com/jtn0123/audiowhisper/render/RendererSmartbarTouch.kt	M	46	InputConnection / PopupWindow; enabled/removal/tooltip action gating |
+app/src/main/kotlin/com/jtn0123/audiowhisper/render/RendererSubtypes.kt	A	21	Resources / Jetpref Flow; localized subtype snapshot transport |
+app/src/main/kotlin/com/jtn0123/audiowhisper/render/RendererTheme.kt	A	27	Resources.Configuration / DisplayMetrics; theme and density transport |
+app/src/main/kotlin/com/jtn0123/audiowhisper/render/RustChromeView.kt	M	95	View / Bitmap / Canvas; native pixels stay at edge, move hardcoded subtype bootstrap dimensions/timing constants |
+app/src/main/kotlin/com/jtn0123/audiowhisper/render/RustExtractView.kt	A	36	ExtractEditText / ViewGroup; applies native extract bounds to platform editor |
+app/src/main/kotlin/com/jtn0123/audiowhisper/render/RustKeyPreview.kt	A	33	Bitmap / ART JNI; displays native preview pixels (replace Compose interop host) |
+app/src/main/kotlin/com/jtn0123/audiowhisper/render/RustKeyboardLayout.kt	M	92	SurfaceView / WindowInsets / InlineContentView; Kotlin root sizing/state branches |
+app/src/main/kotlin/com/jtn0123/audiowhisper/render/RustKeyboardView.kt	M	405	SurfaceView / Choreographer / SystemFonts; snapshot assembly and dispatch/fallback policy |
+app/src/main/kotlin/com/jtn0123/audiowhisper/render/RustOneHandedPanel.kt	M	37	View/Jetpref; side-panel sizing/visibility and preference-effect binding |
+app/src/main/kotlin/com/jtn0123/audiowhisper/render/RustSubtypeSheet.kt	A	30	WindowInsets / AndroidView; native sheet surface interop only |
+app/src/main/kotlin/com/jtn0123/audiowhisper/settings/SettingsCodecs.kt	A	66	Jetpref typed serializers / ART JNI; Android DTO construction only |
+app/src/main/kotlin/com/jtn0123/audiowhisper/settings/SettingsComponentSerializer.kt	A	11	Jetpref typed serializer / ART JNI; component codec transport |
+app/src/main/kotlin/com/jtn0123/audiowhisper/settings/SettingsDefaults.kt	A	39	Jetpref PreferenceModel / ART JNI; reads native defaults |
+app/src/main/kotlin/com/jtn0123/audiowhisper/settings/SettingsKeys.kt	A	57	Jetpref key serializer / ART JNI; platform key DTO tags only |
+app/src/main/kotlin/com/jtn0123/audiowhisper/settings/SettingsScalars.kt	A	18	Jetpref typed serializer / ART JNI; scalar codec transport |
+app/src/main/kotlin/com/jtn0123/audiowhisper/settings/SettingsSelection.kt	A	6	Jetpref serializer / ART JNI; native enum index |
+app/src/main/kotlin/com/jtn0123/audiowhisper/settings/SettingsSubtypes.kt	A	15	Jetpref store / ART JNI; native subtype operation-plan DTO |
+app/src/main/kotlin/com/jtn0123/audiowhisper/settings/SettingsTimeSerializer.kt	A	12	Jetpref typed serializer / java.time.LocalTime; native codec transport |
+app/src/main/kotlin/com/jtn0123/audiowhisper/settingsui/CrashReport.kt	P	29	bootstrap crash report: the category and allowlisted-frame rules are portable; the R.string id is the only Android fact (package 6 crash/report presentation)
+app/src/main/kotlin/com/jtn0123/audiowhisper/settingsui/PlatformCrashScreen.kt	A	68	bootstrap crash screen in platform Views, so it works when the native library fails to load (all-rust.md, the stays table)
+app/src/main/kotlin/com/jtn0123/audiowhisper/settingsui/RustSettingsView.kt	A	240	SurfaceView / Choreographer / BaseInputConnection; native effects, state and Android IME visibility transport only |
+app/src/main/kotlin/com/jtn0123/audiowhisper/settingsui/SettingsFacts.kt	M	163	device facts and effect execution for the Rust settings screens; the Android reads stay, the spell-package parse and fact shaping move to Rust
+app/src/main/kotlin/com/jtn0123/audiowhisper/settingsui/SettingsIcons.kt	A	46	Resources / Android Path; resource icon map |
+app/src/main/kotlin/com/jtn0123/audiowhisper/settingsui/SettingsInputView.kt	A	62	View / BaseInputConnection / InputMethodManager; native text endpoint |
+app/src/main/kotlin/com/jtn0123/audiowhisper/settingsui/SettingsPlatform.kt	M	78	Jetpref / Resources / WindowCompat; palette/appearance selection and write-queue binding |
+app/src/main/kotlin/com/jtn0123/audiowhisper/settingsui/SettingsResources.kt	A	16	Context.getString; batched string-resource map |
+app/src/main/kotlin/com/jtn0123/audiowhisper/settingsui/SettingsSelectionMenu.kt	A	41	Android floating ActionMode toolbar; Rust owns the selection and the edits it asks for
+app/src/main/kotlin/com/jtn0123/audiowhisper/settingsui/SettingsStringIds.kt	A	439	explicit R.string ids for the native settings screens; a resource-only map
+app/src/main/kotlin/com/jtn0123/audiowhisper/suggest/AutoCorrectStrength.kt	P	7	portable strength enum; its order and thresholds are Rust (suggest::auto_correction::Strength)
+app/src/main/kotlin/com/jtn0123/audiowhisper/suggest/AutoCorrectionUndo.kt	A	8	ART JNI / InputConnection consumer; native undo-result projection |
+app/src/main/kotlin/com/jtn0123/audiowhisper/suggest/GlideRanker.kt	A	31	ART JNI; copies scores/context into native ranking |
+app/src/main/kotlin/com/jtn0123/audiowhisper/suggest/KeptWords.kt	A	34	Context files / java.io.File; native word-store persistence |
+app/src/main/kotlin/com/jtn0123/audiowhisper/suggest/LatinDictionaryEngine.kt	A	34	RandomAccessFile / ART JNI; dictionary bytes and native decoder handle |
+app/src/main/kotlin/com/jtn0123/audiowhisper/suggest/LatinSuggester.kt	A	69	ART JNI; native suggest/spell result projection |
+app/src/main/kotlin/com/jtn0123/audiowhisper/suggest/LearnedWords.kt	A	54	Context files / java.io.File; native store effects and serialized bytes |
+app/src/main/kotlin/com/jtn0123/audiowhisper/suggest/PersonalWords.kt	A	19	Room snapshot / ART JNI; native personal-store transport and returned order |
+app/src/main/kotlin/com/jtn0123/audiowhisper/suggest/PreviousWords.kt	A	13	ART JNI; native previous-word context DTO |
+app/src/main/kotlin/com/jtn0123/audiowhisper/suggest/PrivateTextFile.kt	A	24	java.io.File read and atomic replace of a private text file; no domain choice
+app/src/main/kotlin/com/jtn0123/audiowhisper/suggest/RawSuggestion.kt	P	31	decoder flag classification and portable result models |
+app/src/main/kotlin/com/jtn0123/audiowhisper/suggest/SwipeWords.kt	P	39	portable SwipeWords domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
+app/src/main/kotlin/com/jtn0123/audiowhisper/suggest/TapTrail.kt	P	37	portable TapTrail domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
+app/src/main/kotlin/com/jtn0123/audiowhisper/suggest/TypingHistory.kt	A	17	Room/file-store / ART JNI; combines Android store handles |
+app/src/main/kotlin/com/jtn0123/audiowhisper/suggest/WordLearner.kt	A	16	ART JNI; native learning operation transport |
+app/src/main/kotlin/dev/patrickgold/florisboard/FlorisApplication.kt	M	124	Application / BroadcastReceiver; manager startup and initialization sequencing |
+app/src/main/kotlin/dev/patrickgold/florisboard/FlorisImeService.kt	M	416	InputMethodService; input/extract/keyboard-switch/lifecycle branches |
+app/src/main/kotlin/dev/patrickgold/florisboard/FlorisImeUi.kt	M	141	WindowInsets / Compose host; root sizing/placement/background drawing |
+app/src/main/kotlin/dev/patrickgold/florisboard/FlorisImeViews.kt	M	226	ExtractEditText / ComposeView; input/sheet/extract branch/layout ownership |
+app/src/main/kotlin/dev/patrickgold/florisboard/FlorisInlineSuggestions.kt	A	43	InputMethodService.onCreateInlineSuggestionsRequest / InlineSuggestionsResponse |
+app/src/main/kotlin/dev/patrickgold/florisboard/FlorisSpellCheckerService.kt	M	95	SpellCheckerService; language/session/result assembly around native spell |
+app/src/main/kotlin/dev/patrickgold/florisboard/NativeExtractContent.kt	A	25	ExtractEditText / AndroidView; native chrome with platform text editor |
+app/src/main/kotlin/dev/patrickgold/florisboard/app/AppPreferenceMigration.kt	A	12	Jetpref migration callback / ART JNI; applies native migration result |
+app/src/main/kotlin/dev/patrickgold/florisboard/app/AppPrefs.kt	M	276	Jetpref PreferenceModel; Android stores stay, derived UI/sizing values must move |
+app/src/main/kotlin/dev/patrickgold/florisboard/app/ComposeSettingsFallbackActivity.kt	A	4	ComponentActivity; retained fallback Activity identity |
+app/src/main/kotlin/dev/patrickgold/florisboard/app/EnumDisplayEntries.kt	A	160	Resources.getString; enum resource IDs/descriptions (split existing oversized map) |
+app/src/main/kotlin/dev/patrickgold/florisboard/app/FlorisAppActivity.kt	M	257	ComponentActivity / ActivityResultRegistry; retained routing/import/default-selection branches |
+app/src/main/kotlin/dev/patrickgold/florisboard/app/Routes.kt	P	264	portable Routes domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
+app/src/main/kotlin/dev/patrickgold/florisboard/app/SettingsEntry.kt	M	9	which host the settings Activity opens and settings link parsing; setup navigation moves to Rust (package 6)
+app/src/main/kotlin/dev/patrickgold/florisboard/app/apptheme/Shape.kt	P	9	portable Shape domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
+app/src/main/kotlin/dev/patrickgold/florisboard/app/apptheme/Theme.kt	M	62	Resources / WindowInsetsController; preference-to-theme choice still in Kotlin |
+app/src/main/kotlin/dev/patrickgold/florisboard/app/apptheme/Type.kt	P	13	portable Type domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
+app/src/main/kotlin/dev/patrickgold/florisboard/app/ext/AddonBox.kt	S	87	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
+app/src/main/kotlin/dev/patrickgold/florisboard/app/ext/CheckUpdatesScreen.kt	S	17	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
+app/src/main/kotlin/dev/patrickgold/florisboard/app/ext/ExtensionComponentView.kt	S	160	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
+app/src/main/kotlin/dev/patrickgold/florisboard/app/ext/ExtensionEditFilesScreen.kt	S	260	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
+app/src/main/kotlin/dev/patrickgold/florisboard/app/ext/ExtensionEditScreen.kt	S	809	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
+app/src/main/kotlin/dev/patrickgold/florisboard/app/ext/ExtensionExportScreen.kt	S	56	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
+app/src/main/kotlin/dev/patrickgold/florisboard/app/ext/ExtensionHomeScreen.kt	S	48	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
+app/src/main/kotlin/dev/patrickgold/florisboard/app/ext/ExtensionImportScreen.kt	S	294	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
+app/src/main/kotlin/dev/patrickgold/florisboard/app/ext/ExtensionKeywordChip.kt	S	18	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
+app/src/main/kotlin/dev/patrickgold/florisboard/app/ext/ExtensionListScreen.kt	S	161	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
+app/src/main/kotlin/dev/patrickgold/florisboard/app/ext/ExtensionMaintainerChip.kt	S	98	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
+app/src/main/kotlin/dev/patrickgold/florisboard/app/ext/ExtensionNotFoundScreen.kt	S	21	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
+app/src/main/kotlin/dev/patrickgold/florisboard/app/ext/ExtensionViewScreen.kt	S	264	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
+app/src/main/kotlin/dev/patrickgold/florisboard/app/settings/about/ProjectLicenseScreen.kt	S	47	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
+app/src/main/kotlin/dev/patrickgold/florisboard/app/settings/advanced/BackupIO.kt	M	80	ContentResolver / Room / File; backup traversal, selected records and restore effects |
+app/src/main/kotlin/dev/patrickgold/florisboard/app/settings/advanced/BackupScreen.kt	S	345	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
+app/src/main/kotlin/dev/patrickgold/florisboard/app/settings/advanced/RestoreScreen.kt	S	248	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
+app/src/main/kotlin/dev/patrickgold/florisboard/app/settings/dictionary/UserDictionaryScreen.kt	S	362	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
+app/src/main/kotlin/dev/patrickgold/florisboard/app/settings/localization/LanguagePackManagerScreen.kt	S	165	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
+app/src/main/kotlin/dev/patrickgold/florisboard/app/settings/localization/LocalizationScreen.kt	S	164	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
+app/src/main/kotlin/dev/patrickgold/florisboard/app/settings/localization/SelectLocaleScreen.kt	S	127	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
+app/src/main/kotlin/dev/patrickgold/florisboard/app/settings/localization/SubtypeEditorScreen.kt	S	431	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
+app/src/main/kotlin/dev/patrickgold/florisboard/app/settings/localization/SubtypeEditorState.kt	S	85	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
+app/src/main/kotlin/dev/patrickgold/florisboard/app/settings/theme/Color.kt	S	9	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
+app/src/main/kotlin/dev/patrickgold/florisboard/app/settings/theme/DisplayKbdAfterDialog.kt	S	6	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
+app/src/main/kotlin/dev/patrickgold/florisboard/app/settings/theme/EditCodeValueDialog.kt	S	295	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
+app/src/main/kotlin/dev/patrickgold/florisboard/app/settings/theme/EditPropertyDialog.kt	S	1184	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
+app/src/main/kotlin/dev/patrickgold/florisboard/app/settings/theme/EditRuleDialog.kt	S	276	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
+app/src/main/kotlin/dev/patrickgold/florisboard/app/settings/theme/EnumLikeAttributeBox.kt	S	98	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
+app/src/main/kotlin/dev/patrickgold/florisboard/app/settings/theme/FineTuneDialog.kt	S	39	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
+app/src/main/kotlin/dev/patrickgold/florisboard/app/settings/theme/SnyggLevel.kt	S	6	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
+app/src/main/kotlin/dev/patrickgold/florisboard/app/settings/theme/SnyggValueIcon.kt	S	304	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
+app/src/main/kotlin/dev/patrickgold/florisboard/app/settings/theme/TextKeyDataPreviewBox.kt	S	99	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
+app/src/main/kotlin/dev/patrickgold/florisboard/app/settings/theme/ThemeEditorComponents.kt	S	329	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
+app/src/main/kotlin/dev/patrickgold/florisboard/app/settings/theme/ThemeEditorLoading.kt	S	55	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
+app/src/main/kotlin/dev/patrickgold/florisboard/app/settings/theme/ThemeEditorScreen.kt	S	453	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
+app/src/main/kotlin/dev/patrickgold/florisboard/app/settings/theme/ThemeManagerScreen.kt	S	120	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
+app/src/main/kotlin/dev/patrickgold/florisboard/app/settings/theme/ThemeTranslations.kt	S	162	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
+app/src/main/kotlin/dev/patrickgold/florisboard/app/setup/NotificationPermissionState.kt	P	6	setup permission-progress state |
+app/src/main/kotlin/dev/patrickgold/florisboard/app/setup/SetupScreen.kt	M	223	ActivityResultContracts / InputMethodManager; setup steps/navigation and Compose drawing |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/ImeUiMode.kt	P	10	portable ImeUiMode domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/clipboard/ClipboardComponents.kt	K	99	Compose keyboard (keyboard scope): deleted at compose-removal step K
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/clipboard/ClipboardGridConstants.kt	P	2	portable ClipboardGridConstants domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/clipboard/ClipboardHeader.kt	K	116	Compose keyboard (keyboard scope): deleted at compose-removal step K
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/clipboard/ClipboardHistory.kt	P	12	portable ClipboardHistory domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/clipboard/ClipboardInputLayout.kt	K	425	Compose keyboard (keyboard scope): deleted at compose-removal step K
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/clipboard/ClipboardItemView.kt	K	150	Compose keyboard (keyboard scope): deleted at compose-removal step K
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/clipboard/ClipboardManager.kt	M	258	android.content.ClipboardManager / Room; lifecycle, collection and effect sequencing |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/clipboard/ClipboardPolicy.kt	A	14	ART JNI; native model/geometry/plan projection only, no independent domain choice |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/clipboard/ClipboardSyncBehavior.kt	P	7	portable ClipboardSyncBehavior domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/clipboard/FlorisCopyToClipboardActivity.kt	M	159	Intent ACTION_SEND / ClipData; share-target drawing and error UI |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/clipboard/provider/ClipboardDatabase.kt	M	298	Room / ClipData / ContentResolver; entities remain, equality/display/serialization policy moves |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/clipboard/provider/ClipboardFileStorage.kt	A	38	ContentResolver / java.io.File; URI-byte storage and file deletion |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/clipboard/provider/ClipboardMediaProvider.kt	M	154	ContentProvider / ParcelFileDescriptor; MIME/query/update dispatch and metadata rules |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/core/DisplayLanguageNamesIn.kt	P	5	portable DisplayLanguageNamesIn domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/core/SelectSubtypePanel.kt	K	75	Compose keyboard (keyboard scope): deleted at compose-removal step K
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/core/Subtype.kt	P	131	portable Subtype domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/core/SubtypeFallback.kt	A	6	ART JNI; native model/geometry/plan projection only, no independent domain choice |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/core/SubtypeManager.kt	M	87	Context / Jetpref; subtype lookup/resources and persistence orchestration |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/core/SubtypeSelectionState.kt	P	3	portable SubtypeSelectionState domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/dictionary/DictionaryManager.kt	M	138	Room / UserDictionary provider; dictionary readiness/query composition |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/dictionary/UserDictionary.kt	M	406	Room / ContentResolver / Cursor; import/export/filter and locale rules |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/dictionary/UserDictionaryValidation.kt	P	57	portable UserDictionaryValidation domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/editor/AbstractEditorInstance.kt	M	151	InputConnection; composing setup, reconciliation and content publication guards |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/editor/EditorContent.kt	P	34	portable EditorContent domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/editor/EditorInstance.kt	M	313	InputConnection / ClipboardManager; rich-content and editor operation orchestration |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/editor/EditorPlanExecutor.kt	A	89	InputConnection / KeyEvent; ordered native editor effects |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/editor/EditorRange.kt	P	26	portable EditorRange domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/editor/FlorisEditorInfo.kt	M	71	EditorInfo / EmojiCompat; field comparisons, compatibility and initial-text projection |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/editor/ImeOptions.kt	M	32	EditorInfo / InputType; native bit facts stay at edge, move Kotlin enum lookup/default fallback decisions |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/editor/InputAttributes.kt	M	66	EditorInfo / InputType; native bit facts stay at edge, move Kotlin enum lookup/default fallback decisions |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/input/CapitalizationBehavior.kt	P	5	portable CapitalizationBehavior domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/input/DeleteTiming.kt	A	17	SystemClock / Log; numeric repeat-delete measurement instrumentation |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/input/HapticVibrationMode.kt	P	5	portable HapticVibrationMode domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/input/InputEventDispatcher.kt	M	100	SystemClock / ViewConfiguration; event/repeat scheduling and admission wrapper |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/input/InputFeedbackActivationMode.kt	P	5	portable InputFeedbackActivationMode domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/input/InputFeedbackController.kt	M	67	AudioManager / Vibrator / View.performHapticFeedback; fallback feedback execution policy |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/input/InputShiftState.kt	P	12	portable InputShiftState domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/keyboard/ComputingEvaluator.kt	M	202	Resources / ImageVector; key label/icon/default choices |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/keyboard/CurrencySet.kt	P	30	portable CurrencySet domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/keyboard/FlorisImeSizing.kt	M	145	WindowManager / WindowInsets; host layout and height selection |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/keyboard/IncognitoMode.kt	P	6	portable IncognitoMode domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/keyboard/Key.kt	P	19	portable Key domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/keyboard/KeyData.kt	P	105	portable KeyData domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/keyboard/Keyboard.kt	P	72	portable Keyboard domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/keyboard/KeyboardComputingEvaluator.kt	M	73	Context / Resources; enabled/visible/fallback fact assembly |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/keyboard/KeyboardEditing.kt	M	150	KeyEvent / InputConnection; commit/delete/selection/autocorrect orchestration |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/keyboard/KeyboardExtension.kt	P	70	portable KeyboardExtension domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/keyboard/KeyboardKeyEvents.kt	M	100	InputConnection / IME APIs; remaining CLEAR_CLIP preference branch and route fact selection |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/keyboard/KeyboardManager.kt	M	240	Context / Toast; input/editor/NLP/state coordination |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/keyboard/KeyboardManagerResources.kt	M	83	Context.assets / LiveData; extension lookup and resource publication |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/keyboard/KeyboardMode.kt	P	23	portable KeyboardMode domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/keyboard/KeyboardState.kt	M	137	Android host Flow/Compose binding; mutation batches and model ownership |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/keyboard/LayoutArrangement.kt	P	16	portable LayoutArrangement domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/keyboard/LayoutAssembly.kt	A	22	ART JNI; native model/geometry/plan projection only, no independent domain choice |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/keyboard/LayoutManager.kt	M	168	Context.assets; cache/load/concurrency and layout object ownership |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/keyboard/LayoutType.kt	P	45	portable LayoutType domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/keyboard/ShiftLogic.kt	A	67	ART JNI; native model/geometry/plan projection only, no independent domain choice |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/keyboard/SpaceBarMode.kt	P	6	portable SpaceBarMode domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/landscapeinput/LandscapeInputUiMode.kt	P	6	portable LandscapeInputUiMode domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/lifecycle/LifecycleInputMethodService.kt	A	60	InputMethodService / LifecycleRegistry / SavedStateRegistry |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/media/MediaInputLayout.kt	K	177	Compose keyboard (keyboard scope): deleted at compose-removal step K
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/media/emoji/Emoji.kt	P	72	portable Emoji domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/media/emoji/EmojiCategory.kt	P	40	portable EmojiCategory domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/media/emoji/EmojiData.kt	M	79	Context.assets; asset selection and native table projection |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/media/emoji/EmojiHistory.kt	P	63	portable EmojiHistory domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/media/emoji/EmojiPaletteView.kt	K	599	Compose keyboard (keyboard scope): deleted at compose-removal step K
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/media/emoji/EmojiSet.kt	P	29	portable EmojiSet domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/media/emoji/EmojiSuggestionProvider.kt	M	84	Context.assets; provider lifecycle and suggestion publication |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/media/emoji/EmojiSuggestionType.kt	P	5	portable EmojiSuggestionType domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/media/emoji/FlorisEmojiCompat.kt	M	38	EmojiCompat / font APIs; loading and readiness fallbacks |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/media/emoticon/EmoticonKeyData.kt	P	7	portable EmoticonKeyData domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/media/emoticon/EmoticonLayoutData.kt	P	16	portable EmoticonLayoutData domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/nlp/BreakIteratorGroup.kt	M	95	android.icu.text.BreakIterator; keep boundaries, move count/clamp/cache policy |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/nlp/ClipboardSuggestionProvider.kt	M	66	ClipboardManager; candidate gating and removal sequencing |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/nlp/LanguagePackExtension.kt	P	34	portable LanguagePackExtension domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/nlp/NlpInlineAutofill.kt	A	39	InlineSuggestion.inflate / InlineContentView; actual Android autofill views |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/nlp/NlpManager.kt	M	342	SystemClock / provider IO; remaining worker/transport and candidate publication orchestration |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/nlp/NlpProviders.kt	P	94	portable NlpProviders domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/nlp/NlpState.kt	M	117	Context / InputConnection facts; native protocol projection and publication |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/nlp/PunctuationRule.kt	P	29	portable PunctuationRule domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/nlp/SpellingLanguageMode.kt	P	5	portable SpellingLanguageMode domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/nlp/SpellingResult.kt	M	32	SuggestionsInfo; remaining result flag/result-list mapping |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/nlp/SuggestionCandidate.kt	M	66	Resources / ClipData / ImageVector; display/icon/removal decisions |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/nlp/TypingCounters.kt	A	29	private counter file IO and event forwarding into Rust NlpState; the counts are Rust
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/nlp/latin/LatinLanguageProvider.kt	M	330	Room / File / SystemClock; dictionary/provider selection, caches and load/error state |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/onehanded/OneHandedMode.kt	P	5	portable OneHandedMode domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/onehanded/OneHandedPanel.kt	K	89	Compose keyboard (keyboard scope): deleted at compose-removal step K
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/popup/ExtendedPopup.kt	A	34	ART JNI; native model/geometry/plan projection only, no independent domain choice |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/popup/PopupMapping.kt	P	15	portable PopupMapping domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/popup/PopupSet.kt	P	162	portable PopupSet domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/popup/PopupUi.kt	K	115	Compose keyboard (keyboard scope): deleted at compose-removal step K
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/popup/PopupUiController.kt	K	206	Compose keyboard (keyboard scope): deleted at compose-removal step K
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/popup/PopupVisibilityState.kt	P	3	portable PopupVisibilityState domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/sheet/BottomSheetHostUi.kt	K	51	Compose keyboard (keyboard scope): deleted at compose-removal step K
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/sheet/BottomSheetState.kt	P	3	portable BottomSheetState domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/smartbar/CandidatesDisplayMode.kt	P	6	portable CandidatesDisplayMode domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/smartbar/CandidatesRow.kt	K	219	Compose keyboard (keyboard scope): deleted at compose-removal step K
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/smartbar/ExtendedActionsPlacement.kt	P	6	portable ExtendedActionsPlacement domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/smartbar/IncognitoDisplayMode.kt	P	5	portable IncognitoDisplayMode domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/smartbar/InlineSuggestionsUi.kt	M	74	InlineContentView; replace Compose layout with Rust bounds and Android interop |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/smartbar/Smartbar.kt	K	419	Compose keyboard (keyboard scope): deleted at compose-removal step K
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/smartbar/SmartbarLayout.kt	P	7	portable SmartbarLayout domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/smartbar/quickaction/QuickAction.kt	M	117	InputConnection / Resources; pointer dispatch and dynamic display labels |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/smartbar/quickaction/QuickActionArrangement.kt	P	33	portable QuickActionArrangement domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/smartbar/quickaction/QuickActionButton.kt	K	195	Compose keyboard (keyboard scope): deleted at compose-removal step K
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/smartbar/quickaction/QuickActionsEditorPanel.kt	K	320	Compose keyboard (keyboard scope): deleted at compose-removal step K
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/smartbar/quickaction/QuickActionsOverflowPanel.kt	K	74	Compose keyboard (keyboard scope): deleted at compose-removal step K
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/smartbar/quickaction/QuickActionsRow.kt	K	79	Compose keyboard (keyboard scope): deleted at compose-removal step K
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/text/TextInputLayout.kt	K	79	Compose keyboard (keyboard scope): deleted at compose-removal step K
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/text/composing/Composer.kt	P	35	portable Composer domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/text/gestures/GlideTypingClassifier.kt	P	11	portable GlideTypingClassifier domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/text/gestures/GlideTypingGesture.kt	M	94	MotionEvent / Resources; detector lifecycle and pointer-to-domain projection |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/text/gestures/GlideTypingManager.kt	M	77	SystemClock / resource IO; async generation and publication orchestration |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/text/gestures/StatisticalGlideTypingClassifier.kt	M	195	Context / Android collections; index/cache/build/query ownership |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/text/gestures/SwipeAction.kt	P	72	portable SwipeAction domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/text/gestures/SwipeGesture.kt	M	126	MotionEvent / VelocityTracker; event qualification and detector transport |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/text/gestures/SwipeIndex.kt	M	85	Normalizer / Android collections; index construction and word/key projection |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/text/key/KeyCode.kt	P	103	portable KeyCode domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/text/key/KeyHintConfiguration.kt	P	10	portable KeyHintConfiguration domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/text/key/KeyHintMode.kt	P	7	portable KeyHintMode domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/text/key/KeyType.kt	P	38	portable KeyType domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/text/key/KeyVariation.kt	P	20	portable KeyVariation domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/text/key/UtilityKeyAction.kt	P	8	portable UtilityKeyAction domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/text/keyboard/TextKey.kt	P	147	portable TextKey domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/text/keyboard/TextKeyData.kt	M	187	android.icu.lang.UCharacter; keep platform casing facts, move retained model/cache state |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/text/keyboard/TextKeyboard.kt	P	123	portable TextKeyboard domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/text/keyboard/TextKeyboardCache.kt	P	20	portable TextKeyboardCache domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/text/keyboard/TextKeyboardLayout.kt	K	305	Compose keyboard (keyboard scope): deleted at compose-removal step K
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/text/keyboard/TextKeyboardLayoutController.kt	K	392	Compose keyboard (keyboard scope): deleted at compose-removal step K
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/text/keyboard/TextKeyboardSwipe.kt	K	228	Compose keyboard (keyboard scope): deleted at compose-removal step K
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/theme/FlorisAssetResolver.kt	A	29	Context.filesDir / assets; native-selected asset path resolution |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/theme/FlorisImeTheme.kt	M	62	Resources / composition locals; base-style/layout-default choice and theme hosting |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/theme/FlorisImeThemeBaseStyle.kt	P	333	portable FlorisImeThemeBaseStyle domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/theme/FlorisImeUi.kt	P	358	portable Snygg element/attribute schema; move schema ownership to Rust |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/theme/FlorisImeUiSpec.kt	P	1	portable FlorisImeUiSpec domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/theme/ThemeExtension.kt	P	37	portable ThemeExtension domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/theme/ThemeExtensionComponent.kt	P	74	portable ThemeExtensionComponent domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/theme/ThemeManager.kt	M	309	Resources / InlineSuggestionUi; active-theme/day-night choice and inline styles |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/theme/ThemeMode.kt	P	7	portable ThemeMode domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
+app/src/main/kotlin/dev/patrickgold/florisboard/lib/FlorisLocale.kt	M	102	Android Locale/ICU locale names; tag/selection/cache behavior needs explicit native ownership |
+app/src/main/kotlin/dev/patrickgold/florisboard/lib/FlorisRect.kt	P	185	rectangle geometry/intersection/containment |
+app/src/main/kotlin/dev/patrickgold/florisboard/lib/Native.kt	A	3	ART JNI / ByteBuffer; native string and pointer wrapper ownership |
+app/src/main/kotlin/dev/patrickgold/florisboard/lib/Pointer.kt	P	81	pointer registry, reuse and reset rules |
+app/src/main/kotlin/dev/patrickgold/florisboard/lib/StateAdapters.kt	A	41	LiveData.observe / LifecycleOwner; observable platform bindings |
+app/src/main/kotlin/dev/patrickgold/florisboard/lib/Unicode.kt	A	15	android.icu.lang.UCharacter; Android character facts |
+app/src/main/kotlin/dev/patrickgold/florisboard/lib/Validation.kt	M	109	Resources; validation-result/model and message-choice ownership |
+app/src/main/kotlin/dev/patrickgold/florisboard/lib/cache/CacheManager.kt	M	186	Context.cacheDir / ContentResolver; workspace/import lifetime and selection |
+app/src/main/kotlin/dev/patrickgold/florisboard/lib/compose/FlorisDialogs.kt	S	46	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
+app/src/main/kotlin/dev/patrickgold/florisboard/lib/compose/FlorisHyperlinkText.kt	S	30	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
+app/src/main/kotlin/dev/patrickgold/florisboard/lib/compose/FlorisScreen.kt	S	124	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
+app/src/main/kotlin/dev/patrickgold/florisboard/lib/compose/ImageVector.kt	S	13	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
+app/src/main/kotlin/dev/patrickgold/florisboard/lib/compose/PreviewKeyboardField.kt	S	123	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
+app/src/main/kotlin/dev/patrickgold/florisboard/lib/compose/SystemUi.kt	M	39	WindowInsetsController; Kotlin luminance/icon-mode selection |
+app/src/main/kotlin/dev/patrickgold/florisboard/lib/compose/Validation.kt	S	27	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
+app/src/main/kotlin/dev/patrickgold/florisboard/lib/crashutility/CrashDialogActivity.kt	M	120	Activity / Intent / ClipboardManager; crash screen drawing and report composition |
+app/src/main/kotlin/dev/patrickgold/florisboard/lib/crashutility/CrashUtility.kt	M	275	Application.ActivityLifecycleCallbacks / NotificationManager; crash retention/routing policy |
+app/src/main/kotlin/dev/patrickgold/florisboard/lib/devtools/Devtools.kt	M	126	Build / Resources; still called by crash dialog; report composition is portable |
+app/src/main/kotlin/dev/patrickgold/florisboard/lib/devtools/Flog.kt	M	152	android.util.Log; topic gate, tag/message and redaction/formatting policy |
+app/src/main/kotlin/dev/patrickgold/florisboard/lib/devtools/LogTopic.kt	P	23	portable LogTopic domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
+app/src/main/kotlin/dev/patrickgold/florisboard/lib/ext/Extension.kt	M	99	Context / Uri; file handles and extension load/unload ownership |
+app/src/main/kotlin/dev/patrickgold/florisboard/lib/ext/ExtensionCodec.kt	P	26	portable ExtensionCodec domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
+app/src/main/kotlin/dev/patrickgold/florisboard/lib/ext/ExtensionComponent.kt	P	52	portable ExtensionComponent domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
+app/src/main/kotlin/dev/patrickgold/florisboard/lib/ext/ExtensionDefaults.kt	P	12	portable ExtensionDefaults domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
+app/src/main/kotlin/dev/patrickgold/florisboard/lib/ext/ExtensionMaintainer.kt	P	36	portable ExtensionMaintainer domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
+app/src/main/kotlin/dev/patrickgold/florisboard/lib/ext/ExtensionManager.kt	M	219	FileObserver / Context.assets; import/index/refresh lifetime and routing |
+app/src/main/kotlin/dev/patrickgold/florisboard/lib/ext/ExtensionMeta.kt	P	22	portable ExtensionMeta domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
+app/src/main/kotlin/dev/patrickgold/florisboard/lib/ext/ExtensionValidation.kt	P	138	portable ExtensionValidation domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
+app/src/main/kotlin/dev/patrickgold/florisboard/lib/io/AssetManager.kt	M	125	Context.assets / File; source selection, admission and operation composition |
+app/src/main/kotlin/dev/patrickgold/florisboard/lib/io/FileRegistry.kt	P	56	portable FileRegistry domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
+app/src/main/kotlin/dev/patrickgold/florisboard/lib/io/FlorisRef.kt	M	147	Context / Uri / File; scheme/subpath validation and model ownership |
+app/src/main/kotlin/dev/patrickgold/florisboard/lib/io/ZipUtils.kt	M	131	ContentResolver / ZipFile; archive traversal and path/admission policy |
+app/src/main/kotlin/dev/patrickgold/florisboard/lib/util/AppVersionUtils.kt	M	50	Context / Jetpref; version/changelog choice and comparison |
+app/src/main/kotlin/dev/patrickgold/florisboard/lib/util/InputMethodUtils.kt	A	66	InputMethodManager / Settings.Secure; IME status/picker/enabler |
+app/src/main/kotlin/dev/patrickgold/florisboard/lib/util/LaunchUtils.kt	A	63	Context.startActivity / Intent / Toast; executes requested effects |
+app/src/main/kotlin/dev/patrickgold/florisboard/lib/util/NetworkUtils.kt	P	29	portable NetworkUtils domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
+app/src/main/kotlin/dev/patrickgold/florisboard/lib/util/TimeUtils.kt	A	14	android.icu.text.SimpleDateFormat / Instant; platform clock formatting |
+app/src/main/kotlin/dev/patrickgold/florisboard/lib/util/ViewUtils.kt	A	47	View.layoutParams / Resources.DisplayMetrics; Android bounds application |
+lib/android/src/main/kotlin/org/florisboard/lib/android/AndroidAssetsManager.kt	A	43	android.content.res.AssetManager; stream access/closing |
+lib/android/src/main/kotlin/org/florisboard/lib/android/AndroidClipboardManager.kt	A	10	android.content.ClipboardManager; Android service accessor |
+lib/android/src/main/kotlin/org/florisboard/lib/android/AndroidInternalR.kt	A	37	Resources.getIdentifier; platform resource lookup |
+lib/android/src/main/kotlin/org/florisboard/lib/android/AndroidKeyguardManager.kt	A	2	android.app.KeyguardManager; Android service accessor |
+lib/android/src/main/kotlin/org/florisboard/lib/android/AndroidSettings.kt	A	63	Settings.System / Secure / Global; platform queries and observation |
+lib/android/src/main/kotlin/org/florisboard/lib/android/Configuration.kt	A	8	Resources.Configuration; Android orientation facts |
+lib/android/src/main/kotlin/org/florisboard/lib/android/ContentResolver.kt	A	71	android.content.ContentResolver; streams and asset-file descriptors |
+lib/android/src/main/kotlin/org/florisboard/lib/android/Context.kt	A	28	Context.getSystemService / Resources; Android lookup extensions |
+lib/android/src/main/kotlin/org/florisboard/lib/android/FileObserver.kt	A	8	android.os.FileObserver; platform file-change delivery |
+lib/android/src/main/kotlin/org/florisboard/lib/android/SystemSettingObserver.kt	A	18	ContentObserver / Handler; setting-change transport |
+lib/android/src/main/kotlin/org/florisboard/lib/android/Toast.kt	A	72	android.widget.Toast; requested Android notifications |
+lib/android/src/main/kotlin/org/florisboard/lib/android/UriSerializer.kt	A	19	android.net.Uri; platform URI string transport |
+lib/android/src/main/kotlin/org/florisboard/lib/android/Vibrator.kt	M	25	Vibrator / VibrationEffect; amplitude/duration/fallback choices |
+lib/color/src/main/kotlin/org/florisboard/lib/color/ColorMappings.kt	M	57	Resources system accent; neutral/dynamic role construction and colour rules |
+lib/color/src/main/kotlin/org/florisboard/lib/color/ColorPalette.kt	M	83	Android Material colour facts; role-name/default mappings |
+lib/color/src/main/kotlin/org/florisboard/lib/color/MaterialYouFlags.kt	P	23	portable MaterialYouFlags domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
+lib/compose/src/main/kotlin/org/florisboard/lib/compose/ClickableModifiers.kt	S	23	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
+lib/compose/src/main/kotlin/org/florisboard/lib/compose/DisposableLifecycleEffect.kt	A	28	LifecycleEventObserver; lifecycle subscription (Compose wrapper later replaceable) |
+lib/compose/src/main/kotlin/org/florisboard/lib/compose/DpSpSizeFuns.kt	S	20	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
+lib/compose/src/main/kotlin/org/florisboard/lib/compose/FlorisAnimation.kt	S	35	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
+lib/compose/src/main/kotlin/org/florisboard/lib/compose/FlorisAppBar.kt	S	31	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
+lib/compose/src/main/kotlin/org/florisboard/lib/compose/FlorisBulletSpacer.kt	S	26	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
+lib/compose/src/main/kotlin/org/florisboard/lib/compose/FlorisButtonBar.kt	S	104	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
+lib/compose/src/main/kotlin/org/florisboard/lib/compose/FlorisButtons.kt	S	109	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
+lib/compose/src/main/kotlin/org/florisboard/lib/compose/FlorisCanvasIcon.kt	S	46	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
+lib/compose/src/main/kotlin/org/florisboard/lib/compose/FlorisCards.kt	S	250	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
+lib/compose/src/main/kotlin/org/florisboard/lib/compose/FlorisChip.kt	S	66	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
+lib/compose/src/main/kotlin/org/florisboard/lib/compose/FlorisDropdownLikeButton.kt	S	53	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
+lib/compose/src/main/kotlin/org/florisboard/lib/compose/FlorisStepLayout.kt	S	268	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
+lib/compose/src/main/kotlin/org/florisboard/lib/compose/LazyGrid.kt	S	11	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
+lib/compose/src/main/kotlin/org/florisboard/lib/compose/Modifier.kt	M	9	View scrolling interop; Compose scroll/layout wrapper must become native bounds |
+lib/compose/src/main/kotlin/org/florisboard/lib/compose/Resources.kt	A	87	Resources.getString / getQuantityString / Configuration; locale and resource facts |
+lib/compose/src/main/kotlin/org/florisboard/lib/compose/RtlModifiers.kt	S	13	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
+lib/compose/src/main/kotlin/org/florisboard/lib/compose/ScrollableModifiers.kt	S	238	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
+lib/compose/src/main/kotlin/org/florisboard/lib/compose/State.kt	A	60	Settings content observers / LifecycleEventObserver; Android state binding |
+lib/compose/src/main/kotlin/org/florisboard/lib/compose/icons/KeyboardForwardDelete.kt	S	44	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
+lib/kotlin/src/main/kotlin/org/florisboard/lib/kotlin/Class.kt	P	9	portable Class domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
+lib/kotlin/src/main/kotlin/org/florisboard/lib/kotlin/Collections.kt	P	11	portable Collections domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
+lib/kotlin/src/main/kotlin/org/florisboard/lib/kotlin/Flow.kt	P	13	portable Flow domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
+lib/kotlin/src/main/kotlin/org/florisboard/lib/kotlin/GuardedByLock.kt	P	25	portable GuardedByLock domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
+lib/kotlin/src/main/kotlin/org/florisboard/lib/kotlin/Library.kt	P	13	portable Library domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
+lib/kotlin/src/main/kotlin/org/florisboard/lib/kotlin/MimeTypeFilter.kt	P	31	portable MimeTypeFilter domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
+lib/kotlin/src/main/kotlin/org/florisboard/lib/kotlin/Numbers.kt	P	2	portable Numbers domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
+lib/kotlin/src/main/kotlin/org/florisboard/lib/kotlin/Result.kt	P	28	portable Result domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
+lib/kotlin/src/main/kotlin/org/florisboard/lib/kotlin/Strings.kt	P	66	portable Strings domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
+lib/kotlin/src/main/kotlin/org/florisboard/lib/kotlin/UtilityRules.kt	A	9	ART JNI; utility request/result packet transport |
+lib/kotlin/src/main/kotlin/org/florisboard/lib/kotlin/io/FsFile.kt	P	23	portable FsFile domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
+lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/BackupPolicy.kt	A	25	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
+lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/ClipboardRules.kt	A	11	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
+lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/Composing.kt	A	30	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
+lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/ComposingNative.kt	A	9	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
+lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/Dictation.kt	A	42	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
+lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/DictationNative.kt	A	15	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
+lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/DictationSessionPlan.kt	A	46	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
+lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/EditorSession.kt	A	50	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
+lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/Emoji.kt	A	61	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
+lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/EmojiNative.kt	A	13	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
+lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/ExtensionPolicy.kt	A	31	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
+lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/Gestures.kt	A	93	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
+lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/GesturesNative.kt	A	46	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
+lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/Gif.kt	M	44	ART JNI; residual signed-order decoding helpers and cache payload lifetime |
+lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/GifNative.kt	A	28	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
+lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/Giphy.kt	A	25	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
+lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/GiphyNative.kt	A	10	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
+lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/Glide.kt	A	93	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
+lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/GlideNative.kt	A	34	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
+lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/GlideTrailRules.kt	A	5	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
+lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/ImeChromeRules.kt	A	13	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
+lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/ImeWindowRules.kt	A	5	JNI external declaration for the window visibility rule
+lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/InputDispatch.kt	A	29	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
+lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/JavaText.kt	A	33	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
+lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/JavaTextNative.kt	A	25	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
+lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/KeyModels.kt	A	22	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
+lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/KeyboardRenderer.kt	A	179	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
+lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/Keys.kt	A	29	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
+lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/KeysNative.kt	A	25	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
+lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/LatinSession.kt	A	78	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
+lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/LayoutCache.kt	A	13	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
+lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/LayoutRules.kt	A	22	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
+lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/MediaRules.kt	A	7	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
+lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/NativeGlide.kt	A	16	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
+lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/NativeRuntime.kt	A	24	library load and failure state for the bootstrap (System.loadLibrary)
+lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/NlpSession.kt	A	26	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
+lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/PanelRules.kt	A	22	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
+lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/Popup.kt	M	72	ART JNI; residual popup model/index/default projection |
+lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/PopupNative.kt	A	48	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
+lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/Reader.kt	A	78	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
+lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/ReaderNative.kt	A	35	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
+lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/ReaderRuntime.kt	A	44	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
+lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/RenderContentRules.kt	A	5	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
+lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/RustLibrary.kt	A	9	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
+lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/ScreenNative.kt	A	14	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
+lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/ScreenWalk.kt	A	19	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
+lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/SettingsRules.kt	A	52	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
+lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/SherpaAsr.kt	A	55	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
+lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/SherpaTts.kt	A	36	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
+lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/Shift.kt	A	34	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
+lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/ShiftNative.kt	A	9	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
+lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/SnyggCompiler.kt	A	5	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
+lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/SnyggGrammar.kt	A	5	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
+lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/SnyggValues.kt	A	5	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
+lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/Spacing.kt	M	94	ART JNI; residual editor callbacks/spacing orchestration facade |
+lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/SpacingNative.kt	A	17	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
+lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/SubtypeRules.kt	A	6	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
+lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/Suggest.kt	A	114	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
+lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/SuggestNative.kt	A	46	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
+lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/Suggester.kt	A	34	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
+lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/SuggesterNative.kt	A	11	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
+lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/Swipe.kt	A	37	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
+lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/SwipeNative.kt	A	19	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
+lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/Utf16Batch.kt	A	5	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
+lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/WordStores.kt	A	94	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
+lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/WordStoresNative.kt	A	47	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
+lib/snygg/src/main/kotlin/org/florisboard/lib/snygg/Snygg.kt	P	56	portable Snygg domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
+lib/snygg/src/main/kotlin/org/florisboard/lib/snygg/SnyggCompilerAdapter.kt	M	123	Resources colour/font materialization / ART JNI; retire Compose-domain object tokens after ports |
+lib/snygg/src/main/kotlin/org/florisboard/lib/snygg/SnyggEditorProperties.kt	P	57	editor map ownership and concurrent-modification semantics |
+lib/snygg/src/main/kotlin/org/florisboard/lib/snygg/SnyggGrammarAdapter.kt	P	88	portable SnyggGrammarAdapter domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
+lib/snygg/src/main/kotlin/org/florisboard/lib/snygg/SnyggJsonSchemaGenerator.kt	P	187	portable schema generation; source-set tooling, not Android API |
+lib/snygg/src/main/kotlin/org/florisboard/lib/snygg/SnyggPropertyCodec.kt	P	48	portable SnyggPropertyCodec domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
+lib/snygg/src/main/kotlin/org/florisboard/lib/snygg/SnyggPropertySet.kt	P	239	portable SnyggPropertySet domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
+lib/snygg/src/main/kotlin/org/florisboard/lib/snygg/SnyggPropertySetEditor.kt	P	303	portable SnyggPropertySetEditor domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
+lib/snygg/src/main/kotlin/org/florisboard/lib/snygg/SnyggRule.kt	P	77	portable SnyggRule domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
+lib/snygg/src/main/kotlin/org/florisboard/lib/snygg/SnyggSpecDecl.kt	P	181	schema declaration and builder state |
+lib/snygg/src/main/kotlin/org/florisboard/lib/snygg/SnyggStylesheet.kt	P	91	portable SnyggStylesheet domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
+lib/snygg/src/main/kotlin/org/florisboard/lib/snygg/SnyggStylesheetEditor.kt	P	76	portable SnyggStylesheetEditor domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
+lib/snygg/src/main/kotlin/org/florisboard/lib/snygg/SnyggTheme.kt	M	56	Android font files / ColorScheme; loading and default materialization around native compiler |
+lib/snygg/src/main/kotlin/org/florisboard/lib/snygg/ui/SnyggBox.kt	M	67	Android background surface; remaining Compose box/layout/drawing |
+lib/snygg/src/main/kotlin/org/florisboard/lib/snygg/ui/SnyggButton.kt	S	49	shared by the Compose keyboard and settings (keyboard/settings scope): deleted only after step K and steps 5-12, so filed as S
+lib/snygg/src/main/kotlin/org/florisboard/lib/snygg/ui/SnyggChip.kt	S	103	shared by the Compose keyboard and settings (keyboard/settings scope): deleted only after step K and steps 5-12, so filed as S
+lib/snygg/src/main/kotlin/org/florisboard/lib/snygg/ui/SnyggColumn.kt	S	58	shared by the Compose keyboard and settings (keyboard/settings scope): deleted only after step K and steps 5-12, so filed as S
+lib/snygg/src/main/kotlin/org/florisboard/lib/snygg/ui/SnyggIcon.kt	S	89	shared by the Compose keyboard and settings (keyboard/settings scope): deleted only after step K and steps 5-12, so filed as S
+lib/snygg/src/main/kotlin/org/florisboard/lib/snygg/ui/SnyggIconButton.kt	S	82	shared by the Compose keyboard and settings (keyboard/settings scope): deleted only after step K and steps 5-12, so filed as S
+lib/snygg/src/main/kotlin/org/florisboard/lib/snygg/ui/SnyggListItem.kt	S	124	shared by the Compose keyboard and settings (keyboard/settings scope): deleted only after step K and steps 5-12, so filed as S
+lib/snygg/src/main/kotlin/org/florisboard/lib/snygg/ui/SnyggPalette.kt	A	16	Resources / ART JNI; native palette projection |
+lib/snygg/src/main/kotlin/org/florisboard/lib/snygg/ui/SnyggRow.kt	S	64	shared by the Compose keyboard and settings (keyboard/settings scope): deleted only after step K and steps 5-12, so filed as S
+lib/snygg/src/main/kotlin/org/florisboard/lib/snygg/ui/SnyggSpacer.kt	S	57	shared by the Compose keyboard and settings (keyboard/settings scope): deleted only after step K and steps 5-12, so filed as S
+lib/snygg/src/main/kotlin/org/florisboard/lib/snygg/ui/SnyggSurfaceView.kt	M	174	SurfaceView / Drawable / Canvas; background scale/alignment/drawing must move to Rust |
+lib/snygg/src/main/kotlin/org/florisboard/lib/snygg/ui/SnyggText.kt	S	152	shared by the Compose keyboard and settings (keyboard/settings scope): deleted only after step K and steps 5-12, so filed as S
+lib/snygg/src/main/kotlin/org/florisboard/lib/snygg/ui/SnyggUi.kt	M	303	Resources fonts/density; modifier/layout/style/default conversion and Compose drawing |
+lib/snygg/src/main/kotlin/org/florisboard/lib/snygg/value/NativeSnyggValues.kt	P	83	portable NativeSnyggValues domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
+lib/snygg/src/main/kotlin/org/florisboard/lib/snygg/value/SnyggAppearanceValue.kt	P	49	portable SnyggAppearanceValue domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
+lib/snygg/src/main/kotlin/org/florisboard/lib/snygg/value/SnyggFontValue.kt	P	78	portable SnyggFontValue domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
+lib/snygg/src/main/kotlin/org/florisboard/lib/snygg/value/SnyggIdToValueMap.kt	P	26	portable SnyggIdToValueMap domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
+lib/snygg/src/main/kotlin/org/florisboard/lib/snygg/value/SnyggPaddingValue.kt	P	14	portable SnyggPaddingValue domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
+lib/snygg/src/main/kotlin/org/florisboard/lib/snygg/value/SnyggShapeValue.kt	P	97	portable SnyggShapeValue domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
+lib/snygg/src/main/kotlin/org/florisboard/lib/snygg/value/SnyggSizeValue.kt	P	30	portable SnyggSizeValue domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
+lib/snygg/src/main/kotlin/org/florisboard/lib/snygg/value/SnyggTextValue.kt	P	61	portable SnyggTextValue domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
+lib/snygg/src/main/kotlin/org/florisboard/lib/snygg/value/SnyggUriValue.kt	P	37	portable SnyggUriValue domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
+lib/snygg/src/main/kotlin/org/florisboard/lib/snygg/value/SnyggValue.kt	P	51	portable SnyggValue domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
+lib/snygg/src/main/kotlin/org/florisboard/lib/snygg/value/SnyggValueEncoder.kt	P	42	portable SnyggValueEncoder domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
+lib/snygg/src/main/kotlin/org/florisboard/lib/snygg/value/SnyggValueSpec.kt	P	248	portable SnyggValueSpec domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
+lib/snygg/src/main/kotlin/org/florisboard/lib/snygg/value/SnyggVarValue.kt	P	14	portable SnyggVarValue domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
