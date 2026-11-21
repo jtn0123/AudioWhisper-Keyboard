@@ -413,10 +413,17 @@ tasks.named("check") { dependsOn(checkNativeDeclarations) }
 
 // Ratchet for the hand-written production JVM files: each file's counted lines against its budget in
 // docs/jvm-ledger.tsv. It reads the source only, so it needs no APK.
+val testJvmLedger = tasks.register<Exec>("testJvmLedger") {
+    group = "verification"
+    description = "Runs the JVM ledger script's own unit tests."
+    workingDir(rootDir)
+    commandLine("python3", "-I", "-B", "-m", "unittest", "discover", "-s", "scripts", "-p", "test_jvm_ledger.py")
+}
 val checkJvmLedger = tasks.register<Exec>("checkJvmLedger") {
     group = "verification"
     description = "Rejects production JVM files that have no ledger row or are over or under their budget."
+    dependsOn(testJvmLedger)
     workingDir(rootDir)
-    commandLine("python3", "-I", "scripts/jvm-ledger.py", "--check")
+    commandLine("python3", "-I", "-B", "scripts/jvm-ledger.py", "--check")
 }
 tasks.named("check") { dependsOn(checkJvmLedger) }
