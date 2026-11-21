@@ -93,6 +93,7 @@ name = "awnative"
 version = "0.1.0"
 dependencies = [
  "backup",
+ "boundary",
  "chars",
  "composing",
  "dictation",
@@ -176,6 +177,10 @@ checksum = "3078c7629b62d3f0439517fa394996acacc5cbc91c5a20d8c658e77abd503a71"
 dependencies = [
  "generic-array",
 ]
+
+[[package]]
+name = "boundary"
+version = "0.1.0"
 
 [[package]]
 name = "bumpalo"

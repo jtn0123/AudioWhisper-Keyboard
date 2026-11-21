@@ -1,6 +1,6 @@
 //! Clipboard policy JNI transport, with lossless UTF-16 text equality and MIME matching.
 use crate::jni::{self, Env, Result, illegal};
-use jni_sys::{JNIEnv, jboolean, jclass, jlongArray, jobjectArray, jstring};
+use jni_sys::{JNIEnv, jboolean, jlongArray, jobject, jobjectArray, jstring};
 use render::clipboard_policy::{self as policy, Clip};
 use std::ptr;
 fn texts(env: &Env, input: jobjectArray) -> Result<Vec<Vec<u16>>> {
@@ -12,7 +12,7 @@ fn texts(env: &Env, input: jobjectArray) -> Result<Vec<Vec<u16>>> {
 #[unsafe(no_mangle)]
 pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_ClipboardNative_plan(
     env: *mut JNIEnv,
-    _: jclass,
+    _: jobject,
     records: jlongArray,
     strings: jobjectArray,
     config: jlongArray,
@@ -81,7 +81,7 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_ClipboardNative_plan(
 #[unsafe(no_mangle)]
 pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_ClipboardRules_mimeMatches(
     env: *mut JNIEnv,
-    _: jclass,
+    _: jobject,
     concrete: jstring,
     desired: jstring,
 ) -> jboolean {
@@ -98,7 +98,7 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_ClipboardRules_mimeMat
 #[unsafe(no_mangle)]
 pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_ClipboardRules_eligible(
     env: *mut JNIEnv,
-    _: jclass,
+    _: jobject,
     types: jobjectArray,
     editor: jobjectArray,
 ) -> jboolean {

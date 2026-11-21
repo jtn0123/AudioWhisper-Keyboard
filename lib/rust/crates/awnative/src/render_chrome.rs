@@ -4,12 +4,12 @@ use crate::{
     jni::{self, illegal},
     render::{Session, strings},
 };
-use jni_sys::{JNIEnv, jclass, jfloatArray, jintArray, jlong, jobjectArray};
+use jni_sys::{JNIEnv, jfloatArray, jintArray, jlong, jobject, jobjectArray};
 use std::ptr;
 #[unsafe(no_mangle)]
 pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_chrome(
     env: *mut JNIEnv,
-    _: jclass,
+    _: jobject,
     native: jlong,
     config: jfloatArray,
     labels: jobjectArray,
@@ -59,7 +59,7 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_chrome(
 #[unsafe(no_mangle)]
 pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_pixels(
     env: *mut JNIEnv,
-    _: jclass,
+    _: jobject,
     native: jlong,
 ) -> jintArray {
     // SAFETY: synchronized JVM owner retains the session; returned pixels are a fresh primitive array.
@@ -88,7 +88,7 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_pixels(
 #[unsafe(no_mangle)]
 pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_ImeChromeRules_oneHanded(
     env: *mut JNIEnv,
-    _: jclass,
+    _: jobject,
     config: jintArray,
 ) -> jfloatArray {
     // SAFETY: local array is copied, and the output is a fresh JVM-owned array.
@@ -110,7 +110,7 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_ImeChromeRules_oneHand
 #[unsafe(no_mangle)]
 pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_ImeChromeRules_sideButtons(
     env: *mut JNIEnv,
-    _: jclass,
+    _: jobject,
     config: jfloatArray,
 ) -> jfloatArray {
     // SAFETY: local array is copied and no reference escapes Rust.
@@ -133,7 +133,7 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_ImeChromeRules_sideBut
 #[unsafe(no_mangle)]
 pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_chromeInfo(
     env: *mut JNIEnv,
-    _: jclass,
+    _: jobject,
     native: jlong,
 ) -> jfloatArray {
     // SAFETY: synchronized JVM owner retains the session; output values are copied.
@@ -152,7 +152,7 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_chromeInf
 #[unsafe(no_mangle)]
 pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_ImeChromeRules_extract(
     env: *mut JNIEnv,
-    _: jclass,
+    _: jobject,
     config: jfloatArray,
 ) -> jfloatArray {
     // SAFETY: local input is copied; output is a new primitive array.
@@ -192,7 +192,7 @@ pub(crate) fn argb(pixels: &[u8]) -> Vec<i32> {
 #[unsafe(no_mangle)]
 pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_ImeChromeRules_previewSize(
     env: *mut JNIEnv,
-    _: jclass,
+    _: jobject,
     config: jfloatArray,
 ) -> jintArray {
     // SAFETY: local input is copied; output is a new JVM-owned primitive array.
@@ -209,7 +209,7 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_ImeChromeRules_preview
 #[unsafe(no_mangle)]
 pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_ImeChromeRules_startEllipsis(
     env: *mut JNIEnv,
-    _: jclass,
+    _: jobject,
     labels: jobjectArray,
     config: jfloatArray,
 ) -> jobjectArray {
@@ -239,7 +239,7 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_ImeChromeRules_startEl
 #[unsafe(no_mangle)]
 pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_ImeChromeRules_minimumTarget(
     env: *mut JNIEnv,
-    _: jclass,
+    _: jobject,
     config: jfloatArray,
 ) -> jfloatArray {
     // SAFETY: the JVM input is copied; the result is a fresh local primitive array.
@@ -286,7 +286,7 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_ImeChromeRules_minimum
 #[unsafe(no_mangle)]
 pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_ImeChromeRules_fontMultiplier(
     env: *mut JNIEnv,
-    _: jclass,
+    _: jobject,
     config: jintArray,
 ) -> jni_sys::jfloat {
     // SAFETY: the local primitive array is copied before native policy is called.
@@ -308,7 +308,7 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_ImeChromeRules_fontMul
 #[unsafe(no_mangle)]
 pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_ImeChromeRules_rowHeights(
     env: *mut JNIEnv,
-    _: jclass,
+    _: jobject,
     base: jni_sys::jfloat,
     config: jintArray,
 ) -> jfloatArray {

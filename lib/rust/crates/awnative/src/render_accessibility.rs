@@ -4,7 +4,7 @@ use crate::{
     jni::illegal,
     render::{Session, strings},
 };
-use jni_sys::{JNIEnv, jclass, jint, jintArray, jlong, jobjectArray, jstring};
+use jni_sys::{JNIEnv, jint, jintArray, jlong, jobject, jobjectArray, jstring};
 use render::accessibility_labels::Labels;
 use serde_json::json;
 use std::ptr;
@@ -12,7 +12,7 @@ use std::ptr;
 #[unsafe(no_mangle)]
 pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_semanticCancel(
     env: *mut JNIEnv,
-    _: jclass,
+    _: jobject,
     native: jlong,
 ) -> jintArray {
     // SAFETY: synchronized owner retains the session and receives a new local action array.
@@ -33,7 +33,7 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_semanticC
 #[unsafe(no_mangle)]
 pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_semanticConfig(
     env: *mut JNIEnv,
-    _: jclass,
+    _: jobject,
     native: jlong,
     names: jobjectArray,
     values: jobjectArray,
@@ -75,7 +75,7 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_semanticC
 #[unsafe(no_mangle)]
 pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_semanticSnapshot(
     env: *mut JNIEnv,
-    _: jclass,
+    _: jobject,
     native: jlong,
 ) -> jstring {
     // SAFETY: synchronized JVM owner retains the session; the new local string belongs to JVM.
@@ -98,7 +98,7 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_semanticS
 #[unsafe(no_mangle)]
 pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_semanticAction(
     env: *mut JNIEnv,
-    _: jclass,
+    _: jobject,
     native: jlong,
     id: jint,
     action: jint,

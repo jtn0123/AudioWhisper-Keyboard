@@ -940,12 +940,14 @@ lib/rust/
   crates/latin/               LatinIME's dictionary and typing search, ported from its C++
   crates/chars/               Kotlin's character rules, for crates that judge text as Kotlin did
   crates/awnative/            libawnative.so: the JNI functions Kotlin calls, and nothing else
+  crates/boundary/            host-only: generates both sides of the JNI boundary (see below)
   crates/latin-oracle/        test-only: LatinIME's C++ built for this computer, to compare the port with
   crates/scoreboard/          host-only: the typing scoreboard (see above)
   crates/lexicon/             host-only: corpus split, the v202 dictionary writer, the dictionary and n-gram model builds
   crates/ngram/               the n-gram model file and its reader: a word's probability after the words before it
   tools/                      generates crates/chars' tables (generate-char-tables.sh)
   src/main/kotlin/            the Kotlin side: loads the library and wraps each handle
+  build/generated/nativeBoundary/kotlin/   the generated Kotlin objects (never checked in)
   src/test/kotlin/            JVM tests that go through JNI
   build.gradle.kts            runs cargo
 ```
@@ -976,15 +978,75 @@ than the Kotlin being replaced took to do the work.
 from `rust-toolchain.toml`. If your rustup doesn't install them automatically, run
 `rustup toolchain install` in `lib/rust`.
 
-Gradle runs cargo twice:
+Gradle runs cargo three times:
 
 - `:lib:rust:cargoBuildAndroid` builds `libawnative.so` for arm64 Android, linked with the NDK's
   clang, and packages it as the module's native library.
 - `:lib:rust:cargoBuildHost` builds it for this computer, which the JVM unit tests (in `lib/rust`
   and `app`) load. It is an input of those tests, so changing the Rust runs them again.
+- `:lib:rust:generateNativeBoundary` writes the generated Kotlin objects (see below) before Kotlin
+  compiles.
 
 Gradle finds cargo in `$CARGO_HOME/bin` or `~/.cargo/bin`, because Android Studio doesn't see
 the shell's `PATH`.
+
+## The generated boundary
+
+Part of the JNI boundary is generated instead of written by hand. So far that is `ShiftNative`;
+the other bindings are still hand-written ([all-rust.md](all-rust.md), phase 2).
+
+`crates/boundary` holds typed declarations, one file for each Kotlin object in
+`src/declarations`: each method's name and doc, its parameters' names and types, and its return
+type. From that one table it writes both sides, so their names and types can't drift apart:
+
+- **The Kotlin object**: `internal object ShiftNative`, its `RustLibrary.load()` init and a
+  `@JvmStatic external fun` for each method. `:lib:rust:generateNativeBoundary` runs
+  `cargo run -p boundary` before Kotlin compiles, into `build/generated/nativeBoundary/kotlin`,
+  which every variant compiles as a source.
+- **The Rust entry points**: an `#[unsafe(no_mangle)] extern "system" fn Java_…` for each method,
+  which reads the JNI values, calls a hand-written function in awnative and returns its result,
+  or throws its error in Java. awnative's `build.rs` writes them into cargo's `OUT_DIR`, and
+  `src/boundary.rs` includes them.
+
+The entry points reach awnative through its build script because they hold `unsafe` JNI code,
+which may compile only in awnative; the generator writes that code as text and forbids `unsafe`
+itself. `boundary` is a build dependency of awnative, so cargo runs the build script again
+whenever a declaration changes, and the library can't be built from old declarations. Gradle
+writes the Kotlin again whenever `crates/boundary` changes. Nothing generated is checked in. Each
+cargo build keeps a copy of the entry points it compiled in `build/rust/boundary`, for
+`checkNativeDeclarations` to read.
+
+A declared method's hand-written function is in the awnative module its class names, called as
+the method is in snake case (`ShiftNative.isDoubleSpacePeriod` calls
+`crate::shift::is_double_space_period`), and takes and returns plain Rust types:
+
+| Declared | Kotlin | JNI | The Rust function |
+|---|---|---|---|
+| `Param::Int` | `Int` | `jint` | takes `i32` |
+| `Param::Long` | `Long` | `jlong` | takes `i64` |
+| `Param::String` | `String` | `jstring` | takes `&[u16]`: UTF-16, lone surrogates kept; a null throws |
+| `Return::Boolean` | `Boolean` | `jboolean` | returns `jni::Result<bool>` |
+| `Return::Int` | `Int` | `jint` | returns `jni::Result<i32>` |
+
+An `Err` throws in Java, as the hand-written entry points' errors do. Another type needs a variant
+of `Param` or `Return`, its spelling on each side, how the entry point converts it, and, for a
+return, an implementation of `boundary::Returned` in awnative.
+
+The generated code is laid out as the repo's own: the Rust as rustfmt would lay it out, which
+`cargo test -p boundary` checks against rustfmt, and the Kotlin in 120 columns. Neither carries
+`@Suppress` or `#[allow]`, and clippy checks the included entry points as it does the rest of
+awnative.
+
+To add a method to a generated object:
+
+1. Declare it in `crates/boundary/src/declarations/<module>.rs`: its name, doc, parameters and
+   return type. One method of a name: overloads are not supported.
+2. Write its `pub fn` in awnative's `<module>.rs`.
+3. Build. If the function is missing or its types differ, awnative doesn't compile.
+
+To generate an object that is written by hand today, add `src/declarations/<module>.rs` with its
+`Class`, list it in `CLASSES` (`src/declarations.rs`), turn its entry points into plain functions,
+and delete the hand-written Kotlin object.
 
 ## Checks
 
@@ -992,15 +1054,32 @@ the shell's `PATH`.
 ./gradlew :lib:rust:check   # cargo test, clippy with warnings as errors (here, and for Android
                             # with and without the GPU renderer), rustfmt --check
 ./gradlew test              # every JVM test, including those that go through JNI
-./gradlew :app:checkNativeDeclarations   # the debug APK's JNI exports against the Kotlin
+./gradlew :app:checkNativeDeclarations   # the debug APK's JNI exports and types against the Kotlin
 ```
 
 `:app:checkNativeDeclarations` (`scripts/native-declarations-check.py`, also run by
 `:lib:rust:check`) fails when a production Kotlin `external fun` has no export in the debug APK's
 `libawnative.so`, or an export there has no production declaration: one only tests declare
 belongs off the phone (`#[cfg(not(target_os = "android"))]`, as the host-only probes are, or a
-fixture feature), and one no Kotlin declares is dead. `scripts/native-declarations-mutation.py`
-breaks it each way.
+fixture feature), and one no Kotlin declares is dead.
+
+It also checks types, which names alone miss: a Rust entry point that takes a `jint` where Kotlin
+passes a `Long` still links, and the argument arrives cut short. Each module's debug classes give
+every production native method's JVM descriptor, and each of its Rust entry points, hand-written
+in awnative or generated, must take and return the JNI types `javac -h` would give it: `jclass`
+after the `JNIEnv` for a static method and `jobject` for an instance one, `jlong` for a `Long`,
+`jintArray` for an `IntArray`, `jobjectArray` for any array of objects. `i32` passes for `jint`
+and `f32` for `jfloat`, since jni-sys defines them so; `bool` does not pass for `jboolean`. The
+classes must declare the same native methods the sources do, so none escapes, and overloads are
+refused. The generated entry points it reads are the copy the APK's own cargo build compiled.
+
+`scripts/native-declarations-mutation.py` breaks the boundary six ways and requires the check to
+fail each, then pass restored: a declaration with no export, an export with no declaration, a
+test-only export shipped, a hand-written entry point that reads a `Long` as a `jint`, a generated
+declaration whose type changed on one side only, and a renamed entry point. A build can't
+regenerate only one side, so that case makes the two runs of the generator disagree (`cargo run`
+has debug assertions; awnative's release build script doesn't). `cargo test -p boundary` checks
+that the generator writes the same files every time, laid out as rustfmt would.
 
 `./gradlew :lib:rust:oracleCheck` runs the LatinIME C++ comparison through `latin-oracle`; it
 needs a C++ toolchain, and CI runs it as its own task.
@@ -1077,8 +1156,10 @@ APK. Every other build ignores the switch and draws on the CPU (see docs/decisio
 ## Adding a piece
 
 1. Add a crate under `crates/` with the logic and its tests; no JNI, no unsafe.
-2. Add its JNI functions to `awnative` (a new module, named after the crate) and the `external`
-   declarations and wrapper in `src/main/kotlin`.
+2. Add its JNI functions: a new awnative module, named after the crate, with a function for each,
+   declared in `crates/boundary` (see "The generated boundary"). Where the generator doesn't take
+   a type yet, write the entry points in that module and the `external` declarations in
+   `src/main/kotlin` by hand. The Kotlin wrapper goes in `src/main/kotlin`.
 3. Copy the Kotlin it replaces into the app's tests as a reference and write the differential
    test. Run it, and make it fail once on purpose.
 4. Switch the app over, delete the Kotlin, and check it on the emulator.

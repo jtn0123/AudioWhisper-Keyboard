@@ -1,12 +1,12 @@
 //! Font-independent oracle for the phone-key content placement used by the renderer.
 use crate::jni::{self, illegal};
-use jni_sys::{JNIEnv, jboolean, jclass, jfloatArray, jstring};
+use jni_sys::{JNIEnv, jboolean, jfloatArray, jobject, jstring};
 use std::ptr;
 
 #[unsafe(no_mangle)]
 pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderContentRules_phoneLabel(
     env: *mut JNIEnv,
-    _: jclass,
+    _: jobject,
     mode: jstring,
     kind: jstring,
     values: jfloatArray,

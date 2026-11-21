@@ -1,8 +1,10 @@
-"""Break the native boundary three ways; require the APK gate to reject each, then pass restored.
+"""Break the native boundary six ways; require the APK gate to reject each, then pass restored.
 
 python3 -I scripts/native-declarations-mutation.py OUTPUT [CASE...]
-The cases: a production Kotlin declaration with no export, an export no Kotlin declares, and an
-export only tests declare left in the phone's library. Each rebuilds the normal debug APK.
+The cases: a production Kotlin declaration with no export, an export no Kotlin declares, an export
+only tests declare left in the phone's library, a hand-written Rust entry point reading a Long as
+a jint, a generated declaration whose type changed on one side only, and a renamed Rust entry
+point. Each rebuilds the normal debug APK.
 """
 import argparse
 import hashlib
@@ -13,6 +15,10 @@ import subprocess
 ROOT = Path(__file__).resolve().parent.parent
 MISSING = 'Production native declarations missing from normal APK:'
 UNREFERENCED = 'JNI exports in normal APK that no production Kotlin declares:'
+NO_ENTRY_POINT = 'Production native declarations with no Rust entry point in awnative:'
+MISMATCHED = 'Rust entry points whose JNI types do not match the JVM descriptor:'
+KOTLIN = 'lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/'
+AWNATIVE = 'lib/rust/crates/awnative/src/'
 
 
 def append_before_last_brace(source, text):
@@ -20,22 +26,56 @@ def append_before_last_brace(source, text):
     return source[:at] + text + source[at:]
 
 
-# name: (file, mutate the source, lines the failing check must print).
+def replace_once(old, new):
+    """A mutation replacing `old`, which must occur exactly once, with `new`."""
+    def change(source):
+        assert source.count(old) == 1, 'expected exactly one ' + repr(old)
+        return source.replace(old, new)
+    return change
+
+
+# name: ([(file, mutate the source)], lines the failing check must print).
 CASES = {
     'declaration-without-export': (
-        'lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/SuggesterNative.kt',
-        lambda source: append_before_last_brace(
-            source, '    @JvmStatic external fun mutationMissingExport(): Int\n'),
+        [(KOTLIN + 'SuggesterNative.kt', lambda source: append_before_last_brace(
+            source, '    @JvmStatic external fun mutationMissingExport(): Int\n'))],
         [MISSING, 'Java_com_jtn0123_audiowhisper_rust_SuggesterNative_mutationMissingExport']),
     'export-without-declaration': (
-        'lib/rust/crates/awnative/src/reader.rs',
-        lambda source: source + '\n#[unsafe(no_mangle)]\npub extern "system" fn '
-                                'Java_com_jtn0123_audiowhisper_rust_ReaderNative_mutationUndeclared() {}\n',
+        [(AWNATIVE + 'reader.rs', lambda source: source + '\n#[unsafe(no_mangle)]\npub extern "system" fn '
+          'Java_com_jtn0123_audiowhisper_rust_ReaderNative_mutationUndeclared() {}\n')],
         [UNREFERENCED, 'Java_com_jtn0123_audiowhisper_rust_ReaderNative_mutationUndeclared (undeclared)']),
     'test-only-export-shipped': (
-        'lib/rust/crates/awnative/src/render_theme.rs',
-        lambda source: source.replace('#[cfg(not(target_os = "android"))]\nmod probe {', 'mod probe {', 1),
+        [(AWNATIVE + 'render_theme.rs',
+          replace_once('#[cfg(not(target_os = "android"))]\nmod probe {', 'mod probe {'))],
         [UNREFERENCED, 'Java_org_florisboard_lib_snygg_RenderThemeProbe_resolve (test-only)']),
+    # KeyModels.select passes a Long; read as a jint, it compiles and links, and loses the top half.
+    'entry-point-long-as-int': (
+        [(AWNATIVE + 'key_models.rs', replace_once(
+            '    kind: jint,\n    raw: jlong,\n    present: jint,\n',
+            '    kind: jint,\n    raw: jint,\n    present: jint,\n'))],
+        [MISMATCHED, 'Java_com_jtn0123_audiowhisper_rust_KeyModels_select (' + AWNATIVE + 'key_models.rs:',
+         '): raw is jint, static (IJI)I needs jlong']),
+    # A generated declaration's type changed on one side only. Gradle can't build that for real:
+    # both sides regenerate from the same table, and it won't package with cargoBuildAndroid
+    # skipped. So the two runs of the generator are made to disagree: `cargo run` for the Kotlin
+    # uses the dev profile, with debug assertions, and awnative's release build script does not.
+    # The Kotlin (and its caller) take the new Int; the library keeps the Long.
+    'generated-declaration-one-side': (
+        [('lib/rust/crates/boundary/src/declarations/shift.rs', replace_once(
+            '("timeout", Param::Long)',
+            '("timeout", if cfg!(debug_assertions) { Param::Int } else { Param::Long })')),
+         (KOTLIN + 'Shift.kt', replace_once(
+             'ShiftNative.isConsecutive(lastCode, lastTime, code, now, timeout)',
+             'ShiftNative.isConsecutive(lastCode, lastTime, code, now, timeout.toInt())'))],
+        [MISMATCHED, 'Java_com_jtn0123_audiowhisper_rust_ShiftNative_isConsecutive '
+         '(lib/rust/build/rust/boundary/arm64-v8a.rs:', '): timeout is jlong, static (IJIJI)Z needs jint']),
+    'entry-point-renamed': (
+        [(AWNATIVE + 'clipboard.rs', replace_once(
+            'fn Java_com_jtn0123_audiowhisper_rust_ClipboardRules_mimeMatches(',
+            'fn Java_com_jtn0123_audiowhisper_rust_ClipboardRules_mimeTypesMatch('))],
+        [MISSING, NO_ENTRY_POINT, UNREFERENCED,
+         'Java_com_jtn0123_audiowhisper_rust_ClipboardRules_mimeMatches (' + KOTLIN + 'ClipboardRules.kt)',
+         'Java_com_jtn0123_audiowhisper_rust_ClipboardRules_mimeTypesMatch (undeclared)']),
 }
 
 
@@ -46,14 +86,14 @@ def run(output, phase):
 
 
 def mutate(output, name):
-    relative, change, expected = CASES[name]
-    path = ROOT / relative
-    original = path.read_bytes()
+    edits, expected = CASES[name]
+    originals = {relative: (ROOT / relative).read_bytes() for relative, _ in edits}
     try:
-        source = original.decode()
-        mutated = change(source)
-        assert mutated != source, name + ': the mutation must change the source'
-        path.write_text(mutated)
+        for relative, change in edits:
+            source = originals[relative].decode()
+            mutated = change(source)
+            assert mutated != source, name + ': the mutation must change ' + relative
+            (ROOT / relative).write_text(mutated)
         mutant = run(output, name)
         log = (output / (name + '.log')).read_text()
         assert mutant != 0, name + ': the gate must fail'
@@ -61,12 +101,15 @@ def mutate(output, name):
         for line in expected:
             assert line in log, name + ': missing ' + line
     finally:
-        path.write_bytes(original)
-    assert path.read_bytes() == original, name + ': byte restoration failed'
+        for relative, original in originals.items():
+            (ROOT / relative).write_bytes(original)
+    for relative, original in originals.items():
+        assert (ROOT / relative).read_bytes() == original, name + ': byte restoration failed for ' + relative
     restored = run(output, name + '-restored')
     assert restored == 0, name + ': the restored source must pass'
-    return {'mutation': name, 'mutant_exit': mutant, 'restored_exit': restored,
-            'restored_source_sha256': hashlib.sha256(original).hexdigest()}
+    digest = hashlib.sha256(b''.join(originals[relative] for relative in sorted(originals)))
+    return {'mutation': name, 'files': sorted(originals), 'mutant_exit': mutant, 'restored_exit': restored,
+            'restored_source_sha256': digest.hexdigest()}
 
 
 def main():

@@ -400,14 +400,23 @@ if (!sherpaOracle) {
     }
 }
 
-// Check the APK itself, including unused production declarations that R8 may discard.
+// Check the APK itself, including unused production declarations that R8 may discard, and the
+// JNI types of every Rust entry point against its declaration's JVM descriptor.
 val checkNativeDeclarations = tasks.register<Exec>("checkNativeDeclarations") {
     group = "verification"
-    description = "Rejects production native declarations missing from the normal debug APK."
+    description = "Rejects production native declarations missing from the normal debug APK, " +
+        "or whose Rust entry points take or return other JNI types."
     dependsOn("assembleDebug")
     workingDir(rootDir)
-    commandLine("python3", "-I", "scripts/native-declarations-check.py",
-        "app/build/outputs/apk/debug/app-debug.apk")
+    // The descriptors come from each module's debug classes. lib/rust's build generates the
+    // Kotlin of the generated boundary, and keeps a copy of the Rust entry points it compiled.
+    val modules = rootProject.subprojects.flatMap { listOf("--module", it.projectDir.relativeTo(rootDir).path) }
+    commandLine(
+        listOf("python3", "-I", "scripts/native-declarations-check.py", "app/build/outputs/apk/debug/app-debug.apk") +
+            modules +
+            listOf("--generated-kotlin", "lib/rust/build/generated/nativeBoundary/kotlin") +
+            listOf("--generated-rust", "lib/rust/build/rust/boundary/arm64-v8a.rs"),
+    )
 }
 tasks.named("check") { dependsOn(checkNativeDeclarations) }
 

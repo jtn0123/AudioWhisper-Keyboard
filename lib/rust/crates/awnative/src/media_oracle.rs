@@ -1,12 +1,12 @@
 //! Differential probes use the same layout, scheduler and budget code as the live surface.
 use crate::jni::{self, illegal};
-use jni_sys::{JNIEnv, jclass, jfloatArray, jintArray, jlongArray};
+use jni_sys::{JNIEnv, jfloatArray, jintArray, jlongArray, jobject};
 use render::media_cache::{Frame, MediaCache};
 use std::ptr;
 #[unsafe(no_mangle)]
 pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_MediaRules_trace(
     env: *mut JNIEnv,
-    _: jclass,
+    _: jobject,
     config: jintArray,
     ops: jlongArray,
 ) -> jlongArray {
@@ -68,7 +68,7 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_MediaRules_trace(
 #[unsafe(no_mangle)]
 pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_MediaRules_grid(
     env: *mut JNIEnv,
-    _: jclass,
+    _: jobject,
     config: jfloatArray,
 ) -> jfloatArray {
     // SAFETY: JVM owns the local array; the result copies pure grid coordinates.
@@ -92,7 +92,7 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_MediaRules_grid(
 #[unsafe(no_mangle)]
 pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_MediaRules_scrollChips(
     env: *mut JNIEnv,
-    _: jclass,
+    _: jobject,
     config: jfloatArray,
 ) -> jfloatArray {
     // SAFETY: local JVM arrays are copied; only a pure coordinate result crosses back.

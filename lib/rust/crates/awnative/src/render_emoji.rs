@@ -4,12 +4,12 @@ use crate::{
     jni::illegal,
     render::{Session, strings},
 };
-use jni_sys::{JNIEnv, jclass, jintArray, jlong, jobjectArray};
+use jni_sys::{JNIEnv, jintArray, jlong, jobject, jobjectArray};
 use render::emoji_panel::{EmojiGroup, EmojiPanel, EmojiValue};
 #[unsafe(no_mangle)]
 pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_emoji(
     env: *mut JNIEnv,
-    _: jclass,
+    _: jobject,
     native: jlong,
     config: jintArray,
     groups: jintArray,

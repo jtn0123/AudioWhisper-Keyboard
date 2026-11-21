@@ -1,12 +1,12 @@
 //! Font-independent geometry oracle for the same trail used by the render session.
 use crate::jni::{self, illegal};
-use jni_sys::{JNIEnv, jclass, jfloatArray, jlong, jlongArray};
+use jni_sys::{JNIEnv, jfloatArray, jlong, jlongArray, jobject};
 use render::{protocol::*, scene::Scene, touch::Action, trail::Trail};
 use std::ptr;
 #[unsafe(no_mangle)]
 pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_GlideTrailRules_circles(
     env: *mut JNIEnv,
-    _: jclass,
+    _: jobject,
     times: jlongArray,
     coords: jfloatArray,
     finish: jlong,

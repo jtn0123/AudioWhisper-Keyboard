@@ -4,11 +4,11 @@ use crate::{
     jni::illegal,
     render::{Session, strings},
 };
-use jni_sys::{JNIEnv, jclass, jlong, jlongArray, jobjectArray};
+use jni_sys::{JNIEnv, jlong, jlongArray, jobject, jobjectArray};
 #[unsafe(no_mangle)]
 pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_subtypes(
     env: *mut JNIEnv,
-    _: jclass,
+    _: jobject,
     native: jlong,
     selected: jlong,
     ids: jlongArray,
@@ -48,7 +48,7 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_subtypes(
 #[unsafe(no_mangle)]
 pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_SubtypeRules_rows(
     env: *mut JNIEnv,
-    _: jclass,
+    _: jobject,
     selected: jlong,
     ids: jlongArray,
     labels: jobjectArray,
@@ -74,7 +74,7 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_SubtypeRules_rows(
 #[unsafe(no_mangle)]
 pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_SubtypeRules_geometry(
     env: *mut JNIEnv,
-    _: jclass,
+    _: jobject,
     config: jni_sys::jfloatArray,
 ) -> jni_sys::jfloatArray {
     // SAFETY: the JVM local input is copied; the result is a fresh primitive array.

@@ -20,6 +20,10 @@ tts-fixture = ["sherpa-ffi/tts-fixture", "legacy-fixture"]
 # switch is ignored and the CPU renderer draws; no build that ships turns it on.
 hybrid = ["render/hybrid", "dep:wgpu", "dep:raw-window-handle"]
 
+[build-dependencies]
+# Generates the JNI entry points declared in crates/boundary (build.rs).
+boundary = { path = "../boundary" }
+
 [dependencies]
 settings = { path = "../settings" }
 backup = { path = "../backup" }

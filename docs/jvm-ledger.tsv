@@ -436,7 +436,6 @@ lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/SettingsRules.kt	A	52	ART
 lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/SherpaAsr.kt	A	55	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
 lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/SherpaTts.kt	A	36	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
 lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/Shift.kt	A	34	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
-lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/ShiftNative.kt	A	9	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
 lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/SnyggCompiler.kt	A	5	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
 lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/SnyggGrammar.kt	A	5	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
 lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/SnyggValues.kt	A	5	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
