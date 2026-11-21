@@ -94,6 +94,15 @@ impl Returned for Vec<Vec<i32>> {
     }
 }
 
+/// An `Array<Array<String>>`.
+impl Returned for Vec<Vec<Vec<u16>>> {
+    type Jni = jobject;
+    const FALLBACK: jobject = ptr::null_mut();
+    fn into_jni(self, env: &Env) -> Result<jobject> {
+        env.make_string_arrays(&self)
+    }
+}
+
 /// An object the hand-written function made itself.
 impl Returned for jobject {
     type Jni = jobject;

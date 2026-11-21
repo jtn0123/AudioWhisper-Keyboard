@@ -396,6 +396,8 @@ fn result_type(returns: Return, out: Out) -> Option<String> {
         Out::List => Some(match returns {
             Return::Strings => "List<String>".to_owned(),
             Return::Array(_) => format!("List<{}>", returns.kotlin().trim_end_matches("Array")),
+            Return::IntArrays => "List<IntArray>".to_owned(),
+            Return::StringArrays => "List<Array<String>>".to_owned(),
             other => panic!("no list of {other:?}"),
         }),
         Out::Entry(ty) | Out::Wrap(ty) => Some(ty.to_owned()),

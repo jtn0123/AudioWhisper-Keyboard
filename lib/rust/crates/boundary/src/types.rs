@@ -118,6 +118,8 @@ pub enum Return {
     Strings,
     /// `Array<IntArray>`; the function returns a `Vec<Vec<i32>>`.
     IntArrays,
+    /// `Array<Array<String>>`; the function returns a `Vec<Vec<Vec<u16>>>`.
+    StringArrays,
     /// Any other object, of the given Kotlin type and JNI type; the function takes the call's
     /// environment and returns the JNI reference it made.
     Object(&'static str, &'static str),
@@ -234,6 +236,7 @@ impl Return {
             Return::NullableArray(element) => format!("{}?", element.kotlin()),
             Return::Strings => "Array<String>".into(),
             Return::IntArrays => "Array<IntArray>".into(),
+            Return::StringArrays => "Array<Array<String>>".into(),
             Return::Object(kotlin, _) => kotlin.into(),
         }
     }
@@ -249,7 +252,7 @@ impl Return {
             Return::Double => "jdouble",
             Return::String | Return::NullableString => "jstring",
             Return::Array(element) | Return::NullableArray(element) => element.jni(),
-            Return::Strings | Return::IntArrays => "jobjectArray",
+            Return::Strings | Return::IntArrays | Return::StringArrays => "jobjectArray",
             Return::Object(_, jni) => jni,
         }
     }
@@ -272,6 +275,7 @@ impl Return {
             Return::NullableArray(element) => format!("Option<Vec<{}>>", element.rust()),
             Return::Strings => "Vec<Vec<u16>>".into(),
             Return::IntArrays => "Vec<Vec<i32>>".into(),
+            Return::StringArrays => "Vec<Vec<Vec<u16>>>".into(),
             Return::Object(_, jni) => jni.into(),
         }
     }

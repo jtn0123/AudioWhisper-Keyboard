@@ -107,12 +107,13 @@ fn getter(bit: &Bit, long: bool, indent: &str) -> String {
 }
 
 /// The fields of the record `name`: one nested in `api`, else in another api, which a dotted
-/// name such as `Suggester.Strip` names.
+/// name such as `Suggester.Strip` names, else a top-level one.
 fn record_fields<'a>(name: &str, api: &'a Api, apis: &'a [Api]) -> &'a [(&'a str, &'a str)] {
     let (owner, record) = name.rsplit_once('.').unwrap_or(("", name));
     let owners = apis.iter().filter(|it| it.name == owner);
-    let mut nested = std::iter::once(api).chain(owners).flat_map(|it| it.nested);
-    let found = nested.find_map(|ty| match ty {
+    let nested = std::iter::once(api).chain(owners).flat_map(|it| it.nested);
+    let top = crate::TYPES.iter().map(|(_, _, ty)| ty);
+    let found = nested.chain(top).find_map(|ty| match ty {
         Type::Record {
             name: n, fields, ..
         } if *n == record => Some(*fields),
@@ -159,7 +160,7 @@ fn field(ty: &str, at: usize, element: Option<Element>, apis: &[Api]) -> String 
 /// The element of the row `returns`, `None` for strings, and whether the row may be null.
 fn row(returns: Return, api: &Api) -> (Option<Element>, bool) {
     match returns {
-        Return::Strings => (None, false),
+        Return::Strings | Return::StringArrays => (None, false),
         Return::Array(element) => (Some(element), false),
         Return::NullableArray(element) => (Some(element), true),
         other => panic!("{}: no record in {other:?}", api.name),
@@ -167,16 +168,18 @@ fn row(returns: Return, api: &Api) -> (Option<Element>, bool) {
 }
 
 /// What follows a native call that returns `returns` to read it as the record `name`, or a list
-/// of them if `many`, each in as many elements as it has fields. A record's last field may be a
-/// `List<String>` of the rest of the row.
+/// of them if `many`, each in as many elements as it has fields, or each a row of its own from an
+/// array of string rows. A record's last field may be a `List<String>` of the rest of its row.
 pub fn record(name: &str, many: bool, returns: Return, api: &Api, apis: &[Api]) -> String {
     let (element, nullable) = row(returns, api);
+    let rows = returns == Return::StringArrays;
+    assert!(many || !rows, "{name}: an array of rows reads as a list");
     let fields = record_fields(name, api, apis);
     let mut values = Vec::with_capacity(fields.len());
     for (at, (field_name, ty)) in fields.iter().enumerate() {
         if *ty == "List<String>" {
             assert!(
-                element.is_none() && !many,
+                element.is_none() && (rows || !many),
                 "{field_name}: the rest is a string row's"
             );
             assert_eq!(at + 1, fields.len(), "{field_name}: the rest comes last");
@@ -186,7 +189,9 @@ pub fn record(name: &str, many: bool, returns: Return, api: &Api, apis: &[Api]) 
         }
     }
     let made = format!("{name}({})", values.join(", "));
-    if many {
+    if rows {
+        format!(".map {{ {made} }}")
+    } else if many {
         format!(".asList().chunked({}) {{ {made} }}", fields.len())
     } else if nullable {
         format!("?.let {{ {made} }}")

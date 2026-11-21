@@ -530,3 +530,61 @@ fn a_parameter_can_be_declared_as_another() {
                     UrlNative.url(key, params.keys.toTypedArray(), params.values.toTypedArray())\n";
     assert!(text.contains(expected), "{text}");
 }
+
+#[test]
+fn string_rows_read_as_records_each() {
+    const ROWS: &[Class] = &[Class {
+        name: "EntryNative",
+        module: "entries",
+        methods: &[
+            Method {
+                name: "entries",
+                returns: Return::StringArrays,
+                ..METHOD
+            },
+            Method {
+                name: "lists",
+                returns: Return::IntArrays,
+                ..METHOD
+            },
+        ],
+        ..CLASS
+    }];
+    const ENTRIES: &[Api] = &[Api {
+        name: "EntryRules",
+        doc: "Entries.",
+        module: "entries",
+        native: "EntryNative",
+        nested: &[Type::Record {
+            name: "Entry",
+            doc: "An entry.",
+            data: false,
+            fields: &[
+                ("value", "String"),
+                ("count", "Int"),
+                ("words", "List<String>"),
+            ],
+        }],
+        members: &[
+            Member {
+                name: "entries",
+                result: Out::Records("Entry"),
+                ..MEMBER
+            },
+            Member {
+                name: "lists",
+                result: Out::List,
+                ..MEMBER
+            },
+        ],
+        ..API
+    }];
+    let text = &api_files(ENTRIES, ROWS)[0].1.text;
+    for expected in [
+        "    fun entries(): List<Entry> =\n        EntryNative.entries().map { \
+         Entry(it[0], it[1].toInt(), it.asList().subList(2, it.size)) }\n",
+        "    fun lists(): List<IntArray> = EntryNative.lists().asList()\n",
+    ] {
+        assert!(text.contains(expected), "{text}");
+    }
+}

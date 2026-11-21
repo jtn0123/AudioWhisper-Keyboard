@@ -338,6 +338,11 @@ impl Env {
         self.make_array(c"[I", rows, |row| self.make(row))
     }
 
+    /// A new `String[][]` of these rows.
+    pub fn make_string_arrays(&self, rows: &[Vec<Vec<u16>>]) -> Result<jobjectArray> {
+        self.make_array(c"[Ljava/lang/String;", rows, |row| self.make_strings(row))
+    }
+
     /// A new `Object[]` of what each of `makers` makes, such as arrays of different types.
     pub fn make_objects(&self, makers: &[&dyn Fn() -> Result<jobject>]) -> Result<jobjectArray> {
         self.make_array(c"java/lang/Object", makers, |make| make())
