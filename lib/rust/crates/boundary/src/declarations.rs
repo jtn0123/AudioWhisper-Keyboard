@@ -4,6 +4,7 @@
 mod clipboard;
 mod composing;
 mod dictation;
+mod emoji;
 mod gif;
 mod giphy;
 mod layout;
@@ -39,6 +40,7 @@ pub const CLASSES: &[Class] = &[
     gif::GIF_NATIVE,
     composing::COMPOSING_NATIVE,
     giphy::GIPHY_NATIVE,
+    emoji::EMOJI_NATIVE,
 ];
 
 /// Every generated api over those classes.
@@ -51,10 +53,12 @@ pub const APIS: &[Api] = &[
     gif::GIF_RESULT_KEYS,
     composing::COMPOSING_RULES,
     giphy::GIPHY_RULES,
+    emoji::EMOJI_TABLE,
+    emoji::EMOJI_RULES,
 ];
 
 /// Every generated top-level record and enum, with the declarations file and the module it is in.
-pub const TYPES: &[(&str, Module, Type)] = &[];
+pub const TYPES: &[(&str, Module, Type)] = &emoji::EMOJI_TYPES;
 
 /// Every group crates/wire declares, and the Kotlin module that calls with it.
 pub const WIRE: &[Wire] = &[

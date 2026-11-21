@@ -8,8 +8,7 @@ import kotlin.test.assertNull
 
 /**
  * Emoji data and suggestions through JNI, as the keyboard calls them: a file parsed into entries,
- * sets and skin tones whose strings Kotlin cuts from its own text, queries answered as positions,
- * and bad input thrown. The rules themselves are tested in Rust and, against the Kotlin they
+ * sets and skin tones, queries answered as positions, and bad input thrown. The rules themselves are tested in Rust and, against the Kotlin they
  * replace, in the app.
  */
 class EmojiRulesTest {
@@ -84,9 +83,8 @@ class EmojiRulesTest {
     }
 
     @Test
-    fun badLengthsThrow() {
-        assertFailsWith<IllegalArgumentException> { EmojiNative.parse("", "ab", intArrayOf(3)) }
-        assertFailsWith<IllegalArgumentException> { EmojiNative.resolveAsset("a", intArrayOf(), arrayOf("en", "", "")) }
-        assertFailsWith<IllegalArgumentException> { EmojiNative.resolveAsset("", intArrayOf(), arrayOf("en", "")) }
+    fun freedTablesThrow() {
+        assertFailsWith<IllegalArgumentException> { EmojiNative.entries(0) }
+        assertFailsWith<IllegalArgumentException> { EmojiNative.suggest(0, "fa", 0, 8) }
     }
 }
