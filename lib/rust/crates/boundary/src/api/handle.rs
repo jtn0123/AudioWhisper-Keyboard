@@ -3,7 +3,7 @@
 
 use super::{Api, Handle, constants, member_text, method, params_and_args, push_block};
 use crate::Class;
-use crate::format::{KOTLIN_WIDTH, kotlin_declaration};
+use crate::format::{KOTLIN_WIDTH, kdoc, kotlin_declaration};
 
 /// A handle class's head, handle and freeing, filling `body` with its members.
 pub(super) fn handle_class(
@@ -18,6 +18,11 @@ pub(super) fn handle_class(
     let field = if handle.close { "var" } else { "val" };
     let close = if handle.close { " : AutoCloseable" } else { "" };
     let (mut head, create) = if handle.create.is_empty() {
+        assert!(
+            handle.keeps.is_empty(),
+            "{} keeps nothing it isn't given",
+            api.name
+        );
         let head = format!(
             "class {} internal constructor(handle: Long){close} {{\n",
             api.name
@@ -26,6 +31,8 @@ pub(super) fn handle_class(
     } else {
         let create = method(classes, api.native, handle.create);
         let (params, passed) = params_and_args(create, handle.params, false);
+        let kept = handle.keeps.iter().map(|it| it.to_string());
+        let params: Vec<String> = kept.chain(params).collect();
         let head = kotlin_declaration(
             "",
             &format!("class {}", api.name),
@@ -63,11 +70,7 @@ pub(super) fn handle_class(
             "{}: a lent handle needs the lock",
             api.name
         );
-        push_block(
-            body,
-            "    /** Lends the handle to [action], with `close()` kept out until it returns. */\n    \
-             @Synchronized\n    internal fun <T> withHandle(action: (Long) -> T): T = action(handle)\n",
-        );
+        push_block(&mut companion, &lend(api.name));
     }
     if handle.close {
         let lock = if handle.synchronized {
@@ -102,6 +105,20 @@ pub(super) fn handle_class(
         push_block(body, &format!("    companion object{inside}\n"));
     }
     head
+}
+
+/// The companion's `lend`, which passes an owner's handle under the lock its members and
+/// `close()` take, or -1 for no owner.
+fn lend(name: &str) -> String {
+    let doc = kdoc(
+        "Lends [owner]'s handle to [action], with `close()` kept out until it returns, or -1 if \
+         there is no [owner].",
+        "        ",
+    );
+    format!(
+        "{doc}        internal fun <T> lend(owner: {name}?, action: (Long) -> T): T =\n            \
+         if (owner == null) action(-1L) else synchronized(owner) {{ action(owner.handle) }}\n"
+    )
 }
 
 /// `native.create(passed)`, as the handle's initialiser: on its line if it fits, else one argument

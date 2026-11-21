@@ -9,6 +9,7 @@ mod gif;
 mod giphy;
 mod latin;
 mod layout;
+mod learner;
 mod packets;
 mod rules;
 mod screen;
@@ -48,6 +49,9 @@ pub const CLASSES: &[Class] = &[
     word_stores::WORD_STORES_NATIVE,
     latin::LATIN_SESSION_NATIVE,
     latin::NLP_NATIVE,
+    learner::SUGGESTER_NATIVE,
+    learner::NATIVE_LEARNER_NATIVE,
+    learner::NATIVE_GLIDE_NATIVE,
 ];
 
 /// Every generated api over those classes.
@@ -70,6 +74,8 @@ pub const APIS: &[Api] = &[
     latin::LATIN_SESSION,
     latin::NLP_SESSION,
     latin::NLP_NAMES,
+    learner::LEARNER_API,
+    learner::NATIVE_GLIDE,
 ];
 
 /// Every generated top-level record and enum, with the declarations file and the module it is in.

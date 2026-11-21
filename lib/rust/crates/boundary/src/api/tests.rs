@@ -285,7 +285,8 @@ fn a_closeable_class_locks_and_converts() {
         "            other.handle,\n            previous,\n",
         "        ).also { Reference.reachabilityFence(other) }\n",
         "    @Synchronized\n    override fun close() {\n        handle = 0\n        cleanable.clean()\n",
-        "    @Synchronized\n    internal fun <T> withHandle(action: (Long) -> T): T = action(handle)\n",
+        "        internal fun <T> lend(owner: ExampleSession?, action: (Long) -> T): T =\n            \
+         if (owner == null) action(-1L) else synchronized(owner) { action(owner.handle) }\n",
         "        fun open(capacity: Int): ExampleSession? =\n            \
          ExampleNative.create(capacity).let { if (it == 0L) null else ExampleSession(it) }\n",
         "\n        fun case(word: String): Case? = \
@@ -293,6 +294,73 @@ fn a_closeable_class_locks_and_converts() {
     ] {
         assert!(text.contains(expected), "{expected}\nnot in\n{text}");
     }
+}
+
+#[test]
+fn a_class_keeps_a_property_and_borrows_a_lent_handle() {
+    const LENDER: Api = Api {
+        name: "ExampleSession",
+        module: "example",
+        native: "ExampleNative",
+        shape: Shape::Handle(Handle {
+            free: "free",
+            close: true,
+            synchronized: true,
+            lend: true,
+            ..HANDLE
+        }),
+        ..API
+    };
+    const KEEPER: Api = Api {
+        name: "ExampleKeeper",
+        module: "example",
+        native: "ExampleNative",
+        shape: Shape::Handle(Handle {
+            keeps: &["private val word: String"],
+            create: "create",
+            free: "free",
+            ..HANDLE
+        }),
+        members: &[
+            Member {
+                name: "add",
+                args: &[arg("word", ArgKind::Fixed("word"))],
+                ..MEMBER
+            },
+            Member {
+                name: "pick",
+                call: "words",
+                args: &[
+                    arg("other", ArgKind::Lent("ExampleSession")),
+                    arg("previous", ArgKind::List),
+                ],
+                result: Out::List,
+                ..MEMBER
+            },
+        ],
+        ..API
+    };
+    let files = api_files(&[LENDER, KEEPER], NATIVE);
+    let keeper = &files[1].1.text;
+    for expected in [
+        "class ExampleKeeper(private val word: String, capacity: Int) {\n",
+        "    fun add(op: Int): Boolean = \
+         ExampleNative.add(handle, word, op).also { Reference.reachabilityFence(this) }\n",
+        "    ): List<String> =\n        ExampleSession.lend(other) {\n            \
+         ExampleNative.words(\n                handle,\n                it,\n                \
+         previous.toTypedArray(),\n",
+        "            )\n        }.asList().also { Reference.reachabilityFence(this) }\n",
+    ] {
+        assert!(keeper.contains(expected), "{expected}\nnot in\n{keeper}");
+    }
+    let one = Expr {
+        before: String::new(),
+        call: "N.f".to_owned(),
+        args: vec!["handle".to_owned(), "it".to_owned()],
+        after: ".asList()".to_owned(),
+        lend: Some("S.lend(s) {".to_owned()),
+    };
+    assert_eq!(one.line(), "S.lend(s) { N.f(handle, it) }.asList()");
 }
 
 #[test]

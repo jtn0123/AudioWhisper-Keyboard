@@ -5,13 +5,13 @@
 #[cfg(any(not(target_os = "android"), feature = "legacy-fixture"))]
 mod legacy_suggester;
 mod letter_odds;
-mod native_glide;
+pub(crate) mod native_glide;
 pub(crate) mod session;
 mod suggester;
 mod swipe;
 mod tap;
 pub(crate) mod tap_aim;
-mod word_learner;
+pub(crate) mod word_learner;
 pub(crate) mod word_stores;
 
 use std::ptr;

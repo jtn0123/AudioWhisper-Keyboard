@@ -66,6 +66,9 @@ pub enum Shape {
 pub struct Handle {
     /// The constructor's parameters, which `create` takes, with any defaults.
     pub params: &'static [Arg],
+    /// Constructor properties the class keeps for its members, before `params`, such as
+    /// `private val store: LearnedWordStore`; a member passes one with [`ArgKind::Fixed`].
+    pub keeps: &'static [&'static str],
     /// The native method that makes the handle; empty for a class an `internal constructor`
     /// gives the handle to.
     pub create: &'static str,
@@ -77,14 +80,15 @@ pub struct Handle {
     /// Whether every member is `@Synchronized`; otherwise each keeps the object reachable until
     /// its call returns.
     pub synchronized: bool,
-    /// Whether the class lends its handle to hand-written Kotlin in its module, with
-    /// `withHandle`, under the same lock as `close()`.
+    /// Whether the class lends its handle to members of other apis ([`ArgKind::Lent`]), with a
+    /// companion `lend`, under the same lock as `close()`.
     pub lend: bool,
 }
 
 /// A handle class's defaults, for `..HANDLE`.
 pub const HANDLE: Handle = Handle {
     params: &[],
+    keeps: &[],
     create: "",
     free: "",
     close: false,
@@ -161,6 +165,9 @@ pub enum ArgKind {
     Handle(&'static str),
     /// A nullable api of this name, passing its handle or 0.
     NullableHandle(&'static str),
+    /// A nullable api of this name that lends its handle, passing it while the api's lock keeps
+    /// `close()` out, or -1 for null. At most one a member.
+    Lent(&'static str),
     /// No parameter: the native method gets this Kotlin expression.
     Fixed(&'static str),
     /// Declared as this Kotlin parameter instead, such as `params: Map<String, String>`, the
@@ -329,7 +336,7 @@ fn param_text(arg: &Arg, native: Param) -> String {
     let ty = match arg.kind {
         ArgKind::Same => simple_type(&native.kotlin()).0,
         ArgKind::Code(ty) | ArgKind::Ordinal(ty) | ArgKind::Handle(ty) => ty.to_owned(),
-        ArgKind::NullableHandle(ty) => format!("{ty}?"),
+        ArgKind::NullableHandle(ty) | ArgKind::Lent(ty) => format!("{ty}?"),
         ArgKind::List => match native {
             Param::NullableStrings => "List<String?>".to_owned(),
             _ => "List<String>".to_owned(),
@@ -385,6 +392,7 @@ pub(super) fn params_and_args(
             ArgKind::Text => format!("{name}.toString()"),
             ArgKind::Handle(_) => format!("{name}.handle"),
             ArgKind::NullableHandle(_) => format!("{name}?.handle ?: 0L"),
+            ArgKind::Lent(_) => "it".to_owned(),
             ArgKind::Fixed(value) | ArgKind::As(_, value) => value.to_owned(),
         });
         if !matches!(arg.kind, ArgKind::Fixed(_)) {
@@ -422,32 +430,50 @@ fn result_type(returns: Return, out: Out) -> Option<String> {
     }
 }
 
-/// A native call and what surrounds it: `before`, `call(args)`, then `after`.
+/// A native call and what surrounds it: `before`, `call(args)`, then `after`. With `lend`, the
+/// call is in that lambda, such as `LatinSession.lend(session) {`, inside `before` and `after`.
 struct Expr {
     before: String,
     call: String,
     args: Vec<String>,
     after: String,
+    lend: Option<String>,
 }
 
 impl Expr {
-    /// The expression on one line.
-    fn line(&self) -> String {
-        format!(
-            "{}{}({}){}",
-            self.before,
-            self.call,
-            self.args.join(", "),
-            self.after
-        )
+    /// The native call alone, without what surrounds it.
+    fn bare(&self) -> Expr {
+        Expr {
+            before: String::new(),
+            call: self.call.clone(),
+            args: self.args.clone(),
+            after: String::new(),
+            lend: None,
+        }
     }
 
-    /// The expression at `indent`: if it doesn't fit on one line, the body of the lambda after
-    /// the call on a line of its own, else the arguments one to a line.
+    /// The expression on one line.
+    fn line(&self) -> String {
+        let call = format!("{}({})", self.call, self.args.join(", "));
+        match &self.lend {
+            Some(lend) => format!("{}{lend} {call} }}{}", self.before, self.after),
+            None => format!("{}{call}{}", self.before, self.after),
+        }
+    }
+
+    /// The expression at `indent`: if it doesn't fit on one line, a lent call on lines of its
+    /// own, else the body of the lambda after the call on a line of its own, else the arguments
+    /// one to a line.
     fn lines(&self, indent: &str) -> String {
         let one = format!("{indent}{}", self.line());
         if one.len() <= 120 {
             return one + "\n";
+        }
+        if let Some(lend) = &self.lend {
+            let inner = self.bare().lines(&format!("{indent}    "));
+            let close = format!("{indent}}}{}", self.after);
+            assert!(close.len() <= 120, "too long: {close}");
+            return format!("{indent}{}{lend}\n{inner}{close}\n", self.before);
         }
         if let Some((open, body, close)) = lambda(&self.after) {
             let args = self.args.join(", ");
@@ -579,12 +605,21 @@ pub(super) fn member_text(
         call: format!("{native_name}.{call}"),
         args: passed,
         after,
+        lend: None,
     };
     let mut fences: Vec<String> = Vec::new();
     for arg in member.args {
-        if let ArgKind::Handle(ty) | ArgKind::NullableHandle(ty) = arg.kind {
-            assert!(apis.iter().any(|api| api.name == ty), "no api {ty}");
-            fences.push(arg.name.to_owned());
+        match arg.kind {
+            ArgKind::Handle(ty) | ArgKind::NullableHandle(ty) => {
+                assert!(apis.iter().any(|api| api.name == ty), "no api {ty}");
+                fences.push(arg.name.to_owned());
+            }
+            ArgKind::Lent(ty) => {
+                assert!(expr.lend.is_none(), "{}: lends one handle", member.name);
+                assert!(lends(apis, ty), "{ty} doesn't lend its handle");
+                expr.lend = Some(format!("{ty}.lend({}) {{", arg.name));
+            }
+            _ => {}
         }
     }
     let synchronized = handle.is_some_and(|handle| handle.synchronized) && own;
@@ -633,6 +668,12 @@ pub(super) fn member_text(
         }
     }
     text
+}
+
+/// Whether the api `name` lends its handle.
+fn lends(apis: &[Api], name: &str) -> bool {
+    apis.iter()
+        .any(|api| api.name == name && matches!(api.shape, Shape::Handle(handle) if handle.lend))
 }
 
 /// `head = expr`, on one line if it fits, else with the expression on the next.
