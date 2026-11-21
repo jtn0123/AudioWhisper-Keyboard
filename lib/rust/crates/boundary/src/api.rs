@@ -159,6 +159,10 @@ pub enum ArgKind {
     NullableHandle(&'static str),
     /// No parameter: the native method gets this Kotlin expression.
     Fixed(&'static str),
+    /// Declared as this Kotlin parameter instead, such as `params: Map<String, String>`, the
+    /// native method getting this one-line expression of it. Another native parameter can take
+    /// the same Kotlin one through [`ArgKind::Fixed`].
+    As(&'static str, &'static str),
 }
 
 /// A parameter that only changes its default.
@@ -322,11 +326,17 @@ fn param_text(arg: &Arg, native: Param) -> String {
             other => panic!("{}: no text for {other:?}", arg.name),
         },
         ArgKind::Fixed(_) => unreachable!("a fixed argument has no parameter"),
+        ArgKind::As(declared, _) => return with_default(declared.to_owned(), arg.default),
     };
-    if arg.default.is_empty() {
-        format!("{}: {ty}", arg.name)
+    with_default(format!("{}: {ty}", arg.name), arg.default)
+}
+
+/// `param`, with ` = default` after it if there is one.
+fn with_default(param: String, default: &str) -> String {
+    if default.is_empty() {
+        param
     } else {
-        format!("{}: {ty} = {}", arg.name, arg.default)
+        format!("{param} = {default}")
     }
 }
 
@@ -361,7 +371,7 @@ pub(super) fn params_and_args(
             ArgKind::Text => format!("{name}.toString()"),
             ArgKind::Handle(_) => format!("{name}.handle"),
             ArgKind::NullableHandle(_) => format!("{name}?.handle ?: 0L"),
-            ArgKind::Fixed(value) => value.to_owned(),
+            ArgKind::Fixed(value) | ArgKind::As(_, value) => value.to_owned(),
         });
         if !matches!(arg.kind, ArgKind::Fixed(_)) {
             params.push(param_text(&arg, *param));

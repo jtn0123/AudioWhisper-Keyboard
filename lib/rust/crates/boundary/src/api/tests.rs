@@ -486,3 +486,47 @@ fn two_elements_read_as_a_pair() {
         assert!(text.contains(expected), "{text}");
     }
 }
+
+#[test]
+fn a_parameter_can_be_declared_as_another() {
+    const URLS: &[Class] = &[Class {
+        name: "UrlNative",
+        module: "urls",
+        methods: &[Method {
+            name: "url",
+            params: &[
+                ("key", Param::String),
+                ("names", Param::Strings),
+                ("values", Param::Strings),
+            ],
+            returns: Return::String,
+            ..METHOD
+        }],
+        ..CLASS
+    }];
+    const URL_API: &[Api] = &[Api {
+        name: "UrlRules",
+        doc: "URLs.",
+        module: "urls",
+        native: "UrlNative",
+        members: &[Member {
+            name: "url",
+            args: &[
+                Arg {
+                    default: "emptyMap()",
+                    ..arg(
+                        "names",
+                        ArgKind::As("params: Map<String, String>", "params.keys.toTypedArray()"),
+                    )
+                },
+                arg("values", ArgKind::Fixed("params.values.toTypedArray()")),
+            ],
+            ..MEMBER
+        }],
+        ..API
+    }];
+    let text = &api_files(URL_API, URLS)[0].1.text;
+    let expected = "    fun url(key: String, params: Map<String, String> = emptyMap()): String =\n        \
+                    UrlNative.url(key, params.keys.toTypedArray(), params.values.toTypedArray())\n";
+    assert!(text.contains(expected), "{text}");
+}
