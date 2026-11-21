@@ -1,4 +1,6 @@
-use crate::{Context, Field, int, number};
+use crate::{Context, Field, flag_at, number};
+use wire::flag;
+use wire::nlp::{candidate, context, inline_begin, inline_view, snapshot};
 
 #[derive(Clone, Debug)]
 pub struct Candidate {
@@ -6,6 +8,12 @@ pub struct Candidate {
     pub text: Field,
     pub kind: i64,
     pub auto: bool,
+}
+impl Candidate {
+    /// Whether it is of `kind`, an `NlpCandidateKind`.
+    pub fn is(&self, kind: i32) -> bool {
+        self.kind == i64::from(kind)
+    }
 }
 #[derive(Debug, Default)]
 pub struct Session {
@@ -32,7 +40,15 @@ pub struct Session {
 }
 /// Context fields that change as the user types: selection validity and bounds, composing
 /// bounds, text and offset. A change to only these is answered by a request for the new text.
-const TYPING: [usize; 7] = [9, 10, 11, 12, 13, 14, 20];
+const TYPING: [usize; 7] = [
+    context::SELECTION_VALID,
+    context::SELECTION_START,
+    context::SELECTION_END,
+    context::COMPOSING_START,
+    context::COMPOSING_END,
+    context::TEXT,
+    context::OFFSET,
+];
 impl Session {
     pub fn configure(&mut self, context: Context) {
         if self.context != context {
@@ -66,7 +82,8 @@ impl Session {
     pub fn words(&self) -> bool {
         !self.visible().is_empty() || self.carry || self.pending && self.held
     }
-    pub fn begin(&mut self, now: i64) -> Vec<Field> {
+    /// Begins a request: its generation, and how long to wait before running it, or -1 to not.
+    pub fn begin(&mut self, now: i64) -> (u64, i64) {
         let held = self.words();
         let automatic = self.automatic.take();
         self.invalidate();
@@ -75,10 +92,7 @@ impl Session {
         self.held = held && self.pending;
         // One short coalescing window, cancelled by the next input. No wall-clock identity.
         self.due = now.saturating_add(8);
-        vec![
-            number(self.generation),
-            number(if self.pending { 8 } else { -1 }),
-        ]
+        (self.generation, if self.pending { 8 } else { -1 })
     }
     pub(crate) fn accepts(&self, generation: u64) -> bool {
         self.pending && generation == self.generation
@@ -96,15 +110,16 @@ impl Session {
     }
     pub fn filter(&self, values: Vec<Candidate>) -> Vec<Candidate> {
         let mut result: Vec<Candidate> = vec![];
-        let prefixed_emoji = self.context.0.get(16).is_some_and(|v| !v.is_empty())
+        let prefixed_emoji = (self.context.0.get(context::EMOJI_PREFIX))
+            .is_some_and(|v| !v.is_empty())
             && self.context.emoji()
-            && values.iter().any(|v| v.kind == 1);
+            && values.iter().any(|v| v.is(candidate::EMOJI));
         for mut value in values {
             if !self.context.query() {
                 break;
             }
-            if value.kind == 0 && (!self.context.words() || prefixed_emoji)
-                || value.kind == 1 && !self.context.emoji()
+            if value.is(candidate::WORD) && (!self.context.words() || prefixed_emoji)
+                || value.is(candidate::EMOJI) && !self.context.emoji()
             {
                 continue;
             }
@@ -115,7 +130,7 @@ impl Session {
             {
                 continue;
             }
-            value.auto &= self.context.autocorrect() && value.kind == 0;
+            value.auto &= self.context.autocorrect() && value.is(candidate::WORD);
             result.push(value);
         }
         result
@@ -131,7 +146,10 @@ impl Session {
         }
     }
     pub fn expanded(&self) -> i32 {
-        if !self.context.flag(8) || self.pending && !self.context.selection() || self.carry {
+        if !self.context.flag(context::SMARTBAR)
+            || self.pending && !self.context.selection()
+            || self.carry
+        {
             // Clearing stale words for an in-flight or due request must not flash the actions toolbar.
             return -1;
         }
@@ -145,26 +163,26 @@ impl Session {
             .or_else(|| shown.iter().find(|v| v.auto))
             .map(|v| v.id.clone())
             .unwrap_or_default();
-        let mut result = vec![
-            number(self.generation),
-            number(self.expanded()),
-            auto,
-            number(shown.len()),
-        ];
+        let mut result = vec![vec![]; snapshot::SIZE];
+        result[snapshot::GENERATION] = number(self.generation);
+        result[snapshot::EXPANDED] = number(self.expanded());
+        result[snapshot::AUTO] = auto;
+        result[snapshot::COUNT] = number(shown.len());
         result.extend(shown.iter().map(|v| v.id.clone()));
         result.push(number(self.inline.len()));
         result.extend(self.inline.iter().cloned());
         result
     }
+    /// An [`inline_begin`] row for `count` inline suggestions.
     pub fn inline_begin(&mut self, count: i64) -> Vec<Field> {
         self.inline_generation = self.inline_generation.wrapping_add(1);
-        self.inline_pending = count > 0 && self.context.flag(18);
+        self.inline_pending = count > 0 && self.context.flag(context::INLINE_SUGGESTIONS);
         self.inline.clear();
-        vec![
-            number(self.inline_generation),
-            number(i32::from(self.inline_pending)),
-            number(2000),
-        ]
+        let mut row = vec![vec![]; inline_begin::SIZE];
+        row[inline_begin::GENERATION] = number(self.inline_generation);
+        row[inline_begin::PENDING] = flag::utf16(self.inline_pending);
+        row[inline_begin::TIMEOUT] = number(2000);
+        row
     }
     pub fn inline_complete(&mut self, generation: u64, fields: &[Field]) -> bool {
         if generation != self.inline_generation || !self.inline_pending {
@@ -172,9 +190,16 @@ impl Session {
         }
         self.inline_pending = false;
         // Legacy order: stable pinned first, including null platform views.
-        let mut values: Vec<_> = fields.as_chunks::<2>().0.iter().collect();
-        values.sort_by_key(|v| std::cmp::Reverse(int(*v, 1)));
-        self.inline = values.into_iter().map(|v| v[0].clone()).collect();
+        let mut values: Vec<_> = fields
+            .as_chunks::<{ inline_view::SIZE }>()
+            .0
+            .iter()
+            .collect();
+        values.sort_by_key(|v| std::cmp::Reverse(flag_at(*v, inline_view::PINNED)));
+        self.inline = values
+            .into_iter()
+            .map(|v| v[inline_view::ID].clone())
+            .collect();
         true
     }
 }

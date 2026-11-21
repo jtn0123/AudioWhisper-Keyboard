@@ -4,10 +4,10 @@ package com.jtn0123.audiowhisper.rust
 class DictationSessionPlan : AutoCloseable {
     private val allocation = Allocation(DictationSessionNative.create())
     private val cleanable = RustLibrary.cleaner.register(this, allocation)
-    @Synchronized fun call(operation: String, now: Long, generation: Int = 0, vararg fields: String): Array<String> =
-        allocation.call(operation, now, generation, fields)
+    @Synchronized fun call(operation: DictationEvent, now: Long, generation: Int = 0, vararg fields: String): Array<String> =
+        allocation.call(operation.code, now, generation, fields)
     @Synchronized fun speech(generation: Int, detected: Boolean) = allocation.speech(generation, detected)
-    @Synchronized fun model(operation: String): Int = allocation.model(operation)
+    @Synchronized fun model(operation: DictationModelOp): Int = allocation.model(operation.code)
     @Synchronized fun claimPreview(): Boolean = allocation.preview(true)
     @Synchronized fun completePreview() { allocation.preview(false) }
     @Synchronized override fun close() = cleanable.clean()

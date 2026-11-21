@@ -223,10 +223,10 @@ abstract class FlorisPreferenceModel : SettingsPreferenceModel() {
         val incognitoDisplayMode = nativeEnum<IncognitoDisplayMode>(key = "keyboard__incognito_indicator")
 
         fun keyHintConfiguration(): KeyHintConfiguration {
-            val modes = com.jtn0123.audiowhisper.rust.SettingsRules.call(29,
-                hintedNumberRowEnabled.get().toString(), hintedNumberRowMode.get().name,
-                hintedSymbolsEnabled.get().toString(), hintedSymbolsMode.get().name)
-            return KeyHintConfiguration(KeyHintMode.valueOf(modes[0]), KeyHintMode.valueOf(modes[1]), mergeHintPopupsEnabled.get())
+            val modes = com.jtn0123.audiowhisper.rust.SettingsRules.call(com.jtn0123.audiowhisper.rust.SettingsOp.KEY_HINTS, *with(com.jtn0123.audiowhisper.rust.SettingsKeyHints) {
+                row(NUMBER_ENABLED to com.jtn0123.audiowhisper.rust.WireFlag.encode(hintedNumberRowEnabled.get()), NUMBER to hintedNumberRowMode.get().name,
+                SYMBOLS_ENABLED to com.jtn0123.audiowhisper.rust.WireFlag.encode(hintedSymbolsEnabled.get()), SYMBOLS to hintedSymbolsMode.get().name) })
+            return with(com.jtn0123.audiowhisper.rust.SettingsKeyHintModes) { KeyHintConfiguration(KeyHintMode.valueOf(modes[NUMBER]), KeyHintMode.valueOf(modes[SYMBOLS]), mergeHintPopupsEnabled.get()) }
         }
 
         @Composable

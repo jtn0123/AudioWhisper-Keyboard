@@ -3,6 +3,7 @@ package com.jtn0123.audiowhisper.settingsui
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import com.jtn0123.audiowhisper.rust.KeyboardRenderer
+import com.jtn0123.audiowhisper.rust.SettingsUiOp
 import dev.patrickgold.florisboard.app.ReferenceColorSerializer
 import dev.patrickgold.florisboard.app.ReferenceSettingsModel
 import dev.patrickgold.jetpref.datastore.model.LocalTime
@@ -30,14 +31,14 @@ class SettingsOtherThemeMatchTest {
     private fun serialized(t: LocalTime) = times.serialize(t).orEmpty()
     private fun <T : Any> raw(p: PreferenceData<T>) = p.serializer.serialize(p.default).orEmpty()
     private fun defaults() = ReferenceSettingsModel().declaredPreferenceEntries.values.associate { it.key to raw(it) }
-    private fun state(n: KeyboardRenderer, op: Int = 10, vararg input: String) = Json.parseToJsonElement(n.settings(op, arrayOf(*input))[0]).jsonObject
+    private fun state(n: KeyboardRenderer, op: SettingsUiOp = SettingsUiOp.SAVE, vararg input: String) = Json.parseToJsonElement(n.settings(op, arrayOf(*input))[0]).jsonObject
     private fun nodes(s: JsonObject) = s.getValue("nodes").jsonArray.map { it.jsonObject }
     private fun byId(s: JsonObject) = nodes(s).associateBy { it.int("id") }
     private fun effects(s: JsonObject) = s.getValue("effects").jsonArray.map { a -> a.jsonArray.map { it.jsonPrimitive.content } }
     private fun JsonObject.int(key: String) = getValue(key).jsonPrimitive.int
     private fun JsonObject.bool(key: String) = getValue(key).jsonPrimitive.boolean
     private fun JsonObject.text(key: String) = getValue(key).jsonPrimitive.content
-    private fun tap(n: KeyboardRenderer, id: Int) = state(n, 5, id.toString())
+    private fun tap(n: KeyboardRenderer, id: Int) = state(n, SettingsUiOp.ACTIVATE, id.toString())
 
     /** The app's English strings, read from the resource files the APK is built from. */
     private val strings: Map<String, String> by lazy {
@@ -49,12 +50,12 @@ class SettingsOtherThemeMatchTest {
     private fun s(key: String) = strings[key] ?: key
     /** RustSettingsView.configure's packets: strings, preferences, a window tall enough for every row, facts. */
     private fun prepare(n: KeyboardRenderer, p: Map<String, String>) {
-        n.settings(1, n.settings(18)[2].split("\n").filter { it in strings }.flatMap { listOf(it, strings.getValue(it)) }.toTypedArray())
-        n.settings(2, p.flatMap { listOf(it.key, it.value) }.toTypedArray())
+        n.settings(SettingsUiOp.RESOURCES, n.settings(SettingsUiOp.STRING_KEYS)[2].split("\n").filter { it in strings }.flatMap { listOf(it, strings.getValue(it)) }.toTypedArray())
+        n.settings(SettingsUiOp.PREFERENCES, p.flatMap { listOf(it.key, it.value) }.toTypedArray())
         val colors = listOf("4294967295", "4278190080", "4283782485", "4281558681", "4291611852", "4293848814")
-        n.settings(3, (listOf("1080", "8192", "1", "1") + colors + listOf("true", "true") + colors +
+        n.settings(SettingsUiOp.CONFIG, (listOf("1080", "8192", "1", "1") + colors + listOf("true", "true") + colors +
             (0..32).map { it.toFloat().toString() } + listOf("0", "4294967295", "true", "true")).toTypedArray())
-        n.settings(20, facts(emptyMap(), false))
+        n.settings(SettingsUiOp.FACTS, facts(emptyMap(), false))
     }
     /** SettingsFacts' packet: the system accent, the 24-hour setting, the theme index's labels. */
     private fun facts(labels: Map<String, String>, is24: Boolean) =
@@ -71,9 +72,9 @@ class SettingsOtherThemeMatchTest {
             prepare(n, defaults())
             for (combo in combinations(screen.inputs)) for (labels in screen.labelSets) for (is24 in screen.clocks) {
                 val f = ReferenceOtherThemeScreens.Facts(defaults() + combo, labels, is24)
-                n.settings(2, f.p.flatMap { listOf(it.key, it.value) }.toTypedArray())
-                n.settings(20, facts(labels, is24))
-                val reply = state(n, 4, screen.route)
+                n.settings(SettingsUiOp.PREFERENCES, f.p.flatMap { listOf(it.key, it.value) }.toTypedArray())
+                n.settings(SettingsUiOp.FACTS, facts(labels, is24))
+                val reply = state(n, SettingsUiOp.NAVIGATE, screen.route)
                 val label = "${screen.route} $combo ${labels.size} labels, 24h $is24"
                 assertEquals(screen.route, reply.text("route"), label)
                 val all = nodes(reply)
@@ -108,14 +109,14 @@ class SettingsOtherThemeMatchTest {
     @Test fun routesGoWhereComposeWent() {
         for (screen in ref.screens) KeyboardRenderer(arrayOf(font)).use { n ->
             prepare(n, defaults())
-            state(n, 4, screen.route)
-            val native = n.settings(19)[2].split("\n")
+            state(n, SettingsUiOp.NAVIGATE, screen.route)
+            val native = n.settings(SettingsUiOp.ROUTES)[2].split("\n")
             for ((i, row) in screen.rows.withIndex()) if (row.route.isNotEmpty()) {
                 // The addon box goes from its button; every other row from itself.
                 val reply = tap(n, (if (row.kind == "addons") 6000 else 1000) + i)
                 if (row.route in native) {
                     assertEquals(row.route, reply.text("route"))
-                    state(n, 6, "3", "0")
+                    state(n, SettingsUiOp.BACK, "3", "0")
                 } else assertEquals(listOf(listOf("compose", row.route, native.joinToString("|"))), effects(reply))
                 assertEquals(screen.route, state(n).text("route"))
             }
@@ -165,7 +166,7 @@ class SettingsOtherThemeMatchTest {
         val random = Random(20261117)
         KeyboardRenderer(arrayOf(font)).use { n ->
             prepare(n, defaults())
-            state(n, 4, "settings/other")
+            state(n, SettingsUiOp.NAVIGATE, "settings/other")
             val row = ref.other.rows.indexOfFirst { it.kind == "color" }
             assertTrue(tap(n, 1000 + row).bool("popup"))
             val d = ReferenceOtherThemeScreens.ColorDialog(null, accent, presets)
@@ -175,7 +176,7 @@ class SettingsOtherThemeMatchTest {
                 tap(n, 7140)
                 assertEquals(d.shown(), byId(state(n)).getValue(7000).text("label"), "the editor starts on the colour")
                 tap(n, 7000)
-                state(n, 9, "set", text)
+                state(n, SettingsUiOp.EDIT, "set", text)
                 val applied = effects(tap(n, 7141))
                 val expected = Color.parseOrNull(text, false)
                 assertEquals(expected != null, d.apply(text))
@@ -198,13 +199,13 @@ class SettingsOtherThemeMatchTest {
         val corpus = texts(random)
         KeyboardRenderer(arrayOf(font)).use { n ->
             prepare(n, p)
-            state(n, 4, "settings/other")
+            state(n, SettingsUiOp.NAVIGATE, "settings/other")
             val row = ref.other.rows.indexOfFirst { it.kind == "color" }
             repeat(120) { round ->
                 // Sometimes the stored colour changes underneath: a preset, the accent written out, one of the user's own.
                 if (random.nextInt(4) == 0) {
                     p["other__accent_color"] = (ref.accents + storedAccent).random(random)
-                    n.settings(2, p.flatMap { listOf(it.key, it.value) }.toTypedArray())
+                    n.settings(SettingsUiOp.PREFERENCES, p.flatMap { listOf(it.key, it.value) }.toTypedArray())
                 }
                 val stored = p.getValue("other__accent_color").let { if (it == ref.UNSPECIFIED) null else ReferenceColorSerializer.deserialize(it) }
                 val d = ReferenceOtherThemeScreens.ColorDialog(stored, accent, presets)
@@ -225,7 +226,7 @@ class SettingsOtherThemeMatchTest {
                             val written = d.stored { ReferenceColorSerializer.serialize(it) }
                             assertEquals(hide + listOf(listOf("write", "other__accent_color", written)), effects(tap(n, 7)), label)
                             p["other__accent_color"] = written
-                            n.settings(2, p.flatMap { listOf(it.key, it.value) }.toTypedArray())
+                            n.settings(SettingsUiOp.PREFERENCES, p.flatMap { listOf(it.key, it.value) }.toTypedArray())
                             break
                         }
                         step == 2 -> {
@@ -241,7 +242,7 @@ class SettingsOtherThemeMatchTest {
                         else -> {
                             tap(n, 7000); keyboard = true
                             val text = corpus.random(random)
-                            state(n, 9, "set", text)
+                            state(n, SettingsUiOp.EDIT, "set", text)
                             if (step < 8 && d.apply(text)) {
                                 assertEquals(listOf(listOf("hideEditor")), effects(tap(n, 7141)), label)
                                 editing = false; keyboard = false
@@ -262,14 +263,14 @@ class SettingsOtherThemeMatchTest {
     @Test fun timeSummariesMatchJetprefAtEveryMinuteOnBothClocks() {
         KeyboardRenderer(arrayOf(font)).use { n ->
             prepare(n, defaults())
-            state(n, 4, "settings/theme")
+            state(n, SettingsUiOp.NAVIGATE, "settings/theme")
             val rows = listOf("theme__sunrise_time", "theme__sunset_time").map { key -> ref.theme.rows.indexOfFirst { it.key == key } }
             for (is24 in listOf(false, true)) {
-                n.settings(20, facts(emptyMap(), is24))
+                n.settings(SettingsUiOp.FACTS, facts(emptyMap(), is24))
                 for (minute in 0 until 24 * 60) {
                     val time = LocalTime(minute / 60, minute % 60)
                     val stored = serialized(time)
-                    n.settings(2, arrayOf("theme__sunrise_time", stored, "theme__sunset_time", stored))
+                    n.settings(SettingsUiOp.PREFERENCES, arrayOf("theme__sunrise_time", stored, "theme__sunset_time", stored))
                     val nodes = byId(state(n))
                     for (row in rows) assertEquals(time.stringRepresentation(is24), nodes.getValue(1000 + row).text("state"), "$stored $is24")
                 }
@@ -286,18 +287,18 @@ class SettingsOtherThemeMatchTest {
 
     /** Clears the field holding the keyboard and types `digits` into it one by one. */
     private fun type(n: KeyboardRenderer, digits: String) {
-        state(n, 9, "set", "")
-        for (c in digits) state(n, 9, "commit", c.toString(), "1")
+        state(n, SettingsUiOp.EDIT, "set", "")
+        for (c in digits) state(n, SettingsUiOp.EDIT, "commit", c.toString(), "1")
     }
 
     @Test fun theTimeDialogStoresWhatJetprefStoresOnTheDialAndTyped() {
         val random = Random(20261119)
         KeyboardRenderer(arrayOf(font)).use { n ->
             prepare(n, defaults() + ("theme__mode" to "FOLLOW_TIME"))
-            state(n, 4, "settings/theme")
+            state(n, SettingsUiOp.NAVIGATE, "settings/theme")
             val row = ref.theme.rows.indexOfFirst { it.key == "theme__sunrise_time" }
             for (is24 in listOf(false, true)) {
-                n.settings(20, facts(emptyMap(), is24))
+                n.settings(SettingsUiOp.FACTS, facts(emptyMap(), is24))
                 // On the dial: every hour by its number, then a minute on the face, then OK.
                 for (hour in 0 until 24) {
                     val minute = 5 * random.nextInt(12)
@@ -317,7 +318,7 @@ class SettingsOtherThemeMatchTest {
                     tap(n, 7001)
                     type(n, "%02d".format(if (is24) hour else (hour + 11) % 12 + 1))
                     // TimeInput moves on by itself after a 12-hour clock's 2 to 12; otherwise Next.
-                    if (7002 !in byId(state(n))) state(n, 7, "0", "66", "0")
+                    if (7002 !in byId(state(n))) state(n, SettingsUiOp.KEY, "0", "66", "0")
                     assertTrue(7002 in byId(state(n)), "the minute field after $hour")
                     type(n, "%02d".format(minute))
                     val stored = serialized(LocalTime(hour, minute))

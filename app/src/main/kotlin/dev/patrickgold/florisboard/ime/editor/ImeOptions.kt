@@ -17,7 +17,7 @@
 package dev.patrickgold.florisboard.ime.editor
 
 import android.view.inputmethod.EditorInfo
-import com.jtn0123.audiowhisper.rust.EditorAttributes
+import com.jtn0123.audiowhisper.rust.*
 
 /**
  * Class which holds the same information as an [EditorInfo.imeOptions] int but more accessible and
@@ -27,15 +27,15 @@ import com.jtn0123.audiowhisper.rust.EditorAttributes
  */
 data class ImeOptions(val raw: Int) {
     private val decoded = EditorAttributes.options(raw)
-    val action: Action get() = Action.fromInt(decoded[0])
-    val flagForceAscii: Boolean get() = decoded[1] != 0
-    val flagNavigateNext: Boolean get() = decoded[2] != 0
-    val flagNavigatePrevious: Boolean get() = decoded[3] != 0
-    val flagNoAccessoryAction: Boolean get() = decoded[4] != 0
-    val flagNoEnterAction: Boolean get() = decoded[5] != 0
-    val flagNoExtractUi: Boolean get() = decoded[6] != 0
-    val flagNoFullScreen: Boolean get() = decoded[7] != 0
-    val flagNoPersonalizedLearning: Boolean get() = decoded[8] != 0
+    val action: Action get() = Action.fromInt(decoded[EditorImeOptions.ACTION])
+    val flagForceAscii: Boolean get() = decoded[EditorImeOptions.FORCE_ASCII] != 0
+    val flagNavigateNext: Boolean get() = decoded[EditorImeOptions.NAVIGATE_NEXT] != 0
+    val flagNavigatePrevious: Boolean get() = decoded[EditorImeOptions.NAVIGATE_PREVIOUS] != 0
+    val flagNoAccessoryAction: Boolean get() = decoded[EditorImeOptions.NO_ACCESSORY_ACTION] != 0
+    val flagNoEnterAction: Boolean get() = decoded[EditorImeOptions.NO_ENTER_ACTION] != 0
+    val flagNoExtractUi: Boolean get() = decoded[EditorImeOptions.NO_EXTRACT_UI] != 0
+    val flagNoFullScreen: Boolean get() = decoded[EditorImeOptions.NO_FULLSCREEN] != 0
+    val flagNoPersonalizedLearning: Boolean get() = decoded[EditorImeOptions.NO_PERSONALIZED_LEARNING] != 0
 
     companion object {
         fun wrap(imeOptions: Int) = ImeOptions(imeOptions)

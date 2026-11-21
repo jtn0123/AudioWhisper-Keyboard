@@ -1,5 +1,6 @@
 //! Ordered copied data. Strings remain UTF-16, including unpaired surrogates.
 use crate::{Result, Text, text};
+use wire::settings::{ARRAY, NULL, NUMBER, OBJECT, TEXT};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Value {
@@ -59,24 +60,24 @@ impl Value {
     }
     pub fn pack(&self, output: &mut Vec<Text>) {
         match self {
-            Self::Null => output.push(text("z")),
+            Self::Null => output.push(text(NULL)),
             Self::String(s) => {
-                output.push(text("s"));
+                output.push(text(TEXT));
                 output.push(s.clone());
             }
             Self::Number(n) => {
-                output.push(text("n"));
+                output.push(text(NUMBER));
                 output.push(text(&n.to_string()));
             }
             Self::List(items) => {
-                output.push(text("a"));
+                output.push(text(ARRAY));
                 output.push(text(&items.len().to_string()));
                 for item in items {
                     item.pack(output);
                 }
             }
             Self::Object(fields) => {
-                output.push(text("o"));
+                output.push(text(OBJECT));
                 output.push(text(&fields.len().to_string()));
                 for (key, value) in fields {
                     output.push(text(key));
@@ -92,16 +93,16 @@ impl Value {
         let tag = input.next().ok_or("missing tag")?;
         let mut next = || input.next().ok_or("missing value");
         Ok(match String::from_utf16_lossy(tag).as_str() {
-            "z" => Self::Null,
-            "s" => Self::String(next()?.clone()),
-            "n" => Self::Number(crate::integer(next()?)?),
-            "a" | "o" => {
+            NULL => Self::Null,
+            TEXT => Self::String(next()?.clone()),
+            NUMBER => Self::Number(crate::integer(next()?)?),
+            ARRAY | OBJECT => {
                 let count =
                     usize::try_from(crate::integer(next()?)?).map_err(|_| "invalid size")?;
                 if count > input.len() {
                     return Err("invalid size");
                 }
-                if tag == &text("a") {
+                if tag == &text(ARRAY) {
                     Self::List(
                         (0..count)
                             .map(|_| Self::unpack(input, depth + 1))

@@ -1,6 +1,7 @@
 package com.jtn0123.audiowhisper.reader
 
 import com.jtn0123.audiowhisper.rust.PlaybackQueue
+import com.jtn0123.audiowhisper.rust.PlaybackSpeechOp
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
@@ -39,7 +40,7 @@ class SystemProgressMatchTest {
                         3 -> "bad:last"
                         else -> "$id:2:last"
                     }
-                    assertContentEquals(reference.call(op, id, text), native.system(op, id, text))
+                    assertContentEquals(reference.call(op, id, text), native.system(PlaybackSpeechOp.entries.single { it.code == op }, id, text))
                 }
             }
         }

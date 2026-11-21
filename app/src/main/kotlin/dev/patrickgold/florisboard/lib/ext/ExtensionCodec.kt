@@ -1,6 +1,6 @@
 package dev.patrickgold.florisboard.lib.ext
 
-import com.jtn0123.audiowhisper.rust.ExtensionPolicy
+import com.jtn0123.audiowhisper.rust.*
 import dev.patrickgold.florisboard.ime.keyboard.KeyboardExtension
 import dev.patrickgold.florisboard.ime.nlp.LanguagePackExtension
 import dev.patrickgold.florisboard.ime.theme.ThemeExtension
@@ -14,7 +14,7 @@ object ExtensionCodec {
         } catch (_: SerializationException) {
             return ExtensionJsonConfig.decodeFromString(Extension.serializer(), text)
         }
-        val serializer = when (ExtensionPolicy.manifest(text, syntax.toString())[0]) {
+        val serializer = when (ExtensionPolicy.manifest(text, syntax.toString())[ExtensionManifest.SERIAL]) {
             "ime.extension.keyboard" -> KeyboardExtension.serializer()
             "ime.extension.theme" -> ThemeExtension.serializer()
             "ime.extension.languagepack" -> LanguagePackExtension.serializer()

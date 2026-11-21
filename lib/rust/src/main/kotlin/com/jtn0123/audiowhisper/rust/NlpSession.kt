@@ -4,7 +4,8 @@ package com.jtn0123.audiowhisper.rust
 class NlpSession : AutoCloseable {
     private val allocation = Allocation(NlpNative.create())
     private val cleanable = RustLibrary.cleaner.register(this, allocation)
-    @Synchronized fun call(operation: String, vararg fields: String): Array<String> = allocation.call(operation, fields)
+    /** [operation]'s answer to [fields], each as its [NlpOp] describes. */
+    @Synchronized fun call(operation: NlpOp, vararg fields: String): Array<String> = allocation.call(operation.code, fields)
     @Synchronized override fun close() = cleanable.clean()
     private class Allocation(private var handle: Long) : Runnable {
         @Synchronized fun call(operation: String, fields: Array<out String>): Array<String> {

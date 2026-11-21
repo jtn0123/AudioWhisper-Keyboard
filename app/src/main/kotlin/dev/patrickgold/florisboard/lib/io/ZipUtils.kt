@@ -16,7 +16,7 @@
 
 package dev.patrickgold.florisboard.lib.io
 
-import com.jtn0123.audiowhisper.rust.ExtensionPolicy
+import com.jtn0123.audiowhisper.rust.*
 import android.content.Context
 import android.net.Uri
 import org.florisboard.lib.android.copyRecursively
@@ -153,9 +153,9 @@ object ZipUtils {
                     ExtensionPolicy.ArchiveEntry(entry.name, canonical, entry.size, entry.isDirectory),
                 )).single()
                 when (action) {
-                    "directory" -> destination.mkdir()
-                    "copy" -> flexFile.copy(entry, destination)
-                    "empty" -> destination.outputStream().close()
+                    ExtensionArchiveAction.DIRECTORY -> destination.mkdir()
+                    ExtensionArchiveAction.COPY -> flexFile.copy(entry, destination)
+                    ExtensionArchiveAction.EMPTY -> destination.outputStream().close()
                 }
             }
         }

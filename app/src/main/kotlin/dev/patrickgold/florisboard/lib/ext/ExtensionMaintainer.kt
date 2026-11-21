@@ -22,7 +22,7 @@ import kotlinx.serialization.descriptors.PrimitiveKind
 import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
-import com.jtn0123.audiowhisper.rust.ExtensionPolicy
+import com.jtn0123.audiowhisper.rust.*
 
 @Serializable(with = ExtensionMaintainerSerializer::class)
 data class ExtensionMaintainer(
@@ -34,8 +34,8 @@ data class ExtensionMaintainer(
         fun from(str: String): ExtensionMaintainer? {
             val ranges = ExtensionPolicy.maintainerRanges(str)
             if (ranges.isEmpty()) return null
-            fun part(at: Int): String? = if (ranges[at] < 0) null else str.substring(ranges[at], ranges[at + 1])
-            return ExtensionMaintainer(requireNotNull(part(0)), part(2), part(4))
+            fun part(start: Int, end: Int): String? = if (ranges[start] < 0) null else str.substring(ranges[start], ranges[end])
+            return with(ExtensionMaintainerRanges) { ExtensionMaintainer(requireNotNull(part(NAME, NAME_END)), part(EMAIL, EMAIL_END), part(URL, URL_END)) }
         }
 
         fun fromOrTakeRaw(str: String): ExtensionMaintainer {

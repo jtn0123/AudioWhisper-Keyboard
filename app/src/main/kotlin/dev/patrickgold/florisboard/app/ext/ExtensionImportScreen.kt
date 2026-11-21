@@ -16,7 +16,7 @@
 
 package dev.patrickgold.florisboard.app.ext
 
-import com.jtn0123.audiowhisper.rust.ExtensionPolicy
+import com.jtn0123.audiowhisper.rust.*
 import android.text.format.Formatter
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -106,9 +106,9 @@ fun ExtensionImportScreen(type: ExtensionImportScreenType, initUuid: String?) = 
             fileInfo.ext?.let { extensionManager.getExtensionById(it.meta.id)?.sourceRef?.isAssets } == true,
         )
         return when (code) {
-            "unsupported" -> R.string.ext__import__file_skip_unsupported
-            "core" -> R.string.ext__import__file_skip_ext_core
-            "corrupted" -> R.string.ext__import__file_skip_ext_corrupted
+            ExtensionSkipReason.UNSUPPORTED -> R.string.ext__import__file_skip_unsupported
+            ExtensionSkipReason.CORE -> R.string.ext__import__file_skip_ext_core
+            ExtensionSkipReason.CORRUPTED -> R.string.ext__import__file_skip_ext_corrupted
             else -> NATIVE_NULLPTR.toInt()
         }
     }

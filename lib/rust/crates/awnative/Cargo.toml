@@ -50,6 +50,7 @@ shift = { path = "../shift" }
 spacing = { path = "../spacing" }
 snygg = { path = "../snygg" }
 suggest = { path = "../suggest" }
+wire = { path = "../wire" }
 # The Mac app's transcript rules (filler words, custom vocabulary), from AudioWhisper-Core, the
 # Rust both apps share. Pinned to a commit; bump the rev to take a newer core.
 transcript = { git = "https://github.com/jtn0123/AudioWhisper-Core", rev = "eb7c4057ee016fca71e50c051f51339caf5b5295" }

@@ -1,6 +1,7 @@
 //! Batch editor plans for a recognized phrase. Dictionary and editor I/O stay outside locks.
 use crate::{Spoken, Typing, join, parse, punctuate};
 use std::collections::VecDeque;
+use wire::dictation::effect;
 #[derive(Debug, Default)]
 pub(super) struct Composition {
     pending: VecDeque<Spoken>,
@@ -24,12 +25,12 @@ impl Composition {
                 _ => None,
             })
             .collect();
-        let mut effects = vec![text("names"), text(words.len())];
+        let mut effects = vec![text(effect::NAMES), text(words.len())];
         effects.extend(words);
         effects
     }
     pub fn set_names(&mut self, fields: &[Vec<u16>]) {
-        self.names = fields.iter().map(|s| s == &text("true")).collect();
+        self.names = fields.iter().map(|s| wire::flag::decode(s)).collect();
     }
     pub fn plan(&mut self, before: Vec<u16>) -> Vec<Vec<u16>> {
         let mut effects = Vec::new();
@@ -46,19 +47,23 @@ impl Composition {
                 },
                 Spoken::ScratchThat => {
                     self.last = None;
-                    effects.push(text("undo"));
+                    effects.push(text(effect::UNDO));
                     if !self.pending.is_empty() {
-                        effects.push(text("resume"));
+                        effects.push(text(effect::RESUME));
                     }
                     return effects;
                 }
             };
-            effects.extend([text("insert"), text(typing.replacing), typing.text.clone()]);
+            effects.extend([
+                text(effect::INSERT),
+                text(typing.replacing),
+                typing.text.clone(),
+            ]);
             self.last = Some(typing.text);
             // InputConnection may filter an edit. Re-read its actual context before
             // planning the next spoken operation rather than predicting accepted text.
             if !self.pending.is_empty() {
-                effects.push(text("resume"));
+                effects.push(text(effect::RESUME));
             }
         }
         effects

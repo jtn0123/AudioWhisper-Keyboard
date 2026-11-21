@@ -1,4 +1,6 @@
-use crate::{Field, int, number, text};
+use crate::{Field, flag_at, int, text};
+use wire::flag;
+use wire::nlp::{context, policy, typing};
 
 /// The text variations whose words aren't prose, so are never learned and, unless the field asks
 /// for it, not auto-corrected: a URL (0x10), an e-mail address (0x20), a filter (0xb0) and a web
@@ -19,35 +21,40 @@ const AUTO_CORRECT: i64 = 0x8000;
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Context(pub Vec<Field>);
 impl Context {
+    /// Whether [`context`] field `at` is a true flag.
     pub fn flag(&self, at: usize) -> bool {
-        int(&self.0, at) != 0
+        flag_at(&self.0, at)
+    }
+    /// The raw input type.
+    fn input_type(&self) -> i64 {
+        int(&self.0, context::INPUT_TYPE)
     }
     pub fn allowed(&self) -> bool {
-        let raw = int(&self.0, 0);
+        let raw = self.input_type();
         let password = (raw & 15 == 1 && matches!(raw & 0xff0, 0x80 | 0x90 | 0xe0))
             || (raw & 15 == 2 && raw & 0xff0 == 0x10);
         !password && !(raw & 15 == 1 && raw & 0x80000 != 0)
     }
     pub fn latin(&self) -> bool {
-        self.0.get(2) == Some(&text("org.florisboard.nlp.providers.latin"))
-            && self.0.get(3) == Some(&text("en"))
-            && self.flag(17)
+        self.0.get(context::PROVIDER) == Some(&text("org.florisboard.nlp.providers.latin"))
+            && self.0.get(context::LANGUAGE) == Some(&text("en"))
+            && self.flag(context::READY)
     }
     pub fn enabled(&self) -> bool {
-        self.flag(4) || self.flag(5)
+        self.flag(context::SUGGESTIONS) || self.flag(context::EMOJI_SUGGESTIONS)
     }
     pub fn on(&self) -> bool {
         self.allowed() && self.enabled()
     }
     pub fn words(&self) -> bool {
-        self.allowed() && self.flag(4) && self.latin()
+        self.allowed() && self.flag(context::SUGGESTIONS) && self.latin()
     }
     pub fn emoji(&self) -> bool {
-        self.allowed() && self.flag(5)
+        self.allowed() && self.flag(context::EMOJI_SUGGESTIONS)
     }
     /// The text variation, if the field is text (`TYPE_CLASS_TEXT`).
     fn text_variation(&self) -> Option<i64> {
-        let raw = int(&self.0, 0);
+        let raw = self.input_type();
         (raw & 15 == 1).then_some(raw & 0xff0)
     }
     /// Whether the field takes prose, to auto-correct and learn from: not a URL, e-mail address or
@@ -61,7 +68,7 @@ impl Context {
     /// Whether what is typed is auto-corrected: prose, or a URL or e-mail field that asks for it
     /// ([`AUTO_CORRECT`]). A filter field is never corrected, whatever it asks.
     pub fn autocorrect(&self) -> bool {
-        let asks = int(&self.0, 0) & AUTO_CORRECT != 0;
+        let asks = self.input_type() & AUTO_CORRECT != 0;
         let address = self
             .text_variation()
             .is_some_and(|v| ADDRESSES.contains(&v));
@@ -71,32 +78,36 @@ impl Context {
     /// restarts: only in prose, so never from a password, address or URL field, even one that
     /// asks for corrections, and never incognito.
     pub fn remember_kept(&self) -> bool {
-        self.prose() && !self.flag(7)
+        self.prose() && !self.flag(context::INCOGNITO)
     }
     /// Whether finished words are learned: only from prose, so nothing typed in an address field
     /// is learned, whatever its flags.
     pub fn learn(&self) -> bool {
-        self.prose() && self.flag(6) && !self.flag(7) && !self.flag(1)
+        self.prose()
+            && self.flag(context::LEARN)
+            && !self.flag(context::INCOGNITO)
+            && !self.flag(context::RAW_EDITOR)
     }
     pub fn selection(&self) -> bool {
-        int(&self.0, 10) != int(&self.0, 11)
+        int(&self.0, context::SELECTION_START) != int(&self.0, context::SELECTION_END)
     }
     pub fn query(&self) -> bool {
-        self.on() && self.flag(9) && !self.selection()
+        self.on() && self.flag(context::SELECTION_VALID) && !self.selection()
     }
+    /// A [`policy`] row.
     pub fn policy(&self) -> Vec<Field> {
-        [
-            self.on(),
-            self.words(),
-            self.emoji(),
-            self.autocorrect(),
-            self.learn(),
-            self.enabled(),
-        ]
-        .map(|v| number(i32::from(v)))
-        .to_vec()
+        let mut row = vec![vec![]; policy::SIZE];
+        row[policy::ON] = flag::utf16(self.on());
+        row[policy::WORDS] = flag::utf16(self.words());
+        row[policy::EMOJI] = flag::utf16(self.emoji());
+        row[policy::AUTOCORRECT] = flag::utf16(self.autocorrect());
+        row[policy::LEARN] = flag::utf16(self.learn());
+        row[policy::ENABLED] = flag::utf16(self.enabled());
+        row
     }
-    pub fn typing(&self, before: &[u16], typed: &[u16], after: &[u16]) -> Vec<Field> {
+    /// A [`typing`] row as the suggester should see it, or nothing.
+    pub fn typing(&self, row: &[Field]) -> Vec<Field> {
+        let typed = &row[typing::TYPED];
         if !self.query()
             || !self.words()
             || typed
@@ -105,10 +116,11 @@ impl Context {
         {
             return vec![];
         }
-        let mut before = before.to_vec();
+        let mut plan = row.to_vec();
+        let before = &mut plan[typing::BEFORE];
         if typed.is_empty() && before.last().is_some_and(|&u| chars::is_letter_or_digit(u)) {
             before.push(32);
         }
-        vec![before, typed.to_vec(), after.to_vec()]
+        plan
     }
 }

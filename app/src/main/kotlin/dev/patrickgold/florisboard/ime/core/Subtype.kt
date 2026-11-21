@@ -141,9 +141,9 @@ data class SubtypeLayoutMap(
         }
     }
 
-    override fun toString(): String = com.jtn0123.audiowhisper.rust.SettingsRules.call(28,
-        characters.toString(),symbols.toString(),symbols2.toString(),numeric.toString(),
-        numericAdvanced.toString(),numericRow.toString(),phone.toString(),phone2.toString())[0]
+    override fun toString(): String = com.jtn0123.audiowhisper.rust.SettingsRules.call(com.jtn0123.audiowhisper.rust.SettingsOp.LAYOUT_MAP,
+        *with(com.jtn0123.audiowhisper.rust.SettingsLayouts) { row(CHARACTERS to "$characters", SYMBOLS to "$symbols", SYMBOLS2 to "$symbols2",
+        NUMERIC to "$numeric", NUMERIC_ADVANCED to "$numericAdvanced", NUMERIC_ROW to "$numericRow", PHONE to "$phone", PHONE2 to "$phone2") })[0]
 
 }
 

@@ -17,7 +17,7 @@
 package dev.patrickgold.florisboard.ime.core
 
 import android.content.Context
-import com.jtn0123.audiowhisper.rust.SettingsRules
+import com.jtn0123.audiowhisper.rust.*
 import com.jtn0123.audiowhisper.settings.SettingsCodecs
 import com.jtn0123.audiowhisper.settings.SettingsSubtypes
 import dev.patrickgold.florisboard.app.FlorisPreferenceStore
@@ -72,7 +72,7 @@ class SubtypeManager(context: Context) {
         keyboardManager.resources.currencySets.value?.get(subtypeToSearch.currencySet) ?: CurrencySet.Fallback
     fun getSubtypeById(id: Long): Subtype? {
         val list = subtypes
-        return list.getOrNull(SettingsRules.call(25, id.toString(), *list.map { it.id.toString() }.toTypedArray())[0].toInt())
+        return list.getOrNull(SettingsRules.call(SettingsOp.SUBTYPE_INDEX, id.toString(), *list.map { it.id.toString() }.toTypedArray())[0].toInt())
     }
     fun getSubtypePresetForLocale(locale: FlorisLocale): SubtypePreset? {
         val presets = keyboardManager.resources.subtypePresets.value.orEmpty()

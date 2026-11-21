@@ -20,10 +20,10 @@ pub enum Action {
 impl Action {
     pub fn name(self) -> &'static str {
         match self {
-            Self::Skip => "skip",
-            Self::Directory => "directory",
-            Self::Copy => "copy",
-            Self::Empty => "empty",
+            Self::Skip => wire::extensions::SKIP,
+            Self::Directory => wire::extensions::DIRECTORY,
+            Self::Copy => wire::extensions::COPY,
+            Self::Empty => wire::extensions::EMPTY,
         }
     }
 }

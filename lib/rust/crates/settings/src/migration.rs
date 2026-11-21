@@ -5,6 +5,7 @@ use crate::{
     value::{Value, object},
 };
 use keys::{codes, model_data};
+use wire::settings::{KEEP, RESET, TRANSFORM, migration};
 
 pub fn predefined(code: i32) -> Result<Value> {
     let key = model_data::PREDEFINED
@@ -154,7 +155,7 @@ pub fn migrate(kind: &[u16], key: &[u16], raw: &[u16]) -> Result<Vec<Text>> {
         )
         || (k == "keyboard__one_handed_mode" && raw == text("OFF"));
     if reset {
-        return Ok(vec![text("reset"), ty, key.to_vec(), value]);
+        return Ok(plan(RESET, ty, key.to_vec(), value));
     }
     let mut changed = true;
     match k.as_ref() {
@@ -218,10 +219,20 @@ pub fn migrate(kind: &[u16], key: &[u16], raw: &[u16]) -> Result<Vec<Text>> {
         }
         _ => changed = false,
     }
-    Ok(vec![
-        text(if changed { "transform" } else { "keep" }),
+    Ok(plan(
+        if changed { TRANSFORM } else { KEEP },
         ty,
         text(target),
         value,
-    ])
+    ))
+}
+
+/// A `wire::settings::migration` row.
+fn plan(action: &str, ty: Text, key: Text, value: Text) -> Vec<Text> {
+    let mut row = vec![vec![]; migration::SIZE];
+    row[migration::ACTION] = text(action);
+    row[migration::TYPE] = ty;
+    row[migration::KEY] = key;
+    row[migration::VALUE] = value;
+    row
 }

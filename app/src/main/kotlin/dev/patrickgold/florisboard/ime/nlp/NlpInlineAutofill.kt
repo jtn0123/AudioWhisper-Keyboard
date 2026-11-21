@@ -7,6 +7,7 @@ import android.view.ViewGroup
 import android.view.inputmethod.InlineSuggestion
 import android.view.inputmethod.InlineSuggestionInfo
 import android.widget.inline.InlineContentView
+import com.jtn0123.audiowhisper.rust.*
 import dev.patrickgold.florisboard.ime.keyboard.FlorisImeSizing
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -23,7 +24,7 @@ object NlpInlineAutofill {
     val suggestions = NlpState.inline
     fun showInlineSuggestions(context: Context, rawSuggestions: List<InlineSuggestion>): Boolean {
         val plan = NlpState.inlineBegin(rawSuggestions.size)
-        if (plan[1] != "1") return false
+        if (!WireFlag.decode(plan[NlpInlineBegin.PENDING])) return false
         scope.launch {
             val size = Size(ViewGroup.LayoutParams.WRAP_CONTENT, FlorisImeSizing.Static.smartbarHeightPx)
             val latch = CountDownLatch(rawSuggestions.size)
@@ -34,9 +35,9 @@ object NlpInlineAutofill {
                     latch.countDown()
                 }
             }
-            if (latch.await(plan[2].toLong(), TimeUnit.MILLISECONDS)) {
-                NlpState.inlineComplete(plan[0], views.filterNotNull())
-            } else { NlpState.call("inlineCancel", plan[0]) }
+            if (latch.await(plan[NlpInlineBegin.TIMEOUT].toLong(), TimeUnit.MILLISECONDS)) {
+                NlpState.inlineComplete(plan[NlpInlineBegin.GENERATION], views.filterNotNull())
+            } else { NlpState.call(NlpOp.INLINE_CANCEL, plan[NlpInlineBegin.GENERATION]) }
         }
         return true
     }

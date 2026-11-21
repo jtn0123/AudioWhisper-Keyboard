@@ -1,4 +1,5 @@
 use crate::{Field, integer, number};
+use wire::editor::state;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Range {
@@ -123,16 +124,17 @@ impl Content {
             ..Self::default()
         }
     }
+    /// A `wire::editor::state` row with this content's fields, the rest empty.
     pub fn fields(&self) -> Vec<Field> {
-        vec![
-            self.text.clone(),
-            number(self.offset),
-            number(self.selection.start),
-            number(self.selection.end),
-            number(self.composing.start),
-            number(self.composing.end),
-            number(self.word.start),
-            number(self.word.end),
-        ]
+        let mut row = vec![vec![]; state::SIZE];
+        row[state::TEXT] = self.text.clone();
+        row[state::OFFSET] = number(self.offset);
+        row[state::SELECTION_START] = number(self.selection.start);
+        row[state::SELECTION_END] = number(self.selection.end);
+        row[state::COMPOSING_START] = number(self.composing.start);
+        row[state::COMPOSING_END] = number(self.composing.end);
+        row[state::WORD_START] = number(self.word.start);
+        row[state::WORD_END] = number(self.word.end);
+        row
     }
 }

@@ -16,7 +16,12 @@
 
 package dev.patrickgold.florisboard.lib.util
 
+import org.florisboard.lib.kotlin.UtilityOp
 import org.florisboard.lib.kotlin.UtilityRules
+import org.florisboard.lib.kotlin.UtilityVersion
+import org.florisboard.lib.kotlin.UtilityVersionPlan
+import org.florisboard.lib.kotlin.UtilityVersionStatus
+import com.jtn0123.audiowhisper.rust.WireFlag
 import android.content.Context
 import dev.patrickgold.florisboard.app.FlorisPreferenceModel
 
@@ -33,11 +38,11 @@ object AppVersionUtils {
         // Preserve public parser exceptions, then ask Rust for the complete changelog rule.
         val raw = listOf(prefs.internal.versionOnInstall.get(), prefs.internal.versionLastChangelog.get(), getRawVersionName(context))
         raw.forEach { VersionName.fromString(it) }
-        return UtilityRules.call(12, *raw.toTypedArray())[0] == "1"
+        return WireFlag.decode(UtilityRules.call(UtilityOp.SHOWS_CHANGELOG, *raw.toTypedArray())[0])
     }
 
     suspend fun updateVersionOnInstallAndLastUse(context: Context, prefs: FlorisPreferenceModel) {
-        if (UtilityRules.call(13, prefs.internal.versionOnInstall.get())[0] == "1") {
+        if (WireFlag.decode(UtilityRules.call(UtilityOp.UNSET_VERSION, prefs.internal.versionOnInstall.get())[0])) {
             prefs.internal.versionOnInstall.set(getRawVersionName(context))
         }
         prefs.internal.versionLastUse.set(getRawVersionName(context))
@@ -60,18 +65,20 @@ data class VersionName(
         const val DEFAULT_RAW: String = "0.0.0"
 
         fun fromString(raw: String): VersionName? {
-            val result = UtilityRules.call(9, raw)
+            val result = UtilityRules.call(UtilityOp.PARSE_VERSION, raw)
             if (result.isEmpty()) return null
-            if (result[0] == "number-error") throw NumberFormatException("For input string: \"${result[1]}\"")
-            return VersionName(result[1].toInt(), result[2].toInt(), result[3].toInt())
+            with(UtilityVersionPlan) { if (result[STATUS] == UtilityVersionStatus.NUMBER_ERROR) throw NumberFormatException("For input string: \"${result[BAD_NUMBER]}\"") }
+            return with(UtilityVersionPlan) { VersionName(result[MAJOR].toInt(), result[MINOR].toInt(), result[PATCH].toInt()) }
         }
 
     }
 
-    override fun toString(): String = UtilityRules.call(11, major.toString(), minor.toString(), patch.toString(),
-        if (extraName == null) "0" else "1$extraName", extraValue?.toString().orEmpty())[0]
+    override fun toString(): String = UtilityRules.call(UtilityOp.FORMAT_VERSION,
+        *fields(if (extraName == null) WireFlag.FALSE else WireFlag.TRUE + extraName))[0]
 
-    private fun fields() = listOf(major.toString(), minor.toString(), patch.toString(), extraName.orEmpty(), extraValue?.toString().orEmpty())
-    operator fun compareTo(other: VersionName): Int = UtilityRules.call(10,
-        *(fields() + other.fields()).toTypedArray())[0].toInt()
+    /** This version as a [UtilityVersion] row, with [name] as its extra name. */
+    private fun fields(name: String = extraName.orEmpty()) =
+        with(UtilityVersion) { row(MAJOR to "$major", MINOR to "$minor", PATCH to "$patch", EXTRA_NAME to name, EXTRA_VALUE to extraValue?.toString().orEmpty()) }
+    operator fun compareTo(other: VersionName): Int = UtilityRules.call(UtilityOp.COMPARE_VERSIONS,
+        *fields(), *other.fields())[0].toInt()
 }

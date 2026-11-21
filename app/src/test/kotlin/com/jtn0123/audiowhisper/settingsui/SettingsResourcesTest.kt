@@ -1,6 +1,7 @@
 package com.jtn0123.audiowhisper.settingsui
 
 import com.jtn0123.audiowhisper.rust.KeyboardRenderer
+import com.jtn0123.audiowhisper.rust.SettingsUiOp
 import java.io.File
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -10,12 +11,12 @@ import kotlin.test.assertTrue
 class SettingsResourcesTest {
     @Test fun stringIdsAreExactlyTheNativeKeyList() {
         KeyboardRenderer(emptyArray()).use { n ->
-            assertEquals(n.settings(18)[2].split("\n").toSortedSet(), settingsStringIds.keys.toSortedSet())
+            assertEquals(n.settings(SettingsUiOp.STRING_KEYS)[2].split("\n").toSortedSet(), settingsStringIds.keys.toSortedSet())
         }
     }
     @Test fun pluralIdsAreExactlyTheNativePluralRequests() {
         KeyboardRenderer(emptyArray()).use { n ->
-            assertEquals(n.settings(16)[2].split("\n").map { it.substringBefore("|") }.toSortedSet(), settingsPluralIds.keys.toSortedSet())
+            assertEquals(n.settings(SettingsUiOp.PLURALS)[2].split("\n").map { it.substringBefore("|") }.toSortedSet(), settingsPluralIds.keys.toSortedSet())
         }
     }
     /** Every icon a native screen names has a vector in SettingsIcons; a missing one draws nothing. */

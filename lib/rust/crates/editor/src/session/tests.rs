@@ -14,12 +14,30 @@ fn expected(value: &str) -> Content {
     }
 }
 
+/// An `UPDATE`: a cursor row with no composing region, then a flag that the editor can be read.
 fn update(cursor: i32) -> Vec<Field> {
-    [cursor, cursor, -1, -1, 1].map(number).to_vec()
+    let mut row = vec![vec![]; cursor::SIZE];
+    row[cursor::SELECTION_START] = number(cursor);
+    row[cursor::SELECTION_END] = number(cursor);
+    row[cursor::COMPOSING_START] = number(-1);
+    row[cursor::COMPOSING_END] = number(-1);
+    row.push(flag::utf16(true));
+    row
 }
 
 fn late(session: &mut Session, cursor: i32) -> bool {
-    session.checked_call("late", &update(cursor)[..4]) == Ok(vec![number(1)])
+    session.checked_call(ops::LATE, &update(cursor)[..cursor::SIZE]) == Ok(vec![flag::utf16(true)])
+}
+
+#[test]
+fn an_unknown_operation_is_refused_without_touching_the_editor() {
+    let mut session = Session::new();
+    let before = session.call(ops::SNAPSHOT, &[]);
+    assert_eq!(
+        session.checked_call("unknown", &[]),
+        Err("unknown editor operation")
+    );
+    assert_eq!(session.call(ops::SNAPSHOT, &[]), before);
 }
 
 /// "I saw teh" corrected to "the", a space typed, then a backspace that undid it, all before the
@@ -35,12 +53,12 @@ fn undone_before_any_update() -> Session {
 fn an_update_for_an_edit_since_followed_by_more_is_late() {
     let mut session = undone_before_any_update();
     assert!(late(&mut session, 9));
-    session.call("update", &update(9));
+    session.call(ops::UPDATE, &update(9));
     assert!(late(&mut session, 10));
-    session.call("update", &update(10));
+    session.call(ops::UPDATE, &update(10));
     // The undo's own update, though its cursor is where the correction's was, is the news.
     assert!(!late(&mut session, 9));
-    session.call("update", &update(9));
+    session.call(ops::UPDATE, &update(9));
     assert!(session.queue.is_empty());
 }
 

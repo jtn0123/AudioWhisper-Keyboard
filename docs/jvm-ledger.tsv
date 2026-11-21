@@ -34,7 +34,7 @@ app/src/main/kotlin/com/jtn0123/audiowhisper/reader/ReadAloud.kt	M	87	Accessibil
 app/src/main/kotlin/com/jtn0123/audiowhisper/reader/ReadAloudService.kt	M	207	AccessibilityService; page/session/settle/resume choices and callbacks |
 app/src/main/kotlin/com/jtn0123/audiowhisper/reader/ReadFromHereActivity.kt	A	12	Activity / Intent ACTION_PROCESS_TEXT; forwards platform selection |
 app/src/main/kotlin/com/jtn0123/audiowhisper/reader/ScreenWalk.kt	A	67	AccessibilityNodeInfo; node facts and native traversal callbacks |
-app/src/main/kotlin/com/jtn0123/audiowhisper/reader/Speaker.kt	M	81	TextToSpeech; pending utterance and completion/error lifecycle |
+app/src/main/kotlin/com/jtn0123/audiowhisper/reader/Speaker.kt	M	77	TextToSpeech; pending utterance and completion/error lifecycle |
 app/src/main/kotlin/com/jtn0123/audiowhisper/reader/SpeakerKey.kt	A	14	SystemClock / ART JNI; native hold-state transport |
 app/src/main/kotlin/com/jtn0123/audiowhisper/reader/StopButton.kt	M	63	WindowManager TYPE_ACCESSIBILITY_OVERLAY; Rust must draw/layout the stop control |
 app/src/main/kotlin/com/jtn0123/audiowhisper/reader/Voice.kt	A	29	AudioManager.requestAudioFocus / abandonAudioFocusRequest |
@@ -84,10 +84,10 @@ app/src/main/kotlin/com/jtn0123/audiowhisper/settingsui/PlatformCrashScreen.kt	A
 app/src/main/kotlin/com/jtn0123/audiowhisper/settingsui/RustSettingsView.kt	A	240	SurfaceView / Choreographer / BaseInputConnection; native effects, state and Android IME visibility transport only |
 app/src/main/kotlin/com/jtn0123/audiowhisper/settingsui/SettingsFacts.kt	M	163	device facts and effect execution for the Rust settings screens; the Android reads stay, the spell-package parse and fact shaping move to Rust
 app/src/main/kotlin/com/jtn0123/audiowhisper/settingsui/SettingsIcons.kt	A	46	Resources / Android Path; resource icon map |
-app/src/main/kotlin/com/jtn0123/audiowhisper/settingsui/SettingsInputView.kt	A	62	View / BaseInputConnection / InputMethodManager; native text endpoint |
+app/src/main/kotlin/com/jtn0123/audiowhisper/settingsui/SettingsInputView.kt	A	63	View / BaseInputConnection / InputMethodManager; native text endpoint | raised 62 to 63 (A6): the import of the generated SettingsUiEdit and SettingsUiQuery
 app/src/main/kotlin/com/jtn0123/audiowhisper/settingsui/SettingsPlatform.kt	M	78	Jetpref / Resources / WindowCompat; palette/appearance selection and write-queue binding |
 app/src/main/kotlin/com/jtn0123/audiowhisper/settingsui/SettingsResources.kt	A	16	Context.getString; batched string-resource map |
-app/src/main/kotlin/com/jtn0123/audiowhisper/settingsui/SettingsSelectionMenu.kt	A	41	Android floating ActionMode toolbar; Rust owns the selection and the edits it asks for
+app/src/main/kotlin/com/jtn0123/audiowhisper/settingsui/SettingsSelectionMenu.kt	A	42	Android floating ActionMode toolbar; Rust owns the selection and the edits it asks for; raised 41 to 42 (A6): the import of the generated SettingsUiEdit and SettingsUiQuery
 app/src/main/kotlin/com/jtn0123/audiowhisper/settingsui/SettingsStringIds.kt	A	439	explicit R.string ids for the native settings screens; a resource-only map
 app/src/main/kotlin/com/jtn0123/audiowhisper/suggest/AutoCorrectStrength.kt	P	7	portable strength enum; its order and thresholds are Rust (suggest::auto_correction::Strength)
 app/src/main/kotlin/com/jtn0123/audiowhisper/suggest/AutoCorrectionUndo.kt	A	8	ART JNI / InputConnection consumer; native undo-result projection |
@@ -115,7 +115,7 @@ app/src/main/kotlin/dev/patrickgold/florisboard/app/AppPreferenceMigration.kt	A	
 app/src/main/kotlin/dev/patrickgold/florisboard/app/AppPrefs.kt	M	276	Jetpref PreferenceModel; Android stores stay, derived UI/sizing values must move |
 app/src/main/kotlin/dev/patrickgold/florisboard/app/ComposeSettingsFallbackActivity.kt	A	4	ComponentActivity; retained fallback Activity identity |
 app/src/main/kotlin/dev/patrickgold/florisboard/app/EnumDisplayEntries.kt	A	160	Resources.getString; enum resource IDs/descriptions (split existing oversized map) |
-app/src/main/kotlin/dev/patrickgold/florisboard/app/FlorisAppActivity.kt	M	257	ComponentActivity / ActivityResultRegistry; retained routing/import/default-selection branches |
+app/src/main/kotlin/dev/patrickgold/florisboard/app/FlorisAppActivity.kt	M	258	ComponentActivity / ActivityResultRegistry; retained routing/import/default-selection branches | raised 257 to 258 (A6): the import of the generated SettingsUiBack
 app/src/main/kotlin/dev/patrickgold/florisboard/app/Routes.kt	P	264	portable Routes domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
 app/src/main/kotlin/dev/patrickgold/florisboard/app/SettingsEntry.kt	M	9	which host the settings Activity opens and settings link parsing; setup navigation moves to Rust (package 6)
 app/src/main/kotlin/dev/patrickgold/florisboard/app/apptheme/Shape.kt	P	9	portable Shape domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
@@ -183,11 +183,11 @@ app/src/main/kotlin/dev/patrickgold/florisboard/ime/core/SubtypeManager.kt	M	87	
 app/src/main/kotlin/dev/patrickgold/florisboard/ime/core/SubtypeSelectionState.kt	P	3	portable SubtypeSelectionState domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
 app/src/main/kotlin/dev/patrickgold/florisboard/ime/dictionary/DictionaryManager.kt	M	138	Room / UserDictionary provider; dictionary readiness/query composition |
 app/src/main/kotlin/dev/patrickgold/florisboard/ime/dictionary/UserDictionary.kt	M	406	Room / ContentResolver / Cursor; import/export/filter and locale rules |
-app/src/main/kotlin/dev/patrickgold/florisboard/ime/dictionary/UserDictionaryValidation.kt	P	57	portable UserDictionaryValidation domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
-app/src/main/kotlin/dev/patrickgold/florisboard/ime/editor/AbstractEditorInstance.kt	M	151	InputConnection; composing setup, reconciliation and content publication guards |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/dictionary/UserDictionaryValidation.kt	P	62	portable UserDictionaryValidation domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs | raised 57 to 62 (A6): imports of the generated UtilityOp, UtilityRule, UtilityValidation and UtilityValidity, and the request built by field name
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/editor/AbstractEditorInstance.kt	M	153	InputConnection; composing setup, reconciliation and content publication guards | raised 151 to 153 (A6): config, char and extracted packets built by field name; state read by name
 app/src/main/kotlin/dev/patrickgold/florisboard/ime/editor/EditorContent.kt	P	34	portable EditorContent domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
 app/src/main/kotlin/dev/patrickgold/florisboard/ime/editor/EditorInstance.kt	M	313	InputConnection / ClipboardManager; rich-content and editor operation orchestration |
-app/src/main/kotlin/dev/patrickgold/florisboard/ime/editor/EditorPlanExecutor.kt	A	89	InputConnection / KeyEvent; ordered native editor effects |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/editor/EditorPlanExecutor.kt	A	90	InputConnection / KeyEvent; ordered native editor effects | raised 89 to 90 (A6): queries and effects read by field name
 app/src/main/kotlin/dev/patrickgold/florisboard/ime/editor/EditorRange.kt	P	26	portable EditorRange domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
 app/src/main/kotlin/dev/patrickgold/florisboard/ime/editor/FlorisEditorInfo.kt	M	71	EditorInfo / EmojiCompat; field comparisons, compatibility and initial-text projection |
 app/src/main/kotlin/dev/patrickgold/florisboard/ime/editor/ImeOptions.kt	M	32	EditorInfo / InputType; native bit facts stay at edge, move Kotlin enum lookup/default fallback decisions |
@@ -237,15 +237,15 @@ app/src/main/kotlin/dev/patrickgold/florisboard/ime/media/emoticon/EmoticonLayou
 app/src/main/kotlin/dev/patrickgold/florisboard/ime/nlp/BreakIteratorGroup.kt	M	95	android.icu.text.BreakIterator; keep boundaries, move count/clamp/cache policy |
 app/src/main/kotlin/dev/patrickgold/florisboard/ime/nlp/ClipboardSuggestionProvider.kt	M	66	ClipboardManager; candidate gating and removal sequencing |
 app/src/main/kotlin/dev/patrickgold/florisboard/ime/nlp/LanguagePackExtension.kt	P	34	portable LanguagePackExtension domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
-app/src/main/kotlin/dev/patrickgold/florisboard/ime/nlp/NlpInlineAutofill.kt	A	39	InlineSuggestion.inflate / InlineContentView; actual Android autofill views |
-app/src/main/kotlin/dev/patrickgold/florisboard/ime/nlp/NlpManager.kt	M	342	SystemClock / provider IO; remaining worker/transport and candidate publication orchestration |
-app/src/main/kotlin/dev/patrickgold/florisboard/ime/nlp/NlpProviders.kt	P	94	portable NlpProviders domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
-app/src/main/kotlin/dev/patrickgold/florisboard/ime/nlp/NlpState.kt	M	117	Context / InputConnection facts; native protocol projection and publication |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/nlp/NlpInlineAutofill.kt	A	40	InlineSuggestion.inflate / InlineContentView; actual Android autofill views | raised 39 to 40 (A6): import of the generated NLP names
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/nlp/NlpManager.kt	M	343	SystemClock / provider IO; remaining worker/transport and candidate publication orchestration | raised 342 to 343 (A6): import of the generated NLP names
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/nlp/NlpProviders.kt	P	95	portable NlpProviders domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs | raised 94 to 95 (A6): import of the generated NLP names
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/nlp/NlpState.kt	M	118	Context / InputConnection facts; native protocol projection and publication | raised 117 to 118 (A6): the context packet built by field name
 app/src/main/kotlin/dev/patrickgold/florisboard/ime/nlp/PunctuationRule.kt	P	29	portable PunctuationRule domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
 app/src/main/kotlin/dev/patrickgold/florisboard/ime/nlp/SpellingLanguageMode.kt	P	5	portable SpellingLanguageMode domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
 app/src/main/kotlin/dev/patrickgold/florisboard/ime/nlp/SpellingResult.kt	M	32	SuggestionsInfo; remaining result flag/result-list mapping |
 app/src/main/kotlin/dev/patrickgold/florisboard/ime/nlp/SuggestionCandidate.kt	M	66	Resources / ClipData / ImageVector; display/icon/removal decisions |
-app/src/main/kotlin/dev/patrickgold/florisboard/ime/nlp/TypingCounters.kt	A	29	private counter file IO and event forwarding into Rust NlpState; the counts are Rust
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/nlp/TypingCounters.kt	A	30	private counter file IO and event forwarding into Rust NlpState; the counts are Rust; raised 29 to 30 (A6): import of the generated NLP names
 app/src/main/kotlin/dev/patrickgold/florisboard/ime/nlp/latin/LatinLanguageProvider.kt	M	330	Room / File / SystemClock; dictionary/provider selection, caches and load/error state |
 app/src/main/kotlin/dev/patrickgold/florisboard/ime/onehanded/OneHandedMode.kt	P	5	portable OneHandedMode domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
 app/src/main/kotlin/dev/patrickgold/florisboard/ime/onehanded/OneHandedPanel.kt	K	89	Compose keyboard (keyboard scope): deleted at compose-removal step K
@@ -301,7 +301,7 @@ app/src/main/kotlin/dev/patrickgold/florisboard/ime/theme/ThemeExtension.kt	P	37
 app/src/main/kotlin/dev/patrickgold/florisboard/ime/theme/ThemeExtensionComponent.kt	P	74	portable ThemeExtensionComponent domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
 app/src/main/kotlin/dev/patrickgold/florisboard/ime/theme/ThemeManager.kt	M	309	Resources / InlineSuggestionUi; active-theme/day-night choice and inline styles |
 app/src/main/kotlin/dev/patrickgold/florisboard/ime/theme/ThemeMode.kt	P	7	portable ThemeMode domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
-app/src/main/kotlin/dev/patrickgold/florisboard/lib/FlorisLocale.kt	M	102	Android Locale/ICU locale names; tag/selection/cache behavior needs explicit native ownership |
+app/src/main/kotlin/dev/patrickgold/florisboard/lib/FlorisLocale.kt	M	107	Android Locale/ICU locale names; tag/selection/cache behavior needs explicit native ownership | raised 102 to 107 (A6): imports of UtilityOp, the three locale packets and WireFlag; a star import would pull in lib/kotlin's Array.map
 app/src/main/kotlin/dev/patrickgold/florisboard/lib/FlorisRect.kt	P	185	rectangle geometry/intersection/containment |
 app/src/main/kotlin/dev/patrickgold/florisboard/lib/Native.kt	A	3	ART JNI / ByteBuffer; native string and pointer wrapper ownership |
 app/src/main/kotlin/dev/patrickgold/florisboard/lib/Pointer.kt	P	81	pointer registry, reuse and reset rules |
@@ -331,9 +331,9 @@ app/src/main/kotlin/dev/patrickgold/florisboard/lib/ext/ExtensionMeta.kt	P	22	po
 app/src/main/kotlin/dev/patrickgold/florisboard/lib/ext/ExtensionValidation.kt	P	138	portable ExtensionValidation domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
 app/src/main/kotlin/dev/patrickgold/florisboard/lib/io/AssetManager.kt	M	125	Context.assets / File; source selection, admission and operation composition |
 app/src/main/kotlin/dev/patrickgold/florisboard/lib/io/FileRegistry.kt	P	56	portable FileRegistry domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
-app/src/main/kotlin/dev/patrickgold/florisboard/lib/io/FlorisRef.kt	M	147	Context / Uri / File; scheme/subpath validation and model ownership |
+app/src/main/kotlin/dev/patrickgold/florisboard/lib/io/FlorisRef.kt	M	153	Context / Uri / File; scheme/subpath validation and model ownership | raised 147 to 153 (A6): imports of UtilityOp, the reference packets, UtilityReferenceKind and WireFlag, and a kind property read by name
 app/src/main/kotlin/dev/patrickgold/florisboard/lib/io/ZipUtils.kt	M	131	ContentResolver / ZipFile; archive traversal and path/admission policy |
-app/src/main/kotlin/dev/patrickgold/florisboard/lib/util/AppVersionUtils.kt	M	50	Context / Jetpref; version/changelog choice and comparison |
+app/src/main/kotlin/dev/patrickgold/florisboard/lib/util/AppVersionUtils.kt	M	56	Context / Jetpref; version/changelog choice and comparison | raised 50 to 56 (A6): imports of UtilityOp, the version packets and WireFlag, and the parsed version read by field name
 app/src/main/kotlin/dev/patrickgold/florisboard/lib/util/InputMethodUtils.kt	A	66	InputMethodManager / Settings.Secure; IME status/picker/enabler |
 app/src/main/kotlin/dev/patrickgold/florisboard/lib/util/LaunchUtils.kt	A	63	Context.startActivity / Intent / Toast; executes requested effects |
 app/src/main/kotlin/dev/patrickgold/florisboard/lib/util/NetworkUtils.kt	P	29	portable NetworkUtils domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
@@ -380,7 +380,7 @@ lib/kotlin/src/main/kotlin/org/florisboard/lib/kotlin/Collections.kt	P	11	portab
 lib/kotlin/src/main/kotlin/org/florisboard/lib/kotlin/Flow.kt	P	13	portable Flow domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
 lib/kotlin/src/main/kotlin/org/florisboard/lib/kotlin/GuardedByLock.kt	P	25	portable GuardedByLock domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
 lib/kotlin/src/main/kotlin/org/florisboard/lib/kotlin/Library.kt	P	13	portable Library domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
-lib/kotlin/src/main/kotlin/org/florisboard/lib/kotlin/MimeTypeFilter.kt	P	31	portable MimeTypeFilter domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
+lib/kotlin/src/main/kotlin/org/florisboard/lib/kotlin/MimeTypeFilter.kt	P	30	portable MimeTypeFilter domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
 lib/kotlin/src/main/kotlin/org/florisboard/lib/kotlin/Numbers.kt	P	2	portable Numbers domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
 lib/kotlin/src/main/kotlin/org/florisboard/lib/kotlin/Result.kt	P	28	portable Result domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
 lib/kotlin/src/main/kotlin/org/florisboard/lib/kotlin/Strings.kt	P	66	portable Strings domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
@@ -393,10 +393,10 @@ lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/ComposingNative.kt	A	9	AR
 lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/Dictation.kt	A	42	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
 lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/DictationNative.kt	A	15	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
 lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/DictationSessionPlan.kt	A	46	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
-lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/EditorSession.kt	A	50	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
+lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/EditorSession.kt	A	57	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport | raised 50 to 57 (A6): typed EditorOp and EditorAttributeOp calls; the cursor and keyboard request packets built by field name
 lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/Emoji.kt	A	61	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
 lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/EmojiNative.kt	A	13	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
-lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/ExtensionPolicy.kt	A	31	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
+lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/ExtensionPolicy.kt	A	34	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport | raised 31 to 34 (A6): a typed ExtensionOp call and the archive entry packet built by field name, which BackupPolicy shares
 lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/Gestures.kt	A	93	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
 lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/GesturesNative.kt	A	46	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
 lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/Gif.kt	M	44	ART JNI; residual signed-order decoding helpers and cache payload lifetime |

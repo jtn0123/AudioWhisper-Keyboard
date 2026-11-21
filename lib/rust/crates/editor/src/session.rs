@@ -1,5 +1,11 @@
-use crate::{Content, Field, Range, attributes, integer, number, operations::Op, text};
+use crate::{
+    Content, Field, Range, attributes, integer, number,
+    operations::{NEW_COMPOSING, Op},
+    text,
+};
 use std::collections::VecDeque;
+use wire::editor::{self as ops, config, cursor, effect, plan, read_query, state, word_query};
+use wire::flag;
 
 #[derive(Clone, Debug)]
 pub(crate) struct Pending {
@@ -53,11 +59,22 @@ impl Session {
         self.queue.back().unwrap_or(&self.active)
     }
     pub(crate) fn ready(&self) -> Vec<Field> {
-        let mut output = vec![text("ready"), number(i32::from(self.result))];
+        let mut output = vec![vec![]; plan::SIZE];
+        output[plan::STATUS] = text(ops::READY);
+        output[plan::RESULT] = flag::utf16(self.result);
         for op in &self.operations {
             output.extend(op.fields());
         }
         output
+    }
+    /// The state of `content`, and whether an expected state is waiting to be reported.
+    fn state(&self, content: &Content, expected: bool) -> Vec<Field> {
+        let mut row = content.fields();
+        row[state::CAPS] = number(self.caps);
+        row[state::LAST_COMMIT] = number(self.last);
+        row[state::EXPECTED] = flag::utf16(expected);
+        row[state::FAILURES] = number(self.failures as i32);
+        row
     }
     pub(crate) fn done(&mut self, success: bool, ops: Vec<Op>) -> Vec<Field> {
         if let Some((event, args)) = self.context.next.take() {
@@ -97,7 +114,11 @@ impl Session {
         if !pending.word_done {
             pending.word_done = true;
             if self.determine && c.selection.cursor_mode() && !c.before().is_empty() {
-                return vec![text("word"), c.before(), number(self.last - c.offset)];
+                let mut query = vec![vec![]; word_query::SIZE];
+                query[word_query::QUERY] = text(ops::WORD);
+                query[word_query::BEFORE] = c.before();
+                query[word_query::LAST_COMMIT] = number(self.last - c.offset);
+                return query;
             }
         }
         if !pending.caps_done && pending.publish {
@@ -129,7 +150,7 @@ impl Session {
         }
         let mut ops = pending.ops;
         for op in &mut ops {
-            if op.name == "newComposing" {
+            if op.name == NEW_COMPOSING {
                 *op = Op::composing(c.composing());
             }
         }
@@ -149,16 +170,16 @@ impl Session {
     }
     pub fn call(&mut self, operation: &str, fields: &[Field]) -> Vec<Field> {
         match operation {
-            "extracted" => self.extracted(fields),
-            "config" => {
-                self.raw = integer(fields, 0) != 0;
-                self.enabled = integer(fields, 1) != 0;
-                self.determine = integer(fields, 2) != 0;
-                self.space = integer(fields, 3) != 0;
-                self.input_type = integer(fields, 4);
+            ops::EXTRACTED => self.extracted(fields),
+            ops::CONFIG => {
+                self.raw = flag::decode(&fields[config::RAW]);
+                self.enabled = flag::decode(&fields[config::COMPOSING]);
+                self.determine = flag::decode(&fields[config::DETERMINE_COMPOSING]);
+                self.space = flag::decode(&fields[config::SPACE_PENDING]);
+                self.input_type = integer(fields, config::INPUT_TYPE);
                 vec![]
             }
-            "composerRules" => {
+            ops::COMPOSER_RULES => {
                 self.composer_read = fields
                     .as_chunks::<2>()
                     .0
@@ -176,18 +197,20 @@ impl Session {
                 ));
                 vec![]
             }
-            "arrow" => self.arrow(fields),
-            "massBegin" | "massEnd" | "massState" | "massReset" => self.mass_state(operation),
-            "inputInfo" => {
+            ops::ARROW => self.arrow(fields),
+            ops::MASS_BEGIN | ops::MASS_END | ops::MASS_STATE | ops::MASS_RESET => {
+                self.mass_state(operation)
+            }
+            ops::INPUT_INFO => {
                 self.active = Content::default();
                 self.caps = attributes::caps(integer(fields, 0));
                 vec![]
             }
-            "unavailable" => {
+            ops::UNAVAILABLE => {
                 if fields.first().is_some_and(|s| {
                     matches!(
                         String::from_utf16_lossy(s).as_str(),
-                        "start" | "update" | "mass" | "extracted"
+                        ops::START | ops::UPDATE | ops::MASS | ops::EXTRACTED
                     )
                 }) {
                     self.active = Content::default();
@@ -195,27 +218,9 @@ impl Session {
                 }
                 self.done(false, vec![])
             }
-            "published" => {
-                let mut out = self.active.fields();
-                out.extend([
-                    number(self.caps),
-                    number(self.last),
-                    number(0),
-                    number(self.failures as i32),
-                ]);
-                out
-            }
-            "snapshot" => {
-                let mut out = self.content().fields();
-                out.extend([
-                    number(self.caps),
-                    number(self.last),
-                    number(i32::from(!self.queue.is_empty())),
-                    number(self.failures as i32),
-                ]);
-                out
-            }
-            "reset" => {
+            ops::PUBLISHED => self.state(&self.active, false),
+            ops::SNAPSHOT => self.state(self.content(), !self.queue.is_empty()),
+            ops::RESET => {
                 let composer = self.composer.take();
                 let composer_read = self.composer_read;
                 *self = Self::new();
@@ -223,32 +228,33 @@ impl Session {
                 self.composer_read = composer_read;
                 self.done(true, vec![])
             }
-            "start" => {
+            ops::START => {
                 let selection = Range::read(fields, 0);
-                if self.raw || !selection.valid() || integer(fields, 2) == 0 {
+                if self.raw || !selection.valid() || !flag::decode(&fields[2]) {
                     self.active = Content::default();
                     self.caps = 0;
                     return self.done(false, vec![]);
                 }
                 self.query = Query::Read(selection, None, true);
-                vec![text("read"), number(1), number(1)]
+                read_query(true, true)
             }
-            "late" => {
+            ops::LATE => {
                 // An update reporting one of the keyboard's own edits that it has already followed
                 // with more: news of the past, which must not undo what those later edits set,
-                // such as the space an undone auto-correction owes. Asked before "update".
-                let (selection, composing) = (Range::read(fields, 0), Range::read(fields, 2));
+                // such as the space an undone auto-correction owes. Asked before ops::UPDATE.
+                let selection = Range::read(fields, cursor::SELECTION_START);
+                let composing = Range::read(fields, cursor::COMPOSING_START);
                 let own = (self.queue.iter()).position(|it| it.reported_by(selection, composing));
                 let late = self.mass == 0 && own.is_some_and(|at| at + 1 < self.queue.len());
-                vec![number(i32::from(late))]
+                vec![flag::utf16(late)]
             }
-            "update" => {
+            ops::UPDATE => {
                 if self.mass > 0 {
-                    return self.call("mass", &fields[..4]);
+                    return self.call(ops::MASS, &fields[..cursor::SIZE]);
                 }
-                let selection = Range::read(fields, 0);
-                let composing = Range::read(fields, 2);
-                if self.raw || !selection.valid() || integer(fields, 4) == 0 {
+                let selection = Range::read(fields, cursor::SELECTION_START);
+                let composing = Range::read(fields, cursor::COMPOSING_START);
+                if self.raw || !selection.valid() || !flag::decode(&fields[cursor::SIZE]) {
                     self.active = Content::default();
                     self.caps = 0;
                     return self.done(false, vec![]);
@@ -272,13 +278,9 @@ impl Session {
                     }
                 }
                 self.query = Query::Read(selection, Some(composing), false);
-                vec![
-                    text("read"),
-                    number(i32::from(selection.start > 0)),
-                    number(i32::from(selection.start != selection.end)),
-                ]
+                read_query(selection.start > 0, selection.start != selection.end)
             }
-            "read" => {
+            ops::READ => {
                 let Query::Read(mut selection, compare, initial) = std::mem::take(&mut self.query)
                 else {
                     return self.done(false, vec![]);
@@ -301,7 +303,7 @@ impl Session {
                     }
                 }
                 let ops = if initial {
-                    vec![Op::simple("newComposing")]
+                    vec![Op::simple(NEW_COMPOSING)]
                 } else {
                     vec![]
                 };
@@ -314,7 +316,7 @@ impl Session {
                     compare,
                 )
             }
-            "word" => {
+            ops::WORD => {
                 let p = self.pending.as_mut().expect("word response");
                 p.content.word = Range::read(fields, 0);
                 p.content.composing = if self.enabled {
@@ -324,12 +326,12 @@ impl Session {
                 };
                 self.advance()
             }
-            "caps" => {
+            ops::CAPS => {
                 self.caps = attributes::caps(integer(fields, 0));
                 self.advance()
             }
-            "mass" => {
-                let selection = Range::read(fields, 0);
+            ops::MASS => {
+                let selection = Range::read(fields, cursor::SELECTION_START);
                 self.caps = 0;
                 self.active = Content {
                     selection,
@@ -340,49 +342,76 @@ impl Session {
                 }
                 self.done(
                     true,
-                    if Range::read(fields, 2).valid() {
-                        vec![Op::simple("finish")]
+                    if Range::read(fields, cursor::COMPOSING_START).valid() {
+                        vec![Op::simple(effect::FINISH)]
                     } else {
                         vec![]
                     },
                 )
             }
-            "lastCommit" => {
+            ops::LAST_COMMIT => {
                 let s = self.content().selection();
                 self.last = if s.valid() { s.start.max(s.end) } else { -1 };
                 vec![]
             }
-            "lastDelete" => {
+            ops::LAST_DELETE => {
                 let s = self.content().selection();
                 if s.start.min(s.end) < self.last {
                     self.last = s.start.min(s.end);
                 }
                 vec![]
             }
-            "results" => {
+            ops::RESULTS => {
                 self.failures += fields
                     .iter()
                     .zip(&self.operations)
-                    .filter(|(v, op)| v.as_slice() == [48] && !matches!(op.name, "begin" | "end"))
+                    .filter(|(v, op)| {
+                        !flag::decode(v) && !matches!(op.name, effect::BEGIN | effect::END)
+                    })
                     .count();
                 let success = if self
                     .operations
                     .last()
-                    .is_some_and(|op| matches!(op.name, "action" | "contextMenu"))
+                    .is_some_and(|op| matches!(op.name, effect::ACTION | effect::CONTEXT_MENU))
                 {
-                    self.result && fields.last().is_some_and(|v| v.as_slice() == [49])
+                    self.result && fields.last().is_some_and(|v| flag::decode(v))
                 } else {
                     self.result
                 };
-                vec![number(i32::from(success))]
+                vec![flag::utf16(success)]
             }
-            "context" | "spaces" | "spacing" | "typeChar" | "typeText" | "completion"
-            | "gesture" | "backward" | "forward" | "revert" | "dictation" | "undoDictation"
-            | "forgetDictation" | "doubleSpace" | "rawEnter" | "enter" | "selectAll"
-            | "selectAround" | "extent" => self.high(operation, fields),
+            ops::CONTEXT
+            | ops::SPACES
+            | ops::SPACING
+            | ops::TYPE_CHAR
+            | ops::TYPE_TEXT
+            | ops::COMPLETION
+            | ops::GESTURE
+            | ops::BACKWARD
+            | ops::FORWARD
+            | ops::REVERT
+            | ops::DICTATION
+            | ops::UNDO_DICTATION
+            | ops::FORGET_DICTATION
+            | ops::DOUBLE_SPACE
+            | ops::RAW_ENTER
+            | ops::ENTER
+            | ops::SELECT_ALL
+            | ops::SELECT_AROUND
+            | ops::EXTENT => self.high(operation, fields),
             _ => self.edit(operation, fields),
         }
     }
+}
+
+/// A query for the editor's text, and whether to read the text before the cursor and the selected
+/// text.
+pub(crate) fn read_query(before: bool, selected: bool) -> Vec<Field> {
+    let mut query = vec![vec![]; read_query::SIZE];
+    query[read_query::QUERY] = text(ops::READ);
+    query[read_query::BEFORE] = flag::utf16(before);
+    query[read_query::SELECTED] = flag::utf16(selected);
+    query
 }
 
 #[cfg(test)]

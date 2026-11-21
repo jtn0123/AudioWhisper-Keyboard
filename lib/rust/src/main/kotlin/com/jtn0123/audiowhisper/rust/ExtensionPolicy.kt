@@ -2,34 +2,44 @@ package com.jtn0123.audiowhisper.rust
 
 /** Platform-neutral policy results. Android maps resource keys to its existing UI/error classes. */
 object ExtensionPolicy {
-    // Validation: status, resource key, optional argument name and regex.
-    fun validate(rule: String, value: String): List<String> = ExtensionPolicyNative.call(0, arrayOf(rule, value)).asList()
-    fun maintainerRanges(value: String): IntArray = ExtensionPolicyNative.call(1, arrayOf(value)).map(String::toInt).toIntArray()
+    /** An [ExtensionValidationPlan] row. */
+    fun validate(rule: ExtensionRule, value: String): List<String> = call(ExtensionOp.VALIDATE, rule.code, value)
+    /** An [ExtensionMaintainerRanges] row, or nothing. */
+    fun maintainerRanges(value: String): IntArray = call(ExtensionOp.MAINTAINER_RANGES, value).map(String::toInt).toIntArray()
     fun formatMaintainer(name: String, email: String?, url: String?): String =
-        ExtensionPolicyNative.call(2, arrayOf(name, email.orEmpty(), url.orEmpty()))[0]
-    fun componentName(value: String): List<String> = ExtensionPolicyNative.call(3, arrayOf(value)).asList()
+        call(ExtensionOp.FORMAT_MAINTAINER, name, email.orEmpty(), url.orEmpty())[0]
+    /** An [ExtensionComponentPlan] row. */
+    fun componentName(value: String): List<String> = call(ExtensionOp.COMPONENT_NAME, value)
 
-    data class ArchiveEntry(val name: String, val canonicalPath: String, val size: Long, val directory: Boolean)
-    fun archive(root: String, entries: List<ArchiveEntry>): List<String> = ExtensionPolicyNative.call(4,
-        (listOf(root) + entries.flatMap { listOf(it.name, it.canonicalPath, it.size.toString(), if (it.directory) "1" else "0") }).toTypedArray()).asList()
-    /** Canonical JSON from the platform syntax reader; returns serial type, group and component field. */
-    fun manifest(metadata: String, canonical: String = metadata): List<String> = ExtensionPolicyNative.call(5, arrayOf(metadata, canonical)).asList()
-    fun group(serialType: String): String = ExtensionPolicyNative.call(6, arrayOf(serialType)).let {
-        check(it[0].isEmpty()) { it[0] }
-        it[1]
+    data class ArchiveEntry(val name: String, val canonicalPath: String, val size: Long, val directory: Boolean) {
+        /** This entry as an [ExtensionArchiveEntry] row. */
+        fun packet() = with(ExtensionArchiveEntry) { row(NAME to name, CANONICAL_PATH to canonicalPath, BYTES to "$size", DIRECTORY to WireFlag.encode(directory)) }
     }
-    fun accepts(requested: String, serialType: String): Boolean = ExtensionPolicyNative.call(7, arrayOf(requested, serialType))[0] == "1"
+    /** An [ExtensionArchiveAction] for each entry. */
+    fun archive(root: String, entries: List<ArchiveEntry>): List<String> =
+        call(ExtensionOp.ARCHIVE, root, *entries.flatMap { it.packet().asList() }.toTypedArray())
+    /** Canonical JSON from the platform syntax reader; returns an [ExtensionManifest] row. */
+    fun manifest(metadata: String, canonical: String = metadata): List<String> = call(ExtensionOp.MANIFEST, metadata, canonical)
+    fun group(serialType: String): String = call(ExtensionOp.GROUP, serialType).let {
+        check(it[ExtensionGroupPlan.ERROR].isEmpty()) { it[ExtensionGroupPlan.ERROR] }
+        it[ExtensionGroupPlan.GROUP]
+    }
+    fun accepts(requested: String, serialType: String): Boolean = WireFlag.decode(call(ExtensionOp.ACCEPTS, requested, serialType)[0])
+    /** An [ExtensionSkipReason], or empty. */
     fun skipReason(supported: Boolean, parsed: Boolean, core: Boolean): String =
-        ExtensionPolicyNative.call(8, arrayOf(supported.bit(), parsed.bit(), core.bit()))[0]
-    fun archiveNames(names: List<String>): List<Boolean> = ExtensionPolicyNative.call(9, names.toTypedArray()).map { it == "1" }
-    /** Error, trimmed id/label, optional stylesheet and its presence bit, filtered authors. */
+        call(ExtensionOp.SKIP_REASON, WireFlag.encode(supported), WireFlag.encode(parsed), WireFlag.encode(core))[0]
+    fun archiveNames(names: List<String>): List<Boolean> = call(ExtensionOp.ARCHIVE_NAMES, *names.toTypedArray()).map(WireFlag::decode)
+    /** An [ExtensionThemePlan] row. */
     fun themeComponent(id: String, label: String, stylesheet: String, authors: List<String>): List<String> =
-        ExtensionPolicyNative.call(10, (listOf(id, label, stylesheet) + authors).toTypedArray()).asList()
-    fun stylesheet(id: String, path: String?): String = ExtensionPolicyNative.call(11, arrayOf(id, path.orEmpty()))[0]
-    fun composerType(serialType: String?): String = ExtensionPolicyNative.call(14, arrayOf(serialType.orEmpty()))[0]
+        call(ExtensionOp.THEME_COMPONENT, id, label, stylesheet, *authors.toTypedArray())
+    fun stylesheet(id: String, path: String?): String = call(ExtensionOp.STYLESHEET, id, path.orEmpty())[0]
+    /** An [ExtensionComposerType]. */
+    fun composerType(serialType: String?): String = call(ExtensionOp.COMPOSER_TYPE, serialType.orEmpty())[0]
     fun metadataValid(id: String, version: String, title: String, maintainers: String, license: String): Boolean =
-        ExtensionPolicyNative.call(15, arrayOf(id, version, title, maintainers, license))[0] == "1"
-    private fun Boolean.bit() = if (this) "1" else "0"
+        WireFlag.decode(call(ExtensionOp.METADATA_VALID, id, version, title, maintainers, license)[0])
+
+    private fun call(operation: ExtensionOp, vararg input: String): List<String> =
+        ExtensionPolicyNative.call(operation.code, arrayOf(*input)).asList()
 }
 
 internal object ExtensionPolicyNative {

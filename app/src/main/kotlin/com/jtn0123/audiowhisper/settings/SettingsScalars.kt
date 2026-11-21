@@ -1,6 +1,6 @@
 package com.jtn0123.audiowhisper.settings
 
-import com.jtn0123.audiowhisper.rust.SettingsRules
+import com.jtn0123.audiowhisper.rust.*
 import dev.patrickgold.jetpref.datastore.model.PreferenceData
 import dev.patrickgold.jetpref.datastore.model.PreferenceSerializer
 import kotlinx.coroutines.NonCancellable
@@ -11,7 +11,7 @@ import kotlinx.coroutines.withContext
 internal fun <T : Any> nativeScalar(data: PreferenceData<T>, construct: (String)->T): PreferenceData<T> =
     SettingsPreference(data, object : PreferenceSerializer<T> {
         override fun serialize(value: T) = data.serializer.serialize(value)
-        override fun deserialize(value: String): T? = SettingsRules.call(3,data.key,value).firstOrNull()?.let(construct)
+        override fun deserialize(value: String): T? = SettingsRules.call(SettingsOp.SCALAR,data.key,value).firstOrNull()?.let(construct)
     })
 
 /**

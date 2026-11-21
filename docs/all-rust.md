@@ -68,8 +68,8 @@ for settings (it loses InputConnection and accessibility).
 * **One in-repo host crate generates the boundary** from typed Rust declarations: the Kotlin
   `external` declarations, operation and field constants, packet readers and writers, and the
   Rust `extern "system"` stubs. A Gradle task runs it before Kotlin compiles and writes into
-  `build/`; a `--check` mode runs in `:lib:rust:check`. It grows the existing
-  `GenerateRenderProtocol` task, replacing its regex with compiled Rust types.
+  `build/`; a `--check` mode runs in `:lib:rust:check`. It replaced the `GenerateRenderProtocol`
+  task and its regex: `RenderProtocol` and `InputProtocol` now come from `crates/wire`.
 * **`checkNativeDeclarations` learns generated sources and JVM descriptors.** Today it finds
   Kotlin through git and compares only export names, so a `Long` that became an `Int` passes.
 * **Not UniFFI:** its Kotlin goes through JNA, slower than the 0.04–0.1 µs JNI crossings
@@ -117,6 +117,9 @@ hand.
 * **Then the operation constants** (grade item A6: about 100 literal op calls in 30 files):
   declare them in `settings`, `utilities`, `backup`, `editor` and `nlp`, generate the Kotlin
   side, make the raw `call` internal.
+  **Done (2026-11-21):** declared once in `crates/wire` for eleven families of entry points,
+  Kotlin generated into `build/` without a regex, and a clash or one-sided rename fails the
+  build ([rust.md](rust.md#operation-codes-and-packets-crateswire)).
 * **Then every binding file** in `lib/rust/src/main/kotlin` (66 files, 3,078 lines).
 * **Exit:** all `external fun`s generated, at most about 300 hand-written lines left in the
   bindings, existing match tests unchanged.

@@ -6,6 +6,7 @@ import android.view.ActionMode
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View
+import com.jtn0123.audiowhisper.rust.*
 
 /** The floating selection toolbar is Android-owned; Rust owns selection and edits. */
 internal class SettingsSelectionMenu(private val endpoint: View, private val host: RustSettingsView) : ActionMode.Callback {
@@ -30,11 +31,11 @@ internal class SettingsSelectionMenu(private val endpoint: View, private val hos
     override fun onActionItemClicked(mode: ActionMode, item: MenuItem): Boolean {
         when (item.itemId) {
             android.R.id.copy, android.R.id.cut -> {
-                clipboard.setPrimaryClip(ClipData.newPlainText("", host.query("selected", 0)))
-                host.edit(if (item.itemId == android.R.id.cut) "cut" else "dismissToolbar")
+                clipboard.setPrimaryClip(ClipData.newPlainText("", host.query(SettingsUiQuery.SELECTED, 0)))
+                host.edit(if (item.itemId == android.R.id.cut) SettingsUiEdit.CUT else SettingsUiEdit.DISMISS_TOOLBAR)
             }
-            android.R.id.paste -> host.edit("commit", clipboard.primaryClip?.getItemAt(0)?.coerceToText(endpoint.context)?.toString().orEmpty(), "1")
-            android.R.id.selectAll -> host.edit("selectAll")
+            android.R.id.paste -> host.edit(SettingsUiEdit.COMMIT, clipboard.primaryClip?.getItemAt(0)?.coerceToText(endpoint.context)?.toString().orEmpty(), "1")
+            android.R.id.selectAll -> host.edit(SettingsUiEdit.SELECT_ALL)
             else -> return false
         }
         if (item.itemId != android.R.id.selectAll) mode.finish()

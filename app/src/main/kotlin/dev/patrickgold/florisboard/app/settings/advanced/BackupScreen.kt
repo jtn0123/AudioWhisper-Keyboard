@@ -16,7 +16,7 @@
 
 package dev.patrickgold.florisboard.app.settings.advanced
 
-import com.jtn0123.audiowhisper.rust.BackupPolicy
+import com.jtn0123.audiowhisper.rust.*
 import android.content.Intent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -91,14 +91,14 @@ object Backup {
             .foldIndexed(0) { index, mask, value -> mask or (if (value) 1 shl index else 0) }
 
         fun updateCheckboxState() {
-            _clipboardData.value = when (BackupPolicy.selection(mask())[2]) {
-                "off" -> ToggleableState.Off
-                "on" -> ToggleableState.On
+            _clipboardData.value = when (BackupPolicy.selection(mask())[BackupSelection.CLIPBOARD_STATE]) {
+                BackupClipboardState.OFF -> ToggleableState.Off
+                BackupClipboardState.ON -> ToggleableState.On
                 else -> ToggleableState.Indeterminate
             }
         }
 
-        fun atLeastOneSelected(): Boolean = BackupPolicy.selection(mask())[0] == "1"
+        fun atLeastOneSelected(): Boolean = WireFlag.decode(BackupPolicy.selection(mask())[BackupSelection.ANY])
 
     }
 

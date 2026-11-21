@@ -16,7 +16,7 @@
 
 package dev.patrickgold.florisboard.lib.ext
 
-import com.jtn0123.audiowhisper.rust.ExtensionPolicy
+import com.jtn0123.audiowhisper.rust.*
 import androidx.compose.runtime.saveable.Saver
 import dev.patrickgold.jetpref.datastore.model.PreferenceSerializer
 import kotlinx.serialization.KSerializer
@@ -53,8 +53,8 @@ data class ExtensionComponentName(
 
         fun from(str: String): ExtensionComponentName {
             val plan = ExtensionPolicy.componentName(str)
-            check(plan[0].isEmpty()) { plan[0] }
-            return ExtensionComponentName(plan[1], plan[2])
+            check(plan[ExtensionComponentPlan.ERROR].isEmpty()) { plan[ExtensionComponentPlan.ERROR] }
+            return ExtensionComponentName(plan[ExtensionComponentPlan.EXTENSION], plan[ExtensionComponentPlan.COMPONENT])
         }
 
         val Saver = Saver<ExtensionComponentName?, String>(

@@ -20,6 +20,12 @@ pub fn int(fields: &[Field], at: usize) -> i64 {
         .and_then(|s| String::from_utf16(s).ok()?.parse().ok())
         .unwrap_or(0)
 }
+/// Whether field `at` is a [`wire::flag`] that is true; a missing one is false.
+pub fn flag_at(fields: &[Field], at: usize) -> bool {
+    fields
+        .get(at)
+        .is_some_and(|value| wire::flag::decode(value))
+}
 pub fn text(value: &str) -> Field {
     value.encode_utf16().collect()
 }

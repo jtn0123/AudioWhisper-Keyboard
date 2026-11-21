@@ -9,6 +9,7 @@ default-members = [
     "crates/boundary",
     "crates/settings",
     "crates/utilities",
+    "crates/wire",
     "crates/chars",
     "crates/composing",
     "crates/dictation",

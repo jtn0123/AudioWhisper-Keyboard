@@ -13,6 +13,7 @@ keys = { path = "../keys" }
 dictation = { path = "../dictation" }
 chars = { path = "../chars" }
 spacing = { path = "../spacing" }
+wire = { path = "../wire" }
 
 [lints]
 workspace = true

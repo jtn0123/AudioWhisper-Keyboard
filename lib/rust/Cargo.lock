@@ -123,6 +123,7 @@ dependencies = [
  "transcript",
  "utilities",
  "wgpu",
+ "wire",
 ]
 
 [[package]]
@@ -131,6 +132,7 @@ version = "0.1.0"
 dependencies = [
  "chars",
  "extensions",
+ "wire",
 ]
 
 [[package]]
@@ -181,6 +183,9 @@ dependencies = [
 [[package]]
 name = "boundary"
 version = "0.1.0"
+dependencies = [
+ "wire",
+]
 
 [[package]]
 name = "bumpalo"
@@ -330,6 +335,7 @@ name = "dictation"
 version = "0.1.0"
 dependencies = [
  "chars",
+ "wire",
 ]
 
 [[package]]
@@ -381,6 +387,7 @@ dependencies = [
  "dictation",
  "keys",
  "spacing",
+ "wire",
 ]
 
 [[package]]
@@ -425,6 +432,7 @@ name = "extensions"
 version = "0.1.0"
 dependencies = [
  "chars",
+ "wire",
 ]
 
 [[package]]
@@ -864,6 +872,7 @@ dependencies = [
  "keys",
  "settings",
  "shift",
+ "wire",
 ]
 
 [[package]]
@@ -1213,6 +1222,7 @@ version = "0.1.0"
 dependencies = [
  "chars",
  "suggest",
+ "wire",
 ]
 
 [[package]]
@@ -1575,6 +1585,7 @@ name = "reader"
 version = "0.1.0"
 dependencies = [
  "chars",
+ "wire",
 ]
 
 [[package]]
@@ -1637,6 +1648,7 @@ dependencies = [
  "vello_cpu",
  "vello_hybrid",
  "wgpu",
+ "wire",
 ]
 
 [[package]]
@@ -1753,6 +1765,7 @@ dependencies = [
  "extensions",
  "gif",
  "keys",
+ "wire",
 ]
 
 [[package]]
@@ -2050,6 +2063,7 @@ name = "utilities"
 version = "0.1.0"
 dependencies = [
  "chars",
+ "wire",
 ]
 
 [[package]]
@@ -2520,6 +2534,10 @@ checksum = "3949bd5b99cafdf1c7ca86b43ca564028dfe27d66958f2470940f73d86d75b37"
 dependencies = [
  "windows-link",
 ]
+
+[[package]]
+name = "wire"
+version = "0.1.0"
 
 [[package]]
 name = "writeable"

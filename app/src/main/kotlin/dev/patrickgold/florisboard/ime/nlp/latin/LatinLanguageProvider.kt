@@ -20,6 +20,7 @@ import android.content.Context
 import android.database.sqlite.SQLiteException
 import android.os.SystemClock
 import android.util.Log
+import com.jtn0123.audiowhisper.rust.*
 import com.jtn0123.audiowhisper.suggest.ArrangedWord
 import com.jtn0123.audiowhisper.suggest.GlideGuess
 import com.jtn0123.audiowhisper.suggest.GlideRanker
@@ -47,7 +48,6 @@ import dev.patrickgold.florisboard.ime.editor.EditorContent
 import dev.patrickgold.florisboard.ime.editor.InputAttributes
 import dev.patrickgold.florisboard.ime.nlp.NlpEnvironment
 import dev.patrickgold.florisboard.ime.nlp.NlpState
-import dev.patrickgold.florisboard.ime.nlp.bit
 import dev.patrickgold.florisboard.ime.nlp.SpellingProvider
 import dev.patrickgold.florisboard.ime.nlp.SpellingResult
 import dev.patrickgold.florisboard.ime.nlp.SuggestionCandidate
@@ -168,7 +168,7 @@ class LatinLanguageProvider(context: Context) : SpellingProvider, SuggestionProv
         if (english) loadSwipeWords()
     }
 
-    private fun usesDictionary(subtype: Subtype) = NlpState.call("language", subtype.primaryLocale.language)[0] == "1"
+    private fun usesDictionary(subtype: Subtype) = WireFlag.decode(NlpState.call(NlpOp.LANGUAGE, subtype.primaryLocale.language)[0])
 
     /** Upstream's glide word list, for a language the dictionary doesn't cover. */
     private suspend fun loadTestWords() {
@@ -271,7 +271,7 @@ class LatinLanguageProvider(context: Context) : SpellingProvider, SuggestionProv
         allowPossiblyOffensive: Boolean,
         isPrivateSession: Boolean,
     ): SpellingResult {
-        if (NlpState.call("spell", subtype.primaryLocale.language, word)[0] != "1") return SpellingResult.validWord()
+        if (!WireFlag.decode(NlpState.call(NlpOp.SPELL, subtype.primaryLocale.language, word)[0])) return SpellingResult.validWord()
         withContext(Dispatchers.IO) { loadDictionary() }
         val suggester = suggester ?: return SpellingResult.validWord()
         val check = suggester.spell(word, maxSuggestionCount, blockOffensiveWords = !allowPossiblyOffensive)
@@ -292,9 +292,9 @@ class LatinLanguageProvider(context: Context) : SpellingProvider, SuggestionProv
         val state = typingStateOf(subtype, content) ?: return emptyList()
         val started = System.nanoTime()
         val raw = suggester.suggest(state, maxCandidateCount, !allowPossiblyOffensive)
-        val flags = NlpState.call("candidatePlan", *environment.fields(subtype, content), isKeptAsTyped(state.typed).bit(),
-            *raw.map { it.isAutoCorrection.bit() }.toTypedArray())
-        val candidates = raw.mapIndexed { index, word -> word.toCandidate(flags[index] == "1") }
+        val flags = NlpState.call(NlpOp.CANDIDATE_PLAN, *environment.fields(subtype, content), WireFlag.encode(isKeptAsTyped(state.typed)),
+            *raw.map { WireFlag.encode(it.isAutoCorrection) }.toTypedArray())
+        val candidates = raw.mapIndexed { index, word -> word.toCandidate(WireFlag.decode(flags[index])) }
         val autoCorrection = candidates.firstOrNull { it.isEligibleForAutoCommit }
         // Runs on every keystroke, so the line isn't even built outside debug builds.
         if (BuildConfig.DEBUG) {
@@ -425,12 +425,12 @@ class LatinLanguageProvider(context: Context) : SpellingProvider, SuggestionProv
      * a selection, a field that must not get suggestions, or an emoji search like ":smile".
      */
     private fun typingStateOf(subtype: Subtype, content: EditorContent): TypingState? {
-        val plan = NlpState.call("typingPolicy", *environment.fields(subtype, content, suggesterFor(subtype) != null),
-            if (content.composingText.isEmpty()) content.textBeforeSelection else content.text.safeSubstring(0, content.localComposing.start),
-            content.composingText, content.textAfterSelection)
+        val before = if (content.composingText.isEmpty()) content.textBeforeSelection else content.text.safeSubstring(0, content.localComposing.start)
+        val plan = NlpState.call(NlpOp.TYPING_POLICY, *environment.fields(subtype, content, suggesterFor(subtype) != null),
+            *with(NlpTyping) { row(BEFORE to before, TYPED to content.composingText, AFTER to content.textAfterSelection) })
         if (plan.isEmpty()) return null
-        val taps = tapTrail.offsetsFor(plan[1], aimed = prefs.suggestion.learnTapAim.get())
-        return TypingState.of(plan[0], plan[1], plan[2]).copy(taps = taps)
+        val taps = tapTrail.offsetsFor(plan[NlpTyping.TYPED], aimed = prefs.suggestion.learnTapAim.get())
+        return TypingState.of(plan[NlpTyping.BEFORE], plan[NlpTyping.TYPED], plan[NlpTyping.AFTER]).copy(taps = taps)
     }
 
     private fun ArrangedWord.toCandidate(autoCorrectAllowed: Boolean) = WordSuggestionCandidate(

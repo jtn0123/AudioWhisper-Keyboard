@@ -1,6 +1,6 @@
 package dev.patrickgold.florisboard.ime.editor
 
-import com.jtn0123.audiowhisper.rust.NlpSession
+import com.jtn0123.audiowhisper.rust.*
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -16,15 +16,15 @@ class NlpEditorHandoffMatchTest {
         EditorPlanMatchTest.Pairing().use { editor ->
             editor.start("prefix ")
             editor.char("a") // InputConnection succeeded; its selection acknowledgement is still delayed.
-            val published = fields(EditorSnapshot(editor.new.session.call("published")).content)
-            val current = fields(EditorSnapshot(editor.new.session.call("snapshot")).content)
+            val published = fields(EditorSnapshot(editor.new.session.call(EditorOp.PUBLISHED)).content)
+            val current = fields(EditorSnapshot(editor.new.session.call(EditorOp.SNAPSHOT)).content)
             assertFalse(published.contentEquals(current), "Fixture must keep a newer prediction than its notification")
             NlpSession().use { nlp ->
-                val wrong = nlp.call("beginFor", *published, "100")[0]
-                assertEquals("0", nlp.call("completeFor", *current, wrong, "old", "alpha", "0", "0")[0])
-                val right = nlp.call("beginFor", *current, "100")[0]
-                assertEquals("1", nlp.call("completeFor", *current, right, "current", "alpha", "0", "0")[0])
-                assertEquals("current", nlp.call("snapshot")[4])
+                val wrong = nlp.call(NlpOp.BEGIN_FOR, *published, "100")[NlpBegin.GENERATION]
+                assertEquals("0", nlp.call(NlpOp.COMPLETE_FOR, *current, wrong, "old", "alpha", "0", "0")[0])
+                val right = nlp.call(NlpOp.BEGIN_FOR, *current, "100")[NlpBegin.GENERATION]
+                assertEquals("1", nlp.call(NlpOp.COMPLETE_FOR, *current, right, "current", "alpha", "0", "0")[0])
+                assertEquals("current", nlp.call(NlpOp.SNAPSHOT)[NlpSnapshot.SIZE])
             }
             editor.reconcile()
         }

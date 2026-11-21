@@ -1,4 +1,6 @@
 //! UTF-16 editable state. Android is only the InputConnection transport.
+use wire::settings_ui::query;
+
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Editor {
     pub text: Vec<u16>,
@@ -134,12 +136,13 @@ impl Editor {
             self.delete(1, 0, true);
         }
     }
+    /// A `SettingsUiQuery`.
     pub fn query(&self, what: &str, length: usize) -> Vec<u16> {
         let (a, b) = self.selection();
         match what {
-            "before" => self.text[a.saturating_sub(length)..a].to_vec(),
-            "after" => self.text[b..b.saturating_add(length).min(self.text.len())].to_vec(),
-            "selected" => self.text[a..b].to_vec(),
+            query::BEFORE => self.text[a.saturating_sub(length)..a].to_vec(),
+            query::AFTER => self.text[b..b.saturating_add(length).min(self.text.len())].to_vec(),
+            query::SELECTED => self.text[a..b].to_vec(),
             _ => vec![],
         }
     }

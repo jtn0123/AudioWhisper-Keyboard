@@ -24,8 +24,7 @@ import android.view.KeyEvent
 import androidx.core.view.inputmethod.EditorInfoCompat
 import androidx.core.view.inputmethod.InputConnectionCompat
 import androidx.core.view.inputmethod.InputContentInfoCompat
-import com.jtn0123.audiowhisper.rust.EditorAttributes
-import com.jtn0123.audiowhisper.rust.SpacingRules
+import com.jtn0123.audiowhisper.rust.*
 import com.jtn0123.audiowhisper.suggest.AutoCorrectionUndo
 import dev.patrickgold.florisboard.FlorisImeService
 import dev.patrickgold.florisboard.app.FlorisPreferenceStore
@@ -92,10 +91,10 @@ class EditorInstance(context: Context) : AbstractEditorInstance(context) {
         val plan = EditorAttributes.keyboard(editorInfo.inputAttributes.raw, editorInfo.imeOptions.raw,
             prefs.suggestion.enabled.get(), prefs.suggestion.incognitoMode.get().ordinal,
             prefs.suggestion.forceIncognitoModeFromDynamic.get())
-        activeState.keyboardMode = KeyboardMode.fromInt(plan[0])
-        activeState.keyVariation = KeyVariation.fromInt(plan[1])
-        activeState.isComposingEnabled = plan[2] != 0
-        activeState.isIncognitoMode = plan[3] != 0
+        activeState.keyboardMode = KeyboardMode.fromInt(plan[EditorKeyboard.MODE])
+        activeState.keyVariation = KeyVariation.fromInt(plan[EditorKeyboard.KEY_VARIATION])
+        activeState.isComposingEnabled = plan[EditorKeyboard.COMPOSING] != 0
+        activeState.isIncognitoMode = plan[EditorKeyboard.INCOGNITO] != 0
         super.handleStartInputView(editorInfo, isRestart)
         // AudioWhisper: editor positions the word learner kept, and tap positions, belong to the previous field.
         nlpManager.resetLearning()
@@ -126,51 +125,52 @@ class EditorInstance(context: Context) : AbstractEditorInstance(context) {
         return super.setSelection(selection)
     }
 
-    private fun edit(operation: String, vararg fields: String, candidate: SuggestionCandidate? = null): Boolean {
+    private fun edit(operation: EditorOp, vararg fields: String, candidate: SuggestionCandidate? = null): Boolean {
         val rule = nlpManager.getActivePunctuationRule()
-        editorSession.call("context", autoSpace.bits.toString(), phantomSpace.bits.toString(),
-            activeState.keyVariation.value.toString(), if (prefs.correction.autoSpacePunctuation.get()) "1" else "0",
-            subtypeManager.activeSubtype.primaryLocale.language, rule.symbolsPrecedingAutoSpace,
-            rule.symbolsFollowingAutoSpace, rule.symbolsPrecedingPhantomSpace, rule.symbolsFollowingPhantomSpace,
-            if (prefs.glide.immediateBackspaceDeletesWord.get()) "1" else "0")
+        editorSession.call(EditorOp.CONTEXT, *with(EditorContext) { row(AUTO_SPACE to "${autoSpace.bits}", PHANTOM_SPACE to "${phantomSpace.bits}",
+            KEY_VARIATION to "${activeState.keyVariation.value}", AUTO_SPACE_PUNCTUATION to WireFlag.encode(prefs.correction.autoSpacePunctuation.get()),
+            LANGUAGE to subtypeManager.activeSubtype.primaryLocale.language, PRECEDING_AUTO_SPACE to rule.symbolsPrecedingAutoSpace,
+            FOLLOWING_AUTO_SPACE to rule.symbolsFollowingAutoSpace, PRECEDING_PHANTOM_SPACE to rule.symbolsPrecedingPhantomSpace,
+            FOLLOWING_PHANTOM_SPACE to rule.symbolsFollowingPhantomSpace, IMMEDIATE_WORD to WireFlag.encode(prefs.glide.immediateBackspaceDeletesWord.get())) })
         val result = executeEditor(operation, *fields)
-        val spaces = editorSession.call("spaces")
-        autoSpace.bits = spaces[0].toInt()
-        when (spaces[2]) {
-            "0" -> phantomSpace.bits = spaces[1].toInt()
-            "1" -> phantomSpace.reset(spaces[1].toInt())
-            "2" -> phantomSpace.accept(spaces[1].toInt(), candidate)
+        val spaces = editorSession.call(EditorOp.SPACES)
+        autoSpace.bits = spaces[EditorSpaces.AUTO_SPACE].toInt()
+        val phantom = spaces[EditorSpaces.PHANTOM_SPACE].toInt()
+        when (spaces[EditorSpaces.CANDIDATE].toInt()) {
+            EditorCandidate.KEEP -> phantomSpace.bits = phantom
+            EditorCandidate.RESET -> phantomSpace.reset(phantom)
+            EditorCandidate.ACCEPT -> phantomSpace.accept(phantom, candidate)
             else -> error("Unknown native candidate disposition")
         }
         return result
     }
 
     override fun commitChar(char: String): Boolean {
-        return edit("typeChar", char)
+        return edit(EditorOp.TYPE_CHAR, char)
     }
 
     override fun commitText(text: String): Boolean {
-        return edit("typeText", text)
+        return edit(EditorOp.TYPE_TEXT, text)
     }
 
     fun commitCompletion(candidate: SuggestionCandidate): Boolean {
-        return edit("completion", candidate.text.toString(), candidate = candidate)
+        return edit(EditorOp.COMPLETION, candidate.text.toString(), candidate = candidate)
     }
 
     fun commitDictation(text: String, replacing: Int = 0): Boolean {
-        return edit("dictation", text, replacing.toString())
+        return edit(EditorOp.DICTATION, text, replacing.toString())
     }
 
     fun undoDictation(): Boolean {
-        return edit("undoDictation")
+        return edit(EditorOp.UNDO_DICTATION)
     }
 
     fun forgetDictation() {
-        editorSession.call("forgetDictation")
+        editorSession.call(EditorOp.FORGET_DICTATION)
     }
 
     fun commitGesture(text: String): Boolean {
-        return edit("gesture", text)
+        return edit(EditorOp.GESTURE, text)
     }
 
     fun commitClipboardItem(item: ClipboardItem?): Boolean {
@@ -216,19 +216,19 @@ class EditorInstance(context: Context) : AbstractEditorInstance(context) {
     }
 
     fun revertAutoCorrection(revert: AutoCorrectionUndo.Revert): Boolean {
-        return edit("revert", revert.length.toString(), revert.text, if (revert.phantomSpace) "1" else "0")
+        return edit(EditorOp.REVERT, revert.length.toString(), revert.text, WireFlag.encode(revert.phantomSpace))
     }
 
     fun deleteBackwards(unit: OperationUnit): Boolean {
-        return edit("backward", unit.ordinal.toString())
+        return edit(EditorOp.BACKWARD, unit.ordinal.toString())
     }
 
     fun deleteForwards(unit: OperationUnit): Boolean {
-        return edit("forward", unit.ordinal.toString())
+        return edit(EditorOp.FORWARD, unit.ordinal.toString())
     }
 
     fun setSelectionSurrounding(n: Int, unit: OperationUnit, scope: OperationScope): Boolean {
-        return edit("selectAround", n.toString(), unit.ordinal.toString(), scope.ordinal.toString())
+        return edit(EditorOp.SELECT_AROUND, n.toString(), unit.ordinal.toString(), scope.ordinal.toString())
     }
 
     fun performClipboardCut(): Boolean {
@@ -267,19 +267,19 @@ class EditorInstance(context: Context) : AbstractEditorInstance(context) {
     }
 
     fun performClipboardSelectAll(): Boolean {
-        return edit("selectAll")
+        return edit(EditorOp.SELECT_ALL)
     }
 
     fun performEnter(): Boolean {
-        return edit("enter")
+        return edit(EditorOp.ENTER)
     }
 
-    fun tryPerformEnterCommitRaw(): Boolean = edit("rawEnter", subtypeManager.activeSubtype.primaryLocale.language)
+    fun tryPerformEnterCommitRaw(): Boolean = edit(EditorOp.RAW_ENTER, subtypeManager.activeSubtype.primaryLocale.language)
 
     fun performEnterAction(action: ImeOptions.Action): Boolean {
         autoSpace.setInactive()
         phantomSpace.setInactive()
-        return executeEditor("action", action.toInt().toString())
+        return executeEditor(EditorOp.ACTION, action.toInt().toString())
     }
 
     fun performUndo(): Boolean {
@@ -378,15 +378,15 @@ class EditorInstance(context: Context) : AbstractEditorInstance(context) {
     }
 
     inner class MassSelectionState {
-        val isActive: Boolean get() = editorSession.call("massState")[0] == "1"
+        val isActive: Boolean get() = WireFlag.decode(editorSession.call(EditorOp.MASS_STATE)[0])
         val isInactive: Boolean get() = !isActive
-        fun begin() { editorSession.call("massBegin") }
+        fun begin() { editorSession.call(EditorOp.MASS_BEGIN) }
         fun end() {
-            if (editorSession.call("massEnd")[0] == "1") {
+            if (WireFlag.decode(editorSession.call(EditorOp.MASS_END)[0])) {
                 handleSelectionUpdate(EditorRange.Unspecified, activeContent.selection, EditorRange.Unspecified)
             }
         }
-        fun reset() { editorSession.call("massReset") }
+        fun reset() { editorSession.call(EditorOp.MASS_RESET) }
     }
-    fun commitDoubleSpacePeriod(): Boolean = edit("doubleSpace")
+    fun commitDoubleSpacePeriod(): Boolean = edit(EditorOp.DOUBLE_SPACE)
 }

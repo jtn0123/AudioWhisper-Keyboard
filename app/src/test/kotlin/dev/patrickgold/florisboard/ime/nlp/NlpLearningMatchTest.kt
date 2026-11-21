@@ -1,7 +1,10 @@
 package dev.patrickgold.florisboard.ime.nlp
 
 import com.jtn0123.audiowhisper.rust.KeptWordStore
+import com.jtn0123.audiowhisper.rust.NlpLearnPlan
+import com.jtn0123.audiowhisper.rust.NlpOp
 import com.jtn0123.audiowhisper.rust.NlpSession
+import com.jtn0123.audiowhisper.rust.WireFlag
 import com.jtn0123.audiowhisper.suggest.LearnedWords
 import com.jtn0123.audiowhisper.suggest.ReferenceLatin
 import com.jtn0123.audiowhisper.suggest.WordLearner
@@ -31,9 +34,9 @@ class NlpLearningMatchTest {
                     val valid = random.nextBoolean()
                     val word = listOf("zorblax", "Zorb", "GLORP", "mp3", "", "can't")[random.nextInt(6)]
                     val context = arrayOf(raw.toString(), "0", "org.florisboard.nlp.providers.latin", if (english) "en" else "fr",
-                        enabled.bit(), "1", setting.bit(), incognito.bit(), "1", "1", "8", "8", "2", if (valid) "8" else "2",
-                        "a zorblax", "seed", "", ready.bit(), "1", "1", "0", "0")
-                    nlp.call("context", *context)
+                        WireFlag.encode(enabled), "1", WireFlag.encode(setting), WireFlag.encode(incognito), "1", "1", "8", "8", "2", if (valid) "8" else "2",
+                        "a zorblax", "seed", "", WireFlag.encode(ready), "1", "1", "0", "0")
+                    nlp.call(NlpOp.CONTEXT, *context)
                     val password = raw and 0xff0 in setOf(0x80, 0x90, 0xe0)
                     // Not prose: a URL, an e-mail address or a filter, even one asking for corrections.
                     val address = raw and 0xff0 in setOf(0x10, 0x20, 0xb0, 0xd0)
@@ -45,19 +48,20 @@ class NlpLearningMatchTest {
                         if (action == 1) { old.dropSwiped(); actual.dropSwiped() }
                         val expected = if (!mayLearn || action == 0 && (trigger == 39 || word.isEmpty() || !valid)) emptyList()
                         else listOf(action.toString(), word, if (action == 2 || action == 1 && !valid) "a zorb " else "a ", if (valid) "2" else "8")
-                        val plan = nlp.call("learn", action.toString(), trigger.toString(), word, "a ", "2", valid.bit(), "a zorb").toList()
+                        val plan = nlp.call(NlpOp.LEARN, action.toString(), trigger.toString(), word, "a ", "2", WireFlag.encode(valid), "a zorb").toList()
                         assertEquals(expected, plan, "learn plan seed $seed")
                         if (expected.isNotEmpty()) {
                             val before = expected[2]; val start = expected[3].toInt()
                             val a = if (action == 2) old.swiped(word, before) else old.finished(word, before, start)
-                            val b = if (action == 2) actual.swiped(plan[1], plan[2]) else actual.finished(plan[1], plan[2], plan[3].toInt())
+                            val b = if (action == 2) actual.swiped(plan[NlpLearnPlan.WORD], plan[NlpLearnPlan.BEFORE])
+                                else actual.finished(plan[NlpLearnPlan.WORD], plan[NlpLearnPlan.BEFORE], plan[NlpLearnPlan.START].toInt())
                             assertEquals(a, b)
                         }
                     } else if (action == 3 && mayLearn) {
                         assertEquals(old.undo(2), actual.undo(2))
-                    } else if (action == 4) { old.reset(); actual.reset(); nlp.call("field") }
+                    } else if (action == 4) { old.reset(); actual.reset(); nlp.call(NlpOp.FIELD) }
                     else if (action == 5) {
-                        val remembered = nlp.call("keep", word)[0] == "1"
+                        val remembered = WireFlag.decode(nlp.call(NlpOp.KEEP, word)[0])
                         assertEquals(keptOld.add(word, !incognito && prose), keptNew.add(word, remembered))
                     }
                     assertEquals(oldStore.store.savedText(), newStore.store.savedText(), "learned effects seed $seed")

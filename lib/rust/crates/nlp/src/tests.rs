@@ -2,14 +2,15 @@
 //! field allows: suggestions, auto-correction, learning and remembering a word kept as typed.
 
 use crate::{Context, Field, Session, number, text};
+use wire::nlp::{self as ops, context};
 
 fn session(change: impl FnOnce(&mut Vec<Field>)) -> Session {
-    let mut c = vec![number(0); 22];
-    c[0] = number(1);
-    c[2] = text("org.florisboard.nlp.providers.latin");
-    c[3] = text("en");
-    c[4] = number(1);
-    c[17] = number(1);
+    let mut c = vec![number(0); context::SIZE];
+    c[context::INPUT_TYPE] = number(1);
+    c[context::PROVIDER] = text("org.florisboard.nlp.providers.latin");
+    c[context::LANGUAGE] = text("en");
+    c[context::SUGGESTIONS] = number(1);
+    c[context::READY] = number(1);
     change(&mut c);
     let mut session = Session::default();
     session.configure(Context(c));
@@ -18,7 +19,7 @@ fn session(change: impl FnOnce(&mut Vec<Field>)) -> Session {
 
 fn aim(session: &mut Session, fields: [&str; 4]) -> bool {
     let fields: Vec<Field> = fields.iter().map(|f| text(f)).collect();
-    session.checked_call("aim", &fields).unwrap() == [number(1)]
+    session.checked_call(ops::AIM, &fields).unwrap() == [number(1)]
 }
 
 #[test]
@@ -35,24 +36,31 @@ fn a_kept_word_teaches_the_aim_only_when_allowed() {
     assert!(!aim(&mut plain, ["1", "-1", "", "1"]));
     assert!(!aim(&mut plain, ["1", "-1", "pop", "0"]));
     // It needs no "learn from typing": that is about words, this about taps.
-    let mut learning_off = session(|c| c[6] = number(0));
+    let mut learning_off = session(|c| c[context::LEARN] = number(0));
     assert!(aim(&mut learning_off, ["1", "-1", "pop", "1"]));
     // Incognito, a raw editor, a password, an e-mail address (even one asking for corrections),
     // or no suggestions.
-    for change in [(7, 1), (1, 1), (0, 0x81), (0, 0x21), (0, 0x8021), (4, 0)] {
+    for change in [
+        (context::INCOGNITO, 1),
+        (context::RAW_EDITOR, 1),
+        (context::INPUT_TYPE, 0x81),
+        (context::INPUT_TYPE, 0x21),
+        (context::INPUT_TYPE, 0x8021),
+        (context::SUGGESTIONS, 0),
+    ] {
         let mut s = session(|c| c[change.0] = number(change.1));
         assert!(!aim(&mut s, ["1", "-1", "pop", "1"]), "{change:?}");
     }
     let mut s = Session::default();
-    assert!(s.checked_call("aim", &[text("1")]).is_err());
+    assert!(s.checked_call(ops::AIM, &[text("1")]).is_err());
 }
 
 /// (on, words, emoji, auto-correct, learn) and whether a kept word is remembered.
 fn allows(session: &mut Session) -> ([bool; 5], bool) {
     let policy = session
-        .checked_call("policy", &session.context.0.clone())
+        .checked_call(ops::POLICY, &session.context.0.clone())
         .unwrap();
-    let keep = session.checked_call("keep", &[text("zorb")]).unwrap() == [number(1)];
+    let keep = session.checked_call(ops::KEEP, &[text("zorb")]).unwrap() == [number(1)];
     (std::array::from_fn(|i| policy[i] == number(1)), keep)
 }
 
@@ -88,9 +96,9 @@ fn each_kind_of_field_allows_what_it_should() {
         (0x80001, 0, secret),
     ] {
         let mut s = session(|c| {
-            c[0] = number(input);
-            c[6] = number(1);
-            c[21] = number(options);
+            c[context::INPUT_TYPE] = number(input);
+            c[context::LEARN] = number(1);
+            c[context::IME_OPTIONS] = number(options);
         });
         assert_eq!(allows(&mut s), expected, "{input:#x} {options:#x}");
     }
@@ -98,19 +106,25 @@ fn each_kind_of_field_allows_what_it_should() {
 
 #[test]
 fn a_kept_word_is_remembered_only_in_prose() {
-    let mut learning_off = session(|c| c[6] = number(0));
+    let mut learning_off = session(|c| c[context::LEARN] = number(0));
     assert!(allows(&mut learning_off).1, "keeping is not learning");
     for change in [
-        (7, 1),
-        (0, 0x11),
-        (0, 0x21),
-        (0, 0x8011),
-        (0, 0x8021),
-        (0, 0xb1),
-        (0, 0x81),
-        (4, 0),
+        (context::INCOGNITO, 1),
+        (context::INPUT_TYPE, 0x11),
+        (context::INPUT_TYPE, 0x21),
+        (context::INPUT_TYPE, 0x8011),
+        (context::INPUT_TYPE, 0x8021),
+        (context::INPUT_TYPE, 0xb1),
+        (context::INPUT_TYPE, 0x81),
+        (context::SUGGESTIONS, 0),
     ] {
         let mut s = session(|c| c[change.0] = number(change.1));
         assert!(!allows(&mut s).1, "{change:?}");
     }
+}
+
+#[test]
+fn an_unknown_operation_is_refused() {
+    let mut s = Session::default();
+    assert_eq!(s.checked_call("unknown", &[]), Err("unknown NLP operation"));
 }

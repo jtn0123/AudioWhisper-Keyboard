@@ -1,5 +1,6 @@
 package dev.patrickgold.florisboard.ime.editor
 
+import com.jtn0123.audiowhisper.rust.*
 import com.jtn0123.audiowhisper.rust.EditorSession
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -8,10 +9,11 @@ import kotlin.test.assertFailsWith
 class EditorBoundaryTest {
     @Test fun `malformed and out of order requests throw without touching the editor`() {
         EditorSession().use { session ->
-            val before=session.call("snapshot").toList()
-            for((op,args) in listOf("unknown" to emptyArray(),"commit" to emptyArray(),"word" to arrayOf("0","1"),"read" to arrayOf("","",""))) {
+            val before=session.call(EditorOp.SNAPSHOT).toList()
+            // An unknown operation can't be named from Kotlin; editor's Rust tests cover its refusal.
+            for((op,args) in listOf(EditorOp.COMMIT to emptyArray(),EditorOp.WORD to arrayOf("0","1"),EditorOp.READ to arrayOf("","",""))) {
                 assertFailsWith<IllegalArgumentException>{session.call(op,*args)}
-                assertEquals(before==session.call("snapshot").toList(),true)
+                assertEquals(before==session.call(EditorOp.SNAPSHOT).toList(),true)
             }
         }
     }
@@ -20,7 +22,7 @@ class EditorBoundaryTest {
             p.start(raw=true,input=0)
             p.commit("😀");p.char("é");p.delete(false,false);p.delete(true,true)
             for(meta in listOf(0,0x3000,0x12,0x41,0x3053)) {
-                assertEquals(p.old.sendDownUpKeyEvent(67,meta,2),p.new.run("keys","67",meta.toString(),"2"))
+                assertEquals(p.old.sendDownUpKeyEvent(67,meta,2),p.new.run(EditorOp.KEYS,"67",meta.toString(),"2"))
                 p.compare("hardware key events")
             }
             p.reconcile()
@@ -45,28 +47,28 @@ class EditorBoundaryTest {
             // The old package had no extracted-text callback: its canonical recovery is a fresh read.
             kotlinx.coroutines.runBlocking {p.old.expectedContentQueue.clear()}
             p.old.handleSelectionUpdate(ReferenceEditorRange.Unspecified,p.oldIc.selection,p.oldIc.composing)
-            p.new.run("extracted","4","4","0","-1","-1","new!","-1","-1")
+            p.new.run(EditorOp.EXTRACTED,"4","4","0","-1","-1","new!","-1","-1")
             p.compare("full extracted")
             p.oldIc.external("next!",5);p.newIc.external("next!",5)
             p.old.handleSelectionUpdate(ReferenceEditorRange.Unspecified,p.oldIc.selection,p.oldIc.composing)
-            p.new.run("extracted","5","5","0","0","3","next","-1","-1")
+            p.new.run(EditorOp.EXTRACTED,"5","5","0","0","3","next","-1","-1")
             p.compare("partial extracted")
         }
     }
     @Test fun `mass selection and arrow plans preserve modifier ordering`() {
         EditorPlanMatchTest.Pairing().use { p ->
             p.start("alpha beta",4)
-            p.new.session.call("massBegin")
-            assertEquals("1",p.new.session.call("massState")[0])
+            p.new.session.call(EditorOp.MASS_BEGIN)
+            assertEquals("1",p.new.session.call(EditorOp.MASS_STATE)[0])
             p.old.handleMassSelectionUpdate(ReferenceEditorRange(1,5),ReferenceEditorRange(0,4))
-            p.new.run("update","1","5","0","4","1")
+            p.new.run(EditorOp.UPDATE,"1","5","0","4","1")
             p.compare("mass update")
-            assertEquals("1",p.new.session.call("massEnd")[0])
+            assertEquals("1",p.new.session.call(EditorOp.MASS_END)[0])
             val mappings=listOf(-21 to 21,-22 to 22,-23 to 19,-24 to 20,-25 to 19,-26 to 20,-27 to 21,-28 to 22)
             for((code,key) in mappings) for(shift in listOf(false,true)) {
                 val meta=(if(code<=-25)0x12 else 0) or (if(shift)0x41 else 0)
                 p.old.sendDownUpKeyEvent(key,meta,2)
-                p.new.run("arrow",code.toString(),"2",if(shift)"1"else"0")
+                p.new.run(EditorOp.ARROW,code.toString(),"2",if(shift)"1"else"0")
                 p.compare("arrow")
             }
         }

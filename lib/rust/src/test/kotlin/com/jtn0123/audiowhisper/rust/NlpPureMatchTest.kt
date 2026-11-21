@@ -18,7 +18,7 @@ class NlpPureMatchTest {
                 val end = text.length
                 val status = listOf(0, 100, 200, 300).random(random)
                 val expected = ReferenceNlpComposing.range(status, start, end, text)
-                assertEquals(expected, nlp.call("composing", status.toString(), start.toString(), end.toString(), text).toList())
+                assertEquals(expected, nlp.call(NlpOp.COMPOSING, status.toString(), start.toString(), end.toString(), text).toList())
             }
         }
     }

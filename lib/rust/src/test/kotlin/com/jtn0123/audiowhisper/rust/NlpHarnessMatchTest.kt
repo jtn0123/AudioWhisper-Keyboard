@@ -29,24 +29,24 @@ class NlpHarnessMatchTest {
                             it[4] = f[3]; it[5] = f[3]; it[7] = "1"
                             if (end == content.length) { it[10] = f[2]; it[11] = f.getOrNull(5) ?: f[2] }
                         }
-                        p.call("context", *context.toTypedArray())
-                        val generation = p.call("begin", checkpoints.toString())[0]
-                        p.call("ready", generation, (checkpoints + 8).toString())
+                        p.call(NlpOp.CONTEXT, *context.toTypedArray())
+                        val generation = p.call(NlpOp.BEGIN, checkpoints.toString())[0]
+                        p.call(NlpOp.READY, generation, (checkpoints + 8).toString())
                         val typed = text.takeLastWhile { it.isLetterOrDigit() || it in "'-’" }
                         val strip = decoder.suggest(personal, null, typed, emptyList(), true, false, true, FloatArray(0), 8, SuggestRules.defaultStrength)
-                        val flags = p.call("candidatePlan", *context.toTypedArray(), "0",
+                        val flags = p.call(NlpOp.CANDIDATE_PLAN, *context.toTypedArray(), "0",
                             *strip.words.indices.map { if (it == strip.autoCorrection) "1" else "0" }.toTypedArray())
                         val values = strip.words.flatMapIndexed { i, word -> listOf("$checkpoints-$i", word, "0", flags[i]) }.toTypedArray()
-                        p.call("complete", generation, *values)
-                        p.call("auto", "-1", "0")
+                        p.call(NlpOp.COMPLETE, generation, *values)
+                        p.call(NlpOp.AUTO, "-1", "0")
                         if (checkpoints % 7 == 0) {
-                            val inline = p.call("inlineBegin", "2")[0]
-                            p.call("inlineComplete", inline, "regular", "0", "pinned", "1")
-                            p.call("inlineBegin", "0")
+                            val inline = p.call(NlpOp.INLINE_BEGIN, "2")[0]
+                            p.call(NlpOp.INLINE_COMPLETE, inline, "regular", "0", "pinned", "1")
+                            p.call(NlpOp.INLINE_BEGIN, "0")
                         }
                         checkpoints++
                     }
-                    p.call("field")
+                    p.call(NlpOp.FIELD)
                 }
             }
         }
