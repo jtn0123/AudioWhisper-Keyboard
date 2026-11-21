@@ -426,6 +426,12 @@ fn rows_read_as_records_and_numbers_as_bits() {
             ..BIT
         },
         Bit {
+            name: "upper",
+            kind: BitKind::Char,
+            shift: 18,
+            ..BIT
+        },
+        Bit {
             name: "from",
             doc: "The first, or -1.",
             kind: BitKind::Signed,
@@ -502,6 +508,7 @@ fn rows_read_as_records_and_numbers_as_bits() {
         "        internal val count: Int get() = ((bits ushr 8) and 0xFFL).toInt()\n",
         "        val decision: Boolean?\n            get() = when (((bits ushr 16) and 0x3L)\
          .toInt()) {\n                1 -> true\n",
+        "        val upper: Char get() = ((bits ushr 18) and 0xFFFFL).toInt().toChar()\n",
         "        /** The first, or -1. */\n        val from: Int get() = (bits shr 32).toInt()\n",
     ];
     for line in expected {

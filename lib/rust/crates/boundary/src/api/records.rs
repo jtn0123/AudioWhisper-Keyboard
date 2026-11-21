@@ -34,6 +34,8 @@ pub enum BitKind {
     Flag,
     /// An unsigned `Int` this many bits wide.
     Int(u32),
+    /// A `Char`: 16 bits.
+    Char,
     /// A signed `Int`: the 32 bits from its shift, a `Long`'s high half.
     Signed,
     /// A `Boolean?` in two bits: 1 is true, 2 false, and anything else null.
@@ -94,6 +96,8 @@ fn getter(bit: &Bit, long: bool, indent: &str) -> String {
     match bit.kind {
         BitKind::Flag => format!(": Boolean get() = {shifted} and {one} != {zero}\n"),
         BitKind::Int(width) => format!(": Int get() = {}\n", int((1 << width) - 1)),
+        BitKind::Char if long => format!(": Char get() = {}.toChar()\n", int(0xFFFF)),
+        BitKind::Char => format!(": Char get() = ({}).toChar()\n", int(0xFFFF)),
         BitKind::Signed => {
             assert!(long, "{}: only a Long has a high half", bit.name);
             format!(": Int get() = (bits shr {}).toInt()\n", bit.shift)

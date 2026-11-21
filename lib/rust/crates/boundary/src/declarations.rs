@@ -17,6 +17,7 @@ mod screen;
 mod shift;
 mod spacing;
 mod swipe;
+mod text;
 mod word_stores;
 
 use crate::{Api, Class, Module, Type, Wire};
@@ -56,6 +57,7 @@ pub const CLASSES: &[Class] = &[
     learner::NATIVE_GLIDE_NATIVE,
     swipe::SWIPE_NATIVE,
     keys::KEYS_NATIVE,
+    text::JAVA_TEXT_NATIVE,
 ];
 
 /// Every generated api over those classes.
@@ -82,6 +84,7 @@ pub const APIS: &[Api] = &[
     learner::NATIVE_GLIDE,
     swipe::SWIPE_RULES,
     keys::KEY_GEOMETRY,
+    text::JAVA_TEXT,
 ];
 
 /// Every generated top-level record and enum, with the declarations file and the module it is in.

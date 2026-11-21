@@ -49,7 +49,7 @@ mod spacing;
 mod suggest;
 #[cfg(any(target_os = "android", test))]
 mod surface_bounds;
-mod text;
+pub(crate) mod text;
 
 /// Called once when Java loads the library.
 #[unsafe(no_mangle)]
