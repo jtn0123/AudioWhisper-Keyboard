@@ -8,8 +8,8 @@ import kotlin.test.assertTrue
 
 /**
  * The spacing rules through JNI, as the keyboard calls them: the flags as `Int`s, text looked up
- * only when a rule needs it, and bad input thrown. The rules themselves are tested in Rust and,
- * against the Kotlin they replace, in the app.
+ * only when a rule needs it, and a failed lookup thrown. The rules themselves are tested in Rust
+ * and, against the Kotlin they replace, in the app.
  */
 class SpacingRulesTest {
     private class Editor(
@@ -94,12 +94,16 @@ class SpacingRulesTest {
     }
 
     @Test
-    fun badInputThrows() {
-        assertFailsWith<IllegalArgumentException> { SpacingNative.commitChar("a", IntArray(5), null, null) }
-        assertFailsWith<IllegalArgumentException> { SpacingNative.commitChar("a", IntArray(6), "", IntArray(7)) }
-        assertFailsWith<IllegalArgumentException> { SpacingNative.commitChar("a", IntArray(6), "ab", IntArray(8)) }
-        assertFailsWith<IllegalArgumentException> { SpacingNative.commitChar("a", IntArray(6), "", IntArray(8) { -2 }) }
-        assertFailsWith<IllegalArgumentException> { SpacingNative.phantomSpaceBefore("a", IntArray(6), "", IntArray(8) { -1 }) }
-        assertFailsWith<NullPointerException> { SpacingNative.commitChar("a", IntArray(6), "", null) }
+    fun aFailedLookupIsThrownAsItWas() {
+        val noText = object : SpacingRules.Editor by Editor("cat") {
+            override fun textBeforeCursor(n: Int): String = throw IllegalStateException("no text")
+        }
+        val stop = assertFailsWith<IllegalStateException> {
+            SpacingRules.commitChar("a", typing(), 0, 5, noText)
+        }
+        assertEquals("no text", stop.message)
+        assertFailsWith<IllegalStateException> {
+            SpacingRules.phantomSpaceBefore("d", typing(), 1, forceActive = false, noText)
+        }
     }
 }

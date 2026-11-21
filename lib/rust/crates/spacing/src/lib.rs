@@ -10,8 +10,8 @@
 //!
 //! Kotlin still looks the text up (the characters before the cursor, cut by ICU's grapheme
 //! breaks, and the current word), and only when a rule gets far enough to need it: a rule that
-//! needs text it wasn't given answers with what it needs ([`spaces::Needs`]), and Kotlin asks
-//! again with it.
+//! needs text it wasn't given answers with what it needs ([`spaces::Needs`]), and awnative asks
+//! Kotlin for it and runs the rule again.
 //!
 //! Text is UTF-16 units (`&[u16]`), as a Kotlin `String` is, judged by Kotlin's character rules
 //! (the `chars` crate).

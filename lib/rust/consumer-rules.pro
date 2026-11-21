@@ -38,6 +38,13 @@
 -keep interface com.jtn0123.audiowhisper.rust.ReaderTree { *; }
 -keepclassmembers class * implements com.jtn0123.audiowhisper.rust.ReaderTree { *; }
 
+# The spacing rules ask the editor for text only when they need it (awnative/src/spacing.rs).
+-keep interface com.jtn0123.audiowhisper.rust.SpacingRules$Editor { *; }
+-keepclassmembers class * implements com.jtn0123.audiowhisper.rust.SpacingRules$Editor { *; }
+-keepclassmembers class com.jtn0123.audiowhisper.rust.SpacingRules$Rule {
+    java.lang.String get*();
+}
+
 # Utility rules live in the JVM-only Kotlin module, with JNI in awnative.
 -keepclasseswithmembernames class org.florisboard.lib.kotlin.UtilityNative {
     native <methods>;
