@@ -1,5 +1,7 @@
 # Stage 5: remaining Kotlin/Java ownership inventory
 
+The live ledger is [docs/jvm-ledger.tsv](jvm-ledger.tsv), checked by the gate; this page is the 2026-11-14 snapshot.
+
 2026-11-14. Research and documentation only; this inventory authorizes no port or deletion.
 Kotlin production inputs are unchanged from `d4ac289f`; the follow-up only changes Rust
 dialogs, the device harness and documentation. The [ownership decision](rust.md) is logic
