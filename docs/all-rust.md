@@ -91,11 +91,14 @@ hand.
 * A gate check that hand-written JVM files never grow: a budget per file, a new file needs an
   entry, and the budget only tightens on its own. Raising one is a visible edit with a reason.
   (Grade item A7 found `NlpManager` growing from 363 to 428 lines.)
-* One ledger of device checks still owed, gathered from the stage documents.
+* One ledger of device checks still owed, gathered from the stage documents:
+  [owed-checks.md](owed-checks.md). The live JVM ledger is [jvm-ledger.tsv](jvm-ledger.tsv).
 * **Exit:** the gate runs both checks, and growing one file on purpose fails it.
 
 ### 1. Phone checks, then the Compose keyboard (S–M, waiting on the owner)
 
+* Every owed check, with its device and doc, is in [owed-checks.md](owed-checks.md). The
+  phone entries for this phase are P1–P5 there.
 * The four checks in [compose-removal.md](compose-removal.md#k-the-compose-keyboard): real
   TalkBack, the Samsung font, font scale 2.0, and draw p95 at most 2 ms on the S24 Ultra at
   120 Hz (`cpu-trials.py` twice, tap positions remeasured for 1440x3120, plus a Perfetto
