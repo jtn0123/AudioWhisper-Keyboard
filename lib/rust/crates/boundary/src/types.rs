@@ -162,6 +162,25 @@ impl Param {
         matches!(self, Param::Out(_) | Param::Object(_))
     }
 
+    /// The type of the parameter as a field of an argument struct, borrowing for `'a`.
+    pub fn field(self) -> String {
+        match self {
+            Param::Boolean => "bool".into(),
+            Param::Char => "u16".into(),
+            Param::Int => "i32".into(),
+            Param::Long => "i64".into(),
+            Param::Float => "f32".into(),
+            Param::String => "&'a [u16]".into(),
+            Param::NullableString => "Option<&'a [u16]>".into(),
+            Param::Array(element) => format!("&'a [{}]", element.rust()),
+            Param::NullableArray(element) => format!("Option<&'a [{}]>", element.rust()),
+            Param::Strings | Param::StringVararg => "&'a [Vec<u16>]".into(),
+            Param::NullableStrings => "&'a [Option<Vec<u16>>]".into(),
+            Param::Out(element) => element.jni().into(),
+            Param::Object(_) => "jobject".into(),
+        }
+    }
+
     /// How the entry point reads the parameter `rust`, named `name` in Kotlin, before the call,
     /// if it must, and the argument it passes the hand-written function.
     pub fn read(self, rust: &str, name: &str) -> (Option<String>, String) {

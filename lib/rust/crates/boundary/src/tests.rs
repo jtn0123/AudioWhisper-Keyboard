@@ -169,6 +169,35 @@ const STRESS: &[Class] = &[
                 returns: Return::String,
                 ..METHOD
             },
+            Method {
+                name: "manyNumbers",
+                params: &[
+                    ("a", Param::Int),
+                    ("b", Param::Int),
+                    ("c", Param::Int),
+                    ("d", Param::Int),
+                    ("e", Param::Int),
+                    ("f", Param::Int),
+                    ("g", Param::Int),
+                    ("h", Param::Boolean),
+                ],
+                returns: Return::Long,
+                ..METHOD
+            },
+            Method {
+                name: "manyThings",
+                params: &[
+                    ("store", Param::Long),
+                    ("word", Param::String),
+                    ("previous", Param::Strings),
+                    ("taps", Param::Array(Element::Float)),
+                    ("marks", Param::Out(Element::Int)),
+                    ("count", Param::Int),
+                    ("strength", Param::Int),
+                ],
+                returns: Return::Strings,
+                ..METHOD
+            },
         ],
     },
 ];
@@ -363,6 +392,9 @@ internal object ExampleNative {
 use jni_sys::{JNIEnv, jboolean, jclass, jint, jstring};
 
 use crate::boundary::call;
+
+/// The arguments of the methods that take more than a Rust function should one by one.
+pub mod args {}
 
 // ExampleNative, declared in src/declarations/example.rs, calls crate::example.
 

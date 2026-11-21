@@ -110,6 +110,48 @@ pub fn rust_body(
     body
 }
 
+/// An entry point's body whose call passes a struct of its arguments, `name { fields }`, after
+/// the environment if `env`; a field whose value is its own name is written once, as clippy wants.
+pub fn rust_struct_body(
+    returns: &str,
+    lets: &[(String, String)],
+    callee: &str,
+    env: bool,
+    name: &str,
+    fields: &[(String, String)],
+) -> String {
+    let close = if env || !lets.is_empty() { "env" } else { "_" };
+    let mut body = format!("    unsafe {{\n        call::<{returns}>(env, |{close}| {{\n");
+    for (field, value) in lets {
+        body.push_str(&rust_let(12, field, value));
+    }
+    // rustfmt lets a struct overflow its call's line only as the call's one argument.
+    let (head, pad, tail) = if env {
+        let head =
+            format!("            {callee}(\n                env,\n                {name} {{");
+        (head, " ".repeat(20), "                },\n            )\n")
+    } else {
+        let head = format!("            {callee}({name} {{");
+        (head, " ".repeat(16), "            })\n")
+    };
+    assert!(
+        head.lines().all(|line| line.len() <= RUST_WIDTH),
+        "a call too long: {callee}"
+    );
+    body.push_str(&head);
+    body.push('\n');
+    for (field, value) in fields {
+        if field == value {
+            body.push_str(&format!("{pad}{field},\n"));
+        } else {
+            body.push_str(&format!("{pad}{field}: {value},\n"));
+        }
+    }
+    body.push_str(tail);
+    body.push_str("        })\n    }\n");
+    body
+}
+
 /// `use path::{names};`, as rustfmt lays it out: braces only for more than one name, and the
 /// names filling indented lines when they don't fit on one.
 pub fn rust_use(path: &str, names: &[String]) -> String {
