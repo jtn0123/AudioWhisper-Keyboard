@@ -70,7 +70,12 @@ pub const SHIFT_RULES: Api = Api {
         Type::Enum {
             name: "State",
             doc: "The keyboard's shift state, in `InputShiftState`'s order.",
-            entries: &["UNSHIFTED", "SHIFTED_MANUAL", "SHIFTED_AUTOMATIC", "CAPS_LOCK"],
+            entries: &[
+                "UNSHIFTED",
+                "SHIFTED_MANUAL",
+                "SHIFTED_AUTOMATIC",
+                "CAPS_LOCK",
+            ],
         },
         Type::Enum {
             name: "Event",

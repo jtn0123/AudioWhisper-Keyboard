@@ -238,4 +238,3 @@ pub fn dispatch(op: i32, rows: &[Text]) -> jni::Result<Vec<Text>> {
         _ => return Err(illegal("unknown Snygg operation")),
     })
 }
-

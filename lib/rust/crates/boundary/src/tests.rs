@@ -270,7 +270,9 @@ fn the_kotlin_fits_the_style() {
     );
     assert!(wrapped.contains("        sixthNumber: Long,\n    ): Int\n"));
     let every = &kotlin_files(STRESS)[2].1.text;
-    assert!(every.contains("    @JvmStatic external fun rows(text: String = \"\"): Array<IntArray>\n"));
+    assert!(
+        every.contains("    @JvmStatic external fun rows(text: String = \"\"): Array<IntArray>\n")
+    );
     assert!(every.contains("    @JvmStatic internal external fun texts("));
 }
 
@@ -367,7 +369,10 @@ fn names_cross_as_jni_and_rust_spell_them() {
         rust: "::shift::is_double_space_period",
         ..METHOD
     };
-    assert_eq!(callee(&EXAMPLE, &elsewhere), "::shift::is_double_space_period");
+    assert_eq!(
+        callee(&EXAMPLE, &elsewhere),
+        "::shift::is_double_space_period"
+    );
     let method = Method {
         name: "a_b",
         returns: Return::Int,
