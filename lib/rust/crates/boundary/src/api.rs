@@ -150,6 +150,9 @@ pub enum ArgKind {
     Ordinal(&'static str),
     /// A `List` for a string array, passing `toTypedArray()`.
     List,
+    /// A `CharSequence` for a string, or a `CharSequence?` for a nullable one, passing
+    /// `toString()`.
+    Text,
     /// An api of this name that owns a handle, passing its handle and keeping it reachable.
     Handle(&'static str),
     /// A nullable api of this name, passing its handle or 0.
@@ -311,6 +314,11 @@ fn param_text(arg: &Arg, native: Param) -> String {
             Param::NullableStrings => "List<String?>".to_owned(),
             _ => "List<String>".to_owned(),
         },
+        ArgKind::Text => match native {
+            Param::String => "CharSequence".to_owned(),
+            Param::NullableString => "CharSequence?".to_owned(),
+            other => panic!("{}: no text for {other:?}", arg.name),
+        },
         ArgKind::Fixed(_) => unreachable!("a fixed argument has no parameter"),
     };
     if arg.default.is_empty() {
@@ -347,6 +355,8 @@ pub(super) fn params_and_args(
             ArgKind::Code(_) => format!("{name}.code"),
             ArgKind::Ordinal(_) => format!("{name}.ordinal"),
             ArgKind::List => format!("{name}.toTypedArray()"),
+            ArgKind::Text if *param == Param::NullableString => format!("{name}?.toString()"),
+            ArgKind::Text => format!("{name}.toString()"),
             ArgKind::Handle(_) => format!("{name}.handle"),
             ArgKind::NullableHandle(_) => format!("{name}?.handle ?: 0L"),
             ArgKind::Fixed(value) => value.to_owned(),

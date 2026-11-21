@@ -408,3 +408,34 @@ fn rows_read_as_records_and_numbers_as_bits() {
         assert!(text.contains(line), "missing {line:?} in\n{text}");
     }
 }
+
+#[test]
+fn text_arguments_take_any_char_sequence() {
+    const TEXT: &[Class] = &[Class {
+        name: "TextNative",
+        module: "text",
+        methods: &[Method {
+            name: "lastWord",
+            params: &[("text", Param::NullableString), ("query", Param::String)],
+            returns: Return::NullableString,
+            ..METHOD
+        }],
+        ..CLASS
+    }];
+    const TEXT_API: &[Api] = &[Api {
+        name: "TextRules",
+        doc: "Text.",
+        module: "text",
+        native: "TextNative",
+        members: &[Member {
+            name: "lastWord",
+            args: &[arg("text", ArgKind::Text), arg("query", ArgKind::Text)],
+            ..MEMBER
+        }],
+        ..API
+    }];
+    let text = &api_files(TEXT_API, TEXT)[0].1.text;
+    let expected = "    fun lastWord(text: CharSequence?, query: CharSequence): String? =\n        \
+                    TextNative.lastWord(text?.toString(), query.toString())\n";
+    assert!(text.contains(expected), "{text}");
+}
