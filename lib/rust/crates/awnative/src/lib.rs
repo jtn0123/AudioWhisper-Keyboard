@@ -20,7 +20,7 @@ mod handle;
 mod ime_window;
 mod jni;
 mod key_models;
-mod keys;
+pub(crate) mod keys;
 #[cfg(not(target_os = "android"))]
 mod latinime;
 mod layout_rules;

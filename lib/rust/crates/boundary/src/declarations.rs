@@ -7,6 +7,7 @@ mod dictation;
 mod emoji;
 mod gif;
 mod giphy;
+mod keys;
 mod latin;
 mod layout;
 mod learner;
@@ -54,6 +55,7 @@ pub const CLASSES: &[Class] = &[
     learner::NATIVE_LEARNER_NATIVE,
     learner::NATIVE_GLIDE_NATIVE,
     swipe::SWIPE_NATIVE,
+    keys::KEYS_NATIVE,
 ];
 
 /// Every generated api over those classes.
@@ -79,6 +81,7 @@ pub const APIS: &[Api] = &[
     learner::LEARNER_API,
     learner::NATIVE_GLIDE,
     swipe::SWIPE_RULES,
+    keys::KEY_GEOMETRY,
 ];
 
 /// Every generated top-level record and enum, with the declarations file and the module it is in.
