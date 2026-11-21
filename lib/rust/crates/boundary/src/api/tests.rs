@@ -439,3 +439,50 @@ fn text_arguments_take_any_char_sequence() {
                     TextNative.lastWord(text?.toString(), query.toString())\n";
     assert!(text.contains(expected), "{text}");
 }
+
+#[test]
+fn two_elements_read_as_a_pair() {
+    const PAIRS: &[Class] = &[Class {
+        name: "PairNative",
+        module: "pairs",
+        methods: &[
+            Method {
+                name: "action",
+                returns: Return::Strings,
+                ..METHOD
+            },
+            Method {
+                name: "span",
+                returns: Return::Array(crate::Element::Int),
+                ..METHOD
+            },
+        ],
+        ..CLASS
+    }];
+    const PAIR_API: &[Api] = &[Api {
+        name: "PairRules",
+        doc: "Pairs.",
+        module: "pairs",
+        native: "PairNative",
+        members: &[
+            Member {
+                name: "action",
+                result: Out::Pair("Int", "String"),
+                ..MEMBER
+            },
+            Member {
+                name: "span",
+                result: Out::Pair("Int", "Boolean"),
+                ..MEMBER
+            },
+        ],
+        ..API
+    }];
+    let text = &api_files(PAIR_API, PAIRS)[0].1.text;
+    for expected in [
+        "    fun action(): Pair<Int, String> = PairNative.action().let { it[0].toInt() to it[1] }\n",
+        "    fun span(): Pair<Int, Boolean> = PairNative.span().let { it[0] to (it[1] != 0) }\n",
+    ] {
+        assert!(text.contains(expected), "{text}");
+    }
+}

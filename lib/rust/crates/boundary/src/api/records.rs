@@ -156,16 +156,21 @@ fn field(ty: &str, at: usize, element: Option<Element>, apis: &[Api]) -> String 
     }
 }
 
-/// What follows a native call that returns `returns` to read it as the record `name`, or a list
-/// of them if `many`, each in as many elements as it has fields. A record's last field may be a
-/// `List<String>` of the rest of the row.
-pub fn record(name: &str, many: bool, returns: Return, api: &Api, apis: &[Api]) -> String {
-    let (element, nullable) = match returns {
+/// The element of the row `returns`, `None` for strings, and whether the row may be null.
+fn row(returns: Return, api: &Api) -> (Option<Element>, bool) {
+    match returns {
         Return::Strings => (None, false),
         Return::Array(element) => (Some(element), false),
         Return::NullableArray(element) => (Some(element), true),
         other => panic!("{}: no record in {other:?}", api.name),
-    };
+    }
+}
+
+/// What follows a native call that returns `returns` to read it as the record `name`, or a list
+/// of them if `many`, each in as many elements as it has fields. A record's last field may be a
+/// `List<String>` of the rest of the row.
+pub fn record(name: &str, many: bool, returns: Return, api: &Api, apis: &[Api]) -> String {
+    let (element, nullable) = row(returns, api);
     let fields = record_fields(name, api, apis);
     let mut values = Vec::with_capacity(fields.len());
     for (at, (field_name, ty)) in fields.iter().enumerate() {
@@ -188,6 +193,23 @@ pub fn record(name: &str, many: bool, returns: Return, api: &Api, apis: &[Api]) 
     } else {
         format!(".let {{ {made} }}")
     }
+}
+
+/// What follows a native call that returns `returns` to read its two elements as a `Pair` of
+/// `types`.
+pub fn pair(types: [&str; 2], returns: Return, api: &Api, apis: &[Api]) -> String {
+    let (element, nullable) = row(returns, api);
+    assert!(!nullable, "{}: a pair's row is never null", api.name);
+    // `to` binds tighter than a comparison, so a field that compares goes in parentheses.
+    let [first, second] = [0, 1].map(|at| {
+        let value = field(types[at], at, element, apis);
+        if value.contains(' ') {
+            format!("({value})")
+        } else {
+            value
+        }
+    });
+    format!(".let {{ {first} to {second} }}")
 }
 
 /// The type a member reading the record `name` returns.

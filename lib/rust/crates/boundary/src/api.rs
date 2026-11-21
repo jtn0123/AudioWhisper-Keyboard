@@ -196,6 +196,8 @@ pub enum Out {
     /// A row read as a list of the record of this name, each in as many elements as it has
     /// fields.
     Records(&'static str),
+    /// A row of two elements read as a `Pair` of these types, as a record's fields are read.
+    Pair(&'static str, &'static str),
 }
 
 /// A record or enum that an api's members take or return.
@@ -390,6 +392,7 @@ fn result_type(returns: Return, out: Out) -> Option<String> {
         Out::NullableEntry(ty) => Some(format!("{ty}?")),
         Out::Record(ty) => Some(records::record_type(ty, false, returns)),
         Out::Records(ty) => Some(records::record_type(ty, true, returns)),
+        Out::Pair(first, second) => Some(format!("Pair<{first}, {second}>")),
     }
 }
 
@@ -447,6 +450,10 @@ fn converted(out: Out, returns: Return, api: &Api, apis: &[Api]) -> (String, Str
             records::record(ty, false, returns, api, apis),
         ),
         Out::Records(ty) => (String::new(), records::record(ty, true, returns, api, apis)),
+        Out::Pair(first, second) => (
+            String::new(),
+            records::pair([first, second], returns, api, apis),
+        ),
     }
 }
 
