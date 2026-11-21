@@ -96,7 +96,9 @@ fn kotlin_file(class: &Class) -> String {
             head.push_str("@JvmStatic ");
         }
         if method.internal {
-            head.push_str("internal ");
+            // Kotlin adds the module's name to an internal method's JVM name, and so to the
+            // JNI symbol it looks for; the JVM name keeps it the method's own.
+            head.push_str(&format!("@JvmName(\"{}\") internal ", method.name));
         }
         head.push_str(&format!("external fun {}", method.name));
         let tail = if method.returns == Return::Unit {

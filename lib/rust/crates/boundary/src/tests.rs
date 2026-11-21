@@ -273,7 +273,7 @@ fn the_kotlin_fits_the_style() {
     assert!(
         every.contains("    @JvmStatic external fun rows(text: String = \"\"): Array<IntArray>\n")
     );
-    assert!(every.contains("    @JvmStatic internal external fun texts("));
+    assert!(every.contains("    @JvmStatic @JvmName(\"texts\") internal external fun texts("));
 }
 
 /// Kotlin's hard keywords, which would not compile as a name there. Rust's are escaped.

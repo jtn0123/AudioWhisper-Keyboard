@@ -103,7 +103,8 @@ pub struct Method {
     /// Default values of parameters, as Kotlin: (name, value).
     pub defaults: &'static [(&'static str, &'static str)],
     /// Whether the `external fun` is `internal`, for a hand-written extension in its module to
-    /// call rather than the module's users.
+    /// call rather than the module's users. It keeps its JVM name, and so its JNI symbol, with
+    /// `@JvmName`.
     pub internal: bool,
     /// The function's path under the module, when it is not the method's name in snake case; or,
     /// starting `crate::`, one in another of awnative's modules, or `::`, a function of another
