@@ -1,6 +1,6 @@
 package dev.patrickgold.florisboard.ime.keyboard
 
-import com.jtn0123.audiowhisper.rust.LayoutRules
+import com.jtn0123.audiowhisper.rust.*
 import dev.patrickgold.florisboard.ime.text.keyboard.TextKeyData
 import dev.patrickgold.florisboard.lib.ext.ExtensionComponentName
 

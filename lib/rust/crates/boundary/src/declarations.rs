@@ -1,6 +1,7 @@
 //! The declared classes, one file each, named after the awnative module that answers them, and
 //! the Gradle module each of crates/wire's groups is generated in.
 
+mod layout;
 mod packets;
 mod rules;
 mod shift;
@@ -23,6 +24,9 @@ pub const CLASSES: &[Class] = &[
     packets::BACKUP_NATIVE,
     packets::SETTINGS_NATIVE,
     packets::EXTENSION_POLICY_NATIVE,
+    layout::KEY_MODELS,
+    layout::LAYOUT_RULES,
+    layout::PANEL_RULES,
 ];
 
 /// Every generated api over those classes.
