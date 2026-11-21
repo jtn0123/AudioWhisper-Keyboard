@@ -97,8 +97,10 @@ pub fn rust_signature(head: &str, params: &[String], returns: &str) -> String {
 
 /// An entry point's body: in an `unsafe` block, `call::<returns>(env, |env| { lets;
 /// callee(args).result() })`, as rustfmt lays it out. `result` takes the function's value, or its
-/// `jni::Result`. With nothing to read first and a closure narrow enough to be a call's argument
-/// on one line, it is all one line; otherwise the closure is a block.
+/// `jni::Result`; a function that returns nothing returns a `jni::Result<()>`, called as it is,
+/// since clippy refuses a method call on `()`. With nothing to read first and a closure narrow
+/// enough to be a call's argument on one line, it is all one line; otherwise the closure is a
+/// block.
 pub fn rust_body(
     returns: &str,
     lets: &[(String, String)],
@@ -108,7 +110,8 @@ pub fn rust_body(
     let uses_env = !lets.is_empty() || args.first().is_some_and(|arg| arg == "env");
     let close = if uses_env { "env" } else { "_" };
     let call = format!("call::<{returns}>");
-    let one = format!("env, |{close}| {callee}({}).result()", args.join(", "));
+    let result = if returns == "()" { "" } else { RESULT };
+    let one = format!("env, |{close}| {callee}({}){result}", args.join(", "));
     let line = format!("    unsafe {{ {call}({one}) }}");
     if lets.is_empty() && one.len() <= RUST_CALL_ARGS && line.len() <= RUST_WIDTH {
         return line + "\n";
@@ -117,15 +120,22 @@ pub fn rust_body(
     for (name, value) in lets {
         body.push_str(&rust_let(12, name, value));
     }
-    body.push_str(&chain_result(12, rust_call(12, callee, args)));
+    let call = rust_call(12, callee, args);
+    body.push_str(&if returns == "()" {
+        call
+    } else {
+        chain_result(12, call)
+    });
     body.push_str("        })\n    }\n");
     body
 }
 
+/// What turns a function's value or `jni::Result` into the entry point's `jni::Result`.
+const RESULT: &str = ".result()";
+
 /// `call`, laid out at `indent`, with `.result()` after it as rustfmt chains it: on the call's
 /// line if the call is one line and there is room, else on a line of its own.
 fn chain_result(indent: usize, call: String) -> String {
-    const RESULT: &str = ".result()";
     let pad = " ".repeat(indent);
     if call.lines().count() > 1 {
         return format!("{call}{pad}{RESULT}\n");
@@ -175,7 +185,9 @@ pub fn rust_struct_body(
         }
     }
     body.push_str(tail);
-    body.push_str("            .result()\n");
+    if returns != "()" {
+        body.push_str(&format!("            {RESULT}\n"));
+    }
     body.push_str("        })\n    }\n");
     body
 }

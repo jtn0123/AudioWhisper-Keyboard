@@ -93,7 +93,7 @@ pub enum Param {
 /// in Java instead, and the Kotlin caller sees no value.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Return {
-    /// Nothing; the function returns `()`.
+    /// Nothing; the function returns a `jni::Result<()>`, even if it cannot fail.
     Unit,
     /// `Boolean`; the function returns a `bool`.
     Boolean,
