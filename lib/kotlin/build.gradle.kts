@@ -36,8 +36,8 @@ sourceSets {
 
 // The operation codes and flags this module's own native calls use, generated from lib/rust's
 // crates/wire by lib/rust's generateNativeBoundary (docs/rust.md, "The generated boundary").
-kotlin.sourceSets.named("main") {
-    kotlin.srcDir(
+sourceSets.named("main") {
+    java.srcDir(
         files(project(":lib:rust").layout.buildDirectory.dir("generated/nativeBoundary/libKotlin"))
             .builtBy(":lib:rust:generateNativeBoundary"),
     )

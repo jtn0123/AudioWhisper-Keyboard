@@ -8,6 +8,7 @@ publish.workspace = true
 rust-version.workspace = true
 
 [dependencies]
+wire = { path = "../wire" }
 settings = { path = "../settings" }
 input = { path = "../input" }
 keys = { path = "../keys" }

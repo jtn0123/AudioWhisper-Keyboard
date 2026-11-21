@@ -121,7 +121,7 @@ fn an_example_comes_out_as_written() {
         [
             format!("{package}/ExampleOp.kt"),
             format!("{package}/ExamplePoint.kt"),
-            format!("{package}/ExampleCodes.kt"),
+            format!("{package}/ExampleCodes.java"),
         ]
     );
     let source = "Do not edit.\npackage com.jtn0123.audiowhisper.rust\n\n";
@@ -154,16 +154,19 @@ object ExamplePoint {
     );
     assert_eq!(
         files[2].1.text,
-        format!("{path}. {source}")
+        format!("{path}. Do not edit.\npackage com.jtn0123.audiowhisper.rust;\n\n")
             + "\
-/** Codes an example reads. */
-object ExampleCodes {
+/** Codes declared in `boundary::constants::tests::example`, in groups whose values never clash. */
+public final class ExampleCodes {
+    private ExampleCodes() {}
+
+    /* Codes an example reads. */
     /** Pressed. */
-    const val DOWN = 0
-    const val UP = 1
+    public static final int DOWN = 0;
+    public static final int UP = 1;
 
     /* Codes it writes. */
-    const val MOVE = 20
+    public static final int MOVE = 20;
 }
 "
     );

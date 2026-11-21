@@ -51,6 +51,8 @@
 #![forbid(unsafe_code)]
 
 pub mod flag;
+pub mod input;
+pub mod render;
 
 /// A declared group: one operation set, packet or set of codes, and the Kotlin type it becomes.
 #[derive(Debug)]
