@@ -5,6 +5,7 @@ mod clipboard;
 mod composing;
 mod dictation;
 mod gif;
+mod giphy;
 mod layout;
 mod packets;
 mod rules;
@@ -37,6 +38,7 @@ pub const CLASSES: &[Class] = &[
     dictation::DICTATION_NATIVE,
     gif::GIF_NATIVE,
     composing::COMPOSING_NATIVE,
+    giphy::GIPHY_NATIVE,
 ];
 
 /// Every generated api over those classes.
@@ -48,6 +50,7 @@ pub const APIS: &[Api] = &[
     gif::GIF_RULES,
     gif::GIF_RESULT_KEYS,
     composing::COMPOSING_RULES,
+    giphy::GIPHY_RULES,
 ];
 
 /// Every generated top-level record and enum, with the declarations file and the module it is in.
