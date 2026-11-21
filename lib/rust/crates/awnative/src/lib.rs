@@ -86,8 +86,6 @@ mod input;
 
 mod nlp;
 
-mod nlp_stores;
-
 mod dictation_session;
 
 mod sherpa;

@@ -14,6 +14,9 @@ pub enum Error {
     /// The JVM raised an exception, which is thrown when the entry point returns.
     Pending,
     IllegalArgument(String),
+    /// An `IllegalStateException`, for an object used after it was closed where Kotlin's
+    /// `check` threw one.
+    IllegalState(String),
     NullPointer(&'static str),
 }
 
@@ -416,6 +419,7 @@ impl Env {
         let (class, message) = match error {
             Error::Pending => return,
             Error::IllegalArgument(message) => (c"java/lang/IllegalArgumentException", message),
+            Error::IllegalState(message) => (c"java/lang/IllegalStateException", message),
             Error::NullPointer(name) => {
                 (c"java/lang/NullPointerException", format!("{name} is null"))
             }

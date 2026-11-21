@@ -7,6 +7,7 @@ mod dictation;
 mod emoji;
 mod gif;
 mod giphy;
+mod latin;
 mod layout;
 mod packets;
 mod rules;
@@ -45,6 +46,8 @@ pub const CLASSES: &[Class] = &[
     emoji::EMOJI_NATIVE,
     spacing::SPACING_NATIVE,
     word_stores::WORD_STORES_NATIVE,
+    latin::LATIN_SESSION_NATIVE,
+    latin::NLP_NATIVE,
 ];
 
 /// Every generated api over those classes.
@@ -64,6 +67,9 @@ pub const APIS: &[Api] = &[
     word_stores::LEARNED_WORD_STORE,
     word_stores::KEPT_WORD_STORE,
     word_stores::PERSONAL_WORD_STORE,
+    latin::LATIN_SESSION,
+    latin::NLP_SESSION,
+    latin::NLP_NAMES,
 ];
 
 /// Every generated top-level record and enum, with the declarations file and the module it is in.

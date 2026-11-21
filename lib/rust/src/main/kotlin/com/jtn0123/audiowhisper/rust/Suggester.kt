@@ -2,12 +2,6 @@ package com.jtn0123.audiowhisper.rust
 
 import java.lang.ref.Reference
 
-/** Results shared by the native session and the test-only callback oracle. */
-object Suggester {
-    class Strip(val words: List<String>, val autoCorrection: Int, val typedWord: Int)
-    class Verdict(val isValid: Boolean, val suggestions: List<String>, val isHighConfidence: Boolean)
-}
-
 class Learner(private val store: LearnedWordStore) {
     private val handle = SuggesterNative.newLearner()
 

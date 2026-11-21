@@ -6,7 +6,7 @@
 mod legacy_suggester;
 mod letter_odds;
 mod native_glide;
-mod session;
+pub(crate) mod session;
 mod suggester;
 mod swipe;
 mod tap;
