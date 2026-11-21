@@ -83,7 +83,7 @@ Phases 0 and 2 start now. Phase 1 waits for the owner's phone session. Phases 3 
 side by side once 2 lands, so the operations they add are generated rather than written by
 hand.
 
-### 0. Truth and a ratchet (S)
+### 0. Truth and a ratchet (S, done)
 
 * A script regenerates the [stage 5 inventory](stage5-inventory.md) ledger at HEAD: every
   production Kotlin and Java file, its size, and its class (stays JVM, generated, port, delete)
