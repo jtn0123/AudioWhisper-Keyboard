@@ -5,7 +5,3 @@ object UtilityRules {
     fun call(operation: UtilityOp, vararg values: String): List<String> =
         UtilityNative.call(operation.code, arrayOf(*values)).asList()
 }
-internal object UtilityNative {
-    init { System.loadLibrary("awnative") }
-    @JvmStatic external fun call(operation: Int, input: Array<String>): Array<String>
-}

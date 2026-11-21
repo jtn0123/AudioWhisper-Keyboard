@@ -4,7 +4,6 @@ use crate::{
     jni::{self, illegal},
     snygg::{Packet, rule},
 };
-use jni_sys::{JNIEnv, jclass, jint, jobjectArray};
 use snygg::{
     Text,
     editor::{self, RuleEdit},
@@ -13,7 +12,6 @@ use snygg::{
     resolve::{self, CompiledTheme, Properties, PropertySets, Query, Stylesheet},
     text,
 };
-use std::ptr;
 
 fn num(n: usize) -> Text {
     text(&n.to_string())
@@ -63,7 +61,8 @@ fn write_properties(out: &mut Vec<Text>, props: Properties<ManagedValue>) {
         }
     }
 }
-fn dispatch(op: jint, rows: &[Text]) -> jni::Result<Vec<Text>> {
+/// The answer to the operation `op` on `rows`, for the generated entry point.
+pub fn dispatch(op: i32, rows: &[Text]) -> jni::Result<Vec<Text>> {
     let mut p = Packet { rows, at: 0 };
     let mut out = vec![];
     match op {
@@ -189,24 +188,4 @@ fn dispatch(op: jint, rows: &[Text]) -> jni::Result<Vec<Text>> {
         _ => return Err(illegal("unknown Snygg compiler operation")),
     }
     Ok(out)
-}
-#[unsafe(no_mangle)]
-pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_SnyggCompiler_call(
-    env: *mut JNIEnv,
-    _: jclass,
-    op: jint,
-    input: jobjectArray,
-) -> jobjectArray {
-    // SAFETY: the JVM supplies this thread's live environment and string array. All
-    // strings are copied. Tokens are integers only; no Java references or handles escape.
-    unsafe {
-        jni::run(env, ptr::null_mut(), |env| {
-            let rows = env
-                .read_strings(input, "input")?
-                .into_iter()
-                .map(|r| r.ok_or(jni::Error::NullPointer("Snygg compiler packet string")))
-                .collect::<jni::Result<Vec<_>>>()?;
-            env.make_strings(&dispatch(op, &rows)?)
-        })
-    }
 }

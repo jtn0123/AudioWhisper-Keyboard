@@ -384,9 +384,9 @@ lib/kotlin/src/main/kotlin/org/florisboard/lib/kotlin/MimeTypeFilter.kt	P	30	por
 lib/kotlin/src/main/kotlin/org/florisboard/lib/kotlin/Numbers.kt	P	2	portable Numbers domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
 lib/kotlin/src/main/kotlin/org/florisboard/lib/kotlin/Result.kt	P	28	portable Result domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
 lib/kotlin/src/main/kotlin/org/florisboard/lib/kotlin/Strings.kt	P	66	portable Strings domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
-lib/kotlin/src/main/kotlin/org/florisboard/lib/kotlin/UtilityRules.kt	A	9	ART JNI; utility request/result packet transport |
+lib/kotlin/src/main/kotlin/org/florisboard/lib/kotlin/UtilityRules.kt	A	5	ART JNI; utility request/result packet transport |
 lib/kotlin/src/main/kotlin/org/florisboard/lib/kotlin/io/FsFile.kt	P	23	portable FsFile domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
-lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/BackupPolicy.kt	A	25	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
+lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/BackupPolicy.kt	A	21	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
 lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/ClipboardRules.kt	A	11	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
 lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/Composing.kt	A	30	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
 lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/ComposingNative.kt	A	9	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
@@ -396,7 +396,7 @@ lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/DictationSessionPlan.kt	A
 lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/EditorSession.kt	A	57	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport | raised 50 to 57 (A6): typed EditorOp and EditorAttributeOp calls; the cursor and keyboard request packets built by field name
 lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/Emoji.kt	A	61	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
 lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/EmojiNative.kt	A	13	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
-lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/ExtensionPolicy.kt	A	34	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport | raised 31 to 34 (A6): a typed ExtensionOp call and the archive entry packet built by field name, which BackupPolicy shares
+lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/ExtensionPolicy.kt	A	30	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport | raised 31 to 34 (A6): a typed ExtensionOp call and the archive entry packet built by field name, which BackupPolicy shares
 lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/Gestures.kt	A	93	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
 lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/GesturesNative.kt	A	46	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
 lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/Gif.kt	M	44	ART JNI; residual signed-order decoding helpers and cache payload lifetime |
@@ -427,12 +427,9 @@ lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/ReaderRuntime.kt	A	44	ART
 lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/RustLibrary.kt	A	9	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
 lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/ScreenNative.kt	A	14	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
 lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/ScreenWalk.kt	A	19	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
-lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/SettingsRules.kt	A	52	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
+lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/SettingsRules.kt	A	48	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
 lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/SherpaAsr.kt	A	55	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
 lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/SherpaTts.kt	A	36	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
-lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/SnyggCompiler.kt	A	5	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
-lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/SnyggGrammar.kt	A	5	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
-lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/SnyggValues.kt	A	5	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
 lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/Spacing.kt	M	94	ART JNI; residual editor callbacks/spacing orchestration facade |
 lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/SpacingNative.kt	A	17	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
 lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/Suggest.kt	A	114	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |

@@ -122,6 +122,20 @@ impl<T: Returned> Outcome<T> for Result<T> {
     }
 }
 
+/// A pure crate's refusal, which throws `IllegalArgumentException` with its message.
+impl<T: Returned> Outcome<T> for std::result::Result<T, &'static str> {
+    fn result(self) -> Result<T> {
+        self.map_err(jni::illegal)
+    }
+}
+
+/// The extensions crate's refusal, likewise.
+impl<T: Returned> Outcome<T> for std::result::Result<T, extensions::Error> {
+    fn result(self) -> Result<T> {
+        self.map_err(|error| jni::illegal(error.0))
+    }
+}
+
 /// Runs a generated entry point's `body`, returning its value to Kotlin, or throwing its error in
 /// Java and returning the fallback.
 ///

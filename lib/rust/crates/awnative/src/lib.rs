@@ -6,13 +6,11 @@ use std::ffi::c_void;
 
 use jni_sys::{JNI_VERSION_1_6, JavaVM, jint};
 
-mod backup_utils;
 mod boundary;
 mod composing;
 mod dictation;
 mod editor;
 mod emoji;
-mod extensions;
 mod files;
 mod gestures;
 mod gif;
