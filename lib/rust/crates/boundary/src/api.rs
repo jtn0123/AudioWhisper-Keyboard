@@ -230,6 +230,14 @@ pub enum Type {
         internal: bool,
         fields: &'static [Bit],
     },
+    /// `interface Name { … }`, for an object Rust calls back through JNI: each member a Kotlin
+    /// declaration, such as `fun textBeforeCursor(n: Int): String`, with its doc.
+    Interface {
+        name: &'static str,
+        doc: &'static str,
+        /// (declaration, doc).
+        members: &'static [(&'static str, &'static str)],
+    },
 }
 
 /// The Kotlin files for `apis`, whose members call methods of `classes`, each with its module.
@@ -617,6 +625,22 @@ fn type_text(ty: &Type, indent: &str) -> String {
             )
         }
         Type::Bits { .. } => records::bits_text(ty, indent),
+        Type::Interface { name, doc, members } => {
+            let mut text = kdoc(doc, indent);
+            text.push_str(&format!("{indent}interface {name} {{\n"));
+            let inner = format!("{indent}    ");
+            for (at, (declaration, doc)) in members.iter().enumerate() {
+                if at > 0 && !doc.is_empty() {
+                    text.push('\n');
+                }
+                if !doc.is_empty() {
+                    text.push_str(&kdoc(doc, &inner));
+                }
+                text.push_str(&format!("{inner}{declaration}\n"));
+            }
+            text.push_str(&format!("{indent}}}\n"));
+            text
+        }
     }
 }
 
@@ -626,9 +650,10 @@ pub fn type_files(types: &[(&str, Module, Type)]) -> Vec<(Module, KotlinFile)> {
         .iter()
         .map(|(module, kotlin, ty)| {
             let name = match ty {
-                Type::Record { name, .. } | Type::Enum { name, .. } | Type::Bits { name, .. } => {
-                    *name
-                }
+                Type::Record { name, .. }
+                | Type::Enum { name, .. }
+                | Type::Bits { name, .. }
+                | Type::Interface { name, .. } => *name,
             };
             let source = format!("src/declarations/{module}.rs");
             let mut text = kotlin_header(&source, *kotlin, &[]);

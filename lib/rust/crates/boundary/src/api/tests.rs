@@ -590,3 +590,28 @@ fn string_rows_read_as_records_each() {
         assert!(text.contains(expected), "{text}");
     }
 }
+
+#[test]
+fn an_interface_lists_what_rust_calls_back() {
+    const CALLBACKS: &[Api] = &[Api {
+        name: "CallbackRules",
+        doc: "Callbacks.",
+        module: "callbacks",
+        native: "ExampleNative",
+        nested: &[Type::Interface {
+            name: "Editor",
+            doc: "What Rust asks.",
+            members: &[
+                ("val rule: String", ""),
+                ("val language: String", ""),
+                ("fun before(n: Int): String", "The last [n] characters."),
+            ],
+        }],
+        ..API
+    }];
+    let text = &api_files(CALLBACKS, NATIVE)[0].1.text;
+    let expected = "    /** What Rust asks. */\n    interface Editor {\n        val rule: String\n        \
+                    val language: String\n\n        /** The last [n] characters. */\n        \
+                    fun before(n: Int): String\n    }\n";
+    assert!(text.contains(expected), "{text}");
+}
