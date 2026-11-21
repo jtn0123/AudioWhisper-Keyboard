@@ -1,0 +1,133 @@
+//! Laying out generated code as the repo formats it by hand: the Rust as rustfmt's defaults would
+//! (lines of at most 100 columns, a call's arguments on one line only up to 60), the Kotlin in
+//! 120 columns, and doc comments wrapped at 100. The tests check the Rust against rustfmt itself.
+
+/// rustfmt's `max_width`.
+const RUST_WIDTH: usize = 100;
+/// rustfmt's `fn_call_width`: arguments wider than this go one to a line.
+const RUST_CALL_ARGS: usize = 60;
+/// The Kotlin line length in .editorconfig.
+const KOTLIN_WIDTH: usize = 120;
+/// Where hand-written doc comments wrap.
+const DOC_WIDTH: usize = 100;
+
+/// `text` as `indent`ed lines of `prefix` and words, wrapped at the doc width.
+fn wrap(text: &str, indent: &str, prefix: &str) -> String {
+    let start = format!("{indent}{prefix} ");
+    let mut lines = String::new();
+    let mut line = start.clone();
+    for word in text.split_whitespace() {
+        if line.len() > start.len() && line.len() + 1 + word.len() > DOC_WIDTH {
+            lines.push_str(&line);
+            lines.push('\n');
+            line.clone_from(&start);
+        }
+        if line.len() > start.len() {
+            line.push(' ');
+        }
+        line.push_str(word);
+    }
+    lines.push_str(&line);
+    lines.push('\n');
+    lines
+}
+
+/// A Rust doc comment of `text`, `///` lines at `indent`.
+pub fn rust_doc(text: &str, indent: &str) -> String {
+    wrap(text, indent, "///")
+}
+
+/// A Rust comment of `text`, `//` lines at `indent`.
+pub fn rust_comment(text: &str, indent: &str) -> String {
+    wrap(text, indent, "//")
+}
+
+/// A KDoc of `text` at `indent`: one line if it fits, else a block.
+pub fn kdoc(text: &str, indent: &str) -> String {
+    let one = format!(
+        "{indent}/** {} */",
+        text.split_whitespace().collect::<Vec<_>>().join(" ")
+    );
+    if one.len() <= DOC_WIDTH {
+        return one + "\n";
+    }
+    format!("{indent}/**\n{}{indent} */\n", wrap(text, indent, " *"))
+}
+
+/// A Kotlin declaration `head(params)tail` at `indent`: on one line if it fits, else one
+/// parameter to a line with a trailing comma, as the hand-written Kotlin does.
+pub fn kotlin_declaration(indent: &str, head: &str, params: &[String], tail: &str) -> String {
+    let one = format!("{indent}{head}({}){tail}", params.join(", "));
+    if one.len() <= KOTLIN_WIDTH {
+        return one + "\n";
+    }
+    let params: String = params
+        .iter()
+        .map(|it| format!("{indent}    {it},\n"))
+        .collect();
+    format!("{indent}{head}(\n{params}{indent}){tail}\n")
+}
+
+/// A Rust function signature `head(params) -> returns {`, as rustfmt lays it out: on one line if
+/// it fits, else one parameter to a line.
+pub fn rust_signature(head: &str, params: &[String], returns: &str) -> String {
+    let one = format!("{head}({}) -> {returns} {{", params.join(", "));
+    if one.len() <= RUST_WIDTH {
+        return one + "\n";
+    }
+    let params: String = params.iter().map(|it| format!("    {it},\n")).collect();
+    format!("{head}(\n{params}) -> {returns} {{\n")
+}
+
+/// An entry point's body: in an `unsafe` block, `call(env, |env| { lets; callee(args) })`, as
+/// rustfmt lays it out. With nothing to read first and a closure narrow enough to be a call's
+/// argument on one line, it is all one line; otherwise the closure is a block.
+pub fn rust_body(lets: &[(String, String)], callee: &str, args: &[String]) -> String {
+    let close = if lets.is_empty() { "_" } else { "env" };
+    let one = format!("env, |_| {callee}({})", args.join(", "));
+    if lets.is_empty() && one.len() <= RUST_CALL_ARGS {
+        return format!("    unsafe {{ call({one}) }}\n");
+    }
+    let mut body = format!("    unsafe {{\n        call(env, |{close}| {{\n");
+    for (name, value) in lets {
+        body.push_str(&rust_let(12, name, value));
+    }
+    body.push_str(&rust_call(12, callee, args));
+    body.push_str("        })\n    }\n");
+    body
+}
+
+/// A call `callee(args)` at `indent`, as rustfmt lays it out: on one line if it fits and the
+/// arguments are narrow enough; else, on the next line, the arguments together if they are narrow
+/// enough or one to a line if not.
+fn rust_call(indent: usize, callee: &str, args: &[String]) -> String {
+    let pad = " ".repeat(indent);
+    let joined = args.join(", ");
+    let narrow = joined.len() <= RUST_CALL_ARGS;
+    if narrow && indent + callee.len() + joined.len() + 2 <= RUST_WIDTH {
+        return format!("{pad}{callee}({joined})\n");
+    }
+    let inner = " ".repeat(indent + 4);
+    let args = if narrow {
+        format!("{inner}{joined},\n")
+    } else {
+        args.iter().map(|it| format!("{inner}{it},\n")).collect()
+    };
+    format!("{pad}{callee}(\n{args}{pad})\n")
+}
+
+/// `let name = value;` at `indent`, as rustfmt lays it out: on one line if it fits, else with the
+/// value on the next line, which must fit there.
+fn rust_let(indent: usize, name: &str, value: &str) -> String {
+    let pad = " ".repeat(indent);
+    let one = format!("{pad}let {name} = {value};");
+    if one.len() <= RUST_WIDTH {
+        return one + "\n";
+    }
+    let next = format!("{pad}    {value};");
+    assert!(
+        next.len() <= RUST_WIDTH,
+        "a name too long to lay out: {name}"
+    );
+    format!("{pad}let {name} =\n{next}\n")
+}

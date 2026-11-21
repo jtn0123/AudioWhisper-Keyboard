@@ -1,0 +1,11 @@
+[package]
+name = "boundary"
+version = "0.1.0"
+description = "Host-only: generates the Kotlin–Rust JNI boundary, both sides, from typed declarations"
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+rust-version.workspace = true
+
+[lints]
+workspace = true
