@@ -323,6 +323,24 @@ fn the_packed_call_answers_a_row_for_each_action() {
 }
 
 #[test]
+fn an_empty_slot_has_no_key_to_ask_about() {
+    let mut fields = bar_row("0");
+    fields.extend(action_row(kind::NONE, 7, ""));
+    fields.extend(action_row(kind::KEY, VOICE_INPUT, ""));
+    fields.extend(action_row(kind::TEXT, 0, "ok"));
+    let mut asked = Vec::new();
+    let mut key = |_kind, code, _label: &[u16]| {
+        asked.push(code);
+        KeyAnswer::default()
+    };
+    let config = config(0.0, false, false);
+    let answer = render::smartbar_actions::call(&config, &fields, &mut key);
+    assert!(answer.is_some());
+    // The key action's key, and the text action's, which has none of its own (`UNSPECIFIED`).
+    assert_eq!(asked, [VOICE_INPUT, 0]);
+}
+
+#[test]
 fn a_key_that_draws_an_icon_names_it_and_shows_no_label() {
     let mut fields = bar_row("0");
     fields.extend(action_row(kind::KEY, 1, ""));
