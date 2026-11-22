@@ -216,11 +216,13 @@ impl App {
         }
     }
     /// Whether the screen on top keeps its buttons in a bottom bar: Back up, Restore and the
-    /// subtype editor.
+    /// subtype editor. A bar whose buttons are hidden, as the extension editor's are until it
+    /// opens, is not drawn; every screen shows its Cancel exactly when its Start or Save.
     fn backup_screen(&self) -> bool {
-        self.rows()
-            .iter()
-            .any(|r| matches!(r.kind, Kind::Backup(Part::Start) | Kind::Lang(Lang::Save)))
+        let mut rows = self.rows().iter().enumerate();
+        rows.any(|(i, r)| {
+            matches!(r.kind, Kind::Backup(Part::Start) | Kind::Lang(Lang::Save)) && self.visible(i)
+        })
     }
     /// The bottom bar's height: the note, then a row of 40 dp buttons with 16 dp around them.
     /// Zero on other screens.

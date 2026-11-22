@@ -3,10 +3,11 @@
 //! or ExtensionNotFoundScreen when no extension has the id) and CheckUpdatesScreen. Kotlin
 //! reports the extension index and deletes an extension (`wire::settings_ui::extensions`); Rust
 //! picks what each screen lists, builds the update link and draws them (`boxes.rs`, `page.rs`).
-//! The importer and Export are `import.rs`; editing an extension is still Compose's screen.
+//! The importer and Export are `import.rs`; the extension editor is `editor/`.
 pub mod boxes;
 pub mod chips;
 mod dialogs;
+pub mod editor;
 pub mod import;
 pub mod import_view;
 pub mod page;
@@ -148,6 +149,7 @@ pub struct Extensions {
     /// Kotlin was asked for the index; it reports again whenever the index changes.
     pub requested: bool,
     pub import: import::Import,
+    pub editor: editor::ExtEditor,
 }
 
 /// A tap on the extension screens' own controls.
@@ -169,6 +171,8 @@ pub enum Tap {
     Maintainer(usize),
     /// The homepage or the issue tracker.
     Link(String),
+    /// A tap on the extension editor's own controls.
+    Editor(editor::Tap),
 }
 
 /// An `EXTENSIONS` report: the extensions in their indexes' order, each with the rows after it.
@@ -256,8 +260,11 @@ pub fn update_url<'a>(list: impl IntoIterator<Item = &'a Extension>) -> String {
 }
 
 /// The catalogue route of the extension screen at `route`: a list's route without its query,
-/// and `ext/view` for any extension's page.
+/// `ext/view` for any extension's page and `ext/edit` for the editor's.
 pub fn screen_route(route: &str) -> Option<&'static str> {
+    if editor::target(route).is_some() {
+        return Some(editor::EDIT);
+    }
     let base = route.split_once('?').map_or(route, |(base, _)| base);
     if base
         .strip_prefix("ext/view/")
@@ -266,6 +273,13 @@ pub fn screen_route(route: &str) -> Option<&'static str> {
         return Some(VIEW);
     }
     [THEMES, KEYBOARDS, PACKS].into_iter().find(|r| *r == base)
+}
+
+/// Whether the screen at `route` shows the extension index: the home, a list, a page or *Search
+/// for updates*; not the importer or the editor, which read their own workspaces.
+fn lists(route: &str) -> bool {
+    let own = import::parts(route).is_some() || editor::target(route).is_some();
+    !own && ([HOME, UPDATES].contains(&route) || screen_route(route).is_some())
 }
 
 /// Whether `route` asks a list for ImportExtensionBox and UpdateBox: `showUpdate=true`.
@@ -353,7 +367,9 @@ impl App {
     /// The page's title: the extension's, the not-found title once the index says there is none,
     /// and nothing before the first report. None off the page.
     pub(super) fn ext_title(&self) -> Option<String> {
-        self.page_id()?;
+        if self.page_id().is_none() {
+            return self.ext_editor_title();
+        }
         if self.extensions.list.is_none() {
             return Some(String::new());
         }
@@ -373,21 +389,36 @@ impl App {
             self.effects.push(vec![effect::LOAD.into()]);
         }
     }
-    /// A native screen opened at `route`: an extension screen reads the index, and the importer
-    /// its workspace.
+    /// A native screen opened at `route`: an extension screen reads the index, the importer its
+    /// workspace and the editor its own.
     pub(super) fn extensions_opened(&mut self, route: &str) {
         if import::parts(route).is_some() {
             self.import_opened();
-        } else if [HOME, UPDATES].contains(&route) || screen_route(route).is_some() {
+        } else if editor::target(route).is_some() {
+            self.ext_editor_opened(route);
+        } else if lists(route) {
             self.request_extensions();
         }
     }
-    /// After a saved state came back: Kotlin's side is new, so the index is asked for again.
+    /// After a saved state came back: Kotlin's side is new, so the index is asked for again, and
+    /// the editor's workspace taken up again. The index is asked for when any screen on the stack
+    /// shows it, not only the top one: Back does not ask, so a list under the editor or the
+    /// importer came back empty.
     pub fn extensions_restored(&mut self) {
-        self.extensions = Extensions::default();
-        if let Some(top) = self.stack.last().cloned() {
+        let editor = std::mem::take(&mut self.extensions.editor);
+        self.extensions = Extensions {
+            editor,
+            ..Extensions::default()
+        };
+        if let Some(top) = self.stack.last().cloned()
+            && editor::target(&top).is_none()
+        {
             self.extensions_opened(&top);
         }
+        if self.stack.iter().any(|r| lists(r)) {
+            self.request_extensions();
+        }
+        self.ext_editor_restored();
     }
     /// A tap on an extension screen's own control.
     pub(super) fn ext_tap(&mut self, tap: Tap) {
@@ -418,6 +449,7 @@ impl App {
                 }
             }
             Tap::Link(url) => self.effects.push(vec!["url".into(), url]),
+            Tap::Editor(tap) => self.editor_tap(tap),
         }
     }
     /// Maintainer `m`'s addresses on the page, as its dialog lists them: `mailto:` and the email,

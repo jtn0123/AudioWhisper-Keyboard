@@ -40,6 +40,9 @@ impl App {
             }
             Cond::Restore(usable) => self.restore_shown(*usable),
             Cond::Import => self.import_ready(),
+            Cond::ExtEditor => self.ext_editor_ready(),
+            Cond::ExtEmpty => self.from_empty(),
+            Cond::ExtCreate => self.can_create_component(),
         }
     }
     /// `"${VERSION_NAME} (${VERSION_CODE})"`, as AboutScreen shows and copies it.
@@ -200,6 +203,7 @@ impl App {
         out.extend(super::words::KEYS);
         out.extend(super::themes::KEYS);
         out.extend(super::extensions::KEYS);
+        out.extend(super::extensions::editor::KEYS);
         out.extend(super::project_licence::KEYS);
         out.extend(super::setup::KEYS);
         out.extend(super::theme_editor::string_keys());

@@ -90,6 +90,7 @@ impl App {
                 if let Some(purpose) = self.files.waiting.take()
                     && !self.words_picked(&purpose, &answer)
                     && !self.import_picked(&purpose, &answer)
+                    && !self.ext_editor_picked(&purpose, &answer)
                 {
                     self.backup_picked(&purpose, answer);
                 }
@@ -101,7 +102,7 @@ impl App {
                 if self.files.busy.as_deref() == Some(p[done::JOB].as_str()) {
                     self.files.busy = None;
                 }
-                if !self.words_done(p) && !self.import_done(p) {
+                if !self.words_done(p) && !self.import_done(p) && !self.ext_editor_done(p) {
                     self.backup_done(p);
                 }
             }
@@ -109,6 +110,7 @@ impl App {
                 if let Some(lost) = self.files.busy.take()
                     && !self.words_lost(&lost)
                     && !self.import_lost(&lost)
+                    && !self.ext_editor_lost(&lost)
                 {
                     self.backup_lost(&lost);
                 }

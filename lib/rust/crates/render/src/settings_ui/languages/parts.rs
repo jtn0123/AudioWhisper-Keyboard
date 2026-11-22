@@ -30,6 +30,7 @@ impl App {
             | Lang::Discard
             | Lang::DeleteRule
             | Lang::DeleteExtension
+            | Lang::Unsaved
             | Lang::Maintainer => 0.0,
         }
     }

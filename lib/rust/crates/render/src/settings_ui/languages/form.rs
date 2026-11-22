@@ -205,7 +205,8 @@ impl App {
                 .stack
                 .last()
                 .is_some_and(|r| super::edit_id(r).is_some());
-        subtype || self.word_to_delete().is_some() || self.theme_header().is_some()
+        let header = self.theme_header().or_else(|| self.ext_header());
+        subtype || self.word_to_delete().is_some() || header.is_some()
     }
     pub(in crate::settings_ui) fn paint_header_delete(&mut self, p: &mut Panel, header: f32) {
         if !self.header_delete() {
@@ -221,25 +222,26 @@ impl App {
         );
         let window = rect(0.0, 0.0, w, self.config[1]);
         // The theme editor's Save or Delete, else the subtype's or word's Delete.
-        let (id, icon_name, key, summary, action) = match self.theme_header() {
-            Some(header) => header,
-            None => match self.word_to_delete() {
-                Some(w) => (
-                    DELETE_ID,
-                    "delete",
-                    "action__delete",
-                    w.word.clone(),
-                    Action::Words(WordTap::Delete),
-                ),
-                None => (
-                    DELETE_ID,
-                    "delete",
-                    "action__delete",
-                    self.deleted_name(),
-                    Action::Lang(Tap::DeleteSubtype),
-                ),
-            },
-        };
+        let (id, icon_name, key, summary, action) =
+            match self.theme_header().or_else(|| self.ext_header()) {
+                Some(header) => header,
+                None => match self.word_to_delete() {
+                    Some(w) => (
+                        DELETE_ID,
+                        "delete",
+                        "action__delete",
+                        w.word.clone(),
+                        Action::Words(WordTap::Delete),
+                    ),
+                    None => (
+                        DELETE_ID,
+                        "delete",
+                        "action__delete",
+                        self.deleted_name(),
+                        Action::Lang(Tap::DeleteSubtype),
+                    ),
+                },
+            };
         if self.focus == id {
             self.paint_clipped_box(p, b, self.colors[4], size / 2.0, window);
         }

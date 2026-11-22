@@ -383,6 +383,7 @@ pub fn settings(native: i64, op: i32, values: &[Vec<u16>]) -> Result<Vec<Vec<u16
             ops::EXTENSION_FILES => a.set_import_files(&p).map_err(illegal)?,
             ops::THEME_EDITOR => a.set_theme_editor(&p).map_err(illegal)?,
             ops::THEME_CODE => a.theme_code(&p).map_err(illegal)?,
+            ops::EXT_EDITOR => a.set_ext_editor(&p).map_err(illegal)?,
             ops::ASSET => a.set_asset(&p).map_err(illegal)?,
             ops::SELECTION => a.text_selection(&p).map_err(illegal)?,
             ops::ACCESSIBILITY_SCROLL => {

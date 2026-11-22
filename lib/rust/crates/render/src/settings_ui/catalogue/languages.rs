@@ -48,6 +48,9 @@ pub enum Lang {
     /// An extension page's delete question, and a maintainer's addresses.
     DeleteExtension,
     Maintainer,
+    /// The extension editor's question on leaving with changes: Save, Discard or Cancel, as
+    /// FlorisUnsavedChangesDialog asked.
+    Unsaved,
 }
 
 const NAMES: Choices = Choices {

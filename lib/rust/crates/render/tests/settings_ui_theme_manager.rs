@@ -308,14 +308,18 @@ fn a_new_report_while_open_redraws_the_boxes() {
 }
 
 #[test]
-fn create_hands_off_to_the_compose_editor_and_import_opens_the_theme_importer() {
+fn create_opens_the_extension_editor_and_import_opens_the_theme_importer() {
     let (mut a, mut text) = app(DAY);
     tap(&mut a, &mut text, manager::CREATE_ID);
-    assert_eq!(a.effects.len(), 1);
-    assert_eq!(a.effects[0][..2], ["compose", CREATE]);
-    assert!(a.effects[0][2].split('|').any(|r| r == DAY));
-    assert_eq!(a.stack.last().map(String::as_str), Some(DAY));
+    // The previews stop, and the editor asks Kotlin for a new theme extension's workspace.
+    assert_eq!(
+        a.effects,
+        [vec!["themePreview", ""], vec!["extEditor", "", "", ""]]
+    );
+    assert_eq!(a.stack.last().map(String::as_str), Some(CREATE));
     assert_eq!(CREATE, "ext/edit/null?create=ime.extension.theme");
+    a.back();
+    a.scene(&mut text);
     a.effects.clear();
     tap(&mut a, &mut text, manager::IMPORT_ID);
     assert!(a.effects.iter().all(|e| e[0] != "compose"));
@@ -339,14 +343,11 @@ fn an_extensions_name_id_and_view_details_open_its_page_and_edit_its_editor() {
     ] {
         a.effects.clear();
         tap(&mut a, &mut text, id);
-        if route.starts_with("ext/view/") {
-            // An extension's page is native now.
-            assert_eq!(a.stack.last(), Some(&route), "{id}");
-            a.back();
-            a.scene(&mut text);
-        } else {
-            assert_eq!(a.effects[0][..2], ["compose", route.as_str()], "{id}");
-        }
+        // An extension's page and its editor are native now.
+        assert_eq!(a.stack.last(), Some(&route), "{id}");
+        assert!(a.effects.iter().all(|e| e[0] != "compose"), "{id}");
+        a.back();
+        a.scene(&mut text);
     }
     assert_eq!(control(&a, manager::theme_id(0, 2)).label, "View details");
     assert_eq!(control(&a, manager::theme_id(1, 3)).label, "Edit");

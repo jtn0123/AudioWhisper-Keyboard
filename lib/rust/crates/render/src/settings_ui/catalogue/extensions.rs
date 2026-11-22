@@ -24,6 +24,8 @@ pub enum Part {
     Components,
     /// The importer: Select files, then each file read and what it holds, or that none is.
     Import,
+    /// The extension editor's own parts (`extensions/editor`).
+    Editor(super::ext_editor::Edit),
 }
 
 const fn ext(part: Part) -> Row {

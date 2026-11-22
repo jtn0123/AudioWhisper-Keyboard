@@ -34,7 +34,7 @@ pub struct Chip {
 impl App {
     /// A control's title 16 dp in and 8 dp down; where the control under it starts (`y` for
     /// none).
-    pub(super) fn field_title(
+    pub(in crate::settings_ui) fn field_title(
         &mut self,
         p: &mut Panel,
         title: &str,
@@ -57,7 +57,7 @@ impl App {
     }
     /// The outlined box of a 56 dp control: 2 dp in the primary or error colour when focused
     /// or in error, else 1 dp outline.
-    pub(super) fn outlined_field(
+    pub(in crate::settings_ui) fn outlined_field(
         &self,
         p: &mut Panel,
         b: Rect,
@@ -132,7 +132,7 @@ impl App {
     }
     /// A title over row `i`'s single-line field showing `hint` while empty, and `error` under
     /// it; its height.
-    pub(super) fn line_box(
+    pub(in crate::settings_ui) fn line_box(
         &mut self,
         p: &mut Panel,
         field: (usize, String, String, String),
@@ -144,7 +144,7 @@ impl App {
     }
     /// [`line_box`](Self::line_box) with `unit` after the text, as Compose put
     /// `dp`, `sp` or `%` beside a size's field.
-    pub(super) fn unit_box(
+    pub(in crate::settings_ui) fn unit_box(
         &mut self,
         p: &mut Panel,
         (i, title, error, hint): (usize, String, String, String),

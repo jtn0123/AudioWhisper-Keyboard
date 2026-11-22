@@ -258,6 +258,7 @@ impl App {
             Lang::Save if self.importer().is_some() => self.import_selected(),
             Lang::Save if self.in_theme_editor() => self.save_theme_form(),
             Lang::Save if self.word_editor() => self.save_word(),
+            Lang::Save if self.ext_sheet() => self.ext_confirm(),
             Lang::Save => self.save_draft(),
             _ => {}
         }

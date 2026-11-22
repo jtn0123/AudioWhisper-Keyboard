@@ -213,7 +213,8 @@ fn the_name_id_and_view_details_open_the_page_and_edit_opens_the_editor() {
     }
     let (mut a, mut text) = app(THEMES);
     assert!(tap(&mut a, &mut text, ext_id(1, 4)));
-    assert_eq!(compose(&a), Some(format!("ext/edit/{MINE}")));
+    assert_eq!(a.stack.last(), Some(&format!("ext/edit/{MINE}")));
+    assert_eq!(compose(&a), None);
 }
 
 /// Difference: Compose's floating Create extension button; here a box above the extensions,
@@ -225,10 +226,9 @@ fn the_theme_list_offers_create_extension_above_the_extensions() {
     assert_eq!(create.label, "Create extension");
     assert!(create.bounds.bottom <= control(&a, ext_id(0, 0)).bounds.top);
     assert!(tap(&mut a, &mut text, CREATE_ID));
-    assert_eq!(
-        compose(&a).as_deref(),
-        Some("ext/edit/null?create=ime.extension.theme")
-    );
+    let create = "ext/edit/null?create=ime.extension.theme";
+    assert_eq!(a.stack.last().map(String::as_str), Some(create));
+    assert_eq!(compose(&a), None);
     for route in [KEYBOARDS, PACKS] {
         let (a, _) = app(route);
         assert!(!has(&a, CREATE_ID), "{route}");

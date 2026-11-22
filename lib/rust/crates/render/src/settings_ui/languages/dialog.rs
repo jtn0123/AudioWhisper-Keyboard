@@ -132,6 +132,7 @@ impl App {
             Lang::Discard => self.discard_theme(),
             Lang::DeleteRule => self.delete_form_rule(),
             Lang::DeleteExtension => self.delete_confirmed(selected),
+            Lang::Unsaved => self.save_extension(),
             _ => {}
         }
     }
@@ -140,7 +141,9 @@ impl App {
         let m = self.modal.as_ref()?;
         match self.rows()[m.row].kind {
             Kind::Lang(Lang::Message) => Some(self.label(&m.selected)),
-            Kind::Lang(Lang::Discard) => Some(self.label(self.rows()[m.row].summary)),
+            Kind::Lang(Lang::Discard | Lang::Unsaved) => {
+                Some(self.label(self.rows()[m.row].summary))
+            }
             Kind::Lang(Lang::DeleteRule) => {
                 let original = self.theme_editor.form.as_ref()?.original.as_ref()?;
                 let name = self.rule_lines(original).0;
@@ -182,6 +185,9 @@ impl App {
                 Some(["", "action__cancel", "action__delete"])
             }
             Kind::Lang(Lang::Discard) => Some(["", "action__cancel", "action__discard"]),
+            Kind::Lang(Lang::Unsaved) => {
+                Some(["action__cancel", "action__discard", "action__save"])
+            }
             _ => None,
         }
     }

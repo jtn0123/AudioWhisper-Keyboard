@@ -5,6 +5,7 @@ mod backup;
 mod clipboard;
 mod dictation;
 mod dictionary;
+pub mod ext_editor;
 pub mod extensions;
 mod gestures;
 mod input_feedback;
@@ -48,6 +49,11 @@ pub enum Cond {
     Restore(bool),
     /// The importer has a file it can import, and no file work runs.
     Import,
+    /// The extension editor has its extension open.
+    ExtEditor,
+    /// Create component makes an empty one; and Create can make the one chosen or typed.
+    ExtEmpty,
+    ExtCreate,
 }
 /// One `listPrefEntries` entry: stored value, label and description string keys.
 pub type Entry = (&'static str, &'static str, &'static str);
@@ -391,6 +397,13 @@ pub const SCREENS: &[Screen] = &[
     extensions::IMPORT_KEYBOARDS,
     extensions::IMPORT_THEMES,
     extensions::IMPORT_PACKS,
+    ext_editor::EDIT,
+    ext_editor::META,
+    ext_editor::DEPENDENCIES,
+    ext_editor::FILES,
+    ext_editor::FILE,
+    ext_editor::FILE_ADD,
+    ext_editor::COMPONENT_ADD,
 ];
 /// The native screen at `route`, if Rust draws it. The subtype editor's and the word
 /// editor's routes carry the item's id as one more segment, and a language's words its locale.

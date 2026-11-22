@@ -307,6 +307,9 @@ impl App {
             self.effects.push(vec!["hideEditor".into()]);
         }
         if catalogue::native(route) {
+            // While an extension edit is open, another editor's route goes back to it.
+            let open = self.ext_editor_redirect(route);
+            let route = open.as_deref().unwrap_or(route);
             let had = self.backups_open();
             self.release_field();
             if route == licences::ROUTE {
@@ -316,8 +319,14 @@ impl App {
                 // A load lost with an earlier view is asked for again.
                 self.licences.requested = false;
             }
-            let root = theme_editor::target(route).is_some();
-            if root || route == catalogue::HOME_ROUTE || route == setup::ROUTE {
+            let root = theme_editor::target(route).is_some()
+                || route == catalogue::HOME_ROUTE
+                || route == setup::ROUTE;
+            if self.ext_editor_kept(route, root) {
+                // A link opened mid-edit lands over the editor: Back finds the draft.
+                self.stack.push(route.into());
+                self.scrolls.push(0.0);
+            } else if root {
                 // Home, setup and a component editor are roots; one replacing the other opens at
                 // the top.
                 if self.stack.first().is_none_or(|r| r != route) {
@@ -412,6 +421,8 @@ impl App {
             self.effects.push(vec!["hideEditor".into()]);
         } else if self.theme_back() {
             // Unsaved theme edits: the discard question opened instead.
+        } else if self.ext_editor_back() {
+            // Unsaved extension edits: the unsaved changes question opened instead.
         } else if self.stack.len() > 1 {
             let had = self.backups_open();
             self.release_field();

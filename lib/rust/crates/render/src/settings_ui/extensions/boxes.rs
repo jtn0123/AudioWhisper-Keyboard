@@ -77,11 +77,12 @@ impl App {
             Part::About => self.page_about(p, at, clip, text),
             Part::Components => self.page_components(p, at, clip, text),
             Part::Import => self.import_part(p, at, clip, text),
-            Part::Store | Part::Updates => 0.0,
+            // The editor's parts are painted with their row (`editor/paint.rs`).
+            Part::Store | Part::Updates | Part::Editor(_) => 0.0,
         }
     }
     /// A FlorisTextButton in the primary colour.
-    fn text_button(&self, id: i32, key: &str, icon: &'static str, tap: Tap) -> Button {
+    pub(super) fn text_button(&self, id: i32, key: &str, icon: &'static str, tap: Tap) -> Button {
         Button {
             id,
             label: self.label(key),
@@ -123,7 +124,7 @@ impl App {
         h + 2.0 * self.px(8.0)
     }
     /// A row of text buttons 6 dp in from each end of `width`, the first at the start.
-    fn button_row(
+    pub(super) fn button_row(
         &mut self,
         p: &mut Panel,
         [start, end]: [Option<Button>; 2],
@@ -228,7 +229,7 @@ impl App {
             }
             Part::About | Part::Components => self.page_focus(part),
             Part::Import => self.import_focus(),
-            Part::Store | Part::Updates => vec![],
+            Part::Store | Part::Updates | Part::Editor(_) => vec![],
         }
     }
 }

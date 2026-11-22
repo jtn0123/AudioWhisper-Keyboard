@@ -8,7 +8,7 @@ use wire::settings_ui::files::{job, outcome as how, report, result};
 
 /// The `work` effect for `job` with its document, text and extension fields.
 fn work(job: &str, [document, text, extension]: [&str; 3]) -> Vec<String> {
-    let fields = ["work", job, "", "", document, text, extension];
+    let fields = ["work", job, "", "", document, text, extension, "", ""];
     fields.iter().map(|f| f.to_string()).collect()
 }
 /// A fresh app given `a`'s stack and file work, as `render_settings_state::restore` does.

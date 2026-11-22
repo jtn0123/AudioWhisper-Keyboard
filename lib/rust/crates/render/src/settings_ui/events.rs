@@ -1,6 +1,6 @@
 use super::{
     Action, App, Modal,
-    catalogue::{Do, Kind, Part, languages::Lang},
+    catalogue::{Do, Kind, Part, extensions::Part as ExtPart, languages::Lang},
 };
 use crate::touch::Motion;
 impl App {
@@ -111,6 +111,8 @@ impl App {
             Action::Default | Action::Confirm if self.picker_open() => {
                 self.picker_button(c.action == Action::Confirm)
             }
+            Action::Cancel if self.unsaved_open() => self.discard_extension(),
+            Action::Default if self.unsaved_open() => (self.modal, self.focus) = (None, -1),
             Action::Cancel => self.close_picker(),
             Action::Confirm => {
                 if let Some(m) = self.modal.take() {
@@ -253,6 +255,9 @@ impl App {
                         Kind::Lang(part) => eligible.extend(self.language_focus(i, part)),
                         Kind::Words(part) => eligible.extend(self.words_focus(i, part)),
                         Kind::Themes(part) => eligible.extend(self.themes_focus(part)),
+                        Kind::Ext(ExtPart::Editor(e)) => {
+                            eligible.extend(self.ext_editor_focus((i, e)))
+                        }
                         Kind::Ext(part) => eligible.extend(self.ext_focus(part)),
                         Kind::ThemeEdit(part) => eligible.extend(self.theme_focus(i, part)),
                         _ => eligible.push(1000 + i as i32),

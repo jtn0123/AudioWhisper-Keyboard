@@ -8,8 +8,9 @@ use settings::{Text, text};
 /// The saved state's layout; 3 added Back up's and Restore's state, 4 the language screens',
 /// 5 the user dictionary screens', 6 the project licence's horizontal scroll, 7 the setup
 /// screen's chosen step, 8 the theme editor's draft, 9 its open property editor, 10 its open
-/// code editor, with the rule editor's codes kept among its attributes.
-const VERSION: &str = "10";
+/// code editor, with the rule editor's codes kept among its attributes, 11 the extension
+/// editor's draft and open sheet.
+const VERSION: &str = "11";
 pub fn save(a: &App) -> Vec<Text> {
     // LibrariesContainer keeps its open library, and Jetpref's colour and time preferences their
     // dialogs, in a plain `remember`: recreation closes them.
@@ -48,10 +49,11 @@ pub fn save(a: &App) -> Vec<Text> {
         text(&a.project_saved()),
         text(&a.setup_saved()),
         text(&a.theme_editor_saved()),
+        text(&a.ext_editor_saved()),
     ]
 }
 pub fn restore(a: &mut App, packet: &[Text]) -> Result<(), &'static str> {
-    if packet.len() != 21 || packet[0] != text(VERSION) || packet[7].len() > 65_536 {
+    if packet.len() != 22 || packet[0] != text(VERSION) || packet[7].len() > 65_536 {
         return Err("settings saved state version or size");
     }
     let p: Vec<_> = packet.iter().map(|s| String::from_utf16_lossy(s)).collect();
@@ -133,6 +135,7 @@ pub fn restore(a: &mut App, packet: &[Text]) -> Result<(), &'static str> {
     languages.restore_languages(&p[16])?;
     languages.restore_words(&p[17])?;
     languages.restore_theme_editor(&p[20])?;
+    languages.restore_ext_editor(&p[21])?;
     a.stack = stack;
     a.scrolls = scrolls;
     a.modal = modal;
@@ -155,6 +158,7 @@ pub fn restore(a: &mut App, packet: &[Text]) -> Result<(), &'static str> {
     a.words.draft = languages.words.draft;
     a.words.search = languages.words.search;
     a.words.transfer = languages.words.transfer;
+    a.extensions.editor = std::mem::take(&mut languages.extensions.editor);
     a.languages_restored();
     a.words_restored();
     a.themes_restored();

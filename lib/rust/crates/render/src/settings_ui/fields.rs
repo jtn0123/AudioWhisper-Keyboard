@@ -8,7 +8,7 @@
 //! field too, one line long and kept in its screen's state instead of a preference.
 use super::{
     Action, App, Control,
-    catalogue::{Kind, Screen, languages::Lang, words::Part},
+    catalogue::{Kind, Screen, extensions::Part as ExtPart, languages::Lang, words::Part},
     editor::Editor,
 };
 use crate::{
@@ -132,6 +132,7 @@ impl App {
             Kind::Words(Part::Search) => Some(self.words.search.clone()),
             Kind::Words(Part::Field(k)) => Some(self.word_field_text(k)),
             Kind::ThemeEdit(part) => self.theme_line(part),
+            Kind::Ext(ExtPart::Editor(e)) => self.ext_line(e),
             _ => None,
         }
     }
@@ -151,6 +152,7 @@ impl App {
             Some(Kind::Words(Part::Search)) => self.words.search = value,
             Some(Kind::Words(Part::Field(k))) => self.word_typed(k, value),
             Some(Kind::ThemeEdit(part)) => self.theme_typed(part, value),
+            Some(Kind::Ext(ExtPart::Editor(e))) => self.ext_typed(e, value),
             _ => {}
         }
     }

@@ -445,17 +445,31 @@ impl App {
         p: &mut Panel,
         id: i32,
         label: String,
+        at: (f32, f32),
+        clip: Rect,
+        text: &mut Text,
+    ) -> f32 {
+        let card = ("warning", super::cards::WARNING, 8.0);
+        self.icon_card(p, (id, label), card, at, clip, text)
+    }
+    /// A card in `fill` round `icon` and `label` in titleMedium, both in `ink`, `inset` dp in
+    /// from each side and 8 dp from the rows round it: FlorisSimpleCard as the warning and info
+    /// cards draw it. Its height with the 8 dp round it.
+    pub(super) fn icon_card(
+        &mut self,
+        p: &mut Panel,
+        (id, label): (i32, String),
+        (icon, [fill, ink], inset): (&str, [u32; 2], f32),
         (x, y): (f32, f32),
         clip: Rect,
         text: &mut Text,
     ) -> f32 {
         let w = self.config[0] - x;
-        let [fill, ink] = super::cards::WARNING;
         let icon_box = 2.0 * self.px(12.0) + self.px(24.0);
         let card = rect(
-            x + self.px(8.0),
+            x + self.px(inset),
             y + self.px(8.0),
-            w - 2.0 * self.px(8.0),
+            w - 2.0 * self.px(inset),
             0.0,
         );
         let column = (card.width() - icon_box - self.px(16.0)).max(1.0);
@@ -466,8 +480,8 @@ impl App {
         self.paint_clipped_box(p, b, fill, self.px(12.0), clip);
         let size = self.px(24.0);
         let icon_top = b.top + self.px(8.0) + ((row - icon_box) / 2.0).round() + self.px(12.0);
-        let icon = rect(b.left + self.px(12.0), icon_top, size, size);
-        self.paint_icon(p, "warning", icon, ink, clip);
+        let icon_rect = rect(b.left + self.px(12.0), icon_top, size, size);
+        self.paint_icon(p, icon, icon_rect, ink, clip);
         let top = b.top + self.px(8.0) + ((row - th) / 2.0).round();
         let at = rect(b.left + icon_box, top, column, th);
         self.paint_styled(p, &label, at, style, ink, clip);

@@ -77,7 +77,7 @@ impl App {
         at - y
     }
     /// Text in bodyLarge across `width`; its height.
-    fn body(
+    pub(super) fn body(
         &mut self,
         p: &mut Panel,
         (id, s): (i32, &str),
@@ -277,40 +277,49 @@ impl App {
             super::LANGUAGE_PACK => "ext__meta__components_language_pack",
             _ => return 0.0,
         };
-        let mut at = y + self.components_header(p, key, (x, y), clip, text);
+        let mut at = y + self.components_header(p, (HEADER_ID, key, 0.0), (x, y), clip, text);
         if ext.components.is_empty() {
-            let width = (self.config[0] - x - 2.0 * self.px(16.0)).max(1.0);
-            let note = self.label("ext__meta__components_none_found");
-            let h = self
-                .styled(text, &note, BODY_LARGE, Some(width))
-                .height
-                .ceil();
-            let b = rect(x + self.px(16.0), at + self.px(8.0), width, h);
-            self.paint_styled(p, &note, b, BODY_LARGE, self.colors[15], clip);
-            p.items
-                .last_mut()
-                .expect("paint_text pushed an item")
-                .text
-                .italic = true;
-            self.push_control(plain(NONE_ID, b, note, "text"), clip);
-            return b.bottom + self.px(8.0) - y;
+            return at + self.none_found(p, NONE_ID, (x, at), clip, text) - y;
         }
         for (c, component) in ext.components.iter().enumerate() {
             at += self.bundled_box(p, (c, &ext, component), (x, at), clip, text);
         }
         at - y
     }
-    /// The header ListItem: the title in bold and the secondary colour, on one line, 16 dp in,
-    /// at least 56 dp tall; its height.
-    fn components_header(
+    /// ExtensionComponentNoneFoundView: that there are none, in italic bodyLarge 16 dp by 8 dp
+    /// in; its height.
+    pub(super) fn none_found(
         &mut self,
         p: &mut Panel,
-        key: &str,
+        id: i32,
         (x, y): (f32, f32),
         clip: Rect,
         text: &mut Text,
     ) -> f32 {
         let width = (self.config[0] - x - 2.0 * self.px(16.0)).max(1.0);
+        let note = self.label("ext__meta__components_none_found");
+        let h = self
+            .styled(text, &note, BODY_LARGE, Some(width))
+            .height
+            .ceil();
+        let b = rect(x + self.px(16.0), y + self.px(8.0), width, h);
+        self.paint_styled(p, &note, b, BODY_LARGE, self.colors[15], clip);
+        let item = p.items.last_mut().expect("paint_text pushed an item");
+        item.text.italic = true;
+        self.push_control(plain(id, b, note, "text"), clip);
+        h + 2.0 * self.px(8.0)
+    }
+    /// The header ListItem: the title in bold and the secondary colour, on one line, 16 dp in,
+    /// leaving `trail` at the end for a button, at least 56 dp tall; its height.
+    pub(super) fn components_header(
+        &mut self,
+        p: &mut Panel,
+        (id, key, trail): (i32, &str, f32),
+        (x, y): (f32, f32),
+        clip: Rect,
+        text: &mut Text,
+    ) -> f32 {
+        let width = (self.config[0] - x - 2.0 * self.px(16.0) - trail).max(1.0);
         let title = self.single_line(text, &self.label(key), (BODY_BOLD, 16), width);
         let th = self
             .styled(text, &title, BODY_BOLD, Some(width))
@@ -319,7 +328,7 @@ impl App {
         let h = (th + 2.0 * self.px(8.0)).max(self.px(56.0));
         let b = rect(x + self.px(16.0), y + ((h - th) / 2.0).round(), width, th);
         self.paint_styled(p, &title, b, BODY_BOLD, self.colors[9], clip);
-        self.push_control(plain(HEADER_ID, b, title, "heading"), clip);
+        self.push_control(plain(id, b, title, "heading"), clip);
         h
     }
     /// ExtensionComponentView: a box titled with the component's label over its full name, and

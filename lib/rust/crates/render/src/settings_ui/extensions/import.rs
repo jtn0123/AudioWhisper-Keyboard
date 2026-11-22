@@ -381,6 +381,7 @@ impl App {
     }
     /// A screen was closed: an importer's workspace closes with it, however it was left.
     pub(in crate::settings_ui) fn extensions_left(&mut self, left: &str) {
+        self.ext_editor_left(left);
         if let Some((_, Some(("uuid" | "files", id)))) = parts(left) {
             let id = id.to_owned();
             self.close_workspace(&id);
