@@ -29,7 +29,8 @@ impl App {
     }
     pub fn animating(&self) -> bool {
         self.fling.is_some()
-            || (0..2).any(|i| {
+            || self.project_animating()
+            || (0..3).any(|i| {
                 self.scrollbar_exists[i]
                     && (self.scrollbar_start[i] < 0
                         || self.scrollbar_last[i] < 0

@@ -24,6 +24,7 @@ pub mod licences;
 mod material;
 mod overscroll;
 mod picker;
+pub mod project_licence;
 mod rows;
 pub use rows::CODE_KEYS;
 mod scrollbar;
@@ -129,9 +130,10 @@ pub struct App {
     pub controls: Vec<Control>,
     pub max_scroll: f32,
     pub clock: i64,
-    pub scrollbar_start: [i64; 2],
-    pub scrollbar_last: [i64; 2],
-    pub scrollbar_exists: [bool; 2],
+    /// Scrollbar timing per bar: the screen's, a dialog's and the project licence's horizontal.
+    pub scrollbar_start: [i64; 3],
+    pub scrollbar_last: [i64; 3],
+    pub scrollbar_exists: [bool; 3],
     pub focus: i32,
     pub accepted: bool,
     pub reveal_focus: bool,
@@ -157,6 +159,8 @@ pub struct App {
     pub dragging: bool,
     pub velocity: crate::compose_velocity::ComposeVelocity,
     pub licences: licences::State,
+    /// The project licence's text, its horizontal scroll and its selection.
+    pub project_licence: project_licence::State,
     /// The open colour or time dialog's state; only read while `modal` shows such a row.
     pub picker: Option<picker::Picker>,
     /// The time rows whose dialog opens on the keyboard: Jetpref remembers each one's display
@@ -207,9 +211,9 @@ impl Default for App {
             controls: vec![],
             max_scroll: 0.0,
             clock: 0,
-            scrollbar_start: [-1; 2],
-            scrollbar_last: [-1; 2],
-            scrollbar_exists: [false; 2],
+            scrollbar_start: [-1; 3],
+            scrollbar_last: [-1; 3],
+            scrollbar_exists: [false; 3],
             focus: -1,
             accepted: true,
             reveal_focus: false,
@@ -232,6 +236,7 @@ impl Default for App {
             dragging: false,
             velocity: Default::default(),
             licences: Default::default(),
+            project_licence: Default::default(),
             picker: None,
             time_inputs: vec![],
             display_pixels: [0.0; 2],
@@ -302,6 +307,7 @@ impl App {
             self.check_models();
             self.languages_opened(route);
             self.words_opened(route);
+            self.project_opened(route);
         } else if route == "@enable" {
             self.effects.push(vec!["enable".into()]);
         } else {
@@ -404,6 +410,7 @@ impl App {
                 self.fling = Some(f);
             }
         }
+        self.project_tick(now);
         self.animating()
     }
 }

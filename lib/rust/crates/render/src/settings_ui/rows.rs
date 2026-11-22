@@ -188,6 +188,7 @@ impl App {
         out.extend(super::items::KEYS);
         out.extend(super::languages::KEYS);
         out.extend(super::words::KEYS);
+        out.extend(super::project_licence::KEYS);
         out.extend(super::catalogue::HOME.iter().map(|h| h.1));
         for screen in super::catalogue::SCREENS {
             out.push(screen.title);

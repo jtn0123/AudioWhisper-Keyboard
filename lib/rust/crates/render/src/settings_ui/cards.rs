@@ -177,6 +177,7 @@ impl App {
             Kind::Note => Some(self.note(p, i, at, clip, text)),
             Kind::Field => Some(self.text_field(p, i, at, clip, text)),
             Kind::Libraries => Some(self.libraries(p, at, clip, text)),
+            Kind::ProjectLicence => Some(self.project_licence(p, clip, text)),
             Kind::Addons(a) => Some(self.addons(p, i, a, at, clip, text)),
             Kind::Backup(part) => Some(self.backup_row(p, i, part, at, clip, text)),
             Kind::List(source) => Some(self.paint_list(p, source, at, clip, text)),

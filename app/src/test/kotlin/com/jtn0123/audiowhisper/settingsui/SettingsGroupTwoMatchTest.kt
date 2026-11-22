@@ -3,6 +3,7 @@ package com.jtn0123.audiowhisper.settingsui
 import com.jtn0123.audiowhisper.dictation.ModelState
 import com.jtn0123.audiowhisper.rust.KeyboardRenderer
 import com.jtn0123.audiowhisper.rust.SettingsUiOp
+import com.jtn0123.audiowhisper.rust.SettingsUiTextEffect
 import com.jtn0123.audiowhisper.rust.SettingsUiWordEffect
 import dev.patrickgold.florisboard.app.ReferenceSettingsModel
 import dev.patrickgold.jetpref.datastore.model.PreferenceData
@@ -134,9 +135,11 @@ class SettingsGroupTwoMatchTest {
         val reply = state(n, SettingsUiOp.ACTIVATE, (1000 + i).toString())
         if (row.route in native) {
             assertEquals(row.route, reply.text("route"))
-            // The licences list asks Kotlin for the AboutLibraries resource as it opens, and a user dictionary for its words.
+            // The licences list asks Kotlin for the AboutLibraries resource as it opens, the project licence for its text
+            // (each time while it has none, as no reply answers here), and a user dictionary for its words.
             val plans = when (row.route) {
                 "settings/about/third-party-licenses" -> listOf(listOf("load", "libraries"))
+                "settings/about/project-license" -> listOf(listOf(SettingsUiTextEffect.ASSET, "license/project_license.txt"))
                 in wordRoutes -> row.route.substringAfterLast('/').let { d ->
                     listOfNotNull(listOf(SettingsUiWordEffect.LOAD, d).takeIf { wordsAskedFor != d }).also { wordsAskedFor = d }
                 }
@@ -218,7 +221,8 @@ class SettingsGroupTwoMatchTest {
             val native = n.settings(SettingsUiOp.ROUTES)[2].split("\n")
             // Other and Theme, then Back up and Restore, then the language and user dictionary screens follow group two.
             val group = native.dropLast(ReferenceOtherThemeScreens.screens.size + 2 + languageRoutes.size + wordRoutes.size)
-            assertEquals(ref.screens.map { it.route } + "settings/about/third-party-licenses", group.takeLast(ref.screens.size + 1))
+            assertEquals(ref.screens.map { it.route } + "settings/about/third-party-licenses" + "settings/about/project-license",
+                group.takeLast(ref.screens.size + 2))
             val f = ReferenceGroupTwoScreens.Facts(defaults(), false, "1", null, null)
             prepare(n, f)
             state(n, SettingsUiOp.NAVIGATE, "settings/typing"); state(n, SettingsUiOp.NAVIGATE, "settings/dictionary")

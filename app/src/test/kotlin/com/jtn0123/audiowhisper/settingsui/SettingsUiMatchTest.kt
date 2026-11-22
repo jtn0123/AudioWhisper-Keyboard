@@ -29,7 +29,7 @@ class SettingsUiMatchTest {
             val native=listOf("settings/home","settings/keyboard","settings/keyboard/input-feedback","settings/smartbar",
                 "settings/gestures","settings/clipboard","settings/media","settings/typing","settings/dictionary",
                 "settings/other/physical-keyboard","settings/about","settings/dictation",
-                "settings/about/third-party-licenses","settings/other","settings/theme",
+                "settings/about/third-party-licenses","settings/about/project-license","settings/other","settings/theme",
                 "settings/other/backup","settings/other/restore") + languageRoutes + wordRoutes
             for (i in ref.home.indices) {
                 if (ref.home[i] in native) {

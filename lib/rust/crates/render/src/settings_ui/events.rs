@@ -214,6 +214,10 @@ impl App {
     /// `boundsInParent().height`, as no settings screen declares PageUp or PageDown), so a page
     /// is the list's viewport, the same on a screen, a dialog and the licences list.
     pub fn accessibility_scroll(&mut self, id: i32, forward: bool) {
+        if id == super::project_licence::SCROLL_ID {
+            self.project_page(forward);
+            return;
+        }
         let direction = if forward { 1.0 } else { -1.0 };
         if self.adjust(id, direction) {
             return;
@@ -315,6 +319,8 @@ impl App {
                         // The card's text is not focusable; its hyperlink is.
                         Kind::Card(_) | Kind::Addons(_) => eligible.push(6000 + i as i32),
                         Kind::Libraries => eligible.extend(self.licence_focus()),
+                        // SelectionContainer's text is focusable.
+                        Kind::ProjectLicence => eligible.push(super::project_licence::TEXT_ID),
                         Kind::List(source) => eligible.extend(self.list_focus(source)),
                         Kind::Lang(part) => eligible.extend(self.language_focus(i, part)),
                         Kind::Words(part) => eligible.extend(self.words_focus(i, part)),
@@ -396,6 +402,9 @@ impl App {
             self.dragging = false;
             self.fling = None;
             self.end_scroll_cycle();
+            return;
+        }
+        if self.project_motion(e) {
             return;
         }
         if e.action == 2 && self.scroll_drag(e) {

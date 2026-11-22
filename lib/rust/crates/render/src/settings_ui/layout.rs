@@ -138,7 +138,7 @@ impl App {
         self.controls.clear();
         self.custom_actions.clear();
         self.field_layouts.clear();
-        self.scrollbar_exists = [false; 2];
+        self.scrollbar_exists = [false; 3];
         self.reveal_target = None;
         let [w, h, d, _] = self.config;
         let old_scroll = self.scroll();

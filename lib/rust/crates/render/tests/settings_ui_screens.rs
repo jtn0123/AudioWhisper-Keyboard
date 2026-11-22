@@ -148,7 +148,8 @@ fn group_one_routes_are_native_and_other_routes_fall_back_with_the_native_list()
     let native = "settings/home|settings/keyboard|settings/keyboard/input-feedback|settings/smartbar|\
                   settings/gestures|settings/clipboard|settings/media|settings/typing|\
                   settings/dictionary|settings/other/physical-keyboard|settings/about|\
-                  settings/dictation|settings/about/third-party-licenses|settings/other|\
+                  settings/dictation|settings/about/third-party-licenses|settings/about/project-license|\
+                  settings/other|\
                   settings/theme|settings/other/backup|settings/other/restore|settings/localization|\
                   settings/localization/select-locale|settings/localization/language-pack-manage|\
                   settings/localization/subtype/add|settings/localization/subtype/edit|\

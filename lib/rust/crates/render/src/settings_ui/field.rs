@@ -142,7 +142,7 @@ impl App {
         }
     }
     /// A selection handle at `bounds`, its corner at the selection endpoint squared.
-    fn paint_handle(
+    pub(super) fn paint_handle(
         &mut self,
         p: &mut Panel,
         (start, at): (bool, usize),

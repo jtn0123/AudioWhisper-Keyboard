@@ -51,17 +51,17 @@ fn reply(s: &mut Session, query: Vec<u16>, saved: bool) -> Result<Vec<Vec<u16>>>
     // A drag surface (the colour plane and hue bar) has no node, as Compose's pointerInput has none.
     let nodes:Vec<_>=a.controls.iter().filter(|c| c.role!="none").map(|c|{
         let mut actions=if !c.enabled || matches!(c.action,Action::None){vec![]}else{vec![ACCESS_CLICK]};
-        if c.enabled && c.role=="slider" {actions.extend([ACCESS_SCROLL_FORWARD,ACCESS_SCROLL_BACKWARD]);} else if c.role=="scroll" {let [back,forward]=a.can_scroll(); if forward {actions.push(ACCESS_SCROLL_FORWARD);}
+        if c.enabled && c.role=="slider" {actions.extend([ACCESS_SCROLL_FORWARD,ACCESS_SCROLL_BACKWARD]);} else if c.role=="scroll" {let [back,forward]=a.node_can_scroll(c.id); if forward {actions.push(ACCESS_SCROLL_FORWARD);}
             if back {actions.push(ACCESS_SCROLL_BACKWARD);}}
         // An image has a content description and no text, as Compose's Image does.
         let edited=(c.role=="edit").then(|| a.field_editor(c.id).0);
         let shown=edited.as_ref().map(|e| String::from_utf16_lossy(&e.text));
-        let (anchor,focus)=edited.as_ref().map_or((a.editor.anchor,a.editor.focus),|e| (e.anchor,e.focus));
+        let (anchor,focus)=edited.as_ref().map_or_else(|| a.node_selection(c.id),|e| (e.anchor as i64,e.focus as i64));
         let label=if let Some(t)=&shown{t.clone()}else if c.role=="image"{String::new()}else{c.label.clone()};
         json!({"id":c.id,"bounds":[c.bounds.left,c.bounds.top,c.bounds.right,c.bounds.bottom],"label":label,
-            "description":c.label,"hint":if c.role=="edit"{c.label.as_str()}else{""},"hintShowing":shown.as_ref().is_some_and(|t| t.is_empty()),"role":c.role,"state":c.summary,"enabled":c.exposed_enabled(),"pressed":false,"selected":c.selected,
+            "description":if c.role=="selectable"{""}else{c.label.as_str()},"hint":if c.role=="edit"{c.label.as_str()}else{""},"hintShowing":shown.as_ref().is_some_and(|t| t.is_empty()),"role":c.role,"state":c.summary,"enabled":c.exposed_enabled(),"pressed":false,"selected":c.selected,
             "checked":checked(c),"live":c.role=="status","locked":false,"actions":actions,"longClickLabel":"","holdDelayMillis":500,
-            "range":c.range,"anchor":anchor,"focus":focus,"custom":a.custom_actions_for(c.id)})
+            "range":c.range,"anchor":anchor,"focus":focus,"custom":a.custom_actions_for(c.id),"text":a.text_node(c.id)})
     }).collect();
     let field = a
         .controls
@@ -71,7 +71,7 @@ fn reply(s: &mut Session, query: Vec<u16>, saved: bool) -> Result<Vec<Vec<u16>>>
     let effects = std::mem::take(&mut a.effects);
     let result = json!({"nodes":nodes,"mode":"","shift":"","popup":a.modal.is_some(),"effects":effects,
         "systemBarColor":a.system_bar_color(),"lightSystemBars":a.light_system_bars(),"route":a.stack.last(),"canBack":a.stack.len()>1 || a.modal.is_some() || a.editor.focused,"scroll":a.scroll(),"maxScroll":a.max_scroll,"focus":a.focus,
-        "animating":a.animating(),"scrollbarAlpha":a.scrollbar_alpha(usize::from(a.modal.is_some())),"selectionToolbar":a.editor.focused && a.editor.anchor!=a.editor.focus && !a.toolbar_dismissed,"accepted":a.accepted,"editor":{"anchor":a.editor.anchor,"focus":a.editor.focus,"composing":a.editor.composing,"focused":a.editor.focused,"report":a.batches.report(),"bounds":field,"multiLine":a.multi_line_field(),"number":a.number_field()}});
+        "animating":a.animating(),"scrollbarAlpha":a.scrollbar_alpha(usize::from(a.modal.is_some())),"selectionToolbar":a.editor.focused && a.editor.anchor!=a.editor.focus && !a.toolbar_dismissed,"textToolbar":a.text_toolbar(),"accepted":a.accepted,"editor":{"anchor":a.editor.anchor,"focus":a.editor.focus,"composing":a.editor.composing,"focused":a.editor.focused,"report":a.batches.report(),"bounds":field,"multiLine":a.multi_line_field(),"number":a.number_field()}});
     let mut out = vec![vec![]; reply::SIZE];
     out[reply::STATE] = settings::text(&result.to_string());
     out[reply::TEXT] = a.editor.text.clone();
@@ -371,6 +371,8 @@ pub fn settings(native: i64, op: i32, values: &[Vec<u16>]) -> Result<Vec<Vec<u16
             ops::FILES => a.file_report(&p).map_err(illegal)?,
             ops::LANGUAGES => a.set_languages(&p).map_err(illegal)?,
             ops::WORDS => a.set_words(&p).map_err(illegal)?,
+            ops::ASSET => a.set_asset(&p).map_err(illegal)?,
+            ops::SELECTION => a.text_selection(&p).map_err(illegal)?,
             ops::ACCESSIBILITY_SCROLL => {
                 let id = int(&p, 0)?;
                 a.accessibility_scroll(id, int(&p, 1)? == ACCESS_SCROLL_FORWARD);

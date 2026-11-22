@@ -13,9 +13,10 @@ import java.io.File
 /** Direct endpoint checks. No keyboard, clipboard payload or field contents enter receipts. */
 internal class SettingsEditorDevice(private val h: SettingsHarness) {
     private companion object {
-        // Saved state v2: version, stack, scrolls, modal row/selected/values/scroll, editor text,
-        // anchor, focus, then the composing span.
-        const val SAVED_VERSION = "3"
+        // Saved state v6 (render_settings_state.rs): version, stack, scrolls, modal
+        // row/selected/values/scroll, editor text, anchor, focus, then the composing span; later
+        // versions only appended slots.
+        const val SAVED_VERSION = "6"
         const val STACK = 1
         const val EDITOR_TEXT = 7
         const val COMPOSING_START = 10

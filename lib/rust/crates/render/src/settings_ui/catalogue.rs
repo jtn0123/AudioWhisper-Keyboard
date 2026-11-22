@@ -13,6 +13,7 @@ mod licences;
 mod media;
 mod other;
 mod physical_keyboard;
+mod project_licence;
 mod smartbar;
 mod theme;
 mod typing;
@@ -104,6 +105,8 @@ pub enum Kind {
     Field,
     /// AboutLibraries' LibrariesContainer: every library row, then its license dialog.
     Libraries,
+    /// ProjectLicenseScreen's text: scrolled both ways, selectable, read-only.
+    ProjectLicence,
     /// Jetpref's ColorPickerPreference with the advanced layout: a swatch at the end, and a
     /// dialog of presets or a hue, saturation and value picker (`picker.rs`).
     Color,
@@ -333,6 +336,7 @@ pub const SCREENS: &[Screen] = &[
     about::SCREEN,
     dictation::SCREEN,
     licences::SCREEN,
+    project_licence::SCREEN,
     other::SCREEN,
     theme::SCREEN,
     backup::BACKUP,

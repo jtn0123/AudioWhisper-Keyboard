@@ -164,7 +164,7 @@ class SettingsGroupOneMatchTest {
     @Test fun nativeRoutesAreHomeKeyboardAndEveryDrawnScreenAndOthersFallBackWithThem() {
         KeyboardRenderer(emptyArray()).use { n ->
             val native = listOf("settings/home", "settings/keyboard") + ref.screens.map { it.route } +
-                ReferenceGroupTwoScreens.screens.map { it.route } + "settings/about/third-party-licenses" +
+                ReferenceGroupTwoScreens.screens.map { it.route } + "settings/about/third-party-licenses" + "settings/about/project-license" +
                 ReferenceOtherThemeScreens.screens.map { it.route } + "settings/other/backup" + "settings/other/restore" +
                 languageRoutes + wordRoutes
             assertEquals(native, n.settings(SettingsUiOp.ROUTES)[2].split("\n"))
