@@ -164,10 +164,9 @@ fun keyLabelResourceId(token: Int): Int = when (token) {
 fun ComputingEvaluator.computeImageVector(data: KeyData): ImageVector? = keyIconVector(
     com.jtn0123.audiowhisper.rust.InputRules.visual(longArrayOf(data.code.toLong(), state.rawValue.toLong(),
         editorInfo.inputAttributes.raw.toLong(), editorInfo.imeOptions.raw.toLong(), keyboard.mode.toInt().toLong())),
-    context(),
-)
+    context())
 
-/** The icon a key's icon [token] draws, from [com.jtn0123.audiowhisper.rust.InputRules.visual]. */
+/** What a key's [icon] token draws, from [com.jtn0123.audiowhisper.rust.InputRules.visual]. */
 fun keyIconVector(icon: Int, context: Context?): ImageVector? {
     return when (icon) {
         KeyCode.ARROW_LEFT -> {

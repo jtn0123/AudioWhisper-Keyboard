@@ -34,8 +34,7 @@ abstract class Keyboard {
     abstract val mode: KeyboardMode
 
     /** How many rows it has, empty ones included: what the keyboard's height is sized by. */
-    open val rowCount: Int
-        get() = 0
+    open val rowCount: Int = 0
 
     /**
      * Returns the key for given [pointerX] and [pointerY] coords or null if no key touch hit box is defined at the
