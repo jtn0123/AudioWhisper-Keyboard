@@ -696,7 +696,11 @@ counted lines and adds 321. Before the rebase the ledger was 417 files and 33,17
   three match tests. `extensionRoutes` lists the editor's seven routes, and
   `SettingsGroupOneMatchTest` checks that `ext/edit` is drawn natively while a route Rust does
   not draw still goes to the fallback.
-* **Gate** TBD-GATE
+* **Gate** (rebased on main f4aa9fc30): 1,008 JVM tests in 246 files (main had 1,006 in 246)
+  and 1,469 cargo tests (main 1,402), none failing or skipped; 396 native declarations, none hand
+  written (main 396: the editor uses the settings op already declared); the ledger matches 420
+  files (main 424); lint shows only the allowed issues (AndroidGradlePluginVersion ×4,
+  NewerVersionAvailable ×4, ChromeOsAbiSupport ×1, GradleDependency ×1).
 
 ### Mutations
 
