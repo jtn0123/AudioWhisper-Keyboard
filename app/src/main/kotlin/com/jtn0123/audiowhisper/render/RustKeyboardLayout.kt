@@ -29,7 +29,6 @@ import dev.patrickgold.florisboard.ime.nlp.NlpInlineAutofill
 import dev.patrickgold.florisboard.ime.smartbar.InlineSuggestionsUi
 import dev.patrickgold.florisboard.nlpManager
 import dev.patrickgold.florisboard.themeManager
-import org.florisboard.lib.snygg.ui.rememberSnyggPalette
 
 /** Android supplies the active source and platform inputs. Rust compiles and resolves all drawing styles. */
 @Composable
@@ -43,15 +42,14 @@ fun RustKeyboardLayout(evaluator: ComputingEvaluator) = with(LocalDensity.curren
     val candidates by nlp.activeCandidatesFlow.collectAsState()
     val keyboard = RustKeyboard.of(evaluator.keyboard)
     val keys = keyboard.keys
-    val palette = rememberSnyggPalette()
+    val palette = rememberThemePalette(activeTheme)
     val multiplier = prefs.keyboard.fontSizeMultiplier()
     val theme = remember(activeTheme, palette, density, fontScale, multiplier) {
-        RendererTheme(activeTheme.stylesheetJson, palette.names, palette.colors, density, fontScale, multiplier)
+        rendererTheme(activeTheme, palette, density, fontScale, multiplier)
     }
     val keyboardHeight = FlorisImeSizing.keyboardUiHeight()
     val preview by Dictation.preview.collectAsState()
     val inline by NlpInlineAutofill.suggestions.collectAsState()
-    dev.patrickgold.florisboard.ime.smartbar.InlineSuggestionsStyleCache()
     val search = rendererSearch()
     val panels = rendererPanels()
     val watermark = rendererWatermark(evaluator)

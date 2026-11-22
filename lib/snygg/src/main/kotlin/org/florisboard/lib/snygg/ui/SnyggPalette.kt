@@ -1,8 +1,6 @@
 package org.florisboard.lib.snygg.ui
 
 import androidx.compose.material3.ColorScheme
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import com.materialkolor.dynamicColorScheme
@@ -19,19 +17,12 @@ fun materialYouScheme(primary: Color, isDark: Boolean, flags: MaterialYouFlags):
     specVersion = flags.specVersion,
 )
 
-/** The palette the keyboard draws a theme with [flags] in for accent [primary], made outside composition: the theme
- * editor's dynamic colour swatches. */
+/** The palette the keyboard draws a theme with [flags] in for accent [primary], made outside composition: the Rust
+ * renderer's, the inline chips' and the theme editor's dynamic colour swatches. */
 fun snyggPalette(primary: Color, flags: MaterialYouFlags) =
     snyggPalette(materialYouScheme(primary, false, flags), materialYouScheme(primary, true, flags))
 
 private fun snyggPalette(light: ColorScheme, dark: ColorScheme): SnyggPalette {
     val names = ColorPalette.colorNames
     return SnyggPalette(names, names.map { light.getColor(it).toArgb() } + names.map { dark.getColor(it).toArgb() })
-}
-
-@Composable
-fun rememberSnyggPalette(): SnyggPalette {
-    val light = LocalSnyggDynamicLightColorScheme.current
-    val dark = LocalSnyggDynamicDarkColorScheme.current
-    return remember(light, dark) { snyggPalette(light, dark) }
 }

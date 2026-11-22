@@ -21,7 +21,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -35,23 +34,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import dev.patrickgold.florisboard.ime.nlp.NlpInlineAutofillSuggestion
 import dev.patrickgold.florisboard.ime.popup.GlobalStateNumPopupsShowing
-import dev.patrickgold.florisboard.ime.theme.FlorisImeUi
 import dev.patrickgold.florisboard.lib.toIntOffset
 import org.florisboard.lib.compose.florisHorizontalScroll
-import org.florisboard.lib.snygg.SnyggSinglePropertySet
-import org.florisboard.lib.snygg.ui.rememberSnyggThemeQuery
 
 val CandidatesRowScrollbarHeight = 2.dp
-
-var CachedInlineSuggestionsChipStyleSet: SnyggSinglePropertySet? = null
-
-@Composable
-fun InlineSuggestionsStyleCache() {
-    val chipStyleSet = rememberSnyggThemeQuery(FlorisImeUi.InlineAutofillChip.elementName)
-    LaunchedEffect(chipStyleSet) {
-        CachedInlineSuggestionsChipStyleSet = chipStyleSet
-    }
-}
 
 @Composable
 fun InlineSuggestionsUi(

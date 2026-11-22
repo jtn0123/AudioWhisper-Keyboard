@@ -64,13 +64,13 @@ app/src/main/kotlin/com/jtn0123/audiowhisper/render/RendererSearch.kt	M	21	Resou
 app/src/main/kotlin/com/jtn0123/audiowhisper/render/RendererSmartbar.kt	M	150	Resources / Paint; item choice, measurement and action binding, and the adapter for the Rust action plan: the evaluator's facts in, each SmartbarIcon's vector out | raised 126 to 152 (phase 3 item 1): the icon, arrow, flag, label and toggle choices moved to Rust (render::smartbar_actions); this file now writes their rows from the key evaluator and maps each icon id to its Compose vector
 app/src/main/kotlin/com/jtn0123/audiowhisper/render/RendererSmartbarTouch.kt	M	46	InputConnection / PopupWindow; enabled/removal/tooltip action gating |
 app/src/main/kotlin/com/jtn0123/audiowhisper/render/RendererSubtypes.kt	A	21	Resources / Jetpref Flow; localized subtype snapshot transport |
-app/src/main/kotlin/com/jtn0123/audiowhisper/render/RendererTheme.kt	A	27	Resources.Configuration / DisplayMetrics; theme and density transport |
+app/src/main/kotlin/com/jtn0123/audiowhisper/render/RendererTheme.kt	A	73	Resources.Configuration / DisplayMetrics / system accent; raised 27 -> 73 in phase 3 item 3: the renderer's theme, the palette's accent (Rust's primary rule) and the inline chip colours (Rust's inline rule) are handed over here instead of read from the Compose root, while ThemeManager shrank 309 -> 203 and the base style (333) left production |
 app/src/main/kotlin/com/jtn0123/audiowhisper/render/RustChromeView.kt	M	95	View / Bitmap / Canvas; native pixels stay at edge, move hardcoded subtype bootstrap dimensions/timing constants |
 app/src/main/kotlin/com/jtn0123/audiowhisper/render/RustExtractView.kt	A	36	ExtractEditText / ViewGroup; applies native extract bounds to platform editor |
 app/src/main/kotlin/com/jtn0123/audiowhisper/render/RustKeyGraphs.kt	M	83	Context / Resources / LayoutManager; the Rust renderer's key graphs per mode and subtype, their label resources and the question-and-answer loop that computes them (phase 3 item 2) |
 app/src/main/kotlin/com/jtn0123/audiowhisper/render/RustKeyPreview.kt	A	33	Bitmap / ART JNI; displays native preview pixels (replace Compose interop host) |
 app/src/main/kotlin/com/jtn0123/audiowhisper/render/RustKeyboard.kt	M	104	Keyboard / TextKey adapter; reads the Rust key graph's keys back as TextKeys so the input path and a key's platform effects are unchanged (phase 3 item 2); goes when the input path reads Rust's keys itself |
-app/src/main/kotlin/com/jtn0123/audiowhisper/render/RustKeyboardLayout.kt	M	91	SurfaceView / WindowInsets / InlineContentView; Kotlin root sizing/state branches |
+app/src/main/kotlin/com/jtn0123/audiowhisper/render/RustKeyboardLayout.kt	M	89	SurfaceView / WindowInsets / InlineContentView; Kotlin root sizing/state branches |
 app/src/main/kotlin/com/jtn0123/audiowhisper/render/RustKeyboardView.kt	M	404	SurfaceView / Choreographer / SystemFonts; snapshot assembly and dispatch/fallback policy; +5 (2026-11-21) lays the surface out Rust's popup headroom above the view so a top-row popup is not cut off |
 app/src/main/kotlin/com/jtn0123/audiowhisper/render/RustOneHandedPanel.kt	M	37	View/Jetpref; side-panel sizing/visibility and preference-effect binding |
 app/src/main/kotlin/com/jtn0123/audiowhisper/render/RustSubtypeSheet.kt	A	30	WindowInsets / AndroidView; native sheet surface interop only |
@@ -126,7 +126,7 @@ app/src/main/kotlin/dev/patrickgold/florisboard/FlorisApplication.kt	M	124	Appli
 app/src/main/kotlin/dev/patrickgold/florisboard/FlorisImeService.kt	M	416	InputMethodService; input/extract/keyboard-switch/lifecycle branches |
 app/src/main/kotlin/dev/patrickgold/florisboard/FlorisImeUi.kt	M	141	WindowInsets / Compose host; root sizing/placement/background drawing |
 app/src/main/kotlin/dev/patrickgold/florisboard/FlorisImeViews.kt	M	226	ExtractEditText / ComposeView; input/sheet/extract branch/layout ownership |
-app/src/main/kotlin/dev/patrickgold/florisboard/FlorisInlineSuggestions.kt	A	43	InputMethodService.onCreateInlineSuggestionsRequest / InlineSuggestionsResponse |
+app/src/main/kotlin/dev/patrickgold/florisboard/FlorisInlineSuggestions.kt	A	38	InputMethodService.onCreateInlineSuggestionsRequest / InlineSuggestionsResponse |
 app/src/main/kotlin/dev/patrickgold/florisboard/FlorisSpellCheckerService.kt	M	95	SpellCheckerService; language/session/result assembly around native spell |
 app/src/main/kotlin/dev/patrickgold/florisboard/NativeExtractContent.kt	A	25	ExtractEditText / AndroidView; native chrome with platform text editor |
 app/src/main/kotlin/dev/patrickgold/florisboard/app/AppPreferenceMigration.kt	A	12	Jetpref migration callback / ART JNI; applies native migration result |
@@ -239,7 +239,7 @@ app/src/main/kotlin/dev/patrickgold/florisboard/ime/smartbar/CandidatesDisplayMo
 app/src/main/kotlin/dev/patrickgold/florisboard/ime/smartbar/CandidatesRow.kt	K	219	Compose keyboard (keyboard scope): deleted at compose-removal step K
 app/src/main/kotlin/dev/patrickgold/florisboard/ime/smartbar/ExtendedActionsPlacement.kt	P	6	portable ExtendedActionsPlacement domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
 app/src/main/kotlin/dev/patrickgold/florisboard/ime/smartbar/IncognitoDisplayMode.kt	P	5	portable IncognitoDisplayMode domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
-app/src/main/kotlin/dev/patrickgold/florisboard/ime/smartbar/InlineSuggestionsUi.kt	M	74	InlineContentView; replace Compose layout with Rust bounds and Android interop |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/smartbar/InlineSuggestionsUi.kt	M	62	InlineContentView; replace Compose layout with Rust bounds and Android interop |
 app/src/main/kotlin/dev/patrickgold/florisboard/ime/smartbar/Smartbar.kt	K	419	Compose keyboard (keyboard scope): deleted at compose-removal step K
 app/src/main/kotlin/dev/patrickgold/florisboard/ime/smartbar/SmartbarLayout.kt	P	7	portable SmartbarLayout domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
 app/src/main/kotlin/dev/patrickgold/florisboard/ime/smartbar/quickaction/QuickAction.kt	M	117	InputConnection / Resources; pointer dispatch and dynamic display labels |
@@ -248,7 +248,7 @@ app/src/main/kotlin/dev/patrickgold/florisboard/ime/smartbar/quickaction/QuickAc
 app/src/main/kotlin/dev/patrickgold/florisboard/ime/smartbar/quickaction/QuickActionsEditorPanel.kt	K	320	Compose keyboard (keyboard scope): deleted at compose-removal step K
 app/src/main/kotlin/dev/patrickgold/florisboard/ime/smartbar/quickaction/QuickActionsOverflowPanel.kt	K	74	Compose keyboard (keyboard scope): deleted at compose-removal step K
 app/src/main/kotlin/dev/patrickgold/florisboard/ime/smartbar/quickaction/QuickActionsRow.kt	K	79	Compose keyboard (keyboard scope): deleted at compose-removal step K
-app/src/main/kotlin/dev/patrickgold/florisboard/ime/text/TextInputLayout.kt	K	79	Compose keyboard (keyboard scope): deleted at compose-removal step K
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/text/TextInputLayout.kt	K	77	Compose keyboard (keyboard scope): deleted at compose-removal step K
 app/src/main/kotlin/dev/patrickgold/florisboard/ime/text/composing/Composer.kt	P	35	portable Composer domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
 app/src/main/kotlin/dev/patrickgold/florisboard/ime/text/gestures/GlideTypingClassifier.kt	P	11	portable GlideTypingClassifier domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
 app/src/main/kotlin/dev/patrickgold/florisboard/ime/text/gestures/GlideTypingGesture.kt	M	94	MotionEvent / Resources; detector lifecycle and pointer-to-domain projection |
@@ -272,12 +272,12 @@ app/src/main/kotlin/dev/patrickgold/florisboard/ime/text/keyboard/TextKeyboardLa
 app/src/main/kotlin/dev/patrickgold/florisboard/ime/text/keyboard/TextKeyboardSwipe.kt	K	228	Compose keyboard (keyboard scope): deleted at compose-removal step K
 app/src/main/kotlin/dev/patrickgold/florisboard/ime/theme/FlorisAssetResolver.kt	A	29	Context.filesDir / assets; native-selected asset path resolution |
 app/src/main/kotlin/dev/patrickgold/florisboard/ime/theme/FlorisImeTheme.kt	M	62	Resources / composition locals; base-style/layout-default choice and theme hosting |
-app/src/main/kotlin/dev/patrickgold/florisboard/ime/theme/FlorisImeThemeBaseStyle.kt	P	333	portable FlorisImeThemeBaseStyle domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
 app/src/main/kotlin/dev/patrickgold/florisboard/ime/theme/FlorisImeUi.kt	P	358	portable Snygg element/attribute schema; move schema ownership to Rust |
 app/src/main/kotlin/dev/patrickgold/florisboard/ime/theme/ThemeExtension.kt	P	37	portable ThemeExtension domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
 app/src/main/kotlin/dev/patrickgold/florisboard/ime/theme/ThemeExtensionComponent.kt	P	74	portable ThemeExtensionComponent domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
-app/src/main/kotlin/dev/patrickgold/florisboard/ime/theme/ThemeManager.kt	M	309	Resources / InlineSuggestionUi; active-theme/day-night choice and inline styles |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/theme/ThemeManager.kt	A	203	Resources / InlineSuggestionUi / ZipUtils; the active-theme choice and load decisions are Rust's (crates/imetheme, phase 3 item 3); left: settings and night-mode reads, unzip and stylesheet reads, flows, the inline suggestion bundle |
 app/src/main/kotlin/dev/patrickgold/florisboard/ime/theme/ThemeMode.kt	P	7	portable ThemeMode domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/theme/ThemeUpdates.kt	A	93	new in phase 3 item 3: rows to and from Rust's theme session (ImeTheme) and the loaded themes Android holds by the slot Rust names |
 app/src/main/kotlin/dev/patrickgold/florisboard/lib/FlorisLocale.kt	M	107	Android Locale/ICU locale names; tag/selection/cache behavior needs explicit native ownership | raised 102 to 107 (A6): imports of UtilityOp, the three locale packets and WireFlag; a star import would pull in lib/kotlin's Array.map
 app/src/main/kotlin/dev/patrickgold/florisboard/lib/FlorisRect.kt	P	185	rectangle geometry/intersection/containment |
 app/src/main/kotlin/dev/patrickgold/florisboard/lib/Native.kt	A	3	ART JNI / ByteBuffer; native string and pointer wrapper ownership |
@@ -381,7 +381,7 @@ lib/snygg/src/main/kotlin/org/florisboard/lib/snygg/ui/SnyggColumn.kt	S	58	share
 lib/snygg/src/main/kotlin/org/florisboard/lib/snygg/ui/SnyggIcon.kt	S	89	shared by the Compose keyboard and settings (keyboard/settings scope): deleted only after step K and steps 5-12, so filed as S
 lib/snygg/src/main/kotlin/org/florisboard/lib/snygg/ui/SnyggIconButton.kt	S	82	shared by the Compose keyboard and settings (keyboard/settings scope): deleted only after step K and steps 5-12, so filed as S
 lib/snygg/src/main/kotlin/org/florisboard/lib/snygg/ui/SnyggListItem.kt	S	124	shared by the Compose keyboard and settings (keyboard/settings scope): deleted only after step K and steps 5-12, so filed as S
-lib/snygg/src/main/kotlin/org/florisboard/lib/snygg/ui/SnyggPalette.kt	A	27	Resources / ART JNI; native palette projection | raised 16 to 27 (compose-removal step 9, part 3): ProvideSnyggTheme's materialkolor scheme call moved here (SnyggUi.kt lowered 303 to 285 by it) so the theme editor's report makes the palette the keyboard gets outside composition
+lib/snygg/src/main/kotlin/org/florisboard/lib/snygg/ui/SnyggPalette.kt	A	19	Resources / ART JNI; native palette projection | raised 16 to 27 (compose-removal step 9, part 3): ProvideSnyggTheme's materialkolor scheme call moved here (SnyggUi.kt lowered 303 to 285 by it) so the theme editor's report makes the palette the keyboard gets outside composition
 lib/snygg/src/main/kotlin/org/florisboard/lib/snygg/ui/SnyggRow.kt	S	64	shared by the Compose keyboard and settings (keyboard/settings scope): deleted only after step K and steps 5-12, so filed as S
 lib/snygg/src/main/kotlin/org/florisboard/lib/snygg/ui/SnyggSpacer.kt	S	57	shared by the Compose keyboard and settings (keyboard/settings scope): deleted only after step K and steps 5-12, so filed as S
 lib/snygg/src/main/kotlin/org/florisboard/lib/snygg/ui/SnyggSurfaceView.kt	M	174	SurfaceView / Drawable / Canvas; background scale/alignment/drawing must move to Rust |

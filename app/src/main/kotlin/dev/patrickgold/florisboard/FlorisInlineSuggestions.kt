@@ -25,7 +25,6 @@ import androidx.compose.runtime.setValue
 import dev.patrickgold.florisboard.ime.nlp.NlpInlineAutofill
 import dev.patrickgold.florisboard.lib.devtools.LogTopic
 import dev.patrickgold.florisboard.lib.devtools.flogInfo
-import dev.patrickgold.florisboard.lib.devtools.flogWarning
 
 internal fun FlorisImeService.createInlineSuggestionsRequest(): InlineSuggestionsRequest? {
     if (!prefs.smartbar.enabled.get() || !prefs.suggestion.api30InlineSuggestionsEnabled.get()) {
@@ -37,10 +36,6 @@ internal fun FlorisImeService.createInlineSuggestionsRequest(): InlineSuggestion
 
     flogInfo(LogTopic.IMS_EVENTS) { "Creating inline suggestions request" }
     val stylesBundle = themeManager.createInlineSuggestionUiStyleBundle(this)
-    if (stylesBundle == null) {
-        flogWarning(LogTopic.IMS_EVENTS) { "Failed to retrieve inline suggestions style bundle" }
-        return null
-    }
     val spec = InlinePresentationSpec.Builder(
         Size(0, 0),
         Size(Int.MAX_VALUE, Int.MAX_VALUE),

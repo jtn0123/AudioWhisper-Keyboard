@@ -27,7 +27,8 @@ import dev.patrickgold.florisboard.ime.text.key.KeyCode
 import org.florisboard.lib.snygg.SnyggSelector
 import org.florisboard.lib.snygg.SnyggStylesheet
 
-val FlorisImeThemeBaseStyle = SnyggStylesheet.v2 {
+/** Main's base style, frozen: the Kotlin [ThemeManager.ThemeInfo.DEFAULT] was built from before Rust held it as JSON. */
+internal val ReferenceFlorisImeThemeBaseStyle = SnyggStylesheet.v2 {
     defines {
         "--primary" to rgbaColor(76, 175, 80)
         "--primary-variant" to rgbaColor(56, 142, 60)

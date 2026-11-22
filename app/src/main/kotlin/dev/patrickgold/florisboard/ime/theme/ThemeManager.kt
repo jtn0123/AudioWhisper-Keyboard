@@ -18,35 +18,29 @@ package dev.patrickgold.florisboard.ime.theme
 
 import android.annotation.SuppressLint
 import android.content.Context
-import android.content.res.ColorStateList
 import android.content.res.Configuration
-import android.graphics.drawable.Drawable
-import android.graphics.drawable.GradientDrawable
 import android.graphics.drawable.Icon
-import android.graphics.drawable.LayerDrawable
-import android.graphics.drawable.RippleDrawable
 import android.os.Bundle
-import android.util.TypedValue
-import androidx.annotation.AttrRes
 import androidx.autofill.inline.UiVersions
 import androidx.autofill.inline.common.ImageViewStyle
 import androidx.autofill.inline.common.TextViewStyle
 import androidx.autofill.inline.common.ViewStyle
 import androidx.autofill.inline.v1.InlineSuggestionUi
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.toArgb
-import androidx.core.content.ContextCompat
 import androidx.core.graphics.ColorUtils
+import com.jtn0123.audiowhisper.render.inlineChipColors
+import com.jtn0123.audiowhisper.render.themePalette
+import com.jtn0123.audiowhisper.rust.ImeTheme
+import com.jtn0123.audiowhisper.rust.ImeThemeRule
 import dev.patrickgold.florisboard.R
 import dev.patrickgold.florisboard.app.FlorisPreferenceStore
 import dev.patrickgold.florisboard.appContext
 import dev.patrickgold.florisboard.extensionManager
-import dev.patrickgold.florisboard.ime.smartbar.CachedInlineSuggestionsChipStyleSet
+import dev.patrickgold.florisboard.keyboardManager
 import dev.patrickgold.florisboard.lib.ext.ExtensionComponentName
 import dev.patrickgold.florisboard.lib.ext.ExtensionMeta
 import dev.patrickgold.florisboard.lib.io.ZipUtils
 import dev.patrickgold.florisboard.lib.util.TimeUtils.javaLocalTime
-import dev.patrickgold.florisboard.lib.util.ViewUtils
 import java.time.LocalTime
 import java.util.*
 import kotlinx.coroutines.CoroutineScope
@@ -63,17 +57,19 @@ import org.florisboard.lib.kotlin.io.deleteContentsRecursively
 import org.florisboard.lib.kotlin.io.subDir
 import org.florisboard.lib.kotlin.io.subFile
 import org.florisboard.lib.snygg.SnyggStylesheet
-import org.florisboard.lib.snygg.value.SnyggStaticColorValue
 import java.util.concurrent.atomic.AtomicInteger
 
 /**
- * Core class which manages the keyboard theme. Note, that this does not affect the UI theme of the
- * Settings Activities.
+ * The keyboard's theme. Rust (crates/imetheme, through [ThemeUpdates]) chooses which theme is
+ * active and what to load; this reports the settings, the clock and the system's night mode,
+ * unpacks the archives and reads the stylesheets Rust names, and builds the inline autofill
+ * styles from the colours Rust resolves.
  */
 class ThemeManager(context: Context) {
     private val prefs by FlorisPreferenceStore
     private val appContext by context.appContext()
     private val extensionManager by context.extensionManager()
+    private val keyboardManager by context.keyboardManager()
 
     private val scope = CoroutineScope(Dispatchers.Default + SupervisorJob())
 
@@ -85,7 +81,7 @@ class ThemeManager(context: Context) {
     val previewThemeInfo = MutableStateFlow<ThemeInfo?>(null)
     val configurationChangeCounter = MutableStateFlow(0)
 
-    private val cachedThemeInfos = mutableListOf<ThemeInfo>()
+    private val updates = ThemeUpdates()
     private val activeThemeGuard = Mutex(locked = false)
     private val _activeThemeInfo = MutableStateFlow(ThemeInfo.DEFAULT)
     val activeThemeInfo get() = _activeThemeInfo.asStateFlow()
@@ -102,7 +98,7 @@ class ThemeManager(context: Context) {
             } to version
         }
         indexedThemeConfigs.collectIn(scope) {
-            updateActiveTheme { cachedThemeInfos.clear() }
+            updateActiveTheme(clear = true)
         }
         combine(
             prefs.theme.mode.asFlow(),
@@ -116,86 +112,45 @@ class ThemeManager(context: Context) {
         }
     }
 
-    /**
-     * Updates the current theme ref and loads the corresponding theme, as well as notifies all
-     * callback receivers about the new theme.
-     */
-    suspend fun updateActiveTheme(action: () -> Unit = { }) = activeThemeGuard.withLock {
-        action()
-        previewThemeInfo.value?.let { previewThemeInfo ->
-            _activeThemeInfo.value = previewThemeInfo
-            return@withLock
+    /** Shows the theme Rust chooses, loading it first if Rust asks; [clear] drops every loaded theme first. */
+    private suspend fun updateActiveTheme(clear: Boolean = false) = activeThemeGuard.withLock {
+        val themes = extensionManager.themes.value.orEmpty()
+        val sources = themes.map { ThemeSource(it.meta, it.sourceRef != null, it.themes) }
+        val keyboards = extensionManager.keyboardExtensions.value.orEmpty().map { it.meta.id }
+        val next = updates.update(clear, facts(), previewThemeInfo.value, keyboards, sources) { index, path ->
+            load(themes[index], path)
         }
-        val activeName = evaluateActiveThemeName()
-        val cachedInfo = cachedThemeInfos.find { it.name == activeName }
-        if (cachedInfo != null) {
-            _activeThemeInfo.value = cachedInfo
-            return@withLock
-        }
-        val themeExt = extensionManager.getExtensionById(activeName.extensionId) as? ThemeExtension
-        val themeExtRef = themeExt?.sourceRef
-        if (themeExtRef == null) {
-            return@withLock
-        }
-        val themeConfig = themeExt.themes.find { it.id == activeName.componentId }
-        if (themeConfig == null) {
-            return@withLock
-        }
-        // TODO: loaded dir is implemented already...
-        // TODO: this leaks the loaded dir, but at least the state is not kaputt from compose viewpoint
-        val loadedDir = appContext.cacheDir.subDir("loaded").subDir(UUID.randomUUID().toString())
-        runCatching {
-            loadedDir.mkdirs()
-            loadedDir.deleteContentsRecursively()
-            ZipUtils.unzip(appContext, themeExtRef, loadedDir).getOrThrow()
-            val stylesheetFile = loadedDir.subFile(themeConfig.stylesheetPath())
-            val stylesheetJson = stylesheetFile.readText()
-            SnyggStylesheet.fromJson(stylesheetJson).getOrThrow()
-        }.fold(
-            onSuccess = { newStylesheet ->
-                val newInfo = ThemeInfo(activeName, themeConfig, newStylesheet, loadedDir, null)
-                cachedThemeInfos.add(newInfo)
-                _activeThemeInfo.value = newInfo
-            },
-            onFailure = { cause ->
-                _activeThemeInfo.value = ThemeInfo.DEFAULT.copy(
-                    loadFailure = LoadFailure(themeExt.meta, themeConfig, cause)
-                )
-            },
+        if (next != null) _activeThemeInfo.value = next
+    }
+
+    private fun facts(): ThemeFacts {
+        val uiMode = appContext.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK
+        return ThemeFacts(
+            mode = prefs.theme.mode.get(),
+            day = prefs.theme.dayThemeId.get(),
+            night = prefs.theme.nightThemeId.get(),
+            sunrise = prefs.theme.sunriseTime.get().javaLocalTime.toNanoOfDay(),
+            sunset = prefs.theme.sunsetTime.get().javaLocalTime.toNanoOfDay(),
+            now = LocalTime.now().toNanoOfDay(),
+            systemNight = uiMode == Configuration.UI_MODE_NIGHT_YES,
+            previewId = previewThemeId.value,
         )
     }
 
-    private fun evaluateActiveThemeName(): ExtensionComponentName {
-        previewThemeId.value?.let { return it }
-        return when (prefs.theme.mode.get()) {
-            ThemeMode.ALWAYS_DAY -> {
-                prefs.theme.dayThemeId.get()
-            }
-            ThemeMode.ALWAYS_NIGHT -> {
-                prefs.theme.nightThemeId.get()
-            }
-            ThemeMode.FOLLOW_SYSTEM -> if (appContext.resources.configuration.uiMode and
-                Configuration.UI_MODE_NIGHT_MASK == Configuration.UI_MODE_NIGHT_YES
-            ) {
-                prefs.theme.nightThemeId.get()
-            } else {
-                prefs.theme.dayThemeId.get()
-            }
-            ThemeMode.FOLLOW_TIME -> {
-                val current = LocalTime.now()
-                val sunrise = prefs.theme.sunriseTime.get().javaLocalTime
-                val sunset = prefs.theme.sunsetTime.get().javaLocalTime
-                if (current in sunrise..sunset) {
-                    prefs.theme.dayThemeId.get()
-                } else {
-                    prefs.theme.nightThemeId.get()
-                }
-            }
+    // TODO: this leaks the loaded dir, but at least the state is not kaputt from compose viewpoint
+    private fun load(extension: ThemeExtension, path: String): Result<LoadedTheme> {
+        val loadedDir = appContext.cacheDir.subDir("loaded").subDir(UUID.randomUUID().toString())
+        return runCatching {
+            loadedDir.mkdirs()
+            loadedDir.deleteContentsRecursively()
+            ZipUtils.unzip(appContext, checkNotNull(extension.sourceRef), loadedDir).getOrThrow()
+            LoadedTheme(SnyggStylesheet.fromJson(loadedDir.subFile(path).readText()).getOrThrow(), loadedDir)
         }
     }
 
     /**
-     * Creates a new inline suggestion UI bundle.
+     * Creates a new inline suggestion UI bundle, styled with the chip colours Rust resolves in
+     * the active theme for the keyboard's state.
      *
      * @param context The context of the parent view/controller.
      *
@@ -205,14 +160,15 @@ class ThemeManager(context: Context) {
     // own methods, inherited from a base class the library marks restricted. They are the only way to style inline
     // autofill suggestions.
     @SuppressLint("RestrictedApi")
-    fun createInlineSuggestionUiStyleBundle(context: Context): Bundle? {
-        val styleSet = CachedInlineSuggestionsChipStyleSet ?: return null
-        val bgColor = styleSet.background(default = Color.White)
-        val fgColor = styleSet.foreground(default = Color.Black)
+    fun createInlineSuggestionUiStyleBundle(context: Context): Bundle {
+        val info = activeThemeInfo.value
+        val state = keyboardManager.activeState
+        val palette = themePalette(prefs.theme.accentColor.get(), { systemAccent(context) }, info.config.materialYouFlags)
+        val (bgColor, fgColor) = inlineChipColors(info, state.keyboardMode.toString(), state.inputShiftState.toString(), palette)
 
         val bgDrawableId = R.drawable.inline_suggestion_chip_background
         val bgDrawable = Icon.createWithResource(context, bgDrawableId).apply {
-            setTint(bgColor.toArgb())
+            setTint(bgColor)
         }
         val chipStyle = ViewStyle.Builder().run {
             setBackground(bgDrawable)
@@ -235,7 +191,7 @@ class ThemeManager(context: Context) {
                 context.resources.getDimension(R.dimen.suggestion_chip_fg_title_margin_end).toInt(),
                 context.resources.getDimension(R.dimen.suggestion_chip_fg_title_margin_bottom).toInt(),
             )
-            setTextColor(fgColor.toArgb())
+            setTextColor(fgColor)
             setTextSize(16f)
             build()
         }
@@ -246,7 +202,7 @@ class ThemeManager(context: Context) {
                 context.resources.getDimension(R.dimen.suggestion_chip_fg_subtitle_margin_end).toInt(),
                 context.resources.getDimension(R.dimen.suggestion_chip_fg_subtitle_margin_bottom).toInt(),
             )
-            setTextColor(ColorUtils.setAlphaComponent(fgColor.toArgb(), 150))
+            setTextColor(ColorUtils.setAlphaComponent(fgColor, 150))
             setTextSize(14f)
             build()
         }
@@ -265,19 +221,8 @@ class ThemeManager(context: Context) {
         }
     }
 
-    private fun getColorFromThemeAttribute(
-        context: Context, typedValue: TypedValue, @AttrRes attr: Int,
-    ): Int? {
-        return if (context.theme.resolveAttribute(attr, typedValue, true)) {
-            if (typedValue.type == TypedValue.TYPE_REFERENCE) {
-                ContextCompat.getColor(context, typedValue.resourceId)
-            } else {
-                typedValue.data
-            }
-        } else {
-            null
-        }
-    }
+    /** The system's accent colour, which a theme's palette is made from unless the settings name one. */
+    private fun systemAccent(context: Context) = Color(context.resources.getColor(android.R.color.system_accent1_500, context.theme))
 
     data class ThemeInfo(
         val name: ExtensionComponentName,
@@ -293,10 +238,11 @@ class ThemeManager(context: Context) {
         }
 
         companion object {
+            /** The base theme: the stylesheet Rust holds (crates/imetheme), shown when no other loads. */
             val DEFAULT = ThemeInfo(
                 name = extCoreTheme("base"),
                 config = ThemeExtensionComponentImpl(id = "base", label = "Base", authors = listOf()),
-                stylesheet = FlorisImeThemeBaseStyle,
+                stylesheet = SnyggStylesheet.fromJson(ImeTheme.rules(ImeThemeRule.BASE).single()).getOrThrow(),
                 loadedDir = null,
                 loadFailure = null,
             )
@@ -308,58 +254,4 @@ class ThemeManager(context: Context) {
         val component: ThemeExtensionComponent,
         val cause: Throwable,
     )
-
-    data class RemoteColors(
-        val packageName: String,
-        val colorPrimary: SnyggStaticColorValue?,
-        val colorPrimaryVariant: SnyggStaticColorValue?,
-        val colorSecondary: SnyggStaticColorValue?,
-    ) {
-        companion object {
-            val DEFAULT = RemoteColors("undefined", null, null, null)
-        }
-    }
-
-    private fun autofillChipBackgroundOf(
-        bgColor: Color,
-        rippleColor: Color,
-    ): Drawable {
-        val cornerRadius = ViewUtils.dp2px(32f)
-        val shadowColors = intArrayOf(
-            Color.Transparent.toArgb(),
-            Color.Transparent.toArgb(),
-            Color(red = 0x00, green = 0x00, blue = 0x00, alpha = 0x1F).toArgb(),
-        )
-        val shadowDistribution = floatArrayOf(0f, 0.5f, 1f)
-        val padding = ViewUtils.dp2px(5f).toInt()
-
-        fun gradientDrawableOf() = GradientDrawable().also {
-            it.shape = GradientDrawable.RECTANGLE
-            it.cornerRadius = cornerRadius
-            it.setGradientCenter(0.5f, 0.5f)
-            it.gradientType = GradientDrawable.LINEAR_GRADIENT
-            it.setColors(shadowColors, shadowDistribution)
-        }
-
-        val layerList = LayerDrawable(arrayOf(
-            gradientDrawableOf().also {
-                it.orientation = GradientDrawable.Orientation.BOTTOM_TOP
-            },
-            gradientDrawableOf().also {
-                it.orientation = GradientDrawable.Orientation.LEFT_RIGHT
-            },
-            gradientDrawableOf().also {
-                it.orientation = GradientDrawable.Orientation.TOP_BOTTOM
-            },
-            gradientDrawableOf().also {
-                it.orientation = GradientDrawable.Orientation.RIGHT_LEFT
-            },
-            GradientDrawable().also {
-                it.shape = GradientDrawable.RECTANGLE
-                it.cornerRadius = cornerRadius
-                it.setColor(bgColor.toArgb())
-            },
-        )).also { it.setLayerInset(4, padding, padding, padding, padding) }
-        return RippleDrawable(ColorStateList.valueOf(rippleColor.toArgb()), layerList, null)
-    }
 }
