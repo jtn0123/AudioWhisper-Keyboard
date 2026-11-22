@@ -19,9 +19,11 @@ pub struct Profile {
     pub color_runs: u32,
     /// Runs drawn through the glyph atlas (colour fonts only; see `Backend::glyph_list`).
     pub atlas_runs: u32,
-    /// Pixels painted with the press bubble alone, under its solid box (`Scene::bubble_cover`).
-    pub covered_px: u64,
-    /// Pixels put back from under a press bubble that went, instead of painted again.
+    /// Pixels of the press bubble's image laid over the keys (`Raster::blend_bubble`).
+    pub bubble_px: u64,
+    /// Press bubbles drawn into an image, for want of one kept.
+    pub bubble_draws: u32,
+    /// Pixels put back from under a press bubble that moved or went, instead of painted again.
     pub restored_px: u64,
 }
 
@@ -71,7 +73,8 @@ impl Profile {
             glyph_runs,
             cold_runs,
             color_runs,
-            covered_px,
+            bubble_px,
+            bubble_draws,
             restored_px
         );
     }

@@ -20,11 +20,13 @@ pub struct Raster {
     /// The damaged rectangle's pixels while it renders, when it is not whole rows.
     scratch: Vec<u8>,
     /// The rectangle the frame being drawn repaints; nothing outside it shows.
-    damage: Rect,
+    pub(crate) damage: Rect,
     profiling: bool,
     pub(crate) profile: Profile,
-    /// The pixels under the open press bubble, kept to put back when it goes.
+    /// The pixels under the press bubble the buffer shows, kept to put back when it goes.
     pub(crate) under: Option<crate::bubble_frame::Under>,
+    /// The press bubbles drawn once each, to lay over the keys.
+    pub(crate) images: crate::bubble_cache::Images,
 }
 
 impl std::fmt::Debug for Raster {
@@ -52,6 +54,7 @@ impl Raster {
             profiling: false,
             profile: Profile::default(),
             under: None,
+            images: Default::default(),
         }
     }
 
@@ -98,17 +101,19 @@ impl Raster {
     }
 
     pub fn draw(&mut self, scene: &Scene, damage: Rect) -> Result<(), String> {
-        self.draw_over(scene, damage, None)
+        self.under = None;
+        self.draw_scene(scene, damage)?;
+        if self.context.is_cpu() {
+            let mut total = self.profile;
+            self.blend_bubble(scene, damage, &mut total)?;
+            self.profile = total;
+        }
+        Ok(())
     }
 
-    /// `draw`, leaving out of `hole` everything under the popup and the press bubble: for pixels
-    /// the bubble's box paints solid (`Scene::bubble_cover`), where none of it would show.
-    pub(crate) fn draw_over(
-        &mut self,
-        scene: &Scene,
-        damage: Rect,
-        hole: Option<Rect>,
-    ) -> Result<(), String> {
+    /// `draw`, but on the CPU without the press bubble, whose image is laid over the pixels after
+    /// (`Raster::blend_bubble`). The GPU draws the bubble here, under the panels and the trail.
+    pub(crate) fn draw_scene(&mut self, scene: &Scene, damage: Rect) -> Result<(), String> {
         self.profile = Profile::default();
         let encode = self.profiling.then(Instant::now);
         // Reset entire edge pixels before reapplying antialiasing, rather than accumulating
@@ -131,16 +136,12 @@ impl Raster {
         let modal = crate::modal_scene::content(scene);
         let content = modal.as_ref().unwrap_or(scene);
         self.context.push_clip_rect(&inside);
-        if let Some(hole) = hole {
-            self.context.push_clip_path(&around(damage, hole));
-        }
         self.underneath(scene, content, modal.is_some(), damage)?;
-        if hole.is_some() {
-            self.context.pop_clip();
-        }
         self.context.pop_clip();
         self.context.push_clip_rect(&clip(damage));
-        self.bubble(content)?;
+        if !self.context.is_cpu() {
+            self.bubble(scene)?;
+        }
         self.popup(content)?;
         self.context.pop_clip();
         self.context.push_clip_rect(&inside);
@@ -160,9 +161,6 @@ impl Raster {
         let raster = self.profiling.then(Instant::now);
         self.rasterize(scene.buffer_pixels(damage))?;
         self.profile.raster_ns = elapsed(raster);
-        if let Some(hole) = hole {
-            self.profile.covered_px = (hole.width() * hole.height()) as u64;
-        }
         Ok(())
     }
 
@@ -341,29 +339,6 @@ impl Raster {
         self.context.reset_transform();
         Ok(())
     }
-}
-
-/// `r` with `hole` cut out of it, as a path the non-zero rule fills: the hole winds the other way.
-fn around(r: Rect, hole: Rect) -> vello_cpu::kurbo::BezPath {
-    let ring = |r: Rect| {
-        [
-            (r.left, r.top),
-            (r.right, r.top),
-            (r.right, r.bottom),
-            (r.left, r.bottom),
-        ]
-    };
-    let mut inner = ring(hole);
-    inner.reverse();
-    let mut path = vello_cpu::kurbo::BezPath::new();
-    for points in [ring(r), inner] {
-        path.move_to((f64::from(points[0].0), f64::from(points[0].1)));
-        for &(x, y) in &points[1..] {
-            path.line_to((f64::from(x), f64::from(y)));
-        }
-        path.close_path();
-    }
-    path
 }
 
 /// `r` as a clip rectangle.

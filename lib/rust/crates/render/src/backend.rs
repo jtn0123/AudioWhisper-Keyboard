@@ -65,7 +65,15 @@ impl Backend {
     forward!(set_paint(paint: AlphaColor<Srgb>));
     forward!(fill_path(path: &BezPath));
     forward!(fill_rect(rect: &Rect));
-    forward!(push_clip_path(path: &BezPath));
+
+    /// Whether this draws on the CPU, into the raster's own pixels.
+    pub fn is_cpu(&self) -> bool {
+        match self {
+            Self::Cpu(_) => true,
+            #[cfg(feature = "hybrid")]
+            Self::Hybrid(_) => false,
+        }
+    }
 
     /// Draws the scene `rows` down the target, which has that many rows above the scene's top
     /// (the scene's headroom). Every transform is taken from there, so whatever is drawn, colour

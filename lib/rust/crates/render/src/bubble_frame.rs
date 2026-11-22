@@ -1,17 +1,23 @@
-//! Frames that open or close a press bubble, drawn without painting the keys under it again.
+//! Frames drawn while a press bubble opens, moves, is held or goes, without painting the keys
+//! under it again.
 //!
-//! A bubble covers some 50 000 pixels of keys, labels and shadows. Painting them took about 4 ms
-//! of the emulator's CPU when a bubble opened and again when it went, on every tap. So the pixels
-//! a bubble opens over are kept, and put back when it goes; only what the scene changed under it
-//! meanwhile is painted again. A rectangle that lies inside another one being painted is not
-//! painted twice. Every pixel ends as `Raster::draw_regions` paints it.
-use crate::{profile::Profile, raster::Raster, scene::Scene};
+//! The bubble is an image laid over the keys (`crate::bubble_cache`). The pixels it lands on are
+//! kept, as the scene shows them without it (`Under`). When it goes or moves they are put back;
+//! when a frame paints under a held bubble (a shift key, the strip), they take the fresh pixels
+//! and the image is laid over those again. So a tap paints its key's highlight, as it did before
+//! there was a bubble, and copies and blends the rest. A rectangle that lies inside another one
+//! being painted is not painted twice. Every pixel ends as `Raster::draw` paints it.
+use crate::{
+    bubble_cache::{meet, relaid},
+    profile::Profile,
+    raster::Raster,
+    scene::Scene,
+};
 use keys::Rect;
+use std::ops::Range;
 
-/// The pixels under an open bubble, from before it drew, and the scene they show.
+/// The pixels under the bubble the buffer shows, as its scene shows them without it.
 pub(crate) struct Under {
-    /// The scene the pixels show, without its bubble.
-    scene: Scene,
     /// The bubble's damage, in the scene's coordinates.
     rect: Rect,
     /// The same rectangle as the buffer's whole pixels.
@@ -21,108 +27,145 @@ pub(crate) struct Under {
 }
 
 impl Raster {
-    /// Repaints `regions`, the damage from `previous` to `scene`, as `draw_regions` does.
-    /// `previous` must be the scene the pixels show.
+    /// Repaints `regions`, the damage from `previous` to `scene`, as `draw` does. `previous`
+    /// must be the scene the pixels show.
     pub fn draw_frame(
         &mut self,
         previous: &Scene,
         scene: &Scene,
         regions: &[Rect],
     ) -> Result<(), String> {
-        let mut total = Profile::default();
-        let opened = self.keep_under(previous, scene);
-        let shown = if previous.bubble_view() == scene.bubble_view() {
-            None
-        } else {
-            self.put_back(scene, &mut total)?
-        };
-        if opened.is_some() {
-            self.under = opened;
+        if !self.context.is_cpu() {
+            return self.draw_regions(scene, regions);
         }
-        for (i, &r) in regions.iter().enumerate() {
-            let twice = regions
-                .iter()
-                .enumerate()
-                .any(|(j, &o)| j != i && within(r, o) && (r != o || j < i));
-            if !twice && !shown.is_some_and(|s| within(r, s)) {
-                self.paint(scene, r, &mut total)?;
-            }
+        let mut total = Profile::default();
+        let restructured = previous.restructured(scene);
+        if restructured && relaid(previous, scene) {
+            self.images.clear();
+        }
+        let same = !restructured && previous.bubble_view() == scene.bubble_view();
+        let mut paint = if same || restructured {
+            regions.to_vec()
+        } else {
+            changed_under(previous, scene, regions).to_vec()
+        };
+        let old = previous.bubble_damage();
+        match self
+            .under
+            .take()
+            .filter(|u| !restructured && Some(u.rect) == old)
+        {
+            Some(under) if same => self.under = Some(under),
+            Some(under) => self.put_back(&under, &mut total),
+            None => paint.extend(old),
+        }
+        self.paint_once(scene, &paint, &mut total)?;
+        if self.under.is_none()
+            && let Some(rect) = scene.bubble_damage()
+        {
+            self.under = Some(self.keep(scene, rect));
+            self.blend_bubble(scene, rect, &mut total)?;
         }
         self.profile = total;
         Ok(())
     }
 
-    /// The pixels a bubble opening in this frame will cover, while they still show `previous`
-    /// without a bubble. None when no bubble opens, when the old bubble's pixels reach them, or
-    /// when the frame repaints everything.
-    fn keep_under(&self, previous: &Scene, scene: &Scene) -> Option<Under> {
-        let rect = scene.bubble_damage()?;
-        if previous.bubble_damage().is_some_and(|d| meets(d, rect)) || previous.restructured(scene)
-        {
-            return None;
-        }
-        let pixels = previous.buffer_pixels(rect);
-        let mut bytes = Vec::with_capacity(span(pixels).1 * rows(pixels).len());
-        for row in rows(pixels) {
-            bytes.extend_from_slice(&self.pixmap.data_as_u8_slice()[self.at(row, pixels)]);
-        }
-        let mut scene = previous.clone();
-        scene.bubble = None;
-        Some(Under {
-            scene,
-            rect,
-            pixels,
-            bytes,
-        })
-    }
-
-    /// Puts back the pixels kept under a bubble that has moved or gone, then paints what the
-    /// scene has changed there since: the rectangle returned now shows `scene`. None when
-    /// nothing was kept or the scene has been laid out anew.
-    fn put_back(&mut self, scene: &Scene, total: &mut Profile) -> Result<Option<Rect>, String> {
-        let Some(under) = self.under.take() else {
-            return Ok(None);
-        };
-        if under.scene.restructured(scene) {
-            return Ok(None);
-        }
-        let width = span(under.pixels).1;
-        total.restored_px += (under.pixels.width() * under.pixels.height()) as u64;
-        for (row, kept) in rows(under.pixels).zip(under.bytes.chunks_exact(width.max(1))) {
-            let at = self.at(row, under.pixels);
-            self.pixmap.data_as_u8_slice_mut()[at].copy_from_slice(kept);
-        }
-        for changed in under.scene.damage_regions(scene) {
-            if let Some(r) = overlap(changed, under.rect) {
+    /// Paints each of `regions` that lies inside no other one, the first of two the same.
+    fn paint_once(
+        &mut self,
+        scene: &Scene,
+        regions: &[Rect],
+        total: &mut Profile,
+    ) -> Result<(), String> {
+        for (i, &r) in regions.iter().enumerate() {
+            let twice = regions
+                .iter()
+                .enumerate()
+                .any(|(j, &o)| j != i && within(r, o) && (r != o || j < i));
+            if !twice {
                 self.paint(scene, r, total)?;
             }
         }
-        Ok(Some(under.rect))
-    }
-
-    /// Paints `r` as `draw` does, but where the bubble's box is solid paints the bubble alone.
-    fn paint(&mut self, scene: &Scene, r: Rect, total: &mut Profile) -> Result<(), String> {
-        let hole = scene.bubble_cover().and_then(|c| overlap(r, c));
-        self.draw_over(scene, r, hole)?;
-        total.accumulate(self.profile);
         Ok(())
     }
 
-    /// The bytes of `row` that `pixels` spans.
-    fn at(&self, row: usize, pixels: Rect) -> std::ops::Range<usize> {
-        let (start, width) = span(pixels);
-        let line = usize::from(self.pixmap.width()) * 4;
-        row * line + start..row * line + start + width
+    /// Paints `r` as `draw` does. Under a held bubble the fresh pixels are kept, and its image
+    /// laid over them again.
+    fn paint(&mut self, scene: &Scene, r: Rect, total: &mut Profile) -> Result<(), String> {
+        self.draw_scene(scene, r)?;
+        total.accumulate(self.profile);
+        let frame = self.frame();
+        let Some(under) = &mut self.under else {
+            return Ok(());
+        };
+        if let Some(fresh) = meet(scene.buffer_pixels(r), under.pixels) {
+            let pixels = self.pixmap.data_as_u8_slice();
+            copy(&mut under.bytes, under.pixels, pixels, frame, fresh);
+        }
+        self.blend_bubble(scene, r, total)
+    }
+
+    /// The buffer's pixels under the bubble `scene` shows, whose damage is `rect`.
+    fn keep(&self, scene: &Scene, rect: Rect) -> Under {
+        let pixels = scene.buffer_pixels(rect);
+        let mut bytes = vec![0; (pixels.width() * pixels.height()) as usize * 4];
+        let buffer = self.pixmap.data_as_u8_slice();
+        copy(&mut bytes, pixels, buffer, self.frame(), pixels);
+        Under {
+            rect,
+            pixels,
+            bytes,
+        }
+    }
+
+    /// Puts back the pixels kept under a bubble that has moved or gone.
+    fn put_back(&mut self, under: &Under, total: &mut Profile) {
+        let frame = self.frame();
+        let buffer = self.pixmap.data_as_u8_slice_mut();
+        copy(buffer, frame, &under.bytes, under.pixels, under.pixels);
+        total.restored_px += (under.pixels.width() * under.pixels.height()) as u64;
+    }
+
+    /// The whole buffer, in its pixels.
+    fn frame(&self) -> Rect {
+        Rect {
+            left: 0.0,
+            top: 0.0,
+            right: f32::from(self.pixmap.width()),
+            bottom: f32::from(self.pixmap.height()),
+        }
     }
 }
 
-/// Where a row of `pixels` starts, in bytes, and how many bytes it takes.
-fn span(pixels: Rect) -> (usize, usize) {
-    (pixels.left as usize * 4, pixels.width() as usize * 4)
+/// `regions` without the bubbles' own damage, which `Scene::damage_regions` gives last when the
+/// bubble changes: what changed under them. All of `regions` when they don't end so.
+fn changed_under<'a>(previous: &Scene, scene: &Scene, regions: &'a [Rect]) -> &'a [Rect] {
+    let bubbles: Vec<Rect> = previous
+        .bubble_damage()
+        .into_iter()
+        .chain(scene.bubble_damage())
+        .collect();
+    regions.strip_suffix(bubbles.as_slice()).unwrap_or(regions)
 }
 
-fn rows(pixels: Rect) -> std::ops::Range<usize> {
-    pixels.top as usize..pixels.bottom as usize
+/// Copies `area` from `from`, the rows of `from_frame`, into `to`, the rows of `to_frame`; all
+/// three in the buffer's whole pixels, `area` inside both frames.
+fn copy(to: &mut [u8], to_frame: Rect, from: &[u8], from_frame: Rect, area: Rect) {
+    for (t, f) in spans(to_frame, area).zip(spans(from_frame, area)) {
+        to[t].copy_from_slice(&from[f]);
+    }
+}
+
+/// The bytes each row of `area` takes in the rows of `frame`, four bytes a pixel.
+fn spans(frame: Rect, area: Rect) -> impl Iterator<Item = Range<usize>> {
+    let line = frame.width() as usize * 4;
+    let start = (area.left - frame.left) as usize * 4;
+    let width = area.width() as usize * 4;
+    let top = frame.top as usize;
+    (area.top as usize..area.bottom as usize).map(move |y| {
+        let at = (y - top) * line + start;
+        at..at + width
+    })
 }
 
 /// Whether `inner` lies inside `outer`, once both are rounded out to whole pixels as each is
@@ -132,19 +175,4 @@ fn within(inner: Rect, outer: Rect) -> bool {
         && inner.top.floor() >= outer.top.floor()
         && inner.right.ceil() <= outer.right.ceil()
         && inner.bottom.ceil() <= outer.bottom.ceil()
-}
-
-fn meets(a: Rect, b: Rect) -> bool {
-    overlap(a, b).is_some()
-}
-
-/// Where `a` and `b` overlap, rounded out to whole pixels; None if they do not.
-fn overlap(a: Rect, b: Rect) -> Option<Rect> {
-    let r = Rect {
-        left: a.left.max(b.left).floor(),
-        top: a.top.max(b.top).floor(),
-        right: a.right.min(b.right).ceil(),
-        bottom: a.bottom.min(b.bottom).ceil(),
-    };
-    (r.left < r.right && r.top < r.bottom).then_some(r)
 }

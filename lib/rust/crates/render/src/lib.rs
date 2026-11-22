@@ -5,6 +5,7 @@ pub mod accessibility;
 pub mod accessibility_labels;
 pub mod android_text;
 mod backend;
+mod bubble_cache;
 mod bubble_frame;
 mod color_glyphs;
 pub mod compose_velocity;

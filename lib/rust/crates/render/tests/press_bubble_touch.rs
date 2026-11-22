@@ -265,9 +265,11 @@ fn repaint(frames: &[Scene]) {
             !narrow,
             "frame {i}: a bubble repaints itself only"
         );
+        let shown = raster.pixels().to_vec();
         raster
             .draw_frame(&pair[0], &pair[1], &regions)
             .expect("raster");
+        posted(&shown, raster.pixels(), &pair[1], &regions);
         reference.draw(&pair[1], full).expect("raster");
         assert!(
             raster.pixels() == reference.pixels(),
@@ -278,6 +280,26 @@ fn repaint(frames: &[Scene]) {
         assert_eq!(
             clear, !up,
             "frame {i}: the room above shows only a bubble or popup"
+        );
+    }
+}
+
+/// Checks that every pixel that changed from `before` to `after` lies inside the damage the
+/// frame posts to the screen.
+fn posted(before: &[u8], after: &[u8], scene: &Scene, regions: &[Rect]) {
+    let width = usize::from(scene.width);
+    let posted: Vec<Rect> = regions.iter().map(|&r| scene.buffer_pixels(r)).collect();
+    let pixels = before
+        .as_chunks::<4>()
+        .0
+        .iter()
+        .zip(after.as_chunks::<4>().0);
+    for (i, _) in pixels.enumerate().filter(|(_, (a, b))| a != b) {
+        let (x, y) = ((i % width) as f32, (i / width) as f32);
+        let inside = |r: &Rect| x >= r.left && x < r.right && y >= r.top && y < r.bottom;
+        assert!(
+            posted.iter().any(inside),
+            "({x}, {y}) changed outside the damage"
         );
     }
 }
@@ -296,51 +318,46 @@ fn a_press_shows_the_keys_bubble_until_it_goes_up() {
     assert_eq!(hand.typed(), [Q]);
 }
 
+/// A tap paints its key as it did with no bubble, lays the bubble's image over it and puts the
+/// keys back when it goes up. The next tap of the key draws no bubble.
 #[test]
-fn a_tap_paints_its_bubble_once_and_its_release_puts_the_keys_back() {
+fn a_tap_paints_its_key_as_without_a_bubble_and_lays_the_bubble_over_it() {
     let mut hand = Hand::new(true);
     let before = hand.scene.clone();
     let id = hand.down(W);
     let pressed = hand.scene.clone();
     hand.up(id);
     let after = hand.scene.clone();
+    let plain = Scene {
+        bubble: None,
+        ..pressed.clone()
+    };
     let raster = |scene: &Scene| {
         let mut raster = Raster::new(scene.width, scene.buffer_height(), vec![font()]);
         raster.set_profiling(true);
         raster.draw(scene, scene.buffer_rect()).expect("raster");
         raster
     };
-    let (mut frames, mut alone) = (raster(&before), raster(&before));
-    let bubble = pressed.bubble_damage().expect("a bubble");
-    alone
-        .draw_frame(&before, &pressed, &[bubble])
-        .expect("raster");
-    let regions = before.damage_regions(&pressed);
-    frames
-        .draw_frame(&before, &pressed, &regions)
-        .expect("raster");
-    let p = frames.profile();
-    assert_eq!(
-        p.labels,
-        alone.profile().labels,
-        "the key lies inside its bubble"
+    let frame = |raster: &mut Raster, a: &Scene, b: &Scene| {
+        raster
+            .draw_frame(a, b, &a.damage_regions(b))
+            .expect("raster");
+        raster.profile()
+    };
+    let (mut frames, mut without) = (raster(&before), raster(&before));
+    let (p, q) = (
+        frame(&mut frames, &before, &pressed),
+        frame(&mut without, &before, &plain),
     );
-    let (_, _, r) = pressed.bubble_view().expect("a bubble");
-    let area = (r.width() * r.height()) as u64;
-    assert!(p.covered_px * 3 > area * 2, "most of the box paints alone");
-    let regions = pressed.damage_regions(&after);
-    frames
-        .draw_frame(&pressed, &after, &regions)
-        .expect("raster");
-    let p = frames.profile();
-    assert_eq!((p.labels, p.covered_px), (0, 0), "nothing painted again");
-    let kept = after.buffer_pixels(bubble);
-    assert_eq!(
-        p.restored_px,
-        (kept.width() * kept.height()) as u64,
-        "put back"
-    );
+    assert_eq!(p.labels, q.labels, "the key paints as with no bubble");
+    let kept = pressed.buffer_pixels(pressed.bubble_damage().expect("a bubble"));
+    let area = (kept.width() * kept.height()) as u64;
+    assert!(p.bubble_px > area / 2 && p.bubble_px <= area, "laid once");
+    assert_eq!(p.bubble_draws, 1);
+    let p = frame(&mut frames, &pressed, &after);
+    assert_eq!((p.bubble_px, p.restored_px), (0, area), "put back");
     assert!(frames.pixels() == raster(&after).pixels(), "as they were");
+    assert_eq!(frame(&mut frames, &after, &pressed).bubble_draws, 0, "kept");
 }
 
 #[test]

@@ -1,10 +1,22 @@
-//! How `Raster::draw_frame` draws the frames that open and close a press bubble: it paints
-//! everything the bubble touches and nothing past it, puts back the pixels kept under it, and
-//! paints the bubble alone only where its box hides everything under it. Each frame ends as a
-//! whole draw paints it.
+//! How `Raster::draw_frame` draws the frames that open, hold and close a press bubble: it paints
+//! what changed, lays the bubble's image over the keys, keeps the pixels under it fresh while it
+//! is held and puts them back when it goes. Each frame ends as a whole draw paints it.
 mod press_bubble_common;
 use press_bubble_common::*;
 use render::{scene::Scene, style::Style};
+
+/// The keyboard with grey keys that go dark when pressed.
+fn toned() -> Scene {
+    let mut scene = keyboard(WIDTH, 10, 0.0, 0.0);
+    let tone = |background| Style {
+        background,
+        ..Style::default()
+    };
+    for key in &mut scene.keys {
+        key.styles = [tone(0xff808080), tone(0xff202020)];
+    }
+    scene
+}
 
 /// Draws each frame's damage onto the last, as the window does, against a whole draw.
 fn frames_match(frames: &[Scene]) {
@@ -26,14 +38,7 @@ fn frames_match(frames: &[Scene]) {
 /// here a second finger on the key beside it, is painted again.
 #[test]
 fn what_changes_under_a_held_bubble_shows_when_it_goes() {
-    let mut scene = keyboard(WIDTH, 10, 0.0, 0.0);
-    let tone = |background| Style {
-        background,
-        ..Style::default()
-    };
-    for key in &mut scene.keys {
-        key.styles = [tone(0xff808080), tone(0xff202020)];
-    }
+    let scene = toned();
     let held = pressed(&scene, 12, false);
     let both = Scene {
         pressed: vec![12, 11],
@@ -50,15 +55,66 @@ fn what_changes_under_a_held_bubble_shows_when_it_goes() {
 /// A region given twice is painted once, not left out as lying inside the other.
 #[test]
 fn a_region_given_twice_is_still_painted() {
-    let scene = keyboard(WIDTH, 10, 0.0, 0.0);
-    let held = pressed(&scene, 12, false);
-    let r = held.bubble_damage().expect("view");
+    let scene = toned();
+    let held = Scene {
+        pressed: vec![12, 29],
+        ..pressed(&scene, 12, false)
+    };
+    let regions = scene.damage_regions(&held);
+    let far = regions[1];
     let mut raster = draw(&scene);
-    raster.draw_frame(&scene, &held, &[r, r]).expect("raster");
+    let twice = [regions[0], far, far, regions[2]];
+    raster.draw_frame(&scene, &held, &twice).expect("raster");
     assert!(raster.pixels() == draw(&held).pixels());
 }
 
-/// A bubble's damage holds every pixel it paints, the faintest edge of a deep shadow included.
+/// The strip painted again under a held top-row bubble: the bubble is laid over the fresh pixels
+/// there and nothing is put back or drawn anew. When it goes, the new strip shows under it.
+#[test]
+fn a_strip_painted_under_a_held_bubble_shows_through_it_and_after_it() {
+    let scene = Scene {
+        candidates: vec!["one".into(), "two".into()],
+        ..oriented(keyboard(WIDTH, 10, 2.0, 30.0), false)
+    };
+    let held = pressed(&scene, 2, false);
+    let words = Scene {
+        candidates: vec!["three".into(), "four".into()],
+        ..held.clone()
+    };
+    let gone = Scene {
+        pressed: vec![],
+        bubble: None,
+        ..words.clone()
+    };
+    let mut raster = draw(&scene);
+    raster.set_profiling(true);
+    for (i, pair) in [&scene, &held, &words, &gone].windows(2).enumerate() {
+        let regions = pair[0].damage_regions(pair[1]);
+        raster
+            .draw_frame(pair[0], pair[1], &regions)
+            .expect("raster");
+        assert!(raster.pixels() == draw(pair[1]).pixels(), "frame {i}");
+        if i == 1 {
+            let p = raster.profile();
+            let bubble = held.buffer_pixels(held.bubble_damage().expect("view"));
+            let under =
+                (bubble.bottom.min(30.0 + f32::from(held.headroom)) - bubble.top) * bubble.width();
+            assert_eq!(regions.len(), 1, "the strip alone");
+            assert!(p.bubble_px > 0 && p.bubble_px as f32 <= under);
+            assert_eq!((p.restored_px, p.bubble_draws), (0, 0));
+        }
+    }
+}
+
+/// A bubble a whole draw drew, with no pixels kept under it, goes as cleanly.
+#[test]
+fn a_bubble_drawn_whole_goes_with_its_frame() {
+    let scene = toned();
+    frames_match(&[pressed(&scene, 12, false), scene]);
+}
+
+/// A bubble's damage holds every pixel it paints, and a deep shadow fades out inside it: along the
+/// damage's own edges, where the buffer does not cut it, the bubble shows by a level at most.
 #[test]
 fn a_bubble_paints_nothing_outside_its_damage() {
     let scene = oriented(keyboard(WIDTH, 10, 2.0, 30.0), false);
@@ -75,78 +131,20 @@ fn a_bubble_paints_nothing_outside_its_damage() {
         };
         let (a, b) = (draw(&shown), draw(&hidden));
         let damage = shown.bubble_damage().expect("view");
-        let (width, room) = (usize::from(shown.width), f32::from(shown.headroom));
-        let pixels = a
-            .pixels()
-            .as_chunks::<4>()
-            .0
-            .iter()
-            .zip(b.pixels().as_chunks::<4>().0);
-        for (i, (with, without)) in pixels.enumerate() {
-            let (x, y) = ((i % width) as f32, (i / width) as f32 - room);
-            let inside = x + 1.0 > damage.left && x < damage.right;
-            let inside = inside && y + 1.0 > damage.top && y < damage.bottom;
-            assert!(
-                inside || with == without,
-                "key {key}: ({x}, {y}) outside {damage:?}"
-            );
-        }
-    }
-}
-
-/// What `Raster::draw_frame` paints with the bubble alone: whole tiles of the buffer, inside the
-/// box's rounded corners, where nothing under an opaque box shows. A see-through box has none.
-#[test]
-fn a_bubbles_solid_part_is_whole_tiles_that_hide_everything_under_it() {
-    for landscape in [false, true] {
-        let scene = oriented(keyboard(WIDTH, 10, 2.0, 30.0), landscape);
-        for key in 0..scene.keys.len() {
-            let shown = pressed(&scene, key, false);
-            let (_, _, r) = shown.bubble_view().expect("view");
-            let solid = shown.bubble_cover().expect("an opaque box");
-            let room = f32::from(shown.headroom);
-            let edges = [
-                solid.left,
-                solid.top + room,
-                solid.right,
-                solid.bottom + room,
-            ];
-            assert!(edges.iter().all(|v| v % 4.0 == 0.0), "key {key}: {solid:?}");
-            let corner = style().corners[0];
-            assert!(
-                solid.left > r.left && solid.right < r.right,
-                "key {key}: {solid:?}"
-            );
-            assert!(
-                solid.top > r.top + corner && solid.bottom < r.bottom - corner,
-                "key {key}"
-            );
-            let other = Scene {
-                background: 0xff000000,
-                ..shown.clone()
-            };
-            let (a, b) = (draw(&shown), draw(&other));
-            for y in solid.top as i32..solid.bottom as i32 {
-                for x in solid.left as i32..solid.right as i32 {
-                    let (x, y) = (x as f32, y as f32);
-                    assert_eq!(
-                        pixel(&a, &shown, x, y),
-                        pixel(&b, &other, x, y),
-                        "key {key}"
-                    );
-                }
+        let room = i32::from(shown.headroom);
+        for y in -room..i32::from(shown.height) {
+            for x in 0..i32::from(shown.width) {
+                let (x, y) = (x as f32, y as f32);
+                let inside = x + 1.0 > damage.left && x < damage.right;
+                let inside = inside && y + 1.0 > damage.top && y < damage.bottom;
+                let (with, without) = (pixel(&a, &shown, x, y), pixel(&b, &hidden, x, y));
+                assert!(inside || with == without, "key {key}: ({x}, {y}) outside");
+                let ring = x == damage.left.floor() || x + 1.0 == damage.right.ceil();
+                let ring = ring || y == damage.top.floor() || y + 1.0 == damage.bottom.ceil();
+                let ring = inside && ring;
+                let faint = with.iter().zip(without).all(|(&p, q)| p.abs_diff(q) <= 1);
+                assert!(!ring || faint, "key {key}: ({x}, {y}) on the edge");
             }
         }
     }
-    let mut glass = pressed(&keyboard(WIDTH, 10, 2.0, 30.0), 0, false);
-    let see_through = Style {
-        background: 0x80445566,
-        ..style()
-    };
-    glass.bubble.as_mut().expect("bubble").style = Some(see_through);
-    assert_eq!(
-        glass.bubble_cover(),
-        None,
-        "a see-through box hides nothing"
-    );
 }

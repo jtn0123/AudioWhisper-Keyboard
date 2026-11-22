@@ -84,28 +84,4 @@ impl Scene {
         let (_, style, r) = self.bubble_view()?;
         Some(crate::shadow_raster::extent(r, style.shadow))
     }
-
-    /// The whole 4-by-4 tiles of the buffer that the bubble's box paints solid, in the scene's
-    /// coordinates: nothing drawn under them shows. Vello paints a tile that no edge crosses
-    /// as one solid run, so each of these pixels ends as the box's colour, whatever was drawn
-    /// before it. Any corner stays inside its radius square. None unless the box is opaque.
-    pub fn bubble_cover(&self) -> Option<Rect> {
-        let (_, style, bounds) = self.bubble_view()?;
-        if style.background >> 24 != 0xff {
-            return None;
-        }
-        let r = crate::smartbar::inset(bounds, style.margin);
-        let corner = style
-            .radii(r.width(), r.height())
-            .into_iter()
-            .fold(0.0, f32::max);
-        let (down, up) = (f32::from(self.headroom), |v: f32| (v / 4.0).ceil() * 4.0);
-        let cover = Rect {
-            left: up(r.left + 1.0),
-            top: up(r.top + corner + 1.0 + down) - down,
-            right: ((r.right - 1.0) / 4.0).floor() * 4.0,
-            bottom: ((r.bottom - corner - 1.0 + down) / 4.0).floor() * 4.0 - down,
-        };
-        (cover.left < cover.right && cover.top < cover.bottom).then_some(cover)
-    }
 }
