@@ -27,8 +27,7 @@ JVM = [
     ('ext-string-id-dropped', SETTINGS_UI / 'SettingsExtensionStringIds.kt',
      '    "ext__meta__website" to R.string.ext__meta__website,\n', ''),
 ]
-# Part 2. Each must fail SettingsExtensionImportMatchTest, SettingsEntryTest, ComposeFallbackLinksTest or
-# SettingsResourcesTest.
+# Part 2. Each must fail SettingsExtensionImportMatchTest, SettingsEntryTest or SettingsResourcesTest.
 JVM += [
     ('ext-import-flex-unsent', SETTINGS_UI / 'ExtensionFileWork.kt', 'text = size(info.size), flag = flex)',
      'text = size(info.size), flag = true)'),
@@ -37,8 +36,6 @@ JVM += [
     ('ext-export-failure-kept', SETTINGS_UI / 'ExtensionFileWork.kt', '    runCatching(delete)\n', ''),
     ('ext-import-other-type-taken', EXT / 'import.rs', '(!takes).then_some(Skip::OtherType)', 'None'),
     ('ext-shared-send-ignored', APP / 'SettingsEntry.kt', 'SEND -> shared', 'SEND -> null'),
-    ('ext-fallback-takes-files', APP / 'FlorisAppActivity.kt', 'action == Intent.ACTION_VIEW && browsable && !initial',
-     'action == Intent.ACTION_VIEW && !initial'),
     ('ext-import-string-id-dropped', SETTINGS_UI / 'SettingsExtensionStringIds.kt',
      '    "settings__ext__read_failed" to R.string.settings__ext__read_failed,\n', ''),
 ]

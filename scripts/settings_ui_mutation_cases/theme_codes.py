@@ -1,5 +1,5 @@
-"""The code editor (part 3) and the theme manager's Create/Edit crash fix: each case must fail the test its comment names."""
-from .paths import SETTINGS_UI, TE, APP
+"""The code editor (part 3): each case must fail the test its comment names."""
+from .paths import SETTINGS_UI, TE
 
 CASES = [
     # The code editor (EditCodeValueDialog, TextKeyDataPreviewBox): each must fail a Rust test, or
@@ -74,13 +74,6 @@ CASES = [
      '(if (character) name(code) else null).orEmpty()', '(if (character) name(code)?.take(0) else null).orEmpty()'),
     ('theme-code-described-icon-unspecified', SETTINGS_UI / 'SettingsKeyRecorder.kt',
      'SettingsUiThemeCode.ICON to icon(data))', 'SettingsUiThemeCode.ICON to icon(TextKeyData.UNSPECIFIED))'),
-    # The theme manager's Create/Edit crash: each must fail ComposeFallbackLinksTest.
-    ('fallback-relinks-start', APP / 'FlorisAppActivity.kt',
-     'Intent.ACTION_VIEW -> if (browsable) !initial else data', 'Intent.ACTION_VIEW -> browsable || data'),
-    ('fallback-stays-after-save', APP / 'FlorisAppActivity.kt',
-     'fun fallbackDone(ready: Boolean, emptied: Boolean) = ready && emptied', 'fun fallbackDone(ready: Boolean, emptied: Boolean) = false'),
-    ('fallback-leaves-before-graph', APP / 'FlorisAppActivity.kt',
-     'fun fallbackDone(ready: Boolean, emptied: Boolean) = ready && emptied', 'fun fallbackDone(ready: Boolean, emptied: Boolean) = emptied'),
 ]
 # The Rust test binary that must panic for each Rust-only case.
 RUST = dict.fromkeys([

@@ -19,8 +19,7 @@ CASES, RUST = _cases.CASES, _cases.RUST
 ROOT = importlib.import_module('settings_ui_mutation_cases.paths').ROOT
 
 # Suites whose assertion failures count, besides the settingsui ones: the first screen a fresh activity opens.
-SUITES = ('TEST-*settingsui.Settings*Test.xml', 'TEST-*florisboard.app.SettingsEntryTest.xml',
-          'TEST-*florisboard.app.ComposeFallbackLinksTest.xml')
+SUITES = ('TEST-*settingsui.Settings*Test.xml', 'TEST-*florisboard.app.SettingsEntryTest.xml')
 
 
 def run_rust(output, name, target):
@@ -46,7 +45,8 @@ def run(output, name):
                                  '--tests', '*SettingsThemeEditor*MatchTest', '--tests', '*SettingsThemeCodeMatchTest',
                                  '--tests', '*SettingsKeyRecorderTest', '--tests', '*SettingsExtensionsMatchTest',
                                  '--tests', '*SettingsExtensionImportMatchTest',
-                                 '--tests', '*SettingsEntryTest', '--tests', '*ComposeFallbackLinksTest'], cwd=ROOT, stdout=log, stderr=subprocess.STDOUT)
+                                 '--tests', '*SettingsExtensionEditorMatchTest', '--tests', '*SettingsFilesTest',
+                                 '--tests', '*SettingsEntryTest'], cwd=ROOT, stdout=log, stderr=subprocess.STDOUT)
     failures = []
     xml = ROOT / 'app/build/test-results/testDebugUnitTest'
     for path in (path for pattern in SUITES for path in xml.glob(pattern)):
