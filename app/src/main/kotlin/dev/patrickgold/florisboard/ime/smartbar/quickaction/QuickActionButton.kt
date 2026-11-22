@@ -105,7 +105,7 @@ fun QuickActionButton(
     val spokenName = when {
         litMic -> stringResource(R.string.dictation__stop)
         litSpeaker -> stringResource(R.string.read_aloud__stop)
-        else -> action.computeDisplayName(evaluator = evaluator)
+        else -> action.computeDisplayName()
     }
     val readFromTop = stringResource(R.string.quick_action__read_aloud__from_top)
     val pressable = isEnabled && type != QuickActionBarType.EDITOR_TILE
@@ -219,7 +219,7 @@ fun QuickActionButton(
                         elementName = "$elementName-text",
                         attributes = attributes,
                         selector = selector,
-                        text = action.computeDisplayName(evaluator = evaluator),
+                        text = action.computeDisplayName(),
                     )
                 }
             }

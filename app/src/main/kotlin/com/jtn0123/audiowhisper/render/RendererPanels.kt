@@ -30,7 +30,6 @@ internal fun rendererPanels(): RendererPanels {
     val manager by context.keyboardManager()
     val prefs by FlorisPreferenceStore
     val state by manager.activeState.collectAsState()
-    val evaluator by manager.activeSmartbarEvaluator.collectAsState()
     val keyboard by manager.activeEvaluator.collectAsState()
     val arrangement by prefs.smartbar.actionArrangement.observeAsState()
     val actions = (listOfNotNull(arrangement.stickyAction) + arrangement.dynamicActions + arrangement.hiddenActions +
@@ -48,7 +47,7 @@ internal fun rendererPanels(): RendererPanels {
     val gif = rendererGif()
     val labels = actions.flatMapIndexed { i, action ->
         val icon = if (action is QuickAction.InsertKey) keyIconVector(keys.icon(i), context) else null
-        listOf(action.computeDisplayName(evaluator), when (action) {
+        listOf(action.computeDisplayName(), when (action) {
             is QuickAction.InsertKey -> if (icon == null) keys.label(i) ?: "" else ""
             is QuickAction.InsertText -> action.data.firstOrNull().toString().ifBlank { "?" }
         }, icon?.let(::iconPath) ?: "")

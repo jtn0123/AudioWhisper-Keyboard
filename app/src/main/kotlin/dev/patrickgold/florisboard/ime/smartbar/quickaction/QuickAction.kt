@@ -75,7 +75,7 @@ fun QuickAction.keyData(): KeyData {
 }
 
 @Composable
-fun QuickAction.computeDisplayName(evaluator: ComputingEvaluator): String {
+fun QuickAction.computeDisplayName(): String {
     return when (this) {
         is QuickAction.InsertKey -> stringRes(when (data.code) {
             KeyCode.ARROW_UP -> R.string.quick_action__arrow_up
