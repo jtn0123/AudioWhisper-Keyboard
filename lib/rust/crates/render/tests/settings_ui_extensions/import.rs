@@ -162,6 +162,21 @@ fn leaving_the_importer_any_way_closes_its_workspace() {
     let (mut a, _) = importer(ANY);
     a.back();
     assert!(a.effects.is_empty(), "{:?}", a.effects);
+    // A read that finishes after the importer was left deletes what it read; a failed one
+    // read nothing to delete.
+    let (mut a, mut text) = importer(ANY);
+    assert!(tap(&mut a, &mut text, SELECT_ID));
+    a.file_report(&picked_report(how::PICKED, &["9"])).unwrap();
+    a.back();
+    a.effects.clear();
+    a.file_report(&done_report(job::EXT_READ, result::OK, "w9"))
+        .unwrap();
+    assert_eq!(a.effects, [["extensionFilesClose", "w9"]]);
+    assert_eq!(a.stack.last().map(String::as_str), Some(HOME_ROUTE));
+    a.effects.clear();
+    a.file_report(&done_report(job::EXT_READ, result::UNREADABLE, ""))
+        .unwrap();
+    assert!(a.effects.is_empty(), "{:?}", a.effects);
 }
 
 #[test]
