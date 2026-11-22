@@ -7,6 +7,7 @@ mod dictation;
 mod emoji;
 mod gif;
 mod giphy;
+mod input;
 mod keys;
 mod latin;
 mod layout;
@@ -63,6 +64,8 @@ pub const CLASSES: &[Class] = &[
     reader::READER_NATIVE,
     reader_runtime::READER_WALK,
     reader_runtime::PLAYBACK_NATIVE,
+    input::INPUT_RULES,
+    input::INPUT_NATIVE,
 ];
 
 /// Every generated api over those classes.
@@ -94,6 +97,7 @@ pub const APIS: &[Api] = &[
     reader::SPEAKER_KEY_STATE,
     reader_runtime::READER_TIMING,
     reader_runtime::PLAYBACK_QUEUE,
+    input::INPUT_DISPATCH,
 ];
 
 /// Every generated top-level record, enum and interface, with the declarations file and the module it is in.

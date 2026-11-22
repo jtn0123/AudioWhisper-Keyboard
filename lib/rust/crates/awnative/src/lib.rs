@@ -82,7 +82,7 @@ mod render_subtypes;
 
 mod media_oracle;
 
-mod input;
+pub(crate) mod input;
 
 mod nlp;
 
