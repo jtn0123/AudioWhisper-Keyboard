@@ -65,6 +65,30 @@ fn a_label_waiting_on_its_case_looks_nothing_up() {
 }
 
 #[test]
+fn a_key_waiting_on_its_case_goes_no_further() {
+    // A shifted auto-text letter waits on its upper case. Main stops the key there, so its popup
+    // lookup lowercases only the answered "A", never the "a" standing in for it.
+    let layout = r#"[[{"$":"auto_text_key","code":97,"label":"a"}]]"#;
+    let mut graph = Graph::build(&Request {
+        layouts: Files {
+            main: Some(layout),
+            ..Files::default()
+        },
+        ..Request::default()
+    });
+    let shifted = Facts {
+        state: 1 << 8,
+        ..Facts::default()
+    };
+    let lowered: Vec<String> = compute(&mut graph, &shifted)
+        .iter()
+        .filter(|question| question.ask == ask::LOWER_TEXT)
+        .map(|question| String::from_utf16_lossy(&question.value))
+        .collect();
+    assert_eq!(lowered, ["A"]);
+}
+
+#[test]
 fn a_file_read_twice_is_parsed_once() {
     let layout = r#"[[{"code":97,"label":"a","popup":{"main":{"code":98}}}]]"#.to_string();
     let mapping = r#"{"all":{"a":{"main":{"code":98,"popup":{"main":{"code":99}}}}}}"#.to_string();
