@@ -3,10 +3,13 @@ package com.jtn0123.audiowhisper.settingsui
 import android.content.res.Resources
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.FormatAlignLeft
+import androidx.compose.material.icons.automirrored.filled.FormatAlignRight
 import androidx.compose.material.icons.automirrored.filled.HelpOutline
 import androidx.compose.material.icons.automirrored.filled.Input
 import androidx.compose.material.icons.automirrored.filled.LibraryBooks
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
+import androidx.compose.material.icons.automirrored.filled.WrapText
 import androidx.compose.material.icons.automirrored.outlined.Assignment
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.Build
@@ -58,5 +61,16 @@ internal fun settingsIcons(resources: Resources): Array<String> {
         "@icon:arrow_downward" to Icons.Default.ArrowDownward, "@icon:arrow_drop_down" to Icons.Default.ArrowDropDown,
         "@icon:search" to Icons.Default.Search, "@icon:input" to Icons.AutoMirrored.Filled.Input,
         "@icon:open_in_new" to Icons.AutoMirrored.Filled.OpenInNew,
+        // The theme editor's value icons, as SnyggValueIcon drew them.
+        "@icon:font_download" to Icons.Default.FontDownload, "@icon:format_italic" to Icons.Default.FormatItalic,
+        "@icon:format_bold" to Icons.Default.FormatBold, "@icon:padding" to Icons.Default.Padding,
+        "@icon:straighten" to Icons.Default.Straighten, "@icon:format_size" to Icons.Default.FormatSize,
+        "@icon:format_align_left" to Icons.AutoMirrored.Filled.FormatAlignLeft,
+        "@icon:format_align_right" to Icons.AutoMirrored.Filled.FormatAlignRight,
+        "@icon:format_align_justify" to Icons.Default.FormatAlignJustify, "@icon:format_align_center" to Icons.Default.FormatAlignCenter,
+        "@icon:format_strikethrough" to Icons.Default.FormatStrikethrough, "@icon:format_underlined" to Icons.Default.FormatUnderlined,
+        "@icon:wrap_text" to Icons.AutoMirrored.Filled.WrapText, "@icon:attach_file" to Icons.Default.AttachFile,
+        "@icon:open_in_full" to Icons.Default.OpenInFull, "@icon:check_box" to Icons.Default.CheckBox,
+        "@icon:check_box_outline_blank" to Icons.Default.CheckBoxOutlineBlank, "@icon:link" to Icons.Default.Link,
     )).flatMap { (name, icon) -> listOf(name, iconPath(icon)) }.toTypedArray()
 }

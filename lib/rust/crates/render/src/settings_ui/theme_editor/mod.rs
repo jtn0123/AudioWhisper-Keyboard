@@ -10,6 +10,7 @@ pub mod boxes;
 pub mod dynamic;
 pub mod form;
 pub mod form_paint;
+pub mod glyphs;
 pub mod meta;
 pub mod names;
 pub mod paint;
