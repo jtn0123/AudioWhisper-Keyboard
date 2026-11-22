@@ -59,6 +59,9 @@ crate::declare! {
         /// A [`SettingsUiSelection`](text::selection::KINDS) on the read-only text, then its
         /// fields.
         SELECTION = 26,
+        /// The installed themes a [`SettingsUiThemeEffect`](themes::effect::KINDS) asked for:
+        /// [`SettingsUiTheme`](themes::row::FIELDS) rows.
+        THEMES = 27,
     }
 }
 
@@ -145,6 +148,7 @@ pub mod query {
 pub mod files;
 pub mod languages;
 pub mod text;
+pub mod themes;
 pub mod words;
 
 /// The groups the generator writes as Kotlin.
@@ -172,6 +176,9 @@ pub const GROUPS: &[&crate::Group] = &[
     &text::outcome::KINDS,
     &text::selection::KINDS,
     &text::node::IDS,
+    &themes::effect::KINDS,
+    &themes::kind::KINDS,
+    &themes::row::FIELDS,
     &words::effect::KINDS,
     &words::dictionary::KINDS,
     &words::kind::KINDS,
