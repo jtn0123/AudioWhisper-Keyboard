@@ -1316,7 +1316,7 @@ see lib/rust, so groups it calls with are generated there, with its own internal
 ```bash
 ./gradlew :lib:rust:check   # cargo test and clippy (warnings as errors) on every crate (here,
                             # and awnative for Android with and without the GPU renderer),
-                            # rustfmt --check
+                            # rustfmt --check, and rustdoc with warnings as errors
 ./gradlew test              # every JVM test, including those that go through JNI
 ./gradlew :app:checkNativeDeclarations   # the debug APK's JNI exports and types against the Kotlin
 ```
@@ -1350,7 +1350,7 @@ generated Rust only, which still compiles, since every JNI reference type is an 
 laid out as rustfmt would.
 
 Or, from `lib/rust`, plain `cargo test --workspace`, `cargo clippy --workspace --all-targets --
--D warnings` and `cargo fmt`. CI also runs `cargo audit` there, against RustSec's advisories.
+-D warnings`, `cargo fmt` and `RUSTDOCFLAGS='-D warnings' cargo doc --workspace --no-deps`. CI also runs `cargo audit` there, against RustSec's advisories.
 
 The Vello Hybrid GPU renderer (wgpu over Vulkan, behind the `aw-hybrid` log switch) is built only
 on request, with the `hybrid` feature of `render` and `awnative`: `-PhybridRenderer=true` for an

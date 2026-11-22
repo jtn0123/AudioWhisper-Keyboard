@@ -293,9 +293,15 @@ val cargoFmtCheck = tasks.register<Cargo>("cargoFmtCheck") {
     configureCargo("fmt", "--all", "--check")
 }
 
+val cargoDocCheck = tasks.register<Cargo>("cargoDocCheck") {
+    description = "Builds every crate's docs, failing on any rustdoc warning (a broken or private link, a bare URL)."
+    configureCargo("doc", "--workspace", "--no-deps", "--locked")
+    environment.put("RUSTDOCFLAGS", "-D warnings")
+}
+
 tasks.named("check") {
     dependsOn(
-        cargoTest, cargoClippy, cargoAndroidClippy, cargoAndroidHybridClippy, cargoFmtCheck,
+        cargoTest, cargoClippy, cargoAndroidClippy, cargoAndroidHybridClippy, cargoFmtCheck, cargoDocCheck,
         ":app:checkNativeDeclarations",
     )
 }
