@@ -1,6 +1,6 @@
-//! The typing decoder, ported from LatinIME's C++ (`lib/latinime/src/main/jni`): the bundled
-//! dictionary read from its bytes, and the search that turns taps and the words before them into
-//! suggestions.
+//! The typing decoder, ported from LatinIME's C++ (AOSP's `native/jni`; see `NOTICE`): the
+//! bundled dictionary read from its bytes, and the search that turns taps and the words before
+//! them into suggestions.
 //!
 //! Each module is one area of the C++ and names the files it ports. The port keeps the C++'s
 //! types (`i32` code points and positions, `f32` scores) and order of operations, so its answers
