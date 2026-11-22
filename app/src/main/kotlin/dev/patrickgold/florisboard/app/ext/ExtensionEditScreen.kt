@@ -36,6 +36,7 @@ import androidx.compose.material.icons.filled.Code
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -49,9 +50,9 @@ import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.unit.dp
 import dev.patrickgold.florisboard.R
 import dev.patrickgold.florisboard.app.LocalNavController
+import dev.patrickgold.florisboard.app.ThemeEditorActivity
 import dev.patrickgold.florisboard.app.settings.theme.DialogProperty
 import dev.patrickgold.florisboard.app.settings.theme.PrettyPrintConfig
-import dev.patrickgold.florisboard.app.settings.theme.ThemeEditorScreen
 import dev.patrickgold.florisboard.cacheManager
 import dev.patrickgold.florisboard.extensionManager
 import dev.patrickgold.florisboard.ime.keyboard.KeyboardExtension
@@ -208,7 +209,13 @@ private fun ExtensionEditScreenSheetSwitcher(
                 }
                 is EditorAction.ManageComponent -> when (action.editor) {
                     is ThemeExtensionComponentEditor -> {
-                        ThemeEditorScreen(workspace, action.editor)
+                        // The theme editor is native now (stage4-theme-editor.md, part 2), in its own activity
+                        // over this one, which keeps the workspace open while it edits.
+                        val context = LocalContext.current
+                        LaunchedEffect(action) {
+                            ThemeEditorActivity.open(context, workspace, action.editor)
+                            workspace.currentAction = null
+                        }
                     }
                     else -> {
                         // Render nothing

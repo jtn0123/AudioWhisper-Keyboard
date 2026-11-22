@@ -37,6 +37,7 @@ internal class RustSettingsView(context: Context) : FrameLayout(context), Surfac
     private lateinit var languages: SettingsLanguages
     private lateinit var words: SettingsWords
     private lateinit var themes: SettingsThemes
+    private lateinit var themeEditor: SettingsThemeEditor
     private lateinit var setup: SettingsSetup
     var backAvailability: (Boolean) -> Unit = {}
     private var fallback: (String, List<String>) -> Unit = { _, _ -> }
@@ -102,6 +103,7 @@ internal class RustSettingsView(context: Context) : FrameLayout(context), Surfac
         languages = SettingsLanguages(activity) { if (!released) receive(native.settings(SettingsUiOp.LANGUAGES, it)) }
         words = SettingsWords(activity) { if (!released) receive(native.settings(SettingsUiOp.WORDS, it)) }
         themes = SettingsThemes(activity) { if (!released) receive(native.settings(SettingsUiOp.THEMES, it)) }
+        themeEditor = SettingsThemeEditor(activity) { if (!released) receive(native.settings(SettingsUiOp.THEME_EDITOR, it)) }
         receive(native.settings(SettingsUiOp.PREFERENCES, platform.snapshot()))
         if (restored != null) receive(native.settings(SettingsUiOp.RESTORE, restored))
         setup = SettingsSetup(activity, ::configure) { if (!released) receive(native.settings(SettingsUiOp.PERMISSION, it)) }
@@ -180,6 +182,7 @@ internal class RustSettingsView(context: Context) : FrameLayout(context), Surfac
                 SettingsUiWordEffect.RESTORE, SettingsUiWordEffect.IMPORT, SettingsUiWordEffect.MANAGER -> words.execute(p)
                 SettingsUiTextEffect.ASSET, SettingsUiTextEffect.CLIP, SettingsUiTextEffect.HAPTIC -> readOnly.execute(p)
                 SettingsUiThemeEffect.LOAD, SettingsUiThemeEffect.PREVIEW -> themes.execute(p)
+                SettingsUiThemeEditorEffect.LOAD, SettingsUiThemeEditorEffect.SAVE, SettingsUiThemeEditorEffect.PREVIEW -> themeEditor.execute(p)
                 SettingsUiSetupEffect.ASK, SettingsUiSetupEffect.NOTIFICATION_SETTINGS, SettingsUiSetupEffect.RETURN -> setup.execute(p)
             }
         }
@@ -280,6 +283,7 @@ internal class RustSettingsView(context: Context) : FrameLayout(context), Surfac
         if (::facts.isInitialized) facts.release()
         if (::files.isInitialized) files.release()
         if (::themes.isInitialized) themes.release()
+        if (::themeEditor.isInitialized) themeEditor.release()
         if (::setup.isInitialized) setup.release()
         selectionMenu.close(); accessibility.release(); native.detach(); native.close()
     }

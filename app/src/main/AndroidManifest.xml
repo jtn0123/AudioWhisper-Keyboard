@@ -102,6 +102,13 @@
             android:theme="@style/FlorisAppTheme.Splash"
             android:exported="false" />
 
+        <!-- The Rust theme editor, over the Compose extension editor that opened it -->
+        <activity
+            android:name="dev.patrickgold.florisboard.app.ThemeEditorActivity"
+            android:windowSoftInputMode="adjustResize"
+            android:theme="@style/FlorisAppTheme.Splash"
+            android:exported="false" />
+
         <!-- The launcher entry, also the settings activity named in method.xml and spellchecker.xml -->
         <activity-alias
             android:name="dev.patrickgold.florisboard.SettingsLauncherAlias"

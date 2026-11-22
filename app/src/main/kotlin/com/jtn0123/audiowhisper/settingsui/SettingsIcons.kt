@@ -44,7 +44,8 @@ internal fun settingsIcons(resources: Resources): Array<String> {
         "@icon:palette" to Icons.Default.Palette, "@icon:format_color_fill" to Icons.Default.FormatColorFill,
         "@icon:keyboard_keys" to ImageVector.vectorResource(null, resources, R.drawable.ic_keyboard_keys),
         "@icon:archive" to Icons.Default.Archive, "@icon:settings_backup_restore" to Icons.Default.SettingsBackupRestore,
-        "@icon:edit" to Icons.Default.Edit, "@icon:done" to Icons.Default.Done, "@icon:clear" to Icons.Default.Clear,
+        "@icon:edit" to Icons.Default.Edit, "@icon:done" to Icons.Default.Done, "@icon:tune" to Icons.Default.Tune,
+        "@icon:content_copy" to Icons.Default.ContentCopy, "@icon:clear" to Icons.Default.Clear,
         // The time picker's switch back from the keyboard to the dial.
         "@icon:clock" to Icons.Default.Schedule,
         // Theme, and its addon box's button.
