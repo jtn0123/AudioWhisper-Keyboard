@@ -37,3 +37,22 @@ one. The two dumps are byte-identical (383 cases, 255 Rust targets; SHA-256
 `71b977d8…3c55`). The dump script was a scratch file and is not committed. The split was made by
 slicing the old file's source lines, so each case's text is the same characters, comments
 included.
+
+**Every module still runs.** One case from each module went through the split runner, in a clean
+worktree at the split commit:
+
+| Module | Case | Runs | Result |
+| --- | --- | --- | --- |
+| `general.py` | `toggle` | JVM | caught (4 assertions) |
+| `other_theme.py` | `time-drag-rounds-down` | Rust | caught |
+| `languages.py` | `search-tag-anywhere` | Rust | caught |
+| `words.py` | `word-list-reorders` | Rust | caught |
+| `project_licence.py` | `licence-asked-every-frame` | Rust | caught |
+| `themes.py` | `theme-sort-by-code-point` | JVM | caught |
+| `setup.py` | `setup-unasked-inverted` | Rust | caught (8 panics) |
+| `theme_editor.py` | `theme-editor-order-reversed` | Rust | caught (57 panics) |
+| `property_editor.py` | `theme-editor-corners-key-unlisted` | Rust | caught |
+| `property_values.py` | `colour-alpha-hundredths-truncated` | Rust | caught |
+| `theme_codes.py` | `theme-code-string-id-dropped` | JVM | caught |
+
+The restored run passed (exit 0), and every source's SHA-256 after the run matched the commit's.
