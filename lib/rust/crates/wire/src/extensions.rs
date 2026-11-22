@@ -19,11 +19,6 @@ crate::declare! {
         MANIFEST = 5,
         /// A serial type's group: a [`group`] row.
         GROUP = 6,
-        /// Whether a requested type accepts a serial type: a flag.
-        ACCEPTS = 7,
-        /// The supported, parsed and core flags: an [`ExtensionSkipReason`](SKIP_REASONS), or
-        /// empty.
-        SKIP_REASON = 8,
         /// Whether each archive entry's name is accepted: a flag each.
         ARCHIVE_NAMES = 9,
         /// A theme component's id, label, stylesheet and authors: a [`theme`] row.
@@ -67,15 +62,6 @@ crate::declare! {
         DIRECTORY = "directory",
         COPY = "copy",
         EMPTY = "empty",
-    }
-}
-
-crate::declare! {
-    /// Why a file can't be imported. A file that can comes back empty.
-    pub const SKIP_REASONS: object ExtensionSkipReason(str) {
-        UNSUPPORTED = "unsupported",
-        CORRUPTED = "corrupted",
-        CORE = "core",
     }
 }
 
@@ -190,7 +176,6 @@ pub const GROUPS: &[&crate::Group] = &[
     &RULES,
     &VALIDITY,
     &ARCHIVE_ACTIONS,
-    &SKIP_REASONS,
     &COMPOSER_TYPES,
     &validation::FIELDS,
     &maintainer::FIELDS,

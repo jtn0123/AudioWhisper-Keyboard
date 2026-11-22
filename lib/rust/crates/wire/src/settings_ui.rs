@@ -82,6 +82,10 @@ crate::declare! {
         /// How work on an extension ended: a
         /// [`SettingsUiExtensionDone`](extensions::done::FIELDS) packet.
         EXTENSION_DONE = 51,
+        /// The import workspace an `extensionFiles` effect asked about:
+        /// [`SettingsUiExtension`](extensions::row::FIELDS) rows of the
+        /// [`SettingsUiImportKind`](extensions::file::KINDS) kinds.
+        EXTENSION_FILES = 52,
     }
 }
 
@@ -183,6 +187,8 @@ pub const GROUPS: &[&crate::Group] = &[
     &edit::OPS,
     &query::KINDS,
     &extensions::effect::KINDS,
+    &extensions::link::KINDS,
+    &extensions::file::KINDS,
     &extensions::kind::KINDS,
     &extensions::row::FIELDS,
     &extensions::work::KINDS,

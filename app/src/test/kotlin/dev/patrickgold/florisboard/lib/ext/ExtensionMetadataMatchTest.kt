@@ -122,12 +122,6 @@ class ExtensionMetadataMatchTest {
         val serials = listOf("ime.extension.keyboard", "ime.extension.theme", "ime.extension.languagepack", "unknown", "")
         for (serial in serials) {
             assertEquals(outcome { ReferenceExtensionPolicy.group(serial) }, outcome { ExtensionPolicy.group(serial) })
-            for (requested in listOf("ext-any", "ext-keyboard", "ext-theme", "ext-languagepack", "unknown")) {
-                assertEquals(ReferenceExtensionPolicy.accepts(requested, serial), ExtensionPolicy.accepts(requested, serial))
-            }
-        }
-        for (supported in listOf(false, true)) for (parsed in listOf(false, true)) for (core in listOf(false, true)) {
-            assertEquals(ReferenceExtensionPolicy.skip(supported, parsed, core), ExtensionPolicy.skipReason(supported, parsed, core))
         }
         assertEquals("appender", ExtensionPolicy.composerType("unknown"))
         assertEquals("appender", ExtensionPolicy.composerType(null))

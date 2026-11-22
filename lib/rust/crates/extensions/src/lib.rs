@@ -108,20 +108,6 @@ pub fn call(operation: i32, input: &[Text]) -> Result<Vec<Text>, Error> {
                 row
             }
         }),
-        (ops::ACCEPTS, [requested, serial]) => Ok(vec![flag::utf16(
-            manifest::Kind::of(serial).is_some_and(|kind| manifest::accepts(requested, kind)),
-        )]),
-        (ops::SKIP_REASON, [supported, parsed, core]) => {
-            Ok(vec![text(if !flag::decode(supported) {
-                ops::UNSUPPORTED
-            } else if !flag::decode(parsed) {
-                ops::CORRUPTED
-            } else if flag::decode(core) {
-                ops::CORE
-            } else {
-                ""
-            })])
-        }
         (ops::ARCHIVE_NAMES, names) => {
             Ok(archive::names(names).into_iter().map(flag::utf16).collect())
         }

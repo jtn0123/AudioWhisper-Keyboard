@@ -24,10 +24,6 @@ object ExtensionPolicy {
         check(it[ExtensionGroupPlan.ERROR].isEmpty()) { it[ExtensionGroupPlan.ERROR] }
         it[ExtensionGroupPlan.GROUP]
     }
-    fun accepts(requested: String, serialType: String): Boolean = WireFlag.decode(call(ExtensionOp.ACCEPTS, requested, serialType)[0])
-    /** An [ExtensionSkipReason], or empty. */
-    fun skipReason(supported: Boolean, parsed: Boolean, core: Boolean): String =
-        call(ExtensionOp.SKIP_REASON, WireFlag.encode(supported), WireFlag.encode(parsed), WireFlag.encode(core))[0]
     fun archiveNames(names: List<String>): List<Boolean> = call(ExtensionOp.ARCHIVE_NAMES, *names.toTypedArray()).map(WireFlag::decode)
     /** An [ExtensionThemePlan] row. */
     fun themeComponent(id: String, label: String, stylesheet: String, authors: List<String>): List<String> =

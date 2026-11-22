@@ -84,6 +84,15 @@ pub mod job {
             /// Write a user dictionary export to the picked document: `dictionary=`, the
             /// document's last path segment, then the work's `TEXT`.
             WORDS_WRITE = "wordsWrite",
+            /// Read the picked documents (`DOCUMENT`, their handles joined by `|`) into a new
+            /// import workspace. `NAME` reports its id.
+            EXT_READ = "extRead",
+            /// Import the files at the indexes in `TEXT`, joined by `,`, from the import
+            /// workspace `EXTENSION`, then close it.
+            EXT_IMPORT = "extImport",
+            /// Write the extension `EXTENSION` into the picked document as a `.flex` archive.
+            /// Kotlin deletes the document when it could not be written.
+            EXT_EXPORT = "extExport",
         }
     }
 }
@@ -168,6 +177,8 @@ pub mod work {
             DOCUMENT,
             /// The text to write.
             TEXT,
+            /// An extension's id, or an import workspace's.
+            EXTENSION,
         }
     }
 }
@@ -182,7 +193,7 @@ pub mod done {
             JOB,
             /// A [`SettingsUiJobResult`](super::result::KINDS).
             RESULT,
-            /// The prepared archive's file name.
+            /// The prepared archive's file name, or the id of the import workspace read.
             NAME,
             /// The backup's package, version code and version name.
             PACKAGE,

@@ -1,7 +1,9 @@
-//! What the extension screens (the addon home, the extension lists, an extension's page and Check
-//! for updates) ask Kotlin for. Rust draws them, builds the update link and decides what each
-//! page shows; Kotlin reads the extension index and deletes an extension, which live in the
-//! extension manager, and names a link's host as Android's `Uri` parses it.
+//! What the extension screens (the addon home, the extension lists, an extension's page, Check
+//! for updates and the importer) ask Kotlin for. Rust draws them, builds the update link and
+//! decides what each page shows and which files an import takes; Kotlin reads the extension
+//! index, deletes an extension, describes and closes an import's workspace, and names a link's
+//! host as Android's `Uri` parses it. Reading, importing and exporting archives are file work
+//! (`files::job`).
 //!
 //! A value the index holds as null is a row left out: an extension with no description sends no
 //! `description` row, and a maintainer with no email no `email` row.
@@ -17,6 +19,49 @@ pub mod effect {
             /// Delete the extension whose id is the next field. Kotlin answers with an
             /// `EXTENSION_DONE` packet, after a toast when the delete failed.
             DELETE = "extensionDelete",
+            /// Describe the import workspace whose id is the next field. Kotlin answers with an
+            /// `EXTENSION_FILES` report.
+            FILES = "extensionFiles",
+            /// Close the import workspace whose id is the next field, deleting what was read
+            /// into it. Kotlin does not answer.
+            CLOSE = "extensionFilesClose",
+        }
+    }
+}
+
+/// The importer's link.
+pub mod link {
+    crate::declare! {
+        /// Where a file shared with, or opened in, the app starts the importer.
+        pub const KINDS: object SettingsUiExtensionLink(str) {
+            /// The route that imports any extension from the document whose handle follows it.
+            SHARED = "ext/import/EXT_ANY?document=",
+        }
+    }
+}
+
+/// What an `EXTENSION_FILES` report row is.
+pub mod file {
+    crate::declare! {
+        /// What a [`SettingsUiExtension`](super::row::FIELDS) row of an `EXTENSION_FILES` report
+        /// is: a `workspace` row, then each file with the rows that belong to it.
+        pub const KINDS: object SettingsUiImportKind(str) {
+            /// The workspace described: `EXTENSION` its id, `FLAG` whether it still exists.
+            WORKSPACE = "workspace",
+            /// A file read into it, in the order picked: `LABEL` its name, `DETAIL` its media
+            /// type or empty, `TEXT` its size as Android words it, and `FLAG` whether its name or
+            /// type says it is an extension archive.
+            FILE = "file",
+            /// The extension the file before it holds, read from its manifest: `EXTENSION` its
+            /// id, `ID` its serial type, `LABEL` its title, `DETAIL` its version, and `FLAG`
+            /// whether an extension with that id ships with the app.
+            ARCHIVE = "archive",
+            /// That extension's description: `TEXT`.
+            DESCRIPTION = "description",
+            /// One of its maintainers, in order: `LABEL` their name.
+            MAINTAINER = "maintainer",
+            /// One of its components, in order: `ID` its id.
+            COMPONENT = "component",
         }
     }
 }
