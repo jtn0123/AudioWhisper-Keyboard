@@ -7,6 +7,7 @@
 //! stylesheet. Edits are a draft until Save: Back with changes asks to discard them, where
 //! Compose wrote every edit through to the workspace.
 pub mod boxes;
+pub mod dynamic;
 pub mod form;
 pub mod form_paint;
 pub mod meta;
@@ -142,6 +143,8 @@ pub struct Component {
     pub choices: [Vec<String>; 3],
     /// The extension's other components' ids.
     pub other_ids: Vec<String>,
+    /// The Material You palette the keyboard draws the component in.
+    pub palette: dynamic::Palette,
 }
 /// The meta the meta editor changes, ComponentMetaEditorDialog's fields.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -289,6 +292,7 @@ impl App {
             images: list(&p[report::IMAGES]),
             choices: [list(&p[palettes]), list(&p[contrasts]), list(&p[specs])],
             other_ids: list(&p[report::OTHER_IDS]),
+            palette: dynamic::Palette::read(p),
         };
         let [palette, contrast, spec] = [report::PALETTE, report::CONTRAST, report::SPEC];
         e.meta = Meta {

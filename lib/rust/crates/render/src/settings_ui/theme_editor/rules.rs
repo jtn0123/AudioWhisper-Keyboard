@@ -27,15 +27,16 @@ pub const SELECTOR_KEYS: [&str; 5] = [
     "snygg__rule_selector__disabled",
 ];
 
-/// A property as the list shows it: where it is, its name as written and translated, and its
-/// value as the stylesheet writes it.
-#[derive(Clone, Debug, PartialEq, Eq)]
+/// A property as the list shows it: where it is, its name as written and translated, its value
+/// as the stylesheet writes it, and the value itself for its icon.
+#[derive(Clone, Debug, PartialEq)]
 pub struct Prop {
     pub set: usize,
     pub place: usize,
     pub raw: String,
     pub name: String,
     pub value: String,
+    pub held: Value,
 }
 
 /// `rules` in the order ThemeEditorScreen's `CustomRuleComparator` keeps them.
@@ -132,6 +133,7 @@ impl App {
                     raw: lossy(name),
                     name: self.property_label(name),
                     value: shown,
+                    held: value.clone(),
                 });
             }
         }

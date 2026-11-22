@@ -108,11 +108,12 @@ impl App {
             Kind::Choice(_) | Kind::Pick(_) | Kind::Lang(Lang::AllPresets) | Kind::ThemeEdit(_) => {
                 for (j, choice) in self.choices(m.row).iter().enumerate() {
                     let (label, summary, rh) = rows[j].clone();
+                    let bounds = rect(left + self.px(8.0), y, width - 2.0 * self.px(8.0), rh);
                     self.add(
                         p,
                         Control {
                             id: 3000 + j as i32,
-                            bounds: rect(left + self.px(8.0), y, width - 2.0 * self.px(8.0), rh),
+                            bounds,
                             label,
                             summary,
                             role: if plain { "button" } else { "radio" },
@@ -125,6 +126,7 @@ impl App {
                         clip,
                         text,
                     );
+                    self.choice_swatch(p, choice, bounds, clip);
                     y += rh;
                 }
             }

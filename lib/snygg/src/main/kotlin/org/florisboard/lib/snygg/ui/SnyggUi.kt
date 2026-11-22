@@ -44,7 +44,6 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.takeOrElse
-import com.materialkolor.dynamicColorScheme
 import kotlinx.coroutines.runBlocking
 import org.florisboard.lib.color.MaterialYouFlags
 import org.florisboard.lib.color.systemAccentOrDefault
@@ -153,28 +152,11 @@ fun ProvideSnyggTheme(
     materialYouFlags: MaterialYouFlags = MaterialYouFlags(),
     content: @Composable () -> Unit,
 ) {
-    val (colorPalette, contrastLevel, specVersion) = materialYouFlags
     val primary = systemAccentOrDefault(dynamicAccentColor)
     // Generating a scheme takes milliseconds, and the keyboard recomposes this on every shift or
     // mode change, so only regenerate when what it is made from changes.
-    val lightScheme = remember(primary, colorPalette, contrastLevel, specVersion) {
-        dynamicColorScheme(
-            primary = primary,
-            isDark = false,
-            style = colorPalette,
-            contrastLevel = contrastLevel.value,
-            specVersion = specVersion
-        )
-    }
-    val darkScheme = remember(primary, colorPalette, contrastLevel, specVersion) {
-        dynamicColorScheme(
-            primary = primary,
-            isDark = true,
-            style = colorPalette,
-            contrastLevel = contrastLevel.value,
-            specVersion = specVersion
-        )
-    }
+    val lightScheme = remember(primary, materialYouFlags) { materialYouScheme(primary, false, materialYouFlags) }
+    val darkScheme = remember(primary, materialYouFlags) { materialYouScheme(primary, true, materialYouFlags) }
 
     val resolver = LocalFontFamilyResolver.current
     val customFontFamilies = remember(snyggTheme) {

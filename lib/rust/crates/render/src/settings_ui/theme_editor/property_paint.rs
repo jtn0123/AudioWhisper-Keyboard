@@ -154,7 +154,7 @@ impl App {
                     enabled: self.property_selected(i).is_some(),
                     action: Action::ThemeEdit(Tap::Open(i)),
                 };
-                let h = self.dropdown(p, d, at, clip, text);
+                let h = self.value_dropdown(p, d, f, at, clip, text);
                 h + self.no_files_note(p, e, (at.0, at.1 + h), clip, text)
             }
             Editing::Picker => self.color_value(p, i, at, clip, text),

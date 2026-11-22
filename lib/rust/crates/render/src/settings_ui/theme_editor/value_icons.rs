@@ -1,8 +1,10 @@
 //! SnyggValueIcon, the preview of a value the property editor and the rules list show beside it:
 //! a colour's swatch, a box of the background colour at 4 dp elevation with the checkered backing
-//! under a translucent colour. It is 24 dp with 8 dp corners and 3 dp squares, or 16 dp with 4 dp
-//! corners and 2 dp squares in its small form.
-use super::ui::Dropdown;
+//! under a translucent colour, for a static colour and for a dynamic one as the palette has it
+//! (`dynamic.rs`). It is 24 dp with 8 dp corners and 3 dp squares, or 16 dp with 4 dp corners and
+//! 2 dp squares in its small form. The rules list shows it as each property's ListItem's
+//! `trailing`, here in the 48 dp slot before Delete.
+use super::{property::PropertyForm, ui::Dropdown};
 use crate::settings_ui::{App, color};
 use crate::{
     panels::{Panel, rect},
@@ -12,12 +14,15 @@ use crate::{
 use keys::Rect;
 use snygg::value::Value;
 
-/// Whether Compose drew a preview icon for `v`.
-pub fn has_icon(v: &Value) -> bool {
-    matches!(v, Value::Color(_))
-}
-
 impl App {
+    /// Whether Compose drew a preview icon for `v` that this can draw: a dynamic colour's needs
+    /// the palette.
+    pub fn has_icon(&self, v: &Value) -> bool {
+        match v {
+            Value::Color(_) => true,
+            _ => self.dynamic_color(v).is_some(),
+        }
+    }
     /// Value `v`'s preview icon in `b`, small or not; nothing where Compose drew none.
     pub(super) fn value_icon(
         &mut self,
@@ -27,8 +32,45 @@ impl App {
         small: bool,
         clip: Rect,
     ) {
-        if let Value::Color(c) = v {
-            self.color_icon(p, style::argb(*c), b, small, clip);
+        let color = match v {
+            Value::Color(c) => Some(style::argb(*c)),
+            _ => self.dynamic_color(v),
+        };
+        if let Some(c) = color {
+            self.color_icon(p, c, b, small, clip);
+        }
+    }
+    /// The value row's list, with the value's icon after it where EditPropertyDialog drew one:
+    /// for a dynamic colour; its height.
+    pub(super) fn value_dropdown(
+        &mut self,
+        p: &mut Panel,
+        d: Dropdown,
+        f: &PropertyForm,
+        at: (f32, f32),
+        clip: Rect,
+        text: &mut Text,
+    ) -> f32 {
+        match f.value() {
+            Some(v @ Value::DynamicColor { .. }) if self.has_icon(&v) => {
+                self.iconed_dropdown(p, d, &v, at, clip, text)
+            }
+            _ => self.dropdown(p, d, at, clip, text),
+        }
+    }
+    /// Property row `id`'s icon for `v`, 24 dp in the slot before Delete of the row's bounds
+    /// `b`; the row's tap reaches over it, as the whole ListItem took Compose's.
+    pub(super) fn trailing_icon(&mut self, p: &mut Panel, id: i32, v: &Value, b: Rect, clip: Rect) {
+        if !self.has_icon(v) {
+            return;
+        }
+        let (slot, size) = (self.end_button(b, 2), self.px(24.0));
+        let inset = ((slot.width() - size) / 2.0).round();
+        let at = rect(slot.left + inset, slot.top + inset, size, size);
+        self.value_icon(p, v, at, false, clip);
+        let row = self.controls.iter_mut().rev().find(|c| c.id == id);
+        if let Some(c) = row.filter(|c| c.bounds.bottom > c.bounds.top) {
+            c.bounds.right = slot.right.min(clip.right);
         }
     }
     /// A dropdown with `v`'s icon after it, as EditPropertyDialog's Row put SnyggValueIcon 12 dp

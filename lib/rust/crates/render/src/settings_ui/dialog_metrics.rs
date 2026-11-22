@@ -12,8 +12,10 @@ impl App {
     /// A choice row's text insets inside its 8 dp padding: the 52 dp radio and the 16 dp end,
     /// each rounded to whole pixels as Compose's `roundToPx` does (535 px of text, not 535.5,
     /// in the 288 dp dialog at 2.625).
+    /// A dynamic colour's list keeps room at the end for its swatch.
     pub(super) fn radio_insets(&self) -> [f32; 2] {
-        [self.px(52.0), self.px(16.0)]
+        let [start, end] = [self.px(52.0), self.px(16.0)];
+        [start, end + self.swatch_room()]
     }
     pub(super) fn dialog_rows(&self, width: f32, text: &mut Text) -> Vec<(String, String, f32)> {
         let m = self.modal.as_ref().unwrap();

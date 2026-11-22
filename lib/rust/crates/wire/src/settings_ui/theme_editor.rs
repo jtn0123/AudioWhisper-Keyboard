@@ -73,6 +73,12 @@ pub mod report {
             SPECS,
             /// The extension's other components' ids, which this one's must not repeat.
             OTHER_IDS,
+            /// The Material You palette the keyboard draws the component in (the accent colour's
+            /// scheme under the component's flags), for the dynamic colours' swatches: the colour
+            /// names, then each one's light and dark colour as an unsigned ARGB number.
+            COLOR_NAMES,
+            LIGHT_COLORS,
+            DARK_COLORS,
         }
     }
 }

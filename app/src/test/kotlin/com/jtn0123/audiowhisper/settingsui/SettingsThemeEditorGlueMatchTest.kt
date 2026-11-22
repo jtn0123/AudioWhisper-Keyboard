@@ -2,6 +2,7 @@ package com.jtn0123.audiowhisper.settingsui
 
 import com.jtn0123.audiowhisper.rust.*
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.ui.graphics.Color
 import com.jtn0123.audiowhisper.settingsui.ThemeEditorNatives.removeProperty
 import com.materialkolor.Contrast
 import com.materialkolor.PaletteStyle
@@ -21,6 +22,7 @@ import kotlin.test.*
  * the workspace's `extDir` holds it; a component the workspace no longer has; and the draft across a saved state.
  */
 class SettingsThemeEditorGlueMatchTest {
+    private val accent = Color(0xFF00897B)
     private val sheet = File("src/main/assets/ime/theme/org.florisboard.themes/stylesheets/floris_night.json").readText()
     private fun JsonObject.text(key: String) = getValue(key).jsonPrimitive.content
     private fun JsonObject.flag(key: String) = getValue(key).jsonPrimitive.boolean
@@ -44,7 +46,7 @@ class SettingsThemeEditorGlueMatchTest {
         val theme = component()
         val dir = extDir(theme)
         try {
-            val report = themeEditorReport(dir, "local.my.themes", theme, listOf("moon", "rain"), ThemeEditorNatives.UUID, "0")
+            val report = themeEditorReport(dir, "local.my.themes", theme, listOf("moon", "rain"), ThemeEditorNatives.UUID, "0", accent)
             assertEquals(SettingsUiThemeEditor.SIZE, report.size)
             assertEquals(listOf(SettingsUiThemeEditorOutcome.LOADED, sheet, "local.my.themes", "Ada\nGrace", "a.ttf/b.ttf", "sky.png"),
                 listOf(SettingsUiThemeEditor.OUTCOME, SettingsUiThemeEditor.STYLESHEET, SettingsUiThemeEditor.EXTENSION,
@@ -101,14 +103,14 @@ class SettingsThemeEditorGlueMatchTest {
         try {
             val r = ThemeEditorNatives.fullRules(sheet, 1).single()
             theme.stylesheetEditor = ThemeEditorNatives.composeEditor(sheet).apply { removeProperty(r, 0) }
-            val report = themeEditorReport(dir, "local.my.themes", theme, emptyList(), ThemeEditorNatives.UUID, "0")
+            val report = themeEditorReport(dir, "local.my.themes", theme, emptyList(), ThemeEditorNatives.UUID, "0", accent)
             assertEquals(ThemeEditorNatives.composeWrites(sheet) { removeProperty(r, 0) }, report[SettingsUiThemeEditor.STYLESHEET])
             dir.resolve(theme.stylesheetPath()).delete()
             theme.stylesheetEditor = null
-            assertEquals("", themeEditorReport(dir, "", theme, emptyList(), ThemeEditorNatives.UUID, "0")[SettingsUiThemeEditor.STYLESHEET],
+            assertEquals("", themeEditorReport(dir, "", theme, emptyList(), ThemeEditorNatives.UUID, "0", accent)[SettingsUiThemeEditor.STYLESHEET],
                 "no file is an empty stylesheet, as loadThemeEditorStylesheet started empty")
             val byDefault = ThemeExtensionComponentEditor(id = "sunny", label = "Sunny", authors = listOf("Ada"))
-            assertEquals("", themeEditorReport(dir, "", byDefault, emptyList(), ThemeEditorNatives.UUID, "0")[SettingsUiThemeEditor.PATH],
+            assertEquals("", themeEditorReport(dir, "", byDefault, emptyList(), ThemeEditorNatives.UUID, "0", accent)[SettingsUiThemeEditor.PATH],
                 "a component keeping its stylesheet where its id says reports no path of its own")
         } finally {
             dir.deleteRecursively()

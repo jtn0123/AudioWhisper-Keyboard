@@ -91,8 +91,7 @@ impl App {
                 at += self.theme_undo(p, (left, at, width), clip, text);
             }
             let keep = required(&rule, &q.raw);
-            let shown = (q.name.clone(), q.value.clone(), !keep);
-            at += self.property_row(p, (r, n, s, q.place), shown, (left, at), clip, text);
+            at += self.property_row(p, (r, n, s, q.place), (q, !keep), (left, at), clip, text);
         }
         if gone.is_some_and(|g| g.1 != usize::MAX && g.1 >= mine.len()) {
             at += self.theme_undo(p, (left, at, width), clip, text);
@@ -200,29 +199,31 @@ impl App {
         self.paint_text(p, chip, at, size, self.colors[14], clip);
         ch + self.px(8.0)
     }
-    /// Property `k` of set `s` of rule `r`, the rule's `n`th: its name over its value, and
-    /// Delete when it may go; its height.
+    /// Property `k` of set `s` of rule `r`, the rule's `n`th: its name over its value, the
+    /// value's icon, and Delete when it may go; its height.
     fn property_row(
         &mut self,
         p: &mut Panel,
         (r, n, s, k): (usize, usize, usize, usize),
-        (name, value, deletable): (String, String, bool),
+        (q, deletable): (&super::rules::Prop, bool),
         at: (f32, f32),
         clip: Rect,
         text: &mut Text,
     ) -> f32 {
+        let (name, id) = (q.name.clone(), rule_id(r, 64 + 2 * n));
         let entry = Entry {
-            id: rule_id(r, 64 + 2 * n),
+            id,
             title: name.clone(),
-            summary: value,
+            summary: q.value.clone(),
             icon: "",
             ink: [None, None],
-            buttons: 1,
+            buttons: 1 + usize::from(self.has_icon(&q.held)),
             right: self.px(16.0),
             enabled: true,
             action: Action::ThemeEdit(Tap::Prop(PropTap::Edit(r, s, k))),
         };
         let (rh, b) = self.paint_entry(p, entry, at, clip, text);
+        self.trailing_icon(p, id, &q.held, b, clip);
         if deletable {
             let id = rule_id(r, 65 + 2 * n);
             let button = self.end_button(b, 1);
