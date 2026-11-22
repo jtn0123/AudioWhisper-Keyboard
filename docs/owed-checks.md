@@ -41,6 +41,7 @@ row says so.
 | P12 | User dictionaries: every step ran on the emulator. None ran on the phone. | [stage4-user-dictionaries, owed](stage4-user-dictionaries.md#owed) |
 | P13 | Keyboard: a top-row key's popup shows whole over the app. Long-press e, p and q with the Smartbar on and off, in portrait and landscape and in one-handed mode, and slide to a choice in the upper row. Tap the app just above the keyboard. Fixed and checked on the emulator, in portrait only. | [rust.md, a top-row key's popup](rust.md#a-top-row-keys-popup-cut-off-fixed-2026-11-21) |
 | P14 | Project licence: every step ran on the emulator. None ran on the phone. Long-press a word, drag both handles, hold one at an edge, then Copy and Select all, with the phone's own toolbar. TalkBack's reading by word and line, selecting and copying is part of P6. | [stage4-licences, the project licence screen](stage4-licences.md#the-project-licence-screen) |
+| P15 | Theme manager: every step ran on the emulator. None ran on the phone. Choose a day and a night theme, check that the keyboard previews each and goes back to its own theme on leaving, and that TalkBack reads each theme as a day or night theme and says which one is chosen. | [stage4-theme-editor, owed](stage4-theme-editor.md#owed) |
 
 ## Emulator checks the docs owe
 
@@ -67,6 +68,7 @@ row says so.
 | E20 | `SettingsOtherThemeDevice`: its Back up and Restore step now expects the Rust screens. It compiles but has not run. | [stage4-backup-restore, owed](stage4-backup-restore.md#owed) |
 | E21 | Our keyboard typing into our own Rust settings fields. The fields take text: with agent-device's own test keyboard active, Select language's search took "germ" and filtered the list, and the home screen's preview field took "hello". With our keyboard active, agent-device refuses text entry into the keyboard's own app ("the focused input belongs to the active keyboard/IME"), and its taps on our keys typed nothing, so whether a person's taps type there is unchecked. Type into Select language's search, and a word into the user dictionary editor, by hand with our keyboard, on the phone or on an emulator. | [stage4-languages, emulator check](stage4-languages.md#emulator-check); [stage4-user-dictionaries, owed](stage4-user-dictionaries.md#owed) |
 | E22 | A top-row key's popup in landscape without full-screen mode (set *landscape input* so the extract view never shows, then put it back) and in one-handed mode. The cargo tests cover both layouts; no device has shown them. | [rust.md, a top-row key's popup](rust.md#a-top-row-keys-popup-cut-off-fixed-2026-11-21) |
+| E23 | `SettingsOtherThemeDevice`: its theme manager step now picks the theme on the Rust manager and waits for the keyboard's preview to start and end. It compiles but has not run. | [stage4-theme-editor, owed](stage4-theme-editor.md#owed) |
 
 ## Not device checks, but still owed
 
@@ -97,4 +99,4 @@ These need no device. They are listed so they are not lost.
 
 ## Notes
 
-* This list has 4 confirm-on-the-phone items, 14 phone checks and 21 emulator checks.
+* This list has 4 confirm-on-the-phone items, 15 phone checks and 22 emulator checks.

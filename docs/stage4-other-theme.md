@@ -11,7 +11,7 @@ are new here.
 | `settings/theme` | Rust | New here. |
 | `settings/other/physical-keyboard` | Rust | Already Rust; Other links to it. |
 | `settings/other/backup`, `settings/other/restore` | Compose | Step 5. |
-| `settings/theme/manage/SELECT_DAY` and `SELECT_NIGHT` (the theme manager) | Compose | Step 9. |
+| `settings/theme/manage/SELECT_DAY` and `SELECT_NIGHT` (the theme manager) | Rust | Since step 9: [stage4-theme-editor.md](stage4-theme-editor.md). |
 | `ext/list/EXT_THEME?showUpdate=true` (theme extensions) | Compose | Step 10. |
 
 Rows that lead to a Compose screen open it in `ComposeSettingsFallbackActivity`, as before, and
@@ -215,6 +215,10 @@ build before the dial's plurals (`build/stage4-other-theme/device/other-theme-12
   returns.
 * **Accessibility:** 0 violations over every screen and dialog visited.
 * The older `ui` mode still passes on the same build.
+
+That run predates step 9. Since then the theme manager is a Rust screen, and
+`SettingsOtherThemeDevice` picks the day and night themes there, waits for the keyboard's preview
+to start and end, and checks the row's TalkBack state ([stage4-theme-editor.md](stage4-theme-editor.md)).
 
 The check waits 1.5 seconds after a dialog closes before it brings the keyboard back, because of
 a keyboard bug this work found (see [Owed](#owed)): shown again within about a second of hiding,

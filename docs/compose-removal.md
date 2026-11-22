@@ -199,13 +199,33 @@ its phone checks pass.
   (21 added, 4 removed), 6 lines in `RustSettingsView` (2 removed) and one string id. Step 8 is
   done: 81 lines deleted, 123 added.
 
-### 9. Theme manager and theme editor
+### 9. Theme manager and theme editor (part 1 of 3 done)
 
 * **Deletes:** the rest of `FB/app/settings/theme`: 15 files, 3,684 lines after step 4,
   including `EditPropertyDialog` (1,200) and `ThemeEditorScreen` (473).
-* **Blocked by:** step 4's widgets, and a Snygg rule and property editor in Rust.
 * **Ported and improved, not cut** ([decision](decisions.md#everything-moves-to-rust-2026-11-21)):
-  the port names each improvement it makes.
+  the port names each improvement it makes. See
+  [stage 4: the theme manager and theme editor](stage4-theme-editor.md).
+* **Part 1, the theme manager (done):** Rust draws the day and night managers: each installed
+  theme extension in an outlined box, its themes sorted by label with radio buttons, the
+  keyboard previewing the chosen theme while a manager is on top. Kotlin only reports the
+  extension index and sets the keyboard's preview. Five improvements: *Create* and *Import* at
+  the top (Gboard's *My themes* **+**), an extension's name, id and *View details* opening its
+  page, *Edit* for themes made here, and TalkBack hearing each theme's day or night kind and
+  which one is chosen. Commits cfdc0b943, 46f866859, 10247ba30, 7881f7ec1 and 709b3ebab.
+* **Parts 2 and 3, the editor (remaining):** the editor shell (load, rules list, rule dialog,
+  meta and fine-tune dialogs, save and discard) and the property editor (every Snygg value kind,
+  code values, value icons). They need a Rust stylesheet serializer matching Compose's
+  `PrettyPrintConfig`, and a route the Compose extension editor opens with its workspace kept
+  alive. [What remains](stage4-theme-editor.md#what-remains) lists it all.
+* **Blocked by:** nothing for parts 2 and 3; step 4's widgets and the `snygg` crate are in
+  place.
+* **The fallback loses:** the theme manager. Its route stays as an empty entry that hands back
+  to Rust, as in step 2.
+* **Progress** (non-blank lines deleted): part 1 deletes `ThemeManagerScreen` (135), and 7
+  lines in `Routes.kt` rewritten as 2. The Kotlin glue adds `SettingsThemes` (44), its string ids
+  (11), 5 lines in `RustSettingsView` (1 removed) and one rewritten line in `SettingsStringIds`.
+  Part 1: 144 lines deleted, 63 added. The other 14 files (3,549 lines) go with parts 2 and 3.
 
 ### 10. Extensions
 

@@ -177,6 +177,11 @@ Stage 5 packages 1–3, one event family at a time:
   ([stage 4: the project licence screen](stage4-licences.md#the-project-licence-screen)).
 * **The theme editor and extension editor are ported and improved**, not dropped (owner,
   2026-11-21). Each port says which improvements it makes, as the Other and Theme port did.
+  **Theme manager done (2026-11-21):** Rust draws the day and night theme managers, with the
+  keyboard previewing the chosen theme, and ThemeManagerScreen is gone (144 lines deleted, 63
+  added). Five improvements, among them *Create* and *Import* on the manager and TalkBack
+  hearing each theme's day or night kind. The editor itself is parts 2 and 3 of step 9
+  ([stage 4: the theme manager and theme editor](stage4-theme-editor.md)).
 * **Rust owns the preferences file** (`crates/settings` already has byte parity). Then Jetpref,
   then Room and KSP, leave the build.
 * **Exit for each step:** as compose-removal.md says, plus real TalkBack on settings before
