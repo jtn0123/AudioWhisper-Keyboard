@@ -75,6 +75,13 @@ crate::declare! {
         /// The notification permission request's answer: a
         /// [`SettingsUiPermission`](setup::answer::FIELDS) packet.
         PERMISSION = 41,
+        /// The installed extensions a
+        /// [`SettingsUiExtensionEffect`](extensions::effect::KINDS) asked for:
+        /// [`SettingsUiExtension`](extensions::row::FIELDS) rows.
+        EXTENSIONS = 50,
+        /// How work on an extension ended: a
+        /// [`SettingsUiExtensionDone`](extensions::done::FIELDS) packet.
+        EXTENSION_DONE = 51,
     }
 }
 
@@ -158,6 +165,7 @@ pub mod query {
     }
 }
 
+pub mod extensions;
 pub mod files;
 pub mod languages;
 pub mod setup;
@@ -174,6 +182,11 @@ pub const GROUPS: &[&crate::Group] = &[
     &back::PHASES,
     &edit::OPS,
     &query::KINDS,
+    &extensions::effect::KINDS,
+    &extensions::kind::KINDS,
+    &extensions::row::FIELDS,
+    &extensions::work::KINDS,
+    &extensions::done::FIELDS,
     &files::effect::KINDS,
     &files::report::KINDS,
     &files::mode::KINDS,
