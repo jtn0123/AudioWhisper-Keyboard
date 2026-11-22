@@ -162,8 +162,13 @@ internal class RendererAccessibility(
             if (supports(virtualViewId, ACCESS_SCROLL_FORWARD)) addAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_SCROLL_FORWARD)
             if (supports(virtualViewId, ACCESS_SCROLL_BACKWARD)) addAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_SCROLL_BACKWARD)
             if (supports(virtualViewId, ACCESS_DISMISS)) addAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_DISMISS)
+            for ((target, label) in custom(n)) addAction(AccessibilityNodeInfo.AccessibilityAction(target, label))
         }
     }
+
+    /** A node's custom actions (a list item's Move up, Move down and Delete): each the id of the control it presses, which
+     * is never a single bit, so never a standard action's id. */
+    private fun custom(n: JsonObject) = n["custom"]?.jsonArray.orEmpty().map { it.jsonArray[0].jsonPrimitive.int to it.jsonArray[1].jsonPrimitive.content }
 
     override fun findFocus(focus: Int): AccessibilityNodeInfo? =
         if (focus == AccessibilityNodeInfo.FOCUS_ACCESSIBILITY && focused != View.NO_ID) createAccessibilityNodeInfo(focused) else null
@@ -184,6 +189,7 @@ internal class RendererAccessibility(
         val platformSupported = (n.string("role") == "edit" && (action == AccessibilityNodeInfo.ACTION_SET_TEXT || action == AccessibilityNodeInfo.ACTION_SET_SELECTION)) ||
             (n["range"]?.let { it != JsonNull } == true && action == AccessibilityNodeInfo.AccessibilityAction.ACTION_SET_PROGRESS.id)
         if (platformSupported && platformAction?.invoke(virtualViewId, action, arguments) == true) { refresh(); return true }
+        custom(n).firstOrNull { it.first == action }?.let { val result = activate(it.first, ACCESS_CLICK); refresh(); return result }
         val native = when (action) {
             AccessibilityNodeInfo.ACTION_CLICK -> ACCESS_CLICK
             AccessibilityNodeInfo.ACTION_LONG_CLICK -> ACCESS_LONG_CLICK

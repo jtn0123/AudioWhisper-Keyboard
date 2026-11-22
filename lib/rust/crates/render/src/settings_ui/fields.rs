@@ -3,7 +3,8 @@
 //!
 //! One `Editor` takes the InputConnection at a time. While a row's field owns it, the preview
 //! field's editor waits in `parked`; a row's field starts from, and writes every change back
-//! to, its string preference, as the screen's `onValueChange` does.
+//! to, its string preference, as the screen's `onValueChange` does. Select language's search
+//! field is a row's field too, kept in the screen's state instead of a preference.
 use super::{
     Action, App, Control,
     catalogue::{Kind, Screen},
@@ -60,6 +61,9 @@ impl App {
         if let Some(e) = self.dialog_field(id) {
             return (e, false);
         }
+        if self.search_field(id) {
+            return (with_text(&self.languages.search), false);
+        }
         match usize::try_from(id - 1000) {
             Ok(i)
                 if self
@@ -105,7 +109,7 @@ impl App {
     pub fn focus_field(&mut self, id: i32) -> bool {
         let target = match usize::try_from(id - 1000) {
             _ if id == 2 && self.screen().is_some_and(|s| s.preview) => None,
-            Ok(i) if self.dialog_field(id).is_some() => Some(i),
+            Ok(i) if self.dialog_field(id).is_some() || self.search_field(id) => Some(i),
             Ok(i)
                 if self
                     .rows()
@@ -132,6 +136,9 @@ impl App {
         };
         if i >= super::picker::HEX_FIELD {
             return self.sync_dialog_field();
+        }
+        if self.search_field(1000 + i as i32) {
+            return self.search_typed(String::from_utf16_lossy(&self.editor.text));
         }
         let key = self.rows()[i].key;
         let value = String::from_utf16_lossy(&self.editor.text);

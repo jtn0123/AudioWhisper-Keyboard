@@ -23,7 +23,6 @@ import com.jtn0123.audiowhisper.settings.SettingsSubtypes
 import dev.patrickgold.florisboard.app.FlorisPreferenceStore
 import dev.patrickgold.florisboard.ime.keyboard.CurrencySet
 import dev.patrickgold.florisboard.keyboardManager
-import dev.patrickgold.florisboard.lib.FlorisLocale
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -63,34 +62,11 @@ class SubtypeManager(context: Context) {
         if (plan.writeActive) prefs.localization.activeSubtypeId.set(plan.active)
         activeSubtype = plan.selected
     }
-    fun addSubtype(subtype: Subtype): Boolean {
-        val plan = SettingsSubtypes.plan("add", subtypes, activeSubtype.id, subtype, System.currentTimeMillis())
-        if (plan.changed) persistNewSubtypeList(plan.list)
-        return plan.changed
-    }
     fun getCurrencySet(subtypeToSearch: Subtype): CurrencySet =
         keyboardManager.resources.currencySets.value?.get(subtypeToSearch.currencySet) ?: CurrencySet.Fallback
     fun getSubtypeById(id: Long): Subtype? {
         val list = subtypes
         return list.getOrNull(SettingsRules.call(SettingsOp.SUBTYPE_INDEX, id.toString(), *list.map { it.id.toString() }.toTypedArray())[0].toInt())
-    }
-    fun getSubtypePresetForLocale(locale: FlorisLocale): SubtypePreset? {
-        val presets = keyboardManager.resources.subtypePresets.value.orEmpty()
-        val index = SettingsRules.preset(locale.base.toString(),locale.language,
-            presets.map { it.locale.base.toString() to it.locale.language })
-        return presets.getOrNull(index)
-    }
-    fun modifySubtypeWithSameId(subtypeToModify: Subtype) {
-        val plan = SettingsSubtypes.plan("modify",subtypes,activeSubtype.id,subtypeToModify)
-        if (plan.changed) persistNewSubtypeList(plan.list)
-    }
-    fun removeSubtype(subtypeToRemove: Subtype) {
-        val plan = SettingsSubtypes.plan("remove",subtypes,activeSubtype.id,subtypeToRemove)
-        if (plan.changed) { persistNewSubtypeList(plan.list); evaluateActiveSubtype(plan.list) }
-    }
-    fun reorderSubtypes(order: List<Int>) {
-        val plan = SettingsSubtypes.plan("reorder",subtypes,activeSubtype.id,order = order)
-        if (plan.changed) persistNewSubtypeList(plan.list)
     }
     fun switchToPrevSubtype() = switchSubtype("previous")
     fun switchToNextSubtype() = switchSubtype("next")

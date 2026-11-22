@@ -29,7 +29,7 @@ const BODY_LARGE: Type = Type {
 };
 /// Material 3's titleMedium and titleSmall, which FlorisSimpleCard uses, as the resolved library
 /// has them (`TypeScaleTokens`: 0.2 sp titleMedium tracking, not the published 0.15 sp).
-const TITLE_MEDIUM: Type = Type {
+pub(super) const TITLE_MEDIUM: Type = Type {
     size: 16,
     line: 24.0,
     tracking: 0.2,
@@ -55,6 +55,13 @@ pub(super) const LABEL_LARGE: Type = Type {
     tracking: 0.1,
     weight: 500,
 };
+/// bodyLarge in bold: the subtype editor's presets card title.
+pub(super) const BODY_BOLD: Type = Type {
+    size: 16,
+    line: 0.0,
+    tracking: 0.0,
+    weight: 700,
+};
 /// AboutScreen's app name: bodyLarge at 24 sp, SemiBold.
 const APP_NAME: Type = Type {
     size: 24,
@@ -64,7 +71,7 @@ const APP_NAME: Type = Type {
 };
 /// FlorisErrorCard and FlorisWarningCard paint fixed colours, not the theme's.
 const ERROR: [u32; 2] = [0xffff0000, 0xffffffff];
-const WARNING: [u32; 2] = [0xffffff00, 0xff000000];
+pub(super) const WARNING: [u32; 2] = [0xffffff00, 0xff000000];
 
 /// Which of SpellCheckerServiceSelector's cards shows, from the system's settings.
 #[derive(Clone, Debug, PartialEq)]
@@ -172,6 +179,9 @@ impl App {
             Kind::Libraries => Some(self.libraries(p, at, clip, text)),
             Kind::Addons(a) => Some(self.addons(p, i, a, at, clip, text)),
             Kind::Backup(part) => Some(self.backup_row(p, i, part, at, clip, text)),
+            Kind::List(source) => Some(self.paint_list(p, source, at, clip, text)),
+            Kind::Pick(field) => Some(self.pick_row(p, i, field, at, clip, text)),
+            Kind::Lang(part) => Some(self.lang_part(p, i, part, at, clip, text)),
             _ => None,
         }
     }

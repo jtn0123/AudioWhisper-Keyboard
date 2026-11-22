@@ -1,5 +1,8 @@
 //! Measure the same rows used for painting before choosing a bounded dialog size.
-use super::{App, catalogue::Kind};
+use super::{
+    App,
+    catalogue::{Kind, languages::Lang},
+};
 use crate::text::Text;
 impl App {
     /// `dp` in whole pixels, as Compose's `roundToPx` gives every dp padding and size.
@@ -17,8 +20,12 @@ impl App {
         let r = self.rows()[m.row];
         let [_, _, d, _] = self.config;
         match r.kind {
-            Kind::Choice(_) => {
-                let [start, end] = self.radio_insets();
+            Kind::Choice(_) | Kind::Pick(_) | Kind::Lang(Lang::AllPresets) => {
+                let [start, end] = if self.presets_dialog() {
+                    [self.px(16.0); 2]
+                } else {
+                    self.radio_insets()
+                };
                 let tw = width - 2.0 * self.px(8.0) - start - end;
                 self.choices(m.row)
                     .iter()
@@ -57,6 +64,11 @@ impl App {
                 if !ask.name.is_empty() {
                     message = message.replace("{name}", &self.label(ask.name));
                 }
+                let rh = self.measure(text, &message, self.sp(16), width - 48.0 * d);
+                vec![(message, String::new(), rh)]
+            }
+            Kind::Lang(_) => {
+                let message = self.lang_message().unwrap_or_default();
                 let rh = self.measure(text, &message, self.sp(16), width - 48.0 * d);
                 vec![(message, String::new(), rh)]
             }

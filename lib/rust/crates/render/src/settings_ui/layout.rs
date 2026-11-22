@@ -136,6 +136,7 @@ impl App {
     fn scene_pass(&mut self, text: &mut Text, replay: bool) -> Scene {
         self.settle_picker();
         self.controls.clear();
+        self.custom_actions.clear();
         self.field_layouts.clear();
         self.scrollbar_exists = [false; 2];
         self.reveal_target = None;
@@ -145,8 +146,10 @@ impl App {
         let modal = self.modal.take();
         let title = self.label(self.screen().map_or("settings__home__title", |s| s.title));
         let title_left = if self.is_home() { 16.0 * d } else { 56.0 * d };
+        // A top bar action (the subtype editor's Delete) takes 48 dp from the title.
+        let title_right = if self.header_delete() { 68.0 } else { 16.0 } * d;
         let header = (64.0 * d)
-            .max(self.measure(text, &title, self.sp(22), w - title_left - 16.0 * d) + 16.0 * d);
+            .max(self.measure(text, &title, self.sp(22), w - title_left - title_right) + 16.0 * d);
         // PreviewKeyboardField shows under screens with `previewFieldVisible` (home included).
         let preview = self.screen().is_none_or(|s| s.preview);
         // Back up and Restore keep their buttons in a bar at the bottom instead.
@@ -381,11 +384,12 @@ impl App {
         self.paint_text(
             &mut p,
             &title,
-            rect(left, 18.0 * d, w - left - 16.0 * d, header - 18.0 * d),
+            rect(left, 18.0 * d, w - left - title_right, header - 18.0 * d),
             self.sp(22),
             self.colors[1],
             rect(0.0, 0.0, w, h),
         );
+        self.paint_header_delete(&mut p, header);
         if preview {
             self.preview_field(&mut p, footer, text);
         } else {

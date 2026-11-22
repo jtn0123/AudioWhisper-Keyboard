@@ -20,7 +20,6 @@ import androidx.compose.runtime.Composable
 import dev.patrickgold.florisboard.R
 import dev.patrickgold.florisboard.app.settings.theme.DisplayKbdAfterDialogs
 import dev.patrickgold.florisboard.app.settings.theme.SnyggLevel
-import dev.patrickgold.florisboard.ime.core.DisplayLanguageNamesIn
 import dev.patrickgold.florisboard.ime.input.InputShiftState
 import dev.patrickgold.florisboard.ime.keyboard.KeyboardMode
 import dev.patrickgold.jetpref.datastore.ui.ListPreferenceEntry
@@ -73,22 +72,6 @@ private val ENUM_DISPLAY_ENTRIES = mapOf<Pair<KClass<*>, String>, @Composable ()
                 key = DisplayKbdAfterDialogs.REMEMBER,
                 label = stringRes(R.string.enum__display_kbd_after_dialogs__remember),
                 description = stringRes(R.string.enum__display_kbd_after_dialogs__remember__description),
-                showDescriptionOnlyIfSelected = true,
-            )
-        }
-    },
-    DisplayLanguageNamesIn::class to DEFAULT to {
-        listPrefEntries {
-            entry(
-                key = DisplayLanguageNamesIn.SYSTEM_LOCALE,
-                label = stringRes(R.string.enum__display_language_names_in__system_locale),
-                description = stringRes(R.string.enum__display_language_names_in__system_locale__description),
-                showDescriptionOnlyIfSelected = true,
-            )
-            entry(
-                key = DisplayLanguageNamesIn.NATIVE_LOCALE,
-                label = stringRes(R.string.enum__display_language_names_in__native_locale),
-                description = stringRes(R.string.enum__display_language_names_in__native_locale__description),
                 showDescriptionOnlyIfSelected = true,
             )
         }

@@ -80,7 +80,8 @@ its phone checks pass.
   * the enum display entries: `KeyboardEnumDisplayEntries` is gone and `EnumDisplayEntries`
     kept the 8 enums the remaining Compose screens still asked for (App theme, colour
     representation, keyboard after dialogs, language names, shift state, keyboard mode,
-    Snygg level, theme mode); step 4 took App theme and theme mode, leaving 6. The other 23
+    Snygg level, theme mode); step 4 took App theme and theme mode, and step 6 took language
+    names, leaving 5. The other 23
     entries' strings all stay: Rust reads them through `SettingsStringIds`;
   * declarations nothing names, found by a scan of every top-level declaration in main
     Kotlin against every tracked Kotlin, Java, XML and Gradle file: `apptheme/Color.kt`,
@@ -129,11 +130,29 @@ its phone checks pass.
   (42) moved unchanged into its own file for `ExtensionEditScreen` (step 10). Step 5 is done:
   636 lines deleted, 2 added.
 
-### 6. Languages and layouts
+### 6. Languages and layouts (done)
 
 * **Deletes:** `FB/app/settings/localization`: 5 files, 1,078 lines (the list, locale
   picker, language pack manager and subtype editor with its state).
-* **Blocked by:** data-driven lists and a per-item editor over the subtype list in Rust.
+* **What changed:** Rust draws all four screens. A new editable list adds, opens, moves and
+  deletes items, with *Move up* and *Move down* buttons, the same moves as TalkBack actions,
+  and undo after a delete. A per-item editor goes with it. Step 7 reuses both. Rust writes
+  the subtype list itself, byte for byte as SubtypeManager did; Kotlin reports locale names,
+  layouts, presets and packs, and deletes a pack. Select language puts the device's languages
+  first, and a picked language fills the form, both taken from Gboard. Language pack import
+  and a pack's page stay in Compose (step 10). See
+  [stage 4: Languages and layouts](stage4-languages.md).
+* **Blocked by:** nothing.
+* **The fallback loses:** all four screens. Their routes stay as empty entries that hand back
+  to Rust, as in step 2.
+* **Progress** (non-blank lines deleted): `LanguagePackManagerScreen` (208),
+  `LocalizationScreen` (179), `SelectLocaleScreen` (142), `SubtypeEditorScreen` (449) and
+  `SubtypeEditorState` (100), plus code only they used: `FlorisDropdownLikeButton` (68),
+  `FlorisWarningCard` (25), the language names display entry (17), `SettingsSelection` (6)
+  and five `SubtypeManager` functions (24), 18 lines in `Routes.kt` rewritten as 7, and
+  Compose's two delete-confirmation strings. The native screens add `SettingsLanguages` (99),
+  its string ids (53) and 18 lines across the accessibility, icon, string id and view
+  adapters. Step 6 is done: 1,239 lines deleted, 177 added.
 
 ### 7. User dictionaries
 
@@ -168,10 +187,10 @@ its phone checks pass.
 
 ### 12. The Compose settings host
 
-* **Deletes:** `Routes.kt` (281 after step 5), the Compose branch of `FlorisAppActivity`,
+* **Deletes:** `Routes.kt` (270 after step 6), the Compose branch of `FlorisAppActivity`,
   `ComposeSettingsFallbackActivity`, `FB/app/apptheme` (3 files, 142 after step 3), the
-  settings-only parts of `FB/lib/compose` (7 files, 509 in all), `EnumDisplayEntries` (175
-  after step 4), and the Jetpref UI dependency.
+  settings-only parts of `FB/lib/compose` (6 files, 416 after step 6), `EnumDisplayEntries` (158
+  after step 6), and the Jetpref UI dependency.
 * **Blocked by:** steps 4–11. Shared primitives in `lib/compose` (20 files, 1,832 after step 3) are
   also used by the Compose keyboard (17 keyboard files import them) and wait for step K.
 

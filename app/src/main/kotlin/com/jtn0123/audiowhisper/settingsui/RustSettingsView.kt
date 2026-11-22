@@ -34,6 +34,7 @@ internal class RustSettingsView(context: Context) : FrameLayout(context), Surfac
     private lateinit var platform: SettingsPlatform
     private lateinit var facts: SettingsFacts
     private lateinit var files: SettingsFiles
+    private lateinit var languages: SettingsLanguages
     var backAvailability: (Boolean) -> Unit = {}
     private var fallback: (String, List<String>) -> Unit = { _, _ -> }
     private val native = KeyboardRenderer(systemRendererFonts())
@@ -92,6 +93,8 @@ internal class RustSettingsView(context: Context) : FrameLayout(context), Surfac
         this.platform = SettingsPlatform(activity, prefs, ::preferencesPersisted)
         this.facts = SettingsFacts(activity).also { it.observe { if (!released) pushFacts() } }
         this.fallback = fallback
+        // Before the saved state, which asks for a report when it reopens a language screen.
+        languages = SettingsLanguages(activity) { if (!released) receive(native.settings(SettingsUiOp.LANGUAGES, it)) }
         receive(native.settings(SettingsUiOp.PREFERENCES, platform.snapshot()))
         if (restored != null) receive(native.settings(SettingsUiOp.RESTORE, restored))
         // After the saved state, so a picker answer or report that waited finds what it belongs to.
@@ -162,6 +165,7 @@ internal class RustSettingsView(context: Context) : FrameLayout(context), Surfac
                 "url", "intent", "copy", "forgetLearnedWords" -> facts.execute(p)
                 "load" -> loadDocument(p[1])
                 SettingsUiFileEffect.PICK, SettingsUiFileEffect.WORK, SettingsUiFileEffect.TOAST -> files.execute(p)
+                SettingsUiLanguageEffect.LOAD, SettingsUiLanguageEffect.DELETE_PACK -> languages.execute(p)
             }
         }
         selectionMenu.update(state.getValue("selectionToolbar").jsonPrimitive.boolean)

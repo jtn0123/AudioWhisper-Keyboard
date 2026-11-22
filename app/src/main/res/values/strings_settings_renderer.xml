@@ -65,6 +65,12 @@
     <string name="settings__restore__cleared">Erasing had started, so some of your old data is already gone. Restore again to bring back the backup\'s copy.</string>
     <string name="settings__restore__gone">The backup was lost before it was restored. Choose it again.</string>
     <string name="settings__files__interrupted">The app was closed before the work finished. Check what changed, then try again.</string>
+    <string name="action__undo">Undo</string>
+    <string name="settings__list__move_up">Move up</string>
+    <string name="settings__list__move_down">Move down</string>
+    <string name="settings__list__deleted">Deleted {name}</string>
+    <string name="settings__localization__suggested_languages">Suggested languages</string>
+    <string name="settings__localization__all_languages">All languages</string>
     <string name="crash__copy_details">Copy details</string>
     <string name="crash__native_load_summary">AudioWhisper could not load its keyboard engine. Reinstall the app, then open it again.</string>
     <string name="crash__keyboard_unavailable">AudioWhisper could not load its keyboard engine, so it cannot type. Reinstall the app, and switch to another keyboard until then.</string>

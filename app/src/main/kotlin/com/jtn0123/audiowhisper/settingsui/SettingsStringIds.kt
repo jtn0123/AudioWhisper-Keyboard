@@ -2,8 +2,9 @@ package com.jtn0123.audiowhisper.settingsui
 
 import dev.patrickgold.florisboard.R
 
-/** Every string resource the native settings screens show, by name. Explicit ids, not getIdentifier:
- * a missing entry fails SettingsResourcesTest against the native screens' own key list. */
+/** Every string resource the native settings screens show, by name; the language screens' are in
+ * SettingsLanguageStringIds. Explicit ids, not getIdentifier: a missing entry fails SettingsResourcesTest
+ * against the native screens' own key list. */
 internal val settingsStringIds: Map<String, Int> = mapOf(
     "about__app_icon__description" to R.string.about__app_icon__description,
     "about__changelog__summary" to R.string.about__changelog__summary,
@@ -488,7 +489,7 @@ internal val settingsStringIds: Map<String, Int> = mapOf(
     "unit__display_pixel_per_seconds__symbol" to R.string.unit__display_pixel_per_seconds__symbol,
     "unit__milliseconds__symbol" to R.string.unit__milliseconds__symbol,
     "unit__percent__symbol" to R.string.unit__percent__symbol,
-)
+) + settingsLanguageStringIds
 
 /** The plurals a native slider label or the time dial can use; ranges come from the native screens. */
 internal val settingsPluralIds: Map<String, Int> = mapOf(

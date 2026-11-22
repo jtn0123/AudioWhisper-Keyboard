@@ -17,6 +17,8 @@ pub use cards::SpellCard;
 mod field;
 mod fields;
 pub mod files;
+pub mod items;
+pub mod languages;
 mod layout;
 pub mod licences;
 mod material;
@@ -58,6 +60,10 @@ pub enum Action {
     Tap(picker::Tap),
     /// A surface the finger drags: the colour plane, the hue bar, the clock dial.
     Drag(picker::Surface),
+    /// A tap on an editable list: open, move or delete an item, add one, or undo.
+    List(items::Source, items::Op),
+    /// A tap on a language screen's own controls.
+    Lang(languages::Tap),
 }
 #[derive(Clone, Debug)]
 pub struct Control {
@@ -160,6 +166,16 @@ pub struct App {
     pub files: files::Files,
     /// Back up's and Restore's choices and the backup Restore read.
     pub backups: backup_screens::Backups,
+    /// The language screens' resources and search.
+    pub languages: languages::Languages,
+    /// The subtype the editor is changing, until it saves or the user leaves.
+    pub draft: Option<languages::editor::Draft>,
+    /// The editable lists' undo and their items' stable node ids.
+    pub list: items::State,
+    /// Each node's custom accessibility actions, as the target control and its label.
+    pub custom_actions: Vec<(i32, Vec<(i32, String)>)>,
+    /// The wall clock in milliseconds: a new subtype's id, as `System.currentTimeMillis()`.
+    pub now: fn() -> i64,
 }
 impl Default for App {
     fn default() -> Self {
@@ -216,6 +232,11 @@ impl Default for App {
             display_pixels: [0.0; 2],
             files: Default::default(),
             backups: Default::default(),
+            languages: Default::default(),
+            draft: None,
+            list: Default::default(),
+            custom_actions: vec![],
+            now: languages::wall_clock,
         }
     }
 }
@@ -273,6 +294,7 @@ impl App {
             self.focus = -1;
             self.backups_left(had);
             self.check_models();
+            self.languages_opened(route);
         } else if route == "@enable" {
             self.effects.push(vec!["enable".into()]);
         } else {
@@ -344,6 +366,7 @@ impl App {
             self.scrolls.pop();
             self.focus = -1;
             self.backups_left(had);
+            self.languages_left();
         } else {
             self.effects.push(vec!["finish".into()]);
         }

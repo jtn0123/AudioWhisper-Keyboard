@@ -75,7 +75,7 @@ fn reply(
         json!({"id":c.id,"bounds":[c.bounds.left,c.bounds.top,c.bounds.right,c.bounds.bottom],"label":label,
             "description":c.label,"hint":if c.role=="edit"{c.label.as_str()}else{""},"hintShowing":shown.as_ref().is_some_and(|t| t.is_empty()),"role":c.role,"state":c.summary,"enabled":c.exposed_enabled(),"pressed":false,"selected":c.selected,
             "checked":checked(c),"live":c.role=="status","locked":false,"actions":actions,"longClickLabel":"","holdDelayMillis":500,
-            "range":c.range,"anchor":anchor,"focus":focus})
+            "range":c.range,"anchor":anchor,"focus":focus,"custom":a.custom_actions_for(c.id)})
     }).collect();
     let field = a
         .controls
@@ -85,7 +85,7 @@ fn reply(
     let effects = std::mem::take(&mut a.effects);
     let result = json!({"nodes":nodes,"mode":"","shift":"","popup":a.modal.is_some(),"effects":effects,
         "systemBarColor":a.system_bar_color(),"lightSystemBars":a.light_system_bars(),"route":a.stack.last(),"canBack":a.stack.len()>1 || a.modal.is_some() || a.editor.focused,"scroll":a.scroll(),"maxScroll":a.max_scroll,"focus":a.focus,
-        "animating":a.animating(),"scrollbarAlpha":a.scrollbar_alpha(usize::from(a.modal.is_some())),"selectionToolbar":a.editor.focused && a.editor.anchor!=a.editor.focus && !a.toolbar_dismissed,"accepted":a.accepted,"editor":{"anchor":a.editor.anchor,"focus":a.editor.focus,"composing":a.editor.composing,"focused":a.editor.focused,"report":a.batches.report(),"bounds":field,"multiLine":a.field.is_some() && a.number_field().is_none(),"number":a.number_field()}});
+        "animating":a.animating(),"scrollbarAlpha":a.scrollbar_alpha(usize::from(a.modal.is_some())),"selectionToolbar":a.editor.focused && a.editor.anchor!=a.editor.focus && !a.toolbar_dismissed,"accepted":a.accepted,"editor":{"anchor":a.editor.anchor,"focus":a.editor.focus,"composing":a.editor.composing,"focused":a.editor.focused,"report":a.batches.report(),"bounds":field,"multiLine":a.multi_line_field(),"number":a.number_field()}});
     let mut out = vec![vec![]; reply::SIZE];
     out[reply::STATE] = settings::text(&result.to_string());
     out[reply::TEXT] = a.editor.text.clone();
@@ -394,6 +394,7 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_settings(
                     }
                 }
                 ops::FILES => a.file_report(&p).map_err(illegal)?,
+                ops::LANGUAGES => a.set_languages(&p).map_err(illegal)?,
                 ops::ACCESSIBILITY_SCROLL => {
                     let id = int(&p, 0)?;
                     a.accessibility_scroll(id, int(&p, 1)? == ACCESS_SCROLL_FORWARD);

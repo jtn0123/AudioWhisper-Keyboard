@@ -8,6 +8,7 @@ mod dictionary;
 mod gestures;
 mod input_feedback;
 mod keyboard;
+pub mod languages;
 mod licences;
 mod media;
 mod other;
@@ -115,6 +116,12 @@ pub enum Kind {
     Addons(&'static Addons),
     /// A row of the Back up or Restore screen (`backup.rs`).
     Backup(Part),
+    /// An editable list of records (`items.rs`): its label is the empty list's warning.
+    List(super::items::Source),
+    /// A field of the subtype editor's draft, chosen from a list (`languages/editor.rs`).
+    Pick(languages::Field),
+    /// A part of a language screen that is not a ListItem (`languages.rs`).
+    Lang(languages::Lang),
 }
 /// What a Back up or Restore row is. A group is its `wire::backup::layout` position.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -327,10 +334,20 @@ pub const SCREENS: &[Screen] = &[
     theme::SCREEN,
     backup::BACKUP,
     backup::RESTORE,
+    languages::LIST,
+    languages::PICKER,
+    languages::PACKS,
+    languages::ADD,
+    languages::EDIT,
 ];
-/// The native screen at `route`, if Rust draws it.
+/// The native screen at `route`, if Rust draws it. The subtype editor's route carries the
+/// subtype's id as one more segment.
 pub fn screen(route: &str) -> Option<&'static Screen> {
-    SCREENS.iter().find(|s| s.route == route)
+    let base = match super::languages::edit_id(route) {
+        Some(_) => super::languages::EDIT_ROUTE,
+        None => route,
+    };
+    SCREENS.iter().find(|s| s.route == base)
 }
 /// Every route Rust draws: home, then [`SCREENS`].
 pub fn native_routes() -> Vec<&'static str> {

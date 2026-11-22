@@ -152,6 +152,11 @@ Stage 5 packages 1–3, one event family at a time:
   handles and runs the file work one job at a time. Every Compose backup restores as before,
   proven over all 63 group sets ([stage 4: Back up and Restore](stage4-backup-restore.md)).
 * **Languages and dictionaries share editable lists.**
+  **Languages done (2026-11-21):** Rust draws Languages & Layouts, Select language, the
+  language pack manager and the subtype editor, and the Compose screens are gone (1,239 lines
+  deleted, 177 added). The editable list and its editor are built for dictionaries to reuse.
+  Rust writes the subtype list itself, proven byte for byte against the original codec
+  ([stage 4: Languages and layouts](stage4-languages.md)).
 * **The theme editor and extension editor are ported and improved**, not dropped (owner,
   2026-11-21). Each port says which improvements it makes, as the Other and Theme port did.
 * **Rust owns the preferences file** (`crates/settings` already has byte parity). Then Jetpref,
