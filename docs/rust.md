@@ -992,23 +992,29 @@ the shell's `PATH`.
 
 ## The generated boundary
 
-Part of the JNI boundary is generated instead of written by hand. So far that is `ShiftNative`,
-and every operation code and packet field the `call`-style entry points pass
-([below](#operation-codes-and-packets-crateswire)). The other bindings are still hand-written
-([all-rust.md](all-rust.md), phase 2).
+Every production native method is generated. So is the Kotlin over most of them. Only test
+fixtures declare an `external fun` by hand, and `checkNativeDeclarations` fails on a hand-written
+one in a `main` or `debug` source set. Every operation code and packet field the `call`-style entry
+points pass is generated too ([below](#operation-codes-and-packets-crateswire)).
 
-`crates/boundary` holds typed declarations, one file for each Kotlin object in
-`src/declarations`: each method's name and doc, its parameters' names and types, and its return
-type. From that one table it writes both sides, so their names and types can't drift apart:
+`crates/boundary` holds typed declarations in `src/declarations/<module>.rs`, listed in
+`src/declarations.rs`. From that one table it writes both sides, so names and types can't drift
+apart. It writes four things:
 
-- **The Kotlin object**: `internal object ShiftNative`, its `RustLibrary.load()` init and a
-  `@JvmStatic external fun` for each method. `:lib:rust:generateNativeBoundary` runs
-  `cargo run -p boundary` before Kotlin compiles, into `build/generated/nativeBoundary/kotlin`,
-  which every variant compiles as a source.
-- **The Rust entry points**: an `#[unsafe(no_mangle)] extern "system" fn Java_…` for each method,
-  which reads the JNI values, calls a hand-written function in awnative and returns its result,
-  or throws its error in Java. awnative's `build.rs` writes them into cargo's `OUT_DIR`, and
-  `src/boundary.rs` includes them.
+- **The native objects** (`CLASSES`): an `internal object FooNative` with `RustLibrary.load()` and
+  an `external fun` for each method. An object whose methods are themselves the API is public
+  (`public: true`).
+- **The Rust entry points**: an `#[unsafe(no_mangle)] extern "system" fn Java_…` for each method.
+  It reads the JNI values, calls a plain function in awnative, and returns its result or throws its
+  error in Java.
+- **The Kotlin API** (`APIS`): an `object`, or a class that owns a native handle. Each member
+  converts Kotlin types and calls one native method.
+- **The types the API takes and returns** (`TYPES`, or `nested` in an API): records, enums,
+  bit-packed value classes and callback interfaces.
+
+`:lib:rust:generateNativeBoundary` runs `cargo run -p boundary` before Kotlin compiles, into
+`build/generated/nativeBoundary/kotlin`, which every variant compiles as a source. awnative's
+`build.rs` writes the entry points into cargo's `OUT_DIR`, and `src/boundary.rs` includes them.
 
 The entry points reach awnative through its build script because they hold `unsafe` JNI code,
 which may compile only in awnative; the generator writes that code as text and forbids `unsafe`
@@ -1018,37 +1024,122 @@ writes the Kotlin again whenever `crates/boundary` changes. Nothing generated is
 cargo build keeps a copy of the entry points it compiled in `build/rust/boundary`, for
 `checkNativeDeclarations` to read.
 
-A declared method's hand-written function is in the awnative module its class names, called as
-the method is in snake case (`ShiftNative.isDoubleSpacePeriod` calls
-`crate::shift::is_double_space_period`), and takes and returns plain Rust types:
-
-| Declared | Kotlin | JNI | The Rust function |
-|---|---|---|---|
-| `Param::Int` | `Int` | `jint` | takes `i32` |
-| `Param::Long` | `Long` | `jlong` | takes `i64` |
-| `Param::String` | `String` | `jstring` | takes `&[u16]`: UTF-16, lone surrogates kept; a null throws |
-| `Return::Boolean` | `Boolean` | `jboolean` | returns `jni::Result<bool>` |
-| `Return::Int` | `Int` | `jint` | returns `jni::Result<i32>` |
-
-An `Err` throws in Java, as the hand-written entry points' errors do. Another type needs a variant
-of `Param` or `Return`, its spelling on each side, how the entry point converts it, and, for a
-return, an implementation of `boundary::Returned` in awnative.
-
 The generated code is laid out as the repo's own: the Rust as rustfmt would lay it out, which
-`cargo test -p boundary` checks against rustfmt, and the Kotlin in 120 columns. Neither carries
-`@Suppress` or `#[allow]`, and clippy checks the included entry points as it does the rest of
-awnative.
+`cargo test -p boundary` checks against rustfmt, and the Kotlin in 120 columns. The same tests
+check that the output is the same on every run. Neither side carries `@Suppress` or `#[allow]`,
+and clippy checks the included entry points as it does the rest of awnative.
 
-To add a method to a generated object:
+### Adding a native method
 
-1. Declare it in `crates/boundary/src/declarations/<module>.rs`: its name, doc, parameters and
-   return type. One method of a name: overloads are not supported.
-2. Write its `pub fn` in awnative's `<module>.rs`.
-3. Build. If the function is missing or its types differ, awnative doesn't compile.
+1. Declare it in its class's `methods`: name, doc, parameters and return type. One method of a
+   name: overloads are not supported.
+2. Write its `pub fn` in the awnative module the class names, called as the method is in snake
+   case (`ShiftNative.isDoubleSpacePeriod` calls `crate::shift::is_double_space_period`). Set
+   `rust` to call another: a path under the module, `crate::…` for another module, or `::…` for
+   another crate's function.
+3. If the API wraps it, add a `Member` (below).
+4. Build. If the function is missing or its types differ, awnative doesn't compile.
 
-To generate an object that is written by hand today, add `src/declarations/<module>.rs` with its
-`Class`, list it in `CLASSES` (`src/declarations.rs`), turn its entry points into plain functions,
-and delete the hand-written Kotlin object.
+The function takes plain Rust types and returns `jni::Result<T>`, or `T` if it can't fail. One
+that returns nothing still returns `jni::Result<()>`. An `Err` throws in Java.
+
+| Declared | Kotlin | The Rust function |
+|---|---|---|
+| `Param::Boolean`, `Char`, `Int`, `Long`, `Float` | the same | takes `bool`, `u16`, `i32`, `i64`, `f32` |
+| `Param::String`, `NullableString` | `String`, `String?` | takes `&[u16]`, `Option<&[u16]>`: UTF-16, lone surrogates kept |
+| `Param::Array(Element::Int)`, `NullableArray(…)` | `IntArray`, `IntArray?` | takes `&[i32]`, `Option<&[i32]>` |
+| `Param::Strings`, `StringVararg`, `NullableStrings` | `Array<String>`, `Array<out String>`, `Array<String?>` | takes `&[Vec<u16>]`, or `&[Option<Vec<u16>>]` |
+| `Param::Out(Element::Int)` | `IntArray` the caller reads | takes `&Env` and the JNI array, to fill with `Env::write` |
+| `Param::Object("Kotlin.Type")` | a callback or any object | takes `&Env` and a `jobject`, to call back with `Env::method` and `call_*` |
+| `Return::Boolean`, `Int`, `Long`, `Float`, `Double` | the same | returns `bool`, `i32`, `i64`, `f32`, `f64` |
+| `Return::String`, `NullableString` | `String`, `String?` | returns `Vec<u16>`, `Option<Vec<u16>>` |
+| `Return::Array(Element::Int)`, `NullableArray(…)` | `IntArray`, `IntArray?` | returns `Vec<i32>`, an `Option`; `boundary::Chars` for a `CharArray` |
+| `Return::Strings`, `StringArrays`, `IntArrays` | `Array<String>`, `Array<Array<String>>`, `Array<IntArray>` | returns `Vec<Vec<u16>>`, `Vec<Vec<Vec<u16>>>`, `Vec<Vec<i32>>` |
+| `OBJECTS`, `NULLABLE_OBJECTS` | `Array<Any>`, read as one record of arrays | takes `&Env`, returns the array `Env::make_objects` made |
+| `Return::Object("Kotlin", "jni")` | any other object | takes `&Env`, returns the JNI reference it made |
+
+A null where none is allowed throws `NullPointerException`. A number in an `OBJECTS` record
+crosses as a one-element array, so no number is boxed.
+
+Some methods need more:
+
+- **More than seven arguments**, counting `&Env`: the function takes one struct,
+  `crate::boundary::args::{Class}{Method}`, with a field for each parameter.
+- **A member of the object** (`instance: true`), not `@JvmStatic`: the entry point takes the
+  object, a `jobject`, not the class.
+- **An `internal` method** (`internal: true`), for a hand-written extension in its module. It
+  keeps its JNI symbol with `@JvmName`.
+- **Default arguments** (`defaults`): Kotlin values, such as `("vsync", "-1")`.
+- **The environment** (`env: true`): the function takes the call's `&Env` first. A
+  `Param::Out`, `Param::Object` or object return implies it.
+- **A callback** is a `Type::Interface`. Its doc and members are Kotlin; one `fun` member makes it a
+  `fun interface`, so Kotlin passes a lambda. R8 can't see the calls from Rust, so it also needs a
+  keep rule in `lib/rust/consumer-rules.pro`.
+
+### Adding an API member
+
+An `Api` is `Shape::Object`, or `Shape::Handle` for a class that owns a native handle. A handle
+class names its `create` and `free` methods. With `close`, it is `AutoCloseable`: `close()` frees
+the handle and later calls get 0, which the native side refuses (`handle::object` throws "the …
+is closed"). With `synchronized`, every member and `close()` take the object's lock; without it,
+each member keeps the object reachable until its call returns. `params` and `keeps` give the
+constructor's parameters; `lend` lets other APIs borrow the handle under the same lock.
+
+A `Member` calls one native method, of its own name unless `call` names another. It is a `fun`, a
+`val` read once (`Kind::Val`) or a `val` read on first use (`Kind::Lazy`). `companion` puts it in
+the companion object.
+
+Its `args` say how a parameter differs from the native method's, matched by name:
+
+| `ArgKind` | The member takes | The native method gets |
+|---|---|---|
+| `Same` | the same type | it |
+| `Code("WireEnum")` | a `crates/wire` enum | its `code` |
+| `Ordinal("Enum")` | a Kotlin enum | its `ordinal` |
+| `List` | a `List<String>` | `toTypedArray()` |
+| `Text` | a `CharSequence` | `toString()` |
+| `Handle("Api")`, `NullableHandle("Api")` | another handle class | its handle, or 0 for null |
+| `Lent("Api")` | a lending handle class, or null | its handle under its lock, or -1 |
+| `Fixed("expr")` | nothing | that Kotlin expression |
+| `As("decl", "expr")` | the Kotlin parameter `decl` | `expr` of it |
+
+`default(name, value)` changes only a parameter's default.
+
+Its `result` says how the native result reads:
+
+| `Out` | The member returns |
+|---|---|
+| `Same` | the result |
+| `List` | an array as a `List` |
+| `Entry("Enum")`, `NullableEntry("Enum")` | an `Int` as an enum entry, or null for a negative one |
+| `Wrap("Type")`, `NullableWrap("Type")` | the result passed to that constructor, or null for 0 or null |
+| `Record("Type")`, `Records("Type")` | a row read as one record, or as a list of them |
+| `Pair("A", "B")` | a row of two as a `Pair` |
+| `Then("Type", ".kotlin")` | the result with that Kotlin after it, such as `[0]` |
+
+A `Type::Record` lists its fields and `constants`, and is a `data class` with `data`. A
+`Type::Bits` is a value class over an `Int` or a `Long`, a property for each run of bits.
+
+### What stays hand-written
+
+283 counted lines in 13 files stay in `lib/rust/src/main/kotlin` (2,338 in 66 before). None
+declares an `external fun`. Each holds something the generator has no shape for:
+
+- **`EditorSession` (50)**: a coroutine lock held across suspending transactions, with
+  `EditorAttributes`, whose queries each pack their own row.
+- **`SettingsRules` (48), `ExtensionPolicy` (30), `BackupPolicy` (21)**: messages over one `call`
+  per crate, each reading its own `crates/wire` rows.
+- **`SherpaAsr` (39)**: a recognizer is cancelled while it decodes, under a read-write lock, and
+  `SherpaVad` reads its phrases from an array of arrays, which no generated record casts without an
+  unchecked warning.
+- **`NativeRuntime` (24), `RustLibrary` (9)**: loading the library, and the cleaner every handle
+  class uses.
+- **`Popup` (18), `LayoutRules` (13), `LayoutCache` (13), `SwipeUserWords` (10), `Giphy` (5),
+  `Gif` (3)**: Kotlin over generated APIs, in generic or Kotlin-only code.
+
+The test-only natives stay hand-written too: `SemanticRules`, `A1Replay`, `LegacyFixtureNative`,
+`DictationSegmentationMatchTest`, `RenderThemeMatchTest` and `TtsComparison`. Their exports are
+left out of the phone's library.
 
 ## Operation codes and packets: `crates/wire`
 
@@ -1164,28 +1255,32 @@ see lib/rust, so groups it calls with are generated there, with its own internal
 ```
 
 `:app:checkNativeDeclarations` (`scripts/native-declarations-check.py`, also run by
-`:lib:rust:check`) fails when a production Kotlin `external fun` has no export in the debug APK's
-`libawnative.so`, or an export there has no production declaration: one only tests declare
-belongs off the phone (`#[cfg(not(target_os = "android"))]`, as the host-only probes are, or a
-fixture feature), and one no Kotlin declares is dead.
+`:lib:rust:check`) fails when a production Kotlin `external fun` is written by hand rather than
+generated, or has no export in the debug APK's `libawnative.so`, or an export there has no
+production declaration: one only tests declare belongs off the phone
+(`#[cfg(not(target_os = "android"))]`, as the host-only probes are, or a fixture feature), and one
+no Kotlin declares is dead.
 
 It also checks types, which names alone miss: a Rust entry point that takes a `jint` where Kotlin
 passes a `Long` still links, and the argument arrives cut short. Each module's debug classes give
-every production native method's JVM descriptor, and each of its Rust entry points, hand-written
-in awnative or generated, must take and return the JNI types `javac -h` would give it: `jclass`
-after the `JNIEnv` for a static method and `jobject` for an instance one, `jlong` for a `Long`,
-`jintArray` for an `IntArray`, `jobjectArray` for any array of objects. `i32` passes for `jint`
-and `f32` for `jfloat`, since jni-sys defines them so; `bool` does not pass for `jboolean`. The
-classes must declare the same native methods the sources do, so none escapes, and overloads are
-refused. The generated entry points it reads are the copy the APK's own cargo build compiled.
+every production native method's JVM descriptor, and each of its Rust entry points must take and
+return the JNI types `javac -h` would give it: `jclass` after the `JNIEnv` for a static method and
+`jobject` for an instance one, `jlong` for a `Long`, `jintArray` for an `IntArray`,
+`jobjectArray` for any array of objects. `i32` passes for `jint` and `f32` for `jfloat`, since
+jni-sys defines them so; `bool` does not pass for `jboolean`. The classes must declare the same
+native methods the sources do, so none escapes, and overloads are refused. The generated entry points it reads are the copy the APK's own cargo build compiled.
 
-`scripts/native-declarations-mutation.py` breaks the boundary six ways and requires the check to
-fail each, then pass restored: a declaration with no export, an export with no declaration, a
-test-only export shipped, a hand-written entry point that reads a `Long` as a `jint`, a generated
-declaration whose type changed on one side only, and a renamed entry point. A build can't
-regenerate only one side, so that case makes the two runs of the generator disagree (`cargo run`
-has debug assertions; awnative's release build script doesn't). `cargo test -p boundary` checks
-that the generator writes the same files every time, laid out as rustfmt would.
+`scripts/native-declarations-mutation.py` breaks the boundary ten ways and requires the check to
+fail each, then pass restored: a hand-written declaration, an export with no declaration, a
+test-only export shipped, a generated declaration whose type changed on one side only, a
+generated method renamed on one side only, and one for each kind of entry point whose JNI types
+javac spells apart from the rest: a callback object, an array of objects, an array of int arrays,
+a char array, and an instance method's receiver. A build can't regenerate only one side, so the
+one-side cases make the two runs of the generator disagree (`cargo run` has debug assertions;
+awnative's release build script doesn't). The last five spell one JNI type differently in the
+generated Rust only, which still compiles, since every JNI reference type is an alias of
+`jobject`. `cargo test -p boundary` checks that the generator writes the same files every time,
+laid out as rustfmt would.
 
 `./gradlew :lib:rust:oracleCheck` runs the LatinIME C++ comparison through `latin-oracle`; it
 needs a C++ toolchain, and CI runs it as its own task.
@@ -1263,9 +1358,10 @@ APK. Every other build ignores the switch and draws on the CPU (see docs/decisio
 
 1. Add a crate under `crates/` with the logic and its tests; no JNI, no unsafe.
 2. Add its JNI functions: a new awnative module, named after the crate, with a function for each,
-   declared in `crates/boundary` (see "The generated boundary"). Where the generator doesn't take
-   a type yet, write the entry points in that module and the `external` declarations in
-   `src/main/kotlin` by hand. The Kotlin wrapper goes in `src/main/kotlin`.
+   declared in `crates/boundary`, with the Kotlin API over them (see "The generated boundary").
+   Where the generator has no shape for something, add the shape rather than writing an
+   `external fun` by hand: the check refuses one. Kotlin the generator can't express goes in
+   `src/main/kotlin`, over the generated API.
 3. Copy the Kotlin it replaces into the app's tests as a reference and write the differential
    test. Run it, and make it fail once on purpose.
 4. Switch the app over, delete the Kotlin, and check it on the emulator.
