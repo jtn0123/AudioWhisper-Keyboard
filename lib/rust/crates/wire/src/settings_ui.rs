@@ -47,6 +47,9 @@ crate::declare! {
         /// A [`SettingsUiFiles`](files::report::KINDS) report: how the file picker closed, or
         /// how file work ended.
         FILES = 22,
+        /// The language resources a [`SettingsUiLanguageEffect`](languages::effect::KINDS) asked
+        /// for: [`SettingsUiLanguage`](languages::row::FIELDS) rows.
+        LANGUAGES = 23,
     }
 }
 
@@ -131,6 +134,7 @@ pub mod query {
 }
 
 pub mod files;
+pub mod languages;
 
 /// The groups the generator writes as Kotlin.
 pub const GROUPS: &[&crate::Group] = &[
@@ -150,4 +154,7 @@ pub const GROUPS: &[&crate::Group] = &[
     &files::document::FIELDS,
     &files::work::FIELDS,
     &files::done::FIELDS,
+    &languages::effect::KINDS,
+    &languages::kind::KINDS,
+    &languages::row::FIELDS,
 ];
