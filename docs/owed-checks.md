@@ -43,6 +43,7 @@ row says so.
 | P14 | Project licence: every step ran on the emulator. None ran on the phone. Long-press a word, drag both handles, hold one at an edge, then Copy and Select all, with the phone's own toolbar. TalkBack's reading by word and line, selecting and copying is part of P6. | [stage4-licences, the project licence screen](stage4-licences.md#the-project-licence-screen) |
 | P15 | Theme manager: every step ran on the emulator. None ran on the phone. Choose a day and a night theme, check that the keyboard previews each and goes back to its own theme on leaving, and that TalkBack reads each theme as a day or night theme and says which one is chosen. | [stage4-theme-editor, owed](stage4-theme-editor.md#owed) |
 | P16 | Setup: every step ran on the emulator. None ran on the phone. A first run on the phone: enable the keyboard in One UI's keyboard list and check the app comes back, select it in the picker, deny the notification permission twice, then allow notifications in the app's notification page and come back. TalkBack on setup is part of P6. | [stage4-setup, owed](stage4-setup.md#owed) |
+| P17 | Theme editor: every step ran on the emulator. None ran on the phone. On an extension made on the phone, open *Manage component*; add, duplicate and edit a rule; delete a property and undo it; change the meta; check the keyboard shows the draft; rotate with a draft and with the rule editor open; *Save*, then save the extension and choose its theme. | [stage4-theme-editor, owed](stage4-theme-editor.md#owed) |
 
 ## Emulator checks the docs owe
 
@@ -71,6 +72,7 @@ row says so.
 | E22 | A top-row key's popup in landscape without full-screen mode (set *landscape input* so the extract view never shows, then put it back) and in one-handed mode. The cargo tests cover both layouts; no device has shown them. | [rust.md, a top-row key's popup](rust.md#a-top-row-keys-popup-cut-off-fixed-2026-11-21) |
 | E23 | `SettingsOtherThemeDevice`: its theme manager step now picks the theme on the Rust manager and waits for the keyboard's preview to start and end. It compiles but has not run. | [stage4-theme-editor, owed](stage4-theme-editor.md#owed) |
 | E24 | Setup: the permission answer reaching a recreated activity. Rotate, or switch dark mode, while the notification dialog is open, then answer; the step must take the answer. Also close the first dialog without answering (Back, or a tap outside) and check the step reads as blocked and opens the notification settings. Neither ran on the emulator. | [stage4-setup, owed](stage4-setup.md#owed) |
+| E25 | Theme editor: no instrumented test drives the Rust theme editor; the device check was by hand. A `SettingsOtherThemeDevice` step that opens *Manage component*, deletes a property, saves, and reads the workspace's stylesheet back would hold it. | [stage4-theme-editor, owed](stage4-theme-editor.md#owed) |
 
 ## Not device checks, but still owed
 
@@ -100,7 +102,9 @@ These need no device. They are listed so they are not lost.
 * Setup's paragraphs are ragged right where Compose justified them, and its steps open without Compose's animation. ([stage4-setup, differences from Compose](stage4-setup.md#differences-from-compose))
 * The project licence is shaped by parley in DroidSansMono, not by Android's text stack, so glyphs can sit a pixel apart from Compose's. With the Compose screen deleted there is no picture pair to measure it. ([stage4-licences, where it differs from Compose](stage4-licences.md#where-it-differs-from-compose))
 * The LatinIME port's golden files have only been written and checked on macOS arm64, as CI runs. No `libm` function is reachable and `mul_add` rounds the same everywhere, so an x86-64 or Linux host should give the same bits, but none has run them. ([phase6-oracle-goldens, owed](phase6-oracle-goldens.md#owed))
+* The theme manager's *Create* puts Compose's *Create theme extension* on the stack twice, likely because the deep link is handled when `NavController`'s graph is set and again by `FlorisAppActivity`'s `LaunchedEffect`. A second *Save* on the copy left behind crashes with `FileNotFoundException` on the closed workspace's `saver/extension.json`. The manager's *Edit* stacks the extension editor twice the same way. Older than the theme editor; step 10, unless fixed sooner as a crash fix. ([stage4-theme-editor, owed](stage4-theme-editor.md#owed))
+* A key label wider than its key is drawn past the key's left edge, over its neighbour, and cut at its right edge. Seen with a theme whose space key has no font size of its own, so the language name is drawn at the plain key's size. ([stage4-theme-editor, owed](stage4-theme-editor.md#owed))
 
 ## Notes
 
-* This list has 4 confirm-on-the-phone items, 16 phone checks and 23 emulator checks.
+* This list has 4 confirm-on-the-phone items, 17 phone checks and 24 emulator checks.
