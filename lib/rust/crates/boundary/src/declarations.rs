@@ -5,6 +5,7 @@ mod clipboard;
 mod composing;
 mod dictation;
 mod dictation_session;
+mod editor;
 mod emoji;
 mod gestures;
 mod gif;
@@ -81,6 +82,7 @@ pub const CLASSES: &[Class] = &[
     smartbar::SMARTBAR_NATIVE,
     render::RENDER_NATIVE,
     dictation_session::DICTATION_SESSION_NATIVE,
+    editor::EDITOR_NATIVE,
 ];
 
 /// Every generated api over those classes.
