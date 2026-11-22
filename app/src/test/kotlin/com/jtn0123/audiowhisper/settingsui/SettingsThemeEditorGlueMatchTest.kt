@@ -29,8 +29,8 @@ class SettingsThemeEditorGlueMatchTest {
     /** An extension directory with component [theme]'s stylesheet and some fonts and images. */
     private fun extDir(theme: ThemeExtensionComponentEditor): File {
         val dir = createTempDirectory("theme-editor").toFile()
-        dir.resolve(theme.stylesheetPath()).apply { parentFile.mkdirs() }.writeText(sheet)
-        for (name in listOf("fonts/b.ttf", "fonts/a.ttf", "images/sky.png")) dir.resolve(name).apply { parentFile.mkdirs() }.writeText("")
+        dir.resolve(theme.stylesheetPath()).apply { parentFile?.mkdirs() }.writeText(sheet)
+        for (name in listOf("fonts/b.ttf", "fonts/a.ttf", "images/sky.png")) dir.resolve(name).apply { parentFile?.mkdirs() }.writeText("")
         return dir
     }
     private fun component() = ThemeExtensionComponentEditor(id = "sunny", label = "Sunny", authors = listOf("Ada", "Grace"),

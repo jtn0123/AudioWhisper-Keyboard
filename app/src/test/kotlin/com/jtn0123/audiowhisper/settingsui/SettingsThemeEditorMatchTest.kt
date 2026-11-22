@@ -74,7 +74,7 @@ internal object ThemeEditorNatives {
  * FlorisImeUi's and ThemeTranslations'.
  */
 class SettingsThemeEditorMatchTest {
-    private val shipped = File("src/main/assets/ime/theme").walk().filter { it.parentFile.name == "stylesheets" && it.extension == "json" }
+    private val shipped = File("src/main/assets/ime/theme").walk().filter { it.parentFile?.name == "stylesheets" && it.extension == "json" }
         .sortedBy { it.path }.toList()
 
     @Test fun everyShippedStylesheetIsWrittenAsComposeWroteIt() {
