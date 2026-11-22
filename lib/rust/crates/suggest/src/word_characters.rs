@@ -28,7 +28,7 @@ pub fn is_word(word: &[u16]) -> bool {
 }
 
 /// Whether typing `code_point` right after a word continues it rather than ending it: a digit of
-/// any script (so "mp3" isn't corrected), or one of [`CONTINUING_PUNCTUATION`].
+/// any script (so "mp3" isn't corrected), or one of the `CONTINUING_PUNCTUATION` marks.
 pub fn continues_word(code_point: i32) -> bool {
     u32::try_from(code_point)
         .is_ok_and(|cp| code_point::is_digit(cp) || CONTINUING_PUNCTUATION.contains(&cp))

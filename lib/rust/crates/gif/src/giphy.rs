@@ -1,5 +1,5 @@
 //! GIPHY's API, apart from the call itself: the URLs to ask it, and its answer read into GIFs
-//! (https://developers.giphy.com/docs/api/endpoint). The answer is read as the keyboard's Kotlin
+//! (<https://developers.giphy.com/docs/api/endpoint>). The answer is read as the keyboard's Kotlin
 //! read it with kotlinx.serialization ([`json`](crate::json)), and its sizes as Kotlin's
 //! `toFloatOrNull()` read them ([`java_float`](crate::java_float)).
 

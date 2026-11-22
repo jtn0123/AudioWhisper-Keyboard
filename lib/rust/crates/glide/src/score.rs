@@ -3,7 +3,7 @@
 //! A word's ideal path runs through the centres of its keys. Each candidate's path is compared
 //! with the swipe twice: by shape (both scaled into a unit box) and by location (as drawn), each
 //! distance turned into a probability by a Gaussian, then weighed by the word's frequency. See
-//! Étienne Desticourt's write-up at https://github.com/AnySoftKeyboard/AnySoftKeyboard/pull/1870.
+//! Étienne Desticourt's write-up at <https://github.com/AnySoftKeyboard/AnySoftKeyboard/pull/1870>.
 
 use std::fmt;
 

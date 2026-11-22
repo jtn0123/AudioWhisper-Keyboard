@@ -1,5 +1,5 @@
-//! E-mail addresses and URLs typed into ordinary text ("write to bob@example.com", "see
-//! https://example.com/news"). Their pieces are letters like any word, so the word learner would
+//! E-mail addresses and URLs typed into ordinary text ("write to `bob@example.com`", "see
+//! `https://example.com/news`"). Their pieces are letters like any word, so the word learner would
 //! keep "example", "com" or "news"; none of an address is ever learned. The letters before the
 //! first mark are let through, as nothing yet shows they start an address.
 

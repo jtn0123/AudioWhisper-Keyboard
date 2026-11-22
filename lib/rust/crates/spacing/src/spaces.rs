@@ -162,7 +162,7 @@ pub fn auto_space_after(
 }
 
 /// Whether to type the phantom space before `text` (`PhantomSpaceState.determine`): if one is
-/// owed (`phantom_space`) or `force_active`, in a field that [`spaces_words`], after a letter, a
+/// owed (`phantom_space`) or `force_active`, in a field that spaces words, after a letter, a
 /// digit or a symbol a phantom space may follow, and before a letter, a digit or a symbol it may
 /// come before.
 pub fn phantom_space_before(

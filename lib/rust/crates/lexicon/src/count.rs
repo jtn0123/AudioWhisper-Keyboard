@@ -50,7 +50,7 @@ impl Vocabulary {
 #[derive(Debug, Default)]
 pub struct Counts {
     /// Times each entry was written, by index; fractional where a capital at a sentence's start
-    /// left the case open (see [`Counts::settle_case`]).
+    /// left the case open (see `Counts::settle_case`).
     pub words: Vec<f64>,
     /// Times each entry was the keyboard's previous word for a following letter word.
     pub contexts: Vec<u64>,

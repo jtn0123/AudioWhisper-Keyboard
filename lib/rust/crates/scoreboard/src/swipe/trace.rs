@@ -10,7 +10,7 @@
 //! law of drawing movements (Lacquaniti, Terzuolo & Viviani 1983, "The law relating the kinematic
 //! and figural aspects of drawing movements", Acta Psychologica 54, 115–130): speed falls as the
 //! cube root of curvature, `v = K κ^(-1/3)`. The law has no limit on a straight run, so speed is
-//! capped there: `v = V (1 + κ / κ₀)^(-1/3)`, at most [`SPEED`], with κ₀ a quarter of a key's
+//! capped there: `v = V (1 + κ / κ₀)^(-1/3)`, at most `SPEED`, with κ₀ a quarter of a key's
 //! curvature. The finger slows at turns but not at a letter it passes straight through; the
 //! second simulator ([`super::lognormal`]) slows at every letter, so a change that needs either is
 //! checked against both.

@@ -58,7 +58,7 @@ impl Context {
         (raw & 15 == 1).then_some(raw & 0xff0)
     }
     /// Whether the field takes prose, to auto-correct and learn from: not a URL, e-mail address or
-    /// filter field ([`NOT_PROSE`]), nor one [`Context::words`] rules out.
+    /// filter field (the `NOT_PROSE` variations), nor one [`Context::words`] rules out.
     pub fn prose(&self) -> bool {
         let not_prose = self
             .text_variation()
@@ -66,7 +66,7 @@ impl Context {
         self.words() && !not_prose
     }
     /// Whether what is typed is auto-corrected: prose, or a URL or e-mail field that asks for it
-    /// ([`AUTO_CORRECT`]). A filter field is never corrected, whatever it asks.
+    /// (`TYPE_TEXT_FLAG_AUTO_CORRECT`). A filter field is never corrected, whatever it asks.
     pub fn autocorrect(&self) -> bool {
         let asks = self.input_type() & AUTO_CORRECT != 0;
         let address = self
