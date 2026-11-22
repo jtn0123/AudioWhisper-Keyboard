@@ -286,7 +286,7 @@ fn run(
         let cpu_start = thread_cpu_ns();
         let (draw, draw_cpu, gpu_wait, post_ns) = match &mut engine {
             Engine::Cpu(raster) => {
-                if raster.draw_regions(&scene, &regions).is_err() {
+                if raster.draw_frame(&previous, &scene, &regions).is_err() {
                     log("draw_error");
                     break;
                 }
@@ -343,7 +343,7 @@ fn run(
                 .zip(&scene.keys)
                 .any(|(a, b)| a.label != b.label && a.label.eq_ignore_ascii_case(&b.label));
             log(&format!(
-                "profile draw_ns={draw} cpu_ns={draw_cpu} buffer_post_ns={post_ns} press={} release={} recreate={} full={} area_px={area} paint_px={paint} regions={region_count} shift={} popup_change={} popup_open={} candidates={} encode_ns={} raster_ns={} shape_ns={} glyph_ns={} alloc_ns={} alloc_sites={} layout_misses={} labels={} cold_glyph_ns={} color_glyph_ns={} glyph_runs={} cold_runs={} color_runs={}",
+                "profile draw_ns={draw} cpu_ns={draw_cpu} buffer_post_ns={post_ns} press={} release={} recreate={} full={} area_px={area} paint_px={paint} regions={region_count} shift={} popup_change={} popup_open={} candidates={} encode_ns={} raster_ns={} shape_ns={} glyph_ns={} alloc_ns={} alloc_sites={} layout_misses={} labels={} cold_glyph_ns={} color_glyph_ns={} glyph_runs={} cold_runs={} color_runs={} covered_px={} restored_px={}",
                 u8::from(press),
                 u8::from(release),
                 u8::from(recreate),
@@ -364,7 +364,9 @@ fn run(
                 p.color_glyph_ns,
                 p.glyph_runs,
                 p.cold_runs,
-                p.color_runs
+                p.color_runs,
+                p.covered_px,
+                p.restored_px
             ));
         }
         // Only numeric timing data; never scene labels, candidates, coordinates or action codes.

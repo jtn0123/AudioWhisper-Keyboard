@@ -16,13 +16,15 @@ pub struct Raster {
     pub(crate) text: Text,
     layouts: HashMap<(String, u32, bool, i32), Layout<()>>,
     pub(crate) context: crate::backend::Backend,
-    pixmap: Pixmap,
+    pub(crate) pixmap: Pixmap,
     /// The damaged rectangle's pixels while it renders, when it is not whole rows.
     scratch: Vec<u8>,
     /// The rectangle the frame being drawn repaints; nothing outside it shows.
     damage: Rect,
     profiling: bool,
-    profile: Profile,
+    pub(crate) profile: Profile,
+    /// The pixels under the open press bubble, kept to put back when it goes.
+    pub(crate) under: Option<crate::bubble_frame::Under>,
 }
 
 impl std::fmt::Debug for Raster {
@@ -49,6 +51,7 @@ impl Raster {
             damage: Rect::default(),
             profiling: false,
             profile: Profile::default(),
+            under: None,
         }
     }
 
@@ -95,6 +98,17 @@ impl Raster {
     }
 
     pub fn draw(&mut self, scene: &Scene, damage: Rect) -> Result<(), String> {
+        self.draw_over(scene, damage, None)
+    }
+
+    /// `draw`, leaving out of `hole` everything under the popup and the press bubble: for pixels
+    /// the bubble's box paints solid (`Scene::bubble_cover`), where none of it would show.
+    pub(crate) fn draw_over(
+        &mut self,
+        scene: &Scene,
+        damage: Rect,
+        hole: Option<Rect>,
+    ) -> Result<(), String> {
         self.profile = Profile::default();
         let encode = self.profiling.then(Instant::now);
         // Reset entire edge pixels before reapplying antialiasing, rather than accumulating
@@ -108,197 +122,25 @@ impl Raster {
         self.damage = damage;
         self.context.set_origin(scene.headroom);
         self.context.reset();
-        // Nothing but a popup draws above the scene's top, into the headroom.
+        // Nothing but a popup or a press bubble draws above the scene's top, into the headroom.
         let inside = clip(Rect {
             top: damage.top.max(0.0),
             bottom: damage.bottom.max(0.0),
             ..damage
         });
-        self.context.push_clip_rect(&inside);
-        self.context.set_paint(color(
-            if scene.panel.as_ref().is_some_and(|p| p.kind == 3) {
-                0x52000000
-            } else if scene.panel.as_ref().is_some_and(|p| p.kind == 7) {
-                0
-            } else {
-                scene.background
-            },
-        ));
-        self.context.fill_rect(&vello_cpu::kurbo::Rect::new(
-            0.0,
-            0.0,
-            scene.width as f64,
-            scene.height as f64,
-        ));
         let modal = crate::modal_scene::content(scene);
         let content = modal.as_ref().unwrap_or(scene);
-        let content_top = if modal.is_some() {
-            crate::modal_scene::offset(scene.height as f32, scene.strip, scene.keyboard_height)
-        } else {
-            0.0
-        };
-        if modal.is_some() {
-            self.box_at(
-                Rect {
-                    left: 0.0,
-                    top: content_top,
-                    right: scene.width as f32,
-                    bottom: scene.height as f32,
-                },
-                &Style {
-                    background: scene.background,
-                    ..Default::default()
-                },
-            );
+        self.context.push_clip_rect(&inside);
+        if let Some(hole) = hole {
+            self.context.push_clip_path(&around(damage, hole));
         }
-        if let Some(w) = &content.watermark {
-            self.icon(&w.icon, &w.style, w.bounds)?;
-        }
-        for (i, key) in content
-            .keys
-            .iter()
-            .enumerate()
-            .filter(|_| content.panel.is_none())
-        {
-            let r = key.bounds.visible;
-            if r.is_empty() {
-                continue;
-            }
-            let r = crate::scene::key_cell(r, content.strip);
-            let margin = key.styles.iter().map(|s| s.shadow).fold(0.0, f32::max) * 6.0;
-            if r.right + margin < damage.left
-                || r.left - margin > damage.right
-                || r.bottom + margin < damage.top
-                || r.top - margin > damage.bottom
-            {
-                continue;
-            }
-            let pressed = usize::from(content.pressed.contains(&i));
-            let style = &key.styles[pressed];
-            let hint = &key.hints[pressed];
-            let r = crate::smartbar::inset(r, style.margin);
-            if crate::shadow_raster::reaches(r, style.shadow, damage) {
-                self.shadowed_box(r, style);
-            }
-            let telpad = content.telpad.get(i) == Some(&true);
-            let label_bounds = if telpad {
-                crate::key_content::phone_label(
-                    r,
-                    [
-                        self.text
-                            .measure(&key.label, style.size, style.mono, style.weight),
-                        self.text
-                            .height(&key.label, style.size, style.mono, style.weight),
-                    ],
-                    false,
-                )
-            } else {
-                r
-            };
-            self.label(
-                &key.label,
-                style.size,
-                style.foreground,
-                label_bounds,
-                style.mono,
-                style.weight,
-            )?;
-            if !key.icon.is_empty() {
-                let path = vello_cpu::kurbo::BezPath::from_svg(&key.icon)
-                    .map_err(|_| "invalid icon path".to_owned())?;
-                self.context.set_transform(
-                    Affine::translate((
-                        (r.left + (r.width() - style.size) / 2.0) as f64,
-                        (r.top + (r.height() - style.size) / 2.0) as f64,
-                    )) * Affine::scale(style.size as f64 / 24.0),
-                );
-                self.context.set_paint(color(style.foreground));
-                self.context.fill_path(&path);
-                self.context.reset_transform();
-            }
-            if !key.hint.is_empty() {
-                let hint_bounds = if telpad {
-                    crate::key_content::phone_label(
-                        r,
-                        [
-                            self.text
-                                .measure(&key.hint, hint.size, hint.mono, hint.weight),
-                            self.text
-                                .height(&key.hint, hint.size, hint.mono, hint.weight),
-                        ],
-                        true,
-                    )
-                } else {
-                    Rect {
-                        left: r.right - style.size * 0.6,
-                        bottom: r.top + style.size * 0.7,
-                        ..r
-                    }
-                };
-                self.label(
-                    &key.hint,
-                    hint.size,
-                    hint.foreground,
-                    hint_bounds,
-                    hint.mono,
-                    hint.weight,
-                )?;
-            }
-        }
-        if damage.top < content.strip && content.panel.as_ref().is_none_or(|p| p.kind == 2) {
-            self.box_at(
-                Rect {
-                    left: 0.0,
-                    top: content_top,
-                    right: content.width as f32,
-                    bottom: content.strip,
-                },
-                &content.strip_style,
-            );
-        }
-        if damage.top < content.strip && content.panel.as_ref().is_none_or(|p| p.kind == 2) {
-            self.smartbar(content)?;
-        }
-        // Colour glyph preparation is substantial work even when all of its pixels are clipped.
-        // A key-only update must not rebuild the unchanged COLR/CBDT candidate strip.
-        for (i, candidate) in content
-            .candidates
-            .iter()
-            .enumerate()
-            .filter(|_| damage.top < content.strip && content.smartbar.is_none())
-        {
-            let width = content.width as f32 / content.candidates.len() as f32;
-            self.context.push_clip_rect(&vello_cpu::kurbo::Rect::new(
-                (i as f32 * width) as f64,
-                0.0,
-                ((i + 1) as f32 * width) as f64,
-                content.strip as f64,
-            ));
-            let default = crate::scene::CandidateStyle::default();
-            let style = content
-                .candidate_styles
-                .get(i)
-                .map(|s| &s[usize::from(content.candidate_pressed.contains(&i))])
-                .unwrap_or(&default);
-            let r = Rect {
-                left: i as f32 * width,
-                right: (i + 1) as f32 * width,
-                top: 0.0,
-                bottom: content.strip,
-            };
-            self.box_at(r, &style.container);
-            self.label(
-                candidate,
-                style.text.size,
-                style.text.foreground,
-                r,
-                style.text.mono,
-                style.text.weight,
-            )?;
+        self.underneath(scene, content, modal.is_some(), damage)?;
+        if hole.is_some() {
             self.context.pop_clip();
         }
         self.context.pop_clip();
         self.context.push_clip_rect(&clip(damage));
+        self.bubble(content)?;
         self.popup(content)?;
         self.context.pop_clip();
         self.context.push_clip_rect(&inside);
@@ -318,6 +160,9 @@ impl Raster {
         let raster = self.profiling.then(Instant::now);
         self.rasterize(scene.buffer_pixels(damage))?;
         self.profile.raster_ns = elapsed(raster);
+        if let Some(hole) = hole {
+            self.profile.covered_px = (hole.width() * hole.height()) as u64;
+        }
         Ok(())
     }
 
@@ -496,6 +341,29 @@ impl Raster {
         self.context.reset_transform();
         Ok(())
     }
+}
+
+/// `r` with `hole` cut out of it, as a path the non-zero rule fills: the hole winds the other way.
+fn around(r: Rect, hole: Rect) -> vello_cpu::kurbo::BezPath {
+    let ring = |r: Rect| {
+        [
+            (r.left, r.top),
+            (r.right, r.top),
+            (r.right, r.bottom),
+            (r.left, r.bottom),
+        ]
+    };
+    let mut inner = ring(hole);
+    inner.reverse();
+    let mut path = vello_cpu::kurbo::BezPath::new();
+    for points in [ring(r), inner] {
+        path.move_to((f64::from(points[0].0), f64::from(points[0].1)));
+        for &(x, y) in &points[1..] {
+            path.line_to((f64::from(x), f64::from(y)));
+        }
+        path.close_path();
+    }
+    path
 }
 
 /// `r` as a clip rectangle.

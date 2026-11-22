@@ -29,6 +29,8 @@ pub(crate) mod popup;
 pub(crate) mod reader;
 mod render;
 mod render_accessibility;
+#[cfg(test)]
+mod render_bubble_tests;
 mod render_content;
 mod render_input;
 mod render_profile;

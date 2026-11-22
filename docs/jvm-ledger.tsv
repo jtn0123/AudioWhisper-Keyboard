@@ -50,7 +50,7 @@ app/src/main/kotlin/com/jtn0123/audiowhisper/render/RendererClipboard.kt	M	58	Ro
 app/src/main/kotlin/com/jtn0123/audiowhisper/render/RendererClipboardActions.kt	M	33	ClipboardManager / Room; conditional unpin/delete and feedback dispatch |
 app/src/main/kotlin/com/jtn0123/audiowhisper/render/RendererDecorations.kt	M	18	Resources; watermark visibility and icon selection |
 app/src/main/kotlin/com/jtn0123/audiowhisper/render/RendererEmoji.kt	M	67	Paint / Typeface / KeyguardManager; label/availability projection and bindings |
-app/src/main/kotlin/com/jtn0123/audiowhisper/render/RendererGestureHost.kt	M	80	MotionEvent / Resources; action-index mapping and gesture-plan execution |
+app/src/main/kotlin/com/jtn0123/audiowhisper/render/RendererGestureHost.kt	M	81	MotionEvent / Resources; action-index mapping and gesture-plan execution; +1 (2026-11-21) reads keyboard__popup_enabled for Rust's press bubble: Jetpref preference reads stay in Kotlin |
 app/src/main/kotlin/com/jtn0123/audiowhisper/render/RendererGif.kt	M	41	network/resource adapter; loaded/error/empty state selection |
 app/src/main/kotlin/com/jtn0123/audiowhisper/render/RendererGifActions.kt	M	42	InputConnection / Toast; send-outcome transitions and panel return state |
 app/src/main/kotlin/com/jtn0123/audiowhisper/render/RendererGifDecoder.kt	M	41	Bitmap / ImageDecoder; frame/animation eligibility and upload lifecycle |

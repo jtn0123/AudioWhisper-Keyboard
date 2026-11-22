@@ -14,6 +14,9 @@ pub struct GestureConfig {
     /// Whether each glide point comes with its time (GLIDE_TIME), which the keyboard's swipe
     /// scoring weighs. Off unless asked for, so a config without it glides as before.
     pub glide_times: bool,
+    /// Whether a pressed key shows its bubble (`keyboard__popup_enabled`). Off unless asked for,
+    /// so a config without it draws as before; Kotlin sends the setting, on by default.
+    pub bubble: bool,
     /// Up, down, left, right, space-up/left/right/hold, delete-left.
     pub actions: [String; 9],
 }
@@ -31,13 +34,14 @@ impl Default for GestureConfig {
             distance: 32,
             velocity: 1900,
             glide_times: false,
+            bubble: false,
             actions: std::array::from_fn(|_| "NO_ACTION".into()),
         }
     }
 }
 impl GestureConfig {
     pub fn decode(values: &[f32], actions: Vec<String>) -> Option<Self> {
-        if ![9, 10, 11].contains(&values.len())
+        if !(9..=12).contains(&values.len())
             || actions.len() != 9
             || values.iter().any(|v| !v.is_finite())
             || values[0] <= 0.0
@@ -59,6 +63,7 @@ impl GestureConfig {
             distance: values[7] as i32,
             velocity: values[8] as i32,
             glide_times: values.get(10).is_some_and(|v| *v != 0.0),
+            bubble: values.get(11).is_some_and(|v| *v != 0.0),
             actions: actions.try_into().ok()?,
         })
     }

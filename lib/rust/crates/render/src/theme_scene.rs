@@ -28,6 +28,7 @@ impl Theme {
             .iter()
             .map(|kind| crate::key_content::telpad(mode, kind))
             .collect();
+        crate::press_bubble::mark(scene, mode, types);
         let trail = self.properties(&base.element("glide-trail", 0));
         scene.trail_color = match snygg::resolve::get(&trail, &snygg::text("foreground")) {
             Some(snygg::value::Value::Color(c)) => crate::style::argb(*c),
@@ -74,6 +75,17 @@ impl Theme {
                 })
             })
             .collect();
+    }
+    /// Styles the scene's bubble as its key's long-press popup box is styled (`popup_styles`),
+    /// for the key's `request`, with the dots where the key has long-press `choices`.
+    pub fn bubble(&mut self, scene: &mut Scene, request: &Request, choices: bool) {
+        let style = self.style(&request.element("key-popup-box", 0));
+        let indicator =
+            choices.then(|| self.style(&request.element("key-popup-extended-indicator", 0)));
+        if let Some(bubble) = &mut scene.bubble {
+            bubble.style = Some(style);
+            bubble.indicator = indicator;
+        }
     }
     pub fn popup_styles(&mut self, scene: &mut Scene, request: &Request, codes: &[i32]) {
         scene.popup_style = self.style(&request.element("key-popup-box", 0));

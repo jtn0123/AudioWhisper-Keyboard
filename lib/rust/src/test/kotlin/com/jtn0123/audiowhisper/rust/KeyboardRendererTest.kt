@@ -2,7 +2,9 @@ package com.jtn0123.audiowhisper.rust
 
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
+import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertNotEquals
 
 class KeyboardRendererTest {
     @Test
@@ -105,6 +107,36 @@ class KeyboardRendererTest {
             kotlin.test.assertEquals(130,r.headroom(false))
             // Landscape: 3 keys (180) and 72 more: 180 + 72 - 60 - 20.
             kotlin.test.assertEquals(172,r.headroom(true))
+        }
+    }
+
+    @Test
+    fun aPressedKeysBubbleDrawsOnlyWhileTheGestureSettingAsksForIt() {
+        val red = 0xffff0000.toInt()
+        for (bubble in listOf(false, true)) KeyboardRenderer(emptyArray()).use { r ->
+            r.theme("""{"${'$'}schema":"https://schemas.florisboard.org/snygg/v2/stylesheet","window":{"background":"#0000ff"},""" +
+                """"key":{"background":"#00ff00"},"key-popup-box":{"background":"#ff0000"}}""", emptyArray(), intArrayOf(),
+                floatArrayOf(1f, 1f, 1f))
+            // q above a, keys 50 by 60 under a strip 20 tall; the desired key is 50 by 60.
+            r.update(floatArrayOf(100f, 140f, 20f, 50f, 60f), arrayOf("characters", "unshifted", "character", "character"),
+                intArrayOf(), floatArrayOf(0f, 0f, 50f, 60f, 0f, 0f, 50f, 60f, 1f, 113f,
+                    0f, 60f, 50f, 120f, 0f, 60f, 50f, 120f, 1f, 97f), arrayOf("q", "", "", "a", "", ""), emptyArray())
+            r.gestures(floatArrayOf(1f, 32f, 0f, 0f, 0f, 0f, 200f, 32f, 1900f, 0f, 0f, if (bubble) 1f else 0f),
+                Array(9) { "NO_ACTION" })
+            r.touch(intArrayOf(0, 0, 7), longArrayOf(1, 2), floatArrayOf(25f, 110f))
+            // Over a's lower half, under the bubble's label: the bubble's box, or the key itself.
+            assertEquals(bubble, r.pixels()[100 * 100 + 25] == red)
+            r.touch(intArrayOf(1, 0, 7), longArrayOf(1, 3), floatArrayOf(25f, 110f))
+            assertNotEquals(red, r.pixels()[100 * 100 + 25], "released, the bubble goes")
+        }
+    }
+
+    @Test
+    fun gestureSettingsTakeTheBubbleAsATwelfthValueAndNoMore() {
+        KeyboardRenderer(emptyArray()).use { r ->
+            val twelve = floatArrayOf(1f, 32f, 0f, 0f, 0f, 0f, 200f, 32f, 1900f, 0f, 0f, 1f)
+            r.gestures(twelve, Array(9) { "NO_ACTION" })
+            assertFailsWith<IllegalArgumentException> { r.gestures(twelve + 1f, Array(9) { "NO_ACTION" }) }
         }
     }
 

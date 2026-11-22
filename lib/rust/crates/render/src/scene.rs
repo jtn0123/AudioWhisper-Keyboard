@@ -55,6 +55,13 @@ pub struct Scene {
     pub pressed: Vec<usize>,
     pub popup: Option<Popup>,
     pub popup_geometry: Option<crate::popup_scene::Geometry>,
+    /// The bubble over the key a finger holds ([`crate::press_bubble`]); hidden while a
+    /// long-press popup is open.
+    pub bubble: Option<crate::press_bubble::Bubble>,
+    /// Which keys show a bubble when pressed, by index ([`crate::press_bubble::mark`]).
+    pub bubbles: Vec<bool>,
+    /// Whether popups and bubbles are laid out for landscape, as the headroom was kept for.
+    pub landscape: bool,
     pub desired_key: [f32; 2],
     pub trail: Vec<crate::trail::Circle>,
     pub trail_color: u32,
@@ -151,12 +158,11 @@ impl Scene {
     }
 
     /// Separate strip/key/popup damage so a distant key does not repaint intervening rows.
-    pub fn damage_regions(&self, next: &Self) -> Vec<Rect> {
-        if self == next {
-            return Vec::new();
-        }
+    /// Whether going from this scene to `next` repaints the whole buffer: the layout, the keys
+    /// or the colours under everything changed.
+    pub fn restructured(&self, next: &Self) -> bool {
         // Compare stable fields directly, without cloning all labels and candidate strings.
-        if self.watermark != next.watermark
+        self.watermark != next.watermark
             || self.panel != next.panel
             || self.width != next.width
             || self.height != next.height
@@ -166,7 +172,15 @@ impl Scene {
             || self.background != next.background
             || self.strip_style != next.strip_style
             || self.keys != next.keys
-        {
+            || self.bubbles != next.bubbles
+            || self.landscape != next.landscape
+    }
+
+    pub fn damage_regions(&self, next: &Self) -> Vec<Rect> {
+        if self == next {
+            return Vec::new();
+        }
+        if self.restructured(next) {
             return vec![next.buffer_rect()];
         }
         let mut rects = Vec::new();
@@ -199,6 +213,12 @@ impl Scene {
         {
             rects.extend(self.popup_bounds());
             rects.extend(next.popup_bounds());
+        }
+        // A bubble opens, moves to another key, hides under a long-press popup or goes. A label
+        // changing under it changes the keys, which repaints everything.
+        if self.bubble_view() != next.bubble_view() {
+            rects.extend(self.bubble_damage());
+            rects.extend(next.bubble_damage());
         }
         rects
     }

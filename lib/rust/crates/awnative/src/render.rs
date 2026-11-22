@@ -178,24 +178,51 @@ pub fn update(
                 .ok_or_else(|| illegal("missing system fonts"))?,
             flags,
         );
-        if let Some(popup) = &session.scene.popup {
-            let key = popup.key;
-            if let Some(k) = session.scene.keys.get(key) {
-                let request = render::theme::Request {
-                    element: String::new(),
-                    mode: session.mode.clone(),
-                    shift: session.shift.clone(),
-                    code: k.code,
-                    key_type: session.types[key].clone(),
-                    selector: 0,
-                    auto_commit: false,
-                    popup_source: None,
-                };
-                theme.popup_styles(&mut session.scene, &request, &session.popup_codes);
-            }
+        let popup = session.scene.popup.as_ref().map(|p| p.key);
+        if let Some(request) = popup.and_then(|key| session.key_request(key)) {
+            let theme = session.theme.as_mut().expect("theme checked above");
+            theme.popup_styles(&mut session.scene, &request, &session.popup_codes);
         }
+        session.style_bubble(true);
         Ok(())
     })
+}
+
+impl Session {
+    /// The theme's request for key `index`: its code and type, in the keyboard's mode and shift.
+    fn key_request(&self, index: usize) -> Option<render::theme::Request> {
+        Some(render::theme::Request {
+            element: String::new(),
+            mode: self.mode.clone(),
+            shift: self.shift.clone(),
+            code: self.scene.keys.get(index)?.code,
+            key_type: self.types.get(index)?.clone(),
+            selector: 0,
+            auto_commit: false,
+            popup_source: None,
+        })
+    }
+
+    /// Styles the bubble a press has just opened, or, `again`, the one held while the theme or
+    /// the keys changed, as its key's long-press popup box. The dots show where the key has
+    /// long-press choices, as the accessibility configuration was told.
+    pub(crate) fn style_bubble(&mut self, again: bool) {
+        let Some(key) = self.scene.bubble.as_ref().map(|b| b.key) else {
+            return;
+        };
+        let styled = self
+            .scene
+            .bubble
+            .as_ref()
+            .is_some_and(|b| b.style.is_some());
+        let Some(request) = self.key_request(key).filter(|_| again || !styled) else {
+            return;
+        };
+        let choices = self.semantics.popup_keys.get(key) == Some(&true);
+        if let Some(theme) = self.theme.as_mut() {
+            theme.bubble(&mut self.scene, &request, choices);
+        }
+    }
 }
 
 /// `texts` as Rust strings, invalid UTF-16 shown as replacement glyphs, as `strings` reads them.
@@ -230,17 +257,9 @@ pub fn popup(native: i64, key: i32, labels: &[Vec<u16>], codes: &[i32]) -> Resul
         if key < 0 || key as usize >= s.scene.keys.len() || labels.is_empty() {
             return Err(illegal("invalid popup"));
         }
-        let key_index = key as usize;
-        let request = render::theme::Request {
-            element: String::new(),
-            mode: s.mode.clone(),
-            shift: s.shift.clone(),
-            code: s.scene.keys[key_index].code,
-            key_type: s.types[key_index].clone(),
-            selector: 0,
-            auto_commit: false,
-            popup_source: None,
-        };
+        let request = s
+            .key_request(key as usize)
+            .ok_or_else(|| illegal("invalid popup"))?;
         s.theme
             .as_mut()
             .ok_or_else(|| illegal("renderer theme not set"))?
@@ -330,11 +349,13 @@ pub fn close(native: i64) -> Result<()> {
 }
 
 /// The rows the keyboard's surface keeps above the scene for popups laid out for `landscape`
-/// (`render::popup_scene::headroom`), kept in the scene, which the surface then draws that far
+/// (`render::popup_scene::headroom`), kept in the scene with the orientation that popups and
+/// press bubbles are laid out for. The surface then draws the scene that far
 /// down. Kotlin calls it after each update and makes its surface as much taller.
 pub fn headroom(native: i64, landscape: bool) -> Result<i32> {
     session(native, |s| {
         s.scene.headroom = render::popup_scene::headroom(&s.scene, landscape);
+        s.scene.landscape = landscape;
         Ok(i32::from(s.scene.headroom))
     })
 }

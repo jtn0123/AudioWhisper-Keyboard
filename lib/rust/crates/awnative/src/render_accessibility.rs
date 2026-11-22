@@ -40,6 +40,8 @@ pub fn semantic_config(args: RenderNativeSemanticConfig) -> Result<()> {
         s.semantics.labels = Labels(names.into_iter().zip(values).collect());
         s.semantics.action_text = texts(text);
         s.semantics.popup_keys = popups.iter().map(|v| *v != 0).collect();
+        // A held bubble's dots follow the key's choices, which arrive after the keys.
+        s.style_bubble(true);
         s.semantics.removable = removable.iter().map(|v| *v != 0).collect();
         s.semantics.checked_codes = checked.to_vec();
         s.semantics.editor = editor

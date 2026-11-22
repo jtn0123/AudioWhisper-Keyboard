@@ -57,6 +57,7 @@ pub fn touch(
             .into_iter()
             .flat_map(|a| [a.0, a.1, a.2])
             .collect();
+        s.style_bubble(false);
         s.prepare_panel();
         Ok(actions)
     })

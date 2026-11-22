@@ -65,6 +65,7 @@ impl Backend {
     forward!(set_paint(paint: AlphaColor<Srgb>));
     forward!(fill_path(path: &BezPath));
     forward!(fill_rect(rect: &Rect));
+    forward!(push_clip_path(path: &BezPath));
 
     /// Draws the scene `rows` down the target, which has that many rows above the scene's top
     /// (the scene's headroom). Every transform is taken from there, so whatever is drawn, colour

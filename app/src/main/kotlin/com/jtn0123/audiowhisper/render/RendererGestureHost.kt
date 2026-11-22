@@ -44,7 +44,8 @@ internal class RendererGestureHost(private val context: Context, private val nat
             if (editor.activeInfo.isRawInputEditor) 1f else 0f, if (manager.isTypingIntoGifSearch) 1f else 0f,
             if (prefs.glide.showTrail.get()) 1f else 0f, prefs.glide.trailDuration.get().toFloat(),
             prefs.gestures.swipeDistanceThreshold.get().toFloat(), prefs.gestures.swipeVelocityThreshold.get().toFloat(),
-            if (manager.inputEventDispatcher.isPressed(KeyCode.SHIFT)) 1f else 0f, GLIDE_TIMES),
+            if (manager.inputEventDispatcher.isPressed(KeyCode.SHIFT)) 1f else 0f, GLIDE_TIMES,
+            if (prefs.keyboard.popupEnabled.get()) 1f else 0f),
             actions().map { it.name }.toTypedArray())
     }
     fun layout(snapshot: KeyboardSnapshot) {

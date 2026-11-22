@@ -163,7 +163,7 @@ impl Theme {
             "extracted-landscape-input-field" | "extracted-landscape-input-action" => {
                 Some("extracted-landscape-input-layout")
             }
-            "key-popup-element" => Some("key-popup-box"),
+            "key-popup-element" | "key-popup-extended-indicator" => Some("key-popup-box"),
             _ => Some("window"),
         };
         let parent_selector = match r.element.as_str() {

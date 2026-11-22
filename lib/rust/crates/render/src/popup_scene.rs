@@ -36,6 +36,18 @@ fn base(key: Bounds, [width, height]: [f32; 2], landscape: bool) -> Option<Bound
     })
 }
 
+/// The preview box (`base`) for a key's `visible` bounds, as a scene rectangle: where a press
+/// bubble draws before it is kept on screen (`Scene::bubble_bounds`).
+pub(crate) fn preview(visible: Rect, desired: [f32; 2], landscape: bool) -> Option<Rect> {
+    let b = base(bounds(visible), desired, landscape)?;
+    Some(Rect {
+        left: b.left,
+        top: b.top,
+        right: b.right,
+        bottom: b.bottom,
+    })
+}
+
 /// Six choices are the fewest that take two rows, the most a popup has: the tallest popup.
 const TALLEST: i32 = 6;
 

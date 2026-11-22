@@ -38,6 +38,7 @@ impl KeyboardTouch {
         }
         scene.pressed.clear();
         scene.popup = None;
+        scene.bubble = None;
         Self::record(&mut self.pressed_codes, scene, &actions);
         actions
     }
@@ -48,6 +49,7 @@ impl KeyboardTouch {
         }
         scene.pressed.clear();
         scene.popup = None;
+        scene.bubble = None;
         self.pointers.clear();
         self.swipes.reset();
         self.pressed_codes.clear();
@@ -240,8 +242,22 @@ impl KeyboardTouch {
             _ => actions.extend(self.cancel(scene)),
         }
         scene.pressed = self.pointers.iter().filter_map(|p| p.active).collect();
+        self.hold_bubble(scene, config.bubble);
         Self::record(&mut self.pressed_codes, scene, &actions);
         actions
+    }
+    /// The bubble follows the key a finger holds that shows one, while the setting (`on`) is.
+    /// A character key goes up when another finger comes down (`input::pointer::rolls`), so at
+    /// most one finger holds such a key. The bubble is kept, styles and all, while that key is.
+    fn hold_bubble(&self, scene: &mut Scene, on: bool) {
+        let key = self
+            .pointers
+            .iter()
+            .filter_map(|p| p.active)
+            .find(|&k| on && scene.bubbles.get(k) == Some(&true));
+        if scene.bubble.as_ref().map(|b| b.key) != key {
+            scene.bubble = key.map(crate::press_bubble::Bubble::new);
+        }
     }
     pub fn set_shift(&mut self, pressed: bool) {
         if pressed {

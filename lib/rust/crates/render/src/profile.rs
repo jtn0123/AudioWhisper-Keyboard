@@ -19,6 +19,10 @@ pub struct Profile {
     pub color_runs: u32,
     /// Runs drawn through the glyph atlas (colour fonts only; see `Backend::glyph_list`).
     pub atlas_runs: u32,
+    /// Pixels painted with the press bubble alone, under its solid box (`Scene::bubble_cover`).
+    pub covered_px: u64,
+    /// Pixels put back from under a press bubble that went, instead of painted again.
+    pub restored_px: u64,
 }
 
 pub(crate) fn elapsed(start: Option<Instant>) -> u128 {
@@ -66,7 +70,9 @@ impl Profile {
             labels,
             glyph_runs,
             cold_runs,
-            color_runs
+            color_runs,
+            covered_px,
+            restored_px
         );
     }
 }

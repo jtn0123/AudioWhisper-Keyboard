@@ -12,13 +12,13 @@ use keys::Rect;
 use vello_cpu::kurbo::{self, BezPath};
 
 /// Android elevation has a centred ambient lobe and an offset spot lobe: (colour, how far down
-/// and how blurred, both in elevations). Values are physical pixels; damage reserves six
-/// elevations around the box.
+/// and how blurred, both in elevations). Values are physical pixels; `extent` is how far they
+/// reach.
 const LOBES: [(u32, f32, f32); 2] = [(0x10000000, 0.0, 0.30), (0x30000000, 1.20, 1.00)];
 
-/// Whether a box at `r` with a `shadow` that elevation can paint inside `damage`: Vello paints
-/// each lobe into its rectangle widened by 2.5 blurs, and antialiasing reaches a pixel more.
-pub(crate) fn reaches(r: Rect, shadow: f32, damage: Rect) -> bool {
+/// How far a box at `r` with a `shadow` that elevation paints: Vello paints each lobe into its
+/// rectangle widened by 2.5 blurs, and antialiasing reaches a pixel more.
+pub(crate) fn extent(r: Rect, shadow: f32) -> Rect {
     let [left, top, right, bottom] = LOBES.iter().fold([1.0_f32; 4], |a, &(_, offset, blur)| {
         let (side, down) = (2.5 * blur * shadow.max(0.0), offset * shadow.max(0.0));
         [
@@ -28,10 +28,18 @@ pub(crate) fn reaches(r: Rect, shadow: f32, damage: Rect) -> bool {
             a[3].max(side + down + 1.0),
         ]
     });
-    r.left - left < damage.right
-        && r.right + right > damage.left
-        && r.top - top < damage.bottom
-        && r.bottom + bottom > damage.top
+    Rect {
+        left: r.left - left,
+        top: r.top - top,
+        right: r.right + right,
+        bottom: r.bottom + bottom,
+    }
+}
+
+/// Whether a box at `r` with a `shadow` that elevation can paint inside `damage`.
+pub(crate) fn reaches(r: Rect, shadow: f32, damage: Rect) -> bool {
+    let e = extent(r, shadow);
+    e.left < damage.right && e.right > damage.left && e.top < damage.bottom && e.bottom > damage.top
 }
 
 impl Raster {

@@ -109,8 +109,14 @@ fn a_config_of_nine_or_ten_values_glides_without_times() {
     assert!(!GestureConfig::decode(&nine, actions()).unwrap().glide_times);
     let ten = [1.0, 32.0, 1.0, 0.0, 0.0, 1.0, 200.0, 32.0, 1900.0, 1.0];
     assert!(!GestureConfig::decode(&ten, actions()).unwrap().glide_times);
+    // The twelfth value is the press bubble's setting; it leaves glide times as asked.
     let twelve = [
         1.0, 32.0, 1.0, 0.0, 0.0, 1.0, 200.0, 32.0, 1900.0, 1.0, 1.0, 1.0,
     ];
-    assert!(GestureConfig::decode(&twelve, actions()).is_none());
+    let config = GestureConfig::decode(&twelve, actions()).unwrap();
+    assert!(config.glide_times && config.bubble);
+    let thirteen = [
+        1.0, 32.0, 1.0, 0.0, 0.0, 1.0, 200.0, 32.0, 1900.0, 1.0, 1.0, 1.0, 1.0,
+    ];
+    assert!(GestureConfig::decode(&thirteen, actions()).is_none());
 }
