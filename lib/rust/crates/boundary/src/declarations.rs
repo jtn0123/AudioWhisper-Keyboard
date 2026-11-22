@@ -4,6 +4,7 @@
 mod clipboard;
 mod composing;
 mod dictation;
+mod dictation_session;
 mod emoji;
 mod gestures;
 mod gif;
@@ -79,6 +80,7 @@ pub const CLASSES: &[Class] = &[
     suggest::SUGGEST_NATIVE,
     smartbar::SMARTBAR_NATIVE,
     render::RENDER_NATIVE,
+    dictation_session::DICTATION_SESSION_NATIVE,
 ];
 
 /// Every generated api over those classes.
@@ -123,6 +125,7 @@ pub const APIS: &[Api] = &[
     suggest::TAP_POSITIONS,
     smartbar::SMARTBAR_RULES,
     keyboard_renderer::KEYBOARD_RENDERER,
+    dictation_session::DICTATION_SESSION_PLAN,
 ];
 
 /// Every generated top-level record, enum and interface, with the declarations file and the
