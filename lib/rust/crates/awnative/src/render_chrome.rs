@@ -1,89 +1,72 @@
 //! Offscreen Vello CPU drawing for small chrome views and settings images.
 use crate::{
-    handle,
     jni::{Result, illegal},
-    render::{Session, strings, texts},
+    render::{session, texts},
 };
-use jni_sys::{JNIEnv, jfloatArray, jintArray, jlong, jobject, jobjectArray};
-use std::ptr;
-#[unsafe(no_mangle)]
-pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_chrome(
-    env: *mut JNIEnv,
-    _: jobject,
-    native: jlong,
-    config: jfloatArray,
-    labels: jobjectArray,
-    icons: jobjectArray,
-    metadata: jobjectArray,
-) {
-    // SAFETY: synchronized JVM owner retains the session; inputs are copied before drawing.
-    unsafe {
-        handle::with_locked::<Session, _>(env, native, "renderer", (), |s, env| {
-            let c = env.read::<f32>(config, "chrome config")?;
-            let metadata = strings(env, metadata)?;
-            if metadata.len() != 2 {
-                return Err(illegal("chrome metadata"));
-            }
-            s.mode = metadata[0].clone();
-            s.shift = metadata[1].clone();
-            if c.len() != 4
-                || c.iter().any(|v| !v.is_finite())
-                || !(1.0..=8192.0).contains(&c[0])
-                || !(1.0..=8192.0).contains(&c[1])
-                || c[2] <= 0.0
-            {
-                return Err(illegal("chrome dimensions"));
-            }
-            if s.scene.width != c[0] as u16 || s.scene.height != c[1] as u16 {
-                s.bitmap = None;
-            }
-            s.scene.width = c[0] as u16;
-            s.scene.height = c[1] as u16;
-            s.scene.strip = 0.0;
-            s.scene.panel = Some(render::panels::Panel {
-                kind: 8,
-                density: c[2],
-                chrome: Some(render::ime_chrome::Chrome {
-                    kind: c[3] as i32,
-                    labels: strings(env, labels)?,
-                    icons: strings(env, icons)?,
-                    ..Default::default()
-                }),
+pub fn chrome(
+    native: i64,
+    config: &[f32],
+    labels: &[Vec<u16>],
+    icons: &[Vec<u16>],
+    metadata: &[Vec<u16>],
+) -> Result<()> {
+    session(native, |s| {
+        let c = config;
+        let metadata = texts(metadata);
+        if metadata.len() != 2 {
+            return Err(illegal("chrome metadata"));
+        }
+        s.mode = metadata[0].clone();
+        s.shift = metadata[1].clone();
+        if c.len() != 4
+            || c.iter().any(|v| !v.is_finite())
+            || !(1.0..=8192.0).contains(&c[0])
+            || !(1.0..=8192.0).contains(&c[1])
+            || c[2] <= 0.0
+        {
+            return Err(illegal("chrome dimensions"));
+        }
+        if s.scene.width != c[0] as u16 || s.scene.height != c[1] as u16 {
+            s.bitmap = None;
+        }
+        s.scene.width = c[0] as u16;
+        s.scene.height = c[1] as u16;
+        s.scene.strip = 0.0;
+        s.scene.panel = Some(render::panels::Panel {
+            kind: 8,
+            density: c[2],
+            chrome: Some(render::ime_chrome::Chrome {
+                kind: c[3] as i32,
+                labels: texts(labels),
+                icons: texts(icons),
                 ..Default::default()
-            });
-            s.prepare_panel();
-            Ok(())
-        })
-    }
+            }),
+            ..Default::default()
+        });
+        s.prepare_panel();
+        Ok(())
+    })
 }
-#[unsafe(no_mangle)]
-pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_pixels(
-    env: *mut JNIEnv,
-    _: jobject,
-    native: jlong,
-) -> jintArray {
-    // SAFETY: synchronized JVM owner retains the session; returned pixels are a fresh primitive array.
-    unsafe {
-        handle::with_locked::<Session, _>(env, native, "renderer", ptr::null_mut(), |s, env| {
-            s.prepare_panel();
-            let raster = s.bitmap.get_or_insert_with(|| {
-                render::raster::Raster::shared(s.scene.width, s.scene.height, s.fonts.clone())
-            });
-            raster
-                .draw(
-                    &s.scene,
-                    keys::Rect {
-                        left: 0.0,
-                        top: 0.0,
-                        right: s.scene.width as f32,
-                        bottom: s.scene.height as f32,
-                    },
-                )
-                .map_err(|_| illegal("chrome raster failed"))?;
-            let pixels = argb(raster.pixels());
-            env.make(&pixels)
-        })
-    }
+pub fn pixels(native: i64) -> Result<Vec<i32>> {
+    session(native, |s| {
+        s.prepare_panel();
+        let raster = s.bitmap.get_or_insert_with(|| {
+            render::raster::Raster::shared(s.scene.width, s.scene.height, s.fonts.clone())
+        });
+        raster
+            .draw(
+                &s.scene,
+                keys::Rect {
+                    left: 0.0,
+                    top: 0.0,
+                    right: s.scene.width as f32,
+                    bottom: s.scene.height as f32,
+                },
+            )
+            .map_err(|_| illegal("chrome raster failed"))?;
+        let pixels = argb(raster.pixels());
+        Ok(pixels)
+    })
 }
 pub fn one_handed(c: &[i32]) -> Result<Vec<f32>> {
     if c.len() != 4 {
@@ -101,24 +84,16 @@ pub fn side_buttons(c: &[f32]) -> Result<Vec<f32>> {
         .collect::<Vec<_>>())
 }
 
-#[unsafe(no_mangle)]
-pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_chromeInfo(
-    env: *mut JNIEnv,
-    _: jobject,
-    native: jlong,
-) -> jfloatArray {
-    // SAFETY: synchronized JVM owner retains the session; output values are copied.
-    unsafe {
-        handle::with_locked::<Session, _>(env, native, "renderer", ptr::null_mut(), |s, env| {
-            let c = s
-                .scene
-                .panel
-                .as_ref()
-                .and_then(|p| p.chrome.as_ref())
-                .ok_or_else(|| illegal("chrome missing"))?;
-            env.make(&c.field)
-        })
-    }
+pub fn chrome_info(native: i64) -> Result<Vec<f32>> {
+    session(native, |s| {
+        let c = s
+            .scene
+            .panel
+            .as_ref()
+            .and_then(|p| p.chrome.as_ref())
+            .ok_or_else(|| illegal("chrome missing"))?;
+        Ok(c.field.to_vec())
+    })
 }
 pub fn extract(c: &[f32]) -> Result<Vec<f32>> {
     if c.len() != 5 || c.iter().any(|v| !v.is_finite() || *v < 0.0) {

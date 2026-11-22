@@ -10,6 +10,7 @@ mod gif;
 mod giphy;
 mod glide;
 mod input;
+mod keyboard_renderer;
 mod keys;
 mod latin;
 mod layout;
@@ -18,6 +19,7 @@ mod packets;
 mod popup;
 mod reader;
 mod reader_runtime;
+mod render;
 mod rules;
 mod screen;
 mod shift;
@@ -76,6 +78,7 @@ pub const CLASSES: &[Class] = &[
     popup::POPUP_NATIVE,
     suggest::SUGGEST_NATIVE,
     smartbar::SMARTBAR_NATIVE,
+    render::RENDER_NATIVE,
 ];
 
 /// Every generated api over those classes.
@@ -119,6 +122,7 @@ pub const APIS: &[Api] = &[
     suggest::QWERTY_LAYOUT,
     suggest::TAP_POSITIONS,
     smartbar::SMARTBAR_RULES,
+    keyboard_renderer::KEYBOARD_RENDERER,
 ];
 
 /// Every generated top-level record, enum and interface, with the declarations file and the

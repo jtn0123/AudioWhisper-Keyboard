@@ -121,6 +121,12 @@ element!(f32, GetFloatArrayRegion, NewFloatArray, SetFloatArrayRegion);
 element!(i64, GetLongArrayRegion, NewLongArray, SetLongArrayRegion);
 
 impl Env {
+    /// The raw environment, for an Android NDK function that takes it.
+    #[cfg(target_os = "android")]
+    pub fn raw(&self) -> *mut JNIEnv {
+        self.raw
+    }
+
     fn length(&self, array: jarray, name: &'static str) -> Result<usize> {
         if array.is_null() {
             return Err(Error::NullPointer(name));

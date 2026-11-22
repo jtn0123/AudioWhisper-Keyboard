@@ -1,49 +1,40 @@
 //! Subtype resource transport; order, selection, layout and input are native.
 use crate::{
-    handle,
     jni::{Result, illegal},
-    render::{Session, strings, texts},
+    render::{session, texts},
 };
-use jni_sys::{JNIEnv, jlong, jlongArray, jobject, jobjectArray};
-#[unsafe(no_mangle)]
-pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_subtypes(
-    env: *mut JNIEnv,
-    _: jobject,
-    native: jlong,
-    selected: jlong,
-    ids: jlongArray,
-    labels: jobjectArray,
-    bottom_inset: jni_sys::jfloat,
-) {
-    // SAFETY: synchronized JVM owner retains the session; local arrays are copied.
-    unsafe {
-        handle::with_locked::<Session, _>(env, native, "renderer", (), |s, env| {
-            let ids = env.read::<i64>(ids, "subtype ids")?;
-            let labels = strings(env, labels)?;
-            if labels.len() != ids.len() + 3 || !bottom_inset.is_finite() || bottom_inset < 0.0 {
-                return Err(illegal("subtype labels"));
-            }
-            let p = s
-                .scene
-                .panel
-                .as_mut()
-                .ok_or_else(|| illegal("subtype panel missing"))?;
-            if p.kind != 7 {
-                return Err(illegal("wrong subtype panel"));
-            }
-            p.subtypes = Some(render::subtype_panel::Subtypes {
-                ids,
-                selected,
-                bottom_inset,
-                header: labels[0].clone(),
-                icons: [labels[1].clone(), labels[2].clone()],
-                labels: labels[3..].to_vec(),
-                ..Default::default()
-            });
-            s.prepare_panel();
-            Ok(())
+pub fn subtypes(
+    native: i64,
+    selected: i64,
+    ids: &[i64],
+    labels: &[Vec<u16>],
+    bottom_inset: f32,
+) -> Result<()> {
+    session(native, |s| {
+        let labels = texts(labels);
+        if labels.len() != ids.len() + 3 || !bottom_inset.is_finite() || bottom_inset < 0.0 {
+            return Err(illegal("subtype labels"));
+        }
+        let p = s
+            .scene
+            .panel
+            .as_mut()
+            .ok_or_else(|| illegal("subtype panel missing"))?;
+        if p.kind != 7 {
+            return Err(illegal("wrong subtype panel"));
+        }
+        p.subtypes = Some(render::subtype_panel::Subtypes {
+            ids: ids.to_vec(),
+            selected,
+            bottom_inset,
+            header: labels[0].clone(),
+            icons: [labels[1].clone(), labels[2].clone()],
+            labels: labels[3..].to_vec(),
+            ..Default::default()
         });
-    }
+        s.prepare_panel();
+        Ok(())
+    })
 }
 pub fn rows(selected: i64, ids: &[i64], labels: &[Vec<u16>]) -> Result<Vec<Vec<u16>>> {
     let labels = texts(labels);
