@@ -99,6 +99,30 @@ fn only_codes_from_the_first_mark_up_are_asked_about() {
 }
 
 #[test]
+fn a_grouped_key_takes_its_groups_popups_and_then_its_own() {
+    // Main looks a grouped key's extended popups up under the group's name ("~right" for group
+    // 2), and its own label's set only as the key-specific one, merged first.
+    let layout = r#"[[{"code":46,"label":".","groupId":2},{"code":44,"label":","}]]"#;
+    let mapping = r#"{"all":{"~right":{"main":{"code":33,"label":"!"}},
+        ".":{"relevant":[{"code":63,"label":"?"}]}}}"#;
+    let mut graph = Graph::build(&Request {
+        layouts: Files {
+            main: Some(layout),
+            ..Files::default()
+        },
+        mapping: Some(mapping),
+        ..Request::default()
+    });
+    compute(&mut graph, &Facts::default());
+    let codes = |at: usize| -> Vec<i32> {
+        let keys = graph.keys()[at].popups.keys(Facts::default().hints);
+        keys.all().map(|data| data.code).collect()
+    };
+    assert_eq!(codes(0), [33, 63]);
+    assert!(codes(1).is_empty());
+}
+
+#[test]
 fn an_action_is_answered_from_the_last_facts() {
     let mut graph = Graph::build(&Request::default());
     let facts = Facts {
