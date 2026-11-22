@@ -250,6 +250,41 @@ class SettingsThemeEditorMatchTest {
     private fun SnyggStylesheetEditor.element(name: String) =
         rules.entries.first { (it.key as? SnyggElementRule)?.elementName == name }.value as SnyggSinglePropertySetEditor
 
+    /** Codes edited in Rust's code editor, written as EditRuleDialog's EditCodeValueDialog callbacks changed them:
+     * each code added with `including`, an edited code `excluding` the old one first, and Delete `excluding` it. */
+    @Test fun codesEditedInRustAreWrittenAsComposesDialogWroteThem() {
+        val sheet = """{"${'$'}schema":"https://schemas.florisboard.org/snygg/v2/stylesheet","key[code=10]":{"background":"#0000ff"},"key":{}}"""
+        val rule = ThemeEditorNatives.composeEditor(sheet).rules.keys.indexOfFirst { (it as? SnyggElementRule)?.attributes?.isEmpty() == false }
+        KeyboardRenderer(arrayOf(ThemeEditorNatives.font)).use { n ->
+            ThemeEditorNatives.open(n)
+            ThemeEditorNatives.loaded(n, sheet)
+            n.tap(500_000 + 4096 * rule + 2)
+            // Add code, with two at once; codes are chips from 401_000 in order, and the code editor's Save is row 4.
+            n.tap(400_310)
+            n.type(1, "13, 32")
+            n.tap(1004)
+            n.tap(401_000)
+            n.type(1, "-7")
+            n.tap(1004)
+            // Edit 32, whose top bar Delete names it.
+            val delete = n.tap(401_002).getValue("nodes").jsonArray.map { it.jsonObject }.first { it.getValue("id").jsonPrimitive.int == 400_041 }
+            assertEquals("32", delete.getValue("state").jsonPrimitive.content)
+            n.tap(400_041)
+            // The rule editor's Apply, row 8, then Save.
+            n.tap(1008)
+            val saved = n.tap(ThemeEditorNatives.SAVE_ID)
+            val expected = ThemeEditorNatives.composeWrites(sheet) {
+                val old = rules.keys.first { (it as? SnyggElementRule)?.attributes?.isEmpty() == false } as SnyggElementRule
+                var attributes = old.attributes.including("code" to "13").including("code" to "32")
+                attributes = attributes.excluding("code" to "10").including("code" to "-7")
+                attributes = attributes.excluding("code" to "32")
+                assertTrue(updateRule(old, old.copy(attributes = attributes)))
+            }
+            assertEquals(expected, ThemeEditorNatives.json(saved, SettingsUiThemeEditorEffect.SAVE))
+            assertTrue("key[code=-7,13]" in expected, expected)
+        }
+    }
+
     @Test fun propertiesEditedInRustAreWrittenAsComposesDialogWroteThem() {
         val order = ThemeEditorNatives.composeEditor(editSheet).rules.keys.toList()
         val index = { element: String -> order.indexOfFirst { (it as? SnyggElementRule)?.elementName == element } }
