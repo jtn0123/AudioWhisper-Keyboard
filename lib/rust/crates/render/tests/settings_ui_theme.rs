@@ -163,7 +163,7 @@ fn the_day_and_night_rows_name_the_indexed_theme_or_show_its_id() {
 }
 
 #[test]
-fn the_theme_rows_and_the_addon_box_open_their_compose_pages() {
+fn the_theme_rows_open_the_native_manager_and_the_addon_box_its_compose_page() {
     let (mut a, mut text) = app(&[], &[]);
     for (k, v) in [
         (
@@ -178,27 +178,33 @@ fn the_theme_rows_and_the_addon_box_open_their_compose_pages() {
     ] {
         a.strings.insert(k.into(), v.into());
     }
-    let routes = [
+    // The day and night rows open the theme manager, drawn natively since compose-removal
+    // step 9: it asks for the installed themes and shows the keyboard in the chosen one.
+    for (key, route) in [
+        ("theme__day_theme_id", "settings/theme/manage/SELECT_DAY"),
         (
-            id(&a, "theme__day_theme_id"),
-            "settings/theme/manage/SELECT_DAY",
-        ),
-        (
-            id(&a, "theme__night_theme_id"),
+            "theme__night_theme_id",
             "settings/theme/manage/SELECT_NIGHT",
         ),
-        (
-            6000 + index(&a, "ext_theme") as i32,
-            "ext/list/EXT_THEME?showUpdate=true",
-        ),
-    ];
-    for (control, route) in routes {
+    ] {
         a.effects.clear();
-        assert!(act(&mut a, &mut text, control), "{route}");
-        assert_eq!(a.effects.len(), 1, "{route}");
-        assert_eq!(a.effects[0][..2], ["compose", route]);
-        assert!(a.effects[0][2].split('|').any(|r| r == "settings/theme"));
+        let row = id(&a, key);
+        assert!(act(&mut a, &mut text, row), "{route}");
+        assert_eq!(a.stack.last().map(String::as_str), Some(route));
+        assert_eq!(a.effects[0], ["themes"], "{route}");
+        assert_eq!(a.effects[1][..1], ["themePreview"], "{route}");
+        a.back();
+        assert_eq!(a.effects.last().unwrap(), &["themePreview", ""]);
+        a.set_themes(&[]).unwrap();
+        a.scene(&mut text);
     }
+    a.effects.clear();
+    let route = "ext/list/EXT_THEME?showUpdate=true";
+    let addons = 6000 + index(&a, "ext_theme") as i32;
+    assert!(act(&mut a, &mut text, addons));
+    assert_eq!(a.effects.len(), 1);
+    assert_eq!(a.effects[0][..2], ["compose", route]);
+    assert!(a.effects[0][2].split('|').any(|r| r == "settings/theme"));
     let i = index(&a, "ext_theme");
     a.scene(&mut text);
     assert_eq!(

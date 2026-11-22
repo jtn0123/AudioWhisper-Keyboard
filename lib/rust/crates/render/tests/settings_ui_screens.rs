@@ -141,9 +141,9 @@ fn group_one_routes_are_native_and_other_routes_fall_back_with_the_native_list()
         assert!(a.effects.is_empty(), "{route} fell back");
         assert!(!a.rows().is_empty());
     }
-    // The theme manager stays in Compose.
-    let manager = "settings/theme/manage/SELECT_DAY";
-    let (mut a, _) = app(manager);
+    // The extension screens stay in Compose.
+    let compose = "ext/list/EXT_THEME";
+    let (mut a, _) = app(compose);
     assert_eq!(a.stack, ["settings/home"]);
     let native = "settings/home|settings/keyboard|settings/keyboard/input-feedback|settings/smartbar|\
                   settings/gestures|settings/clipboard|settings/media|settings/typing|\
@@ -160,8 +160,9 @@ fn group_one_routes_are_native_and_other_routes_fall_back_with_the_native_list()
                   settings/dictionary/user-dictionary/SYSTEM|\
                   settings/dictionary/user-dictionary/SYSTEM/words|\
                   settings/dictionary/user-dictionary/SYSTEM/word/add|\
-                  settings/dictionary/user-dictionary/SYSTEM/word/edit";
-    assert_eq!(a.effects.pop().unwrap(), ["compose", manager, native]);
+                  settings/dictionary/user-dictionary/SYSTEM/word/edit|\
+                  settings/theme/manage/SELECT_DAY|settings/theme/manage/SELECT_NIGHT";
+    assert_eq!(a.effects.pop().unwrap(), ["compose", compose, native]);
 }
 
 #[test]

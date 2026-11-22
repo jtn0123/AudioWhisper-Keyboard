@@ -17,7 +17,7 @@ pub const NOTE_ID: i32 = 30;
 
 /// What a row shows at its start.
 #[derive(Clone, Copy)]
-enum Lead {
+pub(super) enum Lead {
     Radio(bool),
     /// On, off, or None when only some of it is on.
     Check(Option<bool>),
@@ -174,7 +174,14 @@ impl App {
         rh
     }
     /// A radio button, checkbox or icon centred on `(cx, cy)`.
-    fn paint_lead(&self, p: &mut Panel, lead: Lead, (cx, cy): (f32, f32), on: bool, clip: Rect) {
+    pub(super) fn paint_lead(
+        &self,
+        p: &mut Panel,
+        lead: Lead,
+        (cx, cy): (f32, f32),
+        on: bool,
+        clip: Rect,
+    ) {
         let d = self.config[2];
         let circle = |size: f32| rect(cx - size * d / 2.0, cy - size * d / 2.0, size * d, size * d);
         match lead {

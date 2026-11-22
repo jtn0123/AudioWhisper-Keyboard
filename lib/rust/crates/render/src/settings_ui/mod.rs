@@ -28,6 +28,7 @@ pub mod project_licence;
 mod rows;
 pub use rows::CODE_KEYS;
 mod scrollbar;
+pub mod themes;
 pub mod time;
 mod time_dial;
 mod time_dialog;
@@ -68,6 +69,8 @@ pub enum Action {
     Lang(languages::Tap),
     /// A tap on a user dictionary screen's own controls.
     Words(words::Tap),
+    /// A tap on the theme manager's own controls.
+    Themes(themes::Tap),
 }
 #[derive(Clone, Debug)]
 pub struct Control {
@@ -181,6 +184,8 @@ pub struct App {
     pub list: items::State,
     /// The user dictionary screens' words, search, draft and file transfer.
     pub words: words::Words,
+    /// The theme manager's installed themes and the keyboard's preview.
+    pub themes: themes::Themes,
     /// Each node's custom accessibility actions, as the target control and its label.
     pub custom_actions: Vec<(i32, Vec<(i32, String)>)>,
     /// The wall clock in milliseconds: a new subtype's id, as `System.currentTimeMillis()`.
@@ -246,6 +251,7 @@ impl Default for App {
             draft: None,
             list: Default::default(),
             words: Default::default(),
+            themes: Default::default(),
             custom_actions: vec![],
             now: languages::wall_clock,
         }
@@ -307,6 +313,7 @@ impl App {
             self.check_models();
             self.languages_opened(route);
             self.words_opened(route);
+            self.themes_opened(route);
             self.project_opened(route);
         } else if route == "@enable" {
             self.effects.push(vec!["enable".into()]);
@@ -381,6 +388,7 @@ impl App {
             self.backups_left(had);
             self.languages_left();
             self.words_left();
+            self.themes_left();
         } else {
             self.effects.push(vec!["finish".into()]);
         }

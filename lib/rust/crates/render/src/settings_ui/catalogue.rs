@@ -16,6 +16,7 @@ mod physical_keyboard;
 mod project_licence;
 mod smartbar;
 mod theme;
+pub mod themes;
 mod typing;
 pub mod words;
 pub use backup::{BACKUP_ROUTE, GROUP_NAMES, RESTORE_ROUTE};
@@ -128,6 +129,8 @@ pub enum Kind {
     Lang(languages::Lang),
     /// A part of a user dictionary screen that is not the word list (`words.rs`).
     Words(words::Part),
+    /// A part of the theme manager (`themes.rs`).
+    Themes(themes::Part),
 }
 /// What a Back up or Restore row is. A group is its `wire::backup::layout` position.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -354,6 +357,8 @@ pub const SCREENS: &[Screen] = &[
     words::SYSTEM_WORDS,
     words::SYSTEM_ADD,
     words::SYSTEM_EDIT,
+    themes::DAY,
+    themes::NIGHT,
 ];
 /// The native screen at `route`, if Rust draws it. The subtype editor's and the word
 /// editor's routes carry the item's id as one more segment, and a language's words its locale.

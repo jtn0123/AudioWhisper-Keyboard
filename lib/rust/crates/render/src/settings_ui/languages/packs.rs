@@ -89,29 +89,9 @@ impl App {
         let border_top = y + self.px(8.0) + self.px(11.0);
         let outline = p.items.len();
         self.outlined_box(p, rect(left, border_top, width, 0.0), clip);
-        let mut at = border_top + self.px(11.0);
-        // The id: 10 sp monospace at 56%, 6 dp in its box 10 dp in, 4 dp under each.
-        let size = self.sp(10);
-        let layout = text.layout_typography(&pack.id, size, true, 400, false, [0.0, 0.0]);
-        let (iw, ih) = (layout.width().ceil(), layout.height().ceil());
-        let id_box = rect(
-            left + self.px(10.0),
-            at,
-            iw + 2.0 * self.px(6.0),
-            ih + self.px(4.0),
-        );
-        let id_at = rect(id_box.left + self.px(6.0), at, iw + 1.0, ih);
-        let faded = (self.colors[1] & 0x00ff_ffff) | 0x8f00_0000;
-        self.paint_text(p, &pack.id, id_at, size, faded, clip);
-        p.items
-            .last_mut()
-            .expect("paint_text pushed an item")
-            .text
-            .mono = true;
-        let mut c = plain(pack_id(k, 1), id_box, pack.id.clone(), "button");
-        c.action = Action::Lang(Tap::View(pack.id.clone()));
-        self.push_control(c, clip);
-        at = id_box.bottom + self.px(4.0);
+        let view = Action::Lang(Tap::View(pack.id.clone()));
+        let id = (pack_id(k, 1), pack.id.as_str(), view);
+        let mut at = self.box_id(p, id, (left, border_top + self.px(11.0)), clip, text);
         for (j, item) in pack.items.iter().enumerate() {
             let entry = Entry {
                 id: pack_id(k, 3 + j),
@@ -141,23 +121,58 @@ impl App {
             at = touch.bottom;
         }
         self.fit_box(p, outline, at - border_top);
-        self.pack_title(p, k, pack, rect(left, border_top, width, 0.0), clip, text);
+        let title = (pack_id(k, 0), pack.title.as_str());
+        let view = Action::Lang(Tap::View(pack.id.clone()));
+        let border = rect(left, border_top, width, 0.0);
+        self.box_title(p, title, view, border, clip, text);
         at + self.px(8.0) - y
     }
-    /// The title on the background over the border: 23 dp tall, 10 dp in and 12 dp up, in 6 dp
-    /// padding, in titleSmall on one line. `b` is the border's top edge.
-    fn pack_title(
+    /// A box's id under its title: 10 sp monospace at 56%, 6 dp in its tappable box 10 dp in
+    /// from `left`, 4 dp under each; where the content under it starts.
+    pub(in crate::settings_ui) fn box_id(
         &mut self,
         p: &mut Panel,
-        k: usize,
-        pack: &Pack,
+        (control, id, action): (i32, &str, Action),
+        (left, at): (f32, f32),
+        clip: Rect,
+        text: &mut Text,
+    ) -> f32 {
+        let size = self.sp(10);
+        let layout = text.layout_typography(id, size, true, 400, false, [0.0, 0.0]);
+        let (iw, ih) = (layout.width().ceil(), layout.height().ceil());
+        let id_box = rect(
+            left + self.px(10.0),
+            at,
+            iw + 2.0 * self.px(6.0),
+            ih + self.px(4.0),
+        );
+        let id_at = rect(id_box.left + self.px(6.0), at, iw + 1.0, ih);
+        let faded = (self.colors[1] & 0x00ff_ffff) | 0x8f00_0000;
+        self.paint_text(p, id, id_at, size, faded, clip);
+        p.items
+            .last_mut()
+            .expect("paint_text pushed an item")
+            .text
+            .mono = true;
+        let mut c = plain(control, id_box, id.into(), "button");
+        c.action = action;
+        self.push_control(c, clip);
+        id_box.bottom + self.px(4.0)
+    }
+    /// A box's title on the background over the border, tapped as `action`: 23 dp tall, 10 dp in
+    /// and 12 dp up, in 6 dp padding, in titleSmall on one line. `b` is the border's top edge.
+    pub(in crate::settings_ui) fn box_title(
+        &mut self,
+        p: &mut Panel,
+        (control, name): (i32, &str),
+        action: Action,
         b: Rect,
         clip: Rect,
         text: &mut Text,
     ) {
         let (left, border_top) = (b.left, b.top);
         let room = b.width() - 2.0 * self.px(6.0) - self.px(10.0);
-        let title = self.row_text(text, &pack.title, self.sp(14), room, 1);
+        let title = self.row_text(text, name, self.sp(14), room, 1);
         let layout = self.styled(text, &title, TITLE_SMALL, None);
         let (tw, th) = (layout.width.ceil(), layout.height.ceil());
         let tag = rect(
@@ -166,7 +181,7 @@ impl App {
             tw + 2.0 * self.px(6.0),
             self.px(23.0),
         );
-        if self.focus == pack_id(k, 0) {
+        if self.focus == control {
             self.paint_clipped_box(p, tag, self.colors[4], self.px(4.0), clip);
         } else {
             self.paint_clipped_box(p, tag, self.colors[0], 0.0, clip);
@@ -178,20 +193,20 @@ impl App {
             th,
         );
         self.paint_styled(p, &title, at, TITLE_SMALL, self.colors[1], clip);
-        let mut c = plain(pack_id(k, 0), tag, pack.title.clone(), "button");
-        c.action = Action::Lang(Tap::View(pack.id.clone()));
+        let mut c = plain(control, tag, name.into(), "button");
+        c.action = action;
         self.push_control(c, clip);
     }
     /// FlorisOutlinedBox's border: 1 dp outlineVariant round the background, 8 dp corners. Its
     /// height is set by [`fit_box`](Self::fit_box) once the content is painted.
-    fn outlined_box(&self, p: &mut Panel, b: Rect, clip: Rect) {
+    pub(in crate::settings_ui) fn outlined_box(&self, p: &mut Panel, b: Rect, clip: Rect) {
         self.paint_clipped_box(p, b, self.colors[10], self.px(8.0), clip);
         let line = self.px(1.0);
         let inside = rect(b.left + line, b.top + line, b.width() - 2.0 * line, 0.0);
         self.paint_clipped_box(p, inside, self.colors[0], self.px(8.0) - line, clip);
     }
     /// Gives the border painted at item `at` its height.
-    fn fit_box(&self, p: &mut Panel, at: usize, height: f32) {
+    pub(in crate::settings_ui) fn fit_box(&self, p: &mut Panel, at: usize, height: f32) {
         let line = self.px(1.0);
         let b = p.items[at].bounds;
         p.items[at].bounds = rect(b.left, b.top, b.width(), height);

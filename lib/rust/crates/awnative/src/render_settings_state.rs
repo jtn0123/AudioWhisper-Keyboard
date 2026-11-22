@@ -150,6 +150,7 @@ pub fn restore(a: &mut App, packet: &[Text]) -> Result<(), &'static str> {
     a.words.transfer = languages.words.transfer;
     a.languages_restored();
     a.words_restored();
+    a.themes_restored();
     a.project_restored(horizontal);
     Ok(())
 }
