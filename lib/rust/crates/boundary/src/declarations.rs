@@ -5,6 +5,7 @@ mod clipboard;
 mod composing;
 mod dictation;
 mod emoji;
+mod gestures;
 mod gif;
 mod giphy;
 mod glide;
@@ -68,6 +69,7 @@ pub const CLASSES: &[Class] = &[
     input::INPUT_RULES,
     input::INPUT_NATIVE,
     glide::GLIDE_NATIVE,
+    gestures::GESTURES_NATIVE,
 ];
 
 /// Every generated api over those classes.
@@ -103,6 +105,8 @@ pub const APIS: &[Api] = &[
     glide::GLIDE_WORDS,
     glide::GLIDE_INDEX,
     glide::GLIDE_QUERY,
+    gestures::SWIPE_DETECTOR,
+    gestures::GLIDE_DETECTOR,
 ];
 
 /// Every generated top-level record, enum and interface, with the declarations file and the module it is in.
@@ -114,6 +118,9 @@ pub const TYPES: &[(&str, Module, Type)] = &[
     glide::GLIDE_CHAR,
     glide::GLIDE_KEYS,
     glide::GLIDE_SCORES,
+    gestures::SWIPE_DIRECTION,
+    gestures::SWIPE_RECORD,
+    gestures::GLIDE_OUTCOME,
 ];
 
 /// Every group crates/wire declares, and the Kotlin module that calls with it.

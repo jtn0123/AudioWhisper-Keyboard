@@ -208,7 +208,9 @@ impl Env {
         Ok(array)
     }
 
-    /// Writes `values` to the start of `array`, which must be long enough.
+    /// Writes `values` to the start of `array`, which must be long enough. Only the host and
+    /// the legacy fixtures fill arrays the caller passed; the shipped entry points return theirs.
+    #[cfg(any(not(target_os = "android"), feature = "legacy-fixture"))]
     pub fn write<T: Element>(&self, array: jarray, values: &[T], name: &'static str) -> Result<()> {
         if self.length(array, name)? < values.len() {
             return Err(illegal(format!("{name} is too short")));

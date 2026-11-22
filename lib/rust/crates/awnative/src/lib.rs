@@ -12,7 +12,7 @@ mod dictation;
 mod editor;
 mod emoji;
 mod files;
-mod gestures;
+pub(crate) mod gestures;
 mod gif;
 mod giphy;
 pub(crate) mod glide;
