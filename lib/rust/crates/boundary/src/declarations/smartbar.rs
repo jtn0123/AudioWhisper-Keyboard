@@ -44,6 +44,11 @@ pub const SMARTBAR_NATIVE: Class = Class {
             Return::Int,
         ),
         method("roomy", &[CONFIG], Return::Boolean),
+        method(
+            "actions",
+            &[CONFIG, ("fields", Param::Strings)],
+            Return::Strings,
+        ),
         method("toggleWidth", &[CONFIG], Return::Float),
         method(
             "fitStep",
@@ -113,6 +118,13 @@ pub const SMARTBAR_RULES: Api = Api {
             name: "roomy",
             doc: "Words show in Gboard's row: the mic, the words and the arrow; see \
                   `smartbar::Config::roomy`.",
+            ..MEMBER
+        },
+        Member {
+            name: "actions",
+            doc: "What each action shows, `smartbar_actions::call`, for [config] and [fields]: a \
+                  [SmartbarBar] row, then a [SmartbarAction] row for each action. The answer is \
+                  a [SmartbarPlan] row, then a [SmartbarActionPlan] row for each action.",
             ..MEMBER
         },
         Member {

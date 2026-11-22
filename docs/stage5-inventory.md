@@ -191,7 +191,7 @@ Path prefixes (each path below expands against the repository root):
 | `AW/render/RendererMotionPacket.kt` | 22 | A | MotionEvent; complete pointer/history/timestamp transport |
 | `AW/render/RendererPanels.kt` | 46 | M | Resources / Jetpref; panel choice, action assembly and label fallbacks |
 | `AW/render/RendererSearch.kt` | 21 | M | Resources; search-strip state/label projection |
-| `AW/render/RendererSmartbar.kt` | 110 | M | Resources / Paint; item choice, fallback labels, measurement and action binding |
+| `AW/render/RendererSmartbar.kt` | 110 | M | Resources / Paint; item choice, measurement and action binding (each action's icon, arrow, flags, label and what the toggle flips moved to Rust's `smartbar_actions` at phase 3 item 1; this file keeps the evaluator's facts and the icon vectors) |
 | `AW/render/RendererSmartbarTouch.kt` | 47 | M | InputConnection / PopupWindow; enabled/removal/tooltip action gating |
 | `AW/render/RendererSubtypes.kt` | 21 | A | Resources / Jetpref Flow; localized subtype snapshot transport |
 | `AW/render/RendererTheme.kt` | 27 | A | Resources.Configuration / DisplayMetrics; theme and density transport |

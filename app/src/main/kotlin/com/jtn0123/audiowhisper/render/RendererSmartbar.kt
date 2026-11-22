@@ -17,15 +17,22 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.vectorResource
+import com.jtn0123.audiowhisper.rust.SmartbarAction
+import com.jtn0123.audiowhisper.rust.SmartbarActionKind
+import com.jtn0123.audiowhisper.rust.SmartbarActionPlan
+import com.jtn0123.audiowhisper.rust.SmartbarBar
+import com.jtn0123.audiowhisper.rust.SmartbarIcon
+import com.jtn0123.audiowhisper.rust.SmartbarPlan
 import com.jtn0123.audiowhisper.rust.SmartbarRules
+import com.jtn0123.audiowhisper.rust.WireFlag
 import com.jtn0123.audiowhisper.rust.RenderProtocol.*
 import dev.patrickgold.florisboard.R
 import dev.patrickgold.florisboard.app.FlorisPreferenceStore
 import dev.patrickgold.florisboard.ime.keyboard.computeImageVector
 import dev.patrickgold.florisboard.ime.keyboard.computeLabel
 import dev.patrickgold.florisboard.ime.keyboard.FlorisImeSizing
+import dev.patrickgold.florisboard.ime.keyboard.KeyData
 import dev.patrickgold.florisboard.ime.smartbar.IncognitoDisplayMode
-import dev.patrickgold.florisboard.ime.smartbar.SmartbarLayout
 import dev.patrickgold.florisboard.ime.smartbar.quickaction.QuickAction
 import dev.patrickgold.florisboard.ime.smartbar.quickaction.keyData
 import dev.patrickgold.florisboard.ime.smartbar.quickaction.computeTooltip
@@ -85,52 +92,86 @@ internal fun rendererSmartbar(preview: Boolean, inline: Boolean = false): Render
     val dictation by Dictation.status.collectAsState()
     val level by Dictation.level.collectAsState()
     val warming by Dictation.warming.collectAsState()
-    val reading by ReadAloud.status.collectAsState()
     val evaluator by manager.activeSmartbarEvaluator.collectAsState()
     val config = smartbarConfig(preview, inline)
-    val layout by prefs.smartbar.layout.observeAsState()
-    val flip by prefs.smartbar.flipToggles.observeAsState()
-    val shared by prefs.smartbar.sharedActionsExpanded.observeAsState()
-    val extended by prefs.smartbar.extendedActionsExpanded.observeAsState()
     val arrangement by prefs.smartbar.actionArrangement.observeAsState()
     val incognitoMode by prefs.keyboard.incognitoDisplayMode.observeAsState()
     val scope = rememberCoroutineScope()
-    val expanded = if (layout == SmartbarLayout.SUGGESTIONS_ACTIONS_EXTENDED) extended else shared
     // Slot 2 was the pinned emoji, now the bottom row's emoji key; Rust never places it.
     val actions = listOf(arrangement.stickyAction, QuickAction.InsertKey(TextKeyData.READ_ALOUD),
         null, QuickAction.InsertKey(TextKeyData.TOGGLE_ACTIONS_OVERFLOW), null) + arrangement.dynamicActions
-    val arrow = if (flip xor (expanded && incognitoMode == IncognitoDisplayMode.DISPLAY_BEHIND_KEYBOARD)) {
-        Icons.AutoMirrored.Default.KeyboardArrowLeft
-    } else Icons.AutoMirrored.Default.KeyboardArrowRight
-    val toggleIcon = if (layout == SmartbarLayout.SUGGESTIONS_ACTIONS_EXTENDED) {
-        if (extended) Icons.Default.UnfoldLess else Icons.Default.UnfoldMore
-    } else if (evaluator.state.isIncognitoMode && incognitoMode == IncognitoDisplayMode.REPLACE_SHARED_ACTIONS_TOGGLE) {
-        ImageVector.vectorResource(R.drawable.ic_incognito)
-    } else arrow
-    val codes = actions.flatMap { action -> listOf(action?.keyData()?.code ?: 0,
-        (if (action == null || evaluator.evaluateEnabled(action.keyData())) BAR_ENABLED else 0) or
-            (if (action?.keyData()?.code == KeyCode.VOICE_INPUT && dictation != Dictation.Status.IDLE) BAR_DICTATING else 0) or
-            (if (action?.keyData()?.code == KeyCode.READ_ALOUD && reading == ReadAloud.Status.READING) BAR_READING else 0) or
-            (if (action?.keyData()?.code == KeyCode.VOICE_INPUT) {
-                (if (warming) BAR_WARMING else 0) or (if (dictation != Dictation.Status.LISTENING) BAR_FINISHING else 0) or
-                    ((level.coerceIn(0f,1f)*BAR_LEVEL_MASK).toInt() shl BAR_LEVEL_SHIFT)
-            } else 0)) }.toIntArray()
+    val shown = SmartbarShown(config, smartbarBar(incognitoMode, evaluator.state.isIncognitoMode, dictation, level, warming),
+        actions, evaluator::evaluateEnabled, evaluator::computeImageVector)
+    val incognito = if (SmartbarIcon.INCOGNITO in shown.icons) ImageVector.vectorResource(R.drawable.ic_incognito) else null
     val tooltips = actions.map { it?.computeTooltip(evaluator) ?: "" }
-    val labels = actions.flatMap { action ->
-        val icon = if (action?.keyData()?.code == KeyCode.READ_ALOUD && reading == ReadAloud.Status.READING) Icons.Default.Stop else if (action == null) toggleIcon else if (action is QuickAction.InsertKey) evaluator.computeImageVector(action.data) else null
-        listOf(icon?.let(::iconPath) ?: "", when (action) {
-            is QuickAction.InsertText -> action.data.firstOrNull().toString().ifBlank { "?" }
-            is QuickAction.InsertKey -> if (icon == null) evaluator.computeLabel(action.data) ?: "" else ""
-            null -> ""
-        })
+    val labels = actions.indices.flatMap {
+        listOf(shown.icon(it, incognito)?.let(::iconPath) ?: "", shown.label(it, evaluator::computeLabel))
     }.toTypedArray()
-    return RendererSmartbar(config, actions, codes, labels, tooltips, warming,
+    return RendererSmartbar(config, actions, shown.codes, labels, tooltips, warming,
         listOfNotNull(KeyCode.TOGGLE_INCOGNITO_MODE.takeIf { evaluator.state.isIncognitoMode },
             KeyCode.TOGGLE_COMPACT_LAYOUT.takeIf { prefs.keyboard.oneHandedModeEnabled.get() }).toIntArray()) {
-        if (expanded) manager.activeState.isActionsOverflowVisible = false
+        if (shown.expanded) manager.activeState.isActionsOverflowVisible = false
         scope.launch {
-            if (layout == SmartbarLayout.SUGGESTIONS_ACTIONS_EXTENDED) prefs.smartbar.extendedActionsExpanded.set(!extended)
-            else prefs.smartbar.sharedActionsExpanded.set(!shared)
+            if (shown.togglesExtended) prefs.smartbar.extendedActionsExpanded.set(!shown.expanded)
+            else prefs.smartbar.sharedActionsExpanded.set(!shown.expanded)
         }
     }
+}
+
+/** A `SmartbarBar` row: what every action's plan reads that [smartbarConfig] does not carry. */
+internal fun smartbarBar(incognitoMode: IncognitoDisplayMode, incognito: Boolean, dictation: Dictation.Status, level: Float,
+                         warming: Boolean) = with(SmartbarBar) {
+    Array(SIZE) { "" }.also { row ->
+        row[INCOGNITO_DISPLAY] = "${incognitoMode.ordinal}"; row[LEVEL] = "$level"
+        for ((field, on) in listOf(INCOGNITO to incognito, LISTENING to (dictation == Dictation.Status.LISTENING), WARMING to warming)) {
+            row[field] = WireFlag.encode(on)
+        }
+    }
+}
+
+/**
+ * What each action shows, as Rust plans it (`smartbar_actions`) from the [config], the [bar] row
+ * and what the key evaluator says of each action: whether it is [enabled], and its key's own icon,
+ * [keyIcon].
+ */
+internal class SmartbarShown(config: FloatArray, bar: Array<String>, private val actions: List<QuickAction?>, enabled: (KeyData) -> Boolean,
+                             keyIcon: (KeyData) -> ImageVector?) {
+    private val keyIcons = actions.map { (it as? QuickAction.InsertKey)?.let { key -> keyIcon(key.data) } }
+    private val plan = SmartbarRules.actions(config, bar + actions.indices.flatMap { row(it, enabled) })
+    private fun field(i: Int, field: Int) = plan[SmartbarPlan.SIZE + i * SmartbarActionPlan.SIZE + field]
+    private fun row(i: Int, enabled: (KeyData) -> Boolean) = with(SmartbarAction) {
+        val action = actions[i]
+        Array(SIZE) { "" }.also { row ->
+            row[KIND] = "${when (action) { null -> SmartbarActionKind.NONE; is QuickAction.InsertKey -> SmartbarActionKind.KEY
+                is QuickAction.InsertText -> SmartbarActionKind.TEXT }}"
+            row[CODE] = "${action?.keyData()?.code ?: 0}"; row[ENABLED] = WireFlag.encode(action != null && enabled(action.keyData()))
+            row[KEY_ICON] = WireFlag.encode(keyIcons[i] != null); row[TEXT] = (action as? QuickAction.InsertText)?.data ?: ""
+        }.asList()
+    }
+
+    val expanded = WireFlag.decode(plan[SmartbarPlan.EXPANDED])
+    val togglesExtended = WireFlag.decode(plan[SmartbarPlan.TOGGLES_EXTENDED])
+    /** Each action's code and flags, as the renderer's smartbar packet carries them. */
+    val codes = IntArray(actions.size * BAR_ACTION_STRIDE) {
+        field(it / BAR_ACTION_STRIDE, if (it % BAR_ACTION_STRIDE == BAR_FLAGS_OFFSET) SmartbarActionPlan.FLAGS else SmartbarActionPlan.CODE).toInt()
+    }
+    /** Each action's `SmartbarIcon`. */
+    val icons = IntArray(actions.size) { field(it, SmartbarActionPlan.ICON).toInt() }
+
+    /** Action [i]'s icon, with [incognito] for `SmartbarIcon.INCOGNITO`. */
+    fun icon(i: Int, incognito: ImageVector?): ImageVector? = when (icons[i]) {
+        SmartbarIcon.KEY -> keyIcons[i]
+        SmartbarIcon.ARROW_LEFT -> Icons.AutoMirrored.Default.KeyboardArrowLeft
+        SmartbarIcon.ARROW_RIGHT -> Icons.AutoMirrored.Default.KeyboardArrowRight
+        SmartbarIcon.UNFOLD_LESS -> Icons.Default.UnfoldLess
+        SmartbarIcon.UNFOLD_MORE -> Icons.Default.UnfoldMore
+        SmartbarIcon.INCOGNITO -> incognito
+        SmartbarIcon.STOP -> Icons.Default.Stop
+        else -> null
+    }
+
+    /** Action [i]'s label; [keyLabel] names a key's own. */
+    fun label(i: Int, keyLabel: (KeyData) -> String?): String = if (!WireFlag.decode(field(i, SmartbarActionPlan.KEY_LABEL))) {
+        field(i, SmartbarActionPlan.LABEL)
+    } else (actions[i] as? QuickAction.InsertKey)?.let { keyLabel(it.data) } ?: ""
 }

@@ -60,7 +60,7 @@ app/src/main/kotlin/com/jtn0123/audiowhisper/render/RendererMediaBuffers.kt	M	61
 app/src/main/kotlin/com/jtn0123/audiowhisper/render/RendererMotionPacket.kt	A	21	MotionEvent; complete pointer/history/timestamp transport |
 app/src/main/kotlin/com/jtn0123/audiowhisper/render/RendererPanels.kt	M	45	Resources / Jetpref; panel choice, action assembly and label fallbacks |
 app/src/main/kotlin/com/jtn0123/audiowhisper/render/RendererSearch.kt	M	21	Resources; search-strip state/label projection |
-app/src/main/kotlin/com/jtn0123/audiowhisper/render/RendererSmartbar.kt	M	126	Resources / Paint; item choice, fallback labels, measurement and action binding |
+app/src/main/kotlin/com/jtn0123/audiowhisper/render/RendererSmartbar.kt	M	152	Resources / Paint; item choice, measurement and action binding, and the adapter for the Rust action plan: the evaluator's facts in, each SmartbarIcon's vector out | raised 126 to 152 (phase 3 item 1): the icon, arrow, flag, label and toggle choices moved to Rust (render::smartbar_actions); this file now writes their rows from the key evaluator and maps each icon id to its Compose vector
 app/src/main/kotlin/com/jtn0123/audiowhisper/render/RendererSmartbarTouch.kt	M	46	InputConnection / PopupWindow; enabled/removal/tooltip action gating |
 app/src/main/kotlin/com/jtn0123/audiowhisper/render/RendererSubtypes.kt	A	21	Resources / Jetpref Flow; localized subtype snapshot transport |
 app/src/main/kotlin/com/jtn0123/audiowhisper/render/RendererTheme.kt	A	27	Resources.Configuration / DisplayMetrics; theme and density transport |

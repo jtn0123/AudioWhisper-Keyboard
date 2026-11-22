@@ -29,6 +29,7 @@ pub mod reading_order;
 pub mod scene;
 mod shadow_raster;
 pub mod smartbar;
+pub mod smartbar_actions;
 pub mod smartbar_fit;
 mod smartbar_raster;
 pub mod smartbar_scene;

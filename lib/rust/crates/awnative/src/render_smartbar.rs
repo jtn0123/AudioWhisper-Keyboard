@@ -64,6 +64,12 @@ pub fn smartbar(native: i64, config: &[f32], codes: &[i32], labels: &[Vec<u16>])
         Ok(())
     })
 }
+/// What each smartbar action shows (`smartbar_actions::call`).
+pub fn actions(config: &[f32], fields: &[Vec<u16>]) -> Result<Vec<Vec<u16>>> {
+    render::smartbar_actions::call(config, fields)
+        .ok_or_else(|| illegal("invalid smartbar actions"))
+}
+
 /// A smartbar config from its packed floats.
 fn config(config: &[f32]) -> Result<Config> {
     Config::decode(config).ok_or_else(|| illegal("invalid smartbar config"))

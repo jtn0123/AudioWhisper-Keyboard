@@ -61,6 +61,7 @@ pub mod playback;
 pub mod render;
 pub mod settings;
 pub mod settings_ui;
+pub mod smartbar;
 pub mod typing;
 pub mod utilities;
 
