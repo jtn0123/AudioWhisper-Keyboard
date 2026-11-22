@@ -1,5 +1,5 @@
 """Require fresh JVM assertion failures for each UI, editor, group 1, group 2, licences, Other, Theme, language, user
-dictionary, project licence and theme manager mutation, and fresh Rust test panics for each mutation that only Rust tests see; always restore bytes."""
+dictionary, project licence, theme manager and setup mutation, and fresh Rust test panics for each mutation that only Rust tests see; always restore bytes."""
 import argparse
 import hashlib
 import json
@@ -18,6 +18,7 @@ LANG = UI / 'languages'
 WORDS = UI / 'words'
 PL = UI / 'project_licence'
 THEMES = UI / 'themes'
+SETUP = UI / 'setup'
 SETTINGS_UI = ROOT / 'app/src/main/kotlin/com/jtn0123/audiowhisper/settingsui'
 SYNC_CLEAR, SYNC_SET = ('    (\n        "ONLY_{0}_EVENTS",\n        "enum__clipboard_sync_behavior__only_{1}_events",\n'
                          '        "enum__clipboard_sync_behavior__only_{1}_events__description",\n    ),\n'
@@ -333,6 +334,53 @@ CASES = [
      '            out.extend((0..ext.themes.len()).map(|t| theme_id(e, 4 + t)));\n', ''),
     ('theme-unknown-kind-accepted', THEMES / 'mod.rs', '_ => return Err("settings themes kind"),', '_ => {}'),
     ('theme-extension-unchecked', THEMES / 'mod.rs', 'if out[e].id != f[row::EXTENSION] {', 'if false {'),
+    ('setup-unasked-inverted', SETUP / 'mod.rs',
+     '} else if self.notice() == Notice::Unasked {', '} else if self.notice() != Notice::Unasked {'),
+    ('setup-header-keeps-auto', SETUP / 'mod.rs',
+     'self.setup.manual = (step != self.auto_step()).then_some(step);', 'self.setup.manual = Some(step);'),
+    ('setup-blocked-asks', SETUP / 'mod.rs',
+     'Step::Notifications if self.notice() == Notice::Blocked => {', 'Step::Notifications if self.notice() == Notice::Granted => {'),
+    ('setup-unanswered-kept', SETUP / 'mod.rs',
+     'if self.value(NOTIFICATIONS) == "NOT_SET" && self.yes(SET_UP) {', 'if self.value(NOTIFICATIONS) == "NOT_SET" && !self.yes(SET_UP) {'),
+    ('setup-return-wrong-step', SETUP / 'mod.rs',
+     'matches!(self.setup.away, Some((Step::Enable, _)))', 'matches!(self.setup.away, Some((Step::Select, _)))'),
+    ('setup-settle-keeps-manual', SETUP / 'mod.rs', '            self.setup.manual = None;\n', ''),
+    ('setup-settle-first-dropped', SETUP / 'mod.rs',
+     '&& (self.satisfied(step) || (was_first && step < self.auto_step()))', '&& self.satisfied(step)'),
+    ('setup-answer-swapped', SETUP / 'mod.rs',
+     'let answer = if granted { "GRANTED" } else { "DENIED" };', 'let answer = if granted { "DENIED" } else { "GRANTED" };'),
+    ('setup-rationale-ignored', SETUP / 'mod.rs',
+     '(_, "DENIED") if self.fact(fact::RATIONALE) != "true" => Notice::Blocked,', '(_, "DENIED") => Notice::Blocked,'),
+    ('setup-early-facts-dropped', SETUP / 'mod.rs',
+     '        // Facts reported before the first screen was chosen count as a later report would.\n        self.setup_facts();\n', ''),
+    ('setup-granted-anywhere', SETUP / 'mod.rs',
+     '        if self.on_setup()\n            && self.fact(fact::NOTIFICATIONS) == "true"', '        if self.fact(fact::NOTIFICATIONS) == "true"'),
+    ('setup-reopen-keeps-step', SETUP / 'mod.rs', '            self.setup = State::default();\n', ''),
+    ('setup-saved-step-unbounded', SETUP / 'mod.rs',
+     'Ok(n) if n <= STEPS.len() => Ok(Some(STEPS[n - 1])),', 'Ok(n) if n <= STEPS.len() + 1 => Ok(Some(STEPS[n - 1])),'),
+    ('setup-open-header-button', SETUP / 'paint.rs', '            c.role = "heading";\n', '            c.role = "button";\n'),
+    ('setup-later-header-opens', SETUP / 'paint.rs',
+     '        } else if step <= auto {\n            c.action = Action::Setup(Tap::Header(step));\n        } else {\n            c.role = "text";\n            c.enabled = false;\n        }',
+     '        } else {\n            c.action = Action::Setup(Tap::Header(step));\n        }'),
+    ('setup-done-reads-current', SETUP / 'paint.rs',
+     'Ordering::Less => "setup__step__done",', 'Ordering::Less => "setup__step__current",'),
+    ('setup-focus-skips-button', SETUP / 'paint.rs', 'ids.push(ACTION_ID);', ''),
+    ('setup-fill-ignored', SETUP / 'paint.rs',
+     'let fill = (clip.height() - fixed).max(natural);', 'let fill = natural;'),
+    ('setup-status-not-live', SETUP / 'paint.rs',
+     'let role = if id == STATUS_ID { "status" } else { "text" };', 'let role = "text";'),
+    ('setup-back-arrow', UI / 'rows.rs', '!self.is_home() && !self.on_setup()', '!self.is_home()'),
+    ('setup-ime-facts-swapped', BASE / 'awnative/src/render_settings.rs',
+     'a.set_ime(field(&p, 10)? == "true", field(&p, 11)? == "true");', 'a.set_ime(field(&p, 11)? == "true", field(&p, 10)? == "true");'),
+    ('setup-facts-not-settled', BASE / 'awnative/src/render_settings.rs',
+     '                    .collect();\n                a.setup_facts();\n', '                    .collect();\n'),
+    ('setup-start-link-dropped', BASE / 'awnative/src/render_settings.rs',
+     '[link] => a.start(Some(link)),', '[_] => a.start(None),'),
+    ('setup-saved-not-written', BASE / 'awnative/src/render_settings_state.rs',
+     'text(&a.setup_saved()),', 'text("0|0|false"),'),
+    ('setup-saved-step-dropped', BASE / 'awnative/src/render_settings_state.rs', '    a.setup = setup;\n', ''),
+    ('setup-restored-above-home', BASE / 'awnative/src/render_settings_state.rs',
+     '(i == 0) != root(r)', '(i == 0) && !root(r)'),
 ]
 # The Rust test binary that must panic for each Rust-only case.
 RUST = dict.fromkeys([
@@ -419,7 +467,30 @@ RUST = dict.fromkeys([
     'theme-extension-unchecked',
 ], 'settings_ui_theme_manager') | {'theme-report-keeps-asked': 'settings_ui_theme'} | {
     'advance-linear-round': 'android_text', 'every-row-drawn': 'settings_ui_licences',
-    'talkback-page-fraction': 'settings_ui_screens'}
+    'talkback-page-fraction': 'settings_ui_screens'} | dict.fromkeys([
+    'setup-unasked-inverted',
+    'setup-header-keeps-auto',
+    'setup-blocked-asks',
+    'setup-unanswered-kept',
+    'setup-return-wrong-step',
+    'setup-settle-keeps-manual',
+    'setup-settle-first-dropped',
+    'setup-answer-swapped',
+    'setup-rationale-ignored',
+    'setup-early-facts-dropped',
+    'setup-granted-anywhere',
+    'setup-reopen-keeps-step',
+    'setup-saved-step-unbounded',
+    'setup-open-header-button',
+    'setup-later-header-opens',
+    'setup-done-reads-current',
+    'setup-focus-skips-button',
+    'setup-fill-ignored',
+    'setup-status-not-live',
+    'setup-back-arrow',
+], 'settings_ui_setup')
+# Suites whose assertion failures count, besides the settingsui ones: the first screen a fresh activity opens.
+SUITES = ('TEST-*settingsui.Settings*Test.xml', 'TEST-*florisboard.app.SettingsEntryTest.xml')
 
 
 def run_rust(output, name, target):
@@ -441,9 +512,11 @@ def run(output, name):
                                  '--tests', '*SettingsLicencesMatchTest', '--tests', '*SettingsOtherThemeMatchTest',
                                  '--tests', '*SettingsResourcesTest', '--tests', '*SettingsLanguagesMatchTest',
                                  '--tests', '*SettingsWords*Test', '--tests', '*SettingsProjectLicenceMatchTest',
-                                 '--tests', '*SettingsThemesMatchTest'], cwd=ROOT, stdout=log, stderr=subprocess.STDOUT)
+                                 '--tests', '*SettingsThemesMatchTest', '--tests', '*SettingsSetupMatchTest',
+                                 '--tests', '*SettingsEntryTest'], cwd=ROOT, stdout=log, stderr=subprocess.STDOUT)
     failures = []
-    for path in (ROOT / 'app/build/test-results/testDebugUnitTest').glob('TEST-*settingsui.Settings*Test.xml'):
+    xml = ROOT / 'app/build/test-results/testDebugUnitTest'
+    for path in (path for pattern in SUITES for path in xml.glob(pattern)):
         if path.stat().st_mtime_ns < started:
             continue
         suite = ET.parse(path).getroot()
