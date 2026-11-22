@@ -48,11 +48,6 @@ import dev.patrickgold.florisboard.app.ext.ExtensionViewScreen
 import dev.patrickgold.florisboard.app.settings.about.ProjectLicenseScreen
 import dev.patrickgold.florisboard.app.settings.dictionary.UserDictionaryScreen
 import dev.patrickgold.florisboard.app.settings.dictionary.UserDictionaryType
-import dev.patrickgold.florisboard.app.settings.localization.LanguagePackManagerScreen
-import dev.patrickgold.florisboard.app.settings.localization.LanguagePackManagerScreenAction
-import dev.patrickgold.florisboard.app.settings.localization.LocalizationScreen
-import dev.patrickgold.florisboard.app.settings.localization.SelectLocaleScreen
-import dev.patrickgold.florisboard.app.settings.localization.SubtypeEditorScreen
 import dev.patrickgold.florisboard.app.settings.theme.ThemeManagerScreen
 import dev.patrickgold.florisboard.app.settings.theme.ThemeManagerScreenAction
 import dev.patrickgold.florisboard.app.setup.SetupScreen
@@ -98,7 +93,7 @@ object Routes {
 
         @Serializable
         @Deeplink("settings/localization/language-pack-manage")
-        data class LanguagePackManager(val action: LanguagePackManagerScreenAction)
+        object LanguagePackManager
 
         @Serializable
         @Deeplink("settings/localization/subtype/add")
@@ -106,7 +101,7 @@ object Routes {
 
         @Serializable
         @Deeplink("settings/localization/subtype/edit")
-        data class SubtypeEdit(val id: Long)
+        object SubtypeEdit
 
         @Serializable
         @Deeplink("settings/theme")
@@ -247,17 +242,11 @@ object Routes {
             // hands any of these routes back to Rust (docs/compose-removal.md, step 2).
             composableWithDeepLink(Settings.Home::class) {}
 
-            composableWithDeepLink(Settings.Localization::class) { LocalizationScreen() }
-            composableWithDeepLink(Settings.SelectLocale::class) { SelectLocaleScreen() }
-            composableWithDeepLink(Settings.LanguagePackManager::class) { navBackStack ->
-                val payload = navBackStack.toRoute<Settings.LanguagePackManager>()
-                LanguagePackManagerScreen(payload.action)
-            }
-            composableWithDeepLink(Settings.SubtypeAdd::class) { SubtypeEditorScreen(null) }
-            composableWithDeepLink(Settings.SubtypeEdit::class) { navBackStack ->
-                val payload = navBackStack.toRoute<Settings.SubtypeEdit>()
-                SubtypeEditorScreen(payload.id)
-            }
+            composableWithDeepLink(Settings.Localization::class) {}
+            composableWithDeepLink(Settings.SelectLocale::class) {}
+            composableWithDeepLink(Settings.LanguagePackManager::class) {}
+            composableWithDeepLink(Settings.SubtypeAdd::class) {}
+            composableWithDeepLink(Settings.SubtypeEdit::class) {}
 
             composableWithDeepLink(Settings.Theme::class) {}
             composableWithDeepLink(Settings.ThemeManager::class) { navBackStack ->
