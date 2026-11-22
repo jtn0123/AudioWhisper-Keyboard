@@ -1,11 +1,13 @@
-//! Select language (stage4-languages.md), and the language screens' part of the saved state.
+//! Select language and the language pack manager (stage4-languages.md), and the language
+//! screens' part of the saved state.
 mod languages_common;
 use languages_common::*;
 use render::settings_ui::{
     App,
     items::{UNDO_ID, item_id},
     languages::{
-        self, EDIT_ROUTE, LIST_ROUTE, PICKER_ROUTE,
+        self, EDIT_ROUTE, LIST_ROUTE, PACKS_ROUTE, PICKER_ROUTE,
+        packs::{IMPORT_ID, pack_id},
         picker::LOCALE_ID,
     },
 };
@@ -99,6 +101,64 @@ fn a_tap_outside_the_editor_does_nothing_but_go_back() {
     assert!(tap(&mut a, &mut text, LOCALE_ID));
     assert_eq!(a.stack.last().unwrap(), LIST_ROUTE);
     assert!(a.effects.iter().all(|e| e[0] != "write"));
+}
+
+#[test]
+fn the_pack_manager_boxes_each_pack_with_its_items_and_delete_when_it_may() {
+    let (a, _) = app(PACKS_ROUTE, "[]");
+    assert_eq!(control(&a, IMPORT_ID).unwrap().label, "action__import");
+    assert_eq!(
+        control(&a, pack_id(0, 0)).unwrap().label,
+        "Han language pack"
+    );
+    assert_eq!(
+        control(&a, pack_id(0, 1)).unwrap().label,
+        "org.florisboard.han"
+    );
+    // Items in the report's order: Kotlin sorts them by label.
+    assert_eq!(control(&a, pack_id(0, 3)).unwrap().label, "Zhengma");
+    assert_eq!(control(&a, pack_id(0, 4)).unwrap().label, "Cangjie");
+    assert_eq!(control(&a, pack_id(0, 2)).unwrap().label, "action__delete");
+    // A pack the extension manager may not delete has no Delete.
+    assert_eq!(control(&a, pack_id(1, 0)).unwrap().label, "Built in");
+    assert!(control(&a, pack_id(1, 2)).is_none());
+}
+
+#[test]
+fn delete_asks_first_naming_the_pack_and_only_then_asks_kotlin() {
+    let (mut a, mut text) = app(PACKS_ROUTE, "[]");
+    a.strings.insert(
+        "action__delete_confirm_message".into(),
+        "Delete {name}?".into(),
+    );
+    assert!(tap(&mut a, &mut text, pack_id(0, 2)));
+    let message = a
+        .controls
+        .iter()
+        .find(|c| c.label == "Delete Han language pack?");
+    assert!(message.is_some());
+    // Cancel asks nothing.
+    assert!(tap(&mut a, &mut text, 6));
+    assert!(a.modal.is_none() && a.effects.is_empty());
+    assert!(tap(&mut a, &mut text, pack_id(0, 2)));
+    assert!(tap(&mut a, &mut text, 7));
+    assert_eq!(a.effects, [["deleteLanguagePack", "org.florisboard.han"]]);
+}
+
+#[test]
+fn import_and_a_packs_page_are_compose_screens_handed_the_native_routes() {
+    for (id, route) in [
+        (IMPORT_ID, "ext/import/EXT_LANGUAGEPACK"),
+        (pack_id(0, 0), "ext/view/org.florisboard.han"),
+        (pack_id(0, 1), "ext/view/org.florisboard.han"),
+    ] {
+        let (mut a, mut text) = app(PACKS_ROUTE, "[]");
+        assert!(tap(&mut a, &mut text, id));
+        let compose = a.effects.iter().find(|e| e[0] == "compose").unwrap();
+        assert_eq!(compose[1], route);
+        assert!(compose[2].contains(PACKS_ROUTE));
+        assert_eq!(a.stack.last().unwrap(), PACKS_ROUTE);
+    }
 }
 
 #[test]
