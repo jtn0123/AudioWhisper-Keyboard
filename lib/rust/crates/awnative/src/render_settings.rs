@@ -70,7 +70,7 @@ fn reply(s: &mut Session, query: Vec<u16>, saved: bool) -> Result<Vec<Vec<u16>>>
         .map(|c| [c.bounds.left, c.bounds.top, c.bounds.right, c.bounds.bottom]);
     let effects = std::mem::take(&mut a.effects);
     let result = json!({"nodes":nodes,"mode":"","shift":"","popup":a.modal.is_some(),"effects":effects,
-        "systemBarColor":a.system_bar_color(),"lightSystemBars":a.light_system_bars(),"route":a.stack.last(),"canBack":a.stack.len()>1 || a.modal.is_some() || a.editor.focused,"scroll":a.scroll(),"maxScroll":a.max_scroll,"focus":a.focus,
+        "systemBarColor":a.system_bar_color(),"lightSystemBars":a.light_system_bars(),"route":a.stack.last(),"canBack":a.stack.len()>1 || a.modal.is_some() || a.editor.focused || a.theme_holds_back(),"scroll":a.scroll(),"maxScroll":a.max_scroll,"focus":a.focus,
         "animating":a.animating(),"scrollbarAlpha":a.scrollbar_alpha(usize::from(a.modal.is_some())),"selectionToolbar":a.editor.focused && a.editor.anchor!=a.editor.focus && !a.toolbar_dismissed,"textToolbar":a.text_toolbar(),"accepted":a.accepted,"editor":{"anchor":a.editor.anchor,"focus":a.editor.focus,"composing":a.editor.composing,"focused":a.editor.focused,"report":a.batches.report(),"bounds":field,"multiLine":a.multi_line_field(),"number":a.number_field()}});
     let mut out = vec![vec![]; reply::SIZE];
     out[reply::STATE] = settings::text(&result.to_string());
@@ -378,6 +378,7 @@ pub fn settings(native: i64, op: i32, values: &[Vec<u16>]) -> Result<Vec<Vec<u16
             ops::LANGUAGES => a.set_languages(&p).map_err(illegal)?,
             ops::WORDS => a.set_words(&p).map_err(illegal)?,
             ops::THEMES => a.set_themes(&p).map_err(illegal)?,
+            ops::THEME_EDITOR => a.set_theme_editor(&p).map_err(illegal)?,
             ops::ASSET => a.set_asset(&p).map_err(illegal)?,
             ops::SELECTION => a.text_selection(&p).map_err(illegal)?,
             ops::ACCESSIBILITY_SCROLL => {

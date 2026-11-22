@@ -2,13 +2,13 @@
 use render::settings_ui::{
     App, Modal, backup_saved,
     catalogue::{self, Kind},
-    setup,
+    setup, theme_editor,
 };
 use settings::{Text, text};
 /// The saved state's layout; 3 added Back up's and Restore's state, 4 the language screens',
 /// 5 the user dictionary screens', 6 the project licence's horizontal scroll, 7 the setup
-/// screen's chosen step.
-const VERSION: &str = "7";
+/// screen's chosen step, 8 the theme editor's draft.
+const VERSION: &str = "8";
 pub fn save(a: &App) -> Vec<Text> {
     // LibrariesContainer keeps its open library, and Jetpref's colour and time preferences their
     // dialogs, in a plain `remember`: recreation closes them.
@@ -46,10 +46,11 @@ pub fn save(a: &App) -> Vec<Text> {
         text(&a.words_saved()),
         text(&a.project_saved()),
         text(&a.setup_saved()),
+        text(&a.theme_editor_saved()),
     ]
 }
 pub fn restore(a: &mut App, packet: &[Text]) -> Result<(), &'static str> {
-    if packet.len() != 20 || packet[0] != text(VERSION) || packet[7].len() > 65_536 {
+    if packet.len() != 21 || packet[0] != text(VERSION) || packet[7].len() > 65_536 {
         return Err("settings saved state version or size");
     }
     let p: Vec<_> = packet.iter().map(|s| String::from_utf16_lossy(s)).collect();
@@ -98,7 +99,7 @@ pub fn restore(a: &mut App, packet: &[Text]) -> Result<(), &'static str> {
             }
             Kind::Confirm(..) | Kind::Backup(catalogue::Part::Confirm) if p[5].is_empty() => vec![],
             // The language screens' dialogs keep only `selected`.
-            Kind::Pick(_) | Kind::Lang(_) if p[5].is_empty() => vec![],
+            Kind::Pick(_) | Kind::Lang(_) | Kind::ThemeEdit(_) if p[5].is_empty() => vec![],
             _ => return Err("settings saved modal values"),
         };
         Some(Modal {
@@ -130,6 +131,7 @@ pub fn restore(a: &mut App, packet: &[Text]) -> Result<(), &'static str> {
     let mut languages = App::default();
     languages.restore_languages(&p[16])?;
     languages.restore_words(&p[17])?;
+    languages.restore_theme_editor(&p[20])?;
     a.stack = stack;
     a.scrolls = scrolls;
     a.modal = modal;
@@ -157,9 +159,11 @@ pub fn restore(a: &mut App, packet: &[Text]) -> Result<(), &'static str> {
     a.themes_restored();
     a.project_restored(horizontal);
     a.setup = setup;
+    a.theme_editor_restored(languages.theme_editor.restored.take());
     Ok(())
 }
-/// The routes a back stack starts from and holds nowhere else: home and setup.
+/// The routes a back stack starts from and holds nowhere else: home, setup and a theme
+/// component's editor.
 fn root(route: &str) -> bool {
-    route == catalogue::HOME_ROUTE || route == setup::ROUTE
+    route == catalogue::HOME_ROUTE || route == setup::ROUTE || theme_editor::target(route).is_some()
 }
