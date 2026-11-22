@@ -40,6 +40,11 @@ def replace_once(old, new):
     return change
 
 
+def both(first, second):
+    """A mutation making `first` and then `second`, for two changes to one file."""
+    return lambda source: second(first(source))
+
+
 # name: ([(file, mutate the source)], lines the failing check must print).
 CASES = {
     'declaration-hand-written': (
@@ -52,9 +57,12 @@ CASES = {
         [(AWNATIVE + 'reader.rs', lambda source: source + '\n#[unsafe(no_mangle)]\npub extern "system" fn '
           'Java_com_jtn0123_audiowhisper_rust_ReaderNative_mutationUndeclared() {}\n')],
         [UNREFERENCED, JNI + 'ReaderNative_mutationUndeclared (undeclared)']),
+    # The probe reads its strings with render::strings, which only the probes use.
     'test-only-export-shipped': (
         [(AWNATIVE + 'render_theme.rs',
-          replace_once('#[cfg(not(target_os = "android"))]\nmod probe {', 'mod probe {'))],
+          replace_once('#[cfg(not(target_os = "android"))]\nmod probe {', 'mod probe {')),
+         (AWNATIVE + 'render.rs', replace_once(
+             '#[cfg(not(target_os = "android"))]\npub(crate) fn strings(', 'pub(crate) fn strings('))],
         [UNREFERENCED, 'Java_org_florisboard_lib_snygg_RenderThemeProbe_resolve (test-only)']),
     # A generated declaration's type changed on one side only. Gradle can't build that for real:
     # both sides regenerate from the same table, and it won't package with cargoBuildAndroid
@@ -62,10 +70,13 @@ CASES = {
     # uses the dev profile, with debug assertions, and awnative's release build script does not.
     # The Kotlin (and its hand-written caller) take the new Int; the library keeps the Long.
     'generated-declaration-one-side': (
-        [(BOUNDARY + 'declarations/editor.rs', replace_once(
-            'method("free", &[HANDLE_PARAM], Return::Unit)',
-            'method("free", &[("handle", if cfg!(debug_assertions) { Param::Int } else { Param::Long })], '
-            'Return::Unit)')),
+        [(BOUNDARY + 'declarations/editor.rs', both(
+            replace_once('const HANDLE_PARAM: (&str, Param) = ("handle", Param::Long);\n',
+                         'const HANDLE_PARAM: (&str, Param) = ("handle", Param::Long);\n'
+                         'const FREED: (&str, Param) =\n'
+                         '    ("handle", if cfg!(debug_assertions) { Param::Int } else { Param::Long });\n'),
+            replace_once('method("free", &[HANDLE_PARAM], Return::Unit)',
+                         'method("free", &[FREED], Return::Unit)'))),
          (KOTLIN + 'EditorSession.kt', replace_once(
              'EditorNative.free(owned)', 'EditorNative.free(owned.toInt())'))],
         [MISMATCHED, JNI + 'EditorNative_free ' + GENERATED, '): handle is jlong, static (I)V needs jint']),
@@ -81,8 +92,9 @@ CASES = {
     # reference type is an alias of jobject, so the library still compiles and links, and the
     # Kotlin is untouched: only the check can tell.
     'callback-object-as-string': (
-        [(BOUNDARY + 'types.rs', replace_once(
-            'Param::Object(_) => "jobject",', 'Param::Object(_) => "jstring",'))],
+        [(BOUNDARY + 'types.rs', both(
+            replace_once('Param::Object(_) => "jobject",', 'Param::Object(_) => "jstring",'),
+            replace_once('Param::Object(_) => "jobject".into(),', 'Param::Object(_) => "jstring".into(),')))],
         [MISMATCHED, JNI + 'TtsNative_generate ' + GENERATED,
          '): callback is jstring, static (JLjava/lang/String;Lcom/jtn0123/audiowhisper/rust/TtsAudio;)V '
          'needs jobject']),
