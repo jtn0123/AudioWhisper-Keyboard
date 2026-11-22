@@ -454,7 +454,11 @@ importer itself.
   starts the importer on it, set up or not; `ComposeFallbackLinksTest` that the fallback takes
   only later browsable links; `SettingsResourcesTest` the new strings.
   `ExtensionMetadataMatchTest` lost the asserts of the two ops that went.
-* **Gate**: GATE_LINE
+* **Gate** (rebased on main b10bee9b1): 1,005 JVM tests in 245 files (part 1 left 1,000 in
+  244) and 1,380 cargo tests (part 1 left 1,363), none failing or skipped; 391 native
+  declarations, none hand written; the ledger matches 421 files (part 1 left 422); lint shows
+  only the allowed issues. The first run flagged `ext__import__error_unexpected_exception` as
+  unused, the label over the stack trace Compose showed; it was deleted and the gate run again.
 
 ### Mutations
 
@@ -531,7 +535,8 @@ The selected theme was never changed. The agent-device session was closed.
 `ExtensionImportScreen` (294 counted lines, with `ExtensionImportScreenType`) and
 `ExtensionExportScreen` (56): 350 counted lines; their routes, deep links and composables in
 `Routes.kt`; the Compose fallback's file reading in `FlorisAppActivity`; `CacheManager`'s
-one-file read and `FileInfo.skipReason`; and `ExtensionPolicy.accepts` and `skipReason`.
+one-file read and `FileInfo.skipReason`; `ExtensionPolicy.accepts` and `skipReason`; and the
+`ext__import__error_unexpected_exception` string.
 
 ## Owed
 
