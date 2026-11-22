@@ -296,7 +296,6 @@ dependencies {
     implementation(libs.androidx.core.splashscreen)
     implementation(libs.androidx.emoji2)
     implementation(libs.androidx.exifinterface)
-    implementation(libs.androidx.navigation.compose)
     implementation(libs.androidx.profileinstaller)
     ksp(libs.androidx.room.compiler)
     implementation(libs.androidx.room.runtime)
@@ -309,6 +308,8 @@ dependencies {
     implementation(libs.patrickgold.compose.tooltip)
     implementation(libs.patrickgold.jetpref.datastore.model)
     ksp(libs.patrickgold.jetpref.datastore.model.processor)
+    // Its preference screens are unused since the Compose settings went (stage4-compose-host.md) and
+    // R8 drops them; it stays for observeAsState, which the keyboard reads preferences with.
     implementation(libs.patrickgold.jetpref.datastore.ui)
     implementation(libs.patrickgold.jetpref.material.ui)
 

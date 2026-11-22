@@ -146,7 +146,7 @@ internal class SettingsOtherThemeDevice(private val h: SettingsHarness, private 
         val day = now >= java.time.LocalTime.of(15, 15) && now <= java.time.LocalTime.of(19, 45)
         follows(if (day) t.dayThemeId.get() else t.nightThemeId.get())
         listSurvivesRotation()
-        compose("theme", "Go to Theme extensions", "Theme mode")
+        opens("theme", "Go to Theme extensions", "Theme mode")
         result.put("theme", true)
     }
 
@@ -187,18 +187,17 @@ internal class SettingsOtherThemeDevice(private val h: SettingsHarness, private 
         result.put("manager_${row.substringBefore(' ').lowercase()}", true)
     }
 
-    /** A row that opens a screen still in Compose, and Back from it to the Rust screen. */
-    private fun compose(screen: String, row: String, home: String) {
-        stage("$screen:compose:$row")
+    /** A row that opens another Rust screen in the same activity, and Back from it to [home]. */
+    private fun opens(screen: String, row: String, home: String) {
+        stage("$screen:opens:$row")
         h.reveal(row)
         h.click(row)
-        h.waitFor("$row did not open in Compose") { fallback() }
-        h.activity = runner.resumedActivity
+        h.waitFor("$row did not open") { h.find(home) == null }
         h.settle()
         h.back()
         h.settle()
         onRust(home)
-        result.put("compose_${row.lowercase().replace(' ', '_')}", true)
+        result.put("opens_${row.lowercase().replace(' ', '_')}", true)
     }
 
     /** The colour dialog: a preset, the plane and hue bar dragged, a value typed, Default, Back, rotation. */
@@ -542,10 +541,10 @@ internal class SettingsOtherThemeDevice(private val h: SettingsHarness, private 
     private fun onRust(row: String) {
         h.waitFor("$row is not on a Rust screen") {
             h.activity = runner.resumedActivity
-            !fallback() && h.views(RustSettingsView::class.java).size == 1 && h.find(row) != null
+            inHost() && h.views(RustSettingsView::class.java).size == 1 && h.find(row) != null
         }
     }
-    private fun fallback() = runner.resumedActivity?.javaClass?.simpleName == "ComposeSettingsFallbackActivity"
+    private fun inHost() = runner.resumedActivity?.javaClass?.simpleName == "FlorisAppActivity"
     private fun host() = h.views(RustSettingsView::class.java).single()
     private fun node(label: String) = checkNotNull(h.find(label)) { "absent: $label" }
     private fun bounds(n: Node) = Rect().also(n::getBoundsInScreen)

@@ -17,53 +17,21 @@
 package dev.patrickgold.florisboard.app
 
 import android.content.Intent
-import android.content.res.Configuration
 import android.os.Bundle
-import androidx.activity.BackEventCompat
-import androidx.activity.OnBackPressedCallback
-import androidx.activity.result.contract.ActivityResultContracts
 import android.widget.FrameLayout
+import androidx.activity.BackEventCompat
+import androidx.activity.ComponentActivity
+import androidx.activity.OnBackPressedCallback
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.core.view.ViewCompat
+import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
-import androidx.compose.runtime.DisposableEffect
+import androidx.lifecycle.lifecycleScope
 import com.jtn0123.audiowhisper.rust.SettingsUiBack
 import com.jtn0123.audiowhisper.settingsui.RustSettingsView
 import com.jtn0123.audiowhisper.settingsui.settingsFileWork
-import androidx.activity.ComponentActivity
-import androidx.activity.compose.setContent
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.displayCutoutPadding
-import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
-import androidx.compose.runtime.staticCompositionLocalOf
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalConfiguration
-import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
-import androidx.core.net.toUri
-import androidx.core.view.WindowCompat
-import androidx.lifecycle.lifecycleScope
-import androidx.navigation.NavController
-import androidx.navigation.compose.rememberNavController
-import dev.patrickgold.florisboard.R
-import dev.patrickgold.florisboard.app.apptheme.FlorisAppTheme
 import dev.patrickgold.florisboard.appContext
-import dev.patrickgold.florisboard.lib.compose.LocalPreviewFieldController
-import dev.patrickgold.florisboard.lib.compose.PreviewKeyboardField
-import dev.patrickgold.florisboard.lib.compose.rememberPreviewFieldController
 import dev.patrickgold.florisboard.lib.util.AppVersionUtils
-import dev.patrickgold.jetpref.datastore.model.observeAsState
-import dev.patrickgold.jetpref.datastore.ui.ProvideDefaultDialogPrefStrings
-import org.florisboard.lib.compose.ProvideLocalizedResources
-import org.florisboard.lib.compose.conditional
-import org.florisboard.lib.compose.stringRes
 import org.florisboard.lib.kotlin.collectIn
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -77,24 +45,18 @@ enum class AppTheme(val id: String) {
     AMOLED_DARK("amoled_dark");
 }
 
-val LocalNavController = staticCompositionLocalOf<NavController> {
-    error("LocalNavController not initialized")
-}
-
+/**
+ * The settings activity, a host for the Rust settings (stage4-compose-host.md). Rust draws every screen,
+ * setup and its not-found page included, and picks the first one; this keeps the splash screen up until the
+ * preferences load, and passes on the window insets, Back, the saved state and the intents that bring a
+ * settings link or an extension file.
+ */
 open class FlorisAppActivity : ComponentActivity() {
-    protected open val allowRustSettings = true
     private var rustSettings: RustSettingsView? = null
     private var rustInputFocus = false
     private var rustState: Array<String>? = null
-    private var contentShown = false
-    private var fallbackReady = false
-    private val composeFallback = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-        result.data?.getStringExtra("native-route")?.let { rustSettings?.navigate(it) }
-        rustSettings?.refreshPlatform()
-    }
     private val prefs: FlorisPreferenceModel by lazy { val model by FlorisPreferenceStore; model }
     private val appContext by appContext()
-    private var appTheme by mutableStateOf(AppTheme.AUTO)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         if (android.util.Log.isLoggable(SETTINGS_PROFILE_TAG, android.util.Log.DEBUG)) android.util.Log.d(SETTINGS_PROFILE_TAG, "activity_start_ns=${System.nanoTime()}")
@@ -112,38 +74,19 @@ open class FlorisAppActivity : ComponentActivity() {
         rustInputFocus = savedInstanceState?.getBoolean("rust-settings-input-focus") == true
         WindowCompat.setDecorFitsSystemWindows(window, false)
 
-        prefs.other.settingsTheme.asFlow().collectIn(lifecycleScope) {
-            appTheme = it
-        }
-
-        // We defer the setContent call until the datastore model is loaded, until then the splash screen stays drawn
+        // The host waits for the datastore model to load; until then the splash screen stays drawn.
         val isModelLoaded = AtomicBoolean(false)
         appContext.preferenceStoreLoaded.collectIn(lifecycleScope) { loaded ->
             if (!loaded || isModelLoaded.getAndSet(true)) return@collectIn
             AppVersionUtils.updateVersionOnInstallAndLastUse(this, prefs)
-            // Rust draws settings and setup; it picks which opens first (SettingsUiOp.START).
-            if (allowRustSettings) {
-                installRustSettings()
-            } else setContent {
-                ProvideLocalizedResources(
-                    this,
-                    appName = R.string.floris_app_name,
-                ) {
-                    FlorisAppTheme(theme = appTheme) {
-                        Surface(color = MaterialTheme.colorScheme.background) {
-                            AppContent()
-                        }
-                    }
-                }
-            }
+            val host = installRustSettings()
             if (android.util.Log.isLoggable(SETTINGS_PROFILE_TAG, android.util.Log.DEBUG)) {
                 window.decorView.viewTreeObserver.registerFrameCommitCallback {
                     android.util.Log.d(SETTINGS_PROFILE_TAG, "activity_commit_ns=${System.nanoTime()}")
                 }
             }
-            contentShown = true
-            val host = rustSettings
-            if (host != null && rustState == null) route(host, intent, fresh = true)
+            // Rust picks the first screen (SettingsUiOp.START); a recreated activity restores its stack instead.
+            if (rustState == null) route(host, intent, fresh = true)
         }
     }
 
@@ -160,14 +103,9 @@ open class FlorisAppActivity : ComponentActivity() {
         if (fresh) host.start(link) else if (link != null) host.navigate(link)
     }
 
-    private fun installRustSettings() {
+    private fun installRustSettings(): RustSettingsView {
         val host = RustSettingsView(this).apply { restoreInputFocus = rustInputFocus }
-        host.bind(this, prefs, rustState) { route, native ->
-            val target = Intent(Intent.ACTION_VIEW, "ui://florisboard/$route".toUri())
-                .addCategory(Intent.CATEGORY_BROWSABLE).setClass(this, ComposeSettingsFallbackActivity::class.java)
-                .putExtra("native-routes", native.toTypedArray())
-            composeFallback.launch(target)
-        }
+        host.bind(this, prefs, rustState)
         rustSettings = host
         val root = FrameLayout(this).apply { addView(host, FrameLayout.LayoutParams(-1, -1)) }
         ViewCompat.setOnApplyWindowInsetsListener(root) { view, insets ->
@@ -186,6 +124,7 @@ open class FlorisAppActivity : ComponentActivity() {
         }
         host.backAvailability = { backCallback.isEnabled = it }
         onBackPressedDispatcher.addCallback(this, backCallback)
+        return host
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
@@ -198,56 +137,5 @@ open class FlorisAppActivity : ComponentActivity() {
         super.onResume()
         if (com.jtn0123.audiowhisper.rust.NativeRuntime.failure != null) return
         rustSettings?.refreshPlatform()
-    }
-
-    @Composable
-    private fun AppContent() {
-        val navController = rememberNavController()
-        val previewFieldController = rememberPreviewFieldController()
-        DisposableEffect(navController) {
-            val listener = NavController.OnDestinationChangedListener { _, destination, _ ->
-                if (!allowRustSettings && fallbackReady) {
-                    // The routes Rust draws, as it listed them: hand any of them back.
-                    val native = intent?.getStringArrayExtra("native-routes").orEmpty()
-                    val route = native.firstOrNull { destination.hasDeepLink("ui://florisboard/$it".toUri()) }
-                    if (route != null) { if (route != "settings/home") setResult(RESULT_OK, Intent().putExtra("native-route", route)); finish() }
-                }
-            }
-            navController.addOnDestinationChangedListener(listener)
-            onDispose { navController.removeOnDestinationChangedListener(listener) }
-        }
-
-        val isImeSetUp by prefs.internal.isImeSetUp.observeAsState()
-
-        CompositionLocalProvider(
-            LocalNavController provides navController,
-            LocalPreviewFieldController provides previewFieldController,
-        ) {
-            ProvideDefaultDialogPrefStrings(
-                confirmLabel = stringRes(R.string.action__ok),
-                dismissLabel = stringRes(R.string.action__cancel),
-                neutralLabel = stringRes(R.string.action__default),
-            ) {
-                Column(
-                    modifier = Modifier
-                        //.statusBarsPadding()
-                        .navigationBarsPadding()
-                        .conditional(LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE) {
-                            displayCutoutPadding()
-                        }
-                        .imePadding(),
-                ) {
-                    Routes.AppNavHost(
-                        modifier = Modifier.weight(1.0f),
-                        navController = navController,
-                        startDestination = if (isImeSetUp) Routes.Settings.Home::class else Routes.Setup.Screen::class,
-                    )
-                    PreviewKeyboardField(previewFieldController)
-                }
-            }
-        }
-
-        // Its NavController opens activity.intent itself when the graph is set.
-        LaunchedEffect(Unit) { fallbackReady = true }
     }
 }

@@ -23,12 +23,6 @@ internal class SettingsGroupTwoDevice(private val h: SettingsHarness, private va
     private class Screen(val name: String, val path: List<String>, val title: String, val ensureOn: List<String> = emptyList())
     private val chrome = setOf("Back", "Switch Keyboard")
     private val notClicked = setOf("Version")
-    /**
-     * Rows leading to screens that stay in Compose on both renderers (Rust hands them to
-     * ComposeSettingsFallbackActivity). Their routes are walked but not audited: the audit covers
-     * the settings UI that Rust draws. On Rust the list checks itself against the activity.
-     */
-    private val outside = setOf("Manage system user dictionary", "Manage internal user dictionary")
     private val screens = listOf(
         Screen("typing", listOf("Typing"), "Typing", ensureOn = listOf("Display suggestions", "Auto-space after punctuation")),
         Screen("dictionary", listOf("Typing", "User dictionaries"), "User dictionaries",
@@ -171,10 +165,9 @@ internal class SettingsGroupTwoDevice(private val h: SettingsHarness, private va
             }
             h.find("Cancel") == null -> {
                 val resumed = (h.instrumentation as SettingsInstrumentation).resumedActivity
-                if (rust) check((resumed?.javaClass?.simpleName == "ComposeSettingsFallbackActivity") == (label in outside)) {
-                    "outside the port, or not: $label"
-                }
-                if (label !in outside) out.put(h.audit("two:${screen.name}>$label"))
+                // Rust draws every screen a row opens, in the settings activity (stage4-compose-host.md).
+                if (rust) check(resumed?.javaClass?.simpleName == "FlorisAppActivity") { "left the settings host: $label" }
+                out.put(h.audit("two:${screen.name}>$label"))
                 h.back()
                 // Until the popped screen's exit ends, its rows are still nodes the walk would take.
                 h.settle("did not return from: $label")

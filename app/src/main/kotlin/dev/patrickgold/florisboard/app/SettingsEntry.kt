@@ -4,8 +4,8 @@ import com.jtn0123.audiowhisper.rust.SettingsUiExtensionLink
 
 /**
  * The settings link an intent carries, or the extension file it hands over. Rust draws settings,
- * setup and the importer and picks the first screen from this (`SettingsUiOp.START`); Compose
- * draws only the screens Rust hands to [ComposeSettingsFallbackActivity].
+ * setup and the importer and picks the first screen from this (`SettingsUiOp.START`); a link to a
+ * page Rust does not draw opens its not-found page.
  */
 internal object SettingsEntry {
     private const val LINK = "ui://florisboard/"

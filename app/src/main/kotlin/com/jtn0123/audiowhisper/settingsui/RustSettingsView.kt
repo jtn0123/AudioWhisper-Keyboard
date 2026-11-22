@@ -43,10 +43,7 @@ internal class RustSettingsView(context: Context) : FrameLayout(context), Surfac
     private lateinit var keyRecorder: SettingsKeyRecorder
     private lateinit var setup: SettingsSetup
     var backAvailability: (Boolean) -> Unit = {}
-    private var fallback: (String, List<String>) -> Unit = { _, _ -> }
     private val native = KeyboardRenderer(systemRendererFonts())
-    /** The routes native code draws; a Compose fallback hands any of them back. */
-    internal val nativeRoutes: List<String> = native.settings(SettingsUiOp.ROUTES)[SettingsUiReply.QUERY].split("\n")
     private val surface = SurfaceView(context)
     private val endpoint = SettingsInputView(context, this)
     private val selectionMenu = SettingsSelectionMenu(endpoint, this)
@@ -95,12 +92,11 @@ internal class RustSettingsView(context: Context) : FrameLayout(context), Surfac
         addView(endpoint, LayoutParams(1, 1))
         surface.holder.addCallback(this)
     }
-    fun bind(activity: FlorisAppActivity, prefs: FlorisPreferenceModel, restored: Array<String>?, fallback: (String, List<String>) -> Unit) {
+    fun bind(activity: FlorisAppActivity, prefs: FlorisPreferenceModel, restored: Array<String>?) {
         check(!::platform.isInitialized)
         this.activity = activity
         this.platform = SettingsPlatform(activity, prefs, ::preferencesPersisted)
         this.facts = SettingsFacts(activity).also { it.observe { if (!released) pushFacts() } }
-        this.fallback = fallback
         readOnly = SettingsReadOnlyText(this, activity.lifecycleScope)
         // Before the saved state, which asks for a report when it reopens a language, word, theme or extension screen.
         languages = SettingsLanguages(activity) { if (!released) receive(native.settings(SettingsUiOp.LANGUAGES, it)) }
@@ -169,7 +165,6 @@ internal class RustSettingsView(context: Context) : FrameLayout(context), Surfac
         platform.enqueue(effects.filter { it[0] == "write" || it[0] == "reset" || it[0] == "deleteEmojiHistory" })
         for (p in effects) {
             when (p[0]) {
-                "compose" -> fallback(p[1], p[2].split("|"))
                 "finish" -> activity.finish()
                 "vibrate" -> platform.vibrate(p[1].toInt(), p[2].toInt())
                 "enable" -> InputMethodUtils.showImeEnablerActivity(activity)

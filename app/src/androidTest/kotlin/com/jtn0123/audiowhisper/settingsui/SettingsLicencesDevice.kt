@@ -36,7 +36,7 @@ internal class SettingsLicencesDevice(private val h: SettingsHarness, private va
         h.waitFor("licences did not open") { h.find("Version") == null && rows().isNotEmpty() }
         check(h.views(RustSettingsView::class.java).isNotEmpty()) { "licences not drawn by Rust" }
         val resumed = (h.instrumentation as SettingsInstrumentation).resumedActivity
-        check(resumed?.javaClass?.simpleName != "ComposeSettingsFallbackActivity") { "licences fell back to Compose" }
+        check(resumed?.javaClass?.simpleName == "FlorisAppActivity") { "licences left the settings host" }
         out.put(h.audit("licences-top"))
         // The name, while the row is on screen: on Compose, a node kept from here read back an
         // empty name once the walk had scrolled the row away.
