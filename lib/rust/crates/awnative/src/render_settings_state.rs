@@ -4,8 +4,9 @@ use render::settings_ui::{
     catalogue::{self, Kind},
 };
 use settings::{Text, text};
-/// The saved state's layout; 3 added Back up's and Restore's state, 4 the language screens'.
-const VERSION: &str = "4";
+/// The saved state's layout; 3 added Back up's and Restore's state, 4 the language screens',
+/// 5 the user dictionary screens'.
+const VERSION: &str = "5";
 pub fn save(a: &App) -> Vec<Text> {
     // LibrariesContainer keeps its open library, and Jetpref's colour and time preferences their
     // dialogs, in a plain `remember`: recreation closes them.
@@ -40,10 +41,11 @@ pub fn save(a: &App) -> Vec<Text> {
         text(&m.is_none_or(|m| m.enabled).to_string()),
         text(&a.backups_saved()),
         text(&a.languages_saved()),
+        text(&a.words_saved()),
     ]
 }
 pub fn restore(a: &mut App, packet: &[Text]) -> Result<(), &'static str> {
-    if packet.len() != 17 || packet[0] != text(VERSION) || packet[7].len() > 65_536 {
+    if packet.len() != 18 || packet[0] != text(VERSION) || packet[7].len() > 65_536 {
         return Err("settings saved state version or size");
     }
     let p: Vec<_> = packet.iter().map(|s| String::from_utf16_lossy(s)).collect();
@@ -117,9 +119,11 @@ pub fn restore(a: &mut App, packet: &[Text]) -> Result<(), &'static str> {
     let focused = p[12].parse::<bool>().map_err(|_| "settings saved focus")?;
     let id = number(13)?;
     let (files, backups) = backup_saved::parse_backups(&p[15])?;
-    // Checked before anything changes: a languages part that fails leaves the state as it was.
+    // Checked before anything changes: a languages or words part that fails leaves the state as
+    // it was.
     let mut languages = App::default();
     languages.restore_languages(&p[16])?;
+    languages.restore_words(&p[17])?;
     a.stack = stack;
     a.scrolls = scrolls;
     a.modal = modal;
@@ -139,6 +143,10 @@ pub fn restore(a: &mut App, packet: &[Text]) -> Result<(), &'static str> {
     a.draft = languages.draft;
     a.languages.search = languages.languages.search;
     a.list = languages.list;
+    a.words.draft = languages.words.draft;
+    a.words.search = languages.words.search;
+    a.words.transfer = languages.words.transfer;
     a.languages_restored();
+    a.words_restored();
     Ok(())
 }

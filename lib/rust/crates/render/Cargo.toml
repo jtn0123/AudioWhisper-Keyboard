@@ -16,6 +16,9 @@ keys = { path = "../keys" }
 gestures = { path = "../gestures" }
 popup = { path = "../popup" }
 snygg = { path = "../snygg" }
+# Kotlin's string rules and the user dictionary's checks, for the user dictionary screens.
+chars = { path = "../chars" }
+utilities = { path = "../utilities" }
 parley = { version = "=0.13.0", default-features = false, features = ["std"] }
 read-fonts = "=0.47.0"
 # Android-style hinted UI text: unscaled advances and UAX #14 break opportunities.

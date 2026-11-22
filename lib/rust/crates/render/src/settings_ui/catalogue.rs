@@ -16,6 +16,7 @@ mod physical_keyboard;
 mod smartbar;
 mod theme;
 mod typing;
+pub mod words;
 pub use backup::{BACKUP_ROUTE, GROUP_NAMES, RESTORE_ROUTE};
 pub use keyboard::KEYBOARD;
 
@@ -122,6 +123,8 @@ pub enum Kind {
     Pick(languages::Field),
     /// A part of a language screen that is not a ListItem (`languages.rs`).
     Lang(languages::Lang),
+    /// A part of a user dictionary screen that is not the word list (`words.rs`).
+    Words(words::Part),
 }
 /// What a Back up or Restore row is. A group is its `wire::backup::layout` position.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -339,13 +342,21 @@ pub const SCREENS: &[Screen] = &[
     languages::PACKS,
     languages::ADD,
     languages::EDIT,
+    words::FLORIS_LIST,
+    words::FLORIS_WORDS,
+    words::FLORIS_ADD,
+    words::FLORIS_EDIT,
+    words::SYSTEM_LIST,
+    words::SYSTEM_WORDS,
+    words::SYSTEM_ADD,
+    words::SYSTEM_EDIT,
 ];
-/// The native screen at `route`, if Rust draws it. The subtype editor's route carries the
-/// subtype's id as one more segment.
+/// The native screen at `route`, if Rust draws it. The subtype editor's and the word
+/// editor's routes carry the item's id as one more segment, and a language's words its locale.
 pub fn screen(route: &str) -> Option<&'static Screen> {
     let base = match super::languages::edit_id(route) {
         Some(_) => super::languages::EDIT_ROUTE,
-        None => route,
+        None => super::words::screen_route(route).unwrap_or(route),
     };
     SCREENS.iter().find(|s| s.route == base)
 }

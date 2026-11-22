@@ -11,6 +11,7 @@ use settings::{Value, codec};
 pub const WORDS: Words = Words {
     empty: "settings__localization__subtype_no_subtypes_configured_warning",
     add: "settings__localization__subtype_add_title",
+    reorder: true,
 };
 
 impl App {
@@ -98,7 +99,7 @@ impl App {
     }
     /// Puts the deleted subtype back where it stood, unless one with its id came back since.
     fn undo_subtype(&mut self) {
-        let Some(gone) = self.list.deleted.take() else {
+        let Some(gone) = self.list.deleted.take_if(|d| d.source == Source::Subtypes) else {
             return;
         };
         let Ok(item) = codec::decode("subtype", &settings::text(&gone.value), false) else {

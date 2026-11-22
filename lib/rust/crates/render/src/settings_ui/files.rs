@@ -87,7 +87,9 @@ impl App {
                     _ => return Err("files outcome"),
                 };
                 // An answer nothing waits for changes nothing.
-                if let Some(purpose) = self.files.waiting.take() {
+                if let Some(purpose) = self.files.waiting.take()
+                    && !self.words_picked(&purpose, &answer)
+                {
                     self.backup_picked(&purpose, answer);
                 }
             }
@@ -98,10 +100,14 @@ impl App {
                 if self.files.busy.as_deref() == Some(p[done::JOB].as_str()) {
                     self.files.busy = None;
                 }
-                self.backup_done(p);
+                if !self.words_done(p) {
+                    self.backup_done(p);
+                }
             }
             Some(report::IDLE) => {
-                if let Some(lost) = self.files.busy.take() {
+                if let Some(lost) = self.files.busy.take()
+                    && !self.words_lost(&lost)
+                {
                     self.backup_lost(&lost);
                 }
             }

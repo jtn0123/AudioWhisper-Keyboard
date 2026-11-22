@@ -151,7 +151,15 @@ fn group_one_routes_are_native_and_other_routes_fall_back_with_the_native_list()
                   settings/dictation|settings/about/third-party-licenses|settings/other|\
                   settings/theme|settings/other/backup|settings/other/restore|settings/localization|\
                   settings/localization/select-locale|settings/localization/language-pack-manage|\
-                  settings/localization/subtype/add|settings/localization/subtype/edit";
+                  settings/localization/subtype/add|settings/localization/subtype/edit|\
+                  settings/dictionary/user-dictionary/FLORIS|\
+                  settings/dictionary/user-dictionary/FLORIS/words|\
+                  settings/dictionary/user-dictionary/FLORIS/word/add|\
+                  settings/dictionary/user-dictionary/FLORIS/word/edit|\
+                  settings/dictionary/user-dictionary/SYSTEM|\
+                  settings/dictionary/user-dictionary/SYSTEM/words|\
+                  settings/dictionary/user-dictionary/SYSTEM/word/add|\
+                  settings/dictionary/user-dictionary/SYSTEM/word/edit";
     assert_eq!(a.effects.pop().unwrap(), ["compose", manager, native]);
 }
 

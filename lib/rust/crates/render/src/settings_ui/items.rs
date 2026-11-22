@@ -1,12 +1,12 @@
 //! An editable list drawn from data, for any screen whose rows are records the user adds, opens,
-//! reorders and deletes: Languages & Layouts' subtypes now, the user dictionary's words next
-//! (compose-removal step 7). A [`Source`] names where the items come from; this module paints
-//! them and turns taps into [`Op`]s, which the source carries out (`languages/list.rs`).
+//! reorders and deletes: Languages & Layouts' subtypes and the user dictionary's words. A
+//! [`Source`] names where the items come from; this module paints them and turns taps into
+//! [`Op`]s, which the source carries out (`languages/list.rs`, `words/list.rs`).
 //!
 //! Each item is a ListItem that opens the item's editor, then three 48 dp icon buttons: move up,
-//! move down and delete. The buttons are the accessible way to reorder, and the item's node
-//! offers the same three as custom actions, so TalkBack's actions menu moves an item without
-//! hunting for the buttons. An item keeps its node ids while it moves (`State::slots`), so
+//! move down and delete, or only delete for a list kept in its own order ([`Words::reorder`]).
+//! The buttons are the accessible way to reorder, and the item's node offers the same as custom
+//! actions, so TalkBack's actions menu moves an item without hunting for the buttons. An item keeps its node ids while it moves (`State::slots`), so
 //! accessibility focus stays on it. After a delete, an undo bar stays under the list until the
 //! user leaves the screen or changes the list again: there is no timer to beat.
 use super::{Action, App, cards::plain};
@@ -16,11 +16,13 @@ use crate::{
 };
 use keys::Rect;
 
-/// Where an editable list's items come from. Step 7 adds the user dictionary's words.
+/// Where an editable list's items come from.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Source {
     /// The keyboard's subtypes, stored in `localization__subtypes`.
     Subtypes,
+    /// A user dictionary's words in one language, stored by Kotlin.
+    Words,
 }
 
 /// What a tap on an editable list asks its source to do.
@@ -63,11 +65,14 @@ pub struct State {
     pub slots: Vec<String>,
 }
 
-/// What a list says when it is empty and what its Add row says, as string keys.
+/// What a list says when it is empty and what its Add row says, as string keys, and whether
+/// its items can be moved.
 #[derive(Clone, Copy, Debug)]
 pub struct Words {
     pub empty: &'static str,
     pub add: &'static str,
+    /// Whether Move up and Move down show: false for a list kept in its own order.
+    pub reorder: bool,
 }
 
 /// The control id of the Add row.
@@ -128,19 +133,45 @@ impl App {
     fn words(&self, source: Source) -> Words {
         match source {
             Source::Subtypes => super::languages::list::WORDS,
+            Source::Words => super::words::list::WORDS,
         }
     }
     /// The items of `source`, in stored order.
     pub fn list_items(&self, source: Source) -> Vec<Item> {
         match source {
             Source::Subtypes => self.subtype_items(),
+            Source::Words => self.word_items(),
         }
     }
     /// Carries out `op` on `source`'s list.
     pub(super) fn list_op(&mut self, source: Source, op: Op) {
         match source {
             Source::Subtypes => self.subtype_op(op),
+            Source::Words => self.word_op(op),
         }
+    }
+    /// Whether `source` has nothing to list: a search that hides every word is not that.
+    fn list_empty(&self, source: Source) -> bool {
+        match source {
+            Source::Subtypes => self.subtype_items().is_empty(),
+            Source::Words => !self.group_has_words(),
+        }
+    }
+    /// Drops `source`'s delete to undo: its screen was left.
+    pub(super) fn forget_deleted(&mut self, source: Source) {
+        if self
+            .list
+            .deleted
+            .as_ref()
+            .is_some_and(|d| d.source == source)
+        {
+            self.list.deleted = None;
+        }
+    }
+    /// Which of an item's buttons show, in order up, down and delete, for item `i` of `n`.
+    fn buttons_shown(&self, source: Source, i: usize, n: usize) -> [bool; 3] {
+        let reorder = self.words(source).reorder;
+        [reorder && i > 0, reorder && i + 1 < n, true]
     }
     /// Control `id`'s custom accessibility actions, each the control it activates and its label.
     pub fn custom_actions_for(&self, id: i32) -> Vec<(i32, String)> {
@@ -168,8 +199,8 @@ impl App {
         for (i, item) in items.iter().enumerate() {
             let slot = self.slot(&item.key);
             out.push(item_id(slot, 0));
-            let shown = [(1, i > 0), (2, i + 1 < n), (3, true)];
-            out.extend(shown.iter().filter(|b| b.1).map(|b| item_id(slot, b.0)));
+            let shown = self.buttons_shown(source, i, n);
+            out.extend((1..=3).filter(|b| shown[b - 1]).map(|b| item_id(slot, b)));
         }
         if self
             .list
@@ -194,10 +225,11 @@ impl App {
         let words = self.words(source);
         let items = self.list_items(source);
         let mut at = y;
-        if items.is_empty() {
+        if self.list_empty(source) {
             at += self.warning_card(p, EMPTY_ID, self.label(words.empty), (x, at), clip, text);
         }
         let n = items.len();
+        let first = if words.reorder { 0 } else { 2 };
         for (i, item) in items.into_iter().enumerate() {
             let slot = self.slot(&item.key);
             let entry = Entry {
@@ -206,16 +238,16 @@ impl App {
                 summary: item.summary,
                 icon: "",
                 ink: [None, None],
-                buttons: 3,
+                buttons: 3 - first,
                 right: 0.0,
                 enabled: true,
                 action: Action::List(source, Op::Open(i)),
             };
             let (rh, b) = self.paint_entry(p, entry, (x, at), clip, text);
             let ops = [Op::Up(i), Op::Down(i), Op::Delete(i)];
-            let shown = [i > 0, i + 1 < n, true];
+            let shown = self.buttons_shown(source, i, n);
             let mut custom = vec![];
-            for (k, (op, on)) in ops.into_iter().zip(shown).enumerate() {
+            for (k, (op, on)) in ops.into_iter().zip(shown).enumerate().skip(first) {
                 let id = item_id(slot, k + 1);
                 let label = self.label(KEYS[k]);
                 let button = self.end_button(b, 3 - k);

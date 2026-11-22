@@ -11,7 +11,7 @@ pub mod packs;
 pub mod parts;
 pub mod picker;
 pub mod saved;
-use super::App;
+use super::{App, items::Source};
 use settings::{Value, codec};
 use wire::settings_ui::languages::{effect, kind, row};
 
@@ -242,7 +242,7 @@ impl App {
     /// A native screen opened at `route`.
     pub(super) fn languages_opened(&mut self, route: &str) {
         if route != LIST_ROUTE {
-            self.list.deleted = None;
+            self.forget_deleted(Source::Subtypes);
         }
         if !editor_route(route) && route != PICKER_ROUTE {
             self.draft = None;
@@ -265,7 +265,7 @@ impl App {
     pub(super) fn languages_left(&mut self) {
         let top = self.stack.last().cloned().unwrap_or_default();
         if top != LIST_ROUTE {
-            self.list.deleted = None;
+            self.forget_deleted(Source::Subtypes);
         }
         if !editor_route(&top) {
             self.draft = None;

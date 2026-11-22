@@ -370,6 +370,7 @@ pub fn settings(native: i64, op: i32, values: &[Vec<u16>]) -> Result<Vec<Vec<u16
             }
             ops::FILES => a.file_report(&p).map_err(illegal)?,
             ops::LANGUAGES => a.set_languages(&p).map_err(illegal)?,
+            ops::WORDS => a.set_words(&p).map_err(illegal)?,
             ops::ACCESSIBILITY_SCROLL => {
                 let id = int(&p, 0)?;
                 a.accessibility_scroll(id, int(&p, 1)? == ACCESS_SCROLL_FORWARD);

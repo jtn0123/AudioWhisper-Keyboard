@@ -8,6 +8,7 @@ use crate::settings_ui::{
     cards::{BODY_BOLD, LABEL_LARGE, TITLE_SMALL, plain},
     catalogue::languages::Field,
     items::Entry,
+    words::Tap as WordTap,
 };
 use crate::{
     panels::{Panel, rect},
@@ -196,13 +197,15 @@ impl App {
         let layout = self.layout_label("characters", &id).unwrap_or(component);
         (self.locale_name(&preset.tag), layout)
     }
-    /// The top bar's Delete, when editing a stored subtype: a 48 dp IconButton 4 dp from the end.
+    /// The top bar's Delete, when editing a stored subtype or word: a 48 dp IconButton 4 dp from
+    /// the end.
     pub(in crate::settings_ui) fn header_delete(&self) -> bool {
-        self.draft.as_ref().is_some_and(|d| !d.adding)
+        let subtype = self.draft.as_ref().is_some_and(|d| !d.adding)
             && self
                 .stack
                 .last()
-                .is_some_and(|r| super::edit_id(r).is_some())
+                .is_some_and(|r| super::edit_id(r).is_some());
+        subtype || self.word_to_delete().is_some()
     }
     pub(in crate::settings_ui) fn paint_header_delete(&mut self, p: &mut Panel, header: f32) {
         if !self.header_delete() {
@@ -224,15 +227,16 @@ impl App {
         let at = rect(b.left + self.px(12.0), b.top + self.px(12.0), icon, icon);
         self.paint_icon(p, "delete", at, self.colors[2], window);
         let mut c = plain(DELETE_ID, b, self.label("action__delete"), "button");
-        c.summary = self.locale_name(
-            &self
-                .draft
-                .as_ref()
-                .map(|d| d.get(Field::Locale))
-                .unwrap_or_default(),
-        );
-        c.action = Action::Lang(Tap::DeleteSubtype);
+        (c.summary, c.action) = match self.word_to_delete() {
+            Some(w) => (w.word.clone(), Action::Words(WordTap::Delete)),
+            None => (self.deleted_name(), Action::Lang(Tap::DeleteSubtype)),
+        };
         self.push_control(c, window);
+    }
+    /// The name of the subtype the editor would delete.
+    fn deleted_name(&self) -> String {
+        let locale = self.draft.as_ref().map(|d| d.get(Field::Locale));
+        self.locale_name(&locale.unwrap_or_default())
     }
     /// How wide `b` is: its label in labelLarge, the icon and 8 dp, in 24 dp padding filled or
     /// 12 dp as text, at least 58 dp.

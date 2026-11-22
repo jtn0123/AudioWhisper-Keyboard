@@ -26,6 +26,7 @@ impl App {
             .list
             .deleted
             .as_ref()
+            .filter(|g| g.source == Source::Subtypes)
             .map(|g| json!([g.index, g.value, g.title]));
         json!({
             "draft": draft,
@@ -78,7 +79,9 @@ impl App {
         let search = text(&v["search"])?;
         self.draft = draft;
         self.languages.search = search;
-        self.list.deleted = deleted;
+        if deleted.is_some() {
+            self.list.deleted = deleted;
+        }
         self.list.slots = slots;
         Ok(())
     }

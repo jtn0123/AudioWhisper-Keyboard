@@ -32,6 +32,7 @@ mod time_dial;
 mod time_dialog;
 mod time_events;
 mod widgets;
+pub mod words;
 use crate::panel_scroll::Fling;
 use editor::{Batches, Editor};
 use keys::Rect;
@@ -64,6 +65,8 @@ pub enum Action {
     List(items::Source, items::Op),
     /// A tap on a language screen's own controls.
     Lang(languages::Tap),
+    /// A tap on a user dictionary screen's own controls.
+    Words(words::Tap),
 }
 #[derive(Clone, Debug)]
 pub struct Control {
@@ -172,6 +175,8 @@ pub struct App {
     pub draft: Option<languages::editor::Draft>,
     /// The editable lists' undo and their items' stable node ids.
     pub list: items::State,
+    /// The user dictionary screens' words, search, draft and file transfer.
+    pub words: words::Words,
     /// Each node's custom accessibility actions, as the target control and its label.
     pub custom_actions: Vec<(i32, Vec<(i32, String)>)>,
     /// The wall clock in milliseconds: a new subtype's id, as `System.currentTimeMillis()`.
@@ -235,6 +240,7 @@ impl Default for App {
             languages: Default::default(),
             draft: None,
             list: Default::default(),
+            words: Default::default(),
             custom_actions: vec![],
             now: languages::wall_clock,
         }
@@ -295,6 +301,7 @@ impl App {
             self.backups_left(had);
             self.check_models();
             self.languages_opened(route);
+            self.words_opened(route);
         } else if route == "@enable" {
             self.effects.push(vec!["enable".into()]);
         } else {
@@ -367,6 +374,7 @@ impl App {
             self.focus = -1;
             self.backups_left(had);
             self.languages_left();
+            self.words_left();
         } else {
             self.effects.push(vec!["finish".into()]);
         }

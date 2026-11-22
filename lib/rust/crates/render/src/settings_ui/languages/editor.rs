@@ -253,10 +253,11 @@ impl App {
             d.value = p;
         }
     }
-    /// The bottom bar's Cancel and Save.
+    /// The bottom bar's Cancel and Save, the subtype editor's or the word editor's.
     pub(in crate::settings_ui) fn lang_row(&mut self, l: Lang) {
         match l {
-            Lang::Cancel => self.back(),
+            Lang::Cancel => self.close_editor(),
+            Lang::Save if self.word_editor() => self.save_word(),
             Lang::Save => self.save_draft(),
             _ => {}
         }

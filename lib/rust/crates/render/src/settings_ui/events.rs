@@ -23,6 +23,7 @@ impl App {
             Action::Picker => self.effects.push(vec!["picker".into()]),
             Action::List(source, op) => self.list_op(source, op),
             Action::Lang(tap) => self.lang_tap(tap),
+            Action::Words(tap) => self.words_tap(tap),
             Action::Library(j) => {
                 if let Some(row) = self
                     .rows()
@@ -316,6 +317,7 @@ impl App {
                         Kind::Libraries => eligible.extend(self.licence_focus()),
                         Kind::List(source) => eligible.extend(self.list_focus(source)),
                         Kind::Lang(part) => eligible.extend(self.language_focus(i, part)),
+                        Kind::Words(part) => eligible.extend(self.words_focus(i, part)),
                         _ => eligible.push(1000 + i as i32),
                     }
                     if !row.switch.is_empty() {

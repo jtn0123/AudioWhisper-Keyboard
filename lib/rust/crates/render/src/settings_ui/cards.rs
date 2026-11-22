@@ -182,6 +182,7 @@ impl App {
             Kind::List(source) => Some(self.paint_list(p, source, at, clip, text)),
             Kind::Pick(field) => Some(self.pick_row(p, i, field, at, clip, text)),
             Kind::Lang(part) => Some(self.lang_part(p, i, part, at, clip, text)),
+            Kind::Words(part) => Some(self.words_part(p, i, part, at, clip, text)),
             _ => None,
         }
     }

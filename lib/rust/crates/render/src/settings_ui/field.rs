@@ -56,7 +56,7 @@ impl App {
         let size = self.sp(16);
         let b = c.bounds;
         let (e, active) = self.field_editor(c.id);
-        let multi = c.id != 2 && !self.search_field(c.id);
+        let multi = c.id != 2 && !self.line_field(c.id);
         let pad = self.px(16.0);
         let value = String::from_utf16_lossy(&e.text);
         let available = if multi {
