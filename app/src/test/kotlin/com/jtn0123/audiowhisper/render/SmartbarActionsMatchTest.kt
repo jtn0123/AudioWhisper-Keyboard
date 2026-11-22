@@ -9,6 +9,7 @@ import com.jtn0123.audiowhisper.reader.ReadAloud
 import com.jtn0123.audiowhisper.rust.KeyGraph
 import com.jtn0123.audiowhisper.rust.RenderProtocol.*
 import com.jtn0123.audiowhisper.rust.SmartbarIcon
+import dev.patrickgold.florisboard.ime.keyboard.KeyData
 import dev.patrickgold.florisboard.ime.keyboard.KeyboardMode
 import dev.patrickgold.florisboard.ime.smartbar.IncognitoDisplayMode
 import dev.patrickgold.florisboard.ime.smartbar.SmartbarLayout
@@ -38,17 +39,20 @@ class SmartbarActionsMatchTest {
     private val inputs = TraceInputs(Random(SEED + 1))
     /** A bundled preset's letters, which every computation of the facts completes on. */
     private val build = KeyGraphAssets.fixtures.presets.first().let { preset ->
-        TraceBuild(KeyboardMode.CHARACTERS, false, false, preset.locale, preset.layouts, preset.popups, true, null, null, null)
+        TraceBuild(
+            KeyboardMode.CHARACTERS, false, false, preset.locale, preset.layouts, preset.popups, true, null, null, null,
+        )
     }
-    private val keyboard = RustKeyboard(KeyGraph.build(*keyGraphBuild(build.mode, build.numberRow, build.numberHints, build.files())))
+    private val keyboard =
+        RustKeyboard(KeyGraph.build(*keyGraphBuild(build.mode, build.numberRow, build.numberHints, build.files())))
     private fun saw(what: String) { seen[what] = (seen[what] ?: 0) + 1 }
 
     @Test fun mainsChoicesAndTheRustPlanShowTheSameSmartbar() {
         val random = Random(SEED)
         repeat(CASES) { case -> check(case, random) }
         println("Smartbar actions: $CASES seeded smartbars identical but for the two label fixes; $seen")
-        for (icon in ICON_NAMES.keys) assertTrue((seen["icon ${ICON_NAMES[icon]}"] ?: 0) > 0, "never showed ${ICON_NAMES[icon]}")
-        for (flag in FLAG_NAMES.keys) assertTrue((seen["flag ${FLAG_NAMES[flag]}"] ?: 0) > 0, "never set ${FLAG_NAMES[flag]}")
+        for (icon in ICON_NAMES.values) assertTrue((seen["icon $icon"] ?: 0) > 0, "never showed $icon")
+        for (flag in FLAG_NAMES.values) assertTrue((seen["flag $flag"] ?: 0) > 0, "never set $flag")
         for (what in listOf("empty text", "surrogate pair", "blank text", "key label", "expanded", "toggles extended",
             "preview of shared actions")) {
             assertTrue((seen[what] ?: 0) > 0, "never saw $what")
@@ -60,19 +64,28 @@ class SmartbarActionsMatchTest {
         val actions = List(5 + random.nextInt(7)) { action(random) }
         val keyFacts = inputs.facts(build)
         keyboard.compute(keyFacts.row(), traceAnswer(build.locale))
-        val main = ReferenceEvaluator(KeyboardMode.SMARTBAR_QUICK_ACTIONS, keyFacts, DEFAULT_LOCALE, keyFacts.defaultLanguage, TRACE_PLATFORM)
-        val evaluator = FakeEvaluator(main::evaluateEnabled, { main.icon(it).takeIf { token -> token != 0 }?.let(::tokenIcon) }, main::label)
+        val main = ReferenceEvaluator(
+            KeyboardMode.SMARTBAR_QUICK_ACTIONS, keyFacts, DEFAULT_LOCALE, keyFacts.defaultLanguage, TRACE_PLATFORM,
+        )
+        val icon = { data: KeyData -> main.icon(data).takeIf { token -> token != 0 }?.let(::tokenIcon) }
+        val evaluator = FakeEvaluator(main::evaluateEnabled, icon, main::label)
         val reference = referenceSmartbarActions(facts, actions, evaluator, INCOGNITO)
         val shown = with(facts) {
-            SmartbarShown(config(), smartbarBar(incognitoMode, incognito, dictation, level, warming), actions, keyboard.graph)
+            val bar = smartbarBar(incognitoMode, incognito, dictation, level, warming)
+            SmartbarShown(config(), bar, actions, keyboard.graph)
         }
         assertEquals(reference.expanded, shown.expanded, "case $case: expanded differs")
         assertEquals(reference.togglesExtended, shown.togglesExtended, "case $case: the toggle's target differs")
         assertContentEquals(reference.codes, shown.codes, "case $case: codes or flags differ")
         for (i in actions.indices) {
-            val icon = if (shown.icons[i] == SmartbarIcon.KEY) tokenIcon(shown.keyIcon(i)) else shown.icon(i, INCOGNITO, null)
+            val icon = if (shown.icons[i] == SmartbarIcon.KEY) {
+                tokenIcon(shown.keyIcon(i))
+            } else {
+                shown.icon(i, INCOGNITO, null)
+            }
             assertEquals(reference.labels[i].first, icon, "case $case action $i: icon differs")
-            assertEquals(intended(actions[i], reference.labels[i].second), shown.label(i), "case $case action $i: label differs")
+            val label = intended(actions[i], reference.labels[i].second)
+            assertEquals(label, shown.label(i), "case $case action $i: label differs")
         }
         count(facts, shown, actions)
     }
@@ -84,7 +97,9 @@ class SmartbarActionsMatchTest {
 
     /** Main's label, but for the two fixes. */
     private fun intended(action: QuickAction?, main: String): String {
-        val text = (action as? QuickAction.InsertText)?.data ?: return main.also { if (action is QuickAction.InsertKey && it.isNotEmpty()) saw("key label") }
+        val text = (action as? QuickAction.InsertText)?.data ?: return main.also {
+            if (action is QuickAction.InsertKey && it.isNotEmpty()) saw("key label")
+        }
         if (text.isEmpty()) return "?".also { assertEquals("null", main); saw("empty text") }
         if (text.length > 1 && text[0].isHighSurrogate() && text[1].isLowSurrogate()) {
             return text.substring(0, 2).also { assertEquals(text.substring(0, 1), main); saw("surrogate pair") }
@@ -115,8 +130,12 @@ class SmartbarActionsMatchTest {
     private fun action(random: Random): QuickAction? = when (random.nextInt(5)) {
         0 -> null
         1 -> QuickAction.InsertText(TEXTS.random(random))
-        else -> QuickAction.InsertKey(TextKeyData(if (random.nextInt(3) == 0) KeyType.entries.random(random) else KeyType.CHARACTER,
-            CODES.random(random), if (random.nextBoolean()) "" else KEY_LABELS.random(random)))
+        else -> {
+            val type = if (random.nextInt(3) == 0) KeyType.entries.random(random) else KeyType.CHARACTER
+            val code = CODES.random(random)
+            val label = if (random.nextBoolean()) "" else KEY_LABELS.random(random)
+            QuickAction.InsertKey(TextKeyData(type, code, label))
+        }
     }
 
     private companion object {
@@ -125,9 +144,10 @@ class SmartbarActionsMatchTest {
         val INCOGNITO = Icons.Default.VisibilityOff
         val CODES = listOf(KeyCode.VOICE_INPUT, KeyCode.READ_ALOUD, KeyCode.TOGGLE_ACTIONS_OVERFLOW, KeyCode.UNDO,
             KeyCode.REDO, KeyCode.SETTINGS, KeyCode.CLIPBOARD_COPY, KeyCode.ARROW_LEFT, KeyCode.TOGGLE_INCOGNITO_MODE,
-            KeyCode.UNSPECIFIED, 'a'.code, 'é'.code, KeyCode.LANGUAGE_SWITCH, KeyCode.VIEW_SYMBOLS, KeyCode.CLIPBOARD_PASTE,
-            KeyCode.CLIPBOARD_CUT, KeyCode.CLIPBOARD_SELECT_ALL, KeyCode.CLIPBOARD_CLEAR_PRIMARY_CLIP, KeyCode.TOGGLE_AUTOCORRECT,
-            KeyCode.IME_UI_MODE_CLIPBOARD, KeyCode.PHONE_PAUSE, KeyCode.SPACE, KeyCode.SHIFT, KeyCode.ENTER, KeyCode.DELETE)
+            KeyCode.UNSPECIFIED, 'a'.code, 'é'.code, KeyCode.LANGUAGE_SWITCH, KeyCode.VIEW_SYMBOLS,
+            KeyCode.CLIPBOARD_PASTE, KeyCode.CLIPBOARD_CUT, KeyCode.CLIPBOARD_SELECT_ALL,
+            KeyCode.CLIPBOARD_CLEAR_PRIMARY_CLIP, KeyCode.TOGGLE_AUTOCORRECT, KeyCode.IME_UI_MODE_CLIPBOARD,
+            KeyCode.PHONE_PAUSE, KeyCode.SPACE, KeyCode.SHIFT, KeyCode.ENTER, KeyCode.DELETE)
         val TEXTS = listOf("", "a", "ab", "?", "null", " ", " x", "\t", " ", "\u0085", "\u001c", " ", "é",
             "😀", "😀x", "\uD83D", "\uD83Dx", "\uDE00")
         val KEY_LABELS = listOf("a", "Ab", "?", "😀", "\u0301")
@@ -135,7 +155,8 @@ class SmartbarActionsMatchTest {
             Float.POSITIVE_INFINITY, Float.NEGATIVE_INFINITY)
         val ICON_NAMES = mapOf(SmartbarIcon.KEY to "key", SmartbarIcon.ARROW_LEFT to "arrow left",
             SmartbarIcon.ARROW_RIGHT to "arrow right", SmartbarIcon.UNFOLD_LESS to "unfold less",
-            SmartbarIcon.UNFOLD_MORE to "unfold more", SmartbarIcon.INCOGNITO to "incognito", SmartbarIcon.STOP to "stop")
+            SmartbarIcon.UNFOLD_MORE to "unfold more", SmartbarIcon.INCOGNITO to "incognito",
+            SmartbarIcon.STOP to "stop")
         val FLAG_NAMES = mapOf(BAR_ENABLED to "enabled", BAR_DICTATING to "dictating", BAR_READING to "reading",
             BAR_WARMING to "warming", BAR_FINISHING to "finishing", (BAR_LEVEL_MASK shl BAR_LEVEL_SHIFT) to "level")
     }

@@ -19,6 +19,7 @@ import dev.patrickgold.florisboard.ime.text.key.KeyHintConfiguration
 import dev.patrickgold.florisboard.ime.text.key.KeyType
 import dev.patrickgold.florisboard.ime.text.keyboard.MultiTextKeyData
 import dev.patrickgold.florisboard.ime.text.keyboard.TextKeyData
+import dev.patrickgold.florisboard.lib.FlorisRect
 
 /**
  * A keyboard whose keys Rust builds and computes ([KeyGraph]). Kotlin keeps one [RustKey] for each
@@ -40,8 +41,8 @@ class RustKeyboard(val graph: KeyGraph) : Keyboard() {
     override fun getKeyForPos(pointerX: Float, pointerY: Float): Key? = null
 
     /** The renderer lays the keys out with [layout] of its own sizes. */
-    override fun layout(keyboardWidth: Float, keyboardHeight: Float, desiredKey: Key, extendTouchBoundariesDownwards: Boolean) =
-        Unit
+    override fun layout(keyboardWidth: Float, keyboardHeight: Float, desiredKey: Key,
+                        extendTouchBoundariesDownwards: Boolean) = Unit
 
     /**
      * Computes the keys for [facts] (a `KeyGraphFacts` row and the pairs after it), with [answer]
@@ -91,7 +92,8 @@ class RustKeyboard(val graph: KeyGraph) : Keyboard() {
         val type = KeyType.entries[row[at + KeyGraphData.TYPE].toInt()]
         val label = row[at + KeyGraphData.LABEL]
         val group = row[at + KeyGraphData.GROUP].toInt()
-        val popup = row[at + KeyGraphData.POPUP].toInt().takeIf { it >= 0 }?.let { popupSets.getOrPut(it) { PopupSet() } }
+        val popup = row[at + KeyGraphData.POPUP].toInt().takeIf { it >= 0 }
+            ?.let { popupSets.getOrPut(it) { PopupSet() } }
         val multi = row[at + KeyGraphData.MULTI].toInt()
         if (multi >= 0) return multis.getOrPut(multi) {
             val codes = graph.call(KeyGraphOp.CODE_POINTS, "$multi").map(String::toInt).toIntArray()
@@ -135,7 +137,11 @@ class RustKey internal constructor(base: Int) : Key(TextKeyData(code = base)) {
     }
 
     internal fun place(numbers: FloatArray, at: Int) {
-        touchBounds.apply { left = numbers[at]; top = numbers[at + 1]; right = numbers[at + 2]; bottom = numbers[at + 3] }
-        visibleBounds.apply { left = numbers[at + 4]; top = numbers[at + 5]; right = numbers[at + 6]; bottom = numbers[at + 7] }
+        touchBounds.read(numbers, at)
+        visibleBounds.read(numbers, at + 4)
+    }
+
+    private fun FlorisRect.read(numbers: FloatArray, at: Int) {
+        left = numbers[at]; top = numbers[at + 1]; right = numbers[at + 2]; bottom = numbers[at + 3]
     }
 }

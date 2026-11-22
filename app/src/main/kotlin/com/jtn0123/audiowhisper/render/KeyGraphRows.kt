@@ -30,17 +30,24 @@ internal class KeyGraphFiles(
     val fallback: String?,
 )
 
-/** A `KeyGraphBuild` row for [mode]: its layouts' files, its symbols' for a characters keyboard, and the popup mappings. */
-internal fun keyGraphBuild(mode: KeyboardMode, numberRow: Boolean, numberHints: Boolean, files: KeyGraphFiles): Array<String> {
+/**
+ * A `KeyGraphBuild` row for [mode]: its layouts' files, its symbols' for a characters keyboard,
+ * and the popup mappings.
+ */
+internal fun keyGraphBuild(mode: KeyboardMode, numberRow: Boolean, numberHints: Boolean,
+                           files: KeyGraphFiles): Array<String> {
     val fields = Array(KeyGraphBuild.SIZE) { "" }
     var loaded = 0
     fun put(bit: Int, field: Int, text: String?) = text?.let { loaded = loaded or bit; fields[field] = it }
     for ((layoutMode, set) in listOf(mode to MAIN_FILES, KeyboardMode.SYMBOLS to SYMBOLS_FILES)) {
         if (layoutMode != mode && mode != KeyboardMode.CHARACTERS) continue
         val (main, modifier, extension) = LayoutAssembly.plan(layoutMode, numberRow, files.layouts)
-        val own = main?.let { name -> files.namedModifier(name)?.let { LayoutAssembly.modifier(name.first) to it } }
+        val own = main?.let { name ->
+            files.namedModifier(name)?.let { LayoutAssembly.modifier(name.first) to it }
+        }
         if (own != null) loaded = loaded or set.names
-        for ((file, name) in listOf(set.main to main, set.modifier to modifier, set.own to own, set.extension to extension)) {
+        val named = listOf(set.main to main, set.modifier to modifier, set.own to own, set.extension to extension)
+        for ((file, name) in named) {
             put(file.first, file.second, name?.let(files.layout))
         }
     }
@@ -64,15 +71,20 @@ internal data class KeyGraphFactsInput(
     val language: String, val defaultLanguage: String, val hints: KeyHintConfiguration,
     val slots: List<TextKeyData>, val resources: List<String?>,
 ) {
-    /** A `KeyGraphFacts` row, then each currency slot's code and label, then each label resource's token and label. */
+    /**
+     * A `KeyGraphFacts` row, then each currency slot's code and label, then each label resource's
+     * token and label.
+     */
     fun row(): Array<String> = with(KeyGraphFacts) {
         fun flag(value: Boolean) = WireFlag.encode(value)
         row(STATE to "$state", INPUT to "$input", OPTIONS to "$options", UTILITY to flag(utility),
-            UTILITY_ACTION to "$utilityAction", LANGUAGE_SWITCH to flag(languageSwitch), RICH_EDITOR to flag(richEditor),
-            LOCKED to flag(locked), PASTABLE to flag(pastable), INCOGNITO to "$incognito", NO_LEARNING to flag(noLearning),
-            SUBTYPES to "$subtypes", DICTATION to flag(dictation), LANGUAGE to language, DEFAULT_LANGUAGE to defaultLanguage,
+            UTILITY_ACTION to "$utilityAction", LANGUAGE_SWITCH to flag(languageSwitch),
+            RICH_EDITOR to flag(richEditor), LOCKED to flag(locked), PASTABLE to flag(pastable),
+            INCOGNITO to "$incognito", NO_LEARNING to flag(noLearning), SUBTYPES to "$subtypes",
+            DICTATION to flag(dictation), LANGUAGE to language, DEFAULT_LANGUAGE to defaultLanguage,
             HINT_SYMBOL to "${hints.symbolHintMode.ordinal}", HINT_NUMBER to "${hints.numberHintMode.ordinal}",
-            HINT_MERGE to flag(hints.mergeHintPopups), SLOTS to "${slots.size}", RESOURCES to "${KEY_LABEL_RESOURCES.size}") +
+            HINT_MERGE to flag(hints.mergeHintPopups), SLOTS to "${slots.size}",
+            RESOURCES to "${KEY_LABEL_RESOURCES.size}") +
             slots.flatMap { listOf("${it.code}", it.label) } +
             KEY_LABEL_RESOURCES.indices.flatMap { listOf("${KEY_LABEL_RESOURCES[it]}", resources[it] ?: "") }
     }
@@ -82,7 +94,8 @@ internal data class KeyGraphFactsInput(
  * The platform's answer to a key graph's question: [value] cased in [locale], where a code point
  * becomes a text by [codeText], or whether a code point is a non-spacing [mark].
  */
-internal fun keyGraphAnswer(ask: Int, value: String, locale: Locale, codeText: (Int) -> String, mark: (Int) -> Boolean): String =
+internal fun keyGraphAnswer(ask: Int, value: String, locale: Locale, codeText: (Int) -> String,
+                            mark: (Int) -> Boolean): String =
     when (ask) {
         KeyGraphAsk.LOWER_CODE -> "${codeText(value.toInt()).lowercase(locale).codePointAt(0)}"
         KeyGraphAsk.UPPER_CODE -> "${codeText(value.toInt()).uppercase(locale).codePointAt(0)}"
@@ -92,11 +105,12 @@ internal fun keyGraphAnswer(ask: Int, value: String, locale: Locale, codeText: (
     }
 
 /** One keyboard's layout files in a `KeyGraphBuild` row: each file's `KeyGraphFile` bit and its field. */
-private class LayoutFiles(val main: Pair<Int, Int>, val modifier: Pair<Int, Int>, val names: Int, val own: Pair<Int, Int>,
-                          val extension: Pair<Int, Int>)
+private class LayoutFiles(val main: Pair<Int, Int>, val modifier: Pair<Int, Int>, val names: Int,
+                          val own: Pair<Int, Int>, val extension: Pair<Int, Int>)
 
-private val MAIN_FILES = LayoutFiles(KeyGraphFile.MAIN to KeyGraphBuild.MAIN, KeyGraphFile.MODIFIER to KeyGraphBuild.MODIFIER,
-    KeyGraphFile.NAMES_MODIFIER, KeyGraphFile.OWN_MODIFIER to KeyGraphBuild.OWN_MODIFIER,
+private val MAIN_FILES = LayoutFiles(KeyGraphFile.MAIN to KeyGraphBuild.MAIN,
+    KeyGraphFile.MODIFIER to KeyGraphBuild.MODIFIER, KeyGraphFile.NAMES_MODIFIER,
+    KeyGraphFile.OWN_MODIFIER to KeyGraphBuild.OWN_MODIFIER,
     KeyGraphFile.EXTENSION to KeyGraphBuild.EXTENSION)
 
 private val SYMBOLS_FILES = LayoutFiles(KeyGraphFile.SYMBOLS_MAIN to KeyGraphBuild.SYMBOLS_MAIN,

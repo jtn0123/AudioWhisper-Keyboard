@@ -134,7 +134,7 @@ fun ComputingEvaluator.computeLabel(data: KeyData): String? {
         0 -> null
         1 -> data.asString(isForDisplay = true)
         2 -> computeLanguageDisplayName(subtype.primaryLocale, displayLanguageNamesIn())
-        else -> keyLabelResource(token, context())
+        else -> keyLabelResource(token) { context() }
     }
 }
 
@@ -143,21 +143,18 @@ val KEY_LABEL_RESOURCES = intArrayOf(KeyCode.PHONE_PAUSE, KeyCode.PHONE_WAIT, Ke
     KeyCode.VIEW_CHARACTERS, KeyCode.VIEW_NUMERIC, KeyCode.VIEW_NUMERIC_ADVANCED, KeyCode.VIEW_PHONE,
     KeyCode.VIEW_PHONE2, KeyCode.VIEW_SYMBOLS, KeyCode.VIEW_SYMBOLS2, KeyCode.HALF_SPACE, KeyCode.KESHIDA)
 
-/** The label of resource [token], one of [KEY_LABEL_RESOURCES]. */
-fun keyLabelResource(token: Int, context: Context?): String? = context?.getString(keyLabelResourceId(token))
-
-/** The string resource that names resource [token], one of [KEY_LABEL_RESOURCES]. */
-fun keyLabelResourceId(token: Int): Int = when (token) {
-    KeyCode.PHONE_PAUSE -> R.string.key__phone_pause
-    KeyCode.PHONE_WAIT -> R.string.key__phone_wait
-    KeyCode.IME_UI_MODE_TEXT, KeyCode.VIEW_CHARACTERS -> R.string.key__view_characters
-    KeyCode.VIEW_NUMERIC, KeyCode.VIEW_NUMERIC_ADVANCED -> R.string.key__view_numeric
-    KeyCode.VIEW_PHONE -> R.string.key__view_phone
-    KeyCode.VIEW_PHONE2 -> R.string.key__view_phone2
-    KeyCode.VIEW_SYMBOLS -> R.string.key__view_symbols
-    KeyCode.VIEW_SYMBOLS2 -> R.string.key__view_symbols2
-    KeyCode.HALF_SPACE -> R.string.key__view_half_space
-    KeyCode.KESHIDA -> R.string.key__view_keshida
+/** The label of resource [token], one of [KEY_LABEL_RESOURCES], from [context]'s resources. */
+fun keyLabelResource(token: Int, context: () -> Context?): String? = when (token) {
+    KeyCode.PHONE_PAUSE -> context()?.getString(R.string.key__phone_pause)
+    KeyCode.PHONE_WAIT -> context()?.getString(R.string.key__phone_wait)
+    KeyCode.IME_UI_MODE_TEXT, KeyCode.VIEW_CHARACTERS -> context()?.getString(R.string.key__view_characters)
+    KeyCode.VIEW_NUMERIC, KeyCode.VIEW_NUMERIC_ADVANCED -> context()?.getString(R.string.key__view_numeric)
+    KeyCode.VIEW_PHONE -> context()?.getString(R.string.key__view_phone)
+    KeyCode.VIEW_PHONE2 -> context()?.getString(R.string.key__view_phone2)
+    KeyCode.VIEW_SYMBOLS -> context()?.getString(R.string.key__view_symbols)
+    KeyCode.VIEW_SYMBOLS2 -> context()?.getString(R.string.key__view_symbols2)
+    KeyCode.HALF_SPACE -> context()?.getString(R.string.key__view_half_space)
+    KeyCode.KESHIDA -> context()?.getString(R.string.key__view_keshida)
     else -> error("Unknown native label resource")
 }
 

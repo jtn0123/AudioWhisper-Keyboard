@@ -15,7 +15,6 @@ import dev.patrickgold.florisboard.ime.keyboard.LayoutFixtures
 import dev.patrickgold.florisboard.ime.keyboard.LayoutType
 import dev.patrickgold.florisboard.ime.keyboard.extCoreLayout
 import dev.patrickgold.florisboard.ime.keyboard.extCorePopupMapping
-import dev.patrickgold.florisboard.ime.keyboard.keyLabelResourceId
 import dev.patrickgold.florisboard.ime.ImeUiMode
 import dev.patrickgold.florisboard.ime.text.key.KeyHintConfiguration
 import dev.patrickgold.florisboard.ime.text.key.KeyHintMode
@@ -36,7 +35,8 @@ internal object KeyGraphAssets {
 
     /** Each indexed layout's index entry and text. */
     val layouts: Map<LayoutName, Pair<LayoutArrangementComponent, String>> = fixtures.layouts.associate {
-        (it.type to it.name) to (it.meta to File(root, "org.florisboard.layouts/${it.meta.arrangementFile(it.type)}").readText())
+        val text = File(root, "org.florisboard.layouts/${it.meta.arrangementFile(it.type)}").readText()
+        (it.type to it.name) to (it.meta to text)
     }
 
     /** Each layout type's indexed names. */
@@ -44,8 +44,8 @@ internal object KeyGraphAssets {
 
     /** Each indexed popup mapping's text, by its name. */
     val mappings: Map<ExtensionComponentName, String> = File(root, "org.florisboard.localization").let { dir ->
-        DefaultJsonConfig.parseToJsonElement(File(dir, "extension.json").readText()).jsonObject.getValue("popupMappings")
-            .jsonArray.map { it.jsonObject.getValue("id").jsonPrimitive.content }
+        DefaultJsonConfig.parseToJsonElement(File(dir, "extension.json").readText()).jsonObject
+            .getValue("popupMappings").jsonArray.map { it.jsonObject.getValue("id").jsonPrimitive.content }
             .associate { extCorePopupMapping(it) to File(dir, "popupMappings/$it.json").readText() }
     }
 }
@@ -72,14 +72,24 @@ internal data class TraceBuild(
                 else -> synthetic?.modifiers?.get(name) ?: KeyGraphAssets.layouts[name]?.first?.modifier
             }
         },
-        { name -> (synthetic?.layouts?.get(name) ?: KeyGraphAssets.layouts[name]?.second)?.let { if (name == broken) it.substring(0, it.length / 2) else it } },
+        { name ->
+            (synthetic?.layouts?.get(name) ?: KeyGraphAssets.layouts[name]?.second)
+                ?.let { if (name == broken) it.substring(0, it.length / 2) else it }
+        },
         synthetic?.mapping ?: KeyGraphAssets.mappings[mapping],
         if (fallback) KeyGraphAssets.mappings[extCorePopupMapping("default")] else null,
     )
 }
 
-/** Files no bundled extension has: [layouts] by name, the modifier each main layout's entry names, and a popup [mapping]. */
-internal data class Synthetic(val layouts: Map<LayoutName, String>, val modifiers: Map<LayoutName, ExtensionComponentName>, val mapping: String?)
+/**
+ * Files no bundled extension has: [layouts] by name, the modifier each main layout's entry names,
+ * and a popup [mapping].
+ */
+internal data class Synthetic(
+    val layouts: Map<LayoutName, String>,
+    val modifiers: Map<LayoutName, ExtensionComponentName>,
+    val mapping: String?,
+)
 
 /** Seeded builds and facts, each drawn from what Android can report and a little past it. */
 internal class TraceInputs(private val random: Random) {
@@ -92,11 +102,18 @@ internal class TraceInputs(private val random: Random) {
         var layouts = preset.layouts
         repeat(random.nextInt(4)) {
             val type = MAPPED.random(random)
-            layouts = layouts.with(type, if (random.nextInt(25) == 0) extCoreLayout("not_indexed") else KeyGraphAssets.names.getValue(type).random(random))
+            val name = if (random.nextInt(25) == 0) {
+                extCoreLayout("not_indexed")
+            } else {
+                KeyGraphAssets.names.getValue(type).random(random)
+            }
+            layouts = layouts.with(type, name)
         }
         val synthetic = if (random.nextInt(4) == 0) synthetic() else null
         synthetic?.layouts?.keys?.forEach { (type, name) -> if (type in MAPPED) layouts = layouts.with(type, name) }
-        val named = { types: List<LayoutType> -> types.random(random).let { it to (layouts[it] ?: extCoreLayout("default")) } }
+        val named = { types: List<LayoutType> ->
+            types.random(random).let { it to (layouts[it] ?: extCoreLayout("default")) }
+        }
         return TraceBuild(
             MODES.random(random), random.nextBoolean(), random.nextBoolean(),
             if (random.nextInt(5) == 0) LOCALES.random(random) else preset.locale, layouts,
@@ -113,10 +130,10 @@ internal class TraceInputs(private val random: Random) {
         )
     }
 
-    /** One to three synthetic layouts, sometimes naming a synthetic modifier, and sometimes a synthetic popup mapping. */
+    /** One to three synthetic layouts, sometimes naming a synthetic modifier, sometimes a synthetic popup mapping. */
     private fun synthetic(): Synthetic {
-        val layouts = HashMap<LayoutName, String>()
-        val modifiers = HashMap<LayoutName, ExtensionComponentName>()
+        val layouts = LinkedHashMap<LayoutName, String>()
+        val modifiers = LinkedHashMap<LayoutName, ExtensionComponentName>()
         repeat(1 + random.nextInt(3)) {
             val type = if (random.nextBoolean()) LayoutType.CHARACTERS else MAPPED.random(random)
             val name = type to extCoreLayout("synthetic_${random.nextInt(1_000_000)}")
@@ -140,13 +157,16 @@ internal class TraceInputs(private val random: Random) {
         }
         return KeyGraphFactsInput(
             state(build.mode), input(), options(), random.nextBoolean(), random.nextInt(5), random.nextBoolean(),
-            random.nextBoolean(), random.nextInt(4) == 0, random.nextBoolean(), random.nextInt(3), random.nextInt(4) == 0,
-            random.nextInt(4), random.nextBoolean(), LANGUAGES.random(random), DEFAULT_LANGUAGES.random(random), hints(),
-            slots, KEY_LABEL_RESOURCES.map { TRACE_PLATFORM.string(keyLabelResourceId(it)) },
+            random.nextBoolean(), random.nextInt(4) == 0, random.nextBoolean(), random.nextInt(3),
+            random.nextInt(4) == 0, random.nextInt(4), random.nextBoolean(), LANGUAGES.random(random),
+            DEFAULT_LANGUAGES.random(random), hints(),
+            slots, KEY_LABEL_RESOURCES.map { TRACE_PLATFORM.string(referenceLabelResource(it)) },
         )
     }
 
-    fun hints() = KeyHintConfiguration(KeyHintMode.entries.random(random), KeyHintMode.entries.random(random), random.nextBoolean())
+    fun hints() = KeyHintConfiguration(
+        KeyHintMode.entries.random(random), KeyHintMode.entries.random(random), random.nextBoolean(),
+    )
 
     /** A keyboard state as the evaluator got it: the active state with its shift reset for non-character modes. */
     private fun state(mode: KeyboardMode): ULong {
@@ -166,7 +186,8 @@ internal class TraceInputs(private val random: Random) {
             state.isComposingEnabled = random.nextBoolean()
             state.isCharHalfWidth = random.nextInt(4) == 0
         }
-        return InputRules.control(longArrayOf(InputProtocol.CONTROL_EVALUATOR.toLong(), state.rawValue.toLong()))[0].toULong()
+        val fields = longArrayOf(InputProtocol.CONTROL_EVALUATOR.toLong(), state.rawValue.toLong())
+        return InputRules.control(fields)[0].toULong()
     }
 
     private fun input(): Int = when (random.nextInt(20)) {
@@ -198,12 +219,16 @@ internal class TraceInputs(private val random: Random) {
         val NAMING = listOf(LayoutType.CHARACTERS, LayoutType.SYMBOLS, LayoutType.SYMBOLS2)
 
         /** Characters most of the time, as typing is; every other mode, and the ones with no layouts. */
-        val MODES = List(8) { KeyboardMode.CHARACTERS } + List(2) { KeyboardMode.SYMBOLS } + List(2) { KeyboardMode.SYMBOLS2 } +
-            List(2) { KeyboardMode.NUMERIC } + List(2) { KeyboardMode.NUMERIC_ADVANCED } + List(2) { KeyboardMode.PHONE } +
-            listOf(KeyboardMode.PHONE2, KeyboardMode.UNSPECIFIED, KeyboardMode.SMARTBAR_QUICK_ACTIONS, KeyboardMode.SMARTBAR_NUMBER_ROW)
+        val MODES = List(8) { KeyboardMode.CHARACTERS } + List(2) { KeyboardMode.SYMBOLS } +
+            List(2) { KeyboardMode.SYMBOLS2 } + List(2) { KeyboardMode.NUMERIC } +
+            List(2) { KeyboardMode.NUMERIC_ADVANCED } + List(2) { KeyboardMode.PHONE } +
+            listOf(KeyboardMode.PHONE2, KeyboardMode.UNSPECIFIED, KeyboardMode.SMARTBAR_QUICK_ACTIONS,
+                KeyboardMode.SMARTBAR_NUMBER_ROW)
 
         /** Locales with their own casing (Turkish, Azerbaijani, Lithuanian), right to left, and not Latin. */
-        val LOCALES = listOf("tr", "az", "lt", "ar", "he", "fa", "ur", "ru", "el", "hy", "ja", "zh-CN", "hi", "th", "nl", "de-CH")
+        val LOCALES = listOf(
+            "tr", "az", "lt", "ar", "he", "fa", "ur", "ru", "el", "hy", "ja", "zh-CN", "hi", "th", "nl", "de-CH",
+        )
             .map(Locale::forLanguageTag) + Subtype.DEFAULT.primaryLocale.base
 
         val LANGUAGES = listOf("English (US)", "Deutsch", "Türkçe", "العربية", "עברית", "Русский", "日本語", "Ελληνικά",
@@ -215,7 +240,10 @@ internal class TraceInputs(private val random: Random) {
             0x2, 0x1002, 0x2002, 0x3002, 0x12, 0x3, 0x4, 0x14, 0x24, 0x0)
         val INPUT_FLAGS = listOf(0x1000, 0x2000, 0x4000, 0x8000, 0x10000, 0x20000, 0x40000, 0x80000)
 
-        /** No enter action, no personalized learning, navigate next and previous, no extract UI, no fullscreen, force ASCII. */
+        /**
+         * No enter action, no personalized learning, navigate next and previous, no extract UI, no
+         * fullscreen, force ASCII.
+         */
         val OPTION_FLAGS = listOf(0x40000000, 0x1000000, 0x8000000, 0x4000000, 0x10000000, 0x2000000, Int.MIN_VALUE)
     }
 }

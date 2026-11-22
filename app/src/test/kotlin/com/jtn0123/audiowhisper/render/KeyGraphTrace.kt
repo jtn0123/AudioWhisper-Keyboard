@@ -46,8 +46,14 @@ internal class ReferenceBuilder {
     fun keyboard(build: TraceBuild): ReferenceKeyboard {
         val files = build.files()
         val rows = rows(build.mode, build.numberRow, files)
-        val symbols = if (build.mode == KeyboardMode.CHARACTERS && rows.isNotEmpty()) rows(KeyboardMode.SYMBOLS, build.numberRow, files) else null
-        val default = ReferenceEvaluator(KeyboardMode.CHARACTERS, DEFAULT_FACTS, DEFAULT_LOCALE, "", TRACE_PLATFORM, slots = false)
+        val symbols = if (build.mode == KeyboardMode.CHARACTERS && rows.isNotEmpty()) {
+            rows(KeyboardMode.SYMBOLS, build.numberRow, files)
+        } else {
+            null
+        }
+        val default = ReferenceEvaluator(
+            KeyboardMode.CHARACTERS, DEFAULT_FACTS, DEFAULT_LOCALE, "", TRACE_PLATFORM, slots = false,
+        )
         return ReferenceKeyboard.build(build.mode, rows, symbols, build.numberHints, default,
             files.mapping?.let(::mapping), files.fallback?.let(::mapping))
     }
@@ -56,20 +62,23 @@ internal class ReferenceBuilder {
         val (main, modifier, extension) = ReferenceLayoutAssembly.plan(mode, numberRow, files.layouts)
         val mainLayout = main?.let { arrangement(files, it) }
         val named = main?.takeIf { mainLayout != null }?.let(files.namedModifier)
-        val modifierName = if (main != null && named != null) ReferenceLayoutAssembly.modifier(main.first) to named else modifier
+        val modifierName =
+            if (main != null && named != null) ReferenceLayoutAssembly.modifier(main.first) to named else modifier
         return ReferenceLayoutAssembly.merge(mainLayout, modifierName?.let { arrangement(files, it) },
             extension?.let { arrangement(files, it) })
     }
 
-    private fun arrangement(files: KeyGraphFiles, name: LayoutName): LayoutArrangement? = files.layout(name)?.let { text ->
-        arrangements.getOrPut(text) { loadJsonAsset<LayoutArrangement>(text).getOrNull() }
-    }
+    private fun arrangement(files: KeyGraphFiles, name: LayoutName): LayoutArrangement? =
+        files.layout(name)?.let { text ->
+            arrangements.getOrPut(text) { loadJsonAsset<LayoutArrangement>(text).getOrNull() }
+        }
 
     private fun mapping(text: String) = mappings.getOrPut(text) { loadJsonAsset<PopupMapping>(text).getOrNull() }
 
     companion object {
         /** `DefaultComputingEvaluator`'s facts: a zero state, and nothing else it reads. */
-        val DEFAULT_FACTS = KeyGraphFactsInput(0u, 0, 0, false, 0, false, false, false, false, 0, false, 0, false, "", "",
+        val DEFAULT_FACTS = KeyGraphFactsInput(
+            0u, 0, 0, false, 0, false, false, false, false, 0, false, 0, false, "", "",
             KeyHintConfiguration(KeyHintMode.DISABLED, KeyHintMode.DISABLED, false), emptyList(), emptyList())
     }
 }
@@ -135,15 +144,21 @@ internal class TraceComparison(private val random: Random, private val seen: Mut
 
     /** Where [main] and [branch] differ: class, type, code, label, group, code points, or popup set identity. */
     private fun data(pair: TracePair, main: KeyData, branch: KeyData): String? {
-        if (main.javaClass != branch.javaClass) return "class ${main.javaClass.simpleName} vs ${branch.javaClass.simpleName}"
-        if (main.type != branch.type || main.code != branch.code) return "type/code ${main.type} ${main.code} vs ${branch.type} ${branch.code}"
+        if (main.javaClass != branch.javaClass) {
+            return "class ${main.javaClass.simpleName} vs ${branch.javaClass.simpleName}"
+        }
+        if (main.type != branch.type || main.code != branch.code) {
+            return "type/code ${main.type} ${main.code} vs ${branch.type} ${branch.code}"
+        }
         if (main.label != branch.label) return "label"
         if (main.groupId != branch.groupId) return "group ${main.groupId} vs ${branch.groupId}"
         if (main is MultiTextKeyData) {
             if (!main.codePoints.contentEquals((branch as MultiTextKeyData).codePoints)) return "code points"
             if (!pair.multis.pair(main, branch)) return "multi-text identity"
         }
-        if ((main.popup == null) != (branch.popup == null)) return "popup set ${main.popup != null} vs ${branch.popup != null}"
+        if ((main.popup == null) != (branch.popup == null)) {
+            return "popup set ${main.popup != null} vs ${branch.popup != null}"
+        }
         if (!pair.popups.pair(main.popup, branch.popup)) return "popup set identity"
         return null
     }
@@ -156,7 +171,8 @@ internal class TraceComparison(private val random: Random, private val seen: Mut
             if (main.isEmpty() && random.nextInt(8) != 0) continue
             val branch = pair.branch.popupKeys(i, config)
             if (main.prioritized.size != branch.prioritized.size || main.other.size != branch.other.size) {
-                return "key $i popup sizes ${main.prioritized.size}+${main.other.size} vs ${branch.prioritized.size}+${branch.other.size} for $config"
+                return "key $i popup sizes ${main.prioritized.size}+${main.other.size} vs " +
+                    "${branch.prioritized.size}+${branch.other.size} for $config"
             }
             for ((j, pairOf) in main.toList().zip(branch.toList()).withIndex()) {
                 data(pair, pairOf.first, pairOf.second)?.let { return "key $i popup $j for $config: $it" }
@@ -214,7 +230,10 @@ internal class KeyGraphTrace(private val seed: Long) {
         while (pairs.size > 40) pairs.remove(pairs.keys.first())
         repeat(if (random.nextInt(20) == 0) 2 else 1) {
             val crashed = compute(pair, facts)
-            if (crashed != null) return crashed.takeIf { it.isNotEmpty() }?.let { "$it, in ${describe(build)}" }.also { count(build, facts) }
+            if (crashed != null) {
+                return crashed.takeIf { it.isNotEmpty() }?.let { "$it, in ${describe(build)}" }
+                    .also { count(build, facts) }
+            }
         }
         count(build, facts)
         return comparison.compare(pair, facts, inputs.hints())?.let { "$it, in ${describe(build)}" }
@@ -222,15 +241,19 @@ internal class KeyGraphTrace(private val seed: Long) {
 
     /** A failing build, its synthetic files named rather than printed. */
     private fun describe(build: TraceBuild) = "${build.copy(synthetic = null)} with synthetic layouts " +
-        "${build.synthetic?.layouts?.keys}, modifiers ${build.synthetic?.modifiers} and mapping ${build.synthetic?.mapping != null}"
+        "${build.synthetic?.layouts?.keys}, modifiers ${build.synthetic?.modifiers} " +
+        "and mapping ${build.synthetic?.mapping != null}"
 
     /** A new build's pair, or null if main crashed building it, as the branch then must computing it. */
     private fun pair(build: TraceBuild, facts: KeyGraphFactsInput): TracePair? {
-        val branch = RustKeyboard(KeyGraph.build(*keyGraphBuild(build.mode, build.numberRow, build.numberHints, build.files())))
+        val fields = keyGraphBuild(build.mode, build.numberRow, build.numberHints, build.files())
+        val branch = RustKeyboard(KeyGraph.build(*fields))
         val main = runCatching { builder.keyboard(build) }.getOrElse { error ->
             val failure = runCatching { branch.compute(facts.row(), traceAnswer(build.locale)) }.exceptionOrNull()
                 ?: throw AssertionError("seed $seed: main crashed building $build ($error), the branch didn't", error)
-            if (failure.javaClass != error.javaClass) throw AssertionError("seed $seed: main crashed with $error, the branch with $failure")
+            if (failure.javaClass != error.javaClass) {
+                throw AssertionError("seed $seed: main crashed with $error, the branch with $failure")
+            }
             recreate("crashed alike building")
             return null
         }
@@ -249,13 +272,20 @@ internal class KeyGraphTrace(private val seed: Long) {
         var asked = ""
         val answer = traceAnswer(pair.build.locale)
         val branch = runCatching {
-            pair.branch.compute(facts.row()) { ask, locale, value -> asked = "ask $ask locale $locale of $value"; answer(ask, locale, value) }
+            pair.branch.compute(facts.row()) { ask, locale, value ->
+                asked = "ask $ask locale $locale of $value"
+                answer(ask, locale, value)
+            }
         }.exceptionOrNull()
         val main = runCatching {
-            pair.main.compute(ReferenceEvaluator(pair.build.mode, facts, pair.build.locale, facts.language, TRACE_PLATFORM), facts.hints)
+            val build = pair.build
+            val evaluator = ReferenceEvaluator(build.mode, facts, build.locale, facts.language, TRACE_PLATFORM)
+            pair.main.compute(evaluator, facts.hints)
         }.exceptionOrNull()
         if (main == null && branch == null) return null
-        if (main?.javaClass != branch?.javaClass) return "main ${main ?: "computed"}, the branch ${branch ?: "computed"} (last $asked)"
+        if (main?.javaClass != branch?.javaClass) {
+            return "main ${main ?: "computed"}, the branch ${branch ?: "computed"} (last $asked)"
+        }
         recreate("crashed alike computing")
         return ""
     }

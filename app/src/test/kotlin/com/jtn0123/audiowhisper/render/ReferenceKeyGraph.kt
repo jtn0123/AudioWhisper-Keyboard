@@ -77,25 +77,33 @@ internal class ReferenceEvaluator(
 
     /** `KeyData.compute` and each selector's, as main computed them. */
     fun compute(data: AbstractKeyData): KeyData? = when (data) {
-        is TextKeyData -> if (isSlot(data)) slotData(data)?.let { TextKeyData(data.type, it.code, it.label, data.groupId, data.popup) } else data
+        is TextKeyData -> if (isSlot(data)) slotData(data)?.let { slot(data, it) } else data
         is AutoTextKeyData -> if (isSlot(data)) {
-            slotData(data)?.let { TextKeyData(data.type, it.code, it.label, data.groupId, data.popup) }
+            slotData(data)?.let { slot(data, it) }
         } else {
             val (lower, upper) = cased.getOrPut(data) { case(data) }
             if (KeyModels.select(0, state.rawValue.toLong(), 3) == 0) lower else upper
         }
         is MultiTextKeyData -> data
         is CaseSelector -> select(0, data.lower, data.upper)
-        is ShiftStateSelector -> select(1, data.unshifted, data.shifted, data.shiftedManual, data.shiftedAutomatic, data.capsLock, data.default)
+        is ShiftStateSelector -> with(data) {
+            select(1, unshifted, shifted, shiftedManual, shiftedAutomatic, capsLock, default)
+        }
         is VariationSelector -> select(2, data.default, data.email, data.uri, data.normal, data.password)
         is LayoutDirectionSelector -> select(3, data.ltr, data.rtl)
         is CharWidthSelector -> select(4, data.full, data.half)
         else -> error("no such key data in a layout: $data")
     }
 
+    /** A currency slot's key: [data]'s type, group and popup set with [slot]'s code and label. */
+    private fun slot(data: KeyData, slot: KeyData) =
+        TextKeyData(data.type, slot.code, slot.label, data.groupId, data.popup)
+
     private fun case(data: AutoTextKeyData) = with(platform) {
-        TextKeyData(data.type, codeText(data.code).lowercase(locale).codePointAt(0), data.label.lowercase(locale), data.groupId, data.popup) to
-            TextKeyData(data.type, codeText(data.code).uppercase(locale).codePointAt(0), data.label.uppercase(locale), data.groupId, data.popup)
+        val lower = codeText(data.code).lowercase(locale).codePointAt(0)
+        val upper = codeText(data.code).uppercase(locale).codePointAt(0)
+        TextKeyData(data.type, lower, data.label.lowercase(locale), data.groupId, data.popup) to
+            TextKeyData(data.type, upper, data.label.uppercase(locale), data.groupId, data.popup)
     }
 
     private fun select(kind: Int, vararg children: AbstractKeyData?): KeyData? {
@@ -112,23 +120,16 @@ internal class ReferenceEvaluator(
     fun isSpace(data: KeyData) = KeyModels.isSpace(data.type.ordinal, data.code)
 
     /** `computeLabel`, with main's resource strings. */
-    fun label(data: KeyData): String? = when (val token = InputRules.visual(longArrayOf(data.type.ordinal.toLong(), data.code.toLong(), mode.toInt().toLong()))) {
+    fun label(data: KeyData): String? {
+        val fields = longArrayOf(data.type.ordinal.toLong(), data.code.toLong(), mode.toInt().toLong())
+        return labelOf(data, InputRules.visual(fields))
+    }
+
+    private fun labelOf(data: KeyData, token: Int): String? = when (token) {
         0 -> null
         1 -> display(data)
         2 -> language
-        else -> platform.string(when (token) {
-            KeyCode.PHONE_PAUSE -> R.string.key__phone_pause
-            KeyCode.PHONE_WAIT -> R.string.key__phone_wait
-            KeyCode.IME_UI_MODE_TEXT, KeyCode.VIEW_CHARACTERS -> R.string.key__view_characters
-            KeyCode.VIEW_NUMERIC, KeyCode.VIEW_NUMERIC_ADVANCED -> R.string.key__view_numeric
-            KeyCode.VIEW_PHONE -> R.string.key__view_phone
-            KeyCode.VIEW_PHONE2 -> R.string.key__view_phone2
-            KeyCode.VIEW_SYMBOLS -> R.string.key__view_symbols
-            KeyCode.VIEW_SYMBOLS2 -> R.string.key__view_symbols2
-            KeyCode.HALF_SPACE -> R.string.key__view_half_space
-            KeyCode.KESHIDA -> R.string.key__view_keshida
-            else -> error("Unknown native label resource")
-        })
+        else -> platform.string(referenceLabelResource(token))
     }
 
     /** `computeImageVector`, as the token of the icon it drew, 0 for none. */
@@ -143,9 +144,10 @@ internal class ReferenceEvaluator(
             KeyCode.TOGGLE_COMPACT_LAYOUT, KeyCode.VOICE_INPUT, KeyCode.READ_ALOUD, KeyCode.IME_HIDE_UI, KeyCode.DELETE,
             InputProtocol.ICON_RETURN, InputProtocol.ICON_DONE, InputProtocol.ICON_ARROW, InputProtocol.ICON_SEARCH,
             InputProtocol.ICON_SEND, KeyCode.FORWARD_DELETE, KeyCode.IME_UI_MODE_MEDIA, KeyCode.IME_UI_MODE_CLIPBOARD,
-            KeyCode.LANGUAGE_SWITCH, KeyCode.SETTINGS, InputProtocol.ICON_CAPS, KeyCode.SHIFT, KeyCode.SPACE, KeyCode.UNDO,
-            KeyCode.REDO, KeyCode.TOGGLE_ACTIONS_OVERFLOW, KeyCode.TOGGLE_INCOGNITO_MODE, InputProtocol.ICON_INCOGNITO_OFF,
-            KeyCode.TOGGLE_AUTOCORRECT, KeyCode.CHAR_WIDTH_FULL, KeyCode.CHAR_WIDTH_HALF, KeyCode.NOOP)
+            KeyCode.LANGUAGE_SWITCH, KeyCode.SETTINGS, InputProtocol.ICON_CAPS, KeyCode.SHIFT, KeyCode.SPACE,
+            KeyCode.UNDO, KeyCode.REDO, KeyCode.TOGGLE_ACTIONS_OVERFLOW, KeyCode.TOGGLE_INCOGNITO_MODE,
+            InputProtocol.ICON_INCOGNITO_OFF, KeyCode.TOGGLE_AUTOCORRECT, KeyCode.CHAR_WIDTH_FULL,
+            KeyCode.CHAR_WIDTH_HALF, KeyCode.NOOP)
     }
 }
 
@@ -199,8 +201,12 @@ internal class ReferenceKey(val data: AbstractKeyData) {
         keySpecific?.let { lists.merge(it, e, lists.relevant, true) }
         popupSet?.let { lists.merge(it, e, lists.relevant, true) }
         if (computed.type == KeyType.CHARACTER) {
-            symbolHint?.let { hint -> lists.symbolHint = lists.hint(hint, computed.code, e, keyboard, lists.symbolPopups) ?: lists.symbolHint }
-            numberHint?.let { hint -> lists.numberHint = lists.hint(hint, computed.code, e, keyboard, lists.numberPopups) ?: lists.numberHint }
+            symbolHint?.let { hint ->
+                lists.symbolHint = lists.hint(hint, computed.code, e, keyboard, lists.symbolPopups) ?: lists.symbolHint
+            }
+            numberHint?.let { hint ->
+                lists.numberHint = lists.hint(hint, computed.code, e, keyboard, lists.numberPopups) ?: lists.numberHint
+            }
         }
     }
 
@@ -228,13 +234,24 @@ internal class PopupLists {
     val symbolPopups = arrayListOf<KeyData>()
     val numberPopups = arrayListOf<KeyData>()
 
-    fun merge(other: PopupSet<AbstractKeyData>, e: ReferenceEvaluator, target: MutableList<KeyData>, useMain: Boolean = false) {
+    fun merge(
+        other: PopupSet<AbstractKeyData>,
+        e: ReferenceEvaluator,
+        target: MutableList<KeyData>,
+        useMain: Boolean = false,
+    ) {
         other.relevant.forEach { e.compute(it)?.let(target::add) }
         other.main?.let { e.compute(it) }?.let { if (useMain && main == null) main = it else target.add(it) }
     }
 
     /** `addComputedHints` for one hint: the hint to set, or null to leave it. */
-    fun hint(hint: KeyData, code: Int, e: ReferenceEvaluator, keyboard: ReferenceKeyboard, target: MutableList<KeyData>): KeyData? {
+    fun hint(
+        hint: KeyData,
+        code: Int,
+        e: ReferenceEvaluator,
+        keyboard: ReferenceKeyboard,
+        target: MutableList<KeyData>,
+    ): KeyData? {
         val evaluated = e.compute(hint)
         if (hint.code == code) return null
         evaluated?.popup?.let { merge(it, e, target) }
@@ -299,7 +316,11 @@ internal class ReferenceKeyboard(val mode: KeyboardMode, val rows: List<List<Ref
             val keys = rows.map { row -> row.map(::ReferenceKey) }
             if (mode == KeyboardMode.CHARACTERS && rows.isNotEmpty()) {
                 val hints = hints(rows, symbols.orEmpty(), numberHints, default).iterator()
-                keys.forEach { row -> row.forEach { key -> hints.next().let { (n, s) -> key.numberHint = n; key.symbolHint = s } } }
+                for (key in keys.flatten()) {
+                    val (number, symbol) = hints.next()
+                    key.numberHint = number
+                    key.symbolHint = symbol
+                }
             }
             return ReferenceKeyboard(mode, keys, mapping, fallback)
         }
@@ -329,4 +350,19 @@ internal class ReferenceKeyboard(val mode: KeyboardMode, val rows: List<List<Ref
             return rows.indices.flatMap { r -> rows[r].indices.map { k -> numbers[r][k] to hints[r][k] } }
         }
     }
+}
+
+/** Main's string resource for label resource [token], as `computeLabel` named it. */
+internal fun referenceLabelResource(token: Int): Int = when (token) {
+    KeyCode.PHONE_PAUSE -> R.string.key__phone_pause
+    KeyCode.PHONE_WAIT -> R.string.key__phone_wait
+    KeyCode.IME_UI_MODE_TEXT, KeyCode.VIEW_CHARACTERS -> R.string.key__view_characters
+    KeyCode.VIEW_NUMERIC, KeyCode.VIEW_NUMERIC_ADVANCED -> R.string.key__view_numeric
+    KeyCode.VIEW_PHONE -> R.string.key__view_phone
+    KeyCode.VIEW_PHONE2 -> R.string.key__view_phone2
+    KeyCode.VIEW_SYMBOLS -> R.string.key__view_symbols
+    KeyCode.VIEW_SYMBOLS2 -> R.string.key__view_symbols2
+    KeyCode.HALF_SPACE -> R.string.key__view_half_space
+    KeyCode.KESHIDA -> R.string.key__view_keshida
+    else -> error("Unknown native label resource")
 }

@@ -56,10 +56,11 @@ internal class SyntheticLayouts(private val random: Random) {
             8 -> multi(depth)
             9 -> leaf(if (random.nextBoolean()) null else "unknown_key", depth)
             10 -> obj(listOf("$" to str("case_selector"), "lower" to key(depth - 1), "upper" to key(depth - 1)))
-            11 -> selector("shift_state_selector", listOf("unshifted", "shifted", "shiftedManual", "shiftedAutomatic", "capsLock", "default"), depth)
+            11 -> selector("shift_state_selector", SHIFT_STATES, depth)
             12 -> selector("variation_selector", listOf("default", "email", "uri", "normal", "password"), depth)
             13 -> obj(listOf("$" to str("layout_direction_selector"), "ltr" to key(depth - 1), "rtl" to key(depth - 1)))
-            14 -> obj(listOf("$" to str("char_width_selector"), "full" to maybeKey(depth - 1), "half" to maybeKey(depth - 1)))
+            14 -> obj(listOf("$" to str("char_width_selector"), "full" to maybeKey(depth - 1),
+                "half" to maybeKey(depth - 1)))
             else -> leaf("auto_text_key", depth)
         }
     }
@@ -90,8 +91,8 @@ internal class SyntheticLayouts(private val random: Random) {
     private fun multi(depth: Int): String {
         val label = LABELS.random(random)
         labels += label
-        val fields = mutableListOf("$" to str("multi_text_key"), "codePoints" to array(List(random.nextInt(4)) { "${CODES.random(random)}" }),
-            "label" to str(label))
+        val codePoints = array(List(random.nextInt(4)) { "${CODES.random(random)}" })
+        val fields = mutableListOf("$" to str("multi_text_key"), "codePoints" to codePoints, "label" to str(label))
         if (random.nextBoolean()) fields += "type" to str(keyType())
         if (random.nextInt(4) == 0) fields += "groupId" to "${GROUPS.random(random)}"
         if (depth > 0 && random.nextInt(4) == 0) fields += "popup" to popup(depth - 1)
@@ -116,21 +117,29 @@ internal class SyntheticLayouts(private val random: Random) {
 
     private fun str(text: String) = JsonPrimitive(text).toString()
     private fun array(items: List<String>) = items.joinToString(",", "[", "]")
-    private fun obj(fields: List<Pair<String, String>>) = fields.joinToString(",", "{", "}") { (key, value) -> "${str(key)}:$value" }
+    private fun obj(fields: List<Pair<String, String>>) =
+        fields.joinToString(",", "{", "}") { (key, value) -> "${str(key)}:$value" }
 
     private companion object {
         const val PLACEHOLDER = "{\"$\":\"text_key\",\"code\":0}"
         val VARIATIONS = listOf("all", "email", "uri", "normal", "password")
         val GROUP_LABELS = listOf("~enter", "~left", "~right")
         val GROUPS = listOf(0, 1, 2, 3, 7, -1)
+        val SHIFT_STATES = listOf("unshifted", "shifted", "shiftedManual", "shiftedAutomatic", "capsLock", "default")
 
         /** Every `KeyCode`, letters with casing of their own, marks, and characters past the BMP. */
         val CODES: List<Int> = KeyCode::class.java.declaredFields
-            .filter { Modifier.isStatic(it.modifiers) && Modifier.isPublic(it.modifiers) && it.type == Int::class.javaPrimitiveType }
+            .filter {
+                Modifier.isStatic(it.modifiers) && Modifier.isPublic(it.modifiers) &&
+                    it.type == Int::class.javaPrimitiveType
+            }
             .map { it.getInt(null) } +
-            listOf(97, 98, 122, 65, 90, 105, 73, 0x131, 0x130, 0xDF, 0x1C5, 0xFB01, 0x3A3, 0x3C2, 0x301, 0x93F, 0x627, 0x5D0,
-                0x1F600, 0x10400, 48, 49, 57, 0x660, 0x6F1, 0x966, 36, 8364, 0x3042, 0xFF41, Int.MIN_VALUE)
+            listOf(97, 98, 122, 65, 90, 105, 73, 0x131, 0x130, 0xDF, 0x1C5, 0xFB01, 0x3A3, 0x3C2, 0x301, 0x93F,
+                0x627, 0x5D0, 0x1F600, 0x10400, 48, 49, 57, 0x660, 0x6F1, 0x966, 36, 8364, 0x3042, 0xFF41,
+                Int.MIN_VALUE)
 
-        val LABELS = listOf("a", "A", "ß", "İ", "ı", "ﬁ", "Σ", "ς", "ǅ", "😀", "́", "~enter", "a b", "123", "?", "ABC", "١")
+        val LABELS = listOf(
+            "a", "A", "ß", "İ", "ı", "ﬁ", "Σ", "ς", "ǅ", "😀", "́", "~enter", "a b", "123", "?", "ABC", "١",
+        )
     }
 }
