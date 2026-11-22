@@ -79,6 +79,11 @@ pub mod job {
             RESTORE_APPLY = "restoreApply",
             /// Delete the archives no work is using.
             DISCARD = "discard",
+            /// Read the picked document as UTF-8 text, as a user dictionary import read it.
+            WORDS_READ = "wordsRead",
+            /// Write a user dictionary export to the picked document: `dictionary=`, the
+            /// document's last path segment, then the work's `TEXT`.
+            WORDS_WRITE = "wordsWrite",
         }
     }
 }
@@ -161,6 +166,8 @@ pub mod work {
             ERASE,
             /// A picked document's handle.
             DOCUMENT,
+            /// The text to write.
+            TEXT,
         }
     }
 }
@@ -189,6 +196,8 @@ pub mod done {
             DAMAGED,
             /// How many of a restore's steps finished.
             STEPS,
+            /// The text read.
+            TEXT,
         }
     }
 }
