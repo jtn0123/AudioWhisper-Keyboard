@@ -241,8 +241,10 @@ its phone checks pass.
   must read back as written, undo for a deleted source set, several codes typed at once, and the
   editor surviving recreation; see
   [part 3](stage4-theme-editor.md#part-3-the-property-editor-done) for all of them with their
-  tests. Commits 883aca936 to d97c2a4c6, and the deletion after them. A crash fix to the Compose
-  fallback (6c29caad7) comes first: *Save* in a theme editor a link opened left a blank activity.
+  tests. Commits a9701c8ca to b459379b7, the deletion (a186ed5cd), and a fix to part 2's
+  *Duplicate* found on the emulator (f3121345c). A crash fix to the Compose fallback (85334f578)
+  comes first: *Save* in the extension editor the manager opened left that screen drawn, and a
+  second *Save* crashed on its closed workspace.
 * **Blocked by:** nothing.
 * **The fallback loses:** the theme manager. Its route stays as an empty entry that hands back
   to Rust, as in step 2. The Compose theme editor had no route of its own: since part 2 the

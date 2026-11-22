@@ -5,10 +5,9 @@ the theme editor move from Compose to the Rust settings renderer. The owner's ru
 are "ported to Rust and improved, not cut, and the port names each improvement it makes"
 ([decision](decisions.md#everything-moves-to-rust-2026-11-21)).
 
-Step 9 has three parts. **Part 1, the theme manager, and part 2, the theme editor's shell, are
-done**, and this page records both. Part 3, editing a property's value, is not started;
-[What remains](#what-remains) says exactly what it needs, and what deleting the Compose editor
-then takes.
+Step 9 has three parts, and **all three are done**: part 1, the theme manager; part 2, the theme
+editor's shell; and part 3, the property editor, after which the Compose editor was deleted.
+This page records each. [What remains](#what-remains) lists what is owed.
 
 | Route | Drawn by | Notes |
 | --- | --- | --- |
@@ -18,6 +17,7 @@ then takes.
 | `ext/edit/<id>` (the extension editor) | Compose | Step 10. Its *Manage component* opens the Rust theme editor. |
 | `settings/theme/edit/<workspace>/<component>` | Rust | New in part 2: the theme editor, in `ThemeEditorActivity`. |
 | `settings/theme/editor/rule/add`, `.../rule`, `.../meta`, `.../tune` | Rust | New in part 2: the rule editor, the meta editor and fine-tune. |
+| `settings/theme/editor/property/add`, `.../property`, `.../code/add`, `.../code` | Rust | New in part 3: the property editor and the code editor. |
 | `ext/view/<id>` (an extension's page: export, delete) | Compose | Step 10. |
 | `ext/import/EXT_THEME` | Compose | Step 10. |
 
@@ -365,7 +365,7 @@ Each was chosen for a person making a keyboard theme.
 | # | Improvement | Why | Test |
 | --- | --- | --- | --- |
 | 1 | **Undo in place.** Deleting a rule or a property leaves an undo bar where it was, inside the rule's box, and *Undo* puts it back in the same place. | Compose deleted at once, with no way back. A theme author tries things out. | `a_deleted_property_leaves_undo_where_it_was_and_undo_puts_it_back`, `deleting_a_rule_asks_first_and_undo_puts_it_back_in_its_place`, `the_defines_note_and_an_undo_bar_keep_inside_the_rule_box` |
-| 2 | **Duplicate rule.** Opens the rule editor with the rule's element, selector and attributes; the rule it adds takes the original's properties. | The usual way to make a pressed or a numeric-mode variant of a key's style. Compose had you add the rule, then every property, by hand. | `duplicate_adds_a_rule_like_another_with_its_properties` |
+| 2 | **Duplicate rule.** Opens the rule editor with the rule's element, selector and attributes; the rule it adds takes the original's properties, unless its element was changed to one taking the other kind of set (fixed in part 3, [below](#fixed-on-the-way)). | The usual way to make a pressed or a numeric-mode variant of a key's style. Compose had you add the rule, then every property, by hand. | `duplicate_adds_a_rule_like_another_with_its_properties`, `a_duplicate_takes_its_sources_sets_only_where_its_element_takes_that_kind` |
 | 3 | **No *Delete* on a font's `src`.** | A font set without `src` cannot be written: Compose let you delete it, and the extension then failed to save. | `a_fonts_source_has_no_delete_and_its_other_properties_do`; snygg `a_font_set_without_its_src_fails_as_to_json_does` |
 | 4 | **A font name the stylesheet cannot read back is refused**, with why. | Compose accepted one, and the saved stylesheet then failed to load. | `a_font_needs_a_name_the_stylesheet_can_read_back` |
 | 5 | **Edits are a draft.** *Save* keeps them; *Back* with changes asks whether to discard them. | Compose wrote each edit straight into the workspace and had no *Save*, so the only way to drop a mistake was to discard the whole extension's changes. | `save_writes_the_stylesheet_rust_built_and_the_meta_then_closes`, `back_with_unsaved_changes_asks_to_discard_and_without_them_closes` |
@@ -625,6 +625,536 @@ with a bundled theme added, a rotation to landscape keeps it (`02-edit-rotated-k
 fatal exception in the log. Screenshots are under `build/part3-device/`, not committed. The
 phone check is P20.
 
+## Part 3: the property editor (done)
+
+Rust now edits every property value in the theme editor. It also adds and moves a font's source
+sets, and edits a key rule's codes one at a time, with *record a key*. With that, nothing routes
+to the Compose editor or imports from it, and its 14 files are deleted (below).
+
+### How it is reached
+
+| Route | What it is |
+| --- | --- |
+| `settings/theme/editor/property/add` | *Add property* (**+**), the last button on a rule's title line. On `@font` it is *Add source set*, and each source set's heading has its own **+**. |
+| `settings/theme/editor/property` | A property tapped in the rules list (`EditPropertyDialog`). |
+| `settings/theme/editor/code/add` and `settings/theme/editor/code` | The code editor (`EditCodeValueDialog`), from the rule editor's *Add* chip or a code's chip. |
+
+### What it shows
+
+1. **The rules list** shows each value as Compose did. A static colour is written in fine-tune's
+   colour representation (hex, rgb or hsv, with its alpha), as `formatColor(withAlpha = true)`
+   wrote it. Before *Delete* each value has its preview icon, as `SnyggValueIcon` drew it:
+   * a swatch for a colour, checkered under a translucent one, and a Material You colour's
+     swatch;
+   * a shape's outline;
+   * the Material icon for a font, a style, a weight, padding, a dp or sp size, text alignment,
+     decoration, overflow, an image, content scale or yes/no;
+   * for a variable, its link over the small icon of the value it names.
+
+   Tapping the icon opens the row, as tapping the row does.
+2. **The property editor**, top to bottom:
+   * the error line;
+   * *Search properties*, only while adding to an element rule;
+   * *Name*: the properties the element takes at the editor level, fixed while editing. In
+     `@defines` it is a field, checked as Compose checked a variable's name;
+   * *Value encoder*: the kinds the property takes;
+   * the value;
+   * *Show keyboard*;
+   * *Cancel*, then *Add* or *Apply*.
+
+   Editing has *Delete* in the top bar, and the deleted property leaves part 2's undo bar. A
+   font's `src` has no *Delete*.
+3. **Each value kind:**
+   * a variable, chosen from `@defines`' names;
+   * a static colour: its swatch and text. Tapping it opens step 4's colour picker with an alpha
+     bar, and *OK* sets the value;
+   * a Material You light or dark colour, chosen by name, each name with its swatch in this
+     device's palette;
+   * a font family: a generic family or one of the stylesheet's `@font` names. Font style and
+     font weight (nine weights) are chosen too;
+   * padding: four sides, with *Apply for all sides*;
+   * a shape: rectangle, circle, or cut or rounded corners in dp or in whole percent, each corner
+     on its own;
+   * a dp, sp or percentage size, or a line count, typed beside its unit;
+   * the keyword kinds (content scale, text alignment, decoration, overflow and the rest), chosen
+     from their keywords;
+   * an image or a font file, chosen from the workspace's files by URI. A note says when there
+     are none.
+4. **The contrast note.** While a rule's `foreground` or `background` is edited, the editor
+   checks the pair before *Apply*. Under 4.5:1 a note shows under the value: *Low contrast:
+   2.1:1, below 4.5:1*. It is a note, not an error, so *Apply* still works.
+5. **Source sets** (`@font`). Each *Source set* heading has *Move up*, *Move down*, *Delete* and
+   **+**. Moving stops at the ends, and a disabled button is skipped in the focus order. *Delete*
+   leaves an undo bar where the set was. **+** adds a property to that set. A set without `src`
+   shows the *Errors* box, *Required property "src" does not exist*, under its heading.
+6. **The code editor.** The rule editor shows a key rule's codes as chips, followed by an *Add*
+   chip. A code's chip opens the code editor on it, and *Add* opens it empty. Its rows:
+   * the key data preview, as `TextKeyDataPreviewBox` drew it: the key's icon or label in a
+     36 dp box, then its Unicode or key name over its kind;
+   * the code field, with *Record a key* at its end and the recorder's message under it;
+   * the help text and its two links.
+
+   The field takes several comma-separated codes at once. *Apply* refuses an empty code, a code
+   out of range, or one the rule already has, and says why. *Delete* in the top bar removes the
+   code.
+
+### Data path
+
+```
+property editor ─ each name, encoder or value change the stylesheet can hold
+  ─▶ ["themeEditorPreview", ws, index, the draft with that value] ─▶ ThemeManager.previewThemeInfo
+  Apply ─▶ the draft's rules, as part 2's edits;  Cancel, Back ─▶ the draft previewed again
+SettingsThemeEditor ─ THEME_EDITOR report (op 28) + COLOR_NAMES, LIGHT_COLORS, DARK_COLORS ─▶ swatches, contrast
+code editor ─ Record a key ─▶ ["themeCodeRecord"] ─▶ SettingsKeyRecorder takes one key-up
+                                                  ─▶ THEME_CODE (op 33) key | stopped ─▶ the field
+             preview      ─▶ ["themeCodeDescribe", code] ─▶ ICU's name, mark flag, the key's icon
+                                                  ─▶ THEME_CODE (op 33) described ─▶ the preview
+```
+
+* **Rust does the logic.** It works out:
+  * the properties an element takes at each level, and the kinds each property takes, from
+    `snygg::value_spec`;
+  * every value's editing, checks and text, through `snygg::value_codec`. A value must read back
+    as it was written;
+  * the colour formats, the icon each value gets, and the contrast ratio;
+  * the source sets, the codes' ranges and refusals, and the preview's label and kind, from the
+    `keys` crate.
+
+  A static colour is written as `rgba(r,g,b,a)`, as Compose's editor and `snygg` wrote it.
+* **The palette** is the one the keyboard draws the component in. Kotlin builds it from the
+  keyboard's accent (the chosen one, else the system's) under the component's own palette style,
+  contrast and spec. It uses the same `SnyggPalette` call as the keyboard, and sends each colour
+  name with its light and dark ARGB in the report. A report without a palette gives no swatches.
+* **The contrast check** looks at the property being edited against the other one of the pair,
+  in the same rule and property set. Nothing across rules, nothing inherited, no borders or
+  shadows. Variables are followed one level through `@defines`, as the keyboard does, and dynamic
+  colours come from the palette. A translucent foreground is laid over the background. A
+  translucent background is laid over the plain `keyboard` rule's background, when that is an
+  opaque colour. Otherwise, or in the `keyboard` rule itself, the check lays it over black and
+  over white and keeps the worse. The ratio is rounded down to one decimal, so `#777777` on white
+  (4.478) shows 4.4:1, never 4.5. The threshold is WCAG AA for normal text: key labels and hints
+  are drawn below WCAG's large-text size, so 3:1 would pass hint labels that fail.
+* **Codes** use op 33, `THEME_CODE`. Its effects are `themeCodeRecord`, `themeCodeStop` and
+  `themeCodeDescribe`, and its reports `key`, `stopped` and `described`. They are generated for
+  Kotlin as `SettingsUiThemeCode*`. Recording follows Compose's rule: it needs this app's keyboard
+  enabled and selected. When the keyboard is not enabled, the message stays under the field and
+  the input method settings open. When it is enabled but not selected, the input method picker
+  opens. Rust asks Kotlin to describe each code once. It never asks for the unspecified key, and it
+  ignores an answer about a code no longer shown.
+* **The saved state** is version 10 (8 after part 2). The open property editor and code editor
+  come back with what they hold: name, encoder, value, search, the code being typed and its
+  error. Recording does not come back. Compose held it in plain `remember`, nothing listens after
+  recreation, and a key pressed later is not the one that was asked for.
+
+### What Kotlin does
+
+One file is new, and it must be Kotlin:
+
+* **`settingsui/SettingsKeyRecorder.kt`** (90 counted lines). The key-up exists only in the
+  running input method's `InputEventDispatcher.keyEventReceiver`, in this process. Unicode
+  names need `android.icu`, a key's icon needs the keyboard's `ComputingEvaluator` and icon
+  paths, and stopping needs the activity's lifecycle. `KeyRecording` swaps the receiver slot for
+  one key-up, and gives back the previous receiver only while it still holds the slot. It stops
+  and reports `stopped` on `ON_STOP`. It answers `DESCRIBE` for the one code shown. A code goes
+  nowhere but back to Rust, and nothing logs it.
+
+Two files hold what other code still imported from the deleted package, moved unchanged:
+
+* **`app/ThemeEditorPrefs.kt`** (24): `PrettyPrintConfig`, `ColorPreferenceSerializer`,
+  `DisplayKbdAfterDialogs` and `SnyggLevel`, which the Jetpref preference model, the extension
+  editor and the editor's glue use.
+* **`app/ext/ExtensionDialogProperty.kt`** (31, Compose): `DialogProperty`, which only the
+  extension editor uses. It goes with that editor at step 10. It is its own file because
+  `ExtensionEditScreen` is already over the file limit.
+
+These files grow or shrink:
+
+* `SettingsThemeEditor` (95 to 109): reads the keyboard's accent preference and the system
+  accent, and builds the palette for the report.
+* `lib/snygg` `SnyggPalette` (16 to 27) and `SnyggUi` (303 to 285): materialkolor's
+  `dynamicColorScheme` is a Kotlin library. The keyboard and the editor now share one call.
+* `SettingsIcons` (53 to 67): the 18 value icons and *Record a key*'s icon, mapped to Material
+  vectors.
+* `SettingsThemeEditorStringIds` (204 to 285): the property editor's, the code editor's and the
+  contrast note's strings, and the corners chip's (below).
+* `RustSettingsView` (268 to 272): routes the three code effects to the recorder, sends its
+  reports back through op 33, and releases it with the view.
+
+`strings.xml` gains 14 strings: the padding sides and *Apply for all sides*, *Show keyboard*,
+*Search properties*, *Add source set*, *Move up* and *Move down*, the Errors box's title and
+message, the contrast note, and *Record a key* for TalkBack.
+
+### Improvements
+
+Each one is new over Compose and has its own test.
+
+| # | Improvement | Why | Test |
+| --- | --- | --- | --- |
+| 1 | **A live preview.** The keyboard shows the value being edited before *Apply*. *Cancel* and *Back* put the draft back. | Compose's preview followed the workspace, which changed only once the dialog was confirmed. | `each_value_that_can_be_written_is_previewed_before_apply`, `back_previews_the_draft_and_apply_previews_what_it_applied` |
+| 2 | **A contrast warning** under 4.5:1, with the ratio, rounded down. | A theme author cannot always tell that hint labels will be hard to read, and Compose did not check. | `contrast.rs` (5 tests), among them `the_ratio_is_wcag_2s_and_shows_rounded_down` (21:1, 1:1, about 4.48:1) and `the_note_comes_and_goes_with_the_value_and_apply_still_takes_it` |
+| 3 | **Search** in the property names, by label or written name, ignoring case. | At the developer level the list holds dozens of names. Compose had no search. | `search_narrows_the_names_by_label_or_name_ignoring_case` |
+| 4 | **A name the set already has is refused**, with why. | Compose's check never fired, and adding overwrote the property silently. | `apply_refuses_a_missing_name_encoder_or_value_and_a_name_the_set_has` |
+| 5 | **A value must read back as written.** A cut corner in fractional dp is refused. | Compose wrote it, and the saved stylesheet then read back as something else. | snygg `a_cut_corner_in_fractional_dp_is_written_but_does_not_read_back` |
+| 6 | **A variable's name is trimmed.** | A stray space made a second variable. | `a_variable_is_named_in_a_field_checked_as_compose_checked_it` |
+| 7 | **A deleted source set can be undone**, from where it was. | Compose deleted it at once. | `deleting_a_set_leaves_undo_where_it_was_and_undo_puts_it_back` |
+| 8 | **Disabled *Move up* and *Move down* are skipped** in the focus order. | TalkBack and keyboard users no longer land on a button that does nothing. | `the_focus_order_takes_each_headings_enabled_buttons` |
+| 9 | **An open property or code editor survives recreation**, with what it holds. | Rotating while editing a value lost it. | `an_open_property_editor_survives_recreation_with_what_it_holds`, `an_open_code_editor_survives_recreation_with_what_it_holds_but_not_recording` |
+| 10 | **Material You swatches use the component's own palette flags**, not materialkolor's defaults. | They then match what the keyboard draws. | JVM `SettingsThemeEditorPaletteMatchTest` |
+| 11 | **Yes shows a ticked box.** | Compose drew a bold-text icon for it. | `each_kind_has_the_icon_compose_drew` |
+| 12 | **A variable that names itself ends.** | Compose's icon followed the chain without end on a loop. | `a_variable_naming_a_variable_shows_two_links_and_a_loop_ends` |
+| 13 | **Several codes typed at once**, comma-separated. | Typing a rule's codes stays as fast as part 2's single field. | `several_codes_go_in_at_once_and_an_unchanged_code_just_closes` |
+| 14 | **A recorded key replaces only the entry being typed.** | The other codes typed in the field stay. | `a_recorded_key_sets_the_code_being_typed_and_stops_recording` |
+| 15 | **The "needs our keyboard" message stays under the field**, and the input method settings open when the keyboard is not enabled. | Compose toasted, and always opened the picker, which cannot enable a keyboard. | `recording_needs_this_apps_keyboard_enabled_and_selected` |
+| 16 | ***Record a key* has a TalkBack label and a checked state**, and the placeholder is the field's TalkBack hint. | Compose's button was an unlabelled icon. | `a_recorded_key_sets_the_code_being_typed_and_stops_recording`, `a_rules_codes_are_chips_that_open_the_editor_and_add_opens_it_empty`, JVM `aRecordedKeyAndAStopCrossAsTheRendererReadsThem` |
+| 17 | **Recording stops when the activity stops**, and a key receiver installed after the recorder's is left alone. | A key typed in another app is never taken, and the keyboard is never left without its receiver. | `recording_stops_when_tapped_again_typed_over_left_or_stopped_by_kotlin`, JVM `stoppingGivesTheReceiverBackOnlyWhileItIsHeld` |
+| 18 | **A code is described once**, and an answer about a code no longer shown is ignored. | The preview never shows the previous key's icon. | `the_preview_of_internal_codes_with_an_icon_a_label_or_neither`, JVM `thePreviewShowsWhatTextKeyDataPreviewBoxShowedForEveryKeyAndSomeCharacters` |
+
+Rule filtering, proposed after part 2, was left out again. The shipped stylesheets have tens of
+rules, already grouped by element.
+
+### Differences from Compose
+
+Each one is deliberate.
+
+| Difference | Why |
+| --- | --- |
+| The property editor and the code editor are screens, not dialogs. | As part 2's editors: the settings renderer's editors are screens with a bottom bar. |
+| The colour picker is an *OK*/*Cancel* dialog with only its *Custom* page (no presets), not inline. There is no separate text field, as in Compose. | It is step 4's picker, shared with the settings rows, which keep theirs without the alpha bar. |
+| The contrast note does not show while dragging inside the picker. It shows once *OK* sets the value. | The picker is the shared dialog, and the note belongs to the editor. |
+| The Material You lists show a swatch beside each name. | Compose showed swatches only after choosing. |
+| A percentage is a whole percent. | The v2 spec cannot reach a fractional one. |
+| Font weight lists its nine words once each. | The stylesheet always writes the word. Compose listed all 18 keys, each weight twice. |
+| *Add property* is last on a rule's title line, in the primary colour. | It sits beside part 2's *Duplicate* and *Edit*. |
+| A file is labelled by its URI. | The value the stylesheet holds. |
+| The *Errors* box strings are new, and the source set heading is plain text. | Compose's box had no strings of its own to reuse. |
+| A value's error shows as it is typed. The name's and encoder's show after *Apply*. | The value check is cheap and helps while typing. The others need a whole form. |
+| *Show keyboard* focuses a hidden field. | The settings renderer has no preview field in the form. |
+| No LRI/PDI isolates around inserted names. | The renderer lays out one direction. |
+| In the rules list the icon sits in the slot before *Delete*, and a tap on it opens the row. | The renderer's list rows end in their buttons. |
+| A variable's small icon stops at the link. | Compose followed a chain of variables. |
+| Max lines, percentages, `inherit` and undefined show no icon. | Compose drew none for them. |
+| Shape corners too big for the icon shrink together. | As Skia fits them. |
+| After a meta change, the swatches use the report's palette until *Save*. | The palette comes from Kotlin with the report. |
+| While recording, the field keeps its text and *Recording…* shows under it. There are no started or stopped toasts, and the record icon is a static red. | The renderer has no toasts or blinking icons, and the message stays where it is read. |
+| The preview shows the last comma-separated entry. | That is the code being typed. |
+| The code editor's help and links are always shown. | Compose hid them behind a title toggle. |
+| A lone surrogate previews as U+FFFD. | It is not a character. |
+
+### Tests
+
+* **Rust, `settings_ui_theme_editor`**: 94 tests (28 after part 2), in `property.rs`,
+  `values.rs`, `preview.rs`, `sets.rs`, `colour.rs`, `dynamic.rs`, `icons.rs`, `contrast.rs`,
+  `codes.rs` and `saved.rs`, with the part 2 files. They cover:
+  * *Add property* on every title line, and a tapped property opening with its name fixed;
+  * every refusal, *Delete* with undo and *Cancel*;
+  * search;
+  * each value kind's editing and its written text;
+  * the preview before *Apply*;
+  * source sets, their moves, undo, **+** and the *Errors* box;
+  * the picker with alpha, the representations and the swatches;
+  * every kind's icon, shapes and variables;
+  * the contrast measure and note;
+  * the code editor's chips, refusals, recording, preview and links;
+  * the saved state for each editor;
+  * a duplicate's sets, below.
+* **Rust, `settings_ui_color.rs` and `settings_ui_other_theme.rs`**: the settings rows' picker is
+  unchanged.
+* **Rust, `snygg/tests/value_edit.rs`** (7 tests): every encoder's default writes and reads back;
+  chosen names, colours, line counts, weights, sizes, sides and corners write as Compose wrote
+  them; and a fractional cut corner does not read back.
+* **JVM**:
+  * `SettingsThemeEditorMatchTest` (7 tests) adds two match tests: properties and codes edited in
+    Rust are written exactly as Compose's dialogs wrote them. Its references to the deleted
+    `CustomRuleComparator` and `PropertyNameMap` now come from `ReferenceThemeEditor`, a test-only
+    transcription of them as they stood when they were deleted.
+  * `SettingsThemeEditorColourMatchTest` (2): Rust's `withAlpha` text equals Compose's
+    `formatColor` for a spread of colours and alphas in each representation, and the picker takes
+    what Compose's parser took.
+  * `SettingsThemeEditorPaletteMatchTest` (2): the report carries the keyboard's palette under the
+    component's flags, and the accent is the chosen one, else the system's.
+  * `SettingsThemeCodeMatchTest` (3): the preview shows what `TextKeyDataPreviewBox` showed for
+    every predefined key and a spread of characters, and the recorder's reports cross as Rust
+    reads them.
+  * `SettingsKeyRecorderTest` (4): one key-up taken, a key-down, repeat or cancel not taken, the
+    receiver given back only while held, and an empty slot left empty.
+  * The settings match tests name saved state version 10. `SettingsResourcesTest` checks every
+    new string and icon.
+* **The gate**, on the code of f3121345c, rebased on origin/main f1fdf3f34 (main had not moved
+  at the last `git fetch`): `test`, `lintDebug`, `:lib:rust:check` (clippy, fmt and the rustdoc
+  check), `checkNativeDeclarations`, `checkJvmLedger`, `assembleDebug` and the instrumented
+  tests' compile all pass. 985 JVM tests in 240 files, 0 failures, 0 skipped; 1,298 cargo test
+  results passed, 0 failed, 0 ignored; 389 natives, 0 hand-written, 0 mismatched (op 33 rides the
+  settings native, so the count is unchanged); the ledger matches 428 files and 428 rows (14
+  deleted, 3 added). Lint reports only the four allowed IDs.
+
+### Fixed on the way
+
+Two faults in earlier work, found while finishing part 3. Each is its own commit with its own
+test and mutation case.
+
+* **The shape editor's *Apply for all corners* chip had no label** (b459379b7). Its string key
+  was missing from the property editor's key list, so Kotlin was never asked for it. Lint found
+  the string unused once the Compose editor, its only other user, was deleted. The key list's
+  test in `settings_ui_screens.rs` read only the files directly in `src/settings_ui`; it now
+  reads every file under it. Mutation `theme-editor-corners-key-unlisted`.
+* **A duplicate changed to another kind of rule kept its source's sets** (f3121345c). Found on
+  the emulator (below): *Duplicate* on a key rule, with the element changed to `@font` before
+  *Add*, made an `@font` rule holding the key's properties as one set, with *Add property* where
+  a font has *Add source set*, and the *Errors* box. Part 2's *Duplicate* copied the source's
+  sets whatever rule it added. Now every new rule starts empty in the kind it takes, as
+  `updateRule` added it, and a duplicate takes its source's sets only when they are that kind:
+  a key duplicated as Window keeps its properties. Test
+  `a_duplicate_takes_its_sources_sets_only_where_its_element_takes_that_kind`; mutation
+  `theme-editor-duplicate-kind-ignored`.
+
+### Mutations
+
+`scripts/settings-ui-mutations.py` has 133 new cases for part 3: 131 for the property and code
+editors, and one for each fix above. 115 of the 131 are caught by the Rust editor tests. The
+other 16 are caught by JVM tests: the Kotlin palette, recorder and preview, the string and icon
+maps, and the written stylesheet compared with Compose's. Four of part 2's cases were
+retargeted: `theme-editor-undo-not-in-place` and `theme-editor-internal-codes-refused` moved with
+their code, and `theme-editor-duplicate-empty` and `theme-editor-new-font-single` now aim at the
+duplicate fix's `new_sets`. Each case's text matches its source exactly once. **Every case was
+caught by a failing assertion**, and the restored code passed.
+
+The 131, the corners case, the two moved part 2 cases and the crash fix's three ran together on
+the code of a186ed5cd, in `build/mutations-part3-final/` (137 cases, `restored_exit` 0). The
+duplicate fix's case and the two it retargeted ran on f3121345c, in
+`build/mutations-duplicate-kind/`, whose restored run passed too. The script is now 1,016 counted
+lines (675 before part 3); it was over the file limit already, and the gate's checker reads its
+cases from this one file.
+
+| Case | What it breaks | Caught by |
+| --- | --- | --- |
+| `theme-editor-property-exists-unchecked` | A property whose name already exists in the set is added | `property::apply_refuses_a_missing_name_encoder_or_value_and_a_name_the_set_has`, `sets::a_sets_add_adds_a_property_to_that_set` |
+| `theme-editor-property-edit-clashes-itself` | Editing a property without renaming it is refused as a clash with itself | `values::an_edited_value_shows_in_its_fields_as_written` |
+| `theme-editor-value-not-read-back` | A value the stylesheet cannot read back is accepted | `values::a_custom_font_is_one_of_the_stylesheets_fonts` and 3 more |
+| `theme-editor-property-name-untrimmed` | A property's name kept with its surrounding spaces | `property::a_variable_is_named_in_a_field_checked_as_compose_checked_it` |
+| `theme-editor-rename-keeps-encoder` | Renaming a property keeps its encoder and value | `property::apply_refuses_a_missing_name_encoder_or_value_and_a_name_the_set_has` |
+| `theme-editor-chip-copies-first` | *Apply for all sides* copies the first side, not the one typed last | `values::padding_takes_four_sides_and_the_chip_copies_the_last_to_all` |
+| `theme-editor-search-when-editing` | The property search line shows while editing an existing property | `property::search_narrows_the_names_by_label_or_name_ignoring_case` |
+| `theme-editor-search-by-label-only` | Property search matches labels only, not property names | `property::search_narrows_the_names_by_label_or_name_ignoring_case` |
+| `theme-editor-search-untrimmed` | Spaces around a property search stop it finding anything | `property::search_narrows_the_names_by_label_or_name_ignoring_case` |
+| `theme-editor-font-add-opens-editor` | *Add* on a font rule opens a property editor, not a new source set | `sets::a_sets_add_adds_a_property_to_that_set` and 5 more |
+| `theme-editor-set-up-moves-down` | *Up* on a source set moves it down | `sets::a_sets_heading_moves_it_up_and_down_but_not_past_the_ends` |
+| `theme-editor-property-delete-ignored` | *Delete* in the property editor closes it without removing the property | `property::delete_in_the_top_bar_goes_with_undo_and_a_fonts_src_has_none` |
+| `theme-editor-preview-without-value` | The theme preview leaves out the property being edited | `colour::ok_sets_the_value_and_previews_it_and_apply_writes_it` and 3 more |
+| `theme-editor-close-keeps-preview` | Closing the property editor keeps its value on the keyboard, not the draft | `preview::back_previews_the_draft_and_apply_previews_what_it_applied`, `preview::each_value_that_can_be_written_is_previewed_before_apply` |
+| `theme-editor-src-deletable-in-editor` | A font's `src` gets a *Delete* in the property editor's top bar | `property::delete_in_the_top_bar_goes_with_undo_and_a_fonts_src_has_none` |
+| `theme-editor-show-keyboard-inert` | The *Show keyboard* row does nothing when tapped | `preview::show_keyboard_focuses_the_hidden_editor_and_back_hides_it_first` |
+| `theme-editor-font-weight-doubled` | The font weight dropdown lists each of its nine words twice | `values::keyword_kinds_are_chosen_from_their_keywords` |
+| `theme-editor-uri-slash-encoded` | Characters a URI must keep, such as `/`, are percent-encoded | `sets::a_sets_add_adds_a_property_to_that_set` and 3 more |
+| `theme-editor-percent-over-100` | A percentage from 101 to 1000 is accepted instead of refused | `values::corners_in_dp_or_whole_percents_are_checked_as_compose_checked_them` |
+| `theme-editor-set-up-always-enabled` | The first source set's *Up* is never disabled | `sets::a_sets_heading_moves_it_up_and_down_but_not_past_the_ends` |
+| `theme-editor-set-undo-at-end` | *Undo* of a deleted source set puts it at the end of its rule | `sets::deleting_a_set_leaves_undo_where_it_was_and_undo_puts_it_back` |
+| `theme-editor-errors-box-inverted` | The errors box lists the required properties that are present | `sets::a_sets_add_adds_a_property_to_that_set` and 3 more |
+| `theme-editor-set-focus-disabled-up` | The first source set's disabled *Up* stays in the focus order | `sets::the_focus_order_takes_each_headings_enabled_buttons` |
+| `theme-editor-variable-value-written` | A variable in the rules list is written as the stylesheet writes it, not by its name | `rules::a_deleted_property_leaves_undo_where_it_was_and_undo_puts_it_back`, `rules::the_rules_come_in_compare_order_with_their_properties_named_and_written_out` |
+| `theme-editor-saved-property-unheld` | A property editor comes back after recreation with no property held | `saved::a_property_editor_saved_without_its_form_comes_back_on_the_rules` |
+| `theme-editor-saved-property-dropped` | A property editor open at save time does not come back | `saved::an_open_property_editor_survives_recreation_with_what_it_holds` |
+| `theme-editor-property-string-id-dropped` | The *Apply for all sides* label is missing from the Kotlin string map | `SettingsResourcesTest.stringIdsAreExactlyTheNativeKeyList` |
+| `theme-editor-cut-percent-rounded` | A cut-corner shape in percent is written as rounded corners | `SettingsThemeEditorMatchTest.propertiesEditedInRustAreWrittenAsComposesDialogWroteThem` |
+| `colour-alpha-hundredths-truncated` | Alpha in colour text is truncated, not rounded, to hundredths | `formats_with_alpha_as_format_color_with_alpha_does` |
+| `colour-alpha-zeros-kept` | Alpha in colour text keeps trailing zeros, such as `0.50` | `formats_with_alpha_as_format_color_with_alpha_does` |
+| `colour-hex-alpha-first` | An 8-digit hex colour takes its first two digits as alpha | `parses_an_alpha_only_with_alpha` |
+| `colour-alpha-pattern-loose` | Colour alpha accepts `1.00` and `0.`, which the pattern refuses | `parses_an_alpha_only_with_alpha` |
+| `colour-alpha-without-flag` | A colour with an alpha value is accepted where the field takes none | `parses_an_alpha_only_with_alpha`, `parses_rgb_and_hsv_with_jetpref_number_rules` |
+| `colour-accent-takes-alpha` | A colour picker without an alpha bar accepts alpha in typed text | `the_accent_picker_keeps_its_square_plane_and_takes_no_alpha` |
+| `colour-picker-set-drops-alpha` | The alpha bar stays fully opaque when a colour is set into the picker | `colour::ok_sets_the_value_and_previews_it_and_apply_writes_it` |
+| `colour-theme-ok-stores-pref` | *OK* in a theme colour's picker is ignored, while a plain picker takes it | `colour::a_colour_typed_with_its_alpha_in_any_form_is_written_as_compose_wrote_it` and 9 more |
+| `colour-theme-plane-square` | The alpha colour plane is square, not 1.5 times as wide as tall | `colour::the_theme_picker_is_the_custom_page_with_a_wide_plane_and_no_page_switch` |
+| `colour-alpha-bar-in-editor` | The alpha bar shows its thumb and touch area while the colour is typed | `colour::the_alpha_bar_follows_the_finger_outside_the_editor` |
+| `colour-alpha-thumb-translucent` | The alpha bar's thumb is drawn translucent, not over white | `colour::the_alpha_bar_follows_the_finger_outside_the_editor` |
+| `colour-theme-presets-button` | A theme colour's picker shows a *Presets* button it has no page for | `colour::a_colour_typed_with_its_alpha_in_any_form_is_written_as_compose_wrote_it` and 12 more |
+| `colour-stale-theme-picker` | A stale alpha picker is taken for the property editor's while it edits a non-colour value | `colour::a_picked_colour_leaves_no_picker_on_the_next_value` |
+| `colour-picked-not-previewed` | A colour picked for a property is not shown on the keyboard | `colour::ok_sets_the_value_and_previews_it_and_apply_writes_it`, `preview::each_value_that_can_be_written_is_previewed_before_apply` |
+| `colour-representation-ignored` | The saved *RGB* colour representation falls back to hex | `colour::the_value_row_and_the_rules_list_show_each_representation` |
+| `colour-rules-list-written` | A static colour in the rules list is written as the stylesheet writes it, not in the colour representation | `colour::the_value_row_and_the_rules_list_show_each_representation` and 4 more |
+| `colour-swatch-always-checkered` | An opaque colour swatch is drawn over a checkerboard | `colour::the_value_row_shows_its_swatch_after_the_colour` |
+| `dynamic-dark-from-light` | A dynamic colour's dark value is taken from the light palette | `dynamic::each_name_in_the_lists_has_its_swatch_from_the_palette` and 2 more |
+| `dynamic-palette-lengths-unchecked` | A palette whose light or dark list has the wrong length is accepted | `dynamic::the_report_carries_the_palette_or_none` |
+| `dynamic-list-without-swatch` | The rows of a dynamic colour's list lose their colour swatch | `dynamic::each_name_in_the_lists_has_its_swatch_from_the_palette` |
+| `dynamic-list-name-under-swatch` | A dynamic colour's list name runs under its 24 dp swatch | `dynamic::each_name_in_the_lists_has_its_swatch_from_the_palette` |
+| `dynamic-value-row-without-swatch` | A dynamic colour's value row loses its swatch and becomes a plain dropdown | `dynamic::the_value_row_and_the_rules_list_show_the_colour_the_palette_gives` |
+| `dynamic-icon-without-palette` | A dynamic colour with no palette is given a preview icon | `dynamic::without_a_palette_a_dynamic_colour_has_no_swatch` |
+| `rules-list-without-icon` | A property row in the rules list loses its value icon | `dynamic::the_value_row_and_the_rules_list_show_the_colour_the_palette_gives` and 3 more |
+| `rules-list-icon-slot-unkept` | A property row keeps no button slot for its value icon | `dynamic::without_a_palette_a_dynamic_colour_has_no_swatch` |
+| `rules-list-icon-untappable` | A property row's value icon is covered by the row and cannot be tapped | `dynamic::the_value_row_and_the_rules_list_show_the_colour_the_palette_gives` |
+| `palette-default-style-in-kotlin` | The Material You palette ignores the chosen palette style | `SettingsThemeEditorPaletteMatchTest.theReportCarriesTheKeyboardsPaletteUnderTheComponentsFlags` |
+| `palette-dark-as-light-in-kotlin` | The light colours are taken from the dark half of the palette | `SettingsThemeEditorPaletteMatchTest.theReportCarriesTheKeyboardsPaletteUnderTheComponentsFlags` |
+| `accent-choice-ignored-in-kotlin` | The keyboard's palette ignores a chosen accent and uses the system's | `SettingsThemeEditorPaletteMatchTest.theAccentIsTheChosenOneOrTheSystemsWhenNoneIs` |
+| `icon-yes-as-bold` | A *Yes* value's icon is drawn with the bold glyph | `icons::each_kind_has_the_icon_compose_drew`, `icons::the_rules_list_shows_each_kinds_icon_before_delete` |
+| `icon-end-aligned-centre` | An end-aligned text value's icon shows centre alignment | `icons::each_kind_has_the_icon_compose_drew`, `icons::the_rules_list_shows_each_kinds_icon_before_delete` |
+| `icon-glyph-ink` | Glyph value icons are inked with the wrong theme colour | `icons::the_rules_list_shows_each_kinds_icon_before_delete` |
+| `shape-dp-not-tripled` | A corner in dp is drawn at a third of its size in the shape icon | `icons::a_shape_is_outlined_as_always_percent_shape_makes_it` |
+| `shape-corners-unfitted` | A shape icon's corners overflow the icon when they add up past its side | `icons::a_shape_is_outlined_as_always_percent_shape_makes_it` |
+| `shape-cut-as-round` | A *Cut* corner shape icon is drawn with rounded corners | `icons::a_shape_is_outlined_as_always_percent_shape_makes_it` |
+| `shape-cut-line-thin` | The inner edge of a *Cut* corner shape icon is not inset to match its outline | `icons::a_shape_is_outlined_as_always_percent_shape_makes_it` |
+| `shape-icon-uncentred` | A shape icon sits in the corner of its box, not centred | `icons::the_rules_list_shows_each_kinds_icon_before_delete` |
+| `variable-link-not-raised` | A variable's link and linked value icon are not raised 2 dp | `icons::a_variable_naming_a_variable_shows_two_links_and_a_loop_ends`, `icons::a_variable_shows_its_link_over_the_small_icon_of_its_value` |
+| `variable-link-unbacked` | A variable's link icon loses its rounded backing box | `icons::a_variable_shows_its_link_over_the_small_icon_of_its_value` |
+| `variable-small-form-follows` | A variable's small icon shows the linked value, not just the link | `icons::a_variable_naming_a_variable_shows_two_links_and_a_loop_ends` |
+| `variable-undefined-unlinked` | An undefined variable shows no link icon | `icons::a_variable_naming_a_variable_shows_two_links_and_a_loop_ends` and 2 more |
+| `variable-first-define` | A variable's value comes from the first `@defines` property, not the one it names | `contrast::only_a_rules_own_pair_is_checked_and_variables_one_level` and 3 more |
+| `value-row-variable-unlinked` | A variable value row with no value falls back to a plain dropdown | `icons::the_value_row_shows_a_variables_link_even_before_it_names_one` |
+| `icon-unmapped-in-kotlin` | The *open in full* icon is missing from the Kotlin icon map | `SettingsResourcesTest.everyIconTheNativeScreensNameIsMapped` |
+| `contrast-always-low` | Every colour pair gets a low-contrast note, whatever its ratio | `contrast::a_background_is_checked_against_its_rules_foreground_over_the_keyboards`, `contrast::the_note_comes_and_goes_with_the_value_and_apply_still_takes_it` |
+| `contrast-flare-changed` | Contrast ratios add 0.1 to each luminance, not WCAG's 0.05 | `contrast::a_background_is_checked_against_its_rules_foreground_over_the_keyboards` and 4 more |
+| `contrast-shown-rounded` | A ratio just under 4.5 is shown as 4.5 instead of rounded down | `contrast::the_note_comes_and_goes_with_the_value_and_apply_still_takes_it`, `contrast::the_ratio_is_wcag_2s_and_shows_rounded_down` |
+| `contrast-foreground-unveiled` | A translucent foreground's contrast ignores the background showing through | `contrast::the_ratio_is_wcag_2s_and_shows_rounded_down` |
+| `contrast-background-unveiled` | A translucent background's contrast ignores the colour beneath it | `contrast::a_background_is_checked_against_its_rules_foreground_over_the_keyboards`, `contrast::the_ratio_is_wcag_2s_and_shows_rounded_down` |
+| `contrast-keyboard-ignored` | A translucent colour's contrast ignores the keyboard background beneath it | `contrast::a_background_is_checked_against_its_rules_foreground_over_the_keyboards` |
+| `contrast-keyboard-own-known` | The keyboard's own colours are measured over the keyboard background | `contrast::a_background_is_checked_against_its_rules_foreground_over_the_keyboards` |
+| `contrast-sides-unswapped` | A foreground side's contrast swaps which colour is drawn on which | `contrast::a_background_is_checked_against_its_rules_foreground_over_the_keyboards` |
+| `contrast-variable-unread` | A variable colour gets no contrast note | `contrast::only_a_rules_own_pair_is_checked_and_variables_one_level` |
+| `contrast-dynamic-unread` | A dynamic colour gets no contrast note | `contrast::a_dynamic_colour_is_checked_as_the_palette_has_it` |
+| `contrast-note-as-error` | The low-contrast note is drawn in the error colour | `contrast::a_background_is_checked_against_its_rules_foreground_over_the_keyboards` and 3 more |
+| `contrast-note-unpainted` | The low-contrast note is not painted under the property's value | `contrast::a_background_is_checked_against_its_rules_foreground_over_the_keyboards` and 3 more |
+| `contrast-string-unmapped-in-kotlin` | The low-contrast note text is missing from the Kotlin string map | `SettingsResourcesTest.stringIdsAreExactlyTheNativeKeyList` |
+| `theme-code-exists-allowed` | A code already in the rule is accepted instead of refused as existing | `codes::every_refusal_keeps_the_editor_open_with_why`, `saved::an_open_code_editor_survives_recreation_with_what_it_holds_but_not_recording` |
+| `theme-code-edit-clashes-itself` | Editing a code without changing it is refused as already existing | `codes::several_codes_go_in_at_once_and_an_unchanged_code_just_closes` |
+| `theme-code-characters-unbounded` | A character code above `CHARACTERS_MAX` is accepted | `codes::every_refusal_keeps_the_editor_open_with_why`, `form::a_rule_that_exists_or_a_bad_code_is_refused_with_why` |
+| `theme-code-internal-unbounded` | An internal code below `INTERNAL_MIN` is accepted | `codes::every_refusal_keeps_the_editor_open_with_why` |
+| `theme-code-empty-accepted` | An empty code field is accepted instead of refused as invalid | `codes::every_refusal_keeps_the_editor_open_with_why` |
+| `theme-code-one-of-several` | Only the first of several comma-separated codes is saved | `codes::a_recorded_key_sets_the_code_being_typed_and_stops_recording` and 2 more |
+| `theme-code-edit-keeps-old` | Editing a code keeps the old code in the rule alongside the new one | `codes::codes_are_added_edited_and_removed_one_at_a_time`, `saved::an_open_code_editor_survives_recreation_with_what_it_holds_but_not_recording` |
+| `theme-code-delete-ignored` | *Delete* in the code editor leaves the code in the rule | `codes::codes_are_added_edited_and_removed_one_at_a_time` |
+| `theme-code-chip-opens-first` | Tapping a code chip opens the rule's first code, not its own | `codes::codes_are_added_edited_and_removed_one_at_a_time` and 3 more |
+| `theme-code-opened-undescribed` | Opening a code editor does not describe the code's key | `codes::codes_are_added_edited_and_removed_one_at_a_time` |
+| `theme-code-recorded-replaces-field` | A recorded key replaces the whole code list, not only the entry being typed | `codes::a_recorded_key_sets_the_code_being_typed_and_stops_recording` |
+| `theme-code-key-while-not-recording` | A key pressed while not recording still replaces the typed code | `codes::a_recorded_key_sets_the_code_being_typed_and_stops_recording` |
+| `theme-code-record-without-keyboard` | *Record a key* starts without the app's keyboard enabled and selected | `codes::recording_needs_this_apps_keyboard_enabled_and_selected` |
+| `theme-code-picker-enable-swapped` | Recording opens the enable screen when the keyboard is already enabled, the picker when not | `codes::recording_needs_this_apps_keyboard_enabled_and_selected` |
+| `theme-code-needs-keyboard-stays` | The keyboard-needed error stays shown after the keyboard is enabled | `codes::recording_needs_this_apps_keyboard_enabled_and_selected` |
+| `theme-code-recording-unsaid` | The code field does not say it is recording a key | `codes::a_recorded_key_sets_the_code_being_typed_and_stops_recording` |
+| `theme-code-record-no-keyboard-shown` | Recording does not bring up the keyboard for the code field | `codes::recording_needs_this_apps_keyboard_enabled_and_selected` |
+| `theme-code-stop-unsent` | Stopping a recording does not tell the keyboard to stop listening | `codes::recording_stops_when_tapped_again_typed_over_left_or_stopped_by_kotlin` |
+| `theme-code-left-keeps-recording` | Leaving the code editor keeps the key recording running | `codes::recording_stops_when_tapped_again_typed_over_left_or_stopped_by_kotlin` |
+| `theme-code-typed-keeps-recording` | Typing a code keeps the key recording running | `codes::recording_stops_when_tapped_again_typed_over_left_or_stopped_by_kotlin` |
+| `theme-code-stopped-ignored` | The code field keeps saying it is recording after the keyboard stops | `codes::recording_stops_when_tapped_again_typed_over_left_or_stopped_by_kotlin` |
+| `theme-code-described-again` | A code the keyboard already described is described again | `codes::the_preview_of_a_character_with_its_unicode_name` |
+| `theme-code-unspecified-described` | The unspecified code 0 is sent to the keyboard to describe | `codes::the_preview_of_internal_codes_with_an_icon_a_label_or_neither` |
+| `theme-code-stale-description-taken` | A late description for an old code is applied to the current field | `codes::the_preview_of_a_character_with_its_unicode_name` |
+| `theme-code-preview-first-entry` | The key preview shows a list's first code, not the one being typed | `codes::a_recorded_key_sets_the_code_being_typed_and_stops_recording`, `saved::an_open_code_editor_survives_recreation_with_what_it_holds_but_not_recording` |
+| `theme-code-preview-said-unfiltered` | The key preview shows another key's description | `codes::the_preview_of_internal_codes_with_an_icon_a_label_or_neither` |
+| `theme-code-mark-ignored` | The key preview ignores a non-spacing key's mark | `codes::the_preview_of_a_character_with_its_unicode_name` |
+| `theme-code-icon-keeps-label` | A key with a described icon still shows its text label in the preview | `codes::the_preview_of_internal_codes_with_an_icon_a_label_or_neither` |
+| `theme-code-label-resources-swapped` | The *Symbols* and *Symbols 2* key previews swap their labels | `codes::the_preview_of_internal_codes_with_an_icon_a_label_or_neither` |
+| `theme-code-kinds-swapped` | The `enter_editing` and `function` key kinds swap their names | `codes::the_preview_of_internal_codes_with_an_icon_a_label_or_neither` |
+| `theme-code-record-unchecked` | The *Record a key* button is never shown checked while recording | `codes::a_recorded_key_sets_the_code_being_typed_and_stops_recording` |
+| `theme-code-hint-empty` | The empty code field shows no placeholder hint | `codes::a_rules_codes_are_chips_that_open_the_editor_and_add_opens_it_empty` |
+| `theme-code-link-first` | Each code help link opens the first link's URL | `codes::the_help_links_open_their_pages_and_the_focus_order_reaches_every_control` |
+| `theme-code-saved-dropped` | A code editor open at save time does not come back | `saved::an_open_code_editor_survives_recreation_with_what_it_holds_but_not_recording` |
+| `theme-code-saved-unheld` | A code editor comes back with no code held | `saved::a_code_editor_saved_without_its_forms_comes_back_on_the_rules` |
+| `theme-code-saved-error-dropped` | A code field's error is lost when the editor is restored | `saved::an_open_code_editor_survives_recreation_with_what_it_holds_but_not_recording` |
+| `theme-code-saved-recording-kept` | A restored code editor comes back already recording a key | `saved::an_open_code_editor_survives_recreation_with_what_it_holds_but_not_recording` |
+| `theme-code-string-id-dropped` | The *Record a key* label is missing from the Kotlin string map | `SettingsResourcesTest.stringIdsAreExactlyTheNativeKeyList` |
+| `theme-code-icon-unmapped` | The `pageview` icon is missing from the Kotlin icon map | `SettingsResourcesTest.everyIconTheNativeScreensNameIsMapped` |
+| `theme-code-recorder-keeps-slot` | Stopping a key recording leaves the recorder holding the keyboard's key input | `SettingsKeyRecorderTest.oneKeyUpIsTakenAndTheKeyboardGetsItsReceiverBack` and 2 more |
+| `theme-code-recorder-overwrites-later` | A stop after another receiver took the key slot restores the old receiver over it | `SettingsKeyRecorderTest.stoppingGivesTheReceiverBackOnlyWhileItIsHeld` |
+| `theme-code-recorder-restarts` | A second start while listening leaves the recorder stuck as the key receiver | `SettingsKeyRecorderTest.stoppingGivesTheReceiverBackOnlyWhileItIsHeld` |
+| `theme-code-recorder-takes-key-down` | A recording takes its key on press-down rather than on release | `SettingsKeyRecorderTest.aKeyDownRepeatOrCancelIsNotTaken`, `SettingsKeyRecorderTest.oneKeyUpIsTakenAndTheKeyboardGetsItsReceiverBack` |
+| `theme-code-described-mark-dropped` | A described key's non-spacing mark is set on function keys, not characters | `SettingsThemeCodeMatchTest.anIconCrossesAsPathDataAndTakesTheLabelsPlace`, `SettingsThemeCodeMatchTest.thePreviewShowsWhatTextKeyDataPreviewBoxShowedForEveryKeyAndSomeCharacters` |
+| `theme-code-described-name-dropped` | A described character key's name is always blank | `SettingsThemeCodeMatchTest.anIconCrossesAsPathDataAndTakesTheLabelsPlace`, `SettingsThemeCodeMatchTest.thePreviewShowsWhatTextKeyDataPreviewBoxShowedForEveryKeyAndSomeCharacters` |
+| `theme-code-described-icon-unspecified` | A described key's icon is always the unspecified one | `SettingsThemeCodeMatchTest.anIconCrossesAsPathDataAndTakesTheLabelsPlace` |
+| `theme-editor-undo-not-in-place` | *Undo* for a deleted property appears one property too low | `property::delete_in_the_top_bar_goes_with_undo_and_a_fonts_src_has_none` and 2 more |
+| `theme-editor-internal-codes-refused` | An internal key code is refused as invalid | `codes::a_recorded_key_sets_the_code_being_typed_and_stops_recording` and 4 more |
+| `theme-editor-corners-key-unlisted` | The shape corners' *Apply for all* label is missing from the property editor's string keys | `every_resource_key_the_settings_code_names_is_in_the_key_list` |
+| `theme-editor-duplicate-empty` | A duplicate takes none of its source's properties | `form::a_duplicate_takes_its_sources_sets_only_where_its_element_takes_that_kind`, `rules::duplicate_adds_a_rule_like_another_with_its_properties` |
+| `theme-editor-new-font-single` | A new `@font` rule gets one property set, not a list of them | `form::a_duplicate_takes_its_sources_sets_only_where_its_element_takes_that_kind`, `form::a_font_needs_a_name_the_stylesheet_can_read_back` |
+| `theme-editor-duplicate-kind-ignored` | A duplicate whose element takes the other kind of set keeps its source's sets, so a key's properties become a font's one set | `form::a_duplicate_takes_its_sources_sets_only_where_its_element_takes_that_kind` |
+
+### Device check
+
+On `emulator-5556` (`aw_keyboard_ssd`, Android 16), installed with `scripts/install-dev.sh` from
+the gate's build of a186ed5cd, driven through agent-device. Screenshots are in
+`build/part3-device/` (not committed). **Every planned step passed:**
+
+1. *Create theme extension*, then *Save*, goes back to the manager in one *Save*
+   (`10-create-save.png`). The new extension's component opens the Rust editor.
+2. The rules list shows each value's icon before *Delete*: swatches, shape outlines, and a
+   variable's link over its swatch (`11-rules-list-icons.png`).
+3. A key rule's Background, as a static colour, opens the picker with its alpha bar. Its *OK*
+   sets a translucent purple, written with its alpha (`12-colour-picker-alpha.png`). With *Show
+   keyboard*, the keyboard draws the Enter key translucent purple before *Apply*
+   (`13-live-preview.png`).
+4. A rounded-corner shape shows its four corners and *Apply for all corners*, now labelled (the
+   fix below). The chip copies the corner typed last, *Top start*, to every corner. An empty value copied gives each
+   corner *Please enter a dp size* (`14-shape-corners.png`).
+5. Font size 28 sp makes the preview's labels larger (`15-font-size.png`,
+   `15b-font-size-preview.png`). A number too large for the stylesheet to read back says
+   *Please enter a valid number*, as improvement 5 means it to.
+6. Padding's *Apply for all sides* copies the side typed last to all four (`16-padding.png`).
+7. A variable `--test` added in `@defines`, then Window's Foreground set to it with the
+   *Variable* encoder: the row shows the link over the variable's swatch (`17-variable.png`).
+8. *Search properties* with "border" leaves Border color, Border style and Border width
+   (`18-add-search.png`). The *Material You light colour* encoder lists each name with its swatch
+   (`18b-dynamic-swatches.png`).
+9. A Foreground close to its rule's Background shows *Low contrast: 3.2:1, below 4.5:1* under the
+   value, and *Apply* still works (`19-contrast-note.png`). Choosing *Foreground of background*
+   clears it (`19b-contrast-cleared.png`).
+10. *Record a key*, with this app's keyboard selected, shows *Recording…*. One press on the
+    keyboard fills the code, stops recording, and the preview shows the key's Unicode name, its
+    kind and its label (`20-record-key.png`).
+11. An `@font` rule's *Add source set* adds a *Source set* heading with *Move up* and *Move down*
+    disabled, *Delete* and **+**, and the *Errors* box says *Required property 'src' does not
+    exist* (`21-source-set-errors.png`). Deleting the rule leaves its undo bar.
+12. *Save*, then reopening the component, keeps every applied value (`22-reopened.png`). An
+    unapplied edit in the open property editor survives a rotation to landscape
+    (`23-rotated.png`).
+13. Chosen as the day theme, the edited extension draws the translucent purple Enter key, 16 dp
+    corners, the larger labels and the Material You border (`24-keyboard-theme.png`).
+
+Three more checks:
+
+* A recorded code applied as a chip on a rule (`25-code-applied.png`).
+* With agent-device's input method selected instead of ours, *Record a key* shows *AudioWhisper
+  Keyboard needs to be the default keyboard…* under the field and opens the input method picker
+  (`26-record-not-selected.png`).
+* *Home* while recording, then back from Recents: recording has stopped, as `ON_STOP` stops it
+  (`27-recording-stopped-on-stop.png`).
+
+**Found on the device:** *Duplicate* on a key rule, with its element changed to `@font` before
+*Add*, made an `@font` rule holding the key's properties as a single set. It had *Add property*
+where a font has *Add source set*, and the *Errors* box (`28-duplicate-as-font-bug.png`). Part 2's
+*Duplicate* copied the source's sets whatever rule it added. Fixed in f3121345c ([above](#fixed-on-the-way)). On a build of
+that commit, installed the same way, the same steps make `@font` `Dupfont` with *Add source set*,
+no properties and no *Errors* box (`29-duplicate-as-font-fixed.png`). Two source sets added there
+show *Move up* disabled on the first and *Move down* on the last, and *Delete* on the first
+leaves *Deleted Source set* and *Undo* where it was, with the remaining set's moves both disabled
+(`30-source-set-deleted-undo.png`). *Undo* brings back both sets with their buttons as before.
+The extension was discarded unsaved.
+
+**How the fields were typed.** agent-device's `fill` cannot type into the renderer's fields: it
+fails with *Field focus was refused*. The values were typed by focusing the field with our
+keyboard up and clearing it with our keyboard's Backspace, then selecting agent-device's helper
+input method, tapping the field and using `type`. So our keyboard's Backspace was seen editing a
+Rust field (a data point for E21), but its letters were not.
+
+Afterwards the test extensions were deleted, Floris Day was chosen again, our keyboard was
+selected again, the screen was back in portrait with auto-rotate off as it was before the check,
+and media volume stayed at 0.
+
+One slip to record: one snapshot printed the keyboard's suggestion strip, which showed the code
+of a test key pressed for step 10. It was a letter key pressed for the check, not text anyone
+typed. After that only the lines needed were printed.
+
+### Deleted
+
+The 14 files of the Compose theme editor, 3,549 non-blank lines: `EditPropertyDialog` (1,200),
+`ThemeEditorScreen` (473), `ThemeEditorComponents` (344), `SnyggValueIcon` (320),
+`EditCodeValueDialog` (312), `EditRuleDialog` (293), `ThemeTranslations` (177),
+`TextKeyDataPreviewBox` (114), `EnumLikeAttributeBox` (113), `ThemeEditorLoading` (70),
+`FineTuneDialog` (54), `SnyggLevel` (29), `DisplayKbdAfterDialog` (26) and `Color` (24). Their
+ledger rows are gone, the inventory marks them deleted, and the baseline profile drops their
+lines. `DisplayKbdAfterDialogs`' two lines are renamed for its new package, and the two for
+`DisplayColorsAs`, a class that no longer existed, are dropped. Four strings only Compose used
+are gone from `strings.xml`, each `settings__theme_editor__` followed by
+`no_enum_value_to_add_anymore`, `code_recording_started`, `code_recording_stopped` or
+`file_selector_dialog_title`. Nothing else changed in frozen
+code: `ExtensionEditScreen`, `AppPrefs` and `EnumDisplayEntries` changed only their imports.
+
 ## Owed
 
 * **E23:** run `scripts/settings-device-tests.py ... other-theme` again: `SettingsOtherThemeDevice`
@@ -637,79 +1167,30 @@ phone check is P20.
   rule; delete a property and undo it; change the meta; check the keyboard shows the draft; rotate
   with a draft and with the rule editor open; *Save*, then save the extension and choose its theme
   in the manager.
-* **E25:** no instrumented test drives the Rust theme editor. The device check was by hand
-  through agent-device. A `SettingsOtherThemeDevice` step that opens *Manage component*, deletes a
+* **E25:** no instrumented test drives the Rust theme editor, part 3's editors included. The
+  device checks were by hand through agent-device. A `SettingsOtherThemeDevice` step that opens *Manage component*, deletes a
   property, saves, and reads the workspace's stylesheet file back would hold it.
 * **P20:** the theme manager's *Create* and *Edit* on the phone, after the crash fix above:
   *Save* and *Cancel* each go back to the manager, and an added bundled theme survives a
   rotation of the extension editor.
+* **P21:** part 3 on the phone: every step of its device check ran on the emulator only. Set a
+  colour with alpha, a shape's corners, a font size and a variable, checking the keyboard shows
+  each before *Apply*; search; add a source set; record a key with a real press, and check that
+  a key typed in another app after it stops is not taken; compare the Material You swatches with
+  the phone's palette. With TalkBack: *Record a key*'s label and checked state, the contrast note
+  read aloud, and disabled *Move up* and *Move down* skipped.
+* **E32:** no device check chose a file. Pick a font from the archive files as an `@font` set's
+  `src`, and an image, save, and check the keyboard draws them; move one of two source sets that
+  differ and check the saved order.
+* **E33:** agent-device's `fill` fails on the renderer's fields with *Field focus was refused*.
+  Find what it asks of the field, and whether TalkBack or switch access meets the same refusal.
 
 ## What remains
 
-Part 3, the property editor, and then deleting the Compose editor. The Compose editor is 14
-files, 3,549 non-blank lines: `EditPropertyDialog` (1,200), `ThemeEditorScreen` (473),
-`ThemeEditorComponents` (344), `SnyggValueIcon` (320), `EditCodeValueDialog` (312),
-`EditRuleDialog` (293), `ThemeTranslations` (177), `TextKeyDataPreviewBox` (114),
-`EnumLikeAttributeBox` (113), `ThemeEditorLoading` (70), `FineTuneDialog` (54), `SnyggLevel` (29),
-`DisplayKbdAfterDialog` (26) and `Color` (24). Part 2 ported what `ThemeEditorScreen`,
-`ThemeEditorLoading`, `EditRuleDialog` (but its code dialog), `EnumLikeAttributeBox`,
-`FineTuneDialog`, `SnyggLevel`, `DisplayKbdAfterDialog` and `ThemeTranslations` do. None of the
-14 is routed to now, but all stay until part 3 is done.
+Nothing of step 9. What is left is owed, or belongs to later steps:
 
-### Part 3: the property editor
-
-`EditPropertyDialog` and its helpers, built on `snygg::value`, `snygg::value_codec` and
-`snygg::value_spec`, reusing the colour picker from step 4 and the existing list, field and
-dialog widgets. It opens from two places part 2 left empty: tapping a property in a rule's box,
-and a rule's *Add property* (or, for `@font`, *Add source set*, as Compose's button did), which
-belongs on the rule's title line beside *Duplicate* and *Edit*.
-
-* the property picker, filtered by the editor level;
-* each value kind: defined variables (with the variable picker), static colours (the step 4
-  colour picker, shown in fine-tune's colour representation, which part 2 already stores),
-  dynamic light and dark colours (the Material You colour slots), font families (generic and
-  custom, from the workspace's fonts, which the report already carries), font style and weight,
-  padding (four sides), shapes (rectangle, circle, cut and rounded corners in dp and in percent,
-  each corner), dp, sp and percentage sizes, content scale, text align, decoration, max lines
-  and overflow, and URIs (the workspace's images, also in the report);
-* switching a value between the kinds its property supports (the encoder picker);
-* each value's small preview icon (`SnyggValueIcon`) beside it in the rules list, where part 2
-  shows the value as the stylesheet writes it;
-* the "Errors" box for a set missing a required property (only a font set's `src`), which part 2
-  leaves to *Save*'s refusal;
-* the code value editor (`EditCodeValueDialog`): recording a key's code, or typing one, with the
-  key data preview (`TextKeyDataPreviewBox`). In part 2 the rule editor takes typed codes in one
-  comma-separated field; part 3 adds *record a key* to it.
-
-The draft, Save, Back, undo and the preview are already in place: a property edit changes
-`App::theme_editor`'s rules like a delete does, and everything after follows.
-
-### Then the deletion
-
-Delete the 14 files. `ExtensionEditScreen` no longer imports `ThemeEditorScreen`. Before that,
-move the things other code still imports from the package, which are mechanical changes to
-frozen code:
-
-* `PrettyPrintConfig` and `DialogProperty`, used by `ExtensionEditScreen` (step 10).
-  `SettingsThemeEditor` and `SettingsThemeEditorMatchTest` use `PrettyPrintConfig` too;
-* `CustomRuleComparator` (`ThemeEditorComponents.kt`), which `SettingsThemeEditorMatchTest` uses
-  to build the editor Compose built (`SnyggStylesheetEditor` itself is in `lib/snygg` and
-  stays);
-* `ColorPreferenceSerializer` (`Color.kt`), used by `AppPrefs` for both accent colours;
-* `DisplayKbdAfterDialogs` and `SnyggLevel`, used by `AppPrefs` and `EnumDisplayEntries`.
-
-Then remove their rows from `docs/jvm-ledger.tsv`, mark them deleted in
-`docs/stage5-inventory.md`, drop their lines from `app/src/main/baseline-prof.txt`, and record the
-step as done in [compose-removal.md](compose-removal.md).
-
-### Improvements proposed for part 3
-
-Each needs its own test when it is built.
-
-* **A live preview of the value being edited.** The keyboard already shows the draft as it
-  changes; part 3 should send the preview as a value changes in the property editor, before it
-  is confirmed.
-* **Contrast warning** when a key's text colour is hard to read on its background.
-* **Search** in the property picker, which lists dozens of properties at the developer level.
-* **Filter rules** by element, if stylesheets grow past what one scroll shows. Part 2 left it
-  out: the shipped stylesheets have tens of rules, already grouped by element.
+* the phone and instrumented checks under [Owed](#owed);
+* the extension editor, its import and its pages, which are Compose until step 10.
+  `DialogProperty` moved out of the deleted package into `ExtensionDialogProperty.kt` for it, and
+  goes with it;
+* rule filtering, left out twice: no shipped stylesheet needs it yet.
