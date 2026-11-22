@@ -166,7 +166,7 @@ class SettingsGroupOneMatchTest {
             val native = listOf("settings/home", "settings/keyboard") + ref.screens.map { it.route } +
                 ReferenceGroupTwoScreens.screens.map { it.route } + "settings/about/third-party-licenses" + "settings/about/project-license" +
                 ReferenceOtherThemeScreens.screens.map { it.route } + "settings/other/backup" + "settings/other/restore" +
-                languageRoutes + wordRoutes + themeRoutes + "setup"
+                languageRoutes + wordRoutes + themeRoutes + "setup" + themeEditorRoutes
             assertEquals(native, n.settings(SettingsUiOp.ROUTES)[2].split("\n"))
             prepare(n, defaults())
             // The extension screens stay in Compose.
