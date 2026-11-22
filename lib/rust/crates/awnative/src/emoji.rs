@@ -10,7 +10,7 @@ use emoji::suggest;
 use emoji::tones::SKIN_TONES;
 
 use crate::handle::{into_handle, object};
-use crate::jni::{Result, illegal};
+use crate::jni::{Result, decimal, illegal};
 
 fn int(value: usize) -> Result<i32> {
     i32::try_from(value).map_err(|_| illegal("too many emoji"))
@@ -44,10 +44,6 @@ pub fn free(data: i64) -> Result<()> {
     // SAFETY: the Kotlin side frees each handle once, when nothing can reach it.
     unsafe { crate::handle::free::<EmojiData>(data) };
     Ok(())
-}
-
-fn decimal(value: usize) -> Vec<u16> {
-    value.to_string().encode_utf16().collect()
 }
 
 /// Each emoji as a row: its value, its name, its skin tone and hair style (ordinals), then its

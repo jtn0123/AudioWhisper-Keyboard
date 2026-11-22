@@ -12,6 +12,7 @@ mod latin;
 mod layout;
 mod learner;
 mod packets;
+mod reader;
 mod rules;
 mod screen;
 mod shift;
@@ -58,6 +59,7 @@ pub const CLASSES: &[Class] = &[
     swipe::SWIPE_NATIVE,
     keys::KEYS_NATIVE,
     text::JAVA_TEXT_NATIVE,
+    reader::READER_NATIVE,
 ];
 
 /// Every generated api over those classes.
@@ -85,6 +87,8 @@ pub const APIS: &[Api] = &[
     swipe::SWIPE_RULES,
     keys::KEY_GEOMETRY,
     text::JAVA_TEXT,
+    reader::READER_RULES,
+    reader::SPEAKER_KEY_STATE,
 ];
 
 /// Every generated top-level record and enum, with the declarations file and the module it is in.

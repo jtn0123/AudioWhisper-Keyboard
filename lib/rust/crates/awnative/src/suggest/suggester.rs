@@ -1,7 +1,7 @@
 //! Shared store/result transport for the native session. No managed dictionary callbacks.
 #[cfg(any(not(target_os = "android"), feature = "legacy-fixture"))]
 use crate::jni::Env;
-use crate::{handle::object, jni::Result};
+use crate::{handle::object, jni::Result, jni::decimal};
 use jni_sys::jlong;
 #[cfg(any(not(target_os = "android"), feature = "legacy-fixture"))]
 use jni_sys::{jintArray, jobjectArray};
@@ -25,11 +25,6 @@ pub(super) unsafe fn stores<'a>(
         handle => Some(unsafe { object::<Mutex<LearnedWords>>(handle, "learned words")? }),
     };
     Ok((personal, learned))
-}
-
-/// `number` in decimal, as a row of strings carries it.
-pub(super) fn decimal(number: i32) -> Vec<u16> {
-    number.to_string().encode_utf16().collect()
 }
 
 /// The strip as a row of strings: the indexes of its auto-correction and typed word, in decimal,

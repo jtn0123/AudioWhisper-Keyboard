@@ -487,11 +487,7 @@ impl Expr {
                 return format!("{head}\n{body}\n{close}\n");
             }
         }
-        let args: String = self
-            .args
-            .iter()
-            .map(|arg| format!("{indent}    {arg},\n"))
-            .collect();
+        let args: String = self.args.iter().map(|arg| argument(arg, indent)).collect();
         let mut close = format!("{indent}){}", self.after);
         if close.len() > 120 {
             // Each call chained after the first on a line of its own.
@@ -502,6 +498,18 @@ impl Expr {
             }
         }
         format!("{indent}{}{}(\n{args}{close}\n", self.before, self.call)
+    }
+}
+
+/// One argument on its own line at `indent`, its lambda's body on a line of its own if the line
+/// is too long and it has one.
+fn argument(arg: &str, indent: &str) -> String {
+    let one = format!("{indent}    {arg},\n");
+    match lambda(arg) {
+        Some((open, body, close)) if one.len() > 121 => {
+            format!("{indent}    {open}\n{indent}        {body}\n{indent}    }}{close},\n")
+        }
+        _ => one,
     }
 }
 

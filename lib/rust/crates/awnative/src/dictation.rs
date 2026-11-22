@@ -15,12 +15,7 @@ use jni_sys::{JNIEnv, jclass, jobject, jstring, jvalue};
 use crate::handle::{free, into_handle, locked};
 #[cfg(any(not(target_os = "android"), feature = "legacy-fixture"))]
 use crate::jni::{self, Env};
-use crate::jni::{Result, illegal};
-
-/// A number as the UTF-16 of its decimal digits.
-fn number(value: impl ToString) -> Vec<u16> {
-    value.to_string().encode_utf16().collect()
-}
+use crate::jni::{Result, decimal, illegal};
 
 /// The parts of `phrase`, two strings each: words, a mark, line breaks or "scratch that" (see
 /// `dictation::parse`).
@@ -33,7 +28,7 @@ pub fn parse(phrase: &[u16]) -> Vec<Vec<u16>> {
             Spoken::Break(text) => (2, text.encode_utf16().collect()),
             Spoken::ScratchThat => (3, Vec::new()),
         };
-        rows.extend([number(kind), text]);
+        rows.extend([decimal(kind), text]);
     }
     rows
 }
@@ -41,7 +36,7 @@ pub fn parse(phrase: &[u16]) -> Vec<Vec<u16>> {
 /// How to type the spoken `mark` after `before` (see `dictation::punctuate`).
 pub fn punctuate(before: &[u16], last_phrase: Option<&[u16]>, mark: u16) -> Vec<Vec<u16>> {
     let typing = dictation::punctuate(before, last_phrase, mark);
-    vec![number(typing.replacing), typing.text]
+    vec![decimal(typing.replacing), typing.text]
 }
 
 /// A press this long, in milliseconds, is a hold (`mic_key::HOLD_MS`).

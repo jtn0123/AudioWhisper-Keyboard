@@ -1,7 +1,8 @@
 //! The in-process Latin session (`suggest::session`), for `LatinSessionNative`, whose generated
 //! entry points call these. No callbacks run while the session is locked. Rows of strings carry
 //! numbers in decimal and flags as `WireFlag`'s "1" and "0".
-use super::suggester::{decimal, stores, strip_row};
+use super::suggester::{stores, strip_row};
+use crate::jni::decimal;
 use crate::{
     files::read_range,
     handle::{into_handle, locked},

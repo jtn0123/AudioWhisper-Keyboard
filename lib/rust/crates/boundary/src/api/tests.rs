@@ -383,6 +383,23 @@ fn a_result_can_go_through_kotlin_after_it() {
 }
 
 #[test]
+fn a_long_argument_puts_its_lambda_on_a_line_of_its_own() {
+    let long = format!("names.map {{ {} }}.toTypedArray()", "it".repeat(60));
+    let expr = Expr {
+        before: String::new(),
+        call: "N.f".to_owned(),
+        args: vec![long, "x".to_owned()],
+        after: String::new(),
+        lend: None,
+    };
+    let expected = format!(
+        "N.f(\n    names.map {{\n        {}\n    }}.toTypedArray(),\n    x,\n)\n",
+        "it".repeat(60)
+    );
+    assert_eq!(expr.lines(""), expected);
+}
+
+#[test]
 fn rows_read_as_records_and_numbers_as_bits() {
     const ROWS: &[Class] = &[Class {
         name: "RowsNative",

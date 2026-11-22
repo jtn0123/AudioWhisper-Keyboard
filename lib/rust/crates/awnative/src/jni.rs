@@ -27,6 +27,11 @@ pub fn illegal(message: impl Into<String>) -> Error {
     Error::IllegalArgument(message.into())
 }
 
+/// A number as the UTF-16 of its decimal digits, as a row of strings carries it.
+pub fn decimal(value: impl ToString) -> Vec<u16> {
+    value.to_string().encode_utf16().collect()
+}
+
 /// A Rust `bool` as a Java `boolean`.
 pub fn boolean(value: bool) -> jboolean {
     if value { JNI_TRUE } else { JNI_FALSE }

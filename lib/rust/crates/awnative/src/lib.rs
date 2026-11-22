@@ -26,7 +26,7 @@ mod latinime;
 mod layout_rules;
 mod panic;
 mod popup;
-mod reader;
+pub(crate) mod reader;
 mod render;
 mod render_accessibility;
 mod render_content;

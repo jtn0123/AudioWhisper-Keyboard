@@ -260,14 +260,18 @@ fn the_rust_is_formatted_as_rustfmt_would() {
 
 #[test]
 fn the_kotlin_fits_the_style() {
-    for classes in [CLASSES, STRESS] {
-        for (_, file) in kotlin_files(classes) {
-            assert!(file.text.ends_with("}\n") && !file.text.contains("\n\n\n"));
-            for line in file.text.lines() {
-                assert!(line.len() <= 120, "{}: {line}", file.path);
-                assert_eq!(line.trim_end(), line, "{}", file.path);
-                assert!(!line.contains('\t'), "{}", file.path);
-            }
+    let generated = [CLASSES, STRESS]
+        .into_iter()
+        .flat_map(kotlin_files)
+        .chain(api_files(APIS, CLASSES))
+        .chain(type_files(TYPES));
+    for (_, file) in generated {
+        let ends = file.text.ends_with("}\n") || file.text.ends_with(")\n");
+        assert!(ends && !file.text.contains("\n\n\n"), "{}", file.path);
+        for line in file.text.lines() {
+            assert!(line.len() <= 120, "{}: {line}", file.path);
+            assert_eq!(line.trim_end(), line, "{}", file.path);
+            assert!(!line.contains('\t'), "{}", file.path);
         }
     }
     let wrapped = &kotlin_files(STRESS)[1].1.text;

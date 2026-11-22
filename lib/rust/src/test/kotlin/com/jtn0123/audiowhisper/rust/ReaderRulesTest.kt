@@ -27,15 +27,15 @@ class ReaderRulesTest {
         }
     }
 
-    @Test fun malformedBatchLengthsAndCountsThrowRatherThanReadingPastThePacket() {
+    @Test fun mismatchedEdgesAndScrollsThrowRatherThanReadingPastThem() {
         assertFailsWith<IllegalArgumentException> {
-            ReaderNative.join("", intArrayOf(-1), intArrayOf(), BooleanArray(0), IntArray(1))
+            ReaderNative.join(arrayOf("a"), intArrayOf(), BooleanArray(1))
         }
         assertFailsWith<IllegalArgumentException> {
-            ReaderNative.find("a", intArrayOf(2), intArrayOf(0, 1), "a", 0, 1)
+            ReaderNative.join(arrayOf("a"), intArrayOf(0, 1), BooleanArray(0))
         }
         assertFailsWith<IllegalArgumentException> {
-            ReaderNative.resumeAfter("a", intArrayOf(1), 2)
+            ReaderNative.find(arrayOf("a"), intArrayOf(0), "a", 0, 1)
         }
     }
 
