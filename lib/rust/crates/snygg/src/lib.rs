@@ -10,6 +10,7 @@ pub mod editor;
 pub mod external;
 pub mod grammar;
 pub mod json;
+pub mod json_write;
 pub mod properties;
 pub mod resolve;
 pub mod spec;
