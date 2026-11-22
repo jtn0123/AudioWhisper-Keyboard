@@ -318,6 +318,14 @@ keyboard typed into the system Settings search. Earlier stages typed into Rust f
 through the instrumented device tests, which this check could not run. The search is covered by
 the cargo tests and the `search-tag-anywhere` mutation. See [Owed](#owed).
 
+**Typing, checked again the same day.** The fields work. With agent-device's own test keyboard
+left active, the search field took "germ" and narrowed the list to the 13 German-related
+entries, hiding *Suggested languages* and *All languages*, and the preview field took "hello".
+The earlier failure is agent-device's rule: it refuses text entry into a field that belongs to
+the active keyboard's own app, which our settings do while our keyboard is selected. Its `fill`
+also fails on Rust fields with any keyboard, because they do not report focus (owed since
+[Other and Theme](stage4-other-theme.md#owed)); `press` then `type` works.
+
 **Gboard was shown once by accident.** The Smartbar's *Switch language* action, with the
 utility key at its default, moves to the next keyboard app, not the next subtype. That is the
 keyboard's existing rule. It opened Gboard. Nothing was typed into it, and our keyboard was
@@ -343,9 +351,9 @@ SettingsSelection (6), and Routes and the string ids (21).
 ## Owed
 
 * **No phone check.** Everything above ran on the emulator only.
-* **Typing into a Rust settings field on a device.** On `emulator-5558` no Rust field took
-  text, the home screen's preview field included. The fault is older than this step. The
-  search field needs a device check once typing works.
+* **Our keyboard typing into the search field.** The field takes text from another keyboard
+  (see the emulator check), but agent-device cannot type into our own app while our keyboard is
+  selected. A person typing with our keyboard is owed (E21).
 * **`SettingsRules.editorValid` is now unused.** It is in the generated-bindings area another
   branch is changing, so it was left for that branch.
 * **The choice index operation has no production caller.** Only `SettingsDerivationMatchTest`
