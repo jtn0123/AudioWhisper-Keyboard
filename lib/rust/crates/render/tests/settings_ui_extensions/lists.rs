@@ -47,15 +47,15 @@ fn the_home_shows_the_store_and_update_boxes_then_each_list() {
 }
 
 #[test]
-fn the_store_opens_in_the_browser_and_import_hands_off_to_compose() {
+fn the_store_opens_in_the_browser_and_import_opens_the_importer() {
     let (mut a, mut text) = app(HOME);
     assert!(tap(&mut a, &mut text, STORE_ID));
     assert_eq!(url(&a).as_deref(), Some(STORE));
     assert_eq!(STORE, "https://beta.addons.florisboard.org/");
     assert!(tap(&mut a, &mut text, IMPORT_ID));
-    assert_eq!(compose(&a).as_deref(), Some(IMPORT));
+    assert_eq!(compose(&a), None);
     assert_eq!(IMPORT, "ext/import/EXT_ANY");
-    assert_eq!(a.stack.last().map(String::as_str), Some(HOME));
+    assert_eq!(a.stack.last().map(String::as_str), Some(IMPORT));
 }
 
 #[test]

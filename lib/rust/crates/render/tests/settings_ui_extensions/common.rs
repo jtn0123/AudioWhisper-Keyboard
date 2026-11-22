@@ -3,7 +3,7 @@
 pub use render::{
     settings_ui::{
         App, Control,
-        extensions::{self, boxes, chips, page},
+        extensions::{self, boxes, chips, import, page},
     },
     text::Text,
 };
@@ -170,6 +170,37 @@ pub fn strings(a: &mut App) {
         ("ext__check_updates__title", "Check for Updates"),
         ("action__delete_confirm_title", "Confirm delete"),
         ("action__delete_confirm_message", "Delete \"{name}\"?"),
+        ("ext__import__ext_any", "Import extension"),
+        ("ext__import__ext_keyboard", "Import keyboard extension"),
+        ("ext__import__ext_theme", "Import theme extension"),
+        (
+            "ext__import__ext_languagepack",
+            "Import language pack extension",
+        ),
+        ("action__select_files", "Select files"),
+        ("state__no_files_selected", "No files selected"),
+        ("ext__meta__maintainers_by", "By: {maintainers}"),
+        (
+            "ext__import__file_skip",
+            "File can not be imported. Reason:",
+        ),
+        ("ext__import__file_skip_unsupported", "Unsupported."),
+        ("ext__import__file_skip_ext_core", "Core."),
+        ("ext__import__file_skip_ext_corrupted", "Corrupted."),
+        ("settings__ext__skip_other_type", "Other type."),
+        ("settings__ext__read_failed", "The files could not be read."),
+        ("settings__ext__files_gone", "The files are gone."),
+        (
+            "settings__ext__unwritable",
+            "The file could not be written.",
+        ),
+        ("ext__import__success", "Imported!"),
+        ("ext__import__failure", "Import failed: {error_message}"),
+        ("ext__export__success", "Exported!"),
+        ("ext__export__failure", "Export failed: {error_message}"),
+        ("error__snackbar_message", "Something went wrong"),
+        ("settings__udm__no_picker", "No picker."),
+        ("settings__files__interrupted", "Interrupted."),
     ] {
         a.strings.insert(k.into(), v.into());
     }

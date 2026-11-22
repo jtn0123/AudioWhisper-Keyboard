@@ -76,6 +76,7 @@ impl App {
             }
             Part::About => self.page_about(p, at, clip, text),
             Part::Components => self.page_components(p, at, clip, text),
+            Part::Import => self.import_part(p, at, clip, text),
             Part::Store | Part::Updates => 0.0,
         }
     }
@@ -226,6 +227,7 @@ impl App {
                 out
             }
             Part::About | Part::Components => self.page_focus(part),
+            Part::Import => self.import_focus(),
             Part::Store | Part::Updates => vec![],
         }
     }

@@ -89,6 +89,7 @@ impl App {
                 // An answer nothing waits for changes nothing.
                 if let Some(purpose) = self.files.waiting.take()
                     && !self.words_picked(&purpose, &answer)
+                    && !self.import_picked(&purpose, &answer)
                 {
                     self.backup_picked(&purpose, answer);
                 }
@@ -100,13 +101,14 @@ impl App {
                 if self.files.busy.as_deref() == Some(p[done::JOB].as_str()) {
                     self.files.busy = None;
                 }
-                if !self.words_done(p) {
+                if !self.words_done(p) && !self.import_done(p) {
                     self.backup_done(p);
                 }
             }
             Some(report::IDLE) => {
                 if let Some(lost) = self.files.busy.take()
                     && !self.words_lost(&lost)
+                    && !self.import_lost(&lost)
                 {
                     self.backup_lost(&lost);
                 }

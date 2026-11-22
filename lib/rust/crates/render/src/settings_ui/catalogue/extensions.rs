@@ -1,6 +1,7 @@
 //! The extension screens (`settings_ui/extensions`): ExtensionHomeScreen, the three extension
-//! lists, an extension's page and CheckUpdatesScreen. Rows whose kind is `Ext` are painted by that
-//! module; the page's delete question and a maintainer's addresses are dialogs on hidden rows.
+//! lists, an extension's page, CheckUpdatesScreen and the importer. Rows whose kind is `Ext` are
+//! painted by that module; the page's delete question and a maintainer's addresses are dialogs on
+//! hidden rows, and the importer's Cancel and Import are the bottom bar the subtype editor has.
 use super::{Cond, Kind, Row, Screen, languages::Lang, row};
 use crate::settings_ui::extensions as screens;
 
@@ -21,6 +22,8 @@ pub enum Part {
     About,
     /// An extension's page: its bundled themes or language packs.
     Components,
+    /// The importer: Select files, then each file read and what it holds, or that none is.
+    Import,
 }
 
 const fn ext(part: Part) -> Row {
@@ -79,6 +82,24 @@ pub const VIEW: Screen = screen(
         .shown(Cond::Never),
         row("", "", "", Kind::Lang(Lang::Maintainer)).shown(Cond::Never),
     ],
+);
+/// The importer's rows: its files, then the bottom bar's Cancel and Import.
+const IMPORT: &[Row] = &[
+    ext(Part::Import),
+    row("", "action__cancel", "", Kind::Lang(Lang::Cancel)),
+    row("", "action__import", "", Kind::Lang(Lang::Save)).on(Cond::Import),
+];
+pub const IMPORT_ANY: Screen = screen(screens::import::ANY, "ext__import__ext_any", IMPORT);
+pub const IMPORT_KEYBOARDS: Screen = screen(
+    screens::import::KEYBOARDS,
+    "ext__import__ext_keyboard",
+    IMPORT,
+);
+pub const IMPORT_THEMES: Screen = screen(screens::import::THEMES, "ext__import__ext_theme", IMPORT);
+pub const IMPORT_PACKS: Screen = screen(
+    screens::import::PACKS,
+    "ext__import__ext_languagepack",
+    IMPORT,
 );
 pub const UPDATES: Screen = screen(
     screens::UPDATES,

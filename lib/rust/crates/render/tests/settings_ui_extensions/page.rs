@@ -429,11 +429,16 @@ fn an_extension_without_components_says_none_were_found() {
     );
 }
 
+/// Improvement: ExtensionExportScreen was a screen of its own, blank behind the picker, which
+/// launched the picker again whenever it was drawn again; Export opens only the picker.
 #[test]
-fn export_hands_off_to_compose() {
+fn export_asks_for_a_flex_named_after_the_extension_and_opens_no_screen() {
     let (mut a, mut text) = app(&view(MINE));
     assert!(tap(&mut a, &mut text, EXPORT_ID));
-    assert_eq!(compose(&a), Some(format!("ext/export/{MINE}")));
+    let mime = "application/vnd.florisboard.extension+zip";
+    assert_eq!(a.effects, [["pick", "create", mime, "my.themes.flex"]]);
+    assert_eq!(a.stack.last(), Some(&view(MINE)));
+    assert_eq!(compose(&a), None);
 }
 
 #[test]

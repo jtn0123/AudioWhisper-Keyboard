@@ -3,10 +3,12 @@
 //! or ExtensionNotFoundScreen when no extension has the id) and CheckUpdatesScreen. Kotlin
 //! reports the extension index and deletes an extension (`wire::settings_ui::extensions`); Rust
 //! picks what each screen lists, builds the update link and draws them (`boxes.rs`, `page.rs`).
-//! Importing, exporting and editing an extension are still Compose's screens.
+//! The importer and Export are `import.rs`; editing an extension is still Compose's screen.
 pub mod boxes;
 pub mod chips;
 mod dialogs;
+pub mod import;
+pub mod import_view;
 pub mod page;
 use super::{App, catalogue::languages::Lang};
 use wire::settings_ui::extensions::{done, effect, kind, row, work};
@@ -19,7 +21,7 @@ pub const PACKS: &str = "ext/list/EXT_LANGUAGEPACK";
 pub const VIEW: &str = "ext/view";
 pub const UPDATES: &str = "ext/check-updates";
 /// ImportExtensionBox's Import: `Routes.Ext.Import(EXT_ANY, null)`.
-pub const IMPORT: &str = "ext/import/EXT_ANY";
+pub const IMPORT: &str = import::ANY;
 /// Visit Addons Store: `https://${BuildConfig.FLADDONS_STORE_URL}/`.
 pub const STORE: &str = "https://beta.addons.florisboard.org/";
 /// The store's host, which the update link names.
@@ -46,7 +48,7 @@ pub const EXT_ICONS: [&str; 13] = [
     "link",
 ];
 /// The strings the screens show beyond their titles.
-pub const KEYS: [&str; 26] = [
+pub const KEYS: [&str; 44] = [
     "ext__home__info",
     "ext__home__visit_store",
     "action__import",
@@ -73,6 +75,24 @@ pub const KEYS: [&str; 26] = [
     "ext__meta__website",
     "action__delete_confirm_title",
     "action__delete_confirm_message",
+    "action__select_files",
+    "state__no_files_selected",
+    "ext__meta__maintainers_by",
+    "ext__import__file_skip",
+    "ext__import__file_skip_unsupported",
+    "ext__import__file_skip_ext_core",
+    "ext__import__file_skip_ext_corrupted",
+    "ext__import__success",
+    "ext__import__failure",
+    "ext__export__success",
+    "ext__export__failure",
+    "settings__ext__skip_other_type",
+    "settings__ext__read_failed",
+    "settings__ext__files_gone",
+    "settings__ext__unwritable",
+    "settings__udm__no_picker",
+    "settings__files__interrupted",
+    "error__snackbar_message",
 ];
 
 /// A link as the page shows it: its host, and where it goes.
@@ -127,6 +147,7 @@ pub struct Extensions {
     pub list: Option<Vec<Extension>>,
     /// Kotlin was asked for the index; it reports again whenever the index changes.
     pub requested: bool,
+    pub import: import::Import,
 }
 
 /// A tap on the extension screens' own controls.
@@ -134,6 +155,8 @@ pub struct Extensions {
 pub enum Tap {
     Store,
     Import,
+    /// The importer's Select files.
+    Select,
     /// Search for Updates.
     Update,
     Create,
@@ -350,9 +373,12 @@ impl App {
             self.effects.push(vec![effect::LOAD.into()]);
         }
     }
-    /// A native screen opened at `route`: an extension screen reads the index.
+    /// A native screen opened at `route`: an extension screen reads the index, and the importer
+    /// its workspace.
     pub(super) fn extensions_opened(&mut self, route: &str) {
-        if [HOME, UPDATES].contains(&route) || screen_route(route).is_some() {
+        if import::parts(route).is_some() {
+            self.import_opened();
+        } else if [HOME, UPDATES].contains(&route) || screen_route(route).is_some() {
             self.request_extensions();
         }
     }
@@ -368,6 +394,7 @@ impl App {
         match tap {
             Tap::Store => self.effects.push(vec!["url".into(), STORE.into()]),
             Tap::Import => self.navigate(IMPORT),
+            Tap::Select => self.select_files(),
             Tap::Update => {
                 let url = update_url(self.listed_extensions());
                 self.effects.push(vec!["url".into(), url]);
@@ -382,7 +409,7 @@ impl App {
             }
             Tap::Export => {
                 if let Some(id) = self.page_id().map(str::to_owned) {
-                    self.navigate(&format!("ext/export/{id}"));
+                    self.export(&id);
                 }
             }
             Tap::Maintainer(m) => {

@@ -250,11 +250,12 @@ impl App {
             d.value = p;
         }
     }
-    /// The bottom bar's Cancel and Save: the subtype editor's, the word editor's, or the theme
-    /// editor's rule and meta editors'.
+    /// The bottom bar's Cancel and Save: the subtype editor's, the word editor's, the theme
+    /// editor's rule and meta editors', or the importer's Cancel and Import.
     pub(in crate::settings_ui) fn lang_row(&mut self, l: Lang) {
         match l {
             Lang::Cancel => self.close_editor(),
+            Lang::Save if self.importer().is_some() => self.import_selected(),
             Lang::Save if self.in_theme_editor() => self.save_theme_form(),
             Lang::Save if self.word_editor() => self.save_word(),
             Lang::Save => self.save_draft(),

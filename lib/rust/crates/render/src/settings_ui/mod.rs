@@ -415,10 +415,11 @@ impl App {
             let had = self.backups_open();
             self.release_field();
             self.time_inputs.clear();
-            self.stack.pop();
+            let left = self.stack.pop().unwrap_or_default();
             self.scrolls.pop();
             self.focus = -1;
             self.backups_left(had);
+            self.extensions_left(&left);
             self.languages_left();
             self.words_left();
             self.themes_left();

@@ -46,6 +46,8 @@ pub enum Cond {
     FlorisSpellChecker,
     /// A backup to restore was read; with `true`, also one that can be restored.
     Restore(bool),
+    /// The importer has a file it can import, and no file work runs.
+    Import,
 }
 /// One `listPrefEntries` entry: stored value, label and description string keys.
 pub type Entry = (&'static str, &'static str, &'static str);
@@ -385,6 +387,10 @@ pub const SCREENS: &[Screen] = &[
     extensions::PACKS,
     extensions::VIEW,
     extensions::UPDATES,
+    extensions::IMPORT_ANY,
+    extensions::IMPORT_KEYBOARDS,
+    extensions::IMPORT_THEMES,
+    extensions::IMPORT_PACKS,
 ];
 /// The native screen at `route`, if Rust draws it. The subtype editor's and the word
 /// editor's routes carry the item's id as one more segment, and a language's words its locale.
@@ -394,6 +400,7 @@ pub fn screen(route: &str) -> Option<&'static Screen> {
         None => super::words::screen_route(route)
             .or_else(|| super::theme_editor::screen_route(route))
             .or_else(|| super::extensions::screen_route(route))
+            .or_else(|| super::extensions::import::screen_route(route))
             .unwrap_or(route),
     };
     SCREENS.iter().find(|s| s.route == base)

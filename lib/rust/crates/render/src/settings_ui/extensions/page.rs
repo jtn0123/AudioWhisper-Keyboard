@@ -198,35 +198,32 @@ impl App {
     ) -> f32 {
         if ext.deletable {
             let delete = (DELETE_ID, "action__delete", "delete", self.colors[18]);
-            self.outlined_button(p, (delete, Tap::Delete), (left, y, false), clip, text);
+            self.outlined_button(p, (delete, Tap::Delete), (left, y, 0.0), clip, text);
         }
         let export = (EXPORT_ID, "action__export", "share", self.colors[3]);
-        self.outlined_button(
-            p,
-            (export, Tap::Export),
-            (left + width, y, true),
-            clip,
-            text,
-        );
+        self.outlined_button(p, (export, Tap::Export), (left + width, y, 1.0), clip, text);
         self.px(48.0)
     }
-    /// FlorisOutlinedButton from `x` (or ending there): 24 dp padding round the 18 dp icon, 8 dp
-    /// and the label in `ink`, at least 58 dp, 40 dp tall with 8 dp corners and a 1 dp outline,
-    /// in its 48 dp touch height.
-    fn outlined_button(
+    /// FlorisOutlinedButton at `x`, `align` of it before `x` (0 from there, 1 ending there): 24 dp
+    /// padding round the 18 dp icon, if any, 8 dp and the label in `ink`, at least 58 dp, 40 dp
+    /// tall with 8 dp corners and a 1 dp outline, in its 48 dp touch height.
+    pub(super) fn outlined_button(
         &mut self,
         p: &mut Panel,
         ((id, key, icon, ink), tap): ((i32, &str, &'static str, u32), Tap),
-        (x, y, end): (f32, f32, bool),
+        (x, y, align): (f32, f32, f32),
         clip: Rect,
         text: &mut Text,
     ) {
         let label = self.label(key);
         let layout = self.styled(text, &label, LABEL_LARGE, None);
         let (lw, lh) = (layout.width.ceil(), layout.height.ceil());
-        let (size, gap) = (self.px(18.0), self.px(8.0));
+        let (size, gap) = match icon.is_empty() {
+            true => (0.0, 0.0),
+            false => (self.px(18.0), self.px(8.0)),
+        };
         let w = (lw + size + gap + 2.0 * self.px(24.0)).max(self.px(58.0));
-        let left = if end { x - w } else { x };
+        let left = x - w * align;
         let b = rect(left, y + self.px(4.0), w, self.px(40.0));
         let (radius, line) = (self.px(8.0), self.px(1.0));
         let inside = rect(
@@ -249,7 +246,9 @@ impl App {
             size,
             size,
         );
-        self.paint_icon(p, icon, glyph, ink, clip);
+        if !icon.is_empty() {
+            self.paint_icon(p, icon, glyph, ink, clip);
+        }
         let at = rect(
             start + size + gap,
             b.top + ((b.height() - lh) / 2.0).round(),
@@ -372,7 +371,7 @@ impl App {
         }
     }
     /// Control `id` is passive text, not a button.
-    fn as_text(&mut self, id: i32) {
+    pub(super) fn as_text(&mut self, id: i32) {
         if let Some(c) = self.controls.iter_mut().rev().find(|c| c.id == id) {
             c.role = "text";
         }

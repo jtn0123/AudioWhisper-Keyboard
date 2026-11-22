@@ -308,17 +308,21 @@ fn a_new_report_while_open_redraws_the_boxes() {
 }
 
 #[test]
-fn create_and_import_hand_off_to_the_compose_extension_screens() {
+fn create_hands_off_to_the_compose_editor_and_import_opens_the_theme_importer() {
     let (mut a, mut text) = app(DAY);
-    for (id, route) in [(manager::CREATE_ID, CREATE), (manager::IMPORT_ID, IMPORT)] {
-        a.effects.clear();
-        tap(&mut a, &mut text, id);
-        assert_eq!(a.effects.len(), 1);
-        assert_eq!(a.effects[0][..2], ["compose", route]);
-        assert!(a.effects[0][2].split('|').any(|r| r == DAY));
-        assert_eq!(a.stack.last().map(String::as_str), Some(DAY));
-    }
+    tap(&mut a, &mut text, manager::CREATE_ID);
+    assert_eq!(a.effects.len(), 1);
+    assert_eq!(a.effects[0][..2], ["compose", CREATE]);
+    assert!(a.effects[0][2].split('|').any(|r| r == DAY));
+    assert_eq!(a.stack.last().map(String::as_str), Some(DAY));
     assert_eq!(CREATE, "ext/edit/null?create=ime.extension.theme");
+    a.effects.clear();
+    tap(&mut a, &mut text, manager::IMPORT_ID);
+    assert!(a.effects.iter().all(|e| e[0] != "compose"));
+    assert_eq!(a.stack.last().map(String::as_str), Some(IMPORT));
+    assert_eq!(IMPORT, "ext/import/EXT_THEME");
+    a.back();
+    a.scene(&mut text);
     let create = control(&a, manager::CREATE_ID);
     assert!(create.bounds.bottom <= control(&a, manager::theme_id(0, 0)).bounds.top);
 }

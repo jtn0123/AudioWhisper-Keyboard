@@ -39,6 +39,7 @@ impl App {
                     && self.fact("spell_package") == self.fact("package")
             }
             Cond::Restore(usable) => self.restore_shown(*usable),
+            Cond::Import => self.import_ready(),
         }
     }
     /// `"${VERSION_NAME} (${VERSION_CODE})"`, as AboutScreen shows and copies it.

@@ -152,8 +152,8 @@ fn group_one_routes_are_native_and_other_routes_fall_back_with_the_native_list()
         assert!(a.effects.is_empty(), "{route} fell back");
         assert!(!a.rows().is_empty());
     }
-    // Importing, exporting and editing an extension stay in Compose.
-    let compose = "ext/import/EXT_ANY";
+    // Editing an extension stays in Compose.
+    let compose = "ext/edit/my.themes";
     let (mut a, _) = app(compose);
     assert_eq!(a.stack, ["settings/home"]);
     let native = "settings/home|settings/keyboard|settings/keyboard/input-feedback|settings/smartbar|\
@@ -178,7 +178,8 @@ fn group_one_routes_are_native_and_other_routes_fall_back_with_the_native_list()
                   settings/theme/editor/code/add|settings/theme/editor/code|\
                   settings/theme/editor/meta|settings/theme/editor/tune|\
                   ext|ext/list/EXT_THEME|ext/list/EXT_KEYBOARD|ext/list/EXT_LANGUAGEPACK|ext/view|\
-                  ext/check-updates";
+                  ext/check-updates|ext/import/EXT_ANY|ext/import/EXT_KEYBOARD|ext/import/EXT_THEME|\
+                  ext/import/EXT_LANGUAGEPACK";
     assert_eq!(a.effects.pop().unwrap(), ["compose", compose, native]);
 }
 
