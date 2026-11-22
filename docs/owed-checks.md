@@ -85,6 +85,7 @@ These need no device. They are listed so they are not lost.
 * A ZIP missing its folder entries reads as unreadable, in Restore and extension import. ([stage4-backup-restore, owed](stage4-backup-restore.md#owed))
 * Restore runs on the main thread, as Compose's did. ([stage4-backup-restore, owed](stage4-backup-restore.md#owed))
 * Compose's empty user dictionary route hands back to Rust's dictionary list, as it cannot tell the two dictionaries apart. Nothing opens that route now. ([stage4-user-dictionaries, owed](stage4-user-dictionaries.md#owed))
+* The mutation scripts have no check that each case still matches its source. A renamed line makes a case match nothing, which stops a full run (`predictive-cancel-commits` did, from b57a98bf0 until it was fixed). A `--check` mode in each script, run by the gate, would catch it at once.
 
 ## Notes
 
