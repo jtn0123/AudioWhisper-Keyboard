@@ -64,8 +64,8 @@ impl App {
             _ => None,
         }
     }
-    /// Set `s` of `count` in rule `r`'s box: its heading when the rule has several, then its
-    /// properties, with Undo where what was deleted stood; its height.
+    /// Set `s` of `count` in rule `r`'s box: its heading when the rule has several, its Errors
+    /// box, then its properties, with Undo where what was deleted stood; its height.
     fn rule_set(
         &mut self,
         p: &mut Panel,
@@ -84,6 +84,7 @@ impl App {
         if matches!(sets, PropertySets::Multiple(_)) {
             at += self.set_heading(p, (r, s, count), (left, at, width), clip, text);
         }
+        at += self.errors_box(p, (r, s), (left, at, width), clip, text);
         let mine: Vec<_> = props.iter().enumerate().filter(|q| q.1.set == s).collect();
         for &(n, q) in &mine {
             if gone.is_some_and(|g| g.1 == q.place) {

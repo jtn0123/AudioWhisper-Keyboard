@@ -1,11 +1,15 @@
-//! A font's source sets: Add source set on its title line, and each "Source set" heading's Up,
-//! Down, Delete (with Undo) and Add.
+//! A font's source sets: Add source set on its title line, each "Source set" heading's Up,
+//! Down, Delete (with Undo) and Add, and the Errors box naming a required property a set lacks.
 use super::{common::*, props::*};
 use render::settings_ui::{
     App,
     catalogue::theme_editor::Part,
     items::UNDO_ID,
-    theme_editor::{PROPERTY_ADD, paint::rule_id, sets::set_id},
+    theme_editor::{
+        PROPERTY_ADD,
+        paint::rule_id,
+        sets::{REQUIRED, set_id},
+    },
 };
 use render::text::Text;
 use snygg::{resolve::PropertySets, text as name};
@@ -27,6 +31,10 @@ fn sets(a: &App, r: usize) -> Vec<Vec<String>> {
 /// The font rule with a second, empty set.
 fn two_sets() -> (App, Text) {
     let (mut a, mut text) = named_app();
+    a.strings.insert(
+        REQUIRED.into(),
+        "Required property '{name}' does not exist".into(),
+    );
     let add = control(&a, rule_id(1, 4)).unwrap();
     assert_eq!(add.label, "settings__theme_editor__add_source_set");
     assert!(tap(&mut a, &mut text, rule_id(1, 4)));
@@ -36,17 +44,48 @@ fn two_sets() -> (App, Text) {
 }
 
 #[test]
-fn add_source_set_appends_an_empty_set_headed_as_the_others_are() {
+fn add_source_set_appends_an_empty_set_the_errors_box_says_lacks_src() {
     let (a, _) = two_sets();
     assert!(a.stack.last().unwrap().starts_with("settings/theme/edit/"));
+    assert!(
+        control(&a, set_id(1, 0, 5)).is_none(),
+        "the first set has its src"
+    );
+    let title = control(&a, set_id(1, 1, 6)).unwrap();
+    assert_eq!(title.label, "settings__theme_editor__property_errors");
+    let message = control(&a, set_id(1, 1, 5)).unwrap();
+    assert_eq!(message.label, "Required property 'src' does not exist");
     let heading = control(&a, set_id(1, 1, 0)).unwrap();
     assert_eq!(heading.label, "Source set");
-    assert!(heading.bounds.top >= control(&a, rule_id(1, 64)).unwrap().bounds.bottom);
-    // The stylesheet cannot be written so, as Compose's `toJson` could not.
+    assert!(
+        heading.bounds.bottom <= message.bounds.top,
+        "under its heading"
+    );
+    // The stylesheet cannot be written so, as Compose's `toJson` could not: the box says why.
     let refused = a.theme_editor.json().unwrap_err();
     assert!(
         refused.contains("missing required property 'src'"),
         "{refused}"
+    );
+}
+
+#[test]
+fn only_a_set_lacking_src_has_the_box_and_an_element_rule_never_does() {
+    let (mut a, mut text) = two_sets();
+    assert!(tap(&mut a, &mut text, rule_id(1, 4)));
+    assert!(tap(&mut a, &mut text, set_id(1, 2, 4)));
+    choose(&mut a, &mut text, "Source", "snygg__property_value__uri");
+    pick(&mut a, &mut text, Part::PropValue, "flex:/fonts/a.ttf");
+    apply(&mut a, &mut text);
+    let boxes: Vec<_> = (0..3)
+        .map(|s| control(&a, set_id(1, s, 5)).is_some())
+        .collect();
+    assert_eq!(boxes, [false, true, false]);
+    assert!((2..5).all(|r| control(&a, set_id(r, 0, 5)).is_none()));
+    assert!(tap(&mut a, &mut text, set_id(1, 1, 3)));
+    assert!(
+        a.theme_editor.json().is_ok(),
+        "written again once no set lacks src"
     );
 }
 
@@ -66,6 +105,10 @@ fn a_sets_heading_moves_it_up_and_down_but_not_past_the_ends() {
     assert!(control(&a, set_id(1, 0, 2)).unwrap().enabled);
     assert!(tap(&mut a, &mut text, set_id(1, 1, 1)));
     assert_eq!(sets(&a, 1), [vec![], vec!["src", "font-weight"]]);
+    assert!(
+        control(&a, set_id(1, 0, 5)).is_some(),
+        "the box moved with its set"
+    );
     assert!(tap(&mut a, &mut text, set_id(1, 0, 2)));
     assert_eq!(sets(&a, 1), [vec!["src", "font-weight"], vec![]]);
     // Disabled: Up on the first does nothing.
@@ -118,8 +161,8 @@ fn a_sets_add_adds_a_property_to_that_set() {
     apply(&mut a, &mut text);
     assert_eq!(sets(&a, 1), [vec!["src", "font-weight"], vec!["src"]]);
     assert!(
-        a.theme_editor.json().is_ok(),
-        "written again once no set lacks src"
+        control(&a, set_id(1, 1, 5)).is_none(),
+        "the box goes with the lack"
     );
     // The first set has a weight already.
     assert!(tap(&mut a, &mut text, set_id(1, 0, 4)));

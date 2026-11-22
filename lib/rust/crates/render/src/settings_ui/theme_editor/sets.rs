@@ -1,6 +1,7 @@
 //! A `@font` rule's source sets, as ThemeEditorScreen drew them: each headed "Source set" with
 //! Up, Down, Delete (undoable here, as a property's Delete is) and Add (a property to the set),
-//! and the rule's Add appending an empty set.
+//! and the rule's Add appending an empty set. Under a rule's title or a set's heading, the
+//! "Errors" box names each property the spec requires that the set lacks: a font set's `src`.
 use super::{Gone, Rules, Tap, property::PropTap};
 use crate::settings_ui::{Action, App, cards::plain};
 use crate::{
@@ -8,14 +9,42 @@ use crate::{
     text::Text,
 };
 use keys::Rect;
-use snygg::{Text as Name, grammar::Rule, resolve::PropertySets, value::Value};
+use snygg::{
+    Text as Name,
+    grammar::Rule,
+    resolve::PropertySets,
+    spec::{self, Property},
+    text,
+    value::Value,
+};
 
 /// Set `s` of rule `r`'s controls start at `SET_ID + 65_536 * r + 8 * s`: 0 its heading, 1 Up,
-/// 2 Down, 3 Delete and 4 Add.
+/// 2 Down, 3 Delete, 4 Add, 5 the Errors box's message and 6 its title.
 pub const SET_ID: i32 = 100_000_000;
+/// The Errors box's title and message.
+pub const ERRORS: &str = "settings__theme_editor__property_errors";
+pub const REQUIRED: &str = "settings__theme_editor__property_required";
 
 pub fn set_id(r: usize, s: usize, part: usize) -> i32 {
     SET_ID + 65_536 * r as i32 + 8 * s.min(8191) as i32 + part.min(7) as i32
+}
+/// The properties the spec requires of a set of `rule`.
+fn required_of(rule: &Rule) -> Vec<&'static Property> {
+    let all = match rule {
+        Rule::Defines => &[][..],
+        Rule::Font(_) => spec::fonts(),
+        Rule::Element { .. } => spec::elements(),
+    };
+    all.iter().filter(|p| p.required).collect()
+}
+/// The required properties `props` lacks.
+pub fn missing(rule: &Rule, props: &[(Name, Value)]) -> Vec<&'static str> {
+    let has = |name: &str| props.iter().any(|(n, _)| *n == text(name));
+    required_of(rule)
+        .into_iter()
+        .map(|p| p.name)
+        .filter(|n| !has(n))
+        .collect()
 }
 /// A deleted set back at `s` of its rule, unless the rule is gone.
 pub fn put_back(rules: &mut Rules, rule: &Rule, s: usize, set: Vec<(Name, Value)>) -> bool {
@@ -114,6 +143,47 @@ impl App {
             self.push_control(c, clip);
         }
         rh
+    }
+    /// The Errors box of set `s` of rule `r`: an outlined box titled "Errors" naming each
+    /// required property the set lacks, in the error colour; its height, nothing if none.
+    pub(super) fn errors_box(
+        &mut self,
+        p: &mut Panel,
+        (r, s): (usize, usize),
+        (left, y, width): (f32, f32, f32),
+        clip: Rect,
+        text: &mut Text,
+    ) -> f32 {
+        let (rule, sets) = &self.theme_editor.rules[r];
+        let props = super::property::set_ref(sets, s).map_or(&[][..], |p| &p[..]);
+        let lacking = missing(rule, props);
+        if lacking.is_empty() {
+            return 0.0;
+        }
+        let message = lacking
+            .iter()
+            .map(|name| self.label(REQUIRED).replace("{name}", name))
+            .collect::<Vec<_>>()
+            .join("\n");
+        let (inner, w) = (left + self.px(8.0), width - 2.0 * self.px(8.0));
+        let border = rect(inner, y + self.px(12.0), w, 0.0);
+        let outline = p.items.len();
+        self.outlined_box(p, border, clip);
+        let ink = self.colors[18];
+        let note = (set_id(r, s, 5), message, ink, 0.0);
+        let at = border.top + self.px(12.0);
+        let bottom = at + self.theme_note(p, note, (inner, at), clip, text) + self.px(8.0);
+        self.fit_box(p, outline, bottom - border.top);
+        let title = self.label(ERRORS);
+        self.box_title(
+            p,
+            (set_id(r, s, 6), &title),
+            Action::None,
+            border,
+            clip,
+            text,
+        );
+        bottom + self.px(8.0) - y
     }
     /// The focus order of set `s` of `count` in rule `r`: its heading's buttons but a disabled
     /// Up or Down.

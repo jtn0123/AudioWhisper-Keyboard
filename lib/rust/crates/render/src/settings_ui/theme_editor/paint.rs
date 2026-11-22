@@ -46,7 +46,7 @@ pub const THEME_ICONS: [&str; 8] = [
 
 /// Rule `r`'s control `part`: 0 its row, 1 Duplicate, 2 Edit, 3 its note, 4 Add property (or
 /// Add source set), 64 + 2k its `k`th property and 65 + 2k that property's Delete. A source
-/// set's heading has its own ids (`sets::set_id`).
+/// set's heading and Errors box have their own ids (`sets::set_id`).
 pub fn rule_id(r: usize, part: usize) -> i32 {
     RULE_ID + 4096 * r as i32 + part.min(4095) as i32
 }
