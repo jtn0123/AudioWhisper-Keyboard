@@ -25,7 +25,6 @@ import androidx.compose.ui.viewinterop.AndroidView
 import dev.patrickgold.florisboard.app.FlorisPreferenceStore
 import dev.patrickgold.florisboard.ime.keyboard.ComputingEvaluator
 import dev.patrickgold.florisboard.ime.keyboard.FlorisImeSizing
-import dev.patrickgold.florisboard.ime.text.keyboard.TextKeyboard
 import dev.patrickgold.florisboard.ime.nlp.NlpInlineAutofill
 import dev.patrickgold.florisboard.ime.smartbar.InlineSuggestionsUi
 import dev.patrickgold.florisboard.nlpManager
@@ -42,8 +41,8 @@ fun RustKeyboardLayout(evaluator: ComputingEvaluator) = with(LocalDensity.curren
     val themeManager by context.themeManager()
     val activeTheme by themeManager.activeThemeInfo.collectAsState()
     val candidates by nlp.activeCandidatesFlow.collectAsState()
-    val keyboard = evaluator.keyboard as TextKeyboard
-    val keys = keyboard.keys().asSequence().toList()
+    val keyboard = RustKeyboard.of(evaluator.keyboard)
+    val keys = keyboard.keys
     val palette = rememberSnyggPalette()
     val multiplier = prefs.keyboard.fontSizeMultiplier()
     val theme = remember(activeTheme, palette, density, fontScale, multiplier) {

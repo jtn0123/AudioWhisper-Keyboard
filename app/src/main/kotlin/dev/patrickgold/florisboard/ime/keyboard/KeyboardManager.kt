@@ -23,6 +23,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.setValue
 import com.jtn0123.audiowhisper.gif.GifSearch
+import com.jtn0123.audiowhisper.render.RustKeyGraphs
+import com.jtn0123.audiowhisper.render.RustKeyboard
 import dev.patrickgold.florisboard.app.FlorisPreferenceStore
 import dev.patrickgold.florisboard.appContext
 import dev.patrickgold.florisboard.clipboardManager
@@ -39,6 +41,7 @@ import dev.patrickgold.florisboard.ime.text.gestures.keyData
 import dev.patrickgold.florisboard.ime.text.key.KeyCode
 import dev.patrickgold.florisboard.ime.text.keyboard.TextKeyData
 import dev.patrickgold.florisboard.ime.text.keyboard.TextKeyboardCache
+import dev.patrickgold.florisboard.ime.text.keyboard.TextKeyboard
 import dev.patrickgold.florisboard.lib.titlecase
 import dev.patrickgold.florisboard.lib.uppercase
 import dev.patrickgold.florisboard.nlpManager
@@ -68,6 +71,8 @@ class KeyboardManager(context: Context) : InputKeyEventReceiver {
     internal val scope = CoroutineScope(Dispatchers.Default + SupervisorJob())
     val layoutManager = LayoutManager(context)
     private val keyboardCache = TextKeyboardCache()
+    /** The Rust renderer's keyboards, which Rust builds and computes. */
+    private val rustKeyGraphs = RustKeyGraphs(context, this)
 
     val resources = KeyboardManagerResources(context, scope)
     val activeState = ObservableKeyboardState.new()
@@ -101,12 +106,17 @@ class KeyboardManager(context: Context) : InputKeyEventReceiver {
             resources.anyChanged.observeForever {
                 updateActiveEvaluators {
                     keyboardCache.clear()
+                    rustKeyGraphs.clear()
                 }
             }
             prefs.keyboard.numberRow.asFlow().collectLatestIn(scope) {
                 updateActiveEvaluators {
                     keyboardCache.clear(KeyboardMode.CHARACTERS)
+                    rustKeyGraphs.clear(KeyboardMode.CHARACTERS)
                 }
+            }
+            prefs.keyboard.rustRendererPrototype.asFlow().collectLatestIn(scope) {
+                updateActiveEvaluators()
             }
             prefs.keyboard.hintedNumberRowEnabled.asFlow().collectLatestIn(scope) {
                 updateActiveEvaluators()
@@ -158,7 +168,9 @@ class KeyboardManager(context: Context) : InputKeyEventReceiver {
             // only makes sense for the character layouts.
             state.rawValue = com.jtn0123.audiowhisper.rust.InputRules.control(longArrayOf(
                 com.jtn0123.audiowhisper.rust.InputProtocol.CONTROL_EVALUATOR.toLong(), state.rawValue.toLong()))[0].toULong()
-            val computedKeyboard = keyboardCache.getOrElseAsync(mode, subtype) {
+            val computedKeyboard = if (prefs.keyboard.rustRendererPrototype.get()) {
+                rustKeyGraphs.keyboard(mode, subtype)
+            } else keyboardCache.getOrElseAsync(mode, subtype) {
                 layoutManager.computeKeyboardAsync(
                     keyboardMode = mode,
                     subtype = subtype,
@@ -172,9 +184,12 @@ class KeyboardManager(context: Context) : InputKeyEventReceiver {
                 state = state,
                 subtype = subtype,
             )
-            for (key in computedKeyboard.keys()) {
-                key.compute(computingEvaluator)
-                key.computeLabelsAndDrawables(computingEvaluator)
+            when (computedKeyboard) {
+                is RustKeyboard -> rustKeyGraphs.compute(computedKeyboard, computingEvaluator)
+                is TextKeyboard -> for (key in computedKeyboard.keys()) {
+                    key.compute(computingEvaluator)
+                    key.computeLabelsAndDrawables(computingEvaluator)
+                }
             }
             _activeEvaluator.value = computingEvaluator
             _activeSmartbarEvaluator.value = computingEvaluator.asSmartbarQuickActionsEvaluator()

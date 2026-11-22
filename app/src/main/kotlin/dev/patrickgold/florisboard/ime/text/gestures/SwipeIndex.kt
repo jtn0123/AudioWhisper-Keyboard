@@ -9,7 +9,7 @@ import com.jtn0123.audiowhisper.rust.GlideWords
 import com.jtn0123.audiowhisper.suggest.GlideGuess
 import dev.patrickgold.florisboard.ime.keyboard.KeyData
 import dev.patrickgold.florisboard.ime.text.key.KeyCode
-import dev.patrickgold.florisboard.ime.text.keyboard.TextKey
+import dev.patrickgold.florisboard.ime.keyboard.Key
 import java.text.Normalizer
 import kotlin.math.ln
 
@@ -37,7 +37,7 @@ class SwipeIndex private constructor(
      */
     fun suggestions(
         swipe: StatisticalGlideTypingClassifier.Gesture,
-        keys: List<TextKey>,
+        keys: List<Key>,
         max: Int,
         frequency: (String) -> Double,
     ): List<GlideGuess> {
@@ -54,7 +54,7 @@ class SwipeIndex private constructor(
      */
     fun tunedSuggestions(
         swipe: StatisticalGlideTypingClassifier.Gesture,
-        keys: List<TextKey>,
+        keys: List<Key>,
         max: Int,
         frequency: (String) -> Double,
     ): List<GlideGuess> {
@@ -82,7 +82,7 @@ class SwipeIndex private constructor(
 
     companion object {
         /** Indexes [words] for the layout whose keys by code are [keysByCharacter]. */
-        fun build(words: List<String>, keysByCharacter: SparseArrayCompat<TextKey>): SwipeIndex {
+        fun build(words: List<String>, keysByCharacter: SparseArrayCompat<out Key>): SwipeIndex {
             val index = GlideIndex.build(GlideWords(words)) { describe(it, keysByCharacter) }
             return SwipeIndex(words, index)
         }
@@ -93,7 +93,7 @@ class SwipeIndex private constructor(
          * under the accentless key of its first and last letters, so "Éclair" is with the words
          * from "e" to "r".
          */
-        internal fun describe(c: Char, keysByCharacter: SparseArrayCompat<TextKey>): GlideChar {
+        internal fun describe(c: Char, keysByCharacter: SparseArrayCompat<out Key>): GlideChar {
             val lower = Character.toLowerCase(c)
             val base = Normalizer.normalize(lower.toString(), Normalizer.Form.NFD)[0].code
             val pathKey = when {
@@ -106,7 +106,7 @@ class SwipeIndex private constructor(
         }
 
         /** [keys] as drawn now: rotating the screen resizes them without a new layout. */
-        internal fun glideKeys(keys: List<TextKey>): GlideKeys {
+        internal fun glideKeys(keys: List<Key>): GlideKeys {
             val codes = IntArray(keys.size)
             val bounds = FloatArray(keys.size * 4)
             for ((i, key) in keys.withIndex()) {

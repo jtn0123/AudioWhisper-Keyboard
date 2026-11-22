@@ -50,6 +50,7 @@ import dev.patrickgold.florisboard.glideTypingManager
 import dev.patrickgold.florisboard.ime.keyboard.ComputingEvaluator
 import dev.patrickgold.florisboard.ime.keyboard.FlorisImeSizing
 import dev.patrickgold.florisboard.ime.keyboard.KeyboardMode
+import dev.patrickgold.florisboard.ime.keyboard.PlaceholderLoadingKeyboard
 import dev.patrickgold.florisboard.ime.keyboard.SpaceBarMode
 import dev.patrickgold.florisboard.ime.popup.ExceptionsForKeyCodes
 import dev.patrickgold.florisboard.ime.popup.rememberPopupUiController
@@ -86,7 +87,7 @@ fun TextKeyboardLayout(
     val configuration = LocalConfiguration.current
     val glideTypingManager by context.glideTypingManager()
 
-    val keyboard = evaluator.keyboard as TextKeyboard
+    val keyboard = evaluator.keyboard as? TextKeyboard ?: PlaceholderLoadingKeyboard
     val glideEnabledInternal by prefs.glide.enabled.observeAsState()
     val glideEnabled = glideEnabledInternal && evaluator.editorInfo.isRichInputEditor &&
         evaluator.state.keyVariation != KeyVariation.PASSWORD

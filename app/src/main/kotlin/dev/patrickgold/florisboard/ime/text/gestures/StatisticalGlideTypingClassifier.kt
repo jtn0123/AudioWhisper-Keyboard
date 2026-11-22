@@ -24,7 +24,7 @@ import com.jtn0123.audiowhisper.suggest.GlideGuess
 import dev.patrickgold.florisboard.ime.core.Subtype
 import dev.patrickgold.florisboard.ime.keyboard.KeyData
 import dev.patrickgold.florisboard.ime.text.key.KeyCode
-import dev.patrickgold.florisboard.ime.text.keyboard.TextKey
+import dev.patrickgold.florisboard.ime.keyboard.Key
 import dev.patrickgold.florisboard.nlpManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -35,7 +35,7 @@ import kotlinx.coroutines.withContext
 import kotlin.math.max
 import kotlin.math.min
 
-private fun TextKey.baseCode(): Int {
+private fun Key.baseCode(): Int {
     return (data as? KeyData)?.code ?: KeyCode.UNSPECIFIED
 }
 
@@ -52,9 +52,9 @@ class StatisticalGlideTypingClassifier(context: Context) : GlideTypingClassifier
     private val nlpManager by context.nlpManager()
 
     private val gesture = Gesture()
-    private var keysByCharacter: SparseArrayCompat<TextKey> = SparseArrayCompat()
+    private var keysByCharacter: SparseArrayCompat<Key> = SparseArrayCompat()
     private var words: List<String> = emptyList()
-    private var keys: ArrayList<TextKey> = arrayListOf()
+    private var keys: ArrayList<Key> = arrayListOf()
     private lateinit var index: SwipeIndex
     private var wordDataSubtype: Subtype? = null
     private var layoutSubtype: Subtype? = null
@@ -104,7 +104,7 @@ class StatisticalGlideTypingClassifier(context: Context) : GlideTypingClassifier
         }
     }
 
-    override fun setLayout(keyViews: List<TextKey>, subtype: Subtype) {
+    override fun setLayout(keyViews: List<Key>, subtype: Subtype) {
         // AudioWhisper: a change of words for the same subtype arrives through setWordData (B18).
         if (wordDataSubtype != subtype) setWordData(subtype)
         // stop duplicate calls

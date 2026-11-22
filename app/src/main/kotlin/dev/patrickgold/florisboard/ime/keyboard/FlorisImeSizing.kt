@@ -38,7 +38,6 @@ import dev.patrickgold.florisboard.R
 import dev.patrickgold.florisboard.app.FlorisPreferenceStore
 import dev.patrickgold.florisboard.ime.smartbar.ExtendedActionsPlacement
 import dev.patrickgold.florisboard.ime.smartbar.SmartbarLayout
-import dev.patrickgold.florisboard.ime.text.keyboard.TextKeyboard
 import dev.patrickgold.florisboard.keyboardManager
 import dev.patrickgold.florisboard.lib.util.ViewUtils
 import dev.patrickgold.jetpref.datastore.model.observeAsState
@@ -68,8 +67,8 @@ object FlorisImeSizing {
             KeyboardMode.CHARACTERS,
             KeyboardMode.NUMERIC_ADVANCED,
             KeyboardMode.SYMBOLS,
-            KeyboardMode.SYMBOLS2 -> lastCharactersEvaluator.keyboard as TextKeyboard
-            else -> evaluator.keyboard as TextKeyboard
+            KeyboardMode.SYMBOLS2 -> lastCharactersEvaluator.keyboard
+            else -> evaluator.keyboard
         }.rowCount.coerceAtLeast(4)
         return (keyboardRowBaseHeight * rowCount)
     }

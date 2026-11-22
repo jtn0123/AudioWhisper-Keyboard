@@ -21,7 +21,7 @@ import android.os.SystemClock
 import dev.patrickgold.florisboard.app.FlorisPreferenceStore
 import dev.patrickgold.florisboard.editorInstance
 import dev.patrickgold.florisboard.ime.nlp.WordSuggestionCandidate
-import dev.patrickgold.florisboard.ime.text.keyboard.TextKey
+import dev.patrickgold.florisboard.ime.keyboard.Key
 import dev.patrickgold.florisboard.keyboardManager
 import dev.patrickgold.florisboard.nlpManager
 import dev.patrickgold.florisboard.subtypeManager
@@ -86,7 +86,7 @@ class GlideTypingManager(context: Context) : GlideTypingGesture.Listener {
     /**
      * Change the layout of the internal gesture classifier
      */
-    fun setLayout(keys: List<TextKey>) {
+    fun setLayout(keys: List<Key>) {
         if (keys.isNotEmpty()) {
             glideTypingClassifier.setLayout(keys, subtypeManager.activeSubtype)
         }

@@ -16,12 +16,11 @@ import com.jtn0123.audiowhisper.rust.KeyboardRenderer
 import com.jtn0123.audiowhisper.suggest.TapOffset
 import dev.patrickgold.florisboard.app.FlorisPreferenceStore
 import dev.patrickgold.florisboard.ime.keyboard.KeyData
+import dev.patrickgold.florisboard.ime.keyboard.keyIconVector
 import dev.patrickgold.florisboard.FlorisImeService
 import dev.patrickgold.florisboard.ime.nlp.ClipboardSuggestionCandidate
 import dev.patrickgold.florisboard.ime.nlp.SuggestionCandidate
-import dev.patrickgold.florisboard.ime.text.keyboard.TextKey
 import dev.patrickgold.florisboard.ime.text.keyboard.TextKeyData
-import dev.patrickgold.florisboard.ime.text.keyboard.TextKeyboard
 import dev.patrickgold.florisboard.keyboardManager
 import dev.patrickgold.florisboard.nlpManager
 import dev.patrickgold.florisboard.ime.smartbar.quickaction.QuickAction
@@ -46,7 +45,7 @@ internal fun systemRendererFonts(): Array<String> {
 }
 
 internal data class KeyboardSnapshot(
-    val keyboard: TextKeyboard, val keys: List<TextKey>,
+    val keyboard: RustKeyboard, val keys: List<RustKey>,
     val candidates: List<SuggestionCandidate>, val theme: RendererTheme, val shift: String,
     val keyboardHeight: Float, val stripHeight: Float, val rowHeight: Float, val marginH: Float, val marginV: Float, val smartbar: RendererSmartbar, val preview: Boolean,
     val panels: RendererPanels, val editorOptions: IntArray, val search: RendererSearch, val watermark: Pair<String, IntArray>, val previewText: String,
@@ -60,7 +59,7 @@ class RustKeyboardView(context: Context) : FrameLayout(context), SurfaceHolder.C
     private val surface = SurfaceView(context)
     private val choreographer = Choreographer.getInstance()
     private val gestureHost = RendererGestureHost(context, native)
-    private var popupSource: TextKey? = null
+    private var popupSource: RustKey? = null
         set(value) {
             if ((field != null) != (value != null)) {
                 GlobalStateNumPopupsShowing.update { it + if (value != null) 1 else -1 }
@@ -68,6 +67,8 @@ class RustKeyboardView(context: Context) : FrameLayout(context), SurfaceHolder.C
             field = value
         }
     private var popupChoices: List<KeyData> = emptyList()
+    /** Each icon token's drawn path, which never changes for a token. */
+    private val iconPaths = HashMap<Int, String>()
     private var snapshot: KeyboardSnapshot? = null
     /** Rows the surface reaches above this view, which Rust keeps clear for a top-row key's popup. */
     private var headroom = 0
@@ -137,21 +138,15 @@ class RustKeyboardView(context: Context) : FrameLayout(context), SurfaceHolder.C
 
     private fun updateScene() {
         val s = snapshot ?: return
-        val desired = TextKey(TextKeyData.UNSPECIFIED)
-        s.keyboard.sizeDesiredKey(desired, width.toFloat(), s.keyboardHeight, s.rowHeight, s.marginH, s.marginV)
-        s.keyboard.layout(width.toFloat(), s.keyboardHeight, desired, true)
-        val geometry = FloatArray(s.keys.size * 10)
+        val numbers = s.keyboard.layout(width.toFloat(), s.keyboardHeight, s.rowHeight, s.marginH, s.marginV)
+        val geometry = numbers.copyOfRange(2, numbers.size)
         val metadata = mutableListOf(s.keyboard.mode.toString(), s.shift)
         val labels = mutableListOf<String>()
-        for ((i, key) in s.keys.withIndex()) {
-            val t = key.touchBounds
-            val v = key.visibleBounds
-            floatArrayOf(t.left, t.top, t.right, t.bottom, v.left, v.top, v.right, v.bottom,
-                if (key.isEnabled) 1f else 0f, key.computedData.code.toFloat()).copyInto(geometry, i * 10)
+        for (key in s.keys) {
             metadata.add(key.computedData.type.toString())
             labels.add(key.label ?: "")
             labels.add(key.hintedLabel ?: "")
-            labels.add(key.foregroundImageVector?.let(::iconPath) ?: "")
+            labels.add(iconPaths.getOrPut(key.icon) { keyIconVector(key.icon, context)?.let(::iconPath) ?: "" })
         }
         val candidates = s.candidates.map { it.text.toString() }.ifEmpty { if (s.preview) emptyList() else rendererEmojiSamples() }
         val flags = if (s.candidates.isEmpty()) IntArray(candidates.size) else s.candidates.map {
@@ -159,7 +154,7 @@ class RustKeyboardView(context: Context) : FrameLayout(context), SurfaceHolder.C
         }.toIntArray()
         native.smartbar(s.smartbar.config, s.smartbar.codes, s.smartbar.labels + s.candidates.flatMap { listOf(it.icon?.let(::iconPath) ?: "", it.secondaryText?.toString() ?: "") })
         manager.smartbarVisibleDynamicActionsCount = s.smartbar.measure(width.toFloat())[2].toInt()
-        native.update(floatArrayOf(width.toFloat(), height.toFloat(), s.stripHeight, desired.visibleBounds.width, desired.visibleBounds.height, s.keyboardHeight),
+        native.update(floatArrayOf(width.toFloat(), height.toFloat(), s.stripHeight, numbers[0], numbers[1], s.keyboardHeight),
             metadata.toTypedArray(), flags, geometry, labels.toTypedArray(), candidates.toTypedArray())
         native.panels(floatArrayOf(s.panels.kind.toFloat(), s.theme.density,
             s.smartbar.config[11], manager.smartbarVisibleDynamicActionsCount.toFloat(), android.view.ViewConfiguration.getKeyRepeatDelay().toFloat() * 1_000_000,
@@ -175,7 +170,7 @@ class RustKeyboardView(context: Context) : FrameLayout(context), SurfaceHolder.C
         candidateBindings.bind(native, s.candidates)
         native.semanticConfig(accessibilityResources.first, accessibilityResources.second,
             s.smartbar.actions.map { (it as? QuickAction.InsertText)?.data ?: "" }.toTypedArray(),
-            s.keys.map { if (it.computedPopups.getPopupKeys(prefs.keyboard.keyHintConfiguration()).isNotEmpty()) 1 else 0 }.toIntArray(),
+            s.keyboard.popupFlags(prefs.keyboard.keyHintConfiguration()),
             s.candidates.map { if (it.isEligibleForUserRemoval) 1 else 0 }.toIntArray(), s.smartbar.checkedCodes, s.editorOptions)
         accessibility.refresh()
         mediaBuffers.update(s.panels.clipboard.takeIf { s.panels.kind==4 },s.panels.gif.takeIf { s.panels.kind==5 })
@@ -339,7 +334,7 @@ class RustKeyboardView(context: Context) : FrameLayout(context), SurfaceHolder.C
                         v.center.x, v.center.y, v.width, v.height))
                 }
                 dispatcher.sendDown(data, onLongPress = {
-                    val choices = key.computedPopups.getPopupKeys(prefs.keyboard.keyHintConfiguration()).toList()
+                    val choices = s.keyboard.popupKeys(index, prefs.keyboard.keyHintConfiguration()).toList()
                     val result = native.longPress(pointer, choices.isNotEmpty(), dispatcher.isUninterruptedEventSequence(data))
                     dispatchActions(result)
                     result.indices.step(3).any { result[it] == LONG_PRESS_BLOCK }
@@ -363,7 +358,7 @@ class RustKeyboardView(context: Context) : FrameLayout(context), SurfaceHolder.C
             OPEN_POPUP -> {
                 val key = s.keys[index]
                 popupSource = key
-                val choices = key.computedPopups.getPopupKeys(prefs.keyboard.keyHintConfiguration())
+                val choices = s.keyboard.popupKeys(index, prefs.keyboard.keyHintConfiguration())
                 popupChoices = choices.toList()
                 native.popup(index, popupChoices.map { it.label }.toTypedArray(), popupChoices.map { it.code }.toIntArray())
                 native.popupGrid(choices.prioritized.size, resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE)

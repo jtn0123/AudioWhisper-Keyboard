@@ -29,7 +29,7 @@ class TextKeyboard(
     val extendedPopupMapping: PopupMapping?,
     val extendedPopupMappingDefault: PopupMapping?,
 ) : Keyboard() {
-    val rowCount: Int
+    override val rowCount: Int
         get() = arrangement.size
 
     val keyCount: Int

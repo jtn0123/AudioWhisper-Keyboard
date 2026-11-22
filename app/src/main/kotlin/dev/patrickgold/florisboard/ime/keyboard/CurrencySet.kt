@@ -24,7 +24,7 @@ import com.jtn0123.audiowhisper.rust.KeyModels
 class CurrencySet(
     val id: String,
     val label: String,
-    private val slots: List<TextKeyData>
+    val slots: List<TextKeyData>
 ) {
     companion object {
         val Fallback = CurrencySet(

@@ -114,7 +114,7 @@ private var cachedDisplayNameState = Triple(FlorisLocale.ROOT, DisplayLanguageNa
  * language name. This only caches the last display name, but that's more than enough, as a one-time re-computation when
  * the subtype changes does not hurt, the repetitive computation for the same language hurts.
  */
-private fun computeLanguageDisplayName(locale: FlorisLocale, displayLanguageNamesIn: DisplayLanguageNamesIn): String {
+internal fun computeLanguageDisplayName(locale: FlorisLocale, displayLanguageNamesIn: DisplayLanguageNamesIn): String {
     val (cachedLocale, cachedDisplayLanguageNamesIn, cachedDisplayName) = cachedDisplayNameState
     if (cachedLocale == locale && cachedDisplayLanguageNamesIn == displayLanguageNamesIn) {
         return cachedDisplayName
@@ -134,24 +134,41 @@ fun ComputingEvaluator.computeLabel(data: KeyData): String? {
         0 -> null
         1 -> data.asString(isForDisplay = true)
         2 -> computeLanguageDisplayName(subtype.primaryLocale, displayLanguageNamesIn())
-        KeyCode.PHONE_PAUSE -> context()?.getString(R.string.key__phone_pause)
-        KeyCode.PHONE_WAIT -> context()?.getString(R.string.key__phone_wait)
-        KeyCode.IME_UI_MODE_TEXT, KeyCode.VIEW_CHARACTERS -> context()?.getString(R.string.key__view_characters)
-        KeyCode.VIEW_NUMERIC, KeyCode.VIEW_NUMERIC_ADVANCED -> context()?.getString(R.string.key__view_numeric)
-        KeyCode.VIEW_PHONE -> context()?.getString(R.string.key__view_phone)
-        KeyCode.VIEW_PHONE2 -> context()?.getString(R.string.key__view_phone2)
-        KeyCode.VIEW_SYMBOLS -> context()?.getString(R.string.key__view_symbols)
-        KeyCode.VIEW_SYMBOLS2 -> context()?.getString(R.string.key__view_symbols2)
-        KeyCode.HALF_SPACE -> context()?.getString(R.string.key__view_half_space)
-        KeyCode.KESHIDA -> context()?.getString(R.string.key__view_keshida)
-        else -> error("Unknown native label resource")
+        else -> keyLabelResource(token, context())
     }
 }
 
-fun ComputingEvaluator.computeImageVector(data: KeyData): ImageVector? {
-    val icon = com.jtn0123.audiowhisper.rust.InputRules.visual(longArrayOf(data.code.toLong(),
-        state.rawValue.toLong(), editorInfo.inputAttributes.raw.toLong(), editorInfo.imeOptions.raw.toLong(),
-        keyboard.mode.toInt().toLong()))
+/** The label resource tokens [com.jtn0123.audiowhisper.rust.InputRules.visual] names. */
+val KEY_LABEL_RESOURCES = intArrayOf(KeyCode.PHONE_PAUSE, KeyCode.PHONE_WAIT, KeyCode.IME_UI_MODE_TEXT,
+    KeyCode.VIEW_CHARACTERS, KeyCode.VIEW_NUMERIC, KeyCode.VIEW_NUMERIC_ADVANCED, KeyCode.VIEW_PHONE,
+    KeyCode.VIEW_PHONE2, KeyCode.VIEW_SYMBOLS, KeyCode.VIEW_SYMBOLS2, KeyCode.HALF_SPACE, KeyCode.KESHIDA)
+
+/** The label of resource [token], one of [KEY_LABEL_RESOURCES]. */
+fun keyLabelResource(token: Int, context: Context?): String? = context?.getString(keyLabelResourceId(token))
+
+/** The string resource that names resource [token], one of [KEY_LABEL_RESOURCES]. */
+fun keyLabelResourceId(token: Int): Int = when (token) {
+    KeyCode.PHONE_PAUSE -> R.string.key__phone_pause
+    KeyCode.PHONE_WAIT -> R.string.key__phone_wait
+    KeyCode.IME_UI_MODE_TEXT, KeyCode.VIEW_CHARACTERS -> R.string.key__view_characters
+    KeyCode.VIEW_NUMERIC, KeyCode.VIEW_NUMERIC_ADVANCED -> R.string.key__view_numeric
+    KeyCode.VIEW_PHONE -> R.string.key__view_phone
+    KeyCode.VIEW_PHONE2 -> R.string.key__view_phone2
+    KeyCode.VIEW_SYMBOLS -> R.string.key__view_symbols
+    KeyCode.VIEW_SYMBOLS2 -> R.string.key__view_symbols2
+    KeyCode.HALF_SPACE -> R.string.key__view_half_space
+    KeyCode.KESHIDA -> R.string.key__view_keshida
+    else -> error("Unknown native label resource")
+}
+
+fun ComputingEvaluator.computeImageVector(data: KeyData): ImageVector? = keyIconVector(
+    com.jtn0123.audiowhisper.rust.InputRules.visual(longArrayOf(data.code.toLong(), state.rawValue.toLong(),
+        editorInfo.inputAttributes.raw.toLong(), editorInfo.imeOptions.raw.toLong(), keyboard.mode.toInt().toLong())),
+    context(),
+)
+
+/** The icon a key's icon [token] draws, from [com.jtn0123.audiowhisper.rust.InputRules.visual]. */
+fun keyIconVector(icon: Int, context: Context?): ImageVector? {
     return when (icon) {
         KeyCode.ARROW_LEFT -> {
             Icons.AutoMirrored.Filled.KeyboardArrowLeft
@@ -183,7 +200,7 @@ fun ComputingEvaluator.computeImageVector(data: KeyData): ImageVector? {
         KeyCode.COMPACT_LAYOUT_TO_LEFT,
         KeyCode.COMPACT_LAYOUT_TO_RIGHT,
         KeyCode.TOGGLE_COMPACT_LAYOUT -> {
-            context()?.vectorResource(id = R.drawable.ic_accessibility_one_handed)
+            context?.vectorResource(id = R.drawable.ic_accessibility_one_handed)
         }
         KeyCode.VOICE_INPUT -> {
             Icons.Default.KeyboardVoice
@@ -229,16 +246,16 @@ fun ComputingEvaluator.computeImageVector(data: KeyData): ImageVector? {
         KeyCode.TOGGLE_ACTIONS_OVERFLOW -> {
             Icons.Default.MoreHoriz
         }
-        KeyCode.TOGGLE_INCOGNITO_MODE -> context()?.vectorResource(R.drawable.ic_incognito)
-        ICON_INCOGNITO_OFF -> context()?.vectorResource(R.drawable.ic_incognito_off)
+        KeyCode.TOGGLE_INCOGNITO_MODE -> context?.vectorResource(R.drawable.ic_incognito)
+        ICON_INCOGNITO_OFF -> context?.vectorResource(R.drawable.ic_incognito_off)
         KeyCode.TOGGLE_AUTOCORRECT -> {
             Icons.Default.FontDownload
         }
         KeyCode.CHAR_WIDTH_FULL -> {
-            this.context()?.vectorResource(R.drawable.ic_keyboard_char_width_switcher_full)
+            context?.vectorResource(R.drawable.ic_keyboard_char_width_switcher_full)
         }
         KeyCode.CHAR_WIDTH_HALF -> {
-            this.context()?.vectorResource(R.drawable.ic_keyboard_char_width_switcher_half)
+            context?.vectorResource(R.drawable.ic_keyboard_char_width_switcher_half)
         }
         KeyCode.DRAG_MARKER -> {
             null

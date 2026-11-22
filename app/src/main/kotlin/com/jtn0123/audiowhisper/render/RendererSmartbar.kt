@@ -1,5 +1,6 @@
 package com.jtn0123.audiowhisper.render
 
+import android.content.Context
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
@@ -17,6 +18,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.vectorResource
+import com.jtn0123.audiowhisper.rust.KeyGraph
 import com.jtn0123.audiowhisper.rust.SmartbarAction
 import com.jtn0123.audiowhisper.rust.SmartbarActionKind
 import com.jtn0123.audiowhisper.rust.SmartbarActionPlan
@@ -28,10 +30,8 @@ import com.jtn0123.audiowhisper.rust.WireFlag
 import com.jtn0123.audiowhisper.rust.RenderProtocol.*
 import dev.patrickgold.florisboard.R
 import dev.patrickgold.florisboard.app.FlorisPreferenceStore
-import dev.patrickgold.florisboard.ime.keyboard.computeImageVector
-import dev.patrickgold.florisboard.ime.keyboard.computeLabel
 import dev.patrickgold.florisboard.ime.keyboard.FlorisImeSizing
-import dev.patrickgold.florisboard.ime.keyboard.KeyData
+import dev.patrickgold.florisboard.ime.keyboard.keyIconVector
 import dev.patrickgold.florisboard.ime.smartbar.IncognitoDisplayMode
 import dev.patrickgold.florisboard.ime.smartbar.quickaction.QuickAction
 import dev.patrickgold.florisboard.ime.smartbar.quickaction.keyData
@@ -93,6 +93,7 @@ internal fun rendererSmartbar(preview: Boolean, inline: Boolean = false): Render
     val level by Dictation.level.collectAsState()
     val warming by Dictation.warming.collectAsState()
     val evaluator by manager.activeSmartbarEvaluator.collectAsState()
+    val keyboard by manager.activeEvaluator.collectAsState()
     val config = smartbarConfig(preview, inline)
     val arrangement by prefs.smartbar.actionArrangement.observeAsState()
     val incognitoMode by prefs.keyboard.incognitoDisplayMode.observeAsState()
@@ -101,11 +102,11 @@ internal fun rendererSmartbar(preview: Boolean, inline: Boolean = false): Render
     val actions = listOf(arrangement.stickyAction, QuickAction.InsertKey(TextKeyData.READ_ALOUD),
         null, QuickAction.InsertKey(TextKeyData.TOGGLE_ACTIONS_OVERFLOW), null) + arrangement.dynamicActions
     val shown = SmartbarShown(config, smartbarBar(incognitoMode, evaluator.state.isIncognitoMode, dictation, level, warming),
-        actions, evaluator::evaluateEnabled, evaluator::computeImageVector)
+        actions, RustKeyboard.of(keyboard.keyboard).graph)
     val incognito = if (SmartbarIcon.INCOGNITO in shown.icons) ImageVector.vectorResource(R.drawable.ic_incognito) else null
     val tooltips = actions.map { it?.computeTooltip(evaluator) ?: "" }
     val labels = actions.indices.flatMap {
-        listOf(shown.icon(it, incognito)?.let(::iconPath) ?: "", shown.label(it, evaluator::computeLabel))
+        listOf(shown.icon(it, incognito, context)?.let(::iconPath) ?: "", shown.label(it))
     }.toTypedArray()
     return RendererSmartbar(config, actions, shown.codes, labels, tooltips, warming,
         listOfNotNull(KeyCode.TOGGLE_INCOGNITO_MODE.takeIf { evaluator.state.isIncognitoMode },
@@ -131,21 +132,19 @@ internal fun smartbarBar(incognitoMode: IncognitoDisplayMode, incognito: Boolean
 
 /**
  * What each action shows, as Rust plans it (`smartbar_actions`) from the [config], the [bar] row
- * and what the key evaluator says of each action: whether it is [enabled], and its key's own icon,
- * [keyIcon].
+ * and each action's key data, which the key [graph] answers for: whether it is enabled, and the
+ * icon and label of its key.
  */
-internal class SmartbarShown(config: FloatArray, bar: Array<String>, private val actions: List<QuickAction?>, enabled: (KeyData) -> Boolean,
-                             keyIcon: (KeyData) -> ImageVector?) {
-    private val keyIcons = actions.map { (it as? QuickAction.InsertKey)?.let { key -> keyIcon(key.data) } }
-    private val plan = SmartbarRules.actions(config, bar + actions.indices.flatMap { row(it, enabled) })
+internal class SmartbarShown(config: FloatArray, bar: Array<String>, private val actions: List<QuickAction?>, graph: KeyGraph) {
+    private val plan = SmartbarRules.actions(config, graph, bar + actions.flatMap(::row))
     private fun field(i: Int, field: Int) = plan[SmartbarPlan.SIZE + i * SmartbarActionPlan.SIZE + field]
-    private fun row(i: Int, enabled: (KeyData) -> Boolean) = with(SmartbarAction) {
-        val action = actions[i]
+    private fun row(action: QuickAction?) = with(SmartbarAction) {
+        val data = action?.keyData()
         Array(SIZE) { "" }.also { row ->
             row[KIND] = "${when (action) { null -> SmartbarActionKind.NONE; is QuickAction.InsertKey -> SmartbarActionKind.KEY
                 is QuickAction.InsertText -> SmartbarActionKind.TEXT }}"
-            row[CODE] = "${action?.keyData()?.code ?: 0}"; row[ENABLED] = WireFlag.encode(action != null && enabled(action.keyData()))
-            row[KEY_ICON] = WireFlag.encode(keyIcons[i] != null); row[TEXT] = (action as? QuickAction.InsertText)?.data ?: ""
+            row[CODE] = "${data?.code ?: 0}"; row[TYPE] = "${data?.type?.ordinal ?: 0}"; row[LABEL] = data?.label ?: ""
+            row[TEXT] = (action as? QuickAction.InsertText)?.data ?: ""
         }.asList()
     }
 
@@ -158,9 +157,9 @@ internal class SmartbarShown(config: FloatArray, bar: Array<String>, private val
     /** Each action's `SmartbarIcon`. */
     val icons = IntArray(actions.size) { field(it, SmartbarActionPlan.ICON).toInt() }
 
-    /** Action [i]'s icon, with [incognito] for `SmartbarIcon.INCOGNITO`. */
-    fun icon(i: Int, incognito: ImageVector?): ImageVector? = when (icons[i]) {
-        SmartbarIcon.KEY -> keyIcons[i]
+    /** Action [i]'s icon, with [incognito] for `SmartbarIcon.INCOGNITO` and its key's drawn from [context]. */
+    fun icon(i: Int, incognito: ImageVector?, context: Context?): ImageVector? = when (icons[i]) {
+        SmartbarIcon.KEY -> keyIconVector(keyIcon(i), context)
         SmartbarIcon.ARROW_LEFT -> Icons.AutoMirrored.Default.KeyboardArrowLeft
         SmartbarIcon.ARROW_RIGHT -> Icons.AutoMirrored.Default.KeyboardArrowRight
         SmartbarIcon.UNFOLD_LESS -> Icons.Default.UnfoldLess
@@ -170,8 +169,9 @@ internal class SmartbarShown(config: FloatArray, bar: Array<String>, private val
         else -> null
     }
 
-    /** Action [i]'s label; [keyLabel] names a key's own. */
-    fun label(i: Int, keyLabel: (KeyData) -> String?): String = if (!WireFlag.decode(field(i, SmartbarActionPlan.KEY_LABEL))) {
-        field(i, SmartbarActionPlan.LABEL)
-    } else (actions[i] as? QuickAction.InsertKey)?.let { keyLabel(it.data) } ?: ""
+    /** The icon token the graph picked for action [i]'s key, 0 for none. */
+    fun keyIcon(i: Int): Int = field(i, SmartbarActionPlan.KEY_ICON).toInt()
+
+    /** Action [i]'s label: its own, or its key's. */
+    fun label(i: Int): String = field(i, SmartbarActionPlan.LABEL)
 }
