@@ -1,12 +1,16 @@
 //! The theme editor, drawn by Rust where the extension editor's Manage component opened
 //! ThemeEditorScreen: the component box (`paint.rs`), the rules in `compare_order` with their
-//! properties as text (`rules.rs`), the rule editor (`form.rs`), the component meta editor
+//! properties as text (`rules.rs`), the rule editor (`form.rs`) and its code editor (`codes.rs`),
+//! the component meta editor
 //! (`meta.rs`) and fine-tune, a screen of three preferences. Kotlin reads the extension editor's
 //! workspace (`wire::settings_ui::theme_editor`), writes the stylesheet Rust serializes back into
 //! it on Save and shows the draft on the keyboard; Rust parses, edits and serializes the
 //! stylesheet. Edits are a draft until Save: Back with changes asks to discard them, where
 //! Compose wrote every edit through to the workspace.
 pub mod boxes;
+pub mod codes;
+pub mod codes_paint;
+pub mod codes_preview;
 pub mod contrast;
 pub mod dynamic;
 pub mod form;
@@ -89,6 +93,8 @@ pub fn string_keys() -> Vec<&'static str> {
     out.extend(rules::SELECTOR_KEYS);
     out.extend(form::MODES.iter().chain(&form::SHIFT_STATES).map(|v| v.1));
     out.extend(property::string_keys());
+    out.extend(codes::KEYS);
+    out.extend(codes_preview::LABELS.iter().map(|l| l.1));
     out
 }
 
@@ -133,6 +139,8 @@ pub enum Tap {
     Night,
     /// The property editor's and the source sets' controls.
     Prop(property::PropTap),
+    /// The code editor's and the rule editor's code chips.
+    Code(codes::CodeTap),
 }
 
 /// What the component box shows beyond the meta: `extension:id` and the stylesheet's path.
@@ -214,6 +222,7 @@ pub struct ThemeEditor {
     pub form: Option<form::RuleForm>,
     pub meta_form: Option<meta::MetaForm>,
     pub prop: Option<property::PropertyForm>,
+    pub code: Option<codes::CodeForm>,
     /// A draft a saved state brought back: it replaces the report's stylesheet and meta.
     pub restored: Option<saved::Draft>,
 }
@@ -419,6 +428,9 @@ impl App {
     /// the keyboard shows as `DisplayKbdAfterDialogs` says.
     pub(super) fn theme_editor_left(&mut self) {
         if self.in_theme_editor() {
+            if self.code_editor_left() {
+                return;
+            }
             self.close_theme_forms();
             self.keyboard_after_dialog();
         } else if self.theme_editor.target.take().is_some() {
@@ -479,6 +491,7 @@ impl App {
                 }
             }
             Tap::Prop(tap) => self.property_tap(tap),
+            Tap::Code(tap) => self.code_tap(tap),
         }
     }
     /// Opens row `i`'s list with the element chosen, or nothing chosen for a value to add.
@@ -513,7 +526,9 @@ impl App {
     }
     /// The bottom bar's Add or Apply on the rule, the meta or the property editor.
     pub(in crate::settings_ui) fn save_theme_form(&mut self) {
-        if self.theme_editor.form.is_some() {
+        if self.theme_editor.code.is_some() {
+            self.save_code();
+        } else if self.theme_editor.form.is_some() {
             self.save_rule();
         } else if self.theme_editor.meta_form.is_some() {
             self.save_meta();
@@ -536,6 +551,7 @@ impl App {
             Part::MaterialYou => vec![],
             Part::Night => vec![meta::NIGHT_ID],
             Part::Status | Part::Meta | Part::Tune | Part::Rules => vec![],
+            Part::Code(row) => self.code_focus(i, row),
             _ => self.rule_focus(i, part),
         }
     }
@@ -544,23 +560,23 @@ impl App {
         let e = &self.theme_editor;
         match part {
             Part::Font => e.form.as_ref().map(|f| f.font.clone()),
-            Part::Attribute(0) => e.form.as_ref().map(|f| f.codes.clone()),
+            Part::Code(_) => e.code.as_ref().map(|f| f.text.clone()),
             Part::MetaField(k) => e.meta_form.as_ref().map(|f| f.field(k).to_owned()),
             _ => self.property_line(part),
         }
     }
     /// Line field `part` changed.
     pub(in crate::settings_ui) fn theme_typed(&mut self, part: Part, value: String) {
-        if let Part::MetaField(k) = part {
-            return self.meta_typed(k, value);
+        match part {
+            Part::MetaField(k) => return self.meta_typed(k, value),
+            Part::Code(_) => return self.code_typed(value),
+            _ => {}
         }
         let Some(f) = self.theme_editor.form.as_mut() else {
             return self.property_typed(part, value);
         };
-        match part {
-            Part::Font => f.font = value,
-            Part::Attribute(0) => f.codes = value,
-            _ => {}
+        if part == Part::Font {
+            f.font = value;
         }
     }
 }

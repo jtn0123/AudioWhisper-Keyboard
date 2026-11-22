@@ -1,6 +1,7 @@
 //! The theme editor (`settings_ui/theme_editor`): ThemeEditorScreen's component box and rules, the
 //! rule, property and component meta editors, which Compose drew as dialogs over it, and its
-//! fine-tune dialog as a screen of its three preferences. Rows whose kind is `ThemeEdit` are
+//! fine-tune dialog as a screen of its three preferences, and the code editor over the rule
+//! editor, EditCodeValueDialog as a screen. Rows whose kind is `ThemeEdit` are
 //! painted by that module; the editors' Cancel and Apply are the item editor's bottom bar
 //! (`Lang::Cancel`, `Lang::Save`), and its questions are language dialogs.
 use super::{Choices, Cond, Kind, Row, Screen, languages::Lang, row};
@@ -24,6 +25,8 @@ pub enum Part {
     Selectors,
     /// The rule editor's attribute boxes: 0 codes, 1 modes, 2 shift states.
     Attribute(usize),
+    /// The code editor's rows.
+    Code(CodeRow),
     /// The rule editor's message: the rule exists, or no codes are given.
     RuleError,
     /// The meta editor's fields: 0 the label, 1 the authors, comma-separated, 2 the id, 3 the
@@ -52,6 +55,17 @@ pub enum Part {
     PropAll,
     /// Show keyboard, for the live preview the screen has no field for.
     PropKeyboard,
+}
+
+/// The code editor's rows.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CodeRow {
+    /// The key data preview: the key's label or icon, its name and its kind.
+    Preview,
+    /// The code field with *record a key* at its end, and why Add or Apply refused under it.
+    Field,
+    /// How to find a code: record a key, or look it up at one of the two links.
+    Help,
 }
 
 const fn part(label: &'static str, p: Part) -> Row {
@@ -115,6 +129,27 @@ const RULE_EDIT_ROWS: &[Row] = &[
         "settings__theme_editor__delete_rule_message",
         Lang::DeleteRule,
     ),
+];
+const CODE: [Row; 4] = [
+    part("", Part::Code(CodeRow::Preview)),
+    part("", Part::Code(CodeRow::Field)),
+    part("", Part::Code(CodeRow::Help)),
+    CANCEL,
+];
+const CODE_ADD_ROWS: &[Row] = &[
+    CODE[0],
+    CODE[1],
+    CODE[2],
+    CODE[3],
+    row("", "action__add", "", Kind::Lang(Lang::Save)),
+];
+/// Delete deletes at once, as the dialog's did.
+const CODE_EDIT_ROWS: &[Row] = &[
+    CODE[0],
+    CODE[1],
+    CODE[2],
+    CODE[3],
+    row("", "action__apply", "", Kind::Lang(Lang::Save)),
 ];
 const PROPERTY: [Row; 12] = [
     part("", Part::PropError),
@@ -320,6 +355,18 @@ pub const PROPERTY_EDIT: Screen = screen(
     screens::PROPERTY_EDIT,
     "settings__theme_editor__edit_property",
     PROPERTY_EDIT_ROWS,
+    false,
+);
+pub const CODE_ADD: Screen = screen(
+    screens::codes::CODE_ADD,
+    "settings__theme_editor__add_code",
+    CODE_ADD_ROWS,
+    false,
+);
+pub const CODE_EDIT: Screen = screen(
+    screens::codes::CODE_EDIT,
+    "settings__theme_editor__edit_code",
+    CODE_EDIT_ROWS,
     false,
 );
 pub const META: Screen = screen(

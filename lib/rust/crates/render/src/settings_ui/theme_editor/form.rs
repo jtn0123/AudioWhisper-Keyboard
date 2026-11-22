@@ -1,7 +1,7 @@
 //! The rule editor, EditRuleDialog as a screen: the element (a dropdown while adding, fixed
 //! when editing, as Compose disabled it), the font's name for `@font`, the selector chips, the
-//! codes as one comma-separated field, and the mode and shift state chips with a list to add
-//! one. Add and Apply refuse a rule that exists already, as `updateRule` did, and adding with no
+//! codes as chips that open the code editor (`codes.rs`), and the mode and shift state chips with
+//! a list to add one. Add and Apply refuse a rule that exists already, as `updateRule` did, and adding with no
 //! element marks the dropdown, and a font name the stylesheet could not read back is refused.
 //! Duplicate starts from a rule's element, selector and attributes,
 //! and the rule it adds takes that rule's properties.
@@ -10,7 +10,6 @@ use crate::settings_ui::{
     App,
     catalogue::{Kind, theme_editor::Part},
 };
-use keys::codes::{CHARACTERS_MAX, CHARACTERS_MIN, INTERNAL_MAX, INTERNAL_MIN};
 use snygg::{attributes::Attributes, grammar::Rule, resolve::PropertySets, text};
 
 /// The dropdown's entry for `@font`; the empty entry is "--select--".
@@ -39,7 +38,6 @@ pub const SHIFT_STATES: [(&str, &str); 4] = [
 ];
 /// Why Add or Apply refused.
 pub const EXISTS: &str = "settings__theme_editor__rule_already_exists";
-pub const INVALID_CODE: &str = "settings__theme_editor__code_invalid";
 /// A font name the stylesheet's grammar cannot read back: Compose wrote it, and the theme then
 /// failed to open.
 pub const INVALID_FONT: &str = "settings__theme_editor__font_name_invalid";
@@ -60,9 +58,8 @@ pub struct RuleForm {
     pub font: String,
     /// A `grammar::SELECTORS` index; 0 for none.
     pub selector: usize,
-    /// The rule's attributes but its codes, which `codes` holds as typed.
+    /// The rule's attributes, its codes among them.
     pub attributes: Attributes,
-    pub codes: String,
     /// Why Add or Apply refused: a string key, or empty.
     pub error: &'static str,
     /// Add was tried with no element chosen.
@@ -84,12 +81,6 @@ impl RuleForm {
                 f.element = lossy(name);
                 f.selector = *selector;
                 f.attributes = attributes.clone();
-                let code = text(ATTRIBUTES[0]);
-                if let Some(at) = f.attributes.0.iter().position(|(k, _)| *k == code) {
-                    let (_, values) = f.attributes.0.remove(at);
-                    let codes: Vec<String> = values.iter().map(|v| lossy(v)).collect();
-                    f.codes = codes.join(", ");
-                }
             }
         }
         f
@@ -119,7 +110,7 @@ impl RuleForm {
     pub fn is_element(&self) -> bool {
         !self.element.is_empty() && self.element != FONT
     }
-    /// The values of attribute `k` (1 modes, 2 shift states) the rule has.
+    /// The values of attribute `k` (0 codes, 1 modes, 2 shift states) the rule has.
     pub fn values(&self, k: usize) -> Vec<String> {
         let key = text(ATTRIBUTES[k]);
         self.attributes
@@ -142,31 +133,11 @@ impl RuleForm {
                 let back = snygg::grammar::parse(&rule.format()).ok().flatten();
                 back.filter(|b| *b == rule).ok_or(INVALID_FONT)
             }
-            name => {
-                let mut attributes = self.attributes.clone();
-                let mut pairs = vec![];
-                for code in self
-                    .codes
-                    .split(',')
-                    .map(str::trim)
-                    .filter(|c| !c.is_empty())
-                {
-                    let code = code.parse::<i32>().ok().filter(|c| {
-                        (CHARACTERS_MIN..=CHARACTERS_MAX).contains(c)
-                            || (INTERNAL_MIN..=INTERNAL_MAX).contains(c)
-                    });
-                    let Some(code) = code else {
-                        return Err(INVALID_CODE);
-                    };
-                    pairs.push((text(ATTRIBUTES[0]), text(&code.to_string())));
-                }
-                attributes.edit(&pairs, 0);
-                Ok(Rule::Element {
-                    name: text(name),
-                    attributes,
-                    selector: self.selector,
-                })
-            }
+            name => Ok(Rule::Element {
+                name: text(name),
+                attributes: self.attributes.clone(),
+                selector: self.selector,
+            }),
         }
     }
 }
@@ -342,9 +313,5 @@ impl App {
             return String::new();
         }
         self.label(key)
-            .replace("{c_min}", &CHARACTERS_MIN.to_string())
-            .replace("{c_max}", &CHARACTERS_MAX.to_string())
-            .replace("{i_min}", &INTERNAL_MIN.to_string())
-            .replace("{i_max}", &INTERNAL_MAX.to_string())
     }
 }

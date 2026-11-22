@@ -2,9 +2,15 @@
 //! checks Add and Apply make, Apply renaming a rule in place, and Cancel.
 use super::common::*;
 use render::settings_ui::{
-    catalogue::{Kind, languages::Lang, theme_editor::Part},
+    catalogue::{
+        Kind,
+        languages::Lang,
+        theme_editor::{CodeRow, Part},
+    },
     theme_editor::{
         RULE_ADD, RULE_EDIT,
+        codes::CODE_ADD,
+        codes_paint::{CODE_ADD_ID, CODE_ID},
         form_paint::{ERROR_ID, SELECTOR_ID, VALUE_ID},
         paint::{ADD_ID, rule_id},
     },
@@ -76,7 +82,8 @@ fn a_new_element_rule_takes_its_selector_codes_modes_and_shift_states() {
     assert!(tap(&mut a, &mut text, SELECTOR_ID + 1));
     assert!(!control(&a, SELECTOR_ID + 1).unwrap().selected);
     assert!(tap(&mut a, &mut text, SELECTOR_ID + 4));
-    type_into(&mut a, &mut text, Part::Attribute(0), " 32, -1 ,");
+    add_codes(&mut a, &mut text, " 32, -1 ,");
+    assert_eq!(a.stack.last().unwrap(), RULE_ADD);
     // Modes: the Add chip lists the modes, here Numeric chosen.
     let modes = part_id(&a, Part::Attribute(1));
     assert!(control(&a, VALUE_ID + 16 + 15).is_some());
@@ -116,7 +123,7 @@ fn a_new_element_rule_takes_its_selector_codes_modes_and_shift_states() {
 #[test]
 fn a_rule_that_exists_or_a_bad_code_is_refused_with_why() {
     let (mut a, mut text) = adding(4);
-    type_into(&mut a, &mut text, Part::Attribute(0), "10");
+    add_codes(&mut a, &mut text, "10");
     let add = lang_id(&a, Lang::Save);
     assert!(tap(&mut a, &mut text, add));
     assert_eq!(
@@ -127,12 +134,20 @@ fn a_rule_that_exists_or_a_bad_code_is_refused_with_why() {
         "settings__theme_editor__code_invalid".into(),
         "{c_min}-{c_max} or {i_min}-{i_max}".into(),
     );
-    type_into(&mut a, &mut text, Part::Attribute(0), "10, 70000");
-    assert!(tap(&mut a, &mut text, add));
-    assert_eq!(control(&a, ERROR_ID).unwrap().label, "1-65535 or -9999--1");
-    type_into(&mut a, &mut text, Part::Attribute(0), "0");
-    assert!(tap(&mut a, &mut text, add));
+    // A bad code is refused in the code editor, which stays open with why under its field.
+    assert!(tap(&mut a, &mut text, CODE_ADD_ID));
+    for bad in ["10, 70000", "0"] {
+        type_into(&mut a, &mut text, Part::Code(CodeRow::Field), bad);
+        let add_code = lang_id(&a, Lang::Save);
+        assert!(tap(&mut a, &mut text, add_code));
+        assert_eq!(a.stack.last().unwrap(), CODE_ADD);
+        let field = part_id(&a, Part::Code(CodeRow::Field));
+        assert_eq!(control(&a, field).unwrap().summary, "1-65535 or -9999--1");
+    }
+    let cancel = lang_id(&a, Lang::Cancel);
+    assert!(tap(&mut a, &mut text, cancel));
     assert_eq!(a.stack.last().unwrap(), RULE_ADD);
+    assert_eq!(a.theme_editor.form.as_ref().unwrap().values(0), ["10"]);
     assert_eq!(a.theme_editor.rules.len(), 5);
 }
 
@@ -169,8 +184,10 @@ fn apply_renames_a_rule_in_place_and_keeps_its_properties() {
     );
     assert!(!tap(&mut a, &mut text, element));
     assert!(a.modal.is_none());
-    assert_eq!(a.theme_editor.form.as_ref().unwrap().codes, "10");
-    type_into(&mut a, &mut text, Part::Attribute(0), "10, 13");
+    assert_eq!(a.theme_editor.form.as_ref().unwrap().values(0), ["10"]);
+    assert_eq!(control(&a, CODE_ID).unwrap().label, "10");
+    add_codes(&mut a, &mut text, "13");
+    assert_eq!(a.stack.last().unwrap(), RULE_EDIT);
     let apply = lang_id(&a, Lang::Save);
     assert!(tap(&mut a, &mut text, apply));
     assert_eq!(a.theme_editor.rules.len(), 5);

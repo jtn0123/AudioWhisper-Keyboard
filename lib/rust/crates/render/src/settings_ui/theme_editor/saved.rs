@@ -1,11 +1,14 @@
 //! The theme editor's part of the saved state: the draft and what it started from, so turning
-//! the screen keeps unsaved edits, and an open rule, meta or property editor with what it holds, as
-//! Compose's `rememberSaveable` kept its dialogs. Kotlin's report is asked for again, and the
+//! the screen keeps unsaved edits, and an open rule, code, meta or property editor with what it
+//! holds, as Compose's `rememberSaveable` kept its dialogs. A recording in progress is not kept:
+//! the activity that comes back listens to nothing, as Compose's `remember` forgot it, and a key
+//! pressed after the screen came back is not the one asked for. Kotlin's report is asked for again, and the
 //! draft replaces the stylesheet and meta it brings. The deleted rule or property is not kept:
 //! Undo goes with the activity, as the dictionary's does.
 use super::{
     Load, META, Meta, PROPERTY_ADD, PROPERTY_EDIT, RULE_ADD, RULE_EDIT, ThemeEditor,
-    form::{EXISTS, INVALID_CODE, INVALID_FONT, RuleForm},
+    codes::{self, CODE_ADD, CODE_EDIT, CodeForm},
+    form::{EXISTS, INVALID_FONT, RuleForm},
     meta::MetaForm,
     property::{self, PropertyForm},
     rules::ordered,
@@ -30,6 +33,7 @@ pub struct Draft {
     pub form: Option<RuleForm>,
     pub meta_form: Option<MetaForm>,
     pub prop: Option<PropertyForm>,
+    pub code: Option<CodeForm>,
     pub keyboard_was: bool,
 }
 
@@ -102,7 +106,6 @@ fn form_part(f: &RuleForm) -> String {
         clean(&f.font),
         f.selector.to_string(),
         clean(&lossy(&f.attributes.format())),
-        clean(&f.codes),
         f.error.into(),
         f.checked.to_string(),
     ];
@@ -120,7 +123,6 @@ fn read_form(s: &str) -> Result<Option<RuleForm>, &'static str> {
         font,
         selector,
         attributes,
-        codes,
         error,
         checked,
     ] = fields[..]
@@ -132,9 +134,7 @@ fn read_form(s: &str) -> Result<Option<RuleForm>, &'static str> {
         .ok()
         .filter(|s| *s < grammar::SELECTORS.len());
     let attributes = grammar::parse_attributes(&text(attributes));
-    let error = [EXISTS, INVALID_CODE, INVALID_FONT, ""]
-        .into_iter()
-        .find(|k| *k == error);
+    let error = [EXISTS, INVALID_FONT, ""].into_iter().find(|k| *k == error);
     let (Some(selector), Ok(attributes), Some(error)) = (selector, attributes, error) else {
         return Err("settings saved theme editor form");
     };
@@ -145,7 +145,6 @@ fn read_form(s: &str) -> Result<Option<RuleForm>, &'static str> {
         font: font.into(),
         selector,
         attributes,
-        codes: codes.into(),
         error,
         checked: flag(checked)?,
     }))
@@ -237,6 +236,34 @@ fn read_prop(s: &str) -> Result<Option<PropertyForm>, &'static str> {
     }))
 }
 
+fn code_part(f: &CodeForm) -> String {
+    let original = f.original.as_deref().map_or(String::new(), clean);
+    [original, clean(&f.text), f.error.into()].join(&FIELD.to_string())
+}
+fn read_code(s: &str) -> Result<Option<CodeForm>, &'static str> {
+    const ERROR: &str = "settings saved theme editor code form";
+    if s.is_empty() {
+        return Ok(None);
+    }
+    let fields: Vec<&str> = s.split(FIELD).collect();
+    let [original, text, error] = fields[..] else {
+        return Err(ERROR);
+    };
+    let errors = [
+        codes::EXISTS,
+        codes::INVALID_CODE,
+        codes::NEEDS_KEYBOARD,
+        "",
+    ];
+    let error = errors.into_iter().find(|k| *k == error).ok_or(ERROR)?;
+    Ok(Some(CodeForm {
+        original: (!original.is_empty()).then(|| original.into()),
+        text: text.into(),
+        error,
+        ..CodeForm::default()
+    }))
+}
+
 impl App {
     /// The editor's saved part: empty unless a loaded component is being edited.
     pub fn theme_editor_saved(&self) -> String {
@@ -264,6 +291,7 @@ impl App {
             e.form.as_ref().map_or(String::new(), form_part),
             e.meta_form.as_ref().map_or(String::new(), meta_form_part),
             e.prop.as_ref().map_or(String::new(), prop_part),
+            e.code.as_ref().map_or(String::new(), code_part),
             e.keyboard_was.to_string(),
         ];
         parts.join(&PART.to_string())
@@ -285,6 +313,7 @@ impl App {
             form,
             meta_form,
             prop,
+            code,
             keyboard,
         ] = parts[..]
         else {
@@ -302,6 +331,7 @@ impl App {
             form: read_form(form)?,
             meta_form: read_meta_form(meta_form)?,
             prop: read_prop(prop)?,
+            code: read_code(code)?,
             keyboard_was: flag(keyboard)?,
         });
         Ok(())
@@ -320,6 +350,7 @@ impl App {
             .as_ref()
             .is_some_and(|d| match self.stack.last().map(String::as_str) {
                 Some(RULE_ADD | RULE_EDIT) => d.form.is_some(),
+                Some(CODE_ADD | CODE_EDIT) => d.form.is_some() && d.code.is_some(),
                 Some(META) => d.meta_form.is_some(),
                 Some(PROPERTY_ADD | PROPERTY_EDIT) => d.prop.is_some(),
                 _ => true,
@@ -350,9 +381,11 @@ impl App {
         e.form = d.form;
         e.meta_form = d.meta_form;
         e.prop = d.prop;
+        e.code = d.code;
         e.keyboard_was = d.keyboard_was;
         e.load = Load::Ready;
         self.theme_preview();
         self.property_changed();
+        self.describe_code();
     }
 }

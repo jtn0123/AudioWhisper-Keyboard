@@ -57,7 +57,13 @@ impl App {
     }
     /// The outlined box of a 56 dp control: 2 dp in the primary or error colour when focused
     /// or in error, else 1 dp outline.
-    fn outlined_field(&self, p: &mut Panel, b: Rect, (focused, error): (bool, bool), clip: Rect) {
+    pub(super) fn outlined_field(
+        &self,
+        p: &mut Panel,
+        b: Rect,
+        (focused, error): (bool, bool),
+        clip: Rect,
+    ) {
         let (stroke, edge) = match (focused, error) {
             (true, false) => (self.px(2.0), self.colors[3]),
             (_, true) => (self.px(2.0), self.colors[18]),

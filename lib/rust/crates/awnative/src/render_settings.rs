@@ -379,6 +379,7 @@ pub fn settings(native: i64, op: i32, values: &[Vec<u16>]) -> Result<Vec<Vec<u16
             ops::WORDS => a.set_words(&p).map_err(illegal)?,
             ops::THEMES => a.set_themes(&p).map_err(illegal)?,
             ops::THEME_EDITOR => a.set_theme_editor(&p).map_err(illegal)?,
+            ops::THEME_CODE => a.theme_code(&p).map_err(illegal)?,
             ops::ASSET => a.set_asset(&p).map_err(illegal)?,
             ops::SELECTION => a.text_selection(&p).map_err(illegal)?,
             ops::ACCESSIBILITY_SCROLL => {

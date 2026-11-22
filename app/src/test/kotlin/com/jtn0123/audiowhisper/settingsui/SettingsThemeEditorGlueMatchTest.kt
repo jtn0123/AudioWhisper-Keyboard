@@ -137,7 +137,7 @@ class SettingsThemeEditorGlueMatchTest {
             assertTrue(ThemeEditorNatives.state(n, SettingsUiOp.ACTIVATE, ThemeEditorNatives.deleteId(r, 1)).flag("canBack"),
                 "a draft holds Back to ask")
             val saved = n.settings(SettingsUiOp.SAVE).drop(3).toTypedArray()
-            assertEquals(listOf("9", ThemeEditorNatives.ROUTE), listOf(saved[0], saved[1]))
+            assertEquals(listOf("10", ThemeEditorNatives.ROUTE), listOf(saved[0], saved[1]))
             KeyboardRenderer(arrayOf(ThemeEditorNatives.font)).use { recreated ->
                 ThemeEditorNatives.configure(recreated)
                 val restored = ThemeEditorNatives.state(recreated, SettingsUiOp.RESTORE, *saved)

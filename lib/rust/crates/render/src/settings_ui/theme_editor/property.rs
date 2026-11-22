@@ -340,7 +340,7 @@ impl App {
     }
     /// A field whose text the form changed under it shows the form's text; one gone gives the
     /// editor back to the preview field.
-    fn refresh_owned_field(&mut self) {
+    pub(super) fn refresh_owned_field(&mut self) {
         let Some(i) = self.field else {
             return;
         };

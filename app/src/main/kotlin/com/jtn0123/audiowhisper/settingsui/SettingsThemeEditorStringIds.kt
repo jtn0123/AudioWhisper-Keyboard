@@ -2,9 +2,10 @@ package com.jtn0123.audiowhisper.settingsui
 
 import dev.patrickgold.florisboard.R
 
-/** The string ids of the native theme editor (stage4-theme-editor.md, part 2): its screens, the rule, meta and property
- * editors (encoders, value checks, sides and corners, source sets), fine-tune, and the element, selector, property and
- * attribute value names it translates. Kept apart so
+/** The string ids of the native theme editor (stage4-theme-editor.md, part 2): its screens, the rule, meta, property
+ * and code editors (encoders, value checks, sides and corners, source sets, recording a key, the code help's links and
+ * the key labels its preview shows), fine-tune, and the element, selector, property and attribute value names it
+ * translates. Kept apart so
  * SettingsStringIds stays under the file limit. Part of [settingsStringIds]. */
 internal val settingsThemeEditorStringIds: Map<String, Int> = mapOf(
     "action__discard" to R.string.action__discard,
@@ -61,12 +62,32 @@ internal val settingsThemeEditorStringIds: Map<String, Int> = mapOf(
     "ext__validation__error_stylesheet_path_blank" to R.string.ext__validation__error_stylesheet_path_blank,
     "ext__validation__hint_component_label_to_long" to R.string.ext__validation__hint_component_label_to_long,
     "ext__validation__hint_value_above_50_percent" to R.string.ext__validation__hint_value_above_50_percent,
+    "florisboard__character_key_codes_url" to R.string.florisboard__character_key_codes_url,
+    "florisboard__internal_key_codes_url" to R.string.florisboard__internal_key_codes_url,
     "general__example_given" to R.string.general__example_given,
     "general__select_dropdown_value_placeholder" to R.string.general__select_dropdown_value_placeholder,
+    "key__phone_pause" to R.string.key__phone_pause,
+    "key__phone_wait" to R.string.key__phone_wait,
+    "key__view_characters" to R.string.key__view_characters,
+    "key__view_half_space" to R.string.key__view_half_space,
+    "key__view_keshida" to R.string.key__view_keshida,
+    "key__view_numeric" to R.string.key__view_numeric,
+    "key__view_phone" to R.string.key__view_phone,
+    "key__view_phone2" to R.string.key__view_phone2,
+    "key__view_symbols" to R.string.key__view_symbols,
+    "key__view_symbols2" to R.string.key__view_symbols2,
+    "settings__theme_editor__add_code" to R.string.settings__theme_editor__add_code,
     "settings__theme_editor__add_property" to R.string.settings__theme_editor__add_property,
     "settings__theme_editor__add_rule" to R.string.settings__theme_editor__add_rule,
     "settings__theme_editor__add_source_set" to R.string.settings__theme_editor__add_source_set,
+    "settings__theme_editor__code_already_exists" to R.string.settings__theme_editor__code_already_exists,
+    "settings__theme_editor__code_help_text" to R.string.settings__theme_editor__code_help_text,
     "settings__theme_editor__code_invalid" to R.string.settings__theme_editor__code_invalid,
+    "settings__theme_editor__code_placeholder" to R.string.settings__theme_editor__code_placeholder,
+    "settings__theme_editor__code_record" to R.string.settings__theme_editor__code_record,
+    "settings__theme_editor__code_recording_help_text" to R.string.settings__theme_editor__code_recording_help_text,
+    "settings__theme_editor__code_recording_placeholder" to R.string.settings__theme_editor__code_recording_placeholder,
+    "settings__theme_editor__code_recording_requires_default_ime_floris" to R.string.settings__theme_editor__code_recording_requires_default_ime_floris,
     "settings__theme_editor__component_id_exists" to R.string.settings__theme_editor__component_id_exists,
     "settings__theme_editor__component_meta_is_night_theme" to R.string.settings__theme_editor__component_meta_is_night_theme,
     "settings__theme_editor__component_meta_material_you__color_contrast" to R.string.settings__theme_editor__component_meta_material_you__color_contrast,
@@ -76,6 +97,7 @@ internal val settingsThemeEditorStringIds: Map<String, Int> = mapOf(
     "settings__theme_editor__component_meta_stylesheet_path" to R.string.settings__theme_editor__component_meta_stylesheet_path,
     "settings__theme_editor__delete_rule_message" to R.string.settings__theme_editor__delete_rule_message,
     "settings__theme_editor__duplicate_rule" to R.string.settings__theme_editor__duplicate_rule,
+    "settings__theme_editor__edit_code" to R.string.settings__theme_editor__edit_code,
     "settings__theme_editor__edit_property" to R.string.settings__theme_editor__edit_property,
     "settings__theme_editor__edit_rule" to R.string.settings__theme_editor__edit_rule,
     "settings__theme_editor__file_selector_no_files_text" to R.string.settings__theme_editor__file_selector_no_files_text,

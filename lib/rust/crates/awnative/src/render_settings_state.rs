@@ -7,8 +7,9 @@ use render::settings_ui::{
 use settings::{Text, text};
 /// The saved state's layout; 3 added Back up's and Restore's state, 4 the language screens',
 /// 5 the user dictionary screens', 6 the project licence's horizontal scroll, 7 the setup
-/// screen's chosen step, 8 the theme editor's draft, 9 its open property editor.
-const VERSION: &str = "9";
+/// screen's chosen step, 8 the theme editor's draft, 9 its open property editor, 10 its open
+/// code editor, with the rule editor's codes kept among its attributes.
+const VERSION: &str = "10";
 pub fn save(a: &App) -> Vec<Text> {
     // LibrariesContainer keeps its open library, and Jetpref's colour and time preferences their
     // dialogs, in a plain `remember`: recreation closes them.

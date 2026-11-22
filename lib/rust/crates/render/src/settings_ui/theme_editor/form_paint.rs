@@ -1,7 +1,7 @@
 //! The rule editor's painting: why Add or Apply refused, the element dropdown, the font's name,
-//! the selector chips, the codes field and the mode and shift state chips. A selector chip
-//! toggles, as `updateCurrentRule` did; a value chip removes the value and the last chip, Add,
-//! lists the values the rule lacks. Selectors and attributes show only for an element.
+//! the selector chips, the code chips (`codes_paint.rs`) and the mode and shift state chips. A
+//! selector chip toggles, as `updateCurrentRule` did; a value chip removes the value and the last
+//! chip, Add, lists the values the rule lacks. Selectors and attributes show only for an element.
 use super::{
     Tap,
     form::FONT,
@@ -58,7 +58,8 @@ impl App {
                 self.line_box(p, (i, title, String::new(), String::new()), at, clip, text)
             }
             Part::Attribute(0) if form.is_element() => {
-                self.line_box(p, (i, title, String::new(), String::new()), at, clip, text)
+                let top = self.field_title(p, &title, at, clip, text);
+                self.code_chips(p, (at.0, top), clip, text) - at.1
             }
             Part::Selectors if form.is_element() => {
                 let top = self.field_title(p, &title, at, clip, text);
@@ -137,7 +138,7 @@ impl App {
             Part::RuleError if form.original.is_some() => vec![DELETE_ID],
             Part::Element if form.original.is_none() => vec![field],
             Part::Font if form.element == FONT => vec![field],
-            Part::Attribute(0) if form.is_element() => vec![field],
+            Part::Attribute(0) if form.is_element() => self.code_chips_focus(),
             Part::Selectors if form.is_element() => (1..SELECTORS.len())
                 .map(|s| SELECTOR_ID + s as i32)
                 .collect(),

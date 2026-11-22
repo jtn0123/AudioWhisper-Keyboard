@@ -74,6 +74,7 @@ impl App {
                 self.meta_part(p, (i, part), at, clip, text)
             }
             Part::Meta | Part::Tune | Part::Rules => 0.0,
+            Part::Code(row) => self.code_part(p, (i, row), at, clip, text),
             _ => self.rule_part(p, (i, part), at, clip, text),
         }
     }
@@ -275,6 +276,9 @@ impl App {
         }
         if top == super::PROPERTY_EDIT {
             return self.property_header();
+        }
+        if top == super::codes::CODE_EDIT {
+            return self.code_header();
         }
         let original = self.theme_editor.form.as_ref()?.original.as_ref()?;
         let title = self.rule_lines(original).0;

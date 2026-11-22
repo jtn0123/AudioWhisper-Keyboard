@@ -25,7 +25,8 @@ import kotlin.test.*
 
 /** The theme editor's routes Rust draws, in the order it lists them: the component's rules, then its editors. */
 internal val themeEditorRoutes = listOf("settings/theme/edit", "settings/theme/editor/rule/add", "settings/theme/editor/rule",
-    "settings/theme/editor/property/add", "settings/theme/editor/property", "settings/theme/editor/meta", "settings/theme/editor/tune")
+    "settings/theme/editor/property/add", "settings/theme/editor/property", "settings/theme/editor/code/add",
+    "settings/theme/editor/code", "settings/theme/editor/meta", "settings/theme/editor/tune")
 
 /** The theme editor's native routes and helpers its match tests share. */
 internal object ThemeEditorNatives {

@@ -191,6 +191,7 @@
     <string name="settings__theme_editor__code_recording_stopped">Key code recording stopped</string>
     <string name="settings__theme_editor__code_recording_requires_default_ime_floris">{app_name} needs to be the default keyboard to record a key code</string>
     <string name="settings__theme_editor__code_recording_placeholder">Recording…</string>
+    <string name="settings__theme_editor__code_record" comment="TalkBack label of the button that records the next key pressed on this app's keyboard">Record a key</string>
     <string name="settings__theme_editor__add_property">Add property</string>
     <string name="settings__theme_editor__edit_property">Edit property</string>
     <string name="settings__theme_editor__property_already_exists">A property with this name already exists within the current rule.</string>

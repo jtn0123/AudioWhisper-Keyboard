@@ -3,8 +3,12 @@
 use render::{
     settings_ui::{
         App, Control,
-        catalogue::{Kind, languages::Lang, theme_editor::Part},
-        theme_editor::EDIT,
+        catalogue::{
+            Kind,
+            languages::Lang,
+            theme_editor::{CodeRow, Part},
+        },
+        theme_editor::{EDIT, codes::CODE_ADD, codes_paint::CODE_ADD_ID},
     },
     text::Text,
 };
@@ -120,6 +124,15 @@ pub fn type_into(a: &mut App, text: &mut Text, part: Part, value: &str) {
     a.editor.focus = a.editor.text.len();
     a.sync_field();
     a.scene(text);
+}
+/// From the rule editor, the code editor's Add with `field` typed: back on the rule editor.
+pub fn add_codes(a: &mut App, text: &mut Text, field: &str) {
+    assert!(tap(a, text, CODE_ADD_ID));
+    assert_eq!(a.stack.last().unwrap(), CODE_ADD);
+    type_into(a, text, Part::Code(CodeRow::Field), field);
+    let add = lang_id(a, Lang::Save);
+    assert!(tap(a, text, add));
+    assert_ne!(a.stack.last().unwrap(), CODE_ADD, "{:?}", a.code_message());
 }
 /// The rules' titles in the order the list shows them.
 pub fn titles(a: &App) -> Vec<String> {

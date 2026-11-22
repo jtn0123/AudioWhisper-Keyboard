@@ -1,15 +1,21 @@
-//! The draft across a saved state: unsaved rules and meta, and an open rule, meta or property
-//! editor with what it holds, come back once Kotlin reports the component again.
+//! The draft across a saved state: unsaved rules and meta, and an open rule, meta, property or
+//! code editor with what it holds, come back once Kotlin reports the component again. A code
+//! editor comes back not recording.
 use super::common::*;
 use render::settings_ui::{
     App,
-    catalogue::{languages::Lang, theme_editor::Part},
+    catalogue::{
+        languages::Lang,
+        theme_editor::{CodeRow, Part},
+    },
     theme_editor::{
         META, PROPERTY_ADD, PROPERTY_EDIT, RULE_EDIT,
+        codes::{CODE_ADD, CODE_EDIT, EXISTS},
+        codes_paint::{CODE_ID, RECORD_ID},
         paint::{ADD_ID, rule_id},
     },
 };
-use wire::settings_ui::theme_editor::effect;
+use wire::settings_ui::{theme_codes, theme_editor::effect};
 
 /// A fresh app given `a`'s saved stack and theme editor part, as recreation restores them.
 fn recreated(a: &App) -> App {
@@ -32,7 +38,7 @@ fn unsaved_rules_and_an_open_rule_editor_survive_recreation() {
     let (mut a, mut text) = app(SHEET);
     assert!(tap(&mut a, &mut text, rule_id(2, 65)));
     assert!(tap(&mut a, &mut text, rule_id(3, 2)));
-    type_into(&mut a, &mut text, Part::Attribute(0), "10, 13");
+    add_codes(&mut a, &mut text, "13");
     assert!(tap(&mut a, &mut text, 400_071));
     let (rules, form) = (a.theme_editor.rules.clone(), a.theme_editor.form.clone());
     let mut b = recreated(&a);
@@ -177,4 +183,74 @@ fn a_property_editor_saved_without_its_form_comes_back_on_the_rules() {
     let broken = saved.replace("\u{1f}27\u{1f}", "\u{1f}99\u{1f}");
     assert_ne!(broken, saved);
     assert!(b.restore_theme_editor(&broken).is_err());
+}
+
+#[test]
+fn an_open_code_editor_survives_recreation_with_what_it_holds_but_not_recording() {
+    let (mut a, mut text) = app(SHEET);
+    assert!(tap(&mut a, &mut text, rule_id(3, 2)));
+    add_codes(&mut a, &mut text, "13");
+    assert!(tap(&mut a, &mut text, CODE_ID + 1));
+    type_into(&mut a, &mut text, Part::Code(CodeRow::Field), "97, 10");
+    let save = lang_id(&a, Lang::Save);
+    assert!(tap(&mut a, &mut text, save));
+    let mut b = recreated(&a);
+    assert_eq!(b.stack.last().unwrap(), CODE_EDIT);
+    b.set_theme_editor(&loaded(SHEET)).unwrap();
+    let back = b.theme_editor.code.clone().unwrap();
+    assert_eq!(
+        (back.original.as_deref(), back.text.as_str()),
+        (Some("13"), "97, 10")
+    );
+    assert_eq!(back.error, EXISTS);
+    // The preview asks Kotlin again about the code it shows.
+    assert!(
+        b.effects
+            .contains(&vec![theme_codes::effect::DESCRIBE.into(), "10".into()])
+    );
+    assert_eq!(b.theme_editor.form, a.theme_editor.form);
+    // Recording does not come back: nothing listens for the key any more.
+    a.set_ime(true, true);
+    assert!(tap(&mut a, &mut text, RECORD_ID));
+    assert!(a.theme_editor.code.as_ref().unwrap().recording);
+    let mut c = recreated(&a);
+    c.set_theme_editor(&loaded(SHEET)).unwrap();
+    assert_eq!(c.stack.last().unwrap(), CODE_EDIT);
+    assert!(!c.theme_editor.code.as_ref().unwrap().recording);
+    assert!(
+        !c.effects
+            .iter()
+            .any(|e| e[0] == theme_codes::effect::RECORD)
+    );
+    type_into(&mut b, &mut text, Part::Code(CodeRow::Field), "97");
+    let save = lang_id(&b, Lang::Save);
+    assert!(tap(&mut b, &mut text, save));
+    assert_eq!(
+        b.theme_editor.form.as_ref().unwrap().values(0),
+        ["10", "97"]
+    );
+}
+
+#[test]
+fn a_code_editor_saved_without_its_forms_comes_back_on_the_rules() {
+    for stack in [vec![RULE_EDIT, CODE_ADD], vec![CODE_EDIT]] {
+        let (mut a, _) = app(SHEET);
+        for route in stack {
+            a.stack.push(route.into());
+            a.scrolls.push(0.0);
+        }
+        let mut b = recreated(&a);
+        assert_eq!(b.stack, [route(0)]);
+        b.set_theme_editor(&loaded(SHEET)).unwrap();
+        assert!(b.theme_editor.code.is_none());
+    }
+    // A code form naming a message that does not exist is malformed.
+    let (mut a, mut text) = app(SHEET);
+    assert!(tap(&mut a, &mut text, rule_id(3, 2)));
+    assert!(tap(&mut a, &mut text, CODE_ID));
+    type_into(&mut a, &mut text, Part::Code(CodeRow::Field), "10, 10");
+    let saved = a.theme_editor_saved();
+    assert!(saved.contains("\u{1f}10, 10\u{1f}"));
+    let broken = saved.replace("\u{1f}10, 10\u{1f}", "\u{1f}10, 10\u{1f}x");
+    assert!(App::default().restore_theme_editor(&broken).is_err());
 }

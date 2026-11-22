@@ -254,21 +254,25 @@ impl App {
     }
     pub(super) fn paint_icon(&self, p: &mut Panel, name: &str, b: Rect, color: u32, clip: Rect) {
         if let Some(icon) = self.strings.get(&format!("@icon:{name}")) {
-            let mut item = Item::new(
-                -10000 - p.items.len() as i32,
-                b,
-                String::new(),
-                "settings-icon",
-                Command::None,
-            );
-            item.icon = icon.clone();
-            item.icon_style = Style {
-                size: b.height(),
-                foreground: color,
-                ..Default::default()
-            };
-            item.clip = clip;
-            p.items.push(item);
+            self.paint_path(p, icon, b, color, clip);
         }
+    }
+    /// An icon's path data, as the keyboard's icons reach Rust, at `b` in `color`.
+    pub(super) fn paint_path(&self, p: &mut Panel, path: &str, b: Rect, color: u32, clip: Rect) {
+        let mut item = Item::new(
+            -10000 - p.items.len() as i32,
+            b,
+            String::new(),
+            "settings-icon",
+            Command::None,
+        );
+        item.icon = path.into();
+        item.icon_style = Style {
+            size: b.height(),
+            foreground: color,
+            ..Default::default()
+        };
+        item.clip = clip;
+        p.items.push(item);
     }
 }
