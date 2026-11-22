@@ -127,13 +127,18 @@ internal class SyntheticLayouts(private val random: Random) {
         val GROUPS = listOf(0, 1, 2, 3, 7, -1)
         val SHIFT_STATES = listOf("unshifted", "shifted", "shiftedManual", "shiftedAutomatic", "capsLock", "default")
 
-        /** Every `KeyCode`, letters with casing of their own, marks, and characters past the BMP. */
-        val CODES: List<Int> = KeyCode::class.java.declaredFields
+        /**
+         * Every `KeyCode`, read through its getters (each is a `val` from Rust, so its field is
+         * private), letters with casing of their own, marks, and characters past the BMP.
+         */
+        val CODES: List<Int> = KeyCode::class.java.declaredMethods
             .filter {
-                Modifier.isStatic(it.modifiers) && Modifier.isPublic(it.modifiers) &&
-                    it.type == Int::class.javaPrimitiveType
+                Modifier.isPublic(it.modifiers) && it.name.startsWith("get") && it.parameterCount == 0 &&
+                    it.returnType == Int::class.javaPrimitiveType
             }
-            .map { it.getInt(null) } +
+            .sortedBy { it.name }
+            .map { it.invoke(KeyCode) as Int }
+            .also { check(it.size > 90) { "only ${it.size} key codes" } } +
             listOf(97, 98, 122, 65, 90, 105, 73, 0x131, 0x130, 0xDF, 0x1C5, 0xFB01, 0x3A3, 0x3C2, 0x301, 0x93F,
                 0x627, 0x5D0, 0x1F600, 0x10400, 48, 49, 57, 0x660, 0x6F1, 0x966, 36, 8364, 0x3042, 0xFF41,
                 Int.MIN_VALUE)
