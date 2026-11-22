@@ -254,6 +254,58 @@ device session was closed and opened again.
 **Still owed.** The same trials on a quiet host, where the bubble build's p95 must be at most
 2 ms (E28), and on the phone (P18).
 
+## A label too big for its key (2026-11-22)
+
+The key-label fit ([rust.md](rust.md#a-label-too-big-for-its-key-fixed-2026-11-22)) checks every
+label against its box and fits the ones that do not fit. These trials compare it with main
+(da6f3649f) as the trials above were run: `cpu-trials.py --rust-only --trials 1`, main, the
+branch, main, the branch, on `aw_keyboard` with Floris Day, the Rust renderer and the press
+bubble on. No build ran; two other agents' emulators were up. The folders are in
+`build/cpu-p95/key-label-fit/`.
+
+**The 2 ms wall-clock gate was not met, by main or by the branch.** This is not a pass.
+
+| Trial | Frames | p50 | p95 | p99 | Over 2 ms | CPU time p95 |
+|---|---:|---:|---:|---:|---:|---:|
+| main 1 | 1,054 | 0.993 | 3.155 | 6.328 | 143 (13.6%) | 1.608 |
+| branch 1 | 1,021 | 1.008 | 2.819 | 5.615 | 126 (12.3%) | 1.504 |
+| main 2 | 1,085 | 0.980 | 3.166 | 5.535 | 130 (12.0%) | 1.547 |
+| branch 2 | 1,087 | 1.084 | 3.123 | 7.305 | 139 (12.8%) | 1.660 |
+
+All four typed the expected text (`809d588b…`, and `c14d19d2…` after the popups).
+
+Medians per trial, in ms, of a press frame, its encoding and raster, and the rest of it (the
+bubble's copy and blend, which this change does not touch), a release that brought no new words
+and its rest, and a frame that brought only new words:
+
+| Trial | Press | encode | raster | rest | Release | rest | New words |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| main 1 | 1.071 | 0.266 | 0.539 | 0.114 | 0.906 | 0.066 | 0.908 |
+| branch 1 | 1.016 | 0.268 | 0.530 | 0.121 | 0.841 | 0.057 | 0.946 |
+| main 2 | 1.076 | 0.276 | 0.534 | 0.147 | 0.895 | 0.067 | 0.910 |
+| branch 2 | 1.194 | 0.315 | 0.559 | 0.182 | 0.947 | 0.091 | 1.050 |
+
+* The branch is not slower beyond noise. Its p95 is 2.819 and 3.123 ms against main's 3.155 and
+  3.166. Branch 1's press, encoding and raster are at or under both of main's. Branch 2 is
+  slower in every column, the bubble's untouched copy and blend among them, so that trial's
+  emulator ran slower, not its code.
+* On the Mac, `keyboard_frame_timing` run ten times each, alternating the two binaries, gave the
+  same: p95 medians for a press of 0.084 ms on main and 0.085 on the branch (0.081–0.086 and
+  0.083–0.085), a release 0.178 and 0.177, a popup 0.179 and 0.177. The mean raster of a press
+  moved from 0.062 to 0.063 ms. No frame of the bench fits a label.
+* Main missed 2 ms as it did earlier the same day (2.457–2.966 ms), on the same slow emulator.
+  CPU time p95 stayed under 2 ms in all four (1.50–1.66 ms).
+
+**Trials thrown out.** Three on main never started: "Accessibility service did not bind", while
+agent-device's snapshot helper held a UiAutomation connection left from the device checks.
+Closing and opening the device session again freed it (E30). Of the branch's first three tries,
+one stopped on agent-device's "Android automation helper output could not be parsed" (E30), one
+typed the wrong digest (E29), and the third is branch 1 above. The load average rose to 59 for a
+minute at the start of the second, from macOS's XProtect scan. All the folders are kept.
+
+**Still owed.** The CPU gate on a quiet host, main against the bubble and this fit (E28), and on
+the phone (P18).
+
 ## Reproducing
 
 ```bash

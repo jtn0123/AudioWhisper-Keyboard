@@ -570,9 +570,11 @@ the process no longer has, the developer editing level, the rule editor's *Delet
 rotating with the rule or meta editor open. P17 owes the phone, TalkBack included.
 
 Found on the device, and not the editor's: with no font size of its own, the space key's label
-is wider than the key and is drawn past its left edge, over the emoji key; the right side is cut
-at the key's edge (`14-preview-space-font-size-deleted.png`, `25-saved-theme-on-keyboard.png`).
-The keyboard draws any stylesheet that way, so it is listed under [Owed](#owed) for the keyboard.
+was wider than the key and was drawn past its left edge, over the emoji key; the right side was
+cut at the key's edge (`14-preview-space-font-size-deleted.png`, `25-saved-theme-on-keyboard.png`).
+The keyboard drew any stylesheet that way. Fixed on 2026-11-22: the label now ends in an
+ellipsis inside the key, as Compose drew it
+([rust.md, a label too big for its key](rust.md#a-label-too-big-for-its-key-fixed-2026-11-22)).
 
 ## Owed
 
@@ -599,10 +601,6 @@ The keyboard draws any stylesheet that way, so it is listed under [Owed](#owed) 
   (`ExtensionEditScreen`'s `handleSave`). Repro: *Select day theme*, *Create theme extension*,
   *Save*, *Save* again. Found on the emulator while checking part 2. It goes with step 10, which
   ports the extension editor, unless it is fixed sooner as a crash fix to frozen code.
-* **Not a device check, and not the editor's:** a key label wider than its key is drawn past the
-  key's left edge over its neighbour, and cut at its right edge. Found with a theme that gives
-  the space key no font size of its own (part 2's device check, step 6). It needs a look at how
-  the keyboard lays out a label that does not fit, with `text-overflow: ellipsis` set as here.
 
 ## What remains
 

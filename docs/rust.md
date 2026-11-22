@@ -505,6 +505,111 @@ What remains:
   bubble, nor timed it (P18).
 * The CPU gate with the bubble on, on a quiet host (E28).
 
+#### A label too big for its key (fixed 2026-11-22)
+
+A key label wider than its key was drawn centred on the key at its full size, so it started past
+the key's left edge, over its neighbour, and was cut at the key's right edge. The theme editor's
+device check found it ([stage4-theme-editor, part 2](stage4-theme-editor.md#device-check-1)): with no font
+size of its own, the space key's "English (United States)" was drawn at the plain key's 22sp
+and covered the emoji key. The theme set `text-overflow: ellipsis` there, and Rust ignored it. So
+did every other label: a hint, a long-press choice and the press bubble's label could all run
+out of their boxes the same way.
+
+| | Compose (`SnyggText`) | Gboard (15.1.08) | Rust before | Rust now |
+|---|---|---|---|---|
+| The space key, no font size of its own | "English (Unite…" inside the key, from its left | One language: a blank space bar. Two: short codes, "EN • CY", small and centred | Past the key's left edge, over the emoji key, cut at its right | "English (Unite…" inside the key, from its left |
+| `text-max-lines`, `text-overflow` | Honoured: lines broken at the box's width, cut to the maximum, the last one ended in an ellipsis or clipped | No themes | Ignored | Honoured as Compose did |
+| A theme that sets neither | Every line kept, clipped to the box | — | Ignored | One line, squeezed, then shrunk, then ellipsised, as a suggestion fits its slot |
+| The press bubble's label, 60sp | By its defaults, clipped to its box; not tried | — | Past the bubble on both sides, onto the keys beside it | Shrunk to fit inside the bubble |
+
+Gboard was watched on the same emulator (`gboard-01-two-languages.png`,
+`gboard-02-after-switch.png`). It never draws a full language name on the space bar, so it never
+has to fit one. Rust follows Compose, which is what Snygg themes style.
+
+What Rust does now (`render/src/label_fit.rs`):
+
+* A label that fits draws exactly as before. The check compares the layout the raster already
+  looks up with the label's box: inside it, and no more lines than `text-max-lines`. The host
+  bench fits no label, and on the emulator the Floris themes draw pixel for pixel as on main.
+* A label that does not fit is fitted to the box Compose gave its Text: the key less its
+  padding for a key's label, the key for its hint, the cell for a long-press choice, and the
+  label box for the bubble. It is clipped to that box.
+* Where the theme sets `text-max-lines` or `text-overflow`, it is fitted as `SnyggText` did. The
+  label breaks into lines at the box's width. It keeps at most `text-max-lines` of them, and with
+  an ellipsis at most as many as fit the height. Where text is cut, the last line ends in an
+  ellipsis over the rest of its paragraph. The paragraph is as wide as the label or the box,
+  whichever is narrower, and `text-align` places each line in it, `start` by the text's
+  direction, so right-to-left text starts at the right. A paragraph taller than its box hangs
+  from the box's top, as Compose's Text does. `text-overflow: visible` clips to the key, not to
+  the label's box.
+* Where the theme sets neither, the label stays on one line and is fitted as a suggestion is:
+  squeezed to 70% of its width, then shrunk to 75% of its size and to the box's height, then
+  ended in an ellipsis. It stays centred. Compose kept every line and clipped them. The Floris
+  themes set `text-max-lines: 1` on every key, so this applies to their bubble and their
+  long-press choices, which set neither.
+* A phone pad's digit keeps its place left of centre, and a hint keeps its corner, while they
+  fit.
+* The ellipsis is the suggestion strip's (`smartbar_fit::ellipsised`, moved there from
+  `smartbar_raster`). The squeeze and shrink are its `fit_text` and `text_scale`. Nothing is
+  copied a third time.
+
+The cost: a fit is made once for each label, font size, box, weight and set of rules, and kept;
+the raster keeps up to 256, as it keeps layouts (`Raster::label_fits` counts the fits made). A
+label that fits costs a comparison. On the Mac, `keyboard_frame_timing` run ten times each,
+alternating main and the branch binaries, gave a press p95 median of 0.084 ms on main and 0.085
+on the branch, a release 0.178 and 0.177, and a popup 0.179 and 0.177. That is within noise, and
+no frame in the bench takes the slow path. The emulator trials are in
+[cpu-p95-results](cpu-p95-results.md#a-label-too-big-for-its-key-2026-11-22).
+
+Proof:
+
+* `render/tests/key_label_fit.rs` (15 tests):
+  * under every pairing of `text-max-lines` and `text-overflow`, a label too wide draws inside
+    its key and nowhere else;
+  * a label that fits draws as before and is never fitted;
+  * the default: squeezed, shrunk to the height, ellipsised;
+  * Compose's rules: lines broken and cut, the ellipsis, the paragraph's width, a too-tall
+    paragraph hung from the top, `text-align`;
+  * the real Floris Day stylesheet, read for each key's rules, and its space key with no font
+    size, which ends in an ellipsis from the key's start;
+  * a hint too big kept to its key's top, the key's padding on each side, a phone pad's digit
+    and a long-press choice;
+  * the fit kept, and made again for a new label, size, theme or key, and kept for a whole
+    keyboard of labels too big.
+* `render/tests/key_label_fit_scripts.rs` (3 tests) draws Hebrew and CJK with Noto subsets
+  taken from the emulator's fonts (`tests/fixtures/NOTO-TEXT-SUBSETS.md`): every rule keeps them
+  inside the key, right-to-left lines start at the right, CJK breaks between characters, and the
+  bubble keeps a 60sp letter, a long label, Hebrew and CJK inside it.
+* `scripts/key-label-fit-mutations.py` breaks the fix in 31 ways: each side of the fit check
+  and its line count, the clip and its box, the hung paragraph, keeping the fit, how many are
+  kept and what each is kept by, each of Compose's rules, the default's shrink and ellipsis, and
+  each place a label is fitted (padding, the phone pad, the hint, the choice, the bubble). Every
+  case fails fresh assertions in `key_label_fit` or `key_label_fit_scripts`, and the restored
+  source passes both. Last full run 2026-11-22: 31 of 31 caught.
+
+On the aw_keyboard emulator (1080x2400, Android 16), in the render probe. The stills are in
+`build/key-label-fit/device/`, not committed.
+
+| Check | Main | Branch |
+|---|---|---|
+| A theme whose space key has no font size | "English (United Stat", from past the key's left edge over the emoji key, cut at its right (`main-01-space-no-font-size`) | "English (Unite…" inside the key (`branch-01-space-no-font-size`). Its ink spans the same rows as Compose's (`compose-01-space-no-font-size`), from the same left; it ends 5 px further right |
+| The same theme with `key-popup-box` at 60sp, holding m, w and y | m's bubble letter ran 249 px of ink onto the key to its left and 196 onto the key to its right; y's ran 122 onto its left | One dark pixel beside m's bubble, none beside y's (`branch-06-bubble-m`, `-w`, `-y`, `-sheet`). Main's 60sp w filled its bubble edge to edge; the branch's is smaller, inside it |
+| Floris Day, letters; the symbols; back to letters; Floris Night | `main-02`, `main-03`, `main-03b`, `main-04` | Pixel-identical to main, the whole keyboard (`branch-02` to `branch-04`) |
+
+The bubble was recorded and every frame looked at in a contact sheet. These checks and the CPU
+trials ran on the build before the kept fits' bound was raised from 64 to 256, which none of
+these screens comes near. Afterwards the test extension was deleted through *View details*, and
+the Theme screen shows *Always day*, Floris Day and Floris Night, as before
+(`restored-00-theme-screen-after`). The probe's field was cleared and its keyboard draws as before
+the checks (`restored-01-probe-after`); AudioWhisper Keyboard is the input method again, the
+accessibility services are as they were and the media volume stayed at 0.
+
+What remains:
+
+* A long-press choice too wide for its cell, and Hebrew and CJK labels too wide for their key,
+  were not tried on the emulator. The cargo tests draw them (E31).
+* The phone has not shown a fitted label (P19).
+
 ### Stage 4: Rust draws settings (decision 2026-11-14)
 
 Rust draws the settings Activity on the keyboard's Vello CPU / Parley / Skrifa stack.
