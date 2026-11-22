@@ -198,6 +198,7 @@ impl App {
         out.extend(super::languages::KEYS);
         out.extend(super::words::KEYS);
         out.extend(super::themes::KEYS);
+        out.extend(super::extensions::KEYS);
         out.extend(super::project_licence::KEYS);
         out.extend(super::setup::KEYS);
         out.extend(super::theme_editor::string_keys());

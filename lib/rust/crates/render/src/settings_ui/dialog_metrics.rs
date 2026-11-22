@@ -25,12 +25,11 @@ impl App {
             _ if self.color_picker().is_some() => {
                 vec![(String::new(), String::new(), self.color_height(width, text))]
             }
-            Kind::Choice(_) | Kind::Pick(_) | Kind::Lang(Lang::AllPresets) | Kind::ThemeEdit(_) => {
-                let [start, end] = if self.presets_dialog() {
-                    [self.px(16.0); 2]
-                } else {
-                    self.radio_insets()
-                };
+            Kind::Choice(_)
+            | Kind::Pick(_)
+            | Kind::Lang(Lang::AllPresets | Lang::Maintainer)
+            | Kind::ThemeEdit(_) => {
+                let [start, end] = self.list_insets();
                 let tw = width - 2.0 * self.px(8.0) - start - end;
                 self.choices(m.row)
                     .iter()

@@ -14,6 +14,7 @@ mod dialog_buttons;
 mod dialog_metrics;
 pub mod editor;
 mod events;
+pub mod extensions;
 pub use cards::SpellCard;
 mod field;
 mod fields;
@@ -78,6 +79,8 @@ pub enum Action {
     Setup(setup::Tap),
     /// A tap on the theme editor's own controls.
     ThemeEdit(theme_editor::Tap),
+    /// A tap on an extension screen's own controls.
+    Ext(extensions::Tap),
 }
 #[derive(Clone, Debug)]
 pub struct Control {
@@ -197,6 +200,8 @@ pub struct App {
     pub setup: setup::State,
     /// The theme editor's component, draft and open rule or meta editor.
     pub theme_editor: theme_editor::ThemeEditor,
+    /// The extension screens' index.
+    pub extensions: extensions::Extensions,
     /// Each node's custom accessibility actions, as the target control and its label.
     pub custom_actions: Vec<(i32, Vec<(i32, String)>)>,
     /// The wall clock in milliseconds: a new subtype's id, as `System.currentTimeMillis()`.
@@ -265,6 +270,7 @@ impl Default for App {
             themes: Default::default(),
             setup: Default::default(),
             theme_editor: Default::default(),
+            extensions: Default::default(),
             custom_actions: vec![],
             now: languages::wall_clock,
         }
@@ -336,6 +342,7 @@ impl App {
             self.project_opened(route);
             self.setup_opened(route);
             self.theme_editor_opened(route);
+            self.extensions_opened(route);
         } else if route == "@enable" {
             self.effects.push(vec!["enable".into()]);
         } else {

@@ -5,6 +5,7 @@ mod backup;
 mod clipboard;
 mod dictation;
 mod dictionary;
+pub mod extensions;
 mod gestures;
 mod input_feedback;
 mod keyboard;
@@ -138,6 +139,8 @@ pub enum Kind {
     Themes(themes::Part),
     /// A theme editor screen's own part, painted by `settings_ui/theme_editor`.
     ThemeEdit(theme_editor::Part),
+    /// A part of an extension screen, painted by `settings_ui/extensions`.
+    Ext(extensions::Part),
 }
 /// What a Back up or Restore row is. A group is its `wire::backup::layout` position.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -376,6 +379,12 @@ pub const SCREENS: &[Screen] = &[
     theme_editor::CODE_EDIT,
     theme_editor::META,
     theme_editor::TUNE,
+    extensions::HOME,
+    extensions::THEMES,
+    extensions::KEYBOARDS,
+    extensions::PACKS,
+    extensions::VIEW,
+    extensions::UPDATES,
 ];
 /// The native screen at `route`, if Rust draws it. The subtype editor's and the word
 /// editor's routes carry the item's id as one more segment, and a language's words its locale.
@@ -384,6 +393,7 @@ pub fn screen(route: &str) -> Option<&'static Screen> {
         Some(_) => super::languages::EDIT_ROUTE,
         None => super::words::screen_route(route)
             .or_else(|| super::theme_editor::screen_route(route))
+            .or_else(|| super::extensions::screen_route(route))
             .unwrap_or(route),
     };
     SCREENS.iter().find(|s| s.route == base)

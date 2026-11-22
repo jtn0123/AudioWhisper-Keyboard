@@ -31,10 +31,10 @@ impl App {
         // Compose's AlertDialog keeps 16 dp from the window edge on tall screens (measured on device: 42 px at 2.625).
         let padding = if h < 600.0 * d { 8.0 * d } else { 16.0 * d };
         let (button_height, button_widths, footer) = self.button_metrics(width, text);
-        let title = self.label(match r.kind {
-            Kind::Confirm(ask) => ask.title,
-            _ => r.label,
-        });
+        let title = match r.kind {
+            Kind::Confirm(ask) => self.label(ask.title),
+            _ => self.lang_title().unwrap_or_else(|| self.label(r.label)),
+        };
         let title_width = width
             - if r.switch.is_empty() {
                 48.0 * d
@@ -98,14 +98,18 @@ impl App {
                 text,
             );
         }
-        // Every preset is a plain list item, as Compose listed them; other lists are radios.
-        let plain = self.presets_dialog();
+        // Every preset is a plain list item and a maintainer's address a link, as Compose listed
+        // them; other lists are radios.
+        let role = self.list_role();
         match r.kind {
             // The accent colour rows' picker, and the theme editor's for a static colour.
             _ if self.color_picker().is_some() => {
                 y = self.color_content(p, text, (left, y), width, clip)
             }
-            Kind::Choice(_) | Kind::Pick(_) | Kind::Lang(Lang::AllPresets) | Kind::ThemeEdit(_) => {
+            Kind::Choice(_)
+            | Kind::Pick(_)
+            | Kind::Lang(Lang::AllPresets | Lang::Maintainer)
+            | Kind::ThemeEdit(_) => {
                 for (j, choice) in self.choices(m.row).iter().enumerate() {
                     let (label, summary, rh) = rows[j].clone();
                     let bounds = rect(left + self.px(8.0), y, width - 2.0 * self.px(8.0), rh);
@@ -116,9 +120,9 @@ impl App {
                             bounds,
                             label,
                             summary,
-                            role: if plain { "button" } else { "radio" },
+                            role,
                             enabled: m.enabled,
-                            checked: (!plain).then_some(m.selected == *choice),
+                            checked: (role == "radio").then_some(m.selected == *choice),
                             selected: m.selected == *choice,
                             action: Action::Choose(choice.clone()),
                             range: None,
@@ -127,6 +131,7 @@ impl App {
                         text,
                     );
                     self.choice_swatch(p, choice, bounds, clip);
+                    self.address_icon(p, choice, bounds, clip);
                     y += rh;
                 }
             }

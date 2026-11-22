@@ -186,6 +186,7 @@ impl App {
             Kind::Lang(part) => Some(self.lang_part(p, i, part, at, clip, text)),
             Kind::Words(part) => Some(self.words_part(p, i, part, at, clip, text)),
             Kind::Themes(part) => Some(self.themes_part(p, part, at, clip, text)),
+            Kind::Ext(part) => Some(self.ext_part(p, part, at, clip, text)),
             Kind::ThemeEdit(part) => Some(self.theme_part(p, (i, part), at, clip, text)),
             _ => None,
         }

@@ -158,6 +158,7 @@ pub fn restore(a: &mut App, packet: &[Text]) -> Result<(), &'static str> {
     a.languages_restored();
     a.words_restored();
     a.themes_restored();
+    a.extensions_restored();
     a.project_restored(horizontal);
     a.setup = setup;
     a.theme_editor_restored(languages.theme_editor.restored.take());

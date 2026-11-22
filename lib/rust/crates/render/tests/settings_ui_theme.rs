@@ -163,7 +163,7 @@ fn the_day_and_night_rows_name_the_indexed_theme_or_show_its_id() {
 }
 
 #[test]
-fn the_theme_rows_open_the_native_manager_and_the_addon_box_its_compose_page() {
+fn the_theme_rows_open_the_native_manager_and_the_addon_box_the_native_list() {
     let (mut a, mut text) = app(&[], &[]);
     for (k, v) in [
         (
@@ -202,9 +202,11 @@ fn the_theme_rows_open_the_native_manager_and_the_addon_box_its_compose_page() {
     let route = "ext/list/EXT_THEME?showUpdate=true";
     let addons = 6000 + index(&a, "ext_theme") as i32;
     assert!(act(&mut a, &mut text, addons));
-    assert_eq!(a.effects.len(), 1);
-    assert_eq!(a.effects[0][..2], ["compose", route]);
-    assert!(a.effects[0][2].split('|').any(|r| r == "settings/theme"));
+    // The theme extension list is native: it opens with its boxes and asks for the extensions.
+    assert_eq!(a.effects, [["extensions"]]);
+    assert_eq!(a.stack.last().map(String::as_str), Some(route));
+    assert!(a.shows_store());
+    a.back();
     let i = index(&a, "ext_theme");
     a.scene(&mut text);
     assert_eq!(

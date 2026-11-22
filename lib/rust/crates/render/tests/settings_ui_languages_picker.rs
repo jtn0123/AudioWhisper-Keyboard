@@ -159,18 +159,18 @@ fn delete_asks_first_naming_the_pack_and_only_then_asks_kotlin() {
 }
 
 #[test]
-fn import_and_a_packs_page_are_compose_screens_handed_the_native_routes() {
-    for (id, route) in [
-        (IMPORT_ID, "ext/import/EXT_LANGUAGEPACK"),
-        (pack_id(0, 0), "ext/view/org.florisboard.han"),
-        (pack_id(0, 1), "ext/view/org.florisboard.han"),
-    ] {
+fn import_is_a_compose_screen_handed_the_native_routes_and_a_packs_page_is_native() {
+    let (mut a, mut text) = app(PACKS_ROUTE, "[]");
+    assert!(tap(&mut a, &mut text, IMPORT_ID));
+    let compose = a.effects.iter().find(|e| e[0] == "compose").unwrap();
+    assert_eq!(compose[1], "ext/import/EXT_LANGUAGEPACK");
+    assert!(compose[2].contains(PACKS_ROUTE));
+    assert_eq!(a.stack.last().unwrap(), PACKS_ROUTE);
+    for id in [pack_id(0, 0), pack_id(0, 1)] {
         let (mut a, mut text) = app(PACKS_ROUTE, "[]");
         assert!(tap(&mut a, &mut text, id));
-        let compose = a.effects.iter().find(|e| e[0] == "compose").unwrap();
-        assert_eq!(compose[1], route);
-        assert!(compose[2].contains(PACKS_ROUTE));
-        assert_eq!(a.stack.last().unwrap(), PACKS_ROUTE);
+        assert!(a.effects.iter().all(|e| e[0] != "compose"));
+        assert_eq!(a.stack.last().unwrap(), "ext/view/org.florisboard.han");
     }
 }
 

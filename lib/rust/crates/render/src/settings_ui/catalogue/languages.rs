@@ -45,6 +45,9 @@ pub enum Lang {
     /// The theme editor's questions: leave without saving, and delete the rule being edited.
     Discard,
     DeleteRule,
+    /// An extension page's delete question, and a maintainer's addresses.
+    DeleteExtension,
+    Maintainer,
 }
 
 const NAMES: Choices = Choices {

@@ -163,7 +163,7 @@ fn a_settings_link_opens_its_screen_even_during_setup() {
     assert_eq!(a.stack, [catalogue::HOME_ROUTE, "settings/dictation"]);
     // A link Rust does not draw falls back to Compose, as before.
     let mut b = App::default();
-    b.start(Some("ext/list/EXT_THEME"));
+    b.start(Some("ext/import/EXT_ANY"));
     assert_eq!(b.effects.pop().unwrap()[0], "compose");
 }
 

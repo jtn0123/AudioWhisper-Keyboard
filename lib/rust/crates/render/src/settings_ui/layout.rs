@@ -130,6 +130,14 @@ impl App {
         let r = &self.rows()[i];
         matches!(r.kind, Kind::Toggle | Kind::Fixed) || !r.switch.is_empty()
     }
+    /// The top bar's title: a word list's language, an extension's name, or the screen's.
+    pub fn title(&self) -> String {
+        self.word_title()
+            .or_else(|| self.ext_title())
+            .unwrap_or_else(|| {
+                self.label(self.screen().map_or("settings__home__title", |s| s.title))
+            })
+    }
     pub fn scene(&mut self, text: &mut Text) -> Scene {
         self.scene_pass(text, true)
     }
@@ -144,9 +152,7 @@ impl App {
         let old_scroll = self.scroll();
         // Paint the underlying screen from its own scroll and styling state.
         let modal = self.modal.take();
-        let title = self.word_title().unwrap_or_else(|| {
-            self.label(self.screen().map_or("settings__home__title", |s| s.title))
-        });
+        let title = self.title();
         let title_left = if self.has_back() { 56.0 * d } else { 16.0 * d };
         // A top bar action (the subtype editor's Delete) takes 48 dp from the title.
         let title_right = if self.header_delete() { 68.0 } else { 16.0 } * d;

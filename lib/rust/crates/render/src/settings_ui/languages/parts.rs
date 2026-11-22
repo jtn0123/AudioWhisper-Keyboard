@@ -28,7 +28,9 @@ impl App {
             | Lang::Cancel
             | Lang::Save
             | Lang::Discard
-            | Lang::DeleteRule => 0.0,
+            | Lang::DeleteRule
+            | Lang::DeleteExtension
+            | Lang::Maintainer => 0.0,
         }
     }
     /// Row `i`'s place in the focus order. The presets row stands for the top bar's Delete

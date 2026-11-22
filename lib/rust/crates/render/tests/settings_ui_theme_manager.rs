@@ -335,7 +335,14 @@ fn an_extensions_name_id_and_view_details_open_its_page_and_edit_its_editor() {
     ] {
         a.effects.clear();
         tap(&mut a, &mut text, id);
-        assert_eq!(a.effects[0][..2], ["compose", route.as_str()], "{id}");
+        if route.starts_with("ext/view/") {
+            // An extension's page is native now.
+            assert_eq!(a.stack.last(), Some(&route), "{id}");
+            a.back();
+            a.scene(&mut text);
+        } else {
+            assert_eq!(a.effects[0][..2], ["compose", route.as_str()], "{id}");
+        }
     }
     assert_eq!(control(&a, manager::theme_id(0, 2)).label, "View details");
     assert_eq!(control(&a, manager::theme_id(1, 3)).label, "Edit");

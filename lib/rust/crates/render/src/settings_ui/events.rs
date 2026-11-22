@@ -25,6 +25,7 @@ impl App {
             Action::Lang(tap) => self.lang_tap(tap),
             Action::Words(tap) => self.words_tap(tap),
             Action::Themes(tap) => self.themes_tap(tap),
+            Action::Ext(tap) => self.ext_tap(tap),
             Action::Setup(tap) => self.setup_tap(tap),
             Action::ThemeEdit(tap) => self.theme_tap(tap),
             Action::Library(j) => {
@@ -299,7 +300,7 @@ impl App {
                 _ if self.color_picker().is_some() => eligible.extend(self.picker_focus()),
                 Kind::Choice(_)
                 | Kind::Pick(_)
-                | Kind::Lang(Lang::AllPresets)
+                | Kind::Lang(Lang::AllPresets | Lang::Maintainer)
                 | Kind::ThemeEdit(_) => {
                     eligible.extend((0..self.choices(m.row).len()).map(|i| 3000 + i as i32))
                 }
@@ -335,6 +336,7 @@ impl App {
                         Kind::Lang(part) => eligible.extend(self.language_focus(i, part)),
                         Kind::Words(part) => eligible.extend(self.words_focus(i, part)),
                         Kind::Themes(part) => eligible.extend(self.themes_focus(part)),
+                        Kind::Ext(part) => eligible.extend(self.ext_focus(part)),
                         Kind::ThemeEdit(part) => eligible.extend(self.theme_focus(i, part)),
                         _ => eligible.push(1000 + i as i32),
                     }
