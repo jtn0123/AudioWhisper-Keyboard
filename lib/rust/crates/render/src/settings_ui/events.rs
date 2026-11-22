@@ -1,6 +1,6 @@
 use super::{
     Action, App, Modal,
-    catalogue::{Do, Kind, Part},
+    catalogue::{Do, Kind, Part, languages::Lang},
 };
 use crate::touch::Motion;
 impl App {
@@ -21,6 +21,8 @@ impl App {
             Action::Back => self.back(),
             Action::Route(route) => self.navigate(&route),
             Action::Picker => self.effects.push(vec!["picker".into()]),
+            Action::List(source, op) => self.list_op(source, op),
+            Action::Lang(tap) => self.lang_tap(tap),
             Action::Library(j) => {
                 if let Some(row) = self
                     .rows()
@@ -60,6 +62,8 @@ impl App {
                         .effects
                         .push(vec!["intent".into(), "spellCheckerSettings".into()]),
                     Kind::Backup(part) => self.backup_tap(part),
+                    Kind::Pick(field) => self.open_pick(i, field),
+                    Kind::Lang(part) => self.lang_row(part),
                     Kind::Choice(_)
                     | Kind::Slider(_)
                     | Kind::Confirm(..)
@@ -93,7 +97,9 @@ impl App {
                 }
             }
             Action::Choose(choice) => {
-                if let Some(m) = &mut self.modal {
+                if let Some(choice) = self.lang_choose(choice)
+                    && let Some(m) = &mut self.modal
+                {
                     m.selected = choice;
                 }
             }
@@ -126,6 +132,7 @@ impl App {
                             self.effects.push(plan);
                         }
                         Kind::Backup(_) => self.restore_confirmed(),
+                        Kind::Lang(part) => self.lang_confirmed(part, m.selected),
                         _ => {}
                     }
                 }
@@ -281,16 +288,14 @@ impl App {
                 eligible.push(8);
             }
             match r.kind {
-                Kind::Choice(_) => {
+                Kind::Choice(_) | Kind::Pick(_) | Kind::Lang(Lang::AllPresets) => {
                     eligible.extend((0..self.choices(m.row).len()).map(|i| 3000 + i as i32))
                 }
                 Kind::Slider(_) => eligible.extend((0..m.values.len()).map(|i| 4000 + i as i32)),
                 _ => eligible.extend(self.picker_focus()),
             }
-            if !matches!(r.kind, Kind::Confirm(..) | Kind::Backup(_)) {
-                eligible.push(5);
-            }
-            eligible.extend([6, 7]);
+            let buttons = [5, 6, 7].into_iter().zip(self.button_keys());
+            eligible.extend(buttons.filter(|b| !b.1.is_empty()).map(|b| b.0));
         } else {
             if !self.is_home() {
                 eligible.push(1);
@@ -309,6 +314,8 @@ impl App {
                         // The card's text is not focusable; its hyperlink is.
                         Kind::Card(_) | Kind::Addons(_) => eligible.push(6000 + i as i32),
                         Kind::Libraries => eligible.extend(self.licence_focus()),
+                        Kind::List(source) => eligible.extend(self.list_focus(source)),
+                        Kind::Lang(part) => eligible.extend(self.language_focus(i, part)),
                         _ => eligible.push(1000 + i as i32),
                     }
                     if !row.switch.is_empty() {

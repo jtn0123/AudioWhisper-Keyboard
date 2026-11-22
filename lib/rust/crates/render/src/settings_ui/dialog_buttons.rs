@@ -13,6 +13,9 @@ impl App {
     /// The neutral, dismiss and confirm labels: ListPreference and DialogSliderPreference's
     /// default/cancel/ok, or a confirmation's own dismiss and confirm with no neutral button.
     pub(super) fn button_keys(&self) -> [&'static str; 3] {
+        if let Some(keys) = self.lang_buttons() {
+            return keys;
+        }
         match self.modal.as_ref().map(|m| self.rows()[m.row].kind) {
             Some(super::catalogue::Kind::Confirm(ask)) => ["", ask.dismiss, ask.confirm],
             Some(super::catalogue::Kind::Backup(_)) => ["", "action__cancel", "action__restore"],
@@ -56,6 +59,8 @@ impl App {
         let px = |dp: f32| (dp * self.config[2]).round();
         let y = bottom - px(8.0) - height;
         let [neutral, dismiss, confirm] = self.button_keys();
+        // A dismiss button alone ends the row, as JetPref places it.
+        let gap = if confirm.is_empty() { 0.0 } else { px(8.0) };
         let mut buttons = vec![
             (
                 5,
@@ -69,7 +74,7 @@ impl App {
                 6,
                 dismiss,
                 Action::Cancel,
-                left + width - px(16.0) - widths[2] - px(8.0) - widths[1],
+                left + width - px(16.0) - widths[2] - gap - widths[1],
                 y,
                 widths[1],
             ),

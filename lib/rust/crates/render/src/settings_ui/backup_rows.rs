@@ -4,7 +4,7 @@
 use super::{
     Action, App, Control,
     cards::plain,
-    catalogue::{Kind, Part},
+    catalogue::{Kind, Part, languages::Lang},
 };
 use crate::{
     panels::{Panel, rect},
@@ -208,11 +208,12 @@ impl App {
             }
         }
     }
-    /// Whether the screen on top is Back up or Restore.
+    /// Whether the screen on top keeps its buttons in a bottom bar: Back up, Restore and the
+    /// subtype editor.
     fn backup_screen(&self) -> bool {
         self.rows()
             .iter()
-            .any(|r| matches!(r.kind, Kind::Backup(Part::Start)))
+            .any(|r| matches!(r.kind, Kind::Backup(Part::Start) | Kind::Lang(Lang::Save)))
     }
     /// The bottom bar's height: the note, then a row of 40 dp buttons with 16 dp around them.
     /// Zero on other screens.
@@ -250,11 +251,18 @@ impl App {
         let mut right = w - self.px(16.0);
         let top = h - self.px(56.0);
         for part in [Part::Start, Part::Cancel] {
-            let Some(i) = self
-                .rows()
-                .iter()
-                .position(|r| matches!(r.kind, Kind::Backup(q) if q == part))
-            else {
+            // The subtype editor's Save and Cancel stand where Back up's Start and Cancel do.
+            let Some(i) = self.rows().iter().position(|r| match r.kind {
+                Kind::Backup(q) => q == part,
+                Kind::Lang(l) => {
+                    l == if part == Part::Start {
+                        Lang::Save
+                    } else {
+                        Lang::Cancel
+                    }
+                }
+                _ => false,
+            }) else {
                 continue;
             };
             let label = self.label(self.rows()[i].label);

@@ -70,12 +70,18 @@ impl App {
     }
     /// The list's stored values, in entry order.
     pub fn choices(&self, i: usize) -> Vec<String> {
+        if let Some(choices) = self.lang_choices(i) {
+            return choices;
+        }
         self.list(i).map_or(vec![], |c| {
             c.entries.iter().map(|e| e.0.to_owned()).collect()
         })
     }
     /// An entry's label; JetPref shows "!! invalid !!" for a stored value with no entry.
     pub fn choice_label(&self, i: usize, choice: &str) -> String {
+        if let Some(label) = self.lang_choice_label(i, choice) {
+            return label;
+        }
         let Some(c) = self.list(i) else {
             return String::new();
         };
@@ -92,6 +98,9 @@ impl App {
     }
     /// The radio row's description: shown always, or only while selected.
     pub fn choice_description(&self, i: usize, choice: &str, selected: bool) -> String {
+        if let Some(description) = self.lang_choice_description(i, choice) {
+            return description;
+        }
         let Some(c) = self.list(i) else {
             return String::new();
         };
@@ -176,6 +185,8 @@ impl App {
         out.extend(super::color_dialog::KEYS);
         out.extend(super::time_dialog::KEYS);
         out.extend(super::backup_screens::KEYS);
+        out.extend(super::items::KEYS);
+        out.extend(super::languages::KEYS);
         out.extend(super::catalogue::HOME.iter().map(|h| h.1));
         for screen in super::catalogue::SCREENS {
             out.push(screen.title);

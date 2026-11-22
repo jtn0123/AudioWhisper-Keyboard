@@ -1,4 +1,7 @@
-use super::{Action, App, Control, catalogue::Kind};
+use super::{
+    Action, App, Control,
+    catalogue::{Kind, languages::Lang},
+};
 use crate::{
     panels::{Panel, rect},
     text::Text,
@@ -95,8 +98,10 @@ impl App {
                 text,
             );
         }
+        // Every preset is a plain list item, as Compose listed them; other lists are radios.
+        let plain = self.presets_dialog();
         match r.kind {
-            Kind::Choice(_) => {
+            Kind::Choice(_) | Kind::Pick(_) | Kind::Lang(Lang::AllPresets) => {
                 for (j, choice) in self.choices(m.row).iter().enumerate() {
                     let (label, summary, rh) = rows[j].clone();
                     self.add(
@@ -106,9 +111,9 @@ impl App {
                             bounds: rect(left + self.px(8.0), y, width - 2.0 * self.px(8.0), rh),
                             label,
                             summary,
-                            role: "radio",
+                            role: if plain { "button" } else { "radio" },
                             enabled: m.enabled,
-                            checked: Some(m.selected == *choice),
+                            checked: (!plain).then_some(m.selected == *choice),
                             selected: m.selected == *choice,
                             action: Action::Choose(choice.clone()),
                             range: None,
@@ -184,12 +189,13 @@ impl App {
             }
             Kind::Color => y = self.color_content(p, text, (left, y), width, clip),
             Kind::Time => y = self.time_content(p, text, (left, y), width, clip),
-            Kind::Confirm(..) | Kind::Backup(_) => {
+            Kind::Confirm(..) | Kind::Backup(_) | Kind::Lang(_) => {
                 let (message, _, rh) = &rows[0];
                 let at = rect(left + 24.0 * d, y, width - 48.0 * d, *rh);
                 self.paint_text(p, message, at, self.sp(16), self.colors[2], clip);
-                // What a restore replaces is read out, not only drawn.
-                if matches!(r.kind, Kind::Backup(_)) {
+                // What a restore replaces, the pack a delete removes and the editor's error are
+                // read out, not only drawn.
+                if matches!(r.kind, Kind::Backup(_) | Kind::Lang(_)) {
                     let node = super::cards::plain(3000, at, message.clone(), "text");
                     self.push_control(node, clip);
                 }

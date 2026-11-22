@@ -203,6 +203,17 @@ impl App {
     /// hour's Next and the minute's Done; a non-character key at the minute's start goes back
     /// to the hour, as TimeInput's `onPreviewKeyEvent` has it.
     pub fn field_key(&mut self, key: i32, unicode: i32) -> bool {
+        // Select language's search is one line: Enter is its Done.
+        if key == 66
+            && self
+                .field
+                .is_some_and(|i| self.search_field(1000 + i as i32))
+        {
+            self.editor.focused = false;
+            self.editor.composing = None;
+            self.effects.push(vec!["hideEditor".into()]);
+            return true;
+        }
         let Some(j) = self.time_field() else {
             return false;
         };
@@ -221,6 +232,13 @@ impl App {
         }
         self.focus_time_field();
         true
+    }
+    /// Whether the field being edited takes line breaks: a row's field but a time field or the
+    /// search.
+    pub fn multi_line_field(&self) -> bool {
+        self.field
+            .is_some_and(|i| !self.search_field(1000 + i as i32))
+            && self.number_field().is_none()
     }
     /// The keyboard a time field asks for: numbers, with Next on the hour and Done on the minute.
     pub fn number_field(&self) -> Option<&'static str> {
