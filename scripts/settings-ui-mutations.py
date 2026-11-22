@@ -22,6 +22,7 @@ SETUP = UI / 'setup'
 TE = UI / 'theme_editor'
 SNYGG = BASE / 'snygg/src'
 SETTINGS_UI = ROOT / 'app/src/main/kotlin/com/jtn0123/audiowhisper/settingsui'
+APP = ROOT / 'app/src/main/kotlin/dev/patrickgold/florisboard/app'
 SYNC_CLEAR, SYNC_SET = ('    (\n        "ONLY_{0}_EVENTS",\n        "enum__clipboard_sync_behavior__only_{1}_events",\n'
                          '        "enum__clipboard_sync_behavior__only_{1}_events__description",\n    ),\n'
                          .format(event, event.lower()) for event in ('CLEAR', 'SET'))
@@ -485,6 +486,13 @@ CASES = [
     ('theme-editor-string-id-dropped', SETTINGS_UI / 'SettingsThemeEditorStringIds.kt',
      '    "settings__theme_editor__duplicate_rule" to R.string.settings__theme_editor__duplicate_rule,\n', ''),
     ('theme-editor-icon-unmapped', SETTINGS_UI / 'SettingsIcons.kt', '"@icon:content_copy" to Icons.Default.ContentCopy, ', ''),
+    # The theme manager's Create/Edit crash: each must fail ComposeFallbackLinksTest.
+    ('fallback-relinks-start', APP / 'FlorisAppActivity.kt',
+     'Intent.ACTION_VIEW -> if (browsable) !initial else data', 'Intent.ACTION_VIEW -> browsable || data'),
+    ('fallback-stays-after-save', APP / 'FlorisAppActivity.kt',
+     'fun fallbackDone(ready: Boolean, emptied: Boolean) = ready && emptied', 'fun fallbackDone(ready: Boolean, emptied: Boolean) = false'),
+    ('fallback-leaves-before-graph', APP / 'FlorisAppActivity.kt',
+     'fun fallbackDone(ready: Boolean, emptied: Boolean) = ready && emptied', 'fun fallbackDone(ready: Boolean, emptied: Boolean) = emptied'),
 ]
 # The Rust test binary that must panic for each Rust-only case.
 RUST = dict.fromkeys([
@@ -630,7 +638,8 @@ RUST = dict.fromkeys([
     'theme-editor-hint-untrimmed',
 ], 'settings_ui_theme_editor')
 # Suites whose assertion failures count, besides the settingsui ones: the first screen a fresh activity opens.
-SUITES = ('TEST-*settingsui.Settings*Test.xml', 'TEST-*florisboard.app.SettingsEntryTest.xml')
+SUITES = ('TEST-*settingsui.Settings*Test.xml', 'TEST-*florisboard.app.SettingsEntryTest.xml',
+          'TEST-*florisboard.app.ComposeFallbackLinksTest.xml')
 
 
 def run_rust(output, name, target):
@@ -654,7 +663,7 @@ def run(output, name):
                                  '--tests', '*SettingsWords*Test', '--tests', '*SettingsProjectLicenceMatchTest',
                                  '--tests', '*SettingsThemesMatchTest', '--tests', '*SettingsSetupMatchTest',
                                  '--tests', '*SettingsThemeEditor*MatchTest',
-                                 '--tests', '*SettingsEntryTest'], cwd=ROOT, stdout=log, stderr=subprocess.STDOUT)
+                                 '--tests', '*SettingsEntryTest', '--tests', '*ComposeFallbackLinksTest'], cwd=ROOT, stdout=log, stderr=subprocess.STDOUT)
     failures = []
     xml = ROOT / 'app/build/test-results/testDebugUnitTest'
     for path in (path for pattern in SUITES for path in xml.glob(pattern)):

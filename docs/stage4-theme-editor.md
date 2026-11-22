@@ -553,7 +553,7 @@ passed:**
    saved rules from `stylesheets/floris_day2.json` (`21-reopened-saved-rules.png`), and *Back*
    with no changes closes without asking (`22-back-unchanged-closes.png`).
 10. The extension's *Save* left an extension editor on screen (`23-extension-saved.png`): the
-    manager's *Edit* had stacked it twice, the deep link fault under [Owed](#owed). *Back* from
+    popped screen stayed drawn, the fault [fixed before part 3](#the-managers-create-and-edit-crash-fixed). *Back* from
     the copy left behind reached the manager, which lists *Floris Day Edited*
     (`24-after-back-from-stale-copy.png`). Chosen as the day theme, it gives the keyboard the
     larger space label, so the saved extension carries the stylesheet Rust wrote
@@ -576,6 +576,55 @@ The keyboard drew any stylesheet that way. Fixed on 2026-11-22: the label now en
 ellipsis inside the key, as Compose drew it
 ([rust.md, a label too big for its key](rust.md#a-label-too-big-for-its-key-fixed-2026-11-22)).
 
+## The manager's Create and Edit crash, fixed
+
+Found while checking part 2 and fixed before part 3, on its own. Repro: *Select day theme*,
+*Create theme extension*, *Save*, *Save* again; the second *Save* crashed with
+`FileNotFoundException` on the closed workspace's `saver/extension.json`.
+
+The guess written down here before was that the screen was stacked twice. It was not: a probe
+of the back stack showed one extension editor. The manager opens the Compose fallback with a
+browsable link, and Navigation's link handling in the same task clears the stack to the graph
+and opens only the link's screen. So *Save* (and *Cancel*, and back from the editor's arrow)
+popped the only screen. With the back stack empty no destination change is dispatched, so the
+fallback's listener that hands native routes back never ran, and the `NavHost` kept drawing
+the popped screen, whose workspace `handleSave` had just closed. That stale screen was the
+"twice"; its *Save* was the crash.
+
+The fix is in `FlorisAppActivity`, not in the frozen Compose screen:
+
+* The fallback watches the lifecycle of its top back stack entry and finishes once that entry
+  has stopped with no entry left (`currentBackStackEntry` is null) after its links were handled
+  (`fallbackDone`). It cannot collect `NavController.currentBackStack`, which is restricted to
+  Navigation's own library (lint's RestrictedApi), nor `visibleEntries`, which keeps the popped
+  entry for good because the `NavHost` never completes its exit when nothing replaces it. The manager under it refreshes on the result, so a
+  saved extension shows at once.
+* The fallback no longer hands the browsable link it started with to `handleDeepLink` a second
+  time (`fallbackHandles`). The `NavController` handles `activity.intent` when its graph is
+  set and saves that it did, so the second pass built a second editor on a second workspace
+  (an *Edit* unzipped the extension twice, and the first copy was never closed). After a
+  rotation the second pass also replaced the restored editor with a fresh one; that loss of
+  unsaved work follows from Navigation's code and was not reproduced on the old build. Files
+  and shares the fallback starts with, and every later link, are taken as before.
+
+Kotlin, because it is the activity's own intent and Compose navigation: the two decisions are
+plain top-level functions so the JVM can test them. `FlorisAppActivity.kt` grew from 249 to 254
+counted lines; the ledger's budget was raised by hand with that reason.
+
+Tests: `ComposeFallbackLinksTest` (5) checks that every later intent is taken exactly as the old
+`onNewIntent` took it, that the starting link is left to the `NavController`, that starting
+files and shares are still imported, and that the fallback leaves only when its links are
+handled and its stack is empty. Mutations, each caught by it: `fallback-relinks-start`,
+`fallback-stays-after-save`, `fallback-leaves-before-graph`. They test the decisions, not their
+call sites; dropping the effect that calls `fallbackDone` is caught only on the device.
+
+Device check on `emulator-5556`: *Create theme extension* then *Save* goes back to *Select day
+theme*, so there is no second *Save* (`01-create-save-returns.png`); *Edit* opens one editor;
+with a bundled theme added, a rotation to landscape keeps it (`02-edit-rotated-keeps-theme.png`);
+*Cancel* and then *Edit*, *Save* each go back to the manager (`03-edit-save-returns.png`). No
+fatal exception in the log. Screenshots are under `build/part3-device/`, not committed. The
+phone check is P20.
+
 ## Owed
 
 * **E23:** run `scripts/settings-device-tests.py ... other-theme` again: `SettingsOtherThemeDevice`
@@ -591,16 +640,9 @@ ellipsis inside the key, as Compose drew it
 * **E25:** no instrumented test drives the Rust theme editor. The device check was by hand
   through agent-device. A `SettingsOtherThemeDevice` step that opens *Manage component*, deletes a
   property, saves, and reads the workspace's stylesheet file back would hold it.
-* **Not a device check, and older than this page:** the theme manager's *Create* hands off to
-  Compose's *Create theme extension* by deep link, and the screen ends up on the stack twice.
-  Its *Edit* does the same to the extension editor (step 10 of part 2's device check). The
-  likely cause is that `NavController` handles the activity's deep link when its graph is set,
-  and `FlorisAppActivity`'s `LaunchedEffect(intentToBeHandled)` calls `handleDeepLink` again.
-  *Save* closes the top copy and its workspace, the copy under it stays, and a second *Save*
-  there crashes with `FileNotFoundException` on the closed workspace's `saver/extension.json`
-  (`ExtensionEditScreen`'s `handleSave`). Repro: *Select day theme*, *Create theme extension*,
-  *Save*, *Save* again. Found on the emulator while checking part 2. It goes with step 10, which
-  ports the extension editor, unless it is fixed sooner as a crash fix to frozen code.
+* **P20:** the theme manager's *Create* and *Edit* on the phone, after the crash fix above:
+  *Save* and *Cancel* each go back to the manager, and an added bundled theme survives a
+  rotation of the extension editor.
 
 ## What remains
 
