@@ -7,14 +7,6 @@ license.workspace = true
 publish.workspace = true
 rust-version.workspace = true
 
-[features]
-# Opt in only for the differential test suite; ordinary tests never build the C++.
-oracle = ["dep:latin-oracle"]
-
-# Optional dependencies (unlike dev-dependencies) can be controlled by a Cargo feature.
-[target.'cfg(not(target_os = "android"))'.dependencies]
-latin-oracle = { path = "../latin-oracle", optional = true }
-
 [dev-dependencies]
 latin-golden = { path = "../latin-golden" }
 

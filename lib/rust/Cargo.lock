@@ -968,7 +968,6 @@ name = "latin"
 version = "0.1.0"
 dependencies = [
  "latin-golden",
- "latin-oracle",
 ]
 
 [[package]]
