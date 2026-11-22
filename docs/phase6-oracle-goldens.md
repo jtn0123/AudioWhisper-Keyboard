@@ -145,6 +145,11 @@ The first command writes `crates/latin/tests/golden/` and the second
 `crates/suggest/tests/golden/`. Copy the files back. Writing took about two minutes for the first
 and one for the second.
 
+**Not from the current tree.** Here `LATIN_GOLDEN` makes every golden test fail on purpose:
+writing from this tree would record the port's own answers under LatinIME's name, and a
+regression would pass as the reference. Changing one of the port's answers on purpose is a
+decision for `docs/decisions.md` first, not a rewrite of the files.
+
 **If the shipped dictionary is rebuilt**, its `*.shipped.txt` files must be written again from the
 C++. Copy the new `main_en-US.dict` over the checkout's. Set the fingerprint the failure prints
 in `FINGERPRINTS` (`crates/latin-golden/src/lib.rs`), in the checkout and in the current tree.

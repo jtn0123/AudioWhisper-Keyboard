@@ -6,7 +6,10 @@
 //! ([`Fnv`]), so it pins every answer and their order; the checkpoints say how far a different
 //! run got before it differed, and the samples what an answer looked like.
 //!
-//! `LATIN_GOLDEN=write` writes the files instead of checking them.
+//! The files hold LatinIME's C++ answers, so this tree only checks them. They are written from
+//! the generator commit, where every answer was compared with the C++ as it was written
+//! (docs/phase6-oracle-goldens.md); `LATIN_GOLDEN=write` here fails rather than record the
+//! port's own answers under LatinIME's name.
 
 use std::collections::BTreeMap;
 use std::fmt::Write as _;
@@ -54,11 +57,16 @@ impl Tape {
         let path = Path::new(directory)
             .join("tests/golden")
             .join(format!("{name}.txt"));
-        let writing = std::env::var("LATIN_GOLDEN").is_ok_and(|it| it == "write");
-        Self::at(path, name, writing)
+        assert!(
+            std::env::var_os("LATIN_GOLDEN").is_none(),
+            "the golden files hold LatinIME's C++ answers: write them from the generator commit \
+             8549be045 (docs/phase6-oracle-goldens.md), not from the port"
+        );
+        Self::at(path, name, false)
     }
 
-    /// The tape for the golden file at `path`, which it writes or checks.
+    /// The tape for the golden file at `path`, which it checks, or writes (only the tape's own
+    /// tests write here; see [`Tape::open`]).
     fn at(path: PathBuf, name: &str, writing: bool) -> Self {
         let golden = (!writing).then(|| {
             let text = std::fs::read_to_string(&path);
