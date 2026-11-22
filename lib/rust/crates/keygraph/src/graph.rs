@@ -49,7 +49,6 @@ pub struct Key {
     pub popups: Popups,
     pub label: Option<Vec<u16>>,
     pub hint: Option<Vec<u16>>,
-    pub hint_data: Data,
     /// The icon token Android draws (`compute::DRAWN`), 0 for none.
     pub icon: i32,
     pub bounds: Bounds,
@@ -65,7 +64,6 @@ impl Default for Key {
             popups: Popups::default(),
             label: None,
             hint: None,
-            hint_data: Data::unspecified(),
             icon: 0,
             bounds: Bounds::default(),
         }

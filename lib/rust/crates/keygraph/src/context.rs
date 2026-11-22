@@ -188,7 +188,6 @@ impl Context<'_> {
                 .hint
                 .filter(|hint| !hint.is_space());
             key.hint = hint.as_ref().map(|hint| compute::text(hint, platform));
-            key.hint_data = hint.unwrap_or_else(Data::unspecified);
         }
     }
 }
