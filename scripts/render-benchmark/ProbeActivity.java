@@ -81,8 +81,9 @@ public final class ProbeActivity extends Activity {
                 saveDigest(editor.getText());
                 return;
             }
-            editor.setInputType(inputType(intent));
+            // The action first: setting the input type restarts input, which reads the action.
             configureAction(intent);
+            editor.setInputType(inputType(intent));
             editorActions = 0;
             editor.setText("");
             editor.requestFocus();
@@ -215,9 +216,20 @@ public final class ProbeActivity extends Activity {
         }
     }
 
+    /** The search field searches; any field may name another action with the "action" extra. */
     private void configureAction(Intent intent) {
-        editor.setImeOptions("search".equals(intent.getStringExtra("field"))
-            ? android.view.inputmethod.EditorInfo.IME_ACTION_SEARCH : android.view.inputmethod.EditorInfo.IME_ACTION_NONE);
+        String action = intent.getStringExtra("action");
+        int options = android.view.inputmethod.EditorInfo.IME_ACTION_NONE;
+        if ("search".equals(intent.getStringExtra("field")) || "search".equals(action)) {
+            options = android.view.inputmethod.EditorInfo.IME_ACTION_SEARCH;
+        } else if ("send".equals(action)) {
+            options = android.view.inputmethod.EditorInfo.IME_ACTION_SEND;
+        } else if ("go".equals(action)) {
+            options = android.view.inputmethod.EditorInfo.IME_ACTION_GO;
+        } else if ("done".equals(action)) {
+            options = android.view.inputmethod.EditorInfo.IME_ACTION_DONE;
+        }
+        editor.setImeOptions(options);
     }
 
     private static int inputType(Intent intent) {
