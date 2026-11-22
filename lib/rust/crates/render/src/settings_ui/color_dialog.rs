@@ -57,7 +57,8 @@ impl App {
             let rows = PRESETS.len().div_ceil(self.columns(w).len()) as f32;
             return (rows + 1.0) * self.px(50.0) + self.px(16.0);
         }
-        w + self.px(12.0) + self.px(64.0) + 2.0 * self.px(12.0) + self.hex_height(w, text)
+        let (plane, row) = self.picker_rows(p, w);
+        plane + self.px(12.0) + row + 2.0 * self.px(12.0) + self.hex_height(w, text)
     }
     /// The filled field's height: 8 dp, the 16 sp label line, the text, 8 dp; 56 dp at least.
     fn hex_height(&self, w: f32, text: &mut Text) -> f32 {
@@ -83,7 +84,7 @@ impl App {
         match (p.editing, self.field == Some(HEX_FIELD)) {
             (true, true) => String::from_utf16_lossy(&self.editor.text),
             (true, false) => p.text.clone(),
-            _ => color::format(p.format, p.color()),
+            _ => p.shown(),
         }
     }
     /// Paints the open page from `y`; returns the y under it.
@@ -252,20 +253,33 @@ impl App {
     ) -> f32 {
         let d = self.config[2];
         let [h, sat, v] = s.hsv;
-        let plane = rect(x, y, w, w);
+        let (ph, rh) = self.picker_rows(s, w);
+        let plane = rect(x, y, w, ph);
         let hue = color::hsv(h, 1.0, 1.0, 1.0);
         let n = w.round().clamp(1.0, 700.0) as usize;
-        let name = format!("@plane:{n}:{hue:08x}:{:.0}", 4.0 * d * n as f32 / w);
-        self.cached(&name, n, n, "@plane:", |n, _| {
-            color::plane(n, n, hue, 4.0 * d * n as f32 / w)
+        let m = (ph * n as f32 / w).round().max(1.0) as usize;
+        let name = format!("@plane:{n}x{m}:{hue:08x}:{:.0}", 4.0 * d * n as f32 / w);
+        self.cached(&name, n, m, "@plane:", |n, m| {
+            color::plane(n, m, hue, 4.0 * d * n as f32 / w)
         });
         self.paint_image(p, &name, plane, clip);
-        let row = y + w + self.px(12.0);
-        let preview = rect(x + self.px(2.0), row, self.px(64.0), self.px(64.0));
+        let row = y + ph + self.px(12.0);
+        let size = self.px(64.0);
+        let preview = rect(
+            x + self.px(2.0),
+            row + ((rh - size) / 2.0).round(),
+            size,
+            size,
+        );
         self.swatch_circle(p, preview, s.color(), clip);
         let track_left = preview.right + self.px(16.0) + self.px(12.0);
         let track_w = (x + w - self.px(12.0) - track_left).max(1.0);
-        let track_top = row + ((self.px(64.0) - 3.0 * self.px(12.0)) / 2.0).round() + self.px(12.0);
+        // Each bar is a 12 dp track in 12 dp padding; the column of them is centred on the row.
+        let (slot, bars) = (
+            3.0 * self.px(12.0),
+            if s.alpha.is_some() { 2.0 } else { 1.0 },
+        );
+        let track_top = row + ((rh - slot * bars) / 2.0).round() + self.px(12.0);
         let track = rect(track_left, track_top, track_w, self.px(12.0));
         let (tw, th) = (
             track_w.round().max(1.0) as usize,
@@ -275,19 +289,25 @@ impl App {
         self.cached(&bar, tw, th, "@hue:", color::hue_bar);
         self.paint_image(p, &bar, track, clip);
         let centre = track.top + track.height() / 2.0;
+        self.alpha_bar(
+            p,
+            s,
+            rect(track_left, track_top + slot, track_w, track.height()),
+            clip,
+        );
         if s.editing {
             // Modifier.alpha(0.5) over the dialog surface.
             let veil = self.colors[11] & 0x00ff_ffff | 0x8000_0000;
             self.paint_clipped_box(p, plane, veil, 4.0 * d, clip);
-            self.paint_clipped_box(p, rect(x, row, w, self.px(64.0)), veil, 0.0, clip);
+            self.paint_clipped_box(p, rect(x, row, w, rh), veil, 0.0, clip);
         } else {
-            self.thumb(p, (x + w * sat, y + w * (1.0 - v)), s.color(), clip);
+            self.thumb(p, (x + w * sat, y + ph * (1.0 - v)), s.color(), clip);
             self.thumb(p, (track_left + track_w * h / 360.0, centre), hue, clip);
             self.drag_control(7130, plane, Surface::Plane);
             let touch = rect(track_left, centre - self.px(24.0), track_w, self.px(48.0));
             self.drag_control(7131, touch, Surface::Hue);
         }
-        let top = row + self.px(64.0) + self.px(12.0);
+        let top = row + rh + self.px(12.0);
         let height = self.hex_height(w, text);
         self.hex_field(p, text, s, rect(x, top, w, height), clip);
         top + height + self.px(12.0)
@@ -309,7 +329,7 @@ impl App {
         self.images.extend(frame.map(|f| (name.to_owned(), f)));
     }
     /// A 24 dp thumb centred at `at`: a 4 dp white ring at 4 dp elevation round the colour.
-    fn thumb(&self, p: &mut Panel, (cx, cy): (f32, f32), fill: u32, clip: Rect) {
+    pub(super) fn thumb(&self, p: &mut Panel, (cx, cy): (f32, f32), fill: u32, clip: Rect) {
         let d = self.config[2];
         let size = 24.0 * d;
         let b = rect(
@@ -339,7 +359,7 @@ impl App {
         );
         self.paint_clipped_box(p, outer, fill | 0xff00_0000, outer.width() / 2.0, clip);
     }
-    fn drag_control(&mut self, id: i32, b: Rect, surface: Surface) {
+    pub(super) fn drag_control(&mut self, id: i32, b: Rect, surface: Surface) {
         self.controls.push(Control {
             id,
             bounds: b,

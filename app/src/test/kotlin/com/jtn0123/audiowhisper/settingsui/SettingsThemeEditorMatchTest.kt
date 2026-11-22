@@ -57,6 +57,23 @@ internal object ThemeEditorNatives {
         SettingsUiThemeEditor.ID to "sunny", SettingsUiThemeEditor.LABEL to "Sunny", SettingsUiThemeEditor.AUTHORS to "Ada",
         SettingsUiThemeEditor.NIGHT to WireFlag.encode(false), SettingsUiThemeEditor.PATH to "stylesheets/sunny.json")
     fun loaded(n: KeyboardRenderer, sheet: String) = state(n, SettingsUiOp.THEME_EDITOR, *report(sheet))
+    /** Opens the property editor's dropdown on row [row] and taps its entry labelled [label]. */
+    fun choose(n: KeyboardRenderer, row: Int, label: String) {
+        val open = state(n, SettingsUiOp.ACTIVATE, (1000 + row).toString())
+        val entries = open.getValue("nodes").jsonArray.map { it.jsonObject }.filter { it.getValue("id").jsonPrimitive.int >= 3000 }
+        val entry = assertNotNull(entries.firstOrNull { it.getValue("label").jsonPrimitive.content == label },
+            "$label is not in row $row's ${entries.map { it.getValue("label").jsonPrimitive.content }}")
+        state(n, SettingsUiOp.ACTIVATE, entry.getValue("id").jsonPrimitive.content)
+    }
+    /** Row [row]'s static colour picked as [text]: the colour picker opened, [text] typed in its field, Apply changes and
+     * the picker's OK; the state after Apply changes, whose picker is still open when it refused [text]. */
+    fun pickColor(n: KeyboardRenderer, row: Int, text: String, confirm: Boolean = true): JsonObject {
+        for (id in listOf(1000 + row, 7140, 7000)) state(n, SettingsUiOp.ACTIVATE, id.toString())
+        state(n, SettingsUiOp.EDIT, "set", text)
+        val applied = state(n, SettingsUiOp.ACTIVATE, "7141")
+        if (confirm) state(n, SettingsUiOp.ACTIVATE, "7")
+        return applied
+    }
 
     /** loadThemeEditorStylesheet's editor for [sheet]: parsed with PrettyPrintConfig, ordered by CustomRuleComparator,
      * with `@defines` added when it had none. */
@@ -162,7 +179,8 @@ class SettingsThemeEditorMatchTest {
     }
 
     /** A property added in Rust through the property editor: its rule's element, its name, its encoder's string key's
-     * end, the entry chosen in the value dropdown or the text typed in its fields; and the value Compose's dialog built. */
+     * end, the entry chosen in the value dropdown or the text typed in its fields (a static colour's in the colour
+     * picker); and the value Compose's dialog built. */
     private class Added(val element: String, val name: String, val encoder: String, val value: SnyggValue,
         val pick: String? = null, val typed: List<String> = emptyList())
 
@@ -205,14 +223,7 @@ class SettingsThemeEditorMatchTest {
         "@font `Mono`":[{"src":"uri(`flex:/fonts/mono.ttf`)"}],"root":{},"window":{},"key":{},"key-hint":{},
         "key-popup-box":{},"key-popup-element":{}}"""
 
-    /** Opens the property editor's dropdown on row [row] and taps its entry labelled [label]. */
-    private fun KeyboardRenderer.choose(row: Int, label: String) {
-        val open = ThemeEditorNatives.state(this, SettingsUiOp.ACTIVATE, (1000 + row).toString())
-        val entries = open.getValue("nodes").jsonArray.map { it.jsonObject }.filter { it.getValue("id").jsonPrimitive.int >= 3000 }
-        val entry = assertNotNull(entries.firstOrNull { it.getValue("label").jsonPrimitive.content == label },
-            "$label is not in row $row's ${entries.map { it.getValue("label").jsonPrimitive.content }}")
-        ThemeEditorNatives.state(this, SettingsUiOp.ACTIVATE, entry.getValue("id").jsonPrimitive.content)
-    }
+    private fun KeyboardRenderer.choose(row: Int, label: String) = ThemeEditorNatives.choose(this, row, label)
     /** Focuses the field on row [row] and gives it [text], as the IME's InputConnection does. */
     private fun KeyboardRenderer.type(row: Int, text: String) {
         ThemeEditorNatives.state(this, SettingsUiOp.ACTIVATE, (1000 + row).toString())
@@ -228,7 +239,11 @@ class SettingsThemeEditorMatchTest {
         choose(2, "snygg__property_name__" + a.name.replace('-', '_'))
         choose(3, "snygg__property_value__" + a.encoder)
         a.pick?.let { choose(4, it) }
-        if (a.typed.size == 1) type(4, a.typed[0]) else a.typed.forEachIndexed { k, t -> type(5 + k, t) }
+        when {
+            a.encoder == "solid_color" -> ThemeEditorNatives.pickColor(this, 4, a.typed[0])
+            a.typed.size == 1 -> type(4, a.typed[0])
+            else -> a.typed.forEachIndexed { k, t -> type(5 + k, t) }
+        }
         apply("${a.element} ${a.name}")
     }
     private fun SnyggStylesheetEditor.element(name: String) =
@@ -248,7 +263,7 @@ class SettingsThemeEditorMatchTest {
             // Edited in place: the variable's colour.
             n.tap(500_000 + 4096 * defines + 64)
             n.choose(3, "snygg__property_value__solid_color")
-            n.type(4, "#00ff00")
+            ThemeEditorNatives.pickColor(n, 4, "#00ff00")
             n.apply("--primary")
             // A font: Add source set, `src` added to the new set, and a weight to the first.
             n.tap(500_000 + 4096 * font + 4)

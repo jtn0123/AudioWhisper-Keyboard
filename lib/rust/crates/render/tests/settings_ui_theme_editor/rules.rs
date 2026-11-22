@@ -110,12 +110,12 @@ fn the_rules_come_in_compare_order_with_their_properties_named_and_written_out()
         [
             // translatePropertyValue: a variable by its name, translated where it can be.
             ("Background".into(), "--accent".into()),
-            ("Foreground".into(), "rgba(0,0,0,1)".into())
+            ("Foreground".into(), "#000000ff".into())
         ]
     );
     assert_eq!(
         property_texts(&a, 0),
-        [("--accent".into(), "rgba(255,0,0,1)".into())]
+        [("--accent".into(), "#ff0000ff".into())]
     );
     // Talkback hears a rule as its title, selector and attributes.
     let row = control(&a, rule_id(3, 0)).unwrap();
@@ -158,7 +158,7 @@ fn a_deleted_property_leaves_undo_where_it_was_and_undo_puts_it_back() {
     assert!(tap(&mut a, &mut text, delete_id(2, 0)));
     assert_eq!(
         property_texts(&a, 2),
-        [("Foreground".into(), "rgba(0,0,0,1)".into())]
+        [("Foreground".into(), "#000000ff".into())]
     );
     assert!(a.theme_editor.changed());
     let preview = last(&a, effect::PREVIEW).unwrap();
@@ -245,7 +245,7 @@ fn duplicate_adds_a_rule_like_another_with_its_properties() {
         .iter()
         .position(|(r, _)| a.rule_lines(r).1 == "snygg__rule_selector__focus");
     let props = property_texts(&a, focus.unwrap());
-    assert_eq!(props, [("Background".into(), "rgba(0,255,0,1)".into())]);
+    assert_eq!(props, [("Background".into(), "#00ff00ff".into())]);
 }
 
 #[test]

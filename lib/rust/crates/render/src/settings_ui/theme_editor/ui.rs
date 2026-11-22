@@ -78,13 +78,24 @@ impl App {
         &mut self,
         p: &mut Panel,
         d: Dropdown,
+        at: (f32, f32),
+        clip: Rect,
+        text: &mut Text,
+    ) -> f32 {
+        self.dropdown_in(p, (d, 0.0), at, clip, text)
+    }
+    /// [`dropdown`](Self::dropdown) leaving `trail` free at its end, for what follows it.
+    pub(super) fn dropdown_in(
+        &mut self,
+        p: &mut Panel,
+        (d, trail): (Dropdown, f32),
         (x, y): (f32, f32),
         clip: Rect,
         text: &mut Text,
     ) -> f32 {
         let top = self.field_title(p, &d.title, (x, y), clip, text);
         let left = x + self.px(16.0);
-        let width = (self.config[0] - x - 2.0 * self.px(16.0)).max(1.0);
+        let width = (self.config[0] - x - 2.0 * self.px(16.0) - trail).max(1.0);
         let b = rect(left, top, width, self.px(56.0));
         self.outlined_field(p, b, (self.focus == d.id, d.error), clip);
         let size = self.px(24.0);

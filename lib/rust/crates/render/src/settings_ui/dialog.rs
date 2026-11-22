@@ -101,6 +101,10 @@ impl App {
         // Every preset is a plain list item, as Compose listed them; other lists are radios.
         let plain = self.presets_dialog();
         match r.kind {
+            // The accent colour rows' picker, and the theme editor's for a static colour.
+            _ if self.color_picker().is_some() => {
+                y = self.color_content(p, text, (left, y), width, clip)
+            }
             Kind::Choice(_) | Kind::Pick(_) | Kind::Lang(Lang::AllPresets) | Kind::ThemeEdit(_) => {
                 for (j, choice) in self.choices(m.row).iter().enumerate() {
                     let (label, summary, rh) = rows[j].clone();
@@ -187,7 +191,6 @@ impl App {
                     y += 48.0 * d;
                 }
             }
-            Kind::Color => y = self.color_content(p, text, (left, y), width, clip),
             Kind::Time => y = self.time_content(p, text, (left, y), width, clip),
             Kind::Confirm(..) | Kind::Backup(_) | Kind::Lang(_) => {
                 let (message, _, rh) = &rows[0];

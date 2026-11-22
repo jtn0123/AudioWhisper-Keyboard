@@ -73,6 +73,26 @@ pub fn writes(a: &App, name: &str, value: &str) -> bool {
     let json = a.theme_editor.json().unwrap();
     json.contains(&format!("\"{name}\": \"{value}\""))
 }
+/// The static colour's picker opened from the value row, `typed` entered in its field and the
+/// field's Apply changes tapped: whether the picker took it.
+pub fn picker_typed(a: &mut App, text: &mut Text, typed: &str) -> bool {
+    assert!(tap(a, text, part_id(a, Part::PropValue)), "no picker");
+    assert!(a.color_picker().is_some_and(|p| p.alpha.is_some()));
+    assert!(tap(a, text, 7140), "no Edit");
+    assert!(tap(a, text, 7000), "no field");
+    a.editor.text = typed.encode_utf16().collect();
+    a.editor.anchor = a.editor.text.len();
+    a.editor.focus = a.editor.text.len();
+    a.sync_field();
+    assert!(tap(a, text, 7141), "no Apply changes");
+    !a.color_picker().unwrap().error
+}
+/// `typed` picked as the static colour: entered in the picker, then OK.
+pub fn pick_color(a: &mut App, text: &mut Text, typed: &str) {
+    assert!(picker_typed(a, text, typed), "the picker refused {typed}");
+    assert!(tap(a, text, 7), "no OK");
+    assert!(a.modal.is_none());
+}
 /// The screen's field `part`: its text and its message.
 pub fn field(a: &App, part: Part) -> (String, String) {
     let c = control(a, part_id(a, part)).unwrap();

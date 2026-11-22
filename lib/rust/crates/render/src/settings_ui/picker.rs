@@ -6,9 +6,14 @@
 //! the way Compose keeps it: `dialogValue`, `selectedPreset`, `advanced`, the picker state's hue,
 //! saturation, value and editor mode, which outlive a page switch, and the field's format, text
 //! and error, which a page switch or leaving the editor starts again.
+//!
+//! The theme editor's static colour opens the same picker as EditPropertyDialog's inline
+//! JetPrefColorPicker was: the Custom page alone, its plane at Jetpref's default 1.5 aspect ratio,
+//! an alpha bar under the hue bar, and its field in the theme editor's colour representation with
+//! the alpha (`theme_editor/value_color.rs`).
 use super::{
     Action, App,
-    catalogue::Kind,
+    catalogue::{Kind, theme_editor::Part},
     color::{self, Format, PRESETS},
     time::TimePicker,
     time_events::TimeTap,
@@ -38,6 +43,8 @@ pub enum Tap {
 pub enum Surface {
     Plane,
     Hue,
+    /// A theme colour's alpha bar.
+    Alpha,
     /// The time picker's clock dial.
     Dial,
 }
@@ -69,6 +76,9 @@ pub struct ColorPicker {
     pub format: Format,
     /// The editable field's text while the keyboard is not on it.
     pub text: String,
+    /// The alpha bar's value: a theme colour's (`withAlpha = true`); None for the accent colour
+    /// rows', which have no alpha bar.
+    pub alpha: Option<f32>,
 }
 
 impl ColorPicker {
@@ -88,22 +98,44 @@ impl ColorPicker {
             error: false,
             format: Format::Hex,
             text: String::new(),
+            alpha: None,
+        }
+    }
+    /// The picker on theme colour `value`: the Custom page with the alpha bar, its field in
+    /// `format`.
+    pub fn theme(value: u32, format: Format) -> Self {
+        Self {
+            preset: None,
+            custom: true,
+            format,
+            alpha: Some(color::channels(value)[3]),
+            ..Self::new(value, value)
         }
     }
     /// The picker state's colour, `Color.hsv(h, s, v)`: the plane and preview show it.
     pub fn color(&self) -> u32 {
         let [h, s, v] = self.hsv;
-        color::hsv(h, s, v, 1.0)
+        color::hsv(h, s, v, self.alpha.unwrap_or(1.0))
     }
     /// `setColor`: the picker state takes `c` apart.
     fn set(&mut self, c: u32) {
-        let [h, s, v, _] = color::to_hsv(c);
+        let [h, s, v, a] = color::to_hsv(c);
         self.hsv = [h, s, v];
+        if let Some(alpha) = &mut self.alpha {
+            *alpha = a;
+        }
+    }
+    /// The colour as the read-only field shows it: `formatColor(color, withAlpha)`.
+    pub fn shown(&self) -> String {
+        match self.alpha {
+            Some(_) => color::format_alpha(self.format, self.color()),
+            None => color::format(self.format, self.color()),
+        }
     }
     /// Entering the editor, or the Custom page coming back while in it: the field starts on the
     /// colour as the read-only field showed it, with no error.
     fn start_text(&mut self) {
-        self.text = color::format(self.format, self.color());
+        self.text = self.shown();
         self.error = false;
     }
 }
@@ -138,6 +170,9 @@ impl App {
         let m = self.modal.as_ref()?;
         match (self.rows().get(m.row)?.kind, &self.picker) {
             (Kind::Color, Some(Picker::Color(p))) => Some(p),
+            (Kind::ThemeEdit(Part::PropValue), Some(Picker::Color(p))) if self.picks_theme(p) => {
+                Some(p)
+            }
             _ => None,
         }
     }
@@ -164,6 +199,11 @@ impl App {
         let Some(p) = self.color_picker_mut() else {
             return;
         };
+        if confirm && p.alpha.is_some() {
+            let c = p.value;
+            self.close_picker();
+            return self.theme_color_picked(c);
+        }
         if confirm {
             let stored = color::encode(p.value, p.accent);
             self.close_picker();
@@ -212,7 +252,7 @@ impl App {
             }
             Tap::Apply => {
                 let text = typed.unwrap_or_else(|| p.text.clone());
-                let Some((c, format)) = color::parse(&text) else {
+                let Some((c, format)) = color::parse_with(&text, p.alpha.is_some()) else {
                     p.error = true;
                     return;
                 };
@@ -258,6 +298,7 @@ impl App {
             }
             // The hue bar's control is the track, made 48 dp tall as a touch reaches it.
             Surface::Hue => p.hsv[0] = along(x, b.left, b.width()) * 360.0,
+            Surface::Alpha => p.alpha = Some(along(x, b.left, b.width())),
             Surface::Dial => {}
         }
         p.value = p.color();

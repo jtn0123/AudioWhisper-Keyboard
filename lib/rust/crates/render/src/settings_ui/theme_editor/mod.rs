@@ -19,6 +19,8 @@ pub mod rules;
 pub mod saved;
 pub mod sets;
 pub mod ui;
+pub mod value_color;
+pub mod value_icons;
 use super::{
     App,
     catalogue::{Kind, languages::Lang, theme_editor::Part},

@@ -83,6 +83,36 @@ pub fn format(f: Format, argb: u32) -> String {
     }
 }
 
+/// `ColorRepresentation.formatColor(color, withAlpha = true)`: `#rrggbbaa`, `rgba(r, g, b, a)` or
+/// `hsva(h, s, v, a)`, the alpha as `"%.2f"` writes it in `Locale.ROOT` with its trailing zeros
+/// and then its point trimmed (`1`, `0.5`, `0`).
+pub fn format_alpha(f: Format, argb: u32) -> String {
+    let k = argb >> 24;
+    let plain = format(f, argb);
+    if f == Format::Hex {
+        return format!("{plain}{k:02x}");
+    }
+    // k / 255 to two places, half up: never a tie, as 200 k + 255 is odd and 510 is even.
+    let hundredths = (200 * k + 255) / 510;
+    let digits = format!("{}.{:02}", hundredths / 100, hundredths % 100);
+    let alpha = digits.trim_end_matches('0').trim_end_matches('.');
+    format!("{}a{}, {alpha})", &plain[..3], &plain[3..plain.len() - 1])
+}
+
+/// Compose's `compositeOver`: `fg` over `bg`, both straight sRGB.
+pub fn over(fg: u32, bg: u32) -> u32 {
+    let ([fr, fg_, fb, fa], [br, bg_, bb, ba]) = (channels(fg), channels(bg));
+    let a = fa + ba * (1.0 - fa);
+    let mix = |f: f32, b: f32| {
+        if a == 0.0 {
+            0.0
+        } else {
+            (f * fa + b * ba * (1.0 - fa)) / a
+        }
+    };
+    pack(mix(fr, br), mix(fg_, bg_), mix(fb, bb), a)
+}
+
 /// Kotlin's `Char.isWhitespace`, which `String.trim()` strips: Java's whitespace and space
 /// separators. Unicode's White_Space adds U+0085 and leaves out U+001C to U+001F.
 fn kotlin_space(c: char) -> bool {
@@ -105,9 +135,12 @@ fn number(digits: &[u8], max: u32) -> Option<u32> {
     (n <= max).then_some(n)
 }
 
-/// `name(a, b, c)` with Jetpref's separators: the three numbers' digits, or None. A fourth
-/// (alpha) component never parses with `withAlpha = false`, so it is a mismatch here too.
-fn call<'a>(text: &'a [u8], name: &[u8]) -> Option<[&'a [u8]; 3]> {
+/// A call's three numbers' digits and its alpha's, if it has one.
+type Parts<'a> = ([&'a [u8]; 3], Option<&'a [u8]>);
+
+/// `name(a, b, c)` or, with an alpha, `name(a, b, c, alpha)` with Jetpref's separators: the
+/// numbers' digits, or None.
+fn call<'a>(text: &'a [u8], name: &[u8]) -> Option<Parts<'a>> {
     let n = name.len();
     if text.len() < n || !text[..n].eq_ignore_ascii_case(name) {
         return None;
@@ -117,10 +150,6 @@ fn call<'a>(text: &'a [u8], name: &[u8]) -> Option<[&'a [u8]; 3]> {
         rest = tail;
     }
     let inner = rest.strip_prefix(b"(")?.strip_suffix(b")")?;
-    let parts: Vec<&[u8]> = inner.split(|&c| c == b',').collect();
-    let [a, b, c] = parts[..] else {
-        return None;
-    };
     let trim = |s: &'a [u8]| -> &'a [u8] {
         let start = s.iter().position(|&c| !regex_space(c)).unwrap_or(s.len());
         let end = s
@@ -129,26 +158,65 @@ fn call<'a>(text: &'a [u8], name: &[u8]) -> Option<[&'a [u8]; 3]> {
             .map_or(start, |e| e + 1);
         &s[start..end]
     };
-    Some([trim(a), trim(b), trim(c)])
+    let parts: Vec<&[u8]> = inner.split(|&c| c == b',').map(trim).collect();
+    match parts[..] {
+        [a, b, c] => Some(([a, b, c], None)),
+        [a, b, c, alpha] => Some(([a, b, c], Some(alpha))),
+        _ => None,
+    }
+}
+
+/// Jetpref's alpha component, `1(\.0)?|0(\.[0-9]+)?|\.[0-9]+`, as `Float.parseFloat` reads it.
+fn alpha(digits: &[u8]) -> Option<f32> {
+    let ok = match digits {
+        b"1" | b"1.0" | b"0" => true,
+        [b'0', b'.', rest @ ..] | [b'.', rest @ ..] => {
+            !rest.is_empty() && rest.iter().all(u8::is_ascii_digit)
+        }
+        _ => false,
+    };
+    std::str::from_utf8(digits)
+        .ok()?
+        .parse()
+        .ok()
+        .filter(|_| ok)
 }
 
 /// `Color.parseOrNull(text, withAlpha = false)`: the colour and the form it was written in.
 pub fn parse(text: &str) -> Option<(u32, Format)> {
+    parse_with(text, false)
+}
+
+/// `Color.parseOrNull(text, withAlpha)`: with `with_alpha`, `#rrggbbaa` and a fourth component
+/// give the colour its alpha; without, they are no colour at all.
+pub fn parse_with(text: &str, with_alpha: bool) -> Option<(u32, Format)> {
     let t = text.trim_matches(kotlin_space).as_bytes();
     if let Some(hex) = t.strip_prefix(b"#") {
-        if hex.iter().all(u8::is_ascii_hexdigit) && hex.len() == 6 {
+        let long = with_alpha && hex.len() == 8;
+        if hex.iter().all(u8::is_ascii_hexdigit) && (hex.len() == 6 || long) {
             let v = u32::from_str_radix(std::str::from_utf8(hex).ok()?, 16).ok()?;
-            return Some((0xff00_0000 | v, Format::Hex));
+            let argb = if long {
+                v.rotate_right(8)
+            } else {
+                0xff00_0000 | v
+            };
+            return Some((argb, Format::Hex));
         }
         return None;
     }
-    if let Some([r, g, b]) = call(t, b"rgb") {
+    let opacity = |a: Option<&[u8]>| match a {
+        None => Some(1.0),
+        Some(a) if with_alpha => alpha(a),
+        Some(_) => None,
+    };
+    if let Some(([r, g, b], a)) = call(t, b"rgb") {
         let [r, g, b] = [number(r, 255)?, number(g, 255)?, number(b, 255)?];
-        return Some((0xff00_0000 | r << 16 | g << 8 | b, Format::Rgb));
+        let a = pack(0.0, 0.0, 0.0, opacity(a)?) & 0xff00_0000;
+        return Some((a | r << 16 | g << 8 | b, Format::Rgb));
     }
-    let [h, s, v] = call(t, b"hsv")?;
+    let ([h, s, v], a) = call(t, b"hsv")?;
     let [h, s, v] = [number(h, 360)?, number(s, 100)?, number(v, 100)?];
-    let color = hsv(h as f32, s as f32 / 100.0, v as f32 / 100.0, 1.0);
+    let color = hsv(h as f32, s as f32 / 100.0, v as f32 / 100.0, opacity(a)?);
     Some((color, Format::Hsv))
 }
 
@@ -246,9 +314,25 @@ pub fn hue_bar(w: usize, h: usize) -> Vec<i32> {
 /// Jetpref's `checkeredBackground` in a circle: `cell`-pixel squares, `even` on the squares
 /// whose column and row add to an even number, clear on the rest.
 pub fn checkered(size: usize, cell: f32, even: u32) -> Vec<i32> {
-    let [r, g, b, a] = channels(even);
-    picture(size, size, size as f32 / 2.0, |x, y| {
+    checkered_box(size, size, size as f32 / 2.0, cell, even)
+}
+
+/// [`checkered`] in a `w` x `h` box with corners of radius `r`: the alpha bar's backing and a
+/// value icon's.
+pub fn checkered_box(w: usize, h: usize, r: f32, cell: f32, even: u32) -> Vec<i32> {
+    let [red, green, blue, a] = channels(even);
+    picture(w, h, r, |x, y| {
         let odd = ((x / cell) as usize + (y / cell) as usize) % 2 == 1;
-        [if odd { 0.0 } else { a }, r, g, b]
+        [if odd { 0.0 } else { a }, red, green, blue]
+    })
+}
+
+/// The alpha bar: Compose's linear gradient from `Color.Transparent` to `rgb` (interpolated
+/// unpremultiplied, as Android's gradients are), as a pill.
+pub fn alpha_bar(w: usize, h: usize, rgb: u32) -> Vec<i32> {
+    let [r, g, b, _] = channels(rgb);
+    picture(w, h, h as f32 / 2.0, |x, _| {
+        let t = (x / w as f32).clamp(0.0, 1.0);
+        [t, r * t, g * t, b * t]
     })
 }

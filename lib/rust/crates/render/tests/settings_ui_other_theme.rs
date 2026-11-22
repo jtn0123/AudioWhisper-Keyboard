@@ -226,3 +226,37 @@ fn the_editor_greys_the_plane_and_discard_keeps_the_colour() {
     // Out of the editor the drag surfaces take touches again, though they are no buttons.
     assert_eq!(bounds(&a, 7130).role, "none");
 }
+
+#[test]
+fn the_accent_picker_keeps_its_square_plane_and_takes_no_alpha() {
+    // The theme editor's static colour shares this picker with an alpha bar and a wider plane;
+    // the accent rows keep Jetpref's ColorPickerPreference without them.
+    let (mut a, mut text) = app("settings/other");
+    a.prefs
+        .insert("other__accent_color".into(), "ff2196f300000000".into());
+    a.prefs
+        .insert("theme__editor_color_representation".into(), "RGB".into());
+    let row = id(&a, "other__accent_color");
+    assert!(act(&mut a, &mut text, row));
+    assert!(act(&mut a, &mut text, 5));
+    a.scene(&mut text);
+    assert_eq!(a.color_picker().unwrap().alpha, None);
+    let plane = bounds(&a, 7130).bounds;
+    assert_eq!(plane.width(), plane.height());
+    assert!(!a.controls.iter().any(|c| c.id == 7132), "no alpha bar");
+    assert_eq!(bounds(&a, 7000).summary, "#2196f3", "hex, without alpha");
+    assert!(act(&mut a, &mut text, 7140));
+    assert!(act(&mut a, &mut text, 7000));
+    a.editor.anchor = 0;
+    assert!(a.editor.replace(&utf16("#2196f380"), 1, false));
+    a.sync_field();
+    assert!(act(&mut a, &mut text, 7141));
+    assert!(a.color_picker().unwrap().error, "the accent takes no alpha");
+    assert!(act(&mut a, &mut text, 7142));
+    a.effects.clear();
+    assert!(act(&mut a, &mut text, 7));
+    assert_eq!(
+        a.effects,
+        [["write", "other__accent_color", "ff2196f300000000"]]
+    );
+}

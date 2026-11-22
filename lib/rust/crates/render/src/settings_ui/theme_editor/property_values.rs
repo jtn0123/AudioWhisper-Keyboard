@@ -1,7 +1,7 @@
 //! The property editor's values as the screen edits them: how each encoder is edited, the
 //! encoders' names (Compose's `PropertyValueEncoderNameMap`), a value as the text its fields and
-//! dropdowns show and back, the checks `ExtensionValidation` made of a variable's name, a colour
-//! and a shape's corner, and a workspace file's URI as the file selector built it.
+//! dropdowns show and back, the checks `ExtensionValidation` made of a variable's name and a
+//! shape's corner, and a workspace file's URI as the file selector built it.
 use snygg::{
     text,
     value::{Corners, Encoder, ShapeKind, Unit, Value},
@@ -11,17 +11,15 @@ use snygg::{
 /// Why a variable's name is refused: ThemeComponentVariableName's messages.
 pub const ENTER_NAME: &str = "ext__validation__enter_property";
 pub const INVALID_NAME: &str = "ext__validation__error_property";
-/// SnyggDpShapeValue's and SnyggPercentShapeValue's messages, and SnyggStaticColorValue's.
+/// SnyggDpShapeValue's and SnyggPercentShapeValue's messages.
 pub const ENTER_DP: &str = "ext__validation__enter_dp_size";
 pub const NOT_A_NUMBER: &str = "ext__validation__enter_valid_number";
 pub const NEGATIVE: &str = "ext__validation__enter_positive_number";
 pub const ENTER_PERCENT: &str = "ext__validation__enter_percent_size";
 pub const NOT_A_PERCENT: &str = "ext__validation__enter_number_between_0_100";
 pub const ABOVE_HALF: &str = "ext__validation__hint_value_above_50_percent";
-pub const ENTER_COLOR: &str = "ext__validation__enter_color";
-pub const INVALID_COLOR: &str = "ext__validation__error_color";
 /// The messages the value fields show.
-pub const MESSAGES: [&str; 12] = [
+pub const MESSAGES: [&str; 10] = [
     ENTER_NAME,
     INVALID_NAME,
     ENTER_DP,
@@ -30,8 +28,6 @@ pub const MESSAGES: [&str; 12] = [
     ENTER_PERCENT,
     NOT_A_PERCENT,
     ABOVE_HALF,
-    ENTER_COLOR,
-    INVALID_COLOR,
     "settings__theme_editor__file_selector_no_files_text",
     "ext__editor__files__title",
 ];
@@ -43,8 +39,10 @@ pub enum Editing {
     Nothing,
     /// A dropdown: a variable, a colour name, a keyword, a font or a file.
     Choice,
-    /// One field: a size, the line count or (until the colour picker) a colour.
+    /// One field: a size or the line count.
     Line,
+    /// A static colour: the colour picker (`value_color.rs`).
+    Picker,
     /// Four fields: padding's sides or a shape's corners.
     Sides,
 }
@@ -52,7 +50,8 @@ pub enum Editing {
 pub fn editing(e: Encoder) -> Editing {
     use Encoder::*;
     match e {
-        Dp | Sp | Percentage | MaxLines | Color => Editing::Line,
+        Dp | Sp | Percentage | MaxLines => Editing::Line,
+        Color => Editing::Picker,
         Padding | CutDp | RoundedDp | CutPercent | RoundedPercent => Editing::Sides,
         Inherit | Undefined | Yes | No | Rectangle | Circle => Editing::Nothing,
         _ => Editing::Choice,
@@ -255,21 +254,12 @@ pub fn percent_check(s: &str) -> (&'static str, &'static str) {
         Some(_) => ("", ""),
     }
 }
-/// SnyggStaticColorValue: a colour string, one the Color encoder reads.
-pub fn color_check(s: &str) -> &'static str {
-    match () {
-        _ if s.trim().is_empty() => ENTER_COLOR,
-        _ if Encoder::Color.deserialize(&text(s.trim())).is_err() => INVALID_COLOR,
-        _ => "",
-    }
-}
 
 /// Field `k`'s message for encoder `e`, and its hint: the check Compose made of that kind of
 /// field, then whether the stylesheet could hold the number at all.
 pub fn field_check(e: Encoder, k: usize, texts: &[String; 4]) -> (&'static str, &'static str) {
     let s = texts[k].as_str();
     let (message, hint) = match e {
-        Encoder::Color => return (color_check(s), ""),
         Encoder::CutPercent | Encoder::RoundedPercent => percent_check(s),
         Encoder::Dp | Encoder::Padding | Encoder::CutDp | Encoder::RoundedDp => (dp_check(s), ""),
         _ => ("", ""),

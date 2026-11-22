@@ -2,9 +2,13 @@
 //! and Duplicate. A rule shows as SnyggRuleRow did: its element translated (as written at the
 //! developer level), its selector, then each attribute as `key = [values]` in the order the
 //! stylesheet writes them; an annotation as it is written. A property shows its translated name
-//! and its value as the stylesheet writes it, a variable by its translated name.
+//! and its value as the stylesheet writes it, a static colour in the colour representation and a
+//! variable by its translated name.
 use super::{Gone, Rules, form::RuleForm, names};
-use crate::settings_ui::App;
+use crate::{
+    settings_ui::{App, color},
+    style::argb,
+};
 use snygg::{
     Text,
     editor::compare_order,
@@ -113,7 +117,9 @@ impl App {
         for (set, props) in all.into_iter().enumerate() {
             for (place, (name, value)) in props.iter().enumerate() {
                 let shown = match value {
-                    // translatePropertyValue: a variable by its name's label but at DEVELOPER.
+                    // translatePropertyValue: a colour with its alpha at every level, a variable
+                    // by its name's label but at DEVELOPER.
+                    Value::Color(c) => color::format_alpha(self.color_representation(), argb(*c)),
                     Value::Variable(key) if !self.theme_developer() => self.property_label(key),
                     _ => value
                         .encoder()

@@ -7,6 +7,7 @@ pub mod backup_screens;
 mod cards;
 pub mod catalogue;
 pub mod color;
+pub mod color_alpha;
 mod color_dialog;
 mod dialog;
 mod dialog_buttons;

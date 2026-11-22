@@ -80,6 +80,8 @@ pub enum PropTap {
     All,
     /// The top bar's Delete.
     Delete,
+    /// Value row `i`'s static colour: the colour picker.
+    Picker(usize),
 }
 
 fn lossy(t: &[u16]) -> String {
@@ -231,6 +233,7 @@ impl App {
                 self.property_changed();
             }
             PropTap::Delete => self.delete_open_property(),
+            PropTap::Picker(i) => self.open_value_picker(i),
         }
     }
     /// A rule's Add: a source set for `@font`, as Compose added one; else Add property.

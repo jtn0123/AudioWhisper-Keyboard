@@ -149,7 +149,7 @@ fn an_open_property_editor_survives_recreation_with_what_it_holds() {
     // Editing, with the encoder changed and a refusal shown.
     super::props::edit(&mut b, &mut text, 2, 0);
     super::props::pick(&mut b, &mut text, Part::PropEncoder, "Solid color");
-    type_into(&mut b, &mut text, Part::PropValue, "#123456");
+    super::props::pick_color(&mut b, &mut text, "#123456");
     let prop = b.theme_editor.prop.clone();
     let mut c = recreated(&b);
     c.set_theme_editor(&loaded(SHEET)).unwrap();

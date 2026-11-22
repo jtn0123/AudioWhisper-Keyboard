@@ -122,7 +122,8 @@ impl App {
         }
     }
     /// The value as its encoder edits it: a dropdown (with the note when the workspace has no
-    /// files), a field with its unit, a shape's outline, or nothing.
+    /// files), a field with its unit, the colour opening the picker, a shape's outline, or
+    /// nothing.
     fn value_part(
         &mut self,
         p: &mut Panel,
@@ -156,6 +157,7 @@ impl App {
                 let h = self.dropdown(p, d, at, clip, text);
                 h + self.no_files_note(p, e, (at.0, at.1 + h), clip, text)
             }
+            Editing::Picker => self.color_value(p, i, at, clip, text),
             Editing::Nothing => self.shape_outline(p, e, at, clip),
             Editing::Sides => 0.0,
         }
@@ -256,7 +258,9 @@ impl App {
             return vec![];
         };
         let sides = f.editing_kind() == Editing::Sides;
-        let field = self.property_line(part).is_some() || self.property_selected(i).is_some();
+        let picker = part == Part::PropValue && f.editing_kind() == Editing::Picker;
+        let field =
+            picker || self.property_line(part).is_some() || self.property_selected(i).is_some();
         match part {
             Part::PropError if self.property_header().is_some() => vec![DELETE_ID],
             Part::PropAll if sides => vec![ALL_ID],

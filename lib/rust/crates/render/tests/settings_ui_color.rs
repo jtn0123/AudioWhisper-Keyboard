@@ -1,5 +1,6 @@
 //! The accent colour dialogs' maths (settings_ui::color): Compose's HSV and sRGB packing,
-//! Jetpref's text formats and parser, luminance and the stored form. SettingsOtherThemeMatchTest
+//! Jetpref's text formats and parser with and without the alpha the theme editor's colours
+//! carry, `compositeOver`, luminance and the stored form. SettingsOtherThemeMatchTest
 //! holds the same functions against the Kotlin libraries themselves.
 use render::settings_ui::color::{self, Format, PRESETS, UNSPECIFIED};
 
@@ -177,4 +178,93 @@ fn pictures_have_their_size_shape_and_ends() {
     let check = color::checkered(24, 6.0, 0x29000000);
     assert_eq!(check[12 * 24 + 1] as u32 >> 24, 0x29);
     assert_eq!(check[12 * 24 + 7] as u32 >> 24, 0);
+}
+
+#[test]
+fn formats_with_alpha_as_format_color_with_alpha_does() {
+    assert_eq!(color::format_alpha(Format::Hex, 0x80ff0000), "#ff000080");
+    assert_eq!(color::format_alpha(Format::Hex, 0x0a6275ac), "#6275ac0a");
+    assert_eq!(
+        color::format_alpha(Format::Rgb, 0xff0a00ff),
+        "rgba(10, 0, 255, 1)"
+    );
+    assert_eq!(
+        color::format_alpha(Format::Hsv, 0x80ff0000),
+        "hsva(0, 100, 100, 0.5)"
+    );
+    // "%.2f", then its trailing zeros and point trimmed: k / 255 to two places, half up.
+    for (k, alpha) in [
+        (0x00, "0"),
+        (0x01, "0"),
+        (0x02, "0.01"),
+        (0x1a, "0.1"),
+        (0x40, "0.25"),
+        (0x80, "0.5"),
+        (0xfd, "0.99"),
+        (0xfe, "1"),
+        (0xff, "1"),
+    ] {
+        let shown = color::format_alpha(Format::Rgb, k << 24);
+        assert_eq!(shown, format!("rgba(0, 0, 0, {alpha})"), "{k:02x}");
+    }
+}
+
+#[test]
+fn parses_an_alpha_only_with_alpha() {
+    let with = |t: &str| color::parse_with(t, true);
+    assert_eq!(with("#ff000080"), Some((0x80ff0000, Format::Hex)));
+    assert_eq!(with("#FF000080"), Some((0x80ff0000, Format::Hex)));
+    assert_eq!(with("#ff0000"), Some((0xffff0000, Format::Hex)));
+    assert_eq!(color::parse("#ff000080"), None);
+    assert_eq!(with("rgba(1, 2, 3, 0.25)"), Some((0x40010203, Format::Rgb)));
+    assert_eq!(with("rgb(1, 2, 3, .5)"), Some((0x80010203, Format::Rgb)));
+    assert_eq!(with("rgba(1, 2, 3)"), Some((0xff010203, Format::Rgb)));
+    assert_eq!(with("rgba(1, 2, 3, 1.0)"), Some((0xff010203, Format::Rgb)));
+    assert_eq!(with("rgba(1, 2, 3, 0)"), Some((0x00010203, Format::Rgb)));
+    assert_eq!(color::parse("rgba(1, 2, 3, 1)"), None);
+    assert_eq!(
+        with("hsva(0, 100, 100, 0.5)"),
+        Some((0x80ff0000, Format::Hsv))
+    );
+    for bad in [
+        "#ff00008",
+        "#ff0000800",
+        "rgba(1, 2, 3, 1.5)",
+        "rgba(1, 2, 3, 2)",
+        "rgba(1, 2, 3, -0.5)",
+        "rgba(1, 2, 3, 00.5)",
+        "rgba(1, 2, 3, 0.)",
+        "rgba(1, 2, 3, 1.00)",
+        "rgba(1, 2, 3, 0.5f)",
+        "rgba(1, 2, 3, 1e-1)",
+        "rgba(1, 2, 3, )",
+        "rgba(1, 2, 3, 0.5, 1)",
+    ] {
+        assert_eq!(with(bad), None, "{bad}");
+    }
+}
+
+#[test]
+fn composites_as_compose_composite_over_does() {
+    assert_eq!(color::over(0xff123456, 0xffffffff), 0xff123456);
+    assert_eq!(color::over(0x00123456, 0xff000000), 0xff000000);
+    assert_eq!(color::over(0x80ffffff, 0xff000000), 0xff808080);
+    assert_eq!(color::over(0x80ff0000, 0x800000ff), 0xc0aa0055);
+    assert_eq!(color::over(0, 0), 0);
+}
+
+#[test]
+fn the_alpha_bar_fades_from_clear_to_the_colour_over_a_checkered_pill() {
+    let bar = color::alpha_bar(120, 12, 0xff0000);
+    assert_eq!(bar[0] as u32 >> 24, 0, "the pill's corner is clear");
+    let (start, end) = (bar[6 * 120 + 6] as u32, bar[6 * 120 + 113] as u32);
+    assert!(
+        start >> 24 < 0x20 && end >> 24 > 0xe0,
+        "{start:08x} {end:08x}"
+    );
+    assert_eq!(end >> 16 & 0xff, end >> 24, "red throughout, premultiplied");
+    let backing = color::checkered_box(40, 12, 6.0, 6.0, 0x29000000);
+    assert_eq!(backing[0] as u32 >> 24, 0, "rounded");
+    assert_eq!(backing[3 * 40 + 20] as u32 >> 24, 0, "odd square");
+    assert_eq!(backing[3 * 40 + 26] as u32 >> 24, 0x29, "even square");
 }

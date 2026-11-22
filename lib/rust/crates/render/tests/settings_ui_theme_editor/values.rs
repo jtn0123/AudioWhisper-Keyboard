@@ -24,7 +24,7 @@ fn written(a: &App, name: &str) -> Option<String> {
 }
 /// The property labelled `label` added to `key[code=10]` with `encoder`, its value set by
 /// `set`, then applied: what the stylesheet writes, None if Apply refused.
-fn added(label: &str, encoder: &str, set: impl FnOnce(&mut App, &mut Text)) -> Option<String> {
+pub fn added(label: &str, encoder: &str, set: impl FnOnce(&mut App, &mut Text)) -> Option<String> {
     let (mut a, mut text) = named_app();
     add_to(&mut a, &mut text, 3);
     choose(&mut a, &mut text, label, encoder);
@@ -192,22 +192,6 @@ fn sizes_and_line_counts_are_typed_beside_their_unit() {
         some("none")
     );
     assert_eq!(added(&lines, &kind("text_max_lines"), typed("0")), None);
-}
-
-#[test]
-fn a_solid_colour_is_typed_until_the_picker_comes() {
-    let some = |s: &str| Some(s.to_owned());
-    let hex = added("Foreground", "Solid color", typed("#ff000080"));
-    assert_eq!(hex, some("rgba(255,0,0,0.5019608)"));
-    let rgb = added("Foreground", "Solid color", typed("rgb(1, 2, 3)"));
-    assert_eq!(rgb, some("rgba(1,2,3,1)"));
-    let (mut a, mut text) = named_app();
-    add_to(&mut a, &mut text, 3);
-    choose(&mut a, &mut text, "Foreground", "Solid color");
-    type_into(&mut a, &mut text, Part::PropValue, "red");
-    assert_eq!(field(&a, Part::PropValue).1, "ext__validation__error_color");
-    type_into(&mut a, &mut text, Part::PropValue, "");
-    assert_eq!(field(&a, Part::PropValue).1, "ext__validation__enter_color");
 }
 
 #[test]

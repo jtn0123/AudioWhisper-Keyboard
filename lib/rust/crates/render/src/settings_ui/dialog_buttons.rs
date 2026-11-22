@@ -13,6 +13,10 @@ impl App {
     /// The neutral, dismiss and confirm labels: ListPreference and DialogSliderPreference's
     /// default/cancel/ok, or a confirmation's own dismiss and confirm with no neutral button.
     pub(super) fn button_keys(&self) -> [&'static str; 3] {
+        // A theme colour's picker has no Presets page to switch to.
+        if self.color_picker().is_some_and(|p| p.alpha.is_some()) {
+            return ["", "action__cancel", "action__ok"];
+        }
         if let Some(keys) = self.lang_buttons() {
             return keys;
         }

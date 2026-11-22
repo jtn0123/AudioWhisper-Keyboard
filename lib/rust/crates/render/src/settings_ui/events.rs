@@ -296,6 +296,7 @@ impl App {
                 eligible.push(8);
             }
             match r.kind {
+                _ if self.color_picker().is_some() => eligible.extend(self.picker_focus()),
                 Kind::Choice(_)
                 | Kind::Pick(_)
                 | Kind::Lang(Lang::AllPresets)

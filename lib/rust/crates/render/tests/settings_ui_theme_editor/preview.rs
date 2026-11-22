@@ -33,13 +33,11 @@ fn each_value_that_can_be_written_is_previewed_before_apply() {
         draft,
         "the draft is not changed"
     );
-    type_into(&mut a, &mut text, Part::PropValue, "#00ff0");
-    assert_eq!(
-        previewed(&mut a),
-        None,
-        "nothing the stylesheet cannot hold"
-    );
-    type_into(&mut a, &mut text, Part::PropValue, "#00ff00");
+    // The picker takes nothing the stylesheet cannot hold, and its Cancel previews nothing.
+    assert!(!picker_typed(&mut a, &mut text, "#00ff0"));
+    assert!(tap(&mut a, &mut text, 6));
+    assert_eq!(previewed(&mut a), None, "nothing before OK");
+    pick_color(&mut a, &mut text, "#00ff00");
     let packet = last(&a, effect::PREVIEW).unwrap();
     assert_eq!(packet[1..3], [WORKSPACE, "0"]);
     assert!(packet[3].contains("\"background\": \"rgba(0,255,0,1)\""));

@@ -80,8 +80,9 @@ fn a_tapped_property_opens_with_its_name_fixed_and_apply_replaces_it_in_place() 
         "--accent"
     );
     pick(&mut a, &mut text, Part::PropEncoder, "Solid color");
-    assert_eq!(field(&a, Part::PropValue).0, "rgba(0,0,0,1)");
-    type_into(&mut a, &mut text, Part::PropValue, "#00ff00");
+    let value = control(&a, part_id(&a, Part::PropValue)).unwrap();
+    assert_eq!(value.summary, "#000000ff");
+    pick_color(&mut a, &mut text, "#00ff00");
     apply(&mut a, &mut text);
     assert!(writes(&a, "background", "rgba(0,255,0,1)"));
     let props = a.rule_properties(2);
@@ -208,7 +209,7 @@ fn a_variable_is_named_in_a_field_checked_as_compose_checked_it() {
     type_into(&mut a, &mut text, Part::PropName, "--Accent-2 ");
     assert_eq!(field(&a, Part::PropName).1, "");
     pick(&mut a, &mut text, Part::PropEncoder, "Solid color");
-    type_into(&mut a, &mut text, Part::PropValue, "#102030");
+    pick_color(&mut a, &mut text, "#102030");
     apply(&mut a, &mut text);
     assert!(writes(&a, "--Accent-2", "rgba(16,32,48,1)"));
     // A variable's name is fixed when editing, and shown, not typed.
