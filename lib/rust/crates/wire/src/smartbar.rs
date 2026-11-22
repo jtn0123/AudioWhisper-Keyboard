@@ -1,6 +1,6 @@
 //! `SmartbarRules.actions`: what each smartbar action shows, which icon, label and state, and
-//! what the arrow toggles, answered by `render::smartbar_actions`. Android supplies only what its
-//! key evaluator knows of each action and draws the icon each answer names.
+//! what the arrow toggles, answered by `render::smartbar_actions` and the key graph. Android
+//! supplies only each action and draws the icon each answer names.
 
 /// The icons an action shows.
 pub mod icon {
@@ -65,16 +65,14 @@ pub mod bar {
 /// What Android knows of one action.
 pub mod action {
     crate::declare! {
-        /// One action, as Android's key evaluator sees it.
+        /// One action: its kind and its key data, which the key graph answers for.
         pub const FIELDS: fields SmartbarAction {
             /// A `SmartbarActionKind`.
             KIND,
-            /// Its key code.
+            /// Its key's code, `KeyType` ordinal and label.
             CODE,
-            /// A flag: the evaluator enables its key.
-            ENABLED,
-            /// A flag: its key has an icon.
-            KEY_ICON,
+            TYPE,
+            LABEL,
             /// The text it types.
             TEXT,
         }
@@ -105,10 +103,10 @@ pub mod shown {
             FLAGS,
             /// A `SmartbarIcon`.
             ICON,
-            /// The label, when it shows one of its own.
+            /// The icon token of the key's own icon, when `ICON` is `KEY`, else 0.
+            KEY_ICON,
+            /// The label it shows: its own, or its key's.
             LABEL,
-            /// A flag: show the key's own label instead.
-            KEY_LABEL,
         }
     }
 }

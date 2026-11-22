@@ -1,6 +1,7 @@
 //! What each smartbar action shows: its icon, its label and its state, and what the arrow
-//! toggles. Android sends what its key evaluator knows of each action (`wire::smartbar`) and
-//! draws the icon each answer names; every choice between them is made here.
+//! toggles. Android sends each action (`wire::smartbar`) and draws the icon each answer names;
+//! what the key evaluator says of an action's key comes from the key graph, and every choice
+//! between them is made here.
 
 use crate::protocol::{
     BAR_DICTATING, BAR_ENABLED, BAR_FINISHING, BAR_LEVEL_MASK, BAR_LEVEL_SHIFT, BAR_READING,
@@ -228,17 +229,34 @@ pub fn plan(bar: &Bar, actions: &[Action]) -> Plan {
 /// `SmartbarAction` row for each action. It is packed as a `SmartbarPlan` row and a
 /// `SmartbarActionPlan` row for each action. `None` when the config is not one, a row is cut
 /// short or a number doesn't parse.
-pub fn call(config: &[f32], fields: &[Vec<u16>]) -> Option<Vec<Vec<u16>>> {
+/// `key` answers for each action's key, from its `KeyType` ordinal, code and label.
+pub fn call(
+    config: &[f32],
+    fields: &[Vec<u16>],
+    key: &mut dyn FnMut(i32, i32, &[u16]) -> KeyAnswer,
+) -> Option<Vec<Vec<u16>>> {
     let rows = fields.get(bar::SIZE..)?;
     if !rows.len().is_multiple_of(action::SIZE) {
         return None;
     }
     let bar = decode_bar(config, &fields[..bar::SIZE])?;
-    let actions = rows
-        .chunks(action::SIZE)
-        .map(decode_action)
-        .collect::<Option<Vec<_>>>()?;
-    Some(encode(&plan(&bar, &actions)))
+    let mut actions = Vec::new();
+    let mut answers = Vec::new();
+    for row in rows.chunks(action::SIZE) {
+        let (action, answer) = decode_action(row, key)?;
+        actions.push(action);
+        answers.push(answer);
+    }
+    Some(encode(&plan(&bar, &actions), &answers))
+}
+
+/// What the key evaluator says of an action's key: whether it is enabled, its icon token (0 for
+/// none) and its label.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct KeyAnswer {
+    pub enabled: bool,
+    pub icon: i32,
+    pub label: Option<Vec<u16>>,
 }
 
 /// The bar from the config, which says what the layout shows, and the row, which says the rest.
@@ -262,14 +280,27 @@ fn decode_bar(config: &[f32], row: &[Vec<u16>]) -> Option<Bar> {
     })
 }
 
-fn decode_action(row: &[Vec<u16>]) -> Option<Action<'_>> {
-    Some(Action {
-        kind: number(&row[action::KIND])?,
-        code: number(&row[action::CODE])?,
-        enabled: wire::flag::decode(&row[action::ENABLED]),
-        key_icon: wire::flag::decode(&row[action::KEY_ICON]),
+/// An action, and what its key's evaluator says: an empty slot has no key, and only a key action
+/// has a key icon.
+fn decode_action<'a>(
+    row: &'a [Vec<u16>],
+    key: &mut dyn FnMut(i32, i32, &[u16]) -> KeyAnswer,
+) -> Option<(Action<'a>, KeyAnswer)> {
+    let kind = number(&row[action::KIND])?;
+    let code = number(&row[action::CODE])?;
+    let answer = if kind == kind::NONE {
+        KeyAnswer::default()
+    } else {
+        key(number(&row[action::TYPE])?, code, &row[action::LABEL])
+    };
+    let action = Action {
+        kind,
+        code,
+        enabled: answer.enabled,
+        key_icon: kind == kind::KEY && answer.icon != 0,
         text: &row[action::TEXT],
-    })
+    };
+    Some((action, answer))
 }
 
 /// A number as Kotlin's `toString` spells it.
@@ -277,17 +308,26 @@ fn number<T: std::str::FromStr>(units: &[u16]) -> Option<T> {
     String::from_utf16(units).ok()?.parse().ok()
 }
 
-fn encode(plan: &Plan) -> Vec<Vec<u16>> {
+/// The plan as rows, with the key's icon and label where an action shows its key's.
+fn encode(plan: &Plan, answers: &[KeyAnswer]) -> Vec<Vec<u16>> {
     let mut out = vec![Vec::new(); plan::SIZE];
     out[plan::EXPANDED] = wire::flag::utf16(plan.expanded);
     out[plan::TOGGLES_EXTENDED] = wire::flag::utf16(plan.toggles_extended);
-    for action in &plan.actions {
+    for (action, answer) in plan.actions.iter().zip(answers) {
         let mut row = vec![Vec::new(); shown::SIZE];
         row[shown::CODE] = text(action.code);
         row[shown::FLAGS] = text(action.flags);
         row[shown::ICON] = text(action.icon);
-        row[shown::LABEL].clone_from(&action.label);
-        row[shown::KEY_LABEL] = wire::flag::utf16(action.key_label);
+        row[shown::KEY_ICON] = text(if action.icon == icon::KEY {
+            answer.icon
+        } else {
+            0
+        });
+        row[shown::LABEL] = if action.key_label {
+            answer.label.clone().unwrap_or_default()
+        } else {
+            action.label.clone()
+        };
         out.extend(row);
     }
     out

@@ -46,7 +46,7 @@ pub const SMARTBAR_NATIVE: Class = Class {
         method("roomy", &[CONFIG], Return::Boolean),
         method(
             "actions",
-            &[CONFIG, ("fields", Param::Strings)],
+            &[CONFIG, ("graph", Param::Long), ("fields", Param::Strings)],
             Return::Strings,
         ),
         method("toggleWidth", &[CONFIG], Return::Float),
@@ -123,8 +123,10 @@ pub const SMARTBAR_RULES: Api = Api {
         Member {
             name: "actions",
             doc: "What each action shows, `smartbar_actions::call`, for [config] and [fields]: a \
-                  [SmartbarBar] row, then a [SmartbarAction] row for each action. The answer is \
-                  a [SmartbarPlan] row, then a [SmartbarActionPlan] row for each action.",
+                  [SmartbarBar] row, then a [SmartbarAction] row for each action, whose keys \
+                  [graph] answers for. The answer is a [SmartbarPlan] row, then a \
+                  [SmartbarActionPlan] row for each action.",
+            args: &[arg("graph", ArgKind::Handle("KeyGraph"))],
             ..MEMBER
         },
         Member {

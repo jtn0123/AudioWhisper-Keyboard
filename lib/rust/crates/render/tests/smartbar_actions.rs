@@ -3,7 +3,7 @@
 
 use keys::codes::{READ_ALOUD, VOICE_INPUT};
 use render::protocol::*;
-use render::smartbar_actions::{Action, Bar, call, plan, text_label};
+use render::smartbar_actions::{Action, Bar, KeyAnswer, plan, text_label};
 use wire::smartbar::{action, bar, icon, kind, plan as packed, shown};
 
 const SHARED_LAYOUT: i32 = 2;
@@ -280,9 +280,20 @@ fn action_row(kind: i32, code: i32, text: &str) -> Vec<Vec<u16>> {
     let mut row = vec![units("0"); action::SIZE];
     row[action::KIND] = units(&kind.to_string());
     row[action::CODE] = units(&code.to_string());
-    row[action::ENABLED] = units("1");
+    row[action::LABEL] = units("key");
     row[action::TEXT] = units(text);
     row
+}
+
+/// The packed call, with every key enabled and labelled by its label, and drawing an icon only
+/// for code 1.
+fn call(config: &[f32], fields: &[Vec<u16>]) -> Option<Vec<Vec<u16>>> {
+    let mut key = |_kind, code, label: &[u16]| KeyAnswer {
+        enabled: true,
+        icon: if code == 1 { 1003 } else { 0 },
+        label: Some(label.to_vec()),
+    };
+    render::smartbar_actions::call(config, fields, &mut key)
 }
 
 fn flags(answer: &[Vec<u16>], action: usize) -> i32 {
@@ -305,8 +316,25 @@ fn the_packed_call_answers_a_row_for_each_action() {
     assert_eq!(row(1, shown::CODE), &units(&VOICE_INPUT.to_string()));
     // The config says dictation is running; the row, that it is listening.
     assert_eq!(flags(&answer, 1), BAR_ENABLED | BAR_DICTATING);
-    assert_eq!(row(1, shown::KEY_LABEL), &units("1"));
+    // Its key draws no icon, so it shows its key's label.
+    assert_eq!(row(1, shown::LABEL), &units("key"));
+    assert_eq!(row(1, shown::KEY_ICON), &units("0"));
     assert_eq!(row(2, shown::LABEL), &units("o"));
+}
+
+#[test]
+fn a_key_that_draws_an_icon_names_it_and_shows_no_label() {
+    let mut fields = bar_row("0");
+    fields.extend(action_row(kind::KEY, 1, ""));
+    fields.extend(action_row(kind::TEXT, 1, "ok"));
+    let answer = call(&config(0.0, false, false), &fields).expect("a whole packet");
+    let row = |i: usize, field: usize| &answer[packed::SIZE + i * shown::SIZE + field];
+    assert_eq!(row(0, shown::ICON), &units(&icon::KEY.to_string()));
+    assert_eq!(row(0, shown::KEY_ICON), &units("1003"));
+    assert!(row(0, shown::LABEL).is_empty());
+    // A text action never shows its key's icon.
+    assert_eq!(row(1, shown::KEY_ICON), &units("0"));
+    assert_eq!(row(1, shown::LABEL), &units("o"));
 }
 
 #[test]

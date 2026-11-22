@@ -64,9 +64,20 @@ pub fn smartbar(native: i64, config: &[f32], codes: &[i32], labels: &[Vec<u16>])
         Ok(())
     })
 }
-/// What each smartbar action shows (`smartbar_actions::call`).
-pub fn actions(config: &[f32], fields: &[Vec<u16>]) -> Result<Vec<Vec<u16>>> {
-    render::smartbar_actions::call(config, fields)
+/// What each smartbar action shows (`smartbar_actions::call`), with the `graph` answering for
+/// each action's key.
+pub fn actions(config: &[f32], graph: i64, fields: &[Vec<u16>]) -> Result<Vec<Vec<u16>>> {
+    // SAFETY: the wrapper keeps the graph live while it calls.
+    let mut graph = unsafe { crate::handle::locked::<keygraph::Graph>(graph, "key graph")? };
+    let mut key = |kind, code, label: &[u16]| {
+        let action = graph.action(kind, code, label);
+        render::smartbar_actions::KeyAnswer {
+            enabled: action.enabled,
+            icon: action.icon,
+            label: action.label,
+        }
+    };
+    render::smartbar_actions::call(config, fields, &mut key)
         .ok_or_else(|| illegal("invalid smartbar actions"))
 }
 
