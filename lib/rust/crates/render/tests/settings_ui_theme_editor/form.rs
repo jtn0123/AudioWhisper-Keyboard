@@ -36,6 +36,49 @@ fn adding(n: i32) -> (render::settings_ui::App, render::text::Text) {
     (a, text)
 }
 
+/// *Duplicate* on rule `r`, with element `n` of the list chosen instead of its own, then *Add*.
+fn duplicated(r: usize, n: i32, font: &str) -> render::settings_ui::App {
+    let (mut a, mut text) = app(SHEET);
+    assert!(tap(&mut a, &mut text, rule_id(r, 1)));
+    assert_eq!(a.stack.last().unwrap(), RULE_ADD);
+    let element = part_id(&a, Part::Element);
+    assert!(tap(&mut a, &mut text, element));
+    assert!(tap(&mut a, &mut text, 3000 + n));
+    if !font.is_empty() {
+        type_into(&mut a, &mut text, Part::Font, font);
+    }
+    let add = lang_id(&a, Lang::Save);
+    assert!(tap(&mut a, &mut text, add));
+    assert_ne!(a.stack.last().unwrap(), RULE_ADD, "{}", a.rule_error());
+    a
+}
+/// The sets of the rule `matches` picks.
+fn sets_of(a: &render::settings_ui::App, matches: impl Fn(&Rule) -> bool) -> PropertySets {
+    let rules = &a.theme_editor.rules;
+    rules.iter().find(|(r, _)| matches(r)).unwrap().1.clone()
+}
+fn window(r: &Rule) -> bool {
+    matches!(r, Rule::Element { name, .. } if *name == "window".encode_utf16().collect::<Vec<_>>())
+}
+
+#[test]
+fn a_duplicate_takes_its_sources_sets_only_where_its_element_takes_that_kind() {
+    // The key (rule 2) as `@font`: a font's empty list, not the key's properties as one set.
+    let a = duplicated(2, 1, "Mono");
+    let mono = Rule::Font("Mono".encode_utf16().collect());
+    assert_eq!(sets_of(&a, |r| *r == mono), PropertySets::Multiple(vec![]));
+    // The font (rule 1) as Window: an element's one empty set, not the font's sources.
+    let a = duplicated(1, 3, "");
+    assert_eq!(sets_of(&a, window), PropertySets::Single(vec![]));
+    // The key as Window keeps its background and foreground: both take one set.
+    let a = duplicated(2, 3, "");
+    let key = sets_of(&a, |r| {
+        a.rule_lines(r) == ("Key".into(), String::new(), vec![])
+    });
+    assert!(matches!(&key, PropertySets::Single(p) if p.len() == 2));
+    assert_eq!(sets_of(&a, window), key);
+}
+
 #[test]
 fn add_with_no_element_marks_the_dropdown_and_adds_nothing() {
     let (mut a, mut text) = app(SHEET);

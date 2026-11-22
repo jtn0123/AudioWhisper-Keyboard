@@ -3,14 +3,15 @@
 //! codes as chips that open the code editor (`codes.rs`), and the mode and shift state chips with
 //! a list to add one. Add and Apply refuse a rule that exists already, as `updateRule` did, and adding with no
 //! element marks the dropdown, and a font name the stylesheet could not read back is refused.
-//! Duplicate starts from a rule's element, selector and attributes,
-//! and the rule it adds takes that rule's properties.
+//! Duplicate starts from a rule's element, selector and attributes, and the rule it adds takes
+//! that rule's properties, unless its element was changed to one taking the other kind of set.
 use super::{RULE_ADD, RULE_EDIT, rules::ordered};
 use crate::settings_ui::{
     App,
     catalogue::{Kind, theme_editor::Part},
 };
 use snygg::{attributes::Attributes, grammar::Rule, resolve::PropertySets, text};
+use std::mem::discriminant;
 
 /// The dropdown's entry for `@font`; the empty entry is "--select--".
 pub const FONT: &str = "@font";
@@ -44,6 +45,20 @@ pub const INVALID_FONT: &str = "settings__theme_editor__font_name_invalid";
 
 fn lossy(t: &[u16]) -> String {
     String::from_utf16_lossy(t)
+}
+
+/// The sets a new rule starts with: none, as `updateRule` added every rule, so a font's empty
+/// list or an element's one empty set. A duplicate takes its source's sets when they are that
+/// kind; a key duplicated as `@font` does not make the key's properties a font's one set.
+fn new_sets(rule: &Rule, copied: Option<&PropertySets>) -> PropertySets {
+    let empty = match rule {
+        Rule::Font(_) => PropertySets::Multiple(vec![]),
+        _ => PropertySets::Single(vec![]),
+    };
+    match copied {
+        Some(sets) if discriminant(sets) == discriminant(&empty) => sets.clone(),
+        _ => empty,
+    }
 }
 
 /// The rule editor's state.
@@ -194,11 +209,7 @@ impl App {
             }
             None => {
                 let copied = source.and_then(|s| e.rules.iter().find(|(r, _)| *r == s));
-                let sets = match (copied, &rule) {
-                    (Some((_, sets)), _) => sets.clone(),
-                    (None, Rule::Font(_)) => PropertySets::Multiple(vec![]),
-                    (None, _) => PropertySets::Single(vec![]),
-                };
+                let sets = new_sets(&rule, copied.map(|(_, sets)| sets));
                 e.rules.push((rule, sets));
             }
         }
