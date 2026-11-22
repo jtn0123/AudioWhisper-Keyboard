@@ -50,7 +50,6 @@ If you are overwhelmed by the code don't hesitate to ask for help in the [dev ch
 - The following tools must be installed:
   - Android Studio (bundles SDK and NDK) or IntelliJ with Android and Compose plugin
   - Java 17
-  - CMake 3.22+
   - Clang 15+
   - [rustup](https://rustup.rs), for the keyboard's Rust code (see [docs/rust.md](docs/rust.md))
   - Git

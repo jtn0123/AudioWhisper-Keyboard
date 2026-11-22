@@ -63,9 +63,6 @@ jobs:
           ndk=$(sed -n 's/^ndk = "\(.*\)"$/\1/p' gradle/tools.versions.toml)
           yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install "ndk;$ndk" > /dev/null
 
-      - name: Set up CMake and Ninja
-        uses: lukka/get-cmake@v4.0.2
-
       - name: Install the pinned Rust toolchain
         # rustup reads lib/rust/rust-toolchain.toml: the release, clippy, rustfmt and the
         # Android target.
