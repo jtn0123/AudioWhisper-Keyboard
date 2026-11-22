@@ -5,10 +5,10 @@ screens in `FB/app/ext` move from Compose to the Rust settings renderer. The own
 that they are "ported to Rust and improved, not cut, and the port names each improvement it
 makes" ([decision](decisions.md#everything-moves-to-rust-2026-11-21)).
 
-Step 10 has three parts. **Part 1 is done**: the extension home, the three extension lists, an
-extension's page, its not-found page and *Search for updates*, with their chips and boxes.
-Part 2 is import and export; part 3 is the extension editor, its files and its component view.
-[What remains](#what-remains) lists both.
+Step 10 has three parts. **Parts 1 and 2 are done.** Part 1 is the extension home, the three
+extension lists, an extension's page, its not-found page and *Search for updates*, with their
+chips and boxes. Part 2 is the importer and *Export*. Part 3 is the extension editor, its files
+and its component view; [What remains](#what-remains) lists it.
 
 | Route | Drawn by | Notes |
 | --- | --- | --- |
@@ -16,8 +16,8 @@ Part 2 is import and export; part 3 is the extension editor, its files and its c
 | `ext/list/EXT_THEME`, `ext/list/EXT_KEYBOARD`, `ext/list/EXT_LANGUAGEPACK` (each with `?showUpdate=`) | Rust | New in part 1. The Theme screen's addons box opens the theme list with `showUpdate=true`. |
 | `ext/view/<id>` (ExtensionViewScreen, or ExtensionNotFoundScreen) | Rust | New in part 1. |
 | `ext/check-updates` (CheckUpdatesScreen) | Rust | New in part 1. |
-| `ext/import/<type>` | Compose | Part 2. *Import* hands off to it. |
-| `ext/export/<id>` | Compose | Part 2. The page's *Export* hands off to it. |
+| `ext/import/<type>` (ExtensionImportScreen), with `?files=`, `?uuid=` or `?document=` | Rust | New in part 2. A file opened in or shared with the app starts it too. |
+| `ext/export/<id>` (ExtensionExportScreen) | — | Deleted in part 2. *Export* asks for its document from the page. |
 | `ext/edit/<id>`, `ext/edit/null?create=…` | Compose | Part 3. *Edit* and *Create extension* hand off to it. |
 
 The Compose routes `Ext.Home`, `Ext.List`, `Ext.View` and `Ext.CheckUpdates` stay as empty
@@ -337,7 +337,201 @@ The selected theme was never changed. The agent-device session was closed.
 `ExtensionHomeScreen` (48 counted lines), `ExtensionListScreen` (161), `ExtensionViewScreen`
 (264), `CheckUpdatesScreen` (17), `AddonBox` (87), `ExtensionKeywordChip` (18) and
 `ExtensionMaintainerChip` (98): 693 counted lines. `ExtensionNotFoundScreen` stays: Compose's
-export and editor screens still use it.
+editor screen still uses it (part 2 deleted the export screen, its other user).
+
+## Part 2: import and export (done)
+
+### What the screens show
+
+**The importer** (`ext/import/<type>`, one each for any extension, keyboards, themes and
+language packs, titled as Compose titled them): *Select files* as an outlined button centred
+with 16 dp above and below, then one box per file read, as FileInfoView drew it, or *No files
+selected* in italics. A file's box is titled with its name over its media type
+(*application/unknown* when Android names none). In it are the size, id and version in grey,
+the title, the description in italics, who made it and its components. A file the importer
+skips ends with a thin error bar, *File can not be imported. Reason:* and why, in italics, in
+the error colour. The bottom bar has *Cancel* and *Import*.
+
+**Export** is the page's button. It opens the system's *Create document* picker for a `.flex`
+named after the extension, writes the extension into the document picked, and says whether it
+worked. It has no screen of its own.
+
+A file opened in the app or shared with it (the manifest's two *Import Extension* filters)
+starts the importer for any extension on it, without *Select files*, as Compose did.
+
+### Data path
+
+```
+Select files ─▶ ["pick", "openMany", "*/*"] ─▶ SettingsFiles (GetMultipleContents) ─▶ PICKED (handles)
+  └─▶ work extRead (handles) ─▶ ExtensionFileWork.read: CacheManager.readFromUriIntoCache, off the main thread
+        DONE extRead (OK, the workspace's id) ◀─┘ ─▶ the route gains files=<id> (uuid=<id> for a shared file)
+  └─▶ ["extensionFiles", id] ─▶ SettingsExtensions: importRows ─▶ EXTENSION_FILES ─▶ App::set_import_files
+Import ─▶ work extImport (id, the indexes Rust chose) ─▶ ExtensionManager.import each ─▶ DONE ─▶ toast, close
+Cancel, Back, Up, other files ─▶ ["extensionFilesClose", id] ─▶ the workspace is deleted
+Export ─▶ ["pick", "create", FLEX_MIME, "<id>.flex"] ─▶ PICKED ─▶ work extExport ─▶ ExtensionManager.export
+A shared or opened file ─▶ SettingsEntry.route ─▶ start or navigate ext/import/EXT_ANY?document=<handle> ─▶ extRead
+```
+
+* **Rust decides what each file is.** Kotlin sends, for each file read, its name, media type,
+  size as Android words it, whether its name or type says it is an extension archive
+  (`FileRegistry.matchesFileFilter`, unchanged), and the archive read from it, with whether an
+  extension with that id ships with the app. Rust decides whether it can be imported and why
+  not, in ExtensionImportScreen's order: not an archive, no manifest read from it, replacing a
+  built-in extension, then (new) of a type this importer does not take. Rust picks the files
+  Import imports and whether Import is on.
+* **The workspace is in the route.** `files=<id>` for files picked here, `uuid=<id>` for a
+  shared file (which hides *Select files*, as Compose's `initUuid` did), `document=<handle>`
+  for a shared file not read yet. So a rotation or recreation keeps the selection, and a
+  workspace Android has cleared is reported closed.
+* **The file work runs off the main thread.** Compose read, imported and exported on the main
+  thread. The jobs go through step 5's file work queue, one at a time, and their reports outlive
+  the activity.
+* **Failures are told in plain words.** Compose put the exception's message in the toast and
+  showed a failed read's stack trace on screen; either can hold a file's address. Rust says
+  what happened: the files could not be read, are gone, or the file could not be written.
+
+### What Kotlin does
+
+One file is new. It must be Kotlin because only Kotlin can reach what it uses:
+
+* **`settingsui/ExtensionFileWork.kt`** (84 counted lines): the three jobs, on the IO
+  dispatcher, through `ContentResolver`, `CacheManager`, `ExtensionManager` and
+  `DocumentsContract`; and `importRows`, which flattens a workspace's `FileInfo` list into wire
+  rows with `Formatter.formatShortFileSize`. It decides nothing that is shown.
+
+Grown: `SettingsExtensions` 74 to 78 (the two effects), `SettingsExtensionStringIds` 25 to 45
+(the importer's and Export's strings), `SettingsFiles` 109 to 110 (the jobs sent to their own
+work), `RustSettingsView` 275 to 276 (the effects routed), `SettingsEntry` 7 to 17 (a shared or
+opened file's route) and `CacheManager` 179 to 183 (the read waits for its workspace; see fix
+9). Shrunk: `FlorisAppActivity` 254 to 233 (the fallback no longer reads files), `Routes.kt`
+227 to 208, `ExtensionPolicy` 30 to 27 and `CacheManager` 182 to 179 (the one-file read and
+`FileInfo.skipReason`). `strings_settings_renderer.xml` gains four plain-words messages.
+
+`ExtensionOp` `ACCEPTS` (7) and `SKIP_REASON` (8), `ExtensionSkipReason` and their Kotlin
+wrappers went: only ExtensionImportScreen called them, and Rust now decides skips in the
+importer itself.
+
+### Improvements
+
+| # | Improvement | Why | Test |
+| --- | --- | --- | --- |
+| 1 | A file holding a type of extension the importer does not take is shown skipped, with why, and never imported; *Import* stays off when nothing else can be imported. | ExtensionImportScreen listed it as importable, turned *Import* on, left it out when tapped and still said *Imported*. | `a_file_of_another_type_is_shown_skipped_and_never_imported`; JVM `aFileOfAnotherTypeIsShownSkippedAndLeavesImportOff` |
+| 2 | The selection survives a rotation or recreation. | Compose held the workspace in a plain `remember`: turning the phone lost the files and left them in the cache. | `the_selection_survives_recreation` |
+| 3 | Leaving the importer any way, or choosing other files, deletes what was read. | Compose deleted it only on *Cancel*; Back and Up left it in the cache. | `leaving_the_importer_any_way_closes_its_workspace` |
+| 4 | Failures are told in plain words. | Compose's toast held the exception's message and a failed read showed its stack trace, which can hold a file's address. | `import_failures_are_told_in_plain_words` |
+| 5 | *Export* goes straight to the picker, with the file named after the extension. | ExtensionExportScreen was an empty screen that launched the picker and closed itself. | `export_asks_for_a_flex_named_after_the_extension_and_opens_no_screen` |
+| 6 | Reading, importing and exporting run off the main thread; while files are read, the importer says nothing rather than *No files selected*. | Compose did all three on the main thread, so a large archive froze the screen. | `the_importer_waits_for_the_read_without_freezing` |
+| 7 | When Android has cleared the selection (the app was ended in the background), the importer offers *Select files* again. | Compose showed *No files selected* with *Select files* hidden for a shared file: a dead end. | `a_workspace_android_cleared_offers_select_files_again`; JVM `aClosedWorkspaceOffersSelectFilesAgain` |
+| 8 | An export that fails deletes the half-written document. | Compose left a broken archive where the user asked for it. | JVM `aFailedExportDeletesWhatItWrote` |
+| 9 | **Fix:** the files read can be found as soon as the read reports, and a read that fails deletes what it copied. | `readFromUriIntoCache` added the workspace in a coroutine it did not wait for, so the lookup that follows at once could miss it; a failed read left its copies in the cache. | No JVM test: `CacheManager` needs an Android `Context` and the JVM tests have no Robolectric. The device check imports through it (owed E37). |
+
+### Differences from Compose
+
+| Difference | Why |
+| --- | --- |
+| A file opened in or shared with the app opens the importer in the settings activity. Compose started a second activity, the Compose fallback, read the file there on the main thread, then opened its importer. | The importer is native now, so there is nothing to hand off. |
+| A file Android could not read is reported by the read job, and the importer says the files could not be read. Compose showed *An unexpected error occurred* over the stack trace. | Improvement 4. |
+| *Import* is on only when a file can be imported; Compose's was on when any file passed the old checks. | Improvement 1. |
+
+### Tests
+
+* **Rust** (`settings_ui_extensions/import.rs`, `import_files.rs`, `import_common.rs`; 17 new
+  tests, 55 in the binary): each importer's title and layout; *Select files* to the read, the
+  files report and the boxes; waiting for the read; *Import* and what it sends; closing the
+  workspace on *Cancel*, Back and other files; a dismissed picker and a missing one; a shared
+  file started through `SettingsUiExtensionLink.SHARED`; recreation; a cleared workspace; each
+  failure's words; work lost with the app; Export's pick and job; each box's lines, ink,
+  italics, spacing and bar; the skip reasons and their order; another type; an italic line as tall
+  as the text painted in it; and malformed reports. `page.rs`, `lists.rs`, `settings_ui_screens.rs`, `settings_ui_setup.rs`,
+  `settings_ui_theme_manager.rs` and `settings_ui_languages_picker.rs` now expect the importers
+  native, and the theme manager's and language packs' *Import* to open them.
+* **JVM**: `SettingsExtensionImportMatchTest` (4 tests) runs the importer in the real native
+  library with the report built by `ExtensionFileWork`'s own `importRows`, against test-only
+  copies of ExtensionImportScreen's decisions (`ReferenceExtensionPolicy.skip` and `accepts`):
+  over 40 random workspaces of up to five files and all four importers, each box's name, type
+  and head line, each skip reason, whether *Import* is on and which files it imports. It also
+  covers improvements 1, 7 and 8. `SettingsEntryTest` checks that an opened or shared file
+  starts the importer on it, set up or not; `ComposeFallbackLinksTest` that the fallback takes
+  only later browsable links; `SettingsResourcesTest` the new strings.
+  `ExtensionMetadataMatchTest` lost the asserts of the two ops that went.
+* **Gate**: GATE_LINE
+
+### Mutations
+
+`scripts/settings_ui_mutation_cases/extensions.py` has 44 new cases for part 2, and one changed:
+8 must fail a JVM test (`SettingsExtensionImportMatchTest`, `SettingsEntryTest`,
+`ComposeFallbackLinksTest` or `SettingsResourcesTest`) and 36 the Rust tests. Of the Rust ones,
+34 are in the importer's code, `ext-import-composed` puts an importer back on the Compose list in
+`catalogue.rs`, and `ext-import-cancel-imports` makes the language pack editor's *Import* skip
+the importer. `ext-export-edits`, from part 1, now breaks the Rust call to `export` instead of
+the hand-off. The runner now also runs `SettingsExtensionImportMatchTest`. **All 45 were
+caught**, and the restored code passed. They ran in three goes, kept in
+`build/mutations-extensions/` (not committed):
+
+* `mut-part2`: the first 40 caught; then `ext-import-read-gone-closed` **survived**. A read that
+  finishes after the importer was left must delete what it read, and no test covered that.
+  `leaving_the_importer_any_way_closes_its_workspace` now does, and checks that a failed read
+  closes nothing.
+* `mut-part2b`: that case and the last three caught.
+* `mut-part2c`: `ext-import-italic-measured-upright`, added with the device check's fix below,
+  caught.
+
+### Device check
+
+This ran on `emulator-5556` (Android 16, 1080×2400). The screenshots are in
+`build/extensions/` and are not committed.
+
+The first install showed a blank page after *Export* came back. It was the wrong build:
+`scripts/install-dev.sh` installs the APK already built and does not build one, and that APK
+dated from part 1, where *Export* still handed off to the Compose fallback. The checks below
+ran on a build of this branch.
+
+1. `16-export-picker.png`: *Export* on *FlorisBoard default themes* opened the system's
+   *Create document* picker at once, with `org.florisboard.themes.flex` filled in. No other
+   activity started (the event log shows only the picker).
+2. `17-export-done.png`: *Successfully exported extension!*, with the page still showing.
+3. `18-importer-empty.png`: the importer for any extension: *Select files*, *No files selected*,
+   *Import* off.
+4. `19-import-core-skipped.png`: the export read back, in its box as FileInfoView drew it, and
+   skipped because it would replace a built-in extension. *Import* stayed off. Its description
+   left a blank line under it, which led to the fix below.
+5. `20-import-rotated.png`: rotating destroyed and recreated the activity both ways (the event
+   log shows each relaunch), and the file stayed selected.
+6. *Cancel* went back to the home. A test theme made with *Create extension* (still Compose
+   until part 3), exported as `local.themes.<id>.flex`, then deleted, was read back:
+   `21-import-ready.png` shows it importable with *Import* on.
+7. `22-import-success.png`: *Import* said *Successfully imported extension!* and closed the
+   importer; the theme was back in the theme list.
+8. `23-import-other-type.png`: `ui://florisboard/ext/import/EXT_KEYBOARD` with the theme picked
+   shows it skipped: *The file holds a different type of extension than this screen imports.*
+   *Import* stayed off (improvement 1).
+9. With that file shown, the app's cache held one import workspace; after system Back it held
+   none (improvement 3).
+10. `24-import-shared.png`: *Share* on the file in the Files app, then *AudioWhisper Keyboard,
+    Import Extension*, opened the importer on it without *Select files*. *Cancel* left no
+    workspace in the cache.
+11. `25-import-two-core-fixed.png`: after the fix, two files picked at once each show their own
+    box, and a description that fits on one italic line has no blank line under it.
+
+**Found and fixed:** an italic line in a file's box was measured with Android's upright layout
+but painted with the italic one. Where the two wrap apart, the box kept an empty second line.
+`line` now measures italic text as it is painted
+(`an_italic_description_is_as_tall_as_its_painted_text`, mutation
+`ext-import-italic-measured-upright`).
+
+The Files app's file rows ignored agent-device's taps, in the app and in the picker, so the files
+were chosen by long-press and *Select*. Opening a file from the Files app (the `VIEW` filter)
+was not tried: the app offers *Open with* only through a tap. Afterwards the test theme was
+deleted, the three exports were removed from Downloads, no import workspace was left, the
+rotation was back at 0 with auto-rotate off, our IME was the default and the volume was at 0.
+The selected theme was never changed. The agent-device session was closed.
+
+### Deleted
+
+`ExtensionImportScreen` (294 counted lines, with `ExtensionImportScreenType`) and
+`ExtensionExportScreen` (56): 350 counted lines; their routes, deep links and composables in
+`Routes.kt`; the Compose fallback's file reading in `FlorisAppActivity`; `CacheManager`'s
+one-file read and `FileInfo.skipReason`; and `ExtensionPolicy.accepts` and `skipReason`.
 
 ## Owed
 
@@ -346,12 +540,16 @@ export and editor screens still use it.
 * **E36.** No instrumented test drives the Rust extension screens on a device. The JVM match
   tests run the real native library against the Compose reference, but the device check above
   was by hand.
+* **P24.** Part 2 on a phone, with TalkBack heard: the importer's boxes, its skip reasons and
+  *Export*'s picker.
+* **E37.** No instrumented test drives the importer or *Export* on a device. In particular, fix
+  9 in `CacheManager` (the read waits for its workspace, and a failed read deletes what it
+  copied) has no test: the JVM tests have no Robolectric, and the device check imported through
+  it by hand. Opening a `.flex` from the Files app (the `VIEW` filter) was not tried on the
+  device; sharing one was.
 
 ## What remains
 
-* **Part 2, import and export.** `ExtensionImportScreen` (picking files with step 5's `FILES`
-  op, the import's checks and its result) and `ExtensionExportScreen`. The page's *Export* and
-  the home's *Import* then stop handing off to Compose.
 * **Part 3, the extension editor.** `ExtensionEditScreen`, `ExtensionEditFilesScreen` and
   `ExtensionComponentView`, writing `extension.json` with snygg's `json_write.rs` (it matches
   `PrettyPrintConfig` byte for byte). Then the theme manager's *Create* and *Edit* stay in

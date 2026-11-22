@@ -287,19 +287,38 @@ its phone checks pass.
   8b87a32d6 and 66728a3ff (the mutation script split), 7c08876a0, 9ddcb169c, 14eb479f6,
   6a6db86cc, 16d0c391a and 8379b5d21; see
   [part 1](stage4-extensions.md#part-1-the-extension-home-lists-and-page-done).
-* **Part 2, import and export:** not started. *Import* and *Export* hand off to Compose.
+* **Part 2, import and export (done):** Rust draws the four importers (any extension,
+  keyboards, themes, language packs) and asks for Export's document itself. It decides which
+  files can be imported and why the others cannot, what *Import* imports and every message.
+  Kotlin reads the picked or shared documents into an import workspace, describes it, imports
+  the files Rust chose and writes an export, all off the main thread. A file opened in or
+  shared with the app starts the Rust importer on it, so the Compose fallback takes only later
+  browsable links. Nine improvements, among them a file of the wrong type shown skipped instead
+  of silently left out after *Imported*, a selection that survives rotation and is deleted
+  however the importer is left, failures in plain words instead of stack traces, and a failed
+  export that deletes its half-written file. Commits 1654613e5, db7f9ca57,
+  bbb752daa, 358a737f6, b2c05973e, 75d7e697c, 10dac09e7 and ce675dea9; see
+  [part 2](stage4-extensions.md#part-2-import-and-export-done).
 * **Part 3, the extension editor:** not started. *Edit* and *Create extension* hand off to
   Compose, as do the theme manager's (`fallbackHandles`, owed P20).
 * **Blocked by:** nothing. The file picker is ready (step 5) and snygg's `json_write.rs`
   writes `extension.json` as `PrettyPrintConfig` does.
-* **The fallback loses:** the four screens above. Their routes stay as empty entries that hand
-  back to Rust, as in step 2.
+* **The fallback loses:** the screens above. Part 1's routes stay as empty entries that hand
+  back to Rust, as in step 2; part 2's importer and export routes went, and so did the
+  fallback's own reading of an opened or shared file.
 * **Progress** (counted lines, the ledger's measure): part 1 deletes seven files (693):
   `ExtensionHomeScreen`, `ExtensionListScreen`, `ExtensionViewScreen`, `CheckUpdatesScreen`,
   `AddonBox`, `ExtensionKeywordChip` and `ExtensionMaintainerChip`; and 42 more in `Routes.kt`
   (14), `Extension.kt`'s `generateUpdateUrl` (24) and `ExtensionMeta`'s `getUpdateJsonPair`
   (4). It adds `SettingsExtensions` (74), its string ids (25), 3 lines in `RustSettingsView` and
-  4 in `SettingsIcons`. Part 1: 735 lines deleted, 106 added.
+  4 in `SettingsIcons`. Part 1: 735 lines deleted, 106 added. Part 2 deletes
+  `ExtensionImportScreen` (294) and `ExtensionExportScreen` (56), and 46 more in
+  `FlorisAppActivity` (21), `Routes.kt` (19), `CacheManager` (3, before fix 9 added 4) and
+  `ExtensionPolicy` (3). It adds `ExtensionFileWork`
+  (84), 20 string ids, 10 lines in `SettingsEntry`, 4 in `SettingsExtensions`, 4 in
+  `CacheManager` and 1 each in `SettingsFiles` and `RustSettingsView`. Part 2: 396 lines
+  deleted, 124 added; the ledger is 421 files and 34,201 counted lines (part 1 left 422 and
+  34,473).
 
 ### 11. Setup (done)
 
