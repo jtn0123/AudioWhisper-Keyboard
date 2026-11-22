@@ -269,7 +269,7 @@ its phone checks pass.
   `ExtensionEditScreen`. Part 3: 3,602 lines deleted, 391 added, 103 of them moved. Step 9 is
   done: 3,750 lines deleted, 813 added.
 
-### 10. Extensions
+### 10. Extensions (done)
 
 * **Deletes:** `FB/app/ext`: 15 files (import, export, edit, view, lists, `RadioListItem`, moved
   here from step 5, and `ExtensionDialogProperty`, moved here from step 9).
@@ -299,13 +299,23 @@ its phone checks pass.
   export that deletes its half-written file. Commits 1654613e5, db7f9ca57,
   bbb752daa, 358a737f6, b2c05973e, 75d7e697c, 10dac09e7 and ce675dea9; see
   [part 2](stage4-extensions.md#part-2-import-and-export-done).
-* **Part 3, the extension editor:** not started. *Edit* and *Create extension* hand off to
-  Compose, as do the theme manager's (`fallbackHandles`, owed P20).
-* **Blocked by:** nothing. The file picker is ready (step 5) and snygg's `json_write.rs`
-  writes `extension.json` as `PrettyPrintConfig` does.
-* **The fallback loses:** the screens above. Part 1's routes stay as empty entries that hand
-  back to Rust, as in step 2; part 2's importer and export routes went, and so did the
-  fallback's own reading of an opened or shared file.
+* **Part 3, the extension editor (done):** Rust draws the extension editor, its sheets (meta
+  data, dependencies, archive files, a file, naming a picked file, *Create component*) and each
+  component's box, at *Edit*, the theme list's *Create theme extension* and the theme manager's.
+  Rust holds the draft, decides every screen, check and message, and writes `extension.json`
+  byte for byte as kotlinx did. Kotlin keeps the editor's workspace, now in `noBackupFilesDir`,
+  opens the theme editor over it, and runs *Save* and the file work off the main thread. The
+  hand-off to Compose (`fallbackHandles`, `fallbackDone`, owed P20) is deleted. Twenty
+  improvements, among them deletions and file changes that count as unsaved changes, a second
+  *Save* that can no longer crash, a component that cannot be built named instead of crashing,
+  a draft that survives rotation and process death, an archive written beside its place and
+  moved there, and a settings link mid-edit that lands over the editor; see
+  [part 3](stage4-extensions.md#part-3-the-extension-editor-done).
+* **Blocked by:** nothing.
+* **The fallback loses:** the screens above, and with part 3 every screen it drew. Part 1's
+  routes and `Ext.Edit` stay as empty entries that hand back to Rust, as in step 2; part 2's
+  importer and export routes went, and so did the fallback's own reading of an opened or shared
+  file.
 * **Progress** (counted lines, the ledger's measure): part 1 deletes seven files (693):
   `ExtensionHomeScreen`, `ExtensionListScreen`, `ExtensionViewScreen`, `CheckUpdatesScreen`,
   `AddonBox`, `ExtensionKeywordChip` and `ExtensionMaintainerChip`; and 42 more in `Routes.kt`
@@ -318,7 +328,14 @@ its phone checks pass.
   (84), 20 string ids, 10 lines in `SettingsEntry`, 4 in `SettingsExtensions`, 4 in
   `CacheManager` and 1 each in `SettingsFiles` and `RustSettingsView`. Part 2: 396 lines
   deleted, 124 added; the ledger is 421 files and 34,201 counted lines (part 1 left 422 and
-  34,473).
+  34,473). Part 3 deletes `ExtensionEditScreen` (812), `ExtensionEditFilesScreen` (260),
+  `ExtensionComponentView` (160), `ExtensionDialogProperty` (31), `RadioListItem` (25) and
+  `ExtensionNotFoundScreen` (21), and 35 more in `FlorisAppActivity` (20), `Routes.kt` (9) and
+  `ThemeEditorActivity` (6). It adds `SettingsExtEditor` (151) and `ExtensionEditorWork` (121),
+  30 string ids, and 7 lines in `SettingsFiles`, 5 in `RustSettingsView`, 4 in `CacheManager`, 2
+  in `SettingsIcons` and 1 in `SettingsThemeEditor`. Part 3: 1,344 lines deleted, 321 added;
+  before the rebase the ledger was 417 files and 33,178 counted lines. Step 10 in all: 2,475
+  deleted, 551 added.
 
 ### 11. Setup (done)
 
@@ -352,8 +369,13 @@ its phone checks pass.
   `ComposeSettingsFallbackActivity`, `FB/app/apptheme` (3 files, 142 after step 3), the
   settings-only parts of `FB/lib/compose` (6 files, 416 after step 6), `EnumDisplayEntries` (158
   after step 6), and the Jetpref UI dependency.
-* **Blocked by:** steps 4–11. Shared primitives in `lib/compose` (20 files, 1,832 after step 3) are
-  also used by the Compose keyboard (17 keyboard files import them) and wait for step K.
+* **Blocked by:** nothing in settings: steps 4–11 are done, and since step 10 the fallback
+  draws no screen. Every route left in `Routes.kt` is an empty entry that hands back to Rust,
+  and Rust's `compose` effect (`settings_ui/mod.rs`, for a route Rust does not draw) opens a
+  blank fallback; it goes with the fallback, and an unknown route should then be said in Rust.
+  `ThemeEditorActivity` stays: it is the theme editor's own activity over the extension
+  editor, not a Compose host. Shared primitives in `lib/compose` (20 files, 1,832 after step 3)
+  are also used by the Compose keyboard (17 keyboard files import them) and wait for step K.
 
 ### K. The Compose keyboard
 

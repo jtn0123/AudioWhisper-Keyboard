@@ -5,10 +5,10 @@ screens in `FB/app/ext` move from Compose to the Rust settings renderer. The own
 that they are "ported to Rust and improved, not cut, and the port names each improvement it
 makes" ([decision](decisions.md#everything-moves-to-rust-2026-11-21)).
 
-Step 10 has three parts. **Parts 1 and 2 are done.** Part 1 is the extension home, the three
+Step 10 has three parts, and **all three are done.** Part 1 is the extension home, the three
 extension lists, an extension's page, its not-found page and *Search for updates*, with their
 chips and boxes. Part 2 is the importer and *Export*. Part 3 is the extension editor, its files
-and its component view; [What remains](#what-remains) lists it.
+and its component view. `FB/app/ext` is gone; [What remains](#what-remains) is step 12's.
 
 | Route | Drawn by | Notes |
 | --- | --- | --- |
@@ -18,7 +18,7 @@ and its component view; [What remains](#what-remains) lists it.
 | `ext/check-updates` (CheckUpdatesScreen) | Rust | New in part 1. |
 | `ext/import/<type>` (ExtensionImportScreen), with `?files=`, `?uuid=` or `?document=` | Rust | New in part 2. A file opened in or shared with the app starts it too. |
 | `ext/export/<id>` (ExtensionExportScreen) | — | Deleted in part 2. *Export* asks for its document from the page. |
-| `ext/edit/<id>`, `ext/edit/null?create=…` | Compose | Part 3. *Edit* and *Create extension* hand off to it. |
+| `ext/edit/<id>`, `ext/edit/null?create=ime.extension.theme` (ExtensionEditScreen) | Rust | New in part 3, with its sheets as screens: `ext/editor/meta`, `ext/editor/dependencies`, `ext/editor/files`, `ext/editor/file`, `ext/editor/file/add` and `ext/editor/component/add`. |
 
 The Compose routes `Ext.Home`, `Ext.List`, `Ext.View` and `Ext.CheckUpdates` stay as empty
 entries that hand back to Rust, as in steps 2 and 4 to 9, so a deep link or a Compose screen
@@ -44,6 +44,9 @@ and the cases live in `scripts/settings_ui_mutation_cases/`, one module per scre
 | `property_editor.py` (part 3) | 46 | 101 |
 | `property_values.py` (part 3: colours, swatches, icons, contrast) | 57 | 116 |
 | `theme_codes.py` (part 3: the code editor, and the fallback crash fix) | 49 | 94 |
+
+Part 3 of step 10 later took the fallback's three cases out of `theme_codes.py`, with the code they
+tested, and added `ext_editor.py`; see [part 3's mutations](#mutations-2).
 
 `paths.py` (17) holds the paths the cases name and `__init__.py` (7) joins the modules in their old
 order. Each module keeps its own Rust targets (`RUST`) beside its cases. The runner's command line
@@ -538,6 +541,261 @@ The selected theme was never changed. The agent-device session was closed.
 one-file read and `FileInfo.skipReason`; `ExtensionPolicy.accepts` and `skipReason`; and the
 `ext__import__error_unexpected_exception` string.
 
+## Part 3: the extension editor (done)
+
+### What the screens show
+
+**The editor** (`ext/edit/<id>` for *Edit*, `ext/edit/null?create=ime.extension.theme` for the
+theme list's and the theme manager's *Create theme extension*), titled *Edit* or *Create theme
+extension* as ExtensionEditScreen was: a box of *Manage meta data*, *Manage dependencies* and
+*Manage archive files*, then the *Bundled themes* header with *Add*, then one box per component
+as ExtensionComponentView drew it: its label over `<extension>:<component>`, its authors,
+whether it is a night theme and its stylesheet, with *Delete* in the error colour at the start
+and *Edit* at the end, or *This extension archive does not contain any bundled components* in
+italics. The bottom bar has *Cancel* and *Save*. Until the workspace opens the screen says
+*Opening the extension…*; when it cannot open, it says why (no such extension, an archive that
+would not unpack, a draft Android cleared), where Compose showed ExtensionNotFoundScreen or a
+stack trace.
+
+**The sheets**, each a screen of its own where Compose switched them in place:
+
+* *Manage meta data* (ManageMetaDataScreen): a title over a single-line field for each of the id
+  (read-only once the extension is installed), version, title, description, keywords, homepage,
+  issue tracker, maintainers and licence, each rule's message under its field once *Apply* was
+  tried. *Apply* that changes nothing is no change.
+* *Manage dependencies*: the note and the list, or that there are none.
+* *Manage archive files* (ExtensionEditFilesScreen): *Fonts* and *Images*, each a header with
+  *Add* and a row per file. A row opens the file's sheet, its name in a field with *Delete*;
+  *Add* opens the system picker for what the folder takes, then a sheet to name the file.
+* *Create component*: *From existing* or *Empty* as RadioListItems in outlined boxes. From
+  existing lists the extension's own themes, then every other installed theme; Empty asks for
+  an id, a label and the authors.
+
+*Edit* on a component opens the theme editor over the extension editor, as Compose's did.
+Back, Up and *Cancel* with unsaved changes ask FlorisUnsavedChangesDialog's question: *Cancel*,
+*Discard* or *Save*. Meta data the rules refuse is explained in a dialog before saving.
+
+### Data path
+
+```
+Edit, Create ─▶ ["extEditor", id, "", ""] ─▶ SettingsExtEditor: a workspace in noBackupFilesDir/editor,
+     the archive unpacked into it (Create: empty) ─▶ EXT_EDITOR (workspace, files, other themes, installed ids)
+  └─▶ Rust parses extension.json into its draft ─▶ ["extEditorSync", ws, json] ─▶ Kotlin keeps a copy
+Any change (meta, a component, a file) ─▶ ["extEditorSync", ws, json]
+Edit on a component ─▶ ["extEditorTheme", ws, index] ─▶ ThemeEditorActivity over this one, reading the copy
+  └─▶ its Save ─▶ the copy and the stylesheet ─▶ on return, EXT_EDITOR with FLAG ─▶ Rust takes the copy
+Add, Rename, Delete a file; Create component from existing ─▶ file work (extFileAdd, extFileRename,
+     extFileDelete, extComponentCopy) ─▶ ExtensionEditorWork, off the main thread ─▶ DONE ─▶ Rust
+Save ─▶ work extSave (ws, the extension.json Rust wrote, <id>.flex, the id it replaces)
+  └─▶ the archive written beside its place and moved there, the workspace closed ─▶ DONE ─▶ the list
+Back, Up, Cancel, Discard ─▶ ["extEditorClose", ws] ─▶ the workspace deleted
+A recreated activity ─▶ ["extEditor", id, ws, draft] ─▶ the workspace taken up again, the draft kept
+```
+
+* **Rust holds the draft.** The meta, the dependencies and the components are Rust's, parsed
+  from the `extension.json` Kotlin unpacked and written back as `handleSave` wrote it,
+  `ExtensionJsonConfig.encodeToString<Extension>(editor.build())`: `$` first, the fields in
+  their declared order, a null or default field left out, the Material You flags always written
+  (`editor/draft.rs`, with snygg's `json_write.rs` printing it as kotlinx's `prettyPrint` does).
+  Every check is `ExtensionValidation`'s rule through the `extensions` crate. Kotlin keeps a copy
+  of the draft only for the theme editor, which reads and saves into `workspace.editor`.
+* **The workspace outlives the process.** It moved from the cache, which the app's start wipes,
+  to `noBackupFilesDir/editor`, and the saved state (version 11) holds the draft, whether it
+  changed and an open sheet with what it holds. A recreated activity asks Kotlin to take the
+  workspace up again with the draft; one Android cleared is said to be gone. Opening a new
+  workspace deletes the folders a lost process left.
+* **The file work runs off the main thread,** through step 5's file work queue, one job at a
+  time, its reports outliving the activity. Each failure is said in the user's language.
+* **The theme editor stays its own activity** over the extension editor: `FlorisAppActivity` is
+  `singleTask`, so a theme editor link there would navigate the settings that hold the
+  extension editor. The file work queue now keeps a stack of screens and hands its reports to
+  the top one, giving them back as it leaves.
+
+### What Kotlin does
+
+Two files are new. They must be Kotlin because only Kotlin reaches what they use:
+
+* **`settingsui/SettingsExtEditor.kt`** (151 counted lines): the editor's workspace in
+  `CacheManager`, unpacking the installed archive into it through `ExtensionManager`, reporting
+  its files, the other installed themes and the installed ids, keeping Rust's copy of the draft
+  for the theme editor, opening `ThemeEditorActivity`, and reporting the theme editor's copy as
+  the editor comes back. It decides nothing that is shown.
+* **`settingsui/ExtensionEditorWork.kt`** (121): Save, a folder's Add, Rename and Delete,
+  and a copied component's stylesheet, on the IO dispatcher, every path checked to stay inside
+  the workspace, the picked document's type checked again before it is copied, and the archive
+  written beside its place and moved there.
+
+Grown, each budget raised by hand with its reason: `SettingsExtensionStringIds` 45 to 75 (the
+editor's strings), `SettingsFiles` 110 to 117 (the editor's jobs sent to their own work, and the
+file work queue's stack of screens), `RustSettingsView` 276 to 281 (the editor adapter made, fed
+and released), `CacheManager` 183 to 187 (the workspace in `noBackupFilesDir`, taken up after
+the process ended, lost ones deleted, less the Compose editor's state), `SettingsIcons` 71 to 73
+and `SettingsThemeEditor` 109 to 110 (its *Save* keeps the draft for the extension editor).
+Shrunk: `FlorisAppActivity` 233 to 213 (the hand-off to the Compose editor), `Routes.kt` 208 to
+199 and `ThemeEditorActivity` 18 to 12 (its Compose entry). `strings_settings_renderer.xml` gains
+14 strings. Before the rebase the ledger was 417 files and 33,178 counted lines (part 2 left 421
+and 34,201): 1,344 deleted, 321 added.
+
+### Improvements
+
+| # | Improvement | Why | Test |
+| --- | --- | --- | --- |
+| 1 | Why the editor cannot open is said in words: no such extension, an archive that would not unpack, a draft that is gone. | Compose showed ExtensionNotFoundScreen for a missing id and a stack trace when the archive would not unpack. | `why_it_cannot_open_is_said_in_words`, `a_workspace_gone_after_recreation_says_so` |
+| 2 | *Cancel* and *Save* wait for the workspace. | A bar that ignored its rows' conditions drew them over the not-found message. | `edit_asks_kotlin_for_a_workspace_and_says_it_is_opening` |
+| 3 | A workspace Kotlin opened for an editor the user has left is closed. | Compose's stayed in the cache. | `a_report_the_editor_did_not_ask_for_closes_its_workspace` |
+| 4 | Deleting a component is a change, so Back asks first. | Compose's *Delete* did not mark the extension changed: Back left without asking and the deletion was lost. | `a_components_delete_drops_it_and_counts_as_a_change` |
+| 5 | Adding, renaming or deleting a file is a change too. | ExtensionEditFilesScreen changed the archive's files without marking the extension changed. | `a_file_change_is_an_unsaved_change` |
+| 6 | Leaving the editor any way closes its workspace. | Compose left an unsaved one in the cache on Back and Up. | `back_up_and_cancel_without_changes_leave_and_close_the_workspace`, `discard_leaves_without_saving_and_closes_the_workspace` |
+| 7 | A second *Save* while the first runs does nothing, and a report after the editor closed changes nothing. | Compose wrote the archive twice; a second *Save* after the first closed the workspace crashed (the theme manager's *Create* crash, P20). | `a_second_save_never_runs_twice_or_crashes` |
+| 8 | Back and Up wait while *Save* runs. | Back closed the workspace under the save. | `back_and_up_wait_while_save_runs` |
+| 9 | A component that cannot be built is named and not saved. | `editor.build()` threw from the click handler and crashed the app. | `a_component_that_cannot_be_built_is_named_and_not_saved`; JVM `saveWritesTheManifestComposeWroteByteForByte` |
+| 10 | *Create* may not take an installed extension's id, and Kotlin refuses an archive already there. | *Create* wrote over any archive of the same name. | `create_saves_a_new_archive_and_refuses_an_installed_id` |
+| 11 | *Save* runs off the main thread and writes the archive beside its place, then moves it there, so a crash mid-save leaves the old archive whole. | Compose zipped and copied on the main thread, straight over the installed archive. | The job: `save_hands_kotlin_the_manifest_to_write_over_the_installed_archive`. The write needs a `Context` (owed E42); the device check saved through it. |
+| 12 | A save the activity lost may have finished: the editor says it cannot tell, and *Save* can be tried again. A save that ended while the activity was recreated closes the editor on the saved extension. | Compose's save died with its screen and said nothing. | `a_save_lost_with_the_activity_says_it_cannot_tell`, `a_save_that_ended_during_recreation_closes_the_editor` |
+| 13 | The draft, its changes, an open sheet with what it holds and the unsaved question survive a rotation and a process Android ended. | Compose held the draft in memory and its workspace in the cache, which the app's start wipes: a process Android ended lost both. | `the_draft_and_its_changes_survive_recreation`, `an_open_sheet_and_what_it_holds_survive_recreation`, `the_unsaved_question_survives_recreation_and_discard_closes_the_workspace` |
+| 14 | A copy of the extension's own component keeps its Material You flags, and a component with no stylesheet yet copies as none. | Compose's copy took the default flags, and `copyTo` threw on a component whose stylesheet did not exist yet, as an empty one's does not. | `a_copy_of_its_own_theme_gets_a_new_id_and_keeps_its_flags`; JVM `aCopyOfItsOwnThemeTakesTheIdComposeGaveIt` |
+| 15 | A taken component id, a file name that leaves its folder or is taken, and each failed file job are said under the field or in the user's language. | Compose said them in English toasts, or not at all when a copy failed. | `an_empty_component_checks_its_fields_and_refuses_a_taken_id`, `a_name_that_leaves_the_folder_or_is_taken_is_said_under_the_field`, `an_add_that_fails_says_why_and_keeps_the_sheet` |
+| 16 | A folder's picker offers only what the folder takes, and Kotlin checks the type again before copying. | Compose's picker offered every file (`*/*`) and refused a wrong one afterwards in an English toast that quoted its media type. | `a_folders_add_opens_the_picker_for_its_media_types`; JVM `eachFoldersPickerTakesWhatComposesFilterTook` |
+| 17 | A settings link while an edit is open lands over the editor, which keeps its draft and workspace; another editor's route goes back to the open one. | A link to home replaced the back stack, losing the draft and leaving its workspace open. | `a_link_to_home_mid_edit_lands_over_the_editor`, `a_link_to_setup_mid_edit_lands_over_the_editor`, `another_editors_route_goes_back_to_the_open_edit`, `a_restored_edit_is_kept_before_kotlin_takes_it_up` |
+| 18 | The theme manager's *Create* and *Edit* stay in the Rust settings. | They opened the Compose fallback, whose hand-off needed two fixes (P20). | `settings_ui_theme_manager.rs` |
+| 19 | **Fix:** a list under a restored editor or importer has the extension index after Back. | The index was asked for only by the screen on top, and Back asks for nothing, so leaving an editor restored after a rotation showed the theme list empty. Found on the device. | `a_list_under_a_restored_editor_has_the_index_after_back` |
+| 20 | **Fix:** an edit taken up after the process ended opens. | `SettingsExtEditor` read the extension and theme managers first on the file thread, and each observes or sets `LiveData` as it is made, which throws off the main thread; after the process ended nothing had made them yet, so the take-up failed and said the extension could not be opened. Both are now made with the editor, on the main thread. Found on the device. | Device check 13 and 14; the Kotlin needs a `Context` (owed E42). |
+
+### Differences from Compose
+
+| Difference | Why |
+| --- | --- |
+| The keywords and the maintainers are one comma-separated line each, where Compose took one per line. A line left as it opened keeps its list exactly, commas in a name included. | The settings renderer's fields are single-line, as the theme editor's authors are. |
+| Each sheet is a screen with its own route, so Back closes the sheet and a rotation keeps it. | Compose switched sheets in place inside one screen. |
+| The workspace is in `noBackupFilesDir`, not the cache. | Improvement 13. |
+| Messages are the app's strings, in the user's language; 14 are new. | Improvements 1, 9, 12 and 15. |
+
+### Tests
+
+* **Rust** (`tests/settings_ui_ext_editor/`, 65 tests in `open.rs`, `save.rs`, `sheets.rs`,
+  `files.rs`, `saved.rs` and `links.rs`): each screen's layout, title and focus order; the
+  workspace asked for, reported, refused or gone; Back, Up, *Cancel*, the question and
+  *Discard*; *Save* and its packet, a second *Save*, Back while saving, a failed, lost and
+  interrupted save; *Create*'s new id and an installed one; the meta data sheet's fields, rules
+  and *Apply*; the dependencies; *Create component* from existing and empty, a failed copy;
+  each folder's files, *Add*, naming, rename and delete and their failures; recreation of the
+  draft, a sheet, the question, a finished save and a broken saved part; and settings links
+  mid-edit. `settings_ui_theme_manager.rs`, `settings_ui_screens.rs`, `settings_ui_setup.rs`
+  and `settings_ui_extensions/` now expect the editor native.
+* **JVM**: `SettingsExtensionEditorMatchTest` (5 tests) runs the editor in the real native
+  library against `ReferenceExtensionEditor`, test-only copies of ExtensionEditScreen's
+  `handleSave`, CreateComponentScreen's copy id and ExtensionEditFilesScreen's `MIME_TYPES`:
+  over 400 random theme extensions of awkward text, every optional field and every Material You
+  flag, the `extension.json` *Save* hands Kotlin is **byte for byte** the one Compose wrote,
+  meta data Compose refused is refused and a component `build()` threw on is named (each
+  outcome over 40 times); the copy Kotlin keeps is the extension untrimmed; each component's box
+  says what ExtensionComponentView said; a copy's id is Compose's among ids carrying its
+  suffixes; and each folder's picker takes what Compose's filter took. `SettingsFilesTest` gains
+  two tests of the file work queue's stack of screens. The saved state's version is 11 in
+  three match tests. `extensionRoutes` lists the editor's seven routes, and
+  `SettingsGroupOneMatchTest` checks that `ext/edit` is drawn natively while a route Rust does
+  not draw still goes to the fallback.
+* **Gate** TBD-GATE
+
+### Mutations
+
+`scripts/settings_ui_mutation_cases/ext_editor.py` has 72 cases for part 3: 12 must fail a JVM
+test (`SettingsExtensionEditorMatchTest`, `SettingsFilesTest` or `SettingsResourcesTest`) and 60
+the Rust tests in `settings_ui_ext_editor`. They break `extension.json` field by field, Save's
+refusals, each sheet's controls and checks, the file jobs and their failures, the saved state,
+the workspace's take-up after recreation, settings links over an edit, the list under a restored
+editor, each component's box, a copy's id and each folder's picker. The four cases on the
+Compose hand-off (three in `theme_codes.py` and `ext-fallback-takes-files` in `extensions.py`)
+went with it. The runner now also runs `SettingsExtensionEditorMatchTest` and
+`SettingsFilesTest`. **All 72 were caught**, and the restored code passed. They ran in five
+goes, kept in `build/mutations-extensions/` (not committed):
+
+* `mut-part3`: the first 18 caught; then `ext-editor-taken-up-synced` **survived**. The test
+  checked that a take-up sends no `SYNC` only after its helper had cleared the effects, so it
+  could not fail. The check is now in the helper, before the clear, and also follows the theme
+  editor's take-up.
+* `mut-part3b`: the next 40 caught; then `ext-editor-edit-unfocused`, which gives a component's
+  *Edit* its *Delete*'s id, **hung** `focus_runs_down_the_screen_then_the_bottom_bar` instead of
+  failing it: the test's focus walk stopped only when focus came back to *Back*, and focus stuck
+  on the doubled id. The walk now gives up after 500 steps and fails.
+* `mut-part3c`: the 4 new JVM cases on the component boxes, a copy's id and the fonts' filter,
+  and `ext-editor-edit-unfocused`, caught; then `ext-editor-bar-shown-waiting` **survived**. It
+  dropped the bottom bar's check that skips a hidden button, which could never run: the bar is
+  drawn only while its *Save* or *Start* shows, and every screen shows its *Cancel* with them.
+  That check is deleted, and the case now drops the one that matters, which keeps the whole bar
+  away while the editor opens. The logs also showed `SettingsGroupOneMatchTest` and
+  `SettingsGroupTwoMatchTest` failing in every JVM case since the first go: their route lists
+  lacked the editor's seven routes, and the first still expected `ext/edit` to go to Compose.
+  Because the runner counts any assertion in those suites, each of the 12 JVM cases was checked
+  to have failed its own test as well (all had). Both tests are fixed.
+* `mut-part3d`: the 12 JVM cases again, against the fixed tests, and the next 6 Rust cases,
+  `ext-editor-bar-shown-waiting` among them, caught; then `ext-editor-root-link-replaces`
+  **survived**. It keeps a root link over the editor only when the root is already lower on the
+  stack, and the only root the tests sent was home, which always is.
+  `a_link_to_setup_mid_edit_lands_over_the_editor` now sends setup, a root that never is.
+* `mut-part3e`: the last 3 caught; then the restored code.
+
+### Device check
+
+This ran on `emulator-5556` (Android 16, 1080×2400). The screenshots are in
+`build/extensions/` and are not committed.
+
+1. `30-edit-open.png`: *Edit* on a test theme extension opened the Rust editor in
+   `FlorisAppActivity`, the resumed activity; no Compose screen exists to open.
+2. `31-image-picker.png`: *Manage archive files*, then the images' *Add*, opened the system photo
+   picker. `32-file-added.png`: the picked image, named, is listed. Renamed, it was in the
+   workspace's `ext/images` under its new name; deleted, it was gone.
+3. Back from the files sheet to the editor, then Back: the unsaved question asked, for the file
+   change alone (improvement 5).
+4. `33-unsaved-rotated.png`: the question survived a rotation to landscape; its *Cancel* kept
+   the editor; back in portrait, Back asked again; *Discard* left `no_backup/editor` empty.
+5. *Manage meta data*: the id field is disabled for the installed extension. The title was
+   changed and applied.
+6. `34-relaunched-mid-edit.png`: Home, then the launcher's icon, with the edit unsaved: the
+   editor, its changed title and its workspace were all there.
+7. `35-link-over-edit.png`: `ui://florisboard/settings/home` with the edit unsaved landed over the
+   editor; Back returned to it with its workspace (improvement 17).
+8. `36-saved-title.png`: *Save* deleted the workspace and the theme list showed the new title.
+9. `37-theme-applied.png`: with the saved extension's component as the day theme, the keyboard
+   drew it (dark under *Always day*). The day theme was put back to Floris Day.
+10. `38-create-open.png`: *Create theme extension* from the day theme picker opened the Rust
+    editor in `FlorisAppActivity`, one workspace open. Back with no change left at once and
+    deleted it; so did Up, opened again.
+11. `39-cancel-asks.png`: *Edit*, *Delete* on the only component, then *Cancel*: the question
+    asked (improvement 4). *Discard* left the extension's component in the list and no
+    workspace.
+12. `40-list-after-restored.png`: an edit restored after a rotation, then Back and *Discard*:
+    the theme list under it was filled (fix 19; before it, the list was empty).
+13. `41-process-death-kept.png`: *Edit*, *Delete* on a component, Home, and the app's process
+    killed: the launcher's icon brought back the editor with the component gone and its one
+    workspace. Back asked; *Discard* left the list filled and no workspace. The first try said
+    the extension could not be opened: the theme manager, first made on the file thread once the
+    process had ended, threw there (fix 20).
+14. `42-saved-after-process-death.png`: the same, then *Save*: the extension was saved without
+    the deleted component, and no workspace was left.
+15. TalkBack's labels, read from the accessibility tree: *Manage meta data*, *Manage
+    dependencies*, *Manage archive files*, *Add*, each component's label, name and text, *Delete*,
+    *Edit*, *Back*, *Save*, *Cancel*, the question's *Cancel*, *Discard* and *Save*, and each
+    field by its title.
+
+Restored: the test extension deleted (no `.flex` left), the day theme Floris Day and the night
+theme Floris Night, the picked image removed from Downloads and the media store, the screen
+fixed in portrait with auto-rotate off, the keyboard as the input method, the volume muted, and
+the device session closed.
+
+### Deleted
+
+`ExtensionEditScreen` (812 counted lines), `ExtensionEditFilesScreen` (260),
+`ExtensionComponentView` (160), `ExtensionDialogProperty` (31), `RadioListItem` (25) and
+`ExtensionNotFoundScreen` (21): 1,309 counted lines, the last of `FB/app/ext`. With them went
+`FlorisAppActivity`'s hand-off to the Compose editor (`fallbackHandles`, `fallbackDone`,
+`fallbackTakes`), `ComposeFallbackLinksTest` and its three mutations, `CacheManager`'s Compose
+state on the editor's workspace (`currentAction`, `ext`, `version`, `isModified`),
+`ThemeEditorActivity`'s Compose entry, the `Ext.Edit` screen in `Routes.kt`, whose entry is now
+empty, and the four strings only `ExtensionEditScreen` used (the keyboard extension's and any
+extension's *Create* and *Edit* titles, and *Create component*'s title before it chose a kind).
+The baseline profile had no lines for `FB/app/ext`.
+
 ## Owed
 
 * **P23.** Part 1 on a phone, with TalkBack heard. The emulator check read the accessibility
@@ -553,11 +811,28 @@ one-file read and `FileInfo.skipReason`; `ExtensionPolicy.accepts` and `skipReas
   it by hand. Opening a `.flex` from the Files app (the `VIEW` filter) was not tried on the
   device; sharing one was.
 
+* **P26.** Part 3 on the phone, with TalkBack heard: the theme manager's *Create* and *Edit*,
+  a file added from the phone's own picker, *Save* and *Cancel* each back to the manager, the
+  saved theme chosen, and a rotation and a relaunch mid-edit keeping the draft. It takes over
+  P20, whose Compose hand-off is deleted.
+* **E42.** No instrumented test drives the editor's Kotlin: `SettingsExtEditor` and
+  `ExtensionEditorWork` need a `Context`, and the JVM tests have no Robolectric. Untested but by
+  hand on the device: the workspace in `noBackupFilesDir` taken up after the process ended, the
+  archive written beside its place and moved there, a path that leaves the workspace refused, and
+  a picked document's type checked again, and the extension and theme managers made on the main
+  thread before a take-up after the process ended reads them on the file thread (fix 20).
+
 ## What remains
 
-* **Part 3, the extension editor.** `ExtensionEditScreen`, `ExtensionEditFilesScreen` and
-  `ExtensionComponentView`, writing `extension.json` with snygg's `json_write.rs` (it matches
-  `PrettyPrintConfig` byte for byte). Then the theme manager's *Create* and *Edit* stay in
-  Rust, `FlorisAppActivity`'s `fallbackHandles` and `fallbackDone` hand-off goes (owed P20),
-  and `ExtensionNotFoundScreen`, `RadioListItem` and `ExtensionDialogProperty` are deleted with
-  the rest of `FB/app/ext`.
+Nothing of step 10. `FB/app/ext` is gone and no extension screen is drawn by Compose. Step 12,
+the Compose settings host, inherits:
+
+* The fallback draws no screen now. Every route left in `Routes.kt` is an empty entry that hands
+  back to Rust, `Ext.Edit` included. Step 12 deletes `Routes.kt`, the Compose branch of
+  `FlorisAppActivity` (its `NavHost`, `fallbackReady` and the routing that feeds it), and
+  `ComposeSettingsFallbackActivity`.
+* Rust's `compose` effect (`settings_ui/mod.rs`), which opens the fallback for a route Rust does
+  not draw, now opens a blank screen: every route Compose had is Rust's. It goes with the
+  fallback, and an unknown route should then be said in Rust.
+* `ThemeEditorActivity` stays: it is the theme editor's own activity over the extension editor,
+  not a Compose host.

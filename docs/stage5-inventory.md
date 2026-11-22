@@ -547,9 +547,9 @@ primitives serve both. Actual deletion remains behind the original acceptance ga
 | `AW/reader/LitSpeaker.kt` | 29 | keyboard |
 | `FB/app/ext/AddonBox.kt` | 141 | stage4 (deleted at compose-removal step 10) |
 | `FB/app/ext/CheckUpdatesScreen.kt` | 32 | stage4 (deleted at compose-removal step 10) |
-| `FB/app/ext/ExtensionComponentView.kt` | 175 | stage4 |
-| `FB/app/ext/ExtensionEditFilesScreen.kt` | 276 | stage4 |
-| `FB/app/ext/ExtensionEditScreen.kt` | 829 | stage4 |
+| `FB/app/ext/ExtensionComponentView.kt` | 175 | stage4 (deleted at compose-removal step 10) |
+| `FB/app/ext/ExtensionEditFilesScreen.kt` | 276 | stage4 (deleted at compose-removal step 10) |
+| `FB/app/ext/ExtensionEditScreen.kt` | 829 | stage4 (deleted at compose-removal step 10) |
 | `FB/app/ext/ExtensionExportScreen.kt` | 74 | stage4 (deleted at compose-removal step 10) |
 | `FB/app/ext/ExtensionHomeScreen.kt` | 63 | stage4 (deleted at compose-removal step 10) |
 | `FB/app/ext/ExtensionImportScreen.kt` | 312 | stage4 (deleted at compose-removal step 10) |
@@ -557,7 +557,7 @@ primitives serve both. Actual deletion remains behind the original acceptance ga
 | `FB/app/ext/ExtensionList.kt` | 48 | stage4 (deleted in 9ebadce41, with code nothing reached) |
 | `FB/app/ext/ExtensionListScreen.kt` | 176 | stage4 (deleted at compose-removal step 10) |
 | `FB/app/ext/ExtensionMaintainerChip.kt` | 113 | stage4 (deleted at compose-removal step 10) |
-| `FB/app/ext/ExtensionNotFoundScreen.kt` | 36 | stage4 |
+| `FB/app/ext/ExtensionNotFoundScreen.kt` | 36 | stage4 (deleted at compose-removal step 10) |
 | `FB/app/ext/ExtensionViewScreen.kt` | 282 | stage4 (deleted at compose-removal step 10) |
 | `FB/app/settings/HomeScreen.kt` | 163 | stage4 |
 | `FB/app/settings/about/AboutScreen.kt` | 123 | stage4 |

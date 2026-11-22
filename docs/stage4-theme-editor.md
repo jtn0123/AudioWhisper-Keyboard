@@ -625,7 +625,13 @@ theme*, so there is no second *Save* (`01-create-save-returns.png`); *Edit* open
 with a bundled theme added, a rotation to landscape keeps it (`02-edit-rotated-keeps-theme.png`);
 *Cancel* and then *Edit*, *Save* each go back to the manager (`03-edit-save-returns.png`). No
 fatal exception in the log. Screenshots are under `build/part3-device/`, not committed. The
-phone check is P20.
+phone check was P20.
+
+**Since deleted.** Compose-removal step 10, part 3 moved the extension editor to Rust, so the
+manager's *Create* and *Edit* no longer leave the Rust settings. `fallbackDone`,
+`fallbackHandles`, `ComposeFallbackLinksTest` and its three mutations went with the hand-off,
+and P20 was closed: the editor's phone check is now P26
+([stage4-extensions, part 3](stage4-extensions.md#part-3-the-extension-editor-done)).
 
 ## Part 3: the property editor (done)
 
@@ -1174,9 +1180,9 @@ code: `ExtensionEditScreen`, `AppPrefs` and `EnumDisplayEntries` changed only th
 * **E25:** no instrumented test drives the Rust theme editor, part 3's editors included. The
   device checks were by hand through agent-device. A `SettingsOtherThemeDevice` step that opens *Manage component*, deletes a
   property, saves, and reads the workspace's stylesheet file back would hold it.
-* **P20:** the theme manager's *Create* and *Edit* on the phone, after the crash fix above:
-  *Save* and *Cancel* each go back to the manager, and an added bundled theme survives a
-  rotation of the extension editor.
+* **P20** (closed): the theme manager's *Create* and *Edit* on the phone, after the crash fix
+  above. The Compose editor it checked was deleted in compose-removal step 10, part 3; the Rust
+  editor's phone check is P26.
 * **P21:** part 3 on the phone: every step of its device check ran on the emulator only. Set a
   colour with alpha, a shape's corners, a font size and a variable, checking the keyboard shows
   each before *Apply*; search; add a source set; record a key with a real press, and check that
