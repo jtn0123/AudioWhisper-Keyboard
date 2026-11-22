@@ -1,15 +1,16 @@
 # Stage 4: the licence screens
 
-This page covers the two licence screens under About. Both are still behind the default-off
-renderer selector, and Compose stays the fallback.
+This page covers the two licence screens under About. Rust draws both. Compose stays the
+fallback for the third-party list; the project licence's Compose screen was deleted at
+compose-removal step 8.
 
 | Route | Drawn by | Why |
 | --- | --- | --- |
 | `settings/about/third-party-licenses` | Rust | Ported here. |
-| `settings/about/project-license` | Compose, on both renderers | It needs text selection, which is owed (see below). |
+| `settings/about/project-license` | Rust | Ported at compose-removal step 8, with read-only text selection (see [The project licence screen](#the-project-licence-screen)). |
 
-`catalogue::native_routes()` now includes the third-party route. Kotlin gets the native route
-list from Rust, so nothing else had to change for it to route there.
+`catalogue::native_routes()` includes both routes. Kotlin gets the native route list from
+Rust, so nothing else had to change for them to route there.
 
 ## Data path
 
@@ -94,7 +95,7 @@ There were 9 runs, about 35,000 inputs in all, and **0 differences**, with two e
 | TalkBack | A row is a `card` node (a Button to TalkBack), as other Rust rows are. Its label is the name, and its state is the version, author and badges joined with ", ". The dialog has a scroll node, the licence text as one focusable text node (id 9), and the `OK` button (id 7). Keyboard focus goes through the back button and every row, scrolling each into view. In the dialog it goes text, then OK. TalkBack's scroll forward and backward move a list by its own height, as Compose's do. |
 | Light and dark | Colours come from the palette. The device pictures match in both (see Device results). |
 | Font scale | Row heights come from the sp tables, as other screens' do. The geometry is recomputed when the width, density or font scale changes. The first visible row stays at the top, as LazyListState keeps it. |
-| Forced LTR under an RTL locale | Applies to the project licence screen, which stays in Compose. Under RTL, the third-party screen mirrors in Compose. The Rust settings renderer has no RTL layout on any screen yet (the APK ships English only), so RTL is owed renderer-wide. |
+| Forced LTR under an RTL locale | The project licence screen lays its text out left to right in any locale, as Compose forced. Under RTL, the third-party screen mirrors in Compose. The Rust settings renderer has no RTL layout on any screen yet (the APK ships English only), so RTL is owed renderer-wide. |
 | Saved state | The dialog is not saved: LibrariesContainer keeps it in a plain `remember`. The list's scroll is saved like any screen's. Re-anchoring rows across activity recreation is not done: the saved pixel offset is restored. |
 
 Known gaps, all documented and none of them visible with the shipped data:
@@ -177,7 +178,7 @@ masked), in `pictures/comparison.json`:
 | Font scale 2.0 | 1/4 | 1/80 | 250/255 |
 
 Font scale 2.0 is owed renderer-wide, as before. These counts are recorded, not chased. The
-one match is the project licence screen, which Compose draws on both renderers. The pixels
+one match is the project licence screen, which Compose drew on both renderers in that run. The pixels
 over 3/255 are 10,507 on the list, 9,694 on the lower page and 2,504 on the dialog.
 
 **Timings.** `settings-licences-timing.py` ran the trials compose, rust, rust, compose with
@@ -209,23 +210,90 @@ Still owed after this run:
 - **List semantics.** Compose's list is a View with CollectionInfo, which TalkBack calls a
   list; Rust's is a ScrollView. AboutLibraries' role-less rows are a Compose defect.
 - **A real TalkBack session on a phone**, as for every settings screen.
-- **The project licence screen's text selection**, and RTL (both below).
+- **RTL**, renderer-wide (above).
 
-## Text selection (project licence screen): owed
+## The project licence screen
 
-The project licence screen is a `SelectionContainer` around a monospace Text at 10 sp, with no
-soft wrap, that scrolls both ways. Porting it needs:
+Compose's `ProjectLicenseScreen` was a `SelectionContainer` around a 10 sp monospace Text with
+no soft wrap, forced left to right, inside a vertical and a horizontal scroll. Rust draws it
+since compose-removal step 8 (`render/src/settings_ui/project_licence/`), and the Compose screen
+is deleted.
 
-- Two-axis scrolling.
-- Long-press word selection over a no-wrap monospace layout.
-- Selection handles and drag.
-- The floating copy toolbar for read-only text.
-- Accessibility selection actions.
+**Data path.** As the third-party list's: at its first frame without text, Rust sends
+`["asset", "license/project_license.txt"]`, once until an answer comes back or the screen is
+opened again without text. `SettingsReadOnlyText` reads it with
+`FlorisRef.assets(…).loadTextAsset` on `Dispatchers.IO` and answers with settings op 25
+(`ASSET`): the path, `ok` or `failed`, then the text or the exception's message. A failure shows
+`about__project_license__error_license_text_failed` with that message, as Compose's
+`getOrElse` did. The text stays loaded when the screen is left.
 
-The editor already has handles and a toolbar, but only for an editable field. Turning them
-into a read-only selection model over a 200-line, horizontally scrolling text is estimated at
-**2–3 days**, including device checks of handles at the scroll edges. Until then, the route
-stays on Compose for both renderers.
+**Layout.** One line per newline, shaped by parley at `sp(10)` in the renderer's monospace
+face (DroidSansMono on a device), unwrapped and left to right. Only the lines inside the
+viewport are drawn.
+
+**Scrolling.** The vertical axis is the screen's own scroll, with its stretch, fling and
+scrollbar. The horizontal axis is the licence's own clamped scroll, with a fling from Compose's
+velocity tracker and a 4 dp scrollbar. Whichever axis passes the 8 dp touch slop first owns
+the drag, the horizontal one on a tie, as the inner `horizontalScroll` sees the event first.
+
+**Selection** (`selection.rs`, `touch.rs`):
+
+- Holding still for 400 ms, Android 12's long-press timeout, selects the ICU word under the
+  finger, or one character between words (`ensureAtLeastOneChar`), and ticks
+  `TEXT_HANDLE_MOVE`. A drag that follows extends by whole words.
+- A tap clears the selection.
+- The handles are the editor's (`field.rs`'s `paint_handle`): 25 dp teardrops in the primary
+  colour under the line, each hidden while its end is scrolled away, and drawn past the
+  viewport as Compose's popup is. A handle moves its end by characters and keeps where it was
+  grabbed. The ends may cross, and never collapse onto each other.
+- Holding a selection drag within 32 dp of a viewport edge scrolls that way every frame: 600 dp
+  a second at the edge, up to four times that deeper in. The selection follows the still finger.
+- The highlight is the primary colour at 40%, as `TextSelectionColors` has it. It fills as
+  Android's `Layout.getSelection` does for Compose: every line but the last runs on to the
+  text's right edge and every line but the first starts at its left, so the lines between,
+  blank ones too, are one block. The first build lit only each line's text; the emulator check
+  showed the gap at a blank line.
+
+**Toolbar.** The reply's `textToolbar` gives the selection's visible area with room for the
+handles, and whether Select all is offered (not when everything is selected).
+`SettingsSelectionMenu`, the editor's floating `ActionMode`, shows Copy and Select all there.
+Copy comes back as a `["clip", text]` effect, Kotlin puts it on the clipboard labelled "plain
+text" as Compose's `AndroidClipboardManager` does, and the selection clears. There is no
+toolbar while a drag runs or when the selection is scrolled out of view.
+
+**TalkBack.** The text is one node (id 11, a TextView) labelled with the whole text. It has the
+character, word, line, paragraph and page granularities, its selection, and the actions
+`ACTION_SET_SELECTION`, `ACTION_COPY` and next and previous at a granularity, extending or not.
+Rust moves the cursor, which is the selection's focus, and Kotlin sends
+`TYPE_VIEW_TEXT_TRAVERSED_AT_MOVEMENT_GRANULARITY`. At the text's end the action returns false,
+so TalkBack moves on. The horizontal scroller is its own scroll node (id 12), and TalkBack's
+scroll pages it by its width.
+
+**Saved state.** Version 6 adds the horizontal scroll, which `rememberScrollState` also saves.
+Both scrolls are held until the text has come back, then applied. A second recreation inside
+that wait, a few milliseconds, saves the horizontal scroll as zero, so the text reopens at its
+left edge (owed, not fixed).
+
+### Where it differs from Compose
+
+Improvements:
+
+1. **The read is off the main thread.** Compose read the asset on the main thread inside
+   composition. The cost is one empty frame while the read runs.
+2. **The horizontal scrollbar stays on screen.** It runs along the viewport's bottom edge.
+   Compose's bar sat inside the vertical scroll, at the bottom of the 200-line text, so it was
+   seen only at the end.
+3. **A drag held at an edge keeps scrolling.** Compose brings the dragged end into view only on
+   each move, so a still finger stopped the scroll.
+4. **TalkBack can extend a selection and move by page.** Compose's node for non-editable text
+   ignores the extend argument and has no page granularity.
+
+Gaps, in [owed checks](owed-checks.md):
+
+- The text is shaped by parley in DroidSansMono, not by Android's text stack, so glyphs can sit
+  a pixel apart from Compose's.
+- The horizontal axis clamps at its ends. Compose's `horizontalScroll` stretches there.
+- A hardware keyboard's Ctrl+C and Ctrl+A do nothing on the selection.
 
 ## Proof
 
@@ -251,4 +319,39 @@ stays on Compose for both renderers.
   - `settings-device-tests.py` saves `licences.json` and requires the two walks to be equal.
     The group 2 walk now audits the third-party screen as a Rust screen.
   - `settings-pictures.py --sections licences` captures the top, a lower page, the first
-    library's dialog, and the project licence screen (Compose on both).
+    library's dialog, and the project licence screen (Compose on both in that run; Rust's since
+    compose-removal step 8).
+- **The project licence screen (compose-removal step 8):**
+  - **Rust:** `crates/render/tests/settings_ui_project_licence.rs` has 17 tests: the route and
+    its one asset read, only the visible lines drawn, the error text, axis lock and clamping on
+    both axes, word selection by long press (one character between words), extending by words,
+    handle drags across lines and past each other with the highlight filled between, the edge
+    hold scrolling both ways and stopping away from the edges, Select all and the copy payload,
+    hiding the handles and the toolbar when scrolled away, every TalkBack granularity forward,
+    back and extending, TalkBack paging, keyboard focus, and both scrolls surviving recreation.
+  - **JVM:** `SettingsProjectLicenceMatchTest.kt` (4 tests) drives the real natives as
+    `RustSettingsView` does: the asset plan and the `ASSET` op, the text node's TalkBack facts,
+    Select all, Copy and traversal through the `SELECTION` op, the toolbar in the reply, the
+    error string, and the horizontal scroll across recreation. The group 1, group 2 and UI
+    match tests list the route as native.
+  - **Mutations:** 36 cases, all killed. 32 must fail the Rust tests; `text-node-facts-dropped`,
+    `text-toolbar-dropped`, `selectable-label-twice` and `saved-horizontal-ignored` must fail
+    the JVM test.
+  - **Device (run on 2026-11-21):** aw_keyboard (emulator-5558, Android 16, 1080 by 2400 at
+    2.625), muted, build `0.5.2-debug+0be2d6291` installed with `scripts/install-dev.sh`.
+    Screenshots are in `build/stage4-licences-device/project-licence/`, which is not committed.
+    - About → Project license opened on `RustSettingsView` in DroidSansMono. Both axes
+      scrolled, and the horizontal one stopped at the longest line's right edge.
+    - A long press on a word selected it with both handles and no toolbar while the finger
+      was down. At the lift the floating toolbar offered Copy and Select all.
+    - The end handle dragged across the URL and blank lines onto the TERMS line, and the start
+      handle up onto "Apache". Held at the bottom edge, the end scrolled the text about 30
+      lines and the selection followed. This run found the highlight gap at blank lines (see
+      Selection), fixed before the final build.
+    - Copy cleared the selection. Pasted into the render probe's Benchmark editor, the text was
+      4,473 UTF-16 units with the SHA-256 of the asset's text from "Apache" to where the hold
+      stopped.
+    - Select all left only Copy on the toolbar. Copied and pasted, it was 11,363 units with the
+      SHA-256 of `license/project_license.txt`.
+    - No crash in logcat. TalkBack did not run: it has never been enabled on the emulator, and
+      P6 owes a phone session for every settings screen.

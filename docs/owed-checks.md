@@ -40,6 +40,7 @@ row says so.
 | P11 | Back up and Restore: every step ran on the emulator. None ran on the phone. | [stage4-backup-restore, owed](stage4-backup-restore.md#owed) |
 | P12 | User dictionaries: every step ran on the emulator. None ran on the phone. | [stage4-user-dictionaries, owed](stage4-user-dictionaries.md#owed) |
 | P13 | Keyboard: a top-row key's popup shows whole over the app. Long-press e, p and q with the Smartbar on and off, in portrait and landscape and in one-handed mode, and slide to a choice in the upper row. Tap the app just above the keyboard. Fixed and checked on the emulator, in portrait only. | [rust.md, a top-row key's popup](rust.md#a-top-row-keys-popup-cut-off-fixed-2026-11-21) |
+| P14 | Project licence: every step ran on the emulator. None ran on the phone. Long-press a word, drag both handles, hold one at an edge, then Copy and Select all, with the phone's own toolbar. TalkBack's reading by word and line, selecting and copying is part of P6. | [stage4-licences, the project licence screen](stage4-licences.md#the-project-licence-screen) |
 
 ## Emulator checks the docs owe
 
@@ -55,7 +56,6 @@ row says so.
 | E8 | Presented latency and jank: native SurfaceFrame and input-to-present timing, then a like-for-like comparison. Display-frame statistics from SurfaceFlinger are not enough. | [stage4-followup2, item 3](stage4-followup2.md#still-owed-before-prototype-acceptance); [stage4-settings-results, controlled baseline](stage4-settings-results.md#controlled-baseline-timing-and-memory) |
 | E9 | Warm PSS and Perfetto on the final source, then the post-reopen baseline check. Paired PSS is below +10 MiB now, and no newer numbers exist. | [stage4-followup2, item 4](stage4-followup2.md#still-owed-before-prototype-acceptance) |
 | E10 | Font scale 2.0 pixels: glyph ink about 0.12 px apart, and dialog buttons 1–3 px apart at the non-linear sizes. The owner decides legibility against parity. | [stage4-followup4, still owed](stage4-followup4.md#still-owed); [stage4-licences, device results](stage4-licences.md#device-results) |
-| E11 | The project licence screen's text selection, with handles at the scroll edges. | [stage4-licences, text selection](stage4-licences.md#text-selection-project-licence-screen-owed) |
 | E12 | Other: a device run of the dial's plural step, which looks for "1 hour" on the 24-hour dial, after `b4b47eb0e`. The emulator would not boot again. | [stage4-other-theme, owed](stage4-other-theme.md#owed) |
 | E13 | TalkBack replay: the 400 ms input fixture failed (exit 1). The TalkBack settings route failed too, and TalkBack was never enabled on the emulator. Rerun on a working route. | [stage3b, TalkBack replay](stage3b-results.md#talkback-replay-and-limits); [stage3b-input-history, device boundary](stage3b-input-history.md#device-validation-boundary) |
 | E14 | Repeat deadline: the 300 ms hold and the production repeat deadline on a device. The hooked APK never reached the device, so neither renderer has accepted this check. | [stage2-tts, deterministic long delete](stage2-tts.md#deterministic-long-delete) |
@@ -74,7 +74,7 @@ These need no device. They are listed so they are not lost.
 
 * GIPHY live results need an API key. ([stage2-consolidation, open items](stage2-consolidation.md#open-items))
 * The settings renderer has no route transition and no dialog enter animation. TalkBack's page scroll jumps where Compose animates it. ([stage4-licences, device results](stage4-licences.md#device-results))
-* Copying the read-only hex value needs text selection, which waits for step 8. ([stage4-other-theme, owed](stage4-other-theme.md#owed))
+* Copying the read-only hex value. Step 8 built read-only text selection for the project licence (`project_licence/selection.rs`); the hex field does not use it yet. ([stage4-other-theme, owed](stage4-other-theme.md#owed))
 * The English strings Jetpref and Material wrote are not translated. ([stage4-other-theme, owed](stage4-other-theme.md#owed))
 * The clock-hand animation and Material's 100 ms pause are not matched. ([stage4-other-theme, owed](stage4-other-theme.md#owed))
 * Focus highlights after a touch: whether a tap should hide them is a question for every Rust screen. ([stage4-other-theme, owed](stage4-other-theme.md#owed))
@@ -90,7 +90,11 @@ These need no device. They are listed so they are not lost.
 * The mutation scripts have no check that each case still matches its source. A renamed line makes a case match nothing, which stops a full run (`predictive-cancel-commits` did, from b57a98bf0 until it was fixed). A `--check` mode in each script, run by the gate, would catch it at once.
 * In full-screen landscape a top-row key's popup is still cut at the keyboard's top: the frozen Compose root wraps the keyboard and clips its surface. The plain-View root must not clip it ([all-rust phase 3](all-rust.md#3-rust-owns-the-keyboard-l), item 4). ([rust.md, a top-row key's popup](rust.md#a-top-row-keys-popup-cut-off-fixed-2026-11-21))
 * The Rust keyboard draws no key-press preview bubble. Its setting reaches only the Compose keyboard. ([rust.md, a top-row key's popup](rust.md#a-top-row-keys-popup-cut-off-fixed-2026-11-21))
+* The project licence's horizontal scroll clamps at its ends, where Compose's `horizontalScroll` stretches. ([stage4-licences, where it differs from Compose](stage4-licences.md#where-it-differs-from-compose))
+* A project licence recreated twice before its text has been read saves the held horizontal scroll as zero, so the text reopens at its left edge. The wait is a few milliseconds. ([stage4-licences, the project licence screen](stage4-licences.md#the-project-licence-screen))
+* A hardware keyboard's Ctrl+C and Ctrl+A do nothing on the project licence's selection. ([stage4-licences, where it differs from Compose](stage4-licences.md#where-it-differs-from-compose))
+* The project licence is shaped by parley in DroidSansMono, not by Android's text stack, so glyphs can sit a pixel apart from Compose's. With the Compose screen deleted there is no picture pair to measure it. ([stage4-licences, where it differs from Compose](stage4-licences.md#where-it-differs-from-compose))
 
 ## Notes
 
-* This list has 4 confirm-on-the-phone items, 13 phone checks and 22 emulator checks.
+* This list has 4 confirm-on-the-phone items, 14 phone checks and 21 emulator checks.

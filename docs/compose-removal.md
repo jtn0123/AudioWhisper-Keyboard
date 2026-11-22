@@ -177,10 +177,27 @@ its phone checks pass.
   `SettingsWords` (140), its string ids (36) and 13 lines across the view, file, icon and
   string id adapters. Step 7 is done: 542 lines deleted, 210 added.
 
-### 8. Project licence
+### 8. Project licence (done)
 
 * **Deletes:** `ProjectLicenseScreen` (65).
-* **Blocked by:** read-only text selection in the Rust settings text (about 2–3 days).
+* **What changed:** Rust draws the licence: the asset read off the main thread and sent back
+  with a new settings op, the unwrapped 10 sp monospace text scrolled both ways, long-press
+  word selection, the editor's handles dragged across lines and past the edges, a floating Copy
+  and Select all toolbar, and TalkBack's selection, copy and text traversal. Kotlin keeps only
+  the asset read, the clipboard, the haptic tick, the toolbar's `ActionMode` (the editor's, now
+  serving both) and the accessibility event. A drag held at an edge keeps scrolling, the
+  horizontal scrollbar stays on screen, and TalkBack can extend a selection and move by page,
+  where Compose could not. See
+  [stage 4: the project licence screen](stage4-licences.md#the-project-licence-screen).
+  Commits 6f3f00768, 49bd129e3, 10025efd2, 4697ebb34, 72f420db2 and 0be2d6291.
+* **Blocked by:** nothing.
+* **The fallback loses:** the project licence. The route stays as an empty entry that hands
+  back to Rust, as in step 2.
+* **Progress** (non-blank lines deleted): `ProjectLicenseScreen` (65), and 2 lines in
+  `Routes.kt` rewritten as 1. The Kotlin glue adds `SettingsReadOnlyText` (51), a read-only mode
+  in `SettingsSelectionMenu` (43 added, 8 removed), the text node in `RendererAccessibility`
+  (21 added, 4 removed), 6 lines in `RustSettingsView` (2 removed) and one string id. Step 8 is
+  done: 81 lines deleted, 123 added.
 
 ### 9. Theme manager and theme editor
 

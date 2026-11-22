@@ -169,6 +169,12 @@ Stage 5 packages 1–3, one event family at a time:
   Room and Android's provider, written with the same calls as before, proven against a frozen
   copy of the old code; old export files import, and a new export is byte-compatible
   ([stage 4: User dictionaries](stage4-user-dictionaries.md)).
+* **The project licence.**
+  **Done (2026-11-21):** Rust draws it, with read-only text selection on the editor's handles
+  and floating toolbar, and ProjectLicenseScreen is gone (81 lines deleted, 123 added). Kotlin
+  only reads the asset, sets the clipboard and shows Android's toolbar. TalkBack can select,
+  copy, and read it by character, word, line, paragraph and page
+  ([stage 4: the project licence screen](stage4-licences.md#the-project-licence-screen)).
 * **The theme editor and extension editor are ported and improved**, not dropped (owner,
   2026-11-21). Each port says which improvements it makes, as the Other and Theme port did.
 * **Rust owns the preferences file** (`crates/settings` already has byte parity). Then Jetpref,

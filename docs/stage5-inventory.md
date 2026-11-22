@@ -557,7 +557,7 @@ primitives serve both. Actual deletion remains behind the original acceptance ga
 | `FB/app/ext/ExtensionViewScreen.kt` | 282 | stage4 |
 | `FB/app/settings/HomeScreen.kt` | 163 | stage4 |
 | `FB/app/settings/about/AboutScreen.kt` | 123 | stage4 |
-| `FB/app/settings/about/ProjectLicenseScreen.kt` | 65 | stage4 |
+| `FB/app/settings/about/ProjectLicenseScreen.kt` | 65 | stage4 (deleted at compose-removal step 8) |
 | `FB/app/settings/about/ThirdPartyLicensesScreen.kt` | 68 | stage4 |
 | `FB/app/settings/advanced/BackupScreen.kt` | 362 | stage4 |
 | `FB/app/settings/advanced/OtherScreen.kt` | 95 | stage4 |

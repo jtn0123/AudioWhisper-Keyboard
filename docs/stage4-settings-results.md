@@ -4,7 +4,8 @@
 
 **Licences:** [the third-party licences screen](stage4-licences.md) is drawn in Rust: the
 AboutLibraries data path, a virtualised list, and the licence dialog with a TagSoup 1.2 port.
-The project licence screen stays in Compose until its text selection is ported.
+The project licence screen followed at compose-removal step 8, with read-only text selection
+([stage4-licences, the project licence screen](stage4-licences.md#the-project-licence-screen)).
 
 **Follow-up 4:** [the device suite, emoji tiles, then group 2](stage4-followup4.md). The whole
 instrumented suite and a fresh gallery ran on both renderers, and what they found was fixed.
