@@ -37,9 +37,6 @@ import androidx.navigation.compose.composable
 import androidx.navigation.navDeepLink
 import androidx.navigation.toRoute
 import dev.patrickgold.florisboard.app.ext.ExtensionEditScreen
-import dev.patrickgold.florisboard.app.ext.ExtensionExportScreen
-import dev.patrickgold.florisboard.app.ext.ExtensionImportScreen
-import dev.patrickgold.florisboard.app.ext.ExtensionImportScreenType
 import dev.patrickgold.florisboard.app.settings.dictionary.UserDictionaryType
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -189,14 +186,6 @@ object Routes {
         data class Edit(val id: String, @SerialName("create") val serialType: String? = null)
 
         @Serializable
-        @Deeplink("ext/export")
-        data class Export(val id: String)
-
-        @Serializable
-        @Deeplink("ext/import")
-        data class Import(val type: ExtensionImportScreenType, val uuid: String? = null)
-
-        @Serializable
         @Deeplink("ext/view")
         data class View(val id: String)
 
@@ -280,16 +269,6 @@ object Routes {
                     id = extensionId,
                     createSerialType = serialType.takeIf { !it.isNullOrBlank() },
                 )
-            }
-            composableWithDeepLink(Ext.Export::class) { navBackStack ->
-                val payload = navBackStack.toRoute<Ext.Export>()
-                val extensionId = payload.id
-                ExtensionExportScreen(id = extensionId)
-            }
-            composableWithDeepLink(Ext.Import::class) { navBackStack ->
-                val payload = navBackStack.toRoute<Ext.Import>()
-                val uuid = payload.uuid
-                ExtensionImportScreen(payload.type, uuid)
             }
             composableWithDeepLink(Ext.View::class) {}
             composableWithDeepLink(Ext.CheckUpdates::class) {}

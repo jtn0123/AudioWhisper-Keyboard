@@ -26,7 +26,6 @@ import androidx.compose.runtime.setValue
 import dev.patrickgold.florisboard.app.ext.EditorAction
 import dev.patrickgold.florisboard.appContext
 import dev.patrickgold.florisboard.ime.theme.ThemeExtensionEditor
-import dev.patrickgold.florisboard.lib.NATIVE_NULLPTR
 import dev.patrickgold.florisboard.lib.ext.Extension
 import dev.patrickgold.florisboard.lib.ext.ExtensionDefaults
 import dev.patrickgold.florisboard.lib.ext.ExtensionEditor
@@ -72,8 +71,6 @@ class CacheManager(context: Context) {
     val exporter = WorkspacesContainer(ExporterDirName) { ExporterWorkspace(it) }
     val themeExtEditor = WorkspacesContainer(EditorDirName) { ExtEditorWorkspace<ThemeExtensionEditor>(it) }
     val backupAndRestore = WorkspacesContainer(BackupAndRestoreDirName) { BackupAndRestoreWorkspace(it) }
-
-    fun readFromUriIntoCache(uri: Uri) = readFromUriIntoCache(listOf(uri))
 
     fun readFromUriIntoCache(uriList: List<Uri>): ImporterWorkspace {
         val contentResolver = appContext.contentResolver ?: error("Content resolver is null.")
@@ -232,6 +229,5 @@ class CacheManager(context: Context) {
         val mediaType: String?,
         val size: Long,
         val ext: Extension?,
-        var skipReason: Int = NATIVE_NULLPTR.toInt(),
     )
 }
