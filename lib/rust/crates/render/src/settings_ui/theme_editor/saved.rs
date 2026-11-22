@@ -179,6 +179,7 @@ fn prop_part(f: &PropertyForm) -> String {
         f.set.to_string(),
         f.original.as_deref().map_or(String::new(), clean),
         clean(&f.name),
+        clean(&f.search),
         f.encoder.map_or(String::new(), |e| e.id().to_string()),
         clean(&f.choice),
     ];
@@ -197,6 +198,7 @@ fn read_prop(s: &str) -> Result<Option<PropertyForm>, &'static str> {
         set,
         original,
         name,
+        search,
         encoder,
         choice,
         t0,
@@ -225,6 +227,7 @@ fn read_prop(s: &str) -> Result<Option<PropertyForm>, &'static str> {
         set,
         original: (!original.is_empty()).then(|| original.into()),
         name: name.into(),
+        search: search.into(),
         encoder,
         choice: choice.into(),
         texts: [t0, t1, t2, t3].map(Into::into),

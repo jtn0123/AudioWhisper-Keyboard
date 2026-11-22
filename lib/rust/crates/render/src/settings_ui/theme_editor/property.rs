@@ -1,10 +1,11 @@
 //! The property editor, EditPropertyDialog as a screen: the name (a dropdown of the spec's
 //! properties for an element or `@font`, a field for a variable, fixed when editing as Compose
-//! disabled it), the encoder (choosing one starts from its default value, and a new name clears
-//! it, as Compose did), and the value as its encoder edits it (`property_values.rs`). Apply
-//! refuses with no name or encoder, a value the stylesheet cannot hold, or, adding, a name the
-//! set has already, which Compose meant to refuse and silently overwrote. Delete deletes through
-//! the rules' Delete, so Undo puts it back.
+//! disabled it), a search line narrowing the names when adding to an element, the encoder
+//! (choosing one starts from its default value, and a new name clears it, as Compose did), and
+//! the value as its encoder edits it (`property_values.rs`). Apply refuses with no name or
+//! encoder, a value the stylesheet cannot hold, or, adding, a name the set has already, which
+//! Compose meant to refuse and silently overwrote. Delete deletes through the rules' Delete, so
+//! Undo puts it back.
 //!
 //! snygg v2's spec gives a property no level (Compose's `propertySpec.level <= snyggLevel`
 //! filter is commented out in ThemeEditorScreen), so the editor level changes only how names
@@ -78,6 +79,7 @@ pub struct PropertyForm {
     /// The property being changed, by name; None while adding.
     pub original: Option<String>,
     pub name: String,
+    pub search: String,
     /// None for "select".
     pub encoder: Option<Encoder>,
     /// The value dropdown's choice, and the fields' texts (`property_values::texts_of`).
@@ -98,6 +100,7 @@ impl PropertyForm {
             set,
             original: None,
             name: String::new(),
+            search: String::new(),
             encoder: None,
             choice: String::new(),
             texts: Default::default(),
@@ -132,6 +135,10 @@ impl PropertyForm {
         } else {
             !self.name.is_empty()
         }
+    }
+    /// The search line shows while adding to an element rule.
+    pub fn searching(&self) -> bool {
+        self.original.is_none() && matches!(self.rule, Rule::Element { .. })
     }
     pub fn encoders(&self) -> Vec<Encoder> {
         spec::encoders(&self.rule, &self.key()).unwrap_or_default()
@@ -299,27 +306,33 @@ impl App {
             _ => None,
         }
     }
-    /// What row `i`'s list offers: the names, the encoders by id, or
+    /// What row `i`'s list offers: the names (narrowed by the search), the encoders by id, or
     /// the values.
     pub(in crate::settings_ui) fn property_choices(&self, i: usize) -> Option<Vec<String>> {
         let part = self.prop_part(i)?;
         let f = self.theme_editor.prop.as_ref()?;
         let mut out = vec![String::new()];
         match part {
-            Part::PropName if !f.variable() => out.extend(Self::property_names(f)),
+            Part::PropName if !f.variable() => out.extend(self.property_names(f)),
             Part::PropEncoder => out.extend(f.encoders().iter().map(|e| e.id().to_string())),
             Part::PropValue => return self.value_choices(f),
             _ => return None,
         }
         Some(out)
     }
-    /// The spec's property names for the rule.
-    fn property_names(f: &PropertyForm) -> Vec<String> {
+    /// The spec's property names for the rule, whose label or name holds the search.
+    fn property_names(&self, f: &PropertyForm) -> Vec<String> {
         let all = match f.rule {
             Rule::Font(_) => spec::fonts(),
             _ => spec::elements(),
         };
-        all.iter().map(|p| p.name.into()).collect()
+        let wanted = f.search.trim().to_lowercase();
+        let found = |name: &str| {
+            let label = self.property_label(&text(name)).to_lowercase();
+            label.contains(&wanted) || name.to_lowercase().contains(&wanted)
+        };
+        let names = all.iter().map(|p| p.name).filter(|n| found(n));
+        names.map(Into::into).collect()
     }
     /// The value dropdown's entries for the encoder chosen.
     fn value_choices(&self, f: &PropertyForm) -> Option<Vec<String>> {
@@ -415,6 +428,7 @@ impl App {
     pub(super) fn property_line(&self, part: Part) -> Option<String> {
         let f = self.theme_editor.prop.as_ref()?;
         match part {
+            Part::PropSearch if f.searching() => Some(f.search.clone()),
             Part::PropName if f.variable() && f.original.is_none() => Some(f.name.clone()),
             Part::PropValue if f.editing_kind() == Editing::Line => Some(f.texts[0].clone()),
             Part::PropSide(k) if f.editing_kind() == Editing::Sides => f.texts.get(k).cloned(),
@@ -427,6 +441,7 @@ impl App {
             return;
         };
         match part {
+            Part::PropSearch => f.search = value,
             Part::PropName => f.rename(value),
             Part::PropValue => f.texts[0] = value,
             Part::PropSide(k @ 0..=3) => (f.texts[k], f.last) = (value, k),

@@ -219,16 +219,16 @@ class SettingsThemeEditorMatchTest {
         ThemeEditorNatives.state(this, SettingsUiOp.EDIT, "set", text)
     }
     private fun KeyboardRenderer.tap(id: Int) = ThemeEditorNatives.state(this, SettingsUiOp.ACTIVATE, id.toString())
-    /** The bottom bar's Add or Apply on row 11, which goes back to the rules unless it refused [what]. */
+    /** The bottom bar's Add or Apply on row 12, which goes back to the rules unless it refused [what]. */
     private fun KeyboardRenderer.apply(what: String) =
-        assertEquals(ThemeEditorNatives.ROUTE, tap(1011).getValue("route").jsonPrimitive.content, "$what was refused")
-    /** The property editor's rows: the name 1, the encoder 2, the value 3, the sides 4 to 7, and Add or Apply 11. */
+        assertEquals(ThemeEditorNatives.ROUTE, tap(1012).getValue("route").jsonPrimitive.content, "$what was refused")
+    /** The property editor's rows: the name 2, the encoder 3, the value 4, the sides 5 to 8, and Add or Apply 12. */
     private fun KeyboardRenderer.add(rule: Int, a: Added) {
         tap(500_000 + 4096 * rule + 4)
-        choose(1, "snygg__property_name__" + a.name.replace('-', '_'))
-        choose(2, "snygg__property_value__" + a.encoder)
-        a.pick?.let { choose(3, it) }
-        if (a.typed.size == 1) type(3, a.typed[0]) else a.typed.forEachIndexed { k, t -> type(4 + k, t) }
+        choose(2, "snygg__property_name__" + a.name.replace('-', '_'))
+        choose(3, "snygg__property_value__" + a.encoder)
+        a.pick?.let { choose(4, it) }
+        if (a.typed.size == 1) type(4, a.typed[0]) else a.typed.forEachIndexed { k, t -> type(5 + k, t) }
         apply("${a.element} ${a.name}")
     }
     private fun SnyggStylesheetEditor.element(name: String) =
@@ -246,8 +246,8 @@ class SettingsThemeEditorMatchTest {
             for (a in valueKinds) n.add(index(a.element), a)
             // Edited in place: the variable's colour.
             n.tap(500_000 + 4096 * defines + 64)
-            n.choose(2, "snygg__property_value__solid_color")
-            n.type(3, "#00ff00")
+            n.choose(3, "snygg__property_value__solid_color")
+            n.type(4, "#00ff00")
             n.apply("--primary")
             val saved = n.tap(ThemeEditorNatives.SAVE_ID)
             val expected = ThemeEditorNatives.composeWrites(editSheet) {

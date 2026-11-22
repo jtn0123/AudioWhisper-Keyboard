@@ -37,6 +37,8 @@ pub enum Part {
     MetaChoice(usize),
     /// The property editor's message: why Apply refused.
     PropError,
+    /// The search line over the name list, adding to an element rule.
+    PropSearch,
     /// The property's name: a dropdown of the spec's, or a field for a variable.
     PropName,
     /// The encoder dropdown.
@@ -114,8 +116,9 @@ const RULE_EDIT_ROWS: &[Row] = &[
         Lang::DeleteRule,
     ),
 ];
-const PROPERTY: [Row; 11] = [
+const PROPERTY: [Row; 12] = [
     part("", Part::PropError),
+    part("settings__theme_editor__property_search", Part::PropSearch),
     part("settings__theme_editor__property_name", Part::PropName),
     part("settings__theme_editor__property_value", Part::PropEncoder),
     part("settings__theme_editor__property_value", Part::PropValue),
@@ -139,6 +142,7 @@ const PROPERTY_ADD_ROWS: &[Row] = &[
     PROPERTY[8],
     PROPERTY[9],
     PROPERTY[10],
+    PROPERTY[11],
     row("", "action__add", "", Kind::Lang(Lang::Save)),
 ];
 /// Delete deletes at once, as EditPropertyDialog's did: Undo on the rules puts it back.
@@ -154,6 +158,7 @@ const PROPERTY_EDIT_ROWS: &[Row] = &[
     PROPERTY[8],
     PROPERTY[9],
     PROPERTY[10],
+    PROPERTY[11],
     row("", "action__apply", "", Kind::Lang(Lang::Save)),
 ];
 const META_ROWS: &[Row] = &[

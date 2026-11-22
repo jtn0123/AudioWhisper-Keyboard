@@ -1,6 +1,6 @@
 //! The property editor: Add property on each rule's title line, a property tapped to edit it,
 //! the name and encoder dropdowns, a variable's name field, Apply adding at the end or replacing
-//! in place, the refusals, Delete with Undo, and Cancel.
+//! in place, the refusals, Delete with Undo, Cancel, and the search line.
 use super::{common::*, props::*};
 use render::settings_ui::{
     catalogue::{self, languages::Lang, theme_editor::Part},
@@ -187,6 +187,7 @@ fn cancel_and_back_leave_the_rules_as_they_were() {
 fn a_variable_is_named_in_a_field_checked_as_compose_checked_it() {
     let (mut a, mut text) = named_app();
     add_to(&mut a, &mut text, 0);
+    assert!(control(&a, part_id(&a, Part::PropSearch)).is_none());
     let name = control(&a, part_id(&a, Part::PropName)).unwrap();
     assert_eq!(name.role, "edit");
     type_into(&mut a, &mut text, Part::PropName, "accent");
@@ -218,6 +219,39 @@ fn a_variable_is_named_in_a_field_checked_as_compose_checked_it() {
     edit(&mut a, &mut text, 0, 1);
     let name = control(&a, part_id(&a, Part::PropName)).unwrap();
     assert_eq!((name.role, name.enabled), ("button", false));
+}
+
+#[test]
+fn search_narrows_the_names_by_label_or_name_ignoring_case() {
+    let (mut a, mut text) = named_app();
+    add_to(&mut a, &mut text, 2);
+    let search = control(&a, part_id(&a, Part::PropSearch)).unwrap();
+    assert_eq!(search.role, "edit");
+    type_into(&mut a, &mut text, Part::PropSearch, "BORDER-");
+    let names = listed(&mut a, &mut text, Part::PropName);
+    assert_eq!(
+        names,
+        [
+            PLACEHOLDER,
+            "snygg__property_name__border_color",
+            "snygg__property_name__border_style",
+            "Border width"
+        ]
+    );
+    // By its label only: "Text size" is `font-size`.
+    type_into(&mut a, &mut text, Part::PropSearch, " text SIZE ");
+    assert_eq!(
+        listed(&mut a, &mut text, Part::PropName),
+        [PLACEHOLDER, "Text size"]
+    );
+    pick(&mut a, &mut text, Part::PropName, "Text size");
+    assert_eq!(a.theme_editor.prop.as_ref().unwrap().name, "font-size");
+    type_into(&mut a, &mut text, Part::PropSearch, "nothing like it");
+    assert_eq!(listed(&mut a, &mut text, Part::PropName), [PLACEHOLDER]);
+    // No search line when editing.
+    edit_back(&mut a, &mut text);
+    edit(&mut a, &mut text, 2, 1);
+    assert!(control(&a, part_id(&a, Part::PropSearch)).is_none());
 }
 
 #[test]

@@ -96,6 +96,7 @@ internal val settingsThemeEditorStringIds: Map<String, Int> = mapOf(
     "settings__theme_editor__padding_top" to R.string.settings__theme_editor__padding_top,
     "settings__theme_editor__property_already_exists" to R.string.settings__theme_editor__property_already_exists,
     "settings__theme_editor__property_name" to R.string.settings__theme_editor__property_name,
+    "settings__theme_editor__property_search" to R.string.settings__theme_editor__property_search,
     "settings__theme_editor__property_value" to R.string.settings__theme_editor__property_value,
     "settings__theme_editor__rule_already_exists" to R.string.settings__theme_editor__rule_already_exists,
     "settings__theme_editor__rule_codes" to R.string.settings__theme_editor__rule_codes,

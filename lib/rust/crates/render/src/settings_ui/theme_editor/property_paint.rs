@@ -1,6 +1,6 @@
-//! The property editor's painting: why Apply refused, the name, the encoder, the value as its
-//! encoder edits it, the four sides or corners with the chip copying one to all, and Show
-//! keyboard. The screen has the item editor's bottom bar and no preview field, so
+//! The property editor's painting: why Apply refused, the search line, the name, the encoder,
+//! the value as its encoder edits it, the four sides or corners with the chip copying one to
+//! all, and Show keyboard. The screen has the item editor's bottom bar and no preview field, so
 //! Show keyboard focuses its hidden in-app editor, as the rules do when `DisplayKbdAfterDialogs`
 //! brings the keyboard back: the IME then draws the draft's preview over the bottom of the
 //! screen, and Back hides it again.
@@ -51,6 +51,10 @@ impl App {
                 let (error, ink) = (self.message(f.error), self.colors[18]);
                 let note = (PROP_ERROR_ID, error, ink, self.px(8.0));
                 self.theme_note(p, note, at, clip, text)
+            }
+            Part::PropSearch if f.searching() => {
+                let field = (i, String::new(), String::new(), title);
+                self.line_box(p, field, at, clip, text)
             }
             Part::PropName if self.property_line(part).is_some() => {
                 let field = (i, title, self.name_error(&f), String::new());

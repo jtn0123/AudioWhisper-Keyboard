@@ -124,11 +124,15 @@ fn an_open_property_editor_survives_recreation_with_what_it_holds() {
     let (mut a, mut text) = app(SHEET);
     super::props::named(&mut a);
     assert!(tap(&mut a, &mut text, rule_id(3, 4)));
+    type_into(&mut a, &mut text, Part::PropSearch, "border");
     super::props::choose(&mut a, &mut text, "Border width", "Size (dp)");
     type_into(&mut a, &mut text, Part::PropValue, "x");
     super::props::apply(&mut a, &mut text);
     let prop = a.theme_editor.prop.clone();
-    assert!(prop.as_ref().is_some_and(|f| f.checked));
+    assert!(
+        prop.as_ref()
+            .is_some_and(|f| f.checked && f.search == "border")
+    );
     let mut b = recreated(&a);
     assert_eq!(b.stack.last().unwrap(), PROPERTY_ADD);
     b.set_theme_editor(&loaded(SHEET)).unwrap();

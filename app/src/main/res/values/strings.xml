@@ -199,6 +199,7 @@
     <string name="settings__theme_editor__property_value_shape_apply_for_all_corners">Apply for all corners</string>
     <string name="settings__theme_editor__file_selector_dialog_title">Select file</string>
     <string name="settings__theme_editor__file_selector_no_files_text">No files have been added to this extension yet. Please use the "{action_title}" action in the previous screen to import files.</string>
+    <string name="settings__theme_editor__property_search">Search properties</string>
     <string name="settings__theme_editor__padding_start">Start</string>
     <string name="settings__theme_editor__padding_top">Top</string>
     <string name="settings__theme_editor__padding_end">End</string>
