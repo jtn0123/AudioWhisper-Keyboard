@@ -318,8 +318,8 @@ dependencies {
     implementation(projects.lib.color)
     implementation(projects.lib.compose)
     implementation(projects.lib.kotlin)
-    // AOSP LatinIME dictionary engine (Apache-2.0): word suggestions and autocorrect.
-    // The keyboard's Rust code (libawnative): glide typing's scorer.
+    // The keyboard's Rust code (libawnative), among it the word suggestions and autocorrect
+    // ported from AOSP LatinIME (Apache-2.0: lib/rust/crates/latin/NOTICE).
     implementation(projects.lib.rust)
     testImplementation(testFixtures(projects.lib.rust))
     androidTestImplementation(testFixtures(projects.lib.rust))

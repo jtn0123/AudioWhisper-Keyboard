@@ -1,0 +1,29 @@
+AudioWhisper Keyboard: the `latin` crate
+
+This crate is a Rust port of the dictionary reading and typing suggestion code of
+LatinIME, the Android Open Source Project's keyboard
+(https://android.googlesource.com/platform/packages/inputmethods/LatinIME, its
+native/jni sources). The port keeps LatinIME's structure, names and arithmetic, so
+it is a derivative work of that code, which carries this notice:
+
+    Copyright (C) 2009-2014 The Android Open Source Project
+
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+
+        http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+
+The port is distributed under the same licence; its full text is LICENSE at the
+root of this repository. The C++ it was ported from was kept in this repository
+under lib/latinime until 2026-11-21 and can be read in its history
+(docs/phase6-oracle-goldens.md).
+
+The app lists LatinIME among its third-party licences
+(app/src/main/config/libraries/aosp-latinime.json).

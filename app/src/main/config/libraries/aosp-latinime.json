@@ -1,0 +1,14 @@
+{
+  "uniqueId": "aosp-latinime",
+  "name": "AOSP LatinIME (typing decoder, ported to Rust)",
+  "developers": [
+    {
+      "name": "The Android Open Source Project",
+      "organisationUrl": "https://source.android.com"
+    }
+  ],
+  "website": "https://android.googlesource.com/platform/packages/inputmethods/LatinIME",
+  "licenses": [
+    "Apache-2.0"
+  ]
+}
