@@ -722,11 +722,18 @@ fn arrays_read_as_a_record_with_constants() {
     const SCORES: &[Class] = &[Class {
         name: "ScoreNative",
         module: "scores",
-        methods: &[Method {
-            name: "scores",
-            returns: crate::OBJECTS,
-            ..METHOD
-        }],
+        methods: &[
+            Method {
+                name: "scores",
+                returns: crate::OBJECTS,
+                ..METHOD
+            },
+            Method {
+                name: "layout",
+                returns: Return::NullableArray(crate::Element::Int),
+                ..METHOD
+            },
+        ],
         ..CLASS
     }];
     const SCORE_API: &[Api] = &[Api {
@@ -738,23 +745,35 @@ fn arrays_read_as_a_record_with_constants() {
             name: "Scores",
             doc: "",
             data: false,
-            fields: &[("words", "IntArray"), ("weights", "FloatArray")],
+            fields: &[
+                ("words", "IntArray"),
+                ("weights", "FloatArray"),
+                ("best", "Int"),
+            ],
             constants: &[("NONE", "", "-1", "No word.")],
         }],
-        members: &[Member {
-            name: "scores",
-            result: Out::Record("Scores"),
-            ..MEMBER
-        }],
+        members: &[
+            Member {
+                name: "scores",
+                result: Out::Record("Scores"),
+                ..MEMBER
+            },
+            Member {
+                name: "layout",
+                result: Out::NullableWrap("Layout"),
+                ..MEMBER
+            },
+        ],
         ..API
     }];
     let text = &api_files(SCORE_API, SCORES)[0].1.text;
     for expected in [
-        "    class Scores(val words: IntArray, val weights: FloatArray) {\n        \
+        "    class Scores(val words: IntArray, val weights: FloatArray, val best: Int) {\n        \
          companion object {\n            /** No word. */\n            const val NONE = -1\n        \
          }\n    }\n",
-        "    fun scores(): Scores = ScoreNative.scores().let { Scores(it[0] as IntArray, it[1] as \
-         FloatArray) }\n",
+        "    fun scores(): Scores =\n        ScoreNative.scores().let { Scores(it[0] as IntArray, \
+         it[1] as FloatArray, (it[2] as IntArray)[0]) }\n",
+        "    fun layout(): Layout? = ScoreNative.layout()?.let { Layout(it) }\n",
     ] {
         assert!(text.contains(expected), "{text}");
     }

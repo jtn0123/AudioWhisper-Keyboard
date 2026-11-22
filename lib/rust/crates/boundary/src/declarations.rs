@@ -15,6 +15,7 @@ mod latin;
 mod layout;
 mod learner;
 mod packets;
+mod popup;
 mod reader;
 mod reader_runtime;
 mod rules;
@@ -70,6 +71,7 @@ pub const CLASSES: &[Class] = &[
     input::INPUT_NATIVE,
     glide::GLIDE_NATIVE,
     gestures::GESTURES_NATIVE,
+    popup::POPUP_NATIVE,
 ];
 
 /// Every generated api over those classes.
@@ -107,6 +109,8 @@ pub const APIS: &[Api] = &[
     glide::GLIDE_QUERY,
     gestures::SWIPE_DETECTOR,
     gestures::GLIDE_DETECTOR,
+    popup::POPUP_GRID,
+    popup::POPUP_ORDER,
 ];
 
 /// Every generated top-level record, enum and interface, with the declarations file and the module it is in.
@@ -121,6 +125,7 @@ pub const TYPES: &[(&str, Module, Type)] = &[
     gestures::SWIPE_DIRECTION,
     gestures::SWIPE_RECORD,
     gestures::GLIDE_OUTCOME,
+    popup::POPUP_RECT,
 ];
 
 /// Every group crates/wire declares, and the Kotlin module that calls with it.

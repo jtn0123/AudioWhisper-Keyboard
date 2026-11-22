@@ -25,7 +25,7 @@ pub(crate) mod keys;
 mod latinime;
 mod layout_rules;
 mod panic;
-mod popup;
+pub(crate) mod popup;
 pub(crate) mod reader;
 mod render;
 mod render_accessibility;

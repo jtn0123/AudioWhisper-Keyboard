@@ -206,7 +206,8 @@ pub enum Out {
     NullableEntry(&'static str),
     /// The result passed to the constructor of this type.
     Wrap(&'static str),
-    /// A handle passed to the constructor of this type, or null for 0.
+    /// A handle passed to the constructor of this type, or null for 0; or a nullable array
+    /// passed to it, or null for null.
     NullableWrap(&'static str),
     /// A row read as the record of this name, a field an element; a nullable row reads as null.
     Record(&'static str),
@@ -575,6 +576,9 @@ fn converted(out: Out, returns: Return, api: &Api, apis: &[Api]) -> (String, Str
             format!(".let {{ if (it < 0) null else {ty}.entries[it] }}"),
         ),
         Out::Wrap(ty) => (format!("{ty}("), ")".to_owned()),
+        Out::NullableWrap(ty) if matches!(returns, Return::NullableArray(_)) => {
+            (String::new(), format!("?.let {{ {ty}(it) }}"))
+        }
         Out::NullableWrap(ty) => (
             String::new(),
             format!(".let {{ if (it == 0L) null else {ty}(it) }}"),

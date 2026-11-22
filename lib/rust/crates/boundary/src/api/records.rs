@@ -174,7 +174,8 @@ fn row(returns: Return, api: &Api) -> (Option<Element>, bool) {
 }
 
 /// An `Array<Any>`, which reads as one record whose fields are its elements in order, for a
-/// record of arrays such as `IntArray` and `FloatArray`. The function makes it with
+/// record of arrays such as `IntArray` and `FloatArray`. A `Boolean`, `Int`, `Long` or `Float`
+/// field crosses as an array of its one value, so no number is boxed. The function makes it with
 /// `Env::make_objects`.
 pub const OBJECTS: Return = Return::Object("Array<Any>", "jobjectArray");
 
@@ -187,7 +188,10 @@ pub fn record(name: &str, many: bool, returns: Return, api: &Api, apis: &[Api]) 
         assert!(!many, "{name}: an array of objects reads as one record");
         let fields = record_fields(name, api, apis);
         let values: Vec<String> = (fields.iter().enumerate())
-            .map(|(at, (_, ty))| format!("it[{at}] as {ty}"))
+            .map(|(at, (_, ty))| match *ty {
+                "Boolean" | "Int" | "Long" | "Float" => format!("(it[{at}] as {ty}Array)[0]"),
+                _ => format!("it[{at}] as {ty}"),
+            })
             .collect();
         return format!(".let {{ {name}({}) }}", values.join(", "));
     }
