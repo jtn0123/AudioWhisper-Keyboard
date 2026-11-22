@@ -1,6 +1,8 @@
 //! How a suggestion fits its slot, Gboard's way: squeeze it, then shrink it, then ellipsise it.
 //! One decision for both renderers: Compose calls [`fit_step`] through JNI with its own measure,
-//! the Rust renderer through [`fit_text`] with Parley's.
+//! the Rust renderer through [`fit_text`] with Parley's. A key's label too big for its key fits
+//! the same way where its theme says nothing else (`label_fit`), and both end in [`ellipsised`].
+use unicode_segmentation::UnicodeSegmentation;
 
 /// The narrowest a word is squeezed, as a fraction of its width at the same height. AOSP
 /// LatinIME's suggestion strip squeezes to this and no further (`MIN_TEXT_XSCALE = 0.70f`,
@@ -75,5 +77,21 @@ pub fn fit_text(available: f32, mut measure: impl FnMut(f32) -> f32) -> TextFit 
             measures += 1;
         }
         fit = next;
+    }
+}
+
+/// The longest start of `text`, in whole graphemes, that fits `available` with an ellipsis after
+/// it, and the ellipsis; empty where not even the ellipsis fits. A word too wide at both floors
+/// ends so, and so does a key's label cut short. `measure` is the width of a string as drawn.
+pub fn ellipsised(text: &str, available: f32, mut measure: impl FnMut(&str) -> f32) -> String {
+    let mut ends = vec![0];
+    ends.extend(text.grapheme_indices(true).map(|(i, s)| i + s.len()));
+    let low = crate::smartbar::fit_prefix(ends.len(), available, |mid| {
+        measure(&format!("{}…", &text[..ends[mid]]))
+    });
+    if low == 0 {
+        String::new()
+    } else {
+        format!("{}…", &text[..ends[low - 1]])
     }
 }

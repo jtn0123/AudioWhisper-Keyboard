@@ -6,7 +6,6 @@ use crate::{
     style::Style,
 };
 use keys::Rect;
-use unicode_segmentation::UnicodeSegmentation;
 use vello_cpu::kurbo::Affine;
 impl Raster {
     pub(crate) fn smartbar(&mut self, scene: &Scene) -> Result<(), String> {
@@ -200,17 +199,9 @@ impl Raster {
         if measured <= r.width() {
             return self.squeezed_label(text, font, squeeze, style.foreground, r);
         }
-        let mut ends = vec![0];
-        ends.extend(text.grapheme_indices(true).map(|(i, s)| i + s.len()));
-        let low = crate::smartbar::fit_prefix(ends.len(), r.width(), |mid| {
-            let label = format!("{}…", &text[..ends[mid]]);
-            self.text.measure(&label, size, style.mono, style.weight) * squeeze
+        let label = crate::smartbar_fit::ellipsised(text, r.width(), |label| {
+            self.text.measure(label, size, style.mono, style.weight) * squeeze
         });
-        let label = if low == 0 {
-            String::new()
-        } else {
-            format!("{}…", &text[..ends[low - 1]])
-        };
         // Compose's overflowing Text occupies the constrained column and draws from its start.
         // Center only text which fit intrinsically (the early return above).
         let fitted = self.text.measure(&label, size, style.mono, style.weight) * squeeze;
