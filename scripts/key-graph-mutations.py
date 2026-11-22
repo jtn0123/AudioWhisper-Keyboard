@@ -115,7 +115,8 @@ CASES = [
     # The answers Android gives.
     ('mark-asked-below-the-first', FACTS, 'if code < FIRST_MARK {', 'if code < 0 {', GRAPH),
     ('code-answer-ignored', FACTS, '.insert((question.ask, question.locale, code), answer);',
-     '.insert((question.ask, question.locale, code), code);', GRAPH),
+     '.insert((question.ask, question.locale, code), {\n                    let _: i32 = answer;\n                    code\n                });',
+     GRAPH),
     ('text-answer-ignored', FACTS, 'return answer.clone();', 'return text.to_vec();', GRAPH),
     # The rows that cross to Android.
     ('nothing-prioritized', CALLS, 'let mut out = vec![text(keys.prioritized.len())];', 'let mut out = vec![text(0)];', GRAPH),
