@@ -29,7 +29,7 @@ import kotlin.math.roundToInt
  * Other and Theme as Rust draws them (docs/stage4-other-theme.md), on the device's own clock:
  * every row that opens something, the colour dialog through Presets, Custom (the plane and hue bar
  * dragged, a value typed) and Default, the time dialog on the dial (tapped and dragged) and typed,
- * Back from every dialog and from the Compose screens the rows open, rotation with a dialog open,
+ * the theme manager, Back from every dialog and from the Compose screens the rows open, rotation with a dialog open,
  * and that the keyboard follows: its theme by the mode and times, its colours by the accent.
  *
  * Receipts hold booleans, counts and pixel fractions only, never typed text or a colour value.
@@ -168,22 +168,22 @@ internal class SettingsOtherThemeDevice(private val h: SettingsHarness, private 
         h.waitFor("keyboard theme did not follow") { context.themeManager().value.activeThemeInfo.value.name == name }
     }
 
-    /** A row that opens the Compose theme manager; a theme picked there; Back to Rust, the row renamed. */
+    /** A row that opens the theme manager, native since compose-removal step 9; a theme picked there, the keyboard
+     * shown in it while the manager is open; Back, the row renamed and the keyboard back on its own theme. */
     private fun manager(row: String, label: String, stored: () -> Boolean) {
         stage("theme:manager:$row")
         h.click(row)
-        h.waitFor("$row did not open the Compose theme manager") { fallback() && h.find(label) != null }
-        h.activity = runner.resumedActivity
         h.settle()
+        onRust(label)
         h.reveal(label)
-        // A plain click: Compose refuses accessibility focus while touch exploration is off, which
-        // the harness's click asks for first.
-        check(node(label).performAction(Node.ACTION_CLICK)) { "theme manager click refused" }
+        h.click(label)
         h.waitFor("$row choice not stored", condition = stored)
+        h.waitFor("keyboard does not preview the choice") { context.themeManager().value.previewThemeId.value != null }
         h.back()
         h.settle()
         onRust(row)
         h.waitFor("$row does not name the theme") { node(row).stateDescription?.toString() == label }
+        h.waitFor("keyboard still previews") { context.themeManager().value.previewThemeId.value == null }
         result.put("manager_${row.substringBefore(' ').lowercase()}", true)
     }
 

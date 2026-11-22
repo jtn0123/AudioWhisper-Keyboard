@@ -36,6 +36,7 @@ internal class RustSettingsView(context: Context) : FrameLayout(context), Surfac
     private lateinit var files: SettingsFiles
     private lateinit var languages: SettingsLanguages
     private lateinit var words: SettingsWords
+    private lateinit var themes: SettingsThemes
     var backAvailability: (Boolean) -> Unit = {}
     private var fallback: (String, List<String>) -> Unit = { _, _ -> }
     private val native = KeyboardRenderer(systemRendererFonts())
@@ -96,9 +97,10 @@ internal class RustSettingsView(context: Context) : FrameLayout(context), Surfac
         this.facts = SettingsFacts(activity).also { it.observe { if (!released) pushFacts() } }
         this.fallback = fallback
         readOnly = SettingsReadOnlyText(this, activity.lifecycleScope)
-        // Before the saved state, which asks for a report when it reopens a language or word screen.
+        // Before the saved state, which asks for a report when it reopens a language, word or theme screen.
         languages = SettingsLanguages(activity) { if (!released) receive(native.settings(SettingsUiOp.LANGUAGES, it)) }
         words = SettingsWords(activity) { if (!released) receive(native.settings(SettingsUiOp.WORDS, it)) }
+        themes = SettingsThemes(activity) { if (!released) receive(native.settings(SettingsUiOp.THEMES, it)) }
         receive(native.settings(SettingsUiOp.PREFERENCES, platform.snapshot()))
         if (restored != null) receive(native.settings(SettingsUiOp.RESTORE, restored))
         // After the saved state, so a picker answer or report that waited finds what it belongs to.
@@ -173,6 +175,7 @@ internal class RustSettingsView(context: Context) : FrameLayout(context), Surfac
                 SettingsUiWordEffect.LOAD, SettingsUiWordEffect.ADD, SettingsUiWordEffect.CHANGE, SettingsUiWordEffect.DELETE,
                 SettingsUiWordEffect.RESTORE, SettingsUiWordEffect.IMPORT, SettingsUiWordEffect.MANAGER -> words.execute(p)
                 SettingsUiTextEffect.ASSET, SettingsUiTextEffect.CLIP, SettingsUiTextEffect.HAPTIC -> readOnly.execute(p)
+                SettingsUiThemeEffect.LOAD, SettingsUiThemeEffect.PREVIEW -> themes.execute(p)
             }
         }
         selectionMenu.update(state.getValue("selectionToolbar").jsonPrimitive.boolean)
@@ -271,6 +274,7 @@ internal class RustSettingsView(context: Context) : FrameLayout(context), Surfac
         super.onDetachedFromWindow(); released = true; live = false; choreographer.removeVsyncCallback(this)
         if (::facts.isInitialized) facts.release()
         if (::files.isInitialized) files.release()
+        if (::themes.isInitialized) themes.release()
         selectionMenu.close(); accessibility.release(); native.detach(); native.close()
     }
 }
