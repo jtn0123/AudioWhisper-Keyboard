@@ -1,0 +1,16 @@
+[package]
+name = "imetheme"
+version = "0.1.0"
+description = "The keyboard's theme: which theme is active for the day, night or system mode, what to load to show it, the base stylesheet shown when none loads, and the inline autofill chips' colours, ported from FlorisBoard's ThemeManager"
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+extensions = { path = "../extensions" }
+snygg = { path = "../snygg" }
+wire = { path = "../wire" }
+
+[lints]
+workspace = true

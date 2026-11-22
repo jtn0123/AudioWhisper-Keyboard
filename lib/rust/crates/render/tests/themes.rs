@@ -41,7 +41,7 @@ fn every_bundled_theme_resolves_renderer_keys_candidates_and_popups_like_kotlin(
             .collect()
     };
     let themes = fixture["themes"].as_object().unwrap();
-    assert_eq!(themes.len(), 12);
+    assert_eq!(themes.len(), 13);
     for (path, cases) in themes {
         let json = std::fs::read_to_string(root().join(path)).unwrap();
         let mut theme =

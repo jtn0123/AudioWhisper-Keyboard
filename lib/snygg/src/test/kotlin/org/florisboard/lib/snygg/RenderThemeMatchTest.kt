@@ -72,7 +72,7 @@ class RenderThemeMatchTest {
         // Load the shared library using its normal wrapper before the test-only declaration.
         KeyboardRenderer(emptyArray()).close()
         val sheets = SnyggStylesheetMatchTest().sheets()
-        assertEquals(12, sheets.size)
+        assertEquals(13, sheets.size)
         var count = 0
         val fixture = buildJsonObject {
             put("names", JsonArray(names.map(::JsonPrimitive)))
@@ -107,7 +107,7 @@ class RenderThemeMatchTest {
         checkNotNull(output.parentFile).mkdirs(); output.writeText(fixture.toString())
         val frozen = File(root, "lib/rust/crates/render/tests/themes.json")
         if (frozen.exists()) assertEquals(Json.parseToJsonElement(frozen.readText()), fixture)
-        assertEquals(76032, count)
+        assertEquals(82368, count)
     }
 }
 
