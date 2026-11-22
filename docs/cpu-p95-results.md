@@ -306,6 +306,68 @@ minute at the start of the second, from macOS's XProtect scan. All the folders a
 **Still owed.** The CPU gate on a quiet host, main against the bubble and this fit (E28), and on
 the phone (P18).
 
+## The typing-event fan-out (2026-11-22)
+
+The typing-event fan-out ([phase3-typing-fan-out.md](phase3-typing-fan-out.md)) sends each
+typing event to Rust as one call that returns one plan, and has Rust choose the smartbar's
+icons, arrow and labels. These trials compare it with the main it was built on (f1fdf3f34; main
+has since moved to 0d7196c8d, the theme property editor, which touches neither path). They were
+run as the trials above: `cpu-trials.py --rust-only --trials 1`, main, the branch, main, the
+branch, on `aw_keyboard` with Floris Day, the Rust renderer and the press bubble on. The device
+session was closed and opened again first. The folders are in `build/cpu-p95/typing-fan-out/`.
+
+**The 2 ms wall-clock gate was not met, by main or by the branch.** This is not a pass.
+
+| Trial | Frames | p50 | p95 | p99 | Over 2 ms | CPU time p95 |
+|---|---:|---:|---:|---:|---:|---:|
+| main 1 | 1,070 | 1.144 | 3.465 | 6.791 | 163 (15.2%) | 1.655 |
+| branch 1 | 1,081 | 1.097 | 3.557 | 6.919 | 147 (13.6%) | 1.602 |
+| main 2 | 1,070 | 1.106 | 3.366 | 6.455 | 156 (14.6%) | 1.697 |
+| branch 2 | 1,085 | 1.098 | 3.084 | 6.442 | 153 (14.1%) | 1.529 |
+
+All four typed the expected text (`809d588b…`, and `c14d19d2…` after the popups).
+
+The change moves work done on a key's release, so the trials also give touch to post, and the
+p50 draw time, in ms, of a press frame, a release frame and a frame that brought only new words:
+
+| Trial | Touch to post p50 | p95 | Press | Release | New words |
+|---|---:|---:|---:|---:|---:|
+| main 1 | 107.2 | 261.3 | 2.785 | 3.117 | 2.805 |
+| branch 1 | 110.5 | 272.4 | 2.604 | 3.493 | 3.132 |
+| main 2 | 116.1 | 263.7 | 2.683 | 3.104 | 2.655 |
+| branch 2 | 107.9 | 288.3 | 2.572 | 2.802 | 2.802 |
+
+* The branch is not slower beyond noise. Its p95 is 3.557 and 3.084 ms against main's 3.465 and
+  3.366, one above both of main's and one below both. Its CPU time p95, 1.602 and 1.529 ms, is
+  under both of main's (1.655 and 1.697), and so is its share of frames over 2 ms.
+* The branch's touch-to-post p95 is higher in both trials (272.4 and 288.3 ms against 261.3 and
+  263.7). The same measure on unchanged code ran from 259.1 to 301.8 ms in the other trials this
+  day (the press bubble's and the label fit's, main and branch alike), and its p50s here are
+  level, so this is read as noise, not a cost. Touch to post is dominated by the emulator's input
+  injection, at about 110 ms even at its median.
+* The press, release and new-words medians move both ways between trials, by as much between
+  main's two as between the builds.
+
+**Trials thrown out.** Five tries at main's first trial failed before main 1 above. None was on
+the branch's build, and all the folders are kept:
+
+* `main-1` and `main-1-e` typed the wrong digest (E29), with 300 units each.
+* `main-1-b` stopped on agent-device's `Error (COMMAND_FAILED): Android automation helper output
+  could not be parsed` (E30).
+* `main-1-c` stopped on agent-device's `Error (COMMAND_FAILED): Android system dialog is blocking
+  longpress: Application Not Responding: com.android.systemui`, while the load average rose to
+  30. Its hint was to close the dialog. `agent-device alert dismiss` chose "Close app", so
+  System UI restarted (E35).
+* `main-1-d` stopped on "Accessibility service did not bind". The alert calls had left
+  agent-device's UiAutomation connection held. Closing and opening the device session again freed
+  it (E30).
+
+The host was not quiet. Other jobs held up to 13 of the 18 cores before the trials. During the
+four kept trials, another job's simulator held about three cores, and the load average stayed
+at 7.9 to 8.2.
+
+**Still owed.** The CPU gate on a quiet host (E28), and on the phone (P4).
+
 ## Reproducing
 
 ```bash

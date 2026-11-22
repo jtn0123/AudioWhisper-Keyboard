@@ -149,6 +149,25 @@ Stage 5 packages 1–3, one event family at a time:
   ordered effects across cancellation and recreation, the reshow and reading-order probes,
   and the phone p95 again at the end.
 
+**Item 1 done (2026-11-22)** ([phase 3: the typing-event fan-out](phase3-typing-fan-out.md)).
+
+* **The typing plan.** Each typing event is one call to the NLP session, `NlpSession.event`,
+  which returns one plan. The session counts, learns, teaches the tap trail, and arms or takes
+  the auto-correction undo itself. Kotlin carries the event in and starts the save timers and
+  the kept-word write the plan asks for.
+* **The smartbar.** Each action's icon, label and flags, the arrow, the toggle's icon, and
+  what the toggle flips are chosen in Rust.
+* **The proof.**
+  * Three seeded 50,000-event traces match main's frozen fan-out at every event, across save
+    timers that fire or die with the process and service recreation.
+  * 20,000 seeded smartbars match main, except for two label fixes, each counted.
+  * The digests are unchanged, and the reshow and reading-order probes pass.
+  * 41 of 41 mutations are caught.
+  * CPU trials: the branch is no slower than main beyond noise. Neither met the 2 ms gate on a
+    loaded host, so it is not a pass.
+* **The size.** Production Kotlin is 29 counted lines smaller.
+* **Owed.** P4 (the phone p95) stays owed, as do the new P22, E34 and E35.
+
 ### 4. Settings (M–L, alongside 3)
 
 [compose-removal.md](compose-removal.md) steps 5–12, in its order:
