@@ -46,8 +46,6 @@ import dev.patrickgold.florisboard.app.ext.ExtensionListScreen
 import dev.patrickgold.florisboard.app.ext.ExtensionListScreenType
 import dev.patrickgold.florisboard.app.ext.ExtensionViewScreen
 import dev.patrickgold.florisboard.app.settings.dictionary.UserDictionaryType
-import dev.patrickgold.florisboard.app.settings.theme.ThemeManagerScreen
-import dev.patrickgold.florisboard.app.settings.theme.ThemeManagerScreenAction
 import dev.patrickgold.florisboard.app.setup.SetupScreen
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -107,7 +105,7 @@ object Routes {
 
         @Serializable
         @Deeplink("settings/theme/manage")
-        data class ThemeManager(val action: ThemeManagerScreenAction)
+        data class ThemeManager(val action: String)
 
         @Serializable
         @Deeplink("settings/keyboard")
@@ -247,10 +245,7 @@ object Routes {
             composableWithDeepLink(Settings.SubtypeEdit::class) {}
 
             composableWithDeepLink(Settings.Theme::class) {}
-            composableWithDeepLink(Settings.ThemeManager::class) { navBackStack ->
-                val payload = navBackStack.toRoute<Settings.ThemeManager>()
-                ThemeManagerScreen(payload.action)
-            }
+            composableWithDeepLink(Settings.ThemeManager::class) {}
 
             composableWithDeepLink(Settings.Keyboard::class) {}
             composableWithDeepLink(Settings.InputFeedback::class) {}

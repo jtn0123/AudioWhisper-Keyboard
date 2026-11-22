@@ -589,7 +589,7 @@ primitives serve both. Actual deletion remains behind the original acceptance ga
 | `FB/app/settings/theme/ThemeEditorComponents.kt` | 344 | stage4 |
 | `FB/app/settings/theme/ThemeEditorLoading.kt` | 70 | stage4 |
 | `FB/app/settings/theme/ThemeEditorScreen.kt` | 473 | stage4 |
-| `FB/app/settings/theme/ThemeManagerScreen.kt` | 135 | stage4 |
+| `FB/app/settings/theme/ThemeManagerScreen.kt` | 135 | stage4 (deleted at compose-removal step 9) |
 | `FB/app/settings/theme/ThemeScreen.kt` | 118 | stage4 |
 | `FB/app/settings/theme/ThemeTranslations.kt` | 177 | stage4 |
 | `FB/app/settings/typing/SpellCheckerServiceSelector.kt` | 122 | stage4 |
