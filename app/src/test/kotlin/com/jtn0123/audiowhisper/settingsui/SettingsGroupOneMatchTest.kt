@@ -166,7 +166,7 @@ class SettingsGroupOneMatchTest {
             val native = listOf("settings/home", "settings/keyboard") + ref.screens.map { it.route } +
                 ReferenceGroupTwoScreens.screens.map { it.route } + "settings/about/third-party-licenses" +
                 ReferenceOtherThemeScreens.screens.map { it.route } + "settings/other/backup" + "settings/other/restore" +
-                languageRoutes
+                languageRoutes + wordRoutes
             assertEquals(native, n.settings(SettingsUiOp.ROUTES)[2].split("\n"))
             prepare(n, defaults())
             // The theme manager stays in Compose.

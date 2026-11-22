@@ -71,6 +71,13 @@
     <string name="settings__list__deleted">Deleted {name}</string>
     <string name="settings__localization__suggested_languages">Suggested languages</string>
     <string name="settings__localization__all_languages">All languages</string>
+    <string name="settings__udm__search_placeholder">Search words and shortcuts</string>
+    <string name="settings__udm__search_not_found">No word found for “{search_term}”</string>
+    <string name="settings__udm__word_error_exists">This word is already in the dictionary for this language</string>
+    <string name="settings__udm__import_line_error">Line {line} of that file is not a word. Nothing was imported.</string>
+    <string name="settings__udm__file_error">That file could not be read or written. Nothing changed.</string>
+    <string name="settings__udm__change_failed">The dictionary could not be changed. Try again.</string>
+    <string name="settings__udm__no_picker">No app on this device can choose a file.</string>
     <string name="crash__copy_details">Copy details</string>
     <string name="crash__native_load_summary">AudioWhisper could not load its keyboard engine. Reinstall the app, then open it again.</string>
     <string name="crash__keyboard_unavailable">AudioWhisper could not load its keyboard engine, so it cannot type. Reinstall the app, and switch to another keyboard until then.</string>
