@@ -172,6 +172,7 @@ Path prefixes (each path below expands against the repository root):
 | `AW/reader/Voice.kt` | 45 | A | AudioManager.requestAudioFocus / abandonAudioFocusRequest |
 | `AW/reader/VoiceEngine.kt` | 134 | M | Context files / SystemClock; model idle/failure/cross-model eviction state |
 | `AW/render/AccessibilityRelease.kt` | 27 | P | hover/hold release target choice and hit testing |
+| `AW/render/KeyGraphRows.kt` | 110 | M | LayoutManager files / java.util.Locale casing; the key graph's build row from the files a mode needs, its facts row, and Android's casing answers (added at phase 3 item 2) |
 | `AW/render/RenderTiming.kt` | 14 | M | ViewTreeObserver / Log; fallback-only timing scaffolding, remove with its callers |
 | `AW/render/RendererAccessibility.kt` | 285 | M | AccessibilityNodeProvider; focus recovery, hover/hit/hold/touch state still Kotlin |
 | `AW/render/RendererAccessibilityResources.kt` | 99 | A | Context.getString; localized semantic-label map |
@@ -189,15 +190,17 @@ Path prefixes (each path below expands against the repository root):
 | `AW/render/RendererIcons.kt` | 30 | A | Resources / Android Path; resource vector serialization, no widget layout |
 | `AW/render/RendererMediaBuffers.kt` | 62 | M | ContentResolver / Bitmap; decode-size and upload/cache ownership |
 | `AW/render/RendererMotionPacket.kt` | 22 | A | MotionEvent; complete pointer/history/timestamp transport |
-| `AW/render/RendererPanels.kt` | 46 | M | Resources / Jetpref; panel choice, action assembly and label fallbacks |
+| `AW/render/RendererPanels.kt` | 71 | M | Resources / Jetpref; panel choice, action assembly and label fallbacks (phase 3 item 2: each action's enabled state, icon token and label come from the Rust key graph's `actions` op through `ActionKeys`; the panels no longer read the smartbar's evaluator) |
 | `AW/render/RendererSearch.kt` | 21 | M | Resources; search-strip state/label projection |
-| `AW/render/RendererSmartbar.kt` | 110 | M | Resources / Paint; item choice, measurement and action binding (each action's icon, arrow, flags, label and what the toggle flips moved to Rust's `smartbar_actions` at phase 3 item 1; this file keeps the evaluator's facts and the icon vectors) |
+| `AW/render/RendererSmartbar.kt` | 110 | M | Resources / Paint; item choice, measurement and action binding (each action's icon, arrow, flags, label and what the toggle flips moved to Rust's `smartbar_actions` at phase 3 item 1; this file keeps the evaluator's facts and the icon vectors; phase 3 item 2: each action's enabled state, icon and label are answered from the Rust key graph, so this file no longer writes them) |
 | `AW/render/RendererSmartbarTouch.kt` | 47 | M | InputConnection / PopupWindow; enabled/removal/tooltip action gating |
 | `AW/render/RendererSubtypes.kt` | 21 | A | Resources / Jetpref Flow; localized subtype snapshot transport |
 | `AW/render/RendererTheme.kt` | 27 | A | Resources.Configuration / DisplayMetrics; theme and density transport |
 | `AW/render/RustChromeView.kt` | 98 | M | View / Bitmap / Canvas; native pixels stay at edge, move hardcoded subtype bootstrap dimensions/timing constants |
 | `AW/render/RustExtractView.kt` | 37 | A | ExtractEditText / ViewGroup; applies native extract bounds to platform editor |
+| `AW/render/RustKeyGraphs.kt` | 96 | M | Context / Resources / LayoutManager; the Rust renderer's key graphs per mode and subtype, their label resources and the question-and-answer loop (added at phase 3 item 2) |
 | `AW/render/RustKeyPreview.kt` | 34 | A | Bitmap / ART JNI; displays native preview pixels (replace Compose interop host) |
+| `AW/render/RustKeyboard.kt` | 130 | M | Keyboard / TextKey adapter; reads the Rust key graph's keys back for the input path and a key's platform effects (added at phase 3 item 2) |
 | `AW/render/RustKeyboardLayout.kt` | 95 | M | SurfaceView / WindowInsets / InlineContentView; Kotlin root sizing/state branches |
 | `AW/render/RustKeyboardView.kt` | 405 | M | SurfaceView / Choreographer / SystemFonts; snapshot assembly and dispatch/fallback policy |
 | `AW/render/RustOneHandedPanel.kt` | 37 | M | View/Jetpref; side-panel sizing/visibility and preference-effect binding |
@@ -281,24 +284,24 @@ Path prefixes (each path below expands against the repository root):
 | `FB/ime/input/InputFeedbackActivationMode.kt` | 20 | P | portable InputFeedbackActivationMode domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
 | `FB/ime/input/InputFeedbackController.kt` | 90 | M | AudioManager / Vibrator / View.performHapticFeedback; fallback feedback execution policy |
 | `FB/ime/input/InputShiftState.kt` | 44 | P | portable InputShiftState domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
-| `FB/ime/keyboard/ComputingEvaluator.kt` | 223 | M | Resources / ImageVector; key label/icon/default choices |
+| `FB/ime/keyboard/ComputingEvaluator.kt` | 223 | M | Resources / ImageVector; key label/icon/default choices (phase 3 item 2: the label resources and icon vectors split out so the key graph's adapter and the Rust renderer look them up by token) |
 | `FB/ime/keyboard/CurrencySet.kt` | 45 | P | portable CurrencySet domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
-| `FB/ime/keyboard/FlorisImeSizing.kt` | 173 | M | WindowManager / WindowInsets; host layout and height selection |
+| `FB/ime/keyboard/FlorisImeSizing.kt` | 173 | M | WindowManager / WindowInsets; host layout and height selection (phase 3 item 2: sizes from any keyboard's row count, a Rust one's too) |
 | `FB/ime/keyboard/IncognitoMode.kt` | 21 | P | portable IncognitoMode domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
 | `FB/ime/keyboard/Key.kt` | 89 | P | portable Key domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
-| `FB/ime/keyboard/KeyData.kt` | 269 | P | portable KeyData domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
-| `FB/ime/keyboard/Keyboard.kt` | 112 | P | portable Keyboard domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
+| `FB/ime/keyboard/KeyData.kt` | 269 | P | portable KeyData domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs (phase 3 item 2: the selectors and every `compute` serve only the Compose fallback; `KeyData` stays the input path's key data) |
+| `FB/ime/keyboard/Keyboard.kt` | 112 | P | portable Keyboard domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs (phase 3 item 2: `rowCount` on the base class; `PlaceholderLoadingKeyboard` is still a `TextKeyboard`) |
 | `FB/ime/keyboard/KeyboardComputingEvaluator.kt` | 89 | M | Context / Resources; enabled/visible/fallback fact assembly |
 | `FB/ime/keyboard/KeyboardEditing.kt` | 197 | M | KeyEvent / InputConnection; commit/delete/selection/autocorrect orchestration |
 | `FB/ime/keyboard/KeyboardExtension.kt` | 85 | P | portable KeyboardExtension domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
 | `FB/ime/keyboard/KeyboardKeyEvents.kt` | 116 | M | InputConnection / IME APIs; remaining CLEAR_CLIP preference branch and route fact selection |
-| `FB/ime/keyboard/KeyboardManager.kt` | 276 | M | Context / Toast; input/editor/NLP/state coordination |
+| `FB/ime/keyboard/KeyboardManager.kt` | 276 | M | Context / Toast; input/editor/NLP/state coordination (phase 3 item 2: with the Rust renderer on, its keyboards come from `RustKeyGraphs`; the Compose branch keeps `LayoutManager` and the keyboard cache) |
 | `FB/ime/keyboard/KeyboardManagerResources.kt` | 98 | M | Context.assets / LiveData; extension lookup and resource publication |
 | `FB/ime/keyboard/KeyboardMode.kt` | 38 | P | portable KeyboardMode domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
 | `FB/ime/keyboard/KeyboardState.kt` | 207 | M | Android host Flow/Compose binding; mutation batches and model ownership |
 | `FB/ime/keyboard/LayoutArrangement.kt` | 31 | P | portable LayoutArrangement domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
-| `FB/ime/keyboard/LayoutAssembly.kt` | 23 | A | ART JNI; native model/geometry/plan projection only, no independent domain choice |
-| `FB/ime/keyboard/LayoutManager.kt` | 216 | M | Context.assets; cache/load/concurrency and layout object ownership |
+| `FB/ime/keyboard/LayoutAssembly.kt` | 23 | A | ART JNI; native model/geometry/plan projection only, no independent domain choice (phase 3 item 2: `merge` and `hints` serve only the Compose fallback; `plan` and `modifier` name the files the Rust graph is built from) |
+| `FB/ime/keyboard/LayoutManager.kt` | 216 | M | Context.assets; cache/load/concurrency and layout object ownership (serves only the Compose fallback since phase 3 item 2: the Rust renderer's keys come from Rust's key graph (`keygraph`); deleted at compose-removal step K) |
 | `FB/ime/keyboard/LayoutType.kt` | 60 | P | portable LayoutType domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
 | `FB/ime/keyboard/ShiftLogic.kt` | 85 | A | ART JNI; native model/geometry/plan projection only, no independent domain choice |
 | `FB/ime/keyboard/SpaceBarMode.kt` | 21 | P | portable SpaceBarMode domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
@@ -330,7 +333,7 @@ Path prefixes (each path below expands against the repository root):
 | `FB/ime/onehanded/OneHandedMode.kt` | 23 | P | portable OneHandedMode domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
 | `FB/ime/popup/ExtendedPopup.kt` | 47 | A | ART JNI; native model/geometry/plan projection only, no independent domain choice |
 | `FB/ime/popup/PopupMapping.kt` | 34 | P | portable PopupMapping domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
-| `FB/ime/popup/PopupSet.kt` | 202 | P | portable PopupSet domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
+| `FB/ime/popup/PopupSet.kt` | 202 | P | portable PopupSet domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs (phase 3 item 2: `MutablePopupSet` and its merging serve only the Compose fallback; `PopupSet` stays as the popup identity a Rust key carries, `PopupKeys` as what a press shows) |
 | `FB/ime/popup/PopupVisibilityState.kt` | 4 | P | portable PopupVisibilityState domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
 | `FB/ime/sheet/BottomSheetState.kt` | 4 | P | portable BottomSheetState domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
 | `FB/ime/smartbar/CandidatesDisplayMode.kt` | 24 | P | portable CandidatesDisplayMode domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
@@ -354,10 +357,10 @@ Path prefixes (each path below expands against the repository root):
 | `FB/ime/text/key/KeyType.kt` | 58 | P | portable KeyType domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
 | `FB/ime/text/key/KeyVariation.kt` | 35 | P | portable KeyVariation domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
 | `FB/ime/text/key/UtilityKeyAction.kt` | 26 | P | portable UtilityKeyAction domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
-| `FB/ime/text/keyboard/TextKey.kt` | 170 | P | portable TextKey domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
-| `FB/ime/text/keyboard/TextKeyData.kt` | 213 | M | android.icu.lang.UCharacter; keep platform casing facts, move retained model/cache state |
-| `FB/ime/text/keyboard/TextKeyboard.kt` | 131 | P | portable TextKeyboard domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
-| `FB/ime/text/keyboard/TextKeyboardCache.kt` | 36 | P | portable TextKeyboardCache domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
+| `FB/ime/text/keyboard/TextKey.kt` | 170 | P | portable TextKey domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs (serves only the Compose fallback since phase 3 item 2: the Rust renderer's keys come from Rust's key graph (`keygraph`); deleted at compose-removal step K) |
+| `FB/ime/text/keyboard/TextKeyData.kt` | 213 | M | android.icu.lang.UCharacter; keep platform casing facts, move retained model/cache state (phase 3 item 2: `compute` and the auto-text casing serve only the Compose fallback; the data classes carry the Rust graph's keys to the input path) |
+| `FB/ime/text/keyboard/TextKeyboard.kt` | 131 | P | portable TextKeyboard domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs (serves only the Compose fallback since phase 3 item 2: the Rust renderer's keys come from Rust's key graph (`keygraph`); deleted at compose-removal step K) |
+| `FB/ime/text/keyboard/TextKeyboardCache.kt` | 36 | P | portable TextKeyboardCache domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs (serves only the Compose fallback since phase 3 item 2: the Rust renderer's keys come from Rust's key graph (`keygraph`); deleted at compose-removal step K) |
 | `FB/ime/theme/FlorisAssetResolver.kt` | 44 | A | Context.filesDir / assets; native-selected asset path resolution |
 | `FB/ime/theme/FlorisImeTheme.kt` | 77 | M | Resources / composition locals; base-style/layout-default choice and theme hosting |
 | `FB/ime/theme/FlorisImeThemeBaseStyle.kt` | 348 | P | portable FlorisImeThemeBaseStyle domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |

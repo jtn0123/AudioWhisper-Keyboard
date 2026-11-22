@@ -368,6 +368,57 @@ at 7.9 to 8.2.
 
 **Still owed.** The CPU gate on a quiet host (E28), and on the phone (P4).
 
+## The key and layout object graph (2026-11-22)
+
+The key graph ([phase3-key-graph.md](phase3-key-graph.md)) builds and computes the keys the Rust
+renderer draws in Rust, and answers the smartbar's questions from them. These trials compare it,
+at 28fce464e, with the main it was built on (b10bee9b1). Main has since moved to 20b07e922
+(step 10's extension screens), which touches neither path. They were run as the trials above:
+`cpu-trials.py --rust-only --trials 1`, main, the branch, main, the branch, on `aw_keyboard`
+with the Rust renderer, and with the settings the device had before this work restored. The
+device session was closed and opened again first. The folders are in
+`build/cpu-p95/key-graph/`.
+
+**The 2 ms wall-clock gate was not met, by main or by the branch.** This is not a pass.
+
+| Trial | Frames | p50 | p95 | p99 | Over 2 ms | CPU time p95 |
+|---|---:|---:|---:|---:|---:|---:|
+| main 1 | 1,156 | 0.993 | 3.238 | 6.165 | 164 (14.2%) | 1.490 |
+| branch 1 | 1,128 | 1.054 | 3.279 | 6.862 | 164 (14.5%) | 1.752 |
+| main 2 | 1,172 | 1.024 | 3.433 | 5.604 | 166 (14.2%) | 1.659 |
+| branch 2 | 1,161 | 0.991 | 3.322 | 6.954 | 151 (13.0%) | 1.595 |
+
+All four typed the expected text (`809d588b…`, 300 units, and `c14d19d2…`, 308 units, after the
+popups).
+
+Touch to post, and the p50 draw time, in ms, of a press frame, a release frame and a frame that
+brought only new words:
+
+| Trial | Touch to post p50 | p95 | Press | Release | New words |
+|---|---:|---:|---:|---:|---:|
+| main 1 | 141.1 | 320.1 | 2.692 | 3.238 | 2.920 |
+| branch 1 | 125.1 | 278.2 | 2.760 | 2.350 | 2.772 |
+| main 2 | 133.2 | 282.5 | 2.721 | 2.802 | 3.123 |
+| branch 2 | 141.0 | 310.7 | 2.974 | 2.813 | 2.758 |
+
+* The branch is not slower beyond noise. Its p95, 3.279 and 3.322 ms, lies between main's 3.238
+  and 3.433. Its share of frames over 2 ms is 14.5% in one trial, against main's 14.2% in both,
+  and 13.0% in the other.
+* Its CPU time p95 is 1.752 and 1.595 ms against main's 1.490 and 1.659: one above both of
+  main's, one between them. That is 0.093 ms over main's higher trial, while main's own two
+  trials differ by 0.169, so it is read as noise.
+* Touch to post moves both ways, and the release and new-words medians are level or lower on
+  the branch.
+* The press frame's median is higher on the branch in both trials, 2.760 and 2.974 ms against
+  2.692 and 2.721, on 43 to 58 frames each. The release median moves by 0.46 ms between the
+  branch's own two trials, so this is not read as a cost. It points the same way twice, though,
+  so the phone's p95 (P4) should look at press frames.
+
+The host was quieter than for the trials above, but not quiet. The load average was 6.2 when
+main 1 started and fell to 2.9 by branch 2's start, ending at 4.9.
+
+**Still owed.** The CPU gate on a quiet host (E28), and on the phone (P4).
+
 ## Reproducing
 
 ```bash

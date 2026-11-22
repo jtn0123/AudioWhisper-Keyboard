@@ -168,6 +168,33 @@ Stage 5 packages 1–3, one event family at a time:
 * **The size.** Production Kotlin is 29 counted lines smaller.
 * **Owed.** P4 (the phone p95) stays owed, as do the new P22, E34 and E35.
 
+**Item 2 done (2026-11-22)** ([phase 3: the key and layout object graph](phase3-key-graph.md)).
+
+* **The key graph.** Rust reads the layout and popup-mapping files, builds the keys, and
+  computes each one's label, code, icon, enabled state, popup set and hints for the keyboard's
+  state (`lib/rust/crates/keygraph`). Kotlin reads the files, reports the facts only Android
+  knows, answers the casing questions only Android's ICU can, and carries out what a key does.
+  The Rust renderer draws its keys from this graph; the Compose fallback keeps the frozen Kotlin
+  graph until step K.
+* **The smartbar and its panels.** Each action's enabled state, icon and label are answered
+  from the same graph, on the bar and in the overflow and editor panels.
+* **The proof.**
+  * Three seeded 50,000-state traces match main's frozen graph key by key and field by field,
+    with no difference, across every mode, shift state, IME action, input class, right-to-left
+    and non-Latin locales, synthetic layouts, abandoned computations and service recreation.
+  * 20,000 seeded smartbars match main, except for item 1's two label fixes; their panels'
+    answers match main's evaluator with no exception.
+  * The digests are unchanged, "teh" and a space still type "the ", and the reshow and
+    reading-order probes pass.
+  * 73 of 73 mutations are caught, the last after a unit test was added for it.
+  * CPU trials: the branch is no slower than main beyond noise. Neither met the 2 ms gate on a
+    loaded host, so it is not a pass.
+  * Layout rebuilds: mode switches are faster than main's, subtype switches 17 to 57 ms
+    slower at p50 in both pairs of trials, which is owed a profile (E41).
+* **The size.** Production Kotlin is 305 counted lines larger: three new adapters, while the
+  Kotlin graph stays for the Compose fallback. Its files are marked for deletion at step K.
+* **Owed.** P4 (the phone p95) stays owed, as do the new P25 and E38–E41.
+
 ### 4. Settings (M–L, alongside 3)
 
 [compose-removal.md](compose-removal.md) steps 5–12, in its order:
