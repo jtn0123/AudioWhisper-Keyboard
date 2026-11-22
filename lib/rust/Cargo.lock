@@ -1613,6 +1613,7 @@ version = "0.1.0"
 dependencies = [
  "backup",
  "chars",
+ "extensions",
  "gestures",
  "glifo 0.3.0",
  "icu_segmenter",

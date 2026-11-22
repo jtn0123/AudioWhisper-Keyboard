@@ -109,10 +109,14 @@ impl App {
         let Some(c) = self.list(i) else {
             return String::new();
         };
-        c.entries
+        let at = c
+            .entries
             .iter()
-            .find(|e| e.0 == choice && !e.2.is_empty() && (selected || !c.selected_only))
-            .map_or(String::new(), |e| self.label(e.2))
+            .position(|e| e.0 == choice && !e.2.is_empty() && (selected || !c.selected_only));
+        at.map_or(String::new(), |at| {
+            let example = c.emoji.get(at).copied().unwrap_or_default();
+            self.label(c.entries[at].2).replace("{example}", example)
+        })
     }
     /// The slider's `valueLabel` for a raw value. Plurals arrive resolved per value as
     /// `key#n`; a value outside the slider's range shows bare.
@@ -196,6 +200,7 @@ impl App {
         out.extend(super::themes::KEYS);
         out.extend(super::project_licence::KEYS);
         out.extend(super::setup::KEYS);
+        out.extend(super::theme_editor::string_keys());
         out.extend(super::catalogue::HOME.iter().map(|h| h.1));
         for screen in super::catalogue::SCREENS {
             out.push(screen.title);

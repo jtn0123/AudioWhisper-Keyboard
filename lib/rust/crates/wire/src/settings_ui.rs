@@ -62,6 +62,9 @@ crate::declare! {
         /// The installed themes a [`SettingsUiThemeEffect`](themes::effect::KINDS) asked for:
         /// [`SettingsUiTheme`](themes::row::FIELDS) rows.
         THEMES = 27,
+        /// The component a [`SettingsUiThemeEditorEffect`](theme_editor::effect::KINDS) asked
+        /// for: a [`SettingsUiThemeEditor`](theme_editor::report::FIELDS) report.
+        THEME_EDITOR = 28,
         /// The activity opened without a saved state: the route of the `ui://florisboard/` link
         /// it was opened with, or nothing. Rust picks the first screen: Setup until it is
         /// finished, unless the link names a screen.
@@ -156,6 +159,7 @@ pub mod files;
 pub mod languages;
 pub mod setup;
 pub mod text;
+pub mod theme_editor;
 pub mod themes;
 pub mod words;
 
@@ -187,6 +191,9 @@ pub const GROUPS: &[&crate::Group] = &[
     &text::outcome::KINDS,
     &text::selection::KINDS,
     &text::node::IDS,
+    &theme_editor::effect::KINDS,
+    &theme_editor::outcome::KINDS,
+    &theme_editor::report::FIELDS,
     &themes::effect::KINDS,
     &themes::kind::KINDS,
     &themes::row::FIELDS,

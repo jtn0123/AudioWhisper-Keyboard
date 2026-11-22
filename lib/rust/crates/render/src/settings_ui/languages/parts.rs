@@ -22,7 +22,13 @@ impl App {
             Lang::Locales => self.locales_row(p, i, at, clip, text),
             Lang::Import => self.import_row(p, at, clip, text),
             Lang::Packs => self.packs_row(p, at, clip, text),
-            Lang::Message | Lang::AllPresets | Lang::DeletePack | Lang::Cancel | Lang::Save => 0.0,
+            Lang::Message
+            | Lang::AllPresets
+            | Lang::DeletePack
+            | Lang::Cancel
+            | Lang::Save
+            | Lang::Discard
+            | Lang::DeleteRule => 0.0,
         }
     }
     /// Row `i`'s place in the focus order. The presets row stands for the top bar's Delete

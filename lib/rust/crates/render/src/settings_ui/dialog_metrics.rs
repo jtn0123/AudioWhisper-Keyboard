@@ -20,7 +20,7 @@ impl App {
         let r = self.rows()[m.row];
         let [_, _, d, _] = self.config;
         match r.kind {
-            Kind::Choice(_) | Kind::Pick(_) | Kind::Lang(Lang::AllPresets) => {
+            Kind::Choice(_) | Kind::Pick(_) | Kind::Lang(Lang::AllPresets) | Kind::ThemeEdit(_) => {
                 let [start, end] = if self.presets_dialog() {
                     [self.px(16.0); 2]
                 } else {

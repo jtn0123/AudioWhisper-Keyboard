@@ -17,6 +17,7 @@ mod project_licence;
 mod setup;
 mod smartbar;
 mod theme;
+pub mod theme_editor;
 pub mod themes;
 mod typing;
 pub mod words;
@@ -52,7 +53,8 @@ pub struct Choices {
     pub entries: &'static [Entry],
     /// `showDescriptionOnlyIfSelected`.
     pub selected_only: bool,
-    /// A label template's `{emoji}` argument per entry (EmojiSkinTone), or empty.
+    /// A label template's `{emoji}` argument per entry (EmojiSkinTone), or a description's
+    /// `{example}` (the theme editor's colour representations), or empty.
     pub emoji: &'static [&'static str],
 }
 /// How a DialogSliderPreference's `valueLabel` shows a value.
@@ -134,6 +136,8 @@ pub enum Kind {
     Words(words::Part),
     /// A part of the theme manager (`themes.rs`).
     Themes(themes::Part),
+    /// A theme editor screen's own part, painted by `settings_ui/theme_editor`.
+    ThemeEdit(theme_editor::Part),
 }
 /// What a Back up or Restore row is. A group is its `wire::backup::layout` position.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -363,13 +367,20 @@ pub const SCREENS: &[Screen] = &[
     themes::DAY,
     themes::NIGHT,
     setup::SCREEN,
+    theme_editor::EDIT,
+    theme_editor::RULE_ADD,
+    theme_editor::RULE_EDIT,
+    theme_editor::META,
+    theme_editor::TUNE,
 ];
 /// The native screen at `route`, if Rust draws it. The subtype editor's and the word
 /// editor's routes carry the item's id as one more segment, and a language's words its locale.
 pub fn screen(route: &str) -> Option<&'static Screen> {
     let base = match super::languages::edit_id(route) {
         Some(_) => super::languages::EDIT_ROUTE,
-        None => super::words::screen_route(route).unwrap_or(route),
+        None => super::words::screen_route(route)
+            .or_else(|| super::theme_editor::screen_route(route))
+            .unwrap_or(route),
     };
     SCREENS.iter().find(|s| s.route == base)
 }

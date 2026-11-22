@@ -162,7 +162,8 @@ fn group_one_routes_are_native_and_other_routes_fall_back_with_the_native_list()
                   settings/dictionary/user-dictionary/SYSTEM/word/add|\
                   settings/dictionary/user-dictionary/SYSTEM/word/edit|\
                   settings/theme/manage/SELECT_DAY|settings/theme/manage/SELECT_NIGHT|\
-                  setup";
+                  setup|settings/theme/edit|settings/theme/editor/rule/add|settings/theme/editor/rule|\
+                  settings/theme/editor/meta|settings/theme/editor/tune";
     assert_eq!(a.effects.pop().unwrap(), ["compose", compose, native]);
 }
 

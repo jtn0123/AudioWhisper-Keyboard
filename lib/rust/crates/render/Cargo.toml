@@ -18,6 +18,8 @@ popup = { path = "../popup" }
 snygg = { path = "../snygg" }
 # Kotlin's string rules and the user dictionary's checks, for the user dictionary screens.
 chars = { path = "../chars" }
+# The extension editor's checks, for the theme editor's component meta.
+extensions = { path = "../extensions" }
 utilities = { path = "../utilities" }
 parley = { version = "=0.13.0", default-features = false, features = ["std"] }
 read-fonts = "=0.47.0"

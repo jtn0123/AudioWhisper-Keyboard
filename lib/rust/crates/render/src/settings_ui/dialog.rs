@@ -101,7 +101,7 @@ impl App {
         // Every preset is a plain list item, as Compose listed them; other lists are radios.
         let plain = self.presets_dialog();
         match r.kind {
-            Kind::Choice(_) | Kind::Pick(_) | Kind::Lang(Lang::AllPresets) => {
+            Kind::Choice(_) | Kind::Pick(_) | Kind::Lang(Lang::AllPresets) | Kind::ThemeEdit(_) => {
                 for (j, choice) in self.choices(m.row).iter().enumerate() {
                     let (label, summary, rh) = rows[j].clone();
                     self.add(

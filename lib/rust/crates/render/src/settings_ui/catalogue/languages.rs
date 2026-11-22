@@ -42,6 +42,9 @@ pub enum Lang {
     /// The editor's bottom bar: Cancel, and Save.
     Cancel,
     Save,
+    /// The theme editor's questions: leave without saving, and delete the rule being edited.
+    Discard,
+    DeleteRule,
 }
 
 const NAMES: Choices = Choices {

@@ -205,7 +205,7 @@ impl App {
                 .stack
                 .last()
                 .is_some_and(|r| super::edit_id(r).is_some());
-        subtype || self.word_to_delete().is_some()
+        subtype || self.word_to_delete().is_some() || self.theme_header().is_some()
     }
     pub(in crate::settings_ui) fn paint_header_delete(&mut self, p: &mut Panel, header: f32) {
         if !self.header_delete() {
@@ -220,17 +220,34 @@ impl App {
             size,
         );
         let window = rect(0.0, 0.0, w, self.config[1]);
-        if self.focus == DELETE_ID {
+        // The theme editor's Save or Delete, else the subtype's or word's Delete.
+        let (id, icon_name, key, summary, action) = match self.theme_header() {
+            Some(header) => header,
+            None => match self.word_to_delete() {
+                Some(w) => (
+                    DELETE_ID,
+                    "delete",
+                    "action__delete",
+                    w.word.clone(),
+                    Action::Words(WordTap::Delete),
+                ),
+                None => (
+                    DELETE_ID,
+                    "delete",
+                    "action__delete",
+                    self.deleted_name(),
+                    Action::Lang(Tap::DeleteSubtype),
+                ),
+            },
+        };
+        if self.focus == id {
             self.paint_clipped_box(p, b, self.colors[4], size / 2.0, window);
         }
         let icon = self.px(24.0);
         let at = rect(b.left + self.px(12.0), b.top + self.px(12.0), icon, icon);
-        self.paint_icon(p, "delete", at, self.colors[2], window);
-        let mut c = plain(DELETE_ID, b, self.label("action__delete"), "button");
-        (c.summary, c.action) = match self.word_to_delete() {
-            Some(w) => (w.word.clone(), Action::Words(WordTap::Delete)),
-            None => (self.deleted_name(), Action::Lang(Tap::DeleteSubtype)),
-        };
+        self.paint_icon(p, icon_name, at, self.colors[2], window);
+        let mut c = plain(id, b, self.label(key), "button");
+        (c.summary, c.action) = (summary, action);
         self.push_control(c, window);
     }
     /// The name of the subtype the editor would delete.

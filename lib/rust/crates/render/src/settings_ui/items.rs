@@ -266,7 +266,8 @@ impl App {
             at += rh;
         }
         if let Some(gone) = self.list.deleted.clone().filter(|d| d.source == source) {
-            at += self.undo_bar(p, &gone, (x, at), clip, text);
+            let undo = (gone.title.as_str(), Action::List(gone.source, Op::Undo));
+            at += self.undo_bar(p, undo, (x, at), clip, text);
         }
         let add = Entry {
             id: ADD_ID,
@@ -283,7 +284,7 @@ impl App {
         at - y
     }
     /// The 48 dp square of the `k`th button from the end of row `b`, 4 dp in from its edge.
-    fn end_button(&self, b: Rect, k: usize) -> Rect {
+    pub(super) fn end_button(&self, b: Rect, k: usize) -> Rect {
         let size = self.px(48.0);
         let right = b.right - self.px(4.0) - size * (k - 1) as f32;
         rect(
@@ -294,7 +295,15 @@ impl App {
         )
     }
     /// A 24 dp icon centred in button `b`, over the focus highlight when it has focus.
-    fn paint_button_icon(&self, p: &mut Panel, id: i32, icon: &str, b: Rect, ink: u32, clip: Rect) {
+    pub(super) fn paint_button_icon(
+        &self,
+        p: &mut Panel,
+        id: i32,
+        icon: &str,
+        b: Rect,
+        ink: u32,
+        clip: Rect,
+    ) {
         if id == self.focus {
             self.paint_clipped_box(p, b, self.colors[4], b.height() / 2.0, clip);
         }
@@ -378,11 +387,11 @@ impl App {
         self.push_control(c, clip);
         (rh, b)
     }
-    /// "Deleted {name}" and an Undo button; its height.
-    fn undo_bar(
+    /// "Deleted {name}" and an Undo button that does `action`; its height.
+    pub(super) fn undo_bar(
         &mut self,
         p: &mut Panel,
-        gone: &Deleted,
+        (name, action): (&str, Action),
         (x, y): (f32, f32),
         clip: Rect,
         text: &mut Text,
@@ -391,7 +400,7 @@ impl App {
         let undo = self.label(KEYS[4]);
         let layout = self.button_label(text, &undo);
         let bw = (layout.width.ceil() + 2.0 * self.px(12.0)).max(self.px(58.0));
-        let message = self.label(KEYS[3]).replace("{name}", &gone.title);
+        let message = self.label(KEYS[3]).replace("{name}", name);
         let width = (w - 2.0 * self.px(16.0) - bw - self.px(8.0)).max(1.0);
         let mh = self.measure(text, &message, self.sp(14), width).ceil();
         let rh = (mh + 2.0 * self.px(16.0)).max(self.px(64.0));
@@ -425,8 +434,8 @@ impl App {
         let style = super::cards::LABEL_LARGE;
         self.paint_styled(p, &undo, label_at, style, self.colors[3], clip);
         let mut c = plain(UNDO_ID, b, undo, "button");
-        c.summary = gone.title.clone();
-        c.action = Action::List(gone.source, Op::Undo);
+        c.summary = name.into();
+        c.action = action;
         self.push_control(c, clip);
         rh
     }

@@ -29,6 +29,7 @@ mod rows;
 pub use rows::CODE_KEYS;
 mod scrollbar;
 pub mod setup;
+pub mod theme_editor;
 pub mod themes;
 pub mod time;
 mod time_dial;
@@ -74,6 +75,8 @@ pub enum Action {
     Themes(themes::Tap),
     /// A tap on the setup screen's step headers, its button or its footer.
     Setup(setup::Tap),
+    /// A tap on the theme editor's own controls.
+    ThemeEdit(theme_editor::Tap),
 }
 #[derive(Clone, Debug)]
 pub struct Control {
@@ -191,6 +194,8 @@ pub struct App {
     pub themes: themes::Themes,
     /// The setup screen's chosen step and the step the user left it for.
     pub setup: setup::State,
+    /// The theme editor's component, draft and open rule or meta editor.
+    pub theme_editor: theme_editor::ThemeEditor,
     /// Each node's custom accessibility actions, as the target control and its label.
     pub custom_actions: Vec<(i32, Vec<(i32, String)>)>,
     /// The wall clock in milliseconds: a new subtype's id, as `System.currentTimeMillis()`.
@@ -258,6 +263,7 @@ impl Default for App {
             words: Default::default(),
             themes: Default::default(),
             setup: Default::default(),
+            theme_editor: Default::default(),
             custom_actions: vec![],
             now: languages::wall_clock,
         }
@@ -299,8 +305,10 @@ impl App {
                 // A load lost with an earlier view is asked for again.
                 self.licences.requested = false;
             }
-            if route == catalogue::HOME_ROUTE || route == setup::ROUTE {
-                // Home and setup are roots; one replacing the other opens at the top.
+            let root = theme_editor::target(route).is_some();
+            if root || route == catalogue::HOME_ROUTE || route == setup::ROUTE {
+                // Home, setup and a component editor are roots; one replacing the other opens at
+                // the top.
                 if self.stack.first().is_none_or(|r| r != route) {
                     self.scrolls = vec![0.0];
                 }
@@ -326,6 +334,7 @@ impl App {
             self.themes_opened(route);
             self.project_opened(route);
             self.setup_opened(route);
+            self.theme_editor_opened(route);
         } else if route == "@enable" {
             self.effects.push(vec!["enable".into()]);
         } else {
@@ -389,6 +398,8 @@ impl App {
             self.editor.focused = false;
             self.editor.composing = None;
             self.effects.push(vec!["hideEditor".into()]);
+        } else if self.theme_back() {
+            // Unsaved theme edits: the discard question opened instead.
         } else if self.stack.len() > 1 {
             let had = self.backups_open();
             self.release_field();
@@ -400,6 +411,7 @@ impl App {
             self.languages_left();
             self.words_left();
             self.themes_left();
+            self.theme_editor_left();
         } else {
             self.effects.push(vec!["finish".into()]);
         }

@@ -182,7 +182,7 @@ impl App {
         self.open_modal(i, selected);
     }
     /// Opens row `row`'s dialog with `selected`.
-    pub(super) fn open_modal(&mut self, row: usize, selected: String) {
+    pub(in crate::settings_ui) fn open_modal(&mut self, row: usize, selected: String) {
         if self.editor.focused {
             self.editor.focused = false;
             self.editor.composing = None;
@@ -250,10 +250,12 @@ impl App {
             d.value = p;
         }
     }
-    /// The bottom bar's Cancel and Save, the subtype editor's or the word editor's.
+    /// The bottom bar's Cancel and Save: the subtype editor's, the word editor's, or the theme
+    /// editor's rule and meta editors'.
     pub(in crate::settings_ui) fn lang_row(&mut self, l: Lang) {
         match l {
             Lang::Cancel => self.close_editor(),
+            Lang::Save if self.in_theme_editor() => self.save_theme_form(),
             Lang::Save if self.word_editor() => self.save_word(),
             Lang::Save => self.save_draft(),
             _ => {}

@@ -10,7 +10,7 @@ use wire::settings_ui::languages::effect;
 impl App {
     /// Opens the dialog row `l` of the screen on top, with `selected`: a message's string key, or
     /// the language pack to delete.
-    pub(super) fn open_lang_dialog(&mut self, l: Lang, selected: &str) {
+    pub(in crate::settings_ui) fn open_lang_dialog(&mut self, l: Lang, selected: &str) {
         let at = self
             .rows()
             .iter()
@@ -38,6 +38,7 @@ impl App {
                     .map_or(0, |r| r.presets.len());
                 Some((0..n).map(|k| k.to_string()).collect())
             }
+            Kind::ThemeEdit(_) => self.theme_choices(i),
             _ => None,
         }
     }
@@ -55,6 +56,7 @@ impl App {
                     .map_or_else(|| choice.to_owned(), |o| o.1),
             ),
             Kind::Lang(Lang::AllPresets) => Some(self.preset_text(choice.parse().ok()?).0),
+            Kind::ThemeEdit(_) => self.theme_choice_label(i, choice),
             _ => None,
         }
     }
@@ -65,7 +67,7 @@ impl App {
         choice: &str,
     ) -> Option<String> {
         match self.rows().get(i)?.kind {
-            Kind::Pick(_) => Some(String::new()),
+            Kind::Pick(_) | Kind::ThemeEdit(_) => Some(String::new()),
             Kind::Lang(Lang::AllPresets) => Some(self.preset_text(choice.parse().ok()?).1),
             _ => None,
         }
@@ -85,17 +87,23 @@ impl App {
                     self.apply_preset(k);
                 }
             }
+            Kind::ThemeEdit(_) => self.theme_choose(row, &choice),
             _ => return Some(choice),
         }
         self.modal = None;
         self.focus = -1;
         None
     }
-    /// The confirm button of a language dialog: OK closes the error, Delete deletes the pack.
+    /// The confirm button of a language dialog: OK closes the error, Delete deletes the pack;
+    /// the theme editor's Discard leaves it and its Delete deletes the rule being edited.
     pub(in crate::settings_ui) fn lang_confirmed(&mut self, l: Lang, selected: String) {
-        if l == Lang::DeletePack {
-            self.effects
-                .push(vec![effect::DELETE_PACK.into(), selected]);
+        match l {
+            Lang::DeletePack => self
+                .effects
+                .push(vec![effect::DELETE_PACK.into(), selected]),
+            Lang::Discard => self.discard_theme(),
+            Lang::DeleteRule => self.delete_form_rule(),
+            _ => {}
         }
     }
     /// The message a language dialog shows: the error, or the question naming the pack.
@@ -103,6 +111,15 @@ impl App {
         let m = self.modal.as_ref()?;
         match self.rows()[m.row].kind {
             Kind::Lang(Lang::Message) => Some(self.label(&m.selected)),
+            Kind::Lang(Lang::Discard) => Some(self.label(self.rows()[m.row].summary)),
+            Kind::Lang(Lang::DeleteRule) => {
+                let original = self.theme_editor.form.as_ref()?.original.as_ref()?;
+                let name = self.rule_lines(original).0;
+                Some(
+                    self.label(self.rows()[m.row].summary)
+                        .replace("{name}", &name),
+                )
+            }
             Kind::Lang(Lang::DeletePack) => {
                 let packs = self
                     .languages
@@ -125,9 +142,14 @@ impl App {
     pub(in crate::settings_ui) fn lang_buttons(&self) -> Option<[&'static str; 3]> {
         let m = self.modal.as_ref()?;
         match self.rows()[m.row].kind {
-            Kind::Pick(_) | Kind::Lang(Lang::AllPresets) => Some(["", "action__cancel", ""]),
+            Kind::Pick(_) | Kind::Lang(Lang::AllPresets) | Kind::ThemeEdit(_) => {
+                Some(["", "action__cancel", ""])
+            }
             Kind::Lang(Lang::Message) => Some(["", "", "action__ok"]),
-            Kind::Lang(Lang::DeletePack) => Some(["", "action__cancel", "action__delete"]),
+            Kind::Lang(Lang::DeletePack | Lang::DeleteRule) => {
+                Some(["", "action__cancel", "action__delete"])
+            }
+            Kind::Lang(Lang::Discard) => Some(["", "action__cancel", "action__discard"]),
             _ => None,
         }
     }

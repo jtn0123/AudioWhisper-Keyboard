@@ -165,6 +165,11 @@
     <string name="settings__theme_editor__fine_tune__display_kbd_after_dialogs">Display keyboard after dialogs</string>
     <string name="settings__theme_editor__add_rule">Add rule</string>
     <string name="settings__theme_editor__edit_rule">Edit rule</string>
+    <string name="settings__theme_editor__duplicate_rule">Duplicate rule</string>
+    <string name="settings__theme_editor__font_name_invalid">A font name may hold only letters, digits, spaces and hyphens.</string>
+    <string name="settings__theme_editor__delete_rule_message">Delete the rule \"{name}\" and its properties? You can undo this on the list of rules.</string>
+    <string name="settings__theme_editor__loading">Loading the stylesheet…</string>
+    <string name="settings__theme_editor__missing_workspace">This theme is no longer being edited. Go back to the extension editor and open the component again.</string>
     <string name="settings__theme_editor__no_rules_defined">This stylesheet has no rules defined. Add a rule to start customizing this stylesheet.</string>
     <string name="settings__theme_editor__rule_already_exists">This stylesheet rule is already defined.</string>
     <string name="settings__theme_editor__rule_name">Element / Annotation</string>

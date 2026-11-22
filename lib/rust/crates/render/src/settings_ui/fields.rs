@@ -4,8 +4,8 @@
 //! One `Editor` takes the InputConnection at a time. While a row's field owns it, the preview
 //! field's editor waits in `parked`; a row's field starts from, and writes every change back
 //! to, its string preference, as the screen's `onValueChange` does. A line field (Select
-//! language's search, the word list's search, the word editor's fields) is a row's field too,
-//! one line long and kept in its screen's state instead of a preference.
+//! language's search, the word list's search, the word and theme editors' fields) is a row's
+//! field too, one line long and kept in its screen's state instead of a preference.
 use super::{
     Action, App, Control,
     catalogue::{Kind, Screen, languages::Lang, words::Part},
@@ -131,6 +131,7 @@ impl App {
             Kind::Lang(Lang::Search) => Some(self.languages.search.clone()),
             Kind::Words(Part::Search) => Some(self.words.search.clone()),
             Kind::Words(Part::Field(k)) => Some(self.word_field_text(k)),
+            Kind::ThemeEdit(part) => self.theme_line(part),
             _ => None,
         }
     }
@@ -149,6 +150,7 @@ impl App {
             Some(Kind::Lang(Lang::Search)) => self.languages.search = value,
             Some(Kind::Words(Part::Search)) => self.words.search = value,
             Some(Kind::Words(Part::Field(k))) => self.word_typed(k, value),
+            Some(Kind::ThemeEdit(part)) => self.theme_typed(part, value),
             _ => {}
         }
     }
