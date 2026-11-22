@@ -1,9 +1,10 @@
 """Break the LatinIME port in crates/latin, require a test failure, restore exact bytes, rerun green.
 
 python3 -I scripts/latin-mutations.py SUITE OUTPUT [CASE...]
-SUITE is `oracle` (the differential tests against LatinIME's C++, `--features oracle`; only
-the commits that still have the C++) or `golden` (the golden tests alone, no feature). Every
-mutation the oracle kills, the goldens must kill too: docs/phase6-oracle-goldens.md has the table.
+SUITE is `golden` (the golden tests alone) or `oracle` (the differential tests against LatinIME's
+C++, `--features oracle`, which need the C++: run them from a checkout of the generator commit
+docs/phase6-oracle-goldens.md names, or of an earlier one). Every mutation the oracle kills, the
+goldens must kill too: that document has the table.
 Host only, no device. Compilation errors do not count. A run that passes LIMIT is stopped and
 reported with exit `timeout`. One green run of the untouched source follows the mutations, after
 each one's bytes are checked restored.

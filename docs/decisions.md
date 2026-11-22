@@ -25,13 +25,13 @@ personal keyboard, or KLIPY publishes stable documentation.
 ## arm64 only
 
 `ndk { abiFilters += "arm64-v8a" }` in `app/build.gradle.kts`. The phone is arm64, and so
-are the emulators used for testing on this Mac. Each extra ABI means building the Rust,
-LatinIME's C++ and sherpa-onnx again, and about 30 MB more APK. Lint's
-`ChromeOsAbiSupport` warning is expected and left visible, not suppressed. There's a second,
-quieter reason: the Rust typing code is checked bit for bit against the C++ it replaced, and
-the two round alike only where both fuse multiply-adds, which is arm64 (see
-`.github/workflows/android.yml`). **Would change if** the keyboard needs to run on an x86-64
-device; that would also need the oracle tests to accept a last-bit difference there.
+are the emulators used for testing on this Mac. Each extra ABI means building the Rust and
+sherpa-onnx again, and about 30 MB more APK. Lint's `ChromeOsAbiSupport` warning is expected
+and left visible, not suppressed. The Rust typing code is checked bit for bit against golden
+files of the C++'s answers, written on arm64, where the C++ fused the multiply-adds the Rust
+writes as `mul_add` (see `.github/workflows/android.yml`); `mul_add` rounds alike on every
+target, but no x86-64 run has checked the goldens. **Would change if** the keyboard needs to
+run on an x86-64 device.
 
 ## Logic and all UI drawing in Rust
 
@@ -860,7 +860,8 @@ Claude Fable 5.2 and GPT-6.2 Astra. Three choices in it were the owner's:
 * **The C++ LatinIME oracle and the frozen `Reference*.kt` copies become fixed test data, then
   are deleted.** Keeping them means building 14,868 lines of C++ and about 17,400 lines of
   reference Kotlin forever to check code that is meant to move away from them. The fixed data
-  must catch each mutation the existing mutation scripts make before its source goes.
+  must catch each mutation the existing mutation scripts make before its source goes. The C++
+  half was done the same day (see below).
 * **The phone checks come later.** Phase 0 (an inventory regenerated at HEAD and a ratchet on
   hand-written Kotlin) and phase 2 (the boundary generated from Rust) need no phone; deleting
   the Compose keyboard waits for them.
@@ -886,3 +887,19 @@ still clears the whole clipboard history even if only some clipboard groups are 
 Compose did; the confirmation now says so. **Would change if** someone needs erase to empty a
 group on purpose: that is then its own control, not a side effect of ticking a group with no
 data.
+
+## LatinIME's C++ answers are kept as digests, on both dictionaries (2026-11-21)
+
+Phase 6 of [all-rust.md](all-rust.md) turned the C++ oracle into golden files
+([record](phase6-oracle-goldens.md)). The oracle tests compared 224.6 million answers, so a file
+does not hold every one: it holds their count, a chained FNV-1a digest of them, the digest
+after each power-of-two count, and a few answers in full. That is 199 KB for all 76 files, and a
+failure still names the first range of answers that differs and shows what LatinIME answered.
+
+The goldens cover both dictionaries the oracle tests used, AOSP's and the one the app ships.
+They share AOSP's 160,669 words but not its statistics, so the shipped dictionary's answers are
+its own; a changed dictionary would fail them as if the decoder had changed, so `latin-golden`
+pins both files' fingerprints and says which goldens to write again. **Would change if** the shipped dictionary is
+rebuilt on purpose: its goldens then come from the generator commit's oracle on the new file
+(the record says how), or, once the decoder is meant to differ from LatinIME, from the Rust
+itself after review.

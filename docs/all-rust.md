@@ -17,7 +17,8 @@ moving the keyboard's state out of Kotlin, the Kotlin–Rust boundary, and the r
 * **LatinIME is ported.** The app ships no C++: its native libraries are `libawnative` (Rust),
   sherpa-onnx with onnxruntime (speech), and one androidx library. `lib/latinime` (14,868
   lines) is built only on the host, as the oracle `latin-oracle` compares Rust against. The
-  `stage6/*` branches were fully merged and are deleted.
+  `stage6/*` branches were fully merged and are deleted. (Phase 6 has since turned the oracle
+  into golden files and deleted both: [record](phase6-oracle-goldens.md).)
 * **Rust draws; Kotlin still decides much of what.** `RustKeyboardView` builds its snapshot from
   Kotlin's `TextKeyboard` and `TextKey`, and Kotlin drives Rust through 381 `external fun`s.
   The state owners are still Kotlin: `KeyboardManager`, `NlpManager`, `EditorInstance`,
@@ -194,7 +195,7 @@ Stage 5 packages 1–3, one event family at a time:
   of dictation and read-aloud, crash handling, and locale. These are stage 5 packages 4–6.
 * **Exit:** stored-data migration fixtures and emulator flows.
 
-### 6. Retire the references (M)
+### 6. Retire the references (M, C++ half done)
 
 * **The C++ oracle and the frozen `Reference*.kt` test copies become fixed test data** in cargo
   tests (owner, 2026-11-21). The `Reference*.kt` copies are 148 files, about 17,400 lines.
@@ -202,6 +203,12 @@ Stage 5 packages 1–3, one event family at a time:
   reference once the wrapper it guards is gone.
 * **Proof:** each set of fixed data catches the mutations in the existing mutation scripts
   before its source is deleted.
+* **Done, the C++ half (2026-11-21):** the oracle's answers are golden files in the `latin` and
+  `suggest` crates, checked by the everyday `cargo test`; they kill every mutation of
+  `scripts/latin-mutations.py` the oracle killed; `lib/latinime`, `latin-oracle` and
+  `oracleCheck` are deleted ([record](phase6-oracle-goldens.md)).
+* **Left, the Kotlin half:** the `Reference*.kt` copies, each once the wrapper it guards is
+  gone.
 
 ## Risks
 
@@ -210,6 +217,6 @@ Stage 5 packages 1–3, one event family at a time:
 | Performance | The 2 ms gate has never run on the phone. Measure in phase 1 before deleting more, and again after phase 3, which should cut crossings. |
 | Accessibility | The biggest product risk: a custom surface with no real TalkBack session yet, and focus and hover policy still in `RendererAccessibility.kt`. Real TalkBack on the keyboard (phase 1) and settings (before step 12); add an accessibility-tree golden to the emulator scripts. |
 | Android API churn | Hand-written entry points keep deprecations visible to lint; test physical API behaviour on each SDK change. |
-| Reference rot | The decoder is tuned away from AOSP over time. Fix the goldens (phase 6) while they still match. |
+| Reference rot | The decoder is tuned away from AOSP over time. The C++'s answers are fixed as goldens (phase 6); fix the Kotlin references' while they still match. |
 | Build complexity | The generator adds a host cargo build before Kotlin compiles. Output in `build/`, a `--check` in the gate, and fix the build-time GitHub dependency (grade item F3). |
 | Test coverage | Most JVM tests run through wrappers that phase 3 deletes. Move each proof to cargo in the same commit as its wrapper, and only after the new test fails a mutation. |

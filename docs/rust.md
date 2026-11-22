@@ -40,10 +40,11 @@ add Rust or remove tests to improve it.
 
 Count non-blank lines of tracked `.kt`, `.java` and `.rs` files; exclude paths containing
 `/test/`, `/tests/`, `/androidTest/` or `benchmark/`, `*Test.kt`, `*_test.rs`, `*_tests.rs`,
-`tests.rs`, generated tables (`latin/src/chars/tables.rs`, `chars/src/tables/*`), and the
-entirely test-only `latin-oracle` crate. Dependencies' native source is not ours and does not
-count, including sherpa-onnx, onnxruntime and renderer dependencies. Preserve the supplied
-counter's separately documented latin-oracle discrepancy when reporting its result.
+`tests.rs`, generated tables (`latin/src/chars/tables.rs`, `chars/src/tables/*`), and entirely
+test-only crates (`latin-golden`; `latin-oracle` until phase 6 deleted it). Dependencies' native
+source is not ours and does not count, including sherpa-onnx, onnxruntime and renderer
+dependencies. Until that deletion, the supplied counter's latin-oracle discrepancy was reported
+separately.
 The historical planning snapshot was about 25.8k Rust, 55.8k Kotlin and 0.6k Java (31%).
 After stage 1 the 2026-11-12 recount was 25,306 Rust, 53,808 Kotlin and 627 Java (31.7%).
 Stage percentage headings below are historical estimates, not acceptance targets.
@@ -67,7 +68,7 @@ wrappers: the point is to remove Kotlin decisions, not translate each line throu
 3. Snygg rules and stylesheet grammar: parsing, ordering and schema/version errors (done; stage 2.3 below).
 4. Snygg values: dimensions, colours, fonts, padding, shapes and variables (implemented; stage 2.4 below, emulator acceptance blocked).
 5. Snygg compilation/editor model: cascade, inheritance, matching and editor operations (done; stage 2.5 below). The extensible JVM schema DSL/generator stays at the Kotlin boundary.
-6. A1: native Rust suggest/decoder session; production LatinIME Java glue removed, C++ oracle retained (done; [proof](stage2-a1.md)).
+6. A1: native Rust suggest/decoder session; production LatinIME Java glue removed, C++ oracle retained (done; [proof](stage2-a1.md)). Phase 6 turned the oracle into golden files and deleted the C++ ([proof](phase6-oracle-goldens.md)).
 7. Emoji history and quick-action arrangement (done under stage 3B; [package 6 proof](stage3b-package6.md)).
 8. Clipboard ordering, duplicate/expiry/limit/pinning and MIME policy; Room and the Android clipboard stay in Kotlin (done under stage 3B; [package 7 proof](stage3b-package7.md)).
 9. Extension metadata/import policy: identifiers, maintainers, validation and archive-entry decisions (done; [proof](stage2-extensions.md)).
@@ -730,13 +731,13 @@ only the Mac uses. None of it is shared or faster in Rust.
 
 ### The LatinIME port
 
-The C++ is ported against itself rather than a Kotlin copy. `crates/latin-oracle` builds
-LatinIME's own sources for the computer running the tests (with the NDK's `jni.h` and a fake JNI
-environment that runs the production `JNI_OnLoad`), so a test can put the same question to the
-C++ and to the Rust: open the bundled dictionary, a word's probability, an n-gram's, its word
-list, and a typing decode with taps and previous words. `cargo run --release -p latin-oracle
---example oracle -- gen 20000 20261109` writes seeded questions shaped like the keyboard's, and
-`oracle run` answers them.
+The C++ was ported against itself rather than a Kotlin copy. Until phase 6, `crates/latin-oracle`
+built LatinIME's own sources (`lib/latinime`) for the computer running the tests (with the NDK's
+`jni.h` and a fake JNI environment that ran the production `JNI_OnLoad`), so a test could put the
+same question to the C++ and to the Rust: open the bundled dictionary, a word's probability, an
+n-gram's, its word list, and a typing decode with taps and previous words. `cargo run --release
+-p latin-oracle --example oracle -- gen 20000 20261109` wrote seeded questions shaped like the
+keyboard's, and `oracle run` answered them.
 
 First, everything the keyboard never calls was deleted: the writable dictionary formats (v4 and
 v402) and their writers, the dictionary-building and GC code, `BinaryDictionaryUtils`, and every
@@ -750,7 +751,7 @@ That remainder is now ported, in `crates/latin`, one module per area of the C++:
 attributes), `trie` (the version 2 trie: words, probabilities, word pairs, shortcuts and the word
 list), `layout` (the keyboard and the taps on it) and `search` (the typing search, its node cache
 and its scoring). The port keeps the C++'s types and order of operations, so its answers match to
-the bit. Each module is tested against the C++ through the oracle, and each was broken on purpose,
+the bit. Each module was tested against the C++ through the oracle, and each was broken on purpose,
 one change at a time, to show the tests notice; the few changes they could not notice are ones no
 input can tell apart.
 
@@ -770,7 +771,13 @@ pipeline states (strip/autocorrect and spelling, with personal and learned words
 fails the JVM match test. Both renderers retain the 300-press/eight-hold digests and match the
 autocorrect/suggestion-pick fixtures. See [the session proof and reproduction](stage2-a1.md).
 
-`lib/latinime/src/main/jni` stays unchanged as the reference `latin-oracle` compiles for tests.
+Since phase 6 (2026-11-21) the C++'s answers are golden files: each test records its answers on
+a tape (`crates/latin-golden`) that checks them against `tests/golden/*.txt` in `crates/latin`
+and `crates/suggest`, in the everyday `cargo test`, and fails naming the first range of answers
+that differs. `lib/latinime` and `latin-oracle` are deleted.
+[The phase 6 record](phase6-oracle-goldens.md) names the commit to check out to write the goldens
+again, and shows they kill every mutation the oracle killed. LatinIME's copyright notice is kept
+in `crates/latin/NOTICE`.
 
 ### The typing scoreboard
 
@@ -961,10 +968,9 @@ JVM heap (`LatinLanguageProvider.attachBundledModel`). Why a trigram model and t
 [decisions.md](decisions.md#word-statistics-from-a-public-corpus).
 
 AOSP's original is kept, unchanged, as `crates/latin/tests/fixtures/aosp_main_en-US.dict`. Tests
-that pin what the decoder answers (the C++ oracle's spot checks, `LatinImeJniTest`, the
-scoreboard's own tests) read that file, so their answers stay pinned; tests that compare two
-implementations (the port against the C++, Rust against the Kotlin references) run on both
-dictionaries. The app attaches the model when it opens the dictionary; tests attach it only where
+that pin what the decoder answers (`LatinImeJniTest`, the scoreboard's own tests) read that file,
+so their answers stay pinned; tests that compare two implementations (the port against the C++'s
+golden answers, Rust against the Kotlin references) run on both dictionaries. The app attaches the model when it opens the dictionary; tests attach it only where
 they test it (`crates/suggest/tests/language_model.rs`, `LatinSessionModelTest`, the scoreboard's
 `--model`), so the decoder's pinned answers and the A1 replay digests, which open the engine
 without it, are the dictionary's alone.
@@ -1000,7 +1006,7 @@ lib/rust/
   crates/chars/               Kotlin's character rules, for crates that judge text as Kotlin did
   crates/awnative/            libawnative.so: the JNI functions Kotlin calls, and nothing else
   crates/boundary/            host-only: generates both sides of the JNI boundary (see below)
-  crates/latin-oracle/        test-only: LatinIME's C++ built for this computer, to compare the port with
+  crates/latin-golden/        test-only: LatinIME's C++ answers as golden files, and the seeded questions
   crates/scoreboard/          host-only: the typing scoreboard (see above)
   crates/lexicon/             host-only: corpus split, the v202 dictionary writer, the dictionary and n-gram model builds
   crates/ngram/               the n-gram model file and its reader: a word's probability after the words before it
@@ -1015,7 +1021,7 @@ There is one native library, `libawnative.so`, however many crates there are. Ea
 its own crate with no unsafe code (`#![forbid(unsafe_code)]`) and no knowledge of Android or the
 JVM, so it is tested with plain `cargo test`. `awnative` owns JNI conversion and turns bad input into a Java exception instead of a crash.
 The other shipped unsafe boundary is `sherpa-ffi`, which owns the pinned sherpa C API objects;
-its safe API exposes no C pointer. The test-only `latin-oracle` calls C++.
+its safe API exposes no C pointer.
 
 Native objects (an index, a query, a word store) cross JNI as a `Long` handle. The Kotlin wrapper
 frees each one with a `java.lang.ref.Cleaner` once it is unreachable; a query is also
@@ -1307,8 +1313,9 @@ see lib/rust, so groups it calls with are generated there, with its own internal
 ## Checks
 
 ```bash
-./gradlew :lib:rust:check   # cargo test, clippy with warnings as errors (here, and for Android
-                            # with and without the GPU renderer), rustfmt --check
+./gradlew :lib:rust:check   # cargo test and clippy (warnings as errors) on every crate (here,
+                            # and awnative for Android with and without the GPU renderer),
+                            # rustfmt --check
 ./gradlew test              # every JVM test, including those that go through JNI
 ./gradlew :app:checkNativeDeclarations   # the debug APK's JNI exports and types against the Kotlin
 ```
@@ -1341,11 +1348,8 @@ generated Rust only, which still compiles, since every JNI reference type is an 
 `jobject`. `cargo test -p boundary` checks that the generator writes the same files every time,
 laid out as rustfmt would.
 
-`./gradlew :lib:rust:oracleCheck` runs the LatinIME C++ comparison through `latin-oracle`; it
-needs a C++ toolchain, and CI runs it as its own task.
-
-Or, from `lib/rust`, plain `cargo test`, `cargo clippy --all-targets -- -D warnings` and
-`cargo fmt`. CI also runs `cargo audit` there, against RustSec's advisories.
+Or, from `lib/rust`, plain `cargo test --workspace`, `cargo clippy --workspace --all-targets --
+-D warnings` and `cargo fmt`. CI also runs `cargo audit` there, against RustSec's advisories.
 
 The Vello Hybrid GPU renderer (wgpu over Vulkan, behind the `aw-hybrid` log switch) is built only
 on request, with the `hybrid` feature of `render` and `awnative`: `-PhybridRenderer=true` for an
