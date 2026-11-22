@@ -962,7 +962,7 @@ Native objects (an index, a query, a word store) cross JNI as a `Long` handle. T
 frees each one with a `java.lang.ref.Cleaner` once it is unreachable; a query is also
 `AutoCloseable`, and using one after `close()` throws rather than touching freed memory. An object
 that changes and is used from more than one thread (a tap trail, the learned and kept words) sits
-behind a `Mutex` (`handle::with_locked`).
+behind a `Mutex` (`handle::locked`).
 
 Files stay in Kotlin. A store's wrapper reads its file and hands Rust the text, and writes the text
 Rust gives back, so Rust never touches the disk and the file's format is in one place.

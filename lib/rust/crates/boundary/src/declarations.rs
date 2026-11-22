@@ -24,12 +24,14 @@ mod reader_runtime;
 mod render;
 mod rules;
 mod screen;
+mod sherpa;
 mod shift;
 mod smartbar;
 mod spacing;
 mod suggest;
 mod swipe;
 mod text;
+mod tts;
 mod word_stores;
 
 use crate::{Api, Class, Module, Type, Wire};
@@ -83,6 +85,8 @@ pub const CLASSES: &[Class] = &[
     render::RENDER_NATIVE,
     dictation_session::DICTATION_SESSION_NATIVE,
     editor::EDITOR_NATIVE,
+    sherpa::SHERPA_NATIVE,
+    tts::TTS_NATIVE,
 ];
 
 /// Every generated api over those classes.
@@ -128,6 +132,8 @@ pub const APIS: &[Api] = &[
     smartbar::SMARTBAR_RULES,
     keyboard_renderer::KEYBOARD_RENDERER,
     dictation_session::DICTATION_SESSION_PLAN,
+    sherpa::DICTATION_AUDIO,
+    tts::SHERPA_TTS,
 ];
 
 /// Every generated top-level record, enum and interface, with the declarations file and the
@@ -145,6 +151,7 @@ pub const TYPES: &[(&str, Module, Type)] = &[
     gestures::GLIDE_OUTCOME,
     popup::POPUP_RECT,
     smartbar::TEXT_FIT,
+    tts::TTS_AUDIO,
 ];
 
 /// Every group crates/wire declares, and the Kotlin module that calls with it.

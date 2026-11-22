@@ -42,20 +42,3 @@ class SherpaVad(model: String) : AutoCloseable {
         @Synchronized override fun run() { val owned = handle; handle = 0; SherpaNative.freeVad(owned) }
     }
 }
-internal object SherpaNative {
-    init { RustLibrary.load() }
-    @JvmStatic external fun audioConfig(): IntArray
-    @JvmStatic external fun createRecognizer(directory: String): Long
-    @JvmStatic external fun transcribe(handle: Long, pcm: ByteBuffer, samples: Int): String
-    @JvmStatic external fun cancel(handle: Long)
-    @JvmStatic external fun freeRecognizer(handle: Long)
-    @JvmStatic external fun createVad(model: String): Long
-    @JvmStatic external fun vad(handle: Long, pcm: ByteBuffer?, samples: Int, mode: Int): Array<Any?>
-    @JvmStatic external fun freeVad(handle: Long)
-}
-
-object DictationAudio {
-    private val config = SherpaNative.audioConfig()
-    val sampleRate: Int get() = config[0]
-    val chunkSamples: Int get() = config[1]
-}

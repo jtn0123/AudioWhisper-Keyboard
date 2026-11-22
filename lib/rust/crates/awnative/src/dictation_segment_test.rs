@@ -40,7 +40,8 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_SegmentationNative_cal
 ) -> jfloatArray {
     // SAFETY: test wrapper keeps handle live; PCM is copied before applying policy.
     unsafe {
-        handle::with_locked::<Segmentation, _>(env, h, "segmentation", ptr::null_mut(), |s, e| {
+        jni::run(env, ptr::null_mut(), |e| {
+            let mut s = handle::locked::<Segmentation>(h, "segmentation")?;
             let audio = e.read::<f32>(audio, "audio")?;
             let result = match op {
                 0 => {
