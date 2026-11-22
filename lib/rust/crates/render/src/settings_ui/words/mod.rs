@@ -104,6 +104,9 @@ pub struct Words {
     pub draft: Option<editor::Draft>,
     /// The dictionary an import or export works for, while the picker or the file work runs.
     pub transfer: Option<transfer::Transfer>,
+    /// Each language's name as a report last gave it, by its [`group`], so a list whose last
+    /// word was deleted keeps its title.
+    pub names: std::collections::BTreeMap<String, String>,
 }
 
 /// A tap on a user dictionary screen's own controls.
@@ -263,6 +266,11 @@ impl App {
             _ => {}
         }
         self.words.report = Some(report);
+        for g in self.word_groups() {
+            if let Some(k) = g.key.filter(|k| *k != g.label) {
+                self.words.names.insert(k, g.label);
+            }
+        }
         // An editor reopened before the report came finds its word now.
         if let Some((_, page @ Page::Edit(_))) = self.word_place()
             && self.words.draft.is_none()
@@ -331,13 +339,13 @@ impl App {
         });
         out
     }
-    /// The name of the language `key`: its first screen's label, or the key while no word
-    /// is stored under it.
+    /// The name of the language `key`: its first screen's label, the name an earlier report
+    /// gave it once its last word is gone, or the key when no report has named it.
     pub fn group_label(&self, key: &Option<String>) -> String {
         let named = self.word_groups().into_iter().find(|g| g.key == *key);
         match (named, key) {
             (Some(g), _) => g.label,
-            (None, Some(k)) => k.clone(),
+            (None, Some(k)) => self.words.names.get(k).unwrap_or(k).clone(),
             (None, None) => self.label("settings__udm__all_languages"),
         }
     }

@@ -219,6 +219,7 @@ CASES = [
     ('word-editor-delete-keeps-focus', WORDS / 'editor.rs',
      '        self.close_editor();\n        self.focus = crate::settings_ui::items::UNDO_ID;\n', '        self.close_editor();\n'),
     ('word-saved-search-dropped', WORDS / 'saved.rs', '        self.words.search = search;\n', '        self.words.search = search.replace(&search, "");\n'),
+    ('word-title-forgets-name', WORDS / 'mod.rs', 'self.words.names.get(k).unwrap_or(k).clone()', 'k.clone()'),
 ]
 # The Rust test binary that must panic for each Rust-only case.
 RUST = dict.fromkeys([
@@ -257,6 +258,7 @@ RUST = dict.fromkeys([
     'word-undo-outlives-list',
     'word-editor-delete-keeps-focus',
     'word-saved-search-dropped',
+    'word-title-forgets-name',
 ], 'settings_ui_words') | {'advance-linear-round': 'android_text', 'every-row-drawn': 'settings_ui_licences',
                             'talkback-page-fraction': 'settings_ui_screens'}
 

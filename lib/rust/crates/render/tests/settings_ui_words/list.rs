@@ -262,10 +262,18 @@ fn deleting_a_languages_last_word_stays_on_its_list_with_undo() {
     assert_eq!(a.stack.last().unwrap(), &route);
     assert!(control(&a, EMPTY_ID).is_some());
     assert!(control(&a, UNDO_ID).is_some());
-    // Kept while the language has no word left to name it by.
-    assert_eq!(a.word_title().as_deref(), Some("de_DE"));
+    // Still named, by the report that had a word in it.
+    assert_eq!(a.word_title().as_deref(), Some("German (Germany)"));
+    let mut rest = sample();
+    rest.retain(|w| w.id != 4);
+    a.set_words(&report(dictionary::FLORIS, true, outcome::NONE, &rest))
+        .unwrap();
+    assert_eq!(a.word_title().as_deref(), Some("German (Germany)"));
     assert!(tap(&mut a, &mut text, UNDO_ID));
     assert_eq!(titles(&a), ["frobnic"]);
+    // A language no report has named is shown by its key.
+    let (a, _) = app(&[FLORIS, &format!("{FLORIS_WORDS}/fr_FR")], &sample());
+    assert_eq!(a.word_title().as_deref(), Some("fr_FR"));
 }
 
 #[test]
