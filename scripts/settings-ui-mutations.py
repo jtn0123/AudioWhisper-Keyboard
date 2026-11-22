@@ -42,6 +42,7 @@ def run(output, name):
                                  '--tests', '*SettingsThemesMatchTest', '--tests', '*SettingsSetupMatchTest',
                                  '--tests', '*SettingsThemeEditor*MatchTest', '--tests', '*SettingsThemeCodeMatchTest',
                                  '--tests', '*SettingsKeyRecorderTest', '--tests', '*SettingsExtensionsMatchTest',
+                                 '--tests', '*SettingsExtensionImportMatchTest',
                                  '--tests', '*SettingsEntryTest', '--tests', '*ComposeFallbackLinksTest'], cwd=ROOT, stdout=log, stderr=subprocess.STDOUT)
     failures = []
     xml = ROOT / 'app/build/test-results/testDebugUnitTest'

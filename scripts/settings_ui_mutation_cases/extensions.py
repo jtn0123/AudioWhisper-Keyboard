@@ -1,5 +1,5 @@
-"""The extension screens (stage4-extensions.md, part 1): each case must fail the test its comment names."""
-from .paths import EXT, SETTINGS_UI, UI
+"""The extension screens (stage4-extensions.md, parts 1 and 2): each case must fail the test its comment names."""
+from .paths import APP, EXT, SETTINGS_UI, UI
 
 # Each must fail SettingsExtensionsMatchTest or SettingsResourcesTest.
 JVM = [
@@ -27,6 +27,21 @@ JVM = [
     ('ext-string-id-dropped', SETTINGS_UI / 'SettingsExtensionStringIds.kt',
      '    "ext__meta__website" to R.string.ext__meta__website,\n', ''),
 ]
+# Part 2. Each must fail SettingsExtensionImportMatchTest, SettingsEntryTest, ComposeFallbackLinksTest or
+# SettingsResourcesTest.
+JVM += [
+    ('ext-import-flex-unsent', SETTINGS_UI / 'ExtensionFileWork.kt', 'text = size(info.size), flag = flex)',
+     'text = size(info.size), flag = true)'),
+    ('ext-import-core-unsent', SETTINGS_UI / 'ExtensionFileWork.kt', 'meta.version, flag = core(meta.id))', 'meta.version, flag = false)'),
+    ('ext-import-media-unsent', SETTINGS_UI / 'ExtensionFileWork.kt', 'detail = info.mediaType.orEmpty(),', 'detail = "",'),
+    ('ext-export-failure-kept', SETTINGS_UI / 'ExtensionFileWork.kt', '    runCatching(delete)\n', ''),
+    ('ext-import-other-type-taken', EXT / 'import.rs', '(!takes).then_some(Skip::OtherType)', 'None'),
+    ('ext-shared-send-ignored', APP / 'SettingsEntry.kt', 'SEND -> shared', 'SEND -> null'),
+    ('ext-fallback-takes-files', APP / 'FlorisAppActivity.kt', 'action == Intent.ACTION_VIEW && browsable && !initial',
+     'action == Intent.ACTION_VIEW && !initial'),
+    ('ext-import-string-id-dropped', SETTINGS_UI / 'SettingsExtensionStringIds.kt',
+     '    "settings__ext__read_failed" to R.string.settings__ext__read_failed,\n', ''),
+]
 # Each must fail the Rust tests in settings_ui_extensions.
 ONLY_RUST = [
     ('ext-asked-every-open', EXT / 'mod.rs', 'if !self.extensions.requested {', 'if true {'),
@@ -42,7 +57,7 @@ ONLY_RUST = [
     ('ext-store-imports', EXT / 'mod.rs', 'Tap::Store => self.effects.push(vec!["url".into(), STORE.into()]),',
      'Tap::Store => self.navigate(IMPORT),'),
     ('ext-create-imports', EXT / 'mod.rs', 'Tap::Create => self.navigate(super::themes::CREATE),', 'Tap::Create => self.navigate(IMPORT),'),
-    ('ext-export-edits', EXT / 'mod.rs', 'self.navigate(&format!("ext/export/{id}"));', 'self.navigate(&format!("ext/edit/{id}"));'),
+    ('ext-export-edits', EXT / 'mod.rs', '                    self.export(&id);', '                    self.navigate(&format!("ext/edit/{id}"));'),
     ('ext-edit-for-built-ins', EXT / 'boxes.rs', 'let edit = ext\n            .deletable\n', 'let edit = true\n'),
     ('ext-box-description-blank', EXT / 'boxes.rs',
      'if let Some(d) = ext.description.as_ref().filter(|d| !d.is_empty()) {\n            let inner',
@@ -68,6 +83,52 @@ ONLY_RUST = [
     ('ext-address-keeps-mailto', EXT / 'dialogs.rs', 'choice.strip_prefix("mailto:").unwrap_or(choice).to_owned()', 'choice.to_owned()'),
     ('ext-address-kinds-swapped', EXT / 'dialogs.rs', 'true => "ext__meta__email",\n            false => "ext__meta__website",',
      'true => "ext__meta__website",\n            false => "ext__meta__email",'),
+]
+# Part 2: the importer and Export. Each must fail the Rust tests in settings_ui_extensions.
+IMPORT = EXT / 'import.rs'
+VIEW = EXT / 'import_view.rs'
+ONLY_RUST += [
+    ('ext-import-select-always', VIEW, 'if self.shows_select() {\n            let select', 'if true {\n            let select'),
+    ('ext-import-select-unfocused', VIEW, '            vec![SELECT_ID]', '            vec![]'),
+    ('ext-import-none-upright', VIEW, '.italic = true;\n        self.push_control(plain(NONE_ID',
+     '.italic = false;\n        self.push_control(plain(NONE_ID'),
+    ('ext-import-busy-says-none', VIEW, 'if self.files.busy.is_some() {\n            return at - y;', 'if false {\n            return at - y;'),
+    ('ext-import-failed-unsaid', VIEW, 'if self.extensions.import.failed {', 'if false {'),
+    ('ext-import-description-upright', VIEW, 'out.push((d.clone(), ink, true));', 'out.push((d.clone(), ink, false));'),
+    ('ext-import-head-unfaded', VIEW, 'out.insert(0, (head, faded(self.colors[1]), false));', 'out.insert(0, (head, self.colors[1], false));'),
+    ('ext-import-no-bar', VIEW, 'self.paint_clipped_box(p, bar, faded(self.colors[18]), 0.0, clip);', 'let _ = bar;'),
+    ('ext-import-maintainers-unjoined', VIEW, '&a.maintainers.join(", ")', '&a.maintainers.concat()'),
+    ('ext-import-unknown-media-blank', VIEW, '"application/unknown"', '""'),
+    ('ext-import-file-name-button', VIEW, 'Action::None, border, clip, text);\n        self.as_text(id);',
+     'Action::None, border, clip, text);'),
+    ('ext-import-reason-upright', VIEW, 'out.push((self.label(s.key()), error, true));', 'out.push((self.label(s.key()), error, false));'),
+    ('ext-import-skip-order', IMPORT, 'Skip::Corrupted\n        } else {\n            Skip::Unsupported',
+     'Skip::Unsupported\n        } else {\n            Skip::Corrupted'),
+    ('ext-import-core-taken', IMPORT, 'if a.core {\n        return Some(Skip::Core);', 'if false {\n        return Some(Skip::Core);'),
+    ('ext-import-read-twice', IMPORT, 'if self.files.busy.as_deref() != Some(job::EXT_READ) =>', 'if true =>'),
+    ('ext-import-stale-shown', IMPORT, 'if self.import_workspace() != Some(id.as_str()) {\n            return Ok(());',
+     'if false {\n            return Ok(());'),
+    ('ext-import-closed-kept', IMPORT, 'if !open {\n            self.set_import_query(None);', 'if false {\n            self.set_import_query(None);'),
+    ('ext-import-busy-ready', IMPORT, 'self.files.busy.is_none() && self.import_files()', 'self.import_files()'),
+    ('ext-import-takes-skipped', IMPORT, '.filter(|(_, (_, s))| s.is_none());', '.filter(|_| true);'),
+    ('ext-export-unnamed', IMPORT, 'format!("{id}.flex")', 'format!("{id}")'),
+    ('ext-export-any-type', IMPORT, '            &[FLEX_MIME],', '            &["*/*"],'),
+    ('ext-export-unwritten', IMPORT, '                self.work(job::EXT_EXPORT, &fields);', '                let _ = fields;'),
+    ('ext-import-old-workspace-kept', IMPORT, '                self.close_workspace(&old);', '                let _ = old;'),
+    ('ext-import-no-picker-silent', IMPORT, 'if *answer == Picked::NoPicker {', 'if false {'),
+    ('ext-import-success-stays', IMPORT, 'if self.importer().is_some() {\n                    self.back();', 'if false {\n                    self.back();'),
+    ('ext-import-gone-kept', IMPORT, 'if p[done::RESULT] == result::GONE && self.importer().is_some() {', 'if false {'),
+    ('ext-import-shared-as-picked', IMPORT, 'if shared { "uuid" } else { "files" }', '"files"'),
+    ('ext-import-read-failure-silent', IMPORT, 'self.extensions.import.failed = true;', 'self.extensions.import.failed = false;'),
+    ('ext-import-unwritable-vague', IMPORT, 'result::UNWRITABLE => "settings__ext__unwritable",', 'result::UNWRITABLE => "error__snackbar_message",'),
+    ('ext-import-lost-silent', IMPORT, '        self.toast(self.label("settings__files__interrupted"));\n        true',
+     '        true'),
+    ('ext-import-left-open', IMPORT, '            let id = id.to_owned();\n            self.close_workspace(&id);', '            let _ = id;'),
+    ('ext-import-read-gone-closed', IMPORT, '            if ok {\n                self.close_workspace(id);', '            if false {\n                self.close_workspace(id);'),
+    ('ext-import-no-files-asked', IMPORT, '                self.effects.push(vec![effect::FILES.into(), id]);', '                let _ = id;'),
+    ('ext-import-composed', UI / 'catalogue.rs', '    extensions::IMPORT_ANY,\n', ''),
+    ('ext-import-cancel-imports', UI / 'languages' / 'editor.rs', 'Lang::Save if self.importer().is_some() => self.import_selected(),',
+     'Lang::Save if self.importer().is_some() => self.back(),'),
 ]
 CASES = JVM + ONLY_RUST
 # The Rust test binary that must panic for each Rust-only case.
