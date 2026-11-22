@@ -78,6 +78,10 @@
     <string name="settings__udm__file_error">That file could not be read or written. Nothing changed.</string>
     <string name="settings__udm__change_failed">The dictionary could not be changed. Try again.</string>
     <string name="settings__udm__no_picker">No app on this device can choose a file.</string>
+    <string name="settings__ext__skip_other_type">The file holds a different type of extension than this screen imports.</string>
+    <string name="settings__ext__read_failed">The selected files could not be read.</string>
+    <string name="settings__ext__files_gone">The selected files are no longer available. Select them again.</string>
+    <string name="settings__ext__unwritable">The file could not be written.</string>
     <string name="crash__copy_details">Copy details</string>
     <string name="crash__native_load_summary">AudioWhisper could not load its keyboard engine. Reinstall the app, then open it again.</string>
     <string name="crash__keyboard_unavailable">AudioWhisper could not load its keyboard engine, so it cannot type. Reinstall the app, and switch to another keyboard until then.</string>

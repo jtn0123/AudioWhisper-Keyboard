@@ -186,7 +186,8 @@ internal class RustSettingsView(context: Context) : FrameLayout(context), Surfac
                 SettingsUiWordEffect.RESTORE, SettingsUiWordEffect.IMPORT, SettingsUiWordEffect.MANAGER -> words.execute(p)
                 SettingsUiTextEffect.ASSET, SettingsUiTextEffect.CLIP, SettingsUiTextEffect.HAPTIC -> readOnly.execute(p)
                 SettingsUiThemeEffect.LOAD, SettingsUiThemeEffect.PREVIEW -> themes.execute(p)
-                SettingsUiExtensionEffect.LOAD, SettingsUiExtensionEffect.DELETE -> extensions.execute(p)
+                SettingsUiExtensionEffect.LOAD, SettingsUiExtensionEffect.DELETE, SettingsUiExtensionEffect.FILES,
+                SettingsUiExtensionEffect.CLOSE -> extensions.execute(p)
                 SettingsUiThemeEditorEffect.LOAD, SettingsUiThemeEditorEffect.SAVE, SettingsUiThemeEditorEffect.PREVIEW -> themeEditor.execute(p)
                 SettingsUiThemeCodeEffect.RECORD, SettingsUiThemeCodeEffect.STOP, SettingsUiThemeCodeEffect.DESCRIBE -> keyRecorder.execute(p)
                 SettingsUiSetupEffect.ASK, SettingsUiSetupEffect.NOTIFICATION_SETTINGS, SettingsUiSetupEffect.RETURN -> setup.execute(p)

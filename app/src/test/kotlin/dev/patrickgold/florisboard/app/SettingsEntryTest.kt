@@ -22,7 +22,7 @@ class SettingsEntryTest {
     private fun start(setUp: Boolean, notifications: String, action: String?, data: String?): Pair<String, List<List<String>>> =
         KeyboardRenderer(emptyArray()).use { n ->
             n.settings(SettingsUiOp.PREFERENCES, arrayOf("internal__is_ime_set_up", setUp.toString(), "internal__notification_permission_state", notifications))
-            val link = SettingsEntry.linkRoute(action, data)
+            val link = SettingsEntry.route(action, data, data, data) { "0" }
             val state = Json.parseToJsonElement(n.settings(SettingsUiOp.START, listOfNotNull(link).toTypedArray())[SettingsUiReply.STATE]).jsonObject
             val writes = state.getValue("effects").jsonArray.map { e -> e.jsonArray.map { it.jsonPrimitive.content } }.filter { it[0] == "write" }
             state.getValue("route").jsonPrimitive.content to writes
@@ -58,6 +58,23 @@ class SettingsEntryTest {
         assertNull(SettingsEntry.linkRoute(send, null))
         assertNull(SettingsEntry.linkRoute(send, "ui://florisboard/settings/home"))
         assertNull(SettingsEntry.linkRoute(main, null))
-        assertEquals("setup", start(setUp = false, "GRANTED", view, "content://downloads/1").first)
+    }
+
+    /** An extension file opened in, or shared with, the app starts the Rust importer on it, set up or not, where
+     * FlorisAppActivity handed it to the Compose fallback. Only the document it imports is kept. */
+    @Test fun anOpenedOrSharedFileStartsTheImporterOnIt() {
+        val kept = mutableListOf<String>()
+        val keep = { d: String -> kept += d; "${kept.size - 1}" }
+        assertEquals("ext/import/EXT_ANY?document=0", SettingsEntry.route(view, "content://downloads/1", "opened", "clip", keep))
+        assertEquals("ext/import/EXT_ANY?document=1", SettingsEntry.route(send, null, "data", "shared", keep))
+        assertNull(SettingsEntry.route(send, null, "data", null, keep))
+        assertNull(SettingsEntry.route(view, null, null, "clip", keep))
+        assertNull(SettingsEntry.route(main, "content://downloads/1", "data", "clip", keep))
+        assertEquals("settings/dictation", SettingsEntry.route(view, "ui://florisboard/settings/dictation", "link", null, keep))
+        assertEquals(listOf("opened", "shared"), kept)
+        for (setUp in listOf(true, false)) {
+            assertEquals("ext/import/EXT_ANY?document=0", start(setUp, "GRANTED", view, "content://downloads/1").first)
+            assertEquals("ext/import/EXT_ANY?document=0", start(setUp, "GRANTED", send, "content://downloads/1").first)
+        }
     }
 }

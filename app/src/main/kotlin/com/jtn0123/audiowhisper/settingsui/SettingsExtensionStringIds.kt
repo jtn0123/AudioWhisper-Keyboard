@@ -2,15 +2,29 @@ package com.jtn0123.audiowhisper.settingsui
 
 import dev.patrickgold.florisboard.R
 
-/** The string ids of the native extension screens (stage4-extensions.md), kept apart so SettingsStringIds stays under
- * the file limit. Part of [settingsStringIds]. */
+/** The string ids of the native extension screens and importer (stage4-extensions.md), kept apart so
+ * SettingsStringIds stays under the file limit. Part of [settingsStringIds]. */
 internal val settingsExtensionStringIds: Map<String, Int> = mapOf(
+    "action__select_files" to R.string.action__select_files,
+    "error__snackbar_message" to R.string.error__snackbar_message,
     "ext__check_updates__title" to R.string.ext__check_updates__title,
     "ext__editor__title_create_any" to R.string.ext__editor__title_create_any,
     "ext__error__not_found_description" to R.string.ext__error__not_found_description,
     "ext__error__not_found_title" to R.string.ext__error__not_found_title,
+    "ext__export__failure" to R.string.ext__export__failure,
+    "ext__export__success" to R.string.ext__export__success,
     "ext__home__info" to R.string.ext__home__info,
     "ext__home__visit_store" to R.string.ext__home__visit_store,
+    "ext__import__ext_any" to R.string.ext__import__ext_any,
+    "ext__import__ext_keyboard" to R.string.ext__import__ext_keyboard,
+    "ext__import__ext_languagepack" to R.string.ext__import__ext_languagepack,
+    "ext__import__ext_theme" to R.string.ext__import__ext_theme,
+    "ext__import__failure" to R.string.ext__import__failure,
+    "ext__import__file_skip" to R.string.ext__import__file_skip,
+    "ext__import__file_skip_ext_core" to R.string.ext__import__file_skip_ext_core,
+    "ext__import__file_skip_ext_corrupted" to R.string.ext__import__file_skip_ext_corrupted,
+    "ext__import__file_skip_unsupported" to R.string.ext__import__file_skip_unsupported,
+    "ext__import__success" to R.string.ext__import__success,
     "ext__list__ext_keyboard" to R.string.ext__list__ext_keyboard,
     "ext__list__ext_languagepack" to R.string.ext__list__ext_languagepack,
     "ext__meta__components_language_pack" to R.string.ext__meta__components_language_pack,
@@ -22,8 +36,14 @@ internal val settingsExtensionStringIds: Map<String, Int> = mapOf(
     "ext__meta__keywords" to R.string.ext__meta__keywords,
     "ext__meta__license" to R.string.ext__meta__license,
     "ext__meta__maintainers" to R.string.ext__meta__maintainers,
+    "ext__meta__maintainers_by" to R.string.ext__meta__maintainers_by,
     "ext__meta__version" to R.string.ext__meta__version,
     "ext__meta__website" to R.string.ext__meta__website,
     "ext__update_box__manual_updates_hint" to R.string.ext__update_box__manual_updates_hint,
     "ext__update_box__search_for_updates" to R.string.ext__update_box__search_for_updates,
+    "settings__ext__files_gone" to R.string.settings__ext__files_gone,
+    "settings__ext__read_failed" to R.string.settings__ext__read_failed,
+    "settings__ext__skip_other_type" to R.string.settings__ext__skip_other_type,
+    "settings__ext__unwritable" to R.string.settings__ext__unwritable,
+    "state__no_files_selected" to R.string.state__no_files_selected,
 )

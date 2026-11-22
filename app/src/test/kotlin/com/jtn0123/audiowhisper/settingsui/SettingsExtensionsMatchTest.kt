@@ -16,7 +16,8 @@ import kotlin.test.*
 
 /** The extension routes Rust draws, in the order it lists them. */
 internal val extensionRoutes = listOf("ext", "ext/list/EXT_THEME", "ext/list/EXT_KEYBOARD", "ext/list/EXT_LANGUAGEPACK",
-    "ext/view", "ext/check-updates")
+    "ext/view", "ext/check-updates", "ext/import/EXT_ANY", "ext/import/EXT_KEYBOARD", "ext/import/EXT_THEME",
+    "ext/import/EXT_LANGUAGEPACK")
 
 /**
  * The extension screens through the real native settings, their report built by SettingsExtensions' own

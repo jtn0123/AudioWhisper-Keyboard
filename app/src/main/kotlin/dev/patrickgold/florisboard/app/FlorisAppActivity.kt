@@ -28,6 +28,7 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.compose.runtime.DisposableEffect
 import com.jtn0123.audiowhisper.rust.SettingsUiBack
 import com.jtn0123.audiowhisper.settingsui.RustSettingsView
+import com.jtn0123.audiowhisper.settingsui.settingsFileWork
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.Column
@@ -55,9 +56,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import dev.patrickgold.florisboard.R
 import dev.patrickgold.florisboard.app.apptheme.FlorisAppTheme
-import dev.patrickgold.florisboard.app.ext.ExtensionImportScreenType
 import dev.patrickgold.florisboard.appContext
-import dev.patrickgold.florisboard.cacheManager
 import dev.patrickgold.florisboard.lib.compose.LocalPreviewFieldController
 import dev.patrickgold.florisboard.lib.compose.PreviewKeyboardField
 import dev.patrickgold.florisboard.lib.compose.rememberPreviewFieldController
@@ -73,17 +72,13 @@ import java.util.concurrent.atomic.AtomicBoolean
 private const val SETTINGS_PROFILE_TAG = "aw-settings"
 
 /**
- * Whether the Compose fallback hands an intent to its own link handling. Not the browsable link it
- * started with: its NavController opens `activity.intent` when the graph is set and remembers that
- * across recreation, so a second pass opened another editor on a new workspace and, after a
- * rotation, replaced the restored one.
+ * Whether the Compose fallback hands an intent to its own link handling: a later browsable link.
+ * Not the one it started with: its NavController opens `activity.intent` when the graph is set and
+ * remembers that across recreation, so a second pass opened another editor on a new workspace and,
+ * after a rotation, replaced the restored one. Files opened or shared go to the Rust importer.
  */
-internal fun fallbackHandles(action: String?, browsable: Boolean, data: Boolean, clip: Boolean, initial: Boolean) =
-    when (action) {
-        Intent.ACTION_VIEW -> if (browsable) !initial else data
-        Intent.ACTION_SEND -> clip
-        else -> false
-    }
+internal fun fallbackHandles(action: String?, browsable: Boolean, initial: Boolean) =
+    action == Intent.ACTION_VIEW && browsable && !initial
 
 /**
  * Whether the Compose fallback is done: its links have been handled and its back stack is empty,
@@ -117,7 +112,6 @@ open class FlorisAppActivity : ComponentActivity() {
     }
     private val prefs: FlorisPreferenceModel by lazy { val model by FlorisPreferenceStore; model }
     private val appContext by appContext()
-    private val cacheManager by cacheManager()
     private var appTheme by mutableStateOf(AppTheme.AUTO)
     private var intentToBeHandled by mutableStateOf<Intent?>(null)
 
@@ -180,17 +174,14 @@ open class FlorisAppActivity : ComponentActivity() {
         intentToBeHandled = intent.takeIf { fallbackTakes(it, initial = false) }
     }
 
-    private fun fallbackTakes(intent: Intent, initial: Boolean) = fallbackHandles(intent.action,
-        intent.categories?.contains(Intent.CATEGORY_BROWSABLE) == true, intent.data != null, intent.clipData != null, initial)
+    private fun fallbackTakes(intent: Intent, initial: Boolean) =
+        fallbackHandles(intent.action, intent.categories?.contains(Intent.CATEGORY_BROWSABLE) == true, initial)
 
-    /** A fresh activity starts on the screen Rust picks for [intent]; a later link opens its screen. */
+    /** A fresh activity starts on the screen Rust picks for [intent]; a later link or file opens its screen. */
     private fun route(host: RustSettingsView, intent: Intent, fresh: Boolean) {
-        val link = SettingsEntry.linkRoute(intent.action, intent.dataString)
+        val shared = intent.clipData?.takeIf { it.itemCount > 0 }?.getItemAt(0)?.uri
+        val link = SettingsEntry.route(intent.action, intent.dataString, intent.data, shared, settingsFileWork::keep)
         if (fresh) host.start(link) else if (link != null) host.navigate(link)
-        if (link == null && (intent.action == Intent.ACTION_SEND || intent.action == Intent.ACTION_VIEW)) {
-            composeFallback.launch(Intent(intent).setClass(this, ComposeSettingsFallbackActivity::class.java).setFlags(0)
-                .putExtra("native-routes", host.nativeRoutes.toTypedArray()))
-        }
     }
 
     private fun installRustSettings() {
@@ -289,19 +280,7 @@ open class FlorisAppActivity : ComponentActivity() {
 
         LaunchedEffect(intentToBeHandled) {
             val intent = intentToBeHandled
-            if (intent != null) {
-                if (intent.action == Intent.ACTION_VIEW && intent.categories?.contains(Intent.CATEGORY_BROWSABLE) == true) {
-                    navController.handleDeepLink(intent)
-                } else {
-                    val data = if (intent.action == Intent.ACTION_VIEW) {
-                        intent.data!!
-                    } else {
-                        intent.clipData!!.getItemAt(0).uri
-                    }
-                    val workspace = runCatching { cacheManager.readFromUriIntoCache(data) }.getOrNull()
-                    navController.navigate(Routes.Ext.Import(ExtensionImportScreenType.EXT_ANY, workspace?.uuid))
-                }
-            }
+            if (intent != null) navController.handleDeepLink(intent)
             intentToBeHandled = null
             fallbackReady = true
         }

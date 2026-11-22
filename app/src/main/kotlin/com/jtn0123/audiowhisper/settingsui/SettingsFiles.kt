@@ -35,6 +35,7 @@ internal class SettingsFiles(private val activity: ComponentActivity, private va
                 val job = p[SettingsUiWork.JOB]
                 settingsFileWork.run(job) { running ->
                     if (job in WordFileWork.JOBS) WordFileWork.run(context, p, settingsFileWork::take)
+                    else if (job in ExtensionFileWork.JOBS) ExtensionFileWork.run(context, p, settingsFileWork::take)
                     else BackupWork.run(context, p, running, settingsFileWork::take, activity::startActivity)
                 }
             }

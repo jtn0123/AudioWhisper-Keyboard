@@ -4,6 +4,7 @@ import androidx.activity.ComponentActivity
 import androidx.lifecycle.lifecycleScope
 import com.jtn0123.audiowhisper.rust.*
 import dev.patrickgold.florisboard.R
+import dev.patrickgold.florisboard.cacheManager
 import dev.patrickgold.florisboard.extensionManager
 import dev.patrickgold.florisboard.ime.nlp.LanguagePackExtension
 import dev.patrickgold.florisboard.ime.theme.ThemeExtension
@@ -13,10 +14,11 @@ import kotlinx.coroutines.launch
 import org.florisboard.lib.android.showLongToast
 
 /** What the native extension screens need from the keyboard: the installed extensions as one `EXTENSIONS` report, in
- * `combinedExtensionList()` order, and deleting one. Both live in the extension manager. Rust picks what each screen
- * lists, builds the update link and draws them. */
+ * `combinedExtensionList()` order, and deleting one, both from the extension manager; and what an import workspace
+ * holds, and closing one, from the cache. Rust picks what each screen lists, builds the update link and draws them. */
 internal class SettingsExtensions(private val activity: ComponentActivity, private val send: (SettingsUiOp, Array<String>) -> Unit) {
     private val extensionManager by activity.extensionManager()
+    private val cacheManager by activity.cacheManager()
     private var wanted = false
     init {
         // Once asked, an extension imported, made or deleted anywhere reaches the screens too.
@@ -24,11 +26,13 @@ internal class SettingsExtensions(private val activity: ComponentActivity, priva
             index.observe(activity) { if (wanted) send(SettingsUiOp.EXTENSIONS, rows()) }
         }
     }
-    /** An `extensions` or `extensionDelete` effect. */
+    /** A `SettingsUiExtensionEffect`. */
     fun execute(p: List<String>) {
         when (p[0]) {
             SettingsUiExtensionEffect.LOAD -> { wanted = true; send(SettingsUiOp.EXTENSIONS, rows()) }
             SettingsUiExtensionEffect.DELETE -> delete(p[1])
+            SettingsUiExtensionEffect.FILES -> send(SettingsUiOp.EXTENSION_FILES, importRows(activity, p[1]))
+            SettingsUiExtensionEffect.CLOSE -> cacheManager.importer.getWorkspaceByUuid(p[1])?.close()
         }
     }
     /** As ExtensionViewScreen deleted: a failure is a long toast and the page stays. One already gone is done. */

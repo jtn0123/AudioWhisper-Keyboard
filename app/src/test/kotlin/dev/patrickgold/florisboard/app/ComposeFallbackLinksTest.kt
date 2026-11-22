@@ -13,27 +13,23 @@ import kotlin.test.assertTrue
 class ComposeFallbackLinksTest {
     private val actions = listOf("android.intent.action.VIEW", "android.intent.action.SEND", "android.intent.action.MAIN", null)
 
-    /** What onNewIntent took before the fix, for every intent it was handed. */
-    private fun before(action: String?, browsable: Boolean, data: Boolean, clip: Boolean) =
-        (action == "android.intent.action.VIEW" && (browsable || data)) || (action == "android.intent.action.SEND" && clip)
-
-    @Test fun laterIntentsAreTakenAsBefore() {
-        for (action in actions) for (bits in 0 until 8) {
-            val (browsable, data, clip) = Triple(bits and 1 != 0, bits and 2 != 0, bits and 4 != 0)
-            assertEquals(before(action, browsable, data, clip), fallbackHandles(action, browsable, data, clip, initial = false), "$action $bits")
+    @Test fun onlyLaterBrowsableLinksAreTaken() {
+        for (action in actions) for (browsable in listOf(true, false)) {
+            val taken = action == "android.intent.action.VIEW" && browsable
+            assertEquals(taken, fallbackHandles(action, browsable, initial = false), "$action $browsable")
         }
     }
 
     @Test fun theStartingLinkIsLeftToTheNavController() {
-        assertFalse(fallbackHandles("android.intent.action.VIEW", browsable = true, data = true, clip = false, initial = true))
-        assertFalse(fallbackHandles("android.intent.action.VIEW", browsable = true, data = false, clip = false, initial = true))
+        assertFalse(fallbackHandles("android.intent.action.VIEW", browsable = true, initial = true))
     }
 
-    @Test fun startingFilesAndSharesAreStillImported() {
-        assertTrue(fallbackHandles("android.intent.action.VIEW", browsable = false, data = true, clip = false, initial = true))
-        assertTrue(fallbackHandles("android.intent.action.SEND", browsable = false, data = false, clip = true, initial = true))
-        assertFalse(fallbackHandles("android.intent.action.SEND", browsable = false, data = true, clip = false, initial = true))
-        assertFalse(fallbackHandles("android.intent.action.MAIN", browsable = true, data = true, clip = true, initial = true))
+    /** Files opened in, or shared with, the app are imported by Rust now (SettingsEntryTest), never here. */
+    @Test fun filesAndSharesAreNotTaken() {
+        for (initial in listOf(true, false)) {
+            assertFalse(fallbackHandles("android.intent.action.VIEW", browsable = false, initial = initial))
+            assertFalse(fallbackHandles("android.intent.action.SEND", browsable = false, initial = initial))
+        }
     }
 
     @Test fun theFallbackLeavesOnceItsLastScreenIsPopped() {
