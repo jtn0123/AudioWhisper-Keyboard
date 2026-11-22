@@ -166,8 +166,18 @@ def env():
     return e
 
 
+def log_of(output, name, target):
+    return output / (name + '.' + target.replace(':', '-') + '.log')
+
+
+def compiled(log_path):
+    """False when the build failed: a mutant that doesn't compile is no test's catch."""
+    text = log_path.read_text(errors='replace')
+    return not any(sign in text for sign in ('could not compile', '\ne: ', 'Compilation error'))
+
+
 def rust(output, name, target):
-    log_path = output / (name + '.' + target.replace(':', '-') + '.log')
+    log_path = log_of(output, name, target)
     with log_path.open('wb') as log:
         result = subprocess.run(['cargo', 'test', '-q'] + CARGO[target], cwd=ROOT / 'lib/rust', stdout=log,
                                 stderr=subprocess.STDOUT, env=env())
@@ -185,7 +195,7 @@ def jvm(output, name, target):
     command = ['./gradlew', '--stacktrace', ':app:testDebugUnitTest']
     for pattern in JVM[target]:
         command += ['--tests', pattern]
-    with (output / (name + '.' + target.replace(':', '-') + '.log')).open('wb') as log:
+    with log_of(output, name, target).open('wb') as log:
         result = subprocess.run(command, cwd=ROOT, stdout=log, stderr=subprocess.STDOUT, env=env())
     failures = 0
     for report in REPORTS.glob('TEST-*.xml'):
@@ -232,14 +242,17 @@ def main():
                 outcome = {}
                 for target in targets:
                     status, failures = run(output, name, target)
-                    outcome[target] = {'exit': status, 'assertion_failures': failures}
+                    outcome[target] = {'exit': status, 'assertion_failures': failures,
+                                       'compiled': compiled(log_of(output, name, target))}
             finally:
                 path.write_bytes(originals[path])
             caught = [t for t, o in outcome.items() if o['exit'] != 0 and o['assertion_failures'] > 0]
             results.append({'mutation': name, 'file': str(path.relative_to(ROOT)), 'targets': outcome,
                             'caught_by': caught})
             (output / 'result.json').write_text(json.dumps({'mutations': results}, indent=2) + '\n')
-            print(name + ': ' + ('caught by ' + ', '.join(caught) if caught else 'NOT CAUGHT'), flush=True)
+            broken = [t for t, o in outcome.items() if not o['compiled']]
+            missed = 'NOT CAUGHT' + (' (did not compile for ' + ', '.join(broken) + ')' if broken else '')
+            print(name + ': ' + ('caught by ' + ', '.join(caught) if caught else missed), flush=True)
     finally:
         for path, original in originals.items():
             path.write_bytes(original)
