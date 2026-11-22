@@ -99,6 +99,7 @@ These need no device. They are listed so they are not lost.
 * A hardware keyboard's Ctrl+C and Ctrl+A do nothing on the project licence's selection. ([stage4-licences, where it differs from Compose](stage4-licences.md#where-it-differs-from-compose))
 * Setup's paragraphs are ragged right where Compose justified them, and its steps open without Compose's animation. ([stage4-setup, differences from Compose](stage4-setup.md#differences-from-compose))
 * The project licence is shaped by parley in DroidSansMono, not by Android's text stack, so glyphs can sit a pixel apart from Compose's. With the Compose screen deleted there is no picture pair to measure it. ([stage4-licences, where it differs from Compose](stage4-licences.md#where-it-differs-from-compose))
+* The LatinIME port's golden files have only been written and checked on macOS arm64, as CI runs. No `libm` function is reachable and `mul_add` rounds the same everywhere, so an x86-64 or Linux host should give the same bits, but none has run them. ([phase6-oracle-goldens, owed](phase6-oracle-goldens.md#owed))
 
 ## Notes
 

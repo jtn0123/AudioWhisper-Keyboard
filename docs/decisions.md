@@ -899,7 +899,7 @@ failure still names the first range of answers that differs and shows what Latin
 The goldens cover both dictionaries the oracle tests used, AOSP's and the one the app ships.
 They share AOSP's 160,669 words but not its statistics, so the shipped dictionary's answers are
 its own; a changed dictionary would fail them as if the decoder had changed, so `latin-golden`
-pins both files' fingerprints and says which goldens to write again. **Would change if** the shipped dictionary is
-rebuilt on purpose: its goldens then come from the generator commit's oracle on the new file
-(the record says how), or, once the decoder is meant to differ from LatinIME, from the Rust
-itself after review.
+pins both files' fingerprints and says which goldens to write again. **Would change if** the
+shipped dictionary is rebuilt on purpose: its goldens then come from the generator commit's
+oracle on the new file (the record says how), or, once the decoder is meant to differ from
+LatinIME, from the Rust itself after review.

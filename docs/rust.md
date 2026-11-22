@@ -970,10 +970,11 @@ JVM heap (`LatinLanguageProvider.attachBundledModel`). Why a trigram model and t
 AOSP's original is kept, unchanged, as `crates/latin/tests/fixtures/aosp_main_en-US.dict`. Tests
 that pin what the decoder answers (`LatinImeJniTest`, the scoreboard's own tests) read that file,
 so their answers stay pinned; tests that compare two implementations (the port against the C++'s
-golden answers, Rust against the Kotlin references) run on both dictionaries. The app attaches the model when it opens the dictionary; tests attach it only where
-they test it (`crates/suggest/tests/language_model.rs`, `LatinSessionModelTest`, the scoreboard's
-`--model`), so the decoder's pinned answers and the A1 replay digests, which open the engine
-without it, are the dictionary's alone.
+golden answers, Rust against the Kotlin references) run on both dictionaries. The app attaches
+the model when it opens the dictionary; tests attach it only where they test it
+(`crates/suggest/tests/language_model.rs`, `LatinSessionModelTest`, the scoreboard's `--model`),
+so the decoder's pinned answers and the A1 replay digests, which open the engine without it, are
+the dictionary's alone.
 
 ## Layout
 
