@@ -19,6 +19,7 @@ pub(crate) mod glide;
 mod handle;
 mod ime_window;
 mod jni;
+mod key_graph;
 mod key_models;
 pub(crate) mod keys;
 #[cfg(not(target_os = "android"))]

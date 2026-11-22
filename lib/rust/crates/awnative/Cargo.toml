@@ -39,6 +39,7 @@ gestures = { path = "../gestures" }
 gif = { path = "../gif" }
 glide = { path = "../glide" }
 input = { path = "../input" }
+keygraph = { path = "../keygraph" }
 keys = { path = "../keys" }
 latin = { path = "../latin" }
 ngram = { path = "../ngram" }

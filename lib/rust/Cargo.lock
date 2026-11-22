@@ -105,6 +105,7 @@ dependencies = [
  "glide",
  "input",
  "jni-sys",
+ "keygraph",
  "keys",
  "latin",
  "ngram",
@@ -898,6 +899,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cb26cec98cce3a3d96cbb7bced3c4b16e3d13f27ec56dbd62cbc8f39cfb9d653"
 dependencies = [
  "cpufeatures",
+]
+
+[[package]]
+name = "keygraph"
+version = "0.1.0"
+dependencies = [
+ "input",
+ "keys",
+ "popup",
+ "serde_json",
+ "wire",
 ]
 
 [[package]]

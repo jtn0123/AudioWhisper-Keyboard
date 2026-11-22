@@ -1,0 +1,18 @@
+[package]
+name = "keygraph"
+version = "0.1.0"
+description = "The keyboard's key graph: layouts read from their files, assembled, and each key's data, label, icon, state, popups and hint computed for the keyboard's state, ported from FlorisBoard's TextKeyboard"
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+input = { path = "../input" }
+keys = { path = "../keys" }
+popup = { path = "../popup" }
+wire = { path = "../wire" }
+serde_json = "=1.0.154"
+
+[lints]
+workspace = true
