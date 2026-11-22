@@ -155,6 +155,9 @@ fn an_open_property_editor_survives_recreation_with_what_it_holds() {
     c.set_theme_editor(&loaded(SHEET)).unwrap();
     assert_eq!(c.stack.last().unwrap(), PROPERTY_EDIT);
     assert_eq!(c.theme_editor.prop, prop);
+    // The preview shows the form's value once the draft is back.
+    let shown = last(&c, effect::PREVIEW).unwrap();
+    assert!(shown[3].contains("\"background\": \"rgba(18,52,86,1)\""));
 }
 
 #[test]

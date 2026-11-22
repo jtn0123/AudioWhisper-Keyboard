@@ -353,5 +353,6 @@ impl App {
         e.keyboard_was = d.keyboard_was;
         e.load = Load::Ready;
         self.theme_preview();
+        self.property_changed();
     }
 }

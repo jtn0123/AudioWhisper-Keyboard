@@ -5,7 +5,8 @@
 //! the value as its encoder edits it (`property_values.rs`). Apply refuses with no name or
 //! encoder, a value the stylesheet cannot hold, or, adding, a name the set has already, which
 //! Compose meant to refuse and silently overwrote. Delete deletes through the rules' Delete, so
-//! Undo puts it back.
+//! Undo puts it back. While it is open, every value the stylesheet can hold is shown on the
+//! keyboard before Apply; Cancel and Back show the draft without it.
 //!
 //! snygg v2's spec gives a property no level (Compose's `propertySpec.level <= snyggLevel`
 //! filter is commented out in ThemeEditorScreen), so the editor level changes only how names
@@ -21,10 +22,12 @@ use crate::settings_ui::{
 use snygg::{
     Text,
     grammar::Rule,
-    resolve::PropertySets,
+    json_write::to_pretty_json,
+    resolve::{PropertySets, Stylesheet},
     spec, text,
     value::{COLOR_NAMES, ENCODERS, Encoder, Value},
 };
+use wire::settings_ui::theme_editor::effect;
 
 /// Why Apply refused a name the set has.
 pub const EXISTS: &str = "settings__theme_editor__property_already_exists";
@@ -208,6 +211,7 @@ impl App {
                     f.copy_to_all();
                 }
                 self.refresh_owned_field();
+                self.property_changed();
             }
             PropTap::Delete => self.delete_open_property(),
         }
@@ -276,10 +280,34 @@ impl App {
         }
         self.close_editor();
     }
-    /// The rule, property and meta editors close.
+    /// The draft with the form's value, shown on the keyboard, while the stylesheet can hold
+    /// that value.
+    pub(super) fn property_changed(&mut self) {
+        let e = &self.theme_editor;
+        let (Some(f), Some((workspace, index))) = (e.prop.as_ref(), e.target.clone()) else {
+            return;
+        };
+        let Some(value) = f.value().filter(|_| f.name_ok()) else {
+            return;
+        };
+        let mut rules = e.rules.clone();
+        if let Some(props) = form_set(&mut rules, f) {
+            put(props, f.key(), value);
+        }
+        let Ok(json) = to_pretty_json(&e.schema, &Stylesheet { rules }) else {
+            return;
+        };
+        let packet = vec![effect::PREVIEW.into(), workspace, index.to_string(), json];
+        self.effects.push(packet);
+    }
+    /// The rule, property and meta editors close: a property editor's value leaves the
+    /// keyboard, which shows the draft again.
     pub(super) fn close_theme_forms(&mut self) {
         let e = &mut self.theme_editor;
-        (e.form, e.meta_form, e.prop) = (None, None, None);
+        (e.form, e.meta_form) = (None, None);
+        if e.prop.take().is_some() {
+            self.theme_preview();
+        }
     }
     /// A field whose text the form changed under it shows the form's text; one gone gives the
     /// editor back to the preview field.
@@ -422,6 +450,7 @@ impl App {
             _ => f.choice = choice.into(),
         }
         self.refresh_owned_field();
+        self.property_changed();
         true
     }
     /// Line field `part`'s text, or None when it is not one now.
@@ -441,11 +470,12 @@ impl App {
             return;
         };
         match part {
-            Part::PropSearch => f.search = value,
+            Part::PropSearch => return f.search = value,
             Part::PropName => f.rename(value),
             Part::PropValue => f.texts[0] = value,
             Part::PropSide(k @ 0..=3) => (f.texts[k], f.last) = (value, k),
-            _ => {}
+            _ => return,
         }
+        self.property_changed();
     }
 }

@@ -2,7 +2,7 @@
 //! the value as its encoder edits it, the four sides or corners with the chip copying one to
 //! all, and Show keyboard. The screen has the item editor's bottom bar and no preview field, so
 //! Show keyboard focuses its hidden in-app editor, as the rules do when `DisplayKbdAfterDialogs`
-//! brings the keyboard back: the IME then draws the draft's preview over the bottom of the
+//! brings the keyboard back: the IME then draws the live preview over the bottom of the
 //! screen, and Back hides it again.
 use super::{
     Tap,
