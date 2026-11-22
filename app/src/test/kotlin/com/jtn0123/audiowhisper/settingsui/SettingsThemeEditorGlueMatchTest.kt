@@ -88,7 +88,8 @@ class SettingsThemeEditorGlueMatchTest {
             assertEquals(listOf("dusk", ""), listOf(dusk.id, dusk.stylesheetPath))
             assertEquals(MaterialYouFlags(PaletteStyle.entries.last(), Contrast.entries.last(), theme.materialYouFlags.specVersion),
                 dusk.materialYouFlags, "a flag name no enum has keeps the old flag")
-            assertEquals("{}", dir.resolve("stylesheets/dusk.json").readText(), "written where the new id keeps it")
+            assertEquals("{}", dir.resolve("stylesheets/dusk.json").takeIf { it.exists() }?.readText(),
+                "written where the new id keeps it")
         } finally {
             dir.deleteRecursively()
         }
