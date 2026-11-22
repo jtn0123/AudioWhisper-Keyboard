@@ -3,9 +3,11 @@
 //! their properties, the rule and meta editors, Delete with Undo, Duplicate, fine-tune, Save and
 //! Back's discard question, and the draft kept across a saved state; and the property editor
 //! (part 3): its value kinds, a static colour through the colour picker, the dynamic colours'
-//! swatches, every kind's value icon, a font's source sets, the Errors box and the live preview.
+//! swatches, every kind's value icon, the low contrast note, a font's source sets, the Errors
+//! box and the live preview.
 mod colour;
 mod common;
+mod contrast;
 mod dynamic;
 mod form;
 mod icons;

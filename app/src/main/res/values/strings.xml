@@ -210,6 +210,7 @@
     <string name="settings__theme_editor__add_source_set">Add source set</string>
     <string name="settings__theme_editor__move_up">Move up</string>
     <string name="settings__theme_editor__move_down">Move down</string>
+    <string name="settings__theme_editor__low_contrast">Low contrast: {ratio}:1, below 4.5:1</string>
     <string name="settings__theme_editor__show_keyboard">Show keyboard</string>
     <string name="settings__theme_editor__component_meta_is_night_theme">Is night theme</string>
     <string name="settings__theme_editor__component_meta_stylesheet_path">Stylesheet path</string>

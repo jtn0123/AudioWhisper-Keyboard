@@ -32,8 +32,9 @@ use wire::settings_ui::theme_editor::effect;
 /// Why Apply refused a name the set has.
 pub const EXISTS: &str = "settings__theme_editor__property_already_exists";
 /// The strings the property editor shows beyond its rows'.
-pub const KEYS: [&str; 7] = [
+pub const KEYS: [&str; 8] = [
     EXISTS,
+    super::contrast::LOW_CONTRAST,
     "settings__theme_editor__add_source_set",
     "settings__theme_editor__move_up",
     "settings__theme_editor__move_down",

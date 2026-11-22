@@ -7,6 +7,7 @@
 //! stylesheet. Edits are a draft until Save: Back with changes asks to discard them, where
 //! Compose wrote every edit through to the workspace.
 pub mod boxes;
+pub mod contrast;
 pub mod dynamic;
 pub mod form;
 pub mod form_paint;

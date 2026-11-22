@@ -15,7 +15,7 @@ const LIGHT: &str = "snygg__property_value__material_you_light_color";
 const DARK: &str = "snygg__property_value__material_you_dark_color";
 
 /// A light and a dark colour for name `i`, none of them on the screen otherwise.
-fn light(i: usize) -> u32 {
+pub fn light(i: usize) -> u32 {
     0xff10_2030 + i as u32 * 0x0001_0101
 }
 fn dark(i: usize) -> u32 {
@@ -26,7 +26,7 @@ fn colors(f: fn(usize) -> u32) -> String {
     all.join("/")
 }
 /// The test report with the palette in it.
-fn with_palette(sheet: &str) -> Vec<String> {
+pub fn with_palette(sheet: &str) -> Vec<String> {
     let mut p = loaded(sheet);
     p[report::COLOR_NAMES] = COLOR_NAMES.join("/");
     p[report::LIGHT_COLORS] = colors(light);

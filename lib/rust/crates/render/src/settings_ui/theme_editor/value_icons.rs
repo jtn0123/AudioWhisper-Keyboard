@@ -69,7 +69,7 @@ impl App {
         self.paint_icon(p, "link", rect(x, y, s, s), ink, clip);
     }
     /// What `@defines` gives variable `key`.
-    fn defined(&self, key: &[u16]) -> Option<Value> {
+    pub(super) fn defined(&self, key: &[u16]) -> Option<Value> {
         let (_, sets) = self
             .theme_editor
             .rules

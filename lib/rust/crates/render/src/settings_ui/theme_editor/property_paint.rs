@@ -64,7 +64,7 @@ impl App {
                 let d = self.property_dropdown(i, part, &f, title);
                 self.dropdown(p, d, at, clip, text)
             }
-            Part::PropValue => self.value_part(p, (i, &f), at, clip, text),
+            Part::PropValue => self.checked_value(p, (i, &f), at, clip, text),
             Part::PropSide(k) if sides => self.side_part(p, (i, k, &f), at, clip, text),
             Part::PropAll if sides => {
                 let key = match f.encoder {
@@ -124,7 +124,7 @@ impl App {
     /// The value as its encoder edits it: a dropdown (with the note when the workspace has no
     /// files), a field with its unit, the colour opening the picker, a shape's outline, or
     /// nothing.
-    fn value_part(
+    pub(super) fn value_part(
         &mut self,
         p: &mut Panel,
         (i, f): (usize, &PropertyForm),

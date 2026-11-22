@@ -85,6 +85,7 @@ internal val settingsThemeEditorStringIds: Map<String, Int> = mapOf(
     "settings__theme_editor__fine_tune__title" to R.string.settings__theme_editor__fine_tune__title,
     "settings__theme_editor__font_name_invalid" to R.string.settings__theme_editor__font_name_invalid,
     "settings__theme_editor__loading" to R.string.settings__theme_editor__loading,
+    "settings__theme_editor__low_contrast" to R.string.settings__theme_editor__low_contrast,
     "settings__theme_editor__missing_workspace" to R.string.settings__theme_editor__missing_workspace,
     "settings__theme_editor__move_down" to R.string.settings__theme_editor__move_down,
     "settings__theme_editor__move_up" to R.string.settings__theme_editor__move_up,
