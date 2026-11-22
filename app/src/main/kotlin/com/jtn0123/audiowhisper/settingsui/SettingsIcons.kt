@@ -15,8 +15,10 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.Build
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.EmojiSymbols
+import androidx.compose.material.icons.outlined.FileDownload
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Keyboard
+import androidx.compose.material.icons.outlined.Mail
 import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.Policy
 import androidx.compose.material.icons.outlined.Schedule
@@ -73,5 +75,8 @@ internal fun settingsIcons(resources: Resources): Array<String> {
         "@icon:wrap_text" to Icons.AutoMirrored.Filled.WrapText, "@icon:attach_file" to Icons.Default.AttachFile,
         "@icon:open_in_full" to Icons.Default.OpenInFull, "@icon:check_box" to Icons.Default.CheckBox,
         "@icon:check_box_outline_blank" to Icons.Default.CheckBoxOutlineBlank, "@icon:link" to Icons.Default.Link,
+        // The extension screens: a list's row, Search for Updates, Export and a maintainer's email.
+        "@icon:keyboard" to Icons.Default.Keyboard, "@icon:file_download" to Icons.Outlined.FileDownload,
+        "@icon:share" to Icons.Default.Share, "@icon:mail" to Icons.Outlined.Mail,
     )).flatMap { (name, icon) -> listOf(name, iconPath(icon)) }.toTypedArray()
 }

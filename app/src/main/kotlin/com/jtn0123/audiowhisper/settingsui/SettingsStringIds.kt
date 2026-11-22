@@ -491,7 +491,7 @@ internal val settingsStringIds: Map<String, Int> = mapOf(
     "unit__milliseconds__symbol" to R.string.unit__milliseconds__symbol,
     "unit__percent__symbol" to R.string.unit__percent__symbol,
 ) + settingsLanguageStringIds + settingsWordStringIds + settingsThemeStringIds + settingsSetupStringIds +
-    settingsThemeEditorStringIds
+    settingsThemeEditorStringIds + settingsExtensionStringIds
 
 /** The plurals a native slider label or the time dial can use; ranges come from the native screens. */
 internal val settingsPluralIds: Map<String, Int> = mapOf(

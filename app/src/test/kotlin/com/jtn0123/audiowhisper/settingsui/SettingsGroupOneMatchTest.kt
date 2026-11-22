@@ -166,11 +166,11 @@ class SettingsGroupOneMatchTest {
             val native = listOf("settings/home", "settings/keyboard") + ref.screens.map { it.route } +
                 ReferenceGroupTwoScreens.screens.map { it.route } + "settings/about/third-party-licenses" + "settings/about/project-license" +
                 ReferenceOtherThemeScreens.screens.map { it.route } + "settings/other/backup" + "settings/other/restore" +
-                languageRoutes + wordRoutes + themeRoutes + "setup" + themeEditorRoutes
+                languageRoutes + wordRoutes + themeRoutes + "setup" + themeEditorRoutes + extensionRoutes
             assertEquals(native, n.settings(SettingsUiOp.ROUTES)[2].split("\n"))
             prepare(n, defaults())
-            // The extension screens stay in Compose.
-            val compose = "ext/list/EXT_THEME"
+            // Importing an extension stays in Compose.
+            val compose = "ext/import/EXT_ANY"
             assertEquals(listOf(listOf("compose", compose, native.joinToString("|"))), effects(state(n, SettingsUiOp.NAVIGATE, compose)))
             assertEquals("settings/home", state(n).getValue("route").jsonPrimitive.content)
         }
@@ -200,7 +200,7 @@ class SettingsGroupOneMatchTest {
                 assertEquals("settings/keyboard", state(recreated).getValue("route").jsonPrimitive.content)
             }
             // A stack Rust cannot draw, or scrolls that do not match it, restores to home.
-            for (bad in listOf(saved.copyOf().apply { this[1] = "settings/home|ext/list/EXT_THEME" },
+            for (bad in listOf(saved.copyOf().apply { this[1] = "settings/home|ext/import/EXT_ANY" },
                 saved.copyOf().apply { this[2] = "0" })) KeyboardRenderer(emptyArray()).use { r ->
                 prepare(r, p); state(r, SettingsUiOp.RESTORE, *bad)
                 assertEquals("settings/home", state(r).getValue("route").jsonPrimitive.content)

@@ -37,6 +37,7 @@ internal class RustSettingsView(context: Context) : FrameLayout(context), Surfac
     private lateinit var languages: SettingsLanguages
     private lateinit var words: SettingsWords
     private lateinit var themes: SettingsThemes
+    private lateinit var extensions: SettingsExtensions
     private lateinit var themeEditor: SettingsThemeEditor
     private lateinit var keyRecorder: SettingsKeyRecorder
     private lateinit var setup: SettingsSetup
@@ -100,10 +101,11 @@ internal class RustSettingsView(context: Context) : FrameLayout(context), Surfac
         this.facts = SettingsFacts(activity).also { it.observe { if (!released) pushFacts() } }
         this.fallback = fallback
         readOnly = SettingsReadOnlyText(this, activity.lifecycleScope)
-        // Before the saved state, which asks for a report when it reopens a language, word or theme screen.
+        // Before the saved state, which asks for a report when it reopens a language, word, theme or extension screen.
         languages = SettingsLanguages(activity) { if (!released) receive(native.settings(SettingsUiOp.LANGUAGES, it)) }
         words = SettingsWords(activity) { if (!released) receive(native.settings(SettingsUiOp.WORDS, it)) }
         themes = SettingsThemes(activity) { if (!released) receive(native.settings(SettingsUiOp.THEMES, it)) }
+        extensions = SettingsExtensions(activity) { op, p -> if (!released) receive(native.settings(op, p)) }
         themeEditor = SettingsThemeEditor(activity) { if (!released) receive(native.settings(SettingsUiOp.THEME_EDITOR, it)) }
         keyRecorder = SettingsKeyRecorder(activity) { if (!released) receive(native.settings(SettingsUiOp.THEME_CODE, it)) }
         receive(native.settings(SettingsUiOp.PREFERENCES, platform.snapshot()))
@@ -184,6 +186,7 @@ internal class RustSettingsView(context: Context) : FrameLayout(context), Surfac
                 SettingsUiWordEffect.RESTORE, SettingsUiWordEffect.IMPORT, SettingsUiWordEffect.MANAGER -> words.execute(p)
                 SettingsUiTextEffect.ASSET, SettingsUiTextEffect.CLIP, SettingsUiTextEffect.HAPTIC -> readOnly.execute(p)
                 SettingsUiThemeEffect.LOAD, SettingsUiThemeEffect.PREVIEW -> themes.execute(p)
+                SettingsUiExtensionEffect.LOAD, SettingsUiExtensionEffect.DELETE -> extensions.execute(p)
                 SettingsUiThemeEditorEffect.LOAD, SettingsUiThemeEditorEffect.SAVE, SettingsUiThemeEditorEffect.PREVIEW -> themeEditor.execute(p)
                 SettingsUiThemeCodeEffect.RECORD, SettingsUiThemeCodeEffect.STOP, SettingsUiThemeCodeEffect.DESCRIBE -> keyRecorder.execute(p)
                 SettingsUiSetupEffect.ASK, SettingsUiSetupEffect.NOTIFICATION_SETTINGS, SettingsUiSetupEffect.RETURN -> setup.execute(p)
