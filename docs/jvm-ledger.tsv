@@ -403,7 +403,6 @@ lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/LayoutRules.kt	A	13	ART J
 lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/NativeRuntime.kt	A	24	library load and failure state for the bootstrap (System.loadLibrary)
 lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/Popup.kt	M	72	ART JNI; residual popup model/index/default projection |
 lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/PopupNative.kt	A	48	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
-lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/ReaderRuntime.kt	A	44	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
 lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/RustLibrary.kt	A	9	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
 lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/SettingsRules.kt	A	48	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
 lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/SherpaAsr.kt	A	55	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |

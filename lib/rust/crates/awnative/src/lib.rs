@@ -93,7 +93,7 @@ mod sherpa;
 #[cfg(not(target_os = "android"))]
 mod dictation_segment_test;
 
-mod reader_runtime;
+pub(crate) mod reader_runtime;
 mod tts;
 
 mod render_settings;

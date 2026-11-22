@@ -85,50 +85,52 @@ pub const EMOJI_NATIVE: Class = Class {
     ..CLASS
 };
 
-/// The records emoji data is read into.
-pub const EMOJI_TYPES: [(&str, Module, Type); 3] = [
-    (
-        "emoji",
-        Module::Rust,
-        Type::Record {
-            name: "EmojiEntry",
-            doc: "One emoji of a file [EmojiTable.parse] read: its value, its name (its set's \
-                  first name, for a variant), its skin tone and hair style as ordinals of the \
-                  keyboard's `EmojiSkinTone` and `EmojiHairStyle` (see [EmojiRules.tones]), and \
-                  its keywords.",
-            data: false,
-            fields: &[
-                ("value", "String"),
-                ("name", "String"),
-                ("skinTone", "Int"),
-                ("hairStyle", "Int"),
-                ("keywords", "List<String>"),
-            ],
-        },
-    ),
-    (
-        "emoji",
-        Module::Rust,
-        Type::Record {
-            name: "EmojiEntrySet",
-            doc: "A set of emoji, a base and its variants: [size] entries from [start], in \
-                  category [category].",
-            data: false,
-            fields: &[("category", "Int"), ("start", "Int"), ("size", "Int")],
-        },
-    ),
-    (
-        "emoji",
-        Module::Rust,
-        Type::Record {
-            name: "EmojiTones",
-            doc: "An emoji's skin tone and hair style, as ordinals of `EmojiSkinTone` and \
-                  `EmojiHairStyle`.",
-            data: true,
-            fields: &[("skinTone", "Int"), ("hairStyle", "Int")],
-        },
-    ),
-];
+/// The record each emoji is read into.
+pub const EMOJI_ENTRY: (&str, Module, Type) = (
+    "emoji",
+    Module::Rust,
+    Type::Record {
+        name: "EmojiEntry",
+        doc: "One emoji of a file [EmojiTable.parse] read: its value, its name (its set's \
+              first name, for a variant), its skin tone and hair style as ordinals of the \
+              keyboard's `EmojiSkinTone` and `EmojiHairStyle` (see [EmojiRules.tones]), and \
+              its keywords.",
+        data: false,
+        fields: &[
+            ("value", "String"),
+            ("name", "String"),
+            ("skinTone", "Int"),
+            ("hairStyle", "Int"),
+            ("keywords", "List<String>"),
+        ],
+    },
+);
+
+/// The record each set of emoji is read into.
+pub const EMOJI_ENTRY_SET: (&str, Module, Type) = (
+    "emoji",
+    Module::Rust,
+    Type::Record {
+        name: "EmojiEntrySet",
+        doc: "A set of emoji, a base and its variants: [size] entries from [start], in \
+              category [category].",
+        data: false,
+        fields: &[("category", "Int"), ("start", "Int"), ("size", "Int")],
+    },
+);
+
+/// An emoji's tones, as a record.
+pub const EMOJI_TONES: (&str, Module, Type) = (
+    "emoji",
+    Module::Rust,
+    Type::Record {
+        name: "EmojiTones",
+        doc: "An emoji's skin tone and hair style, as ordinals of `EmojiSkinTone` and \
+              `EmojiHairStyle`.",
+        data: true,
+        fields: &[("skinTone", "Int"), ("hairStyle", "Int")],
+    },
+);
 
 pub const EMOJI_TABLE: Api = Api {
     name: "EmojiTable",

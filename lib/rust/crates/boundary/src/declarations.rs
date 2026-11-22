@@ -13,6 +13,7 @@ mod layout;
 mod learner;
 mod packets;
 mod reader;
+mod reader_runtime;
 mod rules;
 mod screen;
 mod shift;
@@ -60,6 +61,8 @@ pub const CLASSES: &[Class] = &[
     keys::KEYS_NATIVE,
     text::JAVA_TEXT_NATIVE,
     reader::READER_NATIVE,
+    reader_runtime::READER_WALK,
+    reader_runtime::PLAYBACK_NATIVE,
 ];
 
 /// Every generated api over those classes.
@@ -89,10 +92,17 @@ pub const APIS: &[Api] = &[
     text::JAVA_TEXT,
     reader::READER_RULES,
     reader::SPEAKER_KEY_STATE,
+    reader_runtime::READER_TIMING,
+    reader_runtime::PLAYBACK_QUEUE,
 ];
 
-/// Every generated top-level record and enum, with the declarations file and the module it is in.
-pub const TYPES: &[(&str, Module, Type)] = &emoji::EMOJI_TYPES;
+/// Every generated top-level record, enum and interface, with the declarations file and the module it is in.
+pub const TYPES: &[(&str, Module, Type)] = &[
+    emoji::EMOJI_ENTRY,
+    emoji::EMOJI_ENTRY_SET,
+    emoji::EMOJI_TONES,
+    reader_runtime::READER_TREE,
+];
 
 /// Every group crates/wire declares, and the Kotlin module that calls with it.
 pub const WIRE: &[Wire] = &[
