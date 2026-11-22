@@ -38,6 +38,7 @@ internal class RustSettingsView(context: Context) : FrameLayout(context), Surfac
     private lateinit var words: SettingsWords
     private lateinit var themes: SettingsThemes
     private lateinit var extensions: SettingsExtensions
+    private lateinit var extEditor: SettingsExtEditor
     private lateinit var themeEditor: SettingsThemeEditor
     private lateinit var keyRecorder: SettingsKeyRecorder
     private lateinit var setup: SettingsSetup
@@ -106,6 +107,7 @@ internal class RustSettingsView(context: Context) : FrameLayout(context), Surfac
         words = SettingsWords(activity) { if (!released) receive(native.settings(SettingsUiOp.WORDS, it)) }
         themes = SettingsThemes(activity) { if (!released) receive(native.settings(SettingsUiOp.THEMES, it)) }
         extensions = SettingsExtensions(activity) { op, p -> if (!released) receive(native.settings(op, p)) }
+        extEditor = SettingsExtEditor(activity) { if (!released) receive(native.settings(SettingsUiOp.EXT_EDITOR, it)) }
         themeEditor = SettingsThemeEditor(activity) { if (!released) receive(native.settings(SettingsUiOp.THEME_EDITOR, it)) }
         keyRecorder = SettingsKeyRecorder(activity) { if (!released) receive(native.settings(SettingsUiOp.THEME_CODE, it)) }
         receive(native.settings(SettingsUiOp.PREFERENCES, platform.snapshot()))
@@ -188,6 +190,8 @@ internal class RustSettingsView(context: Context) : FrameLayout(context), Surfac
                 SettingsUiThemeEffect.LOAD, SettingsUiThemeEffect.PREVIEW -> themes.execute(p)
                 SettingsUiExtensionEffect.LOAD, SettingsUiExtensionEffect.DELETE, SettingsUiExtensionEffect.FILES,
                 SettingsUiExtensionEffect.CLOSE -> extensions.execute(p)
+                SettingsUiExtEditorEffect.OPEN, SettingsUiExtEditorEffect.SYNC, SettingsUiExtEditorEffect.CLOSE,
+                SettingsUiExtEditorEffect.THEME -> extEditor.execute(p)
                 SettingsUiThemeEditorEffect.LOAD, SettingsUiThemeEditorEffect.SAVE, SettingsUiThemeEditorEffect.PREVIEW -> themeEditor.execute(p)
                 SettingsUiThemeCodeEffect.RECORD, SettingsUiThemeCodeEffect.STOP, SettingsUiThemeCodeEffect.DESCRIBE -> keyRecorder.execute(p)
                 SettingsUiSetupEffect.ASK, SettingsUiSetupEffect.NOTIFICATION_SETTINGS, SettingsUiSetupEffect.RETURN -> setup.execute(p)
@@ -290,6 +294,7 @@ internal class RustSettingsView(context: Context) : FrameLayout(context), Surfac
         if (::facts.isInitialized) facts.release()
         if (::files.isInitialized) files.release()
         if (::themes.isInitialized) themes.release()
+        if (::extEditor.isInitialized) extEditor.release()
         if (::themeEditor.isInitialized) themeEditor.release()
         if (::keyRecorder.isInitialized) keyRecorder.release()
         if (::setup.isInitialized) setup.release()

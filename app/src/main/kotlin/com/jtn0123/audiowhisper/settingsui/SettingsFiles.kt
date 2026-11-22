@@ -36,6 +36,7 @@ internal class SettingsFiles(private val activity: ComponentActivity, private va
                 settingsFileWork.run(job) { running ->
                     if (job in WordFileWork.JOBS) WordFileWork.run(context, p, settingsFileWork::take)
                     else if (job in ExtensionFileWork.JOBS) ExtensionFileWork.run(context, p, settingsFileWork::take)
+                    else if (job in ExtensionEditorWork.JOBS) ExtensionEditorWork.run(context, p, settingsFileWork::take)
                     else BackupWork.run(context, p, running, settingsFileWork::take, activity::startActivity)
                 }
             }
@@ -90,10 +91,11 @@ internal fun pickedReport(outcome: String, documents: List<Pair<String, String>>
     SettingsUiPicked.row(SettingsUiPicked.REPORT to SettingsUiFiles.PICKED, SettingsUiPicked.OUTCOME to outcome) +
         documents.flatMap { (handle, name) -> SettingsUiDocument.row(SettingsUiDocument.HANDLE to handle, SettingsUiDocument.NAME to name).asList() }
 
-/** Runs one job at a time, and hands each report to whichever screen is attached when it arrives,
- * queueing it while none is, so work and its report outlive the activity. [D] is a document. */
+/** Runs one job at a time, and hands each report to the screen attached last when it arrives, queueing it while none
+ * is, so work and its report outlive the activity. A screen over another, as the theme editor's activity is over the
+ * extension editor's, hands the reports back as it leaves. [D] is a document. */
 internal class FileWorkQueue<D>(private val scope: CoroutineScope) {
-    private var host: ((Array<String>) -> Unit)? = null
+    private val hosts = mutableListOf<(Array<String>) -> Unit>()
     private val queued = ArrayDeque<Array<String>>()
     private val documents = mutableMapOf<String, D>()
     private var next = 0
@@ -102,12 +104,19 @@ internal class FileWorkQueue<D>(private val scope: CoroutineScope) {
         private set
     /** Delivers what waited, then `IDLE` when no work runs: Rust then knows any it waited for was lost. */
     fun attach(report: (Array<String>) -> Unit) {
-        host = report
+        hosts.remove(report)
+        hosts.add(report)
         while (queued.isNotEmpty()) report(queued.removeFirst())
         if (running == null) report(arrayOf(SettingsUiFiles.IDLE))
     }
-    fun detach(report: (Array<String>) -> Unit) { if (host === report) host = null }
-    fun send(packet: Array<String>) { val to = host; if (to != null) to(packet) else queued.addLast(packet) }
+    /** The screen [report] left; the one it covered takes the reports again, told when no work runs. */
+    fun detach(report: (Array<String>) -> Unit) {
+        val top = hosts.lastOrNull() === report
+        hosts.remove(report)
+        val uncovered = hosts.lastOrNull()
+        if (top && uncovered != null && running == null) uncovered(arrayOf(SettingsUiFiles.IDLE))
+    }
+    fun send(packet: Array<String>) { val to = hosts.lastOrNull(); if (to != null) to(packet) else queued.addLast(packet) }
     fun keep(document: D): String = "${next++}".also { documents[it] = document }
     /** The document under [handle], which is then forgotten. */
     fun take(handle: String): D? = documents.remove(handle)

@@ -169,10 +169,14 @@ class SettingsGroupOneMatchTest {
                 languageRoutes + wordRoutes + themeRoutes + "setup" + themeEditorRoutes + extensionRoutes
             assertEquals(native, n.settings(SettingsUiOp.ROUTES)[2].split("\n"))
             prepare(n, defaults())
-            // Editing an extension stays in Compose.
-            val compose = "ext/edit/my.themes"
+            // Only a route Rust does not draw goes to the fallback, told every route it must hand back.
+            val compose = "settings/not-a-screen"
             assertEquals(listOf(listOf("compose", compose, native.joinToString("|"))), effects(state(n, SettingsUiOp.NAVIGATE, compose)))
             assertEquals("settings/home", state(n).getValue("route").jsonPrimitive.content)
+            // Editing an extension, Compose's until compose-removal step 10, is drawn natively.
+            val edit = state(n, SettingsUiOp.NAVIGATE, "ext/edit/my.themes")
+            assertEquals("ext/edit/my.themes", edit.getValue("route").jsonPrimitive.content)
+            assertTrue(effects(edit).none { it[0] == "compose" })
         }
     }
 

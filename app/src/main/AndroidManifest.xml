@@ -102,7 +102,7 @@
             android:theme="@style/FlorisAppTheme.Splash"
             android:exported="false" />
 
-        <!-- The Rust theme editor, over the Compose extension editor that opened it -->
+        <!-- The Rust theme editor, over the Rust extension editor that opened it -->
         <activity
             android:name="dev.patrickgold.florisboard.app.ThemeEditorActivity"
             android:windowSoftInputMode="adjustResize"

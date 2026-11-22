@@ -785,10 +785,7 @@
     <string name="ext__error__not_found_title">Extension not found</string>
     <string name="ext__error__not_found_description">No extension with ID "{id}" could be found.</string>
     <string name="ext__editor__title_create_any">Create extension</string>
-    <string name="ext__editor__title_create_keyboard">Create keyboard extension</string>
     <string name="ext__editor__title_create_theme">Create theme extension</string>
-    <string name="ext__editor__title_edit_any">Edit extension</string>
-    <string name="ext__editor__title_edit_keyboard">Edit keyboard extension</string>
     <string name="ext__editor__title_edit_theme">Edit theme extension</string>
     <string name="ext__editor__metadata__title">Manage meta data</string>
     <string name="ext__editor__metadata__title_invalid">Invalid meta data</string>
@@ -797,7 +794,6 @@
     <string name="ext__editor__files__title">Manage archive files</string>
     <string name="ext__editor__files__type_fonts">Fonts</string>
     <string name="ext__editor__files__type_images">Images</string>
-    <string name="ext__editor__create_component__title">Create component</string>
     <string name="ext__editor__create_component__title_theme">Create theme</string>
     <string name="ext__editor__create_component__from_empty">Empty</string>
     <string name="ext__editor__create_component__from_existing">From existing</string>

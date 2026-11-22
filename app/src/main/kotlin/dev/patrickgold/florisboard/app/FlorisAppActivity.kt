@@ -40,7 +40,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -52,7 +51,6 @@ import androidx.core.net.toUri
 import androidx.core.view.WindowCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.NavController
-import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import dev.patrickgold.florisboard.R
 import dev.patrickgold.florisboard.app.apptheme.FlorisAppTheme
@@ -70,22 +68,6 @@ import org.florisboard.lib.kotlin.collectIn
 import java.util.concurrent.atomic.AtomicBoolean
 
 private const val SETTINGS_PROFILE_TAG = "aw-settings"
-
-/**
- * Whether the Compose fallback hands an intent to its own link handling: a later browsable link.
- * Not the one it started with: its NavController opens `activity.intent` when the graph is set and
- * remembers that across recreation, so a second pass opened another editor on a new workspace and,
- * after a rotation, replaced the restored one. Files opened or shared go to the Rust importer.
- */
-internal fun fallbackHandles(action: String?, browsable: Boolean, initial: Boolean) =
-    action == Intent.ACTION_VIEW && browsable && !initial
-
-/**
- * Whether the Compose fallback is done: its links have been handled and its back stack is empty,
- * which is where Save or Cancel leaves a screen a link opened on its own. The NavHost keeps drawing
- * that popped screen, whose workspace is closed, so a second Save crashed.
- */
-internal fun fallbackDone(ready: Boolean, emptied: Boolean) = ready && emptied
 
 enum class AppTheme(val id: String) {
     AUTO("auto"),
@@ -113,7 +95,6 @@ open class FlorisAppActivity : ComponentActivity() {
     private val prefs: FlorisPreferenceModel by lazy { val model by FlorisPreferenceStore; model }
     private val appContext by appContext()
     private var appTheme by mutableStateOf(AppTheme.AUTO)
-    private var intentToBeHandled by mutableStateOf<Intent?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         if (android.util.Log.isLoggable(SETTINGS_PROFILE_TAG, android.util.Log.DEBUG)) android.util.Log.d(SETTINGS_PROFILE_TAG, "activity_start_ns=${System.nanoTime()}")
@@ -162,20 +143,15 @@ open class FlorisAppActivity : ComponentActivity() {
             }
             contentShown = true
             val host = rustSettings
-            if (host == null) intentToBeHandled = intent.takeIf { fallbackTakes(it, initial = true) }
-            else if (rustState == null) route(host, intent, fresh = true)
+            if (host != null && rustState == null) route(host, intent, fresh = true)
         }
     }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        rustSettings?.let { host -> route(host, intent, fresh = false); return }
-        intentToBeHandled = intent.takeIf { fallbackTakes(it, initial = false) }
+        rustSettings?.let { host -> route(host, intent, fresh = false) }
     }
-
-    private fun fallbackTakes(intent: Intent, initial: Boolean) =
-        fallbackHandles(intent.action, intent.categories?.contains(Intent.CATEGORY_BROWSABLE) == true, initial)
 
     /** A fresh activity starts on the screen Rust picks for [intent]; a later link or file opens its screen. */
     private fun route(host: RustSettingsView, intent: Intent, fresh: Boolean) {
@@ -240,13 +216,6 @@ open class FlorisAppActivity : ComponentActivity() {
             navController.addOnDestinationChangedListener(listener)
             onDispose { navController.removeOnDestinationChangedListener(listener) }
         }
-        // Save or Cancel pops the only screen a link opened; nothing draws after that, so leave. The
-        // popped entry stops with no entry left under it. (The stack's own flow is library-only.)
-        val last = navController.currentBackStackEntryAsState().value
-        val lastState = last?.lifecycle?.currentStateFlow?.collectAsState()?.value
-        LaunchedEffect(last, lastState) {
-            if (!allowRustSettings && fallbackDone(fallbackReady, navController.currentBackStackEntry == null)) finish()
-        }
 
         val isImeSetUp by prefs.internal.isImeSetUp.observeAsState()
 
@@ -278,11 +247,7 @@ open class FlorisAppActivity : ComponentActivity() {
             }
         }
 
-        LaunchedEffect(intentToBeHandled) {
-            val intent = intentToBeHandled
-            if (intent != null) navController.handleDeepLink(intent)
-            intentToBeHandled = null
-            fallbackReady = true
-        }
+        // Its NavController opens activity.intent itself when the graph is set.
+        LaunchedEffect(Unit) { fallbackReady = true }
     }
 }

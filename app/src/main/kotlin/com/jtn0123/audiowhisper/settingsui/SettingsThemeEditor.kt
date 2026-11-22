@@ -44,7 +44,7 @@ internal class SettingsThemeEditor(private val activity: ComponentActivity, priv
     fun release() { themeManager.previewThemeInfo.value = null }
 
     private fun component(uuid: String, index: String) =
-        themeComponent(cacheManager.themeExtEditor.getWorkspaceByUuid(uuid)?.takeIf { it.isOpen() }, index)
+        themeComponent(editorWorkspace(cacheManager, uuid), index)
 
     private fun load(uuid: String, index: String): Array<String> {
         val found = component(uuid, index)
@@ -56,10 +56,12 @@ internal class SettingsThemeEditor(private val activity: ComponentActivity, priv
     private fun accent() = keyboardAccent(prefs.theme.accentColor.get()) {
         Color(activity.resources.getColor(android.R.color.system_accent1_500, activity.theme))
     }
-    /** Rust's stylesheet becomes the workspace's file, which `handleSave` copies when no Compose editor holds one. */
+    /** Rust's stylesheet becomes the workspace's file, which the extension editor's Save copies, and the draft with the
+     * new meta is kept for the extension editor to take as it comes back. */
     private fun save(p: List<String>) {
         val (workspace, _) = component(p[1], p[2]) ?: return
         workspace.update { themeEditorSaved(workspace.extDir, this, p[2].toInt(), p) }
+        runCatching { keepThemed(workspace) }
     }
     /** ThemeEditorScreen's `previewThemeInfo`, built from Rust's draft; a bare packet gives the keyboard its theme. */
     private fun preview(p: List<String>) {

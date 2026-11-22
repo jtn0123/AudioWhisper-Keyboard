@@ -78,5 +78,8 @@ internal fun settingsIcons(resources: Resources): Array<String> {
         // The extension screens: a list's row, Search for Updates, Export and a maintainer's email.
         "@icon:keyboard" to Icons.Default.Keyboard, "@icon:file_download" to Icons.Outlined.FileDownload,
         "@icon:share" to Icons.Default.Share, "@icon:mail" to Icons.Outlined.Mail,
+        // The extension editor's Files, and its fonts' and images' rows.
+        "@icon:file_blank" to ImageVector.vectorResource(null, resources, R.drawable.ic_file_blank),
+        "@icon:text_fields" to Icons.Default.TextFields, "@icon:photo" to Icons.Default.Photo,
     )).flatMap { (name, icon) -> listOf(name, iconPath(icon)) }.toTypedArray()
 }

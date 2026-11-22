@@ -129,7 +129,7 @@ class SettingsSetupMatchTest {
             val s = open(n, enabled = true, selected = false, stored = "NOT_SET")
             state(n, SettingsUiOp.ACTIVATE, labelled(s, step(1)).text("id"))
             val saved = n.settings(SettingsUiOp.SAVE).drop(3).toTypedArray()
-            assertEquals(listOf("10", "setup", "1|0|false"), listOf(saved[0], saved[1], saved[19]))
+            assertEquals(listOf("11", "setup", "1|0|false"), listOf(saved[0], saved[1], saved[19]))
             KeyboardRenderer(arrayOf(font)).use { recreated ->
                 bind(recreated, "NOT_SET")
                 state(recreated, SettingsUiOp.RESTORE, *saved)

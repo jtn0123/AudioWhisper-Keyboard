@@ -36,7 +36,6 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navDeepLink
 import androidx.navigation.toRoute
-import dev.patrickgold.florisboard.app.ext.ExtensionEditScreen
 import dev.patrickgold.florisboard.app.settings.dictionary.UserDictionaryType
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -261,15 +260,7 @@ object Routes {
 
             composableWithDeepLink(Ext.Home::class) {}
             composableWithDeepLink(Ext.List::class) {}
-            composableWithDeepLink(Ext.Edit::class) { navBackStack ->
-                val payload = navBackStack.toRoute<Ext.Edit>()
-                val extensionId = payload.id
-                val serialType = payload.serialType
-                ExtensionEditScreen(
-                    id = extensionId,
-                    createSerialType = serialType.takeIf { !it.isNullOrBlank() },
-                )
-            }
+            composableWithDeepLink(Ext.Edit::class) {}
             composableWithDeepLink(Ext.View::class) {}
             composableWithDeepLink(Ext.CheckUpdates::class) {}
         }

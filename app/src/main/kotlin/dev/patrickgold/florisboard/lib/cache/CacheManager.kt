@@ -20,11 +20,6 @@ import android.content.ContentResolver
 import android.content.Context
 import android.net.Uri
 import android.provider.OpenableColumns
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
-import dev.patrickgold.florisboard.app.ext.EditorAction
 import dev.patrickgold.florisboard.appContext
 import dev.patrickgold.florisboard.ime.theme.ThemeExtensionEditor
 import dev.patrickgold.florisboard.lib.ext.Extension
@@ -70,7 +65,9 @@ class CacheManager(context: Context) {
 
     val importer = WorkspacesContainer(ImporterDirName) { ImporterWorkspace(it) }
     val exporter = WorkspacesContainer(ExporterDirName) { ExporterWorkspace(it) }
-    val themeExtEditor = WorkspacesContainer(EditorDirName) { ExtEditorWorkspace<ThemeExtensionEditor>(it) }
+    /** Kept where Android does not clear it, unlike the cache, so an edit outlives the process (stage4-extensions.md,
+     * part 3); the app's start wipes only the cache. */
+    val themeExtEditor = WorkspacesContainer(EditorDirName, appContext.noBackupFilesDir) { ExtEditorWorkspace<ThemeExtensionEditor>(it) }
     val backupAndRestore = WorkspacesContainer(BackupAndRestoreDirName) { BackupAndRestoreWorkspace(it) }
 
     /** Reads [uriList] into a new import workspace, which can be found by its id once this returns. A read that fails
@@ -112,15 +109,33 @@ class CacheManager(context: Context) {
 
     open inner class WorkspacesContainer<T : Workspace> internal constructor(
         val dirName: String,
+        root: FsDir = appContext.cacheDir,
         val factory: (uuid: String) -> T,
     ) {
         private val workspacesGuard = Mutex(locked = false)
         private val workspaces = mutableListOf<T>()
 
-        val dir: FsDir = appContext.cacheDir.subDir(dirName)
+        val dir: FsDir = root.subDir(dirName)
 
+        /** A new workspace, which [getWorkspaceByUuid] finds as soon as this returns. */
         fun new(uuid: String = UUID.randomUUID().toString()): T {
-            return factory(uuid).also { it.mkdirs(); add(it) }
+            return factory(uuid).also { it.mkdirs(); runBlocking { add(it).join() } }
+        }
+
+        /** The workspace [uuid] whose folder outlived the process that made it, or null when it is gone. */
+        fun adopt(uuid: String): T? {
+            getWorkspaceByUuid(uuid)?.let { return it }
+            if (uuid.isEmpty() || !dir.subDir(uuid).isDirectory) return null
+            return factory(uuid).also { runBlocking { add(it).join() } }
+        }
+
+        /** Deletes every workspace but [keep], with the folders a lost process left behind. */
+        fun deleteOthers(keep: String) {
+            for (folder in dir.listFiles().orEmpty()) {
+                if (folder.name == keep) continue
+                getWorkspaceByUuid(folder.name)?.close()
+                folder.deleteRecursively()
+            }
         }
 
         internal fun add(workspace: T) = scope.launch {
@@ -129,9 +144,9 @@ class CacheManager(context: Context) {
             }
         }
 
-        internal fun remove(workspace: T) = scope.launch {
+        internal fun remove(workspace: Workspace) = scope.launch {
             workspacesGuard.withLock {
-                workspaces.remove(workspace)
+                workspaces.removeAll { it === workspace }
             }
         }
 
@@ -190,12 +205,8 @@ class CacheManager(context: Context) {
         val extDir: FsDir = dir.subDir("ext")
         val saverDir: FsDir = dir.subDir("saver")
 
-        var currentAction by mutableStateOf<EditorAction?>(null)
-        var ext: Extension? = null
-        var editor by mutableStateOf<T?>(null)
-        var version by mutableIntStateOf(0)
-
-        val isModified get() = version > 0
+        /** The draft the theme editor reads and saves into: Rust's copy, as `extEditorSync` last sent it. */
+        @Volatile var editor: T? = null
 
         override fun mkdirs() {
             super.mkdirs()
@@ -203,12 +214,13 @@ class CacheManager(context: Context) {
             saverDir.mkdirs()
         }
 
-        inline fun <R> update(block: T.() -> R): R {
-            // Method is designed to only be called when editor has been previously initialized
-            val ret = block(editor!!)
-            version++
-            return ret
+        override fun close() {
+            super.close()
+            themeExtEditor.remove(this)
         }
+
+        /** Runs [block] on the draft, which must be there. */
+        inline fun <R> update(block: T.() -> R): R = block(checkNotNull(editor))
     }
 
     inner class BackupAndRestoreWorkspace(uuid: String) : Workspace(uuid) {

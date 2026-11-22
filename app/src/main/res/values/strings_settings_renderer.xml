@@ -82,6 +82,21 @@
     <string name="settings__ext__read_failed">The selected files could not be read.</string>
     <string name="settings__ext__files_gone">The selected files are no longer available. Select them again.</string>
     <string name="settings__ext__unwritable">The file could not be written.</string>
+    <!-- The extension editor, which Compose drew with English messages or a stack trace. -->
+    <string name="settings__ext_editor__opening">Opening the extension…</string>
+    <string name="settings__ext_editor__unpack_failed">This extension could not be opened for editing. Its file may be damaged.</string>
+    <string name="settings__ext_editor__gone">The editing copy of this extension is gone, as when Android closed the app. Open the extension again.</string>
+    <string name="settings__ext_editor__dependencies_note">Dependencies are not used yet. They are listed here for a future version.</string>
+    <string name="settings__ext_editor__no_dependencies">This extension depends on no other extension.</string>
+    <string name="settings__ext_editor__file_name_invalid">A file name cannot be empty, contain a slash, or be “.” or “..”.</string>
+    <string name="settings__ext_editor__file_exists">A file with this name already exists.</string>
+    <string name="settings__ext_editor__wrong_type">That file\'s type does not belong in this folder. Nothing was added.</string>
+    <string name="settings__ext_editor__file_failed">The file could not be changed. Try again.</string>
+    <string name="settings__ext_editor__copy_failed">The theme could not be copied. Try again.</string>
+    <string name="settings__ext_editor__save_failed">The extension could not be saved. Your changes are still here, so try again.</string>
+    <string name="settings__ext_editor__save_interrupted">The app was closed while saving. Check the theme list to see whether the extension was saved.</string>
+    <string name="settings__ext_editor__id_taken">An installed extension already has this ID. Change the ID in Metadata.</string>
+    <string name="settings__ext_editor__component_invalid">The theme “{name}” cannot be saved. Check its ID, label and authors.</string>
     <string name="crash__copy_details">Copy details</string>
     <string name="crash__native_load_summary">AudioWhisper could not load its keyboard engine. Reinstall the app, then open it again.</string>
     <string name="crash__keyboard_unavailable">AudioWhisper could not load its keyboard engine, so it cannot type. Reinstall the app, and switch to another keyboard until then.</string>

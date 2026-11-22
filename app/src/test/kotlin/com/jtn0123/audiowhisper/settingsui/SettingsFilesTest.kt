@@ -65,6 +65,45 @@ class SettingsFilesTest {
         assertEquals(listOf("fourth"), next.got.last())
     }
 
+    @Test fun aCoveredScreenTakesTheReportsBackWhenTheOneOverItLeaves() {
+        val q = queue()
+        val under = Host()
+        q.attach(under.report)
+        // The theme editor's activity opens over the extension editor's, and closes.
+        val over = Host()
+        q.attach(over.report)
+        under.got.clear()
+        q.detach(over.report)
+        assertEquals(listOf(idle), under.got)
+        // Save's report, sent once it is back, reaches it: it used to wait for a screen forever.
+        q.send(arrayOf("saved"))
+        assertEquals(listOf("saved"), under.got.last())
+        // A screen under another that leaves first changes nothing for the one on top.
+        val top = Host()
+        q.attach(top.report)
+        under.got.clear(); top.got.clear()
+        q.detach(under.report)
+        assertEquals(emptyList(), top.got)
+        q.send(arrayOf("next"))
+        assertEquals(listOf(listOf("next")), top.got)
+        assertEquals(emptyList(), under.got)
+    }
+
+    @Test fun aCoveredScreenIsNotToldIdleWhileWorkRuns() {
+        val q = queue()
+        val under = Host()
+        q.attach(under.report)
+        val over = Host()
+        q.attach(over.report)
+        under.got.clear()
+        val gate = CompletableDeferred<Unit>()
+        q.run(SettingsUiJob.EXT_SAVE) { gate.await(); done(SettingsUiJob.EXT_SAVE).toTypedArray() }
+        q.detach(over.report)
+        assertEquals(emptyList(), under.got)
+        gate.complete(Unit)
+        assertEquals(listOf(done(SettingsUiJob.EXT_SAVE)), under.got)
+    }
+
     @Test fun oneJobRunsAtATimeAndItsReportOutlivesTheScreen() {
         val q = queue()
         val host = Host()

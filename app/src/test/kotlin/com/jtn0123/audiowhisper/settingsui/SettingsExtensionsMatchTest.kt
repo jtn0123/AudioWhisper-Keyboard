@@ -14,10 +14,12 @@ import java.io.File
 import kotlin.random.Random
 import kotlin.test.*
 
-/** The extension routes Rust draws, in the order it lists them. */
+/** The extension routes Rust draws, in the order it lists them: the extension screens, the importer, then the editor
+ * and its sheets. */
 internal val extensionRoutes = listOf("ext", "ext/list/EXT_THEME", "ext/list/EXT_KEYBOARD", "ext/list/EXT_LANGUAGEPACK",
     "ext/view", "ext/check-updates", "ext/import/EXT_ANY", "ext/import/EXT_KEYBOARD", "ext/import/EXT_THEME",
-    "ext/import/EXT_LANGUAGEPACK")
+    "ext/import/EXT_LANGUAGEPACK", "ext/edit", "ext/editor/meta", "ext/editor/dependencies", "ext/editor/files",
+    "ext/editor/file", "ext/editor/file/add", "ext/editor/component/add")
 
 /**
  * The extension screens through the real native settings, their report built by SettingsExtensions' own
