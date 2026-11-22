@@ -2,6 +2,7 @@
 dictionary, project licence, theme manager, setup and theme editor mutation, and fresh Rust test panics for each mutation that only Rust tests see; always restore bytes."""
 import argparse
 import hashlib
+import importlib
 import json
 from pathlib import Path
 import subprocess
@@ -9,11 +10,13 @@ import sys
 import time
 import xml.etree.ElementTree as ET
 
-# The cases live in settings_ui_mutation_cases, one module per screen. -I leaves this folder off the path.
+# The cases live in settings_ui_mutation_cases, one module per screen. -I leaves this folder off the path, so it is
+# put back first and the package loaded by name.
 sys.dont_write_bytecode = True
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from settings_ui_mutation_cases import CASES, RUST  # noqa: E402
-from settings_ui_mutation_cases.paths import ROOT  # noqa: E402
+_cases = importlib.import_module('settings_ui_mutation_cases')
+CASES, RUST = _cases.CASES, _cases.RUST
+ROOT = importlib.import_module('settings_ui_mutation_cases.paths').ROOT
 
 # Suites whose assertion failures count, besides the settingsui ones: the first screen a fresh activity opens.
 SUITES = ('TEST-*settingsui.Settings*Test.xml', 'TEST-*florisboard.app.SettingsEntryTest.xml',
