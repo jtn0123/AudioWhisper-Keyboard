@@ -142,6 +142,17 @@ impl App {
         }
         self.label(&key).replace(&format!("{{{name}}}"), &pattern)
     }
+    /// Field `k`'s placeholder: for an empty stylesheet path, where the stylesheet goes by the
+    /// id being edited, as ComponentMetaEditorDialog's `defaultStylesheetPath(id.trim())` was.
+    pub fn meta_hint(&self, k: usize) -> String {
+        match self.theme_editor.meta_form.as_ref() {
+            Some(f) if k == 3 && f.path.is_empty() => {
+                let id = snygg::text(f.id.trim());
+                String::from_utf16_lossy(&extensions::stylesheet_path(&id, &[]))
+            }
+            _ => String::new(),
+        }
+    }
     /// Field `k` changed.
     pub(in crate::settings_ui) fn meta_typed(&mut self, k: usize, value: String) {
         if let Some(f) = self.theme_editor.meta_form.as_mut() {
@@ -175,7 +186,10 @@ impl App {
     ) -> f32 {
         let title = self.label(self.rows()[i].label);
         match part {
-            Part::MetaField(k) => self.line_box(p, (i, title, self.meta_error(k)), at, clip, text),
+            Part::MetaField(k) => {
+                let field = (i, title, self.meta_error(k), self.meta_hint(k));
+                self.line_box(p, field, at, clip, text)
+            }
             Part::MaterialYou => self.field_title(p, &title, at, clip, text) - at.1,
             Part::MetaChoice(k) => {
                 let form = self.theme_editor.meta_form.as_ref();

@@ -55,10 +55,10 @@ impl App {
                 self.dropdown(p, d, at, clip, text)
             }
             Part::Font if form.element == FONT => {
-                self.line_box(p, (i, title, String::new()), at, clip, text)
+                self.line_box(p, (i, title, String::new(), String::new()), at, clip, text)
             }
             Part::Attribute(0) if form.is_element() => {
-                self.line_box(p, (i, title, String::new()), at, clip, text)
+                self.line_box(p, (i, title, String::new(), String::new()), at, clip, text)
             }
             Part::Selectors if form.is_element() => {
                 let top = self.field_title(p, &title, at, clip, text);

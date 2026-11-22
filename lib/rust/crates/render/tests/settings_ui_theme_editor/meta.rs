@@ -69,6 +69,9 @@ fn edit_offers_the_id_the_path_and_material_you_and_save_writes_them() {
         "sunny"
     );
     assert_eq!(a.line_text(part_id(&a, Part::MetaField(3))).unwrap(), "");
+    // The empty path shows where the stylesheet goes, as Compose's placeholder did.
+    assert_eq!(a.meta_hint(3), "stylesheets/sunny.json");
+    assert_eq!(a.meta_hint(2), "", "only the path has a hint");
     // Each Material You flag is a dropdown of its enum's names with the component's chosen.
     let palette = part_id(&a, Part::MetaChoice(0));
     assert_eq!(control(&a, palette).unwrap().summary, "Neutral");
@@ -78,6 +81,9 @@ fn edit_offers_the_id_the_path_and_material_you_and_save_writes_them() {
     let spec = part_id(&a, Part::MetaChoice(2));
     assert!(tap(&mut a, &mut text, spec));
     assert!(tap(&mut a, &mut text, 3001));
+    // The hint follows the id being edited, trimmed, before Apply.
+    type_into(&mut a, &mut text, Part::MetaField(2), " dusk ");
+    assert_eq!(a.meta_hint(3), "stylesheets/dusk.json");
     type_into(&mut a, &mut text, Part::MetaField(2), "dusk");
     let apply = lang_id(&a, Lang::Save);
     assert!(tap(&mut a, &mut text, apply));

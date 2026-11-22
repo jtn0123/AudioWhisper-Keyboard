@@ -109,11 +109,12 @@ impl App {
         self.push_control(c, clip);
         b.bottom + self.px(8.0) - y
     }
-    /// A title over row `i`'s single-line field, and `error` under it; its height.
+    /// A title over row `i`'s single-line field showing `hint` while empty, and `error` under
+    /// it; its height.
     pub(super) fn line_box(
         &mut self,
         p: &mut Panel,
-        (i, title, error): (usize, String, String),
+        (i, title, error, hint): (usize, String, String, String),
         (x, y): (f32, f32),
         clip: Rect,
         text: &mut Text,
@@ -138,9 +139,9 @@ impl App {
             action: Action::Field(i),
             range: None,
         };
-        // The title is above the field, so an empty field shows no placeholder.
+        // The title is above the field, so an empty field shows only a hint it was given.
         let mut drawn = field.clone();
-        drawn.label = String::new();
+        drawn.label = hint;
         self.paint_editor(p, &drawn, text, clip);
         self.push_control(field, clip);
         let mut bottom = b.bottom;
