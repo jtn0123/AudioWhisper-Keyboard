@@ -154,10 +154,28 @@ its phone checks pass.
   its string ids (53) and 18 lines across the accessibility, icon, string id and view
   adapters. Step 6 is done: 1,239 lines deleted, 177 added.
 
-### 7. User dictionaries
+### 7. User dictionaries (done)
 
 * **Deletes:** `UserDictionaryScreen` (385).
-* **Blocked by:** an editable list over the dictionary database, and import/export.
+* **What changed:** Rust draws both user dictionaries, the keyboard's own and Android's: the
+  languages words are stored under, a language's words, and a word editor. They reuse step 6's
+  editable list, with a flag that leaves out *Move up* and *Move down*, and its item editor.
+  The words stay where they were, in Room and in Android's provider; Kotlin makes each change
+  as the old dialog made it, and JVM tests prove the same database calls against a frozen copy
+  of the old code. The dialog's checks, the import's reading and the export's bytes move to
+  Rust, through step 5's file picker; old export files import, and a new export is
+  byte-compatible. Undo after a delete, a search, and refusing a duplicate word are new; a
+  language's list titled by its language and a new word starting in it are taken from Gboard.
+  See [stage 4: User dictionaries](stage4-user-dictionaries.md).
+* **Blocked by:** nothing.
+* **The fallback loses:** both dictionaries. The route stays as an empty entry that hands back
+  to Rust, as in step 2.
+* **Progress** (non-blank lines deleted): `UserDictionaryScreen` (385), plus code only it used:
+  `UserDictionaryValidation` (62), `UserDictionary`'s import and export (87), 5 lines in
+  `Routes.kt` rewritten as 1, and Compose's locale error string. `UserDictionaryType` (20
+  with its licence header) moved out of the screen into its own file. The native screens add
+  `SettingsWords` (140), its string ids (36) and 13 lines across the view, file, icon and
+  string id adapters. Step 7 is done: 542 lines deleted, 210 added.
 
 ### 8. Project licence
 
