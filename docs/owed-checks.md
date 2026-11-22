@@ -51,6 +51,7 @@ row says so.
 | P23 | Extensions part 1 on the phone, with TalkBack heard: the extension home, the lists, an extension's page and *Search for updates*. The emulator check read the accessibility tree, and nobody listened to it. | [stage4-extensions, owed](stage4-extensions.md#owed) |
 | P24 | Extensions part 2 on the phone, with TalkBack heard: the importer's boxes, its skip reasons and *Export*'s picker. | [stage4-extensions, owed](stage4-extensions.md#owed) |
 | P25 | Keyboard: the key graph Rust builds, on the phone. Rust now builds and computes every key the Rust renderer draws, proven against a frozen copy of main on the host and checked on the emulator's probe field only. In real apps, check the enter key's icon and label in a search box, a messaging app's send field, a browser's address bar (go) and a form's next and done; an email and a URL field's keys; a number, phone and PIN field; long-press popups and their hints on letters and on symbols; shift and caps lock; a second subtype, a non-Latin one if one is installed (none ships with a non-Latin layout); one-handed mode; the overflow's actions dimmed and lit as the clipboard and selection change; and the keyboard after the app is swiped away and reopened. | [phase3-key-graph, what is owed](phase3-key-graph.md#what-is-owed) |
+| P26 | Extensions part 3 on the phone, with TalkBack heard: the theme manager's *Create* and *Edit*, a file added from the phone's own picker, *Save* and *Cancel* each back to the manager, the saved theme chosen, and a rotation, a relaunch and the process ending mid-edit, each keeping the draft. It carries P20's check, whose Compose hand-off is deleted. | [stage4-extensions, owed](stage4-extensions.md#owed) |
 
 ## Emulator checks the docs owe
 
@@ -96,6 +97,7 @@ row says so.
 | E39 | The "teh" autocorrect check depends on the device's learned state: once "teh" has been kept as typed (a backspace after the correction keeps it), "teh" and a space type "teh ". The checks moved `kept-as-typed.txt` and `learned-words.txt` aside first. The device checks should start from a known dictionary state, or say which one they ran with. | [phase3-key-graph, what is owed](phase3-key-graph.md#what-is-owed) |
 | E40 | Under host load from other jobs, device steps fail in ways that look like the keyboard's faults but are not. At load averages of 30 to 78, `adb shell am force-stop` timed out at 30 s in a device-prep script and passed on a retry with 150 s; at 110 it timed out at 150 s too and passed on a retry a minute later. `device_screenshot` failed twice with "The device hub could not complete the request"; each time `device_list` showed the device booted and still open, and the next screenshot worked. At about 80, a tap on the language key in the rebuild timings landed as a long press and opened Android's keyboard picker, which blocked agent-device's next tap. Check whether the scripts' timeouts should scale with load, why the hub failed, and whether the timing scripts should refuse to start above a load threshold. | [phase3-key-graph, what is owed](phase3-key-graph.md#what-is-owed) |
 | E41 | Keyboard: the subtype switch's rebuild on the key-graph branch was 17 and 57 ms slower at p50 than main's in both pairs of emulator trials, while mode switches were faster. Both builds keep each mode and subtype's keyboard once built, so the cost is computing a kept keyboard: on the branch, gathering the facts, answering rounds of casing questions over JNI, and reading the snapshot back. Profile the switch on both builds, find which step costs the time, and check whether a phone shows the gap. | [phase3-key-graph, what is owed](phase3-key-graph.md#what-is-owed) |
+| E42 | No instrumented test drives the extension editor's Kotlin: `SettingsExtEditor` and `ExtensionEditorWork` need a `Context`, and the JVM tests have no Robolectric. Checked only by hand on the device: the workspace in `noBackupFilesDir` taken up after the process ended, with the extension and theme managers made on the main thread before the take-up reads them on the file thread; the archive written beside its place and moved there; a path that leaves the workspace refused; and a picked document's type checked again. | [stage4-extensions, owed](stage4-extensions.md#owed) |
 
 ## Not device checks, but still owed
 
@@ -128,4 +130,7 @@ These need no device. They are listed so they are not lost.
 
 ## Notes
 
-* This list has 4 confirm-on-the-phone items, 25 phone checks and 40 emulator checks.
+* This list has 4 confirm-on-the-phone items, 25 phone checks and 41 emulator checks.
+* P20, the theme manager's *Create* and *Edit* handing the extension editor to Compose, is
+  closed: compose-removal step 10 deleted that hand-off, and Rust draws the editor. P26 carries
+  its phone check.

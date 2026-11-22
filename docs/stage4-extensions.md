@@ -633,8 +633,9 @@ the process ended, lost ones deleted, less the Compose editor's state), `Setting
 and `SettingsThemeEditor` 109 to 110 (its *Save* keeps the draft for the extension editor).
 Shrunk: `FlorisAppActivity` 233 to 213 (the hand-off to the Compose editor), `Routes.kt` 208 to
 199 and `ThemeEditorActivity` 18 to 12 (its Compose entry). `strings_settings_renderer.xml` gains
-14 strings. Before the rebase the ledger was 417 files and 33,178 counted lines (part 2 left 421
-and 34,201): 1,344 deleted, 321 added.
+14 strings, and `strings.xml` loses the 4 only `ExtensionEditScreen` used. Part 3 deletes 1,344
+counted lines and adds 321. Before the rebase the ledger was 417 files and 33,178 counted lines
+(part 2 left 421 and 34,201); rebased on main at f4aa9fc30 (424 and 34,506) it is 420 and 33,483.
 
 ### Improvements
 
@@ -813,8 +814,8 @@ The baseline profile had no lines for `FB/app/ext`.
 
 * **P26.** Part 3 on the phone, with TalkBack heard: the theme manager's *Create* and *Edit*,
   a file added from the phone's own picker, *Save* and *Cancel* each back to the manager, the
-  saved theme chosen, and a rotation and a relaunch mid-edit keeping the draft. It takes over
-  P20, whose Compose hand-off is deleted.
+  saved theme chosen, and a rotation, a relaunch and the process ending mid-edit, each keeping
+  the draft. It takes over P20, whose Compose hand-off is deleted.
 * **E42.** No instrumented test drives the editor's Kotlin: `SettingsExtEditor` and
   `ExtensionEditorWork` need a `Context`, and the JVM tests have no Robolectric. Untested but by
   hand on the device: the workspace in `noBackupFilesDir` taken up after the process ended, the

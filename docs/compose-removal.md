@@ -334,7 +334,8 @@ its phone checks pass.
   `ThemeEditorActivity` (6). It adds `SettingsExtEditor` (151) and `ExtensionEditorWork` (121),
   30 string ids, and 7 lines in `SettingsFiles`, 5 in `RustSettingsView`, 4 in `CacheManager`, 2
   in `SettingsIcons` and 1 in `SettingsThemeEditor`. Part 3: 1,344 lines deleted, 321 added;
-  before the rebase the ledger was 417 files and 33,178 counted lines. Step 10 in all: 2,475
+  on main at f4aa9fc30 the ledger is 420 files and 33,483 counted lines (main had 424 and
+  34,506). Step 10 in all: 2,475
   deleted, 551 added.
 
 ### 11. Setup (done)
