@@ -237,10 +237,11 @@ class SettingsThemeEditorMatchTest {
     @Test fun propertiesEditedInRustAreWrittenAsComposesDialogWroteThem() {
         val order = ThemeEditorNatives.composeEditor(editSheet).rules.keys.toList()
         val index = { element: String -> order.indexOfFirst { (it as? SnyggElementRule)?.elementName == element } }
-        val defines = order.indexOf(SnyggAnnotationRule.Defines)
+        val (defines, font) = order.indexOf(SnyggAnnotationRule.Defines) to order.indexOf(SnyggAnnotationRule.Font("Mono"))
         KeyboardRenderer(arrayOf(ThemeEditorNatives.font)).use { n ->
             ThemeEditorNatives.open(n)
             val report = ThemeEditorNatives.report(editSheet)
+            report[SettingsUiThemeEditor.FONTS] = "mono bold.ttf"
             report[SettingsUiThemeEditor.IMAGES] = "sky blue.png"
             ThemeEditorNatives.state(n, SettingsUiOp.THEME_EDITOR, *report)
             for (a in valueKinds) n.add(index(a.element), a)
@@ -249,11 +250,27 @@ class SettingsThemeEditorMatchTest {
             n.choose(3, "snygg__property_value__solid_color")
             n.type(4, "#00ff00")
             n.apply("--primary")
+            // A font: Add source set, `src` added to the new set, and a weight to the first.
+            n.tap(500_000 + 4096 * font + 4)
+            n.tap(100_000_000 + 65_536 * font + 8 + 4)
+            n.choose(2, "snygg__property_name__src")
+            n.choose(3, "snygg__property_value__uri")
+            n.choose(4, "flex:/fonts/mono%20bold.ttf")
+            n.apply("src")
+            n.tap(100_000_000 + 65_536 * font + 4)
+            n.choose(2, "snygg__property_name__font_weight")
+            n.choose(3, "snygg__property_value__font_weight")
+            n.choose(4, "bold")
+            n.apply("font-weight")
             val saved = n.tap(ThemeEditorNatives.SAVE_ID)
             val expected = ThemeEditorNatives.composeWrites(editSheet) {
                 for (a in valueKinds) element(a.element).properties[a.name] = a.value
                 (rules.getValue(SnyggAnnotationRule.Defines) as SnyggSinglePropertySetEditor).properties["--primary"] =
                     SnyggStaticColorValue(Color(0, 255, 0))
+                (rules.getValue(SnyggAnnotationRule.Font("Mono")) as SnyggMultiplePropertySetsEditor).apply {
+                    add { "src" to SnyggUriValue("flex:/fonts/mono%20bold.ttf") }
+                    sets[0].properties["font-weight"] = SnyggFontWeightValue(FontWeight.Bold)
+                }
             }
             assertEquals(expected, ThemeEditorNatives.json(saved, SettingsUiThemeEditorEffect.SAVE))
         }

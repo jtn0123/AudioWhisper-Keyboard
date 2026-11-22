@@ -17,6 +17,7 @@ pub mod property_paint;
 pub mod property_values;
 pub mod rules;
 pub mod saved;
+pub mod sets;
 pub mod ui;
 use super::{
     App,
@@ -125,7 +126,7 @@ pub enum Tap {
     Remove(usize, String),
     /// The meta editor's night switch.
     Night,
-    /// The property editor's controls.
+    /// The property editor's and the source sets' controls.
     Prop(property::PropTap),
 }
 
@@ -179,6 +180,8 @@ pub enum Gone {
     Rule(Rule, PropertySets<Value>),
     /// A property: its rule, its set (0 for a single set), its place, its name and value.
     Property(Rule, usize, usize, Text, Value),
+    /// A source set: its rule, its place and its properties.
+    Set(Rule, usize, Vec<(Text, Value)>),
 }
 
 /// The theme editor's own state.

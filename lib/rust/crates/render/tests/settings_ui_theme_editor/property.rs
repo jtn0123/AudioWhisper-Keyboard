@@ -17,12 +17,8 @@ use render::settings_ui::{
 fn add_property_is_on_every_title_line_and_adds_at_the_end_of_the_set() {
     let (mut a, mut text) = named_app();
     // `@defines` has Add only; an element rule has Duplicate, Edit and Add.
-    for r in [0, 2, 3, 4] {
-        let add = control(&a, rule_id(r, 4)).unwrap();
-        assert_eq!(
-            add.label, "settings__theme_editor__add_property",
-            "rule {r}"
-        );
+    for r in 0..5 {
+        assert!(control(&a, rule_id(r, 4)).is_some(), "rule {r}");
     }
     assert!(control(&a, rule_id(0, 1)).is_none());
     let add = control(&a, rule_id(2, 4)).unwrap();
@@ -248,7 +244,16 @@ fn search_narrows_the_names_by_label_or_name_ignoring_case() {
     assert_eq!(a.theme_editor.prop.as_ref().unwrap().name, "font-size");
     type_into(&mut a, &mut text, Part::PropSearch, "nothing like it");
     assert_eq!(listed(&mut a, &mut text, Part::PropName), [PLACEHOLDER]);
-    // No search line when editing.
+    // No search line on a font's sets or when editing.
+    edit_back(&mut a, &mut text);
+    assert!(tap(
+        &mut a,
+        &mut text,
+        render::settings_ui::theme_editor::sets::set_id(1, 0, 4)
+    ));
+    assert_eq!(a.stack.last().unwrap(), PROPERTY_ADD);
+    assert!(control(&a, part_id(&a, Part::PropSearch)).is_none());
+    assert_eq!(listed(&mut a, &mut text, Part::PropName).len(), 4);
     edit_back(&mut a, &mut text);
     edit(&mut a, &mut text, 2, 1);
     assert!(control(&a, part_id(&a, Part::PropSearch)).is_none());

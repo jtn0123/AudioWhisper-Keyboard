@@ -1,9 +1,9 @@
 //! A rule's box: SnyggRuleRow's lines (the element, its selector on primaryContainer, each
 //! attribute as `key = [values]` at 56%) with Duplicate, Edit and Add property at the end
-//! (`@defines` has only Add property, `@font` no Add), `@defines`' note, then the properties as
-//! ListItems of name over value, which open the property editor, with a Delete each. A rule
-//! with several property sets (`@font`) heads each with "Source set", as Compose did. A font
-//! set's `src`, which the stylesheet cannot be written without, has no Delete.
+//! (`@defines` has only Add property, `@font` Add source set), `@defines`' note, then each set
+//! (`sets.rs`) and its properties as ListItems of name over value, which open the property
+//! editor, with a Delete each. A font set's `src`, which the stylesheet cannot be written
+//! without, has no Delete.
 use super::{Gone, Tap, paint::rule_id, property::PropTap};
 use crate::settings_ui::{Action, App, cards::plain, items::Entry};
 use crate::{
@@ -47,25 +47,29 @@ impl App {
         };
         let props = self.rule_properties(r);
         for s in 0..count {
-            at += self.rule_set(p, (r, s), &props, (left, at, width), clip, text);
+            at += self.rule_set(p, (r, s, count), &props, (left, at, width), clip, text);
+        }
+        if self.gone_place(&rule).is_some_and(|(s, _)| s >= count) {
+            at += self.theme_undo(p, (left, at, width), clip, text);
         }
         self.fit_box(p, outline, at - top);
         at + self.px(8.0) - y
     }
-    /// Where Undo stands in `rule`'s box, if a property of it was deleted last: its set and its
-    /// place in it.
+    /// Where Undo stands in `rule`'s box, if a set or a property of it was deleted last: the
+    /// set and the place in it.
     fn gone_place(&self, rule: &Rule) -> Option<(usize, usize)> {
         match &self.theme_editor.deleted {
             Some(Gone::Property(g, s, k, ..)) if g == rule => Some((*s, *k)),
+            Some(Gone::Set(g, s, _)) if g == rule => Some((*s, usize::MAX)),
             _ => None,
         }
     }
-    /// Set `s` in rule `r`'s box: its heading when the rule has several, then its properties,
-    /// with Undo where what was deleted stood; its height.
+    /// Set `s` of `count` in rule `r`'s box: its heading when the rule has several, then its
+    /// properties, with Undo where what was deleted stood; its height.
     fn rule_set(
         &mut self,
         p: &mut Panel,
-        (r, s): (usize, usize),
+        (r, s, count): (usize, usize, usize),
         props: &[super::rules::Prop],
         (left, top, width): (f32, f32, f32),
         clip: Rect,
@@ -74,14 +78,11 @@ impl App {
         let (rule, sets) = self.theme_editor.rules[r].clone();
         let gone = self.gone_place(&rule).filter(|g| g.0 == s);
         let mut at = top;
+        if gone.is_some_and(|g| g.1 == usize::MAX) {
+            at += self.theme_undo(p, (left, at, width), clip, text);
+        }
         if matches!(sets, PropertySets::Multiple(_)) {
-            let heading = (
-                rule_id(r, 4 + s),
-                "Source set".into(),
-                self.colors[1],
-                self.px(8.0),
-            );
-            at += self.theme_note(p, heading, (left, at), clip, text);
+            at += self.set_heading(p, (r, s, count), (left, at, width), clip, text);
         }
         let mine: Vec<_> = props.iter().enumerate().filter(|q| q.1.set == s).collect();
         for &(n, q) in &mine {
@@ -92,7 +93,7 @@ impl App {
             let shown = (q.name.clone(), q.value.clone(), !keep);
             at += self.property_row(p, (r, n, s, q.place), shown, (left, at), clip, text);
         }
-        if gone.is_some_and(|g| g.1 >= mine.len()) {
+        if gone.is_some_and(|g| g.1 != usize::MAX && g.1 >= mine.len()) {
             at += self.theme_undo(p, (left, at, width), clip, text);
         }
         at - top
@@ -160,7 +161,7 @@ impl App {
         rh
     }
     /// Rule `r`'s title line buttons in their order, by part: Duplicate and Edit but on
-    /// `@defines`, then Add property but on `@font`.
+    /// `@defines`, then Add property, or on `@font` Add source set.
     fn title_buttons(&self, r: usize) -> Vec<(usize, &'static str, &'static str, Tap)> {
         let (rule, sets) = &self.theme_editor.rules[r];
         let mut out = vec![];
@@ -173,10 +174,11 @@ impl App {
             ));
             out.push((2, "edit", "settings__theme_editor__edit_rule", Tap::Edit(r)));
         }
-        if let PropertySets::Single(_) = sets {
-            let add = "settings__theme_editor__add_property";
-            out.push((4, "add", add, Tap::Prop(PropTap::Add(r))));
-        }
+        let add = match sets {
+            PropertySets::Multiple(_) => "settings__theme_editor__add_source_set",
+            PropertySets::Single(_) => "settings__theme_editor__add_property",
+        };
+        out.push((4, "add", add, Tap::Prop(PropTap::Add(r))));
         out
     }
     /// The selector on primaryContainer in small corners; its height with 4 dp under it.
@@ -232,18 +234,28 @@ impl App {
         rh
     }
     /// The rules' focus order: Add rule, then each rule's row, Duplicate, Edit and Add, each
-    /// property and its Delete, and Undo where it stands.
+    /// set's heading buttons, each property and its Delete, and Undo where it stands.
     pub(super) fn rules_focus(&self) -> Vec<i32> {
         let mut out = vec![super::paint::ADD_ID];
-        for (r, (rule, _)) in self.theme_editor.rules.iter().enumerate() {
+        for (r, (rule, sets)) in self.theme_editor.rules.iter().enumerate() {
             if *rule != Rule::Defines {
                 out.push(rule_id(r, 0));
             }
             out.extend(self.title_buttons(r).iter().map(|b| rule_id(r, b.0)));
-            for (n, q) in self.rule_properties(r).iter().enumerate() {
-                out.push(rule_id(r, 64 + 2 * n));
-                if !required(rule, &q.raw) {
-                    out.push(rule_id(r, 65 + 2 * n));
+            let count = match sets {
+                PropertySets::Single(_) => 0,
+                PropertySets::Multiple(all) => all.len(),
+            };
+            let props = self.rule_properties(r);
+            for s in 0..count.max(1) {
+                if count > 0 {
+                    out.extend(self.set_focus(r, s, count));
+                }
+                for (n, q) in props.iter().enumerate().filter(|q| q.1.set == s) {
+                    out.push(rule_id(r, 64 + 2 * n));
+                    if !required(rule, &q.raw) {
+                        out.push(rule_id(r, 65 + 2 * n));
+                    }
                 }
             }
         }

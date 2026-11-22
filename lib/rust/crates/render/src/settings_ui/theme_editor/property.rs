@@ -32,7 +32,13 @@ use wire::settings_ui::theme_editor::effect;
 /// Why Apply refused a name the set has.
 pub const EXISTS: &str = "settings__theme_editor__property_already_exists";
 /// The strings the property editor shows beyond its rows'.
-pub const KEYS: [&str; 2] = [EXISTS, "settings__theme_editor__padding_apply_for_all"];
+pub const KEYS: [&str; 5] = [
+    EXISTS,
+    "settings__theme_editor__add_source_set",
+    "settings__theme_editor__move_up",
+    "settings__theme_editor__move_down",
+    "settings__theme_editor__padding_apply_for_all",
+];
 /// Padding's sides' names, in `value::PADDING_IDS` order, and the corners', `CORNER_IDS` order.
 pub const SIDES: [&str; 4] = [
     "settings__theme_editor__padding_start",
@@ -56,13 +62,18 @@ pub fn string_keys() -> Vec<&'static str> {
     out
 }
 
-/// A tap on the property editor's controls.
+/// A tap on the property editor's or a source set's controls.
 #[derive(Clone, Debug, PartialEq)]
 pub enum PropTap {
-    /// Rule `r`'s Add property.
+    /// Rule `r`'s Add: Add property, or on `@font` Add source set.
     Add(usize),
     /// Property `k` of set `s` of rule `r`: the editor showing it.
     Edit(usize, usize, usize),
+    /// Set `s` of rule `r`'s heading: Up, Down, Delete, and Add (a property to it).
+    Up(usize, usize),
+    Down(usize, usize),
+    DeleteSet(usize, usize),
+    AddTo(usize, usize),
     /// The chip copying the side or corner edited last to all four.
     All,
     /// The top bar's Delete.
@@ -201,11 +212,15 @@ fn put(props: &mut Vec<(Text, Value)>, key: Text, value: Value) {
 }
 
 impl App {
-    /// A tap on the property editor's control.
+    /// A tap on the property editor's or a source set's control.
     pub(super) fn property_tap(&mut self, tap: PropTap) {
         match tap {
-            PropTap::Add(r) => self.open_property(r, 0, None),
+            PropTap::Add(r) => self.add_to_rule(r),
             PropTap::Edit(r, s, k) => self.open_property(r, s, Some(k)),
+            PropTap::Up(r, s) => self.move_set(r, s, false),
+            PropTap::Down(r, s) => self.move_set(r, s, true),
+            PropTap::DeleteSet(r, s) => self.delete_set(r, s),
+            PropTap::AddTo(r, s) => self.open_property(r, s, None),
             PropTap::All => {
                 if let Some(f) = self.theme_editor.prop.as_mut() {
                     f.copy_to_all();
@@ -214,6 +229,14 @@ impl App {
                 self.property_changed();
             }
             PropTap::Delete => self.delete_open_property(),
+        }
+    }
+    /// A rule's Add: a source set for `@font`, as Compose added one; else Add property.
+    fn add_to_rule(&mut self, r: usize) {
+        match self.theme_editor.rules.get(r) {
+            Some((_, PropertySets::Multiple(_))) => self.add_set(r),
+            Some(_) => self.open_property(r, 0, None),
+            None => {}
         }
     }
     /// The editor adding to set `s` of rule `r`, or showing its property `k`.

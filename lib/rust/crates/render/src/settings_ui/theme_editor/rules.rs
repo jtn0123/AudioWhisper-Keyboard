@@ -161,7 +161,7 @@ impl App {
         e.deleted = Some(Gone::Rule(rule, sets));
         self.theme_changed();
     }
-    /// Undo: the last deleted rule or property back where it was. A rule added since in its
+    /// Undo: the last deleted rule, set or property back where it was. A rule added since in its
     /// place, or a property whose rule is gone, cannot come back.
     pub(super) fn undo_theme_delete(&mut self) {
         let e = &mut self.theme_editor;
@@ -184,6 +184,11 @@ impl App {
                     props.insert(k.min(props.len()), (name, value));
                 }
             }
+            Some(Gone::Set(rule, s, set)) => {
+                if !super::sets::put_back(&mut e.rules, &rule, s, set) {
+                    return;
+                }
+            }
             None => return,
         }
         self.theme_changed();
@@ -193,6 +198,7 @@ impl App {
         Some(match self.theme_editor.deleted.as_ref()? {
             Gone::Rule(rule, _) => self.rule_lines(rule).0,
             Gone::Property(_, _, _, name, _) => self.property_label(name),
+            Gone::Set(..) => String::from("Source set"),
         })
     }
     /// Duplicate: the rule editor adding a rule like rule `r`, which takes `r`'s properties.

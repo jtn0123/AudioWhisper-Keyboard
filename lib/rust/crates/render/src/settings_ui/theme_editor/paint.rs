@@ -33,11 +33,20 @@ pub const DELETE_ID: i32 = 400_041;
 pub const RULE_ID: i32 = 500_000;
 /// The icons the theme editor draws through a variable, which SettingsIcons must map
 /// (`SettingsResourcesTest` reads this list).
-pub const THEME_ICONS: [&str; 6] = ["tune", "add", "content_copy", "edit", "done", "delete"];
+pub const THEME_ICONS: [&str; 8] = [
+    "tune",
+    "add",
+    "content_copy",
+    "edit",
+    "done",
+    "delete",
+    "arrow_upward",
+    "arrow_downward",
+];
 
-/// Rule `r`'s control `part`: 0 its row, 1 Duplicate, 2 Edit, 3 its note, 4 Add property (on
-/// `@font` 4 onwards a set's heading), 64 + 2k its `k`th property and 65 + 2k that property's
-/// Delete.
+/// Rule `r`'s control `part`: 0 its row, 1 Duplicate, 2 Edit, 3 its note, 4 Add property (or
+/// Add source set), 64 + 2k its `k`th property and 65 + 2k that property's Delete. A source
+/// set's heading has its own ids (`sets::set_id`).
 pub fn rule_id(r: usize, part: usize) -> i32 {
     RULE_ID + 4096 * r as i32 + part.min(4095) as i32
 }

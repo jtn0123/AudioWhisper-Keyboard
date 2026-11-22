@@ -3,7 +3,7 @@ package com.jtn0123.audiowhisper.settingsui
 import dev.patrickgold.florisboard.R
 
 /** The string ids of the native theme editor (stage4-theme-editor.md, part 2): its screens, the rule, meta and property
- * editors (encoders, value checks, sides and corners), fine-tune, and the element, selector, property and
+ * editors (encoders, value checks, sides and corners, source sets), fine-tune, and the element, selector, property and
  * attribute value names it translates. Kept apart so
  * SettingsStringIds stays under the file limit. Part of [settingsStringIds]. */
 internal val settingsThemeEditorStringIds: Map<String, Int> = mapOf(
@@ -67,6 +67,7 @@ internal val settingsThemeEditorStringIds: Map<String, Int> = mapOf(
     "general__select_dropdown_value_placeholder" to R.string.general__select_dropdown_value_placeholder,
     "settings__theme_editor__add_property" to R.string.settings__theme_editor__add_property,
     "settings__theme_editor__add_rule" to R.string.settings__theme_editor__add_rule,
+    "settings__theme_editor__add_source_set" to R.string.settings__theme_editor__add_source_set,
     "settings__theme_editor__code_invalid" to R.string.settings__theme_editor__code_invalid,
     "settings__theme_editor__component_id_exists" to R.string.settings__theme_editor__component_id_exists,
     "settings__theme_editor__component_meta_is_night_theme" to R.string.settings__theme_editor__component_meta_is_night_theme,
@@ -87,6 +88,8 @@ internal val settingsThemeEditorStringIds: Map<String, Int> = mapOf(
     "settings__theme_editor__font_name_invalid" to R.string.settings__theme_editor__font_name_invalid,
     "settings__theme_editor__loading" to R.string.settings__theme_editor__loading,
     "settings__theme_editor__missing_workspace" to R.string.settings__theme_editor__missing_workspace,
+    "settings__theme_editor__move_down" to R.string.settings__theme_editor__move_down,
+    "settings__theme_editor__move_up" to R.string.settings__theme_editor__move_up,
     "settings__theme_editor__no_codes_defined" to R.string.settings__theme_editor__no_codes_defined,
     "settings__theme_editor__no_rules_defined" to R.string.settings__theme_editor__no_rules_defined,
     "settings__theme_editor__padding_apply_for_all" to R.string.settings__theme_editor__padding_apply_for_all,
