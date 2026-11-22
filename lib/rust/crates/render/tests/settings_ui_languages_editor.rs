@@ -13,7 +13,7 @@ use render::settings_ui::{
         ADD_ROUTE, EDIT_ROUTE, LIST_ROUTE, PICKER_ROUTE,
         editor::{self, Draft},
         form::{ALL_ID, DELETE_ID, SUGGESTION_ID},
-        picker::LOCALE_ID,
+        picker::{LOCALE_ID, SUGGESTED_ID},
     },
 };
 use settings::codec;
@@ -199,7 +199,7 @@ fn cancel_and_back_leave_the_list_as_it_was() {
 }
 
 #[test]
-fn a_picked_language_sets_its_popup() {
+fn a_picked_language_sets_its_popup_and_when_adding_fills_every_unset_field() {
     let (mut a, mut text) = app(ADD_ROUTE, "[]");
     a.back();
     assert!({
@@ -207,6 +207,11 @@ fn a_picked_language_sets_its_popup() {
         tap(&mut a, &mut text, id)
     });
     assert_eq!(a.stack.last().unwrap(), PICKER_ROUTE);
+    // Suggested first: English (US), German; then everything by name. French (France) is third.
+    assert_eq!(
+        control(&a, SUGGESTED_ID + 1).unwrap().label,
+        "German (Germany)"
+    );
     let fr = (0..6)
         .map(|k| LOCALE_ID + k)
         .find(|&id| control(&a, id).unwrap().label == "French (France)")
@@ -216,7 +221,12 @@ fn a_picked_language_sets_its_popup() {
     let d = draft(&a).clone();
     assert_eq!(d.get(Field::Locale), "fr-FR");
     assert_eq!(d.get(Field::Popup), "org.florisboard.localization:fr");
-    assert!(d.unset(Field::Layout(0)));
+    assert_eq!(d.get(Field::Layout(0)), "org.florisboard.layouts:azerty");
+    assert!({
+        let id = lang_row(&a, Lang::Save);
+        tap(&mut a, &mut text, id)
+    });
+    assert_eq!(written(&a).unwrap(), list(&[added(&french())]));
 }
 
 #[test]

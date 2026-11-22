@@ -203,7 +203,7 @@ impl App {
         self.focus = -1;
     }
     /// Select language answered with `tag`: the locale, and the popup mapping of its preset as
-    /// SubtypeEditorScreen set them.
+    /// SubtypeEditorScreen set them. Adding also fills each field still unset from the preset.
     pub(super) fn locale_picked(&mut self, tag: &str) {
         let names = self.names(tag);
         let preset = self.languages.resources.as_ref().and_then(|r| {
@@ -226,6 +226,19 @@ impl App {
             d.set(Field::Locale, tag);
             let popup = preset.as_ref().map(|p| field_text(p, &["popupMapping"]));
             d.set(Field::Popup, popup.as_deref().unwrap_or(DEFAULT_POPUP));
+            if let Some(p) = preset.filter(|_| d.adding) {
+                let filler = Draft {
+                    value: p,
+                    adding: true,
+                    id: -1,
+                    checked: false,
+                };
+                for f in fields() {
+                    if d.unset(f) {
+                        d.set(f, &filler.get(f));
+                    }
+                }
+            }
         }
         self.back();
     }

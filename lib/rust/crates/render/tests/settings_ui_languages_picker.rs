@@ -8,7 +8,7 @@ use render::settings_ui::{
     languages::{
         self, EDIT_ROUTE, LIST_ROUTE, PACKS_ROUTE, PICKER_ROUTE,
         packs::{IMPORT_ID, pack_id},
-        picker::LOCALE_ID,
+        picker::{LOCALE_ID, SUGGESTED_ID},
     },
 };
 
@@ -20,8 +20,12 @@ fn labels(a: &App, first: i32) -> Vec<String> {
 }
 
 #[test]
-fn select_language_lists_every_locale_by_shown_name() {
+fn select_language_lists_every_locale_by_shown_name_with_the_system_languages_first() {
     let (mut a, mut text) = app(PICKER_ROUTE, "[]");
+    assert_eq!(
+        labels(&a, SUGGESTED_ID),
+        ["English (United States)", "German (Germany)"]
+    );
     assert_eq!(
         labels(&a, LOCALE_ID),
         [
@@ -33,6 +37,13 @@ fn select_language_lists_every_locale_by_shown_name() {
             "Spanish (Spain)",
         ]
     );
+    for (id, heading) in [
+        (29998, "settings__localization__suggested_languages"),
+        (29999, "settings__localization__all_languages"),
+    ] {
+        let c = control(&a, id).unwrap();
+        assert_eq!((c.label.as_str(), c.role), (heading, "heading"));
+    }
     // Native names sort by the native name, as SelectLocaleScreen sorted.
     a.prefs
         .insert(languages::NAMES_KEY.into(), "NATIVE_LOCALE".into());
@@ -65,6 +76,8 @@ fn the_search_filters_as_select_locale_screen_did() {
     assert_eq!(search(&mut a, &mut text, "fr-c"), ["French (Canada)"]);
     assert_eq!(search(&mut a, &mut text, "fr_c"), ["French (Canada)"]);
     assert!(search(&mut a, &mut text, "r-ca").is_empty());
+    // A search hides the suggestions.
+    assert!(control(&a, SUGGESTED_ID).is_none());
 }
 
 #[test]
