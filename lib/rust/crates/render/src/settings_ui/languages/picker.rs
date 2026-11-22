@@ -3,12 +3,7 @@
 //! message when nothing matches. With no search, the system's languages come first under
 //! "Suggested languages", as Gboard lists them, then "All languages".
 use super::Tap;
-use crate::settings_ui::{
-    Action, App, Control,
-    cards::plain,
-    catalogue::{Kind, languages::Lang},
-    items::Entry,
-};
+use crate::settings_ui::{Action, App, Control, cards::plain, items::Entry};
 use crate::{
     panels::{Panel, rect},
     text::Text,
@@ -75,14 +70,6 @@ impl App {
         }
         out
     }
-    /// Whether control `id` is Select language's search field.
-    pub fn search_field(&self, id: i32) -> bool {
-        usize::try_from(id - 1000).is_ok_and(|i| {
-            self.rows()
-                .get(i)
-                .is_some_and(|r| matches!(r.kind, Kind::Lang(Lang::Search)))
-        })
-    }
     /// The search field: a 56 dp TextField on surfaceContainerHighest, square, with no
     /// indicator line, a leading search icon and its placeholder while empty; its height.
     pub(in crate::settings_ui) fn search_row(
@@ -140,7 +127,8 @@ impl App {
     ) -> f32 {
         let shown = self.picker_locales();
         if shown.is_empty() {
-            return self.not_found(p, i, (x, y), clip, text);
+            let term = self.languages.search.clone();
+            return self.not_found(p, i, &term, (x, y), clip, text);
         }
         let suggested = self.picker_suggestions();
         let mut at = y;
@@ -223,18 +211,19 @@ impl App {
         );
         rh
     }
-    /// "No language found for “{search_term}”", centred with 16 dp padding, faded to 54%.
-    fn not_found(
+    /// Row `i`'s "nothing found for “{search_term}”", centred with 16 dp padding, faded to 54%.
+    pub(in crate::settings_ui) fn not_found(
         &mut self,
         p: &mut Panel,
         i: usize,
+        term: &str,
         (x, y): (f32, f32),
         clip: Rect,
         text: &mut Text,
     ) -> f32 {
         let label = self
             .label(self.rows()[i].label)
-            .replace("{search_term}", &self.languages.search);
+            .replace("{search_term}", term);
         let room = (self.config[0] - x - 2.0 * self.px(16.0)).max(1.0);
         let layout = self.android(text, &label, self.sp(16), Some(room));
         let (lw, lh) = (layout.width.ceil(), layout.height.ceil());
@@ -256,9 +245,5 @@ impl App {
             .map(|k| SUGGESTED_ID + k)
             .chain((0..shown.len() as i32).map(|k| LOCALE_ID + k))
             .collect()
-    }
-    /// The search changed: kept without line breaks, as a single-line TextField keeps it.
-    pub(in crate::settings_ui) fn search_typed(&mut self, value: String) {
-        self.languages.search = value.replace(['\n', '\r'], "");
     }
 }

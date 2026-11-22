@@ -35,6 +35,7 @@ internal class RustSettingsView(context: Context) : FrameLayout(context), Surfac
     private lateinit var facts: SettingsFacts
     private lateinit var files: SettingsFiles
     private lateinit var languages: SettingsLanguages
+    private lateinit var words: SettingsWords
     var backAvailability: (Boolean) -> Unit = {}
     private var fallback: (String, List<String>) -> Unit = { _, _ -> }
     private val native = KeyboardRenderer(systemRendererFonts())
@@ -93,8 +94,9 @@ internal class RustSettingsView(context: Context) : FrameLayout(context), Surfac
         this.platform = SettingsPlatform(activity, prefs, ::preferencesPersisted)
         this.facts = SettingsFacts(activity).also { it.observe { if (!released) pushFacts() } }
         this.fallback = fallback
-        // Before the saved state, which asks for a report when it reopens a language screen.
+        // Before the saved state, which asks for a report when it reopens a language or word screen.
         languages = SettingsLanguages(activity) { if (!released) receive(native.settings(SettingsUiOp.LANGUAGES, it)) }
+        words = SettingsWords(activity) { if (!released) receive(native.settings(SettingsUiOp.WORDS, it)) }
         receive(native.settings(SettingsUiOp.PREFERENCES, platform.snapshot()))
         if (restored != null) receive(native.settings(SettingsUiOp.RESTORE, restored))
         // After the saved state, so a picker answer or report that waited finds what it belongs to.
@@ -166,6 +168,8 @@ internal class RustSettingsView(context: Context) : FrameLayout(context), Surfac
                 "load" -> loadDocument(p[1])
                 SettingsUiFileEffect.PICK, SettingsUiFileEffect.WORK, SettingsUiFileEffect.TOAST -> files.execute(p)
                 SettingsUiLanguageEffect.LOAD, SettingsUiLanguageEffect.DELETE_PACK -> languages.execute(p)
+                SettingsUiWordEffect.LOAD, SettingsUiWordEffect.ADD, SettingsUiWordEffect.CHANGE, SettingsUiWordEffect.DELETE,
+                SettingsUiWordEffect.RESTORE, SettingsUiWordEffect.IMPORT, SettingsUiWordEffect.MANAGER -> words.execute(p)
             }
         }
         selectionMenu.update(state.getValue("selectionToolbar").jsonPrimitive.boolean)

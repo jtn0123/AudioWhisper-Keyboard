@@ -101,7 +101,7 @@ fn nothing_found_says_so_with_the_search_term() {
     );
     // The field is a single-line search: it starts empty each time the screen opens.
     let field = a.controls.iter().find(|c| c.role == "edit").unwrap();
-    assert!(a.search_field(field.id));
+    assert!(a.line_field(field.id));
     a.back();
     a.navigate(PICKER_ROUTE);
     assert!(a.languages.search.is_empty());

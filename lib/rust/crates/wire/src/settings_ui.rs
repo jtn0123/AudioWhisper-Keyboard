@@ -50,6 +50,9 @@ crate::declare! {
         /// The language resources a [`SettingsUiLanguageEffect`](languages::effect::KINDS) asked
         /// for: [`SettingsUiLanguage`](languages::row::FIELDS) rows.
         LANGUAGES = 23,
+        /// A user dictionary a [`SettingsUiWordEffect`](words::effect::KINDS) asked for:
+        /// [`SettingsUiWord`](words::row::FIELDS) rows.
+        WORDS = 24,
     }
 }
 
@@ -135,6 +138,7 @@ pub mod query {
 
 pub mod files;
 pub mod languages;
+pub mod words;
 
 /// The groups the generator writes as Kotlin.
 pub const GROUPS: &[&crate::Group] = &[
@@ -157,4 +161,9 @@ pub const GROUPS: &[&crate::Group] = &[
     &languages::effect::KINDS,
     &languages::kind::KINDS,
     &languages::row::FIELDS,
+    &words::effect::KINDS,
+    &words::dictionary::KINDS,
+    &words::kind::KINDS,
+    &words::outcome::KINDS,
+    &words::row::FIELDS,
 ];

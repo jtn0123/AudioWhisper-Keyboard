@@ -144,7 +144,9 @@ impl App {
         let old_scroll = self.scroll();
         // Paint the underlying screen from its own scroll and styling state.
         let modal = self.modal.take();
-        let title = self.label(self.screen().map_or("settings__home__title", |s| s.title));
+        let title = self.word_title().unwrap_or_else(|| {
+            self.label(self.screen().map_or("settings__home__title", |s| s.title))
+        });
         let title_left = if self.is_home() { 16.0 * d } else { 56.0 * d };
         // A top bar action (the subtype editor's Delete) takes 48 dp from the title.
         let title_right = if self.header_delete() { 68.0 } else { 16.0 } * d;

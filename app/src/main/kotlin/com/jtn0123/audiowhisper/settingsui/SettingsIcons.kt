@@ -6,6 +6,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.HelpOutline
 import androidx.compose.material.icons.automirrored.filled.Input
 import androidx.compose.material.icons.automirrored.filled.LibraryBooks
+import androidx.compose.material.icons.automirrored.filled.OpenInNew
 import androidx.compose.material.icons.automirrored.outlined.Assignment
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.Build
@@ -55,5 +56,6 @@ internal fun settingsIcons(resources: Resources): Array<String> {
         "@icon:add" to Icons.Default.Add, "@icon:delete" to Icons.Default.Delete, "@icon:arrow_upward" to Icons.Default.ArrowUpward,
         "@icon:arrow_downward" to Icons.Default.ArrowDownward, "@icon:arrow_drop_down" to Icons.Default.ArrowDropDown,
         "@icon:search" to Icons.Default.Search, "@icon:input" to Icons.AutoMirrored.Filled.Input,
+        "@icon:open_in_new" to Icons.AutoMirrored.Filled.OpenInNew,
     )).flatMap { (name, icon) -> listOf(name, iconPath(icon)) }.toTypedArray()
 }

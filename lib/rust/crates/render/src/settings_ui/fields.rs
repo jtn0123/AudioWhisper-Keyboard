@@ -3,11 +3,12 @@
 //!
 //! One `Editor` takes the InputConnection at a time. While a row's field owns it, the preview
 //! field's editor waits in `parked`; a row's field starts from, and writes every change back
-//! to, its string preference, as the screen's `onValueChange` does. Select language's search
-//! field is a row's field too, kept in the screen's state instead of a preference.
+//! to, its string preference, as the screen's `onValueChange` does. A line field (Select
+//! language's search, the word list's search, the word editor's fields) is a row's field too,
+//! one line long and kept in its screen's state instead of a preference.
 use super::{
     Action, App, Control,
-    catalogue::{Kind, Screen},
+    catalogue::{Kind, Screen, languages::Lang, words::Part},
     editor::Editor,
 };
 use crate::{
@@ -61,8 +62,8 @@ impl App {
         if let Some(e) = self.dialog_field(id) {
             return (e, false);
         }
-        if self.search_field(id) {
-            return (with_text(&self.languages.search), false);
+        if let Some(value) = self.line_text(id) {
+            return (with_text(&value), false);
         }
         match usize::try_from(id - 1000) {
             Ok(i)
@@ -109,7 +110,7 @@ impl App {
     pub fn focus_field(&mut self, id: i32) -> bool {
         let target = match usize::try_from(id - 1000) {
             _ if id == 2 && self.screen().is_some_and(|s| s.preview) => None,
-            Ok(i) if self.dialog_field(id).is_some() || self.search_field(id) => Some(i),
+            Ok(i) if self.dialog_field(id).is_some() || self.line_field(id) => Some(i),
             Ok(i)
                 if self
                     .rows()
@@ -122,6 +123,34 @@ impl App {
         };
         self.own_field(target);
         true
+    }
+    /// The text of line field `id`, or None when `id` is not one.
+    pub fn line_text(&self, id: i32) -> Option<String> {
+        let i = usize::try_from(id - 1000).ok()?;
+        match self.rows().get(i)?.kind {
+            Kind::Lang(Lang::Search) => Some(self.languages.search.clone()),
+            Kind::Words(Part::Search) => Some(self.words.search.clone()),
+            Kind::Words(Part::Field(k)) => Some(self.word_field_text(k)),
+            _ => None,
+        }
+    }
+    /// Whether control `id` is a line field.
+    pub fn line_field(&self, id: i32) -> bool {
+        self.line_text(id).is_some()
+    }
+    /// Line field `id` changed: kept without line breaks, as a single-line TextField keeps it.
+    fn line_typed(&mut self, id: i32, value: String) {
+        let value = value.replace(['\n', '\r'], "");
+        let kind = usize::try_from(id - 1000)
+            .ok()
+            .and_then(|i| self.rows().get(i))
+            .map(|r| r.kind);
+        match kind {
+            Some(Kind::Lang(Lang::Search)) => self.languages.search = value,
+            Some(Kind::Words(Part::Search)) => self.words.search = value,
+            Some(Kind::Words(Part::Field(k))) => self.word_typed(k, value),
+            _ => {}
+        }
     }
     /// Gives the preview field its editor back when the screen with a row's field goes away.
     pub(super) fn release_field(&mut self) {
@@ -137,8 +166,9 @@ impl App {
         if i >= super::picker::HEX_FIELD {
             return self.sync_dialog_field();
         }
-        if self.search_field(1000 + i as i32) {
-            return self.search_typed(String::from_utf16_lossy(&self.editor.text));
+        if self.line_field(1000 + i as i32) {
+            let value = String::from_utf16_lossy(&self.editor.text);
+            return self.line_typed(1000 + i as i32, value);
         }
         let key = self.rows()[i].key;
         let value = String::from_utf16_lossy(&self.editor.text);

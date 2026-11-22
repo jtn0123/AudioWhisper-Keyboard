@@ -3,6 +3,7 @@ package com.jtn0123.audiowhisper.settingsui
 import com.jtn0123.audiowhisper.dictation.ModelState
 import com.jtn0123.audiowhisper.rust.KeyboardRenderer
 import com.jtn0123.audiowhisper.rust.SettingsUiOp
+import com.jtn0123.audiowhisper.rust.SettingsUiWordEffect
 import dev.patrickgold.florisboard.app.ReferenceSettingsModel
 import dev.patrickgold.jetpref.datastore.model.PreferenceData
 import kotlinx.serialization.json.*
@@ -126,13 +127,21 @@ class SettingsGroupTwoMatchTest {
         assertFalse(reply.bool("popup"))
         assertEquals(if (yes) listOf(row.click(f, ::s)) else emptyList(), effects(reply), "confirm row $i")
     }
+    /** The user dictionary whose words Rust asked for; it asks again only for another, as no report answers here. */
+    private var wordsAskedFor: String? = null
     private fun navigate(n: KeyboardRenderer, i: Int, row: ReferenceGroupTwoScreens.Row, screen: ReferenceGroupTwoScreens.Screen) {
         val native = n.settings(SettingsUiOp.ROUTES)[2].split("\n")
         val reply = state(n, SettingsUiOp.ACTIVATE, (1000 + i).toString())
         if (row.route in native) {
             assertEquals(row.route, reply.text("route"))
-            // The licences list asks Kotlin for the AboutLibraries resource as it opens.
-            val plans = if (row.route == "settings/about/third-party-licenses") listOf(listOf("load", "libraries")) else emptyList()
+            // The licences list asks Kotlin for the AboutLibraries resource as it opens, and a user dictionary for its words.
+            val plans = when (row.route) {
+                "settings/about/third-party-licenses" -> listOf(listOf("load", "libraries"))
+                in wordRoutes -> row.route.substringAfterLast('/').let { d ->
+                    listOfNotNull(listOf(SettingsUiWordEffect.LOAD, d).takeIf { wordsAskedFor != d }).also { wordsAskedFor = d }
+                }
+                else -> emptyList()
+            }
             assertEquals(plans, effects(reply))
             state(n, SettingsUiOp.BACK, "3", "0")
         } else assertEquals(listOf(listOf("compose", row.route, native.joinToString("|"))), effects(reply))
@@ -207,8 +216,8 @@ class SettingsGroupTwoMatchTest {
     @Test fun nativeRoutesAddGroupTwoAndKeepTheirScreensAcrossRecreation() {
         KeyboardRenderer(arrayOf(font)).use { n ->
             val native = n.settings(SettingsUiOp.ROUTES)[2].split("\n")
-            // Other and Theme, then Back up and Restore, then the language screens follow group two.
-            val group = native.dropLast(ReferenceOtherThemeScreens.screens.size + 2 + languageRoutes.size)
+            // Other and Theme, then Back up and Restore, then the language and user dictionary screens follow group two.
+            val group = native.dropLast(ReferenceOtherThemeScreens.screens.size + 2 + languageRoutes.size + wordRoutes.size)
             assertEquals(ref.screens.map { it.route } + "settings/about/third-party-licenses", group.takeLast(ref.screens.size + 1))
             val f = ReferenceGroupTwoScreens.Facts(defaults(), false, "1", null, null)
             prepare(n, f)

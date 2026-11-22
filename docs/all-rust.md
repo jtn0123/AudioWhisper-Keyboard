@@ -164,6 +164,11 @@ Stage 5 packages 1–3, one event family at a time:
   deleted, 177 added). The editable list and its editor are built for dictionaries to reuse.
   Rust writes the subtype list itself, proven byte for byte against the original codec
   ([stage 4: Languages and layouts](stage4-languages.md)).
+  **Dictionaries done (2026-11-21):** Rust draws both user dictionaries on that list and
+  editor, and UserDictionaryScreen is gone (542 lines deleted, 210 added). The words stay in
+  Room and Android's provider, written with the same calls as before, proven against a frozen
+  copy of the old code; old export files import, and a new export is byte-compatible
+  ([stage 4: User dictionaries](stage4-user-dictionaries.md)).
 * **The theme editor and extension editor are ported and improved**, not dropped (owner,
   2026-11-21). Each port says which improvements it makes, as the Other and Theme port did.
 * **Rust owns the preferences file** (`crates/settings` already has byte parity). Then Jetpref,
