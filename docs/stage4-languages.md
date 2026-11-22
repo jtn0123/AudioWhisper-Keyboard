@@ -257,7 +257,8 @@ fields, radio choices, and status text. On top of that:
 
 ## Mutations
 
-`scripts/settings-ui-mutations.py` has 15 new ones for these screens; each must make a test
+`scripts/settings-ui-mutations.py` has 15 new ones for these screens (now in
+`scripts/settings_ui_mutation_cases/languages.py`); each must make a test
 fail, and the code is put back after each one.
 
 **All 15 were caught**, each by a fresh assertion, and the restored source passed

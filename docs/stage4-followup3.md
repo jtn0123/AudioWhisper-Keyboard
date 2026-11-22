@@ -347,7 +347,7 @@ serializers as before.
   transactions, and every actionable row must be exercised. Further checks: plural ranges,
   native routes, and deep stacks with scrolls and dialog drafts surviving recreation.
   `SettingsResourcesTest` pins the string and plural maps to exactly the keys Rust lists.
-* **Mutations:** `scripts/settings-ui-mutations.py` now carries seven group 1 mutations
+* **Mutations:** `scripts/settings-ui-mutations.py` (now `scripts/settings_ui_mutation_cases/general.py`) carries seven group 1 mutations
   beside the four earlier ones. Each must fail a fresh assertion:
   * an enable condition (clipboard auto-clean minutes on history alone);
   * the order of two sync entries;

@@ -238,7 +238,8 @@ The screens use the same nodes as the other Rust settings screens. On top of tha
 
 ## Mutations
 
-`scripts/settings-ui-mutations.py` has 26 new ones for these screens. Each must make a test
+`scripts/settings-ui-mutations.py` has 26 new ones for these screens (now in
+`scripts/settings_ui_mutation_cases/words.py`). Each must make a test
 fail, and the code is put back after each one.
 
 **All 26 were caught**, each by a fresh assertion, and the restored source passed

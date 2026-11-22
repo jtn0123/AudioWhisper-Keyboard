@@ -462,7 +462,7 @@ mutations that must fail them, and on the device.
   the confirmation's own buttons, the auto-space card and its link, About's copy, URL and
   header, Physical keyboard, ModelStatus, the vocabulary's editor and its minimum height, and
   the cards' colour, tracking and icon box. `android_text.rs` adds FreeType's advance rounding.
-* **Mutations.** `scripts/settings-ui-mutations.py` has 39 cases: sixteen for group 2 (four
+* **Mutations.** `scripts/settings-ui-mutations.py` has 39 cases (now in `scripts/settings_ui_mutation_cases/general.py`): sixteen for group 2 (four
   of them the [gallery fixes](#the-group-2-gallery)), the seven part 1 fixes, two for
   [Smartbar's fixed row](#suite-results), three for the
   [store fix](#jetprefs-store-stops-writing-after-a-cancelled-write), and the earlier ones.

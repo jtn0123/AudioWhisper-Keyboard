@@ -159,7 +159,8 @@ Each one is deliberate.
 ## Mutations
 
 A mutation is a small deliberate mistake put into the code to check that some test notices it.
-`scripts/settings-ui-mutations.py` has 22 new ones for these screens; each must make a test fail,
+`scripts/settings-ui-mutations.py` has 22 new ones for these screens (now in
+`scripts/settings_ui_mutation_cases/other_theme.py`); each must make a test fail,
 and the code is put back after each one. **All 22 were caught**, and the restored code passed
 (`build/stage4-other-theme/ui-mutations/result.json` for the first 20, then
 `ui-mutations-label2/` and `ui-mutations-plural/` for the two added with the late fixes).

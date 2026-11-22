@@ -306,7 +306,8 @@ Gaps, in [owed checks](owed-checks.md):
     re-anchoring after a width change.
 - **JVM:** `ReferenceLicenceScreens.kt` and `SettingsLicencesMatchTest.kt` (4 tests).
   `SettingsTypographyTokensTest` pins labelSmall, bodySmall and titleSmall.
-- **Mutations:** seven new cases in `scripts/settings-ui-mutations.py`:
+- **Mutations:** seven new cases in `scripts/settings-ui-mutations.py` (since the split, in
+  `scripts/settings_ui_mutation_cases/general.py`):
   - `licence-set-file-order`, `library-order-code-points`, `author-organisation-first`,
     `blank-version-shown`, `html-legacy-block-lines` and `empty-licence-text-node` must fail
     the JVM match test.

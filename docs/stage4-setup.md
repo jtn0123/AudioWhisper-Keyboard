@@ -202,7 +202,8 @@ allowed, the saved state (and a stack with setup above home refused), and malfor
 `SettingsUiMatchTest`, `SettingsGroupOneMatchTest`, `SettingsGroupTwoMatchTest` and
 `SettingsProjectLicenceMatchTest` gain `setup` and the saved state's 20th field.
 
-**Mutations:** `scripts/settings-ui-mutations.py` has 26 new ones for this screen. Each must make
+**Mutations:** `scripts/settings-ui-mutations.py` has 26 new ones for this screen (now in
+`scripts/settings_ui_mutation_cases/setup.py`). Each must make
 a test fail, and the code is put back after each one. **All 26 were caught**, each by a fresh
 assertion, and the restored source passed (`restored_exit` 0). The JVM run now includes
 `SettingsSetupMatchTest` and `SettingsEntryTest`.

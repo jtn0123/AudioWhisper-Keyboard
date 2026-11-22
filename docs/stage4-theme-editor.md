@@ -149,7 +149,8 @@ Each one is deliberate.
 ### Mutations
 
 A mutation is a small deliberate mistake put into the code to check that some test notices it.
-`scripts/settings-ui-mutations.py` has 21 new ones for the manager; each must make a test fail,
+`scripts/settings-ui-mutations.py` has 21 new ones for the manager (now in
+`scripts/settings_ui_mutation_cases/themes.py`); each must make a test fail,
 and the code is put back after each one. **All 21 were caught**, and the restored code passed
 (`build/mutations-themes/` for the first four; that run then stopped when the Gradle daemon was
 killed mid-build, with no test run, so the other 17 ran again in `build/mutations-themes2/`,
@@ -436,7 +437,8 @@ Each one is deliberate.
 
 ### Mutations
 
-`scripts/settings-ui-mutations.py` has 54 new cases for the editor: 43 in Rust and 11 in Kotlin.
+`scripts/settings-ui-mutations.py` has 54 new cases for the editor (now in
+`scripts/settings_ui_mutation_cases/theme_editor.py`): 43 in Rust and 11 in Kotlin.
 35 of the Rust ones are checked by the Rust editor tests. The other 8 (the element names, the
 serializer, and the native saved state and *Back*) and all the Kotlin ones are checked by the
 JVM match tests, since those compare against Compose. Each case's text matches its source
@@ -909,7 +911,8 @@ test and mutation case.
 
 ### Mutations
 
-`scripts/settings-ui-mutations.py` has 133 new cases for part 3: 131 for the property and code
+`scripts/settings-ui-mutations.py` has 133 new cases for part 3 (now in `property_editor.py`,
+`property_values.py` and `theme_codes.py` under `scripts/settings_ui_mutation_cases/`): 131 for the property and code
 editors, and one for each fix above. 115 of the 131 are caught by the Rust editor tests. The
 other 16 are caught by JVM tests: the Kotlin palette, recorder and preview, the string and icon
 maps, and the written stylesheet compared with Compose's. Four of part 2's cases were
@@ -921,9 +924,10 @@ caught by a failing assertion**, and the restored code passed.
 The 131, the corners case, the two moved part 2 cases and the crash fix's three ran together on
 the code of a186ed5cd, in `build/mutations-part3-final/` (137 cases, `restored_exit` 0). The
 duplicate fix's case and the two it retargeted ran on f3121345c, in
-`build/mutations-duplicate-kind/`, whose restored run passed too. The script is now 1,016 counted
-lines (675 before part 3); it was over the file limit already, and the gate's checker reads its
-cases from this one file.
+`build/mutations-duplicate-kind/`, whose restored run passed too. The script was then 1,016 counted
+lines (675 before part 3), over the 500-line file limit. Step 10 split it: the runner keeps
+its command line and output, and the cases live in `scripts/settings_ui_mutation_cases/`, one
+module per screen, each under the limit ([the split](stage4-extensions.md#the-mutation-script-split)).
 
 | Case | What it breaks | Caught by |
 | --- | --- | --- |
