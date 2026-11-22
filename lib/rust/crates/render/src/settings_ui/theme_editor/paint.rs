@@ -222,12 +222,12 @@ impl App {
         let gone_at = self.gone_rule_place();
         for r in 0..rules.len() {
             if gone_at == Some(r) {
-                at += self.theme_undo(p, (x, at), clip, text);
+                at += self.theme_undo(p, (x, at, self.config[0] - x), clip, text);
             }
             at += self.rule_box(p, r, (x, at), clip, text);
         }
         if gone_at == Some(rules.len()) {
-            at += self.theme_undo(p, (x, at), clip, text);
+            at += self.theme_undo(p, (x, at, self.config[0] - x), clip, text);
         }
         at + self.px(72.0) - y
     }
@@ -240,11 +240,11 @@ impl App {
         all.push((rule.clone(), sets));
         ordered(all).iter().position(|(r, _)| *r == rule)
     }
-    /// The undo bar for what was deleted; its height.
+    /// The undo bar for what was deleted, across `w` from `x`; its height.
     pub(super) fn theme_undo(
         &mut self,
         p: &mut Panel,
-        at: (f32, f32),
+        at: (f32, f32, f32),
         clip: Rect,
         text: &mut Text,
     ) -> f32 {

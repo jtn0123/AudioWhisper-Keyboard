@@ -174,6 +174,18 @@ fn a_deleted_property_leaves_undo_where_it_was_and_undo_puts_it_back() {
 }
 
 #[test]
+fn the_defines_note_and_an_undo_bar_keep_inside_the_rule_box() {
+    let (mut a, mut text) = app(SHEET);
+    // The box is 16 dp (42 px) in from each edge and its content 16 dp in from the box.
+    let inner = 1080.0 - 2.0 * 42.0;
+    let note = control(&a, rule_id(0, 3)).unwrap();
+    assert!(note.bounds.right <= inner, "{:?}", note.bounds);
+    assert!(tap(&mut a, &mut text, delete_id(2, 0)));
+    let undo = control(&a, UNDO_ID).unwrap();
+    assert!(undo.bounds.right <= inner, "{:?}", undo.bounds);
+}
+
+#[test]
 fn a_fonts_source_has_no_delete_and_its_other_properties_do() {
     let (mut a, mut text) = app(SHEET);
     assert_eq!(a.rule_properties(1)[0].raw, "src");

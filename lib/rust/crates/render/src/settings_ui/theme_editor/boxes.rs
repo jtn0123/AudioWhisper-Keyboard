@@ -65,14 +65,14 @@ impl App {
                 at += self.theme_note(p, heading, (left, at), clip, text);
             }
             if undo_at == Some(n) {
-                at += self.theme_undo(p, (left, at), clip, text);
+                at += self.theme_undo(p, (left, at, width), clip, text);
             }
             let keep = required(&rule, &q.raw);
             let place = (r, n, q.set, q.place);
             at += self.property_row(p, place, (q.name, q.value, !keep), (left, at), clip, text);
         }
         if undo_at == Some(props.len()) {
-            at += self.theme_undo(p, (left, at), clip, text);
+            at += self.theme_undo(p, (left, at, width), clip, text);
         }
         self.fit_box(p, outline, at - top);
         at + self.px(8.0) - y

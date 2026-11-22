@@ -229,7 +229,9 @@ impl App {
         }
         cy + self.px(48.0)
     }
-    /// `message` in bodyMedium and `ink`, 16 dp in, `pad` above and below; its height.
+    /// `message` in bodyMedium and `ink`, 16 dp in from `x` and as far from the other edge as
+    /// `x` is plus 16 dp, so a note in a rule box keeps the box's padding; `pad` above and below;
+    /// its height.
     pub(super) fn theme_note(
         &mut self,
         p: &mut Panel,
@@ -241,7 +243,7 @@ impl App {
         if message.is_empty() {
             return 0.0;
         }
-        let width = (self.config[0] - x - 2.0 * self.px(16.0)).max(1.0);
+        let width = (self.config[0] - 2.0 * (x + self.px(16.0))).max(1.0);
         let h = self.measure(text, &message, self.sp(14), width).ceil();
         let at = rect(x + self.px(16.0), y + pad, width, h);
         self.paint_text(p, &message, at, self.sp(14), ink, clip);

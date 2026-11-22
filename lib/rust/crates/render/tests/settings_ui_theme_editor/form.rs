@@ -102,6 +102,15 @@ fn a_new_element_rule_takes_its_selector_codes_modes_and_shift_states() {
     );
     assert_eq!(sets, PropertySets::Single(vec![]));
     assert!(a.theme_editor.changed());
+    // Listed as the file writes them, though the codes went in last.
+    let r = a.theme_editor.rules.len() - 1;
+    let summary = control(&a, rule_id(r, 0)).unwrap().summary;
+    let keys: Vec<_> = summary
+        .lines()
+        .skip(1)
+        .filter_map(|l| l.split(' ').next())
+        .collect();
+    assert_eq!(keys, ["code", "mode", "shiftstate"]);
 }
 
 #[test]

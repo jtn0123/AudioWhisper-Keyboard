@@ -267,7 +267,7 @@ impl App {
         }
         if let Some(gone) = self.list.deleted.clone().filter(|d| d.source == source) {
             let undo = (gone.title.as_str(), Action::List(gone.source, Op::Undo));
-            at += self.undo_bar(p, undo, (x, at), clip, text);
+            at += self.undo_bar(p, undo, (x, at, self.config[0] - x), clip, text);
         }
         let add = Entry {
             id: ADD_ID,
@@ -387,16 +387,15 @@ impl App {
         self.push_control(c, clip);
         (rh, b)
     }
-    /// "Deleted {name}" and an Undo button that does `action`; its height.
+    /// "Deleted {name}" and an Undo button that does `action`, across `w` from `x`; its height.
     pub(super) fn undo_bar(
         &mut self,
         p: &mut Panel,
         (name, action): (&str, Action),
-        (x, y): (f32, f32),
+        (x, y, w): (f32, f32, f32),
         clip: Rect,
         text: &mut Text,
     ) -> f32 {
-        let w = self.config[0] - x;
         let undo = self.label(KEYS[4]);
         let layout = self.button_label(text, &undo);
         let bw = (layout.width.ceil() + 2.0 * self.px(12.0)).max(self.px(58.0));

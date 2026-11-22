@@ -1,7 +1,8 @@
 //! The rules list's model: `compare_order`, what each rule and property shows, Delete with Undo
 //! and Duplicate. A rule shows as SnyggRuleRow did: its element translated (as written at the
-//! developer level), its selector, then each attribute as `key = [values]`; an annotation as it
-//! is written. A property shows its translated name and its value as the stylesheet writes it.
+//! developer level), its selector, then each attribute as `key = [values]` in the order the
+//! stylesheet writes them; an annotation as it is written. A property shows its translated name
+//! and its value as the stylesheet writes it.
 use super::{Gone, Rules, form::RuleForm, names};
 use crate::settings_ui::App;
 use snygg::{
@@ -77,9 +78,11 @@ impl App {
             s if self.theme_developer() => SELECTORS[s][1..].into(),
             s => self.label(SELECTOR_KEYS[s]),
         };
-        let attrs = attributes
-            .0
-            .iter()
+        // As the file writes them, so Save does not reorder what the list showed.
+        let mut sorted: Vec<_> = attributes.0.iter().collect();
+        sorted.sort_by_key(|(key, _)| key);
+        let attrs = sorted
+            .into_iter()
             .map(|(key, values)| {
                 let list: Vec<String> = values.iter().map(|v| lossy(v)).collect();
                 format!("{} = [{}]", lossy(key), list.join(", "))
