@@ -8,7 +8,7 @@ import com.materialkolor.Contrast
 import com.materialkolor.PaletteStyle
 import com.materialkolor.dynamiccolor.ColorSpec
 import dev.patrickgold.florisboard.app.FlorisPreferenceStore
-import dev.patrickgold.florisboard.app.settings.theme.PrettyPrintConfig
+import dev.patrickgold.florisboard.app.PrettyPrintConfig
 import dev.patrickgold.florisboard.cacheManager
 import dev.patrickgold.florisboard.ime.theme.ThemeExtensionComponentEditor
 import dev.patrickgold.florisboard.ime.theme.ThemeExtensionEditor

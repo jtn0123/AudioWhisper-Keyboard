@@ -181,14 +181,11 @@
     <string name="settings__theme_editor__add_code">Add key code</string>
     <string name="settings__theme_editor__edit_code">Edit key code</string>
     <string name="settings__theme_editor__no_codes_defined">Apply rule to all target elements.</string>
-    <string name="settings__theme_editor__no_enum_value_to_add_anymore">All possible values have been added.</string>
     <string name="settings__theme_editor__code_already_exists">This key code is already defined.</string>
     <string name="settings__theme_editor__code_invalid">This key code is not valid. Ensure that the key code is within the range of {c_min} to {c_max} for characters or {i_min} to {i_max} for internal special keys.</string>
     <string name="settings__theme_editor__code_help_text">Alternatively the following links will help you to find the corresponding key code:</string>
     <string name="settings__theme_editor__code_placeholder">Code</string>
     <string name="settings__theme_editor__code_recording_help_text">To find the code of a key, use the button besides the code input field. Once activated, it will record the next key press and will insert the code into the input field.</string>
-    <string name="settings__theme_editor__code_recording_started">Key code recording started</string>
-    <string name="settings__theme_editor__code_recording_stopped">Key code recording stopped</string>
     <string name="settings__theme_editor__code_recording_requires_default_ime_floris">{app_name} needs to be the default keyboard to record a key code</string>
     <string name="settings__theme_editor__code_recording_placeholder">Recording…</string>
     <string name="settings__theme_editor__code_record" comment="TalkBack label of the button that records the next key pressed on this app's keyboard">Record a key</string>
@@ -198,7 +195,6 @@
     <string name="settings__theme_editor__property_name">Property name</string>
     <string name="settings__theme_editor__property_value">Property value</string>
     <string name="settings__theme_editor__property_value_shape_apply_for_all_corners">Apply for all corners</string>
-    <string name="settings__theme_editor__file_selector_dialog_title">Select file</string>
     <string name="settings__theme_editor__file_selector_no_files_text">No files have been added to this extension yet. Please use the "{action_title}" action in the previous screen to import files.</string>
     <string name="settings__theme_editor__property_search">Search properties</string>
     <string name="settings__theme_editor__property_errors">Errors</string>

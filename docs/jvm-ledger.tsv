@@ -124,21 +124,23 @@ app/src/main/kotlin/dev/patrickgold/florisboard/FlorisInlineSuggestions.kt	A	43	
 app/src/main/kotlin/dev/patrickgold/florisboard/FlorisSpellCheckerService.kt	M	95	SpellCheckerService; language/session/result assembly around native spell |
 app/src/main/kotlin/dev/patrickgold/florisboard/NativeExtractContent.kt	A	25	ExtractEditText / AndroidView; native chrome with platform text editor |
 app/src/main/kotlin/dev/patrickgold/florisboard/app/AppPreferenceMigration.kt	A	12	Jetpref migration callback / ART JNI; applies native migration result |
-app/src/main/kotlin/dev/patrickgold/florisboard/app/AppPrefs.kt	M	276	Jetpref PreferenceModel; Android stores stay, derived UI/sizing values must move |
+app/src/main/kotlin/dev/patrickgold/florisboard/app/AppPrefs.kt	M	273	Jetpref PreferenceModel; Android stores stay, derived UI/sizing values must move |
 app/src/main/kotlin/dev/patrickgold/florisboard/app/ComposeSettingsFallbackActivity.kt	A	4	ComponentActivity; retained fallback Activity identity |
-app/src/main/kotlin/dev/patrickgold/florisboard/app/EnumDisplayEntries.kt	A	143	Resources.getString; enum resource IDs/descriptions (split existing oversized map) |
+app/src/main/kotlin/dev/patrickgold/florisboard/app/EnumDisplayEntries.kt	A	141	Resources.getString; enum resource IDs/descriptions (split existing oversized map) |
 app/src/main/kotlin/dev/patrickgold/florisboard/app/FlorisAppActivity.kt	M	254	ComponentActivity / ActivityResultRegistry; retained routing/import/default-selection branches | raised 257 to 258 (A6): the import of the generated SettingsUiBack; raised 249 to 254 (theme editor part 3): the Compose fallback leaves once Save pops its last screen, watching the top entry's lifecycle because the back stack's own flow is library-only, and leaves its starting link to the NavController
 app/src/main/kotlin/dev/patrickgold/florisboard/app/Routes.kt	P	241	portable Routes domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
 app/src/main/kotlin/dev/patrickgold/florisboard/app/SettingsEntry.kt	M	7	settings link parsing; the first screen and setup navigation moved to Rust (compose-removal step 11, stage4-setup.md)
 app/src/main/kotlin/dev/patrickgold/florisboard/app/ThemeEditorActivity.kt	A	18	Activity subclass; the native theme editor's entry over the extension editor, since FlorisAppActivity is singleTask and would clear the Compose activity whose workspace it edits |
+app/src/main/kotlin/dev/patrickgold/florisboard/app/ThemeEditorPrefs.kt	M	24	Jetpref preference types (colour serializer, two enums) the preference model still names, and the stylesheet pretty-print config the extension editor and the native theme editor's glue write with; moved unchanged from the deleted Compose theme editor package (compose-removal step 9)
 app/src/main/kotlin/dev/patrickgold/florisboard/app/apptheme/Shape.kt	P	9	portable Shape domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
 app/src/main/kotlin/dev/patrickgold/florisboard/app/apptheme/Theme.kt	M	62	Resources / WindowInsetsController; preference-to-theme choice still in Kotlin |
 app/src/main/kotlin/dev/patrickgold/florisboard/app/apptheme/Type.kt	P	13	portable Type domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
 app/src/main/kotlin/dev/patrickgold/florisboard/app/ext/AddonBox.kt	S	87	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
 app/src/main/kotlin/dev/patrickgold/florisboard/app/ext/CheckUpdatesScreen.kt	S	17	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
 app/src/main/kotlin/dev/patrickgold/florisboard/app/ext/ExtensionComponentView.kt	S	160	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
+app/src/main/kotlin/dev/patrickgold/florisboard/app/ext/ExtensionDialogProperty.kt	S	31	Compose settings (stage4 scope): deleted at compose-removal steps 5-12 | moved unchanged from ThemeEditorComponents.kt at step 9; goes with ExtensionEditScreen at step 10
 app/src/main/kotlin/dev/patrickgold/florisboard/app/ext/ExtensionEditFilesScreen.kt	S	260	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
-app/src/main/kotlin/dev/patrickgold/florisboard/app/ext/ExtensionEditScreen.kt	S	813	Compose settings (stage4 scope): deleted at compose-removal steps 5-12 | raised 808 to 813 (compose-removal step 9, part 2): Manage component opens the native theme editor's activity instead of ThemeEditorScreen, the routing change the port needs
+app/src/main/kotlin/dev/patrickgold/florisboard/app/ext/ExtensionEditScreen.kt	S	812	Compose settings (stage4 scope): deleted at compose-removal steps 5-12 | raised 808 to 813 (compose-removal step 9, part 2): Manage component opens the native theme editor's activity instead of ThemeEditorScreen, the routing change the port needs
 app/src/main/kotlin/dev/patrickgold/florisboard/app/ext/ExtensionExportScreen.kt	S	56	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
 app/src/main/kotlin/dev/patrickgold/florisboard/app/ext/ExtensionHomeScreen.kt	S	48	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
 app/src/main/kotlin/dev/patrickgold/florisboard/app/ext/ExtensionImportScreen.kt	S	294	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
@@ -151,20 +153,6 @@ app/src/main/kotlin/dev/patrickgold/florisboard/app/ext/RadioListItem.kt	S	25	Co
 app/src/main/kotlin/dev/patrickgold/florisboard/app/settings/advanced/BackupIO.kt	M	81	ContentResolver / Room / File; backup traversal, selected records and restore effects | raised 80 to 81 (compose-removal step 5): a callback after each restore step, so a restore that stops part-way can say what came back
 app/src/main/kotlin/dev/patrickgold/florisboard/app/settings/advanced/BackupWork.kt	A	183	CacheManager workspaces / ContentResolver / FileProvider / share Intent: Back up's and Restore's archive and file work, as Rust asks for it; zip and copy run on the IO dispatcher
 app/src/main/kotlin/dev/patrickgold/florisboard/app/settings/dictionary/UserDictionaryType.kt	P	5	the user dictionary route payload, moved out of the deleted UserDictionaryScreen; goes with Routes |
-app/src/main/kotlin/dev/patrickgold/florisboard/app/settings/theme/Color.kt	S	9	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
-app/src/main/kotlin/dev/patrickgold/florisboard/app/settings/theme/DisplayKbdAfterDialog.kt	S	6	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
-app/src/main/kotlin/dev/patrickgold/florisboard/app/settings/theme/EditCodeValueDialog.kt	S	295	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
-app/src/main/kotlin/dev/patrickgold/florisboard/app/settings/theme/EditPropertyDialog.kt	S	1184	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
-app/src/main/kotlin/dev/patrickgold/florisboard/app/settings/theme/EditRuleDialog.kt	S	276	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
-app/src/main/kotlin/dev/patrickgold/florisboard/app/settings/theme/EnumLikeAttributeBox.kt	S	98	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
-app/src/main/kotlin/dev/patrickgold/florisboard/app/settings/theme/FineTuneDialog.kt	S	39	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
-app/src/main/kotlin/dev/patrickgold/florisboard/app/settings/theme/SnyggLevel.kt	S	6	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
-app/src/main/kotlin/dev/patrickgold/florisboard/app/settings/theme/SnyggValueIcon.kt	S	304	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
-app/src/main/kotlin/dev/patrickgold/florisboard/app/settings/theme/TextKeyDataPreviewBox.kt	S	99	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
-app/src/main/kotlin/dev/patrickgold/florisboard/app/settings/theme/ThemeEditorComponents.kt	S	329	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
-app/src/main/kotlin/dev/patrickgold/florisboard/app/settings/theme/ThemeEditorLoading.kt	S	55	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
-app/src/main/kotlin/dev/patrickgold/florisboard/app/settings/theme/ThemeEditorScreen.kt	S	453	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
-app/src/main/kotlin/dev/patrickgold/florisboard/app/settings/theme/ThemeTranslations.kt	S	162	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
 app/src/main/kotlin/dev/patrickgold/florisboard/ime/ImeUiMode.kt	P	10	portable ImeUiMode domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
 app/src/main/kotlin/dev/patrickgold/florisboard/ime/clipboard/ClipboardComponents.kt	K	99	Compose keyboard (keyboard scope): deleted at compose-removal step K
 app/src/main/kotlin/dev/patrickgold/florisboard/ime/clipboard/ClipboardGridConstants.kt	P	2	portable ClipboardGridConstants domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |

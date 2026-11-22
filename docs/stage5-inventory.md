@@ -576,22 +576,22 @@ primitives serve both. Actual deletion remains behind the original acceptance ga
 | `FB/app/settings/localization/SubtypeEditorState.kt` | 100 | stage4 |
 | `FB/app/settings/media/MediaScreen.kt` | 204 | stage4 |
 | `FB/app/settings/smartbar/SmartbarScreen.kt` | 102 | stage4 |
-| `FB/app/settings/theme/Color.kt` | 24 | stage4 |
-| `FB/app/settings/theme/DisplayKbdAfterDialog.kt` | 26 | stage4 |
-| `FB/app/settings/theme/EditCodeValueDialog.kt` | 312 | stage4 |
-| `FB/app/settings/theme/EditPropertyDialog.kt` | 1200 | stage4 |
-| `FB/app/settings/theme/EditRuleDialog.kt` | 293 | stage4 |
-| `FB/app/settings/theme/EnumLikeAttributeBox.kt` | 113 | stage4 |
-| `FB/app/settings/theme/FineTuneDialog.kt` | 54 | stage4 |
-| `FB/app/settings/theme/SnyggLevel.kt` | 29 | stage4 |
-| `FB/app/settings/theme/SnyggValueIcon.kt` | 320 | stage4 |
-| `FB/app/settings/theme/TextKeyDataPreviewBox.kt` | 114 | stage4 |
-| `FB/app/settings/theme/ThemeEditorComponents.kt` | 344 | stage4 |
-| `FB/app/settings/theme/ThemeEditorLoading.kt` | 70 | stage4 |
-| `FB/app/settings/theme/ThemeEditorScreen.kt` | 473 | stage4 |
+| `FB/app/settings/theme/Color.kt` | 24 | stage4 (deleted at compose-removal step 9) |
+| `FB/app/settings/theme/DisplayKbdAfterDialog.kt` | 26 | stage4 (deleted at compose-removal step 9) |
+| `FB/app/settings/theme/EditCodeValueDialog.kt` | 312 | stage4 (deleted at compose-removal step 9) |
+| `FB/app/settings/theme/EditPropertyDialog.kt` | 1200 | stage4 (deleted at compose-removal step 9) |
+| `FB/app/settings/theme/EditRuleDialog.kt` | 293 | stage4 (deleted at compose-removal step 9) |
+| `FB/app/settings/theme/EnumLikeAttributeBox.kt` | 113 | stage4 (deleted at compose-removal step 9) |
+| `FB/app/settings/theme/FineTuneDialog.kt` | 54 | stage4 (deleted at compose-removal step 9) |
+| `FB/app/settings/theme/SnyggLevel.kt` | 29 | stage4 (deleted at compose-removal step 9) |
+| `FB/app/settings/theme/SnyggValueIcon.kt` | 320 | stage4 (deleted at compose-removal step 9) |
+| `FB/app/settings/theme/TextKeyDataPreviewBox.kt` | 114 | stage4 (deleted at compose-removal step 9) |
+| `FB/app/settings/theme/ThemeEditorComponents.kt` | 344 | stage4 (deleted at compose-removal step 9) |
+| `FB/app/settings/theme/ThemeEditorLoading.kt` | 70 | stage4 (deleted at compose-removal step 9) |
+| `FB/app/settings/theme/ThemeEditorScreen.kt` | 473 | stage4 (deleted at compose-removal step 9) |
 | `FB/app/settings/theme/ThemeManagerScreen.kt` | 135 | stage4 (deleted at compose-removal step 9) |
 | `FB/app/settings/theme/ThemeScreen.kt` | 118 | stage4 |
-| `FB/app/settings/theme/ThemeTranslations.kt` | 177 | stage4 |
+| `FB/app/settings/theme/ThemeTranslations.kt` | 177 | stage4 (deleted at compose-removal step 9) |
 | `FB/app/settings/typing/SpellCheckerServiceSelector.kt` | 122 | stage4 |
 | `FB/app/settings/typing/TypingScreen.kt` | 199 | stage4 |
 | `FB/ime/clipboard/ClipboardComponents.kt` | 114 | keyboard |

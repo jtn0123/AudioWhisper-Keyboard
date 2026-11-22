@@ -3,7 +3,6 @@ package dev.patrickgold.florisboard.app
 import androidx.compose.ui.graphics.Color
 import com.jtn0123.audiowhisper.rust.*
 import com.jtn0123.audiowhisper.settings.SettingsTimeSerializer
-import dev.patrickgold.florisboard.app.settings.theme.ColorPreferenceSerializer
 import dev.patrickgold.jetpref.datastore.model.LocalTime
 import kotlin.test.Test
 import kotlin.test.assertEquals

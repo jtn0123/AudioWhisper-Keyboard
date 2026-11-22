@@ -51,8 +51,7 @@ import androidx.compose.ui.unit.dp
 import dev.patrickgold.florisboard.R
 import dev.patrickgold.florisboard.app.LocalNavController
 import dev.patrickgold.florisboard.app.ThemeEditorActivity
-import dev.patrickgold.florisboard.app.settings.theme.DialogProperty
-import dev.patrickgold.florisboard.app.settings.theme.PrettyPrintConfig
+import dev.patrickgold.florisboard.app.PrettyPrintConfig
 import dev.patrickgold.florisboard.cacheManager
 import dev.patrickgold.florisboard.extensionManager
 import dev.patrickgold.florisboard.ime.keyboard.KeyboardExtension

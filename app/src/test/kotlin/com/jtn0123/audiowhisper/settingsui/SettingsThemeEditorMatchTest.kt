@@ -14,8 +14,8 @@ import androidx.compose.ui.unit.sp
 import com.jtn0123.audiowhisper.rust.*
 import com.jtn0123.audiowhisper.settingsui.ThemeEditorNatives.removeProperty
 import dev.patrickgold.florisboard.R
-import dev.patrickgold.florisboard.app.settings.theme.CustomRuleComparator
-import dev.patrickgold.florisboard.app.settings.theme.PrettyPrintConfig
+import com.jtn0123.audiowhisper.settingsui.ReferenceThemeEditor.CustomRuleComparator
+import dev.patrickgold.florisboard.app.PrettyPrintConfig
 import dev.patrickgold.florisboard.ime.theme.FlorisImeUi
 import kotlinx.serialization.json.*
 import org.florisboard.lib.snygg.*
@@ -341,9 +341,7 @@ class SettingsThemeEditorMatchTest {
     }
 
     @Test fun propertiesAreThemeTranslationsNamesWithItsStrings() {
-        val field = Class.forName("dev.patrickgold.florisboard.app.settings.theme.ThemeTranslationsKt").getDeclaredField("PropertyNameMap")
-        field.isAccessible = true
-        val map = (field.get(null) as Map<*, *>).map { (k, v) -> k as String to stringNames.getValue(v as Int) }
+        val map = ReferenceThemeEditor.PropertyNameMap.map { (k, v) -> k to stringNames.getValue(v) }
         val rust = Regex("""\(\s*"([^"]+)",\s*"([^"]+)",?\s*\)""").findAll(rustArray("PROPERTIES")).map { it.groupValues[1] to it.groupValues[2] }.toList()
         assertEquals(map, rust)
     }

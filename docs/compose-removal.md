@@ -200,7 +200,7 @@ its phone checks pass.
   (21 added, 4 removed), 6 lines in `RustSettingsView` (2 removed) and one string id. Step 8 is
   done: 81 lines deleted, 123 added.
 
-### 9. Theme manager and theme editor (parts 1 and 2 of 3 done)
+### 9. Theme manager and theme editor (done)
 
 * **Deletes:** the rest of `FB/app/settings/theme`: 15 files, 3,684 lines after step 4,
   including `EditPropertyDialog` (1,200) and `ThemeEditorScreen` (473).
@@ -228,13 +228,25 @@ its phone checks pass.
   attributes in file order, a repeated component id refused under its field, and the extension
   editor showing the new meta at once. Properties are listed read-only. Commits f2b7ce6c3 to
   3cc7ba633; see [part 2](stage4-theme-editor.md#part-2-the-theme-editor-shell-done).
-* **Part 3, the property editor (remaining):** every Snygg value kind, *Add property*, code
-  values with key recording, value icons. [What remains](stage4-theme-editor.md#what-remains)
-  lists it all, and what deleting the Compose editor then takes.
-* **Blocked by:** nothing for part 3; step 4's colour picker and part 2's draft, Save and preview
-  are in place.
+* **Part 3, the property editor (done):** Rust draws the property editor for every Snygg value
+  kind, opened by tapping a property or a rule's *Add property*: the property picker with
+  search, the kinds a property takes, static colours through step 4's colour picker with an
+  alpha slider, Material You colours with swatches from the keyboard's own palette, fonts, sizes,
+  padding, shapes with each corner, the enum-like values, images and variables. It adds each
+  value's preview icon in the rules list, a font's source sets with their Errors box, and the
+  code editor for a key rule's codes: typed or recorded from this app's keyboard, with the key
+  data preview. Kotlin adds only the key recorder, which takes one key-up from the running
+  keyboard, and the palette and icon glue. Improvements include a live preview of the value
+  before *Apply*, a contrast warning below 4.5:1, an existing property name refused, a value that
+  must read back as written, undo for a deleted source set, several codes typed at once, and the
+  editor surviving recreation; see
+  [part 3](stage4-theme-editor.md#part-3-the-property-editor-done) for all of them with their
+  tests. Commits 883aca936 to d97c2a4c6, and the deletion after them. A crash fix to the Compose
+  fallback (6c29caad7) comes first: *Save* in a theme editor a link opened left a blank activity.
+* **Blocked by:** nothing.
 * **The fallback loses:** the theme manager. Its route stays as an empty entry that hands back
-  to Rust, as in step 2.
+  to Rust, as in step 2. The Compose theme editor had no route of its own: since part 2 the
+  extension editor opens the Rust one.
 * **Progress** (non-blank lines deleted): part 1 deletes `ThemeManagerScreen` (135), and 7
   lines in `Routes.kt` rewritten as 2. The Kotlin glue adds `SettingsThemes` (44), its string ids
   (11), 5 lines in `RustSettingsView` (1 removed) and one rewritten line in `SettingsStringIds`.
@@ -242,8 +254,18 @@ its phone checks pass.
   reference and other code imports from their package. It adds `SettingsThemeEditor` (113),
   its string ids (207), `ThemeEditorActivity` (22), 4 lines in `RustSettingsView`, 2 in
   `SettingsIcons` (1 removed), 2 in `SettingsStringIds` (1 removed) and 9 in
-  `ExtensionEditScreen` (2 removed). Part 2: 4 lines deleted, 359 added. The 14 files (3,549
-  lines) go after part 3.
+  `ExtensionEditScreen` (2 removed). Part 2: 4 lines deleted, 359 added. Part 3 deletes the 14
+  files (3,549 lines), 2 lines in `ExtensionEditScreen` rewritten as 1, 5 imports in `AppPrefs`
+  and `EnumDisplayEntries`, and 20 lines of `SnyggUi`'s palette call (2 added). It adds
+  `SettingsKeyRecorder` (108), 85 lines of string ids (2 removed), 23 lines in
+  `SettingsThemeEditor` (6 removed), 15 in `SettingsIcons`, 4 in `RustSettingsView`, 18 in
+  `SnyggPalette` (4 removed; the palette call `SnyggUi` and the editor now share), and 32 in
+  `FlorisAppActivity` (14 removed) for the crash fix. The items other
+  code still imported move out unchanged: `ThemeEditorPrefs.kt` (55, with the licence) takes
+  `PrettyPrintConfig`, `ColorPreferenceSerializer`, `DisplayKbdAfterDialogs` and `SnyggLevel`,
+  and `ExtensionDialogProperty.kt` (48) takes `DialogProperty` until step 10 deletes it with
+  `ExtensionEditScreen`. Part 3: 3,602 lines deleted, 391 added, 103 of them moved. Step 9 is
+  done: 3,750 lines deleted, 813 added.
 
 ### 10. Extensions
 

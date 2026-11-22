@@ -4220,6 +4220,8 @@ HSPLdev/patrickgold/florisboard/app/ComposableSingletons$RoutesKt$lambda-9$1;-><
 HSPLdev/patrickgold/florisboard/app/ComposableSingletons$RoutesKt$lambda-9$1;-><init>()V
 HSPLdev/patrickgold/florisboard/app/ComposableSingletons$RoutesKt;-><clinit>()V
 HSPLdev/patrickgold/florisboard/app/ComposableSingletons$RoutesKt;-><init>()V
+HSPLdev/patrickgold/florisboard/app/DisplayKbdAfterDialogs;-><clinit>()V
+HSPLdev/patrickgold/florisboard/app/DisplayKbdAfterDialogs;-><init>(Ljava/lang/String;I)V
 HSPLdev/patrickgold/florisboard/app/FlorisAppActivity$AppContent$1$1$invoke$$inlined$navigationBarsWithImePadding$1;-><clinit>()V
 HSPLdev/patrickgold/florisboard/app/FlorisAppActivity$AppContent$1$1$invoke$$inlined$navigationBarsWithImePadding$1;-><init>()V
 HSPLdev/patrickgold/florisboard/app/FlorisAppActivity$AppContent$1$1$invoke$$inlined$navigationBarsWithImePadding$1;->invoke(Ljava/lang/Object;Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
@@ -4268,10 +4270,6 @@ HSPLdev/patrickgold/florisboard/app/apptheme/ThemeKt;-><clinit>()V
 HSPLdev/patrickgold/florisboard/app/apptheme/ThemeKt;->FlorisAppTheme(Ldev/patrickgold/florisboard/app/AppTheme;Lkotlin/jvm/functions/Function2;Landroidx/compose/runtime/Composer;I)V
 HSPLdev/patrickgold/florisboard/app/apptheme/ThemeKt;->getOutline(Landroidx/compose/material/Colors;Landroidx/compose/runtime/Composer;)J
 HSPLdev/patrickgold/florisboard/app/apptheme/TypeKt;-><clinit>()V
-HSPLdev/patrickgold/florisboard/app/settings/theme/DisplayColorsAs;-><clinit>()V
-HSPLdev/patrickgold/florisboard/app/settings/theme/DisplayColorsAs;-><init>(Ljava/lang/String;I)V
-HSPLdev/patrickgold/florisboard/app/settings/theme/DisplayKbdAfterDialogs;-><clinit>()V
-HSPLdev/patrickgold/florisboard/app/settings/theme/DisplayKbdAfterDialogs;-><init>(Ljava/lang/String;I)V
 HSPLdev/patrickgold/florisboard/app/splash/SplashScreenKt$SplashScreen$1$1;-><init>(Ldev/patrickgold/florisboard/lib/compose/PreviewFieldController;)V
 HSPLdev/patrickgold/florisboard/app/splash/SplashScreenKt$SplashScreen$1$1;->invoke()Ljava/lang/Object;
 HSPLdev/patrickgold/florisboard/app/splash/SplashScreenKt$SplashScreen$1$2$1$1;-><clinit>()V
@@ -7362,6 +7360,7 @@ Ldev/patrickgold/florisboard/app/ComposableSingletons$RoutesKt$lambda-7$1;
 Ldev/patrickgold/florisboard/app/ComposableSingletons$RoutesKt$lambda-8$1;
 Ldev/patrickgold/florisboard/app/ComposableSingletons$RoutesKt$lambda-9$1;
 Ldev/patrickgold/florisboard/app/ComposableSingletons$RoutesKt;
+Ldev/patrickgold/florisboard/app/DisplayKbdAfterDialogs;
 Ldev/patrickgold/florisboard/app/FlorisAppActivity$AppContent$1$1$invoke$$inlined$navigationBarsWithImePadding$1;
 Ldev/patrickgold/florisboard/app/FlorisAppActivity$AppContent$1$1$invoke$$inlined$statusBarsPadding$1;
 Ldev/patrickgold/florisboard/app/FlorisAppActivity$AppContent$1$1;
@@ -7384,8 +7383,6 @@ Ldev/patrickgold/florisboard/app/apptheme/ShapeKt;
 Ldev/patrickgold/florisboard/app/apptheme/ThemeKt$FlorisAppTheme$1;
 Ldev/patrickgold/florisboard/app/apptheme/ThemeKt;
 Ldev/patrickgold/florisboard/app/apptheme/TypeKt;
-Ldev/patrickgold/florisboard/app/settings/theme/DisplayColorsAs;
-Ldev/patrickgold/florisboard/app/settings/theme/DisplayKbdAfterDialogs;
 Ldev/patrickgold/florisboard/app/splash/SplashScreenKt$SplashScreen$1$1;
 Ldev/patrickgold/florisboard/app/splash/SplashScreenKt$SplashScreen$1$2$1$1;
 Ldev/patrickgold/florisboard/app/splash/SplashScreenKt$SplashScreen$1$2$1;
