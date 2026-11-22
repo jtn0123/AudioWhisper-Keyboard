@@ -390,6 +390,14 @@ impl Env {
         Ok(result)
     }
 
+    /// Calls `method`, which returns a float, with `arguments`, as its signature has them.
+    pub fn call_float(&self, method: Method, arguments: &[jvalue]) -> Result<f32> {
+        let (object, id) = (method.object, method.id);
+        let result = jni_call!(self, CallFloatMethodA, object, id, arguments.as_ptr());
+        self.check()?;
+        Ok(result)
+    }
+
     /// Calls `method`, which returns an object, with `arguments`, as its signature has them: a
     /// local reference for the caller to free, or null.
     pub fn call_object(&self, method: Method, arguments: &[jvalue]) -> Result<jobject> {

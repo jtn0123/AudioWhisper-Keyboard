@@ -1,15 +1,17 @@
-//! Smartbar packets and the font-independent JVM differential-test boundary.
+//! Smartbar packets, and the smartbar's font-independent rules for `SmartbarNative`, whose
+//! generated entry points call them.
 use crate::{
     handle,
-    jni::{self, illegal},
+    jni::{Env, Result, illegal},
 };
-use jni_sys::{JNIEnv, jboolean, jfloatArray, jintArray, jlong, jobject, jobjectArray};
+use jni_sys::{JNIEnv, jboolean, jfloatArray, jintArray, jlong, jobject, jobjectArray, jvalue};
 use render::protocol::*;
 use render::{
     smartbar::{self, Config},
     smartbar_fit::{self, TextFit},
     smartbar_scene::{Action, Smartbar},
 };
+use std::cell::Cell;
 use std::ptr;
 
 #[unsafe(no_mangle)]
@@ -77,97 +79,78 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_smartbar(
         });
     }
 }
-#[unsafe(no_mangle)]
-pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_SmartbarRules_layout(
-    env: *mut JNIEnv,
-    _: jobject,
-    config: jfloatArray,
-    width: f32,
-    intrinsic: jfloatArray,
-) -> jfloatArray {
-    // SAFETY: JVM local arrays are valid for this invocation and copied before use.
-    unsafe {
-        jni::run(env, ptr::null_mut(), |env| {
-            let c = Config::decode(&env.read::<f32>(config, "config")?)
-                .ok_or_else(|| illegal("invalid smartbar config"))?;
-            let intrinsic = env.read::<f32>(intrinsic, "intrinsic")?;
-            if !width.is_finite()
-                || width <= 0.0
-                || intrinsic.iter().any(|v| !v.is_finite() || *v < 0.0)
-            {
-                return Err(illegal("invalid smartbar measurement"));
-            }
-            env.make(&smartbar::layout(&c, width, &intrinsic, 0.0).packed(&c))
-        })
-    }
-}
-#[unsafe(no_mangle)]
-pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_SmartbarRules_ellipsis(
-    env: *mut JNIEnv,
-    _: jobject,
-    advances: jfloatArray,
-    width: f32,
-) -> i32 {
-    // SAFETY: JVM local array is copied within the invocation.
-    unsafe {
-        jni::run(env, 0, |env| {
-            Ok(smartbar::ellipsis(&env.read::<f32>(advances, "advances")?, width) as i32)
-        })
-    }
-}
-#[unsafe(no_mangle)]
-pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_SmartbarRules_roomy(
-    env: *mut JNIEnv,
-    _: jobject,
-    config: jfloatArray,
-) -> jboolean {
-    // SAFETY: JVM local array is valid for this invocation and copied before use.
-    unsafe {
-        jni::run(env, 0, |env| {
-            let c = Config::decode(&env.read::<f32>(config, "config")?)
-                .ok_or_else(|| illegal("invalid smartbar config"))?;
-            Ok(jboolean::from(c.roomy()))
-        })
-    }
-}
-#[unsafe(no_mangle)]
-pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_SmartbarRules_toggleWidth(
-    env: *mut JNIEnv,
-    _: jobject,
-    config: jfloatArray,
-) -> f32 {
-    // SAFETY: JVM local array is valid for this invocation and copied before use.
-    unsafe {
-        jni::run(env, 0.0, |env| {
-            let c = Config::decode(&env.read::<f32>(config, "config")?)
-                .ok_or_else(|| illegal("invalid smartbar config"))?;
-            Ok(c.toggle_width())
-        })
-    }
-}
-/// One fitting step, `smartbar_fit::fit_step`; returns the squeeze's bits high, the scale's low.
-#[unsafe(no_mangle)]
-pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_SmartbarRules_fitStepBits(
-    env: *mut JNIEnv,
-    _: jobject,
-    squeeze: f32,
-    scale: f32,
-    measured: f32,
-    available: f32,
-) -> jlong {
-    // SAFETY: only primitives cross; env is valid for this invocation to raise the exception.
-    unsafe {
-        jni::run(env, 0, |_| {
-            let fit = |v: f32| v.is_finite() && v > 0.0;
-            if !fit(squeeze) || !fit(scale) || measured.is_nan() || available.is_nan() {
-                return Err(illegal("invalid text fit"));
-            }
-            let next = smartbar_fit::fit_step(TextFit { squeeze, scale }, measured, available);
-            Ok((i64::from(next.squeeze.to_bits()) << 32) | i64::from(next.scale.to_bits()))
-        })
-    }
+/// A smartbar config from its packed floats.
+fn config(config: &[f32]) -> Result<Config> {
+    Config::decode(config).ok_or_else(|| illegal("invalid smartbar config"))
 }
 
+/// Where the smartbar's slots go (`smartbar::layout`), packed.
+pub fn layout(config: &[f32], width: f32, intrinsic: &[f32]) -> Result<Vec<f32>> {
+    let c = self::config(config)?;
+    if !width.is_finite() || width <= 0.0 || intrinsic.iter().any(|v| !v.is_finite() || *v < 0.0) {
+        return Err(illegal("invalid smartbar measurement"));
+    }
+    Ok(smartbar::layout(&c, width, intrinsic, 0.0).packed(&c))
+}
+
+/// How many characters of `advances` fit in `width` with an ellipsis (`smartbar::ellipsis`).
+pub fn ellipsis(advances: &[f32], width: f32) -> i32 {
+    smartbar::ellipsis(advances, width) as i32
+}
+
+/// Whether words show in Gboard's row (`Config::roomy`).
+pub fn roomy(config: &[f32]) -> Result<bool> {
+    Ok(self::config(config)?.roomy())
+}
+
+/// The arrow's slot width in pixels (`Config::toggle_width`).
+pub fn toggle_width(config: &[f32]) -> Result<f32> {
+    Ok(self::config(config)?.toggle_width())
+}
+
+/// A text fit as it crosses: its squeeze, then its scale.
+fn packed_fit(fit: TextFit) -> Vec<f32> {
+    vec![fit.squeeze, fit.scale]
+}
+
+/// One fitting step (`smartbar_fit::fit_step`).
+pub fn fit_step(squeeze: f32, scale: f32, measured: f32, available: f32) -> Result<Vec<f32>> {
+    let fit = |v: f32| v.is_finite() && v > 0.0;
+    if !fit(squeeze) || !fit(scale) || measured.is_nan() || available.is_nan() {
+        return Err(illegal("invalid text fit"));
+    }
+    let next = smartbar_fit::fit_step(TextFit { squeeze, scale }, measured, available);
+    Ok(packed_fit(next))
+}
+
+/// How a word draws in `available` (`smartbar_fit::fit_text`), asking `measure`, a
+/// `SmartbarRules.TextMeasure`, for its width at each font scale tried. The first failure, a
+/// Kotlin exception or a width of NaN, ends the fit: later measures are not asked.
+pub fn fit_text(env: &Env, available: f32, measure: jobject) -> Result<Vec<f32>> {
+    if available.is_nan() {
+        return Err(illegal("invalid text fit"));
+    }
+    let method = env.method(measure, "measure", (c"measure", c"(F)F"))?;
+    let failed = Cell::new(None);
+    let fit = smartbar_fit::fit_text(available, |scale| {
+        let width = match failed.take() {
+            Some(error) => Err(error),
+            None => env.call_float(method, &[jvalue { f: scale }]),
+        };
+        let width = width.and_then(|width| match width.is_nan() {
+            true => Err(illegal("invalid text fit")),
+            false => Ok(width),
+        });
+        width.unwrap_or_else(|error| {
+            failed.set(Some(error));
+            available
+        })
+    });
+    match failed.take() {
+        Some(error) => Err(error),
+        None => Ok(packed_fit(fit)),
+    }
+}
 #[unsafe(no_mangle)]
 pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_candidateLongPress(
     env: *mut JNIEnv,

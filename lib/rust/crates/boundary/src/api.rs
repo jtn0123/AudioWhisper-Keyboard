@@ -250,7 +250,8 @@ pub enum Type {
         fields: &'static [Bit],
     },
     /// `interface Name { … }`, for an object Rust calls back through JNI: each member a Kotlin
-    /// declaration, such as `fun textBeforeCursor(n: Int): String`, with its doc.
+    /// declaration, such as `fun textBeforeCursor(n: Int): String`, with its doc. One with a single
+    /// `fun` is a `fun interface`, so a lambda converts to it.
     Interface {
         name: &'static str,
         doc: &'static str,
@@ -747,7 +748,9 @@ fn type_text(ty: &Type, indent: &str) -> String {
         Type::Bits { .. } => records::bits_text(ty, indent),
         Type::Interface { name, doc, members } => {
             let mut text = kdoc(doc, indent);
-            text.push_str(&format!("{indent}interface {name} {{\n"));
+            let single = matches!(members, [(declaration, _)] if declaration.starts_with("fun "));
+            let fun = if single { "fun " } else { "" };
+            text.push_str(&format!("{indent}{fun}interface {name} {{\n"));
             let inner = format!("{indent}    ");
             for (at, (declaration, doc)) in members.iter().enumerate() {
                 if at > 0 && !doc.is_empty() {

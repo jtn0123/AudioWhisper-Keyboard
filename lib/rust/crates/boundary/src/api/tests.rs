@@ -817,6 +817,25 @@ fn an_interface_lists_what_rust_calls_back() {
 }
 
 #[test]
+fn an_interface_of_one_function_takes_a_lambda() {
+    const CALLBACKS: &[Api] = &[Api {
+        name: "CallbackRules",
+        doc: "Callbacks.",
+        module: "callbacks",
+        native: "ExampleNative",
+        nested: &[Type::Interface {
+            name: "Measure",
+            doc: "",
+            members: &[("fun measure(scale: Float): Float", "")],
+        }],
+        ..API
+    }];
+    let text = &api_files(CALLBACKS, NATIVE)[0].1.text;
+    let expected = "    fun interface Measure {\n        fun measure(scale: Float): Float\n    }\n";
+    assert!(text.contains(expected), "{text}");
+}
+
+#[test]
 fn chained_calls_split_outside_their_lambdas() {
     let after = ".let { Strip(it[0], it.size) }?.also { fence(a); fence(b) }.toList()";
     assert_eq!(

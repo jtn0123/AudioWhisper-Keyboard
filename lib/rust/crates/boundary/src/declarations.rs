@@ -21,6 +21,7 @@ mod reader_runtime;
 mod rules;
 mod screen;
 mod shift;
+mod smartbar;
 mod spacing;
 mod suggest;
 mod swipe;
@@ -74,6 +75,7 @@ pub const CLASSES: &[Class] = &[
     gestures::GESTURES_NATIVE,
     popup::POPUP_NATIVE,
     suggest::SUGGEST_NATIVE,
+    smartbar::SMARTBAR_NATIVE,
 ];
 
 /// Every generated api over those classes.
@@ -116,9 +118,11 @@ pub const APIS: &[Api] = &[
     suggest::SUGGEST_RULES,
     suggest::QWERTY_LAYOUT,
     suggest::TAP_POSITIONS,
+    smartbar::SMARTBAR_RULES,
 ];
 
-/// Every generated top-level record, enum and interface, with the declarations file and the module it is in.
+/// Every generated top-level record, enum and interface, with the declarations file and the
+/// module it is in.
 pub const TYPES: &[(&str, Module, Type)] = &[
     emoji::EMOJI_ENTRY,
     emoji::EMOJI_ENTRY_SET,
@@ -131,6 +135,7 @@ pub const TYPES: &[(&str, Module, Type)] = &[
     gestures::SWIPE_RECORD,
     gestures::GLIDE_OUTCOME,
     popup::POPUP_RECT,
+    smartbar::TEXT_FIT,
 ];
 
 /// Every group crates/wire declares, and the Kotlin module that calls with it.

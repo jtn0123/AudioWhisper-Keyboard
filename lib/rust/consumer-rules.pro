@@ -45,6 +45,10 @@
     java.lang.String get*();
 }
 
+# Rust measures a smartbar word through this while it fits it (awnative/src/render_smartbar.rs).
+-keep interface com.jtn0123.audiowhisper.rust.SmartbarRules$TextMeasure { *; }
+-keepclassmembers class * implements com.jtn0123.audiowhisper.rust.SmartbarRules$TextMeasure { *; }
+
 # Utility rules live in the JVM-only Kotlin module, with JNI in awnative.
 -keepclasseswithmembernames class org.florisboard.lib.kotlin.UtilityNative {
     native <methods>;
