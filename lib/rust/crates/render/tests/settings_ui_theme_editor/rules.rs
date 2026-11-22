@@ -108,7 +108,8 @@ fn the_rules_come_in_compare_order_with_their_properties_named_and_written_out()
     assert_eq!(
         property_texts(&a, 2),
         [
-            ("Background".into(), "var(--accent)".into()),
+            // translatePropertyValue: a variable by its name, translated where it can be.
+            ("Background".into(), "--accent".into()),
             ("Foreground".into(), "rgba(0,0,0,1)".into())
         ]
     );
@@ -136,7 +137,10 @@ fn the_developer_level_shows_names_as_written() {
         ["@defines", "@font `Sans`", "key", "key", "key"]
     );
     assert_eq!(a.rule_lines(&a.theme_editor.rules[4].0).1, "pressed");
-    assert_eq!(property_texts(&a, 2)[0].0, "background");
+    assert_eq!(
+        property_texts(&a, 2)[0],
+        ("background".into(), "var(--accent)".into())
+    );
 }
 
 #[test]
@@ -167,7 +171,7 @@ fn a_deleted_property_leaves_undo_where_it_was_and_undo_puts_it_back() {
     assert!(tap(&mut a, &mut text, UNDO_ID));
     assert_eq!(
         property_texts(&a, 2)[0],
-        ("Background".into(), "var(--accent)".into())
+        ("Background".into(), "--accent".into())
     );
     assert!(!a.theme_editor.changed());
     assert!(control(&a, UNDO_ID).is_none());

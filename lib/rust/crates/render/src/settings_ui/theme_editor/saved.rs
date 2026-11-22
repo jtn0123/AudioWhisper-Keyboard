@@ -1,17 +1,18 @@
 //! The theme editor's part of the saved state: the draft and what it started from, so turning
-//! the screen keeps unsaved edits, and an open rule or meta editor with what it holds, as
+//! the screen keeps unsaved edits, and an open rule, meta or property editor with what it holds, as
 //! Compose's `rememberSaveable` kept its dialogs. Kotlin's report is asked for again, and the
 //! draft replaces the stylesheet and meta it brings. The deleted rule or property is not kept:
 //! Undo goes with the activity, as the dictionary's does.
 use super::{
-    Load, META, Meta, RULE_ADD, RULE_EDIT, ThemeEditor,
+    Load, META, Meta, PROPERTY_ADD, PROPERTY_EDIT, RULE_ADD, RULE_EDIT, ThemeEditor,
     form::{EXISTS, INVALID_CODE, INVALID_FONT, RuleForm},
     meta::MetaForm,
+    property::{self, PropertyForm},
     rules::ordered,
     target,
 };
 use crate::settings_ui::App;
-use snygg::{editor::Editor, grammar, json::parse, text};
+use snygg::{editor::Editor, grammar, json::parse, text, value::Encoder};
 
 /// What separates a part's fields, and the parts. The stylesheet JSON escapes both.
 const FIELD: char = '\u{1f}';
@@ -28,6 +29,7 @@ pub struct Draft {
     pub base_meta: Meta,
     pub form: Option<RuleForm>,
     pub meta_form: Option<MetaForm>,
+    pub prop: Option<PropertyForm>,
     pub keyboard_was: bool,
 }
 
@@ -171,6 +173,67 @@ fn read_meta_form(s: &str) -> Result<Option<MetaForm>, &'static str> {
     }))
 }
 
+fn prop_part(f: &PropertyForm) -> String {
+    let mut fields = vec![
+        rule_text(&Some(f.rule.clone())),
+        f.set.to_string(),
+        f.original.as_deref().map_or(String::new(), clean),
+        clean(&f.name),
+        f.encoder.map_or(String::new(), |e| e.id().to_string()),
+        clean(&f.choice),
+    ];
+    fields.extend(f.texts.iter().map(|t| clean(t)));
+    fields.extend([f.last.to_string(), f.error.into(), f.checked.to_string()]);
+    fields.join(&FIELD.to_string())
+}
+fn read_prop(s: &str) -> Result<Option<PropertyForm>, &'static str> {
+    const ERROR: &str = "settings saved theme editor property form";
+    if s.is_empty() {
+        return Ok(None);
+    }
+    let fields: Vec<&str> = s.split(FIELD).collect();
+    let [
+        rule,
+        set,
+        original,
+        name,
+        encoder,
+        choice,
+        t0,
+        t1,
+        t2,
+        t3,
+        last,
+        error,
+        checked,
+    ] = fields[..]
+    else {
+        return Err(ERROR);
+    };
+    let encoder = match encoder {
+        "" => None,
+        id => Some(id.parse().ok().and_then(Encoder::from_id).ok_or(ERROR)?),
+    };
+    let error = [property::EXISTS, ""].into_iter().find(|k| *k == error);
+    let (Some(rule), Ok(set), Ok(last), Some(error)) =
+        (read_rule(rule)?, set.parse(), last.parse::<usize>(), error)
+    else {
+        return Err(ERROR);
+    };
+    Ok(Some(PropertyForm {
+        rule,
+        set,
+        original: (!original.is_empty()).then(|| original.into()),
+        name: name.into(),
+        encoder,
+        choice: choice.into(),
+        texts: [t0, t1, t2, t3].map(Into::into),
+        last: last.min(3),
+        error,
+        checked: flag(checked)?,
+    }))
+}
+
 impl App {
     /// The editor's saved part: empty unless a loaded component is being edited.
     pub fn theme_editor_saved(&self) -> String {
@@ -197,6 +260,7 @@ impl App {
             meta_part(&base_meta),
             e.form.as_ref().map_or(String::new(), form_part),
             e.meta_form.as_ref().map_or(String::new(), meta_form_part),
+            e.prop.as_ref().map_or(String::new(), prop_part),
             e.keyboard_was.to_string(),
         ];
         parts.join(&PART.to_string())
@@ -217,6 +281,7 @@ impl App {
             base_meta,
             form,
             meta_form,
+            prop,
             keyboard,
         ] = parts[..]
         else {
@@ -233,6 +298,7 @@ impl App {
             base_meta: read_meta(base_meta)?,
             form: read_form(form)?,
             meta_form: read_meta_form(meta_form)?,
+            prop: read_prop(prop)?,
             keyboard_was: flag(keyboard)?,
         });
         Ok(())
@@ -252,6 +318,7 @@ impl App {
             .is_some_and(|d| match self.stack.last().map(String::as_str) {
                 Some(RULE_ADD | RULE_EDIT) => d.form.is_some(),
                 Some(META) => d.meta_form.is_some(),
+                Some(PROPERTY_ADD | PROPERTY_EDIT) => d.prop.is_some(),
                 _ => true,
             });
         if !held {
@@ -279,6 +346,7 @@ impl App {
         e.meta = d.meta;
         e.form = d.form;
         e.meta_form = d.meta_form;
+        e.prop = d.prop;
         e.keyboard_was = d.keyboard_was;
         e.load = Load::Ready;
         self.theme_preview();

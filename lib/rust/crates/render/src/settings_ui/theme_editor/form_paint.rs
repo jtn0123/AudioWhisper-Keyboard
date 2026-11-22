@@ -35,7 +35,7 @@ impl App {
         text: &mut Text,
     ) -> f32 {
         let Some(form) = self.theme_editor.form.clone() else {
-            return 0.0;
+            return self.property_part(p, (i, part), at, clip, text);
         };
         let title = self.label(self.rows()[i].label);
         match part {
@@ -130,7 +130,7 @@ impl App {
     /// The rule editor's focus order, row by row: Delete in the top bar first when editing.
     pub(super) fn rule_focus(&self, i: usize, part: Part) -> Vec<i32> {
         let Some(form) = self.theme_editor.form.as_ref() else {
-            return vec![];
+            return self.property_focus(i, part);
         };
         let field = 1000 + i as i32;
         match part {

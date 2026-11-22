@@ -1,6 +1,14 @@
 package com.jtn0123.audiowhisper.settingsui
 
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.jtn0123.audiowhisper.rust.*
@@ -17,7 +25,7 @@ import kotlin.test.*
 
 /** The theme editor's routes Rust draws, in the order it lists them: the component's rules, then its editors. */
 internal val themeEditorRoutes = listOf("settings/theme/edit", "settings/theme/editor/rule/add", "settings/theme/editor/rule",
-    "settings/theme/editor/meta", "settings/theme/editor/tune")
+    "settings/theme/editor/property/add", "settings/theme/editor/property", "settings/theme/editor/meta", "settings/theme/editor/tune")
 
 /** The theme editor's native routes and helpers its match tests share. */
 internal object ThemeEditorNatives {
@@ -150,6 +158,104 @@ class SettingsThemeEditorMatchTest {
                 val expected = ThemeEditorNatives.composeWrites(sheet) { for ((r, k) in picks) removeProperty(r, k) }
                 assertEquals(expected, ThemeEditorNatives.json(saved, SettingsUiThemeEditorEffect.SAVE), "$picks")
             }
+        }
+    }
+
+    /** A property added in Rust through the property editor: its rule's element, its name, its encoder's string key's
+     * end, the entry chosen in the value dropdown or the text typed in its fields; and the value Compose's dialog built. */
+    private class Added(val element: String, val name: String, val encoder: String, val value: SnyggValue,
+        val pick: String? = null, val typed: List<String> = emptyList())
+
+    private val valueKinds = listOf(
+        Added("key", "foreground", "explicit_inherit", SnyggInheritValue),
+        Added("key", "clip", "yes", SnyggYesValue),
+        Added("key", "shape", "circle_shape", SnyggCircleShapeValue()),
+        Added("key", "font-family", "font_family_generic", SnyggGenericFontFamilyValue(FontFamily.Monospace), "monospace"),
+        Added("key", "font-style", "font_style", SnyggFontStyleValue(FontStyle.Italic), "italic"),
+        Added("key", "font-weight", "font_weight", SnyggFontWeightValue(FontWeight.SemiBold), "semi-bold"),
+        Added("key", "text-align", "text_align", SnyggTextAlignValue(TextAlign.Center), "center"),
+        Added("key", "text-decoration-line", "text_decoration_line", SnyggTextDecorationLineValue(TextDecoration.Underline), "underline"),
+        Added("key", "text-overflow", "text_overflow", SnyggTextOverflowValue(TextOverflow.Ellipsis), "ellipsis"),
+        Added("key", "content-scale", "content_scale", SnyggContentScaleValue(ContentScale.Crop), "crop"),
+        // The file selector's `"flex:" + Uri.encode("/images/sky blue.png", "/")`.
+        Added("key", "background-image", "uri", SnyggUriValue("flex:/images/sky%20blue.png"), "flex:/images/sky%20blue.png"),
+        Added("key", "border-width", "dp_size", SnyggDpSizeValue(2.5.dp), typed = listOf("2.5")),
+        Added("key", "font-size", "sp_size", SnyggSpSizeValue(14.5.sp), typed = listOf("14.5")),
+        Added("key", "text-max-lines", "text_max_lines", SnyggTextMaxLinesValue(3), typed = listOf("3")),
+        Added("key", "padding", "padding", SnyggPaddingValue(PaddingValues(1.dp, 2.5.dp, 3.dp, 4.dp)), typed = listOf("1", "2.5", "3", "4")),
+        Added("key", "background", "solid_color", SnyggStaticColorValue(Color(12, 34, 56, 128)), typed = listOf("#0c223880")),
+        Added("key", "border-color", "material_you_light_color", SnyggDynamicLightColorValue("onSurface"), "onSurface"),
+        Added("key", "shadow-color", "material_you_dark_color", SnyggDynamicDarkColorValue("primary")),
+        Added("key", "line-height", "defined_var", SnyggDefinedVarValue("--primary"),
+            "snygg__property_name__var_primary"),
+        Added("key-hint", "shape", "rectangle_shape", SnyggRectangleShapeValue()),
+        Added("key-hint", "font-family", "font_family_custom", SnyggCustomFontFamilyValue("Mono"), "Mono"),
+        Added("key-hint", "clip", "no", SnyggNoValue),
+        Added("key-hint", "text-max-lines", "text_max_lines", SnyggTextMaxLinesValue(Int.MAX_VALUE)),
+        Added("root", "shape", "rounded_corner_shape_dp", SnyggRoundedCornerDpShapeValue(1.dp, 2.dp, 3.dp, 4.5.dp),
+            typed = listOf("1", "2", "3", "4.5")),
+        Added("window", "shape", "rounded_corner_shape_percent", SnyggRoundedCornerPercentShapeValue(10, 20, 30, 40),
+            typed = listOf("10", "20", "30", "40")),
+        Added("key-popup-box", "shape", "cut_corner_shape_dp", SnyggCutCornerDpShapeValue(1.dp, 2.dp, 3.dp, 4.dp),
+            typed = listOf("1", "2", "3", "4")),
+        Added("key-popup-element", "shape", "cut_corner_shape_percent", SnyggCutCornerPercentShapeValue(5, 6, 7, 60),
+            typed = listOf("5", "6", "7", "60")),
+    )
+    private val editSheet = """{"${'$'}schema":"https://schemas.florisboard.org/snygg/v2/stylesheet","@defines":{"--primary":"#ff0000"},
+        "@font `Mono`":[{"src":"uri(`flex:/fonts/mono.ttf`)"}],"root":{},"window":{},"key":{},"key-hint":{},
+        "key-popup-box":{},"key-popup-element":{}}"""
+
+    /** Opens the property editor's dropdown on row [row] and taps its entry labelled [label]. */
+    private fun KeyboardRenderer.choose(row: Int, label: String) {
+        val open = ThemeEditorNatives.state(this, SettingsUiOp.ACTIVATE, (1000 + row).toString())
+        val entries = open.getValue("nodes").jsonArray.map { it.jsonObject }.filter { it.getValue("id").jsonPrimitive.int >= 3000 }
+        val entry = assertNotNull(entries.firstOrNull { it.getValue("label").jsonPrimitive.content == label },
+            "$label is not in row $row's ${entries.map { it.getValue("label").jsonPrimitive.content }}")
+        ThemeEditorNatives.state(this, SettingsUiOp.ACTIVATE, entry.getValue("id").jsonPrimitive.content)
+    }
+    /** Focuses the field on row [row] and gives it [text], as the IME's InputConnection does. */
+    private fun KeyboardRenderer.type(row: Int, text: String) {
+        ThemeEditorNatives.state(this, SettingsUiOp.ACTIVATE, (1000 + row).toString())
+        ThemeEditorNatives.state(this, SettingsUiOp.EDIT, "set", text)
+    }
+    private fun KeyboardRenderer.tap(id: Int) = ThemeEditorNatives.state(this, SettingsUiOp.ACTIVATE, id.toString())
+    /** The bottom bar's Add or Apply on row 11, which goes back to the rules unless it refused [what]. */
+    private fun KeyboardRenderer.apply(what: String) =
+        assertEquals(ThemeEditorNatives.ROUTE, tap(1011).getValue("route").jsonPrimitive.content, "$what was refused")
+    /** The property editor's rows: the name 1, the encoder 2, the value 3, the sides 4 to 7, and Add or Apply 11. */
+    private fun KeyboardRenderer.add(rule: Int, a: Added) {
+        tap(500_000 + 4096 * rule + 4)
+        choose(1, "snygg__property_name__" + a.name.replace('-', '_'))
+        choose(2, "snygg__property_value__" + a.encoder)
+        a.pick?.let { choose(3, it) }
+        if (a.typed.size == 1) type(3, a.typed[0]) else a.typed.forEachIndexed { k, t -> type(4 + k, t) }
+        apply("${a.element} ${a.name}")
+    }
+    private fun SnyggStylesheetEditor.element(name: String) =
+        rules.entries.first { (it.key as? SnyggElementRule)?.elementName == name }.value as SnyggSinglePropertySetEditor
+
+    @Test fun propertiesEditedInRustAreWrittenAsComposesDialogWroteThem() {
+        val order = ThemeEditorNatives.composeEditor(editSheet).rules.keys.toList()
+        val index = { element: String -> order.indexOfFirst { (it as? SnyggElementRule)?.elementName == element } }
+        val defines = order.indexOf(SnyggAnnotationRule.Defines)
+        KeyboardRenderer(arrayOf(ThemeEditorNatives.font)).use { n ->
+            ThemeEditorNatives.open(n)
+            val report = ThemeEditorNatives.report(editSheet)
+            report[SettingsUiThemeEditor.IMAGES] = "sky blue.png"
+            ThemeEditorNatives.state(n, SettingsUiOp.THEME_EDITOR, *report)
+            for (a in valueKinds) n.add(index(a.element), a)
+            // Edited in place: the variable's colour.
+            n.tap(500_000 + 4096 * defines + 64)
+            n.choose(2, "snygg__property_value__solid_color")
+            n.type(3, "#00ff00")
+            n.apply("--primary")
+            val saved = n.tap(ThemeEditorNatives.SAVE_ID)
+            val expected = ThemeEditorNatives.composeWrites(editSheet) {
+                for (a in valueKinds) element(a.element).properties[a.name] = a.value
+                (rules.getValue(SnyggAnnotationRule.Defines) as SnyggSinglePropertySetEditor).properties["--primary"] =
+                    SnyggStaticColorValue(Color(0, 255, 0))
+            }
+            assertEquals(expected, ThemeEditorNatives.json(saved, SettingsUiThemeEditorEffect.SAVE))
         }
     }
 

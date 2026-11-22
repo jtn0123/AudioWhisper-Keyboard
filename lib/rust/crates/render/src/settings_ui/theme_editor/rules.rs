@@ -2,7 +2,7 @@
 //! and Duplicate. A rule shows as SnyggRuleRow did: its element translated (as written at the
 //! developer level), its selector, then each attribute as `key = [values]` in the order the
 //! stylesheet writes them; an annotation as it is written. A property shows its translated name
-//! and its value as the stylesheet writes it.
+//! and its value as the stylesheet writes it, a variable by its translated name.
 use super::{Gone, Rules, form::RuleForm, names};
 use crate::settings_ui::App;
 use snygg::{
@@ -11,6 +11,7 @@ use snygg::{
     grammar::{Rule, SELECTORS},
     resolve::PropertySets,
     text,
+    value::Value,
 };
 
 /// The selectors' string keys, by `grammar::SELECTORS` index.
@@ -111,13 +112,20 @@ impl App {
         let mut out = vec![];
         for (set, props) in all.into_iter().enumerate() {
             for (place, (name, value)) in props.iter().enumerate() {
-                let shown = value.encoder().serialize(value);
+                let shown = match value {
+                    // translatePropertyValue: a variable by its name's label but at DEVELOPER.
+                    Value::Variable(key) if !self.theme_developer() => self.property_label(key),
+                    _ => value
+                        .encoder()
+                        .serialize(value)
+                        .map_or_else(|_| "?".into(), |t| lossy(&t)),
+                };
                 out.push(Prop {
                     set,
                     place,
                     raw: lossy(name),
                     name: self.property_label(name),
-                    value: shown.map_or_else(|_| String::from("?"), |t| lossy(&t)),
+                    value: shown,
                 });
             }
         }

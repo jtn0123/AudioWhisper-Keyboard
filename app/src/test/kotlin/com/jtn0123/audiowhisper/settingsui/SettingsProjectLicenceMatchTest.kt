@@ -118,7 +118,7 @@ class SettingsProjectLicenceMatchTest {
             open(n)
             state(n, SettingsUiOp.ACCESSIBILITY_SCROLL, SettingsUiTextNode.SCROLL.toString(), RenderProtocol.ACCESS_SCROLL_FORWARD.toString())
             val saved = n.settings(SettingsUiOp.SAVE).drop(3).toTypedArray()
-            assertEquals("8", saved[0])
+            assertEquals("9", saved[0])
             assertEquals(21, saved.size)
             assertTrue(saved[18].toFloat() > 0f)
             KeyboardRenderer(arrayOf(font)).use { recreated ->

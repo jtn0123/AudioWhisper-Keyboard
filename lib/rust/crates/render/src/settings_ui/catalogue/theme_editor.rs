@@ -1,8 +1,8 @@
 //! The theme editor (`settings_ui/theme_editor`): ThemeEditorScreen's component box and rules, the
-//! rule editor and the component meta editor, which Compose drew as dialogs over it, and its
+//! rule, property and component meta editors, which Compose drew as dialogs over it, and its
 //! fine-tune dialog as a screen of its three preferences. Rows whose kind is `ThemeEdit` are
-//! painted by that module; the rule and meta editors' Cancel and Apply are the item editor's
-//! bottom bar (`Lang::Cancel`, `Lang::Save`), and its questions are language dialogs.
+//! painted by that module; the editors' Cancel and Apply are the item editor's bottom bar
+//! (`Lang::Cancel`, `Lang::Save`), and its questions are language dialogs.
 use super::{Choices, Cond, Kind, Row, Screen, languages::Lang, row};
 use crate::settings_ui::theme_editor as screens;
 
@@ -35,6 +35,21 @@ pub enum Part {
     /// contrast level, 2 the spec version.
     MaterialYou,
     MetaChoice(usize),
+    /// The property editor's message: why Apply refused.
+    PropError,
+    /// The property's name: a dropdown of the spec's, or a field for a variable.
+    PropName,
+    /// The encoder dropdown.
+    PropEncoder,
+    /// The value: a dropdown, a field with its unit, a shape's outline, or nothing.
+    PropValue,
+    /// Padding's sides (start, top, end, bottom) or a shape's corners, `value::CORNER_IDS`'
+    /// order: one field each.
+    PropSide(usize),
+    /// The chip copying the side or corner edited last to all four.
+    PropAll,
+    /// Show keyboard, for the live preview the screen has no field for.
+    PropKeyboard,
 }
 
 const fn part(label: &'static str, p: Part) -> Row {
@@ -98,6 +113,48 @@ const RULE_EDIT_ROWS: &[Row] = &[
         "settings__theme_editor__delete_rule_message",
         Lang::DeleteRule,
     ),
+];
+const PROPERTY: [Row; 11] = [
+    part("", Part::PropError),
+    part("settings__theme_editor__property_name", Part::PropName),
+    part("settings__theme_editor__property_value", Part::PropEncoder),
+    part("settings__theme_editor__property_value", Part::PropValue),
+    part("", Part::PropSide(0)),
+    part("", Part::PropSide(1)),
+    part("", Part::PropSide(2)),
+    part("", Part::PropSide(3)),
+    part("", Part::PropAll),
+    part("settings__theme_editor__show_keyboard", Part::PropKeyboard),
+    CANCEL,
+];
+const PROPERTY_ADD_ROWS: &[Row] = &[
+    PROPERTY[0],
+    PROPERTY[1],
+    PROPERTY[2],
+    PROPERTY[3],
+    PROPERTY[4],
+    PROPERTY[5],
+    PROPERTY[6],
+    PROPERTY[7],
+    PROPERTY[8],
+    PROPERTY[9],
+    PROPERTY[10],
+    row("", "action__add", "", Kind::Lang(Lang::Save)),
+];
+/// Delete deletes at once, as EditPropertyDialog's did: Undo on the rules puts it back.
+const PROPERTY_EDIT_ROWS: &[Row] = &[
+    PROPERTY[0],
+    PROPERTY[1],
+    PROPERTY[2],
+    PROPERTY[3],
+    PROPERTY[4],
+    PROPERTY[5],
+    PROPERTY[6],
+    PROPERTY[7],
+    PROPERTY[8],
+    PROPERTY[9],
+    PROPERTY[10],
+    row("", "action__apply", "", Kind::Lang(Lang::Save)),
 ];
 const META_ROWS: &[Row] = &[
     part("ext__meta__id", Part::MetaField(2)),
@@ -246,6 +303,18 @@ pub const RULE_EDIT: Screen = screen(
     screens::RULE_EDIT,
     "settings__theme_editor__edit_rule",
     RULE_EDIT_ROWS,
+    false,
+);
+pub const PROPERTY_ADD: Screen = screen(
+    screens::PROPERTY_ADD,
+    "settings__theme_editor__add_property",
+    PROPERTY_ADD_ROWS,
+    false,
+);
+pub const PROPERTY_EDIT: Screen = screen(
+    screens::PROPERTY_EDIT,
+    "settings__theme_editor__edit_property",
+    PROPERTY_EDIT_ROWS,
     false,
 );
 pub const META: Screen = screen(

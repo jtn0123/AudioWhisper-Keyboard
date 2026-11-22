@@ -12,6 +12,9 @@ pub mod form_paint;
 pub mod meta;
 pub mod names;
 pub mod paint;
+pub mod property;
+pub mod property_paint;
+pub mod property_values;
 pub mod rules;
 pub mod saved;
 pub mod ui;
@@ -34,6 +37,8 @@ use wire::settings_ui::theme_editor::{effect, outcome, report};
 pub const EDIT: &str = "settings/theme/edit";
 pub const RULE_ADD: &str = "settings/theme/editor/rule/add";
 pub const RULE_EDIT: &str = "settings/theme/editor/rule";
+pub const PROPERTY_ADD: &str = "settings/theme/editor/property/add";
+pub const PROPERTY_EDIT: &str = "settings/theme/editor/property";
 pub const META: &str = "settings/theme/editor/meta";
 pub const TUNE: &str = "settings/theme/editor/tune";
 /// The strings the editor shows beyond its rows' and the element, property, selector and value
@@ -77,6 +82,7 @@ pub fn string_keys() -> Vec<&'static str> {
     out.extend(names::PROPERTIES.iter().map(|p| p.1));
     out.extend(rules::SELECTOR_KEYS);
     out.extend(form::MODES.iter().chain(&form::SHIFT_STATES).map(|v| v.1));
+    out.extend(property::string_keys());
     out
 }
 
@@ -119,6 +125,8 @@ pub enum Tap {
     Remove(usize, String),
     /// The meta editor's night switch.
     Night,
+    /// The property editor's controls.
+    Prop(property::PropTap),
 }
 
 /// What the component box shows beyond the meta: `extension:id` and the stylesheet's path.
@@ -195,6 +203,7 @@ pub struct ThemeEditor {
     pub keyboard_was: bool,
     pub form: Option<form::RuleForm>,
     pub meta_form: Option<meta::MetaForm>,
+    pub prop: Option<property::PropertyForm>,
     /// A draft a saved state brought back: it replaces the report's stylesheet and meta.
     pub restored: Option<saved::Draft>,
 }
@@ -399,8 +408,7 @@ impl App {
     /// the keyboard shows as `DisplayKbdAfterDialogs` says.
     pub(super) fn theme_editor_left(&mut self) {
         if self.in_theme_editor() {
-            self.theme_editor.form = None;
-            self.theme_editor.meta_form = None;
+            self.close_theme_forms();
             self.keyboard_after_dialog();
         } else if self.theme_editor.target.take().is_some() {
             self.effects.push(vec![effect::PREVIEW.into()]);
@@ -459,6 +467,7 @@ impl App {
                     f.set_value(k, &v, false);
                 }
             }
+            Tap::Prop(tap) => self.property_tap(tap),
         }
     }
     /// Opens row `i`'s list with the element chosen, or nothing chosen for a value to add.
@@ -470,6 +479,9 @@ impl App {
                 .as_ref()
                 .map(|f| f.flags[k].clone());
             return self.open_modal(i, chosen.unwrap_or_default());
+        }
+        if let Some(selected) = self.property_selected(i) {
+            return self.open_modal(i, selected);
         }
         let Some(form) = self.theme_editor.form.as_ref() else {
             return;
@@ -488,12 +500,14 @@ impl App {
         };
         self.open_modal(i, selected);
     }
-    /// The bottom bar's Add or Apply on the rule or the meta editor.
+    /// The bottom bar's Add or Apply on the rule, the meta or the property editor.
     pub(in crate::settings_ui) fn save_theme_form(&mut self) {
         if self.theme_editor.form.is_some() {
             self.save_rule();
         } else if self.theme_editor.meta_form.is_some() {
             self.save_meta();
+        } else {
+            self.save_property();
         }
     }
     /// Row `i`'s place in the focus order.
@@ -521,7 +535,7 @@ impl App {
             Part::Font => e.form.as_ref().map(|f| f.font.clone()),
             Part::Attribute(0) => e.form.as_ref().map(|f| f.codes.clone()),
             Part::MetaField(k) => e.meta_form.as_ref().map(|f| f.field(k).to_owned()),
-            _ => None,
+            _ => self.property_line(part),
         }
     }
     /// Line field `part` changed.
@@ -530,7 +544,7 @@ impl App {
             return self.meta_typed(k, value);
         }
         let Some(f) = self.theme_editor.form.as_mut() else {
-            return;
+            return self.property_typed(part, value);
         };
         match part {
             Part::Font => f.font = value,

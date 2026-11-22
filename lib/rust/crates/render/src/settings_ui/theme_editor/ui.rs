@@ -32,7 +32,8 @@ pub struct Chip {
 }
 
 impl App {
-    /// A control's title 16 dp in and 8 dp down; where the control under it starts.
+    /// A control's title 16 dp in and 8 dp down; where the control under it starts (`y` for
+    /// none).
     pub(super) fn field_title(
         &mut self,
         p: &mut Panel,
@@ -41,6 +42,9 @@ impl App {
         clip: Rect,
         text: &mut Text,
     ) -> f32 {
+        if title.is_empty() {
+            return y;
+        }
         let left = x + self.px(16.0);
         let width = (self.config[0] - x - 2.0 * self.px(16.0)).max(1.0);
         let th = self
@@ -114,7 +118,20 @@ impl App {
     pub(super) fn line_box(
         &mut self,
         p: &mut Panel,
+        field: (usize, String, String, String),
+        at: (f32, f32),
+        clip: Rect,
+        text: &mut Text,
+    ) -> f32 {
+        self.unit_box(p, field, "", at, clip, text)
+    }
+    /// [`line_box`](Self::line_box) with `unit` after the text, as Compose put
+    /// `dp`, `sp` or `%` beside a size's field.
+    pub(super) fn unit_box(
+        &mut self,
+        p: &mut Panel,
         (i, title, error, hint): (usize, String, String, String),
+        unit: &str,
         (x, y): (f32, f32),
         clip: Rect,
         text: &mut Text,
@@ -142,6 +159,19 @@ impl App {
         // The title is above the field, so an empty field shows only a hint it was given.
         let mut drawn = field.clone();
         drawn.label = hint;
+        if !unit.is_empty() {
+            let uw = self.measure(text, unit, self.sp(16), width).ceil() + 1.0;
+            let uh = self.measure(text, unit, self.sp(16), uw).ceil();
+            let right = b.right - self.px(16.0);
+            let at = rect(
+                right - uw,
+                b.top + ((b.height() - uh) / 2.0).round(),
+                uw,
+                uh,
+            );
+            self.paint_text(p, unit, at, self.sp(16), self.colors[2], clip);
+            drawn.bounds = rect(b.left, b.top, (at.left - b.left).max(1.0), b.height());
+        }
         self.paint_editor(p, &drawn, text, clip);
         self.push_control(field, clip);
         let mut bottom = b.bottom;

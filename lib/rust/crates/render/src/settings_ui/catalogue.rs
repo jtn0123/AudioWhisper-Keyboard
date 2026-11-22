@@ -370,6 +370,8 @@ pub const SCREENS: &[Screen] = &[
     theme_editor::EDIT,
     theme_editor::RULE_ADD,
     theme_editor::RULE_EDIT,
+    theme_editor::PROPERTY_ADD,
+    theme_editor::PROPERTY_EDIT,
     theme_editor::META,
     theme_editor::TUNE,
 ];

@@ -199,6 +199,12 @@
     <string name="settings__theme_editor__property_value_shape_apply_for_all_corners">Apply for all corners</string>
     <string name="settings__theme_editor__file_selector_dialog_title">Select file</string>
     <string name="settings__theme_editor__file_selector_no_files_text">No files have been added to this extension yet. Please use the "{action_title}" action in the previous screen to import files.</string>
+    <string name="settings__theme_editor__padding_start">Start</string>
+    <string name="settings__theme_editor__padding_top">Top</string>
+    <string name="settings__theme_editor__padding_end">End</string>
+    <string name="settings__theme_editor__padding_bottom">Bottom</string>
+    <string name="settings__theme_editor__padding_apply_for_all">Apply for all sides</string>
+    <string name="settings__theme_editor__show_keyboard">Show keyboard</string>
     <string name="settings__theme_editor__component_meta_is_night_theme">Is night theme</string>
     <string name="settings__theme_editor__component_meta_stylesheet_path">Stylesheet path</string>
     <string name="settings__theme_editor__component_meta_material_you__title">Material You</string>

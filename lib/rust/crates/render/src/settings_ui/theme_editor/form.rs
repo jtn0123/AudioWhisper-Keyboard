@@ -254,6 +254,9 @@ impl App {
         if let Kind::ThemeEdit(Part::MetaChoice(k)) = self.rows().get(i)?.kind {
             return Some(self.theme_editor.component.choices[k].clone());
         }
+        if let Some(choices) = self.property_choices(i) {
+            return Some(choices);
+        }
         let form = self.theme_editor.form.as_ref()?;
         match self.rows().get(i)?.kind {
             Kind::ThemeEdit(Part::Element) => {
@@ -285,6 +288,9 @@ impl App {
             Kind::ThemeEdit(Part::Attribute(k)) => Some(self.attr_value_label(k, choice)),
             // As Compose's dropdowns named them: the enum's name.
             Kind::ThemeEdit(Part::MetaChoice(_)) => Some(choice.to_owned()),
+            Kind::ThemeEdit(Part::PropName | Part::PropEncoder | Part::PropValue) => {
+                Some(self.property_choice_label(i, choice))
+            }
             _ => None,
         }
     }
@@ -311,6 +317,9 @@ impl App {
     /// A list entry tapped on row `i`: the element or a Material You flag chosen, or the value
     /// added.
     pub(in crate::settings_ui) fn theme_choose(&mut self, i: usize, choice: &str) {
+        if self.property_choose(i, choice) {
+            return;
+        }
         let kind = self.rows().get(i).map(|r| r.kind);
         if let (Some(Kind::ThemeEdit(Part::MetaChoice(k))), Some(f)) =
             (kind, self.theme_editor.meta_form.as_mut())
