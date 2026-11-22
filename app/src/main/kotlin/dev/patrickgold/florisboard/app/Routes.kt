@@ -46,7 +46,6 @@ import dev.patrickgold.florisboard.app.ext.ExtensionListScreen
 import dev.patrickgold.florisboard.app.ext.ExtensionListScreenType
 import dev.patrickgold.florisboard.app.ext.ExtensionViewScreen
 import dev.patrickgold.florisboard.app.settings.about.ProjectLicenseScreen
-import dev.patrickgold.florisboard.app.settings.dictionary.UserDictionaryScreen
 import dev.patrickgold.florisboard.app.settings.dictionary.UserDictionaryType
 import dev.patrickgold.florisboard.app.settings.theme.ThemeManagerScreen
 import dev.patrickgold.florisboard.app.settings.theme.ThemeManagerScreenAction
@@ -263,10 +262,7 @@ object Routes {
             composableWithDeepLink(Settings.Typing::class) {}
 
             composableWithDeepLink(Settings.Dictionary::class) {}
-            composableWithDeepLink(Settings.UserDictionary::class) { navBackStack ->
-                val payload = navBackStack.toRoute<Settings.UserDictionary>()
-                UserDictionaryScreen(payload.type)
-            }
+            composableWithDeepLink(Settings.UserDictionary::class) {}
 
             composableWithDeepLink(Settings.Gestures::class) {}
 

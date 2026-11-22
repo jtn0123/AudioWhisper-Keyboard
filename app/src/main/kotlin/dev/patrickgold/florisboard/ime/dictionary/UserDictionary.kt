@@ -19,7 +19,6 @@ package dev.patrickgold.florisboard.ime.dictionary
 import android.content.ContentValues
 import android.content.Context
 import android.database.Cursor
-import android.net.Uri
 import android.provider.UserDictionary
 import androidx.room.ColumnInfo
 import androidx.room.Dao
@@ -33,18 +32,10 @@ import androidx.room.RoomDatabase
 import androidx.room.TypeConverter
 import androidx.room.TypeConverters
 import androidx.room.Update
-import dev.patrickgold.florisboard.R
 import dev.patrickgold.florisboard.lib.FlorisLocale
-import dev.patrickgold.florisboard.lib.ValidationRule
-import org.florisboard.lib.android.readText
-import org.florisboard.lib.android.writeText
-import org.florisboard.lib.kotlin.tryOrNull
 import java.lang.ref.WeakReference
 
 private const val WORDS_TABLE = "words"
-
-const val FREQUENCY_MIN = 1
-const val FREQUENCY_MAX = 255
 
 private const val SORT_BY_WORD_ASC = "${UserDictionary.Words.WORD} ASC"
 private const val SORT_BY_WORD_DESC = "${UserDictionary.Words.WORD} DESC"
@@ -142,87 +133,6 @@ interface UserDictionaryDatabase {
     fun userDictionaryDao(): UserDictionaryDao
 
     fun reset()
-
-    fun importCombinedList(context: Context, uri: Uri) {
-        context.contentResolver.readText(uri) { src ->
-            var isFirstLine = true
-            src.forEachLine { line ->
-                if (isFirstLine) {
-                    // Ignore
-                    isFirstLine = false
-                } else {
-                    var word: String? = null
-                    var freq: Int? = null
-                    var locale: String? = null
-                    var shortcut: String? = null
-                    for (property in line.split(';')) {
-                        val keyValuePair = property.split('=')
-                        check(keyValuePair.size == 2) { "Error at source line `$line`: Key-Value pair expected, but either only key or too many values provided" }
-                        val key = keyValuePair[0].trim().lowercase()
-                        val value = keyValuePair[1].trim()
-                        when (key) {
-                            "w", "word" -> word = value.ifBlank { null }
-                            "f", "freq" -> {
-                                val number = value.toIntOrNull(10)
-                                checkNotNull(number) { "Error at source line `$line`: Freq is not a valid decimal number" }
-                                check(number in FREQUENCY_MIN..FREQUENCY_MAX) {
-                                    "Error at source line `$line`: Freq not within range of $FREQUENCY_MIN and $FREQUENCY_MAX"
-                                }
-                                freq = number
-                            }
-                            "l", "locale" -> locale = when (value) {
-                                "all", "null", "" -> null
-                                else -> value.ifBlank { null }
-                            }
-                            "s", "shortcut" -> shortcut = value.ifBlank { null }
-                        }
-                    }
-                    checkNotNull(word) { "Error at source line `$line`: Word cannot be empty or missing" }
-                    checkNotNull(freq) { "Error at source line `$line`: Freq cannot be empty or missing" }
-                    val alreadyExistingEntries = userDictionaryDao().queryExact(
-                        word, locale?.let { FlorisLocale.fromTag(it) },
-                    )
-                    if (alreadyExistingEntries.isNotEmpty()) {
-                        userDictionaryDao().update(UserDictionaryEntry(alreadyExistingEntries[0].id, word, freq, locale, shortcut))
-                    } else {
-                        userDictionaryDao().insert(UserDictionaryEntry(0, word, freq, locale, shortcut))
-                    }
-                }
-            }
-        }
-    }
-
-    fun exportCombinedList(context: Context, uri: Uri) {
-        context.contentResolver.writeText(uri) { dst ->
-            StringBuilder().apply {
-                append("dictionary=")
-                append(uri.lastPathSegment)
-                append(";date=")
-                append(System.currentTimeMillis())
-                append(";generated-by=")
-                append(context.packageName)
-                append(";version=1")
-                appendLine()
-                dst.write(toString())
-            }
-            for (entry in userDictionaryDao().queryAll()) {
-                StringBuilder().apply {
-                    append(" w=")
-                    append(entry.word)
-                    append(";f=")
-                    append(entry.freq)
-                    append(";l=")
-                    append(entry.locale) // always append locale even if null
-                    if (entry.shortcut != null) {
-                        append(";s=")
-                        append(entry.shortcut)
-                    }
-                    appendLine()
-                    dst.write(toString())
-                }
-            }
-        }
-    }
 }
 
 @Database(entities = [UserDictionaryEntry::class], version = 1)
