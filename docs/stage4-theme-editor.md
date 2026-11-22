@@ -18,7 +18,7 @@ This page records each. [What remains](#what-remains) lists what is owed.
 | `settings/theme/edit/<workspace>/<component>` | Rust | New in part 2: the theme editor, in `ThemeEditorActivity`. |
 | `settings/theme/editor/rule/add`, `.../rule`, `.../meta`, `.../tune` | Rust | New in part 2: the rule editor, the meta editor and fine-tune. |
 | `settings/theme/editor/property/add`, `.../property`, `.../code/add`, `.../code` | Rust | New in part 3: the property editor and the code editor. |
-| `ext/view/<id>` (an extension's page: export, delete) | Compose | Step 10. |
+| `ext/view/<id>` (an extension's page: export, delete) | Rust | Step 10, part 1 ([stage 4: extensions](stage4-extensions.md)). |
 | `ext/import/EXT_THEME` | Compose | Step 10. |
 
 The Compose route `Settings.ThemeManager` stays as an empty entry that hands back to Rust, as in
