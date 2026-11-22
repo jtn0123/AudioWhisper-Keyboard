@@ -86,6 +86,9 @@ crate::declare! {
         /// [`SettingsUiExtension`](extensions::row::FIELDS) rows of the
         /// [`SettingsUiImportKind`](extensions::file::KINDS) kinds.
         EXTENSION_FILES = 52,
+        /// The extension editor's workspace an `extEditor` effect opened:
+        /// [`SettingsUiExtEditor`](ext_editor::row::FIELDS) rows.
+        EXT_EDITOR = 53,
     }
 }
 
@@ -169,6 +172,7 @@ pub mod query {
     }
 }
 
+pub mod ext_editor;
 pub mod extensions;
 pub mod files;
 pub mod languages;
@@ -186,6 +190,12 @@ pub const GROUPS: &[&crate::Group] = &[
     &back::PHASES,
     &edit::OPS,
     &query::KINDS,
+    &ext_editor::effect::KINDS,
+    &ext_editor::open::FIELDS,
+    &ext_editor::outcome::KINDS,
+    &ext_editor::folder::KINDS,
+    &ext_editor::kind::KINDS,
+    &ext_editor::row::FIELDS,
     &extensions::effect::KINDS,
     &extensions::link::KINDS,
     &extensions::file::KINDS,

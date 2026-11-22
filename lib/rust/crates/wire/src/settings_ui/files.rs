@@ -93,6 +93,23 @@ pub mod job {
             /// Write the extension `EXTENSION` into the picked document as a `.flex` archive.
             /// Kotlin deletes the document when it could not be written.
             EXT_EXPORT = "extExport",
+            /// Save the extension editor's workspace `EXTENSION` with the `extension.json` in
+            /// `TEXT` as the archive `NAME`: over the installed extension `TARGET`, or new in the
+            /// theme folder when `TARGET` is empty. The archive is written beside its place and
+            /// moved there, then the workspace closes. `NAME` reports the workspace.
+            EXT_SAVE = "extSave",
+            /// Copy the picked document `DOCUMENT` into workspace `EXTENSION` as the file `NAME`,
+            /// a folder and a name joined by `/`, when its media type is one of `TEXT`'s, joined
+            /// by `|`, as ExtensionEditFilesScreen's filter matched them. `NAME` reports it.
+            EXT_FILE_ADD = "extFileAdd",
+            /// Rename workspace `EXTENSION`'s file `TEXT` to `NAME`. Both are reported.
+            EXT_FILE_RENAME = "extFileRename",
+            /// Delete workspace `EXTENSION`'s file `NAME`. `NAME` reports it.
+            EXT_FILE_DELETE = "extFileDelete",
+            /// Copy the stylesheet at `TEXT` in the installed extension `TARGET`, or in workspace
+            /// `EXTENSION` when `TARGET` is empty, to `NAME` in the workspace. A stylesheet that
+            /// is not there copies as none. `NAME` reports it.
+            EXT_COMPONENT_COPY = "extComponentCopy",
         }
     }
 }
@@ -115,6 +132,10 @@ pub mod result {
             NO_APP = "noApp",
             /// The archive the work needs is gone, as when Android closed the app.
             GONE = "gone",
+            /// The file or archive to be written is there already.
+            TAKEN = "taken",
+            /// The picked document's media type is not one the work takes.
+            WRONG_TYPE = "wrongType",
             /// Anything else. A restore's `STEPS` says how many of its steps finished.
             FAILED = "failed",
         }
@@ -177,8 +198,12 @@ pub mod work {
             DOCUMENT,
             /// The text to write.
             TEXT,
-            /// An extension's id, or an import workspace's.
+            /// An extension's id, or an import or editor workspace's.
             EXTENSION,
+            /// A file's name or path, as the job says.
+            NAME,
+            /// The installed extension the job reads or replaces.
+            TARGET,
         }
     }
 }
@@ -193,7 +218,8 @@ pub mod done {
             JOB,
             /// A [`SettingsUiJobResult`](super::result::KINDS).
             RESULT,
-            /// The prepared archive's file name, or the id of the import workspace read.
+            /// The prepared archive's file name, the id of the import workspace read, or the
+            /// file or workspace an extension editor job names.
             NAME,
             /// The backup's package, version code and version name.
             PACKAGE,
@@ -207,7 +233,7 @@ pub mod done {
             DAMAGED,
             /// How many of a restore's steps finished.
             STEPS,
-            /// The text read.
+            /// The text read, or the name a file was renamed from.
             TEXT,
         }
     }
