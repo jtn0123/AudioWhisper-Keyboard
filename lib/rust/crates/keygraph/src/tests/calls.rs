@@ -1,6 +1,8 @@
 //! The graph's calls as rows: what Android sends and reads back.
 
-use wire::key_graph::{self as names, build, data, facts, file, hints, info, key, question};
+use wire::key_graph::{
+    self as names, action, action_answer, build, data, facts, file, hints, info, key, question,
+};
 
 use crate::Graph;
 use crate::calls::{self, Error};
@@ -128,6 +130,38 @@ fn popups_read_back_as_data_rows() {
         ),
         ("-1", "-1")
     );
+}
+
+#[test]
+fn actions_read_back_what_the_last_facts_say() {
+    let mut graph = graph();
+    let mut row = facts(&[]);
+    row[facts::PASTABLE] = wire::flag::utf16(true);
+    compute(&mut graph, &row);
+    // A character key (`KeyType` 0) shows its label; the system key (6) of paste, its icon.
+    let ask = |graph: &mut Graph, kind: &str, code: i32, label: &str| {
+        let mut asked = vec![Vec::new(); action::SIZE];
+        asked[action::TYPE] = utf16(kind);
+        asked[action::CODE] = utf16(&code.to_string());
+        asked[action::LABEL] = utf16(label);
+        text(&call(graph, names::ACTIONS, &asked))
+    };
+    let letter = ask(&mut graph, "0", 97, "a");
+    assert_eq!(letter.len(), action_answer::SIZE);
+    assert_eq!(letter[action_answer::ENABLED], wire::flag::TRUE);
+    let shown = &letter[action_answer::ICON..];
+    assert_eq!(shown, ["0", wire::flag::TRUE, "a"]);
+    let paste = keys::codes::CLIPBOARD_PASTE;
+    let pasting = ask(&mut graph, "6", paste, "");
+    assert_eq!(pasting[action_answer::ENABLED], wire::flag::TRUE);
+    let shown = &pasting[action_answer::ICON..];
+    assert_eq!(shown, [paste.to_string().as_str(), wire::flag::FALSE, ""]);
+    compute(&mut graph, &facts(&[]));
+    let pasting = ask(&mut graph, "6", paste, "");
+    assert_eq!(pasting[action_answer::ENABLED], wire::flag::FALSE);
+    let cut = vec![utf16("0"), utf16("97")];
+    let refused = calls::call(&mut graph, &utf16(names::ACTIONS), &cut).err();
+    assert_eq!(refused, Some(Error("an action row has one field each")));
 }
 
 #[test]

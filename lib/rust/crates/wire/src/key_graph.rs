@@ -24,6 +24,9 @@ crate::declare! {
         CODE_POINTS = "codePoints",
         /// An [`info`] row.
         INFO = "info",
+        /// An [`action`] row for each of the smartbar's actions: an [`action_answer`] row for
+        /// each, what the smartbar's evaluator said of the action's key.
+        ACTIONS = "actions",
     }
 }
 
@@ -234,6 +237,35 @@ pub mod info {
     }
 }
 
+/// A smartbar action's key, which the action panels ask about.
+pub mod action {
+    crate::declare! {
+        /// A smartbar action's key, asked about with the last computation's facts.
+        pub const FIELDS: fields KeyGraphAction {
+            /// The `KeyType` ordinal.
+            TYPE,
+            CODE,
+            LABEL,
+        }
+    }
+}
+
+/// What the graph says of a smartbar action's key.
+pub mod action_answer {
+    crate::declare! {
+        /// What the graph says of a smartbar action's key, as the smartbar's evaluator did.
+        pub const FIELDS: fields KeyGraphActionAnswer {
+            /// A flag: it is enabled.
+            ENABLED,
+            /// The icon token Android draws, or 0 for none.
+            ICON,
+            /// A flag: it shows a label, `LABEL`.
+            LABELED,
+            LABEL,
+        }
+    }
+}
+
 /// The groups the generator writes as Kotlin.
 pub const GROUPS: &[&crate::Group] = &[
     &OPS,
@@ -247,4 +279,6 @@ pub const GROUPS: &[&crate::Group] = &[
     &data::FIELDS,
     &key::FIELDS,
     &info::FIELDS,
+    &action::FIELDS,
+    &action_answer::FIELDS,
 ];

@@ -26,6 +26,7 @@ ACTIONS = ROOT / 'lib/rust/crates/render/src/smartbar_actions.rs'
 BRIDGE = ROOT / 'lib/rust/crates/awnative/src/render_smartbar.rs'
 RENDER = ROOT / 'app/src/main/kotlin/com/jtn0123/audiowhisper/render'
 ROWS, KEYBOARD, SMARTBAR = RENDER / 'KeyGraphRows.kt', RENDER / 'RustKeyboard.kt', RENDER / 'RendererSmartbar.kt'
+PANELS = RENDER / 'RendererPanels.kt'
 # The targets: Rust test binaries, and JVM test classes run by one Gradle call.
 UNIT, BAR_TESTS = 'cargo:keygraph', 'cargo:smartbar_actions'
 TRACE, BAR_MATCH = 'jvm:keygraph', 'jvm:smartbar'
@@ -154,6 +155,17 @@ CASES = [
     ('bridge-enables-every-key', BRIDGE, 'enabled: action.enabled,', 'enabled: true,', [BAR_MATCH]),
     ('key-icon-token-lost', SMARTBAR, 'fun keyIcon(i: Int): Int = field(i, SmartbarActionPlan.KEY_ICON).toInt()',
      'fun keyIcon(i: Int): Int = field(i, SmartbarActionPlan.KEY_ICON).toInt() * 0', [BAR_MATCH]),
+    # The overflow and editor panels' questions about each action's key.
+    ('action-always-enabled', CALLS, 'answered[action_answer::ENABLED] = wire::flag::utf16(answer.enabled);',
+     'answered[action_answer::ENABLED] = wire::flag::utf16(true);', [UNIT, BAR_MATCH]),
+    ('action-always-labeled', CALLS, 'answered[action_answer::LABELED] = wire::flag::utf16(answer.label.is_some());',
+     'answered[action_answer::LABELED] = wire::flag::utf16(true);', [UNIT, BAR_MATCH]),
+    ('panel-type-dropped', PANELS, 'KeyGraphAction.TYPE to "${key.type.ordinal}",', 'KeyGraphAction.TYPE to "0",',
+     [BAR_MATCH]),
+    ('panel-icon-lost', PANELS, 'fun icon(i: Int): Int = field(i, KeyGraphActionAnswer.ICON).toInt()',
+     'fun icon(i: Int): Int = field(i, KeyGraphActionAnswer.ICON).toInt() * 0', [BAR_MATCH]),
+    ('panel-label-flag-misread', PANELS, 'takeIf { WireFlag.decode(field(i, KeyGraphActionAnswer.LABELED)) }',
+     'takeIf { WireFlag.decode(field(i, KeyGraphActionAnswer.ENABLED)) }', [BAR_MATCH]),
 ]
 JVM = {TRACE: ['*KeyGraphMatchTest'], BAR_MATCH: ['*SmartbarActionsMatchTest']}
 CARGO = {UNIT: ['-p', 'keygraph'], BAR_TESTS: ['-p', 'render', '--test', 'smartbar_actions']}

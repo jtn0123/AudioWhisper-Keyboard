@@ -2,7 +2,9 @@
 //! facts, and answers written back as rows.
 
 use popup::order::{HintConfig, HintMode};
-use wire::key_graph::{build, data, facts, file, hints, info, key, question};
+use wire::key_graph::{
+    action, action_answer, build, data, facts, file, hints, info, key, question,
+};
 
 use crate::data::Data;
 use crate::facts::Facts;
@@ -75,6 +77,7 @@ pub fn call(graph: &mut Graph, operation: &[u16], fields: &[Vec<u16>]) -> Result
                 .collect())
         }
         INFO => Ok(info(graph)),
+        ACTIONS => actions(graph, fields),
         _ => Err(Error("unknown operation")),
     }
 }
@@ -184,6 +187,25 @@ fn popup_flags(graph: &Graph, fields: &[Vec<u16>]) -> Result<Rows> {
     Ok((0..graph.listed())
         .map(|at| wire::flag::utf16(!graph.popup_keys(at, config).is_empty()))
         .collect())
+}
+
+/// What the graph says of each action row's key: enabled, its icon token and its label.
+fn actions(graph: &mut Graph, fields: &[Vec<u16>]) -> Result<Rows> {
+    if fields.len() % action::SIZE != 0 {
+        return Err(Error("an action row has one field each"));
+    }
+    let mut out = Vec::new();
+    for row in fields.chunks(action::SIZE) {
+        let (kind, code) = (number(&row[action::TYPE])?, number(&row[action::CODE])?);
+        let answer = graph.action(kind, code, &row[action::LABEL]);
+        let mut answered = vec![Vec::new(); action_answer::SIZE];
+        answered[action_answer::ENABLED] = wire::flag::utf16(answer.enabled);
+        answered[action_answer::ICON] = text(answer.icon);
+        answered[action_answer::LABELED] = wire::flag::utf16(answer.label.is_some());
+        answered[action_answer::LABEL] = answer.label.unwrap_or_default();
+        out.extend(answered);
+    }
+    Ok(out)
 }
 
 fn info(graph: &Graph) -> Rows {

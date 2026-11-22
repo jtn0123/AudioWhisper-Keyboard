@@ -14,6 +14,7 @@ import dev.patrickgold.florisboard.ime.keyboard.KeyboardMode
 import dev.patrickgold.florisboard.ime.smartbar.IncognitoDisplayMode
 import dev.patrickgold.florisboard.ime.smartbar.SmartbarLayout
 import dev.patrickgold.florisboard.ime.smartbar.quickaction.QuickAction
+import dev.patrickgold.florisboard.ime.smartbar.quickaction.keyData
 import dev.patrickgold.florisboard.ime.text.key.KeyCode
 import dev.patrickgold.florisboard.ime.text.key.KeyType
 import dev.patrickgold.florisboard.ime.text.keyboard.TextKeyData
@@ -30,8 +31,9 @@ import kotlin.test.assertTrue
  * computed Rust key graph on the branch, and from main's smartbar evaluator, frozen as
  * [ReferenceEvaluator], for the same facts. Two labels differ on purpose, each counted: an empty
  * text shows "?" where main showed "null", and a text starting with a surrogate pair shows the
- * whole character where main showed half of it. See docs/phase3-typing-fan-out.md and
- * docs/phase3-key-graph.md.
+ * whole character where main showed half of it. The overflow and editor panels ask the same graph
+ * about every action's key ([ActionKeys]), which must answer as main's evaluator did. See
+ * docs/phase3-typing-fan-out.md and docs/phase3-key-graph.md.
  */
 class SmartbarActionsMatchTest {
     private val seen = mutableMapOf<String, Int>()
@@ -54,7 +56,7 @@ class SmartbarActionsMatchTest {
         for (icon in ICON_NAMES.values) assertTrue((seen["icon $icon"] ?: 0) > 0, "never showed $icon")
         for (flag in FLAG_NAMES.values) assertTrue((seen["flag $flag"] ?: 0) > 0, "never set $flag")
         for (what in listOf("empty text", "surrogate pair", "blank text", "key label", "expanded", "toggles extended",
-            "preview of shared actions")) {
+            "preview of shared actions", "panel disabled", "panel icon", "panel unlabeled")) {
             assertTrue((seen[what] ?: 0) > 0, "never saw $what")
         }
     }
@@ -88,6 +90,22 @@ class SmartbarActionsMatchTest {
             assertEquals(label, shown.label(i), "case $case action $i: label differs")
         }
         count(facts, shown, actions)
+        panel(case, actions.filterNotNull(), main)
+    }
+
+    /** The overflow and editor panels ask the graph about every action's key, as main asked its evaluator. */
+    private fun panel(case: Int, actions: List<QuickAction>, main: ReferenceEvaluator) {
+        val keys = ActionKeys(keyboard.graph, actions.map { it.keyData() })
+        for ((i, action) in actions.withIndex()) {
+            val data = action.keyData()
+            assertEquals(main.evaluateEnabled(data), keys.enabled(i), "case $case panel action $i: enabled differs")
+            assertEquals(main.icon(data), keys.icon(i), "case $case panel action $i: icon differs")
+            assertEquals(main.label(data), keys.label(i), "case $case panel action $i: label differs")
+            saw("panel action")
+            if (!keys.enabled(i)) saw("panel disabled")
+            if (keys.icon(i) != 0) saw("panel icon")
+            if (keys.label(i) == null) saw("panel unlabeled")
+        }
     }
 
     /** A stand-in for the icon an icon token draws, the same one each time. */
