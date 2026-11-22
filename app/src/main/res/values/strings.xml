@@ -815,7 +815,6 @@
     <string name="ext__import__file_skip_unsupported" comment="Reason string when file is unsupported">Unsupported or unrecognized file type.</string>
     <string name="ext__import__file_skip_ext_core" comment="Reason string when ext has core extension ID">Unable to replace or update default extension packages provided with the app core assets. Consider updating the app itself if you intend to use a newer version of a core extension package.</string>
     <string name="ext__import__file_skip_ext_corrupted" comment="Reason string when file seems to be ext but is corrupted">File appears to be an extension archive but parsing of the archive data failed. Either the archive is corrupted or this file is not an extension at all.</string>
-    <string name="ext__import__error_unexpected_exception" comment="Label when an error occurred during import. The error message will be appended below this text view">An unexpected error occurred during import. The following details were provided:</string>
     <string name="ext__validation__enter_package_name">Please enter a package name</string>
     <string name="ext__validation__error_package_name">Package name does not match regex {id_regex}</string>
     <string name="ext__validation__enter_version">Please enter a version</string>
