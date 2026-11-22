@@ -32,7 +32,7 @@ use wire::settings_ui::theme_editor::effect;
 /// Why Apply refused a name the set has.
 pub const EXISTS: &str = "settings__theme_editor__property_already_exists";
 /// The strings the property editor shows beyond its rows'.
-pub const KEYS: [&str; 8] = [
+pub const KEYS: [&str; 9] = [
     EXISTS,
     super::contrast::LOW_CONTRAST,
     "settings__theme_editor__add_source_set",
@@ -41,6 +41,7 @@ pub const KEYS: [&str; 8] = [
     "settings__theme_editor__property_errors",
     "settings__theme_editor__property_required",
     "settings__theme_editor__padding_apply_for_all",
+    "settings__theme_editor__property_value_shape_apply_for_all_corners",
 ];
 /// Padding's sides' names, in `value::PADDING_IDS` order, and the corners', `CORNER_IDS` order.
 pub const SIDES: [&str; 4] = [

@@ -124,6 +124,7 @@ internal val settingsThemeEditorStringIds: Map<String, Int> = mapOf(
     "settings__theme_editor__property_required" to R.string.settings__theme_editor__property_required,
     "settings__theme_editor__property_search" to R.string.settings__theme_editor__property_search,
     "settings__theme_editor__property_value" to R.string.settings__theme_editor__property_value,
+    "settings__theme_editor__property_value_shape_apply_for_all_corners" to R.string.settings__theme_editor__property_value_shape_apply_for_all_corners,
     "settings__theme_editor__rule_already_exists" to R.string.settings__theme_editor__rule_already_exists,
     "settings__theme_editor__rule_codes" to R.string.settings__theme_editor__rule_codes,
     "settings__theme_editor__rule_modes" to R.string.settings__theme_editor__rule_modes,

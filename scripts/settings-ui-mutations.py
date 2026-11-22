@@ -456,6 +456,10 @@ CASES = [
      '("shape", "snygg__property_name__shape"),', '("shape", "snygg__property_name__clip"),'),
     # The property editor (compose-removal step 9, part 3): Rust cases fail settings_ui_theme_editor; the last two
     # fail SettingsResourcesTest and SettingsThemeEditorMatchTest.
+    # Fails settings_ui_screens: the key list must hold every key the theme editor's folder names.
+    ('theme-editor-corners-key-unlisted', TE / 'property.rs',
+     '    "settings__theme_editor__property_value_shape_apply_for_all_corners",\n];',
+     '    "settings__theme_editor__padding_apply_for_all",\n];'),
     ('theme-editor-property-exists-unchecked', TE / 'property.rs',
      'let taken = adding && props.iter().any(|(n, _)| *n == key);',
      'let taken = adding && props.is_empty() && props.iter().any(|(n, _)| *n == key);'),
@@ -799,7 +803,8 @@ RUST = dict.fromkeys([
     'theme-extension-unchecked',
 ], 'settings_ui_theme_manager') | {'theme-report-keeps-asked': 'settings_ui_theme'} | {
     'advance-linear-round': 'android_text', 'every-row-drawn': 'settings_ui_licences',
-    'talkback-page-fraction': 'settings_ui_screens'} | dict.fromkeys([
+    'talkback-page-fraction': 'settings_ui_screens',
+    'theme-editor-corners-key-unlisted': 'settings_ui_screens'} | dict.fromkeys([
     'setup-unasked-inverted',
     'setup-header-keeps-auto',
     'setup-blocked-asks',

@@ -109,11 +109,20 @@ fn every_resource_key_the_settings_code_names_is_in_the_key_list() {
         "action", "settings", "setup", "state", "pref", "unit", "general", "enum",
     ];
     let mut unlisted = vec![];
-    for file in std::fs::read_dir(dir).unwrap() {
-        let path = file.unwrap().path();
-        if path.extension().is_none_or(|e| e != "rs") {
-            continue;
+    // Every file under it, the theme editor's and the catalogue's folders included.
+    let mut dirs = vec![std::path::PathBuf::from(dir)];
+    let mut files = vec![];
+    while let Some(d) = dirs.pop() {
+        for entry in std::fs::read_dir(d).unwrap() {
+            let path = entry.unwrap().path();
+            if path.is_dir() {
+                dirs.push(path);
+            } else if path.extension().is_some_and(|e| e == "rs") {
+                files.push(path);
+            }
         }
+    }
+    for path in files {
         let source = std::fs::read_to_string(&path).unwrap();
         for literal in source.split('"').skip(1).step_by(2) {
             let resource = prefixes
@@ -121,7 +130,9 @@ fn every_resource_key_the_settings_code_names_is_in_the_key_list() {
                 .any(|p| literal.starts_with(&format!("{p}__")))
                 && literal
                     .chars()
-                    .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_');
+                    .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_')
+                // A `concat!` piece such as `"pref__input_feedback__"` is not a key.
+                && !literal.ends_with('_');
             if resource && !keys.contains(&literal) && !plurals.iter().any(|p| p == literal) {
                 unlisted.push(literal.to_owned());
             }
