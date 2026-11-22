@@ -1,8 +1,12 @@
 package com.jtn0123.audiowhisper.settingsui
 
 import com.jtn0123.audiowhisper.rust.*
+import androidx.compose.runtime.mutableStateListOf
 import com.jtn0123.audiowhisper.settingsui.ThemeEditorNatives.removeProperty
 import dev.patrickgold.florisboard.ime.theme.ThemeExtensionComponentEditor
+import dev.patrickgold.florisboard.ime.theme.ThemeExtensionEditor
+import dev.patrickgold.florisboard.lib.ext.ExtensionMaintainer
+import dev.patrickgold.florisboard.lib.ext.ExtensionMeta
 import kotlinx.serialization.json.*
 import java.io.File
 import kotlin.io.path.createTempDirectory
@@ -27,6 +31,10 @@ class SettingsThemeEditorGlueMatchTest {
     }
     private fun component() = ThemeExtensionComponentEditor(id = "sunny", label = "Sunny", authors = listOf("Ada", "Grace"),
         isNightTheme = false, stylesheetPath = "stylesheets/sunny.json")
+    /** The extension editor holding [theme], as the workspace's is. */
+    private fun editorOf(theme: ThemeExtensionComponentEditor) = ThemeExtensionEditor(ExtensionMeta(id = "local.my.themes",
+        version = "0.0.0", title = "My themes", maintainers = listOf(ExtensionMaintainer(name = "Local")),
+        license = "(none specified)"), mutableListOf(), mutableStateListOf(theme))
 
     @Test fun theReportCarriesTheFileTheMetaAndTheNamesAndSaveWritesThemBack() {
         val theme = component()
@@ -46,13 +54,22 @@ class SettingsThemeEditorGlueMatchTest {
                     .last { it[0] == SettingsUiThemeEditorEffect.SAVE }
                 assertEquals(listOf(ThemeEditorNatives.UUID, "0", "Sunny", "Ada\nGrace", WireFlag.FALSE), save.slice(listOf(1, 2, 4, 5, 6)))
                 theme.stylesheetEditor = ThemeEditorNatives.composeEditor(sheet)
-                themeEditorSaved(dir, theme, save)
-                assertNull(theme.stylesheetEditor, "the file is what handleSave copies now")
+                theme.stylesheetPathOnLoad = "stylesheets/before.json"
+                val editor = editorOf(theme)
+                themeEditorSaved(dir, editor, 0, save)
+                val saved = editor.themes.single()
+                assertNotSame(theme, saved, "a new component, which the extension editor draws again")
+                assertNull(saved.stylesheetEditor, "the file is what handleSave copies now")
+                assertSame(theme.materialYouFlags, saved.materialYouFlags)
+                assertEquals(listOf("sunny", "stylesheets/sunny.json", "stylesheets/before.json"),
+                    listOf(saved.id, saved.stylesheetPath, saved.stylesheetPathOnLoad))
                 val expected = ThemeEditorNatives.composeWrites(sheet) { removeProperty(r, 0) }
                 assertEquals(expected, dir.resolve(theme.stylesheetPath()).readText())
             }
-            themeEditorSaved(dir, theme, listOf(SettingsUiThemeEditorEffect.SAVE, ThemeEditorNatives.UUID, "0", "{}", "Dusk", "Ada\n\nLinus", WireFlag.TRUE))
-            assertEquals(Triple("Dusk", listOf("Ada", "Linus"), true), Triple(theme.label, theme.authors, theme.isNightTheme))
+            val editor = editorOf(theme)
+            themeEditorSaved(dir, editor, 0, listOf(SettingsUiThemeEditorEffect.SAVE, ThemeEditorNatives.UUID, "0", "{}", "Dusk", "Ada\n\nLinus", WireFlag.TRUE))
+            val dusk = editor.themes.single()
+            assertEquals(Triple("Dusk", listOf("Ada", "Linus"), true), Triple(dusk.label, dusk.authors, dusk.isNightTheme))
         } finally {
             dir.deleteRecursively()
         }

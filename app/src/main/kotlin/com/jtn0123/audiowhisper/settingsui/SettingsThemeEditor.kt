@@ -45,8 +45,8 @@ internal class SettingsThemeEditor(activity: ComponentActivity, private val repo
     }
     /** Rust's stylesheet becomes the workspace's file, which `handleSave` copies when no Compose editor holds one. */
     private fun save(p: List<String>) {
-        val (workspace, theme) = component(p[1], p[2]) ?: return
-        workspace.update { themeEditorSaved(workspace.extDir, theme, p) }
+        val (workspace, _) = component(p[1], p[2]) ?: return
+        workspace.update { themeEditorSaved(workspace.extDir, this, p[2].toInt(), p) }
     }
     /** ThemeEditorScreen's `previewThemeInfo`, built from Rust's draft; a bare packet gives the keyboard its theme. */
     private fun preview(p: List<String>) {
@@ -91,14 +91,16 @@ internal fun themeEditorReport(extDir: File, extension: String, theme: ThemeExte
         SettingsUiThemeEditor.FONTS to names("fonts"), SettingsUiThemeEditor.IMAGES to names("images"))
 }
 
-/** A `themeEditorSave` [p] put into [theme] of the extension in [extDir]: the stylesheet Rust wrote becomes the file,
- * which `handleSave` copies when no Compose editor holds one, and the meta its fields. */
-internal fun themeEditorSaved(extDir: File, theme: ThemeExtensionComponentEditor, p: List<String>) {
+/** A `themeEditorSave` [p] put into component [index] of [editor], the extension unpacked in [extDir]: the stylesheet
+ * Rust wrote becomes the file, which `handleSave` copies when no Compose editor holds one, and the meta a new component
+ * in the old one's place. ThemeEditorScreen's edits were drawn as the extension editor came back into composition; it
+ * stays composed under ThemeEditorActivity and skips a component it already drew, so only a new one shows the change. */
+internal fun themeEditorSaved(extDir: File, editor: ThemeExtensionEditor, index: Int, p: List<String>) {
+    val theme = editor.themes[index]
     val file = extDir.subFile(theme.stylesheetPath())
     file.parentFile?.mkdirs()
     file.writeText(p[3])
-    theme.stylesheetEditor = null
-    theme.label = p[4]
-    theme.authors = p[5].lines().filter { it.isNotEmpty() }
-    theme.isNightTheme = WireFlag.decode(p[6])
+    val authors = p[5].lines().filter { it.isNotEmpty() }
+    editor.themes[index] = ThemeExtensionComponentEditor(theme.id, p[4], authors, WireFlag.decode(p[6]),
+        theme.materialYouFlags, theme.stylesheetPath).also { it.stylesheetPathOnLoad = theme.stylesheetPathOnLoad }
 }
