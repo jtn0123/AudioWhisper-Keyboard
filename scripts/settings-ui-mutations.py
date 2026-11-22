@@ -1,5 +1,5 @@
 """Require fresh JVM assertion failures for each UI, editor, group 1, group 2, licences, Other, Theme, language, user
-dictionary and project licence mutation, and fresh Rust test panics for each mutation that only Rust tests see; always restore bytes."""
+dictionary, project licence and theme manager mutation, and fresh Rust test panics for each mutation that only Rust tests see; always restore bytes."""
 import argparse
 import hashlib
 import json
@@ -17,6 +17,7 @@ UI = BASE / 'render/src/settings_ui'
 LANG = UI / 'languages'
 WORDS = UI / 'words'
 PL = UI / 'project_licence'
+THEMES = UI / 'themes'
 SETTINGS_UI = ROOT / 'app/src/main/kotlin/com/jtn0123/audiowhisper/settingsui'
 SYNC_CLEAR, SYNC_SET = ('    (\n        "ONLY_{0}_EVENTS",\n        "enum__clipboard_sync_behavior__only_{1}_events",\n'
                          '        "enum__clipboard_sync_behavior__only_{1}_events__description",\n    ),\n'
@@ -296,6 +297,42 @@ CASES = [
      '"description":if c.role=="selectable"{""}else{c.label.as_str()},', '"description":c.label.as_str(),'),
     ('saved-horizontal-ignored', BASE / 'awnative/src/render_settings_state.rs',
      '    a.project_restored(horizontal);\n', '    a.project_restored(0.0);\n'),
+    # The theme manager (compose-removal step 9, stage4-theme-editor.md): each JVM case must fail
+    # SettingsThemesMatchTest or SettingsResourcesTest, each Rust case the Rust test named below.
+    ('theme-sort-by-code-point', THEMES / 'mod.rs',
+     '.sort_by(|a, b| a.label.encode_utf16().cmp(b.label.encode_utf16()));', '.sort_by(|a, b| a.label.cmp(&b.label));'),
+    ('theme-repeat-keeps-old-themes', THEMES / 'mod.rs', '                        out[i] = ext;\n',
+     '                        out[i].title = ext.title;\n'),
+    ('theme-day-writes-night', THEMES / 'mod.rs', 'DAY => Some("theme__day_theme_id"),', 'DAY => Some("theme__night_theme_id"),'),
+    ('theme-value-slash', THEMES / 'mod.rs', 'let value = format!("{}:{}", ext.id, theme.id);',
+     'let value = format!("{}/{}", ext.id, theme.id);'),
+    ('theme-pick-not-previewed', THEMES / 'mod.rs', 'self.write(key, value);\n        self.sync_theme_preview();',
+     'self.write(key, value);'),
+    ('theme-night-dropped', THEMES / 'mod.rs', 'night: flag(row::NIGHT),', 'night: false,'),
+    ('theme-chosen-not-selected', THEMES / 'manager.rs', 'c.selected = chosen;', 'c.selected = false;'),
+    ('theme-row-night-unsent', SETTINGS_UI / 'SettingsThemes.kt', 'SettingsUiTheme.NIGHT to WireFlag.encode(night)',
+     'SettingsUiTheme.NIGHT to WireFlag.encode(false)'),
+    ('theme-string-id-dropped', SETTINGS_UI / 'SettingsThemeStringIds.kt',
+     '    "ext__list__view_details" to R.string.ext__list__view_details,\n', ''),
+    ('theme-asked-every-open', THEMES / 'mod.rs', 'if !self.themes.requested {', 'if true {'),
+    ('theme-report-keeps-asked', THEMES / 'mod.rs',
+     '        self.themes.extensions = Some(parse(p)?);\n        self.themes.requested = false;\n',
+     '        self.themes.extensions = Some(parse(p)?);\n'),
+    ('theme-preview-every-sync', THEMES / 'mod.rs', 'if wanted != self.themes.preview {', 'if true {'),
+    ('theme-back-keeps-preview', THEMES / 'mod.rs',
+     '    pub(super) fn themes_left(&mut self) {\n        self.sync_theme_preview();\n    }', '    pub(super) fn themes_left(&mut self) {}'),
+    ('theme-restore-not-asked', THEMES / 'mod.rs', 'if self.theme_key().is_some() {\n            self.request_themes();',
+     'if false {\n            self.request_themes();'),
+    ('theme-edit-for-built-ins', THEMES / 'manager.rs', 'if ext.deletable {\n            let edit', 'if true {\n            let edit'),
+    ('theme-view-opens-editor', THEMES / 'mod.rs', 'Tap::View(id) => self.navigate(&format!("ext/view/{id}")),',
+     'Tap::View(id) => self.navigate(&format!("ext/edit/{id}")),'),
+    ('theme-import-creates', THEMES / 'mod.rs', 'Tap::Import => self.navigate(IMPORT),', 'Tap::Import => self.navigate(CREATE),'),
+    ('theme-icon-unfaded', THEMES / 'manager.rs', 'let faded = (self.colors[2] & 0x00ff_ffff) | 0x8f00_0000;',
+     'let faded = self.colors[2];'),
+    ('theme-focus-skips-themes', THEMES / 'manager.rs',
+     '            out.extend((0..ext.themes.len()).map(|t| theme_id(e, 4 + t)));\n', ''),
+    ('theme-unknown-kind-accepted', THEMES / 'mod.rs', '_ => return Err("settings themes kind"),', '_ => {}'),
+    ('theme-extension-unchecked', THEMES / 'mod.rs', 'if out[e].id != f[row::EXTENSION] {', 'if false {'),
 ]
 # The Rust test binary that must panic for each Rust-only case.
 RUST = dict.fromkeys([
@@ -368,8 +405,21 @@ RUST = dict.fromkeys([
     'paragraph-stops-at-blank',
     'highlight-stops-at-line-end',
     'route-not-native',
-], 'settings_ui_project_licence') | {'advance-linear-round': 'android_text', 'every-row-drawn': 'settings_ui_licences',
-                            'talkback-page-fraction': 'settings_ui_screens'}
+], 'settings_ui_project_licence') | dict.fromkeys([
+    'theme-asked-every-open',
+    'theme-preview-every-sync',
+    'theme-back-keeps-preview',
+    'theme-restore-not-asked',
+    'theme-edit-for-built-ins',
+    'theme-view-opens-editor',
+    'theme-import-creates',
+    'theme-icon-unfaded',
+    'theme-focus-skips-themes',
+    'theme-unknown-kind-accepted',
+    'theme-extension-unchecked',
+], 'settings_ui_theme_manager') | {'theme-report-keeps-asked': 'settings_ui_theme'} | {
+    'advance-linear-round': 'android_text', 'every-row-drawn': 'settings_ui_licences',
+    'talkback-page-fraction': 'settings_ui_screens'}
 
 
 def run_rust(output, name, target):
@@ -390,7 +440,8 @@ def run(output, name):
                                  '--tests', '*SettingsUi*MatchTest', '--tests', '*SettingsGroupOneMatchTest', '--tests', '*SettingsGroupTwoMatchTest',
                                  '--tests', '*SettingsLicencesMatchTest', '--tests', '*SettingsOtherThemeMatchTest',
                                  '--tests', '*SettingsResourcesTest', '--tests', '*SettingsLanguagesMatchTest',
-                                 '--tests', '*SettingsWords*Test', '--tests', '*SettingsProjectLicenceMatchTest'], cwd=ROOT, stdout=log, stderr=subprocess.STDOUT)
+                                 '--tests', '*SettingsWords*Test', '--tests', '*SettingsProjectLicenceMatchTest',
+                                 '--tests', '*SettingsThemesMatchTest'], cwd=ROOT, stdout=log, stderr=subprocess.STDOUT)
     failures = []
     for path in (ROOT / 'app/build/test-results/testDebugUnitTest').glob('TEST-*settingsui.Settings*Test.xml'):
         if path.stat().st_mtime_ns < started:
