@@ -2,7 +2,7 @@
 //! They are the only things drawn above the scene's top, into the headroom the drawing buffer
 //! keeps there (`popup_scene::headroom`), so that a top-row key's popup or bubble shows whole
 //! over the app.
-use crate::{raster::Raster, scene::Scene, smartbar::inset};
+use crate::{label_fit::Place, raster::Raster, scene::Scene, smartbar::inset};
 use keys::Rect;
 
 impl Raster {
@@ -22,14 +22,7 @@ impl Raster {
                 .map(|s| &s[usize::from(i == popup.selected)])
                 .unwrap_or(&content.popup_style);
             self.box_at(r, style);
-            self.label(
-                label,
-                style.size,
-                style.foreground,
-                r,
-                style.mono,
-                style.weight,
-            )?;
+            self.contained_label(label, style, r, r, Place::centred(r))?;
         }
         Ok(())
     }
@@ -56,8 +49,7 @@ impl Raster {
             bottom: (inner.top + key.bounds.visible.height().round()).min(inner.bottom),
             ..inner
         };
-        let font = (style.size, style.mono, style.weight);
-        self.squeezed_label(&key.label, font, 1.0, style.foreground, label)?;
+        self.contained_label(&key.label, style, label, label, Place::centred(r))?;
         if let Some(dots) = &bubble.indicator {
             let middle = (inner.top + inner.bottom) / 2.0;
             let half = dots.size / 2.0;

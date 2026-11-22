@@ -21,6 +21,9 @@ pub struct Style {
     pub italic: bool,
     pub margin: [f32; 4],
     pub padding: [f32; 4],
+    /// How text too big for its box breaks and ends: `text-max-lines`, `text-overflow` and
+    /// `text-align`, which only a label that does not fit uses (`label_fit`).
+    pub rules: crate::label_fit::TextRules,
 }
 impl Default for Style {
     fn default() -> Self {
@@ -39,6 +42,7 @@ impl Default for Style {
             italic: false,
             margin: [0.0; 4],
             padding: [0.0; 4],
+            rules: Default::default(),
         }
     }
 }
@@ -75,6 +79,7 @@ impl Style {
                 Some(Value::Padding(a)) => a.map(|v| (v * density).round()),
                 _ => [0.0; 4],
             },
+            rules: crate::label_fit::TextRules::from_properties(p),
             ..Self::default()
         };
         if let Some(Value::Shape(kind, corners)) = value("shape") {

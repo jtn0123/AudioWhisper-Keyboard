@@ -1,8 +1,10 @@
 //! What a frame draws under the long-press popup and the press bubble: the background, a
 //! modal's box, the watermark, the keys and the strip.
 use crate::{
+    label_fit::Place,
     raster::{Raster, color},
-    scene::Scene,
+    scene::{Key, Scene},
+    smartbar::inset,
     style::Style,
 };
 use keys::Rect;
@@ -82,28 +84,13 @@ impl Raster {
                 self.shadowed_box(r, style);
             }
             let telpad = content.telpad.get(i) == Some(&true);
-            let label_bounds = if telpad {
-                crate::key_content::phone_label(
-                    r,
-                    [
-                        self.text
-                            .measure(&key.label, style.size, style.mono, style.weight),
-                        self.text
-                            .height(&key.label, style.size, style.mono, style.weight),
-                    ],
-                    false,
-                )
-            } else {
-                r
+            let bias = if telpad { 0.25 } else { 0.5 };
+            let at = self.text_at(&key.label, style, r, telpad.then_some(false));
+            let place = Place {
+                bias: [bias, 0.5],
+                outer: r,
             };
-            self.label(
-                &key.label,
-                style.size,
-                style.foreground,
-                label_bounds,
-                style.mono,
-                style.weight,
-            )?;
+            self.contained_label(&key.label, style, at, inset(r, style.padding), place)?;
             if !key.icon.is_empty() {
                 let path = vello_cpu::kurbo::BezPath::from_svg(&key.icon)
                     .map_err(|_| "invalid icon path".to_owned())?;
@@ -117,34 +104,7 @@ impl Raster {
                 self.context.fill_path(&path);
                 self.context.reset_transform();
             }
-            if !key.hint.is_empty() {
-                let hint_bounds = if telpad {
-                    crate::key_content::phone_label(
-                        r,
-                        [
-                            self.text
-                                .measure(&key.hint, hint.size, hint.mono, hint.weight),
-                            self.text
-                                .height(&key.hint, hint.size, hint.mono, hint.weight),
-                        ],
-                        true,
-                    )
-                } else {
-                    Rect {
-                        left: r.right - style.size * 0.6,
-                        bottom: r.top + style.size * 0.7,
-                        ..r
-                    }
-                };
-                self.label(
-                    &key.hint,
-                    hint.size,
-                    hint.foreground,
-                    hint_bounds,
-                    hint.mono,
-                    hint.weight,
-                )?;
-            }
+            self.hint(key, [style, hint], r, telpad)?;
         }
         if damage.top < content.strip && content.panel.as_ref().is_none_or(|p| p.kind == 2) {
             self.box_at(
@@ -199,5 +159,46 @@ impl Raster {
             self.context.pop_clip();
         }
         Ok(())
+    }
+
+    /// Where a key's text centres in its box `r` while it fits: the box, or on a phone pad's key,
+    /// `Some(hint)`, its side of the key.
+    fn text_at(&mut self, text: &str, s: &Style, r: Rect, phone: Option<bool>) -> Rect {
+        let Some(hint) = phone else {
+            return r;
+        };
+        let metrics = [
+            self.text.measure(text, s.size, s.mono, s.weight),
+            self.text.height(text, s.size, s.mono, s.weight),
+        ];
+        crate::key_content::phone_label(r, metrics, hint)
+    }
+
+    /// The key's hint in the top end of its box `r` (`styles` is the key's and the hint's), or
+    /// on a phone pad's key, on its right; a hint that would reach out of the key fits inside it,
+    /// at its top end as Compose aligns it.
+    fn hint(
+        &mut self,
+        key: &Key,
+        styles: [&Style; 2],
+        r: Rect,
+        telpad: bool,
+    ) -> Result<(), String> {
+        let [style, hint] = styles;
+        if key.hint.is_empty() {
+            return Ok(());
+        }
+        let at = if telpad {
+            self.text_at(&key.hint, hint, r, Some(true))
+        } else {
+            Rect {
+                left: r.right - style.size * 0.6,
+                bottom: r.top + style.size * 0.7,
+                ..r
+            }
+        };
+        let bias = if telpad { [0.75, 0.5] } else { [1.0, 0.0] };
+        let place = Place { bias, outer: r };
+        self.contained_label(&key.hint, hint, at, r, place)
     }
 }

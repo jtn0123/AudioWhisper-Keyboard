@@ -27,6 +27,8 @@ pub struct Raster {
     pub(crate) under: Option<crate::bubble_frame::Under>,
     /// The press bubbles drawn once each, to lay over the keys.
     pub(crate) images: crate::bubble_cache::Images,
+    /// The labels too big for their boxes, fitted once each (`label_fit`).
+    pub(crate) fits: crate::label_fit::Fits,
 }
 
 impl std::fmt::Debug for Raster {
@@ -55,6 +57,7 @@ impl Raster {
             profile: Profile::default(),
             under: None,
             images: Default::default(),
+            fits: Default::default(),
         }
     }
 
@@ -271,9 +274,23 @@ impl Raster {
         argb: u32,
         r: Rect,
     ) -> Result<(), String> {
+        self.label_within(text, font, squeeze, argb, r, None)
+            .map(drop)
+    }
+    /// `squeezed_label`, but where `limit` is a box and a number of lines that the label, centred
+    /// in `r`, would not stay inside, nothing is drawn and the answer is false.
+    pub(crate) fn label_within(
+        &mut self,
+        text: &str,
+        font: (f32, bool, i32),
+        squeeze: f32,
+        argb: u32,
+        r: Rect,
+        limit: Option<(Rect, usize)>,
+    ) -> Result<bool, String> {
         let (size, mono, weight) = font;
         if text.is_empty() {
-            return Ok(());
+            return Ok(true);
         }
         // Bound retained candidate text; no typed/candidate text is ever logged.
         if self.layouts.len() > 256 {
@@ -292,8 +309,21 @@ impl Raster {
         self.profile.shape_ns += elapsed(shape);
         self.profile.layout_misses += u32::from(missed && self.profiling);
         self.profile.labels += u32::from(self.profiling);
-        let x = (r.left + (r.width() - layout.width() * squeeze) / 2.0) as f64;
-        let y = (r.top + (r.height() - layout.height()) / 2.0) as f64;
+        let (width, height) = (layout.width() * squeeze, layout.height());
+        let (x, y) = (
+            r.left + (r.width() - width) / 2.0,
+            r.top + (r.height() - height) / 2.0,
+        );
+        if let Some((room, lines)) = limit
+            && (x < room.left - SLACK
+                || x + width > room.right + SLACK
+                || y < room.top - SLACK
+                || y + height > room.bottom + SLACK
+                || layout.len() > lines)
+        {
+            return Ok(false);
+        }
+        let (x, y) = (f64::from(x), f64::from(y));
         self.context.set_transform(
             Affine::translate((x, y)) * Affine::scale_non_uniform(f64::from(squeeze), 1.0),
         );
@@ -337,12 +367,15 @@ impl Raster {
             }
         }
         self.context.reset_transform();
-        Ok(())
+        Ok(true)
     }
 }
 
+/// How far past its box a label may reach and still be said to fit: float noise, not a pixel.
+const SLACK: f32 = 0.01;
+
 /// `r` as a clip rectangle.
-fn clip(r: Rect) -> vello_cpu::kurbo::Rect {
+pub(crate) fn clip(r: Rect) -> vello_cpu::kurbo::Rect {
     vello_cpu::kurbo::Rect::new(r.left as f64, r.top as f64, r.right as f64, r.bottom as f64)
 }
 

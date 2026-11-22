@@ -144,6 +144,29 @@ impl Text {
         layout
     }
 
+    /// The lines `text` breaks into `width` wide, as byte ranges without the white space and
+    /// line break that end them, and whether its paragraph runs right to left.
+    pub fn wrap(
+        &mut self,
+        text: &str,
+        size: f32,
+        mono: bool,
+        weight: i32,
+        width: f32,
+    ) -> (Vec<std::ops::Range<usize>>, bool) {
+        let mut layout = self.shape(text, size, [mono, false], weight, [0.0; 2]);
+        layout.break_all_lines(Some(width));
+        let lines = layout
+            .lines()
+            .map(|line| {
+                let range = line.text_range();
+                let kept = text[range.clone()].trim_end().len();
+                range.start..range.start + kept
+            })
+            .collect();
+        (lines, layout.is_rtl())
+    }
+
     /// Sans-serif UI text laid out as Android's hinted `TextMotion.Static` text, wrapped at
     /// `width`; see [`crate::android_text`]. `metrics` is line height and letter spacing in px.
     pub fn android(
