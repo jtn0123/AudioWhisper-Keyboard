@@ -102,6 +102,7 @@ ONLY_RUST += [
     ('ext-import-file-name-button', VIEW, 'Action::None, border, clip, text);\n        self.as_text(id);',
      'Action::None, border, clip, text);'),
     ('ext-import-reason-upright', VIEW, 'out.push((self.label(s.key()), error, true));', 'out.push((self.label(s.key()), error, false));'),
+    ('ext-import-italic-measured-upright', VIEW, 'let h = if italic {', 'let h = if false {'),
     ('ext-import-skip-order', IMPORT, 'Skip::Corrupted\n        } else {\n            Skip::Unsupported',
      'Skip::Unsupported\n        } else {\n            Skip::Corrupted'),
     ('ext-import-core-taken', IMPORT, 'if a.core {\n        return Some(Skip::Core);', 'if false {\n        return Some(Skip::Core);'),

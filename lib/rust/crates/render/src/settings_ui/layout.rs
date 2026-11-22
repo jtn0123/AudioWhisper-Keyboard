@@ -63,6 +63,24 @@ impl App {
         }
         self.android(text, label, size, Some(width)).height
     }
+    /// Italic body text's height at `width`, laid out as the painter lays out italic items:
+    /// Android's upright layout wraps elsewhere, which left a blank line under a description
+    /// that fits on one italic line.
+    pub(super) fn measure_italic(
+        &self,
+        text: &mut Text,
+        label: &str,
+        size: f32,
+        width: f32,
+    ) -> f32 {
+        if label.is_empty() {
+            return 0.0;
+        }
+        let metrics = [self.line_height(size), self.letter_spacing(size)];
+        let mut layout = text.layout_typography(label, size, false, 400, true, metrics);
+        layout.break_all_lines(Some(width.max(1.0)));
+        layout.height()
+    }
     pub(super) fn row_text(
         &self,
         text: &mut Text,

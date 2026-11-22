@@ -91,7 +91,12 @@ impl App {
         clip: Rect,
         text: &mut Text,
     ) -> f32 {
-        let h = self.measure(text, s, self.sp(14), width).ceil();
+        let h = if italic {
+            self.measure_italic(text, s, self.sp(14), width)
+        } else {
+            self.measure(text, s, self.sp(14), width)
+        };
+        let h = h.ceil();
         let b = rect(left, y, width, h);
         self.paint_text(p, s, b, self.sp(14), ink, clip);
         p.items

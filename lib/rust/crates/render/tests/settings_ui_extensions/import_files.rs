@@ -3,6 +3,7 @@
 use super::common::*;
 use super::import_common::*;
 use import::{File, Skip, parse, skip};
+use wire::settings_ui::extensions::file;
 
 const INK: u32 = 0xff1c_1b1f;
 const BODY: u32 = 0xff1d_1d1d;
@@ -136,6 +137,35 @@ fn a_file_of_another_type_is_shown_skipped_and_never_imported() {
     assert!(!control(&a, IMPORT).enabled);
     let (a, _) = coloured(KEYBOARDS, &five()[7..9]);
     assert!(control(&a, IMPORT).enabled);
+}
+
+/// Fix: an italic line was measured upright, which wraps elsewhere, so a description that fits
+/// on one italic line left a blank line under it (seen on the emulator). A description of every
+/// length is exactly as tall as the italic text painted in it.
+#[test]
+fn an_italic_description_is_as_tall_as_its_painted_text() {
+    let said = "Default themes (both day and night) for the keyboard UI, in blue, green and grey";
+    let words: Vec<&str> = said.split(' ').collect();
+    let mut wrapped_apart = 0;
+    for n in 1..=words.len() {
+        let said = words[..n].join(" ");
+        let mut files = five();
+        files[2] = line(file::DESCRIPTION, "", ["", "", "", &said], false);
+        let (mut a, mut text) = showing(ANY, "w1", &files);
+        let items = painted(&mut a, &mut text);
+        let painted = items.iter().find(|i| i.label == said).expect("painted");
+        let (s, b) = (&painted.text, painted.bounds);
+        let metrics = [s.line_height, s.letter_spacing];
+        let mut italic = text.layout_typography(&said, s.size, false, 400, true, metrics);
+        italic.break_all_lines(Some(b.right - b.left));
+        assert_eq!(b.bottom - b.top, italic.height().ceil(), "{n} words");
+        let control = a.controls.iter().find(|c| c.label == said).expect("read");
+        assert_eq!(control.bounds, b);
+        let upright = text.android(&said, s.size, 400, metrics, Some(b.right - b.left));
+        wrapped_apart += usize::from(upright.height.ceil() != italic.height().ceil());
+    }
+    // The sweep crosses a place where the two wrap apart, or it proves nothing.
+    assert!(wrapped_apart > 0);
 }
 
 #[test]
