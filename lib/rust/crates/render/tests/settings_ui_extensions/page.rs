@@ -372,6 +372,44 @@ fn the_bundled_components_say_what_they_are() {
     assert!(!has(&a, HEADER_ID) && !has(&a, NONE_ID) && !has(&a, COMPONENT_ID));
 }
 
+/// Where TalkBack's swipes reach the control with `id`.
+fn read_at(a: &App, id: i32) -> usize {
+    a.controls
+        .iter()
+        .position(|c| c.id == id)
+        .expect("on screen")
+}
+
+#[test]
+fn a_box_reads_its_name_before_what_is_in_it() {
+    let (a, _) = app(&view(FLORIS));
+    let (first, second) = (COMPONENT_ID, COMPONENT_ID + 4);
+    let order = [
+        HEADER_ID,
+        first,
+        first + 1,
+        first + 2,
+        second,
+        second + 1,
+        second + 2,
+    ];
+    let at: Vec<usize> = order.iter().map(|&id| read_at(&a, id)).collect();
+    assert!(at.is_sorted(), "{at:?}");
+    // The list's boxes too: the name, the id, then View and Edit.
+    use super::common::extensions::THEMES;
+    use boxes::ext_id;
+    let (a, _) = app(THEMES);
+    let order = [
+        ext_id(0, 0),
+        ext_id(0, 1),
+        ext_id(0, 3),
+        ext_id(1, 0),
+        ext_id(1, 1),
+    ];
+    let at: Vec<usize> = order.iter().map(|&id| read_at(&a, id)).collect();
+    assert!(at.is_sorted(), "{at:?}");
+}
+
 #[test]
 fn an_extension_without_components_says_none_were_found() {
     let (mut a, mut text) = app(&view(MINE));

@@ -141,6 +141,8 @@ pub struct App {
     pub dialog_window_width: f32,
     pub sp_pixels: [f32; 33],
     pub controls: Vec<Control>,
+    /// Where the outlined box being painted starts in `controls`; its title moves there.
+    pub box_start: usize,
     pub max_scroll: f32,
     pub clock: i64,
     /// Scrollbar timing per bar: the screen's, a dialog's and the project licence's horizontal.
@@ -230,6 +232,7 @@ impl Default for App {
             dialog_window_width: 0.0,
             sp_pixels: [0.0; 33],
             controls: vec![],
+            box_start: 0,
             max_scroll: 0.0,
             clock: 0,
             scrollbar_start: [-1; 3],

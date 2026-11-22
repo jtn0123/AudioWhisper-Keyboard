@@ -196,10 +196,16 @@ impl App {
         let mut c = plain(control, tag, name.into(), "button");
         c.action = action;
         self.push_control(c, clip);
+        // Painted last to sit over the border, but read first: TalkBack names the box, then
+        // what is in it, as Compose's on-screen order did.
+        let at = self.box_start.min(self.controls.len() - 1);
+        self.controls[at..].rotate_right(1);
     }
     /// FlorisOutlinedBox's border: 1 dp outlineVariant round the background, 8 dp corners. Its
-    /// height is set by [`fit_box`](Self::fit_box) once the content is painted.
-    pub(in crate::settings_ui) fn outlined_box(&self, p: &mut Panel, b: Rect, clip: Rect) {
+    /// height is set by [`fit_box`](Self::fit_box) once the content is painted, and its title
+    /// by [`box_title`](Self::box_title) reads before the controls recorded from here on.
+    pub(in crate::settings_ui) fn outlined_box(&mut self, p: &mut Panel, b: Rect, clip: Rect) {
+        self.box_start = self.controls.len();
         self.paint_clipped_box(p, b, self.colors[10], self.px(8.0), clip);
         let line = self.px(1.0);
         let inside = rect(b.left + line, b.top + line, b.width() - 2.0 * line, 0.0);

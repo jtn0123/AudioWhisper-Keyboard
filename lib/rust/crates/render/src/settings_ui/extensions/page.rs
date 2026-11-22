@@ -343,7 +343,7 @@ impl App {
         let name = format!("{}:{}", ext.id, component.id);
         let named = (id + 1, name.as_str(), Action::None);
         let mut at = self.box_id(p, named, (left, border_top + self.px(11.0)), clip, text);
-        self.as_text();
+        self.as_text(id + 1);
         let body = component_text(&ext.serial, component);
         let inner = (width - 2.0 * self.px(16.0)).max(1.0);
         let h = self.measure(text, &body, self.sp(14), inner).ceil();
@@ -354,7 +354,7 @@ impl App {
         self.fit_box(p, outline, at - border_top);
         let border = rect(left, border_top, width, 0.0);
         self.box_title(p, (id, &component.label), Action::None, border, clip, text);
-        self.as_text();
+        self.as_text(id);
         at + self.px(8.0) - y
     }
     /// `s` on one line in style `t` of `size` sp: whole when it fits `room` as `t` measures it,
@@ -371,9 +371,9 @@ impl App {
             false => self.row_text(text, s, self.sp(size), room, 1),
         }
     }
-    /// The control just recorded is passive text, not a button.
-    fn as_text(&mut self) {
-        if let Some(c) = self.controls.last_mut() {
+    /// Control `id` is passive text, not a button.
+    fn as_text(&mut self, id: i32) {
+        if let Some(c) = self.controls.iter_mut().rev().find(|c| c.id == id) {
             c.role = "text";
         }
     }
