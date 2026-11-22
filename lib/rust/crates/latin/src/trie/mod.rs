@@ -18,5 +18,5 @@ pub mod reading;
 pub mod shortcut;
 pub mod words;
 
-#[cfg(all(test, feature = "oracle", not(target_os = "android")))]
+#[cfg(test)]
 mod tests;

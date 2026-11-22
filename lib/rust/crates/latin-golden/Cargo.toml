@@ -1,0 +1,14 @@
+[package]
+name = "latin-golden"
+version = "0.1.0"
+description = "Test-only: LatinIME's answers kept as golden files, and the seeded questions they answer"
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+chars = { path = "../chars" }
+
+[lints]
+workspace = true

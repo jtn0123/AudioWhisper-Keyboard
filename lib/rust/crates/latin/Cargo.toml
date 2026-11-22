@@ -15,5 +15,8 @@ oracle = ["dep:latin-oracle"]
 [target.'cfg(not(target_os = "android"))'.dependencies]
 latin-oracle = { path = "../latin-oracle", optional = true }
 
+[dev-dependencies]
+latin-golden = { path = "../latin-golden" }
+
 [lints]
 workspace = true

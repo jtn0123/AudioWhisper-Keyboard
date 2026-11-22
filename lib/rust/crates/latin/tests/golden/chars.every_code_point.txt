@@ -1,0 +1,49 @@
+# chars.every_code_point: LatinIME's C++ answers to this test's questions (docs/phase6-oracle-goldens.md).
+# Answers, the digest after the last, after each power of two (at N), and some in full.
+count 3343114
+digest beab19d7f69ba8aa
+at 1 06312a7ba27624ce
+at 2 2eea03b2f72ee5e3
+at 4 26434ccca1828608
+at 8 ae85d63d453bf74e
+at 16 5da12ce39d95eb64
+at 32 9e85d648b48a830e
+at 64 cd575e3a7e060e34
+at 128 7cdec8554b6ca76e
+at 256 7fee105559bc17d4
+at 512 bd78758647e763e1
+at 1024 be915f3ad9b584a9
+at 2048 351ffe7282510027
+at 4096 be83b3ded80108d6
+at 8192 dccd9d1c6eb2dc80
+at 16384 b502c4c3b6a4ef06
+at 32768 96d5e14ce00bf960
+at 65536 a3a32bdb79a9d846
+at 131072 f8536e5135933428
+at 262144 02e16d5f67a4a6ca
+at 524288 7b02684e44fb2240
+at 1048576 e047dd1389ed46fa
+at 2097152 5f10809f19166a20
+sample 0 af63bd4c8601b7df 0 <- to_lower_case(c)
+sample 1 af63bd4c8601b7df 0 <- to_base_code_point(c)
+sample 2 af63bd4c8601b7df 0 <- to_base_lower_case(c)
+sample 3 af63bc4c8601b62c 1 <- to_lower_case(c)
+sample 7 af63bf4c8601bb45 2 <- to_base_code_point(c)
+sample 15 af63b84c8601af60 5 <- to_lower_case(c)
+sample 31 af63c74c8601c8dd 10 <- to_base_code_point(c)
+sample 63 af63c84c8601ca90 21 <- to_lower_case(c)
+sample 127 af63a74c8601927d 42 <- to_base_code_point(c)
+sample 255 af63e84c860200f0 117 <- to_lower_case(c)
+sample 511 af63dc4c8601ec8c 97 <- to_base_code_point(c)
+sample 1023 af63084c86008450 341 <- to_lower_case(c)
+sample 2047 af62274c85ff05fd 682 <- to_base_code_point(c)
+sample 4095 af67384c8607a1e0 1413 <- to_lower_case(c)
+sample 8191 af6a274c860c9dfd 2730 <- to_base_code_point(c)
+sample 16383 af77084c86228050 5461 <- to_lower_case(c)
+sample 32767 af4a274c85d63dfd 10922 <- to_base_code_point(c)
+sample 65535 afb7084c868f4050 21845 <- to_lower_case(c)
+sample 131071 afca274c86afbdfd 43690 <- to_base_code_point(c)
+sample 262143 b0b7084c88424050 87381 <- to_lower_case(c)
+sample 524287 adca274c8349bdfd 174762 <- to_base_code_point(c)
+sample 1048575 b4b7084c8f0e4050 349525 <- to_lower_case(c)
+sample 2097151 b5ca274c90e1bdfd 699050 <- to_base_code_point(c)

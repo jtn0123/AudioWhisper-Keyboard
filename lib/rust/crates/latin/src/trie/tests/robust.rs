@@ -61,7 +61,7 @@ fn truncated_dictionaries_answer_without_panicking() {
 
 #[test]
 fn truncated_dictionaries_iterate_their_words_without_panicking() {
-    for path in latin_oracle::dictionary_paths() {
+    for (_, path) in latin_golden::dictionaries() {
         let full = std::fs::read(path).expect("the dictionary");
         let mut random = Random(0x017E_2A7E);
         for _ in 0..25 {

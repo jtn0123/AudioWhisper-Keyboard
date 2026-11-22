@@ -1,0 +1,41 @@
+# trie.bigram_lists_of_every_node.aosp: LatinIME's C++ answers to this test's questions (docs/phase6-oracle-goldens.md).
+# Answers, the digest after the last, after each power of two (at N), and some in full.
+count 160625
+digest 1f403ca9c6399c19
+at 1 6c98b219c4b0ca47
+at 2 43abadaae12d4851
+at 4 010e431d32715a89
+at 8 c9794fa2ce5990bc
+at 16 19d7dcb092937f66
+at 32 435459cbb1715c10
+at 64 933974b3f4e87590
+at 128 70b86b8c6bddaa02
+at 256 3826919f90fd889c
+at 512 550cb96210042534
+at 1024 02fa2854746fb482
+at 2048 a8aed1d33f49c5d2
+at 4096 4a28ea7995896550
+at 8192 1954c7bfba820740
+at 16384 4b0e790c7c568269
+at 32768 b75e5e588197d8ec
+at 65536 33f3150f8d38710f
+at 131072 c2cf7a1534168240
+sample 0 45d1c0c2cbc4a038 [(0,2709630),(0,2681196),(0,2068364)] <- rust_bigrams(policy, list)
+sample 1 30beadbaac1e29ac [(0,1938506),(0,1363695),(0,2714863)] <- rust_bigrams(policy, list)
+sample 2 45714bfc28aa7754 [(0,1491275),(0,1884946),(0,1886675)] <- rust_bigrams(policy, list)
+sample 3 30beadbaac1e29ac [(0,1938506),(0,1363695),(0,2714863)] <- rust_bigrams(policy, list)
+sample 7 45d1c0c2cbc4a038 [(0,2709630),(0,2681196),(0,2068364)] <- rust_bigrams(policy, list)
+sample 15 45d1c0c2cbc4a038 [(0,2709630),(0,2681196),(0,2068364)] <- rust_bigrams(policy, list)
+sample 31 45d1c0c2cbc4a038 [(0,2709630),(0,2681196),(0,2068364)] <- rust_bigrams(policy, list)
+sample 63 45d1c0c2cbc4a038 [(0,2709630),(0,2681196),(0,2068364)] <- rust_bigrams(policy, list)
+sample 127 f6009ee4713a3a98 [(0,2950047),(0,2744871),(0,1714510)] <- rust_bigrams(policy, list)
+sample 255 45d1c0c2cbc4a038 [(0,2709630),(0,2681196),(0,2068364)] <- rust_bigrams(policy, list)
+sample 511 45d1c0c2cbc4a038 [(0,2709630),(0,2681196),(0,2068364)] <- rust_bigrams(policy, list)
+sample 1023 45d1c0c2cbc4a038 [(0,2709630),(0,2681196),(0,2068364)] <- rust_bigrams(policy, list)
+sample 2047 45d1c0c2cbc4a038 [(0,2709630),(0,2681196),(0,2068364)] <- rust_bigrams(policy, list)
+sample 4095 45d1c0c2cbc4a038 [(0,2709630),(0,2681196),(0,2068364)] <- rust_bigrams(policy, list)
+sample 8191 45d1c0c2cbc4a038 [(0,2709630),(0,2681196),(0,2068364)] <- rust_bigrams(policy, list)
+sample 16383 45d1c0c2cbc4a038 [(0,2709630),(0,2681196),(0,2068364)] <- rust_bigrams(policy, list)
+sample 32767 45d1c0c2cbc4a038 [(0,2709630),(0,2681196),(0,2068364)] <- rust_bigrams(policy, list)
+sample 65535 45d1c0c2cbc4a038 [(0,2709630),(0,2681196),(0,2068364)] <- rust_bigrams(policy, list)
+sample 131071 45d1c0c2cbc4a038 [(0,2709630),(0,2681196),(0,2068364)] <- rust_bigrams(policy, list)

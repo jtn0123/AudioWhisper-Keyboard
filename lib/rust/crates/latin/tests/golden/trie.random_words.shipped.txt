@@ -1,0 +1,39 @@
+# trie.random_words.shipped: LatinIME's C++ answers to this test's questions (docs/phase6-oracle-goldens.md).
+# Answers, the digest after the last, after each power of two (at N), and some in full.
+count 68090
+digest cb0021db97dc9790
+at 1 4611c56d30fb4256
+at 2 18d4641e08207cee
+at 4 4e6ca268aef9f2ae
+at 8 525217dd8a78b7a7
+at 16 214781ad8b9af3ea
+at 32 5795213b646c436f
+at 64 ec9bb4fa99c2e076
+at 128 ebd8f62b3aac0c2e
+at 256 a894d3a6043630c3
+at 512 9995ac5042f24832
+at 1024 77b81ee825a4fe37
+at 2048 918dae1bed624887
+at 4096 0b642985d65673af
+at 8192 268d3cca9fcbb187
+at 16384 14d2b66104840edb
+at 32768 72cfbf24f1479188
+at 65536 528097322458b3d3
+sample 0 51af3b19cadace77 (673161,105) <- (id, pair.ours.probability(&word))
+sample 1 ac55abc4bffdce0c (105,false,false,false) <- (ours.probability(), ours.is_blacklisted(), ours.is_not_a_word(), ours.is_possib
+sample 2 e9a28b59b42399f0 [98,111,121,39,115] <- code_points(pair, word_id)
+sample 3 015464bdcb148e60 (-2147483648,-1) <- (id, pair.ours.probability(&word))
+sample 7 cd65661b93493d29 (60,false,false,false) <- (ours.probability(), ours.is_blacklisted(), ours.is_not_a_word(), ours.is_possib
+sample 15 9cb46b193117c970 (660046,1) <- (id, pair.ours.probability(&word))
+sample 31 3c257eaf850e5da1 (2210587,1) <- (id, pair.ours.probability(&word))
+sample 63 015464bdcb148e60 (-2147483648,-1) <- (id, pair.ours.probability(&word))
+sample 127 e301eb5bb1d2a87c (1907354,25) <- (id, pair.ours.probability(&word))
+sample 255 cbbb28b684142a79 (76,false,false,false) <- (ours.probability(), ours.is_blacklisted(), ours.is_not_a_word(), ours.is_possib
+sample 511 4c7af78a6485a615 (96,false,false,false) <- (ours.probability(), ours.is_blacklisted(), ours.is_not_a_word(), ours.is_possib
+sample 1023 0641da07b34505a5 (438,142) <- (id, pair.ours.probability(&word))
+sample 2047 25480f89c72e591c [99,97,114] <- code_points(pair, word_id)
+sample 4095 015464bdcb148e60 (-2147483648,-1) <- (id, pair.ours.probability(&word))
+sample 8191 1c2502e4df74efd2 (720422,-1) <- (id, pair.ours.probability(&word))
+sample 16383 015464bdcb148e60 (-2147483648,-1) <- (id, pair.ours.probability(&word))
+sample 32767 015464bdcb148e60 (-2147483648,-1) <- (id, pair.ours.probability(&word))
+sample 65535 08f85b5d851381d8 (1964214,1) <- (id, pair.ours.probability(&word))

@@ -2,12 +2,9 @@
 //! tries each node holding "ä", "ö" or "ü" as "ae", "oe" or "ue" too. The bundled dictionary does
 //! not ask for it, so the tests give it a header that does, on both sides.
 
-use std::path::PathBuf;
+use latin_golden::queries;
 
-use latin_oracle::queries;
-
-use super::support::{assert_same, convert, in_chunks, new_session, qwerty_info, tap, words_of};
-use crate::trie::dictionary::Dictionary;
+use super::support::{Pair, in_chunks, record, tap};
 
 /// The attribute `HeaderPolicy::requiresGermanUmlautProcessing` reads, set to 1, in the v2
 /// header's string encoding (one byte per ASCII character, each string ended by 0x1F).
@@ -30,15 +27,6 @@ fn umlaut_dictionary(path: &std::path::Path) -> Vec<u8> {
     bytes
 }
 
-/// The file the C++ side opens, removed when dropped.
-struct TemporaryFile(PathBuf);
-
-impl Drop for TemporaryFile {
-    fn drop(&mut self) {
-        let _ = std::fs::remove_file(&self.0);
-    }
-}
-
 /// The digraphs typed out: "ä" as "ae", "ö" as "oe", "ü" as "ue".
 fn spelt_out(word: &[char]) -> Vec<i32> {
     let mut typed = Vec::new();
@@ -57,20 +45,12 @@ fn spelt_out(word: &[char]) -> Vec<i32> {
 /// a dictionary that processes umlauts: each matches the C++, and some answers hold an umlaut
 /// that only the digraph could have reached.
 #[test]
-fn umlaut_digraphs_match_the_cpp() {
-    for path in latin_oracle::dictionary_paths() {
-        let bytes = umlaut_dictionary(&path);
-        let file = TemporaryFile(
-            std::env::temp_dir().join(format!("latin-search-umlaut-{}.dict", std::process::id())),
-        );
-        std::fs::write(&file.0, &bytes).expect("a temporary file");
-        let size = i64::try_from(bytes.len()).expect("size fits");
-        let cpp_dictionary = latin_oracle::Dictionary::open(&file.0, 0, size).expect("opens");
-        let dictionary = Dictionary::open(bytes.into()).expect("opens");
-        assert!(dictionary.header().requires_german_umlaut_processing());
-        let (cpp_proximity, info) = (latin_oracle::Proximity::qwerty(), qwerty_info());
-        let all_words = words_of(&cpp_dictionary);
-        let umlaut_words: Vec<&Vec<char>> = all_words
+fn umlaut_digraphs_match_the_goldens() {
+    for (name, path) in latin_golden::dictionaries() {
+        let pair = Pair::of_bytes(name, umlaut_dictionary(&path));
+        assert!(pair.dictionary.header().requires_german_umlaut_processing());
+        let umlaut_words: Vec<&Vec<char>> = pair
+            .words
             .iter()
             .filter(|word| word.iter().any(|it| matches!(it, 'ä' | 'ö' | 'ü')))
             .collect();
@@ -82,7 +62,7 @@ fn umlaut_digraphs_match_the_cpp() {
         let mut random = queries::Random::new(31);
         let inputs: Vec<_> = (0..3_000)
             .map(|round| {
-                let mut query = queries::query(&mut random, &all_words);
+                let mut query = queries::query(&mut random, &pair.words);
                 if round % 3 != 0 {
                     query.code_points = spelt_out(random.pick(&umlaut_words));
                     query.code_points.truncate(crate::defines::MAX_WORD_LENGTH);
@@ -95,48 +75,28 @@ fn umlaut_digraphs_match_the_cpp() {
                 query
             })
             .collect();
-        let umlauts = [0xE4, 0xF6, 0xFC];
         // Letter by letter on each thread's shared sessions, then the whole word on fresh ones.
-        let reached_by_round = in_chunks(
+        let outputs = in_chunks(
             &inputs,
-            || {
-                let cpp = latin_oracle::Session::new("en_US", &cpp_dictionary);
-                (cpp, new_session())
-            },
-            |(cpp_session, session), round, query| {
-                for length in 1..=query.code_points.len() {
-                    let input = latin_oracle::Query {
-                        code_points: query.code_points[..length].to_vec(),
-                        points: query.points[..length].to_vec(),
-                        ..query.clone()
-                    };
-                    let theirs =
-                        latin_oracle::suggest(&cpp_dictionary, &cpp_proximity, cpp_session, &input);
-                    let ours =
-                        crate::search::suggest(&dictionary, &info, session, &convert(&input));
-                    assert_same(
-                        &ours,
-                        &theirs,
-                        &format!("{} umlaut {round}/{length}", path.display()),
-                    );
-                }
-                let fresh = latin_oracle::Session::new("en_US", &cpp_dictionary);
-                let theirs = latin_oracle::suggest(&cpp_dictionary, &cpp_proximity, &fresh, query);
-                let ours =
-                    crate::search::suggest(&dictionary, &info, &mut new_session(), &convert(query));
-                assert_same(
-                    &ours,
-                    &theirs,
-                    &format!("{} umlaut {round}", path.display()),
-                );
+            || pair.sessions(),
+            |sessions, _, query| pair.type_then_ask(sessions, query),
+        );
+        let mut tape = pair.tape("umlaut_digraphs");
+        record(&mut tape, outputs.iter().flatten());
+        tape.finish();
+        let umlauts = [0xE4, 0xF6, 0xFC];
+        let reached = inputs
+            .iter()
+            .zip(&outputs)
+            .filter(|(query, outputs)| {
+                let whole = outputs.last().expect("the whole query's output");
                 query.code_points.iter().all(|it| !umlauts.contains(it))
-                    && ours.code_points[..ours.count as usize * 48]
+                    && whole.code_points[..whole.count as usize * 48]
                         .iter()
                         .any(|it| umlauts.contains(it))
-            },
-        );
-        let calls = reached_by_round.len();
-        let reached = reached_by_round.iter().filter(|&&it| it).count();
+            })
+            .count();
+        let calls = outputs.len();
         eprintln!(
             "{} umlaut words; {reached} of {calls} answers reached an umlaut",
             umlaut_words.len()

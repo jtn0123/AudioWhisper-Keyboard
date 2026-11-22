@@ -1,0 +1,47 @@
+# trie.random_bodies: LatinIME's C++ answers to this test's questions (docs/phase6-oracle-goldens.md).
+# Answers, the digest after the last, after each power of two (at N), and some in full.
+count 1054940
+digest 0c7439a3671e81f8
+at 1 cde9bd312374c083
+at 2 9a36e9184a52ebd7
+at 4 eb9dcee449d36d1f
+at 8 76ae4b07438e06e0
+at 16 1bc166926201476c
+at 32 78e0671d673f3c48
+at 64 b4b6dc8ad971221f
+at 128 261628001d2221f3
+at 256 8377157f0ebba49d
+at 512 5b8c356101847e59
+at 1024 7e18c3d527e8f6ea
+at 2048 d4281f3376441af1
+at 4096 d53d77811f98c74e
+at 8192 42e7fadbbb8dac49
+at 16384 e42c787d2316773f
+at 32768 db345ca84e4b712e
+at 65536 c87079f737117990
+at 131072 490d8fa602fa4433
+at 262144 faf505420e3a665f
+at 524288 8847b902a4c38852
+at 1048576 f35ddcb9a29955af
+sample 0 d58a226a0c249ed4 ((0,[217],61,(-2147483648,-2147483648,-2147483648,3),(true,true,false,false,false)),18) <- (node(&read), i32::from(read.flags()))
+sample 1 c9e72fd4b1c1b3ce (0,[217],61,(-2147483648,-2147483648,-2147483648,3),(true,true,false,false,false)) <- node(&policy.node_reader().fetch(pos))
+sample 2 b5ee254e3c88dca0 ((18,1),-2147483648) <- (policy.array_reader().read_info(pos), policy.array_reader().read_forward_link(p
+sample 3 d0ab2918672e47d0 [(2,218)] <- rust_bigrams(policy, pos)
+sample 7 e8db0e91f878cbc9 ((22845,3),-2147483648) <- (policy.array_reader().read_info(pos), policy.array_reader().read_forward_link(p
+sample 15 5aeb928a3a2772d2 ((3,[34],165,(-2147483648,6,7963,7963),(true,true,true,false,true)),31) <- (node(&read), i32::from(read.flags()))
+sample 31 a1f5b17f22740d61 (6,[1377325],10,(-2147483648,11,8147,8147),(true,true,true,false,true)) <- node(&policy.node_reader().fetch(pos))
+sample 63 fdb745ebdfdb11bf [(8,13),(15,-47),(14,-14261),(1,19)] <- rust_bigrams(policy, pos)
+sample 127 a6fe7a242b034119 ((34,26),-2147483648) <- (policy.array_reader().read_info(pos), policy.array_reader().read_forward_link(p
+sample 255 042878c9033d5afd ((51,[1242422,51,242],115,(47597,-2147483648,61,64),(true,false,false,true,true)),180) <- (node(&read), i32::from(read.flags()))
+sample 511 758e814358f377ff (102,[97],225,(60063,107,-2147483648,8071),(true,true,false,true,false)) <- node(&policy.node_reader().fetch(pos))
+sample 1023 d0a07b18672a91f3 [(5,2410)] <- rust_bigrams(policy, pos)
+sample 2047 d3f29618e167f22c ((14,57),-2147483648) <- (policy.array_reader().read_info(pos), policy.array_reader().read_forward_link(p
+sample 4095 09e37b3e7a219aea ((13,[157,112,94,10527,78,95,96],-1,(3403502,-2147483648,27,33),(false,false,true,true,true)),229) <- (node(&read), i32::from(read.flags()))
+sample 8191 f5411fbe5ca5ce58 (83,[401775,1096958,123],31,(8393727,-2147483648,96,100),(true,false,true,true,true)) <- node(&policy.node_reader().fetch(pos))
+sample 16383 d095d518671b5d0a [(4,54)] <- rust_bigrams(policy, pos)
+sample 32767 24d42b0502d68d35 ((8189,7),-2147483648) <- (policy.array_reader().read_info(pos), policy.array_reader().read_forward_link(p
+sample 65535 b5a30a536b8f85b8 ((114,[120,621511,243,219,194,165],227,(-2147483648,-2147483648,-2147483648,125),(true,true,false,false,false)),50) <- (node(&read), i32::from(read.flags()))
+sample 131071 19b1af984573b977 (9,[183,141,200,159],43,(-2147483648,-2147483648,16,18),(true,true,true,false,true)) <- node(&policy.node_reader().fetch(pos))
+sample 262143 d084ad18670ca5df [(15,92)] <- rust_bigrams(policy, pos)
+sample 524287 cdae89f0a5a1b4fe ((22578,143),-2147483648) <- (policy.array_reader().read_info(pos), policy.array_reader().read_forward_link(p
+sample 1048575 3967ee06576caf6f ((5,[64],-1,(33244,9,52520,52520),(false,true,false,true,true)),142) <- (node(&read), i32::from(read.flags()))

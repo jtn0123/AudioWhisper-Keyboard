@@ -1,20 +1,19 @@
 //! Shared by the tests: both sides' dictionary, keyboard and sessions, the comparison, and
 //! [`in_chunks`], which spreads a test's rounds over threads.
 
-use std::sync::Arc;
-#[cfg(feature = "oracle")]
-use std::sync::OnceLock;
-#[cfg(feature = "oracle")]
+use std::path::Path;
+use std::sync::{Arc, OnceLock};
 use std::thread;
 
-#[cfg(feature = "oracle")]
-use latin_oracle::queries::Random;
+use latin_golden::queries::{self, Random};
+use latin_golden::{Answer, Fnv, Suggestions};
 
 use crate::defines::MAX_PROXIMITY_CHARS_SIZE;
-use crate::layout::{KeyboardGeometry, ProximityInfo};
-use crate::search::DicTraverseSession;
 #[cfg(feature = "oracle")]
-use crate::search::{Output, Query};
+use crate::golden::oracle_query;
+use crate::golden::{Tape, tape};
+use crate::layout::{KeyboardGeometry, ProximityInfo};
+use crate::search::{DicTraverseSession, Output, Query};
 use crate::trie::dictionary::Dictionary;
 
 /// The app's QWERTY model (`suggest::qwerty`): three staggered rows of 100 by 150 keys on a
@@ -152,15 +151,9 @@ impl TestKeyboard {
     }
 }
 
-/// Google's AOSP dictionary, the fixture `latin_oracle::aosp_dictionary_path` names, available
-/// to Rust-only tests without linking the C++ oracle.
-fn aosp_dictionary_path() -> std::path::PathBuf {
-    std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/aosp_main_en-US.dict")
-}
-
-/// The AOSP dictionary, read for the Rust side.
+/// Google's AOSP dictionary, read for the Rust side.
 pub fn aosp_file() -> Arc<[u8]> {
-    std::fs::read(aosp_dictionary_path())
+    std::fs::read(latin_golden::aosp_dictionary_path())
         .expect("the AOSP dictionary")
         .into()
 }
@@ -175,21 +168,29 @@ pub fn rust_side() -> (Dictionary, ProximityInfo) {
 
 /// A session for a dictionary as large as these (the large node cache, which both take).
 pub fn new_session() -> DicTraverseSession {
-    let size = std::fs::metadata(aosp_dictionary_path())
+    let size = std::fs::metadata(latin_golden::aosp_dictionary_path())
         .expect("the AOSP dictionary")
         .len();
     DicTraverseSession::new(usize::try_from(size).expect("size fits"))
 }
 
-/// The oracle's query as the Rust search takes it.
-#[cfg(feature = "oracle")]
-pub fn convert(query: &latin_oracle::Query) -> Query {
+/// A generated question as the Rust search takes it.
+pub fn convert(query: &queries::Query) -> Query {
     Query {
         code_points: query.code_points.clone(),
         points: query.points.clone(),
         block_offensive_words: query.block_offensive_words,
         previous: query.previous.clone(),
         beginning_of_sentence: query.beginning_of_sentence.clone(),
+    }
+}
+
+/// The question for the first `length` taps of `query`.
+pub fn prefix(query: &queries::Query, length: usize) -> queries::Query {
+    queries::Query {
+        code_points: query.code_points[..length].to_vec(),
+        points: query.points[..length].to_vec(),
+        ..query.clone()
     }
 }
 
@@ -221,75 +222,219 @@ pub fn assert_same(ours: &Output, theirs: &latin_oracle::Output, context: &str) 
 }
 
 /// The words of `dictionary`, to draw typed words from.
-#[cfg(feature = "oracle")]
-pub fn words_of(dictionary: &latin_oracle::Dictionary) -> Vec<Vec<char>> {
-    let text = String::from_utf16(&dictionary.words()).expect("UTF-16 words");
+pub fn words_of(dictionary: &Dictionary) -> Vec<Vec<char>> {
+    let text = String::from_utf16(&crate::trie::jni::get_words(dictionary)).expect("UTF-16 words");
     text.lines().map(|it| it.chars().collect()).collect()
 }
 
-/// Both sides of a differential test: the C++ dictionary and keyboard, the Rust ones, and the
-/// words to type.
+/// The C++'s dictionary and keyboard, and the file it opened when it was given bytes.
 #[cfg(feature = "oracle")]
+struct Cpp {
+    dictionary: latin_oracle::Dictionary,
+    proximity: latin_oracle::Proximity,
+    _file: Option<TemporaryFile>,
+}
+
+/// A file the C++ side opens, removed when dropped.
+#[cfg(feature = "oracle")]
+struct TemporaryFile(std::path::PathBuf);
+
+#[cfg(feature = "oracle")]
+impl Drop for TemporaryFile {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_file(&self.0);
+    }
+}
+
+/// Both sides of a test: the Rust dictionary and keyboard, with the C++ built the C++'s, and the
+/// words to type.
 pub struct Pair {
-    pub cpp_dictionary: latin_oracle::Dictionary,
-    pub cpp_proximity: latin_oracle::Proximity,
     pub dictionary: Dictionary,
     pub info: ProximityInfo,
     pub words: Vec<Vec<char>>,
-    /// Which dictionary, for failure messages.
+    /// Which dictionary, for the golden files' names.
     pub name: String,
+    #[cfg(feature = "oracle")]
+    cpp: Cpp,
 }
 
-#[cfg(feature = "oracle")]
+/// One session each side, kept across calls as the keyboard keeps one.
+pub struct Sessions {
+    pub ours: DicTraverseSession,
+    #[cfg(feature = "oracle")]
+    theirs: latin_oracle::Session,
+}
+
 impl Pair {
-    /// Google's AOSP dictionary and the one the app ships (`latin_oracle::dictionary_paths`), one
-    /// pair each for every test in the binary, made by the first that asks.
+    /// Google's AOSP dictionary and the one the app ships, one pair each for every test in the
+    /// binary, made by the first that asks.
     pub fn each() -> [&'static Self; 2] {
         static PAIRS: OnceLock<[Pair; 2]> = OnceLock::new();
-        let [aosp, shipped] =
-            PAIRS.get_or_init(|| latin_oracle::dictionary_paths().map(|path| Self::new(&path)));
+        let [aosp, shipped] = PAIRS.get_or_init(|| {
+            latin_golden::dictionaries().map(|(name, path)| Self::at(name, &path, None))
+        });
         [aosp, shipped]
     }
 
-    fn new(path: &std::path::Path) -> Self {
-        let file: Arc<[u8]> = std::fs::read(path).expect("the dictionary").into();
-        let cpp_dictionary = latin_oracle::Dictionary::at(path);
-        let words = words_of(&cpp_dictionary);
+    /// The dictionary at `path` on `keyboard`, or on the app's QWERTY model.
+    pub fn at(name: &str, path: &Path, keyboard: Option<&TestKeyboard>) -> Self {
+        let bytes = std::fs::read(path).expect("the dictionary");
+        let dictionary = Dictionary::open(bytes.into()).expect("a valid dictionary");
         Self {
-            cpp_dictionary,
-            cpp_proximity: latin_oracle::Proximity::qwerty(),
-            dictionary: Dictionary::open(file).expect("a valid dictionary"),
-            info: qwerty_info(),
-            words,
-            name: path
-                .file_name()
-                .map_or_else(String::new, |n| n.to_string_lossy().into_owned()),
+            words: words_of(&dictionary),
+            dictionary,
+            info: keyboard.map_or_else(qwerty_info, TestKeyboard::info),
+            name: name.to_owned(),
+            #[cfg(feature = "oracle")]
+            cpp: Cpp {
+                dictionary: latin_oracle::Dictionary::at(path),
+                proximity: keyboard
+                    .map_or_else(latin_oracle::Proximity::qwerty, |it| it.cpp_proximity()),
+                _file: None,
+            },
         }
     }
 
-    pub fn cpp_session(&self) -> latin_oracle::Session {
-        latin_oracle::Session::new("en_US", &self.cpp_dictionary)
+    /// A dictionary from its bytes, on the app's QWERTY model; the C++ opens a copy in a file.
+    pub fn of_bytes(name: &str, bytes: Vec<u8>) -> Self {
+        #[cfg(feature = "oracle")]
+        let file = TemporaryFile(
+            std::env::temp_dir().join(format!("latin-bytes-{name}-{}.dict", std::process::id())),
+        );
+        #[cfg(feature = "oracle")]
+        std::fs::write(&file.0, &bytes).expect("a temporary file");
+        #[cfg(feature = "oracle")]
+        let size = i64::try_from(bytes.len()).expect("size fits");
+        let dictionary = Dictionary::open(bytes.into()).expect("a valid dictionary");
+        Self {
+            words: words_of(&dictionary),
+            dictionary,
+            info: qwerty_info(),
+            name: name.to_owned(),
+            #[cfg(feature = "oracle")]
+            cpp: Cpp {
+                dictionary: latin_oracle::Dictionary::open(&file.0, 0, size).expect("opens"),
+                proximity: latin_oracle::Proximity::qwerty(),
+                _file: Some(file),
+            },
+        }
+    }
+
+    pub fn sessions(&self) -> Sessions {
+        Sessions {
+            ours: new_session(),
+            #[cfg(feature = "oracle")]
+            theirs: latin_oracle::Session::new("en_US", &self.cpp.dictionary),
+        }
+    }
+
+    /// The tape for `test` on this pair's dictionary.
+    pub fn tape(&self, test: &str) -> Tape {
+        tape(&format!("search.{test}.{}", self.name))
     }
 
     /// One query put to both sessions, as the app does, and compared; the Rust output.
-    pub fn compare(
-        &self,
-        sessions: (&mut DicTraverseSession, &latin_oracle::Session),
-        query: &latin_oracle::Query,
-        context: &str,
-    ) -> Output {
-        let theirs =
-            latin_oracle::suggest(&self.cpp_dictionary, &self.cpp_proximity, sessions.1, query);
-        let ours =
-            crate::search::jni::suggest(&self.dictionary, &self.info, sessions.0, &convert(query));
-        assert_same(&ours, &theirs, &format!("{}: {context}", self.name));
+    pub fn compare(&self, sessions: &mut Sessions, query: &queries::Query) -> Output {
+        let ours = crate::search::suggest(
+            &self.dictionary,
+            &self.info,
+            &mut sessions.ours,
+            &convert(query),
+        );
+        #[cfg(feature = "oracle")]
+        {
+            let cpp = &self.cpp;
+            let theirs = latin_oracle::suggest(
+                &cpp.dictionary,
+                &cpp.proximity,
+                &sessions.theirs,
+                &oracle_query(query),
+            );
+            assert_same(&ours, &theirs, &format!("{}: {query:?}", self.name));
+        }
         ours
+    }
+
+    /// `query` typed letter by letter on `sessions`, then whole on fresh ones, each compared; the
+    /// outputs, the whole query's last.
+    pub fn type_then_ask(&self, sessions: &mut Sessions, query: &queries::Query) -> Vec<Output> {
+        let mut outputs: Vec<_> = (1..=query.code_points.len())
+            .map(|length| self.compare(sessions, &prefix(query, length)))
+            .collect();
+        outputs.push(self.compare(&mut self.sessions(), query));
+        outputs
+    }
+
+    /// [`Pair::compare`] with the options array and weight the app never changes.
+    pub fn compare_with(
+        &self,
+        sessions: &mut Sessions,
+        query: &queries::Query,
+        (options, weight): (&[i32], f32),
+    ) -> Output {
+        let session = &mut sessions.ours;
+        let ours = crate::search::suggest_with(
+            &self.dictionary,
+            &self.info,
+            session,
+            &convert(query),
+            options,
+            weight,
+        );
+        #[cfg(feature = "oracle")]
+        {
+            let cpp = &self.cpp;
+            let theirs = latin_oracle::hooks::search::suggest_with(
+                &cpp.dictionary,
+                &cpp.proximity,
+                &sessions.theirs,
+                &oracle_query(query),
+                options,
+                weight,
+            );
+            let context = format!("{}: {query:?} {options:?} {weight}", self.name);
+            assert_same(&ours, &theirs, &context);
+        }
+        ours
+    }
+}
+
+/// Every field of an output, every array in full and the weight by its bits, as [`assert_same`]
+/// compares them; a sample shows the suggestions.
+impl Answer for Output {
+    fn feed(&self, fnv: &mut Fnv) {
+        self.count.feed(fnv);
+        self.code_points.feed(fnv);
+        self.scores.feed(fnv);
+        self.space_indices.feed(fnv);
+        self.types.feed(fnv);
+        self.auto_commit_confidence.feed(fnv);
+        self.weight.feed(fnv);
+    }
+
+    fn render(&self, out: &mut String) {
+        Suggestions {
+            count: self.count,
+            code_points: &self.code_points,
+            scores: &self.scores,
+            types: &self.types,
+            space_indices: &self.space_indices,
+            auto_commit_confidence: self.auto_commit_confidence,
+            weight: self.weight,
+        }
+        .render(out);
+    }
+}
+
+/// Records every output on `tape`, in order.
+pub fn record<'a>(tape: &mut Tape, outputs: impl IntoIterator<Item = &'a Output>) {
+    for output in outputs {
+        tape.record("suggestions", output);
     }
 }
 
 /// The centre of the key for a lower-case ASCII letter on the test keyboard, nudged by up to 30
 /// either way; `None` for anything else.
-#[cfg(feature = "oracle")]
 pub fn tap(random: &mut Random, code_point: i32) -> Option<(i32, i32)> {
     let rows = ["qwertyuiop", "asdfghjkl", "zxcvbnm"];
     let letter = char::from_u32(code_point as u32)?.to_ascii_lowercase();
@@ -306,14 +451,12 @@ pub fn tap(random: &mut Random, code_point: i32) -> Option<(i32, i32)> {
 
 /// How many threads a test's rounds are spread over. Fixed, so the rounds each thread runs, and
 /// the state its sessions carry from one round to the next, are the same on any computer.
-#[cfg(feature = "oracle")]
 const CHUNKS: usize = 8;
 
 /// `run` for every round of `inputs`, in [`CHUNKS`] runs of consecutive rounds on threads of
 /// their own, each run with its own sessions from `start`; the results in round order. The
 /// inputs are made beforehand from the test's one generator, so they are the same however the
 /// rounds are split, and only the C++ call itself holds the oracle's lock.
-#[cfg(feature = "oracle")]
 pub fn in_chunks<I: Sync, S, R: Send>(
     inputs: &[I],
     start: impl Fn() -> S + Sync,

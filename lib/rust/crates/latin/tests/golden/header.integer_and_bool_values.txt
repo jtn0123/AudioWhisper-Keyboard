@@ -1,0 +1,35 @@
+# header.integer_and_bool_values: LatinIME's C++ answers to this test's questions (docs/phase6-oracle-goldens.md).
+# Answers, the digest after the last, after each power of two (at N), and some in full.
+count 24120
+digest d041a6468292841d
+at 1 ab947c2b20c8127d
+at 2 6851d7c021058d40
+at 4 4d5726e7728e332e
+at 8 90cec21d96818e78
+at 16 2bc6a159c3025121
+at 32 b15b78eb95a0a8dd
+at 64 7582d7c50b84bf55
+at 128 19a5b5b5f16bb4b7
+at 256 c323dcba4b8c5df4
+at 512 a791de829b174247
+at 1024 ee640cd23b6ccc7e
+at 2048 60d01832a9754240
+at 4096 4ce8ff488631ca52
+at 8192 c086e54881288757
+at 16384 7d564182dc9fd3a0
+sample 0 7588fcc9ee23802a (34,202,true,1065353216,false,false,99,99) <- (ours.size(), ours.format_version_number(), ours.is_valid(), ours.multi_word_cos
+sample 1 080b7807b4a90fbd (0,10000) <- (ours.ngram_counts().ngram_count(ngram_type), ours.max_ngram_counts().ngram_coun
+sample 2 083d9807b4fe3c1d (0,30000) <- (ours.ngram_counts().ngram_count(ngram_type), ours.max_ngram_counts().ngram_coun
+sample 3 083d9807b4fe3c1d (0,30000) <- (ours.ngram_counts().ngram_count(ngram_type), ours.max_ngram_counts().ngram_coun
+sample 7 af63bd4c8601b7df [] <- ours.locale().to_vec()
+sample 15 d6ca5e3c631047fa [63,0,-7777,-7777,-7777,-7777,-7777,-7777,-7777,-7777,-7777,-7777,-7777,-7777,-7777,-7777,-7777,-7777,-7777,-7777,-7777,... <- read(&|out| ours.read_header_value_or_question_mark(key, out))
+sample 31 d6ca5e3c631047fa [63,0,-7777,-7777,-7777,-7777,-7777,-7777,-7777,-7777,-7777,-7777,-7777,-7777,-7777,-7777,-7777,-7777,-7777,-7777,-7777,... <- read(&|out| ours.read_header_value_or_question_mark(key, out))
+sample 63 d6ca5e3c631047fa [63,0,-7777,-7777,-7777,-7777,-7777,-7777,-7777,-7777,-7777,-7777,-7777,-7777,-7777,-7777,-7777,-7777,-7777,-7777,-7777,... <- read(&|out| ours.read_header_value_or_question_mark(key, out))
+sample 127 a9070b7fec0f2fb7 (-2147483648,false,[]) <- (read_int_attribute_value(&ours, &key, default), read_bool_attribute_value(&ours
+sample 255 a9070b7fec0f2fb7 (-2147483648,false,[]) <- (read_int_attribute_value(&ours, &key, default), read_bool_attribute_value(&ours
+sample 511 d949ac186c0c4c8e (0,true,[]) <- (read_int_attribute_value(&ours, &key, default), read_bool_attribute_value(&ours
+sample 1023 9d9b54ffdbea0d22 [63,0,-7777,-7777] <- read(&|out| ours.read_header_value_or_question_mark(key, out))
+sample 2047 9d9b54ffdbea0d22 [63,0,-7777,-7777] <- read(&|out| ours.read_header_value_or_question_mark(key, out))
+sample 4095 eb5426187678348a [63,0] <- read(&|out| ours.read_header_value_or_question_mark(key, out))
+sample 8191 af63bd4c8601b7df [] <- read(&|out| ours.read_header_value_or_question_mark(key, out))
+sample 16383 eb5426187678348a [63,0] <- read(&|out| ours.read_header_value_or_question_mark(key, out))

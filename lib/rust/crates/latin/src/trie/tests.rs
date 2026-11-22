@@ -1,6 +1,6 @@
-//! Differential tests of the version 2 trie against LatinIME's C++, through `latin-oracle`. Each test
-//! asks the same question of each dictionary (Google's AOSP one and the one the app ships) both
-//! ways and asserts the answers agree. Random
+//! Differential tests of the version 2 trie against LatinIME's C++, kept as golden files of its
+//! answers (`crate::golden`). Each test asks the same question of each dictionary (Google's AOSP
+//! one and the one the app ships) and checks the answers against the C++'s. Random
 //! inputs come from seeded SplitMix64 streams, so a failure reproduces from its seed. Assertion
 //! messages carry indices and numbers only: a dictionary word is never printed.
 
@@ -12,42 +12,86 @@ mod units;
 use std::path::PathBuf;
 use std::sync::{Arc, OnceLock};
 
+#[cfg(feature = "oracle")]
 use latin_oracle::hooks::trie as cpp;
 
 use super::dictionary::Dictionary;
-use super::interface::WordListener;
+use super::interface::{NgramListener, WordListener};
 use super::jni::get_words;
 use crate::defines::{MAX_WORD_LENGTH, NOT_A_WORD_ID};
+use crate::golden::{Tape, same, tape};
 
-/// The C++ side's dictionary, as `latin-oracle` opens it.
-pub type CppDictionary = latin_oracle::Dictionary;
-
-/// A dictionary, opened on both sides, with the C++'s word list as the reference.
+/// A dictionary, opened by the Rust (and by the C++ when it is built), with its words.
 pub struct Pair {
     pub ours: Dictionary,
-    pub theirs: CppDictionary,
+    #[cfg(feature = "oracle")]
+    pub theirs: latin_oracle::Dictionary,
     pub words: Vec<Vec<i32>>,
     pub path: PathBuf,
+    /// Which dictionary, for the golden files' names.
+    pub name: &'static str,
 }
 
-fn open(path: PathBuf) -> Pair {
-    let file: Arc<[u8]> = std::fs::read(&path).expect("the dictionary").into();
-    let theirs = CppDictionary::at(&path);
-    let words = cpp::words(&theirs);
-    Pair {
-        ours: Dictionary::open(file).expect("a version 2 dictionary"),
-        theirs,
-        words,
-        path,
+impl Pair {
+    /// The tape for `test` on this dictionary.
+    pub fn tape(&self, test: &str) -> Tape {
+        tape(&format!("trie.{test}.{}", self.name))
     }
 }
 
-/// Google's AOSP dictionary and the one the app ships (`latin_oracle::dictionary_paths`), each
-/// loaded once for the whole test binary.
+fn open((name, path): (&'static str, PathBuf)) -> Pair {
+    let file: Arc<[u8]> = std::fs::read(&path).expect("the dictionary").into();
+    let ours = Dictionary::open(file).expect("a version 2 dictionary");
+    Pair {
+        words: words_of(&ours),
+        ours,
+        #[cfg(feature = "oracle")]
+        theirs: latin_oracle::Dictionary::at(&path),
+        path,
+        name,
+    }
+}
+
+/// Google's AOSP dictionary and the one the app ships, each loaded once for the whole test
+/// binary.
 pub fn pairs() -> [&'static Pair; 2] {
     static PAIRS: OnceLock<[Pair; 2]> = OnceLock::new();
-    let [aosp, shipped] = PAIRS.get_or_init(|| latin_oracle::dictionary_paths().map(open));
+    let [aosp, shipped] = PAIRS.get_or_init(|| latin_golden::dictionaries().map(open));
     [aosp, shipped]
+}
+
+/// Every word of `dictionary`, in the order a walk visits them.
+fn words_of(dictionary: &Dictionary) -> Vec<Vec<i32>> {
+    let mut collected = Collect::default();
+    dictionary.iterate_words(&mut collected);
+    collected.words
+}
+
+/// Collects the bigram entries a walk visits.
+#[derive(Default)]
+struct Entries(Vec<(i32, i32)>);
+
+impl NgramListener for Entries {
+    fn on_visit_entry(&mut self, ngram_probability: i32, target_word_id: i32) {
+        self.0.push((ngram_probability, target_word_id));
+    }
+}
+
+/// The bigram entries after `prev`, as (probability, target word id).
+pub fn ngram_entries(pair: &Pair, prev: &[i32]) -> Vec<(i32, i32)> {
+    let mut entries = Entries::default();
+    pair.ours.policy().iterate_ngram_entries(prev, &mut entries);
+    entries.0
+}
+
+/// The code points of `word_id`, up to `MAX_WORD_LENGTH` of them.
+pub fn code_points(pair: &Pair, word_id: i32) -> Vec<i32> {
+    let mut out = [0_i32; MAX_WORD_LENGTH];
+    let count = pair
+        .ours
+        .policy()
+        .get_code_points_and_return_code_point_count(word_id, MAX_WORD_LENGTH, &mut out);
+    out[..count].to_vec()
 }
 
 /// SplitMix64, as `bytes/tests.rs` uses it.
@@ -195,132 +239,140 @@ impl WordListener for Collect {
     }
 }
 
-/// Asserts the attributes of `word_id` after `prev` agree, with `label` naming the case.
-pub fn check_attributes(pair: &Pair, word_id: i32, prev: &[i32], label: &str) {
+/// Checks the attributes of `word_id` after `prev`.
+pub fn check_attributes(tape: &mut Tape, pair: &Pair, word_id: i32, prev: &[i32]) {
     let ours = pair
         .ours
         .policy()
         .get_word_attributes_in_context(prev, word_id, None);
+    #[cfg(feature = "oracle")]
     let theirs = cpp::word_attributes(&pair.theirs, None, prev, word_id);
-    assert_eq!(
-        ours.probability(),
-        theirs.probability,
-        "{label}: probability"
-    );
-    assert_eq!(
-        ours.is_blacklisted(),
-        theirs.is_blacklisted,
-        "{label}: blacklisted"
-    );
-    assert_eq!(
-        ours.is_not_a_word(),
-        theirs.is_not_a_word,
-        "{label}: not a word"
-    );
-    assert_eq!(
-        ours.is_possibly_offensive(),
-        theirs.is_possibly_offensive,
-        "{label}: possibly offensive"
+    same!(
+        tape,
+        (
+            ours.probability(),
+            ours.is_blacklisted(),
+            ours.is_not_a_word(),
+            ours.is_possibly_offensive()
+        ),
+        (
+            theirs.probability,
+            theirs.is_blacklisted,
+            theirs.is_not_a_word,
+            theirs.is_possibly_offensive
+        ),
+        "answer {}: probability, blacklisted, not a word, possibly offensive",
+        tape.count()
     );
 }
 
-/// Asserts the code points of `word_id` agree, up to `MAX_WORD_LENGTH` of them.
-pub fn check_code_points(pair: &Pair, word_id: i32, label: &str) {
-    let mut out = [0_i32; MAX_WORD_LENGTH];
-    let count = pair
-        .ours
-        .policy()
-        .get_code_points_and_return_code_point_count(word_id, MAX_WORD_LENGTH, &mut out);
-    let theirs = cpp::code_points(&pair.theirs, word_id, MAX_WORD_LENGTH);
-    assert_eq!(count, theirs.len(), "{label}: code point count");
-    assert!(out[..count] == theirs[..], "{label}: code points");
+/// Checks the code points of `word_id`, up to `MAX_WORD_LENGTH` of them.
+pub fn check_code_points(tape: &mut Tape, pair: &Pair, word_id: i32) {
+    same!(
+        tape,
+        code_points(pair, word_id),
+        cpp::code_points(&pair.theirs, word_id, MAX_WORD_LENGTH),
+        "answer {}: code points of word {word_id}",
+        tape.count()
+    );
 }
 
 #[test]
-fn word_list_matches_the_cpp_in_content_and_order() {
+fn word_list_matches_the_goldens_in_content_and_order() {
     for pair in pairs() {
-        let mut collected = Collect::default();
-        pair.ours.iterate_words(&mut collected);
-        assert_eq!(collected.words.len(), pair.words.len(), "word count");
-        for (index, (ours, theirs)) in collected.words.iter().zip(&pair.words).enumerate() {
-            assert!(ours == theirs, "word {index} differs");
+        #[cfg(feature = "oracle")]
+        assert!(
+            pair.words == cpp::words(&pair.theirs),
+            "the word lists differ"
+        );
+        let mut tape = pair.tape("word_list");
+        for word in &pair.words {
+            tape.record("word", word);
         }
+        tape.finish();
     }
 }
 
 #[test]
-fn joined_word_text_matches_the_cpp_get_words() {
+fn joined_word_text_matches_the_goldens() {
     for pair in pairs() {
-        let ours = get_words(&pair.ours);
-        let theirs = pair.theirs.words();
-        assert_eq!(ours.len(), theirs.len(), "UTF-16 length");
-        assert!(ours == theirs, "UTF-16 text differs");
+        let mut tape = pair.tape("joined_word_text");
+        same!(
+            tape,
+            get_words(&pair.ours),
+            pair.theirs.words(),
+            "UTF-16 text"
+        );
+        tape.finish();
     }
 }
 
 #[test]
-fn every_word_has_the_same_id_probability_attributes_and_code_points() {
+fn every_word_matches_the_goldens_in_id_probability_attributes_and_code_points() {
     for pair in pairs() {
-        for (index, word) in pair.words.iter().enumerate() {
-            let label = format!("word {index}");
+        let mut tape = pair.tape("every_word");
+        for word in &pair.words {
             let id = pair.ours.policy().get_word_id(word, false);
-            assert_eq!(
-                id,
-                cpp::word_id(&pair.theirs, word, false),
-                "{label}: word id"
+            same!(
+                tape,
+                (id, pair.ours.probability(word)),
+                (
+                    cpp::word_id(&pair.theirs, word, false),
+                    pair.theirs.probability(word)
+                ),
+                "answer {}: word id and probability",
+                tape.count()
             );
-            assert_eq!(
-                pair.ours.probability(word),
-                pair.theirs.probability(word),
-                "{label}: probability"
-            );
-            check_attributes(pair, id, &[], &label);
-            check_code_points(pair, id, &label);
+            check_attributes(&mut tape, pair, id, &[]);
+            check_code_points(&mut tape, pair, id);
         }
+        tape.finish();
     }
 }
 
 #[test]
-fn random_words_match_the_cpp_in_id_probability_and_attributes() {
+fn random_words_match_the_goldens_in_id_probability_and_attributes() {
     for pair in pairs() {
+        let mut tape = pair.tape("random_words");
         let mut random = Random(0x5EED_0001);
-        for round in 0..40_000 {
+        for _ in 0..40_000 {
             let word = random_word(&mut random, &pair.words);
             let force_lower = random.chance(2);
-            let label = format!("round {round}");
             let id = pair.ours.policy().get_word_id(&word, force_lower);
-            assert_eq!(
-                id,
-                cpp::word_id(&pair.theirs, &word, force_lower),
-                "{label}: word id (length {}, lower {force_lower})",
-                word.len()
-            );
-            assert_eq!(
-                pair.ours.probability(&word),
-                pair.theirs.probability(&word),
-                "{label}: probability (length {})",
+            same!(
+                tape,
+                (id, pair.ours.probability(&word)),
+                (
+                    cpp::word_id(&pair.theirs, &word, force_lower),
+                    pair.theirs.probability(&word)
+                ),
+                "answer {}: word id and probability (length {}, lower {force_lower})",
+                tape.count(),
                 word.len()
             );
             if id != NOT_A_WORD_ID {
-                check_attributes(pair, id, &[], &label);
-                check_code_points(pair, id, &label);
+                check_attributes(&mut tape, pair, id, &[]);
+                check_code_points(&mut tape, pair, id);
             }
         }
+        tape.finish();
     }
 }
 
 #[test]
-fn random_ids_and_missing_ids_match_the_cpp_code_points() {
+fn random_ids_and_missing_ids_match_the_goldens_code_points() {
     for pair in pairs() {
+        let mut tape = pair.tape("random_ids");
         let mut random = Random(0x1D5);
-        for round in 0..5_000 {
+        for _ in 0..5_000 {
             let id = if random.chance(10) {
                 NOT_A_WORD_ID
             } else {
                 let word = &pair.words[random.below(pair.words.len())];
                 pair.ours.policy().get_word_id(word, false)
             };
-            check_code_points(pair, id, &format!("round {round}"));
+            check_code_points(&mut tape, pair, id);
         }
+        tape.finish();
     }
 }

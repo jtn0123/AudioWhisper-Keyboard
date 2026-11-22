@@ -1,0 +1,41 @@
+# trie.word_list.shipped: LatinIME's C++ answers to this test's questions (docs/phase6-oracle-goldens.md).
+# Answers, the digest after the last, after each power of two (at N), and some in full.
+count 160669
+digest 93eb481bbf4f573a
+at 1 55a4afc4d61338d5
+at 2 1cbc475d5085a52a
+at 4 7064120b033056e2
+at 8 058c4680ccd7836f
+at 16 29f31327462aeb37
+at 32 8b6483e5c5be6072
+at 64 88836ebe1b404bb0
+at 128 059609912bf790f3
+at 256 60dd173606164e43
+at 512 18e84066d26927ce
+at 1024 866509e8fb043ee0
+at 2048 f79b19b3f5743b6c
+at 4096 f79f7360db182989
+at 8192 292bcd4dc044ffe3
+at 16384 2ae2764963f299c7
+at 32768 3bfbecc010f0d5db
+at 65536 5f3447055a83acd2
+at 131072 5ebade8caa773e63
+sample 0 20f12205c6dc6472 [49,87,101,97,116,104,101,114] <- word
+sample 1 20fe388933a0f5fb [65,65,65] <- word
+sample 2 efa6103b32a0e14f [65,65,82,80] <- word
+sample 3 2a5eb13360a47f09 [65,65,83,72,84,79] <- word
+sample 7 d48f6e3b22f90a56 [65,66,39,115] <- word
+sample 15 77e7fc820c91915b [65,67,67,39,115] <- word
+sample 31 c482343b1a3d5c14 [65,68,67,115] <- word
+sample 63 3513613b59fcd7a8 [65,73,68,83] <- word
+sample 127 796f78fcaa3a4988 [65,83,67,65,80] <- word
+sample 255 24da9e839e532dca [65,98,111,108,105,116,105,111,110,97,114,121] <- word
+sample 511 361000c23e73691f [65,101,116,110,97] <- word
+sample 1023 308cd17471130b7b [65,108,108,105,101,115] <- word
+sample 2047 c6b209de216e5d2a [65,114,109,97,110,100,111] <- word
+sample 4095 bbdd852819d194a2 [66,101,120,108,101,121] <- word
+sample 8191 3b8c095f621c12ff [67,111,108,97,110,100,101,114,39,115] <- word
+sample 16383 ba926353ce094f76 [72,97,109,101,39,115] <- word
+sample 32767 393832d7a4b3f044 [82,111,98,105,110,101,116,116,39,115] <- word
+sample 65535 bf0facbb6be62592 [99,114,97,110,101,100] <- word
+sample 131071 4dfa5ae649ddf679 [114,111,99,107,102,97,108,108,115] <- word

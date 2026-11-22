@@ -1,0 +1,41 @@
+# trie.arrays_and_forward_links.aosp: LatinIME's C++ answers to this test's questions (docs/phase6-oracle-goldens.md).
+# Answers, the digest after the last, after each power of two (at N), and some in full.
+count 216145
+digest b87ee83b55dd37e0
+at 1 2dfce763239fb9f6
+at 2 88b0a70cb4d4ab30
+at 4 f173afc1ca936d59
+at 8 f052aba638fa1c09
+at 16 14c3cb7996922491
+at 32 d2932404f1e5499b
+at 64 c7d93df8e2a8b249
+at 128 27311ec740c57e46
+at 256 c3c6a4c177547e7c
+at 512 f0a4c353eb4d1fa3
+at 1024 b29ff94d7e5f70dd
+at 2048 31009b7ca218fc9a
+at 4096 1cecf14db468c6a6
+at 8192 fc2884bf8a626cdd
+at 16384 3fe9e035a9fdd5ea
+at 32768 4d88c7f54d8e25c4
+at 65536 ffe81f06110d7c07
+at 131072 9eac014baef76090
+sample 0 92a5c277757ca417 ((52,2),-2147483648) <- (policy.array_reader().read_info(pos), policy.array_reader().read_forward_link(p
+sample 1 a62e1c6fda6e89e6 ((65,26),-2147483648) <- (policy.array_reader().read_info(pos), policy.array_reader().read_forward_link(p
+sample 2 9c71927892c9f225 ((66,30),-2147483648) <- (policy.array_reader().read_info(pos), policy.array_reader().read_forward_link(p
+sample 3 31a64ef2cdde086c ((16451,34),-2147483648) <- (policy.array_reader().read_info(pos), policy.array_reader().read_forward_link(p
+sample 7 944194843a272624 ((16455,54),-2147483648) <- (policy.array_reader().read_info(pos), policy.array_reader().read_forward_link(p
+sample 15 0b82c941973703ef ((16463,107),-2147483648) <- (policy.array_reader().read_info(pos), policy.array_reader().read_forward_link(p
+sample 31 60270f1ee1d34318 ((16485,200),-2147483648) <- (policy.array_reader().read_info(pos), policy.array_reader().read_forward_link(p
+sample 63 8a90668a910f022f ((5449,397),-2147483648) <- (policy.array_reader().read_info(pos), policy.array_reader().read_forward_link(p
+sample 127 bc8c48d52b29e613 ((97,50281),-2147483648) <- (policy.array_reader().read_info(pos), policy.array_reader().read_forward_link(p
+sample 255 c0ebf01b8929b917 ((114,215152),-2147483648) <- (policy.array_reader().read_info(pos), policy.array_reader().read_forward_link(p
+sample 511 3005beb519a363ec ((82,444709),-2147483648) <- (policy.array_reader().read_info(pos), policy.array_reader().read_forward_link(p
+sample 1023 eb6880495ec8a51e ((118,1390139),-2147483648) <- (policy.array_reader().read_info(pos), policy.array_reader().read_forward_link(p
+sample 2047 e987a5eaf7ae4f46 ((84,116389),-2147483648) <- (policy.array_reader().read_info(pos), policy.array_reader().read_forward_link(p
+sample 4095 78524adb88b1f8df ((5187,445375),-2147483648) <- (policy.array_reader().read_info(pos), policy.array_reader().read_forward_link(p
+sample 8191 6c22b48a170c6e56 ((118,2044563),-2147483648) <- (policy.array_reader().read_info(pos), policy.array_reader().read_forward_link(p
+sample 16383 30297ff793666a37 ((116,518818),-2147483648) <- (policy.array_reader().read_info(pos), policy.array_reader().read_forward_link(p
+sample 32767 bb003b310cf9003c ((21,2934004),-2147483648) <- (policy.array_reader().read_info(pos), policy.array_reader().read_forward_link(p
+sample 65535 25cdfd345e704f37 ((52,2131682),-2147483648) <- (policy.array_reader().read_info(pos), policy.array_reader().read_forward_link(p
+sample 131071 e4c6a7fe5d373557 ((20,1032098),-2147483648) <- (policy.array_reader().read_info(pos), policy.array_reader().read_forward_link(p

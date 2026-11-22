@@ -1,10 +1,9 @@
 use super::*;
+use crate::golden::{same, tape};
 
 /// SplitMix64, for seeded random buffers.
-#[cfg(all(feature = "oracle", not(target_os = "android")))]
 struct Random(u64);
 
-#[cfg(all(feature = "oracle", not(target_os = "android")))]
 impl Random {
     fn next(&mut self) -> u64 {
         self.0 = self.0.wrapping_add(0x9E37_79B9_7F4A_7C15);
@@ -31,10 +30,18 @@ impl Random {
     }
 }
 
-#[cfg(all(feature = "oracle", not(target_os = "android")))]
+/// A read from `pos` that moves it: what it read, and where it left `pos`.
+fn advance<T>(pos: i32, read: impl FnOnce(&mut i32) -> T) -> (T, i32) {
+    let mut pos = pos;
+    let value = read(&mut pos);
+    (value, pos)
+}
+
 #[test]
-fn random_buffers_read_as_the_cpp_reads_them() {
+fn random_buffers_match_the_goldens() {
+    #[cfg(feature = "oracle")]
     use latin_oracle::hooks::bytes as cpp;
+    let mut tape = tape("bytes.random_buffers");
     let mut random = Random(20_261_109);
     let table: Vec<i32> = (0..224).map(|it| 0x400 + it * 3).collect();
     for round in 0..20_000 {
@@ -42,50 +49,59 @@ fn random_buffers_read_as_the_cpp_reads_them() {
         let buffer = random.buffer(length);
         let pos = random.below(buffer.len() as u64 + 1) as i32;
         for size in 0..=5 {
-            assert_eq!(
+            same!(
+                tape,
                 read_uint(&buffer, size, pos),
                 cpp::read_uint(&buffer, size, pos)
             );
         }
-        let (mut ours, mut theirs) = (pos, pos);
-        assert_eq!(
-            read_s24_advance(&buffer, &mut ours),
-            cpp::read_s24_advance(&buffer, &mut theirs)
+        same!(
+            tape,
+            advance(pos, |at| read_s24_advance(&buffer, at)),
+            advance(pos, |at| cpp::read_s24_advance(&buffer, at))
         );
-        assert_eq!(ours, theirs);
         let with_table = (round % 3 == 0).then_some(table.as_slice());
-        let (mut ours, mut theirs) = (pos, pos);
-        assert_eq!(
-            read_code_point_advance(&buffer, with_table, &mut ours),
-            cpp::read_code_point_advance(&buffer, with_table, &mut theirs)
+        same!(
+            tape,
+            advance(pos, |at| read_code_point_advance(&buffer, with_table, at)),
+            advance(pos, |at| cpp::read_code_point_advance(
+                &buffer, with_table, at
+            ))
         );
-        assert_eq!(ours, theirs);
         let max_length = random.below(60) as usize;
-        let (mut ours, mut theirs) = (pos, pos);
-        let mut out = vec![0; max_length];
-        let length = read_string_advance(&buffer, max_length, with_table, &mut out, &mut ours);
-        assert_eq!(
-            out[..length],
-            cpp::read_string_advance(&buffer, max_length, with_table, &mut theirs)
+        same!(
+            tape,
+            advance(pos, |at| {
+                let mut out = vec![0; max_length];
+                let length = read_string_advance(&buffer, max_length, with_table, &mut out, at);
+                out.truncate(length);
+                out
+            }),
+            advance(pos, |at| cpp::read_string_advance(
+                &buffer, max_length, with_table, at
+            )),
+            "{buffer:?} at {pos}"
         );
-        assert_eq!(ours, theirs, "{buffer:?} at {pos}");
-        let (mut ours, mut theirs) = (pos, pos);
-        assert_eq!(
-            advance_past_string(&buffer, max_length, &mut ours) as i32,
-            cpp::advance_past_string(&buffer, max_length, &mut theirs)
+        same!(
+            tape,
+            advance(pos, |at| advance_past_string(&buffer, max_length, at)
+                as i32),
+            advance(pos, |at| cpp::advance_past_string(&buffer, max_length, at))
         );
-        assert_eq!(ours, theirs);
     }
+    tape.finish();
 }
 
-#[cfg(all(feature = "oracle", not(target_os = "android")))]
 #[test]
-fn format_versions_match_the_cpp() {
+fn format_versions_match_the_goldens() {
+    #[cfg(feature = "oracle")]
     use latin_oracle::hooks::bytes as cpp;
+    let mut tape = tape("bytes.format_versions");
     let mut buffer = vec![0x9B, 0xC1, 0x3A, 0xFE, 0, 0, 0, 0, 0, 0, 0, 0];
     for version in 0..=0xFFFF_u16 {
         buffer[4..6].copy_from_slice(&version.to_be_bytes());
-        assert_eq!(
+        same!(
+            tape,
             detect_format_version(&buffer) as i32,
             cpp::detect_format_version(&buffer)
         );
@@ -95,19 +111,22 @@ fn format_versions_match_the_cpp() {
         &[0x9B, 0xC1, 0x3A, 0xFF, 0, 202, 0, 0, 0, 0, 0, 0][..],
         &[],
     ] {
-        assert_eq!(
+        same!(
+            tape,
             detect_format_version(broken) as i32,
             cpp::detect_format_version(broken)
         );
     }
-    for path in latin_oracle::dictionary_paths() {
+    for (_, path) in latin_golden::dictionaries() {
         let bytes = std::fs::read(path).unwrap();
         assert_eq!(detect_format_version(&bytes), FormatVersion::Version202);
-        assert_eq!(
+        same!(
+            tape,
             detect_format_version(&bytes) as i32,
             cpp::detect_format_version(&bytes)
         );
     }
+    tape.finish();
 }
 
 #[test]

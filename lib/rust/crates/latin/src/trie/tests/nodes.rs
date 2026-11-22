@@ -1,14 +1,16 @@
-//! Differential tests of the node-level reading: every node of the bundled trie read through the
-//! C++'s own reader (the probe), node arrays and their forward links, and the bigram and shortcut lists
+//! Differential tests of the node-level reading: every node of the bundled trie as the C++'s own
+//! reader (the probe) read it, node arrays and their forward links, and the bigram and shortcut lists
 //! each node points at. Random bodies go through the same readers, so a flag the dictionary never sets
 //! is still compared.
 
 use std::collections::{HashSet, VecDeque};
 use std::sync::Arc;
 
+#[cfg(feature = "oracle")]
 use latin_oracle::hooks::trie as cpp;
 
 use super::{Pair, Random, pairs};
+use crate::golden::{Tape, same};
 use crate::trie::bigram::BigramIterator;
 use crate::trie::node::PtNodeParams;
 use crate::trie::patricia::PatriciaTriePolicy;
@@ -49,62 +51,99 @@ fn all_node_positions(pair: &Pair) -> Vec<i32> {
     nodes
 }
 
-/// Asserts that one node read by the Rust agrees with the C++ probe's. The word is not printed.
-fn same_node(ours: &PtNodeParams, theirs: &cpp::ProbedNode, label: &str) {
-    assert_eq!(ours.is_valid(), theirs.valid, "{label}: valid");
-    if !theirs.valid {
-        return;
+/// What a read node holds: `None` when it is not valid, otherwise its head position, code points,
+/// probability, children, shortcut, bigram and sibling positions, and its flags as booleans.
+type Node = Option<(
+    i32,
+    Vec<i32>,
+    i32,
+    (i32, i32, i32, i32),
+    (bool, bool, bool, bool, bool),
+)>;
+
+fn node(ours: &PtNodeParams) -> Node {
+    ours.is_valid().then(|| {
+        (
+            ours.head_pos(),
+            ours.code_points().to_vec(),
+            ours.probability(),
+            (
+                ours.children_pos(),
+                ours.shortcut_pos(),
+                ours.bigram_pos(),
+                ours.sibling_pos(),
+            ),
+            (
+                ours.is_terminal(),
+                ours.is_not_a_word(),
+                ours.is_possibly_offensive(),
+                ours.has_children(),
+                ours.has_bigrams(),
+            ),
+        )
+    })
+}
+
+/// [`node`] for the probe's reading.
+#[cfg(feature = "oracle")]
+fn probed(theirs: &cpp::ProbedNode) -> Node {
+    theirs.valid.then(|| {
+        (
+            theirs.head_pos,
+            theirs.code_points.clone(),
+            theirs.probability,
+            (
+                theirs.children_pos,
+                theirs.shortcut_pos,
+                theirs.bigram_pos,
+                theirs.sibling_pos,
+            ),
+            (
+                theirs.is_terminal,
+                theirs.is_not_a_word,
+                theirs.is_possibly_offensive,
+                theirs.has_children,
+                theirs.has_bigrams,
+            ),
+        )
+    })
+}
+
+/// A body's readers, with the C++'s over the same body (the probe) when it is built.
+struct Reader<'a> {
+    policy: &'a PatriciaTriePolicy,
+    #[cfg(feature = "oracle")]
+    probe: cpp::Probe,
+}
+
+impl<'a> Reader<'a> {
+    fn new(policy: &'a PatriciaTriePolicy) -> Self {
+        Self {
+            policy,
+            #[cfg(feature = "oracle")]
+            probe: cpp::Probe::open(policy.body(), None),
+        }
     }
-    assert_eq!(ours.head_pos(), theirs.head_pos, "{label}: head position");
-    assert!(
-        ours.code_points() == theirs.code_points.as_slice(),
-        "{label}: code points"
+}
+
+/// The node at `pos` read both ways (with its flags) and fetched, checked against the probe's.
+fn check_node(tape: &mut Tape, reader: &Reader, pos: i32) {
+    let policy = reader.policy;
+    let read = policy.node_reader().read_info(pos);
+    same!(
+        tape,
+        (node(&read), i32::from(read.flags())),
+        (
+            probed(&reader.probe.read_info(pos)),
+            reader.probe.read_info(pos).flags
+        ),
+        "node {pos} read"
     );
-    assert_eq!(
-        ours.probability(),
-        theirs.probability,
-        "{label}: probability"
-    );
-    assert_eq!(
-        ours.children_pos(),
-        theirs.children_pos,
-        "{label}: children position"
-    );
-    assert_eq!(
-        ours.shortcut_pos(),
-        theirs.shortcut_pos,
-        "{label}: shortcut position"
-    );
-    assert_eq!(
-        ours.bigram_pos(),
-        theirs.bigram_pos,
-        "{label}: bigram position"
-    );
-    assert_eq!(
-        ours.sibling_pos(),
-        theirs.sibling_pos,
-        "{label}: sibling position"
-    );
-    assert_eq!(ours.is_terminal(), theirs.is_terminal, "{label}: terminal");
-    assert_eq!(
-        ours.is_not_a_word(),
-        theirs.is_not_a_word,
-        "{label}: not a word"
-    );
-    assert_eq!(
-        ours.is_possibly_offensive(),
-        theirs.is_possibly_offensive,
-        "{label}: possibly offensive"
-    );
-    assert_eq!(
-        ours.has_children(),
-        theirs.has_children,
-        "{label}: has children"
-    );
-    assert_eq!(
-        ours.has_bigrams(),
-        theirs.has_bigrams,
-        "{label}: has bigrams"
+    same!(
+        tape,
+        node(&policy.node_reader().fetch(pos)),
+        probed(&reader.probe.fetch(pos)),
+        "node {pos} fetch"
     );
 }
 
@@ -141,6 +180,7 @@ fn rust_shortcuts(policy: &PatriciaTriePolicy, list: i32, max_depth: usize) -> V
 type Shortcut = (i32, bool, bool, Vec<i32>);
 
 /// The probe's shortcut entries at `list`, in the same shape as [`rust_shortcuts`].
+#[cfg(feature = "oracle")]
 fn probe_shortcuts(probe: &cpp::Probe, list: i32, max_depth: usize) -> Vec<Shortcut> {
     probe
         .shortcut_entries(list, max_depth)
@@ -157,69 +197,94 @@ fn probe_shortcuts(probe: &cpp::Probe, list: i32, max_depth: usize) -> Vec<Short
 }
 
 #[test]
-fn every_node_reads_the_same_as_the_cpp_reader() {
+fn every_node_reads_the_same_as_the_goldens() {
     for pair in pairs() {
-        let probe = cpp::Probe::open(pair.ours.policy().body(), None);
+        let reader = Reader::new(pair.ours.policy());
         let positions = all_node_positions(pair);
         assert!(
             positions.len() > 10_000,
             "the trie has nodes to compare ({})",
             positions.len()
         );
-        let ours = pair.ours.policy().node_reader();
+        let mut tape = pair.tape("every_node");
         for pos in positions {
-            let label = format!("node {pos}");
-            let read = ours.read_info(pos);
-            same_node(&read, &probe.read_info(pos), &format!("{label} read"));
-            assert_eq!(
-                i32::from(read.flags()),
-                probe.read_info(pos).flags,
-                "{label}: flags"
-            );
-            same_node(
-                &ours.fetch(pos),
-                &probe.fetch(pos),
-                &format!("{label} fetch"),
-            );
+            check_node(&mut tape, &reader, pos);
         }
+        tape.finish();
     }
 }
 
+/// The array and the forward link at `pos`, checked against the probe's.
+fn check_array(tape: &mut Tape, reader: &Reader, pos: i32) {
+    let policy = reader.policy;
+    same!(
+        tape,
+        (
+            policy.array_reader().read_info(pos),
+            policy.array_reader().read_forward_link(pos)
+        ),
+        (reader.probe.array(pos), reader.probe.forward_link(pos)),
+        "array and forward link at {pos}"
+    );
+}
+
 #[test]
-fn arrays_and_forward_links_match_the_cpp_at_random_positions() {
+fn arrays_and_forward_links_match_the_goldens_at_random_positions() {
     for pair in pairs() {
-        let probe = cpp::Probe::open(pair.ours.policy().body(), None);
-        let body_len = pair.ours.policy().body().len();
+        let reader = Reader::new(pair.ours.policy());
+        let policy = reader.policy;
+        let body_len = policy.body().len();
         let mut random = Random(0x00A2_2A77);
         let mut positions = all_node_positions(pair);
         positions.extend((0..20_000).map(|_| random.below(body_len) as i32));
         positions.push(body_len as i32);
+        let mut tape = pair.tape("arrays_and_forward_links");
         for pos in positions {
-            let ours_array = pair.ours.policy().array_reader().read_info(pos);
-            assert_eq!(probe.array(pos), ours_array, "array at {pos}");
-            let ours_link = pair.ours.policy().array_reader().read_forward_link(pos);
-            assert_eq!(probe.forward_link(pos), ours_link, "forward link at {pos}");
+            check_array(&mut tape, &reader, pos);
         }
+        tape.finish();
     }
 }
 
+/// The bigram visits and the shortcut entries of the lists at `pos`, checked against the probe's.
+fn check_lists(tape: &mut Tape, reader: &Reader, pos: i32) {
+    let policy = reader.policy;
+    same!(
+        tape,
+        rust_bigrams(policy, pos),
+        reader.probe.bigram_visits(pos),
+        "bigram list at {pos}"
+    );
+    same!(
+        tape,
+        rust_shortcuts(policy, pos, 48),
+        probe_shortcuts(&reader.probe, pos, 48),
+        "shortcut list at {pos}"
+    );
+}
+
 #[test]
-fn bigram_lists_of_every_node_match_the_cpp_visits() {
+fn bigram_lists_of_every_node_match_the_goldens() {
     for pair in pairs() {
-        let probe = cpp::Probe::open(pair.ours.policy().body(), None);
+        let reader = Reader::new(pair.ours.policy());
+        let policy = reader.policy;
+        let mut tape = pair.tape("bigram_lists_of_every_node");
         let mut checked = 0_usize;
         for pos in all_node_positions(pair) {
-            let node = pair.ours.policy().node_reader().fetch(pos);
+            let node = policy.node_reader().fetch(pos);
             if !node.has_bigrams() {
                 continue;
             }
             checked += 1;
             let list = node.bigram_pos();
-            assert!(
-                rust_bigrams(pair.ours.policy(), list) == probe.bigram_visits(list),
-                "bigram list at {list} differs"
+            same!(
+                tape,
+                rust_bigrams(policy, list),
+                reader.probe.bigram_visits(list),
+                "bigram list at {list}"
             );
         }
+        tape.finish();
         assert!(
             checked > 1_000,
             "the trie has bigram lists to compare ({checked})"
@@ -228,22 +293,27 @@ fn bigram_lists_of_every_node_match_the_cpp_visits() {
 }
 
 #[test]
-fn shortcut_lists_of_every_node_match_the_cpp_entries() {
+fn shortcut_lists_of_every_node_match_the_goldens() {
     for pair in pairs() {
-        let probe = cpp::Probe::open(pair.ours.policy().body(), None);
+        let reader = Reader::new(pair.ours.policy());
+        let policy = reader.policy;
+        let mut tape = pair.tape("shortcut_lists_of_every_node");
         let mut checked = 0_usize;
         for pos in all_node_positions(pair) {
-            let node = pair.ours.policy().node_reader().fetch(pos);
+            let node = policy.node_reader().fetch(pos);
             if !node.has_shortcut_targets() {
                 continue;
             }
             checked += 1;
             let list = node.shortcut_pos();
-            assert!(
-                rust_shortcuts(pair.ours.policy(), list, 48) == probe_shortcuts(&probe, list, 48),
-                "shortcut list at {list} differs"
+            same!(
+                tape,
+                rust_shortcuts(policy, list, 48),
+                probe_shortcuts(&reader.probe, list, 48),
+                "shortcut list at {list}"
             );
         }
+        tape.finish();
         assert!(checked > 0, "the trie has shortcut lists to compare");
     }
 }
@@ -259,46 +329,20 @@ fn random_byte(random: &mut Random) -> u8 {
 }
 
 #[test]
-fn random_bodies_read_their_nodes_arrays_and_lists_as_the_cpp_does() {
+fn random_bodies_read_their_nodes_arrays_and_lists_as_the_goldens_say() {
+    let mut tape = crate::golden::tape("trie.random_bodies");
     let mut random = Random(0x00B0_D1E5);
-    for round in 0..2_000 {
+    for _ in 0..2_000 {
         let length = 8 + random.below(200);
         let body: Vec<u8> = (0..length).map(|_| random_byte(&mut random)).collect();
         // A header of size 0, so the whole buffer is the body.
         let policy = PatriciaTriePolicy::new(Arc::from(body.as_slice()), 0, None);
-        let probe = cpp::Probe::open(&body, None);
+        let reader = Reader::new(&policy);
         for pos in 0..length as i32 {
-            let label = format!("round {round} position {pos}");
-            let read = policy.node_reader().read_info(pos);
-            same_node(&read, &probe.read_info(pos), &format!("{label} read"));
-            assert_eq!(
-                i32::from(read.flags()),
-                probe.read_info(pos).flags,
-                "{label}: flags"
-            );
-            same_node(
-                &policy.node_reader().fetch(pos),
-                &probe.fetch(pos),
-                &format!("{label} fetch"),
-            );
-            assert_eq!(
-                policy.array_reader().read_info(pos),
-                probe.array(pos),
-                "{label}: array"
-            );
-            assert_eq!(
-                policy.array_reader().read_forward_link(pos),
-                probe.forward_link(pos),
-                "{label}: forward link"
-            );
-            assert!(
-                rust_bigrams(&policy, pos) == probe.bigram_visits(pos),
-                "{label}: bigram list"
-            );
-            assert!(
-                rust_shortcuts(&policy, pos, 48) == probe_shortcuts(&probe, pos, 48),
-                "{label}: shortcut list"
-            );
+            check_node(&mut tape, &reader, pos);
+            check_array(&mut tape, &reader, pos);
+            check_lists(&mut tape, &reader, pos);
         }
     }
+    tape.finish();
 }

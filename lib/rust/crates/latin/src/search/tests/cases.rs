@@ -1,11 +1,11 @@
-//! Single queries on a fresh session each: the oracle's generator, predictions, sentence starts,
+//! Single queries on a fresh session each: the seeded generator, predictions, sentence starts,
 //! offensive blocking and capital letters.
 
 use std::time::Instant;
 
-use latin_oracle::queries::{self, Random};
+use latin_golden::queries::{self, Query, Random};
 
-use super::support::{Pair, in_chunks, new_session, tap};
+use super::support::{Pair, in_chunks, prefix, record, tap};
 use crate::defines::NOT_A_FIRST_WORD_CONFIDENCE;
 use crate::search::dictionary::{KIND_PREDICTION, KIND_SHORTCUT, KIND_WHITELIST};
 
@@ -48,13 +48,21 @@ impl Coverage {
 }
 
 /// One query on a fresh session per side, compared; the Rust output.
-fn fresh(pair: &Pair, query: &latin_oracle::Query, context: &str) -> crate::search::Output {
-    let (cpp_session, mut session) = (pair.cpp_session(), new_session());
-    pair.compare((&mut session, &cpp_session), query, context)
+fn fresh(pair: &Pair, query: &Query) -> crate::search::Output {
+    pair.compare(&mut pair.sessions(), query)
+}
+
+/// Every query on a fresh session, compared, and the outputs recorded on `test`'s tape.
+fn ask_fresh(pair: &Pair, test: &str, inputs: &[Query]) -> Vec<crate::search::Output> {
+    let outputs = in_chunks(inputs, || (), |(), _, query| fresh(pair, query));
+    let mut tape = pair.tape(test);
+    record(&mut tape, &outputs);
+    tape.finish();
+    outputs
 }
 
 #[test]
-fn seeded_queries_match_the_cpp() {
+fn seeded_queries_match_the_goldens() {
     for pair in Pair::each() {
         let mut random = Random::new(20_261_109);
         let started = Instant::now();
@@ -62,11 +70,7 @@ fn seeded_queries_match_the_cpp() {
         let inputs: Vec<_> = (0..total)
             .map(|_| queries::query(&mut random, &pair.words))
             .collect();
-        let outputs = in_chunks(
-            &inputs,
-            || (),
-            |(), round, query| fresh(pair, query, &format!("query {round}")),
-        );
+        let outputs = ask_fresh(pair, "seeded_queries", &inputs);
         let coverage = Coverage::of(&outputs);
         eprintln!("{total} queries in {:?}", started.elapsed());
         assert_eq!(outputs.len(), total);
@@ -85,7 +89,7 @@ fn seeded_queries_match_the_cpp() {
 /// Empty input is next-word prediction: after one, two or three words, after a sentence start
 /// alone, and after nothing.
 #[test]
-fn predictions_match_the_cpp() {
+fn predictions_match_the_goldens() {
     for pair in Pair::each() {
         let mut random = Random::new(7);
         let inputs: Vec<_> = (0..3_000)
@@ -104,11 +108,7 @@ fn predictions_match_the_cpp() {
                 query
             })
             .collect();
-        let outputs = in_chunks(
-            &inputs,
-            || (),
-            |(), round, query| fresh(pair, query, &format!("prediction {round}")),
-        );
+        let outputs = ask_fresh(pair, "predictions", &inputs);
         let coverage = Coverage::of(&outputs);
         assert!(coverage.predictions > 500, "{}", coverage.predictions);
     }
@@ -117,7 +117,7 @@ fn predictions_match_the_cpp() {
 /// The first word of a text: the previous slot is only the start of a sentence, with the word
 /// typed or not.
 #[test]
-fn sentence_starts_match_the_cpp() {
+fn sentence_starts_match_the_goldens() {
     for pair in Pair::each() {
         let mut random = Random::new(11);
         let inputs: Vec<_> = (0..4_000)
@@ -132,11 +132,7 @@ fn sentence_starts_match_the_cpp() {
                 query
             })
             .collect();
-        let outputs = in_chunks(
-            &inputs,
-            || (),
-            |(), round, query| fresh(pair, query, &format!("start {round}")),
-        );
+        let outputs = ask_fresh(pair, "sentence_starts", &inputs);
         let coverage = Coverage::of(&outputs);
         assert!(coverage.non_empty > 2_000, "{}", coverage.non_empty);
     }
@@ -145,25 +141,33 @@ fn sentence_starts_match_the_cpp() {
 /// The same questions with offensive words blocked and not: each matches the C++, and blocking
 /// changes some answers.
 #[test]
-fn offensive_blocking_matches_the_cpp() {
+fn offensive_blocking_matches_the_goldens() {
     for pair in Pair::each() {
         let mut random = Random::new(13);
         let inputs: Vec<_> = (0..6_000)
             .map(|_| queries::query(&mut random, &pair.words))
             .collect();
-        let changed = in_chunks(
+        let answers = in_chunks(
             &inputs,
             || (),
-            |(), round, query| {
+            |(), _, query| {
                 let mut query = query.clone();
                 query.block_offensive_words = false;
-                let open = fresh(pair, &query, &format!("open {round}"));
+                let open = fresh(pair, &query);
                 query.block_offensive_words = true;
-                let blocked = fresh(pair, &query, &format!("blocked {round}"));
-                open != blocked
+                (open, fresh(pair, &query))
             },
         );
-        let differing = changed.iter().filter(|&&it| it).count();
+        let mut tape = pair.tape("offensive_blocking");
+        record(
+            &mut tape,
+            answers.iter().flat_map(|(open, blocked)| [open, blocked]),
+        );
+        tape.finish();
+        let differing = answers
+            .iter()
+            .filter(|(open, blocked)| open != blocked)
+            .count();
         eprintln!("blocking changed {differing} answers");
         assert!(differing > 0, "no answer had an offensive word");
     }
@@ -171,7 +175,7 @@ fn offensive_blocking_matches_the_cpp() {
 
 /// Capital letters: the first letter, every letter, and a letter in the middle.
 #[test]
-fn capitalised_input_matches_the_cpp() {
+fn capitalised_input_matches_the_goldens() {
     for pair in Pair::each() {
         let mut random = Random::new(17);
         let upper = |code: i32| {
@@ -203,11 +207,7 @@ fn capitalised_input_matches_the_cpp() {
                 query
             })
             .collect();
-        let outputs = in_chunks(
-            &inputs,
-            || (),
-            |(), round, query| fresh(pair, query, &format!("capital {round}")),
-        );
+        let outputs = ask_fresh(pair, "capitalised_input", &inputs);
         let coverage = Coverage::of(&outputs);
         assert!(coverage.non_empty > 3_000, "{}", coverage.non_empty);
     }
@@ -217,7 +217,7 @@ fn capitalised_input_matches_the_cpp() {
 /// missing, or every other one, typed letter by letter on one session per side (one per run of
 /// rounds; see [`in_chunks`]).
 #[test]
-fn missing_coordinates_match_the_cpp() {
+fn missing_coordinates_match_the_goldens() {
     for pair in Pair::each() {
         let mut random = Random::new(19);
         let inputs: Vec<_> = (0..1_500)
@@ -233,24 +233,16 @@ fn missing_coordinates_match_the_cpp() {
             .collect();
         let outputs = in_chunks(
             &inputs,
-            || (pair.cpp_session(), new_session()),
-            |(cpp_session, session), round, query| {
+            || pair.sessions(),
+            |sessions, _, query| {
                 (1..=query.code_points.len())
-                    .map(|length| {
-                        let input = latin_oracle::Query {
-                            code_points: query.code_points[..length].to_vec(),
-                            points: query.points[..length].to_vec(),
-                            ..query.clone()
-                        };
-                        pair.compare(
-                            (session, cpp_session),
-                            &input,
-                            &format!("missing {round}/{length}"),
-                        )
-                    })
+                    .map(|length| pair.compare(sessions, &prefix(query, length)))
                     .collect::<Vec<_>>()
             },
         );
+        let mut tape = pair.tape("missing_coordinates");
+        record(&mut tape, outputs.iter().flatten());
+        tape.finish();
         let calls = outputs.iter().map(Vec::len).sum::<usize>();
         let coverage = Coverage::of(outputs.iter().flatten());
         assert!(
@@ -264,7 +256,7 @@ fn missing_coordinates_match_the_cpp() {
 /// The longest input the app sends, 48 taps (it drops anything longer), and 47 beside it: words
 /// run together until they fill it, half the time with a typo, with taps or without.
 #[test]
-fn the_longest_inputs_match_the_cpp() {
+fn the_longest_inputs_match_the_goldens() {
     for pair in Pair::each() {
         let mut random = Random::new(48);
         let inputs: Vec<_> = (0..400)
@@ -284,7 +276,7 @@ fn the_longest_inputs_match_the_cpp() {
                     .iter()
                     .map(|&c| if tapped { tap(&mut random, c) } else { None })
                     .collect();
-                latin_oracle::Query {
+                Query {
                     code_points,
                     points,
                     block_offensive_words: false,
@@ -293,11 +285,7 @@ fn the_longest_inputs_match_the_cpp() {
                 }
             })
             .collect();
-        let outputs = in_chunks(
-            &inputs,
-            || (),
-            |(), round, query| fresh(pair, query, &format!("longest {round}")),
-        );
+        let outputs = ask_fresh(pair, "the_longest_inputs", &inputs);
         assert_eq!(outputs.len(), 400);
     }
 }

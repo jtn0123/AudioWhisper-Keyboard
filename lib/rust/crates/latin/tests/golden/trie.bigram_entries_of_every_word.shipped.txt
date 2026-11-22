@@ -1,0 +1,41 @@
+# trie.bigram_entries_of_every_word.shipped: LatinIME's C++ answers to this test's questions (docs/phase6-oracle-goldens.md).
+# Answers, the digest after the last, after each power of two (at N), and some in full.
+count 160669
+digest 2ff7ebd20ab7343b
+at 1 06312a7ba27624ce
+at 2 2eea03b2f72ee5e3
+at 4 264352cca17fad11
+at 8 eb1c3f0affa6633d
+at 16 13de5a5ef9c8e416
+at 32 a2ca339938d8dac6
+at 64 760b69959c8067b1
+at 128 31dc84f44ffef749
+at 256 86cb90200f529887
+at 512 6e097fd7248b3375
+at 1024 d58e88d766371852
+at 2048 b9526ce08e586a11
+at 4096 2a2ed03382cb8b23
+at 8192 fb19cac31640b773
+at 16384 56c47dc0f43d673f
+at 32768 73f2f0badafc6430
+at 65536 2337c857414308b2
+at 131072 f83fc6bed2669c06
+sample 0 af63bd4c8601b7df [] <- ngram_entries(pair, &[id])
+sample 1 af63bd4c8601b7df [] <- ngram_entries(pair, &[id])
+sample 2 af63bd4c8601b7df [] <- ngram_entries(pair, &[id])
+sample 3 af63bd4c8601b7df [] <- ngram_entries(pair, &[id])
+sample 7 af63bd4c8601b7df [] <- ngram_entries(pair, &[id])
+sample 15 af63bd4c8601b7df [] <- ngram_entries(pair, &[id])
+sample 31 af63bd4c8601b7df [] <- ngram_entries(pair, &[id])
+sample 63 bd0cadb602da6492 [(9,883826),(0,543200),(0,1290485),(10,1045477),(9,1661419),(8,505170),(0,1290631),(8,600685),(7,812051),(8,1749619),(7,... <- ngram_entries(pair, &[id])
+sample 127 af63bd4c8601b7df [] <- ngram_entries(pair, &[id])
+sample 255 af63bd4c8601b7df [] <- ngram_entries(pair, &[id])
+sample 511 af63bd4c8601b7df [] <- ngram_entries(pair, &[id])
+sample 1023 d6c7cd3c85df60af [(2,1290485),(7,2329659),(3,1136586),(7,2357251)] <- ngram_entries(pair, &[id])
+sample 2047 af63bd4c8601b7df [] <- ngram_entries(pair, &[id])
+sample 4095 af63bd4c8601b7df [] <- ngram_entries(pair, &[id])
+sample 8191 af63bd4c8601b7df [] <- ngram_entries(pair, &[id])
+sample 16383 af63bd4c8601b7df [] <- ngram_entries(pair, &[id])
+sample 32767 af63bd4c8601b7df [] <- ngram_entries(pair, &[id])
+sample 65535 e3b6a318879efe3d [(11,1256458)] <- ngram_entries(pair, &[id])
+sample 131071 af63bd4c8601b7df [] <- ngram_entries(pair, &[id])

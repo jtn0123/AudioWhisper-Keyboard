@@ -1,0 +1,33 @@
+# trie.word_attributes_in_context.shipped: LatinIME's C++ answers to this test's questions (docs/phase6-oracle-goldens.md).
+# Answers, the digest after the last, after each power of two (at N), and some in full.
+count 15000
+digest c86e4811e0ed22e7
+at 1 e4a7ae666b40558a
+at 2 6811760ef4081424
+at 4 319be5b1de0fc408
+at 8 f468155086f78bdc
+at 16 7d8d7bf559ad0625
+at 32 8b9a6c61d7b252eb
+at 64 5f50ce65ee946647
+at 128 f2692835163e4121
+at 256 68d0fe4f30976a8d
+at 512 18137dd2940209ad
+at 1024 5515d351b2723de6
+at 2048 85eb837dabfb23ab
+at 4096 b28252e682d0cb85
+at 8192 290d85a034d444fa
+sample 0 0cb03f37066c486b (30,false,false,false) <- (ours.probability(), ours.is_blacklisted(), ours.is_not_a_word(), ours.is_possib
+sample 1 ebcb249d8172f4c6 (67,false,false,false) <- (ours.probability(), ours.is_blacklisted(), ours.is_not_a_word(), ours.is_possib
+sample 2 2b95dcf0df8c5270 (85,false,false,false) <- (ours.probability(), ours.is_blacklisted(), ours.is_not_a_word(), ours.is_possib
+sample 3 ad2aca7747985764 (1,false,false,false) <- (ours.probability(), ours.is_blacklisted(), ours.is_not_a_word(), ours.is_possib
+sample 7 ec4b03d56c69472e (107,false,false,false) <- (ours.probability(), ours.is_blacklisted(), ours.is_not_a_word(), ours.is_possib
+sample 15 ed4ac2454255ebfe (59,false,false,false) <- (ours.probability(), ours.is_blacklisted(), ours.is_not_a_word(), ours.is_possib
+sample 31 2c959b60b578f740 (101,false,false,false) <- (ours.probability(), ours.is_blacklisted(), ours.is_not_a_word(), ours.is_possib
+sample 63 6ce032ebfe88a752 (23,false,false,false) <- (ours.probability(), ours.is_blacklisted(), ours.is_not_a_word(), ours.is_possib
+sample 127 aaab6e5fb0c8bb5c (185,false,false,false) <- (ours.probability(), ours.is_blacklisted(), ours.is_not_a_word(), ours.is_possib
+sample 255 8cf02ed2fbe7719f (10,false,false,false) <- (ours.probability(), ours.is_blacklisted(), ours.is_not_a_word(), ours.is_possib
+sample 511 cdbaa5962fed7419 (44,false,false,false) <- (ours.probability(), ours.is_blacklisted(), ours.is_not_a_word(), ours.is_possib
+sample 1023 4bd078952b3d3835 (64,false,false,false) <- (ours.probability(), ours.is_blacklisted(), ours.is_not_a_word(), ours.is_possib
+sample 2047 cbbb28b684142a79 (76,false,false,false) <- (ours.probability(), ours.is_blacklisted(), ours.is_not_a_word(), ours.is_possib
+sample 4095 abd5cc8cd5077ba4 (65,false,false,false) <- (ours.probability(), ours.is_blacklisted(), ours.is_not_a_word(), ours.is_possib
+sample 8191 4b7b391a8e990145 (80,false,false,false) <- (ours.probability(), ours.is_blacklisted(), ours.is_not_a_word(), ours.is_possib

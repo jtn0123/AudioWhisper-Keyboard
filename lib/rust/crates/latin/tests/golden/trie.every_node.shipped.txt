@@ -1,0 +1,43 @@
+# trie.every_node.shipped: LatinIME's C++ answers to this test's questions (docs/phase6-oracle-goldens.md).
+# Answers, the digest after the last, after each power of two (at N), and some in full.
+count 392288
+digest abc915c955ed3d19
+at 1 35b3d2ebfb2f53f7
+at 2 64259c128b733b2d
+at 4 11541e07c2d45365
+at 8 e07f8034297fadb9
+at 16 b310ae20f4c67925
+at 32 fad2b23cdf2d56f9
+at 64 2f1f4563376c15b9
+at 128 8716ef84cbeb240a
+at 256 8a57441a5ce3207d
+at 512 d3bbc6187849ad5d
+at 1024 f6da27cf4ad3c04d
+at 2048 876885b8a8b51fce
+at 4096 8b6051a00349c627
+at 8192 12816ad93fbd4864
+at 16384 4b3f3cadc4ab844d
+at 32768 7d8df7f17eb29164
+at 65536 277fed6a925dd87b
+at 131072 5c41e3e4224b3b01
+at 262144 07b0ff1fde2ea9a2
+sample 0 595dbf8147d43988 ((1,[49,87,101,97,116,104,101,114],23,(-2147483648,-2147483648,-2147483648,12),(true,false,false,false,false)),48) <- (node(&read), i32::from(read.flags()))
+sample 1 c7a068674923cc68 (1,[49,87,101,97,116,104,101,114],23,(-2147483648,-2147483648,-2147483648,12),(true,false,false,false,false)) <- node(&policy.node_reader().fetch(pos))
+sample 2 c0cd47e8a07dbb88 ((12,[65],-1,(672,-2147483648,-2147483648,16),(false,false,false,true,false)),128) <- (node(&read), i32::from(read.flags()))
+sample 3 63c1596a773f42d8 (12,[65],-1,(672,-2147483648,-2147483648,16),(false,false,false,true,false)) <- node(&policy.node_reader().fetch(pos))
+sample 7 b52b93559605cc3f (20,[67],-1,(69816,-2147483648,-2147483648,25),(false,false,false,true,false)) <- node(&policy.node_reader().fetch(pos))
+sample 15 48d8d9280fa1ab7a (40,[71],-1,(159103,-2147483648,-2147483648,45),(false,false,false,true,false)) <- node(&policy.node_reader().fetch(pos))
+sample 31 d57346a23395f11c (209,[79],-1,(324377,-2147483648,-2147483648,214),(false,false,false,true,false)) <- node(&policy.node_reader().fetch(pos))
+sample 63 35f654ad4844f370 (418,[101],-1,(1001035,-2147483648,-2147483648,423),(false,false,false,true,false)) <- node(&policy.node_reader().fetch(pos))
+sample 127 9b36c9407d0a4068 (715,[73],0,(1415,-2147483648,720,756),(true,false,true,true,true)) <- node(&policy.node_reader().fetch(pos))
+sample 255 4671260a461d505f (34669,[97],-1,(35355,-2147483648,-2147483648,34673),(false,false,false,true,false)) <- node(&policy.node_reader().fetch(pos))
+sample 511 b2368a04e15fe048 (128110,[114],-1,(137183,-2147483648,-2147483648,128114),(false,false,false,true,false)) <- node(&policy.node_reader().fetch(pos))
+sample 1023 922dfb79c0bf0bee (267833,[82],-1,(269123,-2147483648,-2147483648,267837),(false,false,false,true,false)) <- node(&policy.node_reader().fetch(pos))
+sample 2047 cdf2ab3c1955c9f4 (1001256,[118],-1,(1056895,-2147483648,-2147483648,1001260),(false,false,false,true,false)) <- node(&policy.node_reader().fetch(pos))
+sample 4095 304e5a1397b48400 (71848,[79],77,(71884,-2147483648,71852,71856),(true,false,false,true,true)) <- node(&policy.node_reader().fetch(pos))
+sample 8191 ec7a1bffa8f2f518 (268305,[67],62,(268374,-2147483648,-2147483648,268309),(true,false,false,true,false)) <- node(&policy.node_reader().fetch(pos))
+sample 16383 fb40abcc9be9eb7f (1574130,[118],-1,(1587374,-2147483648,-2147483648,1574134),(false,false,false,true,false)) <- node(&policy.node_reader().fetch(pos))
+sample 32767 0bc1e35ae7602ac5 (313907,[114,97,103,97,110,115,101,116,116],57,(313985,-2147483648,-2147483648,313920),(true,false,false,true,false)) <- node(&policy.node_reader().fetch(pos))
+sample 65535 a13666653d9ca1be (2349188,[115],25,(-2147483648,-2147483648,-2147483648,2349191),(true,false,true,false,false)) <- node(&policy.node_reader().fetch(pos))
+sample 131071 3886c98faa7968b9 (1646245,[98,105],10,(-2147483648,-2147483648,-2147483648,1646250),(true,false,false,false,false)) <- node(&policy.node_reader().fetch(pos))
+sample 262143 6b761e5460444022 (684186,[114],116,(-2147483648,-2147483648,684189,684316),(true,false,false,false,true)) <- node(&policy.node_reader().fetch(pos))

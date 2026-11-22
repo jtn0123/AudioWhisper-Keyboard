@@ -1,0 +1,31 @@
+# trie.random_ids.shipped: LatinIME's C++ answers to this test's questions (docs/phase6-oracle-goldens.md).
+# Answers, the digest after the last, after each power of two (at N), and some in full.
+count 5000
+digest c34c66fae0a38f41
+at 1 c7e31689c3d878fe
+at 2 1eec29086e4ef158
+at 4 5c53f6ac11e04442
+at 8 5ac955183335cef9
+at 16 2f6230cc0e01cec2
+at 32 1ec95a46bdfe3a25
+at 64 68f2a222e3afebdf
+at 128 aad09c4e8e33d18e
+at 256 b206ac5314045b40
+at 512 9b5b2220bddb3990
+at 1024 8af9852a2a1cb29b
+at 2048 7c30f17533c99ff5
+at 4096 2e32c9d3775464bd
+sample 0 434332dd79a3db2f [109,97,99,101,114,97,116,101] <- code_points(pair, word_id)
+sample 1 25480d89c72e55b6 [99,97,116] <- code_points(pair, word_id)
+sample 2 2b66c316e9c3342b [104,121,100,114,111,115,112,104,101,114,101,115] <- code_points(pair, word_id)
+sample 3 af63bd4c8601b7df [] <- code_points(pair, word_id)
+sample 7 2143ed1003ca2584 [102,97,120,105,110,103] <- code_points(pair, word_id)
+sample 15 9978dd1728f6608f [83,101,116,104,39,115] <- code_points(pair, word_id)
+sample 31 712961098d067555 [107,101,121,114,105,110,103,115] <- code_points(pair, word_id)
+sample 63 06d6a25ffc44cdfe [101,120,101,109,112,108,105,102,121,105,110,103] <- code_points(pair, word_id)
+sample 127 edfc11f745ed1569 [119,97,118,101,114] <- code_points(pair, word_id)
+sample 255 3af405dfbaf85d45 [103,111,105,116,101,114] <- code_points(pair, word_id)
+sample 511 05eb4b84e173360c [115,105,120,116,101,101,110,116,104] <- code_points(pair, word_id)
+sample 1023 da8a066f319fd960 [65,108,101,107,115,97,110,100,114,111,118,115,107] <- code_points(pair, word_id)
+sample 2047 86c33f896ca8671c [77,101,108] <- code_points(pair, word_id)
+sample 4095 34bf79ffcff12109 [99,108,97,115,115,114,111,111,109,115] <- code_points(pair, word_id)

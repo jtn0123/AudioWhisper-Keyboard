@@ -22,6 +22,8 @@
 pub mod bytes;
 pub mod chars;
 pub mod defines;
+#[cfg(test)]
+mod golden;
 pub mod header;
 pub mod layout;
 pub mod search;

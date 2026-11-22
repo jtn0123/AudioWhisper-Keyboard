@@ -1,0 +1,37 @@
+# trie.probability_after_previous_words.shipped: LatinIME's C++ answers to this test's questions (docs/phase6-oracle-goldens.md).
+# Answers, the digest after the last, after each power of two (at N), and some in full.
+count 40000
+digest 07273fef4e5cd982
+at 1 f9c767845d801e71
+at 2 443a0eb302afbcad
+at 4 f54b52277fcaca75
+at 8 d61fdb47b3bd39c5
+at 16 39af6b101754a865
+at 32 0d4582175c04d029
+at 64 9894bfd424383fe5
+at 128 4d93abf23bb883fb
+at 256 dfd3c80150c294c5
+at 512 759d0a6dfb2d7ddb
+at 1024 140eb631cc2b1e2c
+at 2048 a7717ec99af1998f
+at 4096 30959a5445ebbfe0
+at 8192 ff3b5449a9059d45
+at 16384 f14a38e86f70352e
+at 32768 d6ce1771917b0cf0
+sample 0 509c41b379fe466e -1 <- pair.ours.ngram_probability(Some(&context), next)
+sample 1 509c41b379fe466e -1 <- pair.ours.ngram_probability(Some(&context), next)
+sample 2 509c41b379fe466e -1 <- pair.ours.ngram_probability(Some(&context), next)
+sample 3 509c41b379fe466e -1 <- pair.ours.ngram_probability(Some(&context), next)
+sample 7 509c41b379fe466e -1 <- pair.ours.ngram_probability(Some(&context), next)
+sample 15 509c41b379fe466e -1 <- pair.ours.ngram_probability(Some(&context), next)
+sample 31 509c41b379fe466e -1 <- pair.ours.ngram_probability(Some(&context), next)
+sample 63 509c41b379fe466e -1 <- pair.ours.ngram_probability(Some(&context), next)
+sample 127 509c41b379fe466e -1 <- pair.ours.ngram_probability(Some(&context), next)
+sample 255 509c41b379fe466e -1 <- pair.ours.ngram_probability(Some(&context), next)
+sample 511 509c41b379fe466e -1 <- pair.ours.ngram_probability(Some(&context), next)
+sample 1023 509c41b379fe466e -1 <- pair.ours.ngram_probability(Some(&context), next)
+sample 2047 af64154c86024d67 88 <- pair.ours.ngram_probability(Some(&context), next)
+sample 4095 509c41b379fe466e -1 <- pair.ours.ngram_probability(Some(&context), next)
+sample 8191 509c41b379fe466e -1 <- pair.ours.ngram_probability(Some(&context), next)
+sample 16383 509c41b379fe466e -1 <- pair.ours.ngram_probability(Some(&context), next)
+sample 32767 509c41b379fe466e -1 <- pair.ours.ngram_probability(Some(&context), next)

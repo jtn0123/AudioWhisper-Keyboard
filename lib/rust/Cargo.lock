@@ -967,7 +967,15 @@ dependencies = [
 name = "latin"
 version = "0.1.0"
 dependencies = [
+ "latin-golden",
  "latin-oracle",
+]
+
+[[package]]
+name = "latin-golden"
+version = "0.1.0"
+dependencies = [
+ "chars",
 ]
 
 [[package]]
@@ -977,6 +985,7 @@ dependencies = [
  "cc",
  "chars",
  "latin",
+ "latin-golden",
  "suggest",
 ]
 
@@ -1906,6 +1915,7 @@ dependencies = [
  "chars",
  "keys",
  "latin",
+ "latin-golden",
  "ngram",
 ]
 

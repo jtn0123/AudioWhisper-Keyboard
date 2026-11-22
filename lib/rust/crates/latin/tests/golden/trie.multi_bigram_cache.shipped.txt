@@ -1,0 +1,31 @@
+# trie.multi_bigram_cache.shipped: LatinIME's C++ answers to this test's questions (docs/phase6-oracle-goldens.md).
+# Answers, the digest after the last, after each power of two (at N), and some in full.
+count 7200
+digest 5724542f4a843b32
+at 1 0c9f867b9d852ccb
+at 2 2a86e6a3c2cf9162
+at 4 df51d6429a0f5a40
+at 8 62474e7d1825c2d5
+at 16 881ea292c7af9af5
+at 32 f5cb3e45a622a47d
+at 64 5059f895c893096e
+at 128 1c1f6c095673ac29
+at 256 3ab2e5d085f958d0
+at 512 5cd711cdc0017806
+at 1024 abcd43e9ab0d048b
+at 2048 f26213695cb0ba81
+at 4096 b2eb3c97ebb3a0ba
+sample 0 af643c4c86028fac 129 <- ours.get_bigram_probability(policy, &prev, next, unigram)
+sample 1 af63c74c8601c8dd 10 <- policy.get_word_attributes_in_context(&prev, next, Some(&mut ours)).probability(
+sample 2 af64424c860299de 143 <- ours.get_bigram_probability(policy, &prev, next, unigram)
+sample 3 af64144c86024bb4 89 <- policy.get_word_attributes_in_context(&prev, next, Some(&mut ours)).probability(
+sample 7 af63b74c8601adad 58 <- policy.get_word_attributes_in_context(&prev, next, Some(&mut ours)).probability(
+sample 15 af639e4c86018332 35 <- policy.get_word_attributes_in_context(&prev, next, Some(&mut ours)).probability(
+sample 31 af64054c86023237 72 <- policy.get_word_attributes_in_context(&prev, next, Some(&mut ours)).probability(
+sample 63 af63bc4c8601b62c 1 <- policy.get_word_attributes_in_context(&prev, next, Some(&mut ours)).probability(
+sample 127 af63ab4c86019949 54 <- policy.get_word_attributes_in_context(&prev, next, Some(&mut ours)).probability(
+sample 255 af64024c86022d1e 79 <- policy.get_word_attributes_in_context(&prev, next, Some(&mut ours)).probability(
+sample 511 af63d14c8601d9db 28 <- policy.get_word_attributes_in_context(&prev, next, Some(&mut ours)).probability(
+sample 1023 af63fd4c8602249f 64 <- policy.get_word_attributes_in_context(&prev, next, Some(&mut ours)).probability(
+sample 2047 af63c74c8601c8dd 10 <- policy.get_word_attributes_in_context(&prev, next, Some(&mut ours)).probability(
+sample 4095 af63d44c8601def4 25 <- policy.get_word_attributes_in_context(&prev, next, Some(&mut ours)).probability(

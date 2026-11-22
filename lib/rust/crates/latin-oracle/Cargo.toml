@@ -16,6 +16,7 @@ cc = "1.5"
 [dev-dependencies]
 suggest = { path = "../suggest" }
 latin = { path = "../latin" }
+latin-golden = { path = "../latin-golden" }
 
 [lints]
 workspace = true

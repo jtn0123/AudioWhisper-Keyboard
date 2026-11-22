@@ -1,0 +1,39 @@
+# bytes.format_versions: LatinIME's C++ answers to this test's questions (docs/phase6-oracle-goldens.md).
+# Answers, the digest after the last, after each power of two (at N), and some in full.
+count 65541
+digest 7e62a5ddcf05f427
+at 1 f9c767845d801e71
+at 2 443a0eb302afbcad
+at 4 f54b52277fcaca75
+at 8 d61fdb47b3bd39c5
+at 16 39af6b101754a865
+at 32 c1472c963150bba5
+at 64 ae1d2365dccdfc25
+at 128 fa480bf5e2942d25
+at 256 47c32709acc35fd2
+at 512 41c6b19799c0eb59
+at 1024 b22f6ddf98624359
+at 2048 5d1f535aa84d7359
+at 4096 b72e8cb7811ed359
+at 8192 cc378648aafc1359
+at 16384 04881940846d9359
+at 32768 a4f80249759c9359
+at 65536 aaf1ac1ff62e9359
+sample 0 509c41b379fe466e -1 <- detect_format_version(&buffer) as i32
+sample 1 509c41b379fe466e -1 <- detect_format_version(&buffer) as i32
+sample 2 509c41b379fe466e -1 <- detect_format_version(&buffer) as i32
+sample 3 509c41b379fe466e -1 <- detect_format_version(&buffer) as i32
+sample 7 509c41b379fe466e -1 <- detect_format_version(&buffer) as i32
+sample 15 509c41b379fe466e -1 <- detect_format_version(&buffer) as i32
+sample 31 509c41b379fe466e -1 <- detect_format_version(&buffer) as i32
+sample 63 509c41b379fe466e -1 <- detect_format_version(&buffer) as i32
+sample 127 509c41b379fe466e -1 <- detect_format_version(&buffer) as i32
+sample 255 509c41b379fe466e -1 <- detect_format_version(&buffer) as i32
+sample 511 509c41b379fe466e -1 <- detect_format_version(&buffer) as i32
+sample 1023 509c41b379fe466e -1 <- detect_format_version(&buffer) as i32
+sample 2047 509c41b379fe466e -1 <- detect_format_version(&buffer) as i32
+sample 4095 509c41b379fe466e -1 <- detect_format_version(&buffer) as i32
+sample 8191 509c41b379fe466e -1 <- detect_format_version(&buffer) as i32
+sample 16383 509c41b379fe466e -1 <- detect_format_version(&buffer) as i32
+sample 32767 509c41b379fe466e -1 <- detect_format_version(&buffer) as i32
+sample 65535 509c41b379fe466e -1 <- detect_format_version(&buffer) as i32

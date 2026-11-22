@@ -1,0 +1,41 @@
+# trie.bigram_entries_of_every_word.aosp: LatinIME's C++ answers to this test's questions (docs/phase6-oracle-goldens.md).
+# Answers, the digest after the last, after each power of two (at N), and some in full.
+count 160669
+digest b63aa3fb4ec1a02a
+at 1 6c98b219c4b0ca47
+at 2 a2a289893262d516
+at 4 7f7e6d014440e4fe
+at 8 561756900d560247
+at 16 04472359ab0aff04
+at 32 a3a4123d3817d82b
+at 64 d4d69ecb07bea73d
+at 128 2d42d69c84232476
+at 256 db06bb5b8a433185
+at 512 a319de7b640bdcf1
+at 1024 5806228dd6271392
+at 2048 2e593ba00f29629f
+at 4096 fa268369ef1ca576
+at 8192 9aae008e8c4533e2
+at 16384 0195bceca0ee9b61
+at 32768 9f194427ab1825d1
+at 65536 a1ce215e91307c7a
+at 131072 72a7495c8d0968bb
+sample 0 45d1c0c2cbc4a038 [(0,2709630),(0,2681196),(0,2068364)] <- ngram_entries(pair, &[id])
+sample 1 2ee686424c16e5d5 [(0,711930),(0,2277291),(0,1362472)] <- ngram_entries(pair, &[id])
+sample 2 794ab90349ed1310 [(0,2606701),(0,846117),(0,866998)] <- ngram_entries(pair, &[id])
+sample 3 45d1c0c2cbc4a038 [(0,2709630),(0,2681196),(0,2068364)] <- ngram_entries(pair, &[id])
+sample 7 45d1c0c2cbc4a038 [(0,2709630),(0,2681196),(0,2068364)] <- ngram_entries(pair, &[id])
+sample 15 45d1c0c2cbc4a038 [(0,2709630),(0,2681196),(0,2068364)] <- ngram_entries(pair, &[id])
+sample 31 45d1c0c2cbc4a038 [(0,2709630),(0,2681196),(0,2068364)] <- ngram_entries(pair, &[id])
+sample 63 82b587ec5cce020e [(0,866998),(0,1714478),(0,2390276)] <- ngram_entries(pair, &[id])
+sample 127 45d1c0c2cbc4a038 [(0,2709630),(0,2681196),(0,2068364)] <- ngram_entries(pair, &[id])
+sample 255 45d1c0c2cbc4a038 [(0,2709630),(0,2681196),(0,2068364)] <- ngram_entries(pair, &[id])
+sample 511 531afc6fa570b8ed [(0,2068418),(0,1036981),(0,866998)] <- ngram_entries(pair, &[id])
+sample 1023 ac8531a1d6ed80d0 [(0,866998),(0,894734),(0,1714478)] <- ngram_entries(pair, &[id])
+sample 2047 45d1c0c2cbc4a038 [(0,2709630),(0,2681196),(0,2068364)] <- ngram_entries(pair, &[id])
+sample 4095 45d1c0c2cbc4a038 [(0,2709630),(0,2681196),(0,2068364)] <- ngram_entries(pair, &[id])
+sample 8191 45d1c0c2cbc4a038 [(0,2709630),(0,2681196),(0,2068364)] <- ngram_entries(pair, &[id])
+sample 16383 45d1c0c2cbc4a038 [(0,2709630),(0,2681196),(0,2068364)] <- ngram_entries(pair, &[id])
+sample 32767 45d1c0c2cbc4a038 [(0,2709630),(0,2681196),(0,2068364)] <- ngram_entries(pair, &[id])
+sample 65535 45d1c0c2cbc4a038 [(0,2709630),(0,2681196),(0,2068364)] <- ngram_entries(pair, &[id])
+sample 131071 45d1c0c2cbc4a038 [(0,2709630),(0,2681196),(0,2068364)] <- ngram_entries(pair, &[id])

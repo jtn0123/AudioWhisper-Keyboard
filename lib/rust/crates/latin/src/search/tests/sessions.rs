@@ -4,27 +4,18 @@
 
 use std::time::Instant;
 
-use latin_oracle::queries::{self, Random};
+use latin_golden::queries::{self, Query, Random};
 
-use super::support::{Pair, in_chunks, new_session};
-
-/// The query for the first `length` taps of `query`.
-fn prefix(query: &latin_oracle::Query, length: usize) -> latin_oracle::Query {
-    latin_oracle::Query {
-        code_points: query.code_points[..length].to_vec(),
-        points: query.points[..length].to_vec(),
-        ..query.clone()
-    }
-}
+use super::support::{Pair, in_chunks, prefix, record};
 
 /// A word typed letter by letter then deleted back, on one session per side. Sometimes a tap in
 /// the middle changes or the previous words do, so the cache must not continue.
 #[test]
-fn words_typed_and_deleted_match_the_cpp() {
+fn words_typed_and_deleted_match_the_goldens() {
     for pair in Pair::each() {
         let mut random = Random::new(21);
         let started = Instant::now();
-        let inputs: Vec<Vec<latin_oracle::Query>> = (0..2_500)
+        let inputs: Vec<Vec<Query>> = (0..2_500)
             .map(|_| {
                 let query = queries::query(&mut random, &pair.words);
                 let size = query.code_points.len();
@@ -50,25 +41,28 @@ fn words_typed_and_deleted_match_the_cpp() {
                     .collect()
             })
             .collect();
-        let counts = in_chunks(
+        let rounds = in_chunks(
             &inputs,
-            || (pair.cpp_session(), new_session()),
-            |(cpp_session, session), round, steps| {
+            || pair.sessions(),
+            |sessions, _, steps| {
                 let mut continued = 0;
-                for (step, input) in steps.iter().enumerate() {
-                    let before = session.dic_nodes_cache.continued_searches;
-                    pair.compare(
-                        (session, cpp_session),
-                        input,
-                        &format!("round {round} step {step}"),
-                    );
-                    continued += session.dic_nodes_cache.continued_searches - before;
-                }
-                (steps.len(), continued)
+                let outputs: Vec<_> = steps
+                    .iter()
+                    .map(|input| {
+                        let before = sessions.ours.dic_nodes_cache.continued_searches;
+                        let output = pair.compare(sessions, input);
+                        continued += sessions.ours.dic_nodes_cache.continued_searches - before;
+                        output
+                    })
+                    .collect();
+                (outputs, continued)
             },
         );
-        let calls: usize = counts.iter().map(|it| it.0).sum();
-        let continued: usize = counts.iter().map(|it| it.1).sum();
+        let mut tape = pair.tape("words_typed_and_deleted");
+        record(&mut tape, rounds.iter().flat_map(|it| &it.0));
+        tape.finish();
+        let calls: usize = rounds.iter().map(|it| it.0.len()).sum();
+        let continued: usize = rounds.iter().map(|it| it.1).sum();
         eprintln!(
             "{calls} calls, {continued} continuing, {:?}",
             started.elapsed()
@@ -85,61 +79,60 @@ fn words_typed_and_deleted_match_the_cpp() {
 /// Unrelated queries one after another on one session: whatever the cache holds from the last
 /// must never leak into the next answer.
 #[test]
-fn unrelated_queries_on_one_session_match_the_cpp() {
+fn unrelated_queries_on_one_session_match_the_goldens() {
     for pair in Pair::each() {
         let mut random = Random::new(23);
         let inputs: Vec<_> = (0..8_000)
             .map(|_| queries::query(&mut random, &pair.words))
             .collect();
-        let calls = in_chunks(
+        let outputs = in_chunks(
             &inputs,
-            || (pair.cpp_session(), new_session()),
-            |(cpp_session, session), round, query| {
-                pair.compare((session, cpp_session), query, &format!("round {round}"));
+            || pair.sessions(),
+            |sessions, round, query| {
+                let mut outputs = vec![pair.compare(sessions, query)];
                 if round % 5 == 0 {
                     // The same again, as a re-decode of the same word does.
-                    pair.compare((session, cpp_session), query, &format!("repeat {round}"));
+                    outputs.push(pair.compare(sessions, query));
                 }
-                1 + usize::from(round % 5 == 0)
+                outputs
             },
         );
-        assert_eq!(calls.iter().sum::<usize>(), 9_600);
+        assert_eq!(outputs.iter().map(Vec::len).sum::<usize>(), 9_600);
+        let mut tape = pair.tape("unrelated_queries_on_one_session");
+        record(&mut tape, outputs.iter().flatten());
+        tape.finish();
     }
 }
 
 /// A word typed to the end, then predictions, then the next word: the prediction call must not
 /// disturb the cache a later call continues.
 #[test]
-fn predictions_between_typing_match_the_cpp() {
+fn predictions_between_typing_match_the_goldens() {
     for pair in Pair::each() {
         let mut random = Random::new(29);
         let inputs: Vec<_> = (0..800)
             .map(|_| queries::query(&mut random, &pair.words))
             .collect();
-        let predictions = in_chunks(
+        let rounds = in_chunks(
             &inputs,
-            || (pair.cpp_session(), new_session()),
-            |(cpp_session, session), round, query| {
+            || pair.sessions(),
+            |sessions, _, query| {
+                let mut outputs = Vec::new();
                 let mut predictions = 0;
                 for length in 1..=query.code_points.len() {
-                    pair.compare(
-                        (session, cpp_session),
-                        &prefix(query, length),
-                        &format!("typing {round}/{length}"),
-                    );
+                    outputs.push(pair.compare(sessions, &prefix(query, length)));
                     if length % 3 == 0 {
-                        pair.compare(
-                            (session, cpp_session),
-                            &prefix(query, 0),
-                            &format!("prediction {round}/{length}"),
-                        );
+                        outputs.push(pair.compare(sessions, &prefix(query, 0)));
                         predictions += 1;
                     }
                 }
-                predictions
+                (outputs, predictions)
             },
         );
-        let predictions: usize = predictions.iter().sum();
+        let mut tape = pair.tape("predictions_between_typing");
+        record(&mut tape, rounds.iter().flat_map(|it| &it.0));
+        tape.finish();
+        let predictions: usize = rounds.iter().map(|it| it.1).sum();
         assert!(
             predictions > 100,
             "only {predictions} predictions between taps"

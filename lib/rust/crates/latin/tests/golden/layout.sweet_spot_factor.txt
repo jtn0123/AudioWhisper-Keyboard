@@ -1,0 +1,37 @@
+# layout.sweet_spot_factor: LatinIME's C++ answers to this test's questions (docs/phase6-oracle-goldens.md).
+# Answers, the digest after the last, after each power of two (at N), and some in full.
+count 43620
+digest 5183a46aa42d3209
+at 1 062eb305bbb624ce
+at 2 65825773deeee5e3
+at 4 75dfbd9303ad6e0e
+at 8 9bf8b14bd369452d
+at 16 27816eeecbb0efcd
+at 32 0182fb4aba9d1ae0
+at 64 eab6fcb29569c100
+at 128 bd3da9013fe6c035
+at 256 f520730f0401111b
+at 512 b52432be19b81336
+at 1024 d5e9c927f2a9af9b
+at 2048 aa73aca5c0fd06f7
+at 4096 2ef22faa4195b406
+at 8192 4b546e3863a283aa
+at 16384 efdf7aded266a79e
+at 32768 b7d077e81b5a54d6
+sample 0 ef63bcd0e7c1b7df 3208642560 <- touch_position_correction_utils::get_sweet_spot_factor(enabled, x).to_bits()
+sample 1 af63bd4c8601b7df 0 <- touch_position_correction_utils::get_sweet_spot_factor(enabled, x).to_bits()
+sample 2 aabfa3d0731ee164 3208600617 <- touch_position_correction_utils::get_sweet_spot_factor(enabled, x).to_bits()
+sample 3 af63bd4c8601b7df 0 <- touch_position_correction_utils::get_sweet_spot_factor(enabled, x).to_bits()
+sample 7 af63bd4c8601b7df 0 <- touch_position_correction_utils::get_sweet_spot_factor(enabled, x).to_bits()
+sample 15 af63bd4c8601b7df 0 <- touch_position_correction_utils::get_sweet_spot_factor(enabled, x).to_bits()
+sample 31 af63bd4c8601b7df 0 <- touch_position_correction_utils::get_sweet_spot_factor(enabled, x).to_bits()
+sample 63 af63bd4c8601b7df 0 <- touch_position_correction_utils::get_sweet_spot_factor(enabled, x).to_bits()
+sample 127 af63bd4c8601b7df 0 <- touch_position_correction_utils::get_sweet_spot_factor(enabled, x).to_bits()
+sample 255 af63bd4c8601b7df 0 <- touch_position_correction_utils::get_sweet_spot_factor(enabled, x).to_bits()
+sample 511 af63bd4c8601b7df 0 <- touch_position_correction_utils::get_sweet_spot_factor(enabled, x).to_bits()
+sample 1023 c7bcbaaa2460edc6 1058561799 <- touch_position_correction_utils::get_sweet_spot_factor(enabled, x).to_bits()
+sample 2047 48fb57aafffe528d 1067030938 <- touch_position_correction_utils::get_sweet_spot_factor(enabled, x).to_bits()
+sample 4095 af63bd4c8601b7df 0 <- touch_position_correction_utils::get_sweet_spot_factor(enabled, x).to_bits()
+sample 8191 af63bd4c8601b7df 0 <- touch_position_correction_utils::get_sweet_spot_factor(enabled, x).to_bits()
+sample 16383 af63bd4c8601b7df 0 <- touch_position_correction_utils::get_sweet_spot_factor(enabled, x).to_bits()
+sample 32767 af63bd4c8601b7df 0 <- touch_position_correction_utils::get_sweet_spot_factor(enabled, x).to_bits()

@@ -1,13 +1,27 @@
 //! The production session against the independent C++ decoder, using real dictionary questions.
-use latin_oracle::{
-    Dictionary, Proximity, Session, dictionary_paths,
-    queries::{self, Random},
-};
+//! The C++'s answers go on a golden tape in `crates/suggest/tests/golden/` (`LATIN_GOLDEN=write`
+//! writes it), which `suggest`'s own copy of this test checks the session against.
+use latin_golden::queries::{self, Random};
+use latin_golden::{Suggestions, Tape};
+use latin_oracle::{Dictionary, Proximity, Session};
 use std::sync::Arc;
+
+/// A generated question as the C++ side takes it.
+fn oracle_query(query: &queries::Query) -> latin_oracle::Query {
+    latin_oracle::Query {
+        code_points: query.code_points.clone(),
+        points: query.points.clone(),
+        block_offensive_words: query.block_offensive_words,
+        previous: query.previous.clone(),
+        beginning_of_sentence: query.beginning_of_sentence.clone(),
+    }
+}
 
 #[test]
 fn native_session_matches_four_thousand_seeded_cpp_questions() {
-    for path in dictionary_paths() {
+    let goldens = concat!(env!("CARGO_MANIFEST_DIR"), "/../suggest");
+    for (name, path) in latin_golden::dictionaries() {
+        let mut tape = Tape::open(goldens, &format!("session.native.{name}"));
         let bytes = std::fs::read(&path).expect("a dictionary");
         let mut native = suggest::session::Session::open(Arc::from(bytes)).expect("native session");
         let dictionary = Dictionary::at(&path);
@@ -21,10 +35,22 @@ fn native_session_matches_four_thousand_seeded_cpp_questions() {
             .flat_map(|w| w.iter().copied().chain([10]))
             .collect();
         assert_eq!(native_words, dictionary.words());
+        tape.record("the dictionary's words", &dictionary.words());
         let mut random = Random::new(20261113);
         for index in 0..4000 {
             let q = queries::query(&mut random, &words);
-            let expected = latin_oracle::suggest(&dictionary, &proximity, &session, &q);
+            let expected =
+                latin_oracle::suggest(&dictionary, &proximity, &session, &oracle_query(&q));
+            let theirs = Suggestions {
+                count: expected.count,
+                code_points: &expected.code_points,
+                scores: &expected.scores,
+                types: &expected.types,
+                space_indices: &expected.space_indices,
+                auto_commit_confidence: expected.auto_commit_confidence,
+                weight: expected.weight,
+            };
+            tape.record("latin_oracle::suggest(q)", &theirs);
             let actual = native.query(&latin::search::Query {
                 code_points: q.code_points,
                 points: q.points,
@@ -73,5 +99,6 @@ fn native_session_matches_four_thousand_seeded_cpp_questions() {
                 "weight {index}"
             );
         }
+        tape.finish();
     }
 }

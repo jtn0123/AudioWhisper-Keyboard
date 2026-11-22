@@ -1,0 +1,35 @@
+# trie.real_bigram_pairs.aosp: LatinIME's C++ answers to this test's questions (docs/phase6-oracle-goldens.md).
+# Answers, the digest after the last, after each power of two (at N), and some in full.
+count 19996
+digest 0289cdc0702d1fc7
+at 1 f9c767845d801e71
+at 2 ba36b14cff58190a
+at 4 10b714163dd52695
+at 8 3773b90b180beba0
+at 16 08a4f04270d789b9
+at 32 50805f112be965bd
+at 64 71bfd9df519d6ae9
+at 128 028d8ea8c32e6567
+at 256 b154c101dbd4fc54
+at 512 f36fd97d73dd780b
+at 1024 827a26281e03d1d3
+at 2048 b1555f92e0ad51a5
+at 4096 2f03853905e83170
+at 8192 ebf82741123e47e0
+at 16384 2e6bc5e3bacbf99b
+sample 0 509c41b379fe466e -1 <- pair.ours.ngram_probability(Some(&context), next)
+sample 1 af645d4c8602c7bf 224 <- pair.ours.ngram_probability(Some(&context), next)
+sample 2 af64514c8602b35b 156 <- pair.ours.ngram_probability(Some(&context), next)
+sample 3 af64944c86032534 217 <- pair.ours.ngram_probability(Some(&context), next)
+sample 7 af645d4c8602c7bf 224 <- pair.ours.ngram_probability(Some(&context), next)
+sample 15 af64954c860326e7 216 <- pair.ours.ngram_probability(Some(&context), next)
+sample 31 af648b4c860315e9 214 <- pair.ours.ngram_probability(Some(&context), next)
+sample 63 af645d4c8602c7bf 224 <- pair.ours.ngram_probability(Some(&context), next)
+sample 127 af64944c86032534 217 <- pair.ours.ngram_probability(Some(&context), next)
+sample 255 af64954c860326e7 216 <- pair.ours.ngram_probability(Some(&context), next)
+sample 511 af648b4c860315e9 214 <- pair.ours.ngram_probability(Some(&context), next)
+sample 1023 af64954c860326e7 216 <- pair.ours.ngram_probability(Some(&context), next)
+sample 2047 509c41b379fe466e -1 <- pair.ours.ngram_probability(Some(&context), next)
+sample 4095 af645d4c8602c7bf 224 <- pair.ours.ngram_probability(Some(&context), next)
+sample 8191 af64954c860326e7 216 <- pair.ours.ngram_probability(Some(&context), next)
+sample 16383 af64944c86032534 217 <- pair.ours.ngram_probability(Some(&context), next)

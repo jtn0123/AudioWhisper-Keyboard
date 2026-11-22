@@ -1,0 +1,41 @@
+# bytes.random_buffers: LatinIME's C++ answers to this test's questions (docs/phase6-oracle-goldens.md).
+# Answers, the digest after the last, after each power of two (at N), and some in full.
+count 200000
+digest f6e15080e6e31ab7
+at 1 06312a7ba27624ce
+at 2 2ffb05b2f7e6b9c0
+at 4 9a55b2ac515d2809
+at 8 7ab6dba5fe679874
+at 16 bb2deafb373f2443
+at 32 42586f73d7459227
+at 64 3575950a692a0d87
+at 128 cf533d055989dac8
+at 256 7aab8c734a1ae62b
+at 512 d38d595c570e87be
+at 1024 967fabc83b6219ca
+at 2048 38060b37a4bea997
+at 4096 25bc9d627a61a707
+at 8192 9cec4fe7ce4016ad
+at 16384 ed7371ffd3faa94b
+at 32768 3567be4dbe9e7202
+at 65536 0a3e1f3d36c0086b
+at 131072 eb9b6a7bde5f66dc
+sample 0 af63bd4c8601b7df 0 <- read_uint(&buffer, size, pos)
+sample 1 af63d24c8601db8e 31 <- read_uint(&buffer, size, pos)
+sample 2 af7cd54c862c5ba7 7960 <- read_uint(&buffer, size, pos)
+sample 3 ca7bea4cb40bcc56 2037879 <- read_uint(&buffer, size, pos)
+sample 7 f7ca09f84b119f52 (-1,8) <- advance(pos, |at| read_code_point_advance(&buffer, with_table, at))
+sample 15 af63bd4c8601b7df 0 <- read_uint(&buffer, size, pos)
+sample 31 af63bf4c8601bb45 2 <- read_uint(&buffer, size, pos)
+sample 63 39a4934d70ede381 9322718 <- read_uint(&buffer, size, pos)
+sample 127 165cab07c0f43d83 (1141,1) <- advance(pos, |at| read_code_point_advance(&buffer, with_table, at))
+sample 255 af63bd4c8601b7df 0 <- read_uint(&buffer, size, pos)
+sample 511 af64414c8602982b 140 <- read_uint(&buffer, size, pos)
+sample 1023 7d63bc4de40bb62c 13762561 <- read_uint(&buffer, size, pos)
+sample 2047 14a9af07bf82afcf (1525,5) <- advance(pos, |at| read_code_point_advance(&buffer, with_table, at))
+sample 4095 af63bd4c8601b7df 0 <- read_uint(&buffer, size, pos)
+sample 8191 af63c94c8601cc43 20 <- read_uint(&buffer, size, pos)
+sample 16383 c585014cab9c3e6b 1730380 <- read_uint(&buffer, size, pos)
+sample 32767 f7ca09f84b119f52 (-1,8) <- advance(pos, |at| read_code_point_advance(&buffer, with_table, at))
+sample 65535 af63bd4c8601b7df 0 <- read_uint(&buffer, size, pos)
+sample 131071 af63ca4c8601cdf6 23 <- read_uint(&buffer, size, pos)

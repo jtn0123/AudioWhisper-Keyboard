@@ -22,6 +22,7 @@ default-members = [
     "crates/keys",
     "crates/input",
     "crates/latin",
+    "crates/latin-golden",
     "crates/lexicon",
     "crates/ngram",
     "crates/nlp",
@@ -60,6 +61,10 @@ strip = true
 # The opt-in differential tests put hundreds of thousands of questions to Rust and LatinIME's C++;
 # unoptimised, the C++ alone took over a minute. Overflow checks and debug assertions stay on.
 [profile.dev.package.latin]
+opt-level = 2
+
+# Every answer of the golden tests goes through its tape, millions of them.
+[profile.dev.package.latin-golden]
 opt-level = 2
 
 [profile.dev.package.latin-oracle]

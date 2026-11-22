@@ -2,17 +2,15 @@
 //! ones. A weight other than 1.0 reaches `getCompoundDistance`, the first of the two expressions
 //! the compiler fuses into a multiply-add (see the module docs).
 
-use latin_oracle::hooks::search::suggest_with;
-use latin_oracle::queries::{self, Random};
+use latin_golden::queries::{self, Random};
 
-use super::support::{Pair, assert_same, convert, in_chunks, new_session};
-use crate::search::jni;
+use super::support::{Pair, in_chunks, prefix, record};
 
 /// Weights from the app's NOT_A_WEIGHT through ones that move every score.
 const WEIGHTS: [f32; 9] = [-1.0, 0.0, 0.25, 0.5, 1.0, 1.3, 2.0, 7.7, 1.0e6];
 
 #[test]
-fn weights_and_options_match_the_cpp() {
+fn weights_and_options_match_the_goldens() {
     for pair in Pair::each() {
         let mut random = Random::new(31);
         let locale_weights = [0, 1, 500, 989, 990, 1000, 1500, 100_000];
@@ -29,87 +27,48 @@ fn weights_and_options_match_the_cpp() {
                 (query, options)
             })
             .collect();
-        let rounds = in_chunks(
+        let outputs = in_chunks(
             &inputs,
             || (),
             |(), round, (query, options)| {
                 let weight = WEIGHTS[round % WEIGHTS.len()];
-                let cpp_session = pair.cpp_session();
-                let mut session = new_session();
-                let theirs = suggest_with(
-                    &pair.cpp_dictionary,
-                    &pair.cpp_proximity,
-                    &cpp_session,
-                    query,
-                    options,
-                    weight,
-                );
-                let ours = jni::suggest_with(
-                    &pair.dictionary,
-                    &pair.info,
-                    &mut session,
-                    &convert(query),
-                    options,
-                    weight,
-                );
-                assert_same(
-                    &ours,
-                    &theirs,
-                    &format!("round {round} weight {weight} {options:?}"),
-                );
+                pair.compare_with(&mut pair.sessions(), query, (options, weight))
             },
         );
-        assert_eq!(rounds.len(), 9_000);
+        assert_eq!(outputs.len(), 9_000);
+        let mut tape = pair.tape("weights_and_options");
+        record(&mut tape, &outputs);
+        tape.finish();
     }
 }
 
 /// The weight and options on one session across a word typed letter by letter.
 #[test]
-fn weights_while_typing_match_the_cpp() {
+fn weights_while_typing_match_the_goldens() {
     for pair in Pair::each() {
         let mut random = Random::new(37);
         let inputs: Vec<_> = (0..600)
             .map(|_| queries::query(&mut random, &pair.words))
             .collect();
-        let calls = in_chunks(
+        let outputs = in_chunks(
             &inputs,
             || (),
             |(), round, query| {
                 let weight = WEIGHTS[round % WEIGHTS.len()];
                 let options = [0, 0, 0, 0, 1000];
-                let cpp_session = pair.cpp_session();
-                let mut session = new_session();
-                for length in 1..=query.code_points.len() {
-                    let input = latin_oracle::Query {
-                        code_points: query.code_points[..length].to_vec(),
-                        points: query.points[..length].to_vec(),
-                        ..query.clone()
-                    };
-                    let theirs = suggest_with(
-                        &pair.cpp_dictionary,
-                        &pair.cpp_proximity,
-                        &cpp_session,
-                        &input,
-                        &options,
-                        weight,
-                    );
-                    let ours = jni::suggest_with(
-                        &pair.dictionary,
-                        &pair.info,
-                        &mut session,
-                        &convert(&input),
-                        &options,
-                        weight,
-                    );
-                    assert_same(
-                        &ours,
-                        &theirs,
-                        &format!("round {round} length {length} weight {weight}"),
-                    );
-                }
-                query.code_points.len()
+                let mut sessions = pair.sessions();
+                (1..=query.code_points.len())
+                    .map(|length| {
+                        let input = prefix(query, length);
+                        pair.compare_with(&mut sessions, &input, (&options, weight))
+                    })
+                    .collect::<Vec<_>>()
             },
         );
-        assert!(calls.iter().sum::<usize>() > 600, "the words were typed");
+        let calls = outputs.iter().map(Vec::len).sum::<usize>();
+        assert!(calls > 600, "the words were typed");
+        let mut tape = pair.tape("weights_while_typing");
+        record(&mut tape, outputs.iter().flatten());
+        tape.finish();
     }
 }

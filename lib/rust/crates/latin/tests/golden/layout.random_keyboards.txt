@@ -1,0 +1,59 @@
+# layout.random_keyboards: LatinIME's C++ answers to this test's questions (docs/phase6-oracle-goldens.md).
+# Answers, the digest after the last, after each power of two (at N), and some in full.
+count 94059491
+digest 2cecb26c3c9ae02f
+at 1 245587c3dba84563
+at 2 ade96bc91413fc00
+at 4 30fb35f66ca03f9c
+at 8 0c951d35cd239bf6
+at 16 47f95d2b733e83e0
+at 32 ea94388a59bcbe21
+at 64 589ae792c0b9d880
+at 128 518332919d272ce6
+at 256 ce33db829b321e3a
+at 512 5b9ffa06654d50d0
+at 1024 0dcda6f8f0696cd0
+at 2048 6604a2cd0586812d
+at 4096 13fb33616c19ff9b
+at 8192 e5c9c588656c3122
+at 16384 256954b5995a43fc
+at 32768 14a6972482db59ef
+at 65536 ab71f80f89570292
+at 131072 b8ef479d8954c264
+at 262144 ae61af6a6b9e8ad9
+at 524288 74befc5db037fc25
+at 1048576 baab0f52a5b80db2
+at 2097152 8cbaad96c85fdb68
+at 4194304 e1a335d218e44fed
+at 8388608 dbdbadcb940e767f
+at 16777216 a39bc0ca448e28e1
+at 33554432 05feba7675fff6cb
+at 67108864 a1710f0cde1a2227
+sample 0 efa8455d507fd6b4 (16,1,62,33,433,158) <- (key_count, ours.get_cell_width(), ours.get_cell_height(), ours.get_grid_width()
+sample 1 0835ed07b4ee5163 (-1,-1) <- (ours.get_code_point_of(key), ours.get_original_code_point_of(key))
+sample 2 0835ed07b4ee5163 (-1,-1) <- (ours.get_code_point_of(key), ours.get_original_code_point_of(key))
+sample 3 0a81d207b6e1c4cd (246,246) <- (ours.get_code_point_of(key), ours.get_original_code_point_of(key))
+sample 7 08c84407b56ad355 (116,116) <- (ours.get_code_point_of(key), ours.get_original_code_point_of(key))
+sample 15 08f74e07b5925515 (122,122) <- (ours.get_code_point_of(key), ours.get_original_code_point_of(key))
+sample 31 f7ca11f84b11acea (-1,false) <- (ours.get_key_index_of(c), ours.is_code_point_on_keyboard(c))
+sample 63 f7ca11f84b11acea (-1,false) <- (ours.get_key_index_of(c), ours.is_code_point_on_keyboard(c))
+sample 127 f7ca11f84b11acea (-1,false) <- (ours.get_key_index_of(c), ours.is_code_point_on_keyboard(c))
+sample 255 f7ca11f84b11acea (-1,false) <- (ours.get_key_index_of(c), ours.is_code_point_on_keyboard(c))
+sample 511 f7ca11f84b11acea (-1,false) <- (ours.get_key_index_of(c), ours.is_code_point_on_keyboard(c))
+sample 1023 f7ca11f84b11acea (-1,false) <- (ours.get_key_index_of(c), ours.is_code_point_on_keyboard(c))
+sample 2047 9a6678bad5575ba0 1093600965 <- ours.get_normalized_squared_distance_from_center_float_g(key, x, y).to_bits()
+sample 4095 0fe8eab9ea040356 1084263287 <- ours.get_normalized_squared_distance_from_center_float_g(key, x, y).to_bits()
+sample 8191 798be2a63983eebe 1020160111 <- ours.get_normalized_squared_distance_from_center_float_g(key, x, y).to_bits()
+sample 16383 ce139daa2f26917f 1063448608 <- ours.get_normalized_squared_distance_from_center_float_g(key, x, y).to_bits()
+sample 32767 2d9903aad1763dd1 1065515854 <- ours.get_normalized_squared_distance_from_center_float_g(key, x, y).to_bits()
+sample 65535 df6aadb9979d81af 1081084208 <- ours.get_normalized_squared_distance_from_center_float_g(key, x, y).to_bits()
+sample 131071 bbc732b95b0eb7ae 1074570687 <- ours.get_normalized_squared_distance_from_center_float_g(key, x, y).to_bits()
+sample 262143 f685ccbb71e0975c 1095460369 <- ours.get_normalized_squared_distance_from_center_float_g(key, x, y).to_bits()
+sample 524287 352354bd8f464574 1116062105 <- ours.get_normalized_squared_distance_from_center_float_g(key, x, y).to_bits()
+sample 1048575 5b9bd1bc1da501db 1106016284 <- ours.get_normalized_squared_distance_from_center_float_g(key, x, y).to_bits()
+sample 2097151 609175bc26126787 1106342904 <- ours.get_normalized_squared_distance_from_center_float_g(key, x, y).to_bits()
+sample 4194303 0c0bfbaa98739939 1063053382 <- ours.get_normalized_squared_distance_from_center_float_g(key, x, y).to_bits()
+sample 8388607 223d5bbbbc297f59 1102503910 <- ours.get_normalized_squared_distance_from_center_float_g(key, x, y).to_bits()
+sample 16777215 1ddbd3ba01b7c541 1085454366 <- ours.get_normalized_squared_distance_from_center_float_g(key, x, y).to_bits()
+sample 33554431 9b659dbe3d08e77f 1126958624 <- ours.get_normalized_squared_distance_from_center_float_g(key, x, y).to_bits()
+sample 67108863 af63bd4c8601b7df false <- ours.has_space_proximity(x, y)

@@ -13,5 +13,8 @@ keys = { path = "../keys" }
 latin = { path = "../latin" }
 ngram = { path = "../ngram" }
 
+[dev-dependencies]
+latin-golden = { path = "../latin-golden" }
+
 [lints]
 workspace = true

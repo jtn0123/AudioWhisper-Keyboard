@@ -1,0 +1,53 @@
+# layout.qwerty_keyboard: LatinIME's C++ answers to this test's questions (docs/phase6-oracle-goldens.md).
+# Answers, the digest after the last, after each power of two (at N), and some in full.
+count 15028280
+digest 516dc1f33dd80b90
+at 1 a0b34ba98f149b53
+at 2 57976a0feb258f90
+at 4 c6fa3568dfc9d7da
+at 8 a4aebec77f1b2c8a
+at 16 8c8bda892dbee74e
+at 32 3e6f9e1292dafb67
+at 64 f04bda18b3dbcb67
+at 128 0b4e324b2ff46f8c
+at 256 7cdce1a2da4e437f
+at 512 8d137f5453b5e3d4
+at 1024 3a93bfd38ba83fd4
+at 2048 98cb55b8969ecf62
+at 4096 42d220f7d604727e
+at 8192 af32e895c36141b6
+at 16384 84a7d182d1ca13ce
+at 32768 12b621eec396a011
+at 65536 01455bd873b2da17
+at 131072 9559b21531f25615
+at 262144 60d1b0961ff620af
+at 524288 eab06ffa9c611c49
+at 1048576 c4bd45e5f58e4ab1
+at 2097152 1597e8551c5cd945
+at 4194304 f48a6aae0e5e9e2a
+at 8388608 ddbec560582edaaf
+sample 0 c7e8cb0a382dccc4 (26,32,29,32,450,100) <- (key_count, ours.get_cell_width(), ours.get_cell_height(), ours.get_grid_width()
+sample 1 0835ed07b4ee5163 (-1,-1) <- (ours.get_code_point_of(key), ours.get_original_code_point_of(key))
+sample 2 0835ed07b4ee5163 (-1,-1) <- (ours.get_code_point_of(key), ours.get_original_code_point_of(key))
+sample 3 08d25307b5734157 (113,113) <- (ours.get_code_point_of(key), ours.get_original_code_point_of(key))
+sample 7 08c84407b56ad355 (116,116) <- (ours.get_code_point_of(key), ours.get_original_code_point_of(key))
+sample 15 08915407b53bac15 (100,100) <- (ours.get_code_point_of(key), ours.get_original_code_point_of(key))
+sample 31 f7ca11f84b11acea (-1,false) <- (ours.get_key_index_of(c), ours.is_code_point_on_keyboard(c))
+sample 63 f7ca11f84b11acea (-1,false) <- (ours.get_key_index_of(c), ours.is_code_point_on_keyboard(c))
+sample 127 f7ca11f84b11acea (-1,false) <- (ours.get_key_index_of(c), ours.is_code_point_on_keyboard(c))
+sample 255 f7ca11f84b11acea (-1,false) <- (ours.get_key_index_of(c), ours.is_code_point_on_keyboard(c))
+sample 511 f7ca11f84b11acea (-1,false) <- (ours.get_key_index_of(c), ours.is_code_point_on_keyboard(c))
+sample 1023 f7ca11f84b11acea (-1,false) <- (ours.get_key_index_of(c), ours.is_code_point_on_keyboard(c))
+sample 2047 c0a4ccbcc953445c 1108428561 <- ours.get_normalized_squared_distance_from_center_float_g(key, x, y).to_bits()
+sample 4095 424ca5bda5a37a17 1117204264 <- ours.get_normalized_squared_distance_from_center_float_g(key, x, y).to_bits()
+sample 8191 dbcb4ebb4475b342 1097640339 <- ours.get_normalized_squared_distance_from_center_float_g(key, x, y).to_bits()
+sample 16383 39a523bbe3eed831 1099843502 <- ours.get_normalized_squared_distance_from_center_float_g(key, x, y).to_bits()
+sample 32767 0eed74bd4e58b9d4 1118015481 <- ours.get_normalized_squared_distance_from_center_float_g(key, x, y).to_bits()
+sample 65535 156d74bba66439d4 1101664249 <- ours.get_normalized_squared_distance_from_center_float_g(key, x, y).to_bits()
+sample 131071 3c0a2ebbe80089e2 1099754163 <- ours.get_normalized_squared_distance_from_center_float_g(key, x, y).to_bits()
+sample 262143 3285afbbd7d46615 1099392562 <- ours.get_normalized_squared_distance_from_center_float_g(key, x, y).to_bits()
+sample 524287 30d18daad6ef504f 1065464784 <- ours.get_normalized_squared_distance_from_center_float_g(key, x, y).to_bits()
+sample 1048575 2b63a9bbcbb595e3 1102839860 <- ours.get_normalized_squared_distance_from_center_float_g(key, x, y).to_bits()
+sample 2097151 bf8d3ebcc7783e12 1108373379 <- ours.get_normalized_squared_distance_from_center_float_g(key, x, y).to_bits()
+sample 4194303 fbe2e2b9c7fdc3be 1078755695 <- ours.get_normalized_squared_distance_from_center_float_g(key, x, y).to_bits()
+sample 8388607 a0c6cfb92d2d0f75 1076995346 <- ours.get_normalized_squared_distance_from_center_float_g(key, x, y).to_bits()

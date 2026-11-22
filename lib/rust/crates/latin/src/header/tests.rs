@@ -3,9 +3,8 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use super::*;
 use crate::bytes::FormatVersion;
 
-/// The differential tests against the C++, which only the computer running the tests has.
-#[cfg(all(feature = "oracle", not(target_os = "android")))]
-mod oracle;
+/// The golden tests: LatinIME's answers on each dictionary and on seeded random headers.
+mod goldens;
 
 /// What a read leaves in an `out` slot it does not write.
 const UNTOUCHED: i32 = -7_777;

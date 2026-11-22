@@ -1,0 +1,21 @@
+# header.each_dictionary.shipped: LatinIME's C++ answers to this test's questions (docs/phase6-oracle-goldens.md).
+# Answers, the digest after the last, after each power of two (at N), and some in full.
+count 134
+digest 65a94201a57bf1a8
+at 1 051707e3274f504c
+at 2 2dcd426750750683
+at 4 88ab758ab938c105
+at 8 429eb5c34c1c9aea
+at 16 1e4ad12d183e4cff
+at 32 bc5a3580b31d2d34
+at 64 c02dbf69adc3ce80
+at 128 eb660adecfeac9ba
+sample 0 c4919b10adfdf3a1 (99,202,true,1065353216,false,false,1794787200,1700000000) <- (ours.size(), ours.format_version_number(), ours.is_valid(), ours.multi_word_cos
+sample 1 080b7807b4a90fbd (0,10000) <- (ours.ngram_counts().ngram_count(ngram_type), ours.max_ngram_counts().ngram_coun
+sample 2 083d9807b4fe3c1d (0,30000) <- (ours.ngram_counts().ngram_count(ngram_type), ours.max_ngram_counts().ngram_coun
+sample 3 083d9807b4fe3c1d (0,30000) <- (ours.ngram_counts().ngram_count(ngram_type), ours.max_ngram_counts().ngram_coun
+sample 7 f628ba4b2d4b94c0 [101,110,95,85,83] <- ours.locale().to_vec()
+sample 15 ff7eed544c8e6385 [109,97,105,110,58,101,110,95,117,115,0,-7777,-7777,-7777,-7777,-7777,-7777,-7777,-7777,-7777,-7777,-7777,-7777,-7777,-7... <- read(&|out| ours.read_header_value_or_question_mark(key, out))
+sample 31 28a8bbfbe9f378b5 [49,55,57,52,55,56,55,50,48,48,0,-7777,-7777,-7777,-7777,-7777,-7777,-7777,-7777,-7777,-7777,-7777,-7777,-7777,-7777,-77... <- read(&|out| ours.read_header_value_or_question_mark(key, out))
+sample 63 d6ca5e3c631047fa [63,0,-7777,-7777,-7777,-7777,-7777,-7777,-7777,-7777,-7777,-7777,-7777,-7777,-7777,-7777,-7777,-7777,-7777,-7777,-7777,... <- read(&|out| ours.read_header_value_or_question_mark(key, out))
+sample 127 a9070b7fec0f2fb7 (-2147483648,false,[]) <- (read_int_attribute_value(&ours, &key, default), read_bool_attribute_value(&ours

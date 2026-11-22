@@ -1,0 +1,29 @@
+# search.predictions.shipped: LatinIME's C++ answers to this test's questions (docs/phase6-oracle-goldens.md).
+# Answers, the digest after the last, after each power of two (at N), and some in full.
+count 3000
+digest dbfcf2c128ce6704
+at 1 3d408da84c8d1d48
+at 2 e50bef47b5cbc54f
+at 4 3ffeaaabe5f80231
+at 8 d9a23f78b62eee7d
+at 16 3fc52e7ed9b38c54
+at 32 78489af8e83fcdc4
+at 64 db53c433c1bedc58
+at 128 9ee449f2279309b4
+at 256 d4523387d5440dbf
+at 512 7202ab96592ad91e
+at 1024 3484d29ca313b0e9
+at 2048 e045ac13d9d1deb1
+sample 0 aa22e265c125dabd 0: c0 wbf800000 <- suggestions
+sample 1 aa22e265c125dabd 0: c0 wbf800000 <- suggestions
+sample 2 aa22e265c125dabd 0: c0 wbf800000 <- suggestions
+sample 3 aa22e265c125dabd 0: c0 wbf800000 <- suggestions
+sample 7 aa22e265c125dabd 0: c0 wbf800000 <- suggestions
+sample 15 aa22e265c125dabd 0: c0 wbf800000 <- suggestions
+sample 31 aa22e265c125dabd 0: c0 wbf800000 <- suggestions
+sample 63 aa22e265c125dabd 0: c0 wbf800000 <- suggestions
+sample 127 aa22e265c125dabd 0: c0 wbf800000 <- suggestions
+sample 255 aa22e265c125dabd 0: c0 wbf800000 <- suggestions
+sample 511 aa22e265c125dabd 0: c0 wbf800000 <- suggestions
+sample 1023 aa22e265c125dabd 0: c0 wbf800000 <- suggestions
+sample 2047 aa22e265c125dabd 0: c0 wbf800000 <- suggestions

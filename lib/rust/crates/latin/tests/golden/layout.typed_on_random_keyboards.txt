@@ -1,0 +1,53 @@
+# layout.typed_on_random_keyboards: LatinIME's C++ answers to this test's questions (docs/phase6-oracle-goldens.md).
+# Answers, the digest after the last, after each power of two (at N), and some in full.
+count 16477347
+digest 7ae739db5ae060fe
+at 1 4c77d6852e1bb1e6
+at 2 f07599783dbf4111
+at 4 5fa9ce988a7c76e0
+at 8 0e764f36ece07d15
+at 16 1fff365aecccc44c
+at 32 9a00ca096a6ef5fc
+at 64 a718618246a86e4a
+at 128 a9eeb0216762ad07
+at 256 10fb90674d012173
+at 512 a6e0cca560741b62
+at 1024 dc323ed521b668ca
+at 2048 d1b1db86fef4bb7e
+at 4096 de7e67e4a1f5ac6b
+at 8192 62597375523f81b9
+at 16384 7583ffeb4d6d6ba6
+at 32768 9b0b6c0f60d781be
+at 65536 fa0aa8a2735e9fa3
+at 131072 6e01ad5ccd60ffb1
+at 262144 af7d6a8c4792f69f
+at 524288 dec1d655f19bd0a3
+at 1048576 bbcc1a552840290d
+at 2097152 829927f6c0475b80
+at 4194304 66dcc999bb39e898
+at 8388608 b2b295d024032cee
+sample 0 8446b4d2f6ff74a7 (10,true,false,true) <- (ours.size(), ours.is_used(), ours.touch_position_correction_enabled(), ours.is_
+sample 1 78a8ee450f0299cd ([81,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1],81,-1) <- (ours.proximity_code_points_at(index).to_vec(), ours.get_primary_code_point_at(i
+sample 2 98b92e3f1e26dbce ([116,108,108,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1],116,84) <- (ours.proximity_code_points_at(index).to_vec(), ours.get_primary_code_point_at(i
+sample 3 d8b1d603283f554d ([83,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1],83,-1) <- (ours.proximity_code_points_at(index).to_vec(), ours.get_primary_code_point_at(i
+sample 7 670c31a04ca8da0d ([86,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1],86,-1) <- (ours.proximity_code_points_at(index).to_vec(), ours.get_primary_code_point_at(i
+sample 15 a25099ef98425c27 ([0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],0,0) <- (ours.proximity_code_points_at(index).to_vec(), ours.get_primary_code_point_at(i
+sample 31 a25099ef98425c27 ([0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],0,0) <- (ours.proximity_code_points_at(index).to_vec(), ours.get_primary_code_point_at(i
+sample 63 2f63bdaad481b7df 1065353216 <- ours.get_point_to_key_by_id_length(info, index, key_id).to_bits()
+sample 127 2f63bdaad481b7df 1065353216 <- ours.get_point_to_key_by_id_length(info, index, key_id).to_bits()
+sample 255 0835ee07b4ee5316 (3,None) <- (kind_number(ours_kind), found)
+sample 511 0835ee07b4ee5316 (3,None) <- (kind_number(ours_kind), found)
+sample 1023 af63bd4c8601b7df false <- ours.exists_code_point_in_proximity_at(index, c)
+sample 2047 d0a6fc18672a1282 (1,1) <- (kind_number(ours_kind), found)
+sample 4095 2f63bdaad481b7df 1065353216 <- ours.get_point_to_key_by_id_length(info, index, key_id).to_bits()
+sample 8191 2f63bdaad481b7df 1065353216 <- ours.get_point_to_key_length(info, index, c).to_bits()
+sample 16383 af63bd4c8601b7df false <- ours.exists_code_point_in_proximity_at(index, c)
+sample 32767 2f63bdaad481b7df 1065353216 <- ours.get_point_to_key_by_id_length(info, index, key_id).to_bits()
+sample 65535 08328807b4eb6fed (0,None) <- (kind_number(ours_kind), found)
+sample 131071 082f2207b4e88cc4 (1,None) <- (kind_number(ours_kind), found)
+sample 262143 0835ee07b4ee5316 (3,None) <- (kind_number(ours_kind), found)
+sample 524287 17a07ca8f920f06c 1051229377 <- ours.get_point_to_key_by_id_length(info, index, key_id).to_bits()
+sample 1048575 c7f63dcc20c2a75f 1259902592 <- ours.get_point_to_key_length(info, index, c).to_bits()
+sample 2097151 0835ee07b4ee5316 (3,None) <- (kind_number(ours_kind), found)
+sample 4194303 af63bd4c8601b7df false <- ours.exists_code_point_in_proximity_at(index, c)
+sample 8388607 0835ee07b4ee5316 (3,None) <- (kind_number(ours_kind), found)

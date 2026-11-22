@@ -1,0 +1,19 @@
+# trie.shortcut_lists_of_every_node.shipped: LatinIME's C++ answers to this test's questions (docs/phase6-oracle-goldens.md).
+# Answers, the digest after the last, after each power of two (at N), and some in full.
+count 99
+digest 22100b245d37fbe3
+at 1 a20bae540f3b17a9
+at 2 a61443f920bb0d26
+at 4 86fa1a3b0ef6abee
+at 8 38cd3e8a114ae2f8
+at 16 638f562b92b1b8c6
+at 32 207b30b49686b1c9
+at 64 b45d31f21a355723
+sample 0 e9310d407dad9816 [(15,true,false,[73])] <- rust_shortcuts(policy, list, 48)
+sample 1 b008fc313a3178eb [(15,true,false,[73,39,100])] <- rust_shortcuts(policy, list, 48)
+sample 2 f9f4f7df8d4a9f38 [(15,true,false,[73,39,108,108])] <- rust_shortcuts(policy, list, 48)
+sample 3 b008f3313a3169a0 [(15,true,false,[73,39,109])] <- rust_shortcuts(policy, list, 48)
+sample 7 7e50d631ae932eaa [(15,true,false,[97,110,100])] <- rust_shortcuts(policy, list, 48)
+sample 15 36622a321772353d [(15,true,false,[116,111,111])] <- rust_shortcuts(policy, list, 48)
+sample 31 97f14d31bcfcd630 [(15,true,false,[98,117,116])] <- rust_shortcuts(policy, list, 48)
+sample 63 fce0c7fe6dda63c8 [(15,true,false,[119,105,108,108])] <- rust_shortcuts(policy, list, 48)

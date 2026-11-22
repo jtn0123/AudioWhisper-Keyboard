@@ -1,12 +1,13 @@
-//! Differential tests: the port against LatinIME's C++ `HeaderPolicy` and header readers, on
+//! The port's `HeaderPolicy` and header readers against LatinIME's answers (the goldens), on
 //! each dictionary (the AOSP one and the one the app ships) and on seeded random headers.
 
 use super::*;
 use crate::bytes::{FormatVersion, detect_format_version};
+use crate::golden::{Tape, same, tape};
+#[cfg(feature = "oracle")]
 use latin_oracle::hooks::header as cpp;
 
 /// Every format version, the file's numbers and the port's.
-#[cfg(not(target_os = "android"))]
 const VERSIONS: [FormatVersion; 7] = [
     FormatVersion::Version2,
     FormatVersion::Version201,
@@ -18,7 +19,6 @@ const VERSIONS: [FormatVersion; 7] = [
 ];
 
 /// Every ngram type, the four the header holds counts for.
-#[cfg(not(target_os = "android"))]
 const ALL_NGRAM_TYPES: [NgramType; 4] = [
     NgramType::Unigram,
     NgramType::Bigram,
@@ -27,7 +27,6 @@ const ALL_NGRAM_TYPES: [NgramType; 4] = [
 ];
 
 /// Attribute keys the C++ reads, and some it does not.
-#[cfg(not(target_os = "android"))]
 const REAL_KEYS: &[&str] = &[
     "MULTIPLE_WORDS_DEMOTION_RATE",
     "REQUIRES_GERMAN_UMLAUT_PROCESSING",
@@ -54,7 +53,6 @@ const REAL_KEYS: &[&str] = &[
 ];
 
 /// Values that are numbers in some ways and not in others.
-#[cfg(not(target_os = "android"))]
 const INTEGER_TEXTS: &[&str] = &[
     "",
     "-",
@@ -77,16 +75,13 @@ const INTEGER_TEXTS: &[&str] = &[
 ];
 
 /// Values that are not numbers, for random attributes.
-#[cfg(not(target_os = "android"))]
 const ODD_VALUES: &[&str] = &[
     "-", "+1", "--1", "1-", "0x10", "-0", "007", " 5", "1.5", "true",
 ];
 
 /// SplitMix64, seeded, so a failure reproduces.
-#[cfg(not(target_os = "android"))]
 struct Random(u64);
 
-#[cfg(not(target_os = "android"))]
 impl Random {
     fn next(&mut self) -> u64 {
         self.0 = self.0.wrapping_add(0x9E37_79B9_7F4A_7C15);
@@ -110,7 +105,6 @@ impl Random {
 }
 
 /// A random key of ASCII letters, digits, `_` and `-`.
-#[cfg(not(target_os = "android"))]
 fn random_ascii(random: &mut Random) -> String {
     const ALPHABET: &[u8] = b"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-";
     let length = random.below(13);
@@ -120,7 +114,6 @@ fn random_ascii(random: &mut Random) -> String {
 }
 
 /// Code points, a fifth of them one-byte, and the rest across the three-byte range.
-#[cfg(not(target_os = "android"))]
 fn random_code_points(random: &mut Random, max_length: u64) -> Vec<i32> {
     let length = random.below(max_length + 1);
     (0..length)
@@ -135,7 +128,6 @@ fn random_code_points(random: &mut Random, max_length: u64) -> Vec<i32> {
 }
 
 /// A number of up to 12 digits, sometimes negative: many of them overflow an int.
-#[cfg(not(target_os = "android"))]
 fn number_text(random: &mut Random) -> Vec<i32> {
     let magnitude = 10_u64.pow(random.below(12) as u32 + 1);
     let value = random.next() % magnitude;
@@ -143,7 +135,6 @@ fn number_text(random: &mut Random) -> Vec<i32> {
     text(&format!("{sign}{value}"))
 }
 
-#[cfg(not(target_os = "android"))]
 fn random_value(random: &mut Random) -> Vec<i32> {
     match random.below(20) {
         0..=7 => number_text(random),
@@ -159,7 +150,6 @@ fn random_value(random: &mut Random) -> Vec<i32> {
 /// numbers, junk, or code points. Some lack their terminator and run into the next attribute, and
 /// some declare a size that ends before their last attribute does. Bytes follow the declared size,
 /// as they do in a real file.
-#[cfg(not(target_os = "android"))]
 fn random_header(random: &mut Random) -> Vec<u8> {
     let mut attributes = Vec::new();
     for _ in 0..random.below(10) {
@@ -190,7 +180,6 @@ fn random_header(random: &mut Random) -> Vec<u8> {
 }
 
 /// Bytes with the shapes a header is made of, but nothing else: a 0x1F, a small byte, or any.
-#[cfg(not(target_os = "android"))]
 fn random_buffer(random: &mut Random) -> Vec<u8> {
     let length = random.below(300) as usize;
     let mut buffer: Vec<u8> = (0..length)
@@ -207,105 +196,97 @@ fn random_buffer(random: &mut Random) -> Vec<u8> {
     buffer
 }
 
-/// Compares every getter of the port with the C++ `HeaderPolicy` built from the same bytes, and
-/// the attribute map, in full. Each read is compared over every output size it can be given.
-#[cfg(not(target_os = "android"))]
-fn assert_same_policy(buffer: &[u8], version: FormatVersion, now: i32) {
+/// Records every getter of the port's `HeaderPolicy` built from `buffer`, and the attribute map
+/// in full, against the C++'s. Each read is recorded over every output size it can be given.
+fn assert_same_policy(tape: &mut Tape, buffer: &[u8], version: FormatVersion, now: i32) {
     let ours = HeaderPolicy::with_current_time(buffer, version, now);
+    #[cfg(feature = "oracle")]
     let theirs = cpp::Policy::new(buffer, version as i32, now);
+    #[cfg(feature = "oracle")]
     let context = || format!("{version:?} at {now}: {buffer:02x?}");
-    assert_eq!(ours.size(), theirs.size(), "size: {}", context());
-    assert_eq!(
-        ours.format_version_number(),
-        theirs.format_version_number(),
-        "{}",
-        context()
-    );
-    assert_eq!(ours.is_valid(), theirs.is_valid(), "{}", context());
-    assert_eq!(
-        ours.multi_word_cost_multiplier().to_bits(),
-        theirs.multi_word_cost_multiplier().to_bits(),
-        "{}",
-        context()
-    );
-    assert_eq!(
-        ours.is_decaying_dict(),
-        theirs.is_decaying_dict(),
-        "{}",
-        context()
-    );
-    assert_eq!(
-        ours.requires_german_umlaut_processing(),
-        theirs.requires_german_umlaut_processing(),
-        "{}",
-        context()
-    );
-    assert_eq!(ours.date(), theirs.date(), "{}", context());
-    assert_eq!(
-        ours.last_decayed_time(),
-        theirs.last_decayed_time(),
+    same!(
+        tape,
+        (
+            ours.size(),
+            ours.format_version_number(),
+            ours.is_valid(),
+            ours.multi_word_cost_multiplier().to_bits(),
+            ours.is_decaying_dict(),
+            ours.requires_german_umlaut_processing(),
+            ours.date(),
+            ours.last_decayed_time()
+        ),
+        (
+            theirs.size(),
+            theirs.format_version_number(),
+            theirs.is_valid(),
+            theirs.multi_word_cost_multiplier().to_bits(),
+            theirs.is_decaying_dict(),
+            theirs.requires_german_umlaut_processing(),
+            theirs.date(),
+            theirs.last_decayed_time()
+        ),
         "{}",
         context()
     );
     for ngram_type in ALL_NGRAM_TYPES {
-        let count = ours.ngram_counts().ngram_count(ngram_type);
-        assert_eq!(
-            count,
-            theirs.ngram_count(ngram_type as i32, false),
-            "{}",
-            context()
-        );
-        let max = ours.max_ngram_counts().ngram_count(ngram_type);
-        assert_eq!(
-            max,
-            theirs.ngram_count(ngram_type as i32, true),
+        same!(
+            tape,
+            (
+                ours.ngram_counts().ngram_count(ngram_type),
+                ours.max_ngram_counts().ngram_count(ngram_type)
+            ),
+            (
+                theirs.ngram_count(ngram_type as i32, false),
+                theirs.ngram_count(ngram_type as i32, true)
+            ),
             "{}",
             context()
         );
     }
-    assert_eq!(
-        ours.extended_region_size(),
-        theirs.extended_region_size(),
+    same!(
+        tape,
+        (
+            ours.extended_region_size(),
+            ours.has_historical_info_of_words(),
+            ours.should_boost_exact_matches(),
+            ours.forgetting_curve_probability_values_table_id(),
+            ours.supports_beginning_of_sentence()
+        ),
+        (
+            theirs.extended_region_size(),
+            theirs.has_historical_info_of_words(),
+            theirs.should_boost_exact_matches(),
+            theirs.forgetting_curve_table_id(),
+            theirs.supports_beginning_of_sentence()
+        ),
         "{}",
         context()
     );
-    assert_eq!(
-        ours.has_historical_info_of_words(),
-        theirs.has_historical_info_of_words(),
-        "{}",
-        context()
-    );
-    assert_eq!(
-        ours.should_boost_exact_matches(),
-        theirs.should_boost_exact_matches(),
-        "{}",
-        context()
-    );
-    assert_eq!(
-        ours.forgetting_curve_probability_values_table_id(),
-        theirs.forgetting_curve_table_id(),
-        "{}",
-        context()
-    );
-    assert_eq!(
-        ours.supports_beginning_of_sentence(),
-        theirs.supports_beginning_of_sentence(),
-        "{}",
-        context()
-    );
-    assert_eq!(
+    same!(
+        tape,
         ours.code_point_table().map(<[i32]>::to_vec),
         theirs.code_point_table(),
         "{}",
         context()
     );
-    assert_eq!(ours.locale().to_vec(), theirs.locale(), "{}", context());
-    let our_attributes: Vec<_> = ours
-        .attribute_map()
-        .iter()
-        .map(|(key, value)| (key.clone(), value.clone()))
-        .collect();
-    assert_eq!(our_attributes, theirs.attributes(), "{}", context());
+    same!(
+        tape,
+        ours.locale().to_vec(),
+        theirs.locale(),
+        "{}",
+        context()
+    );
+    same!(
+        tape,
+        ours.attribute_map()
+            .iter()
+            .map(|(key, value)| (key.clone(), value.clone()))
+            .collect::<Vec<_>>(),
+        theirs.attributes(),
+        "{}",
+        context()
+    );
     const QUERY_KEYS: [&str; 10] = [
         "dictionary",
         "version",
@@ -320,40 +301,48 @@ fn assert_same_policy(buffer: &[u8], version: FormatVersion, now: i32) {
     ];
     for key in QUERY_KEYS {
         for size in [0, 1, 2, 3, 4, 9, 40, 2100] {
-            let mut ours_out = vec![UNTOUCHED; size];
-            ours.read_header_value_or_question_mark(key, &mut ours_out);
-            let mut theirs_out = vec![UNTOUCHED; size];
-            theirs.read_value_or_question_mark(key, &mut theirs_out);
-            assert_eq!(ours_out, theirs_out, "{key:?} in {size}: {}", context());
+            let read = |read: &dyn Fn(&mut [i32])| {
+                let mut out = vec![UNTOUCHED; size];
+                read(&mut out);
+                out
+            };
+            same!(
+                tape,
+                read(&|out| ours.read_header_value_or_question_mark(key, out)),
+                read(&|out| theirs.read_value_or_question_mark(key, out)),
+                "{key:?} in {size}: {}",
+                context()
+            );
         }
     }
 }
 
-/// Compares the static readers on `buffer`'s attribute map with the C++ ones: the fetch, the
+/// Records the static readers on `buffer`'s attribute map against the C++'s: the fetch, the
 /// fixed fields, and the readers for real keys and random ones.
-#[cfg(not(target_os = "android"))]
-fn assert_same_attributes(buffer: &[u8], random: &mut Random) {
+fn assert_same_attributes(tape: &mut Tape, buffer: &[u8], random: &mut Random) {
     let ours = fetch_all_header_attributes(buffer);
+    #[cfg(feature = "oracle")]
     let theirs = cpp::Attributes::fetch(buffer);
+    #[cfg(feature = "oracle")]
     let context = || format!("{buffer:02x?}");
-    let our_entries: Vec<_> = ours
-        .iter()
-        .map(|(key, value)| (key.clone(), value.clone()))
-        .collect();
-    assert_eq!(our_entries, theirs.entries(), "{}", context());
-    assert_eq!(
-        get_header_size(buffer),
-        cpp::get_header_size(buffer),
+    same!(
+        tape,
+        ours.iter()
+            .map(|(key, value)| (key.clone(), value.clone()))
+            .collect::<Vec<_>>(),
+        theirs.entries(),
         "{}",
         context()
     );
-    assert_eq!(
-        i32::from(get_flags(buffer)),
-        cpp::get_flags(buffer),
+    same!(
+        tape,
+        (get_header_size(buffer), i32::from(get_flags(buffer))),
+        (cpp::get_header_size(buffer), cpp::get_flags(buffer)),
         "{}",
         context()
     );
-    assert_eq!(
+    same!(
+        tape,
         read_code_point_table(&ours).map(<[i32]>::to_vec),
         theirs.code_point_table(),
         "{}",
@@ -363,39 +352,37 @@ fn assert_same_attributes(buffer: &[u8], random: &mut Random) {
     keys.extend((0..20).map(|_| random_ascii(random)));
     for key in keys {
         let default = random.pick(&[0, -1, 42, i32::MIN, i32::MAX]);
-        assert_eq!(
-            read_int_attribute_value(&ours, &key, default),
-            theirs.read_int(&key, default),
-            "{key:?}: {}",
-            context()
-        );
         let default_bool = random.chance(50);
-        assert_eq!(
-            read_bool_attribute_value(&ours, &key, default_bool),
-            theirs.read_bool(&key, default_bool),
-            "{key:?}: {}",
-            context()
-        );
-        assert_eq!(
-            read_code_point_vector_attribute_value(&ours, &key),
-            theirs.read_code_point_vector(&key),
+        same!(
+            tape,
+            (
+                read_int_attribute_value(&ours, &key, default),
+                read_bool_attribute_value(&ours, &key, default_bool),
+                read_code_point_vector_attribute_value(&ours, &key)
+            ),
+            (
+                theirs.read_int(&key, default),
+                theirs.read_bool(&key, default_bool),
+                theirs.read_code_point_vector(&key)
+            ),
             "{key:?}: {}",
             context()
         );
     }
 }
 
-#[cfg(not(target_os = "android"))]
 #[test]
-fn each_dictionary_header_matches_the_cpp() {
-    for path in latin_oracle::dictionary_paths() {
+fn each_dictionary_header_matches_the_goldens() {
+    for (name, path) in latin_golden::dictionaries() {
+        let mut tape = tape(&format!("header.each_dictionary.{name}"));
         let buffer = std::fs::read(path).expect("a dictionary");
         let version = detect_format_version(&buffer);
         assert_eq!(version, FormatVersion::Version202);
-        assert_same_policy(&buffer, version, 1_700_000_000);
-        assert_same_attributes(&buffer, &mut Random(1));
+        assert_same_policy(&mut tape, &buffer, version, 1_700_000_000);
+        assert_same_attributes(&mut tape, &buffer, &mut Random(1));
+        tape.finish();
     }
-    let buffer = std::fs::read(latin_oracle::aosp_dictionary_path()).expect("the AOSP dictionary");
+    let buffer = std::fs::read(latin_golden::aosp_dictionary_path()).expect("the AOSP dictionary");
     let policy = HeaderPolicy::with_current_time(&buffer, FormatVersion::Version202, 1_700_000_000);
     assert_eq!(policy.size(), 99);
     assert_eq!(policy.locale(), &text("en_US")[..]);
@@ -403,29 +390,29 @@ fn each_dictionary_header_matches_the_cpp() {
     assert_eq!(policy.code_point_table(), None);
 }
 
-#[cfg(not(target_os = "android"))]
 #[test]
-fn random_headers_match_the_cpp() {
+fn random_headers_match_the_goldens() {
+    let mut tape = tape("header.random_headers");
     let mut random = Random(20_261_109);
     for _ in 0..3_000 {
         let buffer = random_header(&mut random);
         let version = random.pick(&VERSIONS[..]);
         let now = random.next() as i32;
-        assert_same_policy(&buffer, version, now);
-        assert_same_attributes(&buffer, &mut random);
+        assert_same_policy(&mut tape, &buffer, version, now);
+        assert_same_attributes(&mut tape, &buffer, &mut random);
     }
+    tape.finish();
 }
 
 /// Whether a header size larger than the buffer would make the C++ read past its padding, which is
 /// undefined. The port's answer there is tested on its own (`a_declared_size_past_the_buffer...`).
-#[cfg(not(target_os = "android"))]
 fn declares_past_the_buffer(buffer: &[u8]) -> bool {
     usize::try_from(get_header_size(buffer)).is_ok_and(|size| size > buffer.len())
 }
 
-#[cfg(not(target_os = "android"))]
 #[test]
-fn random_buffers_match_the_cpp() {
+fn random_buffers_match_the_goldens() {
+    let mut tape = tape("header.random_buffers");
     let mut random = Random(4_242);
     let mut compared = 0;
     for _ in 0..3_000 {
@@ -436,18 +423,18 @@ fn random_buffers_match_the_cpp() {
         compared += 1;
         let version = random.pick(&VERSIONS[..]);
         let now = random.next() as i32;
-        assert_same_policy(&buffer, version, now);
-        assert_same_attributes(&buffer, &mut random);
+        assert_same_policy(&mut tape, &buffer, version, now);
+        assert_same_attributes(&mut tape, &buffer, &mut random);
     }
+    tape.finish();
     assert!(
         compared > 1_000,
         "only {compared} buffers declare a size inside themselves"
     );
 }
 
-#[cfg(not(target_os = "android"))]
 #[test]
-fn integer_and_bool_values_match_the_cpp() {
+fn integer_and_bool_values_match_the_goldens() {
     const KEYS: &[&str] = &[
         "EXTENDED_REGION_SIZE",
         "MULTIPLE_WORDS_DEMOTION_RATE",
@@ -460,23 +447,26 @@ fn integer_and_bool_values_match_the_cpp() {
         "MAX_UNIGRAM_ENTRY_COUNT",
         "FORGETTING_CURVE_PROBABILITY_VALUES_TABLE_ID",
     ];
+    let mut tape = tape("header.integer_and_bool_values");
     let mut random = Random(7);
     for key in KEYS {
         for value in INTEGER_TEXTS {
             let buffer = header_of(&[(key, value)]);
-            assert_same_policy(&buffer, FormatVersion::Version202, 99);
-            assert_same_attributes(&buffer, &mut random);
+            assert_same_policy(&mut tape, &buffer, FormatVersion::Version202, 99);
+            assert_same_attributes(&mut tape, &buffer, &mut random);
         }
     }
+    tape.finish();
 }
 
-#[cfg(not(target_os = "android"))]
 #[test]
-fn static_readers_match_the_cpp_on_every_format_version() {
+fn static_readers_on_every_format_version_match_the_goldens() {
+    let mut tape = tape("header.every_format_version");
     let mut random = Random(99);
     for version in VERSIONS {
         let buffer = random_header(&mut random);
-        assert_same_policy(&buffer, version, 5);
-        assert_same_attributes(&buffer, &mut random);
+        assert_same_policy(&mut tape, &buffer, version, 5);
+        assert_same_attributes(&mut tape, &buffer, &mut random);
     }
+    tape.finish();
 }

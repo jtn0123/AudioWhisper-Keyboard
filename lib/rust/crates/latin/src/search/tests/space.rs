@@ -2,10 +2,9 @@
 //! always false there and space substitution ("hevis" -> "he is") never runs; with a space bar
 //! under the bottom row it does, and both sides are built from the same arrays to compare it.
 
-use latin_oracle::queries::{self, Random};
+use latin_golden::queries::{self, Random};
 
-use super::support::{TestKeyboard, assert_same, convert, in_chunks, new_session, tap, words_of};
-use crate::trie::dictionary::Dictionary;
+use super::support::{Pair, TestKeyboard, in_chunks, record, tap};
 
 /// The y of a bottom-row tap close enough to the space bar for its grid cell to list the space.
 const NEAR_SPACE_Y: i32 = 440;
@@ -39,15 +38,12 @@ fn joined(random: &mut Random, short_words: &[&Vec<char>]) -> (Vec<i32>, Vec<Opt
 /// whole on fresh ones, on a keyboard with a space bar: each matches the C++, and the space
 /// expansions make some answers two words.
 #[test]
-fn space_bar_keyboard_matches_the_cpp() {
+fn space_bar_keyboard_matches_the_goldens() {
     let keyboard = TestKeyboard::new(true);
-    let (cpp_proximity, info) = (keyboard.cpp_proximity(), keyboard.info());
-    for path in latin_oracle::dictionary_paths() {
-        let cpp_dictionary = latin_oracle::Dictionary::at(&path);
-        let dictionary = Dictionary::open(std::fs::read(&path).expect("the dictionary").into())
-            .expect("a valid dictionary");
-        let all_words = words_of(&cpp_dictionary);
-        let short_words: Vec<&Vec<char>> = all_words
+    for (name, path) in latin_golden::dictionaries() {
+        let pair = Pair::at(name, &path, Some(&keyboard));
+        let short_words: Vec<&Vec<char>> = pair
+            .words
             .iter()
             .filter(|word| {
                 (2..=7).contains(&word.len()) && word.iter().all(char::is_ascii_lowercase)
@@ -56,7 +52,7 @@ fn space_bar_keyboard_matches_the_cpp() {
         let mut random = Random::new(37);
         let inputs: Vec<_> = (0..2_000)
             .map(|round| {
-                let mut query = queries::query(&mut random, &all_words);
+                let mut query = queries::query(&mut random, &pair.words);
                 if round % 3 != 0 {
                     (query.code_points, query.points) = joined(&mut random, &short_words);
                 }
@@ -64,40 +60,23 @@ fn space_bar_keyboard_matches_the_cpp() {
             })
             .collect();
         // Letter by letter on each thread's shared sessions, then the whole query on fresh ones.
-        let two_words_by_round = in_chunks(
+        let outputs = in_chunks(
             &inputs,
-            || {
-                let cpp = latin_oracle::Session::new("en_US", &cpp_dictionary);
-                (cpp, new_session())
-            },
-            |(cpp_session, session), round, query| {
-                for length in 1..=query.code_points.len() {
-                    let input = latin_oracle::Query {
-                        code_points: query.code_points[..length].to_vec(),
-                        points: query.points[..length].to_vec(),
-                        ..query.clone()
-                    };
-                    let theirs =
-                        latin_oracle::suggest(&cpp_dictionary, &cpp_proximity, cpp_session, &input);
-                    let ours =
-                        crate::search::suggest(&dictionary, &info, session, &convert(&input));
-                    assert_same(
-                        &ours,
-                        &theirs,
-                        &format!("{} space {round}/{length}", path.display()),
-                    );
-                }
-                let fresh = latin_oracle::Session::new("en_US", &cpp_dictionary);
-                let theirs = latin_oracle::suggest(&cpp_dictionary, &cpp_proximity, &fresh, query);
-                let ours =
-                    crate::search::suggest(&dictionary, &info, &mut new_session(), &convert(query));
-                assert_same(&ours, &theirs, &format!("{} space {round}", path.display()));
-                ours.code_points[..ours.count as usize * crate::defines::MAX_WORD_LENGTH]
-                    .contains(&i32::from(b' '))
-            },
+            || pair.sessions(),
+            |sessions, _, query| pair.type_then_ask(sessions, query),
         );
-        let calls = two_words_by_round.len();
-        let two_words = two_words_by_round.iter().filter(|&&it| it).count();
+        let mut tape = pair.tape("space_bar_keyboard");
+        record(&mut tape, outputs.iter().flatten());
+        tape.finish();
+        let two_words = outputs
+            .iter()
+            .filter(|outputs| {
+                let whole = outputs.last().expect("the whole query's output");
+                whole.code_points[..whole.count as usize * crate::defines::MAX_WORD_LENGTH]
+                    .contains(&i32::from(b' '))
+            })
+            .count();
+        let calls = outputs.len();
         eprintln!("{two_words} of {calls} answers held two words");
         assert!(
             two_words > calls / 2,
