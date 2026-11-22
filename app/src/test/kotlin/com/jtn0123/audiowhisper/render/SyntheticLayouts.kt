@@ -71,7 +71,7 @@ internal class SyntheticLayouts(private val random: Random) {
         children.filter { random.nextInt(3) != 0 }.map { it to maybeKey(depth - 1) })
 
     private fun leaf(name: String?, depth: Int): String {
-        val code = CODES.random(random)
+        val code = if (name == "auto_text_key") autoTextCode() else code(KEY_CODE_ODDS)
         val label = when (random.nextInt(4)) {
             0 -> ""
             1 -> LABELS.random(random)
@@ -91,12 +91,26 @@ internal class SyntheticLayouts(private val random: Random) {
     private fun multi(depth: Int): String {
         val label = LABELS.random(random)
         labels += label
-        val codePoints = array(List(random.nextInt(4)) { "${CODES.random(random)}" })
+        val codePoints = array(List(random.nextInt(4)) { "${code(MULTI_KEY_CODE_ODDS)}" })
         val fields = mutableListOf("$" to str("multi_text_key"), "codePoints" to codePoints, "label" to str(label))
         if (random.nextBoolean()) fields += "type" to str(keyType())
         if (random.nextInt(4) == 0) fields += "groupId" to "${GROUPS.random(random)}"
         if (depth > 0 && random.nextInt(4) == 0) fields += "popup" to popup(depth - 1)
         return obj(fields)
+    }
+
+    /** A `KeyCode` one time in [odds], otherwise a character: most keys must survive main's computing. */
+    private fun code(odds: Int) = if (random.nextInt(odds) == 0) KEY_CODES.random(random) else CHARACTERS.random(random)
+
+    /**
+     * Main cases an auto-text key's code through `UCharacter.toString`, which is null for anything
+     * but a code point, so any other code fails the whole keyboard; only a currency slot's code
+     * escapes the casing. Both are rare, so most synthetic keyboards are compared.
+     */
+    private fun autoTextCode() = when (random.nextInt(AUTO_TEXT_ODDS)) {
+        0 -> CURRENCY_SLOTS.random(random)
+        1 -> KEY_CODES.random(random)
+        else -> CHARACTERS.random(random)
     }
 
     private fun popup(depth: Int): String {
@@ -127,21 +141,35 @@ internal class SyntheticLayouts(private val random: Random) {
         val GROUPS = listOf(0, 1, 2, 3, 7, -1)
         val SHIFT_STATES = listOf("unshifted", "shifted", "shiftedManual", "shiftedAutomatic", "capsLock", "default")
 
-        /**
-         * Every `KeyCode`, read through its getters (each is a `val` from Rust, so its field is
-         * private), letters with casing of their own, marks, and characters past the BMP.
-         */
-        val CODES: List<Int> = KeyCode::class.java.declaredMethods
+        /** A key's code is a `KeyCode` one time in three: each is drawn, and most keys still compute. */
+        const val KEY_CODE_ODDS = 3
+
+        /** A multi-text key's code points become a string, which fails the keyboard for most `KeyCode`s. */
+        const val MULTI_KEY_CODE_ODDS = 48
+
+        /** An auto-text key's code is a currency slot's one time in 48, and another `KeyCode` one in 48. */
+        const val AUTO_TEXT_ODDS = 48
+
+        /** Every `KeyCode` getter (each is a `val` from Rust, so its field is private), by name. */
+        private val GETTERS = KeyCode::class.java.declaredMethods
             .filter {
                 Modifier.isPublic(it.modifiers) && it.name.startsWith("get") && it.parameterCount == 0 &&
                     it.returnType == Int::class.javaPrimitiveType
             }
             .sortedBy { it.name }
+
+        val KEY_CODES: List<Int> = GETTERS.map { it.invoke(KeyCode) as Int }
+            .also { check(it.size > 90) { "only ${it.size} key codes" } }
+
+        val CURRENCY_SLOTS: List<Int> = GETTERS.filter { it.name.startsWith("getCURRENCY_SLOT_") }
             .map { it.invoke(KeyCode) as Int }
-            .also { check(it.size > 90) { "only ${it.size} key codes" } } +
-            listOf(97, 98, 122, 65, 90, 105, 73, 0x131, 0x130, 0xDF, 0x1C5, 0xFB01, 0x3A3, 0x3C2, 0x301, 0x93F,
-                0x627, 0x5D0, 0x1F600, 0x10400, 48, 49, 57, 0x660, 0x6F1, 0x966, 36, 8364, 0x3042, 0xFF41,
-                Int.MIN_VALUE)
+            .also { check(it.size == 6) { "${it.size} currency slots" } }
+
+        /** Letters with casing of their own, marks, digits, characters past the BMP, and no code point. */
+        val CHARACTERS = listOf(
+            97, 98, 122, 65, 90, 105, 73, 0x131, 0x130, 0xDF, 0x1C5, 0xFB01, 0x3A3, 0x3C2, 0x301, 0x93F, 0x627,
+            0x5D0, 0x1F600, 0x10400, 48, 49, 57, 0x660, 0x6F1, 0x966, 36, 8364, 0x3042, 0xFF41, Int.MIN_VALUE,
+        )
 
         val LABELS = listOf(
             "a", "A", "ß", "İ", "ı", "ﬁ", "Σ", "ς", "ǅ", "😀", "́", "~enter", "a b", "123", "?", "ABC", "١",
