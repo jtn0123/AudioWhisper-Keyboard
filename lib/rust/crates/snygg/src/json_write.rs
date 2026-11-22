@@ -3,6 +3,10 @@
 //! first, then each rule in the stylesheet's order as `Rule::format` writes it, each property as
 //! its encoder serializes it. A font rule is an array of property objects. Strings are escaped as
 //! kotlinx's `printQuoted` escapes them: only `"`, `\` and the C0 controls.
+//!
+//! [`pretty`] writes any other JSON the same way, keys in the order they were put in: what
+//! `writeJson` gave for a document with no stylesheet in it, such as an extension's
+//! `extension.json`.
 use crate::{
     Text, document,
     grammar::Rule,
@@ -12,6 +16,44 @@ use crate::{
     text,
     value::Value,
 };
+
+/// `value` as kotlinx's `prettyPrint` with a two-space indent prints it: each element and key
+/// on its own line, an empty array or object as `[]` or `{}`, and strings as
+/// [`to_pretty_json`] quotes them. A number is written as `serde_json` writes it.
+pub fn pretty(value: &serde_json::Value) -> String {
+    let mut out = String::new();
+    pretty_value(&mut out, 0, value);
+    out
+}
+
+fn pretty_value(out: &mut String, depth: usize, value: &serde_json::Value) {
+    use serde_json::Value as Json;
+    match value {
+        Json::Null => out.push_str("null"),
+        Json::Bool(b) => out.push_str(if *b { "true" } else { "false" }),
+        Json::Number(n) => out.push_str(&n.to_string()),
+        Json::String(s) => quoted(out, &text(s)),
+        Json::Array(all) => {
+            out.push('[');
+            for (i, item) in all.iter().enumerate() {
+                if i > 0 {
+                    out.push(',');
+                }
+                newline(out, depth + 1);
+                pretty_value(out, depth + 1, item);
+            }
+            close(out, depth, !all.is_empty(), ']');
+        }
+        Json::Object(fields) => {
+            out.push('{');
+            for (i, (key, item)) in fields.iter().enumerate() {
+                entry(out, depth + 1, i == 0, &text(key));
+                pretty_value(out, depth + 1, item);
+            }
+            close(out, depth, !fields.is_empty(), '}');
+        }
+    }
+}
 
 /// The indent kotlinx writes per level.
 const INDENT: &str = "  ";

@@ -118,3 +118,45 @@ fn lenient_parsing_keeps_what_it_can_and_strict_parsing_refuses() {
     };
     assert_eq!(props.len(), 1);
 }
+
+/// Any JSON as kotlinx pretty prints it: an element or key per line two spaces deeper, empty
+/// collections closed on their own line, keys in insertion order and kotlinx's escapes. The JVM
+/// match test (`SettingsExtensionEditorMatchTest`) holds an extension's manifest byte for byte
+/// against `ExtensionJsonConfig`.
+#[test]
+fn pretty_prints_any_json_as_kotlinx_does() {
+    let value = serde_json::json!({
+        "$": "ime.extension.theme",
+        "meta": {"id": "a.b", "keywords": ["x", "y \"q\"\n\u{1}"], "empty": []},
+        "none": {},
+        "night": false,
+        "n": 12,
+        "z": null,
+    });
+    let expected = "{\n  \"$\": \"ime.extension.theme\",\n  \"meta\": {\n    \"id\": \"a.b\",\n    \
+                    \"keywords\": [\n      \"x\",\n      \"y \\\"q\\\"\\n\\u0001\"\n    ],\n    \
+                    \"empty\": []\n  },\n  \"none\": {},\n  \"night\": false,\n  \"n\": 12,\n  \
+                    \"z\": null\n}";
+    assert_eq!(snygg::json_write::pretty(&value), expected);
+    assert_eq!(snygg::json_write::pretty(&serde_json::json!([])), "[]");
+    assert_eq!(
+        snygg::json_write::pretty(&serde_json::json!("é\\")),
+        "\"é\\\\\""
+    );
+}
+
+/// A stylesheet written by [`to_pretty_json`] reads back through `serde_json` and prints the same
+/// through [`pretty`](snygg::json_write::pretty): the two writers agree wherever both apply.
+#[test]
+fn pretty_agrees_with_the_stylesheet_writer() {
+    for (path, json) in shipped() {
+        let written = write(&json);
+        let value: serde_json::Value = serde_json::from_str(&written).unwrap();
+        assert_eq!(
+            snygg::json_write::pretty(&value),
+            written,
+            "{}",
+            path.display()
+        );
+    }
+}
