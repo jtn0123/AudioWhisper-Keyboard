@@ -43,7 +43,7 @@ internal class LayoutFixtures {
     val popupMappings = File(localization, "popupMappings").listFiles()!!.associate { file ->
         file.nameWithoutExtension to DefaultJsonConfig.decodeFromString<PopupMapping>(file.readText())
     }
-    private val currencySets = DefaultJsonConfig.parseToJsonElement(
+    val currencySets = DefaultJsonConfig.parseToJsonElement(
         File(root, "org.florisboard.currencysets/extension.json").readText()).jsonObject.getValue("currencySets").jsonArray
         .associate { value -> value.jsonObject.let { it.getValue("id").jsonPrimitive.content to
             DefaultJsonConfig.decodeFromJsonElement<List<TextKeyData>>(it.getValue("slots")) } }
