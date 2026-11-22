@@ -44,6 +44,7 @@ internal class RustSettingsView(context: Context) : FrameLayout(context), Surfac
     private val surface = SurfaceView(context)
     private val endpoint = SettingsInputView(context, this)
     private val selectionMenu = SettingsSelectionMenu(endpoint, this)
+    private lateinit var readOnly: SettingsReadOnlyText
     internal val pendingWrites get() = if (::platform.isInitialized) platform.pending else 0
     internal val inputHasFocus get() = endpoint.hasFocus()
     var restoreInputFocus = false
@@ -66,7 +67,7 @@ internal class RustSettingsView(context: Context) : FrameLayout(context), Surfac
         if (action == RenderProtocol.ACCESS_SCROLL_FORWARD || action == RenderProtocol.ACCESS_SCROLL_BACKWARD) send(SettingsUiOp.ACCESSIBILITY_SCROLL, id.toString(), action.toString()) else send(SettingsUiOp.ACTIVATE, id.toString())
         true
     }, { send(SettingsUiOp.CANCEL_TOUCH) }, hoverCommits = false, platformAction = { id, action, args ->
-        when (action) {
+        readOnly.access(id, action, args) ?: when (action) {
             AccessibilityNodeInfo.ACTION_SET_TEXT -> {
                 edit(SettingsUiEdit.SET, args?.getCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE)?.toString().orEmpty())
             }
@@ -94,6 +95,7 @@ internal class RustSettingsView(context: Context) : FrameLayout(context), Surfac
         this.platform = SettingsPlatform(activity, prefs, ::preferencesPersisted)
         this.facts = SettingsFacts(activity).also { it.observe { if (!released) pushFacts() } }
         this.fallback = fallback
+        readOnly = SettingsReadOnlyText(this, activity.lifecycleScope)
         // Before the saved state, which asks for a report when it reopens a language or word screen.
         languages = SettingsLanguages(activity) { if (!released) receive(native.settings(SettingsUiOp.LANGUAGES, it)) }
         words = SettingsWords(activity) { if (!released) receive(native.settings(SettingsUiOp.WORDS, it)) }
@@ -124,7 +126,7 @@ internal class RustSettingsView(context: Context) : FrameLayout(context), Surfac
     }
     override fun dispatchKeyEvent(event: KeyEvent): Boolean =
         if (event.keyCode == KeyEvent.KEYCODE_BACK) super.dispatchKeyEvent(event) else forwardKey(event)
-    private fun send(operation: SettingsUiOp, vararg input: String) {
+    internal fun send(operation: SettingsUiOp, vararg input: String) {
         if (!released) receive(native.settings(operation, arrayOf(*input)))
     }
     private fun receive(reply: Array<String>) {
@@ -170,9 +172,11 @@ internal class RustSettingsView(context: Context) : FrameLayout(context), Surfac
                 SettingsUiLanguageEffect.LOAD, SettingsUiLanguageEffect.DELETE_PACK -> languages.execute(p)
                 SettingsUiWordEffect.LOAD, SettingsUiWordEffect.ADD, SettingsUiWordEffect.CHANGE, SettingsUiWordEffect.DELETE,
                 SettingsUiWordEffect.RESTORE, SettingsUiWordEffect.IMPORT, SettingsUiWordEffect.MANAGER -> words.execute(p)
+                SettingsUiTextEffect.ASSET, SettingsUiTextEffect.CLIP, SettingsUiTextEffect.HAPTIC -> readOnly.execute(p)
             }
         }
         selectionMenu.update(state.getValue("selectionToolbar").jsonPrimitive.boolean)
+        selectionMenu.place(state["textToolbar"]?.takeUnless { it == JsonNull }?.jsonArray?.map { it.jsonPrimitive.float })
         accessibility.refresh(); requestFrame()
     }
     fun refreshPlatform() = configure()

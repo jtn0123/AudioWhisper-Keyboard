@@ -133,6 +133,12 @@ internal class RendererAccessibility(
                 addAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_SET_TEXT)
                 addAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_SET_SELECTION)
             }
+            // Read-only selectable text: Rust names the granularities and owns cursor and selection.
+            (n["text"] as? JsonObject)?.let { t ->
+                movementGranularities = t.int("granularities")
+                if (n.int("anchor") >= 0) setTextSelection(n.int("anchor"), n.int("focus"))
+                for (a in TEXT_ACTIONS) addAction(AccessibilityNodeInfo.AccessibilityAction(a, null))
+            }
             isFocusable = true
             isAccessibilityFocused = focused == virtualViewId
             isVisibleToUser = host.isShown
@@ -187,8 +193,9 @@ internal class RendererAccessibility(
         val n = nodes.getValue(virtualViewId)
         if (!n.bool("enabled")) return false
         val platformSupported = (n.string("role") == "edit" && (action == AccessibilityNodeInfo.ACTION_SET_TEXT || action == AccessibilityNodeInfo.ACTION_SET_SELECTION)) ||
-            (n["range"]?.let { it != JsonNull } == true && action == AccessibilityNodeInfo.AccessibilityAction.ACTION_SET_PROGRESS.id)
-        if (platformSupported && platformAction?.invoke(virtualViewId, action, arguments) == true) { refresh(); return true }
+            (n["range"]?.let { it != JsonNull } == true && action == AccessibilityNodeInfo.AccessibilityAction.ACTION_SET_PROGRESS.id) ||
+            (n["text"] is JsonObject && action in TEXT_ACTIONS)
+        if (platformSupported && platformAction?.invoke(virtualViewId, action, arguments) == true) { refresh(); return action !in TRAVERSE || traversed(virtualViewId) }
         custom(n).firstOrNull { it.first == action }?.let { val result = activate(it.first, ACCESS_CLICK); refresh(); return result }
         val native = when (action) {
             AccessibilityNodeInfo.ACTION_CLICK -> ACCESS_CLICK
@@ -284,7 +291,13 @@ internal class RendererAccessibility(
         return true
     }
     private fun stateEvent(text: String) = event(View.NO_ID, AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED, text)
-    private fun event(id: Int, type: Int, text: String? = null, change: Int = 0) {
+    /** Reports the traversal Rust just made on a text node; false at the text's end, so TalkBack moves on. */
+    private fun traversed(id: Int): Boolean {
+        val t = ((nodes[id]?.get("text") as? JsonObject)?.get("traversed") as? JsonArray)?.map { it.jsonPrimitive.int } ?: return false
+        event(id, AccessibilityEvent.TYPE_VIEW_TEXT_TRAVERSED_AT_MOVEMENT_GRANULARITY, nodes.getValue(id).string("label")) { it.fromIndex = t[0]; it.toIndex = t[1]; it.movementGranularity = t[2]; it.action = t[3] }
+        return true
+    }
+    private fun event(id: Int, type: Int, text: String? = null, change: Int = 0, extra: (AccessibilityEvent) -> Unit = {}) {
         if (!manager.isEnabled || !host.isAttachedToWindow) return
         val event = AccessibilityEvent(type)
         event.packageName = host.context.packageName
@@ -295,6 +308,7 @@ internal class RendererAccessibility(
             event.contentDescription = nodes[id]?.string("description")
         }
         if (text != null) event.text.add(text)
+        extra(event)
         host.parent?.requestSendAccessibilityEvent(host, event)
     }
     private fun bounds(n: JsonObject): Rect {
@@ -302,7 +316,7 @@ internal class RendererAccessibility(
         return Rect(floor(a[0]).toInt(), floor(a[1]).toInt(), ceil(a[2]).toInt(), ceil(a[3]).toInt())
     }
     private fun nodeClass(n: JsonObject): String = when (n.string("role")) {
-        "text", "heading", "status" -> "android.widget.TextView"
+        "text", "heading", "status", "selectable" -> "android.widget.TextView"
         "image" -> "android.widget.ImageView"
         // FlorisSimpleCard's Card(onClick) and FlorisHyperlinkText's clickable Text carry no Role,
         // so Compose reports a View and a TextView that TalkBack cannot name. Both act as buttons.
@@ -320,3 +334,7 @@ internal class RendererAccessibility(
     private fun JsonObject.string(key: String) = getValue(key).jsonPrimitive.content
     private fun JsonObject.bool(key: String) = getValue(key).jsonPrimitive.boolean
 }
+
+/** TalkBack's text traversal, and every action read-only selectable text takes. */
+private val TRAVERSE = listOf(AccessibilityNodeInfo.ACTION_NEXT_AT_MOVEMENT_GRANULARITY, AccessibilityNodeInfo.ACTION_PREVIOUS_AT_MOVEMENT_GRANULARITY)
+private val TEXT_ACTIONS = TRAVERSE + listOf(AccessibilityNodeInfo.ACTION_SET_SELECTION, AccessibilityNodeInfo.ACTION_COPY)

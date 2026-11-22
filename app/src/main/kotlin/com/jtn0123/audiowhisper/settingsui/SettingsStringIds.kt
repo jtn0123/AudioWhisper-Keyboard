@@ -11,6 +11,7 @@ internal val settingsStringIds: Map<String, Int> = mapOf(
     "about__changelog__title" to R.string.about__changelog__title,
     "about__privacy_policy__summary" to R.string.about__privacy_policy__summary,
     "about__privacy_policy__title" to R.string.about__privacy_policy__title,
+    "about__project_license__error_license_text_failed" to R.string.about__project_license__error_license_text_failed,
     "about__project_license__summary" to R.string.about__project_license__summary,
     "about__project_license__title" to R.string.about__project_license__title,
     "about__repository__summary" to R.string.about__repository__summary,
