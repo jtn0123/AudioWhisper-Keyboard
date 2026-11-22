@@ -123,6 +123,13 @@ hand.
   composed with "the" offered and a space corrected it, next-word suggestions followed, and two
   quick spaces typed ". ".
 * **Then every binding file** in `lib/rust/src/main/kotlin` (66 files, 3,078 lines).
+  **Done (2026-11-21):** all 388 production native methods are generated, and a hand-written one
+  now fails `checkNativeDeclarations`; ten mutations, one per new shape, each fail it too. 283
+  hand-written lines are left in 13 files, none with an `external fun` (from 2,338 in 66; see
+  [rust.md](rust.md#what-stays-hand-written)). Match tests are unchanged. On the emulator,
+  "teh" composed with "the" offered and a space corrected it, next-word suggestions followed, one
+  shift capitalised a letter, a double shift locked caps, two quick spaces typed ". ", a
+  long-press opened a popup, and the Theme, Smartbar and Typing settings screens drew.
 * **Exit:** all `external fun`s generated, at most about 300 hand-written lines left in the
   bindings, existing match tests unchanged.
 
