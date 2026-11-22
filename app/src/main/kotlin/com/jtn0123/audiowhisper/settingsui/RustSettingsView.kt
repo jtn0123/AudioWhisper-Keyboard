@@ -38,6 +38,7 @@ internal class RustSettingsView(context: Context) : FrameLayout(context), Surfac
     private lateinit var words: SettingsWords
     private lateinit var themes: SettingsThemes
     private lateinit var themeEditor: SettingsThemeEditor
+    private lateinit var keyRecorder: SettingsKeyRecorder
     private lateinit var setup: SettingsSetup
     var backAvailability: (Boolean) -> Unit = {}
     private var fallback: (String, List<String>) -> Unit = { _, _ -> }
@@ -104,6 +105,7 @@ internal class RustSettingsView(context: Context) : FrameLayout(context), Surfac
         words = SettingsWords(activity) { if (!released) receive(native.settings(SettingsUiOp.WORDS, it)) }
         themes = SettingsThemes(activity) { if (!released) receive(native.settings(SettingsUiOp.THEMES, it)) }
         themeEditor = SettingsThemeEditor(activity) { if (!released) receive(native.settings(SettingsUiOp.THEME_EDITOR, it)) }
+        keyRecorder = SettingsKeyRecorder(activity) { if (!released) receive(native.settings(SettingsUiOp.THEME_CODE, it)) }
         receive(native.settings(SettingsUiOp.PREFERENCES, platform.snapshot()))
         if (restored != null) receive(native.settings(SettingsUiOp.RESTORE, restored))
         setup = SettingsSetup(activity, ::configure) { if (!released) receive(native.settings(SettingsUiOp.PERMISSION, it)) }
@@ -183,6 +185,7 @@ internal class RustSettingsView(context: Context) : FrameLayout(context), Surfac
                 SettingsUiTextEffect.ASSET, SettingsUiTextEffect.CLIP, SettingsUiTextEffect.HAPTIC -> readOnly.execute(p)
                 SettingsUiThemeEffect.LOAD, SettingsUiThemeEffect.PREVIEW -> themes.execute(p)
                 SettingsUiThemeEditorEffect.LOAD, SettingsUiThemeEditorEffect.SAVE, SettingsUiThemeEditorEffect.PREVIEW -> themeEditor.execute(p)
+                SettingsUiThemeCodeEffect.RECORD, SettingsUiThemeCodeEffect.STOP, SettingsUiThemeCodeEffect.DESCRIBE -> keyRecorder.execute(p)
                 SettingsUiSetupEffect.ASK, SettingsUiSetupEffect.NOTIFICATION_SETTINGS, SettingsUiSetupEffect.RETURN -> setup.execute(p)
             }
         }
@@ -284,6 +287,7 @@ internal class RustSettingsView(context: Context) : FrameLayout(context), Surfac
         if (::files.isInitialized) files.release()
         if (::themes.isInitialized) themes.release()
         if (::themeEditor.isInitialized) themeEditor.release()
+        if (::keyRecorder.isInitialized) keyRecorder.release()
         if (::setup.isInitialized) setup.release()
         selectionMenu.close(); accessibility.release(); native.detach(); native.close()
     }
