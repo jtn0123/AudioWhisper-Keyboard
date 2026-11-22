@@ -39,6 +39,7 @@ row says so.
 | P10 | Emoji: pull the Samsung emoji font, inspect it, and render it with the same probe. The probe ran only on the other fonts. | [stage3a, system emoji fonts](stage3a-results.md#system-emoji-fonts) |
 | P11 | Back up and Restore: every step ran on the emulator. None ran on the phone. | [stage4-backup-restore, owed](stage4-backup-restore.md#owed) |
 | P12 | User dictionaries: every step ran on the emulator. None ran on the phone. | [stage4-user-dictionaries, owed](stage4-user-dictionaries.md#owed) |
+| P13 | Keyboard: a top-row key's popup shows whole over the app. Long-press e, p and q with the Smartbar on and off, in portrait and landscape and in one-handed mode, and slide to a choice in the upper row. Tap the app just above the keyboard. Fixed and checked on the emulator, in portrait only. | [rust.md, a top-row key's popup](rust.md#a-top-row-keys-popup-cut-off-fixed-2026-11-21) |
 
 ## Emulator checks the docs owe
 
@@ -65,6 +66,7 @@ row says so.
 | E19 | Backup and utils: back up and restore through the real SAF UI, compare values and store hashes, check the incompatible-archive message against the pre-change build, and check MIME and locale on Android. Android URI round trips and ICU and device parity are also owed. Back up and restore through the system picker ran on the emulator for compose-removal step 5; the rest is still owed. | [stage2-backup-utils, owed device acceptance](stage2-backup-utils.md#owed-device-acceptance); [stage4-backup-restore, emulator check](stage4-backup-restore.md#emulator-check) |
 | E20 | `SettingsOtherThemeDevice`: its Back up and Restore step now expects the Rust screens. It compiles but has not run. | [stage4-backup-restore, owed](stage4-backup-restore.md#owed) |
 | E21 | Our keyboard typing into our own Rust settings fields. The fields take text: with agent-device's own test keyboard active, Select language's search took "germ" and filtered the list, and the home screen's preview field took "hello". With our keyboard active, agent-device refuses text entry into the keyboard's own app ("the focused input belongs to the active keyboard/IME"), and its taps on our keys typed nothing, so whether a person's taps type there is unchecked. Type into Select language's search, and a word into the user dictionary editor, by hand with our keyboard, on the phone or on an emulator. | [stage4-languages, emulator check](stage4-languages.md#emulator-check); [stage4-user-dictionaries, owed](stage4-user-dictionaries.md#owed) |
+| E22 | A top-row key's popup in landscape without full-screen mode (set *landscape input* so the extract view never shows, then put it back) and in one-handed mode. The cargo tests cover both layouts; no device has shown them. | [rust.md, a top-row key's popup](rust.md#a-top-row-keys-popup-cut-off-fixed-2026-11-21) |
 
 ## Not device checks, but still owed
 
@@ -86,7 +88,9 @@ These need no device. They are listed so they are not lost.
 * Restore runs on the main thread, as Compose's did. ([stage4-backup-restore, owed](stage4-backup-restore.md#owed))
 * Compose's empty user dictionary route hands back to Rust's dictionary list, as it cannot tell the two dictionaries apart. Nothing opens that route now. ([stage4-user-dictionaries, owed](stage4-user-dictionaries.md#owed))
 * The mutation scripts have no check that each case still matches its source. A renamed line makes a case match nothing, which stops a full run (`predictive-cancel-commits` did, from b57a98bf0 until it was fixed). A `--check` mode in each script, run by the gate, would catch it at once.
+* In full-screen landscape a top-row key's popup is still cut at the keyboard's top: the frozen Compose root wraps the keyboard and clips its surface. The plain-View root must not clip it ([all-rust phase 3](all-rust.md#3-rust-owns-the-keyboard-l), item 4). ([rust.md, a top-row key's popup](rust.md#a-top-row-keys-popup-cut-off-fixed-2026-11-21))
+* The Rust keyboard draws no key-press preview bubble. Its setting reaches only the Compose keyboard. ([rust.md, a top-row key's popup](rust.md#a-top-row-keys-popup-cut-off-fixed-2026-11-21))
 
 ## Notes
 
-* This list has 4 confirm-on-the-phone items, 12 phone checks and 21 emulator checks.
+* This list has 4 confirm-on-the-phone items, 13 phone checks and 22 emulator checks.

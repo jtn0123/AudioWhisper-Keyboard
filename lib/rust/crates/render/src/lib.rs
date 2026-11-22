@@ -15,6 +15,7 @@ mod ink;
 pub mod key_content;
 mod keyboard_swipe;
 mod keyboard_touch;
+mod popup_raster;
 pub mod popup_scene;
 pub mod profile;
 pub mod protocol;

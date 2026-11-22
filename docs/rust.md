@@ -221,6 +221,65 @@ for Android to release the window at all, so those keep their keys either way. R
 long-press popup, suggestions and switching the Rust drawing off and on again were checked on
 the fixed build afterwards. Not yet checked on the phone.
 
+#### A top-row key's popup cut off (fixed 2026-11-21)
+
+Long-pressing a key on the top row drew its popup with the upper half missing, and with the
+Smartbar off drew no popup at all. A popup's top is 2.5 keys above its key's bottom in
+portrait and 3 in landscape, and a second row of choices adds 0.4 of that
+(`popup_scene::configure`, `popup::grid::extend`). For a top-row key that starts above the
+keyboard. The SurfaceView, and so the buffer Rust draws into, was exactly the keyboard's size,
+and both the damage and the raster were clipped to it. Compose drew its popups in the window
+above the keyboard, over the app. The fault is older than the generated-boundary merge.
+
+The surface now reaches above the keyboard. Rust works out how many rows the highest popup can
+need above the scene (`popup_scene::headroom`: every visible key's popup laid out with six
+choices, the fewest that take two rows; none under a full-screen panel, which shows no keys).
+The buffer keeps those rows at its top and draws the scene that far down (`Scene::headroom`,
+`buffer_height`, `buffer_pixels`). The backend adds the shift to every transform; it is a whole
+number of rows, so the keyboard's pixels are unchanged. Only the popup draws above the scene's
+top. Everything else is clipped to the scene, so the rows stay transparent over the app.
+`RustKeyboardView` lays its SurfaceView out from `-headroom` to its own bottom and asks Rust for
+the headroom when the scene changes. The view keeps the keyboard's bounds, so Compose's layout,
+the touchable region and the insets apps see do not change, and a tap above the keyboard still
+reaches the app. A held finger slides up into the popup because Android sends the rest of a
+touch to the window it started in. No Compose file changed.
+
+The other fix was to keep the popup inside the surface, moving it down over the keys. That
+covers the key being held and the row below it, which neither Compose nor Gboard does.
+
+`render/tests/popup_headroom.rs` lays out every popup of every key in a three-row keyboard,
+with and without a strip, in both orientations. Each must fit in the room kept, and the room
+must be no more than the highest popup needs. A top-row popup's choices must show their own
+colours above the keys, the room beside it must stay clear, the keyboard must draw the same
+pixels lower down, and repainting only the damage must match a full repaint as popups open and
+close. `KeyboardRendererTest` checks the headroom across JNI. With the headroom forced to 0, 5
+of the 6 cargo tests fail. So do 2 with the popup clipped to the keyboard, 3 without the shift,
+1 with a full repaint that leaves out the room, and 3 with the damage not moved down.
+
+On the aw_keyboard_ssd emulator (1080x2400, Android 16), in the render probe:
+
+| Check | Before | After |
+|---|---|---|
+| Long-press e, p, q, Smartbar on | Upper half of each popup cut off | Whole: e's ē ê é over è 3 ë, p's 0, q's 1 |
+| The same, Smartbar off | No popup at all, only the pressed key | Whole, wholly over the app |
+| Slide from e up to ê, above the keyboard | Not tried | Typed ê |
+| Quick press on w | Key highlight, no preview bubble | The same |
+| Tap the app 140 px above the keyboard (Settings search, Smartbar off) | Reached the app | Reached the app |
+| Tap the app 20 px above the keyboard | Not tried | Reached the app |
+| 300 presses and 8 holds of e (`render-benchmark/run.sh`) | Both digests match | Both digests match, unchanged |
+
+Two limits. In landscape the keyboard runs full-screen (the extract view above it) unless the
+app or the *landscape input* setting says otherwise. There the input view and
+`android.R.id.inputArea` wrap the keyboard (`FlorisImeService.updateSoftInputWindowLayoutParameters`),
+the wrapping Compose root clips the surface at the keyboard's top, and a top-row popup is still
+cut, as before. Fixing that changes the Compose root's layout, which is frozen. The plain-View
+root (all-rust phase 3 item 4) should not clip the surface there: no clipping on the root or on
+`inputArea`, so the popup draws over the extract view, with the insets and touchable region
+still starting at the keyboard. Landscape without full-screen mode, and one-handed mode, are
+covered by the cargo tests but were not tried on a device. Second, the Rust keyboard draws no
+key-press preview bubble; the setting for it reaches only the Compose keyboard. That is a
+missing feature, not this fault.
+
 ### Stage 4: Rust draws settings (decision 2026-11-14)
 
 Rust draws the settings Activity on the keyboard's Vello CPU / Parley / Skrifa stack.

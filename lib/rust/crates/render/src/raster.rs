@@ -106,14 +106,15 @@ impl Raster {
             bottom: damage.bottom.ceil(),
         };
         self.damage = damage;
+        self.context.set_origin(scene.headroom);
         self.context.reset();
-        let rect = vello_cpu::kurbo::Rect::new(
-            damage.left as f64,
-            damage.top as f64,
-            damage.right as f64,
-            damage.bottom as f64,
-        );
-        self.context.push_clip_rect(&rect);
+        // Nothing but a popup draws above the scene's top, into the headroom.
+        let inside = clip(Rect {
+            top: damage.top.max(0.0),
+            bottom: damage.bottom.max(0.0),
+            ..damage
+        });
+        self.context.push_clip_rect(&inside);
         self.context.set_paint(color(
             if scene.panel.as_ref().is_some_and(|p| p.kind == 3) {
                 0x52000000
@@ -296,28 +297,11 @@ impl Raster {
             )?;
             self.context.pop_clip();
         }
-        if let (Some(popup), Some(bounds)) = (&content.popup, content.popup_bounds()) {
-            self.box_at(bounds, &content.popup_style);
-            for (i, label) in popup.labels.iter().enumerate() {
-                let r = content
-                    .popup_choice_bounds(i)
-                    .ok_or("missing popup choice bounds")?;
-                let style = content
-                    .popup_styles
-                    .get(i)
-                    .map(|s| &s[usize::from(i == popup.selected)])
-                    .unwrap_or(&content.popup_style);
-                self.box_at(r, style);
-                self.label(
-                    label,
-                    style.size,
-                    style.foreground,
-                    r,
-                    style.mono,
-                    style.weight,
-                )?;
-            }
-        }
+        self.context.pop_clip();
+        self.context.push_clip_rect(&clip(damage));
+        self.popup(content)?;
+        self.context.pop_clip();
+        self.context.push_clip_rect(&inside);
         self.panel(scene)?;
         self.context.set_paint(color(scene.trail_color));
         for circle in &scene.trail {
@@ -332,12 +316,12 @@ impl Raster {
         self.context.pop_clip();
         self.profile.encode_ns = elapsed(encode);
         let raster = self.profiling.then(Instant::now);
-        self.rasterize(damage)?;
+        self.rasterize(scene.buffer_pixels(damage))?;
         self.profile.raster_ns = elapsed(raster);
         Ok(())
     }
 
-    /// Composite the damaged rectangle over transparent and store it. Vello unpacks and repacks
+    /// Composite the damaged rectangle, in the buffer's pixels, over transparent and store it. Vello unpacks and repacks
     /// every pixel of its target, drawn on or not, so the target is only the damage: a band of
     /// whole rows in place, or else a scratch copied back. The scene keeps surface coordinates
     /// and the target is placed by a negative offset, so each pixel comes out exactly as a full
@@ -512,6 +496,11 @@ impl Raster {
         self.context.reset_transform();
         Ok(())
     }
+}
+
+/// `r` as a clip rectangle.
+fn clip(r: Rect) -> vello_cpu::kurbo::Rect {
+    vello_cpu::kurbo::Rect::new(r.left as f64, r.top as f64, r.right as f64, r.bottom as f64)
 }
 
 pub(crate) fn color(argb: u32) -> AlphaColor<vello_cpu::peniko::color::Srgb> {

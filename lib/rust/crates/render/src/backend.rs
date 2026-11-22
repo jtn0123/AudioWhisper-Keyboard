@@ -12,11 +12,14 @@ pub(crate) struct Cpu {
     context: RenderContext,
     resources: Resources,
     color: crate::color_glyphs::ColorGlyphs,
+    /// Rows down the target the scene's top is drawn ([`Backend::set_origin`]).
+    origin: u16,
 }
 #[cfg(feature = "hybrid")]
 pub(crate) struct Hybrid {
     pub context: vello_hybrid::Scene,
     pub resources: vello_hybrid::Resources,
+    origin: u16,
 }
 pub(crate) enum Backend {
     Cpu(Box<Cpu>),
@@ -48,6 +51,7 @@ impl Backend {
             context: RenderContext::new(width, height),
             resources: Resources::new(),
             color: Default::default(),
+            origin: 0,
         }))
     }
     #[cfg(feature = "hybrid")]
@@ -55,14 +59,50 @@ impl Backend {
         Self::Hybrid(Box::new(Hybrid {
             context: vello_hybrid::Scene::new(width, height),
             resources,
+            origin: 0,
         }))
     }
-    forward!(reset());
     forward!(set_paint(paint: AlphaColor<Srgb>));
     forward!(fill_path(path: &BezPath));
     forward!(fill_rect(rect: &Rect));
-    forward!(set_transform(transform: Affine));
-    forward!(reset_transform());
+
+    /// Draws the scene `rows` down the target, which has that many rows above the scene's top
+    /// (the scene's headroom). Every transform is taken from there, so whatever is drawn, colour
+    /// glyph tiles included, lands whole pixels lower and otherwise unchanged.
+    pub fn set_origin(&mut self, rows: u16) {
+        match self {
+            Self::Cpu(c) => c.origin = rows,
+            #[cfg(feature = "hybrid")]
+            Self::Hybrid(c) => c.origin = rows,
+        }
+        self.reset_transform();
+    }
+    /// Clears what was drawn and the state, keeping the origin.
+    pub fn reset(&mut self) {
+        match self {
+            Self::Cpu(c) => c.context.reset(),
+            #[cfg(feature = "hybrid")]
+            Self::Hybrid(c) => c.context.reset(),
+        }
+        self.reset_transform();
+    }
+    /// `transform`, taken from the origin.
+    pub fn set_transform(&mut self, transform: Affine) {
+        let origin = match self {
+            Self::Cpu(c) => c.origin,
+            #[cfg(feature = "hybrid")]
+            Self::Hybrid(c) => c.origin,
+        };
+        let transform = Affine::translate((0.0, f64::from(origin))) * transform;
+        match self {
+            Self::Cpu(c) => c.context.set_transform(transform),
+            #[cfg(feature = "hybrid")]
+            Self::Hybrid(c) => c.context.set_transform(transform),
+        }
+    }
+    pub fn reset_transform(&mut self) {
+        self.set_transform(Affine::IDENTITY);
+    }
 
     pub fn push_clip_rect(&mut self, rect: &Rect) {
         match self {

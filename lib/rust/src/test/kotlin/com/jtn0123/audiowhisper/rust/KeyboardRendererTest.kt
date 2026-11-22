@@ -94,6 +94,21 @@ class KeyboardRendererTest {
     }
 
     @Test
+    fun theSurfaceKeepsRoomAboveTheKeyboardForATopRowKeysPopup() {
+        KeyboardRenderer(emptyArray()).use { r ->
+            r.theme("""{"${'$'}schema":"https://schemas.florisboard.org/snygg/v2/stylesheet"}""",emptyArray(),intArrayOf(),floatArrayOf(1f,1f,1f))
+            // One key 60 tall at the top, under a strip 20 tall; the desired key is 50 by 60.
+            r.update(floatArrayOf(100f,80f,20f,50f,60f),arrayOf("characters","unshifted","character"),intArrayOf(),
+                floatArrayOf(0f,0f,50f,60f,0f,0f,50f,60f,1f,101f),arrayOf("e","",""),emptyArray())
+            // Portrait: a preview 2.5 keys (150) tall, a second row of trunc(0.4 x 150) = 60 above
+            // it, from the key's bottom at 60, less the strip: 150 + 60 - 60 - 20.
+            kotlin.test.assertEquals(130,r.headroom(false))
+            // Landscape: 3 keys (180) and 72 more: 180 + 72 - 60 - 20.
+            kotlin.test.assertEquals(172,r.headroom(true))
+        }
+    }
+
+    @Test
     fun closedHandleThrowsInsteadOfUsingFreedMemory() {
         val renderer = KeyboardRenderer(emptyArray())
         renderer.close()

@@ -113,6 +113,12 @@ pub const RENDER_NATIVE: Class = Class {
             Return::Unit,
         ),
         method(
+            "headroom",
+            "",
+            &[HANDLE_PARAM, ("landscape", Param::Boolean)],
+            Return::Int,
+        ),
+        method(
             "attach",
             "",
             &[

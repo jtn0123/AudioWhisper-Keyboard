@@ -36,6 +36,10 @@ pub struct Scene {
     pub panel: Option<crate::panels::Panel>,
     pub width: u16,
     pub height: u16,
+    /// Rows kept clear above the scene in its drawing buffer, so that a key's popup is drawn
+    /// whole ([`crate::popup_scene::headroom`]). The buffer is `height + headroom` rows and draws
+    /// the scene `headroom` rows down; only a popup draws above the scene's top.
+    pub headroom: u16,
     pub strip: f32,
     pub background: u32,
     pub strip_style: Style,
@@ -156,18 +160,14 @@ impl Scene {
             || self.panel != next.panel
             || self.width != next.width
             || self.height != next.height
+            || self.headroom != next.headroom
             || self.keyboard_height != next.keyboard_height
             || self.strip != next.strip
             || self.background != next.background
             || self.strip_style != next.strip_style
             || self.keys != next.keys
         {
-            return vec![Rect {
-                left: 0.0,
-                top: 0.0,
-                right: next.width as f32,
-                bottom: next.height as f32,
-            }];
+            return vec![next.buffer_rect()];
         }
         let mut rects = Vec::new();
         if self.trail != next.trail || self.trail_color != next.trail_color {
@@ -205,6 +205,36 @@ impl Scene {
 }
 
 impl Scene {
+    /// The drawing buffer's height: the scene and the headroom above it.
+    pub fn buffer_height(&self) -> u16 {
+        self.height.saturating_add(self.headroom)
+    }
+
+    /// The whole drawing buffer, in the scene's coordinates: it starts `headroom` above the top.
+    pub fn buffer_rect(&self) -> Rect {
+        Rect {
+            left: 0.0,
+            top: 0.0 - f32::from(self.headroom),
+            right: f32::from(self.width),
+            bottom: f32::from(self.height),
+        }
+    }
+
+    /// `damage`, in the scene's coordinates, as the buffer's whole pixels: moved down by the
+    /// headroom, rounded out and clipped to the buffer, empty rather than inverted outside it.
+    pub fn buffer_pixels(&self, damage: Rect) -> Rect {
+        let down = f32::from(self.headroom);
+        let (width, height) = (f32::from(self.width), f32::from(self.buffer_height()));
+        let left = damage.left.floor().clamp(0.0, width);
+        let top = (damage.top + down).floor().clamp(0.0, height);
+        Rect {
+            left,
+            top,
+            right: damage.right.ceil().clamp(left, width),
+            bottom: (damage.bottom + down).ceil().clamp(top, height),
+        }
+    }
+
     /// What a change in the strip repaints: only the words' area when nothing outside it, the
     /// action buttons above all, changed. Words, their spacers and their pressed backgrounds
     /// are clipped to that area.

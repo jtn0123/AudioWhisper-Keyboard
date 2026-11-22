@@ -68,7 +68,7 @@ app/src/main/kotlin/com/jtn0123/audiowhisper/render/RustChromeView.kt	M	95	View 
 app/src/main/kotlin/com/jtn0123/audiowhisper/render/RustExtractView.kt	A	36	ExtractEditText / ViewGroup; applies native extract bounds to platform editor |
 app/src/main/kotlin/com/jtn0123/audiowhisper/render/RustKeyPreview.kt	A	33	Bitmap / ART JNI; displays native preview pixels (replace Compose interop host) |
 app/src/main/kotlin/com/jtn0123/audiowhisper/render/RustKeyboardLayout.kt	M	92	SurfaceView / WindowInsets / InlineContentView; Kotlin root sizing/state branches |
-app/src/main/kotlin/com/jtn0123/audiowhisper/render/RustKeyboardView.kt	M	405	SurfaceView / Choreographer / SystemFonts; snapshot assembly and dispatch/fallback policy |
+app/src/main/kotlin/com/jtn0123/audiowhisper/render/RustKeyboardView.kt	M	410	SurfaceView / Choreographer / SystemFonts; snapshot assembly and dispatch/fallback policy; +5 (2026-11-21) lays the surface out Rust's popup headroom above the view so a top-row popup is not cut off |
 app/src/main/kotlin/com/jtn0123/audiowhisper/render/RustOneHandedPanel.kt	M	37	View/Jetpref; side-panel sizing/visibility and preference-effect binding |
 app/src/main/kotlin/com/jtn0123/audiowhisper/render/RustSubtypeSheet.kt	A	30	WindowInsets / AndroidView; native sheet surface interop only |
 app/src/main/kotlin/com/jtn0123/audiowhisper/settings/SettingsCodecs.kt	A	66	Jetpref typed serializers / ART JNI; Android DTO construction only |

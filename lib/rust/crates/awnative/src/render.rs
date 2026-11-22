@@ -274,7 +274,7 @@ pub fn attach(
                 surface,
                 s.fonts.clone(),
                 s.scene.width,
-                s.scene.height,
+                s.scene.buffer_height(),
                 hybrid,
                 timeline,
             )?);
@@ -327,6 +327,16 @@ pub fn close(native: i64) -> Result<()> {
     // SAFETY: the synchronized wrapper frees its handle once, then sets it to zero.
     unsafe { handle::free::<Mutex<Session>>(native) };
     Ok(())
+}
+
+/// The rows the keyboard's surface keeps above the scene for popups laid out for `landscape`
+/// (`render::popup_scene::headroom`), kept in the scene, which the surface then draws that far
+/// down. Kotlin calls it after each update and makes its surface as much taller.
+pub fn headroom(native: i64, landscape: bool) -> Result<i32> {
+    session(native, |s| {
+        s.scene.headroom = render::popup_scene::headroom(&s.scene, landscape);
+        Ok(i32::from(s.scene.headroom))
+    })
 }
 
 pub fn popup_grid(native: i64, prioritized: i32, landscape: bool) -> Result<()> {

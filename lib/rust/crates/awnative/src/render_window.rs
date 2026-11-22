@@ -56,13 +56,14 @@ impl Drop for Window {
     }
 }
 
-/// The damage as whole buffer pixels, clipped to the scene.
+/// The damage as whole buffer pixels, clipped to the buffer (`Scene::buffer_pixels`).
 fn dirty(scene: &Scene, damage: Rect) -> ARect {
+    let r = scene.buffer_pixels(damage);
     ARect {
-        left: damage.left.floor().max(0.0) as i32,
-        top: damage.top.floor().max(0.0) as i32,
-        right: damage.right.ceil().min(scene.width as f32) as i32,
-        bottom: damage.bottom.ceil().min(scene.height as f32) as i32,
+        left: r.left as i32,
+        top: r.top as i32,
+        right: r.right as i32,
+        bottom: r.bottom as i32,
     }
 }
 
@@ -85,7 +86,7 @@ impl Window {
         }
         let locked = monotonic_ns();
         let valid = buffer.width == scene.width as i32
-            && buffer.height == scene.height as i32
+            && buffer.height == i32::from(scene.buffer_height())
             && buffer.stride >= buffer.width
             && buffer.format == 1
             && !buffer.bits.is_null();
@@ -297,7 +298,7 @@ fn run(
                         &crate::render_surface::Frame {
                             pixels: raster.pixels(),
                             width: scene.width.into(),
-                            height: scene.height.into(),
+                            height: scene.buffer_height().into(),
                         },
                         dirty(&scene, damage),
                         vsync,

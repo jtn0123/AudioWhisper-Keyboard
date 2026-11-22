@@ -1,6 +1,5 @@
 //! Vello Hybrid over wgpu/Vulkan. The NDK boundary supplies a live, owned window surface.
 use crate::{raster::Raster, scene::Scene};
-use keys::Rect;
 use std::time::Instant;
 
 pub struct Hybrid {
@@ -95,15 +94,7 @@ impl Hybrid {
     /// Completion includes the driver wait; it is not a GPU timestamp-query measurement.
     pub fn draw(&mut self, scene: &Scene) -> Result<(u128, u128), String> {
         let start = Instant::now();
-        self.raster.draw(
-            scene,
-            Rect {
-                left: 0.0,
-                top: 0.0,
-                right: scene.width as f32,
-                bottom: scene.height as f32,
-            },
-        )?;
+        self.raster.draw(scene, scene.buffer_rect())?;
         let scene_encoded = start.elapsed();
         let frame = match self.surface.get_current_texture() {
             wgpu::CurrentSurfaceTexture::Success(frame)
@@ -126,7 +117,7 @@ impl Hybrid {
                 &mut encoder,
                 &vello_hybrid::RenderSize {
                     width: scene.width as u32,
-                    height: scene.height as u32,
+                    height: scene.buffer_height() as u32,
                 },
                 &view,
                 &vello_hybrid::TextureBindings::new(),

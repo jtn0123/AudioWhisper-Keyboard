@@ -69,6 +69,8 @@ class RustKeyboardView(context: Context) : FrameLayout(context), SurfaceHolder.C
         }
     private var popupChoices: List<KeyData> = emptyList()
     private var snapshot: KeyboardSnapshot? = null
+    /** Rows the surface reaches above this view, which Rust keeps clear for a top-row key's popup. */
+    private var headroom = 0
     private var liveSurface = false
     private var surfaceReady = false
     private var framePending = false
@@ -163,6 +165,8 @@ class RustKeyboardView(context: Context) : FrameLayout(context), SurfaceHolder.C
             s.smartbar.config[11], manager.smartbarVisibleDynamicActionsCount.toFloat(), android.view.ViewConfiguration.getKeyRepeatDelay().toFloat() * 1_000_000,
             if (prefs.gestures.deleteKeyLongPress.get() == dev.patrickgold.florisboard.ime.text.gestures.SwipeAction.DELETE_WORD) 1f else 0f,
             android.view.ViewConfiguration.getLongPressTimeout().toFloat() * 1_000_000), s.panels.data, s.panels.labels)
+        val room = native.headroom(resources.configuration.isOrientationLandscape())
+        if (room != headroom) { headroom = room; if (!isInLayout) requestLayout() }
         if (s.panels.kind == 5) s.panels.gif.bind(native)
         if (s.panels.kind == 4) s.panels.clipboard.bind(native)
         if (s.panels.kind == 1) { s.panels.emoji.bind(native, refreshEmojiHistory); refreshEmojiHistory = false }
@@ -407,7 +411,11 @@ class RustKeyboardView(context: Context) : FrameLayout(context), SurfaceHolder.C
     }
 
     override fun onLayout(changed: Boolean, left: Int, top: Int, right: Int, bottom: Int) {
-        super.onLayout(changed, left, top, right, bottom)
+        // The surface reaches [headroom] rows up, where a popup shows over the app. This view, and
+        // so the touchable region and the insets apps see, stay the keyboard's; taps above reach the app.
+        val (w, h) = right - left to bottom - top
+        surface.measure(MeasureSpec.makeMeasureSpec(w, MeasureSpec.EXACTLY), MeasureSpec.makeMeasureSpec(h + headroom, MeasureSpec.EXACTLY))
+        surface.layout(0, -headroom, w, h)
         if (!released && !surface.holder.surface.isValid) {
             // A newly inserted AndroidView needs another traversal for SurfaceView's pre-draw.
             surface.postInvalidateOnAnimation()

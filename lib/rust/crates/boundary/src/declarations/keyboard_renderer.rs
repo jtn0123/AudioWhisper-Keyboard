@@ -187,6 +187,12 @@ pub const KEYBOARD_RENDERER: Api = Api {
             "The open popup's grid: [prioritized] keys first, laid out for [landscape] if so.",
         ),
         member(
+            "headroom",
+            "The rows the surface keeps above the keyboard so that a key's popup is drawn whole, \
+             with popups laid out for [landscape] if so. The surface is that much taller than \
+             the scene and draws the scene that far down.",
+        ),
+        member(
             "popup",
             "A popup for key [key] with these [labels] and [codes].",
         ),
