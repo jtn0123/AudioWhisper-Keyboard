@@ -53,6 +53,12 @@ crate::declare! {
         /// A user dictionary a [`SettingsUiWordEffect`](words::effect::KINDS) asked for:
         /// [`SettingsUiWord`](words::row::FIELDS) rows.
         WORDS = 24,
+        /// An asset a [`SettingsUiTextEffect`](text::effect::KINDS) asked for: its path, a
+        /// [`SettingsUiAssetOutcome`](text::outcome::KINDS), then the text or the error message.
+        ASSET = 25,
+        /// A [`SettingsUiSelection`](text::selection::KINDS) on the read-only text, then its
+        /// fields.
+        SELECTION = 26,
     }
 }
 
@@ -138,6 +144,7 @@ pub mod query {
 
 pub mod files;
 pub mod languages;
+pub mod text;
 pub mod words;
 
 /// The groups the generator writes as Kotlin.
@@ -161,6 +168,10 @@ pub const GROUPS: &[&crate::Group] = &[
     &languages::effect::KINDS,
     &languages::kind::KINDS,
     &languages::row::FIELDS,
+    &text::effect::KINDS,
+    &text::outcome::KINDS,
+    &text::selection::KINDS,
+    &text::node::IDS,
     &words::effect::KINDS,
     &words::dictionary::KINDS,
     &words::kind::KINDS,
