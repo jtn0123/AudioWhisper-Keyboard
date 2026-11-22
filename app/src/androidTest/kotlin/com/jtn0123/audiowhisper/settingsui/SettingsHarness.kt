@@ -16,6 +16,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.lang.ref.WeakReference
 import java.lang.reflect.Modifier
+import java.security.MessageDigest
 
 /** UiAutomation transport. Never persists node text from an editable node. */
 internal class SettingsHarness(val instrumentation: Instrumentation, explore: Boolean = true) {
@@ -145,6 +146,7 @@ internal class SettingsHarness(val instrumentation: Instrumentation, explore: Bo
         if (n.isEditable) return ""
         return (0 until n.childCount).mapNotNull { n.getChild(it)?.let(::label)?.takeIf(String::isNotBlank) }.joinToString("\n")
     }
+    fun sha256(text: String) = MessageDigest.getInstance("SHA-256").digest(text.toByteArray()).joinToString("") { "%02x".format(it) }
     fun find(label: String, classSuffix: String? = null): Node? {
         val matches = nodes().filter {
             (this.label(it) == label || this.label(it).startsWith("$label,") || this.label(it).startsWith("$label\n")) &&
@@ -274,7 +276,8 @@ internal class SettingsHarness(val instrumentation: Instrumentation, explore: Bo
         val compose = views(RustSettingsView::class.java).isEmpty()
         for (n in nodes().filter { it.isClickable || it.isEditable || it.isScrollable || it.rangeInfo != null || it.isCheckable || it.isFocusable }) {
             lastStep = "audit:$screen:${n.className}"
-            val label = if (n.isEditable) "<editable>" else label(n)
+            // Licence texts are public but long: a receipt keeps their hash, not their words.
+            val label = if (n.isEditable) "<editable>" else label(n).let { if (it.length > 1000) "<text sha256 ${sha256(it)}>" else it }
             val actions = n.actionList.map { it.id }
             val violations = mutableListOf<String>()
             if (n.isClickable || n.isEditable || n.isScrollable || n.rangeInfo != null || n.isFocusable) {

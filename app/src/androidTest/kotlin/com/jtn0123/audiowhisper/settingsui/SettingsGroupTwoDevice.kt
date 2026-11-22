@@ -28,7 +28,7 @@ internal class SettingsGroupTwoDevice(private val h: SettingsHarness, private va
      * ComposeSettingsFallbackActivity). Their routes are walked but not audited: the audit covers
      * the settings UI that Rust draws. On Rust the list checks itself against the activity.
      */
-    private val outside = setOf("Manage system user dictionary", "Manage internal user dictionary", "Project license")
+    private val outside = setOf("Manage system user dictionary", "Manage internal user dictionary")
     private val screens = listOf(
         Screen("typing", listOf("Typing"), "Typing", ensureOn = listOf("Display suggestions", "Auto-space after punctuation")),
         Screen("dictionary", listOf("Typing", "User dictionaries"), "User dictionaries",

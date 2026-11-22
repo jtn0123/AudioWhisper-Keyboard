@@ -199,7 +199,7 @@ def other_theme(d, renderer):
 
 def licences(d, renderer):
     """The third-party licences list at its top and a page down, the first library's licence
-    dialog, and the project licence screen, which stays in Compose on both renderers."""
+    dialog, and the project licence screen, which Rust draws since compose-removal step 8."""
     d.fixture()
     d.prototype(renderer)
     d.launch('settings/home')

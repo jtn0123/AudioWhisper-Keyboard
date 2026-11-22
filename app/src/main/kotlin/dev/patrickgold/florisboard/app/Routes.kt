@@ -45,7 +45,6 @@ import dev.patrickgold.florisboard.app.ext.ExtensionImportScreenType
 import dev.patrickgold.florisboard.app.ext.ExtensionListScreen
 import dev.patrickgold.florisboard.app.ext.ExtensionListScreenType
 import dev.patrickgold.florisboard.app.ext.ExtensionViewScreen
-import dev.patrickgold.florisboard.app.settings.about.ProjectLicenseScreen
 import dev.patrickgold.florisboard.app.settings.dictionary.UserDictionaryType
 import dev.patrickgold.florisboard.app.settings.theme.ThemeManagerScreen
 import dev.patrickgold.florisboard.app.settings.theme.ThemeManagerScreenAction
@@ -276,7 +275,7 @@ object Routes {
             composableWithDeepLink(Settings.Restore::class) {}
 
             composableWithDeepLink(Settings.About::class) {}
-            composableWithDeepLink(Settings.ProjectLicense::class) { ProjectLicenseScreen() }
+            composableWithDeepLink(Settings.ProjectLicense::class) {}
             composableWithDeepLink(Settings.ThirdPartyLicenses::class) {}
 
             composableWithDeepLink(Ext.Home::class) { ExtensionHomeScreen() }

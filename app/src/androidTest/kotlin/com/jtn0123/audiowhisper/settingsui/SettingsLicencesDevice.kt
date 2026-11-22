@@ -4,14 +4,14 @@ import android.graphics.Rect
 import android.view.accessibility.AccessibilityNodeInfo as Node
 import org.json.JSONArray
 import org.json.JSONObject
-import java.security.MessageDigest
 import kotlin.math.roundToInt
 
 /**
  * The third-party licences screen as Rust draws it: every library row from top to bottom (by
  * its first line, which is the library's name), audits of the top, a lower page and a
  * license dialog, and the dialog's text (as a SHA-256: licence text is public, but long) and
- * button's role. The project licence screen is still Compose; Rust hands it back.
+ * button's role. The project licence screen, now Rust's too, is audited by SettingsGroupTwoDevice's
+ * walk of About.
  *
  * The walk pages with TalkBack's scroll forward, which moves both lists by their own height, and
  * waits for Compose's animated page to stop. A row is counted on the page where its name line is
@@ -61,7 +61,7 @@ internal class SettingsLicencesDevice(private val h: SettingsHarness, private va
         // The text nodes themselves: a container's label joins its children's, and the two
         // renderers nest the dialog differently.
         val text = h.nodes().filter { it != ok && it.childCount == 0 && h.label(it).length > 40 && h.label(it) != opened }
-            .map { sha256(h.label(it)) }.distinct().sorted()
+            .map { h.sha256(h.label(it)) }.distinct().sorted()
         val dialog = JSONObject()
             .put("row", opened)
             .put("button", h.label(ok))
@@ -93,5 +93,4 @@ internal class SettingsLicencesDevice(private val h: SettingsHarness, private va
             .filter { (bounds(it).top + nameTop).let { y -> y >= area.top && y < area.bottom } }
             .sortedBy { bounds(it).top }
     }
-    private fun sha256(text: String) = MessageDigest.getInstance("SHA-256").digest(text.toByteArray()).joinToString("") { "%02x".format(it) }
 }
