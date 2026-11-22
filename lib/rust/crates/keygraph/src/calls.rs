@@ -191,7 +191,7 @@ fn popup_flags(graph: &Graph, fields: &[Vec<u16>]) -> Result<Rows> {
 
 /// What the graph says of each action row's key: enabled, its icon token and its label.
 fn actions(graph: &mut Graph, fields: &[Vec<u16>]) -> Result<Rows> {
-    if fields.len() % action::SIZE != 0 {
+    if !fields.len().is_multiple_of(action::SIZE) {
         return Err(Error("an action row has one field each"));
     }
     let mut out = Vec::new();
