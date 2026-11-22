@@ -46,7 +46,6 @@ import dev.patrickgold.florisboard.app.ext.ExtensionListScreen
 import dev.patrickgold.florisboard.app.ext.ExtensionListScreenType
 import dev.patrickgold.florisboard.app.ext.ExtensionViewScreen
 import dev.patrickgold.florisboard.app.settings.dictionary.UserDictionaryType
-import dev.patrickgold.florisboard.app.setup.SetupScreen
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlin.reflect.KClass
@@ -71,6 +70,7 @@ inline fun <reified T : Any> NavGraphBuilder.composableWithDeepLink(
 object Routes {
     object Setup {
         @Serializable
+        @Deeplink("setup")
         object Screen
     }
 
@@ -231,11 +231,10 @@ object Routes {
                 ) + fadeOut(spring(stiffness = Spring.StiffnessMedium))
             },
         ) {
-            composable<Setup.Screen> { SetupScreen() }
-
             // An empty entry is a screen only Rust draws. It stays so that reaching it still
-            // works: finishing Setup hands Home to the Rust host, and the fallback activity
-            // hands any of these routes back to Rust (docs/compose-removal.md, step 2).
+            // works: the fallback activity hands any of these routes back to Rust
+            // (docs/compose-removal.md, step 2), Setup included while it is the start destination.
+            composableWithDeepLink(Setup.Screen::class) {}
             composableWithDeepLink(Settings.Home::class) {}
 
             composableWithDeepLink(Settings.Localization::class) {}

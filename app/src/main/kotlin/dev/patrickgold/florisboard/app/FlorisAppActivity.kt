@@ -50,12 +50,10 @@ import androidx.core.net.toUri
 import androidx.core.view.WindowCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.NavController
-import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.compose.rememberNavController
 import dev.patrickgold.florisboard.R
 import dev.patrickgold.florisboard.app.apptheme.FlorisAppTheme
 import dev.patrickgold.florisboard.app.ext.ExtensionImportScreenType
-import dev.patrickgold.florisboard.app.setup.NotificationPermissionState
 import dev.patrickgold.florisboard.appContext
 import dev.patrickgold.florisboard.cacheManager
 import dev.patrickgold.florisboard.lib.compose.LocalPreviewFieldController
@@ -125,14 +123,9 @@ open class FlorisAppActivity : ComponentActivity() {
         val isModelLoaded = AtomicBoolean(false)
         appContext.preferenceStoreLoaded.collectIn(lifecycleScope) { loaded ->
             if (!loaded || isModelLoaded.getAndSet(true)) return@collectIn
-            // Check if the NotificationPermission is not set
-            if (prefs.internal.notificationPermissionState.get() == NotificationPermissionState.NOT_SET) {
-                // update pref value to show the setup screen again
-                prefs.internal.isImeSetUp.set(false)
-            }
             AppVersionUtils.updateVersionOnInstallAndLastUse(this, prefs)
-            val link = SettingsEntry.linkRoute(intent?.action, intent?.dataString)
-            if (SettingsEntry.rust(allowRustSettings, prefs.internal.isImeSetUp.get(), link)) {
+            // Rust draws settings and setup; it picks which opens first (SettingsUiOp.START).
+            if (allowRustSettings) {
                 installRustSettings()
             } else setContent {
                 ProvideLocalizedResources(
@@ -152,25 +145,15 @@ open class FlorisAppActivity : ComponentActivity() {
                 }
             }
             contentShown = true
-            if (rustSettings == null || rustState == null) onNewIntent(intent)
+            val host = rustSettings
+            if (host == null) onNewIntent(intent) else if (rustState == null) route(host, intent, fresh = true)
         }
     }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        val link = SettingsEntry.linkRoute(intent.action, intent.dataString)
-        // A settings link during Setup opens the Rust host rather than a Compose screen.
-        if (contentShown && rustSettings == null && SettingsEntry.rust(allowRustSettings, false, link)) installRustSettings()
-        rustSettings?.let { host ->
-            if (link != null) {
-                host.navigate(link)
-            } else if (intent.action == Intent.ACTION_SEND || intent.action == Intent.ACTION_VIEW) {
-                composeFallback.launch(Intent(intent).setClass(this, ComposeSettingsFallbackActivity::class.java).setFlags(0)
-                    .putExtra("native-routes", host.nativeRoutes.toTypedArray()))
-            }
-            return
-        }
+        rustSettings?.let { host -> route(host, intent, fresh = false); return }
 
         if (intent.action == Intent.ACTION_VIEW && intent.categories?.contains(Intent.CATEGORY_BROWSABLE) == true) {
             intentToBeHandled = intent
@@ -185,6 +168,16 @@ open class FlorisAppActivity : ComponentActivity() {
             return
         }
         intentToBeHandled = null
+    }
+
+    /** A fresh activity starts on the screen Rust picks for [intent]; a later link opens its screen. */
+    private fun route(host: RustSettingsView, intent: Intent, fresh: Boolean) {
+        val link = SettingsEntry.linkRoute(intent.action, intent.dataString)
+        if (fresh) host.start(link) else if (link != null) host.navigate(link)
+        if (link == null && (intent.action == Intent.ACTION_SEND || intent.action == Intent.ACTION_VIEW)) {
+            composeFallback.launch(Intent(intent).setClass(this, ComposeSettingsFallbackActivity::class.java).setFlags(0)
+                .putExtra("native-routes", host.nativeRoutes.toTypedArray()))
+        }
     }
 
     private fun installRustSettings() {
@@ -233,10 +226,7 @@ open class FlorisAppActivity : ComponentActivity() {
         val previewFieldController = rememberPreviewFieldController()
         DisposableEffect(navController) {
             val listener = NavController.OnDestinationChangedListener { _, destination, _ ->
-                if (allowRustSettings && destination.hasRoute(Routes.Settings.Home::class)) {
-                    // Setup is done: Rust draws settings from here. Not while Compose is composing.
-                    window.decorView.post { if (rustSettings == null) installRustSettings() }
-                } else if (!allowRustSettings && fallbackReady) {
+                if (!allowRustSettings && fallbackReady) {
                     // The routes Rust draws, as it listed them: hand any of them back.
                     val native = intent?.getStringArrayExtra("native-routes").orEmpty()
                     val route = native.firstOrNull { destination.hasDeepLink("ui://florisboard/$it".toUri()) }

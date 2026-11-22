@@ -25,7 +25,6 @@ import androidx.compose.ui.platform.LocalConfiguration
 import dev.patrickgold.florisboard.app.settings.theme.ColorPreferenceSerializer
 import dev.patrickgold.florisboard.app.settings.theme.DisplayKbdAfterDialogs
 import dev.patrickgold.florisboard.app.settings.theme.SnyggLevel
-import dev.patrickgold.florisboard.app.setup.NotificationPermissionState
 import dev.patrickgold.florisboard.ime.clipboard.ClipboardSyncBehavior
 import dev.patrickgold.florisboard.ime.core.DisplayLanguageNamesIn
 import dev.patrickgold.florisboard.ime.input.CapitalizationBehavior
@@ -60,6 +59,9 @@ import dev.patrickgold.jetpref.material.ui.ColorRepresentation
 import org.florisboard.lib.android.isOrientationPortrait
 
 val FlorisPreferenceStore = jetprefDataStoreOf(FlorisPreferenceModel::class)
+
+/** The setup screen's stored notification answer; Rust reads and writes it as text (stage4-setup.md). */
+enum class NotificationPermissionState { NOT_SET, GRANTED, DENIED }
 
 @Preferences
 abstract class FlorisPreferenceModel : SettingsPreferenceModel() {

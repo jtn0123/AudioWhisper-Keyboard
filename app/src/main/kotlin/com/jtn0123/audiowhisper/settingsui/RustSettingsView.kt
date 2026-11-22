@@ -37,6 +37,7 @@ internal class RustSettingsView(context: Context) : FrameLayout(context), Surfac
     private lateinit var languages: SettingsLanguages
     private lateinit var words: SettingsWords
     private lateinit var themes: SettingsThemes
+    private lateinit var setup: SettingsSetup
     var backAvailability: (Boolean) -> Unit = {}
     private var fallback: (String, List<String>) -> Unit = { _, _ -> }
     private val native = KeyboardRenderer(systemRendererFonts())
@@ -103,6 +104,7 @@ internal class RustSettingsView(context: Context) : FrameLayout(context), Surfac
         themes = SettingsThemes(activity) { if (!released) receive(native.settings(SettingsUiOp.THEMES, it)) }
         receive(native.settings(SettingsUiOp.PREFERENCES, platform.snapshot()))
         if (restored != null) receive(native.settings(SettingsUiOp.RESTORE, restored))
+        setup = SettingsSetup(activity, ::configure) { if (!released) receive(native.settings(SettingsUiOp.PERMISSION, it)) }
         // After the saved state, so a picker answer or report that waited finds what it belongs to.
         files = SettingsFiles(activity) { if (!released) receive(native.settings(SettingsUiOp.FILES, it)) }
         for (pref in prefs.declaredPreferenceEntries.values) activity.lifecycleScope.launch {
@@ -113,6 +115,8 @@ internal class RustSettingsView(context: Context) : FrameLayout(context), Surfac
     }
     private fun preferencesPersisted() { if (!released) { receive(native.settings(SettingsUiOp.PREFERENCES, platform.snapshot())); configure() } }
     fun navigate(route: String) = send(SettingsUiOp.NAVIGATE, route)
+    /** The activity opened fresh, perhaps for a settings link; native code picks the first screen. */
+    fun start(link: String?) = send(SettingsUiOp.START, *listOfNotNull(link).toTypedArray())
     fun save(): Array<String> = if (released) emptyArray() else native.settings(SettingsUiOp.SAVE).drop(SettingsUiReply.SIZE).toTypedArray()
     /** [phase] is a [SettingsUiBack]. */
     fun back(phase: Int, progress: Float = 0f) = send(SettingsUiOp.BACK, phase.toString(), progress.toString())
@@ -176,6 +180,7 @@ internal class RustSettingsView(context: Context) : FrameLayout(context), Surfac
                 SettingsUiWordEffect.RESTORE, SettingsUiWordEffect.IMPORT, SettingsUiWordEffect.MANAGER -> words.execute(p)
                 SettingsUiTextEffect.ASSET, SettingsUiTextEffect.CLIP, SettingsUiTextEffect.HAPTIC -> readOnly.execute(p)
                 SettingsUiThemeEffect.LOAD, SettingsUiThemeEffect.PREVIEW -> themes.execute(p)
+                SettingsUiSetupEffect.ASK, SettingsUiSetupEffect.NOTIFICATION_SETTINGS, SettingsUiSetupEffect.RETURN -> setup.execute(p)
             }
         }
         selectionMenu.update(state.getValue("selectionToolbar").jsonPrimitive.boolean)
@@ -217,7 +222,7 @@ internal class RustSettingsView(context: Context) : FrameLayout(context), Surfac
     }
     private fun pushFacts() {
         facts.images { name, w, h, pixels -> receive(native.settingsImage(name, w, h, pixels)) }
-        receive(native.settings(SettingsUiOp.FACTS, facts.pairs()))
+        receive(native.settings(SettingsUiOp.FACTS, facts.pairs() + setup.facts()))
     }
     private fun requestFrame() {
         if (live && !pending && !released) { pending = true; choreographer.postVsyncCallback(this) }
@@ -275,6 +280,7 @@ internal class RustSettingsView(context: Context) : FrameLayout(context), Surfac
         if (::facts.isInitialized) facts.release()
         if (::files.isInitialized) files.release()
         if (::themes.isInitialized) themes.release()
+        if (::setup.isInitialized) setup.release()
         selectionMenu.close(); accessibility.release(); native.detach(); native.close()
     }
 }
