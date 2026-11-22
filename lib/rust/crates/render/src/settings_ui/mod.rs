@@ -31,6 +31,7 @@ mod rows;
 pub use rows::CODE_KEYS;
 mod scrollbar;
 pub mod setup;
+mod sliders;
 pub mod theme_editor;
 pub mod themes;
 pub mod time;
