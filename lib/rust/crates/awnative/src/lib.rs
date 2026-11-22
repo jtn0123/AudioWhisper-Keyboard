@@ -6,35 +6,33 @@ use std::ffi::c_void;
 
 use jni_sys::{JNI_VERSION_1_6, JavaVM, jint};
 
-mod backup_utils;
 mod boundary;
 mod composing;
 mod dictation;
 mod editor;
 mod emoji;
-mod extensions;
 mod files;
-mod gestures;
+pub(crate) mod gestures;
 mod gif;
 mod giphy;
-mod glide;
+pub(crate) mod glide;
 mod handle;
 mod ime_window;
 mod jni;
 mod key_models;
-mod keys;
+pub(crate) mod keys;
 #[cfg(not(target_os = "android"))]
 mod latinime;
 mod layout_rules;
 mod panic;
-mod popup;
-mod reader;
+pub(crate) mod popup;
+pub(crate) mod reader;
 mod render;
 mod render_accessibility;
 mod render_content;
 mod render_input;
 mod render_profile;
-mod render_smartbar;
+pub(crate) mod render_smartbar;
 #[cfg(target_os = "android")]
 mod render_surface;
 mod render_theme;
@@ -51,7 +49,7 @@ mod spacing;
 mod suggest;
 #[cfg(any(target_os = "android", test))]
 mod surface_bounds;
-mod text;
+pub(crate) mod text;
 
 /// Called once when Java loads the library.
 #[unsafe(no_mangle)]
@@ -84,11 +82,9 @@ mod render_subtypes;
 
 mod media_oracle;
 
-mod input;
+pub(crate) mod input;
 
 mod nlp;
-
-mod nlp_stores;
 
 mod dictation_session;
 
@@ -97,7 +93,7 @@ mod sherpa;
 #[cfg(not(target_os = "android"))]
 mod dictation_segment_test;
 
-mod reader_runtime;
+pub(crate) mod reader_runtime;
 mod tts;
 
 mod render_settings;

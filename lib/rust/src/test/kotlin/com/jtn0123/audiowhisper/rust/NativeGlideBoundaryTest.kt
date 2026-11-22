@@ -5,16 +5,17 @@ import kotlin.test.assertContentEquals
 import kotlin.test.assertFailsWith
 
 class NativeGlideBoundaryTest {
-    @Test fun malformedPacketsAreExceptionsAndNoContextDoesNotDereferenceClosedHandles() {
-        assertContentEquals(intArrayOf(), NativeGlideNative.rank(0, 0, "", intArrayOf(), floatArrayOf(), 0, false))
+    @Test fun mismatchedCostsAreExceptionsAndNoContextDoesNotDereferenceClosedHandles() {
+        assertContentEquals(intArrayOf(), NativeGlideNative.rank(0, 0, arrayOf(), floatArrayOf(), arrayOf(), false))
+        assertContentEquals(intArrayOf(0), NativeGlideNative.rank(0, 0, arrayOf("a"), floatArrayOf(0f), arrayOf("b"), false))
         assertFailsWith<IllegalArgumentException> {
-            NativeGlideNative.rank(-1, 0, "a", intArrayOf(2), floatArrayOf(0f), 1, false)
+            NativeGlideNative.rank(-1, 0, arrayOf("a"), floatArrayOf(), arrayOf(), false)
         }
         assertFailsWith<IllegalArgumentException> {
-            NativeGlideNative.rank(-1, 0, "", intArrayOf(), floatArrayOf(0f), 1, false)
+            NativeGlideNative.rank(-1, 0, arrayOf(), floatArrayOf(0f), arrayOf(), false)
         }
         assertFailsWith<IllegalArgumentException> {
-            NativeGlideNative.rank(-1, 0, "a", intArrayOf(1), floatArrayOf(0f), 0, false)
+            NativeGlideNative.rank(0, 0, arrayOf("a", "b"), floatArrayOf(0f, 0f), arrayOf("c"), false)
         }
     }
 }

@@ -1,6 +1,6 @@
-"""Require every production Kotlin native declaration to exist in the packaged debug ELF, every
-JNI export in it to have one, and every Rust entry point for one to take and return the JNI types
-its JVM descriptor maps to.
+"""Require every production Kotlin native declaration to be generated (lib/rust/crates/boundary)
+and to exist in the packaged debug ELF, every JNI export in it to have one, and every Rust entry
+point for one to take and return the JNI types its JVM descriptor maps to.
 
 Scan source, not R8's surviving methods: unused declarations are still dangerous APIs.
 Unsupported declarations fail closed rather than disappearing from the inventory. An export no
@@ -34,6 +34,7 @@ CLASS_DIRS = ('build/intermediates/built_in_kotlinc/debug/compileDebugKotlin/cla
               'build/intermediates/javac/debug/compileDebugJavaWithJavac/classes',
               'build/classes/kotlin/main', 'build/classes/java/main')
 MISSING = 'Production native declarations missing from normal APK:'
+HAND_WRITTEN = 'Production native declarations written by hand; declare them in lib/rust/crates/boundary:'
 UNREFERENCED = 'JNI exports in normal APK that no production Kotlin declares:'
 UNCOMPILED = 'Production native declarations and compiled classes disagree:'
 NO_ENTRY_POINT = 'Production native declarations with no Rust entry point in awnative:'
@@ -305,14 +306,16 @@ def main():
     paths = subprocess.check_output(['git', 'ls-files', '--cached', '--others', '--exclude-standard', '-z'],
                                     cwd=ROOT).decode().split('\0')
     entries = []
+    hand_written = []
     tests = set()
     for path in paths:
         if not path.endswith('.kt'):
             continue
         if any(f'/src/{kind}/' in path for kind in ('main', 'debug')):
-            entries.extend(declarations(ROOT / path))
+            hand_written.extend(declarations(ROOT / path))
         elif any(f'/src/{kind}/' in path for kind in ('test', 'androidTest', 'testFixtures')):
             tests.update(name for name, _ in declarations(ROOT / path))
+    entries.extend(hand_written)
     for root in args.generated_kotlin:
         for path in sorted((ROOT / root).rglob('*.kt')):
             entries.extend(declarations(path))
@@ -322,7 +325,7 @@ def main():
     if duplicates:
         raise ValueError('Overloaded native declarations need signature checking: ' + ', '.join(duplicates))
     symbols = symbols_in(args.apk)
-    errors = []
+    errors = [(HAND_WRITTEN, [f'{name} ({path})' for name, path in hand_written])]
     missing = [(name, path) for name, path in entries if name not in symbols]
     errors.append((MISSING, [f'{name} ({path})' for name, path in missing]))
     exports = sorted(name for name in symbols if name.startswith('Java_'))
@@ -342,7 +345,7 @@ def main():
     report = [headline + '\n' + '\n'.join(lines) for headline, lines in errors if lines]
     if report:
         raise RuntimeError('\n\n'.join(report))
-    print(json.dumps({'production_native_declarations': len(entries), 'missing': 0,
+    print(json.dumps({'production_native_declarations': len(entries), 'hand_written': 0, 'missing': 0,
                       'jni_exports': len(exports), 'test_only': 0, 'undeclared': 0,
                       'descriptors_checked': len(checked),
                       'rust_entry_points_checked': sum(len(points[name]) for name in checked),

@@ -1,120 +1,165 @@
-//! JNI entry points for the spaces the keyboard types by itself (the `spacing` crate), called by
-//! `SpacingNative` in lib/rust's Kotlin.
+//! The spaces the keyboard types by itself (the `spacing` crate), for `SpacingNative`, whose
+//! generated entry points call these or the crate directly.
 //!
-//! A rule's inputs cross as the text being typed, an `int[]` of what is known before any text is
-//! looked up ([`typing`]'s layout), and, once a rule has asked for it, what was looked up: one
-//! string holding the rule's symbols, the language and the texts, cut by an `int[]` of their
-//! lengths (-1 for a text not looked up). The answer is one `int` of bits ([`answer`]).
+//! A rule first runs on what is known before any text is looked up. If it gets far enough to need
+//! more, Kotlin's `SpacingRules.Editor` is asked through JNI for that and no more, and the rule
+//! runs again.
+//! A commit's answer is one `int` of bits ([`answer`]).
 
-use std::ptr;
+use std::ffi::CStr;
 
-use jni_sys::{JNI_FALSE, JNIEnv, jboolean, jclass, jint, jintArray, jobjectArray, jstring};
+use jni_sys::{jobject, jvalue};
 use spacing::rule::{Rule, fallback};
-use spacing::spaces::{self, Commit, Editor, Needs, Typing};
-use spacing::state;
+use spacing::spaces::{self, Commit, Editor, NEEDS_BEFORE_1, NEEDS_BEFORE_3, Needs, Typing};
 
-use crate::jni::{self, Env, Result};
+use crate::boundary::args::{SpacingNativeCommitChar, SpacingNativePhantomSpaceBefore};
+use crate::jni::{Env, Result, illegal};
 
-// The bits of `typing[FLAGS]`.
-const AUTO_SPACE_PUNCTUATION: i32 = 1;
-const RAW_EDITOR: i32 = 2;
-const SELECTION_VALID: i32 = 4;
-const FORCE_ACTIVE: i32 = 8;
-
-// The bits of an answer; the needs and the flags after it sit above them.
+// The bits of an answer; the flags after it sit above them.
 const DELETE_PREVIOUS_SPACE: i32 = 1;
 const SPACE_BEFORE: i32 = 2;
 const SPACE_AFTER: i32 = 4;
-const NEEDS_SHIFT: u32 = 3;
 const AUTO_SPACE_SHIFT: u32 = 8;
 const PHANTOM_SPACE_SHIFT: u32 = 16;
 
-/// The pieces of the looked-up string, in order.
-const PIECES: usize = 8;
+/// A method of `SpacingRules.Editor` or `SpacingRules.Rule` that returns a string: its name and
+/// JNI signature.
+type Getter = (&'static CStr, &'static CStr);
 
-/// What is known before any text is looked up, and the flags, from `typing`: `[flags,
-/// keyVariation, selectionStart, autoSpace, phantomSpace, inputType]`.
-struct Known {
-    typing: Typing,
-    force_active: bool,
-    auto_space: i32,
-    phantom_space: i32,
-}
+const RULE: Getter = (
+    c"getRule",
+    c"()Lcom/jtn0123/audiowhisper/rust/SpacingRules$Rule;",
+);
+const SYMBOLS: [Getter; 4] = [
+    (c"getPrecedingAutoSpace", c"()Ljava/lang/String;"),
+    (c"getFollowingAutoSpace", c"()Ljava/lang/String;"),
+    (c"getPrecedingPhantomSpace", c"()Ljava/lang/String;"),
+    (c"getFollowingPhantomSpace", c"()Ljava/lang/String;"),
+];
+const LANGUAGE: Getter = (c"getLanguage", c"()Ljava/lang/String;");
+const TEXT_BEFORE_CURSOR: Getter = (c"textBeforeCursor", c"(I)Ljava/lang/String;");
+const CURRENT_WORD: Getter = (c"getCurrentWordText", c"()Ljava/lang/String;");
 
-fn typing(env: &Env, typing: jintArray) -> Result<Known> {
-    let values = env.read::<i32>(typing, "typing")?;
-    let &[
-        flags,
-        key_variation,
-        selection_start,
-        auto_space,
-        phantom_space,
-        input_type,
-    ] = values.as_slice()
-    else {
-        return Err(jni::illegal("typing holds six ints"));
-    };
-    Ok(Known {
-        typing: Typing {
-            auto_space_punctuation: flags & AUTO_SPACE_PUNCTUATION != 0,
-            raw_editor: flags & RAW_EDITOR != 0,
-            key_variation,
-            selection_valid: flags & SELECTION_VALID != 0,
-            selection_start,
-            input_type,
-        },
-        force_active: flags & FORCE_ACTIVE != 0,
-        auto_space,
-        phantom_space,
-    })
-}
-
-/// What was looked up, cut into its pieces: `[precedingAutoSpace, followingAutoSpace,
-/// precedingPhantomSpace, followingPhantomSpace, language, before1, before3, currentWord]`.
-fn pieces<'a>(text: &'a [u16], lengths: &[i32]) -> Result<[Option<&'a [u16]>; PIECES]> {
-    if lengths.len() != PIECES {
-        return Err(jni::illegal("eight lengths"));
+/// What `object`'s `getter` gives with `arguments`.
+fn string(
+    env: &Env,
+    object: jobject,
+    what: &'static str,
+    getter: Getter,
+    arguments: &[jvalue],
+) -> Result<Vec<u16>> {
+    let method = env.method(object, what, getter)?;
+    let string = env.call_object(method, arguments)?;
+    let text = env.read_string(string, what);
+    if !string.is_null() {
+        env.delete_local(string);
     }
-    let cut = jni::cut(text, &lengths.iter().map(|&n| n.max(0)).collect::<Vec<_>>())?;
-    let mut pieces = [None; PIECES];
-    for (piece, (&units, &length)) in pieces.iter_mut().zip(cut.iter().zip(lengths)) {
-        if length >= 0 {
-            *piece = Some(units);
-        } else if length != -1 {
-            return Err(jni::illegal("a negative length"));
+    text
+}
+
+/// The four symbol strings of `rule`, a `SpacingRules.Rule`.
+fn symbols(env: &Env, rule: jobject) -> Result<[Vec<u16>; 4]> {
+    let mut symbols: [Vec<u16>; 4] = Default::default();
+    for (symbol, getter) in symbols.iter_mut().zip(SYMBOLS) {
+        *symbol = string(env, rule, "rule", getter, &[])?;
+    }
+    Ok(symbols)
+}
+
+/// What the editor was asked for.
+struct LookedUp {
+    symbols: [Vec<u16>; 4],
+    language: Vec<u16>,
+    before_1: Option<Vec<u16>>,
+    before_3: Option<Vec<u16>>,
+    current_word: Option<Vec<u16>>,
+}
+
+impl LookedUp {
+    /// Asks `editor` for what `needs` says a rule needs, in the Kotlin's order: the rule, the
+    /// texts before the cursor, the language, then the current word.
+    fn ask(env: &Env, editor: jobject, needs: Needs) -> Result<LookedUp> {
+        let method = env.method(editor, "editor", RULE)?;
+        let rule = env.call_object(method, &[])?;
+        let symbols = symbols(env, rule);
+        if !rule.is_null() {
+            env.delete_local(rule);
+        }
+        let symbols = symbols?;
+        let before = |n: i32| {
+            string(
+                env,
+                editor,
+                "editor",
+                TEXT_BEFORE_CURSOR,
+                &[jvalue { i: n }],
+            )
+        };
+        let before_1 = (needs & NEEDS_BEFORE_1 != 0)
+            .then(|| before(1))
+            .transpose()?;
+        let before_3 = (needs & NEEDS_BEFORE_3 != 0)
+            .then(|| before(3))
+            .transpose()?;
+        let language = string(env, editor, "editor", LANGUAGE, &[])?;
+        let current_word = match before_3 {
+            Some(_) => Some(string(env, editor, "editor", CURRENT_WORD, &[])?),
+            None => None,
+        };
+        Ok(LookedUp {
+            symbols,
+            language,
+            before_1,
+            before_3,
+            current_word,
+        })
+    }
+
+    fn editor(&self) -> Editor<'_> {
+        let [
+            preceding_auto,
+            following_auto,
+            preceding_phantom,
+            following_phantom,
+        ] = &self.symbols;
+        Editor {
+            rule: Rule {
+                preceding_auto_space: preceding_auto,
+                following_auto_space: following_auto,
+                preceding_phantom_space: preceding_phantom,
+                following_phantom_space: following_phantom,
+            },
+            language: &self.language,
+            before_1: self.before_1.as_deref(),
+            before_3: self.before_3.as_deref(),
+            current_word: self.current_word.as_deref(),
         }
     }
-    Ok(pieces)
 }
 
-fn editor<'a>(pieces: &[Option<&'a [u16]>; PIECES]) -> Result<Editor<'a>> {
-    let symbols = |i: usize| pieces[i].ok_or_else(|| jni::illegal("the rule's symbols"));
-    Ok(Editor {
-        rule: Rule {
-            preceding_auto_space: symbols(0)?,
-            following_auto_space: symbols(1)?,
-            preceding_phantom_space: symbols(2)?,
-            following_phantom_space: symbols(3)?,
-        },
-        language: pieces[4].ok_or_else(|| jni::illegal("the language"))?,
-        before_1: pieces[5],
-        before_3: pieces[6],
-        current_word: pieces[7],
-    })
+/// `rule`'s answer, asking `editor` for what it needs if it gets that far.
+fn ask<T>(
+    env: &Env,
+    editor: jobject,
+    rule: impl Fn(Option<&Editor>) -> std::result::Result<T, Needs>,
+) -> Result<T> {
+    let needs = match rule(None) {
+        Ok(answer) => return Ok(answer),
+        Err(needs) => needs,
+    };
+    let looked_up = LookedUp::ask(env, editor, needs)?;
+    rule(Some(&looked_up.editor())).map_err(|still| illegal(format!("still needs {still}")))
 }
 
 /// A state as the 8 bits an answer has room for.
 fn state_bits(state: i32) -> Result<i32> {
     u8::try_from(state)
         .map(i32::from)
-        .map_err(|_| jni::illegal("a state past 8 bits"))
+        .map_err(|_| illegal("a state past 8 bits"))
 }
 
-fn needs(needs: Needs) -> i32 {
-    i32::from(needs) << NEEDS_SHIFT
-}
-
-/// An answer's bits.
+/// An answer's bits: whether to delete the space before, type one before and type one after, then
+/// the auto-space flag after it from bit 8 and the phantom-space flag from bit 16.
 fn answer(commit: &Commit) -> Result<i32> {
     let bit = |set: bool, bit: i32| if set { bit } else { 0 };
     Ok(bit(commit.delete_previous_space, DELETE_PREVIOUS_SPACE)
@@ -124,119 +169,53 @@ fn answer(commit: &Commit) -> Result<i32> {
         | state_bits(commit.phantom_space)? << PHANTOM_SPACE_SHIFT)
 }
 
-/// Reads the arguments every rule takes and asks `rule` with them.
-fn with_inputs(
-    env: &Env,
-    text: jstring,
-    typing_values: jintArray,
-    looked_up: jstring,
-    lengths: jintArray,
-    rule: impl FnOnce(&[u16], &Known, Option<&Editor>) -> Result<i32>,
-) -> Result<i32> {
-    let text = env.read_string(text, "text")?;
-    let known = typing(env, typing_values)?;
-    let Some(looked_up) = env.read_nullable_string(looked_up)? else {
-        return rule(&text, &known, None);
-    };
-    let lengths = env.read::<i32>(lengths, "lengths")?;
-    let pieces = pieces(&looked_up, &lengths)?;
-    rule(&text, &known, Some(&editor(&pieces)?))
-}
-
 /// Typing the character `text` (`spaces::commit_char`): the spaces around it and the flags after
-/// it, or what it needs looked up.
-#[unsafe(no_mangle)]
-pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_SpacingNative_commitChar(
-    env: *mut JNIEnv,
-    _: jclass,
-    text: jstring,
-    typing: jintArray,
-    looked_up: jstring,
-    lengths: jintArray,
-) -> jint {
-    // SAFETY: the JVM passes its environment for this call.
-    unsafe {
-        jni::run(env, 0, |env| {
-            with_inputs(
-                env,
-                text,
-                typing,
-                looked_up,
-                lengths,
-                |text, known, editor| match spaces::commit_char(
-                    &known.typing,
-                    text,
-                    known.auto_space,
-                    known.phantom_space,
-                    editor,
-                ) {
-                    Ok(commit) => answer(&commit),
-                    Err(needed) => Ok(needs(needed)),
-                },
-            )
-        })
-    }
+/// it.
+pub fn commit_char(env: &Env, args: SpacingNativeCommitChar) -> Result<i32> {
+    let typing = Typing {
+        auto_space_punctuation: args.auto_space_punctuation,
+        raw_editor: args.raw_editor,
+        key_variation: args.key_variation,
+        selection_valid: args.selection_valid,
+        selection_start: args.selection_start,
+        input_type: args.input_type,
+    };
+    let commit = ask(env, args.editor, |editor| {
+        spaces::commit_char(
+            &typing,
+            args.text,
+            args.auto_space,
+            args.phantom_space,
+            editor,
+        )
+    })?;
+    answer(&commit)
 }
 
-/// Whether to type the phantom space before `text` (`spaces::phantom_space_before`), as
-/// [`SPACE_BEFORE`], or what it needs looked up.
-#[unsafe(no_mangle)]
-pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_SpacingNative_phantomSpaceBefore(
-    env: *mut JNIEnv,
-    _: jclass,
-    text: jstring,
-    typing: jintArray,
-    looked_up: jstring,
-    lengths: jintArray,
-) -> jint {
-    // SAFETY: the JVM passes its environment for this call.
-    unsafe {
-        jni::run(env, 0, |env| {
-            with_inputs(
-                env,
-                text,
-                typing,
-                looked_up,
-                lengths,
-                |text, known, editor| match spaces::phantom_space_before(
-                    &known.typing,
-                    text,
-                    known.phantom_space,
-                    known.force_active,
-                    editor,
-                ) {
-                    Ok(true) => Ok(SPACE_BEFORE),
-                    Ok(false) => Ok(0),
-                    Err(needed) => Ok(needs(needed)),
-                },
-            )
-        })
-    }
-}
-
-/// Whether a word in `language` is followed by a space (`spaces::supports_auto_space`).
-#[unsafe(no_mangle)]
-pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_SpacingNative_supportsAutoSpace(
-    env: *mut JNIEnv,
-    _: jclass,
-    language: jstring,
-) -> jboolean {
-    // SAFETY: the JVM passes its environment for this call.
-    unsafe {
-        jni::run(env, JNI_FALSE, |env| {
-            let language = env.read_string(language, "language")?;
-            Ok(jni::boolean(spaces::supports_auto_space(&language)))
-        })
-    }
+/// Whether to type the phantom space before `text` (`spaces::phantom_space_before`).
+pub fn phantom_space_before(env: &Env, args: SpacingNativePhantomSpaceBefore) -> Result<bool> {
+    let typing = Typing {
+        auto_space_punctuation: args.auto_space_punctuation,
+        raw_editor: args.raw_editor,
+        key_variation: args.key_variation,
+        selection_valid: args.selection_valid,
+        selection_start: args.selection_start,
+        input_type: args.input_type,
+    };
+    ask(env, args.editor, |editor| {
+        spaces::phantom_space_before(
+            &typing,
+            args.text,
+            args.phantom_space,
+            args.force_active,
+            editor,
+        )
+    })
 }
 
 /// `PunctuationRule.Fallback`'s id, label and symbols, in its constructor's order.
-#[unsafe(no_mangle)]
-pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_SpacingNative_fallbackRule(
-    env: *mut JNIEnv,
-    _: jclass,
-) -> jobjectArray {
-    let rule: Vec<Vec<u16>> = [
+pub fn fallback_rule() -> Vec<Vec<u16>> {
+    [
         fallback::ID,
         fallback::LABEL,
         fallback::SYMBOLS_PRECEDING_AUTO_SPACE,
@@ -247,80 +226,10 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_SpacingNative_fallback
     ]
     .iter()
     .map(|text| text.encode_utf16().collect())
-    .collect();
-    // SAFETY: the JVM passes its environment for this call.
-    unsafe { jni::run(env, ptr::null_mut(), |env| env.make_strings(&rule)) }
+    .collect()
 }
 
 /// Neither flag set (`state::INACTIVE`).
-#[unsafe(no_mangle)]
-pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_SpacingNative_inactive(
-    _: *mut JNIEnv,
-    _: jclass,
-) -> jint {
-    state::INACTIVE
-}
-
-/// An active auto-space (`state::auto_space_active`).
-#[unsafe(no_mangle)]
-pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_SpacingNative_autoSpaceActive(
-    _: *mut JNIEnv,
-    _: jclass,
-    stay_active_next_update: jboolean,
-) -> jint {
-    state::auto_space_active(stay_active_next_update != JNI_FALSE)
-}
-
-/// An active phantom space (`state::phantom_space_active`).
-#[unsafe(no_mangle)]
-pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_SpacingNative_phantomSpaceActive(
-    _: *mut JNIEnv,
-    _: jclass,
-    show_composing_region: jboolean,
-    stay_active_next_update: jboolean,
-) -> jint {
-    state::phantom_space_active(
-        show_composing_region != JNI_FALSE,
-        stay_active_next_update != JNI_FALSE,
-    )
-}
-
-/// Whether the space is owed (`state::is_active`).
-#[unsafe(no_mangle)]
-pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_SpacingNative_isActive(
-    _: *mut JNIEnv,
-    _: jclass,
-    state: jint,
-) -> jboolean {
-    jni::boolean(state::is_active(state))
-}
-
-/// Whether the word before a phantom space shows as composed (`state::shows_composing_region`).
-#[unsafe(no_mangle)]
-pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_SpacingNative_showsComposingRegion(
-    _: *mut JNIEnv,
-    _: jclass,
-    state: jint,
-) -> jboolean {
-    jni::boolean(state::shows_composing_region(state))
-}
-
-/// The state after a selection update (`state::after_update`).
-#[unsafe(no_mangle)]
-pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_SpacingNative_afterUpdate(
-    _: *mut JNIEnv,
-    _: jclass,
-    state: jint,
-) -> jint {
-    state::after_update(state)
-}
-
-/// Whether a phantom space keeps its suggestion through an update (`state::keeps_candidate`).
-#[unsafe(no_mangle)]
-pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_SpacingNative_keepsCandidate(
-    _: *mut JNIEnv,
-    _: jclass,
-    state: jint,
-) -> jboolean {
-    jni::boolean(state::keeps_candidate(state))
+pub fn inactive() -> i32 {
+    spacing::state::INACTIVE
 }

@@ -1,15 +1,20 @@
-//! One native walk with Android callbacks; no policy or native locks cross the callbacks.
-use crate::{
-    handle,
-    jni::{self, Env, Method, illegal},
-};
-use jni_sys::{JNIEnv, jclass, jint, jintArray, jlong, jlongArray, jobject, jvalue};
+//! The reader's screen walk, with Android callbacks, and its play queue, for `ReaderWalk` and
+//! `PlaybackNative`, whose generated entry points call these. No policy or native lock crosses
+//! the callbacks.
+
+use std::sync::{Mutex, MutexGuard};
+
+use jni_sys::{jobject, jvalue};
 use reader::{
     play_queue::PlayQueue,
     screen::Bounds,
     walk::{self, Node, Tree, Walk},
 };
-use std::{ptr, sync::Mutex};
+
+use crate::handle::{into_handle, locked};
+use crate::jni::{self, Env, Error, Method, Result, illegal};
+
+/// The Kotlin `ReaderTree` the walk asks, with its methods looked up once.
 struct AndroidTree<'a> {
     e: &'a Env,
     facts: Method,
@@ -17,6 +22,7 @@ struct AndroidTree<'a> {
     text: Method,
     child: Method,
 }
+
 impl Tree for AndroidTree<'_> {
     type Error = jni::Error;
     fn node(&mut self, id: i32) -> jni::Result<Node> {
@@ -31,12 +37,7 @@ impl Tree for AndroidTree<'_> {
         let class = self.e.read_string(raw, "node class");
         self.e.delete_local(raw);
         Ok(Node {
-            bounds: Bounds {
-                left: f[0],
-                top: f[1],
-                right: f[2],
-                bottom: f[3],
-            },
+            bounds: bounds(&f),
             password: f[4] != 0,
             editable: f[5] != 0,
             visible: f[6] != 0,
@@ -62,108 +63,70 @@ impl Tree for AndroidTree<'_> {
         Ok((value >= 0).then_some(value))
     }
 }
-#[unsafe(no_mangle)]
-pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_ReaderWalk_walk(
-    env: *mut JNIEnv,
-    _: jclass,
-    tree: jobject,
-    visible: jintArray,
-) -> jintArray {
-    // SAFETY: all callbacks use this call's thread/local references. No native lock is held.
-    unsafe {
-        jni::run(env, ptr::null_mut(), |e| {
-            let v = e.read::<i32>(visible, "visible bounds")?;
-            if v.len() != 4 {
-                return Err(illegal("Visible bounds length"));
-            }
-            let mut tree = AndroidTree {
-                e,
-                facts: e.method(tree, "tree", (c"facts", c"(I)[I"))?,
-                class: e.method(tree, "tree", (c"className", c"(I)Ljava/lang/String;"))?,
-                text: e.method(tree, "tree", (c"text", c"(I)Ljava/lang/String;"))?,
-                child: e.method(tree, "tree", (c"child", c"(II)I"))?,
-            };
-            e.make(
-                &Walk::run(
-                    &mut tree,
-                    Bounds {
-                        left: v[0],
-                        top: v[1],
-                        right: v[2],
-                        bottom: v[3],
-                    },
-                )?
-                .packet(),
-            )
-        })
-    }
-}
-#[unsafe(no_mangle)]
-pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_ReaderWalk_followConfig(
-    env: *mut JNIEnv,
-    _: jclass,
-) -> jlongArray {
-    // SAFETY: JVM environment for the returned owned array.
-    unsafe {
-        jni::run(env, ptr::null_mut(), |e| {
-            e.make(&[
-                i64::from(walk::MAX_TURNS),
-                walk::TURN_MS,
-                reader::play_queue::LOOKAHEAD,
-                reader::play_queue::FOLLOW_MS,
-            ])
-        })
-    }
-}
-#[unsafe(no_mangle)]
-pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_PlaybackNative_create(
-    _: *mut JNIEnv,
-    _: jclass,
-) -> jlong {
-    handle::into_handle(Mutex::new(PlayQueue::default()))
-}
-#[unsafe(no_mangle)]
-pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_PlaybackNative_free(
-    _: *mut JNIEnv,
-    _: jclass,
-    h: jlong,
-) {
-    // SAFETY: synchronized managed allocation frees once after all calls finish.
-    unsafe { handle::free::<Mutex<PlayQueue>>(h) }
-}
-#[unsafe(no_mangle)]
-pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_PlaybackNative_call(
-    env: *mut JNIEnv,
-    _: jclass,
-    h: jlong,
-    op: jint,
-    id: jint,
-    frame: jlong,
-) -> jlongArray {
-    // SAFETY: synchronized wrapper owns this queue; no callbacks while its lock is held.
-    unsafe {
-        handle::with_locked::<PlayQueue, _>(env, h, "playback queue", ptr::null_mut(), |q, e| {
-            e.make(&q.call(op, id, frame).map_err(illegal)?)
-        })
+
+/// Bounds from their first four numbers: left, top, right, bottom.
+fn bounds(v: &[i32]) -> Bounds {
+    Bounds {
+        left: v[0],
+        top: v[1],
+        right: v[2],
+        bottom: v[3],
     }
 }
 
-#[unsafe(no_mangle)]
-pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_PlaybackNative_system(
-    env: *mut JNIEnv,
-    _: jclass,
-    h: jlong,
-    op: jint,
-    id: jint,
-    text: jni_sys::jstring,
-) -> jlongArray {
-    // SAFETY: synchronized wrapper owns the queue; UTF-16 is copied and no callbacks run locked.
-    unsafe {
-        handle::with_locked::<PlayQueue, _>(env, h, "speech queue", ptr::null_mut(), |q, e| {
-            e.make(
-                &q.system(op, id, &e.read_string(text, "utterance id")?)
-                    .map_err(illegal)?,
-            )
-        })
+/// What to read of `tree` within the `visible` bounds, as the walk's packet. The callbacks run
+/// on this call's thread with its local references, and no native lock is held.
+pub fn walk(env: &Env, tree: jobject, visible: &[i32]) -> Result<Vec<i32>> {
+    if visible.len() != 4 {
+        return Err(illegal("Visible bounds length"));
     }
+    let mut tree = AndroidTree {
+        e: env,
+        facts: env.method(tree, "tree", (c"facts", c"(I)[I"))?,
+        class: env.method(tree, "tree", (c"className", c"(I)Ljava/lang/String;"))?,
+        text: env.method(tree, "tree", (c"text", c"(I)Ljava/lang/String;"))?,
+        child: env.method(tree, "tree", (c"child", c"(II)I"))?,
+    };
+    Ok(Walk::run(&mut tree, bounds(visible))?.packet())
+}
+
+/// The most page turns, the wait for each, the play queue's lookahead and the follow-along delay.
+pub fn follow_config() -> Vec<i64> {
+    vec![
+        i64::from(walk::MAX_TURNS),
+        walk::TURN_MS,
+        reader::play_queue::LOOKAHEAD,
+        reader::play_queue::FOLLOW_MS,
+    ]
+}
+
+/// A new, empty play queue.
+pub fn create() -> i64 {
+    into_handle(Mutex::new(PlayQueue::default()))
+}
+
+pub fn free(handle: i64) -> Result<()> {
+    // SAFETY: the wrapper serializes close with calls, zeros its handle and frees exactly once.
+    unsafe { crate::handle::free::<Mutex<PlayQueue>>(handle) };
+    Ok(())
+}
+
+/// The queue behind `handle`, locked. A closed queue throws an `IllegalStateException`, as
+/// Kotlin's `check` did.
+fn queue<'a>(handle: i64) -> Result<MutexGuard<'a, PlayQueue>> {
+    if handle == 0 {
+        return Err(Error::IllegalState("Playback queue closed".into()));
+    }
+    // SAFETY: the synchronized wrapper keeps the handle live and serializes close.
+    unsafe { locked(handle, "playback queue") }
+}
+
+/// The queue's answer to `op` for utterance `id` at `frame`.
+pub fn call(handle: i64, op: i32, id: i32, frame: i64) -> Result<Vec<i64>> {
+    queue(handle)?.call(op, id, frame).map_err(illegal)
+}
+
+/// The queue's answer to the system voice's `op` for utterance `id`, whose system id is `text`.
+pub fn system(handle: i64, op: i32, id: i32, text: &[u16]) -> Result<Vec<i64>> {
+    queue(handle)?.system(op, id, text).map_err(illegal)
 }

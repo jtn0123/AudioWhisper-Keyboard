@@ -119,7 +119,7 @@ class GlideIndexTest {
         val (xs, ys) = swipe("hello")
 
         assertFailsWith<IllegalArgumentException> { index.query(xs, ys.copyOf(1), keys) }
-        assertFailsWith<IllegalArgumentException> { GlideKeys(intArrayOf(1), FloatArray(3)) }
+        assertFailsWith<IllegalArgumentException> { index.query(xs, ys, GlideKeys(intArrayOf(1), FloatArray(3))) }
         index.query(xs, ys, keys).use { query ->
             assertFailsWith<IllegalArgumentException> { query.score(intArrayOf(0), FloatArray(0), 3) }
             assertFailsWith<IllegalArgumentException> { query.score(intArrayOf(5), floatArrayOf(1f), 3) }

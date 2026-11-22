@@ -4,9 +4,9 @@
 
 use std::sync::{Mutex, MutexGuard, PoisonError};
 
-use jni_sys::{JNIEnv, jlong};
+use jni_sys::jlong;
 
-use crate::jni::{self, Env, Result, illegal};
+use crate::jni::{Result, illegal};
 
 /// Boxes `value` for Kotlin to hold.
 pub fn into_handle<T>(value: T) -> jlong {
@@ -45,20 +45,4 @@ pub unsafe fn locked<'a, T>(handle: jlong, what: &str) -> Result<MutexGuard<'a, 
     let object = unsafe { object::<Mutex<T>>(handle, what)? };
     // A panic aborts, so no lock is ever poisoned; take it back if one somehow were.
     Ok(object.lock().unwrap_or_else(PoisonError::into_inner))
-}
-
-/// Runs an entry point's `body` on the `T` behind a handle to a `Mutex<T>`, locked (see
-/// [`jni::run`]).
-///
-/// # Safety
-/// `env` must be the environment the JVM passed to this call, and `handle` as for [`locked`].
-pub unsafe fn with_locked<T, R>(
-    env: *mut JNIEnv,
-    handle: jlong,
-    what: &str,
-    fallback: R,
-    body: impl FnOnce(&mut T, &Env) -> Result<R>,
-) -> R {
-    // SAFETY: as the caller promises.
-    unsafe { jni::run(env, fallback, |env| body(&mut *locked(handle, what)?, env)) }
 }

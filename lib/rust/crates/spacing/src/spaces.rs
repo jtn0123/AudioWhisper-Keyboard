@@ -5,7 +5,7 @@
 //! Each rule checks what costs nothing first (the setting, the editor, the flags) and only then
 //! the text before the cursor, which Kotlin must cut by ICU's grapheme breaks. So the text comes
 //! in an [`Editor`] that may be missing: a rule that gets as far as needing it answers
-//! `Err(needs)`, and Kotlin looks the text up and asks again.
+//! `Err(needs)`, and awnative has Kotlin look the text up and runs it again.
 
 use crate::rule::{Rule, lists};
 use crate::{is_ascii, state};

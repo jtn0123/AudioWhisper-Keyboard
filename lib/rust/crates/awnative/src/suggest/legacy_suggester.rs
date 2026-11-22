@@ -1,6 +1,6 @@
 //! Host/opt-in fixture adapter for the frozen callback suggester. Never shipped on Android.
 use super::suggester::{stores, write_strip};
-use super::{boolean, non_null};
+use crate::jni::boolean;
 use crate::jni::{self, Env, Error, Method, Result, illegal};
 use jni_sys::{
     JNIEnv, jboolean, jclass, jfloat, jint, jintArray, jlong, jobject, jobjectArray, jstring,
@@ -201,6 +201,14 @@ pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_LegacyFixtureNative_sp
             env.make_strings(&check.suggestions)
         })
     }
+}
+
+/// The strings of a `String[]` that may hold no null.
+fn non_null(strings: Vec<Option<Vec<u16>>>) -> Result<Vec<Vec<u16>>> {
+    strings
+        .into_iter()
+        .map(|string| string.ok_or(Error::NullPointer("a word")))
+        .collect()
 }
 
 #[cfg(test)]

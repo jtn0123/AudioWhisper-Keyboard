@@ -31,9 +31,7 @@ class ComposingRulesTest {
 
     @Test
     fun badTablesThrow() {
-        assertFailsWith<IllegalArgumentException> { ComposingNative.newRules("ab", intArrayOf(1), "", IntArray(0)) }
-        assertFailsWith<IllegalArgumentException> { ComposingNative.newRules("a", intArrayOf(1), "", IntArray(0)) }
-        assertFailsWith<IllegalArgumentException> { ComposingNative.newRules("a", intArrayOf(-1), "a", intArrayOf(1)) }
+        assertFailsWith<IllegalArgumentException> { ComposingNative.newRules(arrayOf("a"), emptyArray()) }
         assertFailsWith<IllegalArgumentException> { ComposingNative.rules(0, "", "a") }
     }
 }

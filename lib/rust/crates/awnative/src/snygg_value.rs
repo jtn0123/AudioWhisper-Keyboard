@@ -1,6 +1,5 @@
 //! UTF-16 and f32-bit transport only; all value decisions live in the Java-free crate.
 use crate::jni::{self, illegal};
-use jni_sys::{JNIEnv, jclass, jint, jobjectArray};
 use snygg::{
     Text,
     properties::{self, PropertyError, PropertyInput},
@@ -8,7 +7,6 @@ use snygg::{
     value::{Corners, Encoder, Value},
     value_spec::{Failure, Mapping},
 };
-use std::ptr;
 struct Packet<'a> {
     rows: &'a [Text],
     at: usize,
@@ -104,7 +102,8 @@ fn failure(e: Failure) -> Vec<Text> {
     };
     vec![text("!"), text(kind), message]
 }
-fn dispatch(op: jint, rows: &[Text]) -> jni::Result<Vec<Text>> {
+/// The answer to the operation `op` on `rows`, for the generated entry point.
+pub fn dispatch(op: i32, rows: &[Text]) -> jni::Result<Vec<Text>> {
     let mut p = Packet { rows, at: 0 };
     Ok(match op {
         0 => {
@@ -244,24 +243,4 @@ fn dispatch(op: jint, rows: &[Text]) -> jni::Result<Vec<Text>> {
         .to_vec(),
         _ => return Err(illegal("unknown Snygg value operation")),
     })
-}
-#[unsafe(no_mangle)]
-pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_SnyggValues_call(
-    env: *mut JNIEnv,
-    _: jclass,
-    op: jint,
-    input: jobjectArray,
-) -> jobjectArray {
-    // SAFETY: the JVM provides this thread's environment and live string array. All
-    // strings are copied; no Java references, callbacks or native handles escape.
-    unsafe {
-        jni::run(env, ptr::null_mut(), |env| {
-            let rows = env
-                .read_strings(input, "input")?
-                .into_iter()
-                .map(|r| r.ok_or(jni::Error::NullPointer("Snygg value packet string")))
-                .collect::<jni::Result<Vec<_>>>()?;
-            env.make_strings(&dispatch(op, &rows)?)
-        })
-    }
 }

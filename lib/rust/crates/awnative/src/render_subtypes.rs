@@ -1,98 +1,65 @@
 //! Subtype resource transport; order, selection, layout and input are native.
 use crate::{
-    handle,
-    jni::illegal,
-    render::{Session, strings},
+    jni::{Result, illegal},
+    render::{session, texts},
 };
-use jni_sys::{JNIEnv, jlong, jlongArray, jobject, jobjectArray};
-#[unsafe(no_mangle)]
-pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_subtypes(
-    env: *mut JNIEnv,
-    _: jobject,
-    native: jlong,
-    selected: jlong,
-    ids: jlongArray,
-    labels: jobjectArray,
-    bottom_inset: jni_sys::jfloat,
-) {
-    // SAFETY: synchronized JVM owner retains the session; local arrays are copied.
-    unsafe {
-        handle::with_locked::<Session, _>(env, native, "renderer", (), |s, env| {
-            let ids = env.read::<i64>(ids, "subtype ids")?;
-            let labels = strings(env, labels)?;
-            if labels.len() != ids.len() + 3 || !bottom_inset.is_finite() || bottom_inset < 0.0 {
-                return Err(illegal("subtype labels"));
-            }
-            let p = s
-                .scene
-                .panel
-                .as_mut()
-                .ok_or_else(|| illegal("subtype panel missing"))?;
-            if p.kind != 7 {
-                return Err(illegal("wrong subtype panel"));
-            }
-            p.subtypes = Some(render::subtype_panel::Subtypes {
-                ids,
-                selected,
-                bottom_inset,
-                header: labels[0].clone(),
-                icons: [labels[1].clone(), labels[2].clone()],
-                labels: labels[3..].to_vec(),
-                ..Default::default()
-            });
-            s.prepare_panel();
-            Ok(())
+pub fn subtypes(
+    native: i64,
+    selected: i64,
+    ids: &[i64],
+    labels: &[Vec<u16>],
+    bottom_inset: f32,
+) -> Result<()> {
+    session(native, |s| {
+        let labels = texts(labels);
+        if labels.len() != ids.len() + 3 || !bottom_inset.is_finite() || bottom_inset < 0.0 {
+            return Err(illegal("subtype labels"));
+        }
+        let p = s
+            .scene
+            .panel
+            .as_mut()
+            .ok_or_else(|| illegal("subtype panel missing"))?;
+        if p.kind != 7 {
+            return Err(illegal("wrong subtype panel"));
+        }
+        p.subtypes = Some(render::subtype_panel::Subtypes {
+            ids: ids.to_vec(),
+            selected,
+            bottom_inset,
+            header: labels[0].clone(),
+            icons: [labels[1].clone(), labels[2].clone()],
+            labels: labels[3..].to_vec(),
+            ..Default::default()
         });
-    }
+        s.prepare_panel();
+        Ok(())
+    })
 }
-#[unsafe(no_mangle)]
-pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_SubtypeRules_rows(
-    env: *mut JNIEnv,
-    _: jobject,
-    selected: jlong,
-    ids: jlongArray,
-    labels: jobjectArray,
-) -> jobjectArray {
-    // SAFETY: local arrays are copied; the output is a fresh JVM-owned string array.
-    unsafe {
-        crate::jni::run(env, std::ptr::null_mut(), |env| {
-            let ids = env.read::<i64>(ids, "ids")?;
-            let labels = strings(env, labels)?;
-            if ids.len() != labels.len() {
-                return Err(illegal("subtype count"));
-            }
-            let out: Vec<Vec<u16>> = render::subtype_panel::rows(&ids, &labels, selected)
-                .into_iter()
-                .flat_map(|(id, label, selected)| [id.to_string(), label, selected.to_string()])
-                .map(|s| s.encode_utf16().collect())
-                .collect();
-            env.make_strings(&out)
-        })
+pub fn rows(selected: i64, ids: &[i64], labels: &[Vec<u16>]) -> Result<Vec<Vec<u16>>> {
+    let labels = texts(labels);
+    if ids.len() != labels.len() {
+        return Err(illegal("subtype count"));
     }
+    let out: Vec<Vec<u16>> = render::subtype_panel::rows(ids, &labels, selected)
+        .into_iter()
+        .flat_map(|(id, label, selected)| [id.to_string(), label, selected.to_string()])
+        .map(|s| s.encode_utf16().collect())
+        .collect();
+    Ok(out)
 }
 
-#[unsafe(no_mangle)]
-pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_SubtypeRules_geometry(
-    env: *mut JNIEnv,
-    _: jobject,
-    config: jni_sys::jfloatArray,
-) -> jni_sys::jfloatArray {
-    // SAFETY: the JVM local input is copied; the result is a fresh primitive array.
-    unsafe {
-        crate::jni::run(env, std::ptr::null_mut(), |env| {
-            let c = env.read::<f32>(config, "subtype geometry")?;
-            if c.len() != 7 || c.iter().any(|v| !v.is_finite() || *v < 0.0) {
-                return Err(illegal("subtype geometry"));
-            }
-            env.make(&[
-                render::subtype_panel::sheet_start(
-                    render::subtype_panel::content_height(c[0], c[6]),
-                    c[1],
-                    c[2],
-                    c[3] as usize,
-                ),
-                render::modal_scene::offset(c[0], c[4], c[5]),
-            ])
-        })
+pub fn geometry(c: &[f32]) -> Result<Vec<f32>> {
+    if c.len() != 7 || c.iter().any(|v| !v.is_finite() || *v < 0.0) {
+        return Err(illegal("subtype geometry"));
     }
+    Ok(vec![
+        render::subtype_panel::sheet_start(
+            render::subtype_panel::content_height(c[0], c[6]),
+            c[1],
+            c[2],
+            c[3] as usize,
+        ),
+        render::modal_scene::offset(c[0], c[4], c[5]),
+    ])
 }

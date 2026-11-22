@@ -62,10 +62,3 @@ object EditorAttributes {
     private fun query(op: EditorAttributeOp, vararg values: String): IntArray =
         EditorNative.attributes(arrayOf("${op.code}", *values)).map(String::toInt).toIntArray()
 }
-internal object EditorNative {
-    init { RustLibrary.load() }
-    @JvmStatic external fun create(): Long
-    @JvmStatic external fun free(handle: Long)
-    @JvmStatic external fun call(handle: Long, operation: String, fields: Array<out String>): Array<String>
-    @JvmStatic external fun attributes(fields: Array<String>): Array<String>
-}

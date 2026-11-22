@@ -1,98 +1,63 @@
 //! Input-only JNI boundary. Native owns all pointer, swipe and glide recognition state.
 use crate::{
-    handle,
-    jni::illegal,
-    render::{Session, strings},
-};
-use jni_sys::{
-    JNIEnv, jboolean, jfloatArray, jint, jintArray, jlong, jlongArray, jobject, jobjectArray,
+    jni::{Result, illegal},
+    render::{session, texts},
 };
 use render::{gesture_config::GestureConfig, touch::Motion};
-use std::ptr;
-#[unsafe(no_mangle)]
-pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_gestures(
-    env: *mut JNIEnv,
-    _: jobject,
-    native: jlong,
-    values: jfloatArray,
-    actions: jobjectArray,
-) {
-    // SAFETY: the synchronized owner keeps the session and copied local arrays alive.
-    unsafe {
-        handle::with_locked::<Session, _>(env, native, "renderer", (), |s, env| {
-            let config = GestureConfig::decode(
-                &env.read::<f32>(values, "gesture config")?,
-                strings(env, actions)?,
-            )
+pub fn gestures(native: i64, values: &[f32], actions: &[Vec<u16>]) -> Result<()> {
+    session(native, |s| {
+        let config = GestureConfig::decode(values, texts(actions))
             .ok_or_else(|| illegal("invalid gesture settings"))?;
-            s.touch.configure(config);
-            Ok(())
-        });
-    }
+        s.touch.configure(config);
+        Ok(())
+    })
 }
-#[unsafe(no_mangle)]
-pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_longPress(
-    env: *mut JNIEnv,
-    _: jobject,
-    native: jlong,
-    pointer: jint,
-    popup: jboolean,
-    uninterrupted: jboolean,
-) -> jintArray {
-    // SAFETY: the synchronized owner keeps the session alive and owns the returned local array.
-    unsafe {
-        handle::with_locked::<Session, _>(env, native, "renderer", ptr::null_mut(), |s, env| {
-            let actions: Vec<_> = s
-                .touch
-                .long_press(&s.scene, pointer, popup != 0, uninterrupted != 0)
-                .into_iter()
-                .flat_map(|a| [a.0, a.1, a.2])
-                .collect();
-            s.prepare_panel();
-            env.make(&actions)
-        })
-    }
+pub fn long_press(native: i64, pointer: i32, popup: bool, uninterrupted: bool) -> Result<Vec<i32>> {
+    session(native, |s| {
+        let actions: Vec<_> = s
+            .touch
+            .long_press(&s.scene, pointer, popup, uninterrupted)
+            .into_iter()
+            .flat_map(|a| [a.0, a.1, a.2])
+            .collect();
+        s.prepare_panel();
+        Ok(actions)
+    })
 }
-#[unsafe(no_mangle)]
-pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_touch(
-    env: *mut JNIEnv,
-    _: jobject,
-    native: jlong,
-    metadata: jintArray,
-    times: jlongArray,
-    coords: jfloatArray,
-    trail: jlong,
-    aimed: jboolean,
-) -> jintArray {
-    // SAFETY: the wrapper owns the live handle and JVM arrays for this call; `trail` is 0 or a tap
-    // trail its Kotlin owner keeps alive while it calls.
-    unsafe {
-        handle::with_locked::<Session, _>(env, native, "renderer", ptr::null_mut(), |s, env| {
-            let meta = env.read::<i32>(metadata, "metadata")?;
-            if meta.len() < 2 {
-                return Err(illegal("missing action/index"));
-            }
-            // A key goes down: where this user aims and which letters come next, as of now
-            // (`aimed_key_at`).
-            if matches!(meta[0], 0 | 5) {
-                crate::suggest::tap_aim::lean(trail, aimed != 0, &mut s.scene)?;
-            }
-            let event = Motion {
-                action: meta[0],
-                index: meta[1] as usize,
-                ids: meta[2..].to_vec(),
-                times: env.read(times, "times")?,
-                coords: env.read(coords, "coords")?,
-            };
-            s.touch_time = event.times.last().copied().unwrap_or(0);
-            let actions: Vec<_> = s
-                .touch
-                .event(&mut s.scene, &event)
-                .into_iter()
-                .flat_map(|a| [a.0, a.1, a.2])
-                .collect();
-            s.prepare_panel();
-            env.make(&actions)
-        })
-    }
+pub fn touch(
+    native: i64,
+    metadata: &[i32],
+    times: &[i64],
+    coords: &[f32],
+    trail: i64,
+    aimed: bool,
+) -> Result<Vec<i32>> {
+    session(native, |s| {
+        let meta = metadata;
+        if meta.len() < 2 {
+            return Err(illegal("missing action/index"));
+        }
+        // A key goes down: where this user aims and which letters come next, as of now
+        // (`aimed_key_at`).
+        if matches!(meta[0], 0 | 5) {
+            // SAFETY: `trail` is 0 or a tap trail its Kotlin owner keeps reachable while it calls.
+            unsafe { crate::suggest::tap_aim::lean(trail, aimed, &mut s.scene)? };
+        }
+        let event = Motion {
+            action: meta[0],
+            index: meta[1] as usize,
+            ids: meta[2..].to_vec(),
+            times: times.to_vec(),
+            coords: coords.to_vec(),
+        };
+        s.touch_time = event.times.last().copied().unwrap_or(0);
+        let actions: Vec<_> = s
+            .touch
+            .event(&mut s.scene, &event)
+            .into_iter()
+            .flat_map(|a| [a.0, a.1, a.2])
+            .collect();
+        s.prepare_panel();
+        Ok(actions)
+    })
 }

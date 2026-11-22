@@ -14,6 +14,9 @@ pub enum Error {
     /// The JVM raised an exception, which is thrown when the entry point returns.
     Pending,
     IllegalArgument(String),
+    /// An `IllegalStateException`, for an object used after it was closed where Kotlin's
+    /// `check` threw one.
+    IllegalState(String),
     NullPointer(&'static str),
 }
 
@@ -22,6 +25,11 @@ pub type Result<T> = std::result::Result<T, Error>;
 /// Shorthand for an [`Error::IllegalArgument`].
 pub fn illegal(message: impl Into<String>) -> Error {
     Error::IllegalArgument(message.into())
+}
+
+/// A number as the UTF-16 of its decimal digits, as a row of strings carries it.
+pub fn decimal(value: impl ToString) -> Vec<u16> {
+    value.to_string().encode_utf16().collect()
 }
 
 /// A Rust `bool` as a Java `boolean`.
@@ -113,6 +121,12 @@ element!(f32, GetFloatArrayRegion, NewFloatArray, SetFloatArrayRegion);
 element!(i64, GetLongArrayRegion, NewLongArray, SetLongArrayRegion);
 
 impl Env {
+    /// The raw environment, for an Android NDK function that takes it.
+    #[cfg(target_os = "android")]
+    pub fn raw(&self) -> *mut JNIEnv {
+        self.raw
+    }
+
     fn length(&self, array: jarray, name: &'static str) -> Result<usize> {
         if array.is_null() {
             return Err(Error::NullPointer(name));
@@ -200,7 +214,9 @@ impl Env {
         Ok(array)
     }
 
-    /// Writes `values` to the start of `array`, which must be long enough.
+    /// Writes `values` to the start of `array`, which must be long enough. Only the host and
+    /// the legacy fixtures fill arrays the caller passed; the shipped entry points return theirs.
+    #[cfg(any(not(target_os = "android"), feature = "legacy-fixture"))]
     pub fn write<T: Element>(&self, array: jarray, values: &[T], name: &'static str) -> Result<()> {
         if self.length(array, name)? < values.len() {
             return Err(illegal(format!("{name} is too short")));
@@ -260,6 +276,15 @@ impl Env {
         Ok(strings)
     }
 
+    /// The strings in a `String[]` that holds no nulls; a null array or element throws
+    /// `NullPointerException` naming `name`.
+    pub fn read_texts(&self, array: jobjectArray, name: &'static str) -> Result<Vec<Vec<u16>>> {
+        self.read_strings(array, name)?
+            .into_iter()
+            .map(|text| text.ok_or(Error::NullPointer(name)))
+            .collect()
+    }
+
     /// The arrays in an array of arrays such as `int[][]`, `None` for each null; `name` says which
     /// argument was null, if the outer array was.
     #[cfg(not(target_os = "android"))]
@@ -283,11 +308,6 @@ impl Env {
             arrays.push(Some(values?));
         }
         Ok(arrays)
-    }
-
-    /// A new Java string of these UTF-16 units, or null for `None`.
-    pub fn make_nullable_string(&self, units: Option<&[u16]>) -> Result<jstring> {
-        units.map_or(Ok(ptr::null_mut()), |units| self.make_string(units))
     }
 
     /// A new array of `class` (a JNI class name) holding what `make` makes of each item.
@@ -322,6 +342,16 @@ impl Env {
         self.make_array(c"java/lang/String", strings, |it| {
             self.make_string(it.as_ref())
         })
+    }
+
+    /// A new `int[][]` of these rows.
+    pub fn make_int_arrays(&self, rows: &[Vec<i32>]) -> Result<jobjectArray> {
+        self.make_array(c"[I", rows, |row| self.make(row))
+    }
+
+    /// A new `String[][]` of these rows.
+    pub fn make_string_arrays(&self, rows: &[Vec<Vec<u16>>]) -> Result<jobjectArray> {
+        self.make_array(c"[Ljava/lang/String;", rows, |row| self.make_strings(row))
     }
 
     /// A new `Object[]` of what each of `makers` makes, such as arrays of different types.
@@ -366,6 +396,14 @@ impl Env {
         Ok(result)
     }
 
+    /// Calls `method`, which returns a float, with `arguments`, as its signature has them.
+    pub fn call_float(&self, method: Method, arguments: &[jvalue]) -> Result<f32> {
+        let (object, id) = (method.object, method.id);
+        let result = jni_call!(self, CallFloatMethodA, object, id, arguments.as_ptr());
+        self.check()?;
+        Ok(result)
+    }
+
     /// Calls `method`, which returns an object, with `arguments`, as its signature has them: a
     /// local reference for the caller to free, or null.
     pub fn call_object(&self, method: Method, arguments: &[jvalue]) -> Result<jobject> {
@@ -402,6 +440,7 @@ impl Env {
         let (class, message) = match error {
             Error::Pending => return,
             Error::IllegalArgument(message) => (c"java/lang/IllegalArgumentException", message),
+            Error::IllegalState(message) => (c"java/lang/IllegalStateException", message),
             Error::NullPointer(name) => {
                 (c"java/lang/NullPointerException", format!("{name} is null"))
             }

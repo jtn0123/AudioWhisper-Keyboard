@@ -1,22 +1,19 @@
-//! JNI entry points for swipes and the start of a glide (crates/gestures), called by
-//! `GesturesNative` in lib/rust's Kotlin. Both detectors are handles, called on every touch move.
+//! Swipes and the start of a glide (crates/gestures), for `GesturesNative`, whose generated
+//! entry points call these. Both detectors are handles, called on every touch move.
 //!
-//! A swipe comes back in an `IntArray` of [`SWIPE_INTS`]: its direction, as `SwipeDirection`
+//! A swipe comes back as an `IntArray`, or null for none: its direction, as `SwipeDirection`
 //! orders them, then its units moved since the finger went down and since the last swipe (x, y,
 //! x, y). A glide's touch comes back as one `Long` of bits, which `GlideOutcome` reads:
 //! [`glide_outcome`] lays them out.
 
-use std::sync::Mutex;
+use std::sync::{Mutex, MutexGuard};
 
 use gestures::glide_start::{GlideStart, Outcome, Touch};
 use gestures::swipe::{Direction, Swipe, Swipes};
-use jni_sys::{JNI_FALSE, JNIEnv, jboolean, jclass, jfloat, jfloatArray, jint, jintArray, jlong};
 
-use crate::handle::{free, into_handle, with_locked};
-use crate::jni::{self, Env, Result};
-
-/// How many `Int`s a swipe takes in its array.
-const SWIPE_INTS: usize = 5;
+use crate::boundary::args::{GesturesNativeGlideTouch, GesturesNativeSwipesUp};
+use crate::handle::{into_handle, locked};
+use crate::jni::{Result, illegal};
 
 /// A direction's number, as `SwipeDirection` orders them.
 fn direction(direction: Direction) -> i32 {
@@ -32,207 +29,97 @@ fn direction(direction: Direction) -> i32 {
     }
 }
 
-/// Writes a swipe, if there was one, into `out`: whether there was.
-fn swipe(env: &Env, swipe: Option<Swipe>, out: jintArray) -> Result<jboolean> {
-    let Some(swipe) = swipe else {
-        return Ok(JNI_FALSE);
-    };
-    let ints: [i32; SWIPE_INTS] = [
-        direction(swipe.direction),
-        swipe.abs_x,
-        swipe.abs_y,
-        swipe.rel_x,
-        swipe.rel_y,
-    ];
-    env.write(out, &ints, "out")?;
-    Ok(jni::boolean(true))
+/// A swipe as `Swipe` reads it, if there was one.
+fn swipe(swipe: Option<Swipe>) -> Option<Vec<i32>> {
+    swipe.map(|swipe| {
+        vec![
+            direction(swipe.direction),
+            swipe.abs_x,
+            swipe.abs_y,
+            swipe.rel_x,
+            swipe.rel_y,
+        ]
+    })
 }
 
 /// A new swipe detector, following no finger.
-#[unsafe(no_mangle)]
-pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_GesturesNative_newSwipes(
-    _: *mut JNIEnv,
-    _: jclass,
-) -> jlong {
+pub fn new_swipes() -> i64 {
     into_handle(Mutex::new(Swipes::default()))
 }
 
-#[unsafe(no_mangle)]
-pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_GesturesNative_freeSwipes(
-    _: *mut JNIEnv,
-    _: jclass,
-    swipes: jlong,
-) {
+pub fn free_swipes(swipes: i64) -> Result<()> {
     // SAFETY: the Kotlin side frees each detector once, when nothing can reach it.
-    unsafe { free::<Mutex<Swipes>>(swipes) }
+    unsafe { crate::handle::free::<Mutex<Swipes>>(swipes) };
+    Ok(())
+}
+
+fn swipes<'a>(swipes: i64) -> Result<MutexGuard<'a, Swipes>> {
+    // SAFETY: Kotlin holds the detector while it calls, so it hasn't been freed.
+    unsafe { locked(swipes, "swipe detector") }
 }
 
 /// A new touch began: forget every finger (`Swipes::reset`).
-#[unsafe(no_mangle)]
-pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_GesturesNative_swipesReset(
-    env: *mut JNIEnv,
-    _: jclass,
-    swipes: jlong,
-) {
-    // SAFETY: the JVM passes its environment; Kotlin holds the detector while it calls.
-    unsafe {
-        with_locked(
-            env,
-            swipes,
-            "swipe detector",
-            (),
-            |swipes: &mut Swipes, _| {
-                swipes.reset();
-                Ok(())
-            },
-        )
-    }
+pub fn swipes_reset(swipes: i64) -> Result<()> {
+    self::swipes(swipes)?.reset();
+    Ok(())
 }
 
 /// Finger `id` went down at (`x`, `y`) pixels (`Swipes::down`).
-#[unsafe(no_mangle)]
-pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_GesturesNative_swipesDown(
-    env: *mut JNIEnv,
-    _: jclass,
-    swipes: jlong,
-    id: jint,
-    x: jfloat,
-    y: jfloat,
-    density: jfloat,
-) {
-    // SAFETY: the JVM passes its environment; Kotlin holds the detector while it calls.
-    unsafe {
-        with_locked(
-            env,
-            swipes,
-            "swipe detector",
-            (),
-            |swipes: &mut Swipes, _| {
-                swipes.down(id, x, y, density);
-                Ok(())
-            },
-        )
-    }
+pub fn swipes_down(swipes: i64, id: i32, x: f32, y: f32, density: f32) -> Result<()> {
+    self::swipes(swipes)?.down(id, x, y, density);
+    Ok(())
 }
 
-/// Finger `id` moved to (`x`, `y`) pixels (`Swipes::moved`): whether that is a swipe, written
-/// into `out`.
-#[unsafe(no_mangle)]
-pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_GesturesNative_swipesMove(
-    env: *mut JNIEnv,
-    _: jclass,
-    swipes: jlong,
-    id: jint,
-    x: jfloat,
-    y: jfloat,
-    density: jfloat,
-    distance_threshold: jint,
-    always: jboolean,
-    out: jintArray,
-) -> jboolean {
-    // SAFETY: the JVM passes its environment; Kotlin holds the detector while it calls.
-    unsafe {
-        with_locked(
-            env,
-            swipes,
-            "swipe detector",
-            JNI_FALSE,
-            |swipes: &mut Swipes, env| {
-                let found =
-                    swipes.moved(id, x, y, density, distance_threshold, always != JNI_FALSE);
-                swipe(env, found, out)
-            },
-        )
-    }
+/// Finger `id` moved to (`x`, `y`) pixels (`Swipes::moved`): the swipe that makes, if any.
+pub fn swipes_move(
+    swipes: i64,
+    id: i32,
+    x: f32,
+    y: f32,
+    density: f32,
+    distance_threshold: i32,
+    always: bool,
+) -> Result<Option<Vec<i32>>> {
+    let found = self::swipes(swipes)?.moved(id, x, y, density, distance_threshold, always);
+    Ok(swipe(found))
 }
 
 /// Finger `id` was lifted at (`x`, `y`) pixels, moving at (`velocity_x`, `velocity_y`) pixels a
-/// second (`Swipes::up`): whether that is a swipe, written into `out`.
-#[unsafe(no_mangle)]
-pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_GesturesNative_swipesUp(
-    env: *mut JNIEnv,
-    _: jclass,
-    swipes: jlong,
-    id: jint,
-    x: jfloat,
-    y: jfloat,
-    velocity_x: jfloat,
-    velocity_y: jfloat,
-    density: jfloat,
-    distance_threshold: jint,
-    velocity_threshold: jint,
-    out: jintArray,
-) -> jboolean {
-    // SAFETY: the JVM passes its environment; Kotlin holds the detector while it calls.
-    unsafe {
-        with_locked(
-            env,
-            swipes,
-            "swipe detector",
-            JNI_FALSE,
-            |swipes: &mut Swipes, env| {
-                let found = swipes.up(
-                    id,
-                    (x, y),
-                    (velocity_x, velocity_y),
-                    density,
-                    distance_threshold,
-                    velocity_threshold,
-                );
-                swipe(env, found, out)
-            },
-        )
-    }
+/// second (`Swipes::up`): the swipe that makes, if any.
+pub fn swipes_up(args: GesturesNativeSwipesUp) -> Result<Option<Vec<i32>>> {
+    let found = self::swipes(args.swipes)?.up(
+        args.id,
+        (args.x, args.y),
+        (args.velocity_x, args.velocity_y),
+        args.density,
+        args.distance_threshold,
+        args.velocity_threshold,
+    );
+    Ok(swipe(found))
 }
 
 /// Finger `id`'s touch was cancelled (`Swipes::cancel`).
-#[unsafe(no_mangle)]
-pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_GesturesNative_swipesCancel(
-    env: *mut JNIEnv,
-    _: jclass,
-    swipes: jlong,
-    id: jint,
-) {
-    // SAFETY: the JVM passes its environment; Kotlin holds the detector while it calls.
-    unsafe {
-        with_locked(
-            env,
-            swipes,
-            "swipe detector",
-            (),
-            |swipes: &mut Swipes, _| {
-                swipes.cancel(id);
-                Ok(())
-            },
-        )
-    }
+pub fn swipes_cancel(swipes: i64, id: i32) -> Result<()> {
+    self::swipes(swipes)?.cancel(id);
+    Ok(())
 }
 
 /// A new glide detector for keys `key_size` dp wide.
-#[unsafe(no_mangle)]
-pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_GesturesNative_newGlideStart(
-    _: *mut JNIEnv,
-    _: jclass,
-    key_size: jfloat,
-) -> jlong {
+pub fn new_glide_start(key_size: f32) -> i64 {
     into_handle(Mutex::new(GlideStart::new(key_size)))
 }
 
-#[unsafe(no_mangle)]
-pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_GesturesNative_freeGlideStart(
-    _: *mut JNIEnv,
-    _: jclass,
-    glide: jlong,
-) {
+pub fn free_glide_start(glide: i64) -> Result<()> {
     // SAFETY: the Kotlin side frees each detector once, when nothing can reach it.
-    unsafe { free::<Mutex<GlideStart>>(glide) }
+    unsafe { crate::handle::free::<Mutex<GlideStart>>(glide) };
+    Ok(())
 }
 
 /// An outcome as `GlideOutcome` reads it: bit 0 a glide, 1 cleared before, 2 took the points,
 /// 3 started the clock, 4 complete, 5 cancelled, 6 cleared after; bits 8 and 9 the decision
-/// (0 none, 1 a glide, 2 not one); and the high 32 bits one more than the first point to hand on,
-/// or 0 for none.
-fn glide_outcome(outcome: Outcome) -> jlong {
+/// (0 none, 1 a glide, 2 not one); and the high 32 bits the first point to hand on, or -1 for
+/// none.
+fn glide_outcome(outcome: Outcome) -> i64 {
     let flags = [
         outcome.gesture,
         outcome.cleared_before,
@@ -251,44 +138,27 @@ fn glide_outcome(outcome: Outcome) -> jlong {
         Some(true) => 1 << 8,
         Some(false) => 2 << 8,
     };
-    let emit = outcome.emit_from.map_or(0, |from| from as i64 + 1);
-    bits | (emit << 32)
+    // A point's index fits in an Int: it numbers a Java array.
+    let emit = outcome.emit_from.map_or(-1, |from| from as i32);
+    bits | (i64::from(emit) << 32)
 }
 
 /// One touch event (`Touch::of`, `GlideStart::touch`): its masked `action`, the pointer `id` at
 /// its action index, and that pointer's first `count` floats of `points` (x, y, …). The touch
 /// began on the key with `key_code` if `has_key`.
-#[unsafe(no_mangle)]
-pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_GesturesNative_glideTouch(
-    env: *mut JNIEnv,
-    _: jclass,
-    glide: jlong,
-    action: jint,
-    id: jint,
-    points: jfloatArray,
-    count: jint,
-    now: jlong,
-    density: jfloat,
-    has_key: jboolean,
-    key_code: jint,
-) -> jlong {
-    // SAFETY: the JVM passes its environment; Kotlin holds the detector while it calls.
-    unsafe {
-        with_locked(
-            env,
-            glide,
-            "glide detector",
-            0,
-            |glide: &mut GlideStart, env| {
-                let points = env.read::<f32>(points, "points")?;
-                let points = usize::try_from(count)
-                    .ok()
-                    .and_then(|count| points.get(..count))
-                    .ok_or_else(|| jni::illegal("count"))?;
-                let touch = Touch::of(action, id, points).map_err(jni::illegal)?;
-                let key = (has_key != JNI_FALSE).then_some(key_code);
-                Ok(glide_outcome(glide.touch(touch, now, density, key)))
-            },
-        )
-    }
+pub fn glide_touch(args: GesturesNativeGlideTouch) -> Result<i64> {
+    let points = usize::try_from(args.count)
+        .ok()
+        .and_then(|count| args.points.get(..count))
+        .ok_or_else(|| illegal("count"))?;
+    let touch = Touch::of(args.action, args.id, points).map_err(illegal)?;
+    let key = args.has_key.then_some(args.key_code);
+    // SAFETY: Kotlin holds the detector while it calls, so it hasn't been freed.
+    let mut glide = unsafe { locked::<GlideStart>(args.glide, "glide detector")? };
+    Ok(glide_outcome(glide.touch(
+        touch,
+        args.now,
+        args.density,
+        key,
+    )))
 }

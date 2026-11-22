@@ -26,7 +26,3 @@ object BackupPolicy {
     fun archive(root: String, entries: List<ExtensionPolicy.ArchiveEntry>) =
         call(BackupOp.ARCHIVE, root, *entries.flatMap { it.packet().asList() }.toTypedArray())
 }
-internal object BackupNative {
-    init { RustLibrary.load() }
-    @JvmStatic external fun call(operation: Int, input: Array<String>): Array<String>
-}

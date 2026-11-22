@@ -1,81 +1,54 @@
-//! Copied bulk fields and native handles only; glide orchestration is in suggest::glide_ranker.
-use crate::{
-    handle::locked,
-    jni::{self, Result, illegal},
-};
-use jni_sys::{JNIEnv, jboolean, jclass, jfloatArray, jint, jintArray, jlong, jstring};
-use std::ptr;
-use suggest::{
-    glide_ranker::{self, Query},
-    learned_words::LearnedWords,
-    previous_words::PreviousWords,
-    raw::NOT_A_PROBABILITY,
-    session::Session,
-};
+//! The glide ranking (`suggest::glide_ranker`), for `NativeGlideNative`, whose generated entry
+//! point calls this. It asks the session and the learned words through their handles.
 
-#[unsafe(no_mangle)]
-pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_NativeGlideNative_rank(
-    env: *mut JNIEnv,
-    _: jclass,
-    session: jlong,
-    history: jlong,
-    text: jstring,
-    lengths: jintArray,
-    costs: jfloatArray,
-    word_count: jint,
-    sentence_start: jboolean,
-) -> jintArray {
-    // SAFETY: Kotlin holds the session monitor and a reachable history owner for this entire call.
-    // Handles are live or zero after close; -1 is the explicit absent dictionary, never dereferenced.
-    unsafe {
-        jni::run(env, ptr::null_mut(), |e| {
-            let text = e.read_string(text, "glide fields")?;
-            let lengths = e.read::<i32>(lengths, "glide lengths")?;
-            let fields = jni::cut(&text, &lengths)?;
-            let costs = e.read::<f32>(costs, "glide costs")?;
-            let count = usize::try_from(word_count).map_err(|_| illegal("negative glide count"))?;
-            if count != costs.len() {
-                return Err(illegal("glide words and costs differ in length"));
-            }
-            let (words, previous) = fields
-                .split_at_checked(count)
-                .ok_or_else(|| illegal("missing glide words"))?;
-            let previous = PreviousWords {
-                words: previous.iter().map(|w| w.to_vec()).collect(),
-                is_beginning_of_sentence: sentence_start != 0,
-            };
-            let order =
-                glide_ranker::rank_from(&costs, words, &previous, |query| -> Result<i32> {
-                    Ok(match query {
-                        Query::Ngram(p, w) => {
-                            if session == -1 {
-                                NOT_A_PROBABILITY
-                            } else {
-                                locked::<Session>(session, "session")?.context_probability(p, w)
-                            }
-                        }
-                        Query::Probability(w) => {
-                            if session == -1 {
-                                NOT_A_PROBABILITY
-                            } else {
-                                locked::<Session>(session, "session")?.probability(w)
-                            }
-                        }
-                        Query::Pair(p, w) => {
-                            if history == 0 {
-                                0
-                            } else {
-                                locked::<LearnedWords>(history, "learned words")?.pair_count(
-                                    p.words.first().map(Vec::as_slice),
-                                    p.is_beginning_of_sentence,
-                                    w,
-                                )
-                            }
-                        }
-                    })
-                })?
-                .ok_or_else(|| illegal("glide words and costs differ in length"))?;
-            e.make(&order.into_iter().map(|i| i as i32).collect::<Vec<_>>())
+use std::sync::MutexGuard;
+
+use suggest::glide_ranker::{self, Query};
+use suggest::learned_words::LearnedWords;
+use suggest::previous_words::PreviousWords;
+use suggest::raw::NOT_A_PROBABILITY;
+use suggest::session::Session;
+
+use crate::handle::locked;
+use crate::jni::{Result, illegal};
+
+/// The indexes of `words`, whose glide `costs` these are, best first after `previous`. `session`
+/// is lent under its owner's lock (0 once closed), or -1 for no dictionary; `history` is the
+/// learned words, or 0 for none.
+pub fn rank(
+    session: i64,
+    history: i64,
+    words: &[Vec<u16>],
+    costs: &[f32],
+    previous: &[Vec<u16>],
+    sentence_start: bool,
+) -> Result<Vec<i32>> {
+    let words: Vec<&[u16]> = words.iter().map(Vec::as_slice).collect();
+    let previous = PreviousWords {
+        words: previous.to_vec(),
+        is_beginning_of_sentence: sentence_start,
+    };
+    let ask = |query: Query| -> Result<i32> {
+        Ok(match query {
+            Query::Ngram(..) | Query::Probability(_) if session == -1 => NOT_A_PROBABILITY,
+            Query::Ngram(p, w) => guarded::<Session>(session, "session")?.context_probability(p, w),
+            Query::Probability(w) => guarded::<Session>(session, "session")?.probability(w),
+            Query::Pair(..) if history == 0 => 0,
+            Query::Pair(p, w) => guarded::<LearnedWords>(history, "learned words")?.pair_count(
+                p.words.first().map(Vec::as_slice),
+                p.is_beginning_of_sentence,
+                w,
+            ),
         })
-    }
+    };
+    let order = glide_ranker::rank_from(costs, &words, &previous, ask)?
+        .ok_or_else(|| illegal("glide words and costs differ in length"))?;
+    // Each is an index into a Java array, so it fits.
+    Ok(order.into_iter().map(|i| i as i32).collect())
+}
+
+fn guarded<'a, T>(handle: i64, what: &str) -> Result<MutexGuard<'a, T>> {
+    // SAFETY: Kotlin holds the session's lock and keeps the history reachable for the whole call,
+    // so neither has been freed; a closed session's handle is 0, which `locked` refuses.
+    unsafe { locked(handle, what) }
 }

@@ -1,143 +1,76 @@
-//! Session transport. Effects are executed after returning to Kotlin, outside the lock.
-use crate::{
-    handle,
-    jni::{self, illegal},
-};
-use jni_sys::{JNIEnv, jboolean, jclass, jint, jlong, jobjectArray, jstring};
-use std::{ptr, sync::Mutex};
-#[unsafe(no_mangle)]
-pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_DictationSessionNative_create(
-    env: *mut JNIEnv,
-    _: jclass,
-) -> jlong {
-    // SAFETY: the environment is valid for this call and the wrapper owns the allocation.
-    unsafe {
-        jni::run(env, 0, |_| {
-            Ok(handle::into_handle(Mutex::new(
-                dictation::session::Session::new(),
-            )))
-        })
-    }
-}
-#[unsafe(no_mangle)]
-pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_DictationSessionNative_free(
-    _: *mut JNIEnv,
-    _: jclass,
-    h: jlong,
-) {
-    // SAFETY: Cleaner synchronizes calls and frees once, after zeroing its handle.
-    unsafe { handle::free::<Mutex<dictation::session::Session>>(h) }
-}
-#[unsafe(no_mangle)]
-pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_DictationSessionNative_call(
-    env: *mut JNIEnv,
-    _: jclass,
-    h: jlong,
-    op: jstring,
-    now: jlong,
-    id: jint,
-    fields: jobjectArray,
-) -> jobjectArray {
-    // SAFETY: the wrapper synchronizes close; all JVM values are copied in this call.
-    unsafe {
-        handle::with_locked::<dictation::session::Session, _>(
-            env,
-            h,
-            "dictation",
-            ptr::null_mut(),
-            |s, e| {
-                let op = String::from_utf16(&e.read_string(op, "operation")?)
-                    .map_err(|_| illegal("invalid operation"))?;
-                let fields = e
-                    .read_strings(fields, "fields")?
-                    .into_iter()
-                    .map(|s| s.ok_or(illegal("null field")))
-                    .collect::<jni::Result<Vec<_>>>()?;
-                e.make_strings(&s.call(&op, now, id, &fields).map_err(illegal)?)
-            },
-        )
-    }
-}
-#[unsafe(no_mangle)]
-pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_DictationSessionNative_releaseAt(
-    _: *mut JNIEnv,
-    _: jclass,
-    idle: jlong,
-    now: jlong,
-    shown: jboolean,
-) -> jlong {
-    dictation::session::release_at(idle, now, shown != 0)
-}
-#[unsafe(no_mangle)]
-pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_DictationSessionNative_ending(
-    env: *mut JNIEnv,
-    _: jclass,
-    typed: jboolean,
-    failures: jint,
-) -> jstring {
-    // SAFETY: the JVM environment is valid for this call.
-    unsafe {
-        jni::run(env, ptr::null_mut(), |e| {
-            e.make_string(
-                &dictation::session::ending(typed != 0, failures)
-                    .encode_utf16()
-                    .collect::<Vec<_>>(),
-            )
-        })
-    }
+//! One dictation's ordered effects (`dictation::session`), for `DictationSessionNative`, whose
+//! generated entry points call these. Effects run after returning to Kotlin, outside the lock.
+
+use std::sync::{Mutex, MutexGuard};
+
+use dictation::session::Session;
+
+use crate::handle::{into_handle, locked};
+use crate::jni::{Result, illegal};
+
+/// A new session.
+pub fn create() -> i64 {
+    into_handle(Mutex::new(Session::new()))
 }
 
-#[unsafe(no_mangle)]
-pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_DictationSessionNative_preview(
-    env: *mut JNIEnv,
-    _: jclass,
-    h: jlong,
-    claim: jboolean,
-) -> jboolean {
-    // SAFETY: wrapper keeps owner alive; only its gate is changed under the session mutex.
-    unsafe {
-        handle::with_locked::<dictation::session::Session, _>(env, h, "dictation", 0, |s, _| {
-            Ok(jni::boolean(if claim != 0 {
-                s.claim_preview()
-            } else {
-                s.complete_preview();
-                false
-            }))
-        })
-    }
+pub fn free(session: i64) -> Result<()> {
+    // SAFETY: the synchronized wrapper frees its handle once, then sets it to zero.
+    unsafe { crate::handle::free::<Mutex<Session>>(session) };
+    Ok(())
 }
 
-#[unsafe(no_mangle)]
-pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_DictationSessionNative_model(
-    env: *mut JNIEnv,
-    _: jclass,
-    h: jlong,
-    op: jstring,
-) -> jint {
-    // SAFETY: wrapper retains the owner; only cache policy is changed under the native mutex.
-    unsafe {
-        handle::with_locked::<dictation::session::Session, _>(env, h, "dictation", 0, |s, e| {
-            let op = String::from_utf16(&e.read_string(op, "model operation")?)
-                .map_err(|_| illegal("invalid model operation"))?;
-            s.model(&op).map_err(illegal)
-        })
-    }
+/// The session behind `handle`, locked.
+fn session<'a>(handle: i64) -> Result<MutexGuard<'a, Session>> {
+    // SAFETY: Kotlin holds the session while it calls, so it hasn't been freed.
+    unsafe { locked(handle, "dictation session") }
 }
 
-#[unsafe(no_mangle)]
-pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_DictationSessionNative_speech(
-    env: *mut JNIEnv,
-    _: jclass,
-    h: jlong,
-    id: jint,
-    detected: jboolean,
-) {
-    // SAFETY: synchronized wrapper retains the owner. A mic notification only updates native
-    // phase under its mutex; it does not publish UI or add work to either executor.
-    unsafe {
-        handle::with_locked::<dictation::session::Session, _>(env, h, "dictation", (), |s, _| {
-            s.speech(id, detected != 0);
-            Ok(())
-        })
-    }
+/// The effects of `operation` at `now` for listening generation `id` (`Session::call`).
+pub fn call(
+    handle: i64,
+    operation: &[u16],
+    now: i64,
+    id: i32,
+    fields: &[Vec<u16>],
+) -> Result<Vec<Vec<u16>>> {
+    let operation = String::from_utf16(operation).map_err(|_| illegal("invalid operation"))?;
+    session(handle)?
+        .call(&operation, now, id, fields)
+        .map_err(illegal)
+}
+
+/// Listening generation `id` detected speech, or lost it (`Session::speech`).
+pub fn speech(handle: i64, id: i32, detected: bool) -> Result<()> {
+    session(handle)?.speech(id, detected);
+    Ok(())
+}
+
+/// The model cache's answer to a `DictationModelOp` (`Session::model`).
+pub fn model(handle: i64, operation: &[u16]) -> Result<i32> {
+    let operation =
+        String::from_utf16(operation).map_err(|_| illegal("invalid model operation"))?;
+    session(handle)?.model(&operation).map_err(illegal)
+}
+
+/// Whether the caller may run the live preview now (`Session::claim_preview`).
+pub fn claim_preview(handle: i64) -> Result<bool> {
+    Ok(session(handle)?.claim_preview())
+}
+
+/// The claimed live preview has finished (`Session::complete_preview`).
+pub fn complete_preview(handle: i64) -> Result<()> {
+    session(handle)?.complete_preview();
+    Ok(())
+}
+
+/// When to release an idle model (`dictation::session::release_at`).
+pub fn release_at(idle: i64, now: i64, shown: bool) -> i64 {
+    dictation::session::release_at(idle, now, shown)
+}
+
+/// The problem to report as a dictation ends (`dictation::session::ending`).
+pub fn ending(typed: bool, failures: i32) -> Vec<u16> {
+    dictation::session::ending(typed, failures)
+        .encode_utf16()
+        .collect()
 }

@@ -41,8 +41,3 @@ object ExtensionPolicy {
     private fun call(operation: ExtensionOp, vararg input: String): List<String> =
         ExtensionPolicyNative.call(operation.code, arrayOf(*input)).asList()
 }
-
-internal object ExtensionPolicyNative {
-    init { RustLibrary.load() }
-    @JvmStatic external fun call(operation: Int, input: Array<String>): Array<String>
-}

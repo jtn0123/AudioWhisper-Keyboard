@@ -20,10 +20,6 @@ object SettingsRules {
     fun editorValid(fields: List<String>) = WireFlag.decode(call(SettingsOp.EDITOR_VALID, *fields.toTypedArray())[0])
     fun color(value: String) = call(SettingsOp.COLOR, value)[0]
 }
-internal object SettingsNative {
-    init { RustLibrary.load() }
-    @JvmStatic external fun call(operation: Int, input: Array<String>): Array<String>
-}
 
 /** Transport values only: field/default/validation/encoding decisions belong to Rust. */
 sealed interface SettingsValue {

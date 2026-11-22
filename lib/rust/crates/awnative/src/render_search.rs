@@ -1,10 +1,8 @@
 //! Native search strip metadata; query editing and InputConnection routing use the existing dispatcher.
 use crate::{
-    handle,
-    jni::illegal,
-    render::{Session, strings},
+    jni::{Result, illegal},
+    render::{Session, session, texts},
 };
-use jni_sys::{JNIEnv, jfloat, jlong, jobject, jobjectArray};
 use render::{gif_search::Search, panels::Panel};
 impl Session {
     pub(crate) fn prepare_search(&mut self) {
@@ -29,55 +27,44 @@ impl Session {
         }
     }
 }
-#[unsafe(no_mangle)]
-pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_RenderNative_search(
-    env: *mut JNIEnv,
-    _: jobject,
-    native: jlong,
-    density: jfloat,
-    labels: jobjectArray,
-    now: jlong,
-) {
-    // SAFETY: synchronized owner retains the session and the copied strings contain no JVM references.
-    unsafe {
-        handle::with_locked::<Session, _>(env, native, "renderer", (), |s, env| {
-            let labels = strings(env, labels)?;
-            if labels.is_empty() {
-                s.scene.search = None;
-                return Ok(());
+pub fn search(native: i64, density: f32, labels: &[Vec<u16>], now: i64) -> Result<()> {
+    session(native, |s| {
+        let labels = texts(labels);
+        if labels.is_empty() {
+            s.scene.search = None;
+            return Ok(());
+        }
+        if labels.len() != 6 || !density.is_finite() || density <= 0.0 {
+            return Err(illegal("search strip"));
+        }
+        let search = Search {
+            query: labels[0].clone(),
+            back: labels[1].clone(),
+            prompt: labels[2].clone(),
+            submit: labels[3].clone(),
+            back_icon: labels[4].clone(),
+            submit_icon: labels[5].clone(),
+            cursor: true,
+            deadline: now + 530_000_000,
+        };
+        if let Some(p) = &mut s.scene.search {
+            if p.search
+                .as_ref()
+                .is_none_or(|old| old.query != search.query)
+            {
+                p.search = Some(search);
             }
-            if labels.len() != 6 || !density.is_finite() || density <= 0.0 {
-                return Err(illegal("search strip"));
-            }
-            let search = Search {
-                query: labels[0].clone(),
-                back: labels[1].clone(),
-                prompt: labels[2].clone(),
-                submit: labels[3].clone(),
-                back_icon: labels[4].clone(),
-                submit_icon: labels[5].clone(),
-                cursor: true,
-                deadline: now + 530_000_000,
-            };
-            if let Some(p) = &mut s.scene.search {
-                if p.search
-                    .as_ref()
-                    .is_none_or(|old| old.query != search.query)
-                {
-                    p.search = Some(search);
-                }
-            } else {
-                s.scene.search = Some(Panel {
-                    kind: 6,
-                    density,
-                    search: Some(search),
-                    ..Default::default()
-                });
-            }
-            s.scene.smartbar = None;
-            s.scene.candidates.clear();
-            s.prepare_search();
-            Ok(())
-        });
-    }
+        } else {
+            s.scene.search = Some(Panel {
+                kind: 6,
+                density,
+                search: Some(search),
+                ..Default::default()
+            });
+        }
+        s.scene.smartbar = None;
+        s.scene.candidates.clear();
+        s.prepare_search();
+        Ok(())
+    })
 }

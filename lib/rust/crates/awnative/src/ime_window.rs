@@ -11,7 +11,6 @@
 //! The rule: when the window is shown, a view last told anything but visible, in a window that is
 //! visible, is told visible again. A window that really was hidden is not visible yet when it is
 //! shown; Android tells its views itself once it is, and they are left alone.
-use jni_sys::{JNIEnv, jboolean, jclass, jint};
 
 /// Android's View.VISIBLE.
 const VISIBLE: i32 = 0;
@@ -19,18 +18,8 @@ const VISIBLE: i32 = 0;
 /// When the input method window is shown: whether the input view must be told again that its
 /// window is visible. `told` is the window visibility the view was last given (View.VISIBLE,
 /// INVISIBLE or GONE); `window` is the window's own, View.getWindowVisibility().
-pub(crate) fn retell_visible(told: i32, window: i32) -> bool {
+pub fn retell_visible(told: i32, window: i32) -> bool {
     window == VISIBLE && told != VISIBLE
-}
-
-#[unsafe(no_mangle)]
-pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_ImeWindowRules_retellVisible(
-    _: *mut JNIEnv,
-    _: jclass,
-    told: jint,
-    window: jint,
-) -> jboolean {
-    u8::from(retell_visible(told, window))
 }
 
 #[cfg(test)]

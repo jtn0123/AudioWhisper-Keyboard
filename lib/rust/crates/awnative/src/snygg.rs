@@ -1,7 +1,6 @@
 //! Snygg transport only. A counted UTF-16 string packet preserves arbitrary backtick text
 //! without JSON escaping, lossy UTF-8 conversion, Java callbacks or native object lifetimes.
 use crate::jni::{self, illegal};
-use jni_sys::{JNIEnv, jclass, jint, jobjectArray};
 use snygg::{
     Error, Text,
     attributes::Attributes,
@@ -9,7 +8,6 @@ use snygg::{
     grammar::{self, Rule},
     text,
 };
-use std::ptr;
 
 pub(super) struct Packet<'a> {
     pub(super) rows: &'a [Text],
@@ -122,7 +120,8 @@ fn parsed(result: Result<Option<Rule>, Error>, filter: usize) -> Vec<Text> {
     }
 }
 
-fn dispatch(op: jint, rows: &[Text]) -> jni::Result<Vec<Text>> {
+/// The answer to the operation `op` on `rows`, for the generated entry point.
+pub fn dispatch(op: i32, rows: &[Text]) -> jni::Result<Vec<Text>> {
     let mut p = Packet { rows, at: 0 };
     Ok(match op {
         0 => {
@@ -238,25 +237,4 @@ fn dispatch(op: jint, rows: &[Text]) -> jni::Result<Vec<Text>> {
         }
         _ => return Err(illegal("unknown Snygg operation")),
     })
-}
-
-#[unsafe(no_mangle)]
-pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_SnyggGrammar_call(
-    env: *mut JNIEnv,
-    _: jclass,
-    op: jint,
-    input: jobjectArray,
-) -> jobjectArray {
-    // SAFETY: the JVM supplies this thread's environment and live array reference. All
-    // strings are copied before grammar code runs; no Java references escape this call.
-    unsafe {
-        jni::run(env, ptr::null_mut(), |env| {
-            let rows = env
-                .read_strings(input, "input")?
-                .into_iter()
-                .map(|r| r.ok_or(jni::Error::NullPointer("Snygg packet string")))
-                .collect::<jni::Result<Vec<_>>>()?;
-            env.make_strings(&dispatch(op, &rows)?)
-        })
-    }
 }

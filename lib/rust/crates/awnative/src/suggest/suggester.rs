@@ -1,9 +1,10 @@
 //! Shared store/result transport for the native session. No managed dictionary callbacks.
-use crate::{
-    handle::object,
-    jni::{Env, Result},
-};
-use jni_sys::{jintArray, jlong, jobjectArray};
+#[cfg(any(not(target_os = "android"), feature = "legacy-fixture"))]
+use crate::jni::Env;
+use crate::{handle::object, jni::Result, jni::decimal};
+use jni_sys::jlong;
+#[cfg(any(not(target_os = "android"), feature = "legacy-fixture"))]
+use jni_sys::{jintArray, jobjectArray};
 use std::sync::Mutex;
 use suggest::{learned_words::LearnedWords, personal_words::PersonalWords, suggester::Arranged};
 
@@ -26,7 +27,19 @@ pub(super) unsafe fn stores<'a>(
     Ok((personal, learned))
 }
 
+/// The strip as a row of strings: the indexes of its auto-correction and typed word, in decimal,
+/// then its words.
+pub(super) fn strip_row(strip: &[Arranged]) -> Vec<Vec<u16>> {
+    let mut row = vec![
+        decimal(mark(strip, |it| it.is_auto_correction)),
+        decimal(mark(strip, |it| it.is_typed_word)),
+    ];
+    row.extend(strip.iter().map(|it| it.text.clone()));
+    row
+}
+
 /// The strip's words, with the indexes of its auto-correction and typed word written to `marks`.
+#[cfg(any(not(target_os = "android"), feature = "legacy-fixture"))]
 pub(super) fn write_strip(env: &Env, strip: &[Arranged], marks: jintArray) -> Result<jobjectArray> {
     let auto_correction = mark(strip, |it| it.is_auto_correction);
     env.write(

@@ -16,7 +16,9 @@ const EXAMPLE: Class = Class {
         doc: "Whether `text` is a word.",
         params: &[("text", Param::String), ("limit", Param::Int)],
         returns: Return::Boolean,
+        ..METHOD
     }],
+    ..CLASS
 };
 
 /// Classes that take each layout rustfmt chooses between: a signature on one line, a call on
@@ -32,7 +34,9 @@ const STRESS: &[Class] = &[
             doc: "Nothing in, a number out.",
             params: &[],
             returns: Return::Int,
+            ..METHOD
         }],
+        ..CLASS
     },
     Class {
         name: "AnUnusuallyLongNativeClassName",
@@ -52,12 +56,21 @@ const STRESS: &[Class] = &[
                     ("sixthNumber", Param::Long),
                 ],
                 returns: Return::Int,
+                ..METHOD
             },
             Method {
                 name: "aMethodWhoseNameIsLongEnoughToWrap",
                 doc: "Narrow arguments on a line too long, together on the next.",
                 params: &[("a", Param::Int), ("b", Param::Long)],
                 returns: Return::Boolean,
+                ..METHOD
+            },
+            Method {
+                name: "aMethodTakingFlagsLongEnoughToWrap",
+                doc: "Narrow arguments that are expressions, one to a line all the same.",
+                params: &[("first", Param::Boolean), ("second", Param::Boolean)],
+                returns: Return::Boolean,
+                ..METHOD
             },
             Method {
                 name: "readsStrings",
@@ -67,8 +80,140 @@ const STRESS: &[Class] = &[
                     ("textBeforeTheCursorHere", Param::String),
                 ],
                 returns: Return::Boolean,
+                ..METHOD
             },
         ],
+        ..CLASS
+    },
+    Class {
+        name: "EveryType",
+        doc: "Every parameter and return type, an instance method, an internal one, a declared \
+              Rust path and lib/kotlin's package.",
+        module: "every_type",
+        kotlin: Module::Kotlin,
+        public: true,
+        methods: &[
+            Method {
+                name: "scalars",
+                params: &[
+                    ("flag", Param::Boolean),
+                    ("unit", Param::Char),
+                    ("scale", Param::Float),
+                ],
+                returns: Return::Double,
+                instance: true,
+                ..METHOD
+            },
+            Method {
+                name: "texts",
+                params: &[
+                    ("maybe", Param::NullableString),
+                    ("words", Param::Strings),
+                    ("fields", Param::StringVararg),
+                    ("holes", Param::NullableStrings),
+                ],
+                returns: Return::NullableString,
+                internal: true,
+                ..METHOD
+            },
+            Method {
+                name: "arrays",
+                params: &[
+                    ("flags", Param::Array(Element::Boolean)),
+                    ("bytes", Param::Array(Element::Byte)),
+                    ("units", Param::Array(Element::Char)),
+                    ("longs", Param::Array(Element::Long)),
+                    ("floats", Param::NullableArray(Element::Float)),
+                ],
+                returns: Return::Array(Element::Char),
+                rust: "arrays::read",
+                ..METHOD
+            },
+            Method {
+                name: "raw",
+                doc: "An array to fill and an object of another package.",
+                params: &[
+                    ("out", Param::Out(Element::Int)),
+                    ("buffer", Param::Object("java.nio.ByteBuffer?")),
+                ],
+                returns: Return::Object("Array<Any>", "jobjectArray"),
+                ..METHOD
+            },
+            Method {
+                name: "type",
+                params: &[("match", Param::Long)],
+                returns: Return::Strings,
+                ..METHOD
+            },
+            Method {
+                name: "nothing",
+                params: &[("store", Param::Long)],
+                returns: Return::Unit,
+                env: true,
+                ..METHOD
+            },
+            Method {
+                name: "maybeInts",
+                params: &[],
+                returns: Return::NullableArray(Element::Int),
+                ..METHOD
+            },
+            Method {
+                name: "numbers",
+                params: &[],
+                returns: Return::Long,
+                ..METHOD
+            },
+            Method {
+                name: "fraction",
+                params: &[],
+                returns: Return::Float,
+                ..METHOD
+            },
+            Method {
+                name: "text",
+                params: &[],
+                returns: Return::String,
+                ..METHOD
+            },
+            Method {
+                name: "manyNumbers",
+                params: &[
+                    ("a", Param::Int),
+                    ("b", Param::Int),
+                    ("c", Param::Int),
+                    ("d", Param::Int),
+                    ("e", Param::Int),
+                    ("f", Param::Int),
+                    ("g", Param::Int),
+                    ("h", Param::Boolean),
+                ],
+                returns: Return::Long,
+                ..METHOD
+            },
+            Method {
+                name: "manyThings",
+                params: &[
+                    ("store", Param::Long),
+                    ("word", Param::String),
+                    ("previous", Param::Strings),
+                    ("taps", Param::Array(Element::Float)),
+                    ("marks", Param::Out(Element::Int)),
+                    ("count", Param::Int),
+                    ("strength", Param::Int),
+                ],
+                returns: Return::Strings,
+                ..METHOD
+            },
+            Method {
+                name: "rows",
+                params: &[("text", Param::String)],
+                defaults: &[("text", "\"\"")],
+                returns: Return::IntArrays,
+                ..METHOD
+            },
+        ],
+        ..CLASS
     },
 ];
 
@@ -100,7 +245,7 @@ fn generation_is_deterministic() {
     assert_eq!(kotlin_files(CLASSES), kotlin_files(CLASSES));
     let paths: HashSet<_> = kotlin_files(CLASSES)
         .into_iter()
-        .map(|it| it.path)
+        .map(|(_, it)| it.path)
         .collect();
     assert_eq!(paths.len(), CLASSES.len(), "one file per class");
 }
@@ -115,90 +260,63 @@ fn the_rust_is_formatted_as_rustfmt_would() {
 
 #[test]
 fn the_kotlin_fits_the_style() {
-    for classes in [CLASSES, STRESS] {
-        for file in kotlin_files(classes) {
-            assert!(file.text.ends_with("}\n") && !file.text.contains("\n\n\n"));
-            for line in file.text.lines() {
-                assert!(line.len() <= 120, "{}: {line}", file.path);
-                assert_eq!(line.trim_end(), line, "{}", file.path);
-                assert!(!line.contains('\t'), "{}", file.path);
-            }
+    let generated = [CLASSES, STRESS]
+        .into_iter()
+        .flat_map(kotlin_files)
+        .chain(api_files(APIS, CLASSES))
+        .chain(type_files(TYPES));
+    for (_, file) in generated {
+        let ends = file.text.ends_with("}\n") || file.text.ends_with(")\n");
+        assert!(ends && !file.text.contains("\n\n\n"), "{}", file.path);
+        for line in file.text.lines() {
+            assert!(line.len() <= 120, "{}: {line}", file.path);
+            assert_eq!(line.trim_end(), line, "{}", file.path);
+            assert!(!line.contains('\t'), "{}", file.path);
         }
     }
-    let wrapped = &kotlin_files(STRESS)[1].text;
+    let wrapped = &kotlin_files(STRESS)[1].1.text;
     assert!(
         wrapped
             .contains("    @JvmStatic external fun takesManyNumbers(\n        firstNumber: Int,\n")
     );
     assert!(wrapped.contains("        sixthNumber: Long,\n    ): Int\n"));
+    let every = &kotlin_files(STRESS)[2].1.text;
+    assert!(
+        every.contains("    @JvmStatic external fun rows(text: String = \"\"): Array<IntArray>\n")
+    );
+    assert!(every.contains("    @JvmStatic @JvmName(\"texts\") internal external fun texts("));
 }
 
-/// Kotlin's and Rust's keywords, which would not compile as a name on one side or the other.
+/// Kotlin's hard keywords, which would not compile as a name there. Rust's are escaped.
 const KEYWORDS: &[&str] = &[
-    "abstract",
     "as",
-    "async",
-    "await",
-    "become",
-    "box",
     "break",
     "class",
-    "const",
     "continue",
-    "crate",
     "do",
-    "dyn",
     "else",
-    "enum",
-    "extern",
     "false",
-    "final",
-    "fn",
     "for",
     "fun",
-    "gen",
     "if",
-    "impl",
     "in",
     "interface",
     "is",
-    "let",
-    "loop",
-    "macro",
-    "match",
-    "mod",
-    "move",
-    "mut",
     "null",
     "object",
-    "override",
     "package",
-    "priv",
-    "pub",
-    "ref",
     "return",
-    "self",
-    "static",
-    "struct",
     "super",
     "this",
     "throw",
-    "trait",
     "true",
     "try",
-    "type",
     "typealias",
     "typeof",
-    "unsafe",
-    "unsized",
-    "use",
     "val",
     "var",
-    "virtual",
     "when",
-    "where",
     "while",
-    "yield",
 ];
 
 /// Whether `name` is a plain ASCII identifier starting with a letter of the given case.
@@ -220,9 +338,9 @@ fn declared_names_are_plain_and_distinct() {
             class.name
         );
         assert!(
-            declarations.join(format!("{}.rs", class.module)).is_file(),
+            declarations.join(format!("{}.rs", class.file())).is_file(),
             "{}",
-            class.module
+            class.file()
         );
         assert!(!class.doc.trim().is_empty() && !class.methods.is_empty());
         // One method of a name: overloaded JNI symbols are not supported.
@@ -233,7 +351,6 @@ fn declared_names_are_plain_and_distinct() {
                 "{}",
                 method.name
             );
-            assert!(!method.doc.trim().is_empty(), "{}", method.name);
             let mut params = HashSet::new();
             for (name, _) in method.params {
                 // `env` is the entry point's own JNI environment.
@@ -248,11 +365,29 @@ fn declared_names_are_plain_and_distinct() {
 fn names_cross_as_jni_and_rust_spell_them() {
     assert_eq!(snake_case("isDoubleSpacePeriod"), "is_double_space_period");
     assert_eq!(snake_case("next"), "next");
+    assert_eq!(snake_case("isURL"), "is_url");
+    assert_eq!(snake_case("parseHTMLText"), "parse_html_text");
+    assert_eq!(snake_case("utf16Length"), "utf16_length");
+    assert_eq!(snake_case("toUTF16"), "to_utf16");
+    assert_eq!(rust_param("match"), "match_");
+    assert_eq!(rust_param("lastCode"), "last_code");
+    let keyword = Method {
+        name: "type",
+        ..METHOD
+    };
+    assert_eq!(callee(&EXAMPLE, &keyword), "crate::example::r#type");
+    let elsewhere = Method {
+        rust: "::shift::is_double_space_period",
+        ..METHOD
+    };
+    assert_eq!(
+        callee(&EXAMPLE, &elsewhere),
+        "::shift::is_double_space_period"
+    );
     let method = Method {
         name: "a_b",
-        doc: "",
-        params: &[],
         returns: Return::Int,
+        ..METHOD
     };
     assert_eq!(
         jni_name(&EXAMPLE, &method),
@@ -278,17 +413,20 @@ internal object ExampleNative {
 ";
     let files = kotlin_files(&[EXAMPLE]);
     assert_eq!(
-        files[0].path,
+        files[0].1.path,
         "com/jtn0123/audiowhisper/rust/ExampleNative.kt"
     );
-    assert_eq!(files[0].text, kotlin);
+    assert_eq!(files[0].1.text, kotlin);
     let rust = "\
 // Generated by lib/rust/crates/boundary from its declarations, src/declarations. Do not edit:
 // awnative's build.rs writes this file into cargo's OUT_DIR, and src/boundary.rs includes it.
 
 use jni_sys::{JNIEnv, jboolean, jclass, jint, jstring};
 
-use crate::boundary::call;
+use crate::boundary::{Outcome, call};
+
+/// The arguments of the methods that take more than a Rust function should one by one.
+pub mod args {}
 
 // ExampleNative, declared in src/declarations/example.rs, calls crate::example.
 
@@ -302,12 +440,35 @@ pub extern \"system\" fn Java_com_jtn0123_audiowhisper_rust_ExampleNative_isWord
 ) -> jboolean {
     // SAFETY: the JVM passes its environment for this call.
     unsafe {
-        call(env, |env| {
+        call::<bool>(env, |env| {
             let text = env.read_string(text, \"text\")?;
-            crate::example::is_word(&text, limit)
+            crate::example::is_word(&text, limit).result()
         })
     }
 }
 ";
     assert_eq!(rust_file(&[EXAMPLE]), rust);
+}
+
+#[test]
+fn only_another_packages_classes_are_imported() {
+    let buffer = crate::kotlin::simple_type("java.nio.ByteBuffer?");
+    assert_eq!(
+        buffer,
+        ("ByteBuffer?".into(), Some("java.nio.ByteBuffer".into()))
+    );
+    let nested = crate::kotlin::simple_type("SpacingRules.Editor");
+    assert_eq!(nested, ("SpacingRules.Editor".into(), None));
+}
+
+#[test]
+fn docs_keep_their_paragraphs() {
+    assert_eq!(
+        crate::format::kdoc("One.\n\nTwo.", "    "),
+        "    /**\n     * One.\n     *\n     * Two.\n     */\n"
+    );
+    assert_eq!(
+        crate::format::rust_doc("One.\n\nTwo.", ""),
+        "/// One.\n///\n/// Two.\n"
+    );
 }
