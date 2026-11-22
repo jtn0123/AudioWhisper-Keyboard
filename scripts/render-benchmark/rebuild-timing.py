@@ -1,8 +1,10 @@
 """Layout rebuild timing on the dedicated emulator, with the Rust renderer.
 
 Switches the keyboard's mode (?123, then ABC) and its subtype (the language key) by tapping
-through agent-device, and times each switch from the tap's last touch to the last frame the
-renderer posted for it: the new keyboard's rebuild and its first draw. Needs ANDROID_SERIAL,
+through agent-device, and times each switch from the tap's last touch (its release) to the last frame the
+renderer posted for it: the new keyboard's rebuild and its first draw. Each tap is held for
+HOLD_MS, so its release draws a frame of its own that carries the release's touch time; a
+quick tap's rebuild replaces that frame, and the rebuilt keyboard's frame carries no touch. Needs ANDROID_SERIAL,
 AGENT_DEVICE (the exact device_open command), the probe's empty text field focused on the
 letters, and two subtypes with the language key showing. Saves only numbers. Run with
 python3 -I.
@@ -20,6 +22,8 @@ FRAME = re.compile(r"frame draw_ns=(\d+) post_ns=(\d+) touch_ns=(\d+)")
 KEYS = {"mode": (89, 2198), "subtype": (335, 2198)}
 # Touches closer together than this belong to one tap.
 TAP_NS = 400_000_000
+# Long enough for the press and the release to draw apart, well short of a long press.
+HOLD_MS = 100
 
 
 def adb(*args):
@@ -31,8 +35,8 @@ def adb(*args):
 
 
 def press(x, y):
-    subprocess.run([os.environ["AGENT_DEVICE"], "press", str(x), str(y)], check=True, capture_output=True,
-                   timeout=120)
+    subprocess.run([os.environ["AGENT_DEVICE"], "press", str(x), str(y), "--hold-ms", str(HOLD_MS)], check=True,
+                   capture_output=True, timeout=120)
 
 
 def frames():
@@ -45,6 +49,10 @@ def taps(rows):
     found = []
     for _, post, touch in rows:
         if not touch:
+            # The rebuilt keyboard's frame carries no touch: it is the latest tap's.
+            if found:
+                found[-1]["post"] = max(found[-1]["post"], post)
+                found[-1]["frames"] += 1
             continue
         tap = next((t for t in found if abs(touch - t["first"]) < TAP_NS), None)
         if tap is None:
