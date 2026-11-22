@@ -44,6 +44,7 @@ row says so.
 | P15 | Theme manager: every step ran on the emulator. None ran on the phone. Choose a day and a night theme, check that the keyboard previews each and goes back to its own theme on leaving, and that TalkBack reads each theme as a day or night theme and says which one is chosen. | [stage4-theme-editor, owed](stage4-theme-editor.md#owed) |
 | P16 | Setup: every step ran on the emulator. None ran on the phone. A first run on the phone: enable the keyboard in One UI's keyboard list and check the app comes back, select it in the picker, deny the notification permission twice, then allow notifications in the app's notification page and come back. TalkBack on setup is part of P6. | [stage4-setup, owed](stage4-setup.md#owed) |
 | P17 | Theme editor: every step ran on the emulator. None ran on the phone. On an extension made on the phone, open *Manage component*; add, duplicate and edit a rule; delete a property and undo it; change the meta; check the keyboard shows the draft; rotate with a draft and with the rule editor open; *Save*, then save the extension and choose its theme. | [stage4-theme-editor, owed](stage4-theme-editor.md#owed) |
+| P40 | Keyboard: the key-press preview bubble on the phone. Type quickly with two thumbs and check that no bubble is left behind; hold a middle, top-row, left-edge and right-edge key in lower case and with shift; slide across a row; long-press a key with choices and check that only the popup shows; turn *Popup Visibility* off and on. In TalkBack, explore the keys by touch and check that no bubble shows. With `log.tag.aw-profile` set to DEBUG, read a press frame's `draw_ns` (its `covered_px` is above 0) and compare it with the emulator's 4 ms; set the tag back to empty afterwards. Only the emulator has shown the bubble. | [rust.md, the key-press preview bubble](rust.md#the-key-press-preview-bubble-added-2026-11-22) |
 
 ## Emulator checks the docs owe
 
@@ -73,6 +74,8 @@ row says so.
 | E23 | `SettingsOtherThemeDevice`: its theme manager step now picks the theme on the Rust manager and waits for the keyboard's preview to start and end. It compiles but has not run. | [stage4-theme-editor, owed](stage4-theme-editor.md#owed) |
 | E24 | Setup: the permission answer reaching a recreated activity. Rotate, or switch dark mode, while the notification dialog is open, then answer; the step must take the answer. Also close the first dialog without answering (Back, or a tap outside) and check the step reads as blocked and opens the notification settings. Neither ran on the emulator. | [stage4-setup, owed](stage4-setup.md#owed) |
 | E25 | Theme editor: no instrumented test drives the Rust theme editor; the device check was by hand. A `SettingsOtherThemeDevice` step that opens *Manage component*, deletes a property, saves, and reads the workspace's stylesheet back would hold it. | [stage4-theme-editor, owed](stage4-theme-editor.md#owed) |
+| E50 | The key-press preview bubble in landscape without full-screen mode (set *landscape input* so the extract view never shows, then put it back) and in one-handed mode, on both sides. Hold a top-row key and an edge key in each. The cargo tests cover both layouts; no device has shown them. | [rust.md, the key-press preview bubble](rust.md#the-key-press-preview-bubble-added-2026-11-22) |
+| E51 | TalkBack touch exploration over the keys shows no press bubble, and a double-tap types without one. The code path is covered by cargo tests (an accessibility click opens no bubble); TalkBack was never enabled on the emulator (E13). | [rust.md, the key-press preview bubble](rust.md#the-key-press-preview-bubble-added-2026-11-22) |
 
 ## Not device checks, but still owed
 
@@ -94,8 +97,7 @@ These need no device. They are listed so they are not lost.
 * Restore runs on the main thread, as Compose's did. ([stage4-backup-restore, owed](stage4-backup-restore.md#owed))
 * Compose's empty user dictionary route hands back to Rust's dictionary list, as it cannot tell the two dictionaries apart. Nothing opens that route now. ([stage4-user-dictionaries, owed](stage4-user-dictionaries.md#owed))
 * The mutation scripts have no check that each case still matches its source. A renamed line makes a case match nothing, which stops a full run (`predictive-cancel-commits` did, from b57a98bf0 until it was fixed). A `--check` mode in each script, run by the gate, would catch it at once.
-* In full-screen landscape a top-row key's popup is still cut at the keyboard's top: the frozen Compose root wraps the keyboard and clips its surface. The plain-View root must not clip it ([all-rust phase 3](all-rust.md#3-rust-owns-the-keyboard-l), item 4). ([rust.md, a top-row key's popup](rust.md#a-top-row-keys-popup-cut-off-fixed-2026-11-21))
-* The Rust keyboard draws no key-press preview bubble. Its setting reaches only the Compose keyboard. ([rust.md, a top-row key's popup](rust.md#a-top-row-keys-popup-cut-off-fixed-2026-11-21))
+* In full-screen landscape a top-row key's popup, and its press bubble, are still cut at the keyboard's top: the frozen Compose root wraps the keyboard and clips its surface. The plain-View root must not clip it ([all-rust phase 3](all-rust.md#3-rust-owns-the-keyboard-l), item 4). ([rust.md, a top-row key's popup](rust.md#a-top-row-keys-popup-cut-off-fixed-2026-11-21); [rust.md, the key-press preview bubble](rust.md#the-key-press-preview-bubble-added-2026-11-22))
 * The project licence's horizontal scroll clamps at its ends, where Compose's `horizontalScroll` stretches. ([stage4-licences, where it differs from Compose](stage4-licences.md#where-it-differs-from-compose))
 * A project licence recreated twice before its text has been read saves the held horizontal scroll as zero, so the text reopens at its left edge. The wait is a few milliseconds. ([stage4-licences, the project licence screen](stage4-licences.md#the-project-licence-screen))
 * A hardware keyboard's Ctrl+C and Ctrl+A do nothing on the project licence's selection. ([stage4-licences, where it differs from Compose](stage4-licences.md#where-it-differs-from-compose))
@@ -107,4 +109,4 @@ These need no device. They are listed so they are not lost.
 
 ## Notes
 
-* This list has 4 confirm-on-the-phone items, 17 phone checks and 24 emulator checks.
+* This list has 4 confirm-on-the-phone items, 18 phone checks and 26 emulator checks.

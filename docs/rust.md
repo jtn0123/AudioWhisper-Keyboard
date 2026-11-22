@@ -269,7 +269,7 @@ On the aw_keyboard_ssd emulator (1080x2400, Android 16), in the render probe:
 | Tap the app 20 px above the keyboard | Not tried | Reached the app |
 | 300 presses and 8 holds of e (`render-benchmark/run.sh`) | Both digests match | Both digests match, unchanged |
 
-Two limits. In landscape the keyboard runs full-screen (the extract view above it) unless the
+One limit. In landscape the keyboard runs full-screen (the extract view above it) unless the
 app or the *landscape input* setting says otherwise. There the input view and
 `android.R.id.inputArea` wrap the keyboard (`FlorisImeService.updateSoftInputWindowLayoutParameters`),
 the wrapping Compose root clips the surface at the keyboard's top, and a top-row popup is still
@@ -277,9 +277,185 @@ cut, as before. Fixing that changes the Compose root's layout, which is frozen. 
 root (all-rust phase 3 item 4) should not clip the surface there: no clipping on the root or on
 `inputArea`, so the popup draws over the extract view, with the insets and touchable region
 still starting at the keyboard. Landscape without full-screen mode, and one-handed mode, are
-covered by the cargo tests but were not tried on a device. Second, the Rust keyboard draws no
-key-press preview bubble; the setting for it reaches only the Compose keyboard. That is a
-missing feature, not this fault.
+covered by the cargo tests but were not tried on a device.
+
+#### The key-press preview bubble (added 2026-11-22)
+
+Pressing a character key draws a bubble above it holding the key's label, as the Compose
+keyboard did. The bubble appears on press and goes on release. A slide to another key moves it.
+When the long-press popup opens, the bubble is hidden. Space, enter, shift, delete and the other
+controls get no bubble, nor do the digits of the number and phone pads. The label is the one the
+key shows, so shift and caps lock make it upper case. A key with long-press choices shows
+Compose's three dots under its label. The *Popup Visibility* setting
+(`keyboard__popup_enabled`, "Show popup when you press a key") is on by default, as in Compose.
+Turning it off or on takes effect at the next touch.
+
+| | Compose | Gboard | Rust |
+|---|---|---|---|
+| Which keys | `isSuitableForBasicPopup`: code above space, not CJK space, not a number or phone pad's digits | Characters. Space, enter and delete show none; the key darkens instead | Compose's rule (`press_bubble::suitable`) |
+| Size and place | 1.1 by 2.5 desired keys in portrait, 1 by 3 in landscape, centred on the key, ending at its bottom | A circle about one and a half keys wide over the row above, leaving the key showing with its label greyed | The same box as Compose, moved sideways to stay inside the keyboard |
+| Label | The key's label in a key-high box at the bubble's top; dots under it if the key has choices | The label, with dots under it if the key has choices | The same as Compose, styled from Snygg's `key-popup-box` and `key-popup-extended-indicator` rules |
+| Release | `hide()` at once, no linger | Gone with the release; nothing was left after a 150 ms tap | Gone at once |
+| Slide to another key | Shown on the new key | With glide typing on, its default, a slide becomes a glide trail and the bubble goes | Shown on the new key |
+| Glide | Hidden | Hidden | Hidden |
+| Long press | The bubble's box stays as the base of the extended popup | The bubble first; the choices then replace it and the keys dim, so one box shows | The bubble goes and the popup draws alone, so no second box shows under it |
+| Edge keys | Drawn a little past the keyboard's edge (a twentieth of a key for q) and cut there | Moved inward until the circle meets the screen's edge, on both sides | Kept inside the keyboard on both sides, mirrored rows too |
+
+Gboard (15.1.08) was watched on the same emulator, in the same field, as the device checks
+below. Its recordings are in `build/press-bubble/gboard/`, not committed. Rust follows Compose's
+shape and Gboard's edges: a bubble cut at the screen's edge was a Compose fault, and Gboard
+keeps it whole. Gboard's circle over the row above, leaving the key showing, was not copied:
+the bubble keeps Compose's box, which is what Snygg themes style.
+
+The data path:
+
+1. Kotlin's `RendererGestureHost.configure` sends the gesture settings before every touch.
+   A twelfth value now carries the setting: 1 for on, 0 for off. `GestureConfig::decode`
+   accepts 9 to 12 values and reads it as `bubble`.
+2. When the theme is applied, `press_bubble::mark` records which keys may have a bubble.
+   It uses the keyboard mode and each key's type, by Compose's rule.
+3. `KeyboardTouch::event` ends each touch with `hold_bubble`. It puts a bubble on the held key
+   when the setting is on and the key is marked. Otherwise it clears it. Release, cancel and the
+   glide intercept (`cancel_active`) clear it too. Pointers roll, so at most one character key is
+   held, and so at most one bubble shows.
+4. The native session styles a new bubble after the touch (`Session::style_bubble`). It reads
+   `key-popup-box` from the theme for that key's mode, shift state and code, as the long-press
+   popup does. It also reads `key-popup-extended-indicator` when the key has choices. A held
+   bubble is styled again when the keys change (shift, caps lock) and when the choices arrive
+   with the semantics. Choices arrive after the keys.
+5. `Scene::bubble_view` places the bubble with the popup's own preview box
+   (`popup_scene::preview`), moved into the keyboard's width. It returns nothing while a popup
+   is open.
+6. `Raster::bubble` draws it in the headroom pass, just before the popup. The headroom already
+   leaves room for a top-row key's popup, which is taller than its bubble.
+7. Damage: when the bubble's view changes, `damage_regions` adds its old and new boxes, widened
+   by exactly as far as the shadow reaches (`shadow_raster::extent`). Keys that change (a label
+   under shift) repaint everything, as before.
+8. `Raster::draw_frame` (`render/src/bubble_frame.rs`) draws the frame. A first cut repainted
+   the keys under the bubble when it opened and again when it went, some 50,000 pixels each time,
+   and tripled the benchmark's draw time (below). Now:
+   * when a bubble opens, the pixels it will cover are kept; when it goes they are put back, and
+     only what the scene changed under it meanwhile is painted again;
+   * where the bubble's box is opaque, the keys under the whole 4×4 tiles inside its rounded
+     corners (`Scene::bubble_cover`) are clipped out of the region's one draw, so only the
+     bubble paints there. Vello paints a tile no edge crosses as one solid run, so nothing drawn
+     under it would show anyway. The clip is the region with that hole cut in it, wound so the
+     non-zero rule leaves the hole empty;
+   * a region inside another one being painted, such as the pressed key inside its bubble, is
+     painted once.
+
+   Every pixel still ends as a whole repaint draws it. The device profile counts the pixels
+   whose keys were clipped out (`covered_px`) and the pixels put back (`restored_px`).
+
+Kotlin's part is one line in `RendererGestureHost`: it reads the setting and sends it as the
+twelfth value. Jetpref preferences are read in Kotlin, and no Kotlin file was added. Everything
+else, from which key gets a bubble to its place, style, drawing and damage, is Rust. TalkBack
+shows no bubble: touch exploration is handled in Kotlin and never reaches `Touch`, and a
+double-tap activates the key through `Semantics::activate`, which sends the key without
+touching it.
+
+Proof:
+
+* `render/tests/press_bubble.rs` (11 tests) covers:
+  * which keys are suitable;
+  * the preview box in both orientations, with and without a strip;
+  * every key's bubble and shadow fitting the buffer, for top-row keys at two widths, column
+    counts and gaps;
+  * edge keys kept on screen on both sides, one-handed widths, and mirrored rows;
+  * styles from the theme, including caps lock and the indicator;
+  * the twelfth gesture value;
+  * the drawing: label box, dots, the headroom clear beside the bubble, and nothing drawn when
+    unstyled, unsuitable or under a popup.
+* `render/tests/press_bubble_frames.rs` (4 tests) covers `Raster::draw_frame`:
+  * nothing painted outside the bubble's damage, with a deep shadow;
+  * the part painted with the bubble alone: whole tiles, inside the corners, hiding everything
+    under it, and none for a see-through box;
+  * a key pressed beside a held bubble showing once the bubble goes;
+  * a region listed twice still painted.
+* `render/tests/press_bubble_touch.rs` (11 tests) drives `KeyboardTouch` through:
+  * press and release, and the controls;
+  * a tap's two frames: the press paints the bubble's region once, mostly with the bubble alone,
+    and the release puts the kept pixels back and paints nothing;
+  * the setting off and toggled while typing;
+  * a slide across keys, and the long-press handover, including leaving the popup for another
+    key;
+  * rolling fingers with shift;
+  * 240 random fast events;
+  * cancel, detach and glide;
+  * an accessibility click.
+
+  After every step it checks that repainting only the damage matches a full repaint, and that
+  the headroom is clear whenever no bubble or popup is up.
+* `awnative` `render_bubble_tests` (3 tests) check that the session styles a touch's bubble,
+  restyles it for caps lock and for choices, and places it for the orientation.
+* `KeyboardRendererTest` (JVM, 2 tests) draws a held key's bubble across JNI only while the
+  twelfth value asks for it, and refuses a thirteenth value.
+* `scripts/press-bubble-mutations.py` breaks the feature in 42 ways: which keys, the setting,
+  the label and its style, the place and clamp, hiding under a popup, release, cancel and glide,
+  the damage and the shadow's reach, keeping and putting back the pixels under the bubble, the
+  clipped cover and its corners, and the twelfth value across JNI. Every case fails fresh
+  assertions in the tests named for it (`press_bubble`, `press_bubble_frames`,
+  `press_bubble_touch`, `glide_times`, `render_bubble_tests` or `KeyboardRendererTest`), and the
+  restored source passes all six. Last full run 2026-11-22: 42 of 42 caught.
+
+On the aw_keyboard emulator (1080x2400, Android 16), in the render probe's plain text field.
+Every frame of each recording was looked at in a contact sheet, not only the stills, so a
+bubble left behind for one frame would show. The recordings and stills are in
+`build/press-bubble/device/`, not committed.
+
+| Check | Seen | Stills |
+|---|---|---|
+| Hold a middle key, a top-row key, the left-edge key and the right-edge key | A bubble over each with its label. The top-row bubble sits in the headroom, the edge bubbles are moved in to the keyboard's edge | `held-middle-g`, `held-top-row-t`, `held-left-edge-q`, `held-right-edge-p` |
+| The same with shift | Upper-case labels | `held-shift-middle-G`, `held-shift-top-row-T`, `held-shift-left-edge-Q`, `held-shift-right-edge-P` |
+| Space, enter, delete and shift | No bubble | `controls-space-none`, `controls-enter-none`, `controls-delete-none`, `controls-shift-none`, `controls-shifted-G` |
+| Slide along the top row, on the letters and on the symbols | The bubble moves to each key, and none is left after release | `slide-on-e`, `slide-moved-to-r`, `slide-symbols-on-1`, `slide-symbols-moved-to-2`, `slide-after-release` |
+| The symbols slide, which rested on its last key past the long-press delay | The popup alone, with no bubble under it | `slide-popup-took-over` |
+| Long-press e | The bubble, then the popup alone, then nothing after release | `longpress-bubble-first`, `longpress-popup-alone`, `longpress-after-release` |
+| *Popup Visibility* off, then the same four keys | No bubble, and the keys still type | `setting-turned-off`, `off-during-first-tap`, `off-during-top-row`, `off-after-taps` |
+| Turned back on | Bubbles again at the next touch | `setting-turned-back-on`, `on-again-middle-g`, `on-again-top-row-t`, `on-again-after` |
+
+One tap in the held run reached the keyboard as a press of more than 300 ms, stretched by the
+emulator's input injection, and became a long press. The popup replaced the bubble and nothing
+was left behind (`held-long-press-took-over-p`). Afterwards the keyboard was the selected input
+method again, *Popup Visibility* was back on, the field was cleared and the `aw-profile` log tag
+was empty.
+
+`render-benchmark/run.sh` on the same emulator, before the feature and after it. Times are
+milliseconds; the first three columns cover every frame of a run (1,074 to 1,097 frames), the
+last two are the medians of a tap's press and release frames.
+
+| Run | Draw p50 | p95 | p99 | Press frame | Release frame |
+|---|---|---|---|---|---|
+| Before (two runs) | 0.89–1.00 | 3.03–3.41 | 5.48–7.31 | 0.86–0.94 | 0.93–0.94 |
+| First cut: the keys under the bubble repainted on press and on release | 3.42 | 9.58 | 16.00 | 6.09 | 4.61 |
+| After | 1.13 | 5.68 | 8.34 | 4.06 | 0.17 |
+
+Both digests are unchanged: the 300 typed units (`809d588b…`) and the 308 with the popup
+(`c14d19d2…`). The bubble changes no typed text. Two runs failed `run.sh`'s digest check and
+were discarded. In one after run the emulator stretched two 35 ms taps to 313 and 345 ms, past
+the 300 ms long-press delay, and they typed a long-press choice; the next run matched. The
+first before run differed too, but no tap in its frame log passed 300 ms (the longest was
+287 ms), so its cause is not known; the two before runs after it matched.
+
+A release now costs a fifth of what it did before the feature: it puts back 46,306 kept pixels
+and draws nothing. A press costs about four and a half times as much: it paints the bubble's
+46,306-pixel region where it painted the pressed key's 11,904. The keys under 27,040 of those
+pixels are clipped out, so the cost left is the bubble itself, its shadow and the ring of keys
+around its solid middle. A tap's two frames together take 4.2 ms against 1.8. Press frames are
+about a quarter of the benchmark's frames, which is why p95 moved and p50 hardly did.
+
+What remains:
+
+* Full-screen landscape (the extract view above the keyboard) clips a top-row key's bubble at
+  the keyboard's top, as it clips the long-press popup. The cause is the same frozen Compose
+  root, and so is the fix: the plain-View root
+  ([all-rust phase 3](all-rust.md#3-rust-owns-the-keyboard-l), item 4).
+* Landscape without full-screen mode and one-handed mode are covered by the cargo tests only
+  (E50). TalkBack touch exploration was not run on a device (E51). The phone has not shown the
+  bubble, nor timed it (P40).
+* A press frame costs 4 ms on the emulator, against 0.9 before. Most of it is the bubble's
+  shadow and the keys around its solid middle. Drawing the bubble once into a cached image and
+  copying it in would take most of that away, if the phone shows it matters.
 
 ### Stage 4: Rust draws settings (decision 2026-11-14)
 
