@@ -11,13 +11,7 @@ import kotlin.random.Random
 
 class SettingsDerivationMatchTest {
     /** The editor's checks moved with it: SettingsLanguagesMatchTest compares the native editor's Save with the frozen copy. */
-    @Test fun choiceIndexAndKeyHintModesMatch() {
-        val random=Random(1712)
-        val values=listOf("valid", "00:00", "00-00", "", "00", "synthetic:a", "😀")
-        repeat(5000) {
-            val options=List(random.nextInt(10)) {values.random(random)};val target=values.random(random)
-            assertEquals(options.indexOf(target).coerceAtLeast(0),SettingsRules.call(SettingsOp.CHOICE_INDEX,target,*options.toTypedArray())[0].toInt())
-        }
+    @Test fun keyHintModesMatch() {
         for(number in listOf(false,true)) for(symbol in listOf(false,true)) for(mode in listOf("DISABLED","SMART_PRIORITY","ACCENT_PRIORITY")) {
             val modes=SettingsRules.call(SettingsOp.KEY_HINTS,*with(SettingsKeyHints) {
                 row(NUMBER_ENABLED to WireFlag.encode(number),NUMBER to mode,SYMBOLS_ENABLED to WireFlag.encode(symbol),SYMBOLS to mode) })

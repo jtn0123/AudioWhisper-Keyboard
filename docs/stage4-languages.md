@@ -252,8 +252,8 @@ fields, radio choices, and status text. On top of that:
   and each item's custom actions with the real strings.
 * **Updated:** the three route-list tests expect the five new native routes.
   `SettingsDerivationMatchTest` lost its editor half, now in `SettingsLanguagesMatchTest`, and
-  calls the choice index operation directly. `SettingsResourcesTest` reads icon names from a
-  list constant too.
+  called the choice index operation directly until that operation went (2026-11-21, see
+  [Owed](#owed)). `SettingsResourcesTest` reads icon names from a list constant too.
 
 ## Mutations
 
@@ -354,10 +354,14 @@ SettingsSelection (6), and Routes and the string ids (21).
 * **Our keyboard typing into the search field.** The field takes text from another keyboard
   (see the emulator check), but agent-device cannot type into our own app while our keyboard is
   selected. A person typing with our keyboard is owed (E21).
-* **`SettingsRules.editorValid` is now unused.** It is in the generated-bindings area another
-  branch is changing, so it was left for that branch.
-* **The choice index operation has no production caller.** Only `SettingsDerivationMatchTest`
-  calls it. It can go with `editorValid`.
+* **Done 2026-11-21: `SettingsRules.editorValid` and the choice index operation are gone.**
+  Neither had a production caller after this step. `EDITOR_VALID` and `CHOICE_INDEX` left
+  `SettingsOp` (`crates/wire`), `settings::call` and `SettingsRules`. The Rust editor's
+  `Draft::valid` called `EDITOR_VALID` through `settings::call`; it now makes the same check
+  itself (a locale and every component chosen), and `settings_ui_languages_editor.rs` still
+  covers it. `SettingsDerivationMatchTest`'s first test dropped its choice index half and is
+  now `keyHintModesMatch`. No test needed either as a reference: `SettingsLanguagesMatchTest`
+  compares the editor's Save with the frozen `ReferenceSubtypeEditorState`.
 * **`SettingsLanguages` runs only on a device.** It needs the activity and the keyboard's
   managers. Its row functions run in JVM tests, and the emulator check covers the rest.
 * **Language pack import and a pack's page are Compose** until step 10.

@@ -92,11 +92,10 @@ impl Draft {
                 UNSET
             }
     }
-    /// SubtypeEditorState.toSubtype's check, `SettingsRules.editorValid` over its 15 fields.
+    /// SubtypeEditorState.toSubtype's check: a locale and every one of its 14 components chosen.
     pub fn valid(&self) -> bool {
         let v = &self.value;
-        let mut fields = vec![field_text(v, &["primaryLocale"])];
-        fields.push(field_text(v, &["nlpProviders", "spelling"]));
+        let mut fields = vec![field_text(v, &["nlpProviders", "spelling"])];
         fields.push(field_text(v, &["nlpProviders", "suggestion"]));
         for key in ["composer", "currencySet", "punctuationRule", "popupMapping"] {
             fields.push(field_text(v, &[key]));
@@ -104,9 +103,7 @@ impl Draft {
         for (key, _) in codec::LAYOUTS {
             fields.push(field_text(v, &["layoutMap", key]));
         }
-        let fields: Vec<_> = fields.iter().map(|f| settings::text(f)).collect();
-        settings::call(wire::settings::EDITOR_VALID, &fields)
-            .is_ok_and(|out| out.first().is_some_and(|f| wire::flag::decode(f)))
+        field_text(v, &["primaryLocale"]) != LOCALE_UNSET && fields.iter().all(|f| f != UNSET)
     }
 }
 

@@ -23,8 +23,6 @@ crate::declare! {
         SUBTYPE = 21,
         /// The preset for a locale.
         PRESET = 22,
-        /// Whether the subtype editor's fields may be saved: a flag.
-        EDITOR_VALID = 23,
         /// A colour as sixteen hex digits.
         COLOR = 24,
         /// A subtype's place among the ids, or -1.
@@ -37,8 +35,6 @@ crate::declare! {
         LAYOUT_MAP = 28,
         /// A [`key_hints`] row: a [`key_hint_modes`] row, each mode or DISABLED.
         KEY_HINTS = 29,
-        /// A value's place among the choices, or 0.
-        CHOICE_INDEX = 30,
         /// An extension component as its stored string.
         COMPONENT_ENCODE = 31,
         /// A stored extension component as a [`component`] row, or nothing.

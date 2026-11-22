@@ -98,11 +98,6 @@ pub fn call(op: i32, input: &[Text]) -> Result<Vec<Text>> {
         (ops::PRESET, [locale, language, presets @ ..]) => Ok(vec![text(
             &subtype::preset(locale, language, presets).to_string(),
         )]),
-        (ops::EDITOR_VALID, fields) => Ok(vec![wire::flag::utf16(
-            fields.len() == 15
-                && fields.first().is_some_and(|v| v != &text("00-00"))
-                && fields[1..].iter().all(|v| v != &text("00:00")),
-        )]),
         (ops::COLOR, [value]) => {
             let s = String::from_utf16(value).map_err(|_| "invalid color")?;
             let parsed = u64::from_str_radix(&s, 16).map_err(|_| "invalid color")?;
@@ -169,13 +164,6 @@ pub fn call(op: i32, input: &[Text]) -> Result<Vec<Text>> {
             out[key_hint_modes::SYMBOLS] = mode(key_hints::SYMBOLS_ENABLED, key_hints::SYMBOLS);
             Ok(out)
         }
-        (ops::CHOICE_INDEX, [target, options @ ..]) => Ok(vec![text(
-            &options
-                .iter()
-                .position(|s| s == target)
-                .unwrap_or(0)
-                .to_string(),
-        )]),
         (ops::SUBTYPE_INDEX, [id, ids @ ..]) => Ok(vec![text(
             &ids.iter()
                 .position(|v| v == id)

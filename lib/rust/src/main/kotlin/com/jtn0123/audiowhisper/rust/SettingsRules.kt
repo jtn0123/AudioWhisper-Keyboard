@@ -17,7 +17,6 @@ object SettingsRules {
     fun subtype(request: SettingsValue) = SettingsValue.unpack(call(SettingsOp.SUBTYPE, *request.pack().toTypedArray()).iterator())
     fun preset(locale: String, language: String, presets: List<Pair<String, String>>) =
         call(SettingsOp.PRESET, locale, language, *presets.flatMap { listOf(it.first, it.second) }.toTypedArray())[0].toInt()
-    fun editorValid(fields: List<String>) = WireFlag.decode(call(SettingsOp.EDITOR_VALID, *fields.toTypedArray())[0])
     fun color(value: String) = call(SettingsOp.COLOR, value)[0]
 }
 
