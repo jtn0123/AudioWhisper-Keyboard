@@ -90,8 +90,11 @@ fn codes_are_added_edited_and_removed_one_at_a_time() {
     let (mut a, mut text) = editing_rule();
     add_codes(&mut a, &mut text, "13");
     assert_eq!(codes(&a), ["10", "13"]);
-    // Edit 13 into -7: the old code goes and the new one comes.
+    // Edit 13 into -7: the old code goes and the new one comes. The preview asks Kotlin about
+    // the code it opens on.
+    a.effects.clear();
     assert!(tap(&mut a, &mut text, CODE_ID + 1));
+    assert!(has(&a, &[effect::DESCRIBE, "13"]));
     type_into(&mut a, &mut text, Part::Code(CodeRow::Field), "-7");
     save(&mut a, &mut text);
     assert_eq!(a.stack.last().unwrap(), RULE_EDIT);
@@ -290,6 +293,14 @@ fn the_preview_of_a_character_with_its_unicode_name() {
         (preview.label.as_str(), preview.summary.as_str()),
         ("a, LATIN SMALL LETTER A", "character")
     );
+    // The same code written again is not asked about again, and keeps its name meanwhile.
+    a.effects.clear();
+    type_into(&mut a, &mut text, Part::Code(CodeRow::Field), "097");
+    assert!(!a.effects.iter().any(|e| e[0] == effect::DESCRIBE));
+    assert_eq!(
+        control(&a, PREVIEW_ID).unwrap().label,
+        "a, LATIN SMALL LETTER A"
+    );
     // A non-spacing mark sits on a dotted circle, as the keyboard labels it.
     type_into(&mut a, &mut text, Part::Code(CodeRow::Field), "769");
     a.theme_code(&described("769", "COMBINING ACUTE ACCENT", true, ""))
@@ -335,6 +346,18 @@ fn the_preview_of_internal_codes_with_an_icon_a_label_or_neither() {
         panel.items.iter().any(|i| i.icon == "M0 0h24v24H0z"),
         "the key's icon is drawn"
     );
+    // A code no key has is the unspecified key, and Kotlin is not asked about it; what it said
+    // of the key before, its icon, is not shown on this one.
+    a.effects.clear();
+    type_into(&mut a, &mut text, Part::Code(CodeRow::Field), "-9000");
+    assert!(!a.effects.iter().any(|e| e[0] == effect::DESCRIBE));
+    let preview = control(&a, PREVIEW_ID).unwrap();
+    assert_eq!(
+        (preview.label.as_str(), preview.summary.as_str()),
+        ("unspecified", "unspecified")
+    );
+    let panel = a.scene(&mut text).panel.unwrap();
+    assert!(!panel.items.iter().any(|i| i.icon == "M0 0h24v24H0z"));
     // A view key's label is the keyboard's resource.
     type_into(&mut a, &mut text, Part::Code(CodeRow::Field), "-202");
     a.theme_code(&described("-202", "", false, "")).unwrap();
@@ -344,15 +367,11 @@ fn the_preview_of_internal_codes_with_an_icon_a_label_or_neither() {
         (preview.label.as_str(), preview.summary.as_str()),
         ("?123, view_symbols", "system_gui")
     );
-    // A code no key has is the unspecified key, and Kotlin is not asked about it.
-    a.effects.clear();
-    type_into(&mut a, &mut text, Part::Code(CodeRow::Field), "-9000");
-    assert!(!a.effects.iter().any(|e| e[0] == effect::DESCRIBE));
-    let preview = control(&a, PREVIEW_ID).unwrap();
-    assert_eq!(
-        (preview.label.as_str(), preview.summary.as_str()),
-        ("unspecified", "unspecified")
-    );
+    // An icon, when the keyboard has one for the key, takes its label's place.
+    a.theme_code(&described("-202", "", false, "M0 0h24v24H0z"))
+        .unwrap();
+    a.scene(&mut text);
+    assert_eq!(control(&a, PREVIEW_ID).unwrap().label, "view_symbols");
 }
 
 #[test]

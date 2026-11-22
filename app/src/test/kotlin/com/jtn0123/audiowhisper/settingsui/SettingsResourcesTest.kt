@@ -21,15 +21,16 @@ class SettingsResourcesTest {
     }
     /** Every icon a native screen names has a vector in SettingsIcons; a missing one draws nothing. */
     @Test fun everyIconTheNativeScreensNameIsMapped() {
-        // A call, a field (`icon: "add"`), or a list of names in a constant whose name ends in ICONS.
-        val named = Regex("""\.icon\("(\w+)"\)|paint_icon\(p, "(\w+)"|icon: "(\w+)"|ICONS: \[&str; \d+\] = \[([^\]]*)\]""")
+        // A call, on one line or as rustfmt splits it, a field (`icon: "add"`), or a list of names in a constant whose
+        // name ends in ICONS.
+        val named = Regex("""\.icon\(\s*"(\w+)"\s*\)|paint_icon\(\s*p,\s*"(\w+)"|icon: "(\w+)"|ICONS: \[&str; \d+\] = \[([^\]]*)\]""")
         val rust = File("../lib/rust/crates/render/src/settings_ui").walk().filter { it.extension == "rs" }
             .flatMap { file -> named.findAll(file.readText()).flatMap { m -> m.groupValues.drop(1).first { it.isNotEmpty() }.split(",") } }
             .map { it.trim().trim('"') }.filter { it.isNotEmpty() }.toSortedSet()
         val mapped = Regex(""""@icon:(\w+)"""")
             .findAll(File("src/main/kotlin/com/jtn0123/audiowhisper/settingsui/SettingsIcons.kt").readText())
             .map { it.groupValues[1] }.toSet()
-        assertTrue(rust.containsAll(listOf("brightness_auto", "color_lens", "shop", "add", "arrow_upward", "input")), rust.toString())
+        assertTrue(rust.containsAll(listOf("brightness_auto", "color_lens", "shop", "add", "arrow_upward", "input", "pageview")), rust.toString())
         assertEquals(emptySet(), rust - mapped)
     }
 }

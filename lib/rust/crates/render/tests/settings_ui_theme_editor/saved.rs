@@ -244,6 +244,12 @@ fn a_code_editor_saved_without_its_forms_comes_back_on_the_rules() {
         b.set_theme_editor(&loaded(SHEET)).unwrap();
         assert!(b.theme_editor.code.is_none());
     }
+    // So does the code editor's route over an open rule editor with no code form.
+    let (mut a, mut text) = app(SHEET);
+    assert!(tap(&mut a, &mut text, rule_id(3, 2)));
+    a.stack.push(CODE_ADD.into());
+    a.scrolls.push(0.0);
+    assert_eq!(recreated(&a).stack, [route(0)]);
     // A code form naming a message that does not exist is malformed.
     let (mut a, mut text) = app(SHEET);
     assert!(tap(&mut a, &mut text, rule_id(3, 2)));
