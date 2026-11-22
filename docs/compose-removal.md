@@ -200,7 +200,7 @@ its phone checks pass.
   (21 added, 4 removed), 6 lines in `RustSettingsView` (2 removed) and one string id. Step 8 is
   done: 81 lines deleted, 123 added.
 
-### 9. Theme manager and theme editor (part 1 of 3 done)
+### 9. Theme manager and theme editor (parts 1 and 2 of 3 done)
 
 * **Deletes:** the rest of `FB/app/settings/theme`: 15 files, 3,684 lines after step 4,
   including `EditPropertyDialog` (1,200) and `ThemeEditorScreen` (473).
@@ -214,19 +214,36 @@ its phone checks pass.
   the top (Gboard's *My themes* **+**), an extension's name, id and *View details* opening its
   page, *Edit* for themes made here, and TalkBack hearing each theme's day or night kind and
   which one is chosen. Commits cfdc0b943, 46f866859, 10247ba30, 7881f7ec1 and 709b3ebab.
-* **Parts 2 and 3, the editor (remaining):** the editor shell (load, rules list, rule dialog,
-  meta and fine-tune dialogs, save and discard) and the property editor (every Snygg value kind,
-  code values, value icons). They need a Rust stylesheet serializer matching Compose's
-  `PrettyPrintConfig`, and a route the Compose extension editor opens with its workspace kept
-  alive. [What remains](stage4-theme-editor.md#what-remains) lists it all.
-* **Blocked by:** nothing for parts 2 and 3; step 4's widgets and the `snygg` crate are in
-  place.
+* **Part 2, the theme editor's shell (done):** the extension editor's *Manage component* opens
+  the Rust editor at `settings/theme/edit/<workspace>/<component>`, in its own
+  `ThemeEditorActivity` so the Compose workspace stays open under it. Rust draws loading, the
+  stylesheet error page, the component box, fine-tune, *Add rule*, the rules with their
+  properties, the rule editor, the meta editor (id, label, authors, night, stylesheet path and
+  Material You's flags), delete with its question, and *Back* asking to discard. It parses,
+  edits and checks the stylesheet, and writes it with a new `snygg` serializer that a JVM test
+  holds to Compose's `PrettyPrintConfig` on every shipped stylesheet. Kotlin reports the
+  workspace's stylesheet, meta and file names over op 28 and writes Save back. Eight
+  improvements: undo in place for a deleted rule or property, *Duplicate rule*, no *Delete* on a
+  font's `src`, a font name that cannot be read back refused, edits kept as a draft until *Save*,
+  attributes in file order, a repeated component id refused under its field, and the extension
+  editor showing the new meta at once. Properties are listed read-only. Commits f2b7ce6c3 to
+  3cc7ba633; see [part 2](stage4-theme-editor.md#part-2-the-theme-editor-shell-done).
+* **Part 3, the property editor (remaining):** every Snygg value kind, *Add property*, code
+  values with key recording, value icons. [What remains](stage4-theme-editor.md#what-remains)
+  lists it all, and what deleting the Compose editor then takes.
+* **Blocked by:** nothing for part 3; step 4's colour picker and part 2's draft, Save and preview
+  are in place.
 * **The fallback loses:** the theme manager. Its route stays as an empty entry that hands back
   to Rust, as in step 2.
 * **Progress** (non-blank lines deleted): part 1 deletes `ThemeManagerScreen` (135), and 7
   lines in `Routes.kt` rewritten as 2. The Kotlin glue adds `SettingsThemes` (44), its string ids
   (11), 5 lines in `RustSettingsView` (1 removed) and one rewritten line in `SettingsStringIds`.
-  Part 1: 144 lines deleted, 63 added. The other 14 files (3,549 lines) go with parts 2 and 3.
+  Part 1: 144 lines deleted, 63 added. Part 2 deletes nothing: the 14 Compose files are part 3's
+  reference and other code imports from their package. It adds `SettingsThemeEditor` (113),
+  its string ids (207), `ThemeEditorActivity` (22), 4 lines in `RustSettingsView`, 2 in
+  `SettingsIcons` (1 removed), 2 in `SettingsStringIds` (1 removed) and 9 in
+  `ExtensionEditScreen` (2 removed). Part 2: 4 lines deleted, 359 added. The 14 files (3,549
+  lines) go after part 3.
 
 ### 10. Extensions
 
