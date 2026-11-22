@@ -8,12 +8,19 @@ use crate::format::{kdoc, kotlin_declaration};
 use crate::kotlin::{KotlinFile, kotlin_header, simple_type};
 use crate::{Class, Module, Param, Return};
 
+mod expr;
 mod handle;
+#[cfg(test)]
+mod record_tests;
 mod records;
 #[cfg(test)]
 mod tests;
+mod types;
 
+use expr::{Expr, expression};
 pub use records::{BIT, Bit, BitKind, NULLABLE_OBJECTS, OBJECTS};
+pub use types::type_files;
+use types::type_text;
 
 /// A public Kotlin type over native methods, in its own file.
 #[derive(Debug)]
@@ -438,134 +445,6 @@ fn result_type(returns: Return, out: Out) -> Option<String> {
     }
 }
 
-/// A native call and what surrounds it: `before`, `call(args)`, then `after`. With `lend`, the
-/// call is in that lambda, such as `LatinSession.lend(session) {`, inside `before` and `after`.
-struct Expr {
-    before: String,
-    call: String,
-    args: Vec<String>,
-    after: String,
-    lend: Option<String>,
-}
-
-impl Expr {
-    /// The native call alone, without what surrounds it.
-    fn bare(&self) -> Expr {
-        Expr {
-            before: String::new(),
-            call: self.call.clone(),
-            args: self.args.clone(),
-            after: String::new(),
-            lend: None,
-        }
-    }
-
-    /// The expression on one line.
-    fn line(&self) -> String {
-        let call = format!("{}({})", self.call, self.args.join(", "));
-        match &self.lend {
-            Some(lend) => format!("{}{lend} {call} }}{}", self.before, self.after),
-            None => format!("{}{call}{}", self.before, self.after),
-        }
-    }
-
-    /// The expression at `indent`: if it doesn't fit on one line, a lent call on lines of its
-    /// own, else the body of the lambda after the call on a line of its own, else the arguments
-    /// one to a line.
-    fn lines(&self, indent: &str) -> String {
-        let one = format!("{indent}{}", self.line());
-        if one.len() <= 120 {
-            return one + "\n";
-        }
-        if let Some(lend) = &self.lend {
-            let inner = self.bare().lines(&format!("{indent}    "));
-            let close = format!("{indent}}}{}", self.after);
-            assert!(close.len() <= 120, "too long: {close}");
-            return format!("{indent}{}{lend}\n{inner}{close}\n", self.before);
-        }
-        if let Some((open, body, close)) = lambda(&self.after) {
-            let args = self.args.join(", ");
-            let head = format!("{indent}{}{}({args}){open}", self.before, self.call);
-            let body = format!("{indent}    {body}");
-            let close = format!("{indent}}}{close}");
-            if [&head, &body, &close].iter().all(|line| line.len() <= 120) {
-                return format!("{head}\n{body}\n{close}\n");
-            }
-        }
-        let args: String = self.args.iter().map(|arg| argument(arg, indent)).collect();
-        let mut close = format!("{indent}){}", self.after);
-        if close.len() > 120 {
-            // Each call chained after the first on a line of its own.
-            let calls = chain(&self.after);
-            close = format!("{indent}){}", calls[0]);
-            for call in &calls[1..] {
-                close.push_str(&format!("\n{indent}    {call}"));
-            }
-        }
-        format!("{indent}{}{}(\n{args}{close}\n", self.before, self.call)
-    }
-}
-
-/// One argument on its own line at `indent`, its lambda's body on a line of its own if the line
-/// is too long and it has one.
-fn argument(arg: &str, indent: &str) -> String {
-    let one = format!("{indent}    {arg},\n");
-    match lambda(arg) {
-        Some((open, body, close)) if one.len() > 121 => {
-            format!("{indent}    {open}\n{indent}        {body}\n{indent}    }}{close},\n")
-        }
-        _ => one,
-    }
-}
-
-/// The calls chained in `after`, such as `.let { … }` and `?.also { … }`, split where a `.` or
-/// `?.` starts one outside any braces or parentheses.
-fn chain(after: &str) -> Vec<&str> {
-    let bytes = after.as_bytes();
-    let mut calls = Vec::new();
-    let (mut depth, mut start) = (0, 0);
-    for (at, &c) in bytes.iter().enumerate() {
-        let starts = match c {
-            b'{' | b'(' | b'[' => {
-                depth += 1;
-                false
-            }
-            b'}' | b')' | b']' => {
-                depth -= 1;
-                false
-            }
-            b'?' => bytes.get(at + 1) == Some(&b'.'),
-            b'.' => at == 0 || bytes[at - 1] != b'?',
-            _ => false,
-        };
-        if starts && depth == 0 && at > start {
-            calls.push(&after[start..at]);
-            start = at;
-        }
-    }
-    calls.push(&after[start..]);
-    calls
-}
-
-/// The first lambda in `after`, such as `.map { Entry(it[0]) }.also { … }`: what opens it
-/// (`.map {`), its body, and what follows its closing brace.
-fn lambda(after: &str) -> Option<(&str, &str, &str)> {
-    let open = after.find(" { ")?;
-    let mut depth = 0;
-    for (at, c) in after.char_indices().skip(open + 1) {
-        match c {
-            '{' => depth += 1,
-            '}' if depth == 1 => {
-                let body = after[open + 3..at].trim_end();
-                return Some((&after[..open + 2], body, &after[at + 1..]));
-            }
-            '}' => depth -= 1,
-            _ => {}
-        }
-    }
-    None
-}
-
 /// The text around a native call that returns `returns` and `out` converts, for `api`.
 fn converted(out: Out, returns: Return, api: &Api, apis: &[Api]) -> (String, String) {
     match out {
@@ -694,95 +573,4 @@ pub(super) fn member_text(
 fn lends(apis: &[Api], name: &str) -> bool {
     apis.iter()
         .any(|api| api.name == name && matches!(api.shape, Shape::Handle(handle) if handle.lend))
-}
-
-/// `head = expr`, on one line if it fits, else with the expression on the next.
-fn expression(head: &str, expr: &Expr) -> String {
-    let one = format!("{head} = {}", expr.line());
-    if one.len() <= 120 && !head.contains('\n') {
-        return one + "\n";
-    }
-    let last = head.lines().last().unwrap_or_default();
-    let indent = " ".repeat(last.len() - last.trim_start().len() + 4);
-    format!("{head} =\n{}", expr.lines(&indent))
-}
-
-/// A record or enum at `indent`.
-fn type_text(ty: &Type, indent: &str) -> String {
-    match ty {
-        Type::Record {
-            name,
-            doc,
-            data,
-            fields,
-            constants: kept,
-        } => {
-            let mut text = if doc.is_empty() {
-                String::new()
-            } else {
-                kdoc(doc, indent)
-            };
-            let fields: Vec<String> = fields
-                .iter()
-                .map(|(name, ty)| format!("val {name}: {ty}"))
-                .collect();
-            let head = format!("{}class {name}", if *data { "data " } else { "" });
-            if kept.is_empty() {
-                text.push_str(&kotlin_declaration(indent, &head, &fields, ""));
-            } else {
-                text.push_str(&kotlin_declaration(indent, &head, &fields, " {"));
-                let inner = format!("{indent}        ");
-                text.push_str(&format!("{indent}    companion object {{\n"));
-                text.push_str(&constants(kept, &inner));
-                text.push_str(&format!("{indent}    }}\n{indent}}}\n"));
-            }
-            text
-        }
-        Type::Enum { name, doc, entries } => {
-            format!(
-                "{}{indent}enum class {name} {{ {} }}\n",
-                kdoc(doc, indent),
-                entries.join(", ")
-            )
-        }
-        Type::Bits { .. } => records::bits_text(ty, indent),
-        Type::Interface { name, doc, members } => {
-            let mut text = kdoc(doc, indent);
-            let single = matches!(members, [(declaration, _)] if declaration.starts_with("fun "));
-            let fun = if single { "fun " } else { "" };
-            text.push_str(&format!("{indent}{fun}interface {name} {{\n"));
-            let inner = format!("{indent}    ");
-            for (at, (declaration, doc)) in members.iter().enumerate() {
-                if at > 0 && !doc.is_empty() {
-                    text.push('\n');
-                }
-                if !doc.is_empty() {
-                    text.push_str(&kdoc(doc, &inner));
-                }
-                text.push_str(&format!("{inner}{declaration}\n"));
-            }
-            text.push_str(&format!("{indent}}}\n"));
-            text
-        }
-    }
-}
-
-/// The Kotlin files for top-level `types`, one each, generated from `module`'s declarations.
-pub fn type_files(types: &[(&str, Module, Type)]) -> Vec<(Module, KotlinFile)> {
-    types
-        .iter()
-        .map(|(module, kotlin, ty)| {
-            let name = match ty {
-                Type::Record { name, .. }
-                | Type::Enum { name, .. }
-                | Type::Bits { name, .. }
-                | Type::Interface { name, .. } => *name,
-            };
-            let source = format!("src/declarations/{module}.rs");
-            let mut text = kotlin_header(&source, *kotlin, &[]);
-            text.push_str(&type_text(ty, ""));
-            let path = format!("{}/{name}.kt", kotlin.package().replace('.', "/"));
-            (*kotlin, KotlinFile { path, text })
-        })
-        .collect()
 }
