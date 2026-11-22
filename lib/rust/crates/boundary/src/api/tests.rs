@@ -733,6 +733,11 @@ fn arrays_read_as_a_record_with_constants() {
                 returns: Return::NullableArray(crate::Element::Int),
                 ..METHOD
             },
+            Method {
+                name: "best",
+                returns: crate::NULLABLE_OBJECTS,
+                ..METHOD
+            },
         ],
         ..CLASS
     }];
@@ -763,6 +768,11 @@ fn arrays_read_as_a_record_with_constants() {
                 result: Out::NullableWrap("Layout"),
                 ..MEMBER
             },
+            Member {
+                name: "best",
+                result: Out::Record("Scores"),
+                ..MEMBER
+            },
         ],
         ..API
     }];
@@ -774,6 +784,8 @@ fn arrays_read_as_a_record_with_constants() {
         "    fun scores(): Scores =\n        ScoreNative.scores().let { Scores(it[0] as IntArray, \
          it[1] as FloatArray, (it[2] as IntArray)[0]) }\n",
         "    fun layout(): Layout? = ScoreNative.layout()?.let { Layout(it) }\n",
+        "    fun best(): Scores? =\n        ScoreNative.best()?.let { Scores(it[0] as IntArray, \
+         it[1] as FloatArray, (it[2] as IntArray)[0]) }\n",
     ] {
         assert!(text.contains(expected), "{text}");
     }

@@ -13,7 +13,7 @@ mod records;
 #[cfg(test)]
 mod tests;
 
-pub use records::{BIT, Bit, BitKind, OBJECTS};
+pub use records::{BIT, Bit, BitKind, NULLABLE_OBJECTS, OBJECTS};
 
 /// A public Kotlin type over native methods, in its own file.
 #[derive(Debug)]

@@ -1,6 +1,6 @@
 //! Host/opt-in fixture adapter for the frozen callback suggester. Never shipped on Android.
-use super::boolean;
 use super::suggester::{stores, write_strip};
+use crate::jni::boolean;
 use crate::jni::{self, Env, Error, Method, Result, illegal};
 use jni_sys::{
     JNIEnv, jboolean, jclass, jfloat, jint, jintArray, jlong, jobject, jobjectArray, jstring,

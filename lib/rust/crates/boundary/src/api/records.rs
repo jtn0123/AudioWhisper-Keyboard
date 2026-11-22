@@ -179,12 +179,15 @@ fn row(returns: Return, api: &Api) -> (Option<Element>, bool) {
 /// `Env::make_objects`.
 pub const OBJECTS: Return = Return::Object("Array<Any>", "jobjectArray");
 
+/// [`OBJECTS`] or null, which reads as a nullable record: null for none.
+pub const NULLABLE_OBJECTS: Return = Return::Object("Array<Any>?", "jobjectArray");
+
 /// What follows a native call that returns `returns` to read it as the record `name`, or a list
 /// of them if `many`, each in as many elements as it has fields, or each a row of its own from an
 /// array of string rows, or one record from [`OBJECTS`]. A record's last field may be a
 /// `List<String>` of the rest of its row.
 pub fn record(name: &str, many: bool, returns: Return, api: &Api, apis: &[Api]) -> String {
-    if returns == OBJECTS {
+    if returns == OBJECTS || returns == NULLABLE_OBJECTS {
         assert!(!many, "{name}: an array of objects reads as one record");
         let fields = record_fields(name, api, apis);
         let values: Vec<String> = (fields.iter().enumerate())
@@ -193,7 +196,8 @@ pub fn record(name: &str, many: bool, returns: Return, api: &Api, apis: &[Api]) 
                 _ => format!("it[{at}] as {ty}"),
             })
             .collect();
-        return format!(".let {{ {name}({}) }}", values.join(", "));
+        let then = if returns == OBJECTS { "." } else { "?." };
+        return format!("{then}let {{ {name}({}) }}", values.join(", "));
     }
     let (element, nullable) = row(returns, api);
     let rows = returns == Return::StringArrays;
@@ -245,7 +249,7 @@ pub fn pair(types: [&str; 2], returns: Return, api: &Api, apis: &[Api]) -> Strin
 pub fn record_type(name: &str, many: bool, returns: Return) -> String {
     if many {
         format!("List<{name}>")
-    } else if matches!(returns, Return::NullableArray(_)) {
+    } else if matches!(returns, Return::NullableArray(_)) || returns == NULLABLE_OBJECTS {
         format!("{name}?")
     } else {
         name.to_owned()

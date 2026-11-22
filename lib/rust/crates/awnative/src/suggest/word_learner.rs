@@ -15,8 +15,8 @@ use crate::handle::{free, into_handle, locked, object};
 use crate::jni::Result;
 #[cfg(any(not(target_os = "android"), feature = "legacy-fixture"))]
 use {
-    super::{boolean, legacy_suggester::JavaLookup},
-    crate::jni::{self, Env},
+    super::legacy_suggester::JavaLookup,
+    crate::jni::{self, Env, boolean},
     jni_sys::{JNIEnv, jboolean, jclass, jint, jlong, jobject, jstring},
 };
 

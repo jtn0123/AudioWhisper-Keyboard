@@ -22,6 +22,7 @@ mod rules;
 mod screen;
 mod shift;
 mod spacing;
+mod suggest;
 mod swipe;
 mod text;
 mod word_stores;
@@ -72,6 +73,7 @@ pub const CLASSES: &[Class] = &[
     glide::GLIDE_NATIVE,
     gestures::GESTURES_NATIVE,
     popup::POPUP_NATIVE,
+    suggest::SUGGEST_NATIVE,
 ];
 
 /// Every generated api over those classes.
@@ -111,6 +113,9 @@ pub const APIS: &[Api] = &[
     gestures::GLIDE_DETECTOR,
     popup::POPUP_GRID,
     popup::POPUP_ORDER,
+    suggest::SUGGEST_RULES,
+    suggest::QWERTY_LAYOUT,
+    suggest::TAP_POSITIONS,
 ];
 
 /// Every generated top-level record, enum and interface, with the declarations file and the module it is in.

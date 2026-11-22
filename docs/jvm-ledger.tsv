@@ -401,8 +401,6 @@ lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/RustLibrary.kt	A	9	ART JN
 lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/SettingsRules.kt	A	48	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
 lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/SherpaAsr.kt	A	55	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
 lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/SherpaTts.kt	A	36	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
-lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/Suggest.kt	A	114	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
-lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/SuggestNative.kt	A	46	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
 lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/SwipeUserWords.kt	A	10	ART JNI; the user-word HashMap SwipeRules.userWords fills in the replaced Kotlin's order (new file: what is left of Swipe.kt, 37 lines, once generated) |
 lib/snygg/src/main/kotlin/org/florisboard/lib/snygg/Snygg.kt	P	56	portable Snygg domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
 lib/snygg/src/main/kotlin/org/florisboard/lib/snygg/SnyggCompilerAdapter.kt	M	123	Resources colour/font materialization / ART JNI; retire Compose-domain object tokens after ports |
