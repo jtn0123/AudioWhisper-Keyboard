@@ -16,6 +16,7 @@
 
 package dev.patrickgold.florisboard.lib.cache
 
+import android.content.ContentResolver
 import android.content.Context
 import android.net.Uri
 import android.provider.OpenableColumns
@@ -72,10 +73,19 @@ class CacheManager(context: Context) {
     val themeExtEditor = WorkspacesContainer(EditorDirName) { ExtEditorWorkspace<ThemeExtensionEditor>(it) }
     val backupAndRestore = WorkspacesContainer(BackupAndRestoreDirName) { BackupAndRestoreWorkspace(it) }
 
-    fun readFromUriIntoCache(uriList: List<Uri>): ImporterWorkspace {
+    /** Reads [uriList] into a new import workspace, which can be found by its id once this returns. A read that fails
+     * deletes what it read. */
+    suspend fun readFromUriIntoCache(uriList: List<Uri>): ImporterWorkspace {
         val contentResolver = appContext.contentResolver ?: error("Content resolver is null.")
         val workspace = ImporterWorkspace(uuid = UUID.randomUUID().toString()).also { it.mkdirs() }
-        workspace.inputFileInfos = buildList {
+        workspace.inputFileInfos = runCatching { readInto(workspace, contentResolver, uriList) }
+            .onFailure { workspace.close() }.getOrThrow()
+        importer.add(workspace).join()
+        return workspace
+    }
+
+    private fun readInto(workspace: ImporterWorkspace, contentResolver: ContentResolver, uriList: List<Uri>) =
+        buildList {
             for (uri in uriList) {
                 val info = contentResolver.query(uri)?.use { cursor ->
                     val nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
@@ -99,9 +109,6 @@ class CacheManager(context: Context) {
                 add(info)
             }
         }
-        importer.add(workspace)
-        return workspace
-    }
 
     open inner class WorkspacesContainer<T : Workspace> internal constructor(
         val dirName: String,

@@ -292,7 +292,7 @@ app/src/main/kotlin/dev/patrickgold/florisboard/lib/Pointer.kt	P	81	pointer regi
 app/src/main/kotlin/dev/patrickgold/florisboard/lib/StateAdapters.kt	A	41	LiveData.observe / LifecycleOwner; observable platform bindings |
 app/src/main/kotlin/dev/patrickgold/florisboard/lib/Unicode.kt	A	15	android.icu.lang.UCharacter; Android character facts |
 app/src/main/kotlin/dev/patrickgold/florisboard/lib/Validation.kt	M	109	Resources; validation-result/model and message-choice ownership |
-app/src/main/kotlin/dev/patrickgold/florisboard/lib/cache/CacheManager.kt	M	179	Context.cacheDir / ContentResolver; workspace/import lifetime and selection |
+app/src/main/kotlin/dev/patrickgold/florisboard/lib/cache/CacheManager.kt	M	183	Context.cacheDir / ContentResolver; workspace/import lifetime and selection | raised 179 to 183 (compose-removal step 10, part 2): a read workspace can be found as soon as the read returns, and a failed read deletes what it read
 app/src/main/kotlin/dev/patrickgold/florisboard/lib/compose/FlorisDialogs.kt	S	46	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
 app/src/main/kotlin/dev/patrickgold/florisboard/lib/compose/FlorisHyperlinkText.kt	S	30	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
 app/src/main/kotlin/dev/patrickgold/florisboard/lib/compose/FlorisScreen.kt	S	124	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
