@@ -64,7 +64,7 @@ pub fn free_trail(trail: i64) -> Result<()> {
 }
 
 /// The trail behind `handle`, locked.
-pub(super) fn trail<'a>(handle: i64) -> Result<MutexGuard<'a, Taps>> {
+pub(crate) fn trail<'a>(handle: i64) -> Result<MutexGuard<'a, Taps>> {
     // SAFETY: Kotlin holds the trail while it calls, so it hasn't been freed.
     unsafe { locked(handle, "tap trail") }
 }

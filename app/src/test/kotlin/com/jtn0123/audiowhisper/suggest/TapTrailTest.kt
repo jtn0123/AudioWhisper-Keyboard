@@ -11,7 +11,7 @@ class TapTrailTest {
 
     private fun tap(letter: Char, offset: TapOffset?) {
         trail.pressed(letter.code, offset)
-        trail.typed(letter.toString())
+        trail.positions.typed(letter.toString())
     }
 
     private fun tapAll(word: String, offset: TapOffset = left) = word.forEach { tap(it, offset) }
@@ -44,16 +44,16 @@ class TapTrailTest {
     fun aCharacterNotFromThePressHasNoPosition() {
         tap('h', left)
         trail.pressed('e'.code, right)
-        trail.typed("é")
+        trail.positions.typed("é")
         assertEquals(listOf(left, null), trail.offsetsFor("hé"))
         // A press counts for one character only.
-        trail.typed("y")
+        trail.positions.typed("y")
         assertEquals(listOf(left, null, null), trail.offsetsFor("héy"))
     }
 
     @Test
     fun noPositionsAtAllIsTheSameAsNone() {
-        trail.typed("hi")
+        trail.positions.typed("hi")
         assertEquals(emptyList(), trail.offsetsFor("hi"))
     }
 
@@ -61,7 +61,7 @@ class TapTrailTest {
     fun deletingALetterTakesItsPositionToo() {
         tapAll("hel")
         tap('p', right)
-        trail.deleted()
+        trail.positions.deleted()
         tap('o', left)
         assertEquals(List(4) { left }, trail.offsetsFor("helo"))
         assertEquals(emptyList(), trail.offsetsFor("help"))
@@ -79,7 +79,7 @@ class TapTrailTest {
     @Test
     fun keepsOnlyTheMostRecentCharacters() {
         val short = TapTrail(capacity = 3)
-        "hello".forEach { short.pressed(it.code, right); short.typed(it.toString()) }
+        "hello".forEach { short.pressed(it.code, right); short.positions.typed(it.toString()) }
         assertEquals(List(3) { right }, short.offsetsFor("llo"))
         assertEquals(emptyList(), short.offsetsFor("ello"))
     }
@@ -88,9 +88,9 @@ class TapTrailTest {
     fun clearForgetsEverything() {
         tapAll("hi")
         trail.pressed('a'.code, right)
-        trail.clear()
+        trail.positions.clear()
         assertEquals(emptyList(), trail.offsetsFor("hi"))
-        trail.typed("a")
+        trail.positions.typed("a")
         assertEquals(emptyList(), trail.offsetsFor("a"))
     }
 

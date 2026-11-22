@@ -6,10 +6,10 @@ import com.jtn0123.audiowhisper.suggest.PrivateTextFile
 import java.io.File
 
 /**
- * AudioWhisper: the private accuracy counters' file. The NLP session counts (see
- * lib/rust/crates/nlp/src/counters.rs); this passes it the events only Kotlin sees and keeps the
- * counts in the app's private files, where `run-as` can read them (docs/rust.md). Integers only:
- * no word, character or position is ever in it. Never backed up.
+ * AudioWhisper: the private accuracy counters' file. The NLP session counts, from each typing
+ * event (see lib/rust/crates/nlp/src/counters.rs and typing.rs); this keeps the counts in the
+ * app's private files, where `run-as` can read them (docs/rust.md). Integers only: no word,
+ * character or position is ever in it. Never backed up.
  */
 internal class TypingCounters(filesDir: File) {
     private val file = PrivateTextFile(File(filesDir, FILE))
@@ -18,9 +18,6 @@ internal class TypingCounters(filesDir: File) {
     fun load() {
         NlpState.call(NlpOp.TALLY_LOAD, file.read())
     }
-
-    /** Whether a count changed since this was last asked. */
-    fun changed(): Boolean = WireFlag.decode(NlpState.call(NlpOp.TALLY_CHANGED)[0])
 
     /** Writes the counts. Blocking. */
     fun save() {
@@ -31,22 +28,6 @@ internal class TypingCounters(filesDir: File) {
     fun reset() {
         NlpState.call(NlpOp.TALLY_RESET)
         file.delete()
-    }
-
-    /** A key that types went down: a character, a space or Enter. */
-    fun key() = tally(NlpTallyEvent.KEY)
-
-    /** A backspace, with the selection at [start]..[end] before it deleted anything. */
-    fun deleted(start: Int, end: Int) = tally(NlpTallyEvent.DELETED, start, end)
-
-    /** A backspace straight after an auto-correction put back what was typed. */
-    fun undone() = tally(NlpTallyEvent.UNDONE)
-
-    /** The undo key. */
-    fun undo() = tally(NlpTallyEvent.UNDO)
-
-    private fun tally(event: NlpTallyEvent, start: Int = 0, end: Int = 0) {
-        NlpState.call(NlpOp.TALLY, *with(NlpTally) { row(EVENT to event.code, START to "$start", END to "$end") })
     }
 
     companion object {

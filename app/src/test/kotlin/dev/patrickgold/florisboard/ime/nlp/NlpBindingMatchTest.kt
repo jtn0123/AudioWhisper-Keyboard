@@ -1,6 +1,7 @@
 package dev.patrickgold.florisboard.ime.nlp
 
 import com.jtn0123.audiowhisper.rust.NlpContext
+import com.jtn0123.audiowhisper.rust.NlpOp
 import com.jtn0123.audiowhisper.rust.WireFlag
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -23,7 +24,8 @@ class NlpBindingMatchTest {
             NlpState.directly(listOf(glide))
             assertEquals(emptyList(), NlpState.candidates.value, "A password cannot expose providerless words")
         } finally {
-            NlpState.field()
+            NlpState.call(NlpOp.FIELD)
+            NlpState.clear()
             NlpState.configure(Array(NlpContext.SIZE) { "0" })
         }
     }

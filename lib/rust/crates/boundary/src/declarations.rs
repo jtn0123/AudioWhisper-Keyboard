@@ -199,6 +199,11 @@ pub const WIRE: &[Wire] = &[
     Wire {
         module: Module::Rust,
         internal: false,
+        groups: wire::typing::GROUPS,
+    },
+    Wire {
+        module: Module::Rust,
+        internal: false,
         groups: wire::dictation::GROUPS,
     },
     Wire {

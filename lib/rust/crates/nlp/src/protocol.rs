@@ -210,10 +210,7 @@ impl Session {
                 self.snapshot()
             }
             ops::FIELD => {
-                self.counters.field();
-                self.external_generation = self.external_generation.wrapping_add(1);
-                self.invalidate();
-                self.inline_begin(0);
+                self.field();
                 self.snapshot()
             }
             ops::CLEAR => {
@@ -235,31 +232,10 @@ impl Session {
                 )
             }
             ops::KEEP => boolean(self.context.remember_kept()),
-            ops::PICK => {
-                let automatic = self.automatic.as_ref().is_some_and(|v| v.id == f[0]);
-                let accepted = automatic || self.visible().iter().any(|v| v.id == f[0]);
-                if accepted {
-                    self.count_pick(&f[0], automatic);
-                }
-                if automatic {
-                    self.automatic = None;
-                }
-                boolean(accepted)
-            }
+            ops::PICK => boolean(self.pick(&f[0])),
             ops::LEARN => self.learn(f),
             ops::AIM => boolean(self.aim(f)),
-            ops::SAVE => {
-                let now = int(f, 0);
-                if self.save_due.is_some_and(|due| now >= due) {
-                    self.save_due = None;
-                    vec![number(0)]
-                } else if self.save_due.is_none() {
-                    self.save_due = Some(now.saturating_add(5000));
-                    vec![number(5000)]
-                } else {
-                    vec![number(-1)]
-                }
-            }
+            ops::SAVE => vec![number(self.save_timing(int(f, 0)))],
             ops::INLINE_BEGIN => self.inline_begin(int(f, 0)),
             ops::INLINE_CANCEL => {
                 if int(f, 0) as u64 == self.inline_generation {
@@ -273,9 +249,44 @@ impl Session {
         }
     }
 
+    /// Whether the candidate `id` may be committed: it is the auto-correction or shown. Counts it.
+    pub(crate) fn pick(&mut self, id: &[u16]) -> bool {
+        let automatic = self.automatic.as_ref().is_some_and(|v| v.id == id);
+        let accepted = automatic || self.visible().iter().any(|v| v.id == id);
+        if accepted {
+            self.count_pick(id, automatic);
+        }
+        if automatic {
+            self.automatic = None;
+        }
+        accepted
+    }
+
+    /// Input moved to another field.
+    pub(crate) fn field(&mut self) {
+        self.counters.field();
+        self.external_generation = self.external_generation.wrapping_add(1);
+        self.invalidate();
+        self.inline_begin(0);
+    }
+
+    /// How long to wait at `now` before saving: 5000 ms when no save is due, 0 when one is due
+    /// already (and no longer), or -1 while one waits.
+    pub(crate) fn save_timing(&mut self, now: i64) -> i64 {
+        if self.save_due.is_some_and(|due| now >= due) {
+            self.save_due = None;
+            0
+        } else if self.save_due.is_none() {
+            self.save_due = Some(now.saturating_add(5000));
+            5000
+        } else {
+            -1
+        }
+    }
+
     /// A [`learn`] row: Rust returns the whole learner operation and context, as a [`learn_plan`]
     /// row; Kotlin executes its store call.
-    fn learn(&mut self, f: &[Field]) -> Vec<Field> {
+    pub(crate) fn learn(&mut self, f: &[Field]) -> Vec<Field> {
         let kind = int(f, learn::KIND) as i32;
         let composing = flag_at(f, learn::COMPOSING_VALID);
         let finished = kind != learn::TYPED
@@ -317,7 +328,7 @@ impl Session {
     /// user taps (`suggest::tap_learning`): the setting is on, the field takes corrected prose,
     /// nothing is incognito, and the word ended with a valid composing region, as "learn" asks of
     /// a kept word.
-    fn aim(&self, f: &[Field]) -> bool {
+    pub(crate) fn aim(&self, f: &[Field]) -> bool {
         flag_at(f, aim::SETTING)
             && self.context.prose()
             && !self.context.flag(context::INCOGNITO)

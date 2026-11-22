@@ -174,7 +174,7 @@ pub fn free_kept_words(store: i64) -> Result<()> {
     Ok(())
 }
 
-fn kept<'a>(store: i64) -> Result<MutexGuard<'a, KeptWords>> {
+pub(crate) fn kept<'a>(store: i64) -> Result<MutexGuard<'a, KeptWords>> {
     // SAFETY: Kotlin holds the store while it calls, so it hasn't been freed.
     unsafe { locked(store, "kept words") }
 }

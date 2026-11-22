@@ -3,7 +3,7 @@
 
 #[cfg(any(not(target_os = "android"), feature = "legacy-fixture"))]
 mod legacy_suggester;
-mod letter_odds;
+pub(crate) mod letter_odds;
 pub(crate) mod native_glide;
 pub(crate) mod session;
 mod suggester;

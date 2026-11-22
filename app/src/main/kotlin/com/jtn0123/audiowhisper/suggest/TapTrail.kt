@@ -24,8 +24,9 @@ data class TapOffset(val dx: Float, val dy: Float) {
 /**
  * Where each recently typed character was tapped, so the decoder hears that a tap on the O/P
  * border was nearly a P, not a clean O. The keyboard view reports each key press ([pressed]); the
- * character that press types is then [typed]. A character with no press behind it (a long-press
- * popup, a hardware key) has no position.
+ * NLP session's typing events then say what it typed, was deleted, kept or taken back (see
+ * lib/rust/crates/nlp/src/typing.rs). A character with no press behind it (a long-press popup, a
+ * hardware key) has no position.
  *
  * [offsetsFor] lines the trail up with the word being suggested for from its end, so the trail
  * needs no resetting as words come and go: a word that doesn't match it (the cursor moved, a
@@ -41,17 +42,6 @@ class TapTrail(capacity: Int = SuggestRules.tapTrailCapacity) {
     /** A key for [codePoint] went down at [offset]. */
     fun pressed(codePoint: Int, offset: TapOffset?) =
         positions.pressed(codePoint, offset != null, offset?.dx ?: 0f, offset?.dy ?: 0f)
-
-    /**
-     * [text] went into the editor; its first character came from the last press if they are the
-     * same key (the same character in either case).
-     */
-    fun typed(text: String) = positions.typed(text)
-
-    /** The last typed character was deleted. */
-    fun deleted() = positions.deleted()
-
-    fun clear() = positions.clear()
 
     /**
      * Where each character of [word] was tapped, if the last characters typed spell [word] (in
@@ -73,24 +63,6 @@ class TapTrail(capacity: Int = SuggestRules.tapTrailCapacity) {
     fun landscape(landscape: Boolean) = positions.landscape(landscape)
 
     /**
-     * [word] was committed as typed. Its taps teach where this user taps once typing goes on and
-     * nothing took it back: a [backspace], an [undo] or a suggestion that replaced it.
-     */
-    fun kept(word: String) = positions.kept(word)
-
-    /** A backspace: the word waiting to teach is thrown away. */
-    fun backspace() = positions.event(TapPositions.BACKSPACE)
-
-    /** The undo key: likewise. */
-    fun undo() = positions.event(TapPositions.UNDO)
-
-    /** A suggestion was tapped, for a word being typed ([forWord]) or as the next word. */
-    fun picked(forWord: Boolean) = positions.event(if (forWord) TapPositions.PICKED_FOR_WORD else TapPositions.PICKED)
-
-    /** A word was swiped: the word before it stays. */
-    fun swiped() = positions.event(TapPositions.SWIPED)
-
-    /**
      * The key a tap at ([x], [y]) types: [hit] unless it lies near a border that, if [aimed], both
      * keys' learned aims say the tap was meant across, or else that the neighbour's letter, being
      * likelier to come next, takes a little of [hit]'s room. [layout] and [bounds] are as
@@ -107,7 +79,4 @@ class TapTrail(capacity: Int = SuggestRules.tapTrailCapacity) {
     fun loadAim(text: String) = positions.loadAim(text)
 
     fun forgetAim() = positions.forgetAim()
-
-    /** Whether where this user taps changed since this was last asked, so it needs saving. */
-    fun aimChanged(): Boolean = positions.aimChanged()
 }

@@ -22,7 +22,6 @@ import com.jtn0123.audiowhisper.rust.KeyModels
 import android.view.KeyEvent
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
-import com.jtn0123.audiowhisper.suggest.AutoCorrectionUndo
 import dev.patrickgold.florisboard.FlorisImeService
 import dev.patrickgold.florisboard.R
 import dev.patrickgold.florisboard.appContext
@@ -100,7 +99,7 @@ private fun KeyboardManager.executeDelete(unit: OperationUnit, forward: Boolean)
                 DELETE_UNDO_AUTO -> reply = undoAutoCorrection()
                 DELETE_UNDO_DICTATION -> reply = editorInstance.undoDictation()
                 DELETE_NOTIFY -> revertPreviouslyAcceptedCandidate()
-                DELETE_TAP -> nlpManager.tapTrail.deleted()
+                DELETE_TAP -> nlpManager.noteTapDeleted()
                 DELETE_BACKWARD_EDITOR -> editorInstance.deleteBackwards(OperationUnit.entries[arg.toInt()])
                 DELETE_FORWARD_EDITOR -> editorInstance.deleteForwards(OperationUnit.entries[arg.toInt()])
                 else -> error("Unknown native delete effect")
@@ -110,36 +109,26 @@ private fun KeyboardManager.executeDelete(unit: OperationUnit, forward: Boolean)
 }
 
 /**
- * AudioWhisper: commits the auto-correction for the word being typed, if there is one, and
- * remembers it so that a backspace straight after can undo it.
+ * AudioWhisper: commits the auto-correction for the word being typed, if there is one; the NLP
+ * session remembers it so that a backspace straight after can undo it.
  */
 internal fun KeyboardManager.autoCorrect(triggerCodePoint: Int? = null): SuggestionCandidate? {
     val content = editorInstance.activeContent
-    val typed = content.composingText
-    val start = content.composing.start
     val candidate = nlpManager.getAutoCommitCandidate(triggerCodePoint)
     if (candidate == null) {
         nlpManager.learnTypedWord(content, triggerCodePoint)
         return null
     }
-    commitCandidate(candidate)
-    val corrected = candidate.text.toString()
-    if (typed.isNotEmpty() && start >= 0 && corrected != typed) {
-        autoCorrectionUndo = AutoCorrectionUndo(typed, corrected, start)
-    }
+    commitCandidate(candidate, corrects = true)
     return candidate
 }
 
-/** AudioWhisper: puts back what was typed if the last key auto-corrected it. */
+/**
+ * AudioWhisper: puts back what was typed if the last key auto-corrected it. The NLP session keeps
+ * the word from being corrected again and unlearns the correction.
+ */
 internal fun KeyboardManager.undoAutoCorrection(): Boolean {
-    val undo = autoCorrectionUndo ?: return false
-    autoCorrectionUndo = null
-    val content = editorInstance.activeContent
-    if (!content.selection.isCursorMode) return false
-    val revert = undo.revertAt(content.selection.start, content.textBeforeSelection) ?: return false
-    // Not corrected again this session if the user goes back into the word and finishes it.
-    nlpManager.keepAsTyped(undo.typed)
-    nlpManager.unlearnAutoCorrection(undo.start)
+    val revert = nlpManager.undoAutoCorrection() ?: return false
     return editorInstance.revertAutoCorrection(revert).also { if (it) nlpManager.noteCorrectionUndone() }
 }
 

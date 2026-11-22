@@ -22,7 +22,7 @@ use {
 
 /// The session's lock stays held for this whole exchange. Lookup remains lazy: a closed session
 /// fails only if the same spelling rule would have asked the old callback.
-struct NativeLookup(i64);
+pub(crate) struct NativeLookup(pub(crate) i64);
 
 impl Lookup for NativeLookup {
     type Error = crate::jni::Error;
@@ -32,12 +32,12 @@ impl Lookup for NativeLookup {
     }
 }
 
-fn learner_of<'a>(learner: i64) -> Result<MutexGuard<'a, WordLearner>> {
+pub(crate) fn learner_of<'a>(learner: i64) -> Result<MutexGuard<'a, WordLearner>> {
     // SAFETY: Kotlin holds the learner while it calls, so it hasn't been freed.
     unsafe { locked(learner, "word learner") }
 }
 
-fn store_of<'a>(store: i64) -> Result<&'a Mutex<LearnedWords>> {
+pub(crate) fn store_of<'a>(store: i64) -> Result<&'a Mutex<LearnedWords>> {
     // SAFETY: the learner's Kotlin owner keeps its store reachable while it calls.
     unsafe { object(store, "learned words") }
 }

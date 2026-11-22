@@ -311,7 +311,7 @@ class ReferenceLatinLanguageProvider(context: Context) : SpellingProvider, Sugge
      * AudioWhisper: see [keptAsTyped]. Never logged. With [remember] false (incognito) it lasts
      * until the keyboard restarts; otherwise it returns true and [saveKeptWords] should follow.
      */
-    fun keepAsTyped(word: String, remember: Boolean): Boolean = keptAsTyped.add(word, remember)
+    fun keepAsTyped(word: String, remember: Boolean): Boolean = keptAsTyped.store.add(word, remember)
 
     /** AudioWhisper: writes [keptAsTyped] to filesDir. Blocking; call off the main thread. */
     fun saveKeptWords() {
@@ -381,7 +381,7 @@ class ReferenceLatinLanguageProvider(context: Context) : SpellingProvider, Sugge
     /** AudioWhisper: a new field started; see [WordLearner.reset]. Tap positions there are unrelated too. */
     fun resetLearning() {
         learner.reset()
-        tapTrail.clear()
+        tapTrail.positions.clear()
     }
 
     /** AudioWhisper: see [WordLearner.dropSwiped]. */

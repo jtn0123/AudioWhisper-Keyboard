@@ -8,6 +8,9 @@ mod session;
 pub mod stores;
 #[cfg(test)]
 mod tests;
+pub mod typing;
+#[cfg(test)]
+mod typing_tests;
 pub use policy::Context;
 pub use session::Session;
 pub type Field = Vec<u16>;

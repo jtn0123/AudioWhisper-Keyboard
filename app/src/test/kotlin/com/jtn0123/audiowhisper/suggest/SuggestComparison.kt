@@ -238,12 +238,12 @@ class SuggestComparison(private val sigmaExact: Boolean) {
         when (random.nextInt(12)) {
             0, 1 -> {
                 reference.deleted()
-                rust.deleted()
+                rust.positions.deleted()
                 if (typed.isNotEmpty()) typed.setLength(typed.offsetByCodePoints(typed.length, -1))
             }
             2 -> {
                 reference.clear()
-                rust.clear()
+                rust.positions.clear()
                 typed.setLength(0)
             }
             else -> {
@@ -254,7 +254,7 @@ class SuggestComparison(private val sigmaExact: Boolean) {
                 if (random.nextInt(6) != 0) {
                     val text = List(random.nextInt(1, 3)) { TAP_TEXT.random(random) }.joinToString("")
                     reference.typed(text)
-                    rust.typed(text)
+                    rust.positions.typed(text)
                     typed.append(text)
                 }
             }

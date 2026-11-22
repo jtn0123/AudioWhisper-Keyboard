@@ -215,7 +215,7 @@ Path prefixes (each path below expands against the repository root):
 | `AW/settingsui/SettingsInputView.kt` | 53 | A | View / BaseInputConnection / InputMethodManager; native text endpoint |
 | `AW/settingsui/SettingsPlatform.kt` | 56 | M | Jetpref / Resources / WindowCompat; palette/appearance selection and write-queue binding |
 | `AW/settingsui/SettingsResources.kt` | 89 | A | Context.getString; batched string-resource map |
-| `AW/suggest/AutoCorrectionUndo.kt` | 24 | A | ART JNI / InputConnection consumer; native undo-result projection |
+| `AW/suggest/AutoCorrectionUndo.kt` | 24 | A | ART JNI / InputConnection consumer; native undo-result projection (moved to test sources at phase 3 item 1: the NLP session arms and takes the undo; kept for the frozen reference fan-out) |
 | `AW/suggest/GlideRanker.kt` | 53 | A | ART JNI; copies scores/context into native ranking |
 | `AW/suggest/KeptWords.kt` | 47 | A | Context files / java.io.File; native word-store persistence |
 | `AW/suggest/LatinDictionaryEngine.kt` | 35 | A | RandomAccessFile / ART JNI; dictionary bytes and native decoder handle |
@@ -225,9 +225,9 @@ Path prefixes (each path below expands against the repository root):
 | `AW/suggest/PreviousWords.kt` | 27 | A | ART JNI; native previous-word context DTO |
 | `AW/suggest/RawSuggestion.kt` | 52 | P | decoder flag classification and portable result models |
 | `AW/suggest/SwipeWords.kt` | 58 | P | portable SwipeWords domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
-| `AW/suggest/TapTrail.kt` | 56 | P | portable TapTrail domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
+| `AW/suggest/TapTrail.kt` | 56 | P | portable TapTrail domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs (phase 3 item 1: its typing events moved into the NLP session's plan; presses, orientation, aim and retarget remain) |
 | `AW/suggest/TypingHistory.kt` | 26 | A | Room/file-store / ART JNI; combines Android store handles |
-| `AW/suggest/WordLearner.kt` | 37 | A | ART JNI; native learning operation transport |
+| `AW/suggest/WordLearner.kt` | 37 | A | ART JNI; native learning operation transport (moved to test sources at phase 3 item 1: the NLP session learns each typing event itself; kept for the frozen reference fan-out) |
 | `FB/FlorisApplication.kt` | 142 | M | Application / BroadcastReceiver; manager startup and initialization sequencing |
 | `FB/FlorisImeService.kt` | 448 | M | InputMethodService; input/extract/keyboard-switch/lifecycle branches |
 | `FB/FlorisImeUi.kt` | 161 | M | WindowInsets / Compose host; root sizing/placement/background drawing |
@@ -321,6 +321,7 @@ Path prefixes (each path below expands against the repository root):
 | `FB/ime/nlp/NlpManager.kt` | 363 | M | SystemClock / provider IO; remaining worker/transport and candidate publication orchestration |
 | `FB/ime/nlp/NlpProviders.kt` | 260 | P | portable NlpProviders domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
 | `FB/ime/nlp/NlpState.kt` | 117 | M | Context / InputConnection facts; native protocol projection and publication |
+| `FB/ime/nlp/TypingEvents.kt` | 95 | A | EditorContent / save timers; one NlpSession.event row per typing event, then the plan's Android effects (added at phase 3 item 1) |
 | `FB/ime/nlp/PunctuationRule.kt` | 84 | P | portable PunctuationRule domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
 | `FB/ime/nlp/SpellingLanguageMode.kt` | 23 | P | portable SpellingLanguageMode domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
 | `FB/ime/nlp/SpellingResult.kt` | 106 | M | SuggestionsInfo; remaining result flag/result-list mapping |

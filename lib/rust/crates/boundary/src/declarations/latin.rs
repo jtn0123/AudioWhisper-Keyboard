@@ -159,6 +159,19 @@ pub const NLP_NATIVE: Class = Class {
             ],
             Return::Strings,
         ),
+        method(
+            "event",
+            &[
+                HANDLE_PARAM,
+                ("learner", Param::Long),
+                ("store", Param::Long),
+                ("taps", Param::Long),
+                ("kept", Param::Long),
+                ("dictionary", Param::Long),
+                ("fields", Param::StringVararg),
+            ],
+            Return::Strings,
+        ),
     ],
     ..CLASS
 };
@@ -293,15 +306,32 @@ pub const NLP_SESSION: Api = Api {
         synchronized: true,
         ..HANDLE
     }),
-    members: &[Member {
-        name: "call",
-        doc: "[operation]'s answer to [fields], each as its [NlpOp] describes.",
-        args: &[
-            arg("operation", ArgKind::Code("NlpOp")),
-            arg("fields", ArgKind::As("vararg fields: String", "fields")),
-        ],
-        ..MEMBER
-    }],
+    members: &[
+        Member {
+            name: "call",
+            doc: "[operation]'s answer to [fields], each as its [NlpOp] describes.",
+            args: &[
+                arg("operation", ArgKind::Code("NlpOp")),
+                arg("fields", ArgKind::As("vararg fields: String", "fields")),
+            ],
+            ..MEMBER
+        },
+        Member {
+            name: "event",
+            doc: "The plan for the typing event in [fields] (an [NlpEvent] row, then an \
+                  [NlpContext] row for the kinds that take one), which changes [learner], \
+                  [store], [taps] and [kept] itself, asking [dictionary] when one is lent.",
+            args: &[
+                arg("learner", ArgKind::Handle("Learner")),
+                arg("store", ArgKind::Handle("LearnedWordStore")),
+                arg("taps", ArgKind::Handle("TapPositions")),
+                arg("kept", ArgKind::Handle("KeptWordStore")),
+                arg("dictionary", ArgKind::Lent("LatinSession")),
+                arg("fields", ArgKind::As("vararg fields: String", "fields")),
+            ],
+            ..MEMBER
+        },
+    ],
     ..API
 };
 

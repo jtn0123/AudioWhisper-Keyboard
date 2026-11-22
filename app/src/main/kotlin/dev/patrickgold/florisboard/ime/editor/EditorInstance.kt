@@ -25,7 +25,6 @@ import androidx.core.view.inputmethod.EditorInfoCompat
 import androidx.core.view.inputmethod.InputConnectionCompat
 import androidx.core.view.inputmethod.InputContentInfoCompat
 import com.jtn0123.audiowhisper.rust.*
-import com.jtn0123.audiowhisper.suggest.AutoCorrectionUndo
 import dev.patrickgold.florisboard.FlorisImeService
 import dev.patrickgold.florisboard.app.FlorisPreferenceStore
 import dev.patrickgold.florisboard.appContext
@@ -37,6 +36,7 @@ import dev.patrickgold.florisboard.ime.clipboard.provider.ItemType
 import dev.patrickgold.florisboard.ime.input.InputShiftState
 import dev.patrickgold.florisboard.ime.keyboard.KeyboardMode
 import dev.patrickgold.florisboard.ime.nlp.SuggestionCandidate
+import dev.patrickgold.florisboard.ime.nlp.TypingEvents
 import dev.patrickgold.florisboard.ime.text.composing.Appender
 import dev.patrickgold.florisboard.ime.text.composing.Composer
 import dev.patrickgold.florisboard.ime.text.key.KeyVariation
@@ -215,7 +215,7 @@ class EditorInstance(context: Context) : AbstractEditorInstance(context) {
         return InputConnectionCompat.commitContent(ic, activeInfo.base, info, flags, null)
     }
 
-    fun revertAutoCorrection(revert: AutoCorrectionUndo.Revert): Boolean {
+    internal fun revertAutoCorrection(revert: TypingEvents.Revert): Boolean {
         return edit(EditorOp.REVERT, revert.length.toString(), revert.text, WireFlag.encode(revert.phantomSpace))
     }
 

@@ -102,9 +102,8 @@ app/src/main/kotlin/com/jtn0123/audiowhisper/settingsui/SettingsThemes.kt	A	36	A
 app/src/main/kotlin/com/jtn0123/audiowhisper/settingsui/SettingsWordStringIds.kt	A	34	explicit R.string ids for the native user dictionary screens; a resource-only map split from SettingsStringIds for the file limit |
 app/src/main/kotlin/com/jtn0123/audiowhisper/settingsui/SettingsWords.kt	A	115	Activity / DictionaryManager / Room / UserDictionary provider; the user dictionary report, each word change made as the dialog made it, and the import and export file work only |
 app/src/main/kotlin/com/jtn0123/audiowhisper/suggest/AutoCorrectStrength.kt	P	7	portable strength enum; its order and thresholds are Rust (suggest::auto_correction::Strength)
-app/src/main/kotlin/com/jtn0123/audiowhisper/suggest/AutoCorrectionUndo.kt	A	8	ART JNI / InputConnection consumer; native undo-result projection |
 app/src/main/kotlin/com/jtn0123/audiowhisper/suggest/GlideRanker.kt	A	31	ART JNI; copies scores/context into native ranking |
-app/src/main/kotlin/com/jtn0123/audiowhisper/suggest/KeptWords.kt	A	34	Context files / java.io.File; native word-store persistence |
+app/src/main/kotlin/com/jtn0123/audiowhisper/suggest/KeptWords.kt	A	33	Context files / java.io.File; native word-store persistence |
 app/src/main/kotlin/com/jtn0123/audiowhisper/suggest/LatinDictionaryEngine.kt	A	34	RandomAccessFile / ART JNI; dictionary bytes and native decoder handle |
 app/src/main/kotlin/com/jtn0123/audiowhisper/suggest/LatinSuggester.kt	A	69	ART JNI; native suggest/spell result projection |
 app/src/main/kotlin/com/jtn0123/audiowhisper/suggest/LearnedWords.kt	A	54	Context files / java.io.File; native store effects and serialized bytes |
@@ -113,9 +112,8 @@ app/src/main/kotlin/com/jtn0123/audiowhisper/suggest/PreviousWords.kt	A	13	ART J
 app/src/main/kotlin/com/jtn0123/audiowhisper/suggest/PrivateTextFile.kt	A	24	java.io.File read and atomic replace of a private text file; no domain choice
 app/src/main/kotlin/com/jtn0123/audiowhisper/suggest/RawSuggestion.kt	P	31	decoder flag classification and portable result models |
 app/src/main/kotlin/com/jtn0123/audiowhisper/suggest/SwipeWords.kt	P	39	portable SwipeWords domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
-app/src/main/kotlin/com/jtn0123/audiowhisper/suggest/TapTrail.kt	P	37	portable TapTrail domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
+app/src/main/kotlin/com/jtn0123/audiowhisper/suggest/TapTrail.kt	P	28	portable TapTrail domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
 app/src/main/kotlin/com/jtn0123/audiowhisper/suggest/TypingHistory.kt	A	17	Room/file-store / ART JNI; combines Android store handles |
-app/src/main/kotlin/com/jtn0123/audiowhisper/suggest/WordLearner.kt	A	16	ART JNI; native learning operation transport |
 app/src/main/kotlin/dev/patrickgold/florisboard/FlorisApplication.kt	M	124	Application / BroadcastReceiver; manager startup and initialization sequencing |
 app/src/main/kotlin/dev/patrickgold/florisboard/FlorisImeService.kt	M	416	InputMethodService; input/extract/keyboard-switch/lifecycle branches |
 app/src/main/kotlin/dev/patrickgold/florisboard/FlorisImeUi.kt	M	141	WindowInsets / Compose host; root sizing/placement/background drawing |
@@ -198,10 +196,10 @@ app/src/main/kotlin/dev/patrickgold/florisboard/ime/keyboard/Key.kt	P	19	portabl
 app/src/main/kotlin/dev/patrickgold/florisboard/ime/keyboard/KeyData.kt	P	105	portable KeyData domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
 app/src/main/kotlin/dev/patrickgold/florisboard/ime/keyboard/Keyboard.kt	P	72	portable Keyboard domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
 app/src/main/kotlin/dev/patrickgold/florisboard/ime/keyboard/KeyboardComputingEvaluator.kt	M	73	Context / Resources; enabled/visible/fallback fact assembly |
-app/src/main/kotlin/dev/patrickgold/florisboard/ime/keyboard/KeyboardEditing.kt	M	150	KeyEvent / InputConnection; commit/delete/selection/autocorrect orchestration |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/keyboard/KeyboardEditing.kt	M	137	KeyEvent / InputConnection; commit/delete/selection/autocorrect orchestration |
 app/src/main/kotlin/dev/patrickgold/florisboard/ime/keyboard/KeyboardExtension.kt	P	70	portable KeyboardExtension domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
 app/src/main/kotlin/dev/patrickgold/florisboard/ime/keyboard/KeyboardKeyEvents.kt	M	100	InputConnection / IME APIs; remaining CLEAR_CLIP preference branch and route fact selection |
-app/src/main/kotlin/dev/patrickgold/florisboard/ime/keyboard/KeyboardManager.kt	M	240	Context / Toast; input/editor/NLP/state coordination |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/keyboard/KeyboardManager.kt	M	232	Context / Toast; input/editor/NLP/state coordination |
 app/src/main/kotlin/dev/patrickgold/florisboard/ime/keyboard/KeyboardManagerResources.kt	M	83	Context.assets / LiveData; extension lookup and resource publication |
 app/src/main/kotlin/dev/patrickgold/florisboard/ime/keyboard/KeyboardMode.kt	P	23	portable KeyboardMode domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
 app/src/main/kotlin/dev/patrickgold/florisboard/ime/keyboard/KeyboardState.kt	M	137	Android host Flow/Compose binding; mutation batches and model ownership |
@@ -229,15 +227,16 @@ app/src/main/kotlin/dev/patrickgold/florisboard/ime/nlp/BreakIteratorGroup.kt	M	
 app/src/main/kotlin/dev/patrickgold/florisboard/ime/nlp/ClipboardSuggestionProvider.kt	M	66	ClipboardManager; candidate gating and removal sequencing |
 app/src/main/kotlin/dev/patrickgold/florisboard/ime/nlp/LanguagePackExtension.kt	P	34	portable LanguagePackExtension domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
 app/src/main/kotlin/dev/patrickgold/florisboard/ime/nlp/NlpInlineAutofill.kt	A	40	InlineSuggestion.inflate / InlineContentView; actual Android autofill views | raised 39 to 40 (A6): import of the generated NLP names
-app/src/main/kotlin/dev/patrickgold/florisboard/ime/nlp/NlpManager.kt	M	343	SystemClock / provider IO; remaining worker/transport and candidate publication orchestration | raised 342 to 343 (A6): import of the generated NLP names
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/nlp/NlpManager.kt	M	289	SystemClock / provider IO; remaining worker/transport and candidate publication orchestration | raised 342 to 343 (A6): import of the generated NLP names
 app/src/main/kotlin/dev/patrickgold/florisboard/ime/nlp/NlpProviders.kt	P	95	portable NlpProviders domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs | raised 94 to 95 (A6): import of the generated NLP names
-app/src/main/kotlin/dev/patrickgold/florisboard/ime/nlp/NlpState.kt	M	118	Context / InputConnection facts; native protocol projection and publication | raised 117 to 118 (A6): the context packet built by field name
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/nlp/NlpState.kt	M	117	Context / InputConnection facts; native protocol projection and publication | raised 117 to 118 (A6): the context packet built by field name
 app/src/main/kotlin/dev/patrickgold/florisboard/ime/nlp/PunctuationRule.kt	P	29	portable PunctuationRule domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
 app/src/main/kotlin/dev/patrickgold/florisboard/ime/nlp/SpellingLanguageMode.kt	P	5	portable SpellingLanguageMode domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
 app/src/main/kotlin/dev/patrickgold/florisboard/ime/nlp/SpellingResult.kt	M	32	SuggestionsInfo; remaining result flag/result-list mapping |
 app/src/main/kotlin/dev/patrickgold/florisboard/ime/nlp/SuggestionCandidate.kt	M	66	Resources / ClipData / ImageVector; display/icon/removal decisions |
-app/src/main/kotlin/dev/patrickgold/florisboard/ime/nlp/TypingCounters.kt	A	30	private counter file IO and event forwarding into Rust NlpState; the counts are Rust; raised 29 to 30 (A6): import of the generated NLP names
-app/src/main/kotlin/dev/patrickgold/florisboard/ime/nlp/latin/LatinLanguageProvider.kt	M	330	Room / File / SystemClock; dictionary/provider selection, caches and load/error state |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/nlp/TypingCounters.kt	A	22	private counter file IO; the counts and the events that change them are Rust (phase 3 item 1: the typing plan) |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/nlp/TypingEvents.kt	A	67	EditorContent / save timers; one NlpSession.event row per typing event, then the plan's Android effects: the save timers and the kept-word write (phase 3 item 1) |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/nlp/latin/LatinLanguageProvider.kt	M	326	Room / File / SystemClock; dictionary/provider selection, caches and load/error state |
 app/src/main/kotlin/dev/patrickgold/florisboard/ime/onehanded/OneHandedMode.kt	P	5	portable OneHandedMode domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
 app/src/main/kotlin/dev/patrickgold/florisboard/ime/onehanded/OneHandedPanel.kt	K	89	Compose keyboard (keyboard scope): deleted at compose-removal step K
 app/src/main/kotlin/dev/patrickgold/florisboard/ime/popup/ExtendedPopup.kt	A	34	ART JNI; native model/geometry/plan projection only, no independent domain choice |

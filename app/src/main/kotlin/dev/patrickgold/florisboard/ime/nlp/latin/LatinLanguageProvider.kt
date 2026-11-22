@@ -36,7 +36,6 @@ import com.jtn0123.audiowhisper.suggest.SwipeWords
 import com.jtn0123.audiowhisper.suggest.TapTrail
 import com.jtn0123.audiowhisper.suggest.TypingHistory
 import com.jtn0123.audiowhisper.suggest.TypingState
-import com.jtn0123.audiowhisper.suggest.WordLearner
 import dev.patrickgold.florisboard.BuildConfig
 import dev.patrickgold.florisboard.app.FlorisPreferenceStore
 import dev.patrickgold.florisboard.appContext
@@ -52,6 +51,7 @@ import dev.patrickgold.florisboard.ime.nlp.SpellingProvider
 import dev.patrickgold.florisboard.ime.nlp.SpellingResult
 import dev.patrickgold.florisboard.ime.nlp.SuggestionCandidate
 import dev.patrickgold.florisboard.ime.nlp.SuggestionProvider
+import dev.patrickgold.florisboard.ime.nlp.TypingStores
 import dev.patrickgold.florisboard.ime.nlp.WordSuggestionCandidate
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -132,9 +132,12 @@ class LatinLanguageProvider(context: Context) : SpellingProvider, SuggestionProv
     private val keptAsTyped by lazy { KeptWords(File(appContext.filesDir, KEPT_WORDS_FILE)) }
     @Volatile private var keptWordsLoaded = false
 
-    /** What the user has typed (see [WordLearner]). Loaded by [preload], saved by [saveLearnedWords]. */
+    /**
+     * What the user has typed, which the NLP session's typing events teach (see
+     * lib/rust/crates/suggest/src/word_learner.rs). Loaded by [preload], saved by [saveLearnedWords].
+     */
     private val learnedWords by lazy { LearnedWords(File(appContext.filesDir, LEARNED_WORDS_FILE)) }
-    private val learner by lazy { WordLearner(learnedWords, lookup = { engine }) }
+    private val typingStores by lazy { TypingStores(Learner(learnedWords.store), learnedWords.store, tapTrail.positions, keptAsTyped.store) }
     @Volatile private var learnedWordsLoaded = false
 
     /** AudioWhisper: where the letters being typed were tapped, for the decoder (B13). */
@@ -320,12 +323,6 @@ class LatinLanguageProvider(context: Context) : SpellingProvider, SuggestionProv
             ?.toCandidate(autoCorrectAllowed = true)
     }
 
-    /**
-     * AudioWhisper: see [keptAsTyped]. Never logged. With [remember] false (incognito) it lasts
-     * until the keyboard restarts; otherwise it returns true and [saveKeptWords] should follow.
-     */
-    fun keepAsTyped(word: String, remember: Boolean): Boolean = keptAsTyped.add(word, remember)
-
     /** AudioWhisper: writes [keptAsTyped] to filesDir. Blocking; call off the main thread. */
     fun saveKeptWords() {
         if (!keptAsTyped.save()) Log.w(TAG, "Could not save the words kept as typed")
@@ -373,22 +370,15 @@ class LatinLanguageProvider(context: Context) : SpellingProvider, SuggestionProv
     private fun typingHistory(): TypingHistory = learnedHistory() ?: TypingHistory.NONE
 
     /**
-     * AudioWhisper: the [WordLearner], if what is typed in this field now may be learned: the
-     * setting is on, the language is English, and the field takes prose with suggestions (not a
-     * password, e-mail address or URL). Incognito is checked by the caller.
+     * AudioWhisper: the plan for typing event [event] with [context] after it (see [NlpState.event]),
+     * over the learned and kept words and the tap trail. With [lends], words may be learned: the
+     * dictionary is lent while [subtype] suggests from it, as the session asks.
      */
-    fun learnerFor(subtype: Subtype): WordLearner? {
-        return learner.takeIf { environment.policy(subtype, ready = suggesterFor(subtype) != null)[4] == "1" }
+    internal fun typingEvent(subtype: Subtype, event: Array<String>, context: Array<String>, candidate: SuggestionCandidate?,
+                             lends: Boolean): Array<String> {
+        val dictionary = if (lends && suggesterFor(subtype) != null) engine?.session else null
+        return NlpState.event(typingStores, dictionary, event, context, candidate)
     }
-
-    /** AudioWhisper: a new field started; see [WordLearner.reset]. Tap positions there are unrelated too. */
-    fun resetLearning() {
-        learner.reset()
-        tapTrail.clear()
-    }
-
-    /** AudioWhisper: see [WordLearner.dropSwiped]. */
-    fun dropSwipedWord() = learner.dropSwiped()
 
     /** AudioWhisper: writes [learnedWords] to filesDir. Blocking; call off the main thread. */
     fun saveLearnedWords() {

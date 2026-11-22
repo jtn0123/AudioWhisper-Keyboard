@@ -398,3 +398,23 @@ fn a_long_argument_puts_its_lambda_on_a_line_of_its_own() {
     );
     assert_eq!(expr.lines(""), expected);
 }
+
+#[test]
+fn a_long_lambda_after_a_lent_call_puts_each_statement_on_a_line() {
+    let fences: Vec<String> = ["learner", "store", "taps", "kept"]
+        .iter()
+        .map(|name| format!("Reference.reachabilityFence({name})"))
+        .collect();
+    let expr = Expr {
+        before: String::new(),
+        call: "N.f".to_owned(),
+        args: vec!["handle".to_owned(), "it".to_owned()],
+        after: format!(".also {{ {} }}", fences.join("; ")),
+        lend: Some("S.lend(s) {".to_owned()),
+    };
+    let expected = format!(
+        "S.lend(s) {{\n    N.f(handle, it)\n}}.also {{\n    {}\n}}\n",
+        fences.join("\n    ")
+    );
+    assert_eq!(expr.lines(""), expected);
+}

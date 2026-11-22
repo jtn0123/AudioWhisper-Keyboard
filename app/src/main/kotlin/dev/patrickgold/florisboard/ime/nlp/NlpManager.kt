@@ -20,7 +20,6 @@ import android.content.Context
 import android.os.SystemClock
 import com.jtn0123.audiowhisper.rust.*
 import com.jtn0123.audiowhisper.suggest.GlideGuess
-import com.jtn0123.audiowhisper.suggest.WordLearner
 import dev.patrickgold.florisboard.app.FlorisPreferenceStore
 import dev.patrickgold.florisboard.clipboardManager
 import dev.patrickgold.florisboard.editorInstance
@@ -43,7 +42,6 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import org.florisboard.lib.kotlin.guardedByLock
 import org.florisboard.lib.kotlin.collectLatestIn
-import org.florisboard.lib.kotlin.safeSubstring
 import java.util.concurrent.atomic.AtomicBoolean
 
 
@@ -71,6 +69,15 @@ class NlpManager(context: Context) {
     private val preloadLock = Mutex()
 
     private val environment = NlpEnvironment(context)
+
+    /** AudioWhisper: typing events, each answered by the NLP session with one plan (see [TypingEvents]). */
+    private val typing = TypingEvents(
+        send = { event, context, candidate, lends -> latinProvider.typingEvent(subtypeManager.activeSubtype, event, context, candidate, lends) },
+        context = { environment.fields(subtypeManager.activeSubtype, it) },
+        now = SystemClock::uptimeMillis,
+        saveAfter = ::saveLearnedWordsAfter,
+        saveKept = { scope.launch(Dispatchers.IO) { latinProvider.saveKeptWords() } },
+    )
     private var requestJob: Job? = null
     val activeCandidatesFlow = NlpState.candidates
     val activeCandidatesWordsFlow = NlpState.wordsShown
@@ -256,21 +263,20 @@ class NlpManager(context: Context) {
     }
 
     /**
+     * AudioWhisper: whether [candidate], tapped as the editor stands, may go in. With [commit] it
+     * goes in and is learned, and with [corrects] it is the auto-correction a backspace straight
+     * after undoes (see [TypingEvents.picked]).
+     */
+    fun pick(candidate: SuggestionCandidate, commit: Boolean, corrects: Boolean = false): Boolean =
+        typing.picked(candidate, editorInstance.activeContent, commit, corrects)
+
+    /**
      * The candidate to commit before [triggerCodePoint] (null for space) is inserted, if any.
      *
      * AudioWhisper: for the Latin provider the answer is computed for the word at the cursor right
      * now rather than read from [activeCandidates], which can be a keystroke behind; and digits,
      * apostrophes, hyphens and `@` continue a word instead of ending it (see [com.jtn0123.audiowhisper.rust.SuggestRules.continuesWord]).
      */
-    fun canCommit(candidate: SuggestionCandidate): Boolean =
-        NlpState.pick(candidate, environment.fields(subtypeManager.activeSubtype)).also {
-            // AudioWhisper: a word tapped keeps the word typed before it, or replaces the one being typed.
-            if (it && candidate is WordSuggestionCandidate) {
-                tapTrail.picked(forWord = editorInstance.activeContent.composingText.isNotEmpty())
-            }
-            noteTypingChanged()
-        }
-
     fun getAutoCommitCandidate(triggerCodePoint: Int? = null): SuggestionCandidate? {
         val requested = environment.fields(subtypeManager.activeSubtype)
         NlpState.configure(requested)
@@ -281,84 +287,40 @@ class NlpManager(context: Context) {
     }
 
     /**
-     * AudioWhisper: the user undid the auto-correction of [word]; leave it alone from now on,
-     * remembered across restarts unless the field or the user asked for incognito.
-     */
-    fun keepAsTyped(word: String) {
-        configure()
-        val remember = WireFlag.decode(NlpState.call(NlpOp.KEEP, word)[0])
-        if (latinProvider.keepAsTyped(word, remember)) {
-            scope.launch(Dispatchers.IO) { latinProvider.saveKeptWords() }
-        }
-    }
-
-    /** AudioWhisper: a save of the learned words is scheduled (see [saveLearnedWordsSoon]). */
-
-    /**
      * AudioWhisper: the word being composed in [content] was finished by [triggerCodePoint] (null
-     * for a space or Enter) and stays as typed. See [WordLearner.finished].
+     * for a space or Enter) and stays as typed.
      */
-    fun learnTypedWord(content: EditorContent, triggerCodePoint: Int? = null) {
-        learningPlan(NlpLearnKind.TYPED, content.composingText, content, triggerCodePoint)
-        // The word kept as typed may teach where this user taps (see suggest/tap_learning.rs).
-        val aim = NlpState.call(NlpOp.AIM, *with(NlpAim) { row(SETTING to WireFlag.encode(prefs.suggestion.learnTapAim.get()),
-            TRIGGER to "${triggerCodePoint ?: -1}", WORD to content.composingText, COMPOSING_VALID to WireFlag.encode(content.localComposing.isValid)) })
-        if (WireFlag.decode(aim[0])) tapTrail.kept(content.composingText)
-        noteTypingChanged()
-    }
+    fun learnTypedWord(content: EditorContent, triggerCodePoint: Int? = null) =
+        typing.finished(content, triggerCodePoint, aim = prefs.suggestion.learnTapAim.get())
 
-    fun learnCandidate(text: String, content: EditorContent) {
-        latinProvider.dropSwipedWord()
-        learningPlan(NlpLearnKind.PICKED, text, content)
-    }
-
-    fun learnSwipedWord(word: String, content: EditorContent) {
-        learningPlan(NlpLearnKind.SWIPED, word, content)
-        tapTrail.swiped()
-        noteTypingChanged()
-    }
-
-    private fun learningPlan(kind: Int, word: String, content: EditorContent, trigger: Int? = null) {
-        configure(subtypeManager.activeSubtype, content)
-        val plan = NlpState.call(NlpOp.LEARN, *with(NlpLearn) { row(KIND to "$kind", TRIGGER to "${trigger ?: -1}", WORD to word,
-            BEFORE_COMPOSING to content.text.safeSubstring(0, content.localComposing.start), COMPOSING_START to "${content.composing.start}",
-            COMPOSING_VALID to WireFlag.encode(content.localComposing.isValid), TEXT_BEFORE_SELECTION to content.textBeforeSelection) })
-        if (plan.isEmpty()) return
-        learn { learner -> with(NlpLearnPlan) { when (plan[KIND].toInt()) {
-            NlpLearnKind.SWIPED -> learner.swiped(plan[WORD], plan[BEFORE])
-            else -> learner.finished(plan[WORD], plan[BEFORE], plan[START].toInt())
-        } } }
-    }
+    fun learnSwipedWord(word: String, content: EditorContent) = typing.swiped(word, content)
 
     /**
      * AudioWhisper: a backspace; a swiped word waiting to be learned is being taken out, and so
      * is a typed word waiting to teach where this user taps.
      */
-    fun dropSwipedWord() {
-        latinProvider.dropSwipedWord()
-        tapTrail.backspace()
-        val selection = editorInstance.activeContent.selection
-        counters.deleted(selection.start, selection.end)
-        noteTypingChanged()
-    }
+    fun dropSwipedWord() = editorInstance.activeContent.selection.let { typing.backspace(it.start, it.end) }
 
-    /** AudioWhisper: a key that types went down (a character, a space or Enter), for the counters. */
-    fun noteKey() {
-        counters.key()
-    }
+    /** AudioWhisper: a key that types went down (a space or Enter), for the counters. */
+    fun noteKey() = typing.key()
+
+    /** AudioWhisper: a tapped character, [text], went in. */
+    fun noteTyped(text: String) = typing.typed(text)
+
+    /** AudioWhisper: the tap trail's last character was deleted. */
+    fun noteTapDeleted() = typing.tapDeleted()
+
+    /** AudioWhisper: what was just done can no longer undo an auto-correction. */
+    fun disarmCorrectionUndo() = typing.disarm()
+
+    /** AudioWhisper: how to put back what was typed, if the last key auto-corrected it. */
+    internal fun undoAutoCorrection(): TypingEvents.Revert? = typing.undoCorrection(editorInstance.activeContent)
 
     /** AudioWhisper: the backspace straight after an auto-correction undid it. */
-    fun noteCorrectionUndone() {
-        counters.undone()
-        noteTypingChanged()
-    }
+    fun noteCorrectionUndone() = typing.correctionUndone()
 
     /** AudioWhisper: the undo key; nothing just typed may teach where this user taps. */
-    fun noteUndo() {
-        tapTrail.undo()
-        counters.undo()
-        noteTypingChanged()
-    }
+    fun noteUndo() = typing.undo()
 
     /** AudioWhisper: the screen's orientation, which where this user taps is learned per. */
     fun noteOrientation(landscape: Boolean) = tapTrail.landscape(landscape)
@@ -377,18 +339,8 @@ class NlpManager(context: Context) {
     fun aimedKey(hit: Int, layout: IntArray, bounds: FloatArray, x: Float, y: Float): Int =
         tapTrail.retarget(hit, layout, bounds, x, y, aimsTaps)
 
-    /** Schedules a save if where this user taps or the counters changed. */
-    private fun noteTypingChanged() {
-        if (tapTrail.aimChanged() or counters.changed()) saveLearnedWordsSoon()
-    }
-
-    /** AudioWhisper: the auto-correction that started at [start] was undone; what it taught goes too. */
-    fun unlearnAutoCorrection(start: Int) {
-        learn { it.undo(start) }
-    }
-
     /** AudioWhisper: input moved to another field. */
-    fun resetLearning() { NlpState.field(); latinProvider.resetLearning() }
+    fun resetLearning() = typing.field()
 
     /** AudioWhisper: where the letters being typed were tapped (see [LatinLanguageProvider.tapTrail]). */
     val tapTrail get() = latinProvider.tapTrail
@@ -401,15 +353,8 @@ class NlpManager(context: Context) {
         }
     }
 
-    /** Applies [change] to the learner unless incognito or the field rules learning out. */
-    private inline fun learn(change: (WordLearner) -> Boolean) {
-        if (!WireFlag.decode(environment.policy(subtypeManager.activeSubtype)[NlpPolicy.LEARN])) return
-        val learner = latinProvider.learnerFor(subtypeManager.activeSubtype) ?: return
-        if (change(learner)) saveLearnedWordsSoon()
-    }
-
-    private fun saveLearnedWordsSoon() {
-        val delayMs = NlpState.call(NlpOp.SAVE, SystemClock.uptimeMillis().toString())[0].toLong()
+    /** Saves the learned words, the tap aim and the counters after [delayMs], as a typing event's plan asked (-1: none). */
+    private fun saveLearnedWordsAfter(delayMs: Long) {
         if (delayMs < 0) return
         scope.launch(Dispatchers.IO) {
             delay(delayMs)
@@ -443,7 +388,7 @@ class NlpManager(context: Context) {
     }
 
     fun removeSuggestion(subtype: Subtype, candidate: SuggestionCandidate): Boolean {
-        if (!canCommit(candidate)) return false
+        if (!pick(candidate, commit = false)) return false
         return runBlocking { candidate.sourceProvider?.removeSuggestion(subtype, candidate) == true }.also { result ->
             if (result) {
                 scope.launch {

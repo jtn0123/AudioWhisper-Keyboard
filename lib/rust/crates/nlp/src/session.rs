@@ -37,6 +37,8 @@ pub struct Session {
     pub carry: bool,
     /// The private accuracy counters (see crate::counters).
     pub counters: crate::counters::Counters,
+    /// The auto-correction a backspace straight after undoes (see crate::typing).
+    pub armed: Option<crate::typing::Armed>,
 }
 /// Context fields that change as the user types: selection validity and bounds, composing
 /// bounds, text and offset. A change to only these is answered by a request for the new text.

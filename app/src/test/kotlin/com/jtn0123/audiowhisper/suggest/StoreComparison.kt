@@ -154,7 +154,7 @@ class StoreComparison(private val sigmaExact: Boolean, private val dir: File) {
         when (random.nextInt(10)) {
             in 0..6 -> {
                 val remember = random.nextInt(4) != 0
-                check("add $remember", word, stores.reference.add(word, remember), stores.rust.add(word, remember))
+                check("add $remember", word, stores.reference.add(word, remember), stores.rust.store.add(word, remember))
             }
             7 -> compareSaved("kept", stores.reference.save(), stores.rust.save(), stores.referenceFile, stores.rustFile)
             8 -> {

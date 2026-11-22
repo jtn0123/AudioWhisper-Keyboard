@@ -36,8 +36,14 @@ internal class NlpEnvironment(context: Context) {
         NlpState.call(NlpOp.POLICY, *fields(subtype, content, ready))
 }
 
-/** Retains platform objects by opaque ids. Rust alone owns their ordering and visibility. */
-internal object NlpState {
+/** The keyboard's one NLP session. */
+internal object NlpState : NlpSessionState()
+
+/**
+ * Retains platform objects by opaque ids. Rust alone owns their ordering and visibility. A class
+ * so a host test can start a session afresh, as a new process does.
+ */
+internal open class NlpSessionState {
     private val native = NlpSession()
     private var nextId = 0L
     private var automatic = emptyMap<String, SuggestionCandidate>()
@@ -60,7 +66,6 @@ internal object NlpState {
         publish(result.drop(NlpBegin.SIZE).toTypedArray())
         return result.take(NlpBegin.SIZE).toTypedArray()
     }
-    @Synchronized fun field() { native.call(NlpOp.FIELD); publish() }
     @Synchronized fun clear() { native.call(NlpOp.CLEAR); words = emptyMap(); clips = emptyMap(); publish() }
     /** An [NlpCandidate] row for each of [values]. */
     private fun pack(values: List<SuggestionCandidate>): Pair<Map<String, SuggestionCandidate>, Array<String>> {
@@ -105,13 +110,17 @@ internal object NlpState {
         if (WireFlag.decode(native.call(NlpOp.INLINE_COMPLETE, generation, *fields.toTypedArray())[0])) views = objects
         publish()
     }
-    @Synchronized fun pick(candidate: SuggestionCandidate, current: Array<String>): Boolean {
-        native.call(NlpOp.CONTEXT, *current)
-        val id = (words + clips + automatic).entries.firstOrNull { it.value === candidate }?.key
-        if (id == null) { publish(); return false }
-        val result = WireFlag.decode(native.call(NlpOp.PICK, id)[0])
-        publish()
-        return result
+    /**
+     * The [NlpEventPlan] row for typing event [event], [candidate]'s id put in, with [context]
+     * after it (see [TypingEvents]); the session changes the other stores itself, asking
+     * [dictionary] if lent. Publishes the snapshot the plan carries.
+     */
+    @Synchronized fun event(stores: TypingStores, dictionary: LatinSession?, event: Array<String>, context: Array<String>,
+                            candidate: SuggestionCandidate?): Array<String> {
+        if (candidate != null) event[NlpEvent.CANDIDATE] = (words + clips + automatic).entries.firstOrNull { it.value === candidate }?.key.orEmpty()
+        val plan = native.event(stores.learner, stores.store, stores.taps, stores.kept, dictionary, *event, *context)
+        if (WireFlag.decode(plan[NlpEventPlan.PUBLISH])) publish(plan.copyOfRange(NlpEventPlan.SIZE, plan.size))
+        return plan
     }
     /** An [NlpSnapshot] row, then the ids it counts. */
     private fun publish(snapshot: Array<String> = native.call(NlpOp.SNAPSHOT)) {

@@ -42,8 +42,7 @@ impl Expr {
         }
         if let Some(lend) = &self.lend {
             let inner = self.bare().lines(&format!("{indent}    "));
-            let close = format!("{indent}}}{}", self.after);
-            assert!(close.len() <= 120, "too long: {close}");
+            let close = closing(&self.after, indent);
             return format!("{indent}{}{lend}\n{inner}{close}\n", self.before);
         }
         if let Some((open, body, close)) = lambda(&self.after) {
@@ -67,6 +66,26 @@ impl Expr {
         }
         format!("{indent}{}{}(\n{args}{close}\n", self.before, self.call)
     }
+}
+
+/// The `}` closing a lent call at `indent`, then `after`: on one line if it fits, else with the
+/// body of its lambda one statement to a line.
+fn closing(after: &str, indent: &str) -> String {
+    let close = format!("{indent}}}{after}");
+    if close.len() <= 120 {
+        return close;
+    }
+    let (open, body, end) = lambda(after).unwrap_or_else(|| panic!("too long: {close}"));
+    let mut text = format!("{indent}}}{open}");
+    for statement in body.split("; ") {
+        text.push_str(&format!("\n{indent}    {statement}"));
+    }
+    text.push_str(&format!("\n{indent}}}{end}"));
+    assert!(
+        text.lines().all(|line| line.len() <= 120),
+        "too long: {text}"
+    );
+    text
 }
 
 /// One argument on its own line at `indent`, its lambda's body on a line of its own if the line

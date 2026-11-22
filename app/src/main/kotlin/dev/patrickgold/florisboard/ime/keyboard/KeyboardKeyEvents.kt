@@ -66,7 +66,7 @@ private fun KeyboardManager.executeInput(phase: Int,data: KeyData) {
             READ_DOWN -> ReadAloud.keyDown()
             READ_UP -> ReadAloud.keyUp(appContext)
             READ_CANCEL -> ReadAloud.keyCancel()
-            CLEAR_UNDO -> autoCorrectionUndo=null
+            CLEAR_UNDO -> nlpManager.disarmCorrectionUndo()
             FORGET_DICTATION -> editorInstance.forgetDictation()
             GIF_DELETE_KEY -> GifSearch.deleteLast()
             GIF_DELETE_WORD_KEY -> GifSearch.deleteWord()
@@ -110,7 +110,7 @@ private fun KeyboardManager.executeInput(phase: Int,data: KeyData) {
             AUTOCORRECT_TOGGLE -> handleToggleAutocorrect()
             AUTO_CORRECT -> autoCorrect(if(arg<0) null else UCharacter.codePointAt(text,0))
             COMMIT_TEXT -> editorInstance.commitText(text)
-            TAP_TYPED -> { nlpManager.noteKey(); nlpManager.tapTrail.typed(text) }
+            TAP_TYPED -> nlpManager.noteTyped(text)
             COMMIT_CHAR -> editorInstance.commitChar(text)
             UNKNOWN_KEY -> flogError(LogTopic.KEY_EVENTS) {"Received unknown key"}
             FEEDBACK_REPEAT -> FlorisImeService.inputFeedbackController()?.keyRepeatedAction(data)

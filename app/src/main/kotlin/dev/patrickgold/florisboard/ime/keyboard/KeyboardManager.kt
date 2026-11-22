@@ -23,7 +23,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.setValue
 import com.jtn0123.audiowhisper.gif.GifSearch
-import com.jtn0123.audiowhisper.suggest.AutoCorrectionUndo
 import dev.patrickgold.florisboard.app.FlorisPreferenceStore
 import dev.patrickgold.florisboard.appContext
 import dev.patrickgold.florisboard.clipboardManager
@@ -35,7 +34,6 @@ import dev.patrickgold.florisboard.ime.input.InputKeyEventReceiver
 import dev.patrickgold.florisboard.ime.input.InputShiftState
 import dev.patrickgold.florisboard.ime.nlp.ClipboardSuggestionCandidate
 import dev.patrickgold.florisboard.ime.nlp.SuggestionCandidate
-import dev.patrickgold.florisboard.ime.nlp.WordSuggestionCandidate
 import dev.patrickgold.florisboard.ime.text.gestures.SwipeAction
 import dev.patrickgold.florisboard.ime.text.gestures.keyData
 import dev.patrickgold.florisboard.ime.text.key.KeyCode
@@ -75,9 +73,6 @@ class KeyboardManager(context: Context) : InputKeyEventReceiver {
     val activeState = ObservableKeyboardState.new()
     var smartbarVisibleDynamicActionsCount by mutableIntStateOf(0)
     internal var lastToastReference = WeakReference<Toast>(null)
-
-    /** AudioWhisper: the auto-correction a backspace typed straight after it would undo. */
-    internal var autoCorrectionUndo: AutoCorrectionUndo? = null
 
     private val activeEvaluatorGuard = Mutex(locked = false)
     private var activeEvaluatorVersion = AtomicInteger(0)
@@ -216,20 +211,18 @@ class KeyboardManager(context: Context) : InputKeyEventReceiver {
         swipeAction.keyData(activeState.keyboardMode)?.let { inputEventDispatcher.sendDownUp(it) }
     }
 
-    fun commitCandidate(candidate: SuggestionCandidate) {
-        if (!nlpManager.canCommit(candidate)) return
+    /**
+     * Commits [candidate]; AudioWhisper: a word tapped or auto-corrected ([corrects]) is a finished
+     * word, which the NLP session learns as it lets it go in.
+     */
+    fun commitCandidate(candidate: SuggestionCandidate, corrects: Boolean = false) {
+        if (!nlpManager.pick(candidate, commit = true, corrects)) return
         scope.launch {
             candidate.sourceProvider?.notifySuggestionAccepted(subtypeManager.activeSubtype, candidate)
         }
         when (candidate) {
             is ClipboardSuggestionCandidate -> editorInstance.commitClipboardItem(candidate.clipboardItem)
-            else -> {
-                // AudioWhisper: a tapped (or auto-corrected) word is a finished word.
-                if (candidate is WordSuggestionCandidate) {
-                    nlpManager.learnCandidate(candidate.text.toString(), editorInstance.activeContent)
-                }
-                editorInstance.commitCompletion(candidate)
-            }
+            else -> editorInstance.commitCompletion(candidate)
         }
     }
 

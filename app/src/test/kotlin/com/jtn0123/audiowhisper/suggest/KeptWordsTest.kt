@@ -20,7 +20,7 @@ class KeptWordsTest {
     @Test
     fun remembersAcrossRestartsIgnoringCase() {
         val kept = KeptWords(file)
-        assertTrue(kept.add("Teh", remember = true))
+        assertTrue(kept.store.add("Teh", remember = true))
         assertTrue(kept.save())
         val restarted = KeptWords(file).apply { load() }
         assertTrue("teh" in restarted)
@@ -31,9 +31,9 @@ class KeptWordsTest {
     @Test
     fun neverWritesAnIncognitoWord() {
         val kept = KeptWords(file)
-        assertFalse(kept.add("secret", remember = false))
+        assertFalse(kept.store.add("secret", remember = false))
         assertTrue("secret" in kept)
-        kept.add("teh", remember = true)
+        kept.store.add("teh", remember = true)
         kept.save()
         val restarted = KeptWords(file).apply { load() }
         assertFalse("secret" in restarted)
@@ -44,19 +44,19 @@ class KeptWordsTest {
     @Test
     fun keepsTheNewestWhenFull() {
         val kept = KeptWords(file, capacity = 2)
-        kept.add("one", remember = true)
-        kept.add("two", remember = true)
-        kept.add("one", remember = true) // used again: now the newest
-        kept.add("three", remember = true)
+        kept.store.add("one", remember = true)
+        kept.store.add("two", remember = true)
+        kept.store.add("one", remember = true) // used again: now the newest
+        kept.store.add("three", remember = true)
         assertFalse("two" in kept)
         assertTrue("one" in kept && "three" in kept)
     }
 
     @Test
     fun loadingKeepsWordsAddedBeforeIt() {
-        KeptWords(file).apply { add("saved", remember = true); save() }
+        KeptWords(file).apply { store.add("saved", remember = true); save() }
         val kept = KeptWords(file)
-        kept.add("early", remember = true)
+        kept.store.add("early", remember = true)
         kept.load()
         assertTrue("saved" in kept && "early" in kept)
         kept.save()

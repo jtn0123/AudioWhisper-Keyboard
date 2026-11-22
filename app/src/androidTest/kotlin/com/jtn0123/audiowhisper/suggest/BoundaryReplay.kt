@@ -1,6 +1,7 @@
 package com.jtn0123.audiowhisper.suggest
 
 import android.content.Context
+import com.jtn0123.audiowhisper.rust.Learner
 import com.jtn0123.audiowhisper.rust.ReaderRules
 import com.jtn0123.audiowhisper.rust.ReaderTree
 import com.jtn0123.audiowhisper.rust.ReaderWalk
@@ -38,7 +39,7 @@ object BoundaryReplay {
             check(ReferenceReader.PageText.resumeAfter(pieces, read) == PageText.resumeAfter(pieces, read)) { "reader resume sample $it" }
         }
         val history = LearnedWords(null)
-        val learner = WordLearner(history) { engine }
+        val learner = Learner(history.store)
         val guesses = (0 until 32).map { GlideGuess(listOf("the", "hello", "world", "later")[it % 4], it / 10f) }
         val ranker = GlideRanker(history, engine)
         val previous = PreviousWords(listOf("hello"), false)
@@ -78,8 +79,8 @@ object BoundaryReplay {
         }
         trial("learner_finished", 100) {
             learner.reset()
-            learner.swiped("HELLO", "say ")
-            fingerprint(learner.finished("The", "", 0).toString())
+            learner.learnNative("HELLO", "say ", -1, true, engine.session)
+            fingerprint(learner.learnNative("The", "", 0, false, engine.session).toString())
             learner.undo(0)
         }
         trial("glide_32", 100) { fingerprint(ranker.rank(guesses, previous).joinToString("|")) }

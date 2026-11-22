@@ -28,7 +28,7 @@ import dev.patrickgold.florisboard.ime.core.Subtype
 import dev.patrickgold.florisboard.ime.editor.EditorContent
 import dev.patrickgold.florisboard.ime.editor.EditorRange
 import dev.patrickgold.florisboard.ime.media.emoji.EmojiSuggestionProvider
-import dev.patrickgold.florisboard.ime.nlp.latin.LatinLanguageProvider
+import dev.patrickgold.florisboard.ime.nlp.latin.ReferenceLatinLanguageProvider
 import dev.patrickgold.florisboard.keyboardManager
 import dev.patrickgold.florisboard.subtypeManager
 import kotlinx.coroutines.CoroutineScope
@@ -63,10 +63,10 @@ class ReferenceNlpManager(context: Context) {
     private val clipboardSuggestionProvider = ClipboardSuggestionProvider(context)
     private val emojiSuggestionProvider = EmojiSuggestionProvider(context)
     // AudioWhisper: kept directly so auto-correction and learning reach it without the providers map.
-    private val latinProvider = LatinLanguageProvider(context)
+    private val latinProvider = ReferenceLatinLanguageProvider(context)
     private val providers = guardedByLock {
         mapOf(
-            LatinLanguageProvider.ProviderId to ProviderInstanceWrapper(latinProvider),
+            ReferenceLatinLanguageProvider.ProviderId to ProviderInstanceWrapper(latinProvider),
         )
     }
     // lock unnecessary because values constant
@@ -261,7 +261,7 @@ class ReferenceNlpManager(context: Context) {
      */
     fun getAutoCommitCandidate(triggerCodePoint: Int? = null): SuggestionCandidate? {
         val subtype = subtypeManager.activeSubtype
-        if (subtype.nlpProviders.suggestion != LatinLanguageProvider.ProviderId) {
+        if (subtype.nlpProviders.suggestion != ReferenceLatinLanguageProvider.ProviderId) {
             return activeCandidates.firstOrNull { it.isEligibleForAutoCommit }
         }
         if (!prefs.suggestion.enabled.get()) return null
@@ -330,7 +330,7 @@ class ReferenceNlpManager(context: Context) {
     /** AudioWhisper: input moved to another field. */
     fun resetLearning() = latinProvider.resetLearning()
 
-    /** AudioWhisper: where the letters being typed were tapped (see [LatinLanguageProvider.tapTrail]). */
+    /** AudioWhisper: where the letters being typed were tapped (see [ReferenceLatinLanguageProvider.tapTrail]). */
     val tapTrail get() = latinProvider.tapTrail
 
     /** AudioWhisper: erases everything learned from typing, on the phone too. */
@@ -357,7 +357,7 @@ class ReferenceNlpManager(context: Context) {
 
     /**
      * AudioWhisper: the swipe [guesses] in order for the cursor after [textBefore], which a swiped
-     * word follows with a space (see [LatinLanguageProvider.rankGlideGuesses]). Any thread.
+     * word follows with a space (see [ReferenceLatinLanguageProvider.rankGlideGuesses]). Any thread.
      */
     fun rankGlideGuesses(guesses: List<GlideGuess>, textBefore: String): List<String> =
         latinProvider.rankGlideGuesses(subtypeManager.activeSubtype, guesses, beforeNextWord(textBefore))
@@ -366,7 +366,7 @@ class ReferenceNlpManager(context: Context) {
     private fun beforeNextWord(textBefore: String): String =
         if (textBefore.isNotEmpty() && !textBefore.last().isWhitespace()) "$textBefore " else textBefore
 
-    /** AudioWhisper: see [LatinLanguageProvider.isName]. */
+    /** AudioWhisper: see [ReferenceLatinLanguageProvider.isName]. */
     fun isName(word: String) = latinProvider.isName(word)
 
     /** AudioWhisper: goes up when glide typing's word list changes (see [getListOfWords]). */

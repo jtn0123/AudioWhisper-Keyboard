@@ -271,7 +271,7 @@ impl Counters {
 
 impl Session {
     /// Counting happens only where suggestions for words do and the user is not incognito.
-    fn counting(&self) -> bool {
+    pub(crate) fn counting(&self) -> bool {
         self.context.words() && !self.context.flag(context::INCOGNITO)
     }
 

@@ -15,15 +15,13 @@ import java.io.IOException
  * Thread-safe: words are added on the main thread and read while suggesting.
  */
 class KeptWords(private val file: File?, capacity: Int = CAPACITY) {
-    private val store = KeptWordStore(capacity)
+    /** The words; the NLP session's typing events add to it (see lib/rust/crates/nlp/src/typing.rs). */
+    internal val store = KeptWordStore(capacity)
 
     /** Two saves at once would write the same temporary file. */
     private val saveLock = Any()
 
     operator fun contains(word: String): Boolean = word in store
-
-    /** Keeps [word]; true when the change needs [save]. */
-    fun add(word: String, remember: Boolean): Boolean = store.add(word, remember)
 
     /** Forgets every kept word; [save] then writes an empty file. */
     fun clear() = store.clear()
