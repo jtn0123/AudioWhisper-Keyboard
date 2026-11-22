@@ -630,6 +630,14 @@
     <string name="setup__finish_up__description_p1">{app_name} is now enabled in the system and ready to be customized by you.</string>
     <string name="setup__finish_up__description_p2">If you encounter any issues, bugs, crashes or just want to make a suggestion, check out the project repository from the about screen!</string>
     <string name="setup__finish_up__finish_btn">Start Customizing</string>
+    <string name="setup__step__label" comment="What TalkBack reads for a setup step's header: its number, how many there are, and its title">Step {n} of {count}: {title}</string>
+    <string name="setup__step__done" comment="TalkBack state of a setup step already done">Done</string>
+    <string name="setup__step__current" comment="TalkBack state of the setup step that is open">Current step</string>
+    <string name="setup__step__next" comment="TalkBack state of the first setup step not done, while an earlier one is open">Up next</string>
+    <string name="setup__step__later" comment="TalkBack state of a setup step that waits for the steps before it">Not yet: finish the steps above first</string>
+    <string name="setup__notifications__allowed" comment="Shown in setup once notifications are allowed">Notifications are allowed.</string>
+    <string name="setup__notifications__off" comment="Shown in setup after the notification permission was denied">Notifications are off. {app_name} works without them; you can turn them on later in the system settings.</string>
+    <string name="setup__notifications__settings_btn" comment="Setup button opening the app's notification settings when Android will not ask again">Open Notification Settings</string>
 
     <!-- Physical keyboard -->
     <string name="physical_keyboard__title">Physical keyboard</string>

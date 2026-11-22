@@ -2,11 +2,13 @@
 use render::settings_ui::{
     App, Modal, backup_saved,
     catalogue::{self, Kind},
+    setup,
 };
 use settings::{Text, text};
 /// The saved state's layout; 3 added Back up's and Restore's state, 4 the language screens',
-/// 5 the user dictionary screens', 6 the project licence's horizontal scroll.
-const VERSION: &str = "6";
+/// 5 the user dictionary screens', 6 the project licence's horizontal scroll, 7 the setup
+/// screen's chosen step.
+const VERSION: &str = "7";
 pub fn save(a: &App) -> Vec<Text> {
     // LibrariesContainer keeps its open library, and Jetpref's colour and time preferences their
     // dialogs, in a plain `remember`: recreation closes them.
@@ -43,10 +45,11 @@ pub fn save(a: &App) -> Vec<Text> {
         text(&a.languages_saved()),
         text(&a.words_saved()),
         text(&a.project_saved()),
+        text(&a.setup_saved()),
     ]
 }
 pub fn restore(a: &mut App, packet: &[Text]) -> Result<(), &'static str> {
-    if packet.len() != 19 || packet[0] != text(VERSION) || packet[7].len() > 65_536 {
+    if packet.len() != 20 || packet[0] != text(VERSION) || packet[7].len() > 65_536 {
         return Err("settings saved state version or size");
     }
     let p: Vec<_> = packet.iter().map(|s| String::from_utf16_lossy(s)).collect();
@@ -63,7 +66,7 @@ pub fn restore(a: &mut App, packet: &[Text]) -> Result<(), &'static str> {
         || stack
             .iter()
             .enumerate()
-            .any(|(i, r)| !catalogue::native(r) || (i == 0) != (r == catalogue::HOME_ROUTE))
+            .any(|(i, r)| !catalogue::native(r) || (i == 0) != root(r))
     {
         return Err("settings saved route");
     }
@@ -120,6 +123,7 @@ pub fn restore(a: &mut App, packet: &[Text]) -> Result<(), &'static str> {
     let focused = p[12].parse::<bool>().map_err(|_| "settings saved focus")?;
     let id = number(13)?;
     let horizontal = finite(&p[18])?;
+    let setup = App::parse_setup(&p[19])?;
     let (files, backups) = backup_saved::parse_backups(&p[15])?;
     // Checked before anything changes: a languages or words part that fails leaves the state as
     // it was.
@@ -152,5 +156,10 @@ pub fn restore(a: &mut App, packet: &[Text]) -> Result<(), &'static str> {
     a.words_restored();
     a.themes_restored();
     a.project_restored(horizontal);
+    a.setup = setup;
     Ok(())
+}
+/// The routes a back stack starts from and holds nowhere else: home and setup.
+fn root(route: &str) -> bool {
+    route == catalogue::HOME_ROUTE || route == setup::ROUTE
 }

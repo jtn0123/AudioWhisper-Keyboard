@@ -219,10 +219,10 @@ class SettingsGroupTwoMatchTest {
     @Test fun nativeRoutesAddGroupTwoAndKeepTheirScreensAcrossRecreation() {
         KeyboardRenderer(arrayOf(font)).use { n ->
             val native = n.settings(SettingsUiOp.ROUTES)[2].split("\n")
-            // Other and Theme, then Back up and Restore, then the language, user dictionary and theme manager screens follow
+            // Other and Theme, then Back up and Restore, then the language, user dictionary and theme manager screens and setup follow
             // group two.
             val group = native.dropLast(ReferenceOtherThemeScreens.screens.size + 2 + languageRoutes.size + wordRoutes.size +
-                themeRoutes.size)
+                themeRoutes.size + 1)
             assertEquals(ref.screens.map { it.route } + "settings/about/third-party-licenses" + "settings/about/project-license",
                 group.takeLast(ref.screens.size + 2))
             val f = ReferenceGroupTwoScreens.Facts(defaults(), false, "1", null, null)

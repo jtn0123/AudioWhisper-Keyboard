@@ -147,7 +147,7 @@ impl App {
         let title = self.word_title().unwrap_or_else(|| {
             self.label(self.screen().map_or("settings__home__title", |s| s.title))
         });
-        let title_left = if self.is_home() { 16.0 * d } else { 56.0 * d };
+        let title_left = if self.has_back() { 56.0 * d } else { 16.0 * d };
         // A top bar action (the subtype editor's Delete) takes 48 dp from the title.
         let title_right = if self.header_delete() { 68.0 } else { 16.0 } * d;
         let header = (64.0 * d)
@@ -363,7 +363,7 @@ impl App {
         }
         self.paint_scrollbar(&mut p, viewport);
         self.paint_box(&mut p, rect(0.0, 0.0, w, header), self.header_color(), 0.0);
-        if !self.is_home() {
+        if self.has_back() {
             self.add(
                 &mut p,
                 Control {
@@ -382,7 +382,7 @@ impl App {
                 text,
             );
         }
-        let left = if self.is_home() { 16.0 } else { 56.0 } * d;
+        let left = if self.has_back() { 56.0 } else { 16.0 } * d;
         self.paint_text(
             &mut p,
             &title,

@@ -25,6 +25,7 @@ impl App {
             Action::Lang(tap) => self.lang_tap(tap),
             Action::Words(tap) => self.words_tap(tap),
             Action::Themes(tap) => self.themes_tap(tap),
+            Action::Setup(tap) => self.setup_tap(tap),
             Action::Library(j) => {
                 if let Some(row) = self
                     .rows()
@@ -304,7 +305,9 @@ impl App {
             eligible.extend(buttons.filter(|b| !b.1.is_empty()).map(|b| b.0));
         } else {
             if !self.is_home() {
-                eligible.push(1);
+                if self.has_back() {
+                    eligible.push(1);
+                }
                 for (i, row) in self.rows().iter().enumerate() {
                     if !self.visible(i) || !self.enabled(i) {
                         continue;
@@ -322,6 +325,7 @@ impl App {
                         Kind::Libraries => eligible.extend(self.licence_focus()),
                         // SelectionContainer's text is focusable.
                         Kind::ProjectLicence => eligible.push(super::project_licence::TEXT_ID),
+                        Kind::Setup => eligible.extend(self.setup_focus()),
                         Kind::List(source) => eligible.extend(self.list_focus(source)),
                         Kind::Lang(part) => eligible.extend(self.language_focus(i, part)),
                         Kind::Words(part) => eligible.extend(self.words_focus(i, part)),

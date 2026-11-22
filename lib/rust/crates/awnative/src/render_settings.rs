@@ -157,10 +157,15 @@ pub fn settings(native: i64, op: i32, values: &[Vec<u16>]) -> Result<Vec<Vec<u16
                 }
                 a.config = c;
                 a.colors = colors;
-                a.ime_enabled = field(&p, 10)? == "true";
-                a.ime_selected = field(&p, 11)? == "true";
+                a.set_ime(field(&p, 10)? == "true", field(&p, 11)? == "true");
             }
             ops::NAVIGATE => a.navigate(field(&p, 0)?),
+            ops::START => match &p[..] {
+                [] => a.start(None),
+                [link] => a.start(Some(link)),
+                _ => return Err(illegal("settings start fields")),
+            },
+            ops::PERMISSION => a.permission_answer(&p).map_err(illegal)?,
             ops::ACTIVATE => {
                 a.activate(int(&p, 0)?);
             }
@@ -358,6 +363,7 @@ pub fn settings(native: i64, op: i32, values: &[Vec<u16>]) -> Result<Vec<Vec<u16
                     .iter()
                     .map(|[k, v]| (k.clone(), v.clone()))
                     .collect();
+                a.setup_facts();
             }
             ops::DOCUMENTS => {
                 // Documents Kotlin read for a `load` plan, as name and text pairs.

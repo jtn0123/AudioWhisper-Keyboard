@@ -196,7 +196,7 @@ impl App {
 
 /// Compose's `color.copy(alpha).compositeOver(background)` for opaque sRGB colours. An sRGB
 /// `Color` packs each component, the copied alpha included, into 8 bits.
-fn composite(color: u32, alpha: f32, background: u32) -> u32 {
+pub(super) fn composite(color: u32, alpha: f32, background: u32) -> u32 {
     let alpha = (alpha * 255.0 + 0.5).floor() / 255.0;
     let channel = |shift: u32| {
         let [c, b] = [color, background].map(|v| ((v >> shift) & 255) as f32 / 255.0);

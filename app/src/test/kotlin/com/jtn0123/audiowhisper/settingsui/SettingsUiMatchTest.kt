@@ -30,7 +30,7 @@ class SettingsUiMatchTest {
                 "settings/gestures","settings/clipboard","settings/media","settings/typing","settings/dictionary",
                 "settings/other/physical-keyboard","settings/about","settings/dictation",
                 "settings/about/third-party-licenses","settings/about/project-license","settings/other","settings/theme",
-                "settings/other/backup","settings/other/restore") + languageRoutes + wordRoutes + themeRoutes
+                "settings/other/backup","settings/other/restore") + languageRoutes + wordRoutes + themeRoutes + "setup"
             for (i in ref.home.indices) {
                 if (ref.home[i] in native) {
                     assertEquals(ref.home[i],state(n,SettingsUiOp.ACTIVATE,(100+i).toString()).getValue("route").jsonPrimitive.content)

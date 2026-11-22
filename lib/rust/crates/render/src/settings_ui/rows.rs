@@ -11,6 +11,11 @@ impl App {
     pub fn is_home(&self) -> bool {
         self.screen().is_none()
     }
+    /// Whether the top bar shows the back arrow: not on home, and not on setup, whose
+    /// FlorisScreen hides it (`navigationIconVisible = false`).
+    pub fn has_back(&self) -> bool {
+        !self.is_home() && !self.on_setup()
+    }
     pub fn rows(&self) -> &'static [Row] {
         self.screen().map_or(&[], |s| s.rows)
     }
@@ -190,6 +195,7 @@ impl App {
         out.extend(super::words::KEYS);
         out.extend(super::themes::KEYS);
         out.extend(super::project_licence::KEYS);
+        out.extend(super::setup::KEYS);
         out.extend(super::catalogue::HOME.iter().map(|h| h.1));
         for screen in super::catalogue::SCREENS {
             out.push(screen.title);

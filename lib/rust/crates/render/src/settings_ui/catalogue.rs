@@ -14,6 +14,7 @@ mod media;
 mod other;
 mod physical_keyboard;
 mod project_licence;
+mod setup;
 mod smartbar;
 mod theme;
 pub mod themes;
@@ -108,6 +109,8 @@ pub enum Kind {
     Libraries,
     /// ProjectLicenseScreen's text: scrolled both ways, selectable, read-only.
     ProjectLicence,
+    /// SetupScreen's steps, filling the screen (`setup.rs`).
+    Setup,
     /// Jetpref's ColorPickerPreference with the advanced layout: a swatch at the end, and a
     /// dialog of presets or a hue, saturation and value picker (`picker.rs`).
     Color,
@@ -359,6 +362,7 @@ pub const SCREENS: &[Screen] = &[
     words::SYSTEM_EDIT,
     themes::DAY,
     themes::NIGHT,
+    setup::SCREEN,
 ];
 /// The native screen at `route`, if Rust draws it. The subtype editor's and the word
 /// editor's routes carry the item's id as one more segment, and a language's words its locale.

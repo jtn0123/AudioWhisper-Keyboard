@@ -28,6 +28,7 @@ pub mod project_licence;
 mod rows;
 pub use rows::CODE_KEYS;
 mod scrollbar;
+pub mod setup;
 pub mod themes;
 pub mod time;
 mod time_dial;
@@ -71,6 +72,8 @@ pub enum Action {
     Words(words::Tap),
     /// A tap on the theme manager's own controls.
     Themes(themes::Tap),
+    /// A tap on the setup screen's step headers, its button or its footer.
+    Setup(setup::Tap),
 }
 #[derive(Clone, Debug)]
 pub struct Control {
@@ -186,6 +189,8 @@ pub struct App {
     pub words: words::Words,
     /// The theme manager's installed themes and the keyboard's preview.
     pub themes: themes::Themes,
+    /// The setup screen's chosen step and the step the user left it for.
+    pub setup: setup::State,
     /// Each node's custom accessibility actions, as the target control and its label.
     pub custom_actions: Vec<(i32, Vec<(i32, String)>)>,
     /// The wall clock in milliseconds: a new subtype's id, as `System.currentTimeMillis()`.
@@ -252,6 +257,7 @@ impl Default for App {
             list: Default::default(),
             words: Default::default(),
             themes: Default::default(),
+            setup: Default::default(),
             custom_actions: vec![],
             now: languages::wall_clock,
         }
@@ -293,7 +299,11 @@ impl App {
                 // A load lost with an earlier view is asked for again.
                 self.licences.requested = false;
             }
-            if route == catalogue::HOME_ROUTE {
+            if route == catalogue::HOME_ROUTE || route == setup::ROUTE {
+                // Home and setup are roots; one replacing the other opens at the top.
+                if self.stack.first().is_none_or(|r| r != route) {
+                    self.scrolls = vec![0.0];
+                }
                 self.stack = vec![route.into()];
                 self.scrolls.truncate(1);
             } else if let Some(at) = self.stack.iter().position(|r| r == route) {
@@ -315,6 +325,7 @@ impl App {
             self.words_opened(route);
             self.themes_opened(route);
             self.project_opened(route);
+            self.setup_opened(route);
         } else if route == "@enable" {
             self.effects.push(vec!["enable".into()]);
         } else {

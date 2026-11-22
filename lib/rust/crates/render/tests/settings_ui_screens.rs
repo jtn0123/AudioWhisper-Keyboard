@@ -161,7 +161,8 @@ fn group_one_routes_are_native_and_other_routes_fall_back_with_the_native_list()
                   settings/dictionary/user-dictionary/SYSTEM/words|\
                   settings/dictionary/user-dictionary/SYSTEM/word/add|\
                   settings/dictionary/user-dictionary/SYSTEM/word/edit|\
-                  settings/theme/manage/SELECT_DAY|settings/theme/manage/SELECT_NIGHT";
+                  settings/theme/manage/SELECT_DAY|settings/theme/manage/SELECT_NIGHT|\
+                  setup";
     assert_eq!(a.effects.pop().unwrap(), ["compose", compose, native]);
 }
 

@@ -21,7 +21,7 @@ pub(super) struct Type {
     weight: i32,
 }
 /// The app's bodyLarge override: 16 sp, no line height, no tracking.
-const BODY_LARGE: Type = Type {
+pub(super) const BODY_LARGE: Type = Type {
     size: 16,
     line: 0.0,
     tracking: 0.0,
@@ -178,6 +178,7 @@ impl App {
             Kind::Field => Some(self.text_field(p, i, at, clip, text)),
             Kind::Libraries => Some(self.libraries(p, at, clip, text)),
             Kind::ProjectLicence => Some(self.project_licence(p, clip, text)),
+            Kind::Setup => Some(self.setup_screen(p, at, clip, text)),
             Kind::Addons(a) => Some(self.addons(p, i, a, at, clip, text)),
             Kind::Backup(part) => Some(self.backup_row(p, i, part, at, clip, text)),
             Kind::List(source) => Some(self.paint_list(p, source, at, clip, text)),
