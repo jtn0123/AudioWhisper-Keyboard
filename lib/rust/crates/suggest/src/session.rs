@@ -154,7 +154,7 @@ impl Session {
         Ok(results)
     }
 
-    /// Raw decoder queries also serve the independent oracle and test-only JNI replay.
+    /// Raw decoder queries also serve the golden session test and test-only JNI replay.
     pub fn query(&mut self, query: &Query) -> &Output {
         self.output.weight = -1.0;
         let options = [0, 0, i32::from(query.block_offensive_words), 0, 1000];

@@ -265,12 +265,12 @@ fun ndkClang(ndk: File, api: String): String {
 
 val cargoTest = tasks.register<Cargo>("cargoTest") {
     description = "Runs the Rust tests, the LatinIME port's golden files included."
-    configureCargo("test", "--locked")
+    configureCargo("test", "--workspace", "--locked")
 }
 
 val cargoClippy = tasks.register<Cargo>("cargoClippy") {
-    description = "Lints the Rust code, failing on any warning."
-    configureCargo("clippy", "--all-targets", "--locked", "--", "-D", "warnings")
+    description = "Lints every Rust crate and its tests, failing on any warning."
+    configureCargo("clippy", "--workspace", "--all-targets", "--locked", "--", "-D", "warnings")
 }
 
 // The code only Android compiles (surfaces, the presenter, JNI windows) and the off-by-default GPU

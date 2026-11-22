@@ -1,6 +1,7 @@
 //! The production session against LatinIME's C++ decoder, on real dictionary questions: the
 //! C++'s answers to four thousand seeded queries per dictionary, kept as golden files in
-//! `tests/golden/` (latin-golden's `Tape`), which `latin-oracle`'s copy of this test wrote.
+//! `tests/golden/` (latin-golden's `Tape`), which `latin-oracle`'s copy of this test wrote before
+//! the C++ was deleted (docs/phase6-oracle-goldens.md).
 
 use std::sync::Arc;
 

@@ -2,40 +2,6 @@
 # Gradle runs cargo (see build.gradle.kts); docs/rust.md explains the layout and the rules.
 [workspace]
 members = ["crates/*"]
-# Everyday commands stay Rust-only; oracleCheck explicitly selects the full workspace.
-default-members = [
-    "crates/awnative",
-    "crates/backup",
-    "crates/boundary",
-    "crates/settings",
-    "crates/utilities",
-    "crates/wire",
-    "crates/chars",
-    "crates/composing",
-    "crates/dictation",
-    "crates/emoji",
-    "crates/extensions",
-    "crates/editor",
-    "crates/gestures",
-    "crates/gif",
-    "crates/glide",
-    "crates/keys",
-    "crates/input",
-    "crates/latin",
-    "crates/latin-golden",
-    "crates/lexicon",
-    "crates/ngram",
-    "crates/nlp",
-    "crates/popup",
-    "crates/reader",
-    "crates/render",
-    "crates/scoreboard",
-    "crates/shift",
-    "crates/sherpa-ffi",
-    "crates/spacing",
-    "crates/snygg",
-    "crates/suggest",
-]
 resolver = "3"
 
 [workspace.package]

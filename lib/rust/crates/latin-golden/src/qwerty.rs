@@ -1,4 +1,4 @@
-//! Frozen pre-A1 QWERTY model, as the C++ oracle's questions placed their taps.
+//! Frozen pre-A1 QWERTY model, as the questions put to LatinIME's C++ placed their taps.
 //! A fixed QWERTY layout for the decoder's spatial model, in abstract units (a key is 100 by 150).
 //! Each typed letter is fed to the decoder as a touch on its key here, at the same spot in the key
 //! as the real tap ([`touch_point`]), so the real layout on screen and its size don't matter. Was
