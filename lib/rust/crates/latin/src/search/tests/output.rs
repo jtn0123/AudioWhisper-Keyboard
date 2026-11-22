@@ -1,5 +1,5 @@
 //! `JniDataUtils::outputCodePoints`, which no dictionary word reaches with a control code or the
-//! beginning-of-sentence marker, checked against what its C++ does by reading it.
+//! beginning-of-sentence marker, checked against what its C++ did, worked out by reading it.
 
 use crate::defines::{CODE_POINT_BEGINNING_OF_SENTENCE, MAX_WORD_LENGTH};
 use crate::search::jni::output_code_points;

@@ -1,13 +1,10 @@
 //! Shared by the golden tests: keyboards as plain arrays (the app's QWERTY and random ones),
-//! each built both ways, and the answers of a Rust [`ProximityInfoState`] recorded against the
-//! C++'s.
+//! and the answers of a [`ProximityInfoState`] recorded on a golden tape.
 
 use latin_golden::queries::Random;
-#[cfg(feature = "oracle")]
-use latin_oracle::hooks::layout::{self as cpp, RawKeyboard, State};
 
 use crate::defines::{MAX_PROXIMITY_CHARS_SIZE, MAX_WORD_LENGTH, ProximityType};
-use crate::golden::{Tape, same};
+use crate::golden::{Tape, record};
 use crate::layout::{KeyboardGeometry, ProximityInfo, ProximityInfoState};
 
 /// A keyboard's arguments to `setProximityInfoNative`, owned.
@@ -47,25 +44,6 @@ impl Keyboard {
         }
     }
 
-    #[cfg(feature = "oracle")]
-    pub fn raw(&self) -> RawKeyboard<'_> {
-        RawKeyboard {
-            keyboard_width: self.keyboard_width,
-            keyboard_height: self.keyboard_height,
-            grid_width: self.grid_width,
-            grid_height: self.grid_height,
-            most_common_key_width: self.most_common_key_width,
-            most_common_key_height: self.most_common_key_height,
-            proximity_chars: &self.proximity_chars,
-            key_count: self.key_count,
-            key_xs: &self.key_xs,
-            key_ys: &self.key_ys,
-            key_widths: &self.key_widths,
-            key_heights: &self.key_heights,
-            key_codes: &self.key_codes,
-        }
-    }
-
     pub fn cell_width(&self) -> i32 {
         (self.keyboard_width + self.grid_width - 1) / self.grid_width
     }
@@ -84,53 +62,27 @@ impl Keyboard {
     }
 }
 
-/// The C++'s keyboard: the oracle's QWERTY model, or one built from a keyboard's arrays.
-#[cfg(feature = "oracle")]
-enum CppKeyboard {
-    Qwerty(latin_oracle::Proximity),
-    Arrays(cpp::Keyboard),
-}
-
-/// A keyboard both ways: its arrays, the port's `ProximityInfo`, and with the C++ built, the
-/// C++'s.
+/// A keyboard: its arrays and the port's `ProximityInfo` built from them.
 pub struct Board {
     pub keyboard: Keyboard,
     pub ours: ProximityInfo,
-    #[cfg(feature = "oracle")]
-    theirs: CppKeyboard,
 }
 
 impl Board {
-    /// The app's QWERTY keyboard: the C++'s is the oracle's own, whose grid is [`qwerty`]'s.
+    /// The app's QWERTY keyboard, whose grid is [`qwerty`]'s.
     pub fn qwerty() -> Self {
         let keyboard = qwerty();
-        #[cfg(feature = "oracle")]
-        let proximity = latin_oracle::Proximity::qwerty();
-        #[cfg(feature = "oracle")]
-        assert_eq!(cpp::Info::of(&proximity).grid(), keyboard.proximity_chars);
         Self {
             ours: ProximityInfo::new(&keyboard.geometry()).expect("a valid keyboard"),
             keyboard,
-            #[cfg(feature = "oracle")]
-            theirs: CppKeyboard::Qwerty(proximity),
         }
     }
 
-    /// `keyboard`, the C++'s built from the same arrays.
+    /// `keyboard`.
     pub fn of(keyboard: Keyboard) -> Self {
         Self {
             ours: ProximityInfo::new(&keyboard.geometry()).expect("a valid keyboard"),
-            #[cfg(feature = "oracle")]
-            theirs: CppKeyboard::Arrays(cpp::Keyboard::new(&keyboard.raw())),
             keyboard,
-        }
-    }
-
-    #[cfg(feature = "oracle")]
-    pub fn theirs(&self) -> cpp::Info {
-        match &self.theirs {
-            CppKeyboard::Qwerty(proximity) => cpp::Info::of(proximity),
-            CppKeyboard::Arrays(keyboard) => keyboard.info(),
         }
     }
 }
@@ -281,7 +233,7 @@ pub fn random_keyboard(random: &mut Random) -> Keyboard {
     }
 }
 
-/// The code point types to ask the states about: the typed ones, their cases and accents, and
+/// The code points to ask the state about: the typed ones, their cases and accents, and
 /// some from the pool.
 pub fn candidates(random: &mut Random, typed: &[i32]) -> Vec<i32> {
     let mut codes = vec![-1, 0, 0x2, 0x20];
@@ -318,112 +270,63 @@ fn word_like(random: &mut Random, typed: &[i32]) -> Vec<i32> {
     word
 }
 
-/// A typing state both ways: the port's, and with the C++ built, the C++'s given the same input.
-pub struct States<'a> {
-    pub ours: &'a ProximityInfoState,
-    #[cfg(feature = "oracle")]
-    pub theirs: &'a State,
-}
-
-/// Everything the typing search reads from the state, recorded against the C++'s.
-pub fn assert_states_match(
+/// Everything the typing search reads from the state, recorded on `tape`.
+pub fn record_state(
     tape: &mut Tape,
     random: &mut Random,
-    states: &States,
+    ours: &ProximityInfoState,
     info: &ProximityInfo,
     typed: &[i32],
     context: &dyn std::fmt::Debug,
 ) {
-    let ours = states.ours;
-    #[cfg(feature = "oracle")]
-    let (theirs, summary) = (states.theirs, states.theirs.summary());
-    same!(
+    record!(
         tape,
         (
             ours.size(),
             ours.is_used(),
             ours.touch_position_correction_enabled(),
             ours.is_continuous_suggestion_possible()
-        ),
-        (
-            summary.size,
-            summary.is_used,
-            summary.touch_position_correction_enabled,
-            summary.is_continuous_suggestion_possible
-        ),
-        "summary for {context:?}"
+        )
     );
     let size = ours.size();
-    #[cfg(feature = "oracle")]
-    let proximities = theirs.proximities();
     for index in 0..MAX_WORD_LENGTH as i32 {
-        #[cfg(feature = "oracle")]
-        let row = index as usize * MAX_PROXIMITY_CHARS_SIZE;
-        same!(
+        record!(
             tape,
             (
                 ours.proximity_code_points_at(index).to_vec(),
                 ours.get_primary_code_point_at(index),
                 ours.get_primary_original_code_point_at(info, index)
-            ),
-            (
-                proximities[row..row + MAX_PROXIMITY_CHARS_SIZE].to_vec(),
-                theirs.primary(index),
-                theirs.primary_original(index)
-            ),
-            "proximities at {index} for {context:?}"
+            )
         );
     }
     for index in 0..size {
-        assert_points_match(tape, states, info, index);
+        record_points(tape, ours, info, index);
     }
     for index in -1..=size + 1 {
-        same!(
-            tape,
-            ours.exists_adjacent_proximity_chars(index),
-            theirs.exists_adjacent(index),
-            "adjacent at {index} for {context:?}"
-        );
+        record!(tape, ours.exists_adjacent_proximity_chars(index));
     }
     let codes = candidates(random, typed);
     for index in 0..=size.min(MAX_WORD_LENGTH as i32 - 1) {
         for &c in &codes {
-            assert_code_point_matches(tape, states, info, (index, c), context);
+            record_code_point(tape, ours, info, (index, c), context);
         }
     }
     for _ in 0..4 {
         let word = word_like(random, typed);
-        same!(
-            tape,
-            ours.same_as_typed(&word),
-            theirs.same_as_typed(&word),
-            "same as typed {word:?} for {context:?}"
-        );
+        record!(tape, ours.same_as_typed(&word));
     }
     let primaries: Vec<i32> = (0..size)
         .map(|it| ours.get_primary_code_point_at(it))
         .collect();
-    same!(
-        tape,
-        ours.same_as_typed(&primaries),
-        theirs.same_as_typed(&primaries)
-    );
+    record!(tape, ours.same_as_typed(&primaries));
 }
 
 /// The sampled point at `index`: where it is, whether the space is near, and its distance to
 /// each key.
-fn assert_points_match(tape: &mut Tape, states: &States, info: &ProximityInfo, index: i32) {
-    let ours = states.ours;
-    #[cfg(feature = "oracle")]
-    let theirs = states.theirs;
+fn record_points(tape: &mut Tape, ours: &ProximityInfoState, info: &ProximityInfo, index: i32) {
     let (x, y) = (ours.get_input_x(index), ours.get_input_y(index));
-    same!(
-        tape,
-        (x, y, ours.get_input_index_of_sampled_point(index)),
-        theirs.point(index),
-        "point {index}"
-    );
-    // The C++ reads past its grid for a tap beyond the keyboard: no value to compare.
+    record!(tape, (x, y, ours.get_input_index_of_sampled_point(index)));
+    // The C++ reads past its grid for a tap beyond the keyboard: the goldens hold no value there.
     let start = crate::layout::proximity_info_utils::get_start_index_from_coordinates(
         x,
         y,
@@ -432,50 +335,28 @@ fn assert_points_match(tape: &mut Tape, states: &States, info: &ProximityInfo, i
         info.get_grid_width(),
     );
     if x < 0 || y < 0 || info.proximity_chars_at(start).is_some() {
-        same!(
-            tape,
-            ours.has_space_proximity(info, index),
-            theirs.has_space_proximity(index),
-            "space proximity at {index}"
-        );
+        record!(tape, ours.has_space_proximity(info, index));
     }
     for key_id in -1..info.get_key_count() {
-        same!(
+        record!(
             tape,
             ours.get_point_to_key_by_id_length(info, index, key_id)
-                .to_bits(),
-            theirs
-                .point_to_key_by_id_length(index, key_id, info.get_key_count())
-                .to_bits(),
-            "point {index} to key {key_id}"
+                .to_bits()
         );
     }
 }
 
 /// Whether `c` is near the tap at `index`, how far it is, and what kind of proximity it is.
-fn assert_code_point_matches(
+fn record_code_point(
     tape: &mut Tape,
-    states: &States,
+    ours: &ProximityInfoState,
     info: &ProximityInfo,
     (index, c): (i32, i32),
     context: &dyn std::fmt::Debug,
 ) {
-    let ours = states.ours;
-    #[cfg(feature = "oracle")]
-    let theirs = states.theirs;
-    same!(
-        tape,
-        ours.exists_code_point_in_proximity_at(index, c),
-        theirs.exists_in_proximity(index, c),
-        "exists {c:#x} at {index} for {context:?}"
-    );
+    record!(tape, ours.exists_code_point_in_proximity_at(index, c));
     if index < ours.size() {
-        same!(
-            tape,
-            ours.get_point_to_key_length(info, index, c).to_bits(),
-            theirs.point_to_key_length(index, c).to_bits(),
-            "{c:#x} to the key at {index} for {context:?}"
-        );
+        record!(tape, ours.get_point_to_key_length(info, index, c).to_bits());
     }
     if c < 0 {
         return;
@@ -484,12 +365,7 @@ fn assert_code_point_matches(
         let mut slot = i32::MIN;
         let ours_kind = ours.get_proximity_type(index, c, check, Some(&mut slot));
         let found = (slot != i32::MIN).then_some(slot);
-        same!(
-            tape,
-            (kind_number(ours_kind), found),
-            theirs.proximity_type(index, c, check),
-            "proximity type of {c:#x} at {index} (check {check}) for {context:?}"
-        );
+        record!(tape, (kind_number(ours_kind), found));
         assert_eq!(
             ours_kind,
             ours.get_proximity_type(index, c, check, None),

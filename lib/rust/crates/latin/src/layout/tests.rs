@@ -1,5 +1,5 @@
 //! The layout port against LatinIME's answers (the goldens): the app's QWERTY keyboard
-//! exhaustively, random keyboards, and typed inputs from the oracle's query generator, every
+//! exhaustively, random keyboards, and typed inputs from `latin_golden`'s query generator, every
 //! value to the bit.
 
 mod robustness;
@@ -8,12 +8,10 @@ mod typed;
 
 use super::*;
 use crate::defines::{MAX_PROXIMITY_CHARS_SIZE, MAX_WORD_LENGTH};
-use crate::golden::{Tape, same, tape};
+use crate::golden::{Tape, record, tape};
 
 use latin_golden::queries::{self, Random};
-#[cfg(feature = "oracle")]
-use latin_oracle::hooks::layout as cpp;
-use support::{Board, Keyboard, States, assert_states_match, random_keyboard};
+use support::{Board, Keyboard, random_keyboard, record_state};
 
 /// `en_US`, as the bundled dictionary's header spells its locale.
 const EN_US: [i32; 5] = ['e' as i32, 'n' as i32, '_' as i32, 'U' as i32, 'S' as i32];
@@ -32,13 +30,11 @@ fn locales() -> Vec<Vec<i32>> {
     ]
 }
 
-/// Every value the keyboard gives, for `points` and the keys, recorded against the C++'s.
-fn assert_keyboard_matches(tape: &mut Tape, board: &Board, random: &mut Random, stride: usize) {
+/// Every value the keyboard gives, for `points` and the keys, recorded on `tape`.
+fn record_keyboard(tape: &mut Tape, board: &Board, random: &mut Random, stride: usize) {
     let (keyboard, ours) = (&board.keyboard, &board.ours);
-    #[cfg(feature = "oracle")]
-    let (theirs, params) = (board.theirs(), board.theirs().params());
     let key_count = ours.get_key_count();
-    same!(
+    record!(
         tape,
         (
             key_count,
@@ -47,19 +43,8 @@ fn assert_keyboard_matches(tape: &mut Tape, board: &Board, random: &mut Random, 
             ours.get_grid_width(),
             ours.get_keyboard_height(),
             ours.get_most_common_key_width()
-        ),
-        (
-            params.key_count,
-            params.cell_width,
-            params.cell_height,
-            params.grid_width,
-            params.keyboard_height,
-            params.most_common_key_width
-        ),
-        "{keyboard:?}"
+        )
     );
-    #[cfg(feature = "oracle")]
-    assert_eq!(theirs.grid(), keyboard.proximity_chars);
     for (cell, row) in keyboard
         .proximity_chars
         .chunks(MAX_PROXIMITY_CHARS_SIZE)
@@ -69,14 +54,12 @@ fn assert_keyboard_matches(tape: &mut Tape, board: &Board, random: &mut Random, 
         assert_eq!(ours.proximity_chars_at(start), Some(row));
     }
     for key in -2..key_count + 2 {
-        same!(
+        record!(
             tape,
             (
                 ours.get_code_point_of(key),
                 ours.get_original_code_point_of(key)
-            ),
-            theirs.key(key),
-            "key {key}"
+            )
         );
     }
     let mut codes: Vec<i32> = (-3..0x600).collect();
@@ -92,57 +75,43 @@ fn assert_keyboard_matches(tape: &mut Tape, board: &Board, random: &mut Random, 
     ]);
     codes.extend(keyboard.key_codes.iter().copied());
     for &c in &codes {
-        same!(
+        record!(
             tape,
-            (ours.get_key_index_of(c), ours.is_code_point_on_keyboard(c)),
-            (theirs.key_index_of(c), theirs.on_keyboard(c)),
-            "index of {c:#x}"
+            (ours.get_key_index_of(c), ours.is_code_point_on_keyboard(c))
         );
     }
     for key in -2..key_count {
         let mut references = vec![-1, 0, 1, keyboard.keyboard_width, i32::MAX, i32::MIN];
         references.extend((0..6).map(|_| random.below(1500) as i32 - 100));
         for reference in references {
-            same!(
+            record!(
                 tape,
                 (
                     ours.get_key_center_x_of_key_id_g(key, reference),
                     ours.get_key_center_y_of_key_id_g(key, reference)
-                ),
-                (
-                    theirs.key_center_x(key, reference),
-                    theirs.key_center_y(key, reference)
-                ),
-                "center of key {key} at {reference}"
+                )
             );
         }
     }
     let (xs, ys) = (keyboard.x_range(40), keyboard.y_range(40));
     for y in ys.clone().step_by(stride) {
         for x in xs.clone().step_by(stride) {
-            same!(
-                tape,
-                ours.has_space_proximity(x, y),
-                theirs.has_space_proximity(x, y),
-                "space proximity at ({x}, {y})"
-            );
+            record!(tape, ours.has_space_proximity(x, y));
             for key in -1..key_count {
-                same!(
+                record!(
                     tape,
                     ours.get_normalized_squared_distance_from_center_float_g(key, x, y)
-                        .to_bits(),
-                    theirs.normalized_squared_distance(key, x, y).to_bits(),
-                    "distance of ({x}, {y}) from key {key}"
+                        .to_bits()
                 );
             }
         }
     }
-    assert_proximities_match(tape, board, random, stride);
+    record_proximities(tape, board, random, stride);
 }
 
 /// The letters near each tap, for taps over the keyboard (48 to a call, any primary code), in
 /// every locale.
-fn assert_proximities_match(tape: &mut Tape, board: &Board, random: &mut Random, stride: usize) {
+fn record_proximities(tape: &mut Tape, board: &Board, random: &mut Random, stride: usize) {
     let (keyboard, ours) = (&board.keyboard, &board.ours);
     let (xs, ys) = (keyboard.x_range(40), keyboard.y_range(40));
     let points: Vec<(i32, i32)> = ys
@@ -170,21 +139,14 @@ fn assert_proximities_match(tape: &mut Tape, board: &Board, random: &mut Random,
         };
         let mut actual = vec![0; codes.len() * MAX_PROXIMITY_CHARS_SIZE];
         ours.initialize_proximities(&input, locale, &mut actual);
-        same!(
-            tape,
-            actual,
-            board
-                .theirs()
-                .initialize_proximities(&codes, &tap_xs, &tap_ys, locale),
-            "{codes:?} at {tap_xs:?} {tap_ys:?}"
-        );
+        record!(tape, actual);
     }
 }
 
 #[test]
 fn qwerty_keyboard_matches_the_goldens() {
     let mut tape = tape("layout.qwerty_keyboard");
-    assert_keyboard_matches(&mut tape, &Board::qwerty(), &mut Random::new(1), 1);
+    record_keyboard(&mut tape, &Board::qwerty(), &mut Random::new(1), 1);
     tape.finish();
 }
 
@@ -194,7 +156,7 @@ fn random_keyboards_match_the_goldens() {
     let mut random = Random::new(20_261_110);
     for round in 0..200 {
         let board = Board::of(random_keyboard(&mut random));
-        assert_keyboard_matches(&mut tape, &board, &mut random, 3 + round % 5);
+        record_keyboard(&mut tape, &board, &mut random, 3 + round % 5);
     }
     tape.finish();
 }
@@ -218,11 +180,9 @@ fn sweet_spot_factor_matches_the_goldens() {
     let mut tape = tape("layout.sweet_spot_factor");
     for x in values {
         for enabled in [false, true] {
-            same!(
+            record!(
                 tape,
-                touch_position_correction_utils::get_sweet_spot_factor(enabled, x).to_bits(),
-                cpp::sweet_spot_factor(enabled, x).to_bits(),
-                "{enabled} {x}"
+                touch_position_correction_utils::get_sweet_spot_factor(enabled, x).to_bits()
             );
         }
     }

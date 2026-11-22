@@ -1,9 +1,9 @@
-//! Typed inputs: both states given the same taps, fresh, letter by letter, and after a decode.
+//! Typed inputs: the typing state given taps, fresh, letter by letter, and after a decode.
 
 use super::*;
 use latin_golden::queries::Query;
 
-/// What a decode is given: the typed code points and taps, as the oracle's queries have them.
+/// What a decode is given: the typed code points and taps, as the generated queries have them.
 struct Typed {
     codes: Vec<i32>,
     xs: Vec<i32>,
@@ -51,65 +51,25 @@ impl Typed {
             pointer_ids: self.pointer_ids.as_deref(),
         }
     }
-
-    #[cfg(feature = "oracle")]
-    fn state_input<'a>(&'a self, locale: &'a [i32]) -> cpp::StateInput<'a> {
-        cpp::StateInput {
-            max_point_to_key_length: 1.0,
-            codes: &self.codes,
-            xs: &self.xs,
-            ys: &self.ys,
-            times: self.times.as_deref(),
-            pointer_ids: self.pointer_ids.as_deref(),
-            locale,
-        }
-    }
 }
 
-/// One typing state each side, kept across calls as the keyboard's session keeps one.
-struct Typing {
-    ours: ProximityInfoState,
-    #[cfg(feature = "oracle")]
-    theirs: cpp::State,
-}
-
-impl Typing {
-    fn new() -> Self {
-        Self {
-            ours: ProximityInfoState::new(),
-            #[cfg(feature = "oracle")]
-            theirs: cpp::State::new(),
-        }
-    }
-}
-
-/// Initialises both states with the same input and records every value.
-fn init_and_compare(
+/// Initialises `state`, which may be kept across calls as the keyboard's session keeps one,
+/// with `typed`, and records every value.
+fn init_and_record(
     (tape, random): (&mut Tape, &mut Random),
     board: &Board,
-    typing: &mut Typing,
+    state: &mut ProximityInfoState,
     typed: &Typed,
     locale: &[i32],
 ) {
-    typing
-        .ours
-        .init_input_params(1.0, &board.ours, &typed.input(), locale);
+    state.init_input_params(1.0, &board.ours, &typed.input(), locale);
     if typed.codes.is_empty() {
         // The C++ pushes a point read from outside its empty arrays; the Rust has none.
-        assert_eq!(typing.ours.size(), 0);
+        assert_eq!(state.size(), 0);
         return;
     }
-    #[cfg(feature = "oracle")]
-    typing
-        .theirs
-        .init(board.theirs(), &typed.state_input(locale));
     let context = (&typed.codes, &typed.xs, &typed.ys, &typed.times, locale);
-    let states = States {
-        ours: &typing.ours,
-        #[cfg(feature = "oracle")]
-        theirs: &typing.theirs,
-    };
-    assert_states_match(tape, random, &states, &board.ours, &typed.codes, &context);
+    record_state(tape, random, state, &board.ours, &typed.codes, &context);
 }
 
 /// The AOSP dictionary's words, as the questions draw them.
@@ -138,7 +98,13 @@ fn typed_inputs_match_the_goldens() {
         }
         let locale = &locales[round % locales.len()];
         let sides = (&mut tape, &mut random);
-        init_and_compare(sides, &board, &mut Typing::new(), &typed, locale);
+        init_and_record(
+            sides,
+            &board,
+            &mut ProximityInfoState::new(),
+            &typed,
+            locale,
+        );
     }
     tape.finish();
 }
@@ -152,7 +118,7 @@ fn words_typed_letter_by_letter_match_the_goldens() {
     let words = words();
     let mut tape = tape("layout.typed_letter_by_letter");
     let mut random = Random::new(99);
-    let mut typing = Typing::new();
+    let mut state = ProximityInfoState::new();
     let mut continued = 0;
     for round in 0..2_500 {
         let query = queries::query(&mut random, &words);
@@ -176,8 +142,8 @@ fn words_typed_letter_by_letter_match_the_goldens() {
                 }
             }
             let sides = (&mut tape, &mut random);
-            init_and_compare(sides, &board, &mut typing, &prefix, &EN_US);
-            continued += usize::from(typing.ours.is_continuous_suggestion_possible());
+            init_and_record(sides, &board, &mut state, &prefix, &EN_US);
+            continued += usize::from(state.is_continuous_suggestion_possible());
         }
     }
     tape.finish();
@@ -195,7 +161,7 @@ fn words_deleted_letter_by_letter_match_the_goldens() {
     let words = words();
     let mut tape = tape("layout.deleted_letter_by_letter");
     let mut random = Random::new(1234);
-    let mut typing = Typing::new();
+    let mut state = ProximityInfoState::new();
     let mut continued = 0;
     for _ in 0..1_500 {
         let query = queries::query(&mut random, &words);
@@ -209,8 +175,8 @@ fn words_deleted_letter_by_letter_match_the_goldens() {
             let repeats = if length > 2 { 2 } else { 1 };
             for _ in 0..repeats {
                 let sides = (&mut tape, &mut random);
-                init_and_compare(sides, &board, &mut typing, &prefix, &EN_US);
-                continued += usize::from(typing.ours.is_continuous_suggestion_possible());
+                init_and_record(sides, &board, &mut state, &prefix, &EN_US);
+                continued += usize::from(state.is_continuous_suggestion_possible());
             }
         }
     }
@@ -221,18 +187,11 @@ fn words_deleted_letter_by_letter_match_the_goldens() {
     );
 }
 
-/// The state a decode leaves behind in the C++ session, against the Rust one given the same
-/// input, over a run of decodes on one session.
+/// The state a decode left behind in the C++ session, which the goldens hold, against the Rust
+/// one given the same input, over a run of decodes on one session.
 #[test]
 fn states_after_a_decode_match_the_goldens() {
     let board = Board::qwerty();
-    #[cfg(feature = "oracle")]
-    let (proximity, dictionary) = (
-        latin_oracle::Proximity::qwerty(),
-        latin_oracle::Dictionary::aosp(),
-    );
-    #[cfg(feature = "oracle")]
-    let session = latin_oracle::Session::new("en_US", &dictionary);
     let words = words();
     let mut tape = tape("layout.states_after_a_decode");
     let mut random = Random::new(5);
@@ -244,24 +203,10 @@ fn states_after_a_decode_match_the_goldens() {
         if query.code_points.is_empty() {
             continue;
         }
-        #[cfg(feature = "oracle")]
-        latin_oracle::suggest(
-            &dictionary,
-            &proximity,
-            &session,
-            &crate::golden::oracle_query(&query),
-        );
         let typed = Typed::of(&query);
         ours.init_input_params(1.0, &board.ours, &typed.input(), &EN_US);
-        #[cfg(feature = "oracle")]
-        let theirs = cpp::State::of_session(&session);
-        let states = States {
-            ours: &ours,
-            #[cfg(feature = "oracle")]
-            theirs: &theirs,
-        };
         let info = &board.ours;
-        assert_states_match(&mut tape, &mut random, &states, info, &typed.codes, &query);
+        record_state(&mut tape, &mut random, &ours, info, &typed.codes, &query);
     }
     tape.finish();
 }
@@ -273,12 +218,12 @@ fn typed_inputs_on_random_keyboards_match_the_goldens() {
     let locales = locales();
     for _ in 0..1_500 {
         let board = Board::of(random_keyboard(&mut random));
-        let mut typing = Typing::new();
+        let mut state = ProximityInfoState::new();
         for _ in 0..6 {
             let typed = random_typed(&mut random, &board.keyboard);
             let locale = &locales[random.below(locales.len())];
             let sides = (&mut tape, &mut random);
-            init_and_compare(sides, &board, &mut typing, &typed, locale);
+            init_and_record(sides, &board, &mut state, &typed, locale);
         }
     }
     tape.finish();

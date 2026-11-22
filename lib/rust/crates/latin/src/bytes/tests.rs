@@ -1,5 +1,5 @@
 use super::*;
-use crate::golden::{same, tape};
+use crate::golden::{record, tape};
 
 /// SplitMix64, for seeded random buffers.
 struct Random(u64);
@@ -39,8 +39,6 @@ fn advance<T>(pos: i32, read: impl FnOnce(&mut i32) -> T) -> (T, i32) {
 
 #[test]
 fn random_buffers_match_the_goldens() {
-    #[cfg(feature = "oracle")]
-    use latin_oracle::hooks::bytes as cpp;
     let mut tape = tape("bytes.random_buffers");
     let mut random = Random(20_261_109);
     let table: Vec<i32> = (0..224).map(|it| 0x400 + it * 3).collect();
@@ -49,44 +47,28 @@ fn random_buffers_match_the_goldens() {
         let buffer = random.buffer(length);
         let pos = random.below(buffer.len() as u64 + 1) as i32;
         for size in 0..=5 {
-            same!(
-                tape,
-                read_uint(&buffer, size, pos),
-                cpp::read_uint(&buffer, size, pos)
-            );
+            record!(tape, read_uint(&buffer, size, pos));
         }
-        same!(
-            tape,
-            advance(pos, |at| read_s24_advance(&buffer, at)),
-            advance(pos, |at| cpp::read_s24_advance(&buffer, at))
-        );
+        record!(tape, advance(pos, |at| read_s24_advance(&buffer, at)));
         let with_table = (round % 3 == 0).then_some(table.as_slice());
-        same!(
+        record!(
             tape,
-            advance(pos, |at| read_code_point_advance(&buffer, with_table, at)),
-            advance(pos, |at| cpp::read_code_point_advance(
-                &buffer, with_table, at
-            ))
+            advance(pos, |at| read_code_point_advance(&buffer, with_table, at))
         );
         let max_length = random.below(60) as usize;
-        same!(
+        record!(
             tape,
             advance(pos, |at| {
                 let mut out = vec![0; max_length];
                 let length = read_string_advance(&buffer, max_length, with_table, &mut out, at);
                 out.truncate(length);
                 out
-            }),
-            advance(pos, |at| cpp::read_string_advance(
-                &buffer, max_length, with_table, at
-            )),
-            "{buffer:?} at {pos}"
+            })
         );
-        same!(
+        record!(
             tape,
             advance(pos, |at| advance_past_string(&buffer, max_length, at)
-                as i32),
-            advance(pos, |at| cpp::advance_past_string(&buffer, max_length, at))
+                as i32)
         );
     }
     tape.finish();
@@ -94,37 +76,23 @@ fn random_buffers_match_the_goldens() {
 
 #[test]
 fn format_versions_match_the_goldens() {
-    #[cfg(feature = "oracle")]
-    use latin_oracle::hooks::bytes as cpp;
     let mut tape = tape("bytes.format_versions");
     let mut buffer = vec![0x9B, 0xC1, 0x3A, 0xFE, 0, 0, 0, 0, 0, 0, 0, 0];
     for version in 0..=0xFFFF_u16 {
         buffer[4..6].copy_from_slice(&version.to_be_bytes());
-        same!(
-            tape,
-            detect_format_version(&buffer) as i32,
-            cpp::detect_format_version(&buffer)
-        );
+        record!(tape, detect_format_version(&buffer) as i32);
     }
     for broken in [
         &buffer[..11],
         &[0x9B, 0xC1, 0x3A, 0xFF, 0, 202, 0, 0, 0, 0, 0, 0][..],
         &[],
     ] {
-        same!(
-            tape,
-            detect_format_version(broken) as i32,
-            cpp::detect_format_version(broken)
-        );
+        record!(tape, detect_format_version(broken) as i32);
     }
     for (_, path) in latin_golden::dictionaries() {
         let bytes = std::fs::read(path).unwrap();
         assert_eq!(detect_format_version(&bytes), FormatVersion::Version202);
-        same!(
-            tape,
-            detect_format_version(&bytes) as i32,
-            cpp::detect_format_version(&bytes)
-        );
+        record!(tape, detect_format_version(&bytes) as i32);
     }
     tape.finish();
 }

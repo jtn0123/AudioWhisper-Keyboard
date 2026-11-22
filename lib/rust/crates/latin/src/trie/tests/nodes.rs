@@ -1,16 +1,13 @@
-//! Differential tests of the node-level reading: every node of the bundled trie as the C++'s own
-//! reader (the probe) read it, node arrays and their forward links, and the bigram and shortcut lists
-//! each node points at. Random bodies go through the same readers, so a flag the dictionary never sets
-//! is still compared.
+//! The node-level reading against LatinIME's C++ answers (golden files): every node of both
+//! dictionaries as the C++'s own reader read it, node arrays and their forward links, and the
+//! bigram and shortcut lists each node points at. Random bodies go through the same readers, so a
+//! flag the dictionary never sets is still checked.
 
 use std::collections::{HashSet, VecDeque};
 use std::sync::Arc;
 
-#[cfg(feature = "oracle")]
-use latin_oracle::hooks::trie as cpp;
-
-use super::{Pair, Random, pairs};
-use crate::golden::{Tape, same};
+use super::{Fixture, Random, fixtures};
+use crate::golden::{Tape, record};
 use crate::trie::bigram::BigramIterator;
 use crate::trie::node::PtNodeParams;
 use crate::trie::patricia::PatriciaTriePolicy;
@@ -18,8 +15,8 @@ use crate::trie::shortcut::ShortcutIterator;
 
 /// The positions of every node of the trie: the root array's nodes, and those of each array reached
 /// through a node's children, in breadth-first order.
-fn all_node_positions(pair: &Pair) -> Vec<i32> {
-    let policy = pair.ours.policy();
+fn all_node_positions(fixture: &Fixture) -> Vec<i32> {
+    let policy = fixture.dictionary.policy();
     let body_len = policy.body().len();
     let mut arrays = VecDeque::from([policy.root_position()]);
     let mut seen_arrays = HashSet::new();
@@ -84,67 +81,11 @@ fn node(ours: &PtNodeParams) -> Node {
     })
 }
 
-/// [`node`] for the probe's reading.
-#[cfg(feature = "oracle")]
-fn probed(theirs: &cpp::ProbedNode) -> Node {
-    theirs.valid.then(|| {
-        (
-            theirs.head_pos,
-            theirs.code_points.clone(),
-            theirs.probability,
-            (
-                theirs.children_pos,
-                theirs.shortcut_pos,
-                theirs.bigram_pos,
-                theirs.sibling_pos,
-            ),
-            (
-                theirs.is_terminal,
-                theirs.is_not_a_word,
-                theirs.is_possibly_offensive,
-                theirs.has_children,
-                theirs.has_bigrams,
-            ),
-        )
-    })
-}
-
-/// A body's readers, with the C++'s over the same body (the probe) when it is built.
-struct Reader<'a> {
-    policy: &'a PatriciaTriePolicy,
-    #[cfg(feature = "oracle")]
-    probe: cpp::Probe,
-}
-
-impl<'a> Reader<'a> {
-    fn new(policy: &'a PatriciaTriePolicy) -> Self {
-        Self {
-            policy,
-            #[cfg(feature = "oracle")]
-            probe: cpp::Probe::open(policy.body(), None),
-        }
-    }
-}
-
-/// The node at `pos` read both ways (with its flags) and fetched, checked against the probe's.
-fn check_node(tape: &mut Tape, reader: &Reader, pos: i32) {
-    let policy = reader.policy;
+/// The node at `pos` read (with its flags) and fetched.
+fn check_node(tape: &mut Tape, policy: &PatriciaTriePolicy, pos: i32) {
     let read = policy.node_reader().read_info(pos);
-    same!(
-        tape,
-        (node(&read), i32::from(read.flags())),
-        (
-            probed(&reader.probe.read_info(pos)),
-            reader.probe.read_info(pos).flags
-        ),
-        "node {pos} read"
-    );
-    same!(
-        tape,
-        node(&policy.node_reader().fetch(pos)),
-        probed(&reader.probe.fetch(pos)),
-        "node {pos} fetch"
-    );
+    record!(tape, (node(&read), i32::from(read.flags())));
+    record!(tape, node(&policy.node_reader().fetch(pos)));
 }
 
 /// Every bigram visit of the list at `list`, as (probability, bigram position).
@@ -179,110 +120,72 @@ fn rust_shortcuts(policy: &PatriciaTriePolicy, list: i32, max_depth: usize) -> V
 /// A shortcut entry: probability, whitelist, has next, and its target's code points.
 type Shortcut = (i32, bool, bool, Vec<i32>);
 
-/// The probe's shortcut entries at `list`, in the same shape as [`rust_shortcuts`].
-#[cfg(feature = "oracle")]
-fn probe_shortcuts(probe: &cpp::Probe, list: i32, max_depth: usize) -> Vec<Shortcut> {
-    probe
-        .shortcut_entries(list, max_depth)
-        .into_iter()
-        .map(|entry| {
-            (
-                entry.probability,
-                entry.is_whitelist,
-                entry.has_next,
-                entry.code_points,
-            )
-        })
-        .collect()
-}
-
 #[test]
 fn every_node_reads_the_same_as_the_goldens() {
-    for pair in pairs() {
-        let reader = Reader::new(pair.ours.policy());
-        let positions = all_node_positions(pair);
+    for fixture in fixtures() {
+        let policy = fixture.dictionary.policy();
+        let positions = all_node_positions(fixture);
         assert!(
             positions.len() > 10_000,
             "the trie has nodes to compare ({})",
             positions.len()
         );
-        let mut tape = pair.tape("every_node");
+        let mut tape = fixture.tape("every_node");
         for pos in positions {
-            check_node(&mut tape, &reader, pos);
+            check_node(&mut tape, policy, pos);
         }
         tape.finish();
     }
 }
 
 /// The array and the forward link at `pos`, checked against the probe's.
-fn check_array(tape: &mut Tape, reader: &Reader, pos: i32) {
-    let policy = reader.policy;
-    same!(
+fn check_array(tape: &mut Tape, policy: &PatriciaTriePolicy, pos: i32) {
+    record!(
         tape,
         (
             policy.array_reader().read_info(pos),
             policy.array_reader().read_forward_link(pos)
-        ),
-        (reader.probe.array(pos), reader.probe.forward_link(pos)),
-        "array and forward link at {pos}"
+        )
     );
 }
 
 #[test]
 fn arrays_and_forward_links_match_the_goldens_at_random_positions() {
-    for pair in pairs() {
-        let reader = Reader::new(pair.ours.policy());
-        let policy = reader.policy;
+    for fixture in fixtures() {
+        let policy = fixture.dictionary.policy();
         let body_len = policy.body().len();
         let mut random = Random(0x00A2_2A77);
-        let mut positions = all_node_positions(pair);
+        let mut positions = all_node_positions(fixture);
         positions.extend((0..20_000).map(|_| random.below(body_len) as i32));
         positions.push(body_len as i32);
-        let mut tape = pair.tape("arrays_and_forward_links");
+        let mut tape = fixture.tape("arrays_and_forward_links");
         for pos in positions {
-            check_array(&mut tape, &reader, pos);
+            check_array(&mut tape, policy, pos);
         }
         tape.finish();
     }
 }
 
 /// The bigram visits and the shortcut entries of the lists at `pos`, checked against the probe's.
-fn check_lists(tape: &mut Tape, reader: &Reader, pos: i32) {
-    let policy = reader.policy;
-    same!(
-        tape,
-        rust_bigrams(policy, pos),
-        reader.probe.bigram_visits(pos),
-        "bigram list at {pos}"
-    );
-    same!(
-        tape,
-        rust_shortcuts(policy, pos, 48),
-        probe_shortcuts(&reader.probe, pos, 48),
-        "shortcut list at {pos}"
-    );
+fn check_lists(tape: &mut Tape, policy: &PatriciaTriePolicy, pos: i32) {
+    record!(tape, rust_bigrams(policy, pos));
+    record!(tape, rust_shortcuts(policy, pos, 48));
 }
 
 #[test]
 fn bigram_lists_of_every_node_match_the_goldens() {
-    for pair in pairs() {
-        let reader = Reader::new(pair.ours.policy());
-        let policy = reader.policy;
-        let mut tape = pair.tape("bigram_lists_of_every_node");
+    for fixture in fixtures() {
+        let policy = fixture.dictionary.policy();
+        let mut tape = fixture.tape("bigram_lists_of_every_node");
         let mut checked = 0_usize;
-        for pos in all_node_positions(pair) {
+        for pos in all_node_positions(fixture) {
             let node = policy.node_reader().fetch(pos);
             if !node.has_bigrams() {
                 continue;
             }
             checked += 1;
             let list = node.bigram_pos();
-            same!(
-                tape,
-                rust_bigrams(policy, list),
-                reader.probe.bigram_visits(list),
-                "bigram list at {list}"
-            );
+            record!(tape, rust_bigrams(policy, list));
         }
         tape.finish();
         assert!(
@@ -294,24 +197,18 @@ fn bigram_lists_of_every_node_match_the_goldens() {
 
 #[test]
 fn shortcut_lists_of_every_node_match_the_goldens() {
-    for pair in pairs() {
-        let reader = Reader::new(pair.ours.policy());
-        let policy = reader.policy;
-        let mut tape = pair.tape("shortcut_lists_of_every_node");
+    for fixture in fixtures() {
+        let policy = fixture.dictionary.policy();
+        let mut tape = fixture.tape("shortcut_lists_of_every_node");
         let mut checked = 0_usize;
-        for pos in all_node_positions(pair) {
+        for pos in all_node_positions(fixture) {
             let node = policy.node_reader().fetch(pos);
             if !node.has_shortcut_targets() {
                 continue;
             }
             checked += 1;
             let list = node.shortcut_pos();
-            same!(
-                tape,
-                rust_shortcuts(policy, list, 48),
-                probe_shortcuts(&reader.probe, list, 48),
-                "shortcut list at {list}"
-            );
+            record!(tape, rust_shortcuts(policy, list, 48));
         }
         tape.finish();
         assert!(checked > 0, "the trie has shortcut lists to compare");
@@ -337,11 +234,10 @@ fn random_bodies_read_their_nodes_arrays_and_lists_as_the_goldens_say() {
         let body: Vec<u8> = (0..length).map(|_| random_byte(&mut random)).collect();
         // A header of size 0, so the whole buffer is the body.
         let policy = PatriciaTriePolicy::new(Arc::from(body.as_slice()), 0, None);
-        let reader = Reader::new(&policy);
         for pos in 0..length as i32 {
-            check_node(&mut tape, &reader, pos);
-            check_array(&mut tape, &reader, pos);
-            check_lists(&mut tape, &reader, pos);
+            check_node(&mut tape, &policy, pos);
+            check_array(&mut tape, &policy, pos);
+            check_lists(&mut tape, &policy, pos);
         }
     }
     tape.finish();

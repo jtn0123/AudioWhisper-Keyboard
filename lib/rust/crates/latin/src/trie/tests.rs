@@ -1,6 +1,6 @@
-//! Differential tests of the version 2 trie against LatinIME's C++, kept as golden files of its
-//! answers (`crate::golden`). Each test asks the same question of each dictionary (Google's AOSP
-//! one and the one the app ships) and checks the answers against the C++'s. Random
+//! The version 2 trie against LatinIME's C++ answers, kept as golden files (`crate::golden`).
+//! Each test asks the same question of each dictionary (Google's AOSP one and the one the app
+//! ships) and checks the answers against the goldens. Random
 //! inputs come from seeded SplitMix64 streams, so a failure reproduces from its seed. Assertion
 //! messages carry indices and numbers only: a dictionary word is never printed.
 
@@ -12,41 +12,34 @@ mod units;
 use std::path::PathBuf;
 use std::sync::{Arc, OnceLock};
 
-#[cfg(feature = "oracle")]
-use latin_oracle::hooks::trie as cpp;
-
 use super::dictionary::Dictionary;
 use super::interface::{NgramListener, WordListener};
 use super::jni::get_words;
 use crate::defines::{MAX_WORD_LENGTH, NOT_A_WORD_ID};
-use crate::golden::{Tape, same, tape};
+use crate::golden::{Tape, record, tape};
 
-/// A dictionary, opened by the Rust (and by the C++ when it is built), with its words.
-pub struct Pair {
-    pub ours: Dictionary,
-    #[cfg(feature = "oracle")]
-    pub theirs: latin_oracle::Dictionary,
+/// A dictionary, opened, with its words and where it came from.
+pub struct Fixture {
+    pub dictionary: Dictionary,
     pub words: Vec<Vec<i32>>,
     pub path: PathBuf,
     /// Which dictionary, for the golden files' names.
     pub name: &'static str,
 }
 
-impl Pair {
+impl Fixture {
     /// The tape for `test` on this dictionary.
     pub fn tape(&self, test: &str) -> Tape {
         tape(&format!("trie.{test}.{}", self.name))
     }
 }
 
-fn open((name, path): (&'static str, PathBuf)) -> Pair {
+fn open((name, path): (&'static str, PathBuf)) -> Fixture {
     let file: Arc<[u8]> = std::fs::read(&path).expect("the dictionary").into();
-    let ours = Dictionary::open(file).expect("a version 2 dictionary");
-    Pair {
-        words: words_of(&ours),
-        ours,
-        #[cfg(feature = "oracle")]
-        theirs: latin_oracle::Dictionary::at(&path),
+    let dictionary = Dictionary::open(file).expect("a version 2 dictionary");
+    Fixture {
+        words: words_of(&dictionary),
+        dictionary,
         path,
         name,
     }
@@ -54,8 +47,8 @@ fn open((name, path): (&'static str, PathBuf)) -> Pair {
 
 /// Google's AOSP dictionary and the one the app ships, each loaded once for the whole test
 /// binary.
-pub fn pairs() -> [&'static Pair; 2] {
-    static PAIRS: OnceLock<[Pair; 2]> = OnceLock::new();
+pub fn fixtures() -> [&'static Fixture; 2] {
+    static PAIRS: OnceLock<[Fixture; 2]> = OnceLock::new();
     let [aosp, shipped] = PAIRS.get_or_init(|| latin_golden::dictionaries().map(open));
     [aosp, shipped]
 }
@@ -78,17 +71,20 @@ impl NgramListener for Entries {
 }
 
 /// The bigram entries after `prev`, as (probability, target word id).
-pub fn ngram_entries(pair: &Pair, prev: &[i32]) -> Vec<(i32, i32)> {
+pub fn ngram_entries(fixture: &Fixture, prev: &[i32]) -> Vec<(i32, i32)> {
     let mut entries = Entries::default();
-    pair.ours.policy().iterate_ngram_entries(prev, &mut entries);
+    fixture
+        .dictionary
+        .policy()
+        .iterate_ngram_entries(prev, &mut entries);
     entries.0
 }
 
 /// The code points of `word_id`, up to `MAX_WORD_LENGTH` of them.
-pub fn code_points(pair: &Pair, word_id: i32) -> Vec<i32> {
+pub fn code_points(fixture: &Fixture, word_id: i32) -> Vec<i32> {
     let mut out = [0_i32; MAX_WORD_LENGTH];
-    let count = pair
-        .ours
+    let count = fixture
+        .dictionary
         .policy()
         .get_code_points_and_return_code_point_count(word_id, MAX_WORD_LENGTH, &mut out);
     out[..count].to_vec()
@@ -127,7 +123,7 @@ impl Random {
     }
 }
 
-/// Code points no dictionary word is made of, but which the C++ must still answer for.
+/// Code points no dictionary word is made of, but which the trie must still answer for.
 const ODD: [i32; 12] = [
     0,
     1,
@@ -240,53 +236,32 @@ impl WordListener for Collect {
 }
 
 /// Checks the attributes of `word_id` after `prev`.
-pub fn check_attributes(tape: &mut Tape, pair: &Pair, word_id: i32, prev: &[i32]) {
-    let ours = pair
-        .ours
+pub fn check_attributes(tape: &mut Tape, fixture: &Fixture, word_id: i32, prev: &[i32]) {
+    let ours = fixture
+        .dictionary
         .policy()
         .get_word_attributes_in_context(prev, word_id, None);
-    #[cfg(feature = "oracle")]
-    let theirs = cpp::word_attributes(&pair.theirs, None, prev, word_id);
-    same!(
+    record!(
         tape,
         (
             ours.probability(),
             ours.is_blacklisted(),
             ours.is_not_a_word(),
             ours.is_possibly_offensive()
-        ),
-        (
-            theirs.probability,
-            theirs.is_blacklisted,
-            theirs.is_not_a_word,
-            theirs.is_possibly_offensive
-        ),
-        "answer {}: probability, blacklisted, not a word, possibly offensive",
-        tape.count()
+        )
     );
 }
 
 /// Checks the code points of `word_id`, up to `MAX_WORD_LENGTH` of them.
-pub fn check_code_points(tape: &mut Tape, pair: &Pair, word_id: i32) {
-    same!(
-        tape,
-        code_points(pair, word_id),
-        cpp::code_points(&pair.theirs, word_id, MAX_WORD_LENGTH),
-        "answer {}: code points of word {word_id}",
-        tape.count()
-    );
+pub fn check_code_points(tape: &mut Tape, fixture: &Fixture, word_id: i32) {
+    record!(tape, code_points(fixture, word_id));
 }
 
 #[test]
 fn word_list_matches_the_goldens_in_content_and_order() {
-    for pair in pairs() {
-        #[cfg(feature = "oracle")]
-        assert!(
-            pair.words == cpp::words(&pair.theirs),
-            "the word lists differ"
-        );
-        let mut tape = pair.tape("word_list");
-        for word in &pair.words {
+    for fixture in fixtures() {
+        let mut tape = fixture.tape("word_list");
+        for word in &fixture.words {
             tape.record("word", word);
         }
         tape.finish();
@@ -295,36 +270,22 @@ fn word_list_matches_the_goldens_in_content_and_order() {
 
 #[test]
 fn joined_word_text_matches_the_goldens() {
-    for pair in pairs() {
-        let mut tape = pair.tape("joined_word_text");
-        same!(
-            tape,
-            get_words(&pair.ours),
-            pair.theirs.words(),
-            "UTF-16 text"
-        );
+    for fixture in fixtures() {
+        let mut tape = fixture.tape("joined_word_text");
+        record!(tape, get_words(&fixture.dictionary));
         tape.finish();
     }
 }
 
 #[test]
 fn every_word_matches_the_goldens_in_id_probability_attributes_and_code_points() {
-    for pair in pairs() {
-        let mut tape = pair.tape("every_word");
-        for word in &pair.words {
-            let id = pair.ours.policy().get_word_id(word, false);
-            same!(
-                tape,
-                (id, pair.ours.probability(word)),
-                (
-                    cpp::word_id(&pair.theirs, word, false),
-                    pair.theirs.probability(word)
-                ),
-                "answer {}: word id and probability",
-                tape.count()
-            );
-            check_attributes(&mut tape, pair, id, &[]);
-            check_code_points(&mut tape, pair, id);
+    for fixture in fixtures() {
+        let mut tape = fixture.tape("every_word");
+        for word in &fixture.words {
+            let id = fixture.dictionary.policy().get_word_id(word, false);
+            record!(tape, (id, fixture.dictionary.probability(word)));
+            check_attributes(&mut tape, fixture, id, &[]);
+            check_code_points(&mut tape, fixture, id);
         }
         tape.finish();
     }
@@ -332,27 +293,17 @@ fn every_word_matches_the_goldens_in_id_probability_attributes_and_code_points()
 
 #[test]
 fn random_words_match_the_goldens_in_id_probability_and_attributes() {
-    for pair in pairs() {
-        let mut tape = pair.tape("random_words");
+    for fixture in fixtures() {
+        let mut tape = fixture.tape("random_words");
         let mut random = Random(0x5EED_0001);
         for _ in 0..40_000 {
-            let word = random_word(&mut random, &pair.words);
+            let word = random_word(&mut random, &fixture.words);
             let force_lower = random.chance(2);
-            let id = pair.ours.policy().get_word_id(&word, force_lower);
-            same!(
-                tape,
-                (id, pair.ours.probability(&word)),
-                (
-                    cpp::word_id(&pair.theirs, &word, force_lower),
-                    pair.theirs.probability(&word)
-                ),
-                "answer {}: word id and probability (length {}, lower {force_lower})",
-                tape.count(),
-                word.len()
-            );
+            let id = fixture.dictionary.policy().get_word_id(&word, force_lower);
+            record!(tape, (id, fixture.dictionary.probability(&word)));
             if id != NOT_A_WORD_ID {
-                check_attributes(&mut tape, pair, id, &[]);
-                check_code_points(&mut tape, pair, id);
+                check_attributes(&mut tape, fixture, id, &[]);
+                check_code_points(&mut tape, fixture, id);
             }
         }
         tape.finish();
@@ -361,17 +312,17 @@ fn random_words_match_the_goldens_in_id_probability_and_attributes() {
 
 #[test]
 fn random_ids_and_missing_ids_match_the_goldens_code_points() {
-    for pair in pairs() {
-        let mut tape = pair.tape("random_ids");
+    for fixture in fixtures() {
+        let mut tape = fixture.tape("random_ids");
         let mut random = Random(0x1D5);
         for _ in 0..5_000 {
             let id = if random.chance(10) {
                 NOT_A_WORD_ID
             } else {
-                let word = &pair.words[random.below(pair.words.len())];
-                pair.ours.policy().get_word_id(word, false)
+                let word = &fixture.words[random.below(fixture.words.len())];
+                fixture.dictionary.policy().get_word_id(word, false)
             };
-            check_code_points(&mut tape, pair, id);
+            check_code_points(&mut tape, fixture, id);
         }
         tape.finish();
     }

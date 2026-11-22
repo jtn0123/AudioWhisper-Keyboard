@@ -5,7 +5,7 @@ use super::support::{new_session, rust_side};
 use crate::defines::{MAX_RESULTS, MAX_WORD_LENGTH};
 use crate::search::{Query, jni};
 
-/// SplitMix64, as the oracle's generator, without the oracle.
+/// SplitMix64, as `latin_golden`'s generator.
 struct Random(u64);
 
 impl Random {

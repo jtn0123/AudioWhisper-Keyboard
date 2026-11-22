@@ -1,5 +1,5 @@
 //! Where the C++ has undefined behaviour the Rust picks a safe result; these tests pin them.
-//! They need no oracle, so they run on Android too.
+//! They need no golden files, so they run on Android too.
 
 use super::super::*;
 use crate::defines::MAX_PROXIMITY_CHARS_SIZE;

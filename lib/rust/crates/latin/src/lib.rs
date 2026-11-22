@@ -4,8 +4,8 @@
 //!
 //! Each module is one area of the C++ and names the files it ports. The port keeps the C++'s
 //! types (`i32` code points and positions, `f32` scores) and order of operations, so its answers
-//! are the same to the bit; every module is tested against the C++ itself through the
-//! `latin-oracle` crate.
+//! are the same to the bit; every module is tested against the C++'s own answers, kept as golden
+//! files in `tests/golden` (see `docs/phase6-oracle-goldens.md`).
 //!
 //! - [`defines`]: the shared constants and enums (`defines.h`).
 //! - [`chars`]: lower case and base letters (`utils/char_utils`).

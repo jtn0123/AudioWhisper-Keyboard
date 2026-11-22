@@ -1,9 +1,9 @@
 //! The pure logic of `latinime_BinaryDictionary_getSuggestions`
 //! (`com_android_inputmethod_latin_BinaryDictionary.cpp`) and of
 //! `SuggestionResults::outputSuggestions` / `JniDataUtils::outputCodePoints`: what the Java side
-//! passes in, what the decoder does with it, and the arrays it reads back. [`suggest`] is shaped
-//! like the oracle's `suggest`, over a [`DicTraverseSession`] the caller keeps between calls (the
-//! node cache continues from keystroke to keystroke through it).
+//! passes in, what the decoder does with it, and the arrays it reads back. [`suggest`] runs over
+//! a [`DicTraverseSession`] the caller keeps between calls (the node cache continues from
+//! keystroke to keystroke through it).
 //!
 //! Intentional differences from the JNI method: there is no null dictionary, session or array to
 //! return early on (they are references); a query longer than `MAX_WORD_LENGTH` is cut to it (the

@@ -1,23 +1,23 @@
-//! One session on each side across calls, as the keyboard keeps one: a word typed letter by
+//! One session across calls, as the keyboard keeps one: a word typed letter by
 //! letter and deleted back, and unrelated queries one after another. Each run of rounds
-//! [`in_chunks`] gives a thread has its own pair of sessions, kept across its rounds.
+//! [`in_chunks`] gives a thread has its own session, kept across its rounds.
 
 use std::time::Instant;
 
 use latin_golden::queries::{self, Query, Random};
 
-use super::support::{Pair, in_chunks, prefix, record};
+use super::support::{Fixture, in_chunks, prefix, record};
 
-/// A word typed letter by letter then deleted back, on one session per side. Sometimes a tap in
+/// A word typed letter by letter then deleted back, on one session. Sometimes a tap in
 /// the middle changes or the previous words do, so the cache must not continue.
 #[test]
 fn words_typed_and_deleted_match_the_goldens() {
-    for pair in Pair::each() {
+    for fixture in Fixture::each() {
         let mut random = Random::new(21);
         let started = Instant::now();
         let inputs: Vec<Vec<Query>> = (0..2_500)
             .map(|_| {
-                let query = queries::query(&mut random, &pair.words);
+                let query = queries::query(&mut random, &fixture.words);
                 let size = query.code_points.len();
                 let mut lengths: Vec<usize> = (1..=size).collect();
                 lengths.extend((1..size).rev());
@@ -43,22 +43,22 @@ fn words_typed_and_deleted_match_the_goldens() {
             .collect();
         let rounds = in_chunks(
             &inputs,
-            || pair.sessions(),
-            |sessions, _, steps| {
+            || fixture.session(),
+            |session, _, steps| {
                 let mut continued = 0;
                 let outputs: Vec<_> = steps
                     .iter()
                     .map(|input| {
-                        let before = sessions.ours.dic_nodes_cache.continued_searches;
-                        let output = pair.compare(sessions, input);
-                        continued += sessions.ours.dic_nodes_cache.continued_searches - before;
+                        let before = session.dic_nodes_cache.continued_searches;
+                        let output = fixture.ask(session, input);
+                        continued += session.dic_nodes_cache.continued_searches - before;
                         output
                     })
                     .collect();
                 (outputs, continued)
             },
         );
-        let mut tape = pair.tape("words_typed_and_deleted");
+        let mut tape = fixture.tape("words_typed_and_deleted");
         record(&mut tape, rounds.iter().flat_map(|it| &it.0));
         tape.finish();
         let calls: usize = rounds.iter().map(|it| it.0.len()).sum();
@@ -80,25 +80,25 @@ fn words_typed_and_deleted_match_the_goldens() {
 /// must never leak into the next answer.
 #[test]
 fn unrelated_queries_on_one_session_match_the_goldens() {
-    for pair in Pair::each() {
+    for fixture in Fixture::each() {
         let mut random = Random::new(23);
         let inputs: Vec<_> = (0..8_000)
-            .map(|_| queries::query(&mut random, &pair.words))
+            .map(|_| queries::query(&mut random, &fixture.words))
             .collect();
         let outputs = in_chunks(
             &inputs,
-            || pair.sessions(),
-            |sessions, round, query| {
-                let mut outputs = vec![pair.compare(sessions, query)];
+            || fixture.session(),
+            |session, round, query| {
+                let mut outputs = vec![fixture.ask(session, query)];
                 if round % 5 == 0 {
                     // The same again, as a re-decode of the same word does.
-                    outputs.push(pair.compare(sessions, query));
+                    outputs.push(fixture.ask(session, query));
                 }
                 outputs
             },
         );
         assert_eq!(outputs.iter().map(Vec::len).sum::<usize>(), 9_600);
-        let mut tape = pair.tape("unrelated_queries_on_one_session");
+        let mut tape = fixture.tape("unrelated_queries_on_one_session");
         record(&mut tape, outputs.iter().flatten());
         tape.finish();
     }
@@ -108,28 +108,28 @@ fn unrelated_queries_on_one_session_match_the_goldens() {
 /// disturb the cache a later call continues.
 #[test]
 fn predictions_between_typing_match_the_goldens() {
-    for pair in Pair::each() {
+    for fixture in Fixture::each() {
         let mut random = Random::new(29);
         let inputs: Vec<_> = (0..800)
-            .map(|_| queries::query(&mut random, &pair.words))
+            .map(|_| queries::query(&mut random, &fixture.words))
             .collect();
         let rounds = in_chunks(
             &inputs,
-            || pair.sessions(),
-            |sessions, _, query| {
+            || fixture.session(),
+            |session, _, query| {
                 let mut outputs = Vec::new();
                 let mut predictions = 0;
                 for length in 1..=query.code_points.len() {
-                    outputs.push(pair.compare(sessions, &prefix(query, length)));
+                    outputs.push(fixture.ask(session, &prefix(query, length)));
                     if length % 3 == 0 {
-                        outputs.push(pair.compare(sessions, &prefix(query, 0)));
+                        outputs.push(fixture.ask(session, &prefix(query, 0)));
                         predictions += 1;
                     }
                 }
                 (outputs, predictions)
             },
         );
-        let mut tape = pair.tape("predictions_between_typing");
+        let mut tape = fixture.tape("predictions_between_typing");
         record(&mut tape, rounds.iter().flat_map(|it| &it.0));
         tape.finish();
         let predictions: usize = rounds.iter().map(|it| it.1).sum();

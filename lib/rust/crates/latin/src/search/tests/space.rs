@@ -1,10 +1,10 @@
 //! A keyboard with a space bar. The app's keyboard model has none, so `hasSpaceProximity` is
 //! always false there and space substitution ("hevis" -> "he is") never runs; with a space bar
-//! under the bottom row it does, and both sides are built from the same arrays to compare it.
+//! under the bottom row it does.
 
 use latin_golden::queries::{self, Random};
 
-use super::support::{Pair, TestKeyboard, in_chunks, record, tap};
+use super::support::{Fixture, TestKeyboard, in_chunks, record, tap};
 
 /// The y of a bottom-row tap close enough to the space bar for its grid cell to list the space.
 const NEAR_SPACE_Y: i32 = 440;
@@ -34,15 +34,15 @@ fn joined(random: &mut Random, short_words: &[&Vec<char>]) -> (Vec<i32>, Vec<Opt
     (code_points, points)
 }
 
-/// The generator's queries and words typed as one, letter by letter on one session per side and
-/// whole on fresh ones, on a keyboard with a space bar: each matches the C++, and the space
+/// The generator's queries and words typed as one, letter by letter on one session and
+/// whole on fresh ones, on a keyboard with a space bar: each matches the goldens, and the space
 /// expansions make some answers two words.
 #[test]
 fn space_bar_keyboard_matches_the_goldens() {
     let keyboard = TestKeyboard::new(true);
     for (name, path) in latin_golden::dictionaries() {
-        let pair = Pair::at(name, &path, Some(&keyboard));
-        let short_words: Vec<&Vec<char>> = pair
+        let fixture = Fixture::at(name, &path, Some(&keyboard));
+        let short_words: Vec<&Vec<char>> = fixture
             .words
             .iter()
             .filter(|word| {
@@ -52,20 +52,20 @@ fn space_bar_keyboard_matches_the_goldens() {
         let mut random = Random::new(37);
         let inputs: Vec<_> = (0..2_000)
             .map(|round| {
-                let mut query = queries::query(&mut random, &pair.words);
+                let mut query = queries::query(&mut random, &fixture.words);
                 if round % 3 != 0 {
                     (query.code_points, query.points) = joined(&mut random, &short_words);
                 }
                 query
             })
             .collect();
-        // Letter by letter on each thread's shared sessions, then the whole query on fresh ones.
+        // Letter by letter on each thread's shared session, then the whole query on fresh ones.
         let outputs = in_chunks(
             &inputs,
-            || pair.sessions(),
-            |sessions, _, query| pair.type_then_ask(sessions, query),
+            || fixture.session(),
+            |session, _, query| fixture.type_then_ask(session, query),
         );
-        let mut tape = pair.tape("space_bar_keyboard");
+        let mut tape = fixture.tape("space_bar_keyboard");
         record(&mut tape, outputs.iter().flatten());
         tape.finish();
         let two_words = outputs

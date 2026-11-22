@@ -4,7 +4,7 @@
 
 use std::sync::Arc;
 
-use super::{Random, pairs, random_word};
+use super::{Random, fixtures, random_word};
 use crate::defines::NOT_A_WORD_ID;
 use crate::trie::dictionary::Dictionary;
 use crate::trie::interface::WordListener;
@@ -46,15 +46,15 @@ fn dictionary_of(file: Vec<u8>) -> Option<Dictionary> {
 
 #[test]
 fn truncated_dictionaries_answer_without_panicking() {
-    for pair in pairs() {
-        let full = std::fs::read(&pair.path).expect("the dictionary");
+    for fixture in fixtures() {
+        let full = std::fs::read(&fixture.path).expect("the dictionary");
         let mut random = Random(0x7E11_CA7E);
         for _ in 0..150 {
             let cut = 12 + random.below(full.len() - 12);
             let Some(dictionary) = dictionary_of(full[..cut].to_vec()) else {
                 continue;
             };
-            exercise(&dictionary, &mut random, &pair.words);
+            exercise(&dictionary, &mut random, &fixture.words);
         }
     }
 }
@@ -77,8 +77,8 @@ fn truncated_dictionaries_iterate_their_words_without_panicking() {
 
 #[test]
 fn corrupted_dictionaries_answer_without_panicking() {
-    for pair in pairs() {
-        let full = std::fs::read(&pair.path).expect("the dictionary");
+    for fixture in fixtures() {
+        let full = std::fs::read(&fixture.path).expect("the dictionary");
         let mut random = Random(0x0BAD_B17E);
         for _ in 0..60 {
             let mut file = full.clone();
@@ -89,15 +89,15 @@ fn corrupted_dictionaries_answer_without_panicking() {
             let Some(dictionary) = dictionary_of(file) else {
                 continue;
             };
-            exercise(&dictionary, &mut random, &pair.words);
+            exercise(&dictionary, &mut random, &fixture.words);
         }
     }
 }
 
 #[test]
 fn queries_past_the_end_of_the_body_answer_without_panicking() {
-    for pair in pairs() {
-        let policy = pair.ours.policy();
+    for fixture in fixtures() {
+        let policy = fixture.dictionary.policy();
         let past = policy.body().len() as i32 + 1_000;
         for pos in [-1, i32::MIN, past, i32::MAX] {
             let _ = policy.node_reader().fetch(pos);

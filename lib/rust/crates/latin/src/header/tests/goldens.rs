@@ -3,9 +3,7 @@
 
 use super::*;
 use crate::bytes::{FormatVersion, detect_format_version};
-use crate::golden::{Tape, same, tape};
-#[cfg(feature = "oracle")]
-use latin_oracle::hooks::header as cpp;
+use crate::golden::{Tape, record, tape};
 
 /// Every format version, the file's numbers and the port's.
 const VERSIONS: [FormatVersion; 7] = [
@@ -197,14 +195,10 @@ fn random_buffer(random: &mut Random) -> Vec<u8> {
 }
 
 /// Records every getter of the port's `HeaderPolicy` built from `buffer`, and the attribute map
-/// in full, against the C++'s. Each read is recorded over every output size it can be given.
-fn assert_same_policy(tape: &mut Tape, buffer: &[u8], version: FormatVersion, now: i32) {
+/// in full. Each read is recorded over every output size it can be given.
+fn record_policy(tape: &mut Tape, buffer: &[u8], version: FormatVersion, now: i32) {
     let ours = HeaderPolicy::with_current_time(buffer, version, now);
-    #[cfg(feature = "oracle")]
-    let theirs = cpp::Policy::new(buffer, version as i32, now);
-    #[cfg(feature = "oracle")]
-    let context = || format!("{version:?} at {now}: {buffer:02x?}");
-    same!(
+    record!(
         tape,
         (
             ours.size(),
@@ -215,36 +209,18 @@ fn assert_same_policy(tape: &mut Tape, buffer: &[u8], version: FormatVersion, no
             ours.requires_german_umlaut_processing(),
             ours.date(),
             ours.last_decayed_time()
-        ),
-        (
-            theirs.size(),
-            theirs.format_version_number(),
-            theirs.is_valid(),
-            theirs.multi_word_cost_multiplier().to_bits(),
-            theirs.is_decaying_dict(),
-            theirs.requires_german_umlaut_processing(),
-            theirs.date(),
-            theirs.last_decayed_time()
-        ),
-        "{}",
-        context()
+        )
     );
     for ngram_type in ALL_NGRAM_TYPES {
-        same!(
+        record!(
             tape,
             (
                 ours.ngram_counts().ngram_count(ngram_type),
                 ours.max_ngram_counts().ngram_count(ngram_type)
-            ),
-            (
-                theirs.ngram_count(ngram_type as i32, false),
-                theirs.ngram_count(ngram_type as i32, true)
-            ),
-            "{}",
-            context()
+            )
         );
     }
-    same!(
+    record!(
         tape,
         (
             ours.extended_region_size(),
@@ -252,40 +228,16 @@ fn assert_same_policy(tape: &mut Tape, buffer: &[u8], version: FormatVersion, no
             ours.should_boost_exact_matches(),
             ours.forgetting_curve_probability_values_table_id(),
             ours.supports_beginning_of_sentence()
-        ),
-        (
-            theirs.extended_region_size(),
-            theirs.has_historical_info_of_words(),
-            theirs.should_boost_exact_matches(),
-            theirs.forgetting_curve_table_id(),
-            theirs.supports_beginning_of_sentence()
-        ),
-        "{}",
-        context()
+        )
     );
-    same!(
-        tape,
-        ours.code_point_table().map(<[i32]>::to_vec),
-        theirs.code_point_table(),
-        "{}",
-        context()
-    );
-    same!(
-        tape,
-        ours.locale().to_vec(),
-        theirs.locale(),
-        "{}",
-        context()
-    );
-    same!(
+    record!(tape, ours.code_point_table().map(<[i32]>::to_vec));
+    record!(tape, ours.locale().to_vec());
+    record!(
         tape,
         ours.attribute_map()
             .iter()
             .map(|(key, value)| (key.clone(), value.clone()))
-            .collect::<Vec<_>>(),
-        theirs.attributes(),
-        "{}",
-        context()
+            .collect::<Vec<_>>()
     );
     const QUERY_KEYS: [&str; 10] = [
         "dictionary",
@@ -306,67 +258,41 @@ fn assert_same_policy(tape: &mut Tape, buffer: &[u8], version: FormatVersion, no
                 read(&mut out);
                 out
             };
-            same!(
+            record!(
                 tape,
-                read(&|out| ours.read_header_value_or_question_mark(key, out)),
-                read(&|out| theirs.read_value_or_question_mark(key, out)),
-                "{key:?} in {size}: {}",
-                context()
+                read(&|out| ours.read_header_value_or_question_mark(key, out))
             );
         }
     }
 }
 
-/// Records the static readers on `buffer`'s attribute map against the C++'s: the fetch, the
+/// Records the static readers on `buffer`'s attribute map: the fetch, the
 /// fixed fields, and the readers for real keys and random ones.
-fn assert_same_attributes(tape: &mut Tape, buffer: &[u8], random: &mut Random) {
+fn record_attributes(tape: &mut Tape, buffer: &[u8], random: &mut Random) {
     let ours = fetch_all_header_attributes(buffer);
-    #[cfg(feature = "oracle")]
-    let theirs = cpp::Attributes::fetch(buffer);
-    #[cfg(feature = "oracle")]
-    let context = || format!("{buffer:02x?}");
-    same!(
+    record!(
         tape,
         ours.iter()
             .map(|(key, value)| (key.clone(), value.clone()))
-            .collect::<Vec<_>>(),
-        theirs.entries(),
-        "{}",
-        context()
+            .collect::<Vec<_>>()
     );
-    same!(
+    record!(
         tape,
-        (get_header_size(buffer), i32::from(get_flags(buffer))),
-        (cpp::get_header_size(buffer), cpp::get_flags(buffer)),
-        "{}",
-        context()
+        (get_header_size(buffer), i32::from(get_flags(buffer)))
     );
-    same!(
-        tape,
-        read_code_point_table(&ours).map(<[i32]>::to_vec),
-        theirs.code_point_table(),
-        "{}",
-        context()
-    );
+    record!(tape, read_code_point_table(&ours).map(<[i32]>::to_vec));
     let mut keys: Vec<String> = REAL_KEYS.iter().map(|key| (*key).to_string()).collect();
     keys.extend((0..20).map(|_| random_ascii(random)));
     for key in keys {
         let default = random.pick(&[0, -1, 42, i32::MIN, i32::MAX]);
         let default_bool = random.chance(50);
-        same!(
+        record!(
             tape,
             (
                 read_int_attribute_value(&ours, &key, default),
                 read_bool_attribute_value(&ours, &key, default_bool),
                 read_code_point_vector_attribute_value(&ours, &key)
-            ),
-            (
-                theirs.read_int(&key, default),
-                theirs.read_bool(&key, default_bool),
-                theirs.read_code_point_vector(&key)
-            ),
-            "{key:?}: {}",
-            context()
+            )
         );
     }
 }
@@ -378,8 +304,8 @@ fn each_dictionary_header_matches_the_goldens() {
         let buffer = std::fs::read(path).expect("a dictionary");
         let version = detect_format_version(&buffer);
         assert_eq!(version, FormatVersion::Version202);
-        assert_same_policy(&mut tape, &buffer, version, 1_700_000_000);
-        assert_same_attributes(&mut tape, &buffer, &mut Random(1));
+        record_policy(&mut tape, &buffer, version, 1_700_000_000);
+        record_attributes(&mut tape, &buffer, &mut Random(1));
         tape.finish();
     }
     let buffer = std::fs::read(latin_golden::aosp_dictionary_path()).expect("the AOSP dictionary");
@@ -398,8 +324,8 @@ fn random_headers_match_the_goldens() {
         let buffer = random_header(&mut random);
         let version = random.pick(&VERSIONS[..]);
         let now = random.next() as i32;
-        assert_same_policy(&mut tape, &buffer, version, now);
-        assert_same_attributes(&mut tape, &buffer, &mut random);
+        record_policy(&mut tape, &buffer, version, now);
+        record_attributes(&mut tape, &buffer, &mut random);
     }
     tape.finish();
 }
@@ -423,8 +349,8 @@ fn random_buffers_match_the_goldens() {
         compared += 1;
         let version = random.pick(&VERSIONS[..]);
         let now = random.next() as i32;
-        assert_same_policy(&mut tape, &buffer, version, now);
-        assert_same_attributes(&mut tape, &buffer, &mut random);
+        record_policy(&mut tape, &buffer, version, now);
+        record_attributes(&mut tape, &buffer, &mut random);
     }
     tape.finish();
     assert!(
@@ -452,8 +378,8 @@ fn integer_and_bool_values_match_the_goldens() {
     for key in KEYS {
         for value in INTEGER_TEXTS {
             let buffer = header_of(&[(key, value)]);
-            assert_same_policy(&mut tape, &buffer, FormatVersion::Version202, 99);
-            assert_same_attributes(&mut tape, &buffer, &mut random);
+            record_policy(&mut tape, &buffer, FormatVersion::Version202, 99);
+            record_attributes(&mut tape, &buffer, &mut random);
         }
     }
     tape.finish();
@@ -465,8 +391,8 @@ fn static_readers_on_every_format_version_match_the_goldens() {
     let mut random = Random(99);
     for version in VERSIONS {
         let buffer = random_header(&mut random);
-        assert_same_policy(&mut tape, &buffer, version, 5);
-        assert_same_attributes(&mut tape, &buffer, &mut random);
+        record_policy(&mut tape, &buffer, version, 5);
+        record_attributes(&mut tape, &buffer, &mut random);
     }
     tape.finish();
 }

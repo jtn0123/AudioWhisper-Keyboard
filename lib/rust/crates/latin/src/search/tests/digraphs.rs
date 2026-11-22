@@ -1,10 +1,10 @@
 //! German umlaut digraphs (`DigraphUtils`): a dictionary whose header asks for umlaut processing
 //! tries each node holding "ä", "ö" or "ü" as "ae", "oe" or "ue" too. The bundled dictionary does
-//! not ask for it, so the tests give it a header that does, on both sides.
+//! not ask for it, so the tests give it a header that does.
 
 use latin_golden::queries;
 
-use super::support::{Pair, in_chunks, record, tap};
+use super::support::{Fixture, in_chunks, record, tap};
 
 /// The attribute `HeaderPolicy::requiresGermanUmlautProcessing` reads, set to 1, in the v2
 /// header's string encoding (one byte per ASCII character, each string ended by 0x1F).
@@ -42,14 +42,19 @@ fn spelt_out(word: &[char]) -> Vec<i32> {
 }
 
 /// Words with an umlaut typed with its digraph spelt out, and the generator's queries, against
-/// a dictionary that processes umlauts: each matches the C++, and some answers hold an umlaut
+/// a dictionary that processes umlauts: each matches the goldens, and some answers hold an umlaut
 /// that only the digraph could have reached.
 #[test]
 fn umlaut_digraphs_match_the_goldens() {
     for (name, path) in latin_golden::dictionaries() {
-        let pair = Pair::of_bytes(name, umlaut_dictionary(&path));
-        assert!(pair.dictionary.header().requires_german_umlaut_processing());
-        let umlaut_words: Vec<&Vec<char>> = pair
+        let fixture = Fixture::of_bytes(name, umlaut_dictionary(&path));
+        assert!(
+            fixture
+                .dictionary
+                .header()
+                .requires_german_umlaut_processing()
+        );
+        let umlaut_words: Vec<&Vec<char>> = fixture
             .words
             .iter()
             .filter(|word| word.iter().any(|it| matches!(it, 'ä' | 'ö' | 'ü')))
@@ -62,7 +67,7 @@ fn umlaut_digraphs_match_the_goldens() {
         let mut random = queries::Random::new(31);
         let inputs: Vec<_> = (0..3_000)
             .map(|round| {
-                let mut query = queries::query(&mut random, &pair.words);
+                let mut query = queries::query(&mut random, &fixture.words);
                 if round % 3 != 0 {
                     query.code_points = spelt_out(random.pick(&umlaut_words));
                     query.code_points.truncate(crate::defines::MAX_WORD_LENGTH);
@@ -75,13 +80,13 @@ fn umlaut_digraphs_match_the_goldens() {
                 query
             })
             .collect();
-        // Letter by letter on each thread's shared sessions, then the whole word on fresh ones.
+        // Letter by letter on each thread's shared session, then the whole word on fresh ones.
         let outputs = in_chunks(
             &inputs,
-            || pair.sessions(),
-            |sessions, _, query| pair.type_then_ask(sessions, query),
+            || fixture.session(),
+            |session, _, query| fixture.type_then_ask(session, query),
         );
-        let mut tape = pair.tape("umlaut_digraphs");
+        let mut tape = fixture.tape("umlaut_digraphs");
         record(&mut tape, outputs.iter().flatten());
         tape.finish();
         let umlauts = [0xE4, 0xF6, 0xFC];

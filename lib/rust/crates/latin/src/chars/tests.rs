@@ -1,32 +1,15 @@
 use super::*;
-use crate::golden::{same, tape};
+use crate::golden::{record, tape};
 
-/// Every code point, the beginning-of-sentence marker and a little past it: the same as the C++.
+/// Every code point, the beginning-of-sentence marker and a little past it, as the C++ answered.
 #[test]
 fn every_code_point_matches_the_goldens() {
     use crate::defines::NOT_A_CODE_POINT;
-    #[cfg(feature = "oracle")]
-    use latin_oracle::hooks::chars as cpp;
     let mut tape = tape("chars.every_code_point");
     for c in 0..=0x11_0100 {
-        same!(
-            tape,
-            to_lower_case(c),
-            cpp::to_lower_case(c),
-            "lower case of {c:#x}"
-        );
-        same!(
-            tape,
-            to_base_code_point(c),
-            cpp::to_base_code_point(c),
-            "base of {c:#x}"
-        );
-        same!(
-            tape,
-            to_base_lower_case(c),
-            cpp::to_base_lower_case(c),
-            "base lower of {c:#x}"
-        );
+        record!(tape, to_lower_case(c));
+        record!(tape, to_base_code_point(c));
+        record!(tape, to_base_lower_case(c));
     }
     for c in [
         NOT_A_CODE_POINT,
@@ -37,12 +20,7 @@ fn every_code_point_matches_the_goldens() {
         i32::MAX,
         0x7FFF_00C0,
     ] {
-        same!(
-            tape,
-            to_lower_case(c),
-            cpp::to_lower_case(c),
-            "lower case of {c:#x}"
-        );
+        record!(tape, to_lower_case(c));
     }
     tape.finish();
 }
