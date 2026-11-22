@@ -3,11 +3,15 @@ package com.jtn0123.audiowhisper.settingsui
 import com.jtn0123.audiowhisper.rust.*
 import androidx.compose.runtime.mutableStateListOf
 import com.jtn0123.audiowhisper.settingsui.ThemeEditorNatives.removeProperty
+import com.materialkolor.Contrast
+import com.materialkolor.PaletteStyle
+import com.materialkolor.dynamiccolor.ColorSpec
 import dev.patrickgold.florisboard.ime.theme.ThemeExtensionComponentEditor
 import dev.patrickgold.florisboard.ime.theme.ThemeExtensionEditor
 import dev.patrickgold.florisboard.lib.ext.ExtensionMaintainer
 import dev.patrickgold.florisboard.lib.ext.ExtensionMeta
 import kotlinx.serialization.json.*
+import org.florisboard.lib.color.MaterialYouFlags
 import java.io.File
 import kotlin.io.path.createTempDirectory
 import kotlin.test.*
@@ -40,11 +44,18 @@ class SettingsThemeEditorGlueMatchTest {
         val theme = component()
         val dir = extDir(theme)
         try {
-            val report = themeEditorReport(dir, "local.my.themes", theme, ThemeEditorNatives.UUID, "0")
+            val report = themeEditorReport(dir, "local.my.themes", theme, listOf("moon", "rain"), ThemeEditorNatives.UUID, "0")
             assertEquals(SettingsUiThemeEditor.SIZE, report.size)
             assertEquals(listOf(SettingsUiThemeEditorOutcome.LOADED, sheet, "local.my.themes", "Ada\nGrace", "a.ttf/b.ttf", "sky.png"),
                 listOf(SettingsUiThemeEditor.OUTCOME, SettingsUiThemeEditor.STYLESHEET, SettingsUiThemeEditor.EXTENSION,
                     SettingsUiThemeEditor.AUTHORS, SettingsUiThemeEditor.FONTS, SettingsUiThemeEditor.IMAGES).map { report[it] })
+            val flags = theme.materialYouFlags
+            assertEquals(listOf("stylesheets/sunny.json", flags.paletteStyle.name, flags.contrastLevel.name, flags.specVersion.name,
+                PaletteStyle.entries.joinToString("/") { it.name }, Contrast.entries.joinToString("/") { it.name },
+                ColorSpec.SpecVersion.entries.joinToString("/") { it.name }, "moon/rain"),
+                listOf(SettingsUiThemeEditor.PATH, SettingsUiThemeEditor.PALETTE, SettingsUiThemeEditor.CONTRAST,
+                    SettingsUiThemeEditor.SPEC, SettingsUiThemeEditor.PALETTES, SettingsUiThemeEditor.CONTRASTS,
+                    SettingsUiThemeEditor.SPECS, SettingsUiThemeEditor.OTHER_IDS).map { report[it] })
             KeyboardRenderer(arrayOf(ThemeEditorNatives.font)).use { n ->
                 ThemeEditorNatives.open(n)
                 ThemeEditorNatives.state(n, SettingsUiOp.THEME_EDITOR, *report)
@@ -52,7 +63,9 @@ class SettingsThemeEditorGlueMatchTest {
                 ThemeEditorNatives.state(n, SettingsUiOp.ACTIVATE, ThemeEditorNatives.deleteId(r, 0))
                 val save = ThemeEditorNatives.effects(ThemeEditorNatives.state(n, SettingsUiOp.ACTIVATE, ThemeEditorNatives.SAVE_ID.toString()))
                     .last { it[0] == SettingsUiThemeEditorEffect.SAVE }
-                assertEquals(listOf(ThemeEditorNatives.UUID, "0", "Sunny", "Ada\nGrace", WireFlag.FALSE), save.slice(listOf(1, 2, 4, 5, 6)))
+                assertEquals(listOf(ThemeEditorNatives.UUID, "0", "Sunny", "Ada\nGrace", WireFlag.FALSE, "sunny",
+                    "stylesheets/sunny.json", flags.paletteStyle.name, flags.contrastLevel.name, flags.specVersion.name),
+                    save.slice(listOf(1, 2) + (4..11)), "Rust sends back the meta Kotlin reported")
                 theme.stylesheetEditor = ThemeEditorNatives.composeEditor(sheet)
                 theme.stylesheetPathOnLoad = "stylesheets/before.json"
                 val editor = editorOf(theme)
@@ -60,16 +73,22 @@ class SettingsThemeEditorGlueMatchTest {
                 val saved = editor.themes.single()
                 assertNotSame(theme, saved, "a new component, which the extension editor draws again")
                 assertNull(saved.stylesheetEditor, "the file is what handleSave copies now")
-                assertSame(theme.materialYouFlags, saved.materialYouFlags)
+                assertEquals(theme.materialYouFlags, saved.materialYouFlags)
                 assertEquals(listOf("sunny", "stylesheets/sunny.json", "stylesheets/before.json"),
                     listOf(saved.id, saved.stylesheetPath, saved.stylesheetPathOnLoad))
                 val expected = ThemeEditorNatives.composeWrites(sheet) { removeProperty(r, 0) }
                 assertEquals(expected, dir.resolve(theme.stylesheetPath()).readText())
             }
             val editor = editorOf(theme)
-            themeEditorSaved(dir, editor, 0, listOf(SettingsUiThemeEditorEffect.SAVE, ThemeEditorNatives.UUID, "0", "{}", "Dusk", "Ada\n\nLinus", WireFlag.TRUE))
+            val packet = listOf(SettingsUiThemeEditorEffect.SAVE, ThemeEditorNatives.UUID, "0", "{}", "Dusk", "Ada\n\nLinus",
+                WireFlag.TRUE, "dusk", "", PaletteStyle.entries.last().name, Contrast.entries.last().name, "no such spec")
+            themeEditorSaved(dir, editor, 0, packet)
             val dusk = editor.themes.single()
             assertEquals(Triple("Dusk", listOf("Ada", "Linus"), true), Triple(dusk.label, dusk.authors, dusk.isNightTheme))
+            assertEquals(listOf("dusk", ""), listOf(dusk.id, dusk.stylesheetPath))
+            assertEquals(MaterialYouFlags(PaletteStyle.entries.last(), Contrast.entries.last(), theme.materialYouFlags.specVersion),
+                dusk.materialYouFlags, "a flag name no enum has keeps the old flag")
+            assertEquals("{}", dir.resolve("stylesheets/dusk.json").readText(), "written where the new id keeps it")
         } finally {
             dir.deleteRecursively()
         }
@@ -81,12 +100,15 @@ class SettingsThemeEditorGlueMatchTest {
         try {
             val r = ThemeEditorNatives.fullRules(sheet, 1).single()
             theme.stylesheetEditor = ThemeEditorNatives.composeEditor(sheet).apply { removeProperty(r, 0) }
-            val report = themeEditorReport(dir, "local.my.themes", theme, ThemeEditorNatives.UUID, "0")
+            val report = themeEditorReport(dir, "local.my.themes", theme, emptyList(), ThemeEditorNatives.UUID, "0")
             assertEquals(ThemeEditorNatives.composeWrites(sheet) { removeProperty(r, 0) }, report[SettingsUiThemeEditor.STYLESHEET])
             dir.resolve(theme.stylesheetPath()).delete()
             theme.stylesheetEditor = null
-            assertEquals("", themeEditorReport(dir, "", theme, ThemeEditorNatives.UUID, "0")[SettingsUiThemeEditor.STYLESHEET],
+            assertEquals("", themeEditorReport(dir, "", theme, emptyList(), ThemeEditorNatives.UUID, "0")[SettingsUiThemeEditor.STYLESHEET],
                 "no file is an empty stylesheet, as loadThemeEditorStylesheet started empty")
+            val byDefault = ThemeExtensionComponentEditor(id = "sunny", label = "Sunny", authors = listOf("Ada"))
+            assertEquals("", themeEditorReport(dir, "", byDefault, emptyList(), ThemeEditorNatives.UUID, "0")[SettingsUiThemeEditor.PATH],
+                "a component keeping its stylesheet where its id says reports no path of its own")
         } finally {
             dir.deleteRecursively()
         }

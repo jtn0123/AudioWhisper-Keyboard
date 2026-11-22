@@ -38,7 +38,7 @@ pub const META: &str = "settings/theme/editor/meta";
 pub const TUNE: &str = "settings/theme/editor/tune";
 /// The strings the editor shows beyond its rows' and the element, property, selector and value
 /// names.
-pub const KEYS: [&str; 23] = [
+pub const KEYS: [&str; 28] = [
     "settings__theme_editor__stylesheet_error_title",
     "settings__theme_editor__font_name_invalid",
     "settings__theme_editor__stylesheet_error_description",
@@ -62,6 +62,11 @@ pub const KEYS: [&str; 23] = [
     "ext__validation__enter_component_label",
     "ext__validation__hint_component_label_to_long",
     "ext__validation__error_author",
+    "ext__validation__enter_component_id",
+    "ext__validation__error_component_id",
+    "ext__validation__error_stylesheet_path",
+    "ext__validation__error_stylesheet_path_blank",
+    meta::ID_TAKEN,
 ];
 
 /// Every string key the editor shows beyond its rows': [`KEYS`], the elements', properties',
@@ -120,17 +125,32 @@ pub enum Tap {
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Component {
     pub extension: String,
-    pub id: String,
-    pub path: String,
     pub fonts: Vec<String>,
     pub images: Vec<String>,
+    /// The names the Material You palette style, contrast level and spec version can take.
+    pub choices: [Vec<String>; 3],
+    /// The extension's other components' ids.
+    pub other_ids: Vec<String>,
 }
-/// The meta the meta editor changes.
+/// The meta the meta editor changes, ComponentMetaEditorDialog's fields.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Meta {
+    pub id: String,
     pub label: String,
     pub authors: Vec<String>,
     pub night: bool,
+    /// The stylesheet path as the component keeps it: empty for the one its id gives.
+    pub path: String,
+    /// The Material You palette style, contrast level and spec version, by name.
+    pub flags: [String; 3],
+}
+
+impl Meta {
+    /// Where the stylesheet is kept, `stylesheetPath()`.
+    pub fn stylesheet_path(&self) -> String {
+        let (id, path) = (snygg::text(&self.id), snygg::text(&self.path));
+        String::from_utf16_lossy(&extensions::stylesheet_path(&id, &path))
+    }
 }
 /// Where loading the component stands.
 #[derive(Clone, Debug, Default, PartialEq)]
@@ -248,19 +268,22 @@ impl App {
                 .map(Into::into)
                 .collect()
         };
+        let [palettes, contrasts, specs] = [report::PALETTES, report::CONTRASTS, report::SPECS];
         e.component = Component {
             extension: p[report::EXTENSION].clone(),
-            id: p[report::ID].clone(),
-            path: p[report::PATH].clone(),
             fonts: list(&p[report::FONTS]),
             images: list(&p[report::IMAGES]),
+            choices: [list(&p[palettes]), list(&p[contrasts]), list(&p[specs])],
+            other_ids: list(&p[report::OTHER_IDS]),
         };
-        let authors = p[report::AUTHORS].lines().map(Into::into).collect();
-        let night = p[report::NIGHT] == wire::flag::TRUE;
+        let [palette, contrast, spec] = [report::PALETTE, report::CONTRAST, report::SPEC];
         e.meta = Meta {
+            id: p[report::ID].clone(),
             label: p[report::LABEL].clone(),
-            authors,
-            night,
+            authors: p[report::AUTHORS].lines().map(Into::into).collect(),
+            night: p[report::NIGHT] == wire::flag::TRUE,
+            path: p[report::PATH].clone(),
+            flags: [p[palette].clone(), p[contrast].clone(), p[spec].clone()],
         };
         e.raw = p[report::STYLESHEET].clone();
         match e.restored.take() {
@@ -336,12 +359,19 @@ impl App {
                 return;
             }
         };
-        let night = wire::flag::encode(e.meta.night).to_owned();
-        let (label, authors) = (e.meta.label.clone(), e.meta.authors.join("\n"));
+        let m = &e.meta;
+        let night = wire::flag::encode(m.night).to_owned();
+        let meta = [
+            m.label.clone(),
+            m.authors.join("\n"),
+            night,
+            m.id.clone(),
+            m.path.clone(),
+        ];
+        let save = [effect::SAVE.into(), workspace, index.to_string(), json];
+        let packet = [&save[..], &meta, &m.flags].concat();
         e.base = Some((e.rules.clone(), e.meta.clone()));
-        let save = vec![effect::SAVE.into(), workspace, index.to_string(), json];
-        self.effects
-            .push([save, vec![label, authors, night]].concat());
+        self.effects.push(packet);
         self.close_editor();
     }
     /// Back on the rules with unsaved changes: the question instead of leaving.
@@ -433,6 +463,14 @@ impl App {
     }
     /// Opens row `i`'s list with the element chosen, or nothing chosen for a value to add.
     fn open_theme_list(&mut self, i: usize) {
+        if let Some(Kind::ThemeEdit(Part::MetaChoice(k))) = self.rows().get(i).map(|r| r.kind) {
+            let chosen = self
+                .theme_editor
+                .meta_form
+                .as_ref()
+                .map(|f| f.flags[k].clone());
+            return self.open_modal(i, chosen.unwrap_or_default());
+        }
         let Some(form) = self.theme_editor.form.as_ref() else {
             return;
         };
@@ -469,7 +507,8 @@ impl App {
             Part::Meta if ready => vec![paint::META_ID, paint::META_ID + 1, paint::META_ID + 3],
             Part::Tune if ready => vec![paint::TUNE_ID],
             Part::Rules if ready => self.rules_focus(),
-            Part::MetaField(_) => vec![1000 + i as i32],
+            Part::MetaField(_) | Part::MetaChoice(_) => vec![1000 + i as i32],
+            Part::MaterialYou => vec![],
             Part::Night => vec![meta::NIGHT_ID],
             Part::Status | Part::Meta | Part::Tune | Part::Rules => vec![],
             _ => self.rule_focus(i, part),

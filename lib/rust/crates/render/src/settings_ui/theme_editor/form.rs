@@ -248,8 +248,12 @@ impl App {
         }
         self.close_editor();
     }
-    /// What row `i`'s list offers: the elements, or attribute values the rule lacks.
+    /// What row `i`'s list offers: the elements, attribute values the rule lacks, or what a
+    /// Material You flag can be.
     pub(in crate::settings_ui) fn theme_choices(&self, i: usize) -> Option<Vec<String>> {
+        if let Kind::ThemeEdit(Part::MetaChoice(k)) = self.rows().get(i)?.kind {
+            return Some(self.theme_editor.component.choices[k].clone());
+        }
         let form = self.theme_editor.form.as_ref()?;
         match self.rows().get(i)?.kind {
             Kind::ThemeEdit(Part::Element) => {
@@ -279,6 +283,8 @@ impl App {
         match self.rows().get(i)?.kind {
             Kind::ThemeEdit(Part::Element) => Some(self.element_choice(choice)),
             Kind::ThemeEdit(Part::Attribute(k)) => Some(self.attr_value_label(k, choice)),
+            // As Compose's dropdowns named them: the enum's name.
+            Kind::ThemeEdit(Part::MetaChoice(_)) => Some(choice.to_owned()),
             _ => None,
         }
     }
@@ -302,9 +308,15 @@ impl App {
             _ => v.to_owned(),
         }
     }
-    /// A list entry tapped on row `i`: the element chosen, or the value added.
+    /// A list entry tapped on row `i`: the element or a Material You flag chosen, or the value
+    /// added.
     pub(in crate::settings_ui) fn theme_choose(&mut self, i: usize, choice: &str) {
         let kind = self.rows().get(i).map(|r| r.kind);
+        if let (Some(Kind::ThemeEdit(Part::MetaChoice(k))), Some(f)) =
+            (kind, self.theme_editor.meta_form.as_mut())
+        {
+            return f.flags[k] = choice.into();
+        }
         let Some(form) = self.theme_editor.form.as_mut() else {
             return;
         };

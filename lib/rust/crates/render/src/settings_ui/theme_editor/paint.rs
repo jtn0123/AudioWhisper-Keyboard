@@ -60,7 +60,9 @@ impl App {
                 self.theme_entry(p, (TUNE_ID, title, "tune", Tap::Tune), at, clip, text)
             }
             Part::Rules if ready => self.theme_rules(p, at, clip, text),
-            Part::MetaField(_) | Part::Night => self.meta_part(p, (i, part), at, clip, text),
+            Part::MetaField(_) | Part::Night | Part::MaterialYou | Part::MetaChoice(_) => {
+                self.meta_part(p, (i, part), at, clip, text)
+            }
             Part::Meta | Part::Tune | Part::Rules => 0.0,
             _ => self.rule_part(p, (i, part), at, clip, text),
         }
@@ -160,12 +162,12 @@ impl App {
         let outline = p.items.len();
         self.outlined_box(p, rect(left, border_top, width, 0.0), clip);
         let (c, meta) = (&self.theme_editor.component, &self.theme_editor.meta);
-        let name = format!("{}:{}", c.extension, c.id);
+        let name = format!("{}:{}", c.extension, meta.id);
         let body = format!(
             "authors = [{}]\nisNightTheme = {}\nstylesheetPath = {}",
             meta.authors.join(", "),
             meta.night,
-            c.path
+            meta.stylesheet_path()
         );
         let label = meta.label.clone();
         let edit = Action::ThemeEdit(Tap::Meta);

@@ -294,7 +294,12 @@ fn save_writes_the_stylesheet_rust_built_and_the_meta_then_closes() {
             &json,
             "Sunny",
             "Ada\nGrace",
-            wire::flag::FALSE
+            wire::flag::FALSE,
+            "sunny",
+            "",
+            "Neutral",
+            "Default",
+            "SPEC_2021"
         ]
     );
     assert_eq!(a.effects.last().unwrap(), &["finish"]);

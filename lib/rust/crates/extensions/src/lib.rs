@@ -36,6 +36,18 @@ fn trim(value: &[u16]) -> Text {
     value[start..end].to_vec()
 }
 
+/// Where component `id` keeps its stylesheet, `stylesheetPath()`: `stylesheet`, or
+/// `stylesheets/<id>.json` when that is blank.
+pub fn stylesheet_path(id: &[u16], stylesheet: &[u16]) -> Text {
+    if !trim(stylesheet).is_empty() {
+        return stylesheet.to_vec();
+    }
+    let mut path = text("stylesheets/");
+    path.extend(id);
+    path.extend(text(".json"));
+    path
+}
+
 /// Packed data at the JNI boundary. The operations and their packets are declared in
 /// `wire::extensions`.
 pub fn call(operation: i32, input: &[Text]) -> Result<Vec<Text>, Error> {
@@ -116,14 +128,7 @@ pub fn call(operation: i32, input: &[Text]) -> Result<Vec<Text>, Error> {
         (ops::THEME_COMPONENT, [id, label, stylesheet, authors @ ..]) => {
             Ok(theme_component(id, label, stylesheet, authors))
         }
-        (ops::STYLESHEET, [id, stylesheet]) => Ok(vec![if trim(stylesheet).is_empty() {
-            let mut path = text("stylesheets/");
-            path.extend(id);
-            path.extend(text(".json"));
-            path
-        } else {
-            stylesheet.clone()
-        }]),
+        (ops::STYLESHEET, [id, stylesheet]) => Ok(vec![stylesheet_path(id, stylesheet)]),
         (ops::COMPOSER_TYPE, [serial]) => Ok(vec![text(if serial == &text(ops::WITH_RULES) {
             ops::WITH_RULES
         } else {

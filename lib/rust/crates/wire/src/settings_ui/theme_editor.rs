@@ -14,7 +14,8 @@ pub mod effect {
             LOAD = "themeEditor",
             /// Write the component back into the workspace, as the extension editor's save will
             /// zip it: the workspace, the index, the stylesheet's JSON, the label, the authors one
-            /// per line, and the night flag follow.
+            /// per line, the night flag, the id, the stylesheet path (empty for the default), and
+            /// the Material You palette style, contrast level and spec version follow.
             SAVE = "themeEditorSave",
             /// Show the keyboard in the draft: the workspace, the index and the stylesheet's JSON
             /// follow; with nothing after the kind, the keyboard gets its own theme back.
@@ -55,11 +56,23 @@ pub mod report {
             LABEL,
             AUTHORS,
             NIGHT,
-            /// Where the stylesheet is kept in the extension: `stylesheetPath()`.
+            /// The component's own `stylesheetPath`, empty when it keeps its stylesheet where its
+            /// id says (`stylesheets/<id>.json`).
             PATH,
             /// The workspace's font and image file names, for the property editor.
             FONTS,
             IMAGES,
+            /// The component's Material You flags by name: palette style, contrast level and
+            /// spec version.
+            PALETTE,
+            CONTRAST,
+            SPEC,
+            /// The names each of those can take, in their enums' order.
+            PALETTES,
+            CONTRASTS,
+            SPECS,
+            /// The extension's other components' ids, which this one's must not repeat.
+            OTHER_IDS,
         }
     }
 }

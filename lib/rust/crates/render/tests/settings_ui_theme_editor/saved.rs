@@ -3,7 +3,7 @@
 use super::common::*;
 use render::settings_ui::{
     App,
-    catalogue::theme_editor::Part,
+    catalogue::{languages::Lang, theme_editor::Part},
     theme_editor::{
         META, RULE_EDIT,
         paint::{ADD_ID, rule_id},
@@ -56,12 +56,31 @@ fn the_meta_editor_and_the_meta_draft_survive_recreation() {
     let (mut a, mut text) = app(SHEET);
     assert!(tap(&mut a, &mut text, 400_013));
     type_into(&mut a, &mut text, Part::MetaField(0), "Dusk");
+    type_into(&mut a, &mut text, Part::MetaField(2), "dusk");
+    type_into(&mut a, &mut text, Part::MetaField(3), "sheets/d.json");
+    let palette = part_id(&a, Part::MetaChoice(0));
+    assert!(tap(&mut a, &mut text, palette));
+    assert!(tap(&mut a, &mut text, 3000));
+    let form = a.theme_editor.meta_form.clone();
     let mut b = recreated(&a);
     b.set_theme_editor(&loaded(SHEET)).unwrap();
     assert_eq!(b.stack.last().unwrap(), META);
-    assert_eq!(b.theme_editor.meta_form.as_ref().unwrap().label, "Dusk");
+    assert_eq!(b.theme_editor.meta_form, form);
+    assert_eq!(form.unwrap().flags[0], "TonalSpot");
     assert_eq!(b.theme_editor.meta.label, "Sunny");
     assert!(!b.theme_editor.changed());
+    // Applied, the draft meta comes back over the report's.
+    let apply = lang_id(&b, Lang::Save);
+    assert!(tap(&mut b, &mut text, apply));
+    let meta = b.theme_editor.meta.clone();
+    let mut c = recreated(&b);
+    c.set_theme_editor(&loaded(SHEET)).unwrap();
+    assert_eq!(c.theme_editor.meta, meta);
+    assert_eq!(
+        (meta.id.as_str(), meta.path.as_str()),
+        ("dusk", "sheets/d.json")
+    );
+    assert!(c.theme_editor.changed());
 }
 
 #[test]

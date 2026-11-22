@@ -40,24 +40,46 @@ fn lossy(t: &[u16]) -> String {
 fn flag(s: &str) -> Result<bool, &'static str> {
     s.parse().map_err(|_| "settings saved theme editor flag")
 }
+/// The id, the label, the night flag, the path and the Material You flags: what a meta and a
+/// meta form share, in that order.
+fn meta_fields(id: &str, label: &str, night: bool, path: &str, flags: &[String; 3]) -> Vec<String> {
+    let mut fields = vec![clean(id), clean(label), night.to_string(), clean(path)];
+    fields.extend(flags.iter().map(|f| clean(f)));
+    fields
+}
+/// Those fields read back, and the ones after them.
+fn read_meta_fields<'a>(
+    fields: &'a [&'a str],
+    error: &'static str,
+) -> Result<(Meta, &'a [&'a str]), &'static str> {
+    let [id, label, night, path, palette, contrast, spec, rest @ ..] = fields else {
+        return Err(error);
+    };
+    let meta = Meta {
+        id: (*id).into(),
+        label: (*label).into(),
+        authors: vec![],
+        night: flag(night)?,
+        path: (*path).into(),
+        flags: [(*palette).into(), (*contrast).into(), (*spec).into()],
+    };
+    Ok((meta, rest))
+}
 fn meta_part(m: &Meta) -> String {
-    let fields = [
-        clean(&m.label),
-        clean(&m.authors.join("\n")),
-        m.night.to_string(),
-    ];
+    let mut fields = meta_fields(&m.id, &m.label, m.night, &m.path, &m.flags);
+    fields.push(clean(&m.authors.join("\n")));
     fields.join(&FIELD.to_string())
 }
 fn read_meta(s: &str) -> Result<Meta, &'static str> {
-    let [label, authors, night] = s.split(FIELD).collect::<Vec<_>>()[..] else {
-        return Err("settings saved theme editor meta");
+    let (error, fields) = (
+        "settings saved theme editor meta",
+        s.split(FIELD).collect::<Vec<_>>(),
+    );
+    let (mut meta, [authors]) = read_meta_fields(&fields, error)? else {
+        return Err(error);
     };
-    let authors = authors.lines().map(Into::into).collect();
-    Ok(Meta {
-        label: label.into(),
-        authors,
-        night: flag(night)?,
-    })
+    meta.authors = authors.lines().map(Into::into).collect();
+    Ok(meta)
 }
 fn rule_text(rule: &Option<grammar::Rule>) -> String {
     rule.as_ref()
@@ -127,26 +149,25 @@ fn read_form(s: &str) -> Result<Option<RuleForm>, &'static str> {
     }))
 }
 fn meta_form_part(f: &MetaForm) -> String {
-    let fields = [
-        clean(&f.label),
-        clean(&f.authors),
-        f.night.to_string(),
-        f.checked.to_string(),
-    ];
+    let mut fields = meta_fields(&f.id, &f.label, f.night, &f.path, &f.flags);
+    fields.extend([clean(&f.authors), f.checked.to_string()]);
     fields.join(&FIELD.to_string())
 }
 fn read_meta_form(s: &str) -> Result<Option<MetaForm>, &'static str> {
     if s.is_empty() {
         return Ok(None);
     }
-    let [label, authors, night, checked] = s.split(FIELD).collect::<Vec<_>>()[..] else {
-        return Err("settings saved theme editor meta form");
+    let (error, fields) = (
+        "settings saved theme editor meta form",
+        s.split(FIELD).collect::<Vec<_>>(),
+    );
+    let (m, [authors, checked]) = read_meta_fields(&fields, error)? else {
+        return Err(error);
     };
     Ok(Some(MetaForm {
-        label: label.into(),
-        authors: authors.into(),
-        night: flag(night)?,
+        authors: (*authors).into(),
         checked: flag(checked)?,
+        ..MetaForm::of(&m)
     }))
 }
 

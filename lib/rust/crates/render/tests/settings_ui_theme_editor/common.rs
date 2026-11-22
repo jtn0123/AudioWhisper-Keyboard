@@ -35,9 +35,16 @@ pub fn loaded(sheet: &str) -> Vec<String> {
     p[report::LABEL] = "Sunny".into();
     p[report::AUTHORS] = "Ada\nGrace".into();
     p[report::NIGHT] = wire::flag::FALSE.into();
-    p[report::PATH] = "stylesheets/sunny.json".into();
+    p[report::PATH] = String::new();
     p[report::FONTS] = "a.ttf".into();
     p[report::IMAGES] = String::new();
+    p[report::PALETTE] = "Neutral".into();
+    p[report::CONTRAST] = "Default".into();
+    p[report::SPEC] = "SPEC_2021".into();
+    p[report::PALETTES] = "TonalSpot/Neutral/Vibrant".into();
+    p[report::CONTRASTS] = "Default/Medium/High".into();
+    p[report::SPECS] = "SPEC_2021/SPEC_2025".into();
+    p[report::OTHER_IDS] = "moon".into();
     p
 }
 pub fn text() -> Text {

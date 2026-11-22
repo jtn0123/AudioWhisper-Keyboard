@@ -26,10 +26,15 @@ pub enum Part {
     Attribute(usize),
     /// The rule editor's message: the rule exists, or no codes are given.
     RuleError,
-    /// The meta editor's fields: 0 the label, 1 the authors, comma-separated.
+    /// The meta editor's fields: 0 the label, 1 the authors, comma-separated, 2 the id, 3 the
+    /// stylesheet path.
     MetaField(usize),
     /// The meta editor's night theme switch.
     Night,
+    /// The meta editor's Material You title, and its dropdowns: 0 the palette style, 1 the
+    /// contrast level, 2 the spec version.
+    MaterialYou,
+    MetaChoice(usize),
 }
 
 const fn part(label: &'static str, p: Part) -> Row {
@@ -95,11 +100,32 @@ const RULE_EDIT_ROWS: &[Row] = &[
     ),
 ];
 const META_ROWS: &[Row] = &[
+    part("ext__meta__id", Part::MetaField(2)),
     part("ext__meta__label", Part::MetaField(0)),
     part("ext__meta__authors", Part::MetaField(1)),
     part(
         "settings__theme_editor__component_meta_is_night_theme",
         Part::Night,
+    ),
+    part(
+        "settings__theme_editor__component_meta_stylesheet_path",
+        Part::MetaField(3),
+    ),
+    part(
+        "settings__theme_editor__component_meta_material_you__title",
+        Part::MaterialYou,
+    ),
+    part(
+        "settings__theme_editor__component_meta_material_you__palette_style",
+        Part::MetaChoice(0),
+    ),
+    part(
+        "settings__theme_editor__component_meta_material_you__color_contrast",
+        Part::MetaChoice(1),
+    ),
+    part(
+        "settings__theme_editor__component_meta_material_you__spec_version",
+        Part::MetaChoice(2),
     ),
     CANCEL,
     row("", "action__apply", "", Kind::Lang(Lang::Save)),
