@@ -1,4 +1,4 @@
-"""Require fresh JVM assertion failures for each UI, editor, group 1, group 2, licences, Other and Theme
+"""Require fresh JVM assertion failures for each UI, editor, group 1, group 2, licences, Other, Theme and language
 mutation, and fresh Rust test panics for each mutation that only Rust tests see; always restore bytes."""
 import argparse
 import hashlib
@@ -14,6 +14,8 @@ CAT = BASE / 'render/src/settings_ui/catalogue'
 LIC = BASE / 'render/src/settings_ui/licences'
 SETTINGS = ROOT / 'app/src/main/kotlin/com/jtn0123/audiowhisper/settings'
 UI = BASE / 'render/src/settings_ui'
+LANG = UI / 'languages'
+SETTINGS_UI = ROOT / 'app/src/main/kotlin/com/jtn0123/audiowhisper/settingsui'
 SYNC_CLEAR, SYNC_SET = ('    (\n        "ONLY_{0}_EVENTS",\n        "enum__clipboard_sync_behavior__only_{1}_events",\n'
                          '        "enum__clipboard_sync_behavior__only_{1}_events__description",\n    ),\n'
                          .format(event, event.lower()) for event in ('CLEAR', 'SET'))
@@ -143,6 +145,33 @@ CASES = [
     ('hex-label-zero-line', UI / 'color_dialog.rs', 'self.metrics(BODY_SMALL)[0].ceil()', 'self.line_height(self.sp(12)).ceil()'),
     # The minutes read with the hour plural: "15 hours", or a bare 15 when Kotlin sent none.
     ('dial-minutes-read-as-hours', UI / 'time_dial.rs', '(true, _) => Some(PLURALS[1].0),', '(true, _) => Some(PLURALS[0].0),'),
+    # Languages & Layouts (stage4-languages.md): each must fail SettingsLanguagesMatchTest, a route or resource test,
+    # or a Rust language test.
+    ('move-up-goes-down', UI / 'items.rs',
+     'let to = if up { from.checked_sub(1)? } else { from + 1 };', 'let to = if up { from + 1 } else { from + 1 };'),
+    ('undo-appends', LANG / 'list.rs', 'list.insert(gone.index.min(list.len()), item);', 'list.push(item);'),
+    ('editor-checks-characters-only', LANG / 'editor.rs',
+     'fields.push(field_text(v, &["layoutMap", key]));', 'fields.push(field_text(v, &["layoutMap", "characters"]));'),
+    ('editor-adds-as-modify', LANG / 'editor.rs',
+     'let op = if d.adding { "add" } else { "modify" };', 'let op = if d.adding { "modify" } else { "modify" };'),
+    ('exists-closes-silently', LANG / 'editor.rs', 'None if d.adding => {', 'None if d.adding && d.id == i64::MIN => {'),
+    ('custom-actions-include-off', UI / 'items.rs',
+     '                if on {\n                    custom.push((id, label));\n                }', '                custom.push((id, label));'),
+    ('language-route-dropped', UI / 'catalogue.rs', '    languages::PACKS,\n', ''),
+    ('language-message-not-read', UI / 'dialog.rs',
+     'if matches!(r.kind, Kind::Backup(_) | Kind::Lang(_)) {', 'if matches!(r.kind, Kind::Backup(_)) {'),
+    ('language-string-id-missing', SETTINGS_UI / 'SettingsLanguageStringIds.kt',
+     '    "settings__list__move_up" to R.string.settings__list__move_up,\n', ''),
+    ('report-names-swapped', SETTINGS_UI / 'SettingsLanguages.kt',
+     'SettingsUiLanguage.NATIVE to locale.displayName(locale), SettingsUiLanguage.ENGLISH to locale.displayName(FlorisLocale.ENGLISH)',
+     'SettingsUiLanguage.NATIVE to locale.displayName(FlorisLocale.ENGLISH), SettingsUiLanguage.ENGLISH to locale.displayName(locale)'),
+    ('search-tag-anywhere', LANG / 'picker.rs', '|| starts(&n.tag)', '|| has(&n.tag)'),
+    ('native-names-ignored', LANG / 'mod.rs', 'if self.value(NAMES_KEY) == "NATIVE_LOCALE" {', 'if self.value(NAMES_KEY) == "NATIVE" {'),
+    ('pack-deleted-without-asking', LANG / 'mod.rs',
+     'self.open_lang_dialog(super::catalogue::languages::Lang::DeletePack, &id)',
+     'self.effects.push(vec![wire::settings_ui::languages::effect::DELETE_PACK.into(), id])'),
+    ('report-asked-every-screen', LANG / 'mod.rs', 'if !self.languages.requested {', 'if self.languages.requested || true {'),
+    ('normalised-list-ignored', LANG / 'mod.rs', '.filter(|r| r.basis == raw);', '.filter(|r| r.basis == raw && r.basis.is_empty());'),
 ]
 # The Rust test binary that must panic for each Rust-only case.
 RUST = dict.fromkeys([
@@ -165,7 +194,11 @@ RUST = dict.fromkeys([
     'card-content-onsurface',
     'title-medium-published-tracking',
     'card-icon-box-48dp',
-], 'settings_ui_group_two') | {'advance-linear-round': 'android_text', 'every-row-drawn': 'settings_ui_licences',
+], 'settings_ui_group_two') | dict.fromkeys(['search-tag-anywhere', 'pack-deleted-without-asking'], 'settings_ui_languages_picker') | dict.fromkeys([
+    'native-names-ignored',
+    'report-asked-every-screen',
+    'normalised-list-ignored',
+], 'settings_ui_languages') | {'advance-linear-round': 'android_text', 'every-row-drawn': 'settings_ui_licences',
                             'talkback-page-fraction': 'settings_ui_screens'}
 
 
@@ -186,7 +219,7 @@ def run(output, name):
         result = subprocess.run(['./gradlew', ':app:testDebugUnitTest', '--tests', '*SettingsEditorMatchTest',
                                  '--tests', '*SettingsUi*MatchTest', '--tests', '*SettingsGroupOneMatchTest', '--tests', '*SettingsGroupTwoMatchTest',
                                  '--tests', '*SettingsLicencesMatchTest', '--tests', '*SettingsOtherThemeMatchTest',
-                                 '--tests', '*SettingsResourcesTest'], cwd=ROOT, stdout=log, stderr=subprocess.STDOUT)
+                                 '--tests', '*SettingsResourcesTest', '--tests', '*SettingsLanguagesMatchTest'], cwd=ROOT, stdout=log, stderr=subprocess.STDOUT)
     failures = []
     for path in (ROOT / 'app/build/test-results/testDebugUnitTest').glob('TEST-*settingsui.Settings*Test.xml'):
         if path.stat().st_mtime_ns < started:
