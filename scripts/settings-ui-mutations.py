@@ -29,7 +29,7 @@ CASES = [
     ('surrogate-delete', BASE / 'render/src/settings_ui/editor.rs',
      'right += if pair { 2 } else { 1 };', 'right += if pair { 1 } else { 1 };'),
     ('predictive-cancel-commits', BASE / 'awnative/src/render_settings.rs',
-     '2 => a.back_progress = 0.0,', '2 => a.back(),'),
+     'back::CANCELLED => a.back_progress = 0.0,', 'back::CANCELLED => a.back(),'),
     # Group 1: each must fail SettingsGroupOneMatchTest or SettingsResourcesTest.
     ('condition', CAT / 'clipboard.rs', '        &MINUTES,\n    )\n    .on(All(&[\n        HISTORY,\n'
      '        Yes("clipboard__history_auto_clean_old_enabled"),\n    ])),', '        &MINUTES,\n    )\n    .on(HISTORY),'),
