@@ -25,10 +25,11 @@ DRAW = RENDER / 'popup_raster.rs'
 GESTURES = RENDER / 'gesture_config.rs'
 THEMED = RENDER / 'theme_scene.rs'
 FRAME = RENDER / 'bubble_frame.rs'
+CACHE = RENDER / 'bubble_cache.rs'
 SHADOW = RENDER / 'shadow_raster.rs'
 SESSION = NATIVE / 'render.rs'
 RUST, TOUCHES, GLIDE = 'rust:press_bubble', 'rust:press_bubble_touch', 'rust:glide_times'
-FRAMES = 'rust:press_bubble_frames'
+FRAMES, CACHED, BLEND = 'rust:press_bubble_frames', 'rust:press_bubble_cache', 'lib:bubble_cache'
 GLUE, JVM = 'native:render_bubble_tests', 'jvm:KeyboardRendererTest'
 CASES = [
     ('space-shows-one', BUBBLE, 'code > SPACE && code != CJK_SPACE', 'code >= SPACE && code != CJK_SPACE',
@@ -47,7 +48,7 @@ CASES = [
     ('drawn-for-any-key', BUBBLE, '        if self.bubbles.get(bubble.key) != Some(&true) {\n'
      '            return None;\n        }\n', '', [RUST]),
     ('shadow-not-repainted', BUBBLE, 'Some(crate::shadow_raster::extent(r, style.shadow))', 'Some(r)',
-     [FRAMES, TOUCHES]),
+     [FRAMES, CACHED]),
     ('shadow-extent-short', SHADOW, '(2.5 * blur * shadow.max(0.0), offset', '(1.0 * blur * shadow.max(0.0), offset',
      [FRAMES]),
     ('bubble-not-repainted', SCENE, '            rects.extend(self.bubble_damage());\n'
@@ -71,7 +72,9 @@ CASES = [
      '"key-popup-element" | "key-popup-extended-indicator" => Some("key-popup-box"),',
      '"key-popup-element" => Some("key-popup-box"),', [RUST]),
     ('keys-not-marked', THEMED, '        crate::press_bubble::mark(scene, mode, types);\n', '', [GLUE, JVM]),
-    ('not-drawn', RENDER / 'raster.rs', '        self.bubble(content)?;\n', '', [RUST, JVM]),
+    ('not-drawn', CACHE, '        self.bubble(scene)?;\n        let mut bytes', '        let mut bytes', [RUST, JVM]),
+    ('not-laid-in-a-whole-draw', RENDER / 'raster.rs', '            self.blend_bubble(scene, damage, &mut total)?;\n',
+     '', [RUST, FRAMES]),
     ('not-styled-after-touch', NATIVE / 'render_input.rs', '        s.style_bubble(false);\n', '', [GLUE, JVM]),
     ('not-restyled-on-update', SESSION, '        session.style_bubble(true);\n', '', [GLUE]),
     ('held-bubble-never-restyled', SESSION, '.filter(|_| again || !styled)', '.filter(|_| !styled)', [GLUE]),
@@ -79,25 +82,43 @@ CASES = [
      'let choices = false;', [GLUE]),
     ('dots-not-restyled', NATIVE / 'render_accessibility.rs', '        s.style_bubble(true);\n', '', [GLUE]),
     ('orientation-not-kept', SESSION, '        s.scene.landscape = landscape;\n', '', [GLUE]),
-    ('kept-pixels-not-put-back', FRAME, 'self.pixmap.data_as_u8_slice_mut()[at].copy_from_slice(kept);',
-     'let _ = (at, kept);', [TOUCHES]),
-    ('release-repaints-the-keys', FRAME, 'let Some(under) = self.under.take() else {',
-     'let Some(under) = self.under.take().filter(|_| false) else {', [TOUCHES]),
-    ('changes-under-it-not-painted', FRAME, '            if let Some(r) = overlap(changed, under.rect) {\n'
-     '                self.paint(scene, r, total)?;\n            }\n', '            let _ = changed;\n', [FRAMES]),
-    ('old-bubble-kept-under-the-new', FRAME, 'previous.bubble_damage().is_some_and(|d| meets(d, rect)) || ', '',
+    ('kept-pixels-not-put-back', FRAME, 'copy(buffer, frame, &under.bytes, under.pixels, under.pixels);',
+     'let _ = (buffer, frame);', [TOUCHES, FRAMES]),
+    ('new-bubble-not-kept', FRAME, 'self.under = Some(self.keep(scene, rect));', 'let _ = self.keep(scene, rect);',
      [TOUCHES]),
-    ('inner-regions-painted-twice', FRAME, '.any(|(j, &o)| j != i && within(r, o) && (r != o || j < i));',
-     '.any(|_| false);', [TOUCHES]),
-    ('equal-regions-both-skipped', FRAME, '(r != o || j < i)', 'true', [FRAMES]),
-    ('cover-ignored', FRAME, 'scene.bubble_cover().and_then(|c| overlap(r, c));',
-     'scene.bubble_cover().and_then(|_| None::<Rect>);', [TOUCHES]),
-    ('cover-in-the-top-corners', BUBBLE, 'top: up(r.top + corner + 1.0 + down) - down,',
-     'top: up(r.top + 1.0 + down) - down,', [FRAMES]),
-    ('cover-in-the-bottom-corners', BUBBLE, 'bottom: ((r.bottom - corner - 1.0 + down)', 'bottom: ((r.bottom - 1.0 + down)',
+    ('not-laid-in-a-frame', FRAME, '            self.blend_bubble(scene, rect, &mut total)?;\n', '',
+     [TOUCHES, FRAMES, CACHED]),
+    ('held-bubble-put-back-each-frame', FRAME, 'Some(under) if same => self.under = Some(under),',
+     'Some(under) if same && false => self.under = Some(under),', [FRAMES]),
+    ('kept-across-a-relayout', FRAME, '.filter(|u| !restructured && Some(u.rect) == old)',
+     '.filter(|u| Some(u.rect) == old)', [CACHED]),
+    ('gone-bubble-left-without-kept-pixels', FRAME, 'None => paint.extend(old),', 'None => {}', [FRAMES]),
+    ('whole-bubble-damage-repainted', FRAME, 'changed_under(previous, scene, regions).to_vec()', 'regions.to_vec()',
+     [TOUCHES]),
+    ('repaint-under-it-not-kept', FRAME, 'copy(&mut under.bytes, under.pixels, pixels, frame, fresh);',
+     'let _ = (pixels, frame, fresh);', [FRAMES]),
+    ('repaint-under-it-hides-the-bubble', FRAME, '        self.blend_bubble(scene, r, total)\n', '        Ok(())\n',
      [FRAMES]),
-    ('cover-off-the-tiles', BUBBLE, '|v: f32| (v / 4.0).ceil() * 4.0)', '|v: f32| v.ceil())', [FRAMES]),
-    ('cover-under-glass', BUBBLE, 'if style.background >> 24 != 0xff {', 'if style.background >> 24 == 0 {', [FRAMES]),
+    ('inner-regions-painted-twice', FRAME, '.any(|(j, &o)| j != i && within(r, o) && (r != o || j < i));',
+     '.any(|_| false);', [CACHED]),
+    ('equal-regions-both-skipped', FRAME, '(r != o || j < i)', 'true', [FRAMES]),
+    ('images-never-dropped', FRAME, '            self.images.clear();\n', '', [CACHED]),
+    ('label-not-in-the-look', CACHE, 'label: key.label.clone(),', 'label: String::new(),', [CACHED]),
+    ('key-height-not-in-the-look', CACHE, 'key_height: key.bounds.visible.height(),', 'key_height: 0.0,', [CACHED]),
+    ('bounds-not-in-the-look', CACHE, '        bounds,\n        style: style.clone(),',
+     '        bounds: Rect::default(),\n        style: style.clone(),', [CACHED]),
+    ('style-not-in-the-look', CACHE, 'style: style.clone(),', 'style: Style::default(),', [CACHED]),
+    ('dots-not-in-the-look', CACHE, 'indicator: bubble.indicator.clone(),', 'indicator: None,', [CACHED]),
+    ('theme-change-keeps-them', CACHE, 'a.background != b.background\n        || ', '', [CACHED]),
+    ('more-keys-keep-them', CACHE, '\n        || a.keys.len() != b.keys.len()', '', [CACHED]),
+    ('new-layout-keeps-them', CACHE, '\n        || a.keys\n            .iter()\n            .zip(&b.keys)\n'
+     '            .any(|(x, y)| x.bounds != y.bounds)', '', [CACHED]),
+    ('shift-drops-them', CACHE, 'x.bounds != y.bounds', 'x != y', [CACHED]),
+    ('unbounded', CACHE, 'if kept.len() >= KEPT {', 'if false {', [CACHED]),
+    ('used-image-not-kept-longest', CACHE, 'kept[i..].rotate_left(1);', 'let _ = i;', [CACHED]),
+    ('shadow-copied-over', CACHE, 'if run.solid {', 'if true {', [CACHED]),
+    ('faint-pixels-dropped', CACHE, 'if pixel[3] == 0 {', 'if pixel[3] < 255 {', [CACHED, BLEND]),
+    ('blend-rounds-down', CACHE, 'let x = u16::from(*to) * keep + 128;', 'let x = u16::from(*to) * keep;', [BLEND]),
 ]
 
 
@@ -123,6 +144,10 @@ def native(output, name, module):
     return cargo(output, name, ['-p', 'awnative', '--lib', module], module)
 
 
+def lib(output, name, module):
+    return cargo(output, name, ['-p', 'render', '--lib', module], 'lib-' + module)
+
+
 def jvm(output, name, test):
     started = time.time_ns()
     with (output / (name + '.' + test + '.log')).open('wb') as log:
@@ -138,7 +163,7 @@ def jvm(output, name, test):
 
 def check(output, name, checker):
     kind, target = checker.split(':')
-    return {'rust': rust, 'native': native, 'jvm': jvm}[kind](output, name, target)
+    return {'rust': rust, 'native': native, 'lib': lib, 'jvm': jvm}[kind](output, name, target)
 
 
 def main():
