@@ -128,27 +128,20 @@ app/src/main/kotlin/dev/patrickgold/florisboard/app/AppPrefs.kt	M	273	Jetpref Pr
 app/src/main/kotlin/dev/patrickgold/florisboard/app/ComposeSettingsFallbackActivity.kt	A	4	ComponentActivity; retained fallback Activity identity |
 app/src/main/kotlin/dev/patrickgold/florisboard/app/EnumDisplayEntries.kt	A	141	Resources.getString; enum resource IDs/descriptions (split existing oversized map) |
 app/src/main/kotlin/dev/patrickgold/florisboard/app/FlorisAppActivity.kt	M	254	ComponentActivity / ActivityResultRegistry; retained routing/import/default-selection branches | raised 257 to 258 (A6): the import of the generated SettingsUiBack; raised 249 to 254 (theme editor part 3): the Compose fallback leaves once Save pops its last screen, watching the top entry's lifecycle because the back stack's own flow is library-only, and leaves its starting link to the NavController
-app/src/main/kotlin/dev/patrickgold/florisboard/app/Routes.kt	P	241	portable Routes domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
+app/src/main/kotlin/dev/patrickgold/florisboard/app/Routes.kt	P	227	portable Routes domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
 app/src/main/kotlin/dev/patrickgold/florisboard/app/SettingsEntry.kt	M	7	settings link parsing; the first screen and setup navigation moved to Rust (compose-removal step 11, stage4-setup.md)
 app/src/main/kotlin/dev/patrickgold/florisboard/app/ThemeEditorActivity.kt	A	18	Activity subclass; the native theme editor's entry over the extension editor, since FlorisAppActivity is singleTask and would clear the Compose activity whose workspace it edits |
 app/src/main/kotlin/dev/patrickgold/florisboard/app/ThemeEditorPrefs.kt	M	24	Jetpref preference types (colour serializer, two enums) the preference model still names, and the stylesheet pretty-print config the extension editor and the native theme editor's glue write with; moved unchanged from the deleted Compose theme editor package (compose-removal step 9)
 app/src/main/kotlin/dev/patrickgold/florisboard/app/apptheme/Shape.kt	P	9	portable Shape domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
 app/src/main/kotlin/dev/patrickgold/florisboard/app/apptheme/Theme.kt	M	62	Resources / WindowInsetsController; preference-to-theme choice still in Kotlin |
 app/src/main/kotlin/dev/patrickgold/florisboard/app/apptheme/Type.kt	P	13	portable Type domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
-app/src/main/kotlin/dev/patrickgold/florisboard/app/ext/AddonBox.kt	S	87	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
-app/src/main/kotlin/dev/patrickgold/florisboard/app/ext/CheckUpdatesScreen.kt	S	17	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
 app/src/main/kotlin/dev/patrickgold/florisboard/app/ext/ExtensionComponentView.kt	S	160	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
 app/src/main/kotlin/dev/patrickgold/florisboard/app/ext/ExtensionDialogProperty.kt	S	31	Compose settings (stage4 scope): deleted at compose-removal steps 5-12 | moved unchanged from ThemeEditorComponents.kt at step 9; goes with ExtensionEditScreen at step 10
 app/src/main/kotlin/dev/patrickgold/florisboard/app/ext/ExtensionEditFilesScreen.kt	S	260	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
 app/src/main/kotlin/dev/patrickgold/florisboard/app/ext/ExtensionEditScreen.kt	S	812	Compose settings (stage4 scope): deleted at compose-removal steps 5-12 | raised 808 to 813 (compose-removal step 9, part 2): Manage component opens the native theme editor's activity instead of ThemeEditorScreen, the routing change the port needs
 app/src/main/kotlin/dev/patrickgold/florisboard/app/ext/ExtensionExportScreen.kt	S	56	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
-app/src/main/kotlin/dev/patrickgold/florisboard/app/ext/ExtensionHomeScreen.kt	S	48	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
 app/src/main/kotlin/dev/patrickgold/florisboard/app/ext/ExtensionImportScreen.kt	S	294	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
-app/src/main/kotlin/dev/patrickgold/florisboard/app/ext/ExtensionKeywordChip.kt	S	18	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
-app/src/main/kotlin/dev/patrickgold/florisboard/app/ext/ExtensionListScreen.kt	S	161	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
-app/src/main/kotlin/dev/patrickgold/florisboard/app/ext/ExtensionMaintainerChip.kt	S	98	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
 app/src/main/kotlin/dev/patrickgold/florisboard/app/ext/ExtensionNotFoundScreen.kt	S	21	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
-app/src/main/kotlin/dev/patrickgold/florisboard/app/ext/ExtensionViewScreen.kt	S	264	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
 app/src/main/kotlin/dev/patrickgold/florisboard/app/ext/RadioListItem.kt	S	25	Compose settings (stage4 scope): deleted at compose-removal steps 5-12 | moved unchanged out of BackupScreen (step 5); ExtensionEditScreen is its only user
 app/src/main/kotlin/dev/patrickgold/florisboard/app/settings/advanced/BackupIO.kt	M	81	ContentResolver / Room / File; backup traversal, selected records and restore effects | raised 80 to 81 (compose-removal step 5): a callback after each restore step, so a restore that stops part-way can say what came back
 app/src/main/kotlin/dev/patrickgold/florisboard/app/settings/advanced/BackupWork.kt	A	183	CacheManager workspaces / ContentResolver / FileProvider / share Intent: Back up's and Restore's archive and file work, as Rust asks for it; zip and copy run on the IO dispatcher
@@ -313,13 +306,13 @@ app/src/main/kotlin/dev/patrickgold/florisboard/lib/crashutility/CrashUtility.kt
 app/src/main/kotlin/dev/patrickgold/florisboard/lib/devtools/Devtools.kt	M	126	Build / Resources; still called by crash dialog; report composition is portable |
 app/src/main/kotlin/dev/patrickgold/florisboard/lib/devtools/Flog.kt	M	152	android.util.Log; topic gate, tag/message and redaction/formatting policy |
 app/src/main/kotlin/dev/patrickgold/florisboard/lib/devtools/LogTopic.kt	P	23	portable LogTopic domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
-app/src/main/kotlin/dev/patrickgold/florisboard/lib/ext/Extension.kt	M	99	Context / Uri; file handles and extension load/unload ownership |
+app/src/main/kotlin/dev/patrickgold/florisboard/lib/ext/Extension.kt	M	75	Context / Uri; file handles and extension load/unload ownership |
 app/src/main/kotlin/dev/patrickgold/florisboard/lib/ext/ExtensionCodec.kt	P	26	portable ExtensionCodec domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
 app/src/main/kotlin/dev/patrickgold/florisboard/lib/ext/ExtensionComponent.kt	P	52	portable ExtensionComponent domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
 app/src/main/kotlin/dev/patrickgold/florisboard/lib/ext/ExtensionDefaults.kt	P	12	portable ExtensionDefaults domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
 app/src/main/kotlin/dev/patrickgold/florisboard/lib/ext/ExtensionMaintainer.kt	P	36	portable ExtensionMaintainer domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
 app/src/main/kotlin/dev/patrickgold/florisboard/lib/ext/ExtensionManager.kt	M	219	FileObserver / Context.assets; import/index/refresh lifetime and routing |
-app/src/main/kotlin/dev/patrickgold/florisboard/lib/ext/ExtensionMeta.kt	P	22	portable ExtensionMeta domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
+app/src/main/kotlin/dev/patrickgold/florisboard/lib/ext/ExtensionMeta.kt	P	18	portable ExtensionMeta domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
 app/src/main/kotlin/dev/patrickgold/florisboard/lib/ext/ExtensionValidation.kt	P	138	portable ExtensionValidation domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
 app/src/main/kotlin/dev/patrickgold/florisboard/lib/io/AssetManager.kt	M	125	Context.assets / File; source selection, admission and operation composition |
 app/src/main/kotlin/dev/patrickgold/florisboard/lib/io/FileRegistry.kt	P	56	portable FileRegistry domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |

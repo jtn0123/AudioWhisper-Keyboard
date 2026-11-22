@@ -106,8 +106,6 @@ android {
         }
 
         buildConfigField("String", "BUILD_COMMIT_HASH", "\"${getGitCommitHash().get()}\"")
-        buildConfigField("String", "FLADDONS_API_VERSION", "\"v~draft2\"")
-        buildConfigField("String", "FLADDONS_STORE_URL", "\"beta.addons.florisboard.org\"")
         buildConfigField("String", "GIPHY_API_KEY", "\"$giphyApiKey\"")
 
         // The phone is arm64; the other ABIs in the sherpa-onnx AAR would

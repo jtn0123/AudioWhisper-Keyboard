@@ -36,15 +36,10 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navDeepLink
 import androidx.navigation.toRoute
-import dev.patrickgold.florisboard.app.ext.CheckUpdatesScreen
 import dev.patrickgold.florisboard.app.ext.ExtensionEditScreen
 import dev.patrickgold.florisboard.app.ext.ExtensionExportScreen
-import dev.patrickgold.florisboard.app.ext.ExtensionHomeScreen
 import dev.patrickgold.florisboard.app.ext.ExtensionImportScreen
 import dev.patrickgold.florisboard.app.ext.ExtensionImportScreenType
-import dev.patrickgold.florisboard.app.ext.ExtensionListScreen
-import dev.patrickgold.florisboard.app.ext.ExtensionListScreenType
-import dev.patrickgold.florisboard.app.ext.ExtensionViewScreen
 import dev.patrickgold.florisboard.app.settings.dictionary.UserDictionaryType
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -186,6 +181,9 @@ object Routes {
         @Deeplink("ext/list")
         data class List(val type: ExtensionListScreenType, val showUpdate: Boolean? = null)
 
+        /** The extension lists' types, as their routes name them. Rust draws the lists (stage4-extensions.md). */
+        enum class ExtensionListScreenType { EXT_THEME, EXT_KEYBOARD, EXT_LANGUAGEPACK }
+
         @Serializable
         @Deeplink("ext/edit")
         data class Edit(val id: String, @SerialName("create") val serialType: String? = null)
@@ -272,12 +270,8 @@ object Routes {
             composableWithDeepLink(Settings.ProjectLicense::class) {}
             composableWithDeepLink(Settings.ThirdPartyLicenses::class) {}
 
-            composableWithDeepLink(Ext.Home::class) { ExtensionHomeScreen() }
-            composableWithDeepLink(Ext.List::class) { navBackStack ->
-                val payload = navBackStack.toRoute<Ext.List>()
-                val showUpdate = payload.showUpdate != null && payload.showUpdate
-                ExtensionListScreen(payload.type, showUpdate)
-            }
+            composableWithDeepLink(Ext.Home::class) {}
+            composableWithDeepLink(Ext.List::class) {}
             composableWithDeepLink(Ext.Edit::class) { navBackStack ->
                 val payload = navBackStack.toRoute<Ext.Edit>()
                 val extensionId = payload.id
@@ -297,14 +291,8 @@ object Routes {
                 val uuid = payload.uuid
                 ExtensionImportScreen(payload.type, uuid)
             }
-            composableWithDeepLink(Ext.View::class) { navBackStack ->
-                val payload = navBackStack.toRoute<Ext.View>()
-                val extensionId = payload.id
-                ExtensionViewScreen(id = extensionId)
-            }
-            composableWithDeepLink(Ext.CheckUpdates::class) {
-                CheckUpdatesScreen()
-            }
+            composableWithDeepLink(Ext.View::class) {}
+            composableWithDeepLink(Ext.CheckUpdates::class) {}
         }
     }
 }
