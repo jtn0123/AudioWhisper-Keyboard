@@ -426,6 +426,9 @@ CASES = [
     ('theme-editor-save-flags-dropped', TE / 'mod.rs',
      'let packet = [&save[..], &meta, &m.flags].concat();', 'let packet = [&save[..], &meta].concat();'),
     ('theme-editor-flag-choice-ignored', TE / 'form.rs', 'return f.flags[k] = choice.into();', 'return;'),
+    ('theme-editor-hint-ignores-edit', TE / 'meta.rs', 'let id = snygg::text(f.id.trim());',
+     'let id = snygg::text(self.theme_editor.meta.id.trim());'),
+    ('theme-editor-hint-untrimmed', TE / 'meta.rs', 'let id = snygg::text(f.id.trim());', 'let id = snygg::text(&f.id);'),
     ('theme-editor-saved-flags-dropped', TE / 'saved.rs', '    fields.extend(flags.iter().map(|f| clean(f)));\n',
      '    fields.extend(flags.iter().map(|_| String::new()));\n'),
     ('theme-editor-blank-author-kept', TE / 'meta.rs',
@@ -623,6 +626,8 @@ RUST = dict.fromkeys([
     'theme-editor-save-flags-dropped',
     'theme-editor-flag-choice-ignored',
     'theme-editor-saved-flags-dropped',
+    'theme-editor-hint-ignores-edit',
+    'theme-editor-hint-untrimmed',
 ], 'settings_ui_theme_editor')
 # Suites whose assertion failures count, besides the settingsui ones: the first screen a fresh activity opens.
 SUITES = ('TEST-*settingsui.Settings*Test.xml', 'TEST-*florisboard.app.SettingsEntryTest.xml')
