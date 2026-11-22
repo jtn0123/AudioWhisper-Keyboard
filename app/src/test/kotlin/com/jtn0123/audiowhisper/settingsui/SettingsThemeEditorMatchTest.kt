@@ -94,7 +94,7 @@ class SettingsThemeEditorMatchTest {
 
     /** Attributes as EditRuleDialog built them, a value at a time with `including`. */
     private fun attrs(vararg pairs: Pair<String, Any>) = SnyggElementRule("key").attributes.including(*pairs)
-    /** Rules added and renamed with `updateRule`, a rule and properties removed, and values of every number form. */
+    /** Rules added and renamed with `updateRule`, a rule and properties removed, values of every number form, and empty rules. */
     private fun SnyggStylesheetEditor.composeEdits() {
         assertTrue(updateRule(SnyggElementRule("key"), SnyggElementRule("key", attrs("code" to -1, "code" to 32, "code" to 10),
             SnyggSelector.PRESSED), allowAdd = true))
@@ -120,6 +120,9 @@ class SettingsThemeEditorMatchTest {
             add { "src" to SnyggUriValue("flex:/fonts/mono_two.ttf"); "font-weight" to SnyggFontWeightValue(androidx.compose.ui.text.font.FontWeight.Bold) }
             add { "src" to SnyggUriValue("flex:/fonts/mono-two-bold.ttf") }
         }
+        // Add rule's rules, which have no properties yet.
+        rules[SnyggElementRule("media", selector = SnyggSelector.HOVER)] = SnyggSinglePropertySetEditor()
+        rules[SnyggAnnotationRule.Font("Empty")] = SnyggMultiplePropertySetsEditor()
     }
 
     @Test fun aStylesheetComposeEditedIsReadBackAndWrittenUnchanged() {

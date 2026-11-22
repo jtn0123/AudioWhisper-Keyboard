@@ -1,5 +1,5 @@
 """Require fresh JVM assertion failures for each UI, editor, group 1, group 2, licences, Other, Theme, language, user
-dictionary, project licence, theme manager and setup mutation, and fresh Rust test panics for each mutation that only Rust tests see; always restore bytes."""
+dictionary, project licence, theme manager, setup and theme editor mutation, and fresh Rust test panics for each mutation that only Rust tests see; always restore bytes."""
 import argparse
 import hashlib
 import json
@@ -19,6 +19,8 @@ WORDS = UI / 'words'
 PL = UI / 'project_licence'
 THEMES = UI / 'themes'
 SETUP = UI / 'setup'
+TE = UI / 'theme_editor'
+SNYGG = BASE / 'snygg/src'
 SETTINGS_UI = ROOT / 'app/src/main/kotlin/com/jtn0123/audiowhisper/settingsui'
 SYNC_CLEAR, SYNC_SET = ('    (\n        "ONLY_{0}_EVENTS",\n        "enum__clipboard_sync_behavior__only_{1}_events",\n'
                          '        "enum__clipboard_sync_behavior__only_{1}_events__description",\n    ),\n'
@@ -381,6 +383,70 @@ CASES = [
     ('setup-saved-step-dropped', BASE / 'awnative/src/render_settings_state.rs', '    a.setup = setup;\n', ''),
     ('setup-restored-above-home', BASE / 'awnative/src/render_settings_state.rs',
      '(i == 0) != root(r)', '(i == 0) && !root(r)'),
+    # The theme editor (stage4-theme-editor.md, part 2): Rust cases fail settings_ui_theme_editor; the rest fail
+    # SettingsThemeEditorMatchTest, SettingsThemeEditorGlueMatchTest or SettingsResourcesTest.
+    ('theme-editor-order-reversed', TE / 'rules.rs',
+     'compare_order(&a.0, &b.0, &order).cmp(&0));', 'compare_order(&a.0, &b.0, &order).cmp(&0).reverse());'),
+    ('theme-editor-developer-ignored', TE / 'rules.rs',
+     'self.value("theme__editor_level") == "DEVELOPER"', 'self.value("theme__editor_level") == "ADVANCED"'),
+    ('theme-editor-selector-untranslated', TE / 'rules.rs',
+     's => self.label(SELECTOR_KEYS[s]),', 's => SELECTORS[s][1..].into(),'),
+    ('theme-editor-property-undo-at-end', TE / 'rules.rs',
+     'props.insert(k.min(props.len()), (name, value));', 'props.push((name, value));'),
+    ('theme-editor-src-deletable', TE / 'boxes.rs',
+     'matches!(rule, Rule::Font(_)) && name == "src"', 'matches!(rule, Rule::Font(_)) && name == "font-src"'),
+    ('theme-editor-undo-not-in-place', TE / 'boxes.rs',
+     '.position(|q| (q.set == s && q.place >= k) || q.set > s);', '.position(|q| q.set > s);'),
+    ('theme-editor-exists-unchecked', TE / 'form.rs', '        if exists {\n', '        if exists && false {\n'),
+    ('theme-editor-apply-clashes-itself', TE / 'form.rs',
+     'r.compare(&rule) == 0 && original.as_ref().is_none_or(|o| r.compare(o) != 0)', 'r.compare(&rule) == 0'),
+    ('theme-editor-internal-codes-refused', TE / 'form.rs',
+     '                            || (INTERNAL_MIN..=INTERNAL_MAX).contains(c)\n', ''),
+    ('theme-editor-font-not-read-back', TE / 'form.rs',
+     'back.filter(|b| *b == rule).ok_or(INVALID_FONT)', 'back.map_or(Ok(rule), Ok)'),
+    ('theme-editor-duplicate-empty', TE / 'form.rs',
+     '(Some((_, sets)), _) => sets.clone(),', '(Some(_), _) => PropertySets::Single(vec![]),'),
+    ('theme-editor-new-font-single', TE / 'form.rs',
+     '(None, Rule::Font(_)) => PropertySets::Multiple(vec![]),', '(None, Rule::Font(_)) => PropertySets::Single(vec![]),'),
+    ('theme-editor-element-not-fixed', TE / 'form_paint.rs',
+     'enabled: form.original.is_none(),', 'enabled: true,'),
+    ('theme-editor-meta-label-untrimmed', TE / 'meta.rs', 'label: f.label.trim().into(),', 'label: f.label.clone(),'),
+    ('theme-editor-meta-unchecked', TE / 'meta.rs',
+     'if check(0, &f.checked_text(0)).1 || check(1, &f.checked_text(1)).1 {', 'if check(0, &f.checked_text(0)).1 && false {'),
+    ('theme-editor-blank-author-kept', TE / 'meta.rs',
+     'all.filter(|a| !a.is_empty()).map(Into::into).collect()', 'all.map(Into::into).collect()'),
+    ('theme-editor-changed-ignores-meta', TE / 'mod.rs',
+     '.is_some_and(|(rules, meta)| *rules != self.rules || *meta != self.meta)', '.is_some_and(|(rules, _)| *rules != self.rules)'),
+    ('theme-editor-keyboard-always-ignored', TE / 'mod.rs', '            "ALWAYS" => true,\n', '            "ALWAYS" => false,\n'),
+    ('theme-editor-stale-report-used', TE / 'mod.rs',
+     'if wanted != Some((p[report::WORKSPACE].clone(), p[report::COMPONENT].clone())) {', 'if wanted.is_none() {'),
+    ('theme-editor-error-not-asked', TE / 'mod.rs',
+     'None => match parse(&e.raw, false) {', 'None => match parse(&e.raw, true) {'),
+    ('theme-editor-saved-editor-unheld', TE / 'saved.rs', '        if !held {\n', '        if held && !held {\n'),
+    ('theme-editor-saved-other-component', TE / 'saved.rs',
+     'let restored = draft.filter(|d| d.target == (workspace.clone(), index));', 'let restored = draft;'),
+    ('theme-editor-saved-form-dropped', TE / 'saved.rs', '        e.form = d.form;\n', ''),
+    ('theme-editor-names-reordered', TE / 'names.rs', '    "root",\n    "window",\n', '    "window",\n    "root",\n'),
+    ('theme-editor-property-string-wrong', TE / 'names.rs',
+     '("shape", "snygg__property_name__shape"),', '("shape", "snygg__property_name__clip"),'),
+    ('theme-json-indent-tab', SNYGG / 'json_write.rs', 'const INDENT: &str = "  ";', 'const INDENT: &str = "\\t";'),
+    ('theme-json-tight-colon', SNYGG / 'json_write.rs', '    out.push_str(": ");\n', '    out.push_str(":");\n'),
+    ('theme-json-empty-object-opened', SNYGG / 'json_write.rs',
+     "close(out, depth, !props.is_empty(), '}');", "close(out, depth, true, '}');"),
+    ('theme-editor-back-not-held', BASE / 'awnative/src/render_settings.rs',
+     ' || a.editor.focused || a.theme_holds_back(),', ' || a.editor.focused,'),
+    ('theme-editor-saved-not-written', BASE / 'awnative/src/render_settings_state.rs',
+     'text(&a.theme_editor_saved()),', 'text(""),'),
+    ('theme-editor-not-a-root', BASE / 'awnative/src/render_settings_state.rs',
+     ' || theme_editor::target(route).is_some()', ' || theme_editor::target(route).is_none()'),
+    ('theme-editor-report-file-first', SETTINGS_UI / 'SettingsThemeEditor.kt',
+     'val stylesheet = theme.stylesheetEditor?.let {', 'val stylesheet = theme.stylesheetEditor?.takeIf { false }?.let {'),
+    ('theme-editor-save-keeps-compose-editor', SETTINGS_UI / 'SettingsThemeEditor.kt', '    theme.stylesheetEditor = null\n', ''),
+    ('theme-editor-save-blank-authors', SETTINGS_UI / 'SettingsThemeEditor.kt',
+     'theme.authors = p[5].lines().filter { it.isNotEmpty() }', 'theme.authors = p[5].lines()'),
+    ('theme-editor-string-id-dropped', SETTINGS_UI / 'SettingsThemeEditorStringIds.kt',
+     '    "settings__theme_editor__duplicate_rule" to R.string.settings__theme_editor__duplicate_rule,\n', ''),
+    ('theme-editor-icon-unmapped', SETTINGS_UI / 'SettingsIcons.kt', '"@icon:content_copy" to Icons.Default.ContentCopy, ', ''),
 ]
 # The Rust test binary that must panic for each Rust-only case.
 RUST = dict.fromkeys([
@@ -488,7 +554,31 @@ RUST = dict.fromkeys([
     'setup-fill-ignored',
     'setup-status-not-live',
     'setup-back-arrow',
-], 'settings_ui_setup')
+], 'settings_ui_setup') | dict.fromkeys([
+    'theme-editor-order-reversed',
+    'theme-editor-developer-ignored',
+    'theme-editor-selector-untranslated',
+    'theme-editor-property-undo-at-end',
+    'theme-editor-src-deletable',
+    'theme-editor-undo-not-in-place',
+    'theme-editor-exists-unchecked',
+    'theme-editor-apply-clashes-itself',
+    'theme-editor-internal-codes-refused',
+    'theme-editor-font-not-read-back',
+    'theme-editor-duplicate-empty',
+    'theme-editor-new-font-single',
+    'theme-editor-element-not-fixed',
+    'theme-editor-meta-label-untrimmed',
+    'theme-editor-meta-unchecked',
+    'theme-editor-blank-author-kept',
+    'theme-editor-changed-ignores-meta',
+    'theme-editor-keyboard-always-ignored',
+    'theme-editor-stale-report-used',
+    'theme-editor-error-not-asked',
+    'theme-editor-saved-editor-unheld',
+    'theme-editor-saved-other-component',
+    'theme-editor-saved-form-dropped',
+], 'settings_ui_theme_editor')
 # Suites whose assertion failures count, besides the settingsui ones: the first screen a fresh activity opens.
 SUITES = ('TEST-*settingsui.Settings*Test.xml', 'TEST-*florisboard.app.SettingsEntryTest.xml')
 
@@ -513,6 +603,7 @@ def run(output, name):
                                  '--tests', '*SettingsResourcesTest', '--tests', '*SettingsLanguagesMatchTest',
                                  '--tests', '*SettingsWords*Test', '--tests', '*SettingsProjectLicenceMatchTest',
                                  '--tests', '*SettingsThemesMatchTest', '--tests', '*SettingsSetupMatchTest',
+                                 '--tests', '*SettingsThemeEditor*MatchTest',
                                  '--tests', '*SettingsEntryTest'], cwd=ROOT, stdout=log, stderr=subprocess.STDOUT)
     failures = []
     xml = ROOT / 'app/build/test-results/testDebugUnitTest'
