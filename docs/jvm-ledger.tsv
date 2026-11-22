@@ -274,7 +274,6 @@ app/src/main/kotlin/dev/patrickgold/florisboard/ime/theme/FlorisAssetResolver.kt
 app/src/main/kotlin/dev/patrickgold/florisboard/ime/theme/FlorisImeTheme.kt	M	62	Resources / composition locals; base-style/layout-default choice and theme hosting |
 app/src/main/kotlin/dev/patrickgold/florisboard/ime/theme/FlorisImeThemeBaseStyle.kt	P	333	portable FlorisImeThemeBaseStyle domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
 app/src/main/kotlin/dev/patrickgold/florisboard/ime/theme/FlorisImeUi.kt	P	358	portable Snygg element/attribute schema; move schema ownership to Rust |
-app/src/main/kotlin/dev/patrickgold/florisboard/ime/theme/FlorisImeUiSpec.kt	P	1	portable FlorisImeUiSpec domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
 app/src/main/kotlin/dev/patrickgold/florisboard/ime/theme/ThemeExtension.kt	P	37	portable ThemeExtension domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
 app/src/main/kotlin/dev/patrickgold/florisboard/ime/theme/ThemeExtensionComponent.kt	P	74	portable ThemeExtensionComponent domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
 app/src/main/kotlin/dev/patrickgold/florisboard/ime/theme/ThemeManager.kt	M	309	Resources / InlineSuggestionUi; active-theme/day-night choice and inline styles |
