@@ -57,7 +57,8 @@ its phone checks pass.
   arriving during it, hands over to the Rust host. Rust then opens the routes it does not
   draw in `ComposeSettingsFallbackActivity`, as before. In that activity the deleted
   screens' destinations stay as empty entries, so that reaching one still hands it back to
-  Rust (Physical keyboard from Other, Home on Back).
+  Rust (Physical keyboard from Other, Home on Back). Since step 11 the activity always uses the
+  Rust host, which draws setup too and picks the first screen.
 * **Blocked by:** nothing. Every screen here passed the stage 4 device checks
   ([checkpoint](stage4-settings-results.md), [follow-up 3](stage4-followup3.md),
   [follow-up 4](stage4-followup4.md), [licences](stage4-licences.md)).
@@ -234,11 +235,31 @@ its phone checks pass.
 * **Blocked by:** per-file editors in Rust. The file picker is ready (step 5).
 * **Ported and improved, not cut,** as step 9.
 
-### 11. Setup
+### 11. Setup (done)
 
 * **Deletes:** `FB/app/setup`: 2 files, 266 lines.
-* **Blocked by:** a step layout in Rust, and the notification-permission request plan.
-  Setup is first-run only, so it goes last among the screens.
+* **What changed:** Rust draws setup: FlorisStepLayout's four steps with their headers, the
+  open step's text and button, and the footer. Rust also picks the first screen a fresh
+  activity opens, with a new settings op, by the same rules as before: setup until it is
+  finished, a settings link even during setup, and setup again while the notification question
+  is unanswered. It works out each step from the input method and permission facts Kotlin
+  reports, decides when to ask for the notification permission and what the answer means
+  (answers come back through a second new op), and finishes setup. Kotlin keeps only the
+  permission request, the permission's state, the notification settings, bringing the app back,
+  and noticing input method changes. Notifications already allowed skip the question, a denial
+  for good opens the notification settings, TalkBack reads each step's number and state, and
+  coming back with a reopened step done opens the next one. See
+  [stage 4: Setup](stage4-setup.md). Commits d7cbfcb08, 5525e982d and 13b421c97, and the docs after them.
+* **Blocked by:** nothing.
+* **The fallback loses:** setup. The route stays as an empty entry that hands back to Rust, as
+  in step 2; it gains the deep link `setup` so the fallback can hand it back while it is the
+  start destination.
+* **Progress** (non-blank lines deleted): `SetupScreen` (240), `NotificationPermissionState` (26,
+  its one-line enum moved into `AppPrefs.kt`), `FlorisStepLayout` (283, only setup used it),
+  `SettingsEntry.rust` and its comment (8 removed, 3 added), 26 lines of `FlorisAppActivity`'s
+  setup routing (15 added), and 4 lines in `Routes.kt` rewritten as 4. The Kotlin glue adds
+  `SettingsSetup` (71), its string ids (30), 7 lines in `RustSettingsView` (1 removed) and one
+  in `SettingsStringIds` (1 removed). Step 11 is done: 590 lines deleted, 133 added.
 
 ### 12. The Compose settings host
 

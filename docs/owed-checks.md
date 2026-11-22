@@ -42,6 +42,7 @@ row says so.
 | P13 | Keyboard: a top-row key's popup shows whole over the app. Long-press e, p and q with the Smartbar on and off, in portrait and landscape and in one-handed mode, and slide to a choice in the upper row. Tap the app just above the keyboard. Fixed and checked on the emulator, in portrait only. | [rust.md, a top-row key's popup](rust.md#a-top-row-keys-popup-cut-off-fixed-2026-11-21) |
 | P14 | Project licence: every step ran on the emulator. None ran on the phone. Long-press a word, drag both handles, hold one at an edge, then Copy and Select all, with the phone's own toolbar. TalkBack's reading by word and line, selecting and copying is part of P6. | [stage4-licences, the project licence screen](stage4-licences.md#the-project-licence-screen) |
 | P15 | Theme manager: every step ran on the emulator. None ran on the phone. Choose a day and a night theme, check that the keyboard previews each and goes back to its own theme on leaving, and that TalkBack reads each theme as a day or night theme and says which one is chosen. | [stage4-theme-editor, owed](stage4-theme-editor.md#owed) |
+| P16 | Setup: every step ran on the emulator. None ran on the phone. A first run on the phone: enable the keyboard in One UI's keyboard list and check the app comes back, select it in the picker, deny the notification permission twice, then allow notifications in the app's notification page and come back. TalkBack on setup is part of P6. | [stage4-setup, owed](stage4-setup.md#owed) |
 
 ## Emulator checks the docs owe
 
@@ -69,6 +70,7 @@ row says so.
 | E21 | Our keyboard typing into our own Rust settings fields. The fields take text: with agent-device's own test keyboard active, Select language's search took "germ" and filtered the list, and the home screen's preview field took "hello". With our keyboard active, agent-device refuses text entry into the keyboard's own app ("the focused input belongs to the active keyboard/IME"), and its taps on our keys typed nothing, so whether a person's taps type there is unchecked. Type into Select language's search, and a word into the user dictionary editor, by hand with our keyboard, on the phone or on an emulator. | [stage4-languages, emulator check](stage4-languages.md#emulator-check); [stage4-user-dictionaries, owed](stage4-user-dictionaries.md#owed) |
 | E22 | A top-row key's popup in landscape without full-screen mode (set *landscape input* so the extract view never shows, then put it back) and in one-handed mode. The cargo tests cover both layouts; no device has shown them. | [rust.md, a top-row key's popup](rust.md#a-top-row-keys-popup-cut-off-fixed-2026-11-21) |
 | E23 | `SettingsOtherThemeDevice`: its theme manager step now picks the theme on the Rust manager and waits for the keyboard's preview to start and end. It compiles but has not run. | [stage4-theme-editor, owed](stage4-theme-editor.md#owed) |
+| E24 | Setup: the permission answer reaching a recreated activity. Rotate, or switch dark mode, while the notification dialog is open, then answer; the step must take the answer. Also close the first dialog without answering (Back, or a tap outside) and check the step reads as blocked and opens the notification settings. Neither ran on the emulator. | [stage4-setup, owed](stage4-setup.md#owed) |
 
 ## Not device checks, but still owed
 
@@ -95,8 +97,9 @@ These need no device. They are listed so they are not lost.
 * The project licence's horizontal scroll clamps at its ends, where Compose's `horizontalScroll` stretches. ([stage4-licences, where it differs from Compose](stage4-licences.md#where-it-differs-from-compose))
 * A project licence recreated twice before its text has been read saves the held horizontal scroll as zero, so the text reopens at its left edge. The wait is a few milliseconds. ([stage4-licences, the project licence screen](stage4-licences.md#the-project-licence-screen))
 * A hardware keyboard's Ctrl+C and Ctrl+A do nothing on the project licence's selection. ([stage4-licences, where it differs from Compose](stage4-licences.md#where-it-differs-from-compose))
+* Setup's paragraphs are ragged right where Compose justified them, and its steps open without Compose's animation. ([stage4-setup, differences from Compose](stage4-setup.md#differences-from-compose))
 * The project licence is shaped by parley in DroidSansMono, not by Android's text stack, so glyphs can sit a pixel apart from Compose's. With the Compose screen deleted there is no picture pair to measure it. ([stage4-licences, where it differs from Compose](stage4-licences.md#where-it-differs-from-compose))
 
 ## Notes
 
-* This list has 4 confirm-on-the-phone items, 15 phone checks and 22 emulator checks.
+* This list has 4 confirm-on-the-phone items, 16 phone checks and 23 emulator checks.
