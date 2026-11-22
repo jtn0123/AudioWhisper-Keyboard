@@ -161,10 +161,12 @@ fn a_settings_link_opens_its_screen_even_during_setup() {
     a.prefs.insert(SET_UP.into(), "false".into());
     a.start(Some("settings/dictation"));
     assert_eq!(a.stack, [catalogue::HOME_ROUTE, "settings/dictation"]);
-    // A link Rust does not draw falls back to Compose, as before.
+    // A link Rust does not draw opens its not-found page over home, setup or not.
     let mut b = App::default();
+    b.prefs.insert(SET_UP.into(), "false".into());
     b.start(Some("settings/unknown"));
-    assert_eq!(b.effects.pop().unwrap()[0], "compose");
+    assert_eq!(b.stack, [catalogue::HOME_ROUTE, catalogue::NOT_FOUND_ROUTE]);
+    assert!(b.effects.is_empty());
 }
 
 #[test]

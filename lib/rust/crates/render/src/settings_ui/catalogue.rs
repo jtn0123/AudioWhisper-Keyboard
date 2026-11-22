@@ -13,6 +13,7 @@ mod keyboard;
 pub mod languages;
 mod licences;
 mod media;
+mod not_found;
 mod other;
 mod physical_keyboard;
 mod project_licence;
@@ -25,6 +26,7 @@ mod typing;
 pub mod words;
 pub use backup::{BACKUP_ROUTE, GROUP_NAMES, RESTORE_ROUTE};
 pub use keyboard::KEYBOARD;
+pub use not_found::ROUTE as NOT_FOUND_ROUTE;
 
 /// A JetPref `enabledIf` / `visibleIf` lambda over stored preferences and device facts.
 #[derive(Clone, Copy, Debug)]
@@ -404,6 +406,7 @@ pub const SCREENS: &[Screen] = &[
     ext_editor::FILE,
     ext_editor::FILE_ADD,
     ext_editor::COMPONENT_ADD,
+    not_found::SCREEN,
 ];
 /// The native screen at `route`, if Rust draws it. The subtype editor's and the word
 /// editor's routes carry the item's id as one more segment, and a language's words its locale.

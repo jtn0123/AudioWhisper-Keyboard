@@ -114,11 +114,11 @@ class SettingsOtherThemeMatchTest {
             for ((i, row) in screen.rows.withIndex()) if (row.route.isNotEmpty()) {
                 // The addon box goes from its button; every other row from itself.
                 val reply = tap(n, (if (row.kind == "addons") 6000 else 1000) + i)
-                // The addons row's extension list is native by its route without the query, which it keeps.
-                if (row.route.substringBefore('?') in native) {
-                    assertEquals(row.route, reply.text("route"))
-                    state(n, SettingsUiOp.BACK, "3", "0")
-                } else assertEquals(listOf(listOf("compose", row.route, native.joinToString("|"))), effects(reply))
+                // The addons row's extension list is native by its route without the query, which it keeps. Every row's
+                // route is drawn natively: no row reaches the not-found page.
+                assertTrue(row.route.substringBefore('?') in native, row.route)
+                assertEquals(row.route, reply.text("route"))
+                state(n, SettingsUiOp.BACK, "3", "0")
                 assertEquals(screen.route, state(n).text("route"))
             }
         }

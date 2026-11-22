@@ -11,7 +11,7 @@ use render::settings_ui::{
 use wire::settings_ui::files::{done, effect, job, mode, outcome, pick, report, result, work};
 
 #[test]
-fn other_opens_both_screens_in_rust_with_no_compose_fallback() {
+fn other_opens_both_screens_in_rust() {
     for (key, route) in [
         ("backup_and_restore__back_up__title", BACKUP_ROUTE),
         ("backup_and_restore__restore__title", RESTORE_ROUTE),
@@ -20,7 +20,6 @@ fn other_opens_both_screens_in_rust_with_no_compose_fallback() {
         let i = a.rows().iter().position(|r| r.key == key).unwrap();
         assert!(a.activate(1000 + i as i32));
         assert_eq!(a.stack.last().map(String::as_str), Some(route));
-        assert!(a.effects.iter().all(|e| e[0] != "compose"), "{route}");
         a.scene(&mut text);
         assert!(has_label(&a, "action__cancel"));
     }

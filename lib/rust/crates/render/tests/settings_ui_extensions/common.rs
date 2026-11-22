@@ -255,14 +255,6 @@ pub fn tap(a: &mut App, text: &mut Text, id: i32) -> bool {
     a.scene(text);
     done
 }
-/// The route the last `compose` effect opens.
-pub fn compose(a: &App) -> Option<String> {
-    a.effects
-        .iter()
-        .rev()
-        .find(|e| e[0] == "compose")
-        .map(|e| e[1].clone())
-}
 /// The last `url` effect's link.
 pub fn url(a: &App) -> Option<String> {
     a.effects

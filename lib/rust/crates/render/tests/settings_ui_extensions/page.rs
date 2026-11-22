@@ -438,7 +438,6 @@ fn export_asks_for_a_flex_named_after_the_extension_and_opens_no_screen() {
     let mime = "application/vnd.florisboard.extension+zip";
     assert_eq!(a.effects, [["pick", "create", mime, "my.themes.flex"]]);
     assert_eq!(a.stack.last(), Some(&view(MINE)));
-    assert_eq!(compose(&a), None);
 }
 
 #[test]

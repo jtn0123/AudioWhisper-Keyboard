@@ -2,8 +2,10 @@ package com.jtn0123.audiowhisper.settingsui
 
 import dev.patrickgold.florisboard.R
 
-/** The string ids of the native setup screen (stage4-setup.md), kept apart so SettingsStringIds stays
- * under the file limit. Part of [settingsStringIds]; the URLs and the Switch Keyboard label are there. */
+/** The string ids of the native setup screen (stage4-setup.md) and of the page an unknown settings link
+ * opens (stage4-compose-host.md): the screens a fresh activity may open on besides home. Kept apart so
+ * SettingsStringIds stays under the file limit. Part of [settingsStringIds]; the URLs and the Switch
+ * Keyboard label are there. */
 internal val settingsSetupStringIds: Map<String, Int> = mapOf(
     "setup__enable_ime__description" to R.string.setup__enable_ime__description,
     "setup__enable_ime__open_settings_btn" to R.string.setup__enable_ime__open_settings_btn,
@@ -29,4 +31,7 @@ internal val settingsSetupStringIds: Map<String, Int> = mapOf(
     "setup__step__later" to R.string.setup__step__later,
     "setup__step__next" to R.string.setup__step__next,
     "setup__title" to R.string.setup__title,
+    "settings__not_found__home" to R.string.settings__not_found__home,
+    "settings__not_found__message" to R.string.settings__not_found__message,
+    "settings__not_found__title" to R.string.settings__not_found__title,
 )

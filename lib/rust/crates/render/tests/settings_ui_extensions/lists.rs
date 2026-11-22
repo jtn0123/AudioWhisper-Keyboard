@@ -53,7 +53,6 @@ fn the_store_opens_in_the_browser_and_import_opens_the_importer() {
     assert_eq!(url(&a).as_deref(), Some(STORE));
     assert_eq!(STORE, "https://beta.addons.florisboard.org/");
     assert!(tap(&mut a, &mut text, IMPORT_ID));
-    assert_eq!(compose(&a), None);
     assert_eq!(IMPORT, "ext/import/EXT_ANY");
     assert_eq!(a.stack.last().map(String::as_str), Some(IMPORT));
 }
@@ -214,7 +213,6 @@ fn the_name_id_and_view_details_open_the_page_and_edit_opens_the_editor() {
     let (mut a, mut text) = app(THEMES);
     assert!(tap(&mut a, &mut text, ext_id(1, 4)));
     assert_eq!(a.stack.last(), Some(&format!("ext/edit/{MINE}")));
-    assert_eq!(compose(&a), None);
 }
 
 /// Difference: Compose's floating Create extension button; here a box above the extensions,
@@ -228,7 +226,6 @@ fn the_theme_list_offers_create_extension_above_the_extensions() {
     assert!(tap(&mut a, &mut text, CREATE_ID));
     let create = "ext/edit/null?create=ime.extension.theme";
     assert_eq!(a.stack.last().map(String::as_str), Some(create));
-    assert_eq!(compose(&a), None);
     for route in [KEYBOARDS, PACKS] {
         let (a, _) = app(route);
         assert!(!has(&a, CREATE_ID), "{route}");

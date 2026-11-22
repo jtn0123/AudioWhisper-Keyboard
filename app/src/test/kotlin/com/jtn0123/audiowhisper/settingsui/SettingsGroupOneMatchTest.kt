@@ -161,22 +161,22 @@ class SettingsGroupOneMatchTest {
         }
     }
 
-    @Test fun nativeRoutesAreHomeKeyboardAndEveryDrawnScreenAndOthersFallBackWithThem() {
+    @Test fun nativeRoutesAreEveryDrawnScreenAndAnUnknownRouteOpensTheNotFoundPage() {
         KeyboardRenderer(emptyArray()).use { n ->
             val native = listOf("settings/home", "settings/keyboard") + ref.screens.map { it.route } +
                 ReferenceGroupTwoScreens.screens.map { it.route } + "settings/about/third-party-licenses" + "settings/about/project-license" +
                 ReferenceOtherThemeScreens.screens.map { it.route } + "settings/other/backup" + "settings/other/restore" +
-                languageRoutes + wordRoutes + themeRoutes + "setup" + themeEditorRoutes + extensionRoutes
+                languageRoutes + wordRoutes + themeRoutes + "setup" + themeEditorRoutes + extensionRoutes + "settings/not-found"
             assertEquals(native, n.settings(SettingsUiOp.ROUTES)[2].split("\n"))
             prepare(n, defaults())
-            // Only a route Rust does not draw goes to the fallback, told every route it must hand back.
-            val compose = "settings/not-a-screen"
-            assertEquals(listOf(listOf("compose", compose, native.joinToString("|"))), effects(state(n, SettingsUiOp.NAVIGATE, compose)))
-            assertEquals("settings/home", state(n).getValue("route").jsonPrimitive.content)
+            // A route Rust does not draw opens Rust's own not-found page, with no effect: there is no Compose to go to.
+            val unknown = state(n, SettingsUiOp.NAVIGATE, "settings/not-a-screen")
+            assertEquals("settings/not-found", unknown.getValue("route").jsonPrimitive.content)
+            assertEquals(emptyList(), effects(unknown))
+            assertEquals("settings/home", state(n, SettingsUiOp.BACK, "3", "0").getValue("route").jsonPrimitive.content)
             // Editing an extension, Compose's until compose-removal step 10, is drawn natively.
             val edit = state(n, SettingsUiOp.NAVIGATE, "ext/edit/my.themes")
             assertEquals("ext/edit/my.themes", edit.getValue("route").jsonPrimitive.content)
-            assertTrue(effects(edit).none { it[0] == "compose" })
         }
     }
 

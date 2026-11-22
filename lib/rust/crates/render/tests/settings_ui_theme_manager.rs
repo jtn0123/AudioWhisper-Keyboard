@@ -322,7 +322,6 @@ fn create_opens_the_extension_editor_and_import_opens_the_theme_importer() {
     a.scene(&mut text);
     a.effects.clear();
     tap(&mut a, &mut text, manager::IMPORT_ID);
-    assert!(a.effects.iter().all(|e| e[0] != "compose"));
     assert_eq!(a.stack.last().map(String::as_str), Some(IMPORT));
     assert_eq!(IMPORT, "ext/import/EXT_THEME");
     a.back();
@@ -345,7 +344,6 @@ fn an_extensions_name_id_and_view_details_open_its_page_and_edit_its_editor() {
         tap(&mut a, &mut text, id);
         // An extension's page and its editor are native now.
         assert_eq!(a.stack.last(), Some(&route), "{id}");
-        assert!(a.effects.iter().all(|e| e[0] != "compose"), "{id}");
         a.back();
         a.scene(&mut text);
     }

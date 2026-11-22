@@ -145,17 +145,17 @@ fn every_resource_key_the_settings_code_names_is_in_the_key_list() {
 }
 
 #[test]
-fn group_one_routes_are_native_and_other_routes_fall_back_with_the_native_list() {
+fn group_one_routes_are_native_and_the_native_list_names_every_screen() {
     for route in GROUP_ONE {
         let (a, _) = app(route);
         assert_eq!(a.stack.last().map(String::as_str), Some(route));
-        assert!(a.effects.is_empty(), "{route} fell back");
+        assert!(a.effects.is_empty(), "{route} asked for an effect");
         assert!(!a.rows().is_empty());
     }
-    // A route Rust does not draw falls back with the list of those it does.
-    let compose = "settings/unknown";
-    let (mut a, _) = app(compose);
-    assert_eq!(a.stack, ["settings/home"]);
+    // A route Rust does not draw opens Rust's not-found page (settings_ui_not_found.rs).
+    let (a, _) = app("settings/unknown");
+    assert_eq!(a.stack, ["settings/home", catalogue::NOT_FOUND_ROUTE]);
+    assert!(a.effects.is_empty());
     let native = "settings/home|settings/keyboard|settings/keyboard/input-feedback|settings/smartbar|\
                   settings/gestures|settings/clipboard|settings/media|settings/typing|\
                   settings/dictionary|settings/other/physical-keyboard|settings/about|\
@@ -180,8 +180,9 @@ fn group_one_routes_are_native_and_other_routes_fall_back_with_the_native_list()
                   ext|ext/list/EXT_THEME|ext/list/EXT_KEYBOARD|ext/list/EXT_LANGUAGEPACK|ext/view|\
                   ext/check-updates|ext/import/EXT_ANY|ext/import/EXT_KEYBOARD|ext/import/EXT_THEME|\
                   ext/import/EXT_LANGUAGEPACK|ext/edit|ext/editor/meta|ext/editor/dependencies|\
-                  ext/editor/files|ext/editor/file|ext/editor/file/add|ext/editor/component/add";
-    assert_eq!(a.effects.pop().unwrap(), ["compose", compose, native]);
+                  ext/editor/files|ext/editor/file|ext/editor/file/add|ext/editor/component/add|\
+                  settings/not-found";
+    assert_eq!(catalogue::native_routes().join("|"), native);
 }
 
 #[test]

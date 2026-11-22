@@ -26,7 +26,6 @@ fn every_language_screen_is_native_and_asks_kotlin_for_the_report_once() {
         let mut a = App::default();
         a.navigate(route);
         assert_eq!(a.stack.last().map(String::as_str), Some(route));
-        assert!(a.effects.iter().all(|e| e[0] != "compose"), "{route}");
         let asks = a.effects.iter().filter(|e| e[0] == "languages").count();
         assert_eq!(asks, 1, "{route}");
         // A second screen before the answer does not ask again.

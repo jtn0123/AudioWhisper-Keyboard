@@ -359,12 +359,8 @@ impl App {
         } else if route == "@enable" {
             self.effects.push(vec!["enable".into()]);
         } else {
-            // The fallback hands back any destination Rust draws, so it is told which.
-            self.effects.push(vec![
-                "compose".into(),
-                route.into(),
-                catalogue::native_routes().join("|"),
-            ]);
+            // A link to a page Rust does not draw: Rust says so, where Compose once opened it.
+            self.navigate(catalogue::NOT_FOUND_ROUTE);
         }
     }
     /// The top back-stack entry's own scroll, whatever dialog is over it.

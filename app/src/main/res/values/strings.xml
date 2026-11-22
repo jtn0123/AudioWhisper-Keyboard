@@ -109,6 +109,10 @@
     <string name="settings__system_default" comment="General string which is used when a preference has the system default value set">System default</string>
 
     <string name="settings__home__title" comment="Title of the Home screen">Welcome to {app_name}</string>
+    <!-- The page a link to a settings page that does not exist opens (compose-removal step 12) -->
+    <string name="settings__not_found__title" comment="Title of the page a link to a settings page that does not exist opens">Page not found</string>
+    <string name="settings__not_found__message" comment="Text of the page a link to a settings page that does not exist opens">This link goes to a settings page that this version of {app_name} doesn\'t have.</string>
+    <string name="settings__not_found__home" comment="Button on the page-not-found page that opens the settings home screen">Go to the settings home</string>
     <string name="settings__home__ime_not_enabled" comment="Error message shown in Home fragment when FlorisBoard is not enabled in the system">{app_name} is not enabled in the system and thus won\'t be available as an input method in the input picker. Click here to resolve this issue.</string>
     <string name="settings__home__ime_not_selected" comment="Warning message shown in Home fragment when FlorisBoard is not selected as the default keyboard">{app_name} is not selected as the default input method. Click here to resolve this issue.</string>
 

@@ -65,7 +65,6 @@ class SettingsBackupFlowTest {
                 val other = state(n, SettingsUiOp.NAVIGATE, "settings/other")
                 var s = tap(n, other, s("backup_and_restore__restore__title"))
                 assertEquals("settings/other/restore", s.text("route"))
-                assertTrue(effects(s).none { it[0] == "compose" })
                 s = tap(n, s, s("action__select_file"))
                 assertEquals(listOf(SettingsUiFileEffect.PICK, SettingsUiPickMode.OPEN, "*/*", ""), effects(s).single())
                 s = state(n, SettingsUiOp.FILES, *pickedReport(SettingsUiPickOutcome.PICKED, listOf("0" to "backup.zip")))
