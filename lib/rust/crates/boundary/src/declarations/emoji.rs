@@ -96,6 +96,7 @@ pub const EMOJI_ENTRY: (&str, Module, Type) = (
               keyboard's `EmojiSkinTone` and `EmojiHairStyle` (see [EmojiRules.tones]), and \
               its keywords.",
         data: false,
+        constants: &[],
         fields: &[
             ("value", "String"),
             ("name", "String"),
@@ -115,6 +116,7 @@ pub const EMOJI_ENTRY_SET: (&str, Module, Type) = (
         doc: "A set of emoji, a base and its variants: [size] entries from [start], in \
               category [category].",
         data: false,
+        constants: &[],
         fields: &[("category", "Int"), ("start", "Int"), ("size", "Int")],
     },
 );
@@ -128,6 +130,7 @@ pub const EMOJI_TONES: (&str, Module, Type) = (
         doc: "An emoji's skin tone and hair style, as ordinals of `EmojiSkinTone` and \
               `EmojiHairStyle`.",
         data: true,
+        constants: &[],
         fields: &[("skinTone", "Int"), ("hairStyle", "Int")],
     },
 );

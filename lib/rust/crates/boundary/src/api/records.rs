@@ -126,11 +126,13 @@ fn record_fields<'a>(name: &str, api: &'a Api, apis: &'a [Api]) -> &'a [(&'a str
     found.unwrap_or_else(|| panic!("{}: no record {name}", api.name))
 }
 
-/// Whether `ty` is an enum nested in some api.
+/// Whether `ty` is an enum, nested in some api or top-level.
 fn is_enum(ty: &str, apis: &[Api]) -> bool {
     let name = ty.rsplit('.').next().unwrap_or(ty);
+    let top = crate::TYPES.iter().map(|(_, _, ty)| ty);
     apis.iter()
         .flat_map(|api| api.nested)
+        .chain(top)
         .any(|nested| matches!(nested, Type::Enum { name: n, .. } if *n == name))
 }
 
@@ -171,10 +173,24 @@ fn row(returns: Return, api: &Api) -> (Option<Element>, bool) {
     }
 }
 
+/// An `Array<Any>`, which reads as one record whose fields are its elements in order, for a
+/// record of arrays such as `IntArray` and `FloatArray`. The function makes it with
+/// `Env::make_objects`.
+pub const OBJECTS: Return = Return::Object("Array<Any>", "jobjectArray");
+
 /// What follows a native call that returns `returns` to read it as the record `name`, or a list
 /// of them if `many`, each in as many elements as it has fields, or each a row of its own from an
-/// array of string rows. A record's last field may be a `List<String>` of the rest of its row.
+/// array of string rows, or one record from [`OBJECTS`]. A record's last field may be a
+/// `List<String>` of the rest of its row.
 pub fn record(name: &str, many: bool, returns: Return, api: &Api, apis: &[Api]) -> String {
+    if returns == OBJECTS {
+        assert!(!many, "{name}: an array of objects reads as one record");
+        let fields = record_fields(name, api, apis);
+        let values: Vec<String> = (fields.iter().enumerate())
+            .map(|(at, (_, ty))| format!("it[{at}] as {ty}"))
+            .collect();
+        return format!(".let {{ {name}({}) }}", values.join(", "));
+    }
     let (element, nullable) = row(returns, api);
     let rows = returns == Return::StringArrays;
     assert!(many || !rows, "{name}: an array of rows reads as a list");

@@ -154,6 +154,7 @@ pub const SPACING_RULES: Api = Api {
             name: "Rule",
             doc: "The symbols a punctuation rule lists for each kind of space.",
             data: false,
+            constants: &[],
             fields: &[
                 ("precedingAutoSpace", "String"),
                 ("followingAutoSpace", "String"),
@@ -182,6 +183,7 @@ pub const SPACING_RULES: Api = Api {
             doc: "What is known before any text is looked up; [inputType] is the field's raw \
                   `EditorInfo.inputType`.",
             data: false,
+            constants: &[],
             fields: &[
                 ("autoSpacePunctuation", "Boolean"),
                 ("rawEditor", "Boolean"),

@@ -1,21 +1,30 @@
-//! JNI entry points for swipe typing's scorer, called by `GlideNative` in lib/rust's Kotlin.
+//! Swipe typing's scorer (`glide`), for `GlideNative`, whose generated entry points call these.
 //!
-//! An index is built once per word list and layout. Each swipe then opens a query on it holding
-//! the swipe and the keys as drawn, asks it for the candidates, and has it score them with their
-//! frequencies.
+//! The words cross once, as one string and their lengths. An index is built from them once per
+//! layout. Each swipe then opens a query on it holding the swipe and the keys as drawn, asks it
+//! for the candidates, and has it score them with their frequencies. A query shares its index, so
+//! the index lives until its last query is freed.
 
-use std::ptr;
+use std::sync::Arc;
 
 use glide::{CharKeys, Gesture, GlideIndex, Key, Layout, Swipe, Tuning};
-use jni_sys::{JNIEnv, jcharArray, jclass, jfloatArray, jint, jintArray, jlong};
+use jni_sys::jobjectArray;
 
-use crate::handle::{free, into_handle, object};
-use crate::jni::{self, Env, Result, illegal};
+use crate::boundary::Chars;
+use crate::handle::{into_handle, object};
+use crate::jni::{Env, Result, illegal};
+
+/// Swipe typing's words: word `w` is `chars[starts[w]..starts[w + 1]]`.
+#[derive(Debug)]
+struct Words {
+    chars: Vec<u16>,
+    starts: Vec<u32>,
+}
 
 /// One swipe against an index.
 #[derive(Debug)]
 struct Query {
-    index: *const GlideIndex,
+    index: Arc<GlideIndex>,
     swipe: Gesture,
     /// Each point's time in milliseconds, or none.
     times: Vec<f32>,
@@ -23,11 +32,7 @@ struct Query {
 }
 
 /// The layout's keys from their codes and bounds: centre x, centre y, width and height for each.
-fn keys(env: &Env, codes: jintArray, bounds: jfloatArray) -> Result<Vec<Key>> {
-    let (codes, bounds) = (
-        env.read::<i32>(codes, "keyCodes")?,
-        env.read::<f32>(bounds, "keyBounds")?,
-    );
+fn keys(codes: &[i32], bounds: &[f32]) -> Result<Vec<Key>> {
     let (bounds, rest) = bounds.as_chunks::<4>();
     if bounds.len() != codes.len() || !rest.is_empty() {
         return Err(illegal("keyBounds needs four values per key"));
@@ -45,251 +50,197 @@ fn keys(env: &Env, codes: jintArray, bounds: jfloatArray) -> Result<Vec<Key>> {
         .collect())
 }
 
-fn unsigned(values: Vec<i32>, name: &str) -> Result<Vec<u32>> {
+fn unsigned(values: &[i32], name: &str) -> Result<Vec<u32>> {
     values
-        .into_iter()
-        .map(|v| u32::try_from(v).map_err(|_| illegal(format!("{name} has a negative value"))))
+        .iter()
+        .map(|&v| u32::try_from(v).map_err(|_| illegal(format!("{name} has a negative value"))))
         .collect()
 }
 
-#[unsafe(no_mangle)]
-pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_GlideNative_distinctChars(
-    env: *mut JNIEnv,
-    _: jclass,
-    chars: jcharArray,
-) -> jcharArray {
-    // SAFETY: the JVM passes its environment for this call.
-    unsafe {
-        jni::run(env, ptr::null_mut(), |env| {
-            let chars = env.read::<u16>(chars, "chars")?;
-            env.make(&glide::distinct_units(&chars))
-        })
+/// The words in `text`, one after another, `lengths` long.
+pub fn new_words(text: &[u16], lengths: &[i32]) -> Result<i64> {
+    let mut starts = Vec::with_capacity(lengths.len() + 1);
+    let mut at = 0u32;
+    starts.push(at);
+    for length in unsigned(lengths, "lengths")? {
+        at = at
+            .checked_add(length)
+            .ok_or_else(|| illegal("lengths overflow"))?;
+        starts.push(at);
     }
+    if at as usize != text.len() {
+        return Err(illegal("lengths and text differ"));
+    }
+    let chars = text.to_vec();
+    Ok(into_handle(Words { chars, starts }))
 }
 
-/// Indexes the words in `chars` (word `w` from `starts[w]` to `starts[w + 1]`) with `table`, four
-/// Ints per character: the UTF-16 unit, its lower case, its path key and its end key.
-#[unsafe(no_mangle)]
-pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_GlideNative_build(
-    env: *mut JNIEnv,
-    _: jclass,
-    chars: jcharArray,
-    starts: jintArray,
-    table: jintArray,
-) -> jlong {
-    // SAFETY: the JVM passes its environment for this call.
-    unsafe {
-        jni::run(env, 0, |env| {
-            let chars = env.read::<u16>(chars, "chars")?;
-            let starts = unsigned(env.read::<i32>(starts, "starts")?, "starts")?;
-            let table = env.read::<i32>(table, "table")?;
-            let (rows, rest) = table.as_chunks::<4>();
-            if !rest.is_empty() {
-                return Err(illegal("table needs four values per character"));
-            }
-            let table: Vec<CharKeys> = rows
-                .iter()
-                .map(|&[unit, lower, path_key, end_key]| CharKeys {
-                    unit: unit as u16,
-                    lower: lower as u16,
-                    path_key,
-                    end_key,
-                })
-                .collect();
-            let index =
-                GlideIndex::build(&chars, &starts, &table).map_err(|e| illegal(e.to_string()))?;
-            Ok(into_handle(index))
-        })
-    }
+pub fn free_words(words: i64) -> Result<()> {
+    // SAFETY: the Kotlin side frees each word list once, when nothing can reach it.
+    unsafe { crate::handle::free::<Words>(words) };
+    Ok(())
 }
 
-#[unsafe(no_mangle)]
-pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_GlideNative_free(
-    _: *mut JNIEnv,
-    _: jclass,
-    index: jlong,
-) {
-    // SAFETY: the Kotlin side frees each index once, when nothing can reach it.
-    unsafe { free::<GlideIndex>(index) }
+fn words<'a>(words: i64) -> Result<&'a Words> {
+    // SAFETY: Kotlin holds the word list while it calls, so it hasn't been freed.
+    unsafe { object(words, "words") }
+}
+
+/// How many words there are.
+pub fn word_count(words: i64) -> Result<i32> {
+    // A word list is a Java list's, so its length fits.
+    Ok((self::words(words)?.starts.len() - 1) as i32)
+}
+
+/// Every UTF-16 unit the words use, once each, ascending.
+pub fn distinct_chars(words: i64) -> Result<Chars> {
+    Ok(Chars(glide::distinct_units(&self::words(words)?.chars)))
+}
+
+/// Indexes the words with `table`, four Ints per character: the UTF-16 unit, its lower case, its
+/// path key and its end key.
+pub fn build(words: i64, table: &[i32]) -> Result<i64> {
+    let words = self::words(words)?;
+    let (rows, rest) = table.as_chunks::<4>();
+    if !rest.is_empty() {
+        return Err(illegal("table needs four values per character"));
+    }
+    let table: Vec<CharKeys> = rows
+        .iter()
+        .map(|&[unit, lower, path_key, end_key]| CharKeys {
+            unit: unit as u16,
+            lower: lower as u16,
+            path_key,
+            end_key,
+        })
+        .collect();
+    let index = GlideIndex::build(&words.chars, &words.starts, &table)
+        .map_err(|e| illegal(e.to_string()))?;
+    Ok(into_handle(Arc::new(index)))
+}
+
+pub fn free(index: i64) -> Result<()> {
+    // SAFETY: the Kotlin side frees each index once, when nothing can reach it; a query holds its
+    // own share.
+    unsafe { crate::handle::free::<Arc<GlideIndex>>(index) };
+    Ok(())
 }
 
 /// Opens a query for the swipe through `xs` and `ys`, drawn on keys with these codes and bounds.
-#[unsafe(no_mangle)]
-pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_GlideNative_query(
-    env: *mut JNIEnv,
-    _: jclass,
-    index: jlong,
-    xs: jfloatArray,
-    ys: jfloatArray,
-    key_codes: jintArray,
-    key_bounds: jfloatArray,
-) -> jlong {
-    // SAFETY: the JVM passes its environment for this call, and the index is live (see `object`).
-    unsafe {
-        jni::run(env, 0, |env| {
-            open_query(env, index, (xs, ys, None), key_codes, key_bounds)
-        })
-    }
+pub fn query(
+    index: i64,
+    xs: &[f32],
+    ys: &[f32],
+    key_codes: &[i32],
+    key_bounds: &[f32],
+) -> Result<i64> {
+    open_query(index, (xs, ys, &[]), key_codes, key_bounds)
 }
 
 /// As `query`, with each point's time in milliseconds in `times`, which `scoreTuned` weighs.
-#[unsafe(no_mangle)]
-pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_GlideNative_queryTimed(
-    env: *mut JNIEnv,
-    _: jclass,
-    index: jlong,
-    xs: jfloatArray,
-    ys: jfloatArray,
-    times: jfloatArray,
-    key_codes: jintArray,
-    key_bounds: jfloatArray,
-) -> jlong {
-    // SAFETY: as for `query`.
-    unsafe {
-        jni::run(env, 0, |env| {
-            open_query(env, index, (xs, ys, Some(times)), key_codes, key_bounds)
-        })
-    }
+pub fn query_timed(
+    index: i64,
+    xs: &[f32],
+    ys: &[f32],
+    times: &[f32],
+    key_codes: &[i32],
+    key_bounds: &[f32],
+) -> Result<i64> {
+    open_query(index, (xs, ys, times), key_codes, key_bounds)
 }
 
-/// A query's handle, for the swipe through `xs` and `ys` (drawn at `times`, if given).
-///
-/// # Safety
-/// `index` must be live (see `object`).
-unsafe fn open_query(
-    env: &Env,
-    index: jlong,
-    (xs, ys, times): (jfloatArray, jfloatArray, Option<jfloatArray>),
-    key_codes: jintArray,
-    key_bounds: jfloatArray,
-) -> Result<jlong> {
-    // SAFETY: as the caller promises.
-    let index = unsafe { object::<GlideIndex>(index, "index")? };
-    let (xs, ys) = (env.read::<f32>(xs, "xs")?, env.read::<f32>(ys, "ys")?);
+/// A query's handle, for the swipe through `xs` and `ys` (drawn at `times`, if any).
+fn open_query(
+    index: i64,
+    (xs, ys, times): (&[f32], &[f32], &[f32]),
+    key_codes: &[i32],
+    key_bounds: &[f32],
+) -> Result<i64> {
+    // SAFETY: Kotlin holds the index while it calls, so it hasn't been freed.
+    let index = unsafe { object::<Arc<GlideIndex>>(index, "index")? };
     if xs.len() != ys.len() {
         return Err(illegal("xs and ys differ in length"));
     }
-    let times = match times {
-        Some(times) => env.read::<f32>(times, "times")?,
-        None => Vec::new(),
-    };
     if !times.is_empty() && times.len() != xs.len() {
         return Err(illegal("times and xs differ in length"));
     }
     let query = Query {
-        index,
-        swipe: Gesture::from_points(&xs, &ys),
-        times,
-        keys: keys(env, key_codes, key_bounds)?,
+        index: Arc::clone(index),
+        swipe: Gesture::from_points(xs, ys),
+        times: times.to_vec(),
+        keys: keys(key_codes, key_bounds)?,
     };
     Ok(into_handle(query))
 }
 
-#[unsafe(no_mangle)]
-pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_GlideNative_freeQuery(
-    _: *mut JNIEnv,
-    _: jclass,
-    query: jlong,
-) {
-    // SAFETY: the Kotlin side frees each query once, on closing it.
-    unsafe { free::<Query>(query) }
+pub fn free_query(query: i64) -> Result<()> {
+    // SAFETY: the synchronized query zeros its handle on close and frees it exactly once.
+    unsafe { crate::handle::free::<Query>(query) };
+    Ok(())
 }
 
-/// The query's index and its keys as a layout of it.
-///
-/// # Safety
-/// `query` must be live (see `object`); its index then is too, as the Kotlin query holds it.
-unsafe fn open<'a>(query: jlong) -> Result<(&'a Query, &'a GlideIndex)> {
-    // SAFETY: as the caller promises.
-    let query = unsafe { object::<Query>(query, "query")? };
-    // SAFETY: the index outlives every query on it.
-    Ok((query, unsafe { &*query.index }))
+fn open<'a>(query: i64) -> Result<&'a Query> {
+    // SAFETY: the synchronized query keeps its handle live and serializes close; a closed one
+    // passes 0, which throws.
+    unsafe { object(query, "query") }
 }
 
 /// The words worth scoring for the query's swipe, in order.
-#[unsafe(no_mangle)]
-pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_GlideNative_candidates(
-    env: *mut JNIEnv,
-    _: jclass,
-    query: jlong,
-) -> jintArray {
-    // SAFETY: the JVM passes its environment for this call, and the query is live (see `object`).
-    unsafe {
-        jni::run(env, ptr::null_mut(), |env| {
-            let (query, index) = open(query)?;
-            let candidates =
-                index.candidates(&query.swipe, &Layout::new(&query.keys, index.codes()));
-            // Word numbers fit in an Int: they number a Java list.
-            env.make(&candidates.iter().map(|&w| w as i32).collect::<Vec<_>>())
-        })
-    }
+pub fn candidates(query: i64) -> Result<Vec<i32>> {
+    let query = open(query)?;
+    let index = &query.index;
+    let candidates = index.candidates(&query.swipe, &Layout::new(&query.keys, index.codes()));
+    // Word numbers fit in an Int: they number a Java list.
+    Ok(candidates.iter().map(|&w| w as i32).collect())
 }
 
-/// Scores `candidates` at their `frequencies`, writing the likeliest words and their weights to
-/// `out_words` and `out_weights`, as many as `out_words` holds. Returns how many it wrote. Scores
-/// as FlorisBoard's classifier did (`glide::Tuning::ORIGINAL`), which the reference tests check.
-#[unsafe(no_mangle)]
-pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_GlideNative_score(
-    env: *mut JNIEnv,
-    _: jclass,
-    query: jlong,
-    candidates: jintArray,
-    frequencies: jfloatArray,
-    out_words: jintArray,
-    out_weights: jfloatArray,
-) -> jint {
-    let to = (candidates, frequencies, out_words, out_weights);
-    // SAFETY: the JVM passes its environment for this call, and the query is live (see `object`).
-    unsafe { jni::run(env, 0, |env| score(env, query, to, &Tuning::ORIGINAL)) }
+/// The `max` likeliest of `candidates` at their `frequencies`, as `[words, weights]`, scored as
+/// FlorisBoard's classifier did (`glide::Tuning::ORIGINAL`), which the reference tests check.
+pub fn score(
+    env: &Env,
+    query: i64,
+    candidates: &[i32],
+    frequencies: &[f32],
+    max: i32,
+) -> Result<jobjectArray> {
+    scored(
+        env,
+        query,
+        (candidates, frequencies, max),
+        &Tuning::ORIGINAL,
+    )
 }
 
 /// As `score`, as the keyboard scores: with the additions of `glide::Tuning::DEFAULT`.
-#[unsafe(no_mangle)]
-pub extern "system" fn Java_com_jtn0123_audiowhisper_rust_GlideNative_scoreTuned(
-    env: *mut JNIEnv,
-    _: jclass,
-    query: jlong,
-    candidates: jintArray,
-    frequencies: jfloatArray,
-    out_words: jintArray,
-    out_weights: jfloatArray,
-) -> jint {
-    let to = (candidates, frequencies, out_words, out_weights);
-    // SAFETY: as for `score`.
-    unsafe { jni::run(env, 0, |env| score(env, query, to, &Tuning::DEFAULT)) }
+pub fn score_tuned(
+    env: &Env,
+    query: i64,
+    candidates: &[i32],
+    frequencies: &[f32],
+    max: i32,
+) -> Result<jobjectArray> {
+    scored(env, query, (candidates, frequencies, max), &Tuning::DEFAULT)
 }
 
-/// Scores the query's `candidates` at their `frequencies` with `tuning` into `out_words` and
-/// `out_weights`; how many it wrote.
-///
-/// # Safety
-/// `query` must be live (see `object`).
-unsafe fn score(
+/// The query's `candidates` scored at their `frequencies` with `tuning`, at most `max`.
+fn scored(
     env: &Env,
-    query: jlong,
-    (candidates, frequencies, out_words, out_weights): (
-        jintArray,
-        jfloatArray,
-        jintArray,
-        jfloatArray,
-    ),
+    query: i64,
+    (candidates, frequencies, max): (&[i32], &[f32], i32),
     tuning: &Tuning,
-) -> Result<jint> {
-    // SAFETY: as the caller promises.
-    let (query, index) = unsafe { open(query)? };
-    let candidates = unsigned(env.read::<i32>(candidates, "candidates")?, "candidates")?;
-    let frequencies = env.read::<f32>(frequencies, "frequencies")?;
-    let max = env.read::<i32>(out_words, "outWords")?.len();
+) -> Result<jobjectArray> {
+    let query = open(query)?;
+    let index = &query.index;
+    let candidates = unsigned(candidates, "candidates")?;
+    let max = usize::try_from(max).map_err(|_| illegal("max is negative"))?;
     let layout = Layout::new(&query.keys, index.codes());
     let swipe = Swipe {
         gesture: &query.swipe,
         times: &query.times,
     };
     let ranking = index
-        .score_with(&candidates, &frequencies, swipe, &layout, max, tuning)
+        .score_with(&candidates, frequencies, swipe, &layout, max, tuning)
         .map_err(|e| illegal(e.to_string()))?;
     let words: Vec<i32> = ranking.words().iter().map(|&w| w as i32).collect();
-    env.write(out_words, &words, "outWords")?;
-    env.write(out_weights, ranking.weights(), "outWeights")?;
-    Ok(words.len() as jint)
+    env.make_objects(&[&|| env.make(&words), &|| env.make(ranking.weights())])
 }

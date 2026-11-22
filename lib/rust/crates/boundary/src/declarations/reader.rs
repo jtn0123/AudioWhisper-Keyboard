@@ -137,6 +137,7 @@ pub const READER_RULES: Api = Api {
             doc: "A block made of pieces from the one at [first] on: their [text], [top] and \
                   [bottom].",
             data: false,
+            constants: &[],
             fields: &[
                 ("first", "Int"),
                 ("text", "String"),
@@ -151,6 +152,7 @@ pub const READER_RULES: Api = Api {
                   \"notInstalled\" feature), and its [quality] and [latency] (Voice.QUALITY_* \
                   and LATENCY_*).",
             data: false,
+            constants: &[],
             fields: &[
                 ("language", "String"),
                 ("country", "String"),

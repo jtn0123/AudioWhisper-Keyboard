@@ -7,6 +7,7 @@ mod dictation;
 mod emoji;
 mod gif;
 mod giphy;
+mod glide;
 mod input;
 mod keys;
 mod latin;
@@ -66,6 +67,7 @@ pub const CLASSES: &[Class] = &[
     reader_runtime::PLAYBACK_NATIVE,
     input::INPUT_RULES,
     input::INPUT_NATIVE,
+    glide::GLIDE_NATIVE,
 ];
 
 /// Every generated api over those classes.
@@ -98,6 +100,9 @@ pub const APIS: &[Api] = &[
     reader_runtime::READER_TIMING,
     reader_runtime::PLAYBACK_QUEUE,
     input::INPUT_DISPATCH,
+    glide::GLIDE_WORDS,
+    glide::GLIDE_INDEX,
+    glide::GLIDE_QUERY,
 ];
 
 /// Every generated top-level record, enum and interface, with the declarations file and the module it is in.
@@ -106,6 +111,9 @@ pub const TYPES: &[(&str, Module, Type)] = &[
     emoji::EMOJI_ENTRY_SET,
     emoji::EMOJI_TONES,
     reader_runtime::READER_TREE,
+    glide::GLIDE_CHAR,
+    glide::GLIDE_KEYS,
+    glide::GLIDE_SCORES,
 ];
 
 /// Every group crates/wire declares, and the Kotlin module that calls with it.

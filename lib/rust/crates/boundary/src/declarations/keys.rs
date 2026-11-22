@@ -85,6 +85,7 @@ pub const KEY_GEOMETRY: Api = Api {
         doc: "A visible key's flex factors: how much it shrinks and grows, and how wide it wants \
               to be.",
         data: false,
+        constants: &[],
         fields: &[
             ("shrink", "Float"),
             ("grow", "Float"),

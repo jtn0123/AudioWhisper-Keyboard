@@ -394,8 +394,6 @@ lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/Gestures.kt	A	93	ART JNI 
 lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/GesturesNative.kt	A	46	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
 lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/Gif.kt	M	3	ART JNI; residual signed-order decoding helpers and cache payload lifetime |
 lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/Giphy.kt	A	5	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
-lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/Glide.kt	A	93	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
-lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/GlideNative.kt	A	34	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
 lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/KeyboardRenderer.kt	A	179	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
 lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/LayoutCache.kt	A	13	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
 lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/LayoutRules.kt	A	13	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |

@@ -76,6 +76,18 @@ impl Returned for Vec<u16> {
     }
 }
 
+/// A `CharArray`, as its UTF-16 units; a bare `Vec<u16>` crosses as a string.
+#[derive(Debug)]
+pub struct Chars(pub Vec<u16>);
+
+impl Returned for Chars {
+    type Jni = jobject;
+    const FALLBACK: jobject = ptr::null_mut();
+    fn into_jni(self, env: &Env) -> Result<jobject> {
+        env.make(&self.0)
+    }
+}
+
 /// An `Array<String>`.
 impl Returned for Vec<Vec<u16>> {
     type Jni = jobject;

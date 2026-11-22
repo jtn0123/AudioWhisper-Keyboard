@@ -15,7 +15,7 @@ mod files;
 mod gestures;
 mod gif;
 mod giphy;
-mod glide;
+pub(crate) mod glide;
 mod handle;
 mod ime_window;
 mod jni;

@@ -181,6 +181,7 @@ pub const LATIN_SESSION: Api = Api {
             name: "Candidate",
             doc: "A word the decoder found, with its score and its kind and flags.",
             data: false,
+            constants: &[],
             fields: &[
                 ("word", "String"),
                 ("score", "Int"),
@@ -192,6 +193,7 @@ pub const LATIN_SESSION: Api = Api {
             doc: "The candidate strip: the indexes of its auto-correction and of the typed word, \
                   or -1, and its words.",
             data: false,
+            constants: &[],
             fields: &[
                 ("autoCorrection", "Int"),
                 ("typedWord", "Int"),
@@ -203,6 +205,7 @@ pub const LATIN_SESSION: Api = Api {
             doc: "A spell check: whether the word is valid, whether that is confident, and the \
                   suggestions.",
             data: false,
+            constants: &[],
             fields: &[
                 ("isValid", "Boolean"),
                 ("isHighConfidence", "Boolean"),

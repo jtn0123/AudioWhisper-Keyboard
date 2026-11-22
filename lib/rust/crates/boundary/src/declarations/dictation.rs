@@ -105,12 +105,14 @@ pub const DICTATION_RULES: Api = Api {
             doc: "A part of a phrase: its [kind], and its words, its mark or its line breaks as \
                   [text].",
             data: false,
+            constants: &[],
             fields: &[("kind", "Kind"), ("text", "String")],
         },
         Type::Record {
             name: "Typing",
             doc: "Delete [replacing] characters before the cursor, then type [text].",
             data: false,
+            constants: &[],
             fields: &[("replacing", "Int"), ("text", "String")],
         },
     ],

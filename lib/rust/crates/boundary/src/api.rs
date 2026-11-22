@@ -13,7 +13,7 @@ mod records;
 #[cfg(test)]
 mod tests;
 
-pub use records::{BIT, Bit, BitKind};
+pub use records::{BIT, Bit, BitKind, OBJECTS};
 
 /// A public Kotlin type over native methods, in its own file.
 #[derive(Debug)]
@@ -222,13 +222,16 @@ pub enum Out {
 /// A record or enum that an api's members take or return.
 #[derive(Debug)]
 pub enum Type {
-    /// `class Name(val field: Type, …)`, a `data class` if `data`.
+    /// `class Name(val field: Type, …)`, a `data class` if `data`, with `constants` in its
+    /// companion as an api's are.
     Record {
         name: &'static str,
         doc: &'static str,
         data: bool,
         /// (name, type).
         fields: &'static [(&'static str, &'static str)],
+        /// (name, type, value, doc), as [`Api::constants`].
+        constants: &'static [(&'static str, &'static str, &'static str, &'static str)],
     },
     /// `enum class Name { A, B }`.
     Enum {
@@ -707,14 +710,27 @@ fn type_text(ty: &Type, indent: &str) -> String {
             doc,
             data,
             fields,
+            constants: kept,
         } => {
-            let mut text = kdoc(doc, indent);
+            let mut text = if doc.is_empty() {
+                String::new()
+            } else {
+                kdoc(doc, indent)
+            };
             let fields: Vec<String> = fields
                 .iter()
                 .map(|(name, ty)| format!("val {name}: {ty}"))
                 .collect();
             let head = format!("{}class {name}", if *data { "data " } else { "" });
-            text.push_str(&kotlin_declaration(indent, &head, &fields, ""));
+            if kept.is_empty() {
+                text.push_str(&kotlin_declaration(indent, &head, &fields, ""));
+            } else {
+                text.push_str(&kotlin_declaration(indent, &head, &fields, " {"));
+                let inner = format!("{indent}        ");
+                text.push_str(&format!("{indent}    companion object {{\n"));
+                text.push_str(&constants(kept, &inner));
+                text.push_str(&format!("{indent}    }}\n{indent}}}\n"));
+            }
             text
         }
         Type::Enum { name, doc, entries } => {

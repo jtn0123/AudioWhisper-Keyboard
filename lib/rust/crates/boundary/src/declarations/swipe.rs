@@ -136,6 +136,7 @@ pub const SWIPE_RULES: Api = Api {
         name: "Context",
         doc: "What the words before a guess say for it; see [rankGlide].",
         data: false,
+        constants: &[],
         fields: &[
             ("pairCount", "Int"),
             ("ngram", "Int"),

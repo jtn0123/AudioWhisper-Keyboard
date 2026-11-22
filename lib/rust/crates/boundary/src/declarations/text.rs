@@ -114,6 +114,7 @@ pub const JAVA_TEXT: Api = Api {
             name: "CodePoint",
             doc: "What Rust says of one code point: `Character`'s functions that take an `Int`.",
             data: false,
+            constants: &[],
             fields: &[
                 ("isDigit", "Boolean"),
                 ("digit", "Int"),

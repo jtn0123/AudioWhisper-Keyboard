@@ -471,18 +471,21 @@ fn rows_read_as_records_and_numbers_as_bits() {
                 name: "Part",
                 doc: "A part.",
                 data: false,
+                constants: &[],
                 fields: &[("kind", "Kind"), ("text", "String"), ("final", "Boolean")],
             },
             Type::Record {
                 name: "Context",
                 doc: "A context.",
                 data: false,
+                constants: &[],
                 fields: &[("start", "Boolean"), ("words", "List<String>")],
             },
             Type::Record {
                 name: "Facts",
                 doc: "Facts.",
                 data: false,
+                constants: &[],
                 fields: &[("digit", "Boolean"), ("upper", "Char"), ("kind", "Kind")],
             },
             Type::Bits {
@@ -683,6 +686,7 @@ fn string_rows_read_as_records_each() {
             name: "Entry",
             doc: "An entry.",
             data: false,
+            constants: &[],
             fields: &[
                 ("value", "String"),
                 ("count", "Int"),
@@ -708,6 +712,49 @@ fn string_rows_read_as_records_each() {
         "    fun entries(): List<Entry> =\n        EntryNative.entries().map { \
          Entry(it[0], it[1].toInt(), it.asList().subList(2, it.size)) }\n",
         "    fun lists(): List<IntArray> = EntryNative.lists().asList()\n",
+    ] {
+        assert!(text.contains(expected), "{text}");
+    }
+}
+
+#[test]
+fn arrays_read_as_a_record_with_constants() {
+    const SCORES: &[Class] = &[Class {
+        name: "ScoreNative",
+        module: "scores",
+        methods: &[Method {
+            name: "scores",
+            returns: crate::OBJECTS,
+            ..METHOD
+        }],
+        ..CLASS
+    }];
+    const SCORE_API: &[Api] = &[Api {
+        name: "ScoreRules",
+        doc: "Scores.",
+        module: "scores",
+        native: "ScoreNative",
+        nested: &[Type::Record {
+            name: "Scores",
+            doc: "",
+            data: false,
+            fields: &[("words", "IntArray"), ("weights", "FloatArray")],
+            constants: &[("NONE", "", "-1", "No word.")],
+        }],
+        members: &[Member {
+            name: "scores",
+            result: Out::Record("Scores"),
+            ..MEMBER
+        }],
+        ..API
+    }];
+    let text = &api_files(SCORE_API, SCORES)[0].1.text;
+    for expected in [
+        "    class Scores(val words: IntArray, val weights: FloatArray) {\n        \
+         companion object {\n            /** No word. */\n            const val NONE = -1\n        \
+         }\n    }\n",
+        "    fun scores(): Scores = ScoreNative.scores().let { Scores(it[0] as IntArray, it[1] as \
+         FloatArray) }\n",
     ] {
         assert!(text.contains(expected), "{text}");
     }
