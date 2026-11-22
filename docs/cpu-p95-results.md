@@ -15,6 +15,10 @@ about 1.1 ms to 0.29 ms, p99 from 7.9–15.5 ms to 2.9–3.8 ms, and the share o
 from 15–20% to 3%. For scale, Compose's draw recording on the same emulator has a p95 of
 5.2–6.2 ms.
 
+On 2026-11-22, on a busier host, the same main code measured 2.46–2.97 ms, so the gate was not
+met that day by main or by the key-press bubble; see
+[the key-press bubble's kept image](#the-key-press-bubbles-kept-image-2026-11-22).
+
 The gate was always meant for the S24 Ultra at 120 Hz. The number stays 2 ms there; what
 measurement settles it is in
 [decisions](decisions.md#the-keyboards-cpu-gate-stays-2-ms-settled-on-the-phone-at-120-hz-2026-11-17).
@@ -191,6 +195,64 @@ before this work and is unchanged. A label drawn further than that outside its o
 neighbour changes. Labels are centred on their key and not squeezed to fit it, so a very long
 label could do this. The test for text reaching into a neighbour uses a shadow big enough to keep
 within that reach, and the commit that added the finer culling records the limit.
+
+## The key-press bubble's kept image (2026-11-22)
+
+The key-press preview bubble ([rust.md](rust.md#the-key-press-preview-bubble-added-2026-11-22))
+is drawn once into an image and laid over the keys on every press. These trials compare it with
+main as the trials above were run: `cpu-trials.py --rust-only`, one trial per build, main
+(d2d88b6c3), the bubble branch, main, the branch, on `aw_keyboard`, with the bubble on (its
+default). The folders are in `build/cpu-p95/press-bubble-kept-image/`.
+
+**The 2 ms wall-clock gate was not met, by main or by the branch.** This is not a pass.
+
+| Trial | Frames | p50 | p95 | p99 | Over 2 ms | CPU time p95 |
+|---|---:|---:|---:|---:|---:|---:|
+| main 1 | 1,036 | 0.952 | 2.966 | 6.383 | 118 (11.4%) | 1.393 |
+| branch 1 | 1,018 | 0.908 | 3.032 | 7.228 | 107 (10.5%) | 1.487 |
+| main 2 | 1,066 | 0.766 | 2.457 | 5.057 | 80 (7.5%) | 1.256 |
+| branch 2 | 1,024 | 1.091 | 3.399 | 6.566 | 127 (12.4%) | 1.476 |
+
+All four typed the expected text (`809d588b…`, and `c14d19d2…` after the popups).
+
+**Why main missed it.** The main code that measured 1.107–1.257 ms above measured 2.457–2.966 ms
+here. A press frame took 0.78–0.89 ms at the median, against 0.177 ms above, and a touch took
+123–130 ms to reach a posted frame, against about 40. The host bench draws the same frames on
+the Mac and is unchanged: a press 0.073 ms and a release with new words 0.159 ms, against 0.08
+and 0.17. So the drawing work has not grown; the emulator ran about four times slower. Two other
+emulators and other agents' Gradle builds were running on the Mac at the time.
+
+**What the bubble adds.** Profile medians per trial, in ms. "Rest" is a frame's `draw_ns` less
+its encoding and raster, which for the branch is the bubble's own work: on a press, keeping the
+46,306 pixels under its damage and laying 39,910 pixels of image over them; on a release,
+putting the 46,306 back. Each column is its own median, so they need not add up.
+
+| Trial | Press | encode | raster | rest | Release, no new words | rest | New words only |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| main 1 | 0.887 | 0.269 | 0.540 | 0.005 | 0.796 | 0.004 | 0.971 |
+| branch 1 | 0.941 | 0.261 | 0.523 | 0.118 | 0.819 | 0.059 | 0.809 |
+| main 2 | 0.780 | 0.242 | 0.485 | 0.004 | 0.742 | 0.003 | 0.712 |
+| branch 2 | 1.109 | 0.268 | 0.535 | 0.122 | 0.919 | 0.061 | 1.027 |
+
+* A press's encoding and raster are main's: Vello still repaints only the pressed key's box.
+  The bubble adds about 0.12 ms to a press and 0.06 ms to a release.
+* Each trial drew 11 bubble images, each at the first press of the next key in the run; the
+  other 280-odd presses drew none.
+* The frames the bubble never touches (new words only) moved by more between trials, 0.71 to
+  1.03 ms, than the bubble costs.
+* CPU time p95 stayed under 2 ms in all four: main 1.26–1.39 ms, the branch 1.48–1.49 ms. As
+  in [what is left](#what-is-left), most of the time over 2 ms is the render thread waiting.
+
+**Trials thrown out.** Of the ten trials that reached the typed-text check, six failed it, on main
+and the branch alike: 300 units with the wrong digest, cause unknown (owed: E29 in
+[owed checks](owed-checks.md#emulator-checks-the-docs-owe)). One stopped on an agent-device
+error (E30). Their folders are kept beside the four above. An earlier attempt
+(`build/cpu-p95/press-bubble-cache/`) never typed: agent-device's snapshot helper, left
+running by earlier recordings, kept the probe's accessibility service from binding until the
+device session was closed and opened again.
+
+**Still owed.** The same trials on a quiet host, where the bubble build's p95 must be at most
+2 ms (E28), and on the phone (P18).
 
 ## Reproducing
 

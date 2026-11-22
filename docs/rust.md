@@ -326,26 +326,38 @@ The data path:
 5. `Scene::bubble_view` places the bubble with the popup's own preview box
    (`popup_scene::preview`), moved into the keyboard's width. It returns nothing while a popup
    is open.
-6. `Raster::bubble` draws it in the headroom pass, just before the popup. The headroom already
-   leaves room for a top-row key's popup, which is taller than its bubble.
+6. `Raster::bubble` draws it: the box and its shadow, the label and the dots. The headroom
+   already leaves room for a top-row key's popup, which is taller than its bubble.
 7. Damage: when the bubble's view changes, `damage_regions` adds its old and new boxes, widened
    by exactly as far as the shadow reaches (`shadow_raster::extent`). Keys that change (a label
    under shift) repaint everything, as before.
-8. `Raster::draw_frame` (`render/src/bubble_frame.rs`) draws the frame. A first cut repainted
-   the keys under the bubble when it opened and again when it went, some 50,000 pixels each time,
-   and tripled the benchmark's draw time (below). Now:
-   * when a bubble opens, the pixels it will cover are kept; when it goes they are put back, and
-     only what the scene changed under it meanwhile is painted again;
-   * where the bubble's box is opaque, the keys under the whole 4×4 tiles inside its rounded
-     corners (`Scene::bubble_cover`) are clipped out of the region's one draw, so only the
-     bubble paints there. Vello paints a tile no edge crosses as one solid run, so nothing drawn
-     under it would show anyway. The clip is the region with that hole cut in it, wound so the
-     non-zero rule leaves the hole empty;
-   * a region inside another one being painted, such as the pressed key inside its bubble, is
-     painted once.
+8. `Raster::draw_frame` (`render/src/bubble_frame.rs`, `render/src/bubble_cache.rs`) draws the
+   frame. A first cut repainted the keys under the bubble when it opened and again when it
+   went, some 50,000 pixels each time. A second kept and put back the pixels under it and
+   clipped the keys out under its opaque middle, but still drew the bubble, its shadow and the
+   keys around it on every press: 4 ms on the emulator, twice the CPU gate (below). Now:
+   * each bubble is drawn once, alone, over transparent pixels, into a premultiplied image of
+     the buffer's pixels its damage covers. An image is found again by all its pixels depend
+     on: the label (so shift and caps lock get their own), the key's height, the bubble's
+     bounds, its box and dots styles, and the buffer pixels it lands on. The 32 used last are
+     kept, about a letter layout's keys, at 4 bytes a pixel of damage. All are dropped when the
+     keys move or the keyboard's background changes (another layout or theme); shift keeps
+     them. A new size makes a new surface, and with it a new raster with none;
+   * a press paints its key's highlight, as before the feature, keeps the pixels under the
+     bubble's damage, and lays the image over them with a plain source-over: each row's opaque
+     runs are copied and its see-through runs blended. Nothing under the bubble is painted
+     again and its shadow is not drawn again;
+   * a release puts the kept pixels back and paints the released key. A slide puts them back,
+     then keeps and lays at the new key;
+   * a frame that paints under a held bubble (another finger's key, the strip) keeps the fresh
+     pixels and lays the image over them again;
+   * a region inside another one being painted is painted once.
 
-   Every pixel still ends as a whole repaint draws it. The device profile counts the pixels
-   whose keys were clipped out (`covered_px`) and the pixels put back (`restored_px`).
+   Every pixel still ends as a whole repaint (`Raster::draw`) draws it, which lays the same
+   image the same way. The image is laid after the panel items and the glide trail, which drew
+   over the bubble before; see the differences below. The device profile counts the pixels laid
+   (`bubble_px`), the images drawn (`bubble_draws`) and the pixels put back (`restored_px`). The
+   GPU path (`hybrid`, off by default) still draws the bubble with Vello in the headroom pass.
 
 Kotlin's part is one line in `RendererGestureHost`: it reads the setting and sends it as the
 twelfth value. Jetpref preferences are read in Kotlin, and no Kotlin file was added. Everything
@@ -366,16 +378,26 @@ Proof:
   * the twelfth gesture value;
   * the drawing: label box, dots, the headroom clear beside the bubble, and nothing drawn when
     unstyled, unsuitable or under a popup.
-* `render/tests/press_bubble_frames.rs` (4 tests) covers `Raster::draw_frame`:
-  * nothing painted outside the bubble's damage, with a deep shadow;
-  * the part painted with the bubble alone: whole tiles, inside the corners, hiding everything
-    under it, and none for a see-through box;
+* `render/tests/press_bubble_frames.rs` (5 tests) covers `Raster::draw_frame`:
+  * nothing painted outside the bubble's damage, and a deep shadow faded out inside it;
   * a key pressed beside a held bubble showing once the bubble goes;
+  * the strip painted again under a held top-row bubble: the image laid over the fresh pixels,
+    nothing put back or drawn anew, and the new strip showing once the bubble goes;
+  * a bubble a whole draw drew, with no pixels kept, going cleanly;
   * a region listed twice still painted.
+* `render/tests/press_bubble_cache.rs` (6 tests) covers the kept images:
+  * a shifted label drawing its own image while shift keeps the other;
+  * a theme change under a held bubble dropping them and painting everything once;
+  * another layout (a key narrower, a key more) or a new size dropping them;
+  * each part of the look (label, key height, bounds, style, dots) finding its own image;
+  * the last 32 kept, one used again kept longest;
+  * the shadow blended over what lies under it, not copied.
+
+  The blend and the runs have unit tests of their own in `bubble_cache.rs`.
 * `render/tests/press_bubble_touch.rs` (11 tests) drives `KeyboardTouch` through:
   * press and release, and the controls;
-  * a tap's two frames: the press paints the bubble's region once, mostly with the bubble alone,
-    and the release puts the kept pixels back and paints nothing;
+  * a tap's two frames: the press paints its key as with no bubble and lays the image once, the
+    release puts the kept pixels back, and the next tap draws no image;
   * the setting off and toggled while typing;
   * a slide across keys, and the long-press handover, including leaving the popup for another
     key;
@@ -384,19 +406,23 @@ Proof:
   * cancel, detach and glide;
   * an accessibility click.
 
-  After every step it checks that repainting only the damage matches a full repaint, and that
-  the headroom is clear whenever no bubble or popup is up.
+  After every step it checks that repainting only the damage matches a full repaint, that every
+  pixel that changed lies inside the damage posted to the screen, and that the headroom is clear
+  whenever no bubble or popup is up.
 * `awnative` `render_bubble_tests` (3 tests) check that the session styles a touch's bubble,
   restyles it for caps lock and for choices, and places it for the orientation.
 * `KeyboardRendererTest` (JVM, 2 tests) draws a held key's bubble across JNI only while the
   twelfth value asks for it, and refuses a thirteenth value.
-* `scripts/press-bubble-mutations.py` breaks the feature in 42 ways: which keys, the setting,
+* `scripts/press-bubble-mutations.py` breaks the feature in 58 ways: which keys, the setting,
   the label and its style, the place and clamp, hiding under a popup, release, cancel and glide,
-  the damage and the shadow's reach, keeping and putting back the pixels under the bubble, the
-  clipped cover and its corners, and the twelfth value across JNI. Every case fails fresh
-  assertions in the tests named for it (`press_bubble`, `press_bubble_frames`,
-  `press_bubble_touch`, `glide_times`, `render_bubble_tests` or `KeyboardRendererTest`), and the
-  restored source passes all six. Last full run 2026-11-22: 42 of 42 caught.
+  the damage and the shadow's reach, keeping and putting back the pixels under the bubble,
+  painting under a held bubble, painting a region once, each part of a kept image's look, when
+  the images are dropped (a theme, a layout or a size, but not shift), how many are kept and
+  which go first, the blend and its runs, and the twelfth value across JNI. Every case fails
+  fresh assertions in the tests named for it (`press_bubble`, `press_bubble_frames`,
+  `press_bubble_cache`, `press_bubble_touch`, `glide_times`, the `bubble_cache` unit tests,
+  `render_bubble_tests` or `KeyboardRendererTest`), and the restored source passes all eight.
+  Last full run 2026-11-22: 58 of 58 caught.
 
 On the aw_keyboard emulator (1080x2400, Android 16), in the render probe's plain text field.
 Every frame of each recording was looked at in a contact sheet, not only the stills, so a
@@ -420,29 +446,53 @@ was left behind (`held-long-press-took-over-p`). Afterwards the keyboard was the
 method again, *Popup Visibility* was back on, the field was cleared and the `aw-profile` log tag
 was empty.
 
-`render-benchmark/run.sh` on the same emulator, before the feature and after it. Times are
-milliseconds; the first three columns cover every frame of a run (1,074 to 1,097 frames), the
-last two are the medians of a tap's press and release frames.
+Those checks ran on the second cut (below). The held, controls, slide and long-press runs were
+recorded again on the kept image, every frame looked at in a contact sheet, and showed the same:
+each bubble with its label and shadow, none left after a release or a slide, and the popup
+alone after a long press (`build/press-bubble/device-cache/`, not committed). The setting off
+and on was not recorded again.
+
+`render-benchmark/run.sh` on the same emulator. Times are milliseconds; the first three columns
+cover every frame of a run (1,018 to 1,097 frames), the last two are the medians of a tap's press
+frames and of its release frames that brought no new words. The last two rows are the CPU gate's
+own trials, which run `run.sh`, main and the kept image alternately
+([cpu-p95-results](cpu-p95-results.md#the-key-press-bubbles-kept-image-2026-11-22)).
 
 | Run | Draw p50 | p95 | p99 | Press frame | Release frame |
 |---|---|---|---|---|---|
-| Before (two runs) | 0.89–1.00 | 3.03–3.41 | 5.48–7.31 | 0.86–0.94 | 0.93–0.94 |
+| Main (two runs) | 0.89–1.00 | 3.03–3.41 | 5.48–7.31 | 0.86–0.94 | 0.93–0.94 |
 | First cut: the keys under the bubble repainted on press and on release | 3.42 | 9.58 | 16.00 | 6.09 | 4.61 |
-| After | 1.13 | 5.68 | 8.34 | 4.06 | 0.17 |
+| Second cut: the pixels under it kept and put back, the keys under its middle clipped out, the bubble drawn on every press | 1.13 | 5.68 | 8.34 | 4.06 | 0.17 |
+| Main, gate trials (two) | 0.766–0.952 | 2.457–2.966 | 5.06–6.38 | 0.78–0.89 | 0.74–0.80 |
+| Kept image, gate trials (two) | 0.908–1.091 | 3.032–3.399 | 6.57–7.23 | 0.94–1.11 | 0.82–0.92 |
 
-Both digests are unchanged: the 300 typed units (`809d588b…`) and the 308 with the popup
-(`c14d19d2…`). The bubble changes no typed text. Two runs failed `run.sh`'s digest check and
-were discarded. In one after run the emulator stretched two 35 ms taps to 313 and 345 ms, past
-the 300 ms long-press delay, and they typed a long-press choice; the next run matched. The
-first before run differed too, but no tap in its frame log passed 300 ms (the longest was
-287 ms), so its cause is not known; the two before runs after it matched.
+Every run in the table typed the expected text: the 300 typed units (`809d588b…`) and the 308
+with the popup (`c14d19d2…`). The bubble changes no typed text. Runs whose text differed were
+discarded: two of the earlier `run.sh` runs (one after run where the emulator stretched two
+35 ms taps past the 300 ms long-press delay, and one before run with no tap over 287 ms), and six
+of the ten gate trials, on main and the kept image alike, cause unknown (E29).
 
-A release now costs a fifth of what it did before the feature: it puts back 46,306 kept pixels
-and draws nothing. A press costs about four and a half times as much: it paints the bubble's
-46,306-pixel region where it painted the pressed key's 11,904. The keys under 27,040 of those
-pixels are clipped out, so the cost left is the bubble itself, its shadow and the ring of keys
-around its solid middle. A tap's two frames together take 4.2 ms against 1.8. Press frames are
-about a quarter of the benchmark's frames, which is why p95 moved and p50 hardly did.
+The kept image costs a press what main's press costs, plus about 0.12 ms. Vello repaints only the
+pressed key's box, as on main (encoding 0.26 ms and raster 0.52–0.54 ms, against main's
+0.24–0.27 and 0.49–0.54); the 0.12 ms is copying the 46,306 pixels under the bubble's damage and
+laying 39,910 pixels of image over them. A release costs main's release plus about 0.06 ms, to
+put the 46,306 pixels back. The second cut's release was cheaper, 0.17 ms, because the pixels it
+put back already showed the key released; the kept image paints the press's highlight first, as
+main does, and so repaints the released key. An image is drawn once per key: 11 in a trial of
+300 taps. The gate's frames that the bubble never touches moved more between trials (0.71 to
+1.03 ms at the median) than the bubble costs.
+
+**The CPU gate was not met.** Its wall-clock p95 must be at most 2 ms; the kept image measured
+3.032 and 3.399 ms. Main measured 2.457 and 2.966 ms on the same emulator that day, where it had
+measured 1.107 and 1.257 ms on 2026-11-17: the emulator ran about four times slower, with two
+other emulators and other agents' builds on the host, while the host bench's press and release
+frames are unchanged. CPU time p95 stayed under 2 ms in all four trials (main 1.26–1.39 ms, the
+kept image 1.48–1.49 ms). The same trials on a quiet host are owed (E28), and on the phone (P18).
+
+Where it differs from before the kept image: the image is laid last, after everything Vello
+draws, so it covers the panel items and a glide trail that is still fading, which drew over the
+bubble before. Compose drew its fading trail over its popup. A glide itself hides the bubble, so
+this shows only when a key is pressed while a trail fades.
 
 What remains:
 
@@ -451,11 +501,9 @@ What remains:
   root, and so is the fix: the plain-View root
   ([all-rust phase 3](all-rust.md#3-rust-owns-the-keyboard-l), item 4).
 * Landscape without full-screen mode and one-handed mode are covered by the cargo tests only
-  (E50). TalkBack touch exploration was not run on a device (E51). The phone has not shown the
-  bubble, nor timed it (P40).
-* A press frame costs 4 ms on the emulator, against 0.9 before. Most of it is the bubble's
-  shadow and the keys around its solid middle. Drawing the bubble once into a cached image and
-  copying it in would take most of that away, if the phone shows it matters.
+  (E26). TalkBack touch exploration was not run on a device (E27). The phone has not shown the
+  bubble, nor timed it (P18).
+* The CPU gate with the bubble on, on a quiet host (E28).
 
 ### Stage 4: Rust draws settings (decision 2026-11-14)
 
