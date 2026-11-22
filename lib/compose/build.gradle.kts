@@ -85,7 +85,6 @@ dependencies {
     debugImplementation(libs.androidx.compose.ui.tooling)
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.kotlinx.serialization.json)
-    implementation(libs.patrickgold.jetpref.material.ui)
 
     testImplementation(libs.kotlin.test.junit5)
 }

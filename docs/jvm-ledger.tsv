@@ -131,12 +131,10 @@ app/src/main/kotlin/dev/patrickgold/florisboard/FlorisSpellCheckerService.kt	M	9
 app/src/main/kotlin/dev/patrickgold/florisboard/NativeExtractContent.kt	A	25	ExtractEditText / AndroidView; native chrome with platform text editor |
 app/src/main/kotlin/dev/patrickgold/florisboard/app/AppPreferenceMigration.kt	A	12	Jetpref migration callback / ART JNI; applies native migration result |
 app/src/main/kotlin/dev/patrickgold/florisboard/app/AppPrefs.kt	M	273	Jetpref PreferenceModel; Android stores stay, derived UI/sizing values must move |
-app/src/main/kotlin/dev/patrickgold/florisboard/app/EnumDisplayEntries.kt	A	141	Resources.getString; enum resource IDs/descriptions (split existing oversized map) |
 app/src/main/kotlin/dev/patrickgold/florisboard/app/FlorisAppActivity.kt	M	104	ComponentActivity / ActivityResultRegistry; retained routing/import/default-selection branches | raised 257 to 258 (A6): the import of the generated SettingsUiBack; raised 249 to 254 (theme editor part 3): the Compose fallback leaves once Save pops its last screen, watching the top entry's lifecycle because the back stack's own flow is library-only, and leaves its starting link to the NavController
 app/src/main/kotlin/dev/patrickgold/florisboard/app/SettingsEntry.kt	M	17	settings link parsing; the first screen and setup navigation moved to Rust (compose-removal step 11, stage4-setup.md); raised 7 to 17 (compose-removal step 10, part 2): a file opened in, or shared with, the app starts the Rust importer on it, where the activity handed it to the Compose fallback
 app/src/main/kotlin/dev/patrickgold/florisboard/app/ThemeEditorActivity.kt	A	12	Activity subclass; the native theme editor's own activity over the native extension editor, since FlorisAppActivity is singleTask and a theme editor link there would navigate the settings holding the extension editor
 app/src/main/kotlin/dev/patrickgold/florisboard/app/ThemeEditorPrefs.kt	M	24	Jetpref preference types (colour serializer, two enums) the preference model still names, and the stylesheet pretty-print config the extension editor and the native theme editor's glue write with; moved unchanged from the deleted Compose theme editor package (compose-removal step 9)
-app/src/main/kotlin/dev/patrickgold/florisboard/app/apptheme/Shape.kt	P	9	portable Shape domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
 app/src/main/kotlin/dev/patrickgold/florisboard/app/apptheme/Theme.kt	M	62	Resources / WindowInsetsController; preference-to-theme choice still in Kotlin |
 app/src/main/kotlin/dev/patrickgold/florisboard/app/apptheme/Type.kt	P	13	portable Type domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
 app/src/main/kotlin/dev/patrickgold/florisboard/app/settings/advanced/BackupIO.kt	M	81	ContentResolver / Room / File; backup traversal, selected records and restore effects | raised 80 to 81 (compose-removal step 5): a callback after each restore step, so a restore that stops part-way can say what came back
@@ -289,11 +287,8 @@ app/src/main/kotlin/dev/patrickgold/florisboard/lib/StateAdapters.kt	A	41	LiveDa
 app/src/main/kotlin/dev/patrickgold/florisboard/lib/Unicode.kt	A	15	android.icu.lang.UCharacter; Android character facts |
 app/src/main/kotlin/dev/patrickgold/florisboard/lib/Validation.kt	M	109	Resources; validation-result/model and message-choice ownership |
 app/src/main/kotlin/dev/patrickgold/florisboard/lib/cache/CacheManager.kt	M	187	Context.cacheDir / ContentResolver; workspace/import lifetime and selection | raised 179 to 183 (compose-removal step 10, part 2): a read workspace can be found as soon as the read returns, and a failed read deletes what it read; raised 183 to 187 (compose-removal step 10, part 3): the extension editor's workspaces kept in noBackupFilesDir, taken up again after the process ended and the lost ones deleted, less the Compose editor's state
-app/src/main/kotlin/dev/patrickgold/florisboard/lib/compose/FlorisDialogs.kt	S	46	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
-app/src/main/kotlin/dev/patrickgold/florisboard/lib/compose/FlorisHyperlinkText.kt	S	30	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
-app/src/main/kotlin/dev/patrickgold/florisboard/lib/compose/ImageVector.kt	S	13	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
+app/src/main/kotlin/dev/patrickgold/florisboard/lib/compose/ImageVector.kt	K	13	Compose keyboard (keyboard scope): deleted at compose-removal step K; only the keyboard uses it once the settings went (step 12)
 app/src/main/kotlin/dev/patrickgold/florisboard/lib/compose/SystemUi.kt	M	39	WindowInsetsController; Kotlin luminance/icon-mode selection |
-app/src/main/kotlin/dev/patrickgold/florisboard/lib/compose/Validation.kt	S	27	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
 app/src/main/kotlin/dev/patrickgold/florisboard/lib/crashutility/CrashDialogActivity.kt	M	120	Activity / Intent / ClipboardManager; crash screen drawing and report composition |
 app/src/main/kotlin/dev/patrickgold/florisboard/lib/crashutility/CrashUtility.kt	M	275	Application.ActivityLifecycleCallbacks / NotificationManager; crash retention/routing policy |
 app/src/main/kotlin/dev/patrickgold/florisboard/lib/devtools/Devtools.kt	M	126	Build / Resources; still called by crash dialog; report composition is portable |
@@ -333,24 +328,16 @@ lib/android/src/main/kotlin/org/florisboard/lib/android/Vibrator.kt	M	25	Vibrato
 lib/color/src/main/kotlin/org/florisboard/lib/color/ColorMappings.kt	M	57	Resources system accent; neutral/dynamic role construction and colour rules |
 lib/color/src/main/kotlin/org/florisboard/lib/color/ColorPalette.kt	M	83	Android Material colour facts; role-name/default mappings |
 lib/color/src/main/kotlin/org/florisboard/lib/color/MaterialYouFlags.kt	P	23	portable MaterialYouFlags domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
-lib/compose/src/main/kotlin/org/florisboard/lib/compose/ClickableModifiers.kt	S	23	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
+lib/compose/src/main/kotlin/org/florisboard/lib/compose/ClickableModifiers.kt	K	23	Compose keyboard (keyboard scope): deleted at compose-removal step K; only the keyboard uses it once the settings went (step 12)
 lib/compose/src/main/kotlin/org/florisboard/lib/compose/DisposableLifecycleEffect.kt	A	28	LifecycleEventObserver; lifecycle subscription (Compose wrapper later replaceable) |
-lib/compose/src/main/kotlin/org/florisboard/lib/compose/DpSpSizeFuns.kt	S	20	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
-lib/compose/src/main/kotlin/org/florisboard/lib/compose/FlorisAnimation.kt	S	35	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
-lib/compose/src/main/kotlin/org/florisboard/lib/compose/FlorisAppBar.kt	S	31	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
-lib/compose/src/main/kotlin/org/florisboard/lib/compose/FlorisBulletSpacer.kt	S	26	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
-lib/compose/src/main/kotlin/org/florisboard/lib/compose/FlorisButtonBar.kt	S	104	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
-lib/compose/src/main/kotlin/org/florisboard/lib/compose/FlorisButtons.kt	S	109	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
-lib/compose/src/main/kotlin/org/florisboard/lib/compose/FlorisCanvasIcon.kt	S	46	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
-lib/compose/src/main/kotlin/org/florisboard/lib/compose/FlorisCards.kt	S	225	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
-lib/compose/src/main/kotlin/org/florisboard/lib/compose/FlorisChip.kt	S	66	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
-lib/compose/src/main/kotlin/org/florisboard/lib/compose/LazyGrid.kt	S	11	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
+lib/compose/src/main/kotlin/org/florisboard/lib/compose/FlorisAnimation.kt	K	35	Compose keyboard (keyboard scope): deleted at compose-removal step K; only the keyboard uses it once the settings went (step 12)
+lib/compose/src/main/kotlin/org/florisboard/lib/compose/LazyGrid.kt	K	11	Compose keyboard (keyboard scope): deleted at compose-removal step K; only the keyboard uses it once the settings went (step 12)
 lib/compose/src/main/kotlin/org/florisboard/lib/compose/Modifier.kt	M	9	View scrolling interop; Compose scroll/layout wrapper must become native bounds |
 lib/compose/src/main/kotlin/org/florisboard/lib/compose/Resources.kt	A	87	Resources.getString / getQuantityString / Configuration; locale and resource facts |
-lib/compose/src/main/kotlin/org/florisboard/lib/compose/RtlModifiers.kt	S	13	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
-lib/compose/src/main/kotlin/org/florisboard/lib/compose/ScrollableModifiers.kt	S	238	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
+lib/compose/src/main/kotlin/org/florisboard/lib/compose/RtlModifiers.kt	K	13	Compose keyboard (keyboard scope): deleted at compose-removal step K; only the keyboard uses it once the settings went (step 12)
+lib/compose/src/main/kotlin/org/florisboard/lib/compose/ScrollableModifiers.kt	K	238	Compose keyboard (keyboard scope): deleted at compose-removal step K; only the keyboard uses it once the settings went (step 12)
 lib/compose/src/main/kotlin/org/florisboard/lib/compose/State.kt	A	60	Settings content observers / LifecycleEventObserver; Android state binding |
-lib/compose/src/main/kotlin/org/florisboard/lib/compose/icons/KeyboardForwardDelete.kt	S	44	Compose settings (stage4 scope): deleted at compose-removal steps 5-12
+lib/compose/src/main/kotlin/org/florisboard/lib/compose/icons/KeyboardForwardDelete.kt	K	44	Compose keyboard (keyboard scope): deleted at compose-removal step K; only the keyboard uses it once the settings went (step 12)
 lib/kotlin/src/main/kotlin/org/florisboard/lib/kotlin/Class.kt	P	9	portable Class domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
 lib/kotlin/src/main/kotlin/org/florisboard/lib/kotlin/Collections.kt	P	11	portable Collections domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
 lib/kotlin/src/main/kotlin/org/florisboard/lib/kotlin/Flow.kt	P	13	portable Flow domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |

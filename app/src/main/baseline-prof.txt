@@ -3975,7 +3975,6 @@ HSPLdev/patrickgold/florisboard/app/FlorisAppActivity;->getPrefs()Ldev/patrickgo
 HSPLdev/patrickgold/florisboard/app/FlorisAppActivity;->onCreate(Landroid/os/Bundle;)V
 HSPLdev/patrickgold/florisboard/app/FlorisAppActivity;->onPause()V
 HSPLdev/patrickgold/florisboard/app/FlorisAppActivityKt;-><clinit>()V
-HSPLdev/patrickgold/florisboard/app/apptheme/ShapeKt;-><clinit>()V
 HSPLdev/patrickgold/florisboard/app/apptheme/ThemeKt$FlorisAppTheme$1;-><init>(Ldev/patrickgold/florisboard/app/AppTheme;Lkotlin/jvm/functions/Function2;I)V
 HSPLdev/patrickgold/florisboard/app/apptheme/ThemeKt$FlorisAppTheme$1;->invoke(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
 HSPLdev/patrickgold/florisboard/app/apptheme/ThemeKt;-><clinit>()V
@@ -4144,13 +4143,6 @@ HSPLdev/patrickgold/florisboard/lib/android/SystemSettingsObserver;-><init>(Land
 HSPLdev/patrickgold/florisboard/lib/android/SystemSettingsObserver;->onChange(Z)V
 HSPLdev/patrickgold/florisboard/lib/compose/FlorisAnimationKt;->verticalTween$default()Landroidx/compose/animation/EnterTransition;
 HSPLdev/patrickgold/florisboard/lib/compose/FlorisAnimationKt;->verticalTween$default()Landroidx/compose/animation/ExitTransition;
-HSPLdev/patrickgold/florisboard/lib/compose/FlorisAppBarKt$FlorisAppBar$1;-><init>(Ljava/lang/String;I)V
-HSPLdev/patrickgold/florisboard/lib/compose/FlorisAppBarKt$FlorisAppBar$1;->invoke(Ljava/lang/Object;Ljava/lang/Object;)Ljava/lang/Object;
-HSPLdev/patrickgold/florisboard/lib/compose/FlorisAppBarKt;->FlorisAppBar(Ljava/lang/String;Lkotlin/jvm/functions/Function2;Lkotlin/jvm/functions/Function3;Landroidx/compose/runtime/Composer;II)V
-HSPLdev/patrickgold/florisboard/lib/compose/FlorisBulletSpacerKt$FlorisBulletSpacer$1;-><init>(Landroidx/compose/foundation/layout/RowScope;Landroidx/compose/ui/Modifier;II)V
-HSPLdev/patrickgold/florisboard/lib/compose/FlorisBulletSpacerKt;->FlorisBulletSpacer(Landroidx/compose/foundation/layout/RowScope;Landroidx/compose/ui/Modifier;Landroidx/compose/runtime/Composer;II)V
-HSPLdev/patrickgold/florisboard/lib/compose/FlorisCanvasIconKt;->FlorisCanvasIcon(ILandroidx/compose/ui/Modifier;Ljava/lang/String;Landroidx/compose/runtime/Composer;II)V
-HSPLdev/patrickgold/florisboard/lib/compose/FlorisCanvasIconKt;->FlorisCanvasIcon(Landroid/graphics/drawable/Drawable;Landroidx/compose/ui/Modifier;Ljava/lang/String;Landroidx/compose/runtime/Composer;II)V
 HSPLdev/patrickgold/florisboard/lib/compose/FlorisSystemUiController;-><init>(Landroid/view/View;)V
 HSPLdev/patrickgold/florisboard/lib/compose/FlorisSystemUiController;->setNavigationBarColor-Iv8Zu3U(JZZLkotlin/jvm/functions/Function1;)V
 HSPLdev/patrickgold/florisboard/lib/compose/FlorisSystemUiController;->setStatusBarColor-ek8zF_U(JZLkotlin/jvm/functions/Function1;)V
@@ -6921,7 +6913,6 @@ Ldev/patrickgold/florisboard/app/DisplayKbdAfterDialogs;
 Ldev/patrickgold/florisboard/app/FlorisAppActivity$onCreate$2;
 Ldev/patrickgold/florisboard/app/FlorisAppActivity;
 Ldev/patrickgold/florisboard/app/FlorisAppActivityKt;
-Ldev/patrickgold/florisboard/app/apptheme/ShapeKt;
 Ldev/patrickgold/florisboard/app/apptheme/ThemeKt$FlorisAppTheme$1;
 Ldev/patrickgold/florisboard/app/apptheme/ThemeKt;
 Ldev/patrickgold/florisboard/app/apptheme/TypeKt;
@@ -7007,11 +6998,6 @@ Ldev/patrickgold/florisboard/lib/android/OnSystemSettingsChangedListener;
 Ldev/patrickgold/florisboard/lib/android/PackageManagerKt;
 Ldev/patrickgold/florisboard/lib/android/SystemSettingsObserver;
 Ldev/patrickgold/florisboard/lib/compose/FlorisAnimationKt;
-Ldev/patrickgold/florisboard/lib/compose/FlorisAppBarKt$FlorisAppBar$1;
-Ldev/patrickgold/florisboard/lib/compose/FlorisAppBarKt;
-Ldev/patrickgold/florisboard/lib/compose/FlorisBulletSpacerKt$FlorisBulletSpacer$1;
-Ldev/patrickgold/florisboard/lib/compose/FlorisBulletSpacerKt;
-Ldev/patrickgold/florisboard/lib/compose/FlorisCanvasIconKt;
 Ldev/patrickgold/florisboard/lib/compose/FlorisSystemUiController;
 Ldev/patrickgold/florisboard/lib/compose/PreviewFieldController;
 Ldev/patrickgold/florisboard/lib/compose/ResourcesKt$LocalAppNameString$1;
