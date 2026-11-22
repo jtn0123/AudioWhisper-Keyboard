@@ -99,7 +99,8 @@ pub const SHERPA_TTS: Api = Api {
                 "callback",
                 ArgKind::As(
                     "onAudio: (java.nio.ByteBuffer) -> Boolean",
-                    "TtsAudio { onAudio(it.asReadOnlyBuffer().order(java.nio.ByteOrder.nativeOrder())) }",
+                    "TtsAudio { onAudio(it.asReadOnlyBuffer()\
+                     .order(java.nio.ByteOrder.nativeOrder())) }",
                 ),
             )],
             ..MEMBER

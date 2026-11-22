@@ -6,13 +6,16 @@ use crate::{CLASS, Class, Element, METHOD, Method, Param, Return};
 
 pub const IME_WINDOW_RULES: Class = Class {
     name: "ImeWindowRules",
-    doc: "What the keyboard's views are told as Android shows the input method window (awnative ime_window.rs).",
+    doc: "What the keyboard's views are told as Android shows the input method window \
+          (awnative ime_window.rs).",
     module: "ime_window",
     file: "rules",
     public: true,
     methods: &[Method {
         name: "retellVisible",
-        doc: "When the window is shown: whether a view last [told] some window visibility must be told again that it is visible, given the [window]'s own (both View.VISIBLE, INVISIBLE or GONE).",
+        doc: "When the window is shown: whether a view last [told] some window visibility must \
+              be told again that it is visible, given the [window]'s own (both View.VISIBLE, \
+              INVISIBLE or GONE).",
         params: &[("told", Param::Int), ("window", Param::Int)],
         returns: Return::Boolean,
         ..METHOD
