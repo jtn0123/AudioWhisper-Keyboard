@@ -3,21 +3,17 @@ package com.jtn0123.audiowhisper.gif
 import com.jtn0123.audiowhisper.golden.GoldenTape
 import kotlin.random.Random
 import kotlin.test.Test
-import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
  * GIPHY's answers read, and its URLs built, in Rust give exactly what the Kotlin they replaced
- * gave ([ReferenceGiphy]), through [GiphyComparison]: random answers whole and broken, random
- * sizes, and URLs for odd searches. The same comparison runs on the emulator, whose Java parses
- * numbers and encodes URLs itself.
+ * gave, as recorded in the golden files `giphy-rules-*` (docs/phase6-kotlin-references.md),
+ * through [GiphyComparison]: random answers whole and broken, random sizes, and URLs for odd
+ * searches.
  */
 class GiphyRulesMatchTest {
     private fun assertNone(name: String, reached: List<String>, body: GiphyComparison.() -> Unit) {
-        val tape = GoldenTape.ofReference("giphy-rules-$name")
-        val comparison = GiphyComparison(tape).apply(body)
-        assertEquals(emptyList(), comparison.examples, "${comparison.failures} of ${comparison.checks} differ")
-        tape.finish()
+        val comparison = GoldenTape.check("giphy-rules-$name") { tape -> GiphyComparison(tape).apply(body) }
         for (outcome in reached) {
             assertTrue((comparison.seen[outcome] ?: 0) >= MIN_SEEN, "$outcome only ${comparison.seen[outcome]} times: ${comparison.seen}")
         }

@@ -1,43 +1,24 @@
 package com.jtn0123.audiowhisper.gif
 
+import com.jtn0123.audiowhisper.golden.GoldenTape
 import com.jtn0123.audiowhisper.rust.GifRules
 import dev.patrickgold.florisboard.ime.text.gestures.SwipeAction
 import dev.patrickgold.florisboard.ime.text.key.KeyType
-import java.io.IOException
-import java.net.SocketTimeoutException
-import com.jtn0123.audiowhisper.golden.GoldenTape
 import kotlin.random.Random
 
 /**
- * Holds the GIF panel's rules in Rust (lib/rust/crates/gif, behind [SearchText], [GifRules] and
- * [GifSearchKeys]) up against the Kotlin they replaced, [ReferenceGif], wherever this runs: random
- * queries and texts (emoji and half emoji, odd spaces, apostrophes, İ and ß), typed words for the
- * chips, every key code near FlorisBoard's with every key type, delete-key swipes and failed
- * calls. These are the functions the panel's session runs in Rust; GifSearchTraceTest holds the
- * session itself, with its result cache and recents, to main's. Self-contained, so a device check
- * can copy it into the app and run it on a phone, whose Java judges spaces, letters and case
- * differently.
+ * Records what the GIF panel's rules in Rust (lib/rust/crates/gif, behind [SearchText], [GifRules]
+ * and [GifSearchKeys]) answer, on a [GoldenTape] of the answers the Kotlin they replaced gave
+ * (docs/phase6-kotlin-references.md): random queries and texts (emoji and half emoji, odd spaces,
+ * apostrophes, İ and ß), typed words for the chips, every key code near FlorisBoard's with every
+ * key type, delete-key swipes and failed calls. These are the functions the panel's session runs
+ * in Rust; GifSearchTraceTest records the session itself, with its result cache and recents.
  */
 class GifComparison(private val tape: GoldenTape) {
-    /** How many comparisons failed, and the first few, described. */
-    var failures = 0
-        private set
-    val examples = mutableListOf<String>()
-
-    /** How many comparisons ran. */
-    var checks = 0L
-        private set
-
     /** How often each outcome worth reaching was reached, so a run that tests nothing shows. */
     val seen = sortedMapOf<String, Int>()
 
-    private fun check(what: String, input: Any?, kotlin: Any?, rust: Any?) {
-        tape.record("$what: ${show(kotlin)}")
-        checks++
-        if (kotlin == rust) return
-        failures++
-        if (examples.size < MAX_EXAMPLES) examples += "$what(${show(input)}): Kotlin ${show(kotlin)}, Rust ${show(rust)}"
-    }
+    private fun check(what: String, answer: Any?) = tape.record("$what: ${show(answer)}")
 
     private fun see(what: String, happened: Boolean = true) {
         if (happened) seen[what] = (seen[what] ?: 0) + 1
@@ -45,33 +26,32 @@ class GifComparison(private val tape: GoldenTape) {
 
     /** The constants the panel shares with the Rust. */
     fun constants() {
-        check("MAX_LENGTH", null, ReferenceGif.SearchText.MAX_LENGTH, SearchText.MAX_LENGTH)
-        check("categories", null, ReferenceGif.categories, GifRules.categories)
-        check("TRENDING", null, ReferenceGif.TRENDING, GifRules.trending)
-        check("RECENTS", null, ReferenceGif.RECENTS, GifRules.recents)
+        check("MAX_LENGTH", SearchText.MAX_LENGTH)
+        check("categories", GifRules.categories)
+        check("TRENDING", GifRules.trending)
+        check("RECENTS", GifRules.recents)
     }
 
     /** Random queries edited, and texts whose last word is offered. */
     fun text(random: Random, count: Int) = repeat(count) {
         val query = pieces(random, if (random.nextInt(6) == 0) 60 else 8)
         val typed = pieces(random, 3)
-        val reference = ReferenceGif.SearchText
         val sum = query + typed
-        check("type", listOf(query, typed), reference.type(query, typed), SearchText.type(query, typed))
+        check("type", SearchText.type(query, typed))
         see("cut at the limit", sum.length > SearchText.MAX_LENGTH)
-        check("typeWord", listOf(query, typed), reference.typeWord(query, typed), SearchText.typeWord(query, typed))
+        check("typeWord", SearchText.typeWord(query, typed))
         val one = SearchText.deleteLast(query)
-        check("deleteLast", query, reference.deleteLast(query), one)
+        check("deleteLast", one)
         see("an emoji deleted whole", query.length - one.length == 2)
         see("half an emoji deleted", query.lastOrNull()?.isSurrogate() == true && query.length - one.length == 1)
         val times = COUNTS.random(random)
-        check("deleteLast", listOf(query, times), reference.deleteLast(query, times), SearchText.deleteLast(query, times))
+        check("deleteLast", SearchText.deleteLast(query, times))
         val words = SearchText.deleteWords(query, times)
-        check("deleteWords", listOf(query, times), reference.deleteWords(query, times), words)
+        check("deleteWords", words)
         see("words deleted", words.isNotEmpty() && words.length < query.length)
         val before = if (random.nextInt(20) == 0) null else query
         val word = SearchText.lastWord(before)
-        check("lastWord", before, reference.lastWord(before), word)
+        check("lastWord", word)
         see(if (word == null) "no word offered" else "a word offered")
         see("a word with an apostrophe", word?.contains('\'') == true)
     }
@@ -85,7 +65,7 @@ class GifComparison(private val tape: GoldenTape) {
         }
         val hasRecents = random.nextBoolean()
         val chips = GifRules.chips(typed, hasRecents)
-        check("chips", listOf(typed, hasRecents), ReferenceGif.chips(typed, hasRecents), chips)
+        check("chips", chips)
         val moved = typed != null && chips.size == GifRules.categories.size + (if (hasRecents) 1 else 0)
         see(if (typed == null) "no word" else if (moved) "a chip moved first" else "a word put first")
     }
@@ -96,7 +76,7 @@ class GifComparison(private val tape: GoldenTape) {
         for (code in codes) {
             for (type in KeyType.entries) {
                 val route = GifSearchKeys.route(code, type)
-                check("route", listOf(code, type), ReferenceGif.GifSearchKeys.route(code, type).name, route.name)
+                check("route", route.name)
                 see("route ${route.name}")
             }
         }
@@ -104,29 +84,24 @@ class GifComparison(private val tape: GoldenTape) {
             val action = SwipeAction.entries.random(random)
             val units = if (random.nextInt(10) == 0) EDGES.random(random) else random.nextInt(-40, 40)
             val swipe = GifSearchKeys.swipeDelete(action, units)?.let { it.count to it.words }
-            val old = ReferenceGif.GifSearchKeys.swipeDelete(action, units)?.let { it.count to it.words }
-            check("swipeDelete", listOf(action, units), old, swipe)
+            check("swipeDelete", swipe)
             see(if (swipe == null) "no swipe delete" else if (swipe.first > 0) "a swipe deletes" else "a swipe deletes nothing")
         }
     }
 
-    /** Failed GIPHY calls of every kind, and every status near HTTP's. */
+    /**
+     * Failed GIPHY calls of every kind: every status near HTTP's, then an unreadable answer, a
+     * connection that failed and one that timed out (both unreachable), in the order main's
+     * GifSearch was asked about them.
+     */
     fun problems() {
-        val failures = (-1..700).map { GiphyException(it) } +
-            listOf(Int.MIN_VALUE, Int.MAX_VALUE).map { GiphyException(it) } +
-            listOf(GiphyFormatException(IllegalStateException()), IOException(), SocketTimeoutException())
-        for (e in failures) {
-            val problem = problem(e)
-            check("problem", e.message, ReferenceGif.problem(e), problem)
+        val statuses = (-1..700) + listOf(Int.MIN_VALUE, Int.MAX_VALUE)
+        val problems = statuses.map { GifRules.problem(GifRules.Failure.STATUS, it) } +
+            listOf(GifRules.Failure.UNREADABLE, GifRules.Failure.UNREACHABLE, GifRules.Failure.UNREACHABLE).map { GifRules.problem(it) }
+        for (problem in problems) {
+            check("problem", problem)
             see("problem $problem")
         }
-    }
-
-    /** What main's GifSearch said about [e], each failure named in Rust. */
-    private fun problem(e: IOException): String = when (e) {
-        is GiphyFormatException -> GifRules.problem(GifRules.Failure.UNREADABLE)
-        is GiphyException -> GifRules.problem(GifRules.Failure.STATUS, e.status)
-        else -> GifRules.problem(GifRules.Failure.UNREACHABLE)
     }
 
     /** Up to [parts] random pieces of text. */
@@ -147,8 +122,6 @@ class GifComparison(private val tape: GoldenTape) {
     }
 
     private companion object {
-        const val MAX_EXAMPLES = 10
-
         val PARTS = listOf(
             "cat", "Congrats", "happy", "dance", "a", "I", "OK", "x", "7", "42", "don't", "'", "''", "’", "İ",
             "ß", "ǅ", "Σ", "café", "é", "😀", "\uD800", "\uDC00", "-", "!", ".", ",", "?", ";", ":", ")", "…",

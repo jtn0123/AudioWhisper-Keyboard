@@ -3,22 +3,18 @@ package com.jtn0123.audiowhisper.gif
 import com.jtn0123.audiowhisper.golden.GoldenTape
 import kotlin.random.Random
 import kotlin.test.Test
-import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * The GIF panel's rules in Rust give exactly what the Kotlin they replaced gave
- * ([ReferenceGif]), through [GifComparison]: random queries and texts, typed words for the chips,
- * every key code near FlorisBoard's, swipes and failed calls. The result cache and recents are
- * held to main's inside the session, by GifSearchTraceTest. The same comparison runs on the
- * emulator, whose Java judges text differently.
+ * The GIF panel's rules in Rust give exactly what the Kotlin they replaced gave, as recorded in
+ * the golden files `gif-rules-*` (docs/phase6-kotlin-references.md), through [GifComparison]:
+ * random queries and texts, typed words for the chips, every key code near FlorisBoard's, swipes
+ * and failed calls. The result cache and recents are held to main's inside the session, by
+ * GifSearchTraceTest.
  */
 class GifRulesMatchTest {
     private fun assertNone(name: String, reached: List<String>, body: GifComparison.() -> Unit) {
-        val tape = GoldenTape.ofReference("gif-rules-$name")
-        val comparison = GifComparison(tape).apply(body)
-        assertEquals(emptyList(), comparison.examples, "${comparison.failures} of ${comparison.checks} differ")
-        tape.finish()
+        val comparison = GoldenTape.check("gif-rules-$name") { tape -> GifComparison(tape).apply(body) }
         for (outcome in reached) {
             assertTrue((comparison.seen[outcome] ?: 0) >= MIN_SEEN, "$outcome only ${comparison.seen[outcome]} times")
         }

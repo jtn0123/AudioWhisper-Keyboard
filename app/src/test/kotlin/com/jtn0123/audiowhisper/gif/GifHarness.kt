@@ -9,7 +9,6 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import java.io.File
 import java.io.IOException
-import java.io.InputStream
 import kotlin.coroutines.CoroutineContext
 
 /** A thread a test steps: tasks wait in order until [runAll]. */
@@ -90,42 +89,6 @@ internal class FakeSource(override val key: String, private val media: (String) 
         val body = answer.body ?: return false
         file.writeBytes(body)
         return true
-    }
-}
-
-/** The network as main's code saw it: an HTTP status and a stream, or an [IOException]. */
-class FakeConnection(val responseCode: Int, private val bytes: ByteArray?, private val tooLarge: Int) {
-    /** The body; a too-long one streams past any limit without being held. */
-    val inputStream: InputStream
-        get() = bytes?.inputStream() ?: object : InputStream() {
-            private var left = tooLarge + 1L
-
-            override fun read(): Int = if (left-- > 0) 0 else -1
-
-            override fun read(b: ByteArray, off: Int, len: Int): Int {
-                if (left <= 0) return -1
-                val n = minOf(len.toLong(), left).toInt()
-                b.fill(0, off, off + n)
-                left -= n
-                return n
-            }
-        }
-}
-
-/** Main's fake network: API requests wait for the test, media answer at once with [media]. */
-class FakeNet(private val media: (String) -> FakeReply) {
-    val api = mutableListOf<Pending>()
-    val mediaAsked = mutableListOf<String>()
-
-    /** Opens [url], answering as the server would for a body of at most [max] bytes. */
-    suspend fun open(url: String, max: Int): FakeConnection {
-        val reply = if (isApi(url)) Pending(url).also { api += it }.reply.await() else media(url).also { mediaAsked += url }
-        return when (reply) {
-            is FakeReply.Body -> FakeConnection(reply.status, reply.bytes, max)
-            is FakeReply.Status -> FakeConnection(reply.status, null, max)
-            FakeReply.TooLarge -> FakeConnection(200, null, max)
-            FakeReply.Unreachable -> throw IOException("unreachable")
-        }
     }
 }
 

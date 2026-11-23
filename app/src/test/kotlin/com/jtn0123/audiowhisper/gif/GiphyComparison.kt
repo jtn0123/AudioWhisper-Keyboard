@@ -1,68 +1,42 @@
 package com.jtn0123.audiowhisper.gif
 
+import com.jtn0123.audiowhisper.golden.GoldenTape
 import com.jtn0123.audiowhisper.rust.GiphyRules
 import com.jtn0123.audiowhisper.rust.parse
 import java.math.BigDecimal
-import java.net.URLEncoder
-import com.jtn0123.audiowhisper.golden.GoldenTape
 import kotlin.random.Random
 
 /**
- * Holds the reading of GIPHY's answers and the building of its URLs, in Rust
+ * Records how GIPHY's answers are read and its URLs built, in Rust
  * (lib/rust/crates/gif/src/giphy.rs, behind [GiphyRules]; the panel's session runs the same
- * functions), up against the Kotlin they replaced,
- * [ReferenceGiphy]: random GIPHY-like answers, broken in the ways kotlinx.serialization is
- * particular about (commas, whitespace, escapes, nulls, unknown values, repeats, truncation);
- * random sizes for `toFloatOrNull` (decimals, hexadecimals, names, halfway cases, far exponents,
- * suffixes, padding); and URLs for odd searches and keys. Self-contained, so a device check can
- * copy it into the app and run it on a phone, whose Java parses numbers and encodes URLs itself.
+ * functions), on a [GoldenTape] of what the Kotlin they replaced gave
+ * (docs/phase6-kotlin-references.md): random GIPHY-like answers, broken in the ways
+ * kotlinx.serialization is particular about (commas, whitespace, escapes, nulls, unknown values,
+ * repeats, truncation); random sizes for `toFloatOrNull` (decimals, hexadecimals, names, halfway
+ * cases, far exponents, suffixes, padding); and URLs for odd searches and keys.
  */
 class GiphyComparison(private val tape: GoldenTape) {
-    /** How many comparisons failed, and the first few, described. */
-    var failures = 0
-        private set
-    val examples = mutableListOf<String>()
-
-    /** How many comparisons ran. */
-    var checks = 0L
-        private set
-
     /** How often each outcome worth reaching was reached, so a run that tests nothing shows. */
     val seen = sortedMapOf<String, Int>()
 
-    private fun check(what: String, input: Any?, kotlin: Any?, rust: Any?) {
-        tape.record("$what: ${show(kotlin)}")
-        checks++
-        if (kotlin == rust) return
-        failures++
-        if (examples.size < MAX_EXAMPLES) examples += "$what(${show(input)}): Kotlin ${show(kotlin)}, Rust ${show(rust)}"
-    }
+    private fun check(what: String, answer: Any?) = tape.record("$what: ${show(answer)}")
 
     private fun see(what: String, happened: Boolean = true) {
         if (happened) seen[what] = (seen[what] ?: 0) + 1
     }
 
     /** What reading [body] gives: the GIFs, their ratios by their bits, or the failure. */
-    private fun outcome(body: String, parse: (String) -> List<Gif>): Any = try {
-        parse(body).map { listOf(it.id, it.title, it.previewUrl, it.aspectRatio.toRawBits(), it.sendUrl, it.pageUrl) }
-    } catch (e: GiphyFormatException) {
+    private fun outcome(body: String): Any = try {
+        GiphyRules.parse(body, ::Gif).map {
+            listOf(it.id, it.title, it.previewUrl, it.aspectRatio.toRawBits(), it.sendUrl, it.pageUrl)
+        }
+    } catch (e: IllegalArgumentException) {
         "unreadable"
     } catch (e: RuntimeException) {
         "threw ${e.javaClass.name}"
     }
 
-    /** Main's Giphy.parse: the Rust's reading, a body it can't read being unreadable. */
-    private fun parse(body: String): List<Gif> = try {
-        GiphyRules.parse(body, ::Gif)
-    } catch (e: IllegalArgumentException) {
-        throw GiphyFormatException(e)
-    }
-
-    private fun compare(what: String, body: String): Any {
-        val old = outcome(body, ReferenceGiphy::parse)
-        check(what, body, old, outcome(body, ::parse))
-        return old
-    }
+    private fun compare(what: String, body: String): Any = outcome(body).also { check(what, it) }
 
     /** Random answers, some of them broken. */
     fun bodies(random: Random, count: Int) = repeat(count) {
@@ -103,45 +77,15 @@ class GiphyComparison(private val tape: GoldenTape) {
     fun urls(random: Random, count: Int) = repeat(count) {
         val key = text(random, 3)
         val query = text(random, if (random.nextBoolean()) 4 else 40)
-        val cut = query.take(ReferenceGiphy.MAX_QUERY_LENGTH)
-        checkUrl("searchUrl", listOf(key, query), listOf(key, cut), GiphyRules.searchUrl(key, query)) {
-            ReferenceGiphy.searchUrl(it[0], it[1])
-        }
-        checkUrl("trendingUrl", key, listOf(key), GiphyRules.trendingUrl(key)) { ReferenceGiphy.trendingUrl(it[0]) }
+        check("searchUrl", GiphyRules.searchUrl(key, query))
+        check("trendingUrl", GiphyRules.trendingUrl(key))
         val params = linkedMapOf<String, String>()
         repeat(random.nextInt(5)) { params[NAMES.random(random)] = text(random, 3) }
         val endpoint = listOf("search", "trending", "random", text(random, 1)).random(random)
-        val names = params.keys.toList()
-        checkUrl("url", listOf(endpoint, params), listOf(key) + params.values, GiphyRules.url(key, endpoint, params)) {
-            ReferenceGiphy.url(it[0], endpoint, names.zip(it.drop(1)).toMap(LinkedHashMap()))
-        }
-        see("a search cut", query.length > ReferenceGiphy.MAX_QUERY_LENGTH)
+        check("url", GiphyRules.url(key, endpoint, params))
+        see("a search cut", query.length > MAX_QUERY_LENGTH)
         see("half an emoji", query.any { it.isSurrogate() })
         see("a setting in the params", params.keys.any { it in SETTINGS })
-    }
-
-    /**
-     * Checks a URL the Rust built from [texts] against the one [build] makes of them. JDK 22 and
-     * later's URLEncoder loses a lone high surrogate that ends one of its 8-unit chunks, where
-     * JDK 21 and Android, like the Rust, write `?`; on a JVM that does, the URL expected for text
-     * with lone surrogates is the one for that text with them already `?`, which every encoder
-     * agrees on. Android has no such quirk, so the device check holds the Rust to its own encoder.
-     */
-    private fun checkUrl(what: String, input: Any?, texts: List<String>, rust: String, build: (List<String>) -> String) {
-        val kotlin = build(texts)
-        if (kotlin == rust || !CHUNK_QUIRK || texts.none { it.any(Char::isSurrogate) }) return check(what, input, kotlin, rust)
-        see("the JDK's chunk quirk")
-        check(what, input, build(texts.map(::questionLoneSurrogates)), rust)
-    }
-
-    /** [text] with each surrogate that isn't half of a pair replaced by `?`. */
-    private fun questionLoneSurrogates(text: String): String = buildString {
-        var i = 0
-        while (i < text.length) {
-            val pair = text[i].isHighSurrogate() && i + 1 < text.length && text[i + 1].isLowSurrogate()
-            if (pair) append(text, i, i + 2) else append(if (text[i].isSurrogate()) '?' else text[i])
-            i += if (pair) 2 else 1
-        }
     }
 
     // ---- Answers ----
@@ -372,15 +316,12 @@ class GiphyComparison(private val tape: GoldenTape) {
     private fun show(value: Any?): String = when (value) {
         is String -> "\"" + value.map { if (it.code in 0x20..0x7E) "$it" else "\\u%04X".format(it.code) }.joinToString("") + "\""
         is List<*> -> value.joinToString(", ", "[", "]") { show(it) }
-        is Map<*, *> -> value.entries.joinToString(", ", "{", "}") { "${show(it.key)}=${show(it.value)}" }
         else -> value.toString()
     }
 
     private companion object {
-        const val MAX_EXAMPLES = 10
-
-        /** Whether this JVM's URLEncoder loses a lone high surrogate at the end of a chunk (see [checkUrl]). */
-        val CHUNK_QUIRK = !URLEncoder.encode("\u00E9".repeat(6) + "\uD800", "UTF-8").endsWith("%3F")
+        /** The longest search GIPHY is asked for, giphy.rs's `MAX_QUERY_LENGTH`: past it a query is cut. */
+        const val MAX_QUERY_LENGTH = 50
 
         val WHITESPACE = listOf(" ", "\t", "\n", "\r", "  \n", "\r\n\t")
         val NOT_WHITESPACE = listOf("\u000B", "\u000C", "\u00A0", "\u0000", "\u2028", "\uFEFF")
