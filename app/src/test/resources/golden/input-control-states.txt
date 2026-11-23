@@ -1,0 +1,21 @@
+# input-control-states: the answers the frozen Kotlin reference gave (docs/phase6-kotlin-references.md).
+# Their count, the digest after the last, and after each power of two (at N).
+count 80000
+digest d9182e070a22560d
+at 1 f2950eb3fb8fa6bf
+at 2 533de4d0624a463a
+at 4 c0ec00509d38ec44
+at 8 627e3971d4baa1e7
+at 16 24ebe9587bfe4265
+at 32 6bf196645ab6e951
+at 64 4492ff41858de808
+at 128 60b9d6c1a2699127
+at 256 89c10b458fa70381
+at 512 823f8b9a3efe3356
+at 1024 b15ffc80bebb8ab9
+at 2048 0df1f04decb461e0
+at 4096 2a5c4e4116eaf6ed
+at 8192 6bf3068f2aa98b0f
+at 16384 f037a58d009df2a8
+at 32768 cad85feb88d08bba
+at 65536 fc9bed30f3d2d917

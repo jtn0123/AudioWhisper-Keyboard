@@ -1,0 +1,20 @@
+# input-control-subtypes: the answers the frozen Kotlin reference gave (docs/phase6-kotlin-references.md).
+# Their count, the digest after the last, and after each power of two (at N).
+count 60000
+digest 43734ea9f1465261
+at 1 c061bebe3c26987a
+at 2 44ddbd4d370f84d2
+at 4 8fb4390a3432bbe0
+at 8 0122d5f5df1d8b07
+at 16 92ef6122e9debc3f
+at 32 4cb729122ee197eb
+at 64 025212395067c04c
+at 128 cf2ce02417a100d6
+at 256 0e76cf4fb23fb0d6
+at 512 e35f8c4b4ca9d33a
+at 1024 af0c3a5ce2bd1a46
+at 2048 56d04c8413764fd5
+at 4096 aafde76a07138f50
+at 8192 cc9bdb4a5637e78f
+at 16384 96d1f273f3719795
+at 32768 cab39fb4c5f20f59

@@ -1,0 +1,20 @@
+# input-policy-pointer: the answers the frozen Kotlin reference gave (docs/phase6-kotlin-references.md).
+# Their count, the digest after the last, and after each power of two (at N).
+count 50855
+digest fa1ef2b28fc9951e
+at 1 f5f37e6768782946
+at 2 6da9eee8fbd2a5de
+at 4 3bc619b97280ddce
+at 8 15289250d5d8acae
+at 16 f97e79e2d6103ed0
+at 32 e77d3c354ee84d53
+at 64 13f675e6825936af
+at 128 9cef3bac4a077852
+at 256 089dc7a924a57886
+at 512 89bd06a0e9a264c4
+at 1024 677970fad84ae972
+at 2048 866e29daee41cb3a
+at 4096 c7ccc20324dbcd12
+at 8192 b7a884de2ec6ffe8
+at 16384 f00495f6b8b7e604
+at 32768 8eb96c4becc7d604
