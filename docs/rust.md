@@ -645,8 +645,8 @@ Proof:
     empty, no `cmap`, missing, a directory) each read as no font and draw pixel-identical to no
     font at all; an unresolved URI and an oversized file are not read; one broken face leaves
     the rest of the family.
-* `awnative` `render_theme` tests draw a key preview through the session with and without the
-  files, and refuse a URI without a path.
+* `awnative` `render_theme` tests draw the landscape extract view's action label through the
+  session with and without the files, and refuse a URI without a path.
 * `RendererThemeFontsTest` (JVM, 2 tests) resolves the files as Kotlin does and draws them
   through the generated `KeyboardRenderer`.
 * `scripts/theme-fonts-mutations.py` breaks the feature in 27 ways: the theme ignoring its

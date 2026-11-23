@@ -116,16 +116,17 @@ mod probe {
 #[cfg(test)]
 mod tests {
     use super::font_files;
-    use crate::{render, render_key_preview::key_preview};
+    use crate::{render, render_chrome};
     use std::path::PathBuf;
 
     fn utf16(text: &str) -> Vec<u16> {
         text.encode_utf16().collect()
     }
 
-    /// The session draws the theme's `@font` files Kotlin passes, and a broken one as none.
+    /// The session draws the theme's `@font` files Kotlin passes, and a broken one as none: the
+    /// landscape extract view's action label, which the session lays out and rasters offscreen.
     #[test]
-    fn the_session_draws_a_key_in_the_font_files_it_is_given() {
+    fn the_session_draws_a_label_in_the_font_files_it_is_given() {
         let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../../..");
         let roboto = root.join("fastlane/staging/fonts/Roboto-Light.ttf");
         let script =
@@ -133,11 +134,20 @@ mod tests {
         let native = render::create(&[utf16(&roboto.display().to_string())]).unwrap();
         let json = r##"{"$schema":"https://schemas.florisboard.org/snygg/v2/stylesheet",
             "@font `F`":[{"src":"uri(`flex:/f.ttf`)"}],
-            "key":{"background":"#ffffff","foreground":"#000000","font-family":"`F`","font-size":"24sp"}}"##;
+            "extracted-landscape-input-action":{"background":"#ffffff","foreground":"#000000",
+                "font-family":"`F`","font-size":"24sp"}}"##;
         let preview = |path: Option<&str>| {
             let fonts: Vec<_> = path.map_or(vec![], |p| vec![utf16("flex:/f.ttf"), utf16(p)]);
             render::theme(native, &utf16(json), &[], &[], &[2.0, 1.0, 1.0], &fonts).unwrap();
-            key_preview(native, 104, &["character", "Hello", ""].map(utf16)).unwrap()
+            let state = ["characters", "unshifted"].map(utf16);
+            render_chrome::chrome(
+                native,
+                &[400.0, 120.0, 2.0, 1.0, 0.0],
+                &[utf16("Hello")],
+                &state,
+            )
+            .unwrap();
+            render_chrome::pixels(native).unwrap()
         };
         let plain = preview(None);
         let themed = preview(Some(&script.display().to_string()));
