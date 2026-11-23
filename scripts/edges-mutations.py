@@ -1,7 +1,7 @@
 """Platform-edge faults (phase 5, docs/phase5-edges.md): each must trip a fresh assertion in at least
 one of the test targets it names; source bytes are always restored. python3 -I.
 
-    python3 -I scripts/edges-mutations.py build/edges/mutations [--part gif|dictation|reading] [case ...]
+    python3 -I scripts/edges-mutations.py build/edges/mutations [--part gif|dictation|reading|voice] [case ...]
 
 Run with no other Cargo or Gradle operation in this checkout, and do not read the source as the
 truth while it runs: it is mutated then. A compilation failure never counts as caught: a Rust target
@@ -201,10 +201,43 @@ READING_CASES = [
      [READING_TRACE]),
     ('kt-end-keeps-voice', READING_KT, '                    host.idleVoice()\n', '', [READING_TRACE]),
 ]
-PARTS = {'gif': GIF_CASES, 'dictation': DICTATION_CASES, 'reading': READING_CASES}
+LIFETIME = READER_RS / 'lifetime.rs'
+LOADED_KT = ROOT / 'app/src/main/kotlin/com/jtn0123/audiowhisper/reader/LoadedVoice.kt'
+VOICE_TRACE = 'jvm:voice-trace'
+HOLD = [READER_CRATE, VOICE_TRACE]
+VOICE_CASES = [
+    # The neural voice's hold: when it is used, checked, loaded, said to have failed, and freed.
+    ('loaded-voice-reloaded', LIFETIME, 'if loaded {\n            hold::USE', 'if loaded && self.failed {\n            hold::USE',
+     HOLD),
+    ('failure-retried', LIFETIME, '} else if self.failed {', '} else if self.just_failed {', HOLD),
+    ('missing-files-loaded', LIFETIME, 'if missing { hold::NONE } else { hold::LOAD }',
+     'if !missing { hold::NONE } else { hold::LOAD }', HOLD),
+    ('load-failure-forgotten', LIFETIME, 'self.failed = !ok;', 'self.failed = false;', HOLD),
+    ('failure-said-twice', LIFETIME, 'std::mem::take(&mut self.just_failed)', 'self.just_failed', HOLD),
+    ('idle-keeps-it-in-use', LIFETIME, 'self.in_use = false;', 'self.in_use = !self.in_use;', HOLD),
+    ('freed-in-use', LIFETIME, '        !self.in_use\n', '        self.in_use || !self.in_use\n', HOLD),
+    ('idle-two-minutes', LIFETIME, 'pub const VOICE_IDLE_MS: i64 = 3 * 60_000;', 'pub const VOICE_IDLE_MS: i64 = 2 * 60_000;',
+     HOLD),
+    # Where a reading asked for goes, and how long it waits for the service.
+    ('read-only-when-on', LIFETIME, 'if service_up {\n        routes::READ', 'if service_up && turned_on {\n        routes::READ',
+     HOLD),
+    ('never-asked', LIFETIME, '} else if !turned_on {', '} else if !turned_on && service_up {', HOLD),
+    ('wait-inclusive', LIFETIME, 'now.wrapping_sub(asked_at) < SERVICE_WAIT_MS', 'now.wrapping_sub(asked_at) <= SERVICE_WAIT_MS',
+     HOLD),
+    ('wait-saturating', LIFETIME, 'now.wrapping_sub(asked_at) < SERVICE_WAIT_MS', 'now.saturating_sub(asked_at) < SERVICE_WAIT_MS',
+     HOLD),
+    # LoadedVoice, which runs the hold.
+    ('kt-files-unchecked', LOADED_KT, 'VoiceHoldStep.CHECK -> if (hold.checked(source.missing()) == VoiceHoldStep.LOAD) load() else null',
+     'VoiceHoldStep.CHECK -> load()', [VOICE_TRACE]),
+    ('kt-load-unreported', LOADED_KT, 'hold.loaded(ok = it != null)', 'hold.loaded(ok = true)', [VOICE_TRACE]),
+    ('kt-release-ignores-hold', LOADED_KT, 'if (!closed && hold.mayFree()) free()', 'if (!closed) free()', [VOICE_TRACE]),
+    ('kt-old-timer-kept', LOADED_KT, '        release?.cancel()\n', '', [VOICE_TRACE]),
+]
+PARTS = {'gif': GIF_CASES, 'dictation': DICTATION_CASES, 'reading': READING_CASES, 'voice': VOICE_CASES}
 CARGO = {GIF_CRATE: ['-p', 'gif'], DICT_CRATE: ['-p', 'dictation'], READER_CRATE: ['-p', 'reader']}
 JVM = {
     READING_TRACE: ['*ReadingTraceTest'],
+    VOICE_TRACE: ['*LoadedVoiceTraceTest'],
     MIC_TRACE: ['*MicTraceTest'],
     MODEL_TRACE: ['*ModelCheckTraceTest'],
     DICT_UNITS: ['*ModelCheckTest', '*MicRecorderTest', '*AudioHistoryTest'],
