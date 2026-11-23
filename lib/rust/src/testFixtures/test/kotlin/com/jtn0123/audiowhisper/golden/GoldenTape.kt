@@ -1,6 +1,7 @@
 package com.jtn0123.audiowhisper.golden
 
 import java.io.File
+import java.io.InputStream
 import kotlin.test.fail
 
 /**
@@ -19,14 +20,16 @@ import kotlin.test.fail
  * An answer is the text the test compared before (the reference's and Rust's, side by side), so
  * texts the questions were made of stay in the test, and no answer reaches a log.
  *
- * Golden files are read from the test classpath at `golden/<name>.txt` (each module's
- * `src/test/resources`). They are written only by a tape made with [ofReference], at the commit
- * that still had the reference, with `REFERENCE_GOLDEN=write` and the test run again; a tape of
- * the code under test refuses to write them, so a regression can never be recorded as the
- * reference.
+ * Golden files are kept in a [Store]: on the JVM, [Classpath], which reads `golden/<name>.txt` from
+ * the test classpath (each module's `src/test/resources`); on a device, the test APK's assets
+ * (androidTest's `DeviceGoldens`). They are written only by a tape made with [ofReference], at the
+ * commit that still had the reference, with the store asked to write (`REFERENCE_GOLDEN=write`,
+ * or the instrumentation argument `referenceGolden write`) and the test run again; a tape of the
+ * code under test refuses to write them, so a regression can never be recorded as the reference.
  */
 class GoldenTape private constructor(
     private val name: String,
+    private val store: Store,
     private val golden: Golden?,
     private val writing: Boolean,
 ) {
@@ -78,12 +81,10 @@ class GoldenTape private constructor(
         check(!finished) { "$name: finished twice" }
         finished = true
         if (writing) {
-            val file = File(RESOURCES, "$name.txt")
-            file.parentFile.mkdirs()
-            file.writeText(text())
+            store.write(name, text())
             return
         }
-        val golden = golden ?: fail("$name: no golden file golden/$name.txt on the test classpath")
+        val golden = golden ?: fail("$name: no golden file golden/$name.txt in ${store.where}")
         if (golden.count != count) {
             fail("$name: ${golden.count} answers in the golden file, $count recorded")
         }
@@ -103,36 +104,72 @@ class GoldenTape private constructor(
 
     private class Golden(val count: Long, val digest: Long, val ats: Map<Long, Long>)
 
+    /**
+     * Where golden files are read and written, and what the run asks of them: [Classpath] on the
+     * JVM, the test APK's assets and the app's files on a device (androidTest's `DeviceGoldens`).
+     */
+    interface Store {
+        /** What the run asks of golden files: null to check them, "write" to write them from the reference. */
+        val request: String?
+
+        /** Where the golden files are read from, as a failure names it. */
+        val where: String
+
+        /** The golden file `golden/<name>.txt`, or null when there is none. */
+        fun read(name: String): InputStream?
+
+        /** Writes the golden file `golden/<name>.txt` as [text]. */
+        fun write(name: String, text: String)
+    }
+
+    /**
+     * The JVM's store: `golden/<name>.txt` on the test classpath, written to the module's
+     * `src/test/resources/golden`, asked for by `REFERENCE_GOLDEN`.
+     */
+    object Classpath : Store {
+        override val request: String? get() = System.getenv(ENV)
+        override val where = "the test classpath"
+
+        override fun read(name: String): InputStream? =
+            Thread.currentThread().contextClassLoader.getResourceAsStream("golden/$name.txt")
+
+        override fun write(name: String, text: String) {
+            val file = File(RESOURCES, "$name.txt")
+            file.parentFile.mkdirs()
+            file.writeText(text)
+        }
+    }
+
     companion object {
         private const val OFFSET = -0x340d631b7bdddcdbL // 0xcbf29ce484222325
         private const val PRIME = 0x100000001b3L
         private const val ENV = "REFERENCE_GOLDEN"
         private val RESOURCES = File("src/test/resources/golden")
 
-        /** A tape of the code under test, checked against `golden/<name>.txt`. */
-        operator fun invoke(name: String): GoldenTape {
-            if (System.getenv(ENV) != null) {
+        /** A tape of the code under test, checked against `golden/<name>.txt` in [store]. */
+        operator fun invoke(name: String, store: Store = Classpath): GoldenTape {
+            store.request?.let { request ->
                 fail(
-                    "$name: $ENV is set, but this tape records the code under test, not the reference. " +
-                        "Golden files come from the reference at its generator commit " +
+                    "$name: golden files are asked for ($request), but this tape records the code under test, " +
+                        "not the reference. Golden files come from the reference at its generator commit " +
                         "(docs/phase6-kotlin-references.md).",
                 )
             }
-            return GoldenTape(name, read(name), writing = false)
+            return GoldenTape(name, store, read(name, store), writing = false)
         }
 
         /**
-         * A tape of the frozen reference's answers: checked like any other, or, with
-         * `REFERENCE_GOLDEN=write`, written to the module's `src/test/resources/golden/<name>.txt`.
+         * A tape of the frozen reference's answers: checked like any other, or, when [store] is asked
+         * to write, written to it (on the JVM, the module's `src/test/resources/golden/<name>.txt`).
          */
-        fun ofReference(name: String): GoldenTape {
-            val writing = System.getenv(ENV) == "write"
-            return GoldenTape(name, if (writing) null else read(name), writing)
+        fun ofReference(name: String, store: Store = Classpath): GoldenTape {
+            val writing = store.request == "write"
+            return GoldenTape(name, store, if (writing) null else read(name, store), writing)
         }
 
-        /** Runs [block] on a tape of the code under test, then finishes it. */
-        inline fun <T> check(name: String, block: (GoldenTape) -> T): T {
-            val tape = GoldenTape(name)
+        /** Runs [block] on a tape of the code under test, checked against [store], then finishes it. */
+        inline fun <T> check(name: String, store: Store = Classpath, block: (GoldenTape) -> T): T {
+            val tape = GoldenTape(name, store)
             return block(tape).also { tape.finish() }
         }
 
@@ -149,9 +186,8 @@ class GoldenTape private constructor(
 
         private fun Long.hex() = java.lang.Long.toHexString(this).padStart(16, '0')
 
-        private fun read(name: String): Golden? {
-            val stream = Thread.currentThread().contextClassLoader.getResourceAsStream("golden/$name.txt")
-                ?: return null
+        private fun read(name: String, store: Store): Golden? {
+            val stream = store.read(name) ?: return null
             var count = -1L
             var digest = 0L
             val ats = HashMap<Long, Long>()

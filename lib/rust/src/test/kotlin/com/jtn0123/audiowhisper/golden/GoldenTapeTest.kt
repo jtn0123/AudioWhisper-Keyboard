@@ -71,6 +71,38 @@ class GoldenTapeTest {
         assertFailsWith<AssertionFailedError> { swapped.answer("x", "null") }
     }
 
+    /** As a device keeps them: written by the reference when asked, read back, refused to the code under test. */
+    private class Memory(override val request: String?, val files: MutableMap<String, String> = mutableMapOf()) :
+        GoldenTape.Store {
+        override val where = "memory"
+        override fun read(name: String) = files[name]?.byteInputStream()
+        override fun write(name: String, text: String) { files[name] = text }
+    }
+
+    @Test
+    fun anotherStoreIsWrittenByTheReferenceAndCheckedFromWhatItWrote() {
+        val writing = Memory("write")
+        GoldenTape.ofReference("in-memory", writing).apply { recordSelf() }.finish()
+        fun answers(text: String) = text.lines().filterNot { it.startsWith("#") }
+        val worked = GoldenTape.Classpath.read("golden-tape-self")!!.bufferedReader().readText()
+        assertEquals(answers(worked), answers(writing.files.getValue("in-memory")))
+
+        val checking = Memory(null, writing.files)
+        GoldenTape.check("in-memory", checking) { it.recordSelf() }
+        val changed = GoldenTape("in-memory", checking)
+        changed.recordSelf(last = listOf("a", "bc"))
+        assertFailsWith<AssertionFailedError> { changed.finish() }
+    }
+
+    @Test
+    fun anotherStoreRefusesTheCodeUnderTestWhileWritingAndNamesItselfWhenEmpty() {
+        val refused = assertFailsWith<AssertionFailedError> { GoldenTape("in-memory", Memory("write")) }
+        assertTrue(refused.message!!.contains("asked for (write)"), refused.message)
+        val empty = GoldenTape("in-memory", Memory(null))
+        val failure = assertFailsWith<AssertionFailedError> { empty.finish() }
+        assertEquals("in-memory: no golden file golden/in-memory.txt in memory", failure.message)
+    }
+
     @Test
     fun aFinishedTapeTakesNoMoreAnswers() {
         val tape = GoldenTape("golden-tape-self")
