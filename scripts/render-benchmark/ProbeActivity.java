@@ -28,6 +28,7 @@ public final class ProbeActivity extends Activity {
     private int connectionGeneration;
     private int editorActions;
     private int lastEditorAction;
+    private int received;
     private final BroadcastReceiver commands = new BroadcastReceiver() {
         @Override public void onReceive(Context context, Intent intent) {
             if ("com.jtn0123.renderprobe.CLIP_STATE".equals(intent.getAction())) {
@@ -113,6 +114,7 @@ public final class ProbeActivity extends Activity {
         editor = new EditText(this) {
             @Override public android.view.inputmethod.InputConnection onCreateInputConnection(android.view.inputmethod.EditorInfo info) {
                 android.view.inputmethod.InputConnection connection = super.onCreateInputConnection(info);
+                if (connection != null && "images".equals(getIntent().getStringExtra("field"))) return images(info, connection);
                 if (connection == null || !"batch".equals(getIntent().getStringExtra("field"))) return connection;
                 final int generation = ++connectionGeneration;
                 batchDepth = 0;
@@ -203,6 +205,42 @@ public final class ProbeActivity extends Activity {
         editor.requestFocus();
         editor.postDelayed(() -> ((InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE))
             .showSoftInput(editor, InputMethodManager.SHOW_IMPLICIT), 400);
+    }
+
+    /**
+     * field=images: an editor that takes GIFs, as a messaging app's does. Each one sent is read to
+     * its end and counted with its size; its URI and bytes are never kept or shown.
+     */
+    private android.view.inputmethod.InputConnection images(android.view.inputmethod.EditorInfo info,
+            android.view.inputmethod.InputConnection connection) {
+        info.contentMimeTypes = new String[]{"image/gif", "image/png", "image/webp"};
+        return new android.view.inputmethod.InputConnectionWrapper(connection, false) {
+            @Override public boolean commitContent(android.view.inputmethod.InputContentInfo content, int flags,
+                    Bundle options) {
+                if ((flags & android.view.inputmethod.InputConnection.INPUT_CONTENT_GRANT_READ_URI_PERMISSION) != 0) {
+                    content.requestPermission();
+                }
+                long bytes = 0;
+                try (java.io.InputStream in = getContentResolver().openInputStream(content.getContentUri())) {
+                    byte[] buffer = new byte[8192];
+                    for (int read; (read = in.read(buffer)) > 0; ) bytes += read;
+                } catch (Exception failure) {
+                    bytes = -1;
+                } finally {
+                    content.releasePermission();
+                }
+                received++;
+                String mime = content.getDescription().getMimeTypeCount() > 0 ? content.getDescription().getMimeType(0) : "";
+                String json = "{\"received\":" + received + ",\"bytes\":" + bytes + ",\"gif\":" + "image/gif".equals(mime) + "}";
+                try (FileOutputStream out = new FileOutputStream(new File(getFilesDir(), "images.json"))) {
+                    out.write(json.getBytes(StandardCharsets.UTF_8));
+                } catch (java.io.IOException failure) {
+                    throw new IllegalStateException("Could not save the images count", failure);
+                }
+                runOnUiThread(() -> result.setText("Images received: " + received + "\nLast: " + json));
+                return true;
+            }
+        };
     }
 
     private void maskText(android.view.View view) {
