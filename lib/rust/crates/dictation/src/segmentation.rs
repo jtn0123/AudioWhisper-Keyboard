@@ -101,7 +101,10 @@ mod tests {
         history.add(&counting(0, HISTORY + 2));
         let held = HISTORY as i64;
         assert_eq!(history.slice(0, 4), counting(2, 4));
-        assert_eq!(history.slice(held, held + 5), counting(HISTORY, HISTORY + 2));
+        assert_eq!(
+            history.slice(held, held + 5),
+            counting(HISTORY, HISTORY + 2)
+        );
         assert!(history.slice(0, 2).is_empty());
     }
 }
