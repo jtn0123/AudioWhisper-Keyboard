@@ -23,7 +23,20 @@ import time
 import xml.etree.ElementTree as ET
 
 ROOT = Path(__file__).resolve().parent.parent
+sys.dont_write_bytecode = True  # importing the cases and mutation_cases would otherwise leave a __pycache__ in scripts/
 sys.path.insert(0, str(ROOT / 'scripts'))
+import mutation_cases
+
+
+def families():
+    """Every family in scripts/phase6_mutation_cases, by name."""
+    folder = ROOT / 'scripts/phase6_mutation_cases'
+    return sorted(path.stem for path in folder.glob('*.py') if path.stem != '__init__')
+
+
+def check_edits():
+    return [edit._replace(case=family + ':' + edit.case) for family in families()
+            for edit in mutation_cases.rows(importlib.import_module('phase6_mutation_cases.' + family).CASES)]
 
 
 def env():
@@ -101,4 +114,5 @@ def main():
 
 
 if __name__ == '__main__':
+    mutation_cases.check_flag()
     main()

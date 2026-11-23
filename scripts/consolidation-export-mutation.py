@@ -5,10 +5,21 @@ import json
 from pathlib import Path
 import shutil
 import subprocess
+import sys
+
+sys.dont_write_bytecode = True  # importing mutation_cases would otherwise leave a __pycache__ in scripts/
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import mutation_cases
 
 ROOT = Path(__file__).resolve().parent.parent
 MANIFEST = ROOT / 'lib/rust/crates/awnative/Cargo.toml'
 APK = ROOT / 'app/build/outputs/apk/debug/app-debug.apk'
+# The one case: the legacy callbacks' feature on by default in the normal build.
+FEATURES, LEGACY_DEFAULT = '[features]\n', '[features]\ndefault = ["legacy-fixture"]\n'
+
+
+def check_edits():
+    return [mutation_cases.Edit('legacy-fixture-by-default', MANIFEST, FEATURES, LEGACY_DEFAULT)]
 
 
 def build(output, phase):
@@ -37,8 +48,8 @@ def main():
     (args.output / 'original.toml').write_bytes(original)
     try:
         text = original.decode()
-        assert text.count('[features]\n') == 1
-        MANIFEST.write_text(text.replace('[features]\n', '[features]\ndefault = ["legacy-fixture"]\n'))
+        assert text.count(FEATURES) == 1
+        MANIFEST.write_text(text.replace(FEATURES, LEGACY_DEFAULT))
         build(args.output, 'mutant')
         mutant = check(args.output, 'mutant')
         assert mutant != 0
@@ -56,4 +67,5 @@ def main():
 
 
 if __name__ == '__main__':
+    mutation_cases.check_flag()
     main()

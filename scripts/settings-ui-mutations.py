@@ -17,9 +17,14 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 _cases = importlib.import_module('settings_ui_mutation_cases')
 CASES, RUST = _cases.CASES, _cases.RUST
 ROOT = importlib.import_module('settings_ui_mutation_cases.paths').ROOT
+import mutation_cases
 
 # Suites whose assertion failures count, besides the settingsui ones: the first screen a fresh activity opens.
 SUITES = ('TEST-*settingsui.Settings*Test.xml', 'TEST-*florisboard.app.SettingsEntryTest.xml')
+
+
+def check_edits():
+    return mutation_cases.rows(CASES)
 
 
 def run_rust(output, name, target):
@@ -97,4 +102,5 @@ def main():
 
 
 if __name__ == '__main__':
+    mutation_cases.check_flag()
     main()

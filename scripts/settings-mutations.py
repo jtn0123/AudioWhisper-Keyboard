@@ -8,8 +8,27 @@ import sys
 import time
 import xml.etree.ElementTree as ET
 
+sys.dont_write_bytecode = True  # importing mutation_cases would otherwise leave a __pycache__ in scripts/
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import mutation_cases
+
 ROOT = Path(__file__).resolve().parents[1]
 RUST = ROOT / 'lib/rust/crates/settings/src'
+# label: (file under RUST, old, new, test class pattern).
+CASES = [
+    ('default', 'catalogue.tsv', 'keyboard__number_row\tb\tfalse', 'keyboard__number_row\tb\ttrue', '*SettingsDefaultsMatchTest'),
+    ('clamp-bound', 'catalogue.tsv', '300\t100\t700\t10', '300\t101\t700\t10', '*SettingsDefaultsMatchTest'),
+    ('migration', 'migration.rs', '"advanced__settings_theme" => target = "other__settings_theme"',
+     '"advanced__settings_theme" => target = "other__incorrect_theme"', '*SettingsMigrationMatchTest'),
+    # Theme's sunrise time as Jetpref's LocalTime default writes it.
+    ('time-default', 'catalogue.tsv', 'theme__sunrise_time\ts\t06:00:00.000', 'theme__sunrise_time\ts\t06:00:00.001',
+     '*SettingsDefaultsMatchTest'),
+    ('active-fallback', 'subtype.rs', 'else { Some(0) }', 'else { Some(ids.len() - 1) }', '*SettingsSubtypeMatchTest'),
+]
+
+
+def check_edits():
+    return [mutation_cases.Edit(label, RUST / filename, old, new) for label, filename, old, new, _ in CASES]
 
 
 def run(output, label, pattern):
@@ -34,16 +53,7 @@ def run(output, label, pattern):
 def main():
     output = ROOT / sys.argv[1]
     output.mkdir(parents=True, exist_ok=True)
-    edits = [
-        ('default', 'catalogue.tsv', 'keyboard__number_row\tb\tfalse', 'keyboard__number_row\tb\ttrue', '*SettingsDefaultsMatchTest'),
-        ('clamp-bound', 'catalogue.tsv', '300\t100\t700\t10', '300\t101\t700\t10', '*SettingsDefaultsMatchTest'),
-        ('migration', 'migration.rs', '"advanced__settings_theme" => target = "other__settings_theme"',
-         '"advanced__settings_theme" => target = "other__incorrect_theme"', '*SettingsMigrationMatchTest'),
-        # Theme's sunrise time as Jetpref's LocalTime default writes it.
-        ('time-default', 'catalogue.tsv', 'theme__sunrise_time\ts\t06:00:00.000', 'theme__sunrise_time\ts\t06:00:00.001',
-         '*SettingsDefaultsMatchTest'),
-        ('active-fallback', 'subtype.rs', 'else { Some(0) }', 'else { Some(ids.len() - 1) }', '*SettingsSubtypeMatchTest'),
-    ]
+    edits = CASES
     results = []
     for label, filename, old, new, pattern in edits:
         path = RUST / filename
@@ -68,4 +78,5 @@ def main():
 
 
 if __name__ == '__main__':
+    mutation_cases.check_flag()
     main()

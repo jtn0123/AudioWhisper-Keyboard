@@ -17,8 +17,11 @@ import importlib.util
 import sys
 from pathlib import Path
 
-# Loading the runner as a module would otherwise leave a __pycache__ in scripts/.
+# Loading the runner and mutation_cases as modules would otherwise leave a __pycache__ in scripts/.
 sys.dont_write_bytecode = True
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import mutation_cases
+
 SPEC = importlib.util.spec_from_file_location('theme_subtype_mutations', Path(__file__).parent / 'theme-subtype-mutations.py')
 RUNNER = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(RUNNER)
@@ -95,5 +98,11 @@ RUNNER.CARGO.update({UNIT: ['-p', 'imesubtype'], SETTINGS: ['-p', 'settings']})
 RUNNER.JVM[TRACE] = (':app:testDebugUnitTest', ['*SubtypeSessionTest', '*SubtypeMatchTest'],
                      ROOT / 'app/build/test-results/testDebugUnitTest')
 
+
+def check_edits():
+    return mutation_cases.rows(CASES)
+
+
 if __name__ == '__main__':
+    mutation_cases.check_flag()
     RUNNER.main(CASES, __doc__)

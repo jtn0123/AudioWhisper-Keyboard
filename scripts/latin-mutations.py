@@ -18,6 +18,10 @@ import signal
 import subprocess
 import sys
 
+sys.dont_write_bytecode = True  # importing mutation_cases would otherwise leave a __pycache__ in scripts/
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import mutation_cases
+
 ROOT = Path(__file__).resolve().parents[1]
 LATIN = 'lib/rust/crates/latin/src/'
 SESSION = 'lib/rust/crates/suggest/src/session.rs'
@@ -282,6 +286,10 @@ def mutate(output, suite, name):
             'assertion_panics': assertions, 'sha256': hashlib.sha256(original).hexdigest()}
 
 
+def check_edits():
+    return mutation_cases.table(CASES)
+
+
 def main():
     suite = sys.argv[1]
     assert suite in ('oracle', 'golden'), 'SUITE is oracle or golden'
@@ -299,4 +307,5 @@ def main():
 
 
 if __name__ == '__main__':
+    mutation_cases.check_flag()
     main()

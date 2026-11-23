@@ -12,8 +12,13 @@ import json
 import os
 from pathlib import Path
 import subprocess
+import sys
 import time
 import xml.etree.ElementTree as ET
+
+sys.dont_write_bytecode = True  # importing mutation_cases would otherwise leave a __pycache__ in scripts/
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import mutation_cases
 
 ROOT = Path(__file__).resolve().parent.parent
 RENDER = ROOT / 'lib/rust/crates/render/src'
@@ -88,6 +93,10 @@ def check(output, name, checker):
     return (rust if kind == 'rust' else jvm)(output, name, target)
 
 
+def check_edits():
+    return mutation_cases.rows(CASES)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('output', type=Path)
@@ -130,4 +139,5 @@ def main():
 
 
 if __name__ == '__main__':
+    mutation_cases.check_flag()
     main()

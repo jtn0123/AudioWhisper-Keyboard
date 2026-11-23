@@ -24,8 +24,13 @@ import os
 from pathlib import Path
 import re
 import subprocess
+import sys
 import time
 import xml.etree.ElementTree as ET
+
+sys.dont_write_bytecode = True  # importing mutation_cases would otherwise leave a __pycache__ in scripts/
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import mutation_cases
 
 ROOT = Path(__file__).resolve().parent.parent
 SRC = ROOT / 'lib/rust/crates/stores/src'
@@ -286,11 +291,14 @@ def mutate(output, cases, originals, targets):
     return results
 
 
+def check_edits():
+    return mutation_cases.rows(CASES)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('output', type=Path, nargs='?')
+    parser.add_argument('output', type=Path)
     parser.add_argument('cases', nargs='*', help='case names to run (default: all)')
-    parser.add_argument('--check', action='store_true', help='only check every mutation location')
     parser.add_argument('--targets', default=','.join([CARGO, JVM, DEVICE]), help='the targets to run, comma-separated')
     args = parser.parse_args()
     targets = args.targets.split(',')
@@ -299,10 +307,6 @@ def main():
     assert not unknown, f'unknown cases: {sorted(unknown)}'
     cases = [case for case in CASES if not args.cases or case[0] in args.cases]
     originals = check(cases)
-    if args.check:
-        print(f'All {len(cases)} mutation locations found once', flush=True)
-        return
-    assert args.output, 'an output folder is needed'
     output = ROOT / args.output
     output.mkdir(parents=True, exist_ok=False)
     try:
@@ -326,4 +330,5 @@ def main():
 
 
 if __name__ == '__main__':
+    mutation_cases.check_flag()
     main()

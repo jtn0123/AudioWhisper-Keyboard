@@ -9,20 +9,32 @@ import sys
 import time
 import xml.etree.ElementTree as ET
 
+sys.dont_write_bytecode=True  # importing mutation_cases would otherwise leave a __pycache__ in scripts/
+sys.path.insert(0,str(Path(__file__).resolve().parent))
+import mutation_cases
+
 ROOT=Path(__file__).resolve().parents[1]
 SOURCE=ROOT/'lib/rust/crates/input/src'
+# label: (file under SOURCE, old, new).
+CASES=[
+    ('caps-lock-window','lifecycle.rs','                    v[2],\n                )),','                    v[2] + 1,\n                )),'),
+    ('repeat-delete-start','lifecycle.rs','    (delay as f32 * factor) as i64\n}',
+     '    (delay as f32 * factor) as i64 - i64::from(code == DELETE)\n}'),
+    ('symbols-routing','routing.rs','VIEW_SYMBOLS => set!(0, 2),','VIEW_SYMBOLS => set!(0, 3),'),
+    ('rolling-multi-pointer','pointer.rs','    suitable(code)\n}', '    suitable(code) && code < 0\n}'),
+]
+# The delay expression also occurs in repeat_delay. Only the first occurrence is the start delay.
+COUNTS={'repeat-delete-start':2}
+
+
+def check_edits():
+    return [mutation_cases.Edit(label,SOURCE/file,old,new,COUNTS.get(label,1)) for label,file,old,new in CASES]
 
 
 def main():
     output=ROOT/sys.argv[1]
     output.mkdir(parents=True,exist_ok=True)
-    edits=[
-        ('caps-lock-window','lifecycle.rs','                    v[2],\n                )),','                    v[2] + 1,\n                )),'),
-        ('repeat-delete-start','lifecycle.rs','    (delay as f32 * factor) as i64\n}',
-         '    (delay as f32 * factor) as i64 - i64::from(code == DELETE)\n}'),
-        ('symbols-routing','routing.rs','VIEW_SYMBOLS => set!(0, 2),','VIEW_SYMBOLS => set!(0, 3),'),
-        ('rolling-multi-pointer','pointer.rs','    suitable(code)\n}', '    suitable(code) && code < 0\n}'),
-    ]
+    edits=CASES
     if len(sys.argv)>2:
         edits=[edit for edit in edits if edit[0]==sys.argv[2]]
         assert edits,'Unknown mutation selector'
@@ -31,8 +43,7 @@ def main():
         path=SOURCE/file
         original=path.read_bytes()
         source=original.decode()
-        # The delay expression also occurs in repeat_delay. Only the first occurrence is the start delay.
-        expected=2 if label=='repeat-delete-start' else 1
+        expected=COUNTS.get(label,1)
         assert source.count(old)==expected,'Mutation location changed: '+label
         try:
             path.write_text(source.replace(old,new,1))
@@ -60,4 +71,6 @@ def main():
     print('All input mutations restored; match tests pass',flush=True)
 
 
-if __name__=='__main__':main()
+if __name__=='__main__':
+    mutation_cases.check_flag()
+    main()

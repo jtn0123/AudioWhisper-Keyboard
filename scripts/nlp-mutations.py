@@ -9,27 +9,37 @@ import sys
 import time
 import xml.etree.ElementTree as ET
 
+sys.dont_write_bytecode = True  # importing mutation_cases would otherwise leave a __pycache__ in scripts/
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import mutation_cases
+
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / 'lib/rust/crates/nlp/src'
+# label: (file under SOURCE, old, new).
+CASES = [
+    ('accept-stale-generation', 'session.rs', 'self.pending && generation == self.generation\n',
+     'self.pending && generation <= self.generation\n'),
+    ('wrong-dedup', 'session.rs', 'v.kind == value.kind && v.text == value.text',
+     'v.kind == value.kind && v.text != value.text'),
+    ('password-suggestions', 'policy.rs', '!password && !(raw & 15 == 1 && raw & 0x80000 != 0)',
+     '(password || raw >= 0) && !(raw & 15 == 1 && raw & 0x80000 != 0)'),
+    ('wrong-auto-expand', 'session.rs', 'self.visible().is_empty() && self.inline.is_empty() || self.context.selection()',
+     'self.visible().is_empty() || self.inline.is_empty() || self.context.selection()'),
+    # The Smartbar's words hold: typing must carry it, and an empty refill must end it.
+    ('no-hold-across-keystroke', 'session.rs', 'self.carry = typing && holding;', 'self.carry = false;'),
+    ('hold-outlives-empty-refill', 'session.rs', '|| self.carry || self.pending && self.held',
+     '|| self.carry || self.held'),
+]
+
+
+def check_edits():
+    return [mutation_cases.Edit(label, SOURCE / file, old, new) for label, file, old, new in CASES]
 
 
 def main():
     output = ROOT / sys.argv[1]
     output.mkdir(parents=True, exist_ok=True)
-    mutations = [
-        ('accept-stale-generation', 'session.rs', 'self.pending && generation == self.generation\n',
-         'self.pending && generation <= self.generation\n'),
-        ('wrong-dedup', 'session.rs', 'v.kind == value.kind && v.text == value.text',
-         'v.kind == value.kind && v.text != value.text'),
-        ('password-suggestions', 'policy.rs', '!password && !(raw & 15 == 1 && raw & 0x80000 != 0)',
-         '(password || raw >= 0) && !(raw & 15 == 1 && raw & 0x80000 != 0)'),
-        ('wrong-auto-expand', 'session.rs', 'self.visible().is_empty() && self.inline.is_empty() || self.context.selection()',
-         'self.visible().is_empty() || self.inline.is_empty() || self.context.selection()'),
-        # The Smartbar's words hold: typing must carry it, and an empty refill must end it.
-        ('no-hold-across-keystroke', 'session.rs', 'self.carry = typing && holding;', 'self.carry = false;'),
-        ('hold-outlives-empty-refill', 'session.rs', '|| self.carry || self.pending && self.held',
-         '|| self.carry || self.held'),
-    ]
+    mutations = CASES
     if len(sys.argv) > 2:
         mutations = [edit for edit in mutations if edit[0] == sys.argv[2]]
         assert mutations, 'Unknown mutation selector'
@@ -64,4 +74,5 @@ def main():
 
 
 if __name__ == '__main__':
+    mutation_cases.check_flag()
     main()

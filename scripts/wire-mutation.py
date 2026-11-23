@@ -12,6 +12,11 @@ import hashlib
 import json
 from pathlib import Path
 import subprocess
+import sys
+
+sys.dont_write_bytecode = True  # importing mutation_cases would otherwise leave a __pycache__ in scripts/
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import mutation_cases
 
 ROOT = Path(__file__).resolve().parent.parent
 WIRE = 'lib/rust/crates/wire/src/'
@@ -24,12 +29,7 @@ FAMILY_TESTS = (['./gradlew', '--stacktrace', ':app:testDebugUnitTest',
                  '--tests', 'com.jtn0123.audiowhisper.dictation.*'], '.')
 
 
-def replace_once(old, new):
-    """A mutation replacing `old`, which must occur exactly once, with `new`."""
-    def change(source):
-        assert source.count(old) == 1, 'expected exactly one ' + repr(old)
-        return source.replace(old, new)
-    return change
+replace_once = mutation_cases.replace_once
 
 
 # name: (edits, command, whether it must pass, lines its log must hold, generated Kotlin to find).
@@ -56,6 +56,10 @@ CASES = {
         FAMILY_TESTS, True, ['BUILD SUCCESSFUL'],
         [('PlaybackOp.kt', 'HEARD(30)'), ('DictationEvent.kt', 'PRESS("tap")')]),
 }
+
+
+def check_edits():
+    return [mutation_cases.Edit(name, file, change=change) for name, case in CASES.items() for file, change in case[0]]
 
 
 def run(output, phase, command):
@@ -112,4 +116,5 @@ def main():
 
 
 if __name__ == '__main__':
+    mutation_cases.check_flag()
     main()

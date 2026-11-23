@@ -12,6 +12,11 @@ import hashlib
 import json
 from pathlib import Path
 import subprocess
+import sys
+
+sys.dont_write_bytecode = True  # importing mutation_cases would otherwise leave a __pycache__ in scripts/
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import mutation_cases
 
 ROOT = Path(__file__).resolve().parent.parent
 MISSING = 'Production native declarations missing from normal APK:'
@@ -32,12 +37,7 @@ def append_before_last_brace(source, text):
     return source[:at] + text + source[at:]
 
 
-def replace_once(old, new):
-    """A mutation replacing `old`, which must occur exactly once, with `new`."""
-    def change(source):
-        assert source.count(old) == 1, 'expected exactly one ' + repr(old)
-        return source.replace(old, new)
-    return change
+replace_once = mutation_cases.replace_once
 
 
 def both(first, second):
@@ -123,6 +123,11 @@ CASES = {
 }
 
 
+def check_edits():
+    return [mutation_cases.Edit(name, file, change=change)
+            for name, (edits, _) in CASES.items() for file, change in edits]
+
+
 def run(output, phase):
     with (output / (phase + '.log')).open('wb') as log:
         return subprocess.run(['./gradlew', '--stacktrace', ':app:checkNativeDeclarations'],
@@ -174,4 +179,5 @@ def main():
 
 
 if __name__ == '__main__':
+    mutation_cases.check_flag()
     main()

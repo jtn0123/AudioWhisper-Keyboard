@@ -6,8 +6,22 @@ import sys
 import time
 import xml.etree.ElementTree as ET
 
+sys.dont_write_bytecode = True  # importing mutation_cases would otherwise leave a __pycache__ in scripts/
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import mutation_cases
+
 ROOT = Path(__file__).resolve().parents[1]
 RUST = ROOT / 'lib/rust/crates'
+# label: (file under RUST, old, new, Gradle task, test class pattern).
+CASES = [
+    ('restore-version', 'backup/src/lib.rs', 'version < 64', 'version < 65', ':app:testDebugUnitTest', '*Backup*MatchTest'),
+    ('restore-conflict', 'backup/src/lib.rs', '.filter(|(_, v)| !bit(v))', '.filter(|(_, v)| bit(v))', ':app:testDebugUnitTest', '*Backup*MatchTest'),
+    ('mime-wildcard', 'utilities/src/mime.rs', 'text(r"[^\\s]+")', 'text(r"[^\\s]*")', ':lib:kotlin:test', '*MimePolicyMatchTest'),
+    ('ref-normalization', 'utilities/src/reference.rs', 'path[0] != 47', 'path[0] == 47', ':app:testDebugUnitTest', '*UtilityRulesMatchTest'),
+]
+
+def check_edits():
+    return [mutation_cases.Edit(label, RUST / filename, old, new) for label, filename, old, new, _, _ in CASES]
 
 def run(output, label, task, pattern):
     report_dir = ROOT / ('app/build/test-results/testDebugUnitTest' if task.startswith(':app:') else 'lib/kotlin/build/test-results/test')
@@ -29,14 +43,8 @@ def run(output, label, task, pattern):
 def main():
     output = ROOT / sys.argv[1]
     output.mkdir(parents=True, exist_ok=True)
-    edits = [
-        ('restore-version', 'backup/src/lib.rs', 'version < 64', 'version < 65', ':app:testDebugUnitTest', '*Backup*MatchTest'),
-        ('restore-conflict', 'backup/src/lib.rs', '.filter(|(_, v)| !bit(v))', '.filter(|(_, v)| bit(v))', ':app:testDebugUnitTest', '*Backup*MatchTest'),
-        ('mime-wildcard', 'utilities/src/mime.rs', 'text(r"[^\\s]+")', 'text(r"[^\\s]*")', ':lib:kotlin:test', '*MimePolicyMatchTest'),
-        ('ref-normalization', 'utilities/src/reference.rs', 'path[0] != 47', 'path[0] == 47', ':app:testDebugUnitTest', '*UtilityRulesMatchTest'),
-    ]
     results = []
-    for label, filename, old, new, task, pattern in edits:
+    for label, filename, old, new, task, pattern in CASES:
         path = RUST / filename
         original = path.read_bytes()
         assert original.decode().count(old) == 1, 'Mutation location changed'
@@ -59,4 +67,5 @@ def main():
     print('All four mutations restored; match suites passed', flush=True)
 
 if __name__ == '__main__':
+    mutation_cases.check_flag()
     main()

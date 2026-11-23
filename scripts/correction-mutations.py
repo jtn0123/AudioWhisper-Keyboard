@@ -13,6 +13,10 @@ import subprocess
 import sys
 import xml.etree.ElementTree as ET
 
+sys.dont_write_bytecode = True  # importing mutation_cases would otherwise leave a __pycache__ in scripts/
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import mutation_cases
+
 ROOT = Path(__file__).resolve().parents[1]
 CRATES = 'lib/rust/crates/'
 # name: (file, before, after, how to test). A test is ('cargo', package, test target or None,
@@ -218,6 +222,10 @@ def check(output, name, test):
     return status, assertions
 
 
+def check_edits():
+    return mutation_cases.table(CASES)
+
+
 def main():
     output = Path(sys.argv[1]).resolve()
     output.mkdir(parents=True, exist_ok=True)
@@ -245,4 +253,5 @@ def main():
 
 
 if __name__ == '__main__':
+    mutation_cases.check_flag()
     main()

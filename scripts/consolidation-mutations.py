@@ -5,7 +5,12 @@ import json
 from pathlib import Path
 import shutil
 import subprocess
+import sys
 import xml.etree.ElementTree as ET
+
+sys.dont_write_bytecode = True  # importing mutation_cases would otherwise leave a __pycache__ in scripts/
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import mutation_cases
 
 ROOT = Path(__file__).resolve().parent.parent
 MUTATIONS = {
@@ -23,6 +28,10 @@ MUTATIONS = {
                'index(it.first),', 'index(it.first.saturating_add(1)),',
                [':lib:rust:testDebugUnitTest', '--tests', '*ReaderRulesTest']),
 }
+
+
+def check_edits():
+    return mutation_cases.table(MUTATIONS)
 
 
 def run(output, name, arguments):
@@ -71,4 +80,5 @@ def main():
 
 
 if __name__ == '__main__':
+    mutation_cases.check_flag()
     main()

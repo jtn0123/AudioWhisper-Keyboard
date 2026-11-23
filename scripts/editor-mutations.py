@@ -10,28 +10,38 @@ import sys
 import time
 import xml.etree.ElementTree as ET
 
+sys.dont_write_bytecode = True  # importing mutation_cases would otherwise leave a __pycache__ in scripts/
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import mutation_cases
+
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / 'lib/rust/crates/editor/src'
+# label: (file under SOURCE, old, new).
+CASES = [
+    ('invalid-finalize-batch', 'edit.rs',
+     'vec![Op::simple(effect::BEGIN), Op::simple(effect::END)],',
+     'vec![Op::simple(effect::BEGIN)],'),
+    ('surrogate-offset', 'edit.rs',
+     'let length = integer(fields, 0).max(0);',
+     'let length = integer(fields, 0).max(0);\n'
+     'let length = if length == 2 && c.before().last().is_some_and(|v| (0xdc00..=0xdfff).contains(v)) { length-1 } else { length };'),
+    ('phantom-space', 'high.rs', 'let value = if phantom {', 'let value = if !phantom {'),
+    ('batch-pair', 'edit.rs',
+     'ops.extend([Op::simple(NEW_COMPOSING), Op::simple(effect::END)]);',
+     'ops.extend([Op::simple(NEW_COMPOSING), Op::simple(effect::END)]);\n'
+     'ops.retain(|op| !matches!(op.name,"begin"|"end"));'),
+    ('reconciliation', 'content.rs', '&& self.composing() == composing', ''),
+]
+
+
+def check_edits():
+    return [mutation_cases.Edit(label, SOURCE / file, old, new) for label, file, old, new in CASES]
 
 
 def main():
     output = ROOT / sys.argv[1]
     output.mkdir(parents=True, exist_ok=True)
-    edits = [
-        ('invalid-finalize-batch', 'edit.rs',
-         'vec![Op::simple(effect::BEGIN), Op::simple(effect::END)],',
-         'vec![Op::simple(effect::BEGIN)],'),
-        ('surrogate-offset', 'edit.rs',
-         'let length = integer(fields, 0).max(0);',
-         'let length = integer(fields, 0).max(0);\n'
-         'let length = if length == 2 && c.before().last().is_some_and(|v| (0xdc00..=0xdfff).contains(v)) { length-1 } else { length };'),
-        ('phantom-space', 'high.rs', 'let value = if phantom {', 'let value = if !phantom {'),
-        ('batch-pair', 'edit.rs',
-         'ops.extend([Op::simple(NEW_COMPOSING), Op::simple(effect::END)]);',
-         'ops.extend([Op::simple(NEW_COMPOSING), Op::simple(effect::END)]);\n'
-         'ops.retain(|op| !matches!(op.name,"begin"|"end"));'),
-        ('reconciliation', 'content.rs', '&& self.composing() == composing', ''),
-    ]
+    edits = CASES
     results = []
     for label, file, old, new in edits:
         path = SOURCE / file
@@ -68,4 +78,5 @@ def main():
 
 
 if __name__ == '__main__':
+    mutation_cases.check_flag()
     main()
