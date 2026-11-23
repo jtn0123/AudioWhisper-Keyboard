@@ -1,4 +1,4 @@
-//! How the GIF panel's values cross to Kotlin (`wire::gif`): a GIF as a [`row`](wire::gif::row)
+//! How the GIF panel's values cross to Kotlin (`wire::gif`): a GIF as a [`row`]
 //! of six fields, flags, numbers, and the fields of a call.
 
 use wire::flag;
