@@ -69,8 +69,9 @@ CASES = [
     ('chip-foreground-for-background', CALLS, 'out[chip::BACKGROUND] = number_text(colors.0 as i32);',
      'out[chip::BACKGROUND] = number_text(colors.1 as i32);', CHIPS),
     # The chips' colours.
-    ('chip-outside-the-window', INLINE, '        ("window", &attributes[..]),\n', '', CHIPS),
-    ('root-without-attributes', INLINE, '("root", &attributes[..]),', '("root", &[][..]),', CHIPS),
+    ('chip-outside-the-window', INLINE, '&["root", "window", "inline-autofill-chip"]',
+     '&["root", "inline-autofill-chip"]', CHIPS),
+    ('root-without-attributes', INLINE, 'matches!(*element, "root" | "window")', 'matches!(*element, "window")', CHIPS),
     ('chip-pressed', INLINE, '            selector: 0,', '            selector: 1,', CHIPS),
     ('light-and-dark-swapped', INLINE, '1.0, &light, &dark)', '1.0, &dark, &light)', CHIPS),
     ('white-default-foreground', INLINE, 'argb("foreground", FOREGROUND),', 'argb("foreground", BACKGROUND),', CHIPS),

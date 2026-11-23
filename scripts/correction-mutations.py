@@ -37,11 +37,11 @@ CASES = {
         ('cargo', 'suggest', None, 'off_never_corrects')),
     'jni-ignores-strength': (
         CRATES + 'awnative/src/suggest/session.rs',
-        'threshold: Strength::from_ordinal(strength).threshold(),', 'threshold: Strength::DEFAULT.threshold(),',
+        'threshold: Strength::from_ordinal(args.strength).threshold(),', 'threshold: Strength::DEFAULT.threshold(),',
         ('gradle', ':app', '*LatinImeJniTest')),
     'kotlin-ignores-setting': (
         'app/src/main/kotlin/com/jtn0123/audiowhisper/suggest/LatinSuggester.kt',
-        'maxCount, strength().ordinal,', 'maxCount, AutoCorrectStrength.NORMAL.ordinal,',
+        'maxCount, inputs.strength.ordinal,', 'maxCount, AutoCorrectStrength.NORMAL.ordinal,',
         ('gradle', ':app', '*LatinImeJniTest')),
     # Backspace undoes an auto-correction.
     'late-updates-count-as-new': (
@@ -115,7 +115,7 @@ CASES = {
         ('cargo', 'nlp', None, 'each_kind_of_field')),
     'kept-word-remembered-anywhere': (
         CRATES + 'nlp/src/policy.rs',
-        '        self.prose() && !self.flag(7)\n', '        !self.flag(7)\n',
+        '        self.prose() && !self.flag(context::INCOGNITO)\n', '        !self.flag(context::INCOGNITO)\n',
         ('cargo', 'nlp', None, 'a_kept_word_is_remembered')),
     'phantom-space-in-any-field': (
         CRATES + 'spacing/src/spaces.rs',
@@ -129,16 +129,16 @@ CASES = {
         ('cargo', 'nlp', None, 'each_kind_of_field')),
     'address-corrected-unasked': (
         CRATES + 'nlp/src/policy.rs',
-        'let asks = int(&self.0, 0) & AUTO_CORRECT != 0;', 'let asks = true;',
+        'let asks = self.input_type() & AUTO_CORRECT != 0;', 'let asks = true;',
         ('cargo', 'nlp', None, 'each_kind_of_field')),
     'asking-address-learned': (
         CRATES + 'nlp/src/policy.rs',
-        'self.prose() && self.flag(6) && !self.flag(7) && !self.flag(1)',
-        'self.autocorrect() && self.flag(6) && !self.flag(7) && !self.flag(1)',
+        '        self.prose()\n            && self.flag(context::LEARN)\n',
+        '        self.autocorrect()\n            && self.flag(context::LEARN)\n',
         ('gradle', ':app', '*FieldKindFlowTest')),
     'asking-address-teaches-aim': (
-        CRATES + 'nlp/src/protocol.rs',
-        '                    && self.context.prose()\n', '                    && self.context.autocorrect()\n',
+        CRATES + 'nlp/src/typing.rs',
+        '            && self.context.prose()\n', '            && self.context.autocorrect()\n',
         ('cargo', 'nlp', None, 'aim')),
     'asking-address-not-spaced': (
         CRATES + 'spacing/src/spaces.rs',
@@ -152,7 +152,8 @@ CASES = {
         ('cargo', 'spacing', None, 'address')),
     'jni-drops-input-type': (
         CRATES + 'awnative/src/spacing.rs',
-        '            selection_start,\n            input_type,\n', '            selection_start,\n            input_type: input_type & 0,\n',
+        '        input_type: args.input_type,\n    };\n    let commit = ask(',
+        '        input_type: args.input_type & 0,\n    };\n    let commit = ask(',
         ('gradle', ':app', '*SpacingMatchTest')),
     'editor-drops-input-type': (
         CRATES + 'editor/src/high.rs',

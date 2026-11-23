@@ -24,7 +24,7 @@ CRATES = RUNNER.CRATES
 BOUNDS = CRATES + 'awnative/src/surface_bounds.rs'
 SUGGESTER = 'app/src/main/kotlin/com/jtn0123/audiowhisper/suggest/LatinSuggester.kt'
 VOICES = CRATES + 'reader/src/voices.rs'
-READER = 'lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/Reader.kt'
+READER = CRATES + 'awnative/src/reader.rs'
 OFFLINE_VOICE = 'app/src/main/kotlin/com/jtn0123/audiowhisper/reader/OfflineVoice.kt'
 IME_WINDOW = CRATES + 'awnative/src/ime_window.rs'
 INPUT_VIEW = 'app/src/main/kotlin/com/jtn0123/audiowhisper/render/InputViewVisibility.kt'
@@ -86,10 +86,7 @@ CASES = {
         ('cargo', 'reader', None, 'voices')),
     'read-aloud-facts-packed-swapped': (
         READER,
-        '            numbers[at] = if (voice.needsNetwork) 1 else 0\n'
-        '            numbers[at + 1] = if (voice.installed) 1 else 0\n',
-        '            numbers[at] = if (voice.installed) 1 else 0\n'
-        '            numbers[at + 1] = if (voice.needsNetwork) 1 else 0\n',
+        '&[network, installed, quality, latency]', '&[installed, network, quality, latency]',
         ('gradle', ':app', '*OfflineVoiceTest')),
     'read-aloud-default-forgotten': (
         OFFLINE_VOICE,

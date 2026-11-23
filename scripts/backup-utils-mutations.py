@@ -15,7 +15,7 @@ RUST = ROOT / 'lib/rust/crates'
 # label: (file under RUST, old, new, Gradle task, test class pattern).
 CASES = [
     ('restore-version', 'backup/src/lib.rs', 'version < 64', 'version < 65', ':app:testDebugUnitTest', '*Backup*MatchTest'),
-    ('restore-conflict', 'backup/src/lib.rs', '.filter(|(_, v)| !bit(v))', '.filter(|(_, v)| bit(v))', ':app:testDebugUnitTest', '*Backup*MatchTest'),
+    ('restore-conflict', 'backup/src/lib.rs', '.filter(|(_, v)| !flag::decode(v))', '.filter(|(_, v)| flag::decode(v))', ':app:testDebugUnitTest', '*Backup*MatchTest'),
     ('mime-wildcard', 'utilities/src/mime.rs', 'text(r"[^\\s]+")', 'text(r"[^\\s]*")', ':lib:kotlin:test', '*MimePolicyMatchTest'),
     ('ref-normalization', 'utilities/src/reference.rs', 'path[0] != 47', 'path[0] == 47', ':app:testDebugUnitTest', '*UtilityRulesMatchTest'),
 ]

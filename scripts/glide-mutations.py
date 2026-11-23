@@ -56,7 +56,8 @@ CASES = {
         ('cargo', 'render', 'glide_times', '')),
     'jni-scores-as-original': (
         CRATES + 'awnative/src/glide.rs',
-        'score(env, query, to, &Tuning::DEFAULT)', 'score(env, query, to, &Tuning::ORIGINAL)',
+        'scored(env, query, (candidates, frequencies, max), &Tuning::DEFAULT)',
+        'scored(env, query, (candidates, frequencies, max), &Tuning::ORIGINAL)',
         ('gradle', ':lib:rust', '*GlideIndexTest')),
     'index-drops-times': (
         'app/src/main/kotlin/dev/patrickgold/florisboard/ime/text/gestures/SwipeIndex.kt',

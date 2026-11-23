@@ -106,6 +106,13 @@ CASES = [
      'row[ENABLED] = WireFlag.encode(action != null)', [BAR_MATCH]),
 ]
 JVM = {TRACE: ['*TypingTraceMatchTest', '*TypingEventsTest'], BAR_MATCH: ['*SmartbarActionsMatchTest']}
+# Known stale (scripts/mutation_cases.py): --check and checkMutationCases fail once either applies again.
+STALE = {
+    'key-label-dropped': 'c66e98a04 replaced its line in RendererSmartbar.kt when the renderer took its keys from '
+                         'the Rust key graph; the render-path agent is repointing it on its branch',
+    'disabled-keys-enabled': 'c66e98a04 replaced its line in RendererSmartbar.kt when the renderer took its keys '
+                             'from the Rust key graph; the render-path agent is repointing it on its branch',
+}
 REPORTS = ROOT / 'app/build/test-results/testDebugUnitTest'
 
 

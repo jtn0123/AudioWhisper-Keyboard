@@ -107,8 +107,8 @@ CASES = {
         ('cargo', 'render', 'fast_typing', '')),
     'compose-space-never-rolls': (
         CRATES + 'awnative/src/input.rs',
-        '[code, still] => input::pointer::rolls(*code as i32, *still != 0.0),',
-        '[code, _] => input::pointer::rolls(*code as i32, false),',
+        '[code, still] => input::pointer::rolls(code as i32, still != 0.0),',
+        '[code, _] => input::pointer::rolls(code as i32, false),',
         ('gradle', ':app', '*InputPolicyMatchTest')),
 }
 

@@ -25,7 +25,7 @@ MUTATIONS = {
               'let pair_count = ask(Query::Pair(previous, word))?.saturating_mul(0);',
               [':app:testDebugUnitTest', '--tests', '*BoundaryGlideMatchTest']),
     'reader': ('lib/rust/crates/awnative/src/reader.rs',
-               'index(it.first),', 'index(it.first.saturating_add(1)),',
+               'decimal(it.first),', 'decimal(it.first.saturating_add(1)),',
                [':lib:rust:testDebugUnitTest', '--tests', '*ReaderRulesTest']),
 }
 

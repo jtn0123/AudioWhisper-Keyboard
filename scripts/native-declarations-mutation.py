@@ -48,11 +48,11 @@ def both(first, second):
 # name: ([(file, mutate the source)], lines the failing check must print).
 CASES = {
     'declaration-hand-written': (
-        [(KOTLIN + 'Gif.kt', lambda source: source + (
+        [(KOTLIN + 'RustLibrary.kt', lambda source: source + (
             '\ninternal object MutationNative {\n'
             '    @JvmStatic external fun mutationHandWritten(): Int\n}\n'))],
         [HAND_WRITTEN, MISSING, NO_ENTRY_POINT,
-         JNI + 'MutationNative_mutationHandWritten (' + KOTLIN + 'Gif.kt)']),
+         JNI + 'MutationNative_mutationHandWritten (' + KOTLIN + 'RustLibrary.kt)']),
     'export-without-declaration': (
         [(AWNATIVE + 'reader.rs', lambda source: source + '\n#[unsafe(no_mangle)]\npub extern "system" fn '
           'Java_com_jtn0123_audiowhisper_rust_ReaderNative_mutationUndeclared() {}\n')],
