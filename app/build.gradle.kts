@@ -329,10 +329,6 @@ dependencies {
 
     testImplementation(libs.kotlin.test.junit5)
     testImplementation(libs.icu4j)
-    // SettingsLicencesMatchTest runs AboutLibraries' AndroidParser (org.json) and the TagSoup
-    // release Html.fromHtml parses with.
-    testImplementation(libs.org.json)
-    testImplementation(libs.tagsoup)
     fixtureAnnotationSource(libs.errorprone.annotations)
     androidTestImplementation(files(fixtureAnnotations))
     androidTestImplementation(libs.androidx.test.ext)

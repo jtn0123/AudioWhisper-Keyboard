@@ -9,9 +9,10 @@ import kotlin.random.Random
 import kotlin.test.*
 
 /**
- * ThirdPartyLicensesScreen as Rust draws it, against [ReferenceLicenceScreens]: every row's text,
- * role, enabled state and badges in AboutLibraries' order, every license dialog's text and
- * button, and the `load` plan that asks Kotlin for the resource.
+ * ThirdPartyLicensesScreen as Rust draws it: every row's text, role, enabled state and badges in
+ * AboutLibraries' order, every license dialog's text and button, and the `load` plan that asks
+ * Kotlin for the resource. The rows and dialogs are held to golden tapes written from the frozen
+ * AboutLibraries 15.3.0 and Html.fromHtml reference (docs/phase6-kotlin-references.md).
  */
 class SettingsLicencesMatchTest {
     private val font = File("../fastlane/staging/fonts/Roboto-Light.ttf").absolutePath
@@ -83,17 +84,13 @@ class SettingsLicencesMatchTest {
     }
 
     @Test fun everyRowsTextRoleEnabledStateAndBadgesMatchAboutLibraries() {
-        val tape = GoldenTape.ofReference("settings-licence-rows")
+        val tape = GoldenTape("settings-licence-rows")
         for (seed in 0 until 12) KeyboardRenderer(arrayOf(font)).use { n ->
-            val json = resource(seed, 60)
-            val expected = ReferenceLicenceScreens.rows(json)
-            tape.answer("seed $seed rows", expected.size)
-            for (row in expected) tape.answer("row", listOf(row.name, listOfNotNull(row.version, row.author).plus(row.badges).joinToString(", ")))
-            val rows = nodes(open(n, json)).filter { it.int("id") >= rowId }
-            assertEquals(expected.indices.map { rowId + it }, rows.map { it.int("id") }, "seed $seed")
-            for ((node, row) in rows.zip(expected)) {
-                assertEquals(row.name, node.text("label"), "seed $seed")
-                assertEquals(listOfNotNull(row.version, row.author).plus(row.badges).joinToString(", "), node.text("state"), "seed $seed ${row.name}")
+            val rows = nodes(open(n, resource(seed, 60))).filter { it.int("id") >= rowId }
+            tape.answer("seed $seed rows", rows.size)
+            assertEquals(rows.indices.map { rowId + it }, rows.map { it.int("id") }, "seed $seed")
+            for (node in rows) {
+                tape.answer("row", listOf(node.text("label"), node.text("state")))
                 assertEquals("card", node.text("role"))
                 assertTrue(node.getValue("enabled").jsonPrimitive.boolean)
                 assertEquals(listOf(1), node.getValue("actions").jsonArray.map { it.jsonPrimitive.int })
@@ -103,19 +100,16 @@ class SettingsLicencesMatchTest {
     }
 
     @Test fun everyLicenseDialogShowsTheTextFromHtmlGivesAndAnOkButton() {
-        val tape = GoldenTape.ofReference("settings-licence-dialogs")
+        val tape = GoldenTape("settings-licence-dialogs")
         for (seed in 0 until 6) KeyboardRenderer(arrayOf(font)).use { n ->
-            val json = resource(100 + seed, 40)
-            val expected = ReferenceLicenceScreens.rows(json)
-            open(n, json)
-            tape.answer("seed $seed rows", expected.size)
-            for ((j, row) in expected.withIndex()) {
-                tape.answer("dialog $j", listOfNotNull(row.dialog))
+            val rows = nodes(open(n, resource(100 + seed, 40))).filter { it.int("id") >= rowId }
+            tape.answer("seed $seed rows", rows.size)
+            for (j in rows.indices) {
                 val dialog = state(n, SettingsUiOp.ACTIVATE, (rowId + j).toString())
                 assertTrue(dialog.getValue("popup").jsonPrimitive.boolean)
                 val shown = nodes(dialog)
                 val body = shown.filter { it.int("id") == 9 }
-                assertEquals(listOfNotNull(row.dialog), body.map { it.text("label") }, "seed $seed row $j")
+                tape.answer("dialog $j", body.map { it.text("label") })
                 body.forEach { assertEquals("text", it.text("role")) }
                 val ok = shown.single { it.int("id") == 7 }
                 assertEquals(strings.getValue("action__ok"), ok.text("label"))
@@ -138,16 +132,14 @@ class SettingsLicencesMatchTest {
             "funding":[{"platform":"GitHub","url":"https://z"}]}],"licenses":{"Apache-2.0":{"name":"Apache License 2.0",
             "url":"https://a","content":"Apache License\nVersion 2.0, January 2004\n\n   TERMS"},"icu4c":{"name":"ICU4C License",
             "url":"https://b","content":"COPYRIGHT AND PERMISSION NOTICE (ICU 58 and later)\n\nCopyright © 2016"}}}"""
-        val tape = GoldenTape.ofReference("settings-licence-shape")
+        val tape = GoldenTape("settings-licence-shape")
         KeyboardRenderer(arrayOf(font)).use { n ->
-            val expected = ReferenceLicenceScreens.rows(json)
             val rows = nodes(open(n, json)).filter { it.int("id") >= rowId }
-            assertEquals(expected.map { it.name }, rows.map { it.text("label") })
-            tape.answer("names", expected.map { it.name })
-            assertEquals("Apache License\nVersion 2.0, January 2004\n\nTERMS", expected[0].dialog)
-            for (j in expected.indices) {
-                assertEquals(expected[j].dialog, nodes(state(n, SettingsUiOp.ACTIVATE, (rowId + j).toString())).single { it.int("id") == 9 }.text("label"))
-                tape.answer("dialog $j", expected[j].dialog)
+            tape.answer("names", rows.map { it.text("label") })
+            for (j in rows.indices) {
+                val dialog = nodes(state(n, SettingsUiOp.ACTIVATE, (rowId + j).toString())).single { it.int("id") == 9 }.text("label")
+                if (j == 0) assertEquals("Apache License\nVersion 2.0, January 2004\n\nTERMS", dialog)
+                tape.answer("dialog $j", dialog)
                 state(n, SettingsUiOp.ACTIVATE, "7")
             }
         }
