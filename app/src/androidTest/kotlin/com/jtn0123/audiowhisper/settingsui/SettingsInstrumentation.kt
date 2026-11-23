@@ -1,7 +1,9 @@
 package com.jtn0123.audiowhisper.settingsui
 
 import android.app.Activity
+import android.app.Application
 import android.app.Instrumentation
+import android.content.Context
 import android.os.Bundle
 import android.os.SystemClock
 import android.view.accessibility.AccessibilityNodeInfo as Node
@@ -22,13 +24,22 @@ class SettingsInstrumentation : Instrumentation() {
         super.callActivityOnSaveInstanceState(activity, outState)
         if (outState.getStringArray("rust-settings-state") != null) savedActivity = activity
     }
+    /**
+     * Crash mode's library failure, forced before the application and its content providers start:
+     * a provider that reached the library first would load it for real. Arguments only arrive after
+     * the providers, so the harness asks for it with a file, used once.
+     */
+    override fun newApplication(cl: ClassLoader?, className: String?, context: Context): Application {
+        if (File(context.filesDir, LOAD_FAILURE).delete()) {
+            check(!NativeRuntime.load { throw UnsatisfiedLinkError("fixture payload must never be reported") })
+        }
+        return super.newApplication(cl, className, context)
+    }
     private var stage = "bootstrap"
     override fun onCreate(arguments: Bundle?) {
         super.onCreate(arguments)
         options = arguments ?: Bundle()
-        if (options.getString("mode") == "crash") {
-            check(!NativeRuntime.load { throw UnsatisfiedLinkError("fixture payload must never be reported") })
-        }
+        if (options.getString("mode") == "crash") check(NativeRuntime.failure != null) { "crash mode starts with files/$LOAD_FAILURE" }
         start()
     }
     override fun onStart() {
@@ -261,23 +272,29 @@ class SettingsInstrumentation : Instrumentation() {
      */
     private fun crashDialogWithoutLibrary(h: SettingsHarness, report: JSONObject) {
         val dir = File(targetContext.noBackupFilesDir, "unhandled_stacktraces")
+        // A synthetic report, so that keeping them is shown on one at least; taken away after.
+        val planted = File(dir.apply { mkdirs() }, "1.stacktrace").apply { writeText("synthetic\n") }
         val before = dir.list().orEmpty().size
-        val dialog = startActivitySync(android.content.Intent(targetContext, dev.patrickgold.florisboard.lib.crashutility.CrashDialogActivity::class.java)
-            .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK))
-        h.main {
-            fun texts(view: android.view.View): List<String> = when (view) {
-                is android.view.ViewGroup -> (0 until view.childCount).flatMap { texts(view.getChildAt(it)) }
-                is android.widget.TextView -> listOf(view.text.toString())
-                else -> emptyList()
+        try {
+            val dialog = startActivitySync(android.content.Intent(targetContext, dev.patrickgold.florisboard.lib.crashutility.CrashDialogActivity::class.java)
+                .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK))
+            h.main {
+                fun texts(view: android.view.View): List<String> = when (view) {
+                    is android.view.ViewGroup -> (0 until view.childCount).flatMap { texts(view.getChildAt(it)) }
+                    is android.widget.TextView -> listOf(view.text.toString())
+                    else -> emptyList()
+                }
+                val shown = texts(dialog.window.decorView)
+                check(dialog.findViewById<android.view.View>(dev.patrickgold.florisboard.R.id.stacktrace) == null)
+                check(shown.any { it.contains("could not load its keyboard engine") })
+                check(shown.none { it.contains("Environment information") })
+                dialog.finish()
             }
-            val shown = texts(dialog.window.decorView)
-            check(dialog.findViewById<android.view.View>(dev.patrickgold.florisboard.R.id.stacktrace) == null)
-            check(shown.any { it.contains("could not load its keyboard engine") })
-            check(shown.none { it.contains("Environment information") })
-            dialog.finish()
+            check(dir.list().orEmpty().size == before)
+            report.put("crash_dialog_without_library", true).put("crash_reports_kept", before)
+        } finally {
+            planted.delete()
         }
-        check(dir.list().orEmpty().size == before)
-        report.put("crash_dialog_without_library", true).put("crash_reports_kept", before)
     }
 
     private fun violations(screens: JSONArray): Int = (0 until screens.length()).sumOf { i ->
@@ -285,6 +302,8 @@ class SettingsInstrumentation : Instrumentation() {
         (0 until items.length()).sumOf { items.getJSONObject(it).getJSONArray("violations").length() }
     }
     companion object {
+        /** In the app's files: crash mode's library failure, asked for (see newApplication). */
+        const val LOAD_FAILURE = "settings-load-failure"
         fun digest(bytes: ByteArray): String = MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { "%02x".format(it) }
     }
 }

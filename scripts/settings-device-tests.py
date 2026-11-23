@@ -47,6 +47,9 @@ def main():
 
     def run(mode, label=None):
         fixture()
+        if mode == 'crash':
+            # The library has to fail before the app starts: the instrumentation takes this file as the ask.
+            d.adb('shell', 'run-as', MODULE.PKG, 'touch', 'files/settings-load-failure')
         name = f'rust-{label or mode}'
         result = subprocess.run(['adb', '-s', d.serial, 'shell', 'am', 'instrument', '-w', '-e', 'mode', mode, COMPONENT], check=True, capture_output=True, timeout=1200).stdout
         (d.output / f'{name}.log').write_bytes(result)
@@ -151,7 +154,7 @@ def main():
         d.cleanup()
         for name in ('settings-death-ready', 'settings-death-result.json', 'settings-death-expected.json', 'settings-death-arm',
                      'settings-device-ui.json', 'settings-device-text.json', 'settings-device-crash.json',
-                     'settings-device-other-theme.json', 'settings-device-failure.json'):
+                     'settings-device-other-theme.json', 'settings-device-failure.json', 'settings-load-failure'):
             d.adb('shell', 'run-as', MODULE.PKG, 'rm', '-f', 'files/' + name)
     print('Settings action sequences and exact file restoration passed')
     if not accessibility_passed:
