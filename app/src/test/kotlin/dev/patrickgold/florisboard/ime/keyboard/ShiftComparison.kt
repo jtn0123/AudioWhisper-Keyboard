@@ -1,5 +1,6 @@
 package dev.patrickgold.florisboard.ime.keyboard
 
+import com.jtn0123.audiowhisper.golden.GoldenTape
 import dev.patrickgold.florisboard.ime.editor.InputAttributes
 import dev.patrickgold.florisboard.ime.input.CapitalizationBehavior
 import dev.patrickgold.florisboard.ime.input.InputShiftState
@@ -9,9 +10,10 @@ import kotlin.random.Random
  * Puts the shift key in Rust ([ShiftLogic], and the double tap of `InputEventDispatcher`) up against
  * the Kotlin it replaced, [ReferenceShift], wherever this runs: the JVM's tests and, copied in for a
  * check, the phone. It records each difference and how often each outcome was seen, so a caller can
- * tell the runs reached them all.
+ * tell the runs reached them all. The reference's answers also go on [tape]
+ * (docs/phase6-kotlin-references.md).
  */
-class ShiftComparison {
+class ShiftComparison(private val tape: GoldenTape) {
     val differences = mutableListOf<String>()
     val seen = mutableMapOf<String, Int>()
 
@@ -30,6 +32,7 @@ class ShiftComparison {
     )
 
     private fun check(what: String, input: String, kotlin: Any?, rust: Any?) {
+        tape.answer(what, kotlin)
         if (kotlin != rust && differences.size < MAX_DIFFERENCES) differences += "$what($input): kotlin $kotlin, rust $rust"
     }
 

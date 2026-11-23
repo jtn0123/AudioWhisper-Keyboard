@@ -1,0 +1,21 @@
+# composing-telex: the answers the frozen Kotlin reference gave (docs/phase6-kotlin-references.md).
+# Their count, the digest after the last, and after each power of two (at N).
+count 80000
+digest d71588d03dd5058c
+at 1 741d1c7f7e9d1c76
+at 2 001c0c0c5006ed1a
+at 4 23bfe673479b0fc7
+at 8 064bdd546de9a1fa
+at 16 8b668ba544cb9d6d
+at 32 47a94ee3d4f5544a
+at 64 292bf84c5c116926
+at 128 b39c234029b57955
+at 256 003126201de52901
+at 512 6762f86bcc53e20a
+at 1024 9c56ecfde576ca53
+at 2048 c5215f47adff3b77
+at 4096 8adee2de0e413459
+at 8192 dfed291fbfcff60d
+at 16384 693db9d6d3c94a60
+at 32768 980e1027b2f37a4b
+at 65536 b66d6db6e0ff35bf

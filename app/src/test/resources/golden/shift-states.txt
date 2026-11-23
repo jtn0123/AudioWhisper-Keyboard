@@ -1,0 +1,22 @@
+# shift-states: the answers the frozen Kotlin reference gave (docs/phase6-kotlin-references.md).
+# Their count, the digest after the last, and after each power of two (at N).
+count 212288
+digest 01650b7b50719d14
+at 1 4f3602a936aa3da4
+at 2 3e8a97ea4291825d
+at 4 3f1ab9ddcf935915
+at 8 e8a926877139efc5
+at 16 bf28e870db49e9e5
+at 32 62b6e6307cd1c8a5
+at 64 cd7cb92c467c9025
+at 128 3ffe8d0360025765
+at 256 842f6bf1c428efe5
+at 512 43f92681e4bb54a5
+at 1024 51741b16bf252ca5
+at 2048 ea23bd1471c4b0a5
+at 4096 6dcfaa7f70853c25
+at 8192 6490501bfee5d225
+at 16384 25f7a0f333205883
+at 32768 114bdd8e70a9c918
+at 65536 cad00655f2718b89
+at 131072 19c521a0b8cfe4f1

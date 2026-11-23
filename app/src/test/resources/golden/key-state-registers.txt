@@ -1,0 +1,22 @@
+# key-state-registers: the answers the frozen Kotlin reference gave (docs/phase6-kotlin-references.md).
+# Their count, the digest after the last, and after each power of two (at N).
+count 171072
+digest b37bd9868230a69d
+at 1 b8e7bd51e92f771d
+at 2 ec0f0ea152873f06
+at 4 4f187481e42a3874
+at 8 21171c53a3e82ee3
+at 16 c3a0ea7d99207122
+at 32 a495b9b318f9235b
+at 64 3767c296b43ca5ce
+at 128 7c5f61ef010c811c
+at 256 1f9a1c656568f1ff
+at 512 26708ba1c3a55bd8
+at 1024 2e6dd49747d1eb49
+at 2048 8ec49c4985a7d883
+at 4096 d007b1f21a676c46
+at 8192 7c02e632431e731c
+at 16384 0e23237adab5cfb8
+at 32768 41bcf617eb426976
+at 65536 eb4a4717b48097b4
+at 131072 fb808dcdc0320cae

@@ -1,0 +1,20 @@
+# key-selectors-seeded: the answers the frozen Kotlin reference gave (docs/phase6-kotlin-references.md).
+# Their count, the digest after the last, and after each power of two (at N).
+count 40000
+digest fafad46da3b1ed3d
+at 1 0b3004cc0f4c6121
+at 2 74f67f20c99ff589
+at 4 edba5df8a8dab548
+at 8 9f7e761e9f84c12a
+at 16 b44321e9c6be9894
+at 32 0f9046ffb5ec54ac
+at 64 47fda81dc531dd98
+at 128 5b73d1236b7af25f
+at 256 83ecd7b62ae0c705
+at 512 9db50b5e11302bea
+at 1024 739b5da6b8c9df1a
+at 2048 b3ebb02ef4b5696d
+at 4096 6c87f903aad15048
+at 8192 fa383b4177a9dac8
+at 16384 9f48edcdefbc46e6
+at 32768 8e869ebef4335c5e

@@ -1,0 +1,26 @@
+# layout-cache: the answers the frozen Kotlin reference gave (docs/phase6-kotlin-references.md).
+# Their count, the digest after the last, and after each power of two (at N).
+count 2880000
+digest 80552e22572dfd1a
+at 1 e117ee1d4c93e6f1
+at 2 f25bb734fa2a69c5
+at 4 9febe0a317cc20e5
+at 8 e370ba291e7d7ba5
+at 16 72d974ca8fbc1225
+at 32 88d087ccee115e49
+at 64 31a14699e730c049
+at 128 89b46b4605d8f455
+at 256 2f3d6b4c1ad5f469
+at 512 346ed87480f058f8
+at 1024 92918d55dd25546a
+at 2048 d84535ed57d00edd
+at 4096 08b588b7e33cad38
+at 8192 cbbfc3959716874d
+at 16384 efcb9126f98083c1
+at 32768 116f10a38b314be4
+at 65536 90dbbd6fc99729e7
+at 131072 1b1c3aab9a393fcc
+at 262144 79f40db1edcab09c
+at 524288 06176545e1f6c178
+at 1048576 e1e97298a687982d
+at 2097152 6f89fe5b4a9ecb98

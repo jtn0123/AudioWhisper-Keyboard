@@ -1,0 +1,21 @@
+# composing-every-unit: the answers the frozen Kotlin reference gave (docs/phase6-kotlin-references.md).
+# Their count, the digest after the last, and after each power of two (at N).
+count 131070
+digest 2d5e466b84218821
+at 1 7ee5e7f219fb2450
+at 2 f0c82f13d5709f78
+at 4 705851fe5f2e753b
+at 8 46bca07c2425bd94
+at 16 0c4bbef02ccf9fd7
+at 32 0351c9f58a3e6967
+at 64 27a1ba30e3be02c4
+at 128 d3f7189e293adb4b
+at 256 b931d5461a8092b4
+at 512 22925a078edc86a8
+at 1024 95637cf94689829a
+at 2048 3d739665152a44e9
+at 4096 735780d1326bc8cc
+at 8192 97a1632755207c0d
+at 16384 f8d2a8089ad9e969
+at 32768 eb6623d524a0e4ab
+at 65536 dc677997a2a447a4

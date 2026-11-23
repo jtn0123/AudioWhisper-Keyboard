@@ -1,0 +1,20 @@
+# key-currency-bundled: the answers the frozen Kotlin reference gave (docs/phase6-kotlin-references.md).
+# Their count, the digest after the last, and after each power of two (at N).
+count 52106
+digest 817377f92c63f47d
+at 1 3051b74bc3902f67
+at 2 7859513c365c1fd3
+at 4 63e61d70d11c6fd3
+at 8 de1c11beab50a844
+at 16 308aaec75c45d210
+at 32 7f828662460478eb
+at 64 df8bf956de928117
+at 128 447205c78696a310
+at 256 1751ddf197a80091
+at 512 1cd494ad04f3662b
+at 1024 cc4972e1a8d6104a
+at 2048 6777106fcd25770f
+at 4096 d2af789b898bd457
+at 8192 74858924bca72ab3
+at 16384 b2be0b9c2a2466aa
+at 32768 7947ec01de5c2414

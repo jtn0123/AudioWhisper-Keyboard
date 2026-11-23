@@ -1,0 +1,22 @@
+# key-state-setters: the answers the frozen Kotlin reference gave (docs/phase6-kotlin-references.md).
+# Their count, the digest after the last, and after each power of two (at N).
+count 172813
+digest 01fa69f93cc6ba0e
+at 1 2ae57a16917a83b5
+at 2 b4998f5a82ebe916
+at 4 49fd8d73caec39ff
+at 8 dc813ca437455ad9
+at 16 8ef9fae9b479c566
+at 32 c69f183e7ed528b5
+at 64 3164824f8b1f3bae
+at 128 c175cf8a685cb09a
+at 256 29200ccdf92682c5
+at 512 b70e2c3e90ad7ab7
+at 1024 1554f369462cfd4c
+at 2048 bc84ba744e016ded
+at 4096 5d5ab14540e957fd
+at 8192 ee0065a16caa3e3f
+at 16384 0958d01164552045
+at 32768 6c57efa42a2d7d9b
+at 65536 4769b7f781dddae6
+at 131072 6ea7796c4e39fff3

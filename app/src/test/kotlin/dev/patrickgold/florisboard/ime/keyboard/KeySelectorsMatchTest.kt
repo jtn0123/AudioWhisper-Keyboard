@@ -1,5 +1,6 @@
 package dev.patrickgold.florisboard.ime.keyboard
 
+import com.jtn0123.audiowhisper.golden.GoldenTape
 import dev.patrickgold.florisboard.ime.text.keyboard.AutoTextKeyData
 import dev.patrickgold.florisboard.ime.text.keyboard.MultiTextKeyData
 import dev.patrickgold.florisboard.ime.text.keyboard.TextKeyData
@@ -13,8 +14,10 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
+/** The reference's answers also go on golden tapes (docs/phase6-kotlin-references.md). */
 class KeySelectorsMatchTest {
     @Test fun bundledLayoutsAndPopupsMatchInEverySelectorState() {
+        val tape = GoldenTape.ofReference("key-selectors-bundled")
         val root = File("src/main/assets/ime/keyboard")
         val files = root.walkTopDown().filter { it.isFile && it.extension == "json" }.sortedBy { it.path }.toList()
         assertTrue(files.isNotEmpty())
@@ -29,23 +32,28 @@ class KeySelectorsMatchTest {
                     val raw = (shift.toLong() shl 8) or (variation.toLong() shl 4) or
                         (direction.toLong() shl 27) or (width.toLong() shl 21)
                     val evaluator = evaluator(raw)
+                    tape.answer("compute", content(reference.compute(evaluator)))
                     assertEquals(signature(reference.compute(evaluator)), signature(data.compute(evaluator)),
                         "bundled key $nodes state $raw")
                     checks++
                 }
             }
         }
+        tape.finish()
         assertTrue(layouts > 50); assertTrue(nodes > 1_000)
         println("Key selectors: $layouts bundled layouts, ${files.size} JSON files, $nodes nodes, $checks state cases")
     }
 
     @Test fun seededNestedSelectorsAndNullFallbacksMatch() {
+        val tape = GoldenTape.ofReference("key-selectors-seeded")
         val random = Random(20261112)
         repeat(40_000) {
             val data = randomNode(random, 3)
             val evaluator = evaluator(random.nextLong())
+            tape.answer("compute", content(reference(data).compute(evaluator)))
             assertEquals(signature(reference(data).compute(evaluator)), signature(data.compute(evaluator)))
         }
+        tape.finish()
     }
 
     private fun keyNodes(value: JsonElement): Sequence<JsonObject> = sequence {
@@ -129,5 +137,11 @@ class KeySelectorsMatchTest {
 
     private fun signature(data: KeyData?): List<Any?>? = data?.let {
         listOf(it.type, it.code, it.label, it.groupId, it.popup, (it as? MultiTextKeyData)?.codePoints?.toList())
+    }
+
+    /** [signature] with the popup's keys for the popup, which has no `toString` of its content. */
+    private fun content(data: KeyData?): List<Any?>? = data?.let {
+        listOf(it.type, it.code, it.label, it.groupId, it.popup?.let { popup -> listOf(popup.main, popup.relevant) },
+            (it as? MultiTextKeyData)?.codePoints?.toList())
     }
 }

@@ -1,0 +1,21 @@
+# composing-rules: the answers the frozen Kotlin reference gave (docs/phase6-kotlin-references.md).
+# Their count, the digest after the last, and after each power of two (at N).
+count 75720
+digest b655b34215d650ca
+at 1 97cc257eded25e85
+at 2 4164ae57d08b5cfc
+at 4 1d11005059033940
+at 8 6d7261327a3cbdbc
+at 16 2ab98d3cef56fb80
+at 32 4072591851526cea
+at 64 85591e098aa63776
+at 128 88e73c99e729faca
+at 256 2c494df09f9d242b
+at 512 0aace8c0a04377b1
+at 1024 9299b9878cd9a042
+at 2048 e0ff498cf9716ffe
+at 4096 1d5179d06ace1f12
+at 8192 a92044f784b9ec3d
+at 16384 5e77f1be6992fe60
+at 32768 e5de67b2af1aa6ab
+at 65536 390b2c055c3e7885

@@ -1,0 +1,23 @@
+# key-selectors-bundled: the answers the frozen Kotlin reference gave (docs/phase6-kotlin-references.md).
+# Their count, the digest after the last, and after each power of two (at N).
+count 467200
+digest 1fd177be17fb9269
+at 1 53460dac299a1716
+at 2 a9a71ce1a9e311b9
+at 4 343fccfe4fff69ed
+at 8 626f9170f7f5beb5
+at 16 25bef89a280cbc45
+at 32 59628c0ccc0e0165
+at 64 7385906bc7668fa5
+at 128 f80b3fbc184d3125
+at 256 ca78bb7d370f1d25
+at 512 27ce5859e3dbfa65
+at 1024 1dba7bbb48438185
+at 2048 2b54c1ca0e0fe965
+at 4096 e5c48ebec80a9e45
+at 8192 cdff9281df46dce5
+at 16384 35f7793ce824077d
+at 32768 babf3beef363b4d5
+at 65536 e9b666c9142fc28d
+at 131072 54cac8ec373b9b95
+at 262144 2aea80676f1a3ee9

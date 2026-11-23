@@ -1,0 +1,21 @@
+# emoji-queries: the answers the frozen Kotlin reference gave (docs/phase6-kotlin-references.md).
+# Their count, the digest after the last, and after each power of two (at N).
+count 80000
+digest 083880f5b4056a24
+at 1 8dff2a23fdeeb979
+at 2 bcc544dc0380f709
+at 4 e2ef70b7c9e539f5
+at 8 13a79423fbd6eb10
+at 16 db6f7c9967149dcd
+at 32 b3d5e4c67ff1a980
+at 64 28b0568b6791b372
+at 128 fd19b0758dcdc25f
+at 256 a057cbec47ee7d97
+at 512 934541d591eb5608
+at 1024 7ad8bd9d67c88996
+at 2048 19067bf6ce15aaec
+at 4096 c3184820517e4e62
+at 8192 646258b353f281ea
+at 16384 e014ec0f920deee3
+at 32768 f46d340fe3bf6d0c
+at 65536 04a4d6c3b60001db

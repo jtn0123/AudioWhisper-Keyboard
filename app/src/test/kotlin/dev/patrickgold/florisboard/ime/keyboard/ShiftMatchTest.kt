@@ -1,5 +1,6 @@
 package dev.patrickgold.florisboard.ime.keyboard
 
+import com.jtn0123.audiowhisper.golden.GoldenTape
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -14,9 +15,11 @@ import kotlin.test.assertTrue
 class ShiftMatchTest {
     @Test
     fun shiftStatesMatch() {
-        val comparison = ShiftComparison()
+        val tape = GoldenTape.ofReference("shift-states")
+        val comparison = ShiftComparison(tape)
         comparison.everyCase()
         comparison.runs(Random(SEED), runs = 5_000, steps = 40)
+        tape.finish()
         assertEquals(emptyList(), comparison.differences)
         // Every case is each case once, so it need only reach each transition; the runs, by chance, often.
         assertEquals(TRANSITIONS.flatMap { listOf("every $it", "run $it") }.toSet(), comparison.seen.keys)
@@ -27,9 +30,11 @@ class ShiftMatchTest {
 
     @Test
     fun doubleTapsAndDoubleSpacesMatch() {
-        val comparison = ShiftComparison()
+        val tape = GoldenTape.ofReference("shift-double")
+        val comparison = ShiftComparison(tape)
         comparison.doubleTaps(Random(SEED), count = 200_000)
         comparison.doubleSpaces(Random(SEED), texts = 100_000)
+        tape.finish()
         assertEquals(emptyList(), comparison.differences)
         val expected = listOf("consecutive: true", "consecutive: false", "double space 2: true", "double space 2: false") +
             (0..3).filter { it != 2 }.map { "double space $it: false" }

@@ -1,5 +1,6 @@
 package dev.patrickgold.florisboard.ime.text.composing
 
+import com.jtn0123.audiowhisper.golden.GoldenTape
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonArray
@@ -7,8 +8,11 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlin.random.Random
 
-/** Compares the retained Telex and generic rule composers through JNI. */
-class ComposingComparison(private val sigmaExact: Boolean, composersJson: String) {
+/**
+ * Compares the retained Telex and generic rule composers through JNI. The reference's answers also
+ * go on [tape] (docs/phase6-kotlin-references.md).
+ */
+class ComposingComparison(private val sigmaExact: Boolean, composersJson: String, private val tape: GoldenTape) {
     val differences = mutableListOf<String>()
     val seen = mutableMapOf<String, Int>()
 
@@ -33,6 +37,7 @@ class ComposingComparison(private val sigmaExact: Boolean, composersJson: String
 
     private fun record(what: String, input: String, kotlin: Any?, rust: Any?) {
         checks++
+        tape.answer(what, kotlin)
         if (kotlin != rust && differences.size < MAX_DIFFERENCES) {
             differences += "$what(${hex(input)}): kotlin ${show(kotlin)}, rust ${show(rust)}"
         }

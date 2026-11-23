@@ -1,5 +1,6 @@
 package dev.patrickgold.florisboard.ime.text.composing
 
+import com.jtn0123.audiowhisper.golden.GoldenTape
 import java.io.File
 import kotlin.random.Random
 import kotlin.test.Test
@@ -8,7 +9,7 @@ import kotlin.test.assertTrue
 
 /** Telex and generic rule composers match the original Kotlin implementation through JNI. */
 class ComposingMatchTest {
-    private fun comparison() = ComposingComparison(sigmaExact = false, File(COMPOSERS).readText())
+    private fun comparison(tape: GoldenTape) = ComposingComparison(sigmaExact = false, File(COMPOSERS).readText(), tape)
 
     private fun assertMatch(comparison: ComposingComparison, outcomes: List<String>) {
         assertEquals(emptyList(), comparison.differences)
@@ -20,22 +21,28 @@ class ComposingMatchTest {
 
     @Test
     fun telexMatches() {
-        val comparison = comparison()
+        val tape = GoldenTape.ofReference("composing-telex")
+        val comparison = comparison(tape)
         comparison.telex(Random(SEED), runs = 2_000, steps = 40)
+        tape.finish()
         assertMatch(comparison, TELEX_OUTCOMES.map { "telex: $it" })
     }
 
     @Test
     fun randomRulesMatch() {
-        val comparison = comparison()
+        val tape = GoldenTape.ofReference("composing-rules")
+        val comparison = comparison(tape)
         comparison.randomRules(Random(SEED), tables = 4_000, steps = 20)
+        tape.finish()
         assertMatch(comparison, RULES_OUTCOMES.map { "rules: $it" })
     }
 
     @Test
     fun everyUnitMatches() {
-        val comparison = comparison()
+        val tape = GoldenTape.ofReference("composing-every-unit")
+        val comparison = comparison(tape)
         comparison.everyUnit()
+        tape.finish()
         assertMatch(comparison, listOf("telex: keep"))
     }
 

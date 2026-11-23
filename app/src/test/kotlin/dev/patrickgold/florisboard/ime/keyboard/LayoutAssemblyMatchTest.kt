@@ -1,5 +1,6 @@
 package dev.patrickgold.florisboard.ime.keyboard
 
+import com.jtn0123.audiowhisper.golden.GoldenTape
 import com.jtn0123.audiowhisper.rust.LayoutCache
 import dev.patrickgold.florisboard.ime.core.SubtypeLayoutMap
 import dev.patrickgold.florisboard.ime.text.key.KeyHintConfiguration
@@ -99,6 +100,8 @@ class LayoutAssemblyMatchTest {
     }
 
     @Test fun cacheOperationsAndHashCollisionsMatch() {
+        // The reference's answers also go on a golden tape (docs/phase6-kotlin-references.md).
+        val tape = GoldenTape.ofReference("layout-cache")
         val random = Random(20261112)
         var checks = 0
         repeat(200) {
@@ -115,10 +118,12 @@ class LayoutAssemblyMatchTest {
                     else -> { reference.set(mode, hash, value); actual.set(mode.value, hash, value) }
                 }
                 for (m in KeyboardMode.entries) for (h in hashes) {
+                    tape.answer("get", reference.get(m, h))
                     assertEquals(reference.get(m, h), actual.get(m.value, h)); checks++
                 }
             }
         }
+        tape.finish()
         println("Layout cache: 40000 operations, $checks lookups, including signed hashes and collisions")
     }
 }

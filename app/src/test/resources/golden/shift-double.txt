@@ -1,0 +1,26 @@
+# shift-double: the answers the frozen Kotlin reference gave (docs/phase6-kotlin-references.md).
+# Their count, the digest after the last, and after each power of two (at N).
+count 3707872
+digest 5d707374492c8bea
+at 1 4054e52a7076283e
+at 2 8cecfbddad097415
+at 4 806a1a7dc2d62b95
+at 8 34a2a2984b4ed57e
+at 16 d1cc41bfb69caf6e
+at 32 4dc3378989d6bf9e
+at 64 752448f5f9db67e5
+at 128 07aad8f6fbd0208e
+at 256 68686c3dffc78f5e
+at 512 21a84fa1dc3d1eae
+at 1024 9a9b1f5ca19afcde
+at 2048 2bc133dc68cbdbf5
+at 4096 f17cdd2c17edebce
+at 8192 f7978755ba90a96e
+at 16384 5a0c63d0fc5fc4ee
+at 32768 804e1cafc81c615e
+at 65536 462d794fa56d53ee
+at 131072 eea63bbe6da7cb15
+at 262144 999be86018a2d65e
+at 524288 0a59f17b6c2e8bbe
+at 1048576 1c01c92367a25cde
+at 2097152 3b0b764bd246b03e

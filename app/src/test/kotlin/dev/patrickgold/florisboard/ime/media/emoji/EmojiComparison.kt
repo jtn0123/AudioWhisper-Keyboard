@@ -1,5 +1,6 @@
 package dev.patrickgold.florisboard.ime.media.emoji
 
+import com.jtn0123.audiowhisper.golden.GoldenTape
 import java.io.BufferedReader
 import java.io.StringReader
 import kotlin.random.Random
@@ -9,13 +10,15 @@ import kotlin.random.Random
  * [EmojiData.resolveEmojiAssetPath], [EmojiSuggestionProvider.suggestEmojis] and the table's own
  * ranking) up against the Kotlin they replaced ([ReferenceEmoji]), wherever this runs: the JVM's
  * tests and, copied in for a check, the phone. It records each difference and how often each
- * outcome was seen, so a caller can tell the runs reached them all.
+ * outcome was seen, so a caller can tell the runs reached them all. The reference's answers also
+ * go on [tape] (docs/phase6-kotlin-references.md).
  */
-class EmojiComparison {
+class EmojiComparison(private val tape: GoldenTape) {
     val differences = mutableListOf<String>()
     val seen = mutableMapOf<String, Int>()
 
     private fun check(what: String, input: String, kotlin: Any?, rust: Any?) {
+        tape.answer(what, kotlin)
         if (kotlin != rust && differences.size < MAX_DIFFERENCES) differences += "$what($input): kotlin $kotlin, rust $rust"
     }
 

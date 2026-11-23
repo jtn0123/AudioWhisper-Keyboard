@@ -1,5 +1,6 @@
 package dev.patrickgold.florisboard.ime.media.emoji
 
+import com.jtn0123.audiowhisper.golden.GoldenTape
 import java.io.File
 import kotlin.random.Random
 import kotlin.test.Test
@@ -25,27 +26,33 @@ class EmojiMatchTest {
     @Test
     fun bundledFilesMatch() {
         assertEquals(listOf("de", "en", "es", "fr", "it", "pt", "root"), files.map { it.nameWithoutExtension })
-        val comparison = EmojiComparison()
+        val tape = GoldenTape.ofReference("emoji-bundled")
+        val comparison = EmojiComparison(tape)
         val random = Random(SEED)
         for (file in files) comparison.file(file.name, file.readText(), random, queries = 600)
+        tape.finish()
         assertEquals(files.size, comparison.seen["bundled file"])
         assertSeen(comparison, SUGGEST_OUTCOMES)
     }
 
     @Test
     fun damagedFilesMatch() {
-        val comparison = EmojiComparison()
+        val tape = GoldenTape.ofReference("emoji-damaged")
+        val comparison = EmojiComparison(tape)
         comparison.damaged(Random(SEED), files.map { it.readText() }, runs = 2_000, queries = 8)
+        tape.finish()
         assertSeen(comparison, SUGGEST_OUTCOMES + PARSE_OUTCOMES)
     }
 
     @Test
     fun queriesTonesAndAssetsMatch() {
-        val comparison = EmojiComparison()
+        val tape = GoldenTape.ofReference("emoji-queries")
+        val comparison = EmojiComparison(tape)
         val random = Random(SEED)
         comparison.queries(random, runs = 20_000)
         comparison.tones(random, runs = 20_000)
         comparison.assets(random, runs = 20_000)
+        tape.finish()
         val tones = EmojiSkinTone.entries.map { "skin $it" } + EmojiHairStyle.entries.map { "hair $it" }
         val assets = listOf("none", "language", "country", "variant").map { "asset: $it" }
         val noData = listOf("no data: none", "no data: threw")
