@@ -159,6 +159,7 @@ android {
             if (providers.gradleProperty("ttsFixture").orNull == "true") proguardFile("tts-fixture.pro")
             if (providers.gradleProperty("rendererFixture").orNull == "true") proguardFile("acceptance-fixture.pro")
             if (providers.gradleProperty("settingsFixture").orNull == "true") proguardFile("settings-fixture.pro")
+            if (providers.gradleProperty("storesFixture").orNull == "true") proguardFile("stores-fixture.pro")
             isMinifyEnabled = true
             isShrinkResources = true
 
@@ -235,6 +236,7 @@ android {
     sourceSets.getByName("androidTest").kotlin.directories.add("src/test/kotlin/com/jtn0123/audiowhisper/suggest/a1")
     sourceSets.getByName("androidTest").kotlin.directories.add("src/test/kotlin/com/jtn0123/audiowhisper/gif/shared")
     sourceSets.getByName("androidTest").kotlin.directories.add("src/test/kotlin/dev/patrickgold/florisboard/lib/ext/replay")
+    sourceSets.getByName("androidTest").kotlin.directories.add("src/test/kotlin/com/jtn0123/audiowhisper/stores/shared")
     sourceSets.getByName("androidTest").java.directories.add("src/test/java/com/android/inputmethod")
     // The tracked Roboto-Light the Rust text tests use, so the device can record Android's layout of it.
     sourceSets.getByName("androidTest").assets.directories.add("../fastlane/staging/fonts")

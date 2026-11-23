@@ -1,0 +1,10 @@
+{
+  "schema": 4,
+  "count": 0,
+  "sequence": 0,
+  "roomSequence": 0,
+  "byId": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "visible": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "rows": [],
+  "source": "main 48b2e0018, StoresFixtureWriter"
+}

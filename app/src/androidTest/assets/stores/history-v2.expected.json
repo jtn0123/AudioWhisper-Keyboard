@@ -1,0 +1,22 @@
+{
+  "schema": 2,
+  "count": 11,
+  "sequence": 13,
+  "roomSequence": 13,
+  "byId": "d0baa89db0f7e14dd3efa4e0fbfba1cc0e751301d0dec60ef78f576e9339651c",
+  "visible": "0500dc50a8ef1ef59ecd91657dff0fb563e9d0dfd8b5278b94040b4aab4c6e5b",
+  "rows": [
+    "30dcd63ceefc28887160798e866a485b45f9fb535f3ddbc77b209815ab2cc32a",
+    "e5a98ee88c317899af8b4799d1a46bba009f396248fcdfab6fc9cbc834e46ee4",
+    "77bc76e67bf1be8d456edaaad49d63c27f5f41d8fbc15e2f8dc2b382a46ca94b",
+    "3a8b2f5314cc61b96b10323df13d8455616ba5e5493d44e0a45b2d998c9fbbaf",
+    "94c9e26ce600f8d05de00ca4c9c1e1b3ecbae404fdbbb1e14872f8412abd4127",
+    "5cd9fbe162b9346e7f1729be9b10af70509153024f4a68d964d781bb6351ff0a",
+    "6331a58ec18871ec5784343b2456a8950d762cc8f4940d0a91ce4b431a365b85",
+    "273eafacdde485006d3be81c1df75b524a3f1a084d7ff0f40f0eda77ed172119",
+    "cddf7f2b2fa37cd870c9b7de83713a798ea5e943448bcdca1e6e8b5d529f03cf",
+    "2a380d8c2eaf64a2df30c945c61df6328ee3e9b6e89261de976f44fddee9291b",
+    "e31ff5e7df6c37202c2d0dec002e4888677e3ebdccaa4e36c25407070b6bf0d9"
+  ],
+  "source": "main 48b2e0018, StoresFixtureWriter"
+}

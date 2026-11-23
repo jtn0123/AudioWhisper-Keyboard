@@ -1,0 +1,11 @@
+# Scratch only: keeps what the stores fixture writer drives in main's build.
+-keep class kotlin.** { *; }
+-keep class kotlinx.** { *; }
+-keep class androidx.room.** { *; }
+-keep class androidx.sqlite.** { *; }
+-keep class androidx.core.net.** { *; }
+-keep class dev.patrickgold.florisboard.ime.clipboard.** { *; }
+-keep class dev.patrickgold.florisboard.ime.dictionary.** { *; }
+-keep class dev.patrickgold.florisboard.lib.FlorisLocale** { *; }
+-keep class org.florisboard.lib.kotlin.io.** { *; }
+-keep class com.jtn0123.audiowhisper.rust.** { *; }

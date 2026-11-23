@@ -1,0 +1,34 @@
+{
+  "TEXT": {
+    "count": 10,
+    "all": "d3eb9099f211311e9e153d7f728db9c4044cb53349a47a4f5650bab356fe8a41",
+    "rows": [
+      "30dcd63ceefc28887160798e866a485b45f9fb535f3ddbc77b209815ab2cc32a",
+      "e5a98ee88c317899af8b4799d1a46bba009f396248fcdfab6fc9cbc834e46ee4",
+      "77bc76e67bf1be8d456edaaad49d63c27f5f41d8fbc15e2f8dc2b382a46ca94b",
+      "0e25c48d96d455d64e142cc17f9ec4cfb8ee9945817070ecb7d574275e7e6a16",
+      "94c9e26ce600f8d05de00ca4c9c1e1b3ecbae404fdbbb1e14872f8412abd4127",
+      "5a5ccbf4d19676d53f9854dabf30cf248a7203840df93c593a2128e50f5ce878",
+      "cddf7f2b2fa37cd870c9b7de83713a798ea5e943448bcdca1e6e8b5d529f03cf",
+      "a5fd1e9f1c49080ad9fcd139de9598de9f695040aeaa8a43bcf8b071ecbeca2c",
+      "8be45dfe9e736ab322c88e1a6f93a434a9ef1180cfec5a2f4a0ae5741276c7b4",
+      "0fe2c602f5d2dd61ad64c6ea8f20cb1e7463f69db7374d30c210333916758a9a"
+    ]
+  },
+  "IMAGE": {
+    "count": 2,
+    "all": "ec59de96ec0d2846d481099c2fcb661fe89dfc2641610e86f1bda9e6ad15181f",
+    "rows": [
+      "5cd9fbe162b9346e7f1729be9b10af70509153024f4a68d964d781bb6351ff0a",
+      "273eafacdde485006d3be81c1df75b524a3f1a084d7ff0f40f0eda77ed172119"
+    ]
+  },
+  "VIDEO": {
+    "count": 1,
+    "all": "6331a58ec18871ec5784343b2456a8950d762cc8f4940d0a91ce4b431a365b85",
+    "rows": [
+      "6331a58ec18871ec5784343b2456a8950d762cc8f4940d0a91ce4b431a365b85"
+    ]
+  },
+  "source": "main 48b2e0018, StoresFixtureWriter"
+}

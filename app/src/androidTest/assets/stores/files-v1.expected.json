@@ -1,0 +1,14 @@
+{
+  "schema": 1,
+  "count": 4,
+  "byId": "1b0ef49af20f997bcb464d09ba32ad4cf6bc604a6aa694c5d3c69b4d3b0c7b3f",
+  "rows": [
+    "cef45998a706cf0490c748f9d037df915809a32fc1914a0dcbac52286c8934d4",
+    "d0e5e4fb02885507250030f52336262354e0475515e06aa4f5b962b0217b1389",
+    "8660b4ed4e8eb501764e526c4cda23f36b920ec9825ea42f78af70fff7091ad1",
+    "76de29cf11eec9b535b811e3ebb4c0ead292c7ae0589b88b3710644c16fe2abe"
+  ],
+  "mainCount": 0,
+  "mainById": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "source": "main 48b2e0018, StoresFixtureWriter"
+}
