@@ -21,7 +21,7 @@ import org.florisboard.lib.android.writeText
 internal const val SYSTEM_DICTIONARY_SETTINGS = "android.settings.USER_DICTIONARY_SETTINGS"
 
 /** What the native user dictionary screens need from the two dictionaries: one's words as a `WORDS` report, and
- * each change Rust asks for, made as UserDictionaryScreen made it, the Floris dictionary in Room and the system's
+ * each change Rust asks for, made as UserDictionaryScreen made it, the Floris dictionary in its store and the system's
  * through its provider. Every effect is answered with a fresh report. No word, shortcut or locale is ever logged. */
 internal class SettingsWords(private val activity: ComponentActivity, private val report: (Array<String>) -> Unit) {
     /** One change at a time and in order: a delete and its undo reach the database as they were asked. */
@@ -77,7 +77,7 @@ internal fun applyWordEffect(dao: UserDictionaryDao, kind: String, words: List<U
 /** [entry] with its locale as the dialog stored it: `FlorisLocale.fromTag(it).localeTag()`. */
 internal fun normalized(entry: UserDictionaryEntry) = entry.copy(locale = entry.locale?.let { FlorisLocale.fromTag(it).localeTag() })
 
-/** A deleted word stored again. In Room it keeps its id, which AUTOINCREMENT never hands out again, so it keeps
+/** A deleted word stored again. In the Floris store it keeps its id, which is never handed out again, so it keeps
  * its place in an export; were the id taken, it gets a new one. The system's provider always gives a new one. */
 internal fun restoreWord(dao: UserDictionaryDao, entry: UserDictionaryEntry) {
     val taken = dao.queryAll().any { it.id == entry.id }

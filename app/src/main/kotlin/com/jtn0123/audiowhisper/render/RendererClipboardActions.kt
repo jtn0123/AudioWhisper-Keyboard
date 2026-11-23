@@ -11,7 +11,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 
-/** Executes native commands through the same Room / InputConnection paths as Compose. */
+/** Executes native commands through the same clipboard store / InputConnection paths as Compose. */
 internal class RendererClipboardActions(private val context: Context) {
     private val clipboard by context.clipboardManager()
     private val keyboard by context.keyboardManager()

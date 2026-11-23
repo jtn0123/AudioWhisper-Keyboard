@@ -3,7 +3,7 @@ package dev.patrickgold.florisboard.ime.clipboard
 import com.jtn0123.audiowhisper.rust.ClipboardRules
 import dev.patrickgold.florisboard.ime.clipboard.provider.ClipboardItem
 
-/** Room objects never cross JNI. Rust returns positions in this exact immutable cohort. */
+/** Clips cross JNI as flat arrays, never as objects. Rust returns positions in this exact immutable cohort. */
 internal fun clipboardPlan(
     items: List<ClipboardItem>, now: Long = System.currentTimeMillis(), enabled: Boolean = true,
     limitEnabled: Boolean = false, limit: Int = 0, old: Boolean = false, minutes: Int = 0,

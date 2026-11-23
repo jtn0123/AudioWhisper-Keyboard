@@ -39,8 +39,8 @@ import java.util.*
  * necessary to provide consistent language display names and tags across the
  * whole code base.
  *
- * This class would be ideal for Kotlin's value classes, though AndroidX.Room
- * does not like this at all, so this is a "normal" class.
+ * This class would be ideal for Kotlin's value classes, though AndroidX.Room,
+ * which once stored it, did not like this at all, so this is a "normal" class.
  *
  * To construct a FlorisLocale, use one of the many from() methods provided.
  *
