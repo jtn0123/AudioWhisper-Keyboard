@@ -610,6 +610,57 @@ What remains:
   were not tried on the emulator. The cargo tests draw them (E31).
 * The phone has not shown a fitted label (P19).
 
+### A theme's own fonts (2026-11-23)
+
+A theme's `@font` rules now reach the renderer. Kotlin lists each rule's `src` URI and the
+absolute path the theme's asset resolver gives it (`RendererThemeFonts.kt`, `themeFontFiles`),
+and passes the list with the theme (`KeyboardRenderer.theme`'s `fonts`, a generated boundary
+argument). `render::theme_fonts` reads each file once, checks it is a whole font (every table
+inside the file; `head`, `hhea`, `hmtx`, `maxp` and `cmap` readable), and keeps each distinct
+family in a process-wide registry under a `Font::Theme(id)`. An element whose `font-family`
+names the rule draws its key labels, Smartbar text and panels in that family first, then in
+exactly today's chain for any glyph it lacks. Each face is registered with the weight and style
+its `@font` set declares, so `font-weight` and `font-style` pick the face as Compose's
+`FontFamily` does.
+
+* A theme with no `@font` file draws byte-identical to before: the default fonts' code paths
+  are unchanged and no golden was re-recorded.
+* A missing, unreadable, too big (over 32 MiB) or broken file leaves its rule without that face;
+  a rule with no face left is no font, and its elements draw in the default chain. Nothing
+  panics.
+* Not done: no synthetic bold or italic for a theme font that lacks the face, where Compose
+  would synthesise one; the nearest declared face draws instead. The registry keeps up to 64
+  families for the life of the process.
+
+Proof:
+
+* `render/tests/theme_fonts/` (13 tests) draws with "Fixture Script", a Latin subset of Dancing
+  Script (OFL) taken from the Android 9 SDK's fonts and renamed
+  (`tests/fixtures/THEME-FONT-SUBSETS.md`):
+  * the key changes 1,957 pixels and the Smartbar 1,594; the chosen-face report gives "Hello "
+    in Fixture Script Regular and "7?", which it lacks, in Roboto Light; bold picks the bold
+    face; the default chain draws byte-identical after a theme font is registered; panels inherit
+    the font;
+  * nine broken files (truncated, header only, 16 bytes short, garbage, garbage behind a header,
+    empty, no `cmap`, missing, a directory) each read as no font and draw pixel-identical to no
+    font at all; an unresolved URI and an oversized file are not read; one broken face leaves
+    the rest of the family.
+* `awnative` `render_theme` tests draw a key preview through the session with and without the
+  files, and refuse a URI without a path.
+* `RendererThemeFontsTest` (JVM, 2 tests) resolves the files as Kotlin does and draws them
+  through the generated `KeyboardRenderer`.
+* `scripts/theme-fonts-mutations.py` breaks the feature in 27 ways: the theme ignoring its
+  fonts, the chain's order, registration, declared weight and style, reading the `@font` sets,
+  one id per distinct family, every whole-font check, the session's plumbing and Kotlin's list.
+  Every case fails fresh assertions and the restored source passes. Last full run 2026-11-23:
+  27 of 27 caught.
+
+The cost, on the Mac: `keyboard_frame_timing` (a theme without fonts) run ten times each,
+alternating main's and the branch's binaries, gave a press p95 median of 0.104 ms on main and
+0.097 on the branch, a release 0.224 and 0.202, and a popup 0.203 and 0.217. The minimums are
+equal; that is noise. Drawing in a theme font was not benchmarked, and neither the emulator nor
+the phone has drawn one yet.
+
 ### Stage 4: Rust draws settings (decision 2026-11-14)
 
 Rust draws the settings Activity on the keyboard's Vello CPU / Parley / Skrifa stack.
