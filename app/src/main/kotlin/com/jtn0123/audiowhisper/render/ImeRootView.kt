@@ -236,7 +236,13 @@ internal class ImeRootView(context: Context) : FrameLayout(context) {
 
     override fun onLayout(changed: Boolean, left: Int, top: Int, right: Int, bottom: Int) {
         for ((child, rect) in placements()) child.layout(rect.left, rect.top, rect.right, rect.bottom)
-        if (plan.isNotEmpty()) service.inputViewSize = Size(right - left, plan[P.BOX_HEIGHT].toInt())
+        if (plan.isNotEmpty()) reportSize(right - left, plan[P.BOX_HEIGHT].toInt())
+    }
+
+    /** The input view's size for the service's insets; a new [Size] only when it changed, since layout runs often. */
+    private fun reportSize(width: Int, height: Int) {
+        val size = service.inputViewSize
+        if (size.width != width || size.height != height) service.inputViewSize = Size(width, height)
     }
 
     /** Each child's rectangle in this view, from the plan. */
