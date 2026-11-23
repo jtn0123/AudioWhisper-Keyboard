@@ -1,0 +1,20 @@
+# smartbar-touch: the answers the frozen Kotlin reference gave (docs/phase6-kotlin-references.md).
+# Their count, the digest after the last, and after each power of two (at N).
+count 33176
+digest 96574b91c2f7c369
+at 1 00304be1fba38df3
+at 2 d6c02dc53b93d6c8
+at 4 35aac3e7201bb914
+at 8 867bb8abba5598d3
+at 16 291deb839e05ada4
+at 32 9fb3766128301744
+at 64 b13b302078011c24
+at 128 bc7e4284c3614e70
+at 256 6dd015830c854895
+at 512 eb91098d5b37ecfc
+at 1024 522389b42601619e
+at 2048 dedd026e387ab059
+at 4096 1a07544b7892b32e
+at 8192 d15a0b61b435ea57
+at 16384 935657b750a2be96
+at 32768 cc57cf81e32e37db

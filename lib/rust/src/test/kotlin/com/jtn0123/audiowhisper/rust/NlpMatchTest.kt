@@ -1,23 +1,34 @@
 package com.jtn0123.audiowhisper.rust
 
+import com.jtn0123.audiowhisper.golden.GoldenTape
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
+/**
+ * Rust's NLP session call for call with the reference's. Every answer the reference gives, and its
+ * snapshot and Smartbar words after each call, also go on a golden tape per test
+ * (docs/phase6-kotlin-references.md).
+ */
 class NlpMatchTest {
-    internal class Pairing : AutoCloseable {
+    internal class Pairing(private val tape: GoldenTape) : AutoCloseable {
         val rust = NlpSession()
         val reference = ReferenceNlp()
         var checks = 0
         fun call(op: NlpOp, vararg f: String): List<String> {
             val expected = reference.call(op.code, *f)
+            tape.answer(op.name, expected)
             val actual = rust.call(op, *f).toList()
             assertEquals(expected, actual, "NLP $op at checkpoint $checks")
             checks++
-            assertEquals(reference.call(NlpOp.SNAPSHOT.code), rust.call(NlpOp.SNAPSHOT).toList(), "state after $op")
-            assertEquals(reference.call(NlpOp.WORDS.code), rust.call(NlpOp.WORDS).toList(), "Smartbar words after $op")
+            val snapshot = reference.call(NlpOp.SNAPSHOT.code)
+            val words = reference.call(NlpOp.WORDS.code)
+            tape.answer("snapshot", snapshot)
+            tape.answer("words", words)
+            assertEquals(snapshot, rust.call(NlpOp.SNAPSHOT).toList(), "state after $op")
+            assertEquals(words, rust.call(NlpOp.WORDS).toList(), "Smartbar words after $op")
             return actual
         }
         override fun close() = rust.close()
@@ -25,9 +36,10 @@ class NlpMatchTest {
     @Test fun seededSessionsMatchFiftyThousandEvents() {
         var events = 0
         val reached = mutableSetOf<Int>()
+        val tape = GoldenTape.ofReference("nlp-sessions")
         repeat(200) { seed ->
             val random = Random(20261113 + seed)
-            Pairing().use { p ->
+            Pairing(tape).use { p ->
                 var context = ReferenceNlp.context()
                 p.call(NlpOp.CONTEXT, *context.toTypedArray())
                 p.call(NlpOp.PREVIEW_START, "0")
@@ -87,11 +99,13 @@ class NlpMatchTest {
                 }
             }
         }
+        tape.finish()
         assertEquals(50_000, events); assertEquals((0..15).toSet(), reached)
         println("NLP: 50000 events, 200 seeds, zero differences")
     }
     @Test fun outOfOrderResultsNeverApplyOrBecomePickable() {
-        Pairing().use { p ->
+        val tape = GoldenTape.ofReference("nlp-out-of-order")
+        Pairing(tape).use { p ->
             p.call(NlpOp.CONTEXT, *ReferenceNlp.context("h").toTypedArray())
             val external = p.call(NlpOp.EXTERNAL_BEGIN)[0]
             val old = p.call(NlpOp.BEGIN, "100")[0]
@@ -110,9 +124,11 @@ class NlpMatchTest {
             assertEquals(listOf("0"), p.call(NlpOp.INLINE_COMPLETE, inline, "secret", "1"))
             assertEquals(listOf("0"), p.call(NlpOp.AUTO, "-1", "0"))
         }
+        tape.finish()
     }
     @Test fun candidateOrderingTypedEntryAndSharedSmartbarRules() {
-        Pairing().use { p ->
+        val tape = GoldenTape.ofReference("nlp-candidate-order")
+        Pairing(tape).use { p ->
             p.call(NlpOp.CONTEXT, *ReferenceNlp.context().toTypedArray())
             p.call(NlpOp.DIRECT, "1", "help", "0", "1", "2", "helo", "0", "0", "3", "help", "0", "0", "4", "😀", "1", "0")
             assertEquals(listOf("2", "0", "1", "3", "1", "2", "4", "0"), p.call(NlpOp.SNAPSHOT))
@@ -125,9 +141,11 @@ class NlpMatchTest {
             p.call(NlpOp.CONTEXT, *selection.toTypedArray())
             assertEquals("1", p.call(NlpOp.SNAPSHOT)[1])
         }
+        tape.finish()
     }
     @Test fun platformAutofillInPasswordDoesNotEnableWordCandidates() {
-        Pairing().use { p ->
+        val tape = GoldenTape.ofReference("nlp-password-autofill")
+        Pairing(tape).use { p ->
             p.call(NlpOp.CONTEXT, *ReferenceNlp.context("", 0x81).toTypedArray())
             assertEquals(listOf("0", "0", "0", "0", "0", "1"), p.call(NlpOp.POLICY, *ReferenceNlp.context("", 0x81).toTypedArray()))
             val inline = p.call(NlpOp.INLINE_BEGIN, "1")
@@ -136,9 +154,11 @@ class NlpMatchTest {
             assertEquals("0", p.call(NlpOp.SNAPSHOT)[3])
             assertEquals("platform", p.call(NlpOp.SNAPSHOT).last())
         }
+        tape.finish()
     }
     @Test fun rawFlagsTypingAndClipboardMatchOriginalDecisions() {
-        Pairing().use { p ->
+        val tape = GoldenTape.ofReference("nlp-raw-flags")
+        Pairing(tape).use { p ->
             val random = Random(16)
             repeat(5000) {
                 val context = ReferenceNlp.context(input = random.nextInt()).toMutableList().also { it[3] = if (random.nextBoolean()) "en" else "fr" }
@@ -148,9 +168,11 @@ class NlpMatchTest {
                 p.call(NlpOp.CLIPBOARD_PLAN, random.nextInt(2).toString(), "1", random.nextInt(2).toString(), if (random.nextBoolean()) "" else "a", "aw@example.test", random.nextInt(1001).toString(), "1000", random.nextInt(2).toString(), "example.test", "3", "14", "aw@example.test", "0", "14", "test", "11", "14")
             }
         }
+        tape.finish()
     }
     @Test fun productionBulkMessagesCheckTheCurrentEditorBeforePublishing() {
-        Pairing().use { p ->
+        val tape = GoldenTape.ofReference("nlp-bulk-editor")
+        Pairing(tape).use { p ->
             val old = ReferenceNlp.context("Aa")
             val newer = ReferenceNlp.context("BB")
             assertEquals("Aa".hashCode(), "BB".hashCode())
@@ -162,9 +184,11 @@ class NlpMatchTest {
             assertEquals("1", p.call(NlpOp.COMPLETE_FOR, *newer.toTypedArray(), b, "fresh", "book", "0", "1")[0])
             assertEquals("fresh", p.call(NlpOp.SNAPSHOT)[4])
         }
+        tape.finish()
     }
     @Test fun freshSynchronousAutocorrectGetsAOneShotNativeIdentity() {
-        Pairing().use { p ->
+        val tape = GoldenTape.ofReference("nlp-auto-identity")
+        Pairing(tape).use { p ->
             val current = ReferenceNlp.context("teh")
             val changed = ReferenceNlp.context("else")
             p.call(NlpOp.CONTEXT, *current.toTypedArray())
@@ -175,9 +199,11 @@ class NlpMatchTest {
             assertEquals(listOf("0"), p.call(NlpOp.AUTO_CANDIDATE, *current.toTypedArray(), *changed.toTypedArray(), "stale-auto", "the", "0", "1"))
             assertEquals(listOf("0"), p.call(NlpOp.PICK, "stale-auto"))
         }
+        tape.finish()
     }
     @Test fun clipboardAndSynchronousResultsCannotRollBackANewerRequest() {
-        Pairing().use { p ->
+        val tape = GoldenTape.ofReference("nlp-rollback")
+        Pairing(tape).use { p ->
             val old = ReferenceNlp.context("old")
             val current = ReferenceNlp.context("current")
             val oldClip = p.call(NlpOp.CLIPBOARD_BEGIN_FOR, *old.toTypedArray())[0]
@@ -197,9 +223,11 @@ class NlpMatchTest {
             assertEquals(shown, p.call(NlpOp.CLIPBOARD_FOR, *current.toTypedArray(), *current.toTypedArray(), clip1, "stale-same-editor", "clip", "2", "0"))
             assertEquals("fresh-clip", p.call(NlpOp.SNAPSHOT)[4])
         }
+        tape.finish()
     }
     @Test fun pendingRequestsHideStaleWordsWithoutFlashingExpandedActions() {
-        Pairing().use { p ->
+        val tape = GoldenTape.ofReference("nlp-pending")
+        Pairing(tape).use { p ->
             p.call(NlpOp.CONTEXT, *ReferenceNlp.context().toTypedArray())
             p.call(NlpOp.DIRECT, "shown", "help", "0", "0")
             assertEquals("0", p.call(NlpOp.SNAPSHOT)[1])
@@ -209,9 +237,11 @@ class NlpMatchTest {
             p.call(NlpOp.COMPLETE, generation)
             assertEquals("1", p.call(NlpOp.SNAPSHOT)[1], "An empty completed response expands actions")
         }
+        tape.finish()
     }
     @Test fun typingHoldsTheSmartbarWordsAcrossTheRefillOnly() {
-        Pairing().use { p ->
+        val tape = GoldenTape.ofReference("nlp-hold")
+        Pairing(tape).use { p ->
             fun words() = p.call(NlpOp.WORDS).single()
             p.call(NlpOp.CONTEXT, *ReferenceNlp.context("h").toTypedArray())
             p.call(NlpOp.BEGIN, "0")
@@ -240,9 +270,11 @@ class NlpMatchTest {
             p.call(NlpOp.CLEAR)
             assertEquals("0", words(), "Clear does not hold")
         }
+        tape.finish()
     }
     @Test fun glidePreviewClockAndCommitSliceMatchTheFrozenManager() {
-        Pairing().use { p ->
+        val tape = GoldenTape.ofReference("nlp-glide-preview")
+        Pairing(tape).use { p ->
             p.call(NlpOp.PREVIEW_START, "100")
             assertEquals(listOf("0"), p.call(NlpOp.PREVIEW, "250", "1", "150"))
             assertEquals(listOf("1"), p.call(NlpOp.PREVIEW, "251", "1", "150"))
@@ -252,6 +284,7 @@ class NlpMatchTest {
             assertEquals(listOf("1", "5", "0"), p.call(NlpOp.GLIDE_PLAN, "5", "8", "1"))
             assertEquals(listOf("0", "1", "-1"), p.call(NlpOp.GLIDE_PLAN, "5", "1", "0"))
         }
+        tape.finish()
     }
     @Test fun malformedMessagesAndClosedHandlesThrow() {
         val n = NlpSession()

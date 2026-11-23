@@ -1,0 +1,21 @@
+# nlp-harness: the answers the frozen Kotlin reference gave (docs/phase6-kotlin-references.md).
+# Their count, the digest after the last, and after each power of two (at N).
+count 79632
+digest e0c8ed8a48ceb2cc
+at 1 6152ace891f581de
+at 2 09d275df547ed056
+at 4 7f1186a63bca10f3
+at 8 06b4f464c143de07
+at 16 1cf8298771bc15a3
+at 32 be86d63deb11667f
+at 64 e978ba1bb4c13bb2
+at 128 edf9119f8ee62af9
+at 256 8f4f502f3e229f60
+at 512 b4b02cd283c57a83
+at 1024 f67c5e16f383b109
+at 2048 0b98822ec093cb6e
+at 4096 5f6a339ed7d4a218
+at 8192 12255d6ea6a37578
+at 16384 39ab92fe503a7d8b
+at 32768 d799114171974e0e
+at 65536 8d64b526381576fb

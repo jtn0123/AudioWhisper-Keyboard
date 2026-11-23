@@ -1,5 +1,6 @@
 package com.jtn0123.audiowhisper.rust
 
+import com.jtn0123.audiowhisper.golden.GoldenTape
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
@@ -8,6 +9,8 @@ import kotlin.test.assertEquals
 class RendererSmartbarTouchMatchTest {
     @Test fun recordedAndSeededPointerSchedulesMatchFrozenHostReference() {
         val random = Random(0x3b0301)
+        // The reference's answers also go on a golden tape (docs/phase6-kotlin-references.md).
+        val tape = GoldenTape.ofReference("smartbar-touch")
         for (layout in listOf(0,1,2,3)) KeyboardRenderer(emptyArray()).use { renderer ->
             val config = floatArrayOf(1f,layout.toFloat(),0f,1f,1f,0f,0f,0f,5f,0f,1f,40f)
             renderer.theme("""{"${'$'}schema":"https://schemas.florisboard.org/snygg/v2/stylesheet"}""",
@@ -32,13 +35,18 @@ class RendererSmartbarTouchMatchTest {
                 xy[0]=(first.left+first.right)/2; xy[1]=20f
                 fun event(action: Int, index: Int = 0, count: Int = 1) {
                     val expected = reference.event(action,index,ids.copyOf(count),xy.copyOf(count*2),time)
+                    tape.answer("event $action", expected.toList())
+                    tape.answer("deadline", reference.deadline())
                     val actual = renderer.touch(intArrayOf(action,index)+ids.copyOf(count),longArrayOf(0,time),xy.copyOf(count*2))
                     assertContentEquals(expected,actual,"layout=$layout run=$run action=$action")
                     assertEquals(reference.deadline(),renderer.nextDeadline())
                 }
                 fun tick(delta: Long) {
                     time += delta
-                    assertContentEquals(reference.tick(time),renderer.tick(time),"tick layout=$layout run=$run")
+                    val expected = reference.tick(time)
+                    tape.answer("tick", expected.toList())
+                    tape.answer("deadline", reference.deadline())
+                    assertContentEquals(expected,renderer.tick(time),"tick layout=$layout run=$run")
                     assertEquals(reference.deadline(),renderer.nextDeadline())
                 }
                 event(0)
@@ -51,12 +59,15 @@ class RendererSmartbarTouchMatchTest {
                 }
                 if (run%5 == 0) {
                     val changed = intArrayOf(first.index)
-                    assertContentEquals(reference.invalidated(changed),renderer.barSettings(delay,changed))
+                    val expected = reference.invalidated(changed)
+                    tape.answer("invalidated", expected.toList())
+                    assertContentEquals(expected,renderer.barSettings(delay,changed))
                 }
                 if (run%3 == 0) { xy[0]=-1f; event(2) }
                 event(if (run%7 == 0) 3 else 1)
                 tick(delay*2)
             }
         }
+        tape.finish()
     }
 }

@@ -1,0 +1,19 @@
+# smartbar-layouts: the answers the frozen Kotlin reference gave (docs/phase6-kotlin-references.md).
+# Their count, the digest after the last, and after each power of two (at N).
+count 18432
+digest d8a613c97dddc0e4
+at 1 7e1f6af5541fca3d
+at 2 af0186874184fee0
+at 4 20fa9ed9d0f8b3c5
+at 8 d2e8f8fe2e125cc1
+at 16 86476beb9ec0e2d2
+at 32 cc9cff1a5253c7c6
+at 64 51cafb05be4423c4
+at 128 242cca63918c798f
+at 256 16bf1beabe7288a7
+at 512 eb8e78f4791b0cfe
+at 1024 e1dca8106dcd8e04
+at 2048 086605ca042f2c27
+at 4096 11174a774f833f7a
+at 8192 0bbe39f7d6386251
+at 16384 52c892c1fff171ba

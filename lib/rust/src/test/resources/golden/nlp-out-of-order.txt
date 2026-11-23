@@ -1,0 +1,10 @@
+# nlp-out-of-order: the answers the frozen Kotlin reference gave (docs/phase6-kotlin-references.md).
+# Their count, the digest after the last, and after each power of two (at N).
+count 48
+digest 1b6c33ddb57f2fb6
+at 1 6152ace891f581de
+at 2 09d275df547ed056
+at 4 0dc0fa81bb81a392
+at 8 aafb3f7e87c84318
+at 16 ac600b1017e8f8d1
+at 32 533daf261299ac02

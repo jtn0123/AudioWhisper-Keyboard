@@ -1,0 +1,18 @@
+# clipboard-plans: the answers the frozen Kotlin reference gave (docs/phase6-kotlin-references.md).
+# Their count, the digest after the last, and after each power of two (at N).
+count 12000
+digest e8b129fd92d2d55c
+at 1 dc7b7684034bbb18
+at 2 c6a606c29688cfa5
+at 4 3b710e949f6b2d2e
+at 8 d2d92067f07dc177
+at 16 75e5e0499c985e24
+at 32 5ec71414d88dbfef
+at 64 16666d75deb32ed8
+at 128 d4b8ad1e54fa959a
+at 256 a318286715e3d92c
+at 512 7c919535187348bd
+at 1024 a2284f5e0167320a
+at 2048 fcdeac63af5dd2cb
+at 4096 313de9a9826a7cfc
+at 8192 63af08ef24d367bf

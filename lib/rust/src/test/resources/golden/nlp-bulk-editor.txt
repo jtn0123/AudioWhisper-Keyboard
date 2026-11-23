@@ -1,0 +1,9 @@
+# nlp-bulk-editor: the answers the frozen Kotlin reference gave (docs/phase6-kotlin-references.md).
+# Their count, the digest after the last, and after each power of two (at N).
+count 21
+digest d7a3323e32651ceb
+at 1 13bbd52f72060c12
+at 2 771717f1d08a7455
+at 4 62d55dddf77a9e26
+at 8 53339abad3496fac
+at 16 9d6f058951a6b71d

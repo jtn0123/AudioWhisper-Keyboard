@@ -1,0 +1,21 @@
+# smartbar-roomy: the answers the frozen Kotlin reference gave (docs/phase6-kotlin-references.md).
+# Their count, the digest after the last, and after each power of two (at N).
+count 98304
+digest 046c802ed809c355
+at 1 01b03da8c92a3f1e
+at 2 7c86431acc79a899
+at 4 32af333dbba85d59
+at 8 c9e28739f1254215
+at 16 0490eade3eb2d4c5
+at 32 d5a774f6982822e5
+at 64 2b0d42b07ea7d2a5
+at 128 df7c9ebf72d97225
+at 256 b3a75cffd280c125
+at 512 99eb99ece49f5f25
+at 1024 f17b641c541c9b25
+at 2048 276e2ef060171325
+at 4096 0988476d2c0c0325
+at 8192 d14bcbb993f5e325
+at 16384 fcfa619da3c9a325
+at 32768 b447c292c3712325
+at 65536 6c097805e154ba25

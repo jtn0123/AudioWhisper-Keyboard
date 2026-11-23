@@ -1,0 +1,20 @@
+# nlp-composing: the answers the frozen Kotlin reference gave (docs/phase6-kotlin-references.md).
+# Their count, the digest after the last, and after each power of two (at N).
+count 50000
+digest 58747335abde1b7b
+at 1 0407549b8a2b9752
+at 2 f436bb62ee1aac48
+at 4 5afd298910ff4df2
+at 8 d96a3ed8527a8180
+at 16 84337a9c9ea7edbe
+at 32 e78423a567cf8b3e
+at 64 5c702485c379ae17
+at 128 9c945f09a50ae506
+at 256 38562b20c55dc3fc
+at 512 3a5488f1f0d6e34c
+at 1024 33157dd188d431fc
+at 2048 a8d1631c07f41251
+at 4096 3ac1a184bf8baeaf
+at 8192 3b07d1abd55dcab4
+at 16384 3afd129ea7bcab6b
+at 32768 774dfbc8d2d97c8f

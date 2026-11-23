@@ -1,0 +1,9 @@
+# nlp-glide-preview: the answers the frozen Kotlin reference gave (docs/phase6-kotlin-references.md).
+# Their count, the digest after the last, and after each power of two (at N).
+count 24
+digest c430bbd68e0f3cd8
+at 1 b109ac53f82a3a1f
+at 2 7667b149ddf823f3
+at 4 dcb56e9001744c00
+at 8 1b5e2b048643ac0f
+at 16 2598e7fa845750b7

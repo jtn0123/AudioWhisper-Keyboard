@@ -1,22 +1,28 @@
 package com.jtn0123.audiowhisper.rust
 
+import com.jtn0123.audiowhisper.golden.GoldenTape
 import java.io.File
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
-/** Real dictionary answers over public fixture prefix/editor snapshots; never a user's text. */
+/**
+ * Real dictionary answers over public fixture prefix/editor snapshots; never a user's text. The
+ * reference's answers also go on a golden tape (docs/phase6-kotlin-references.md).
+ */
 class NlpHarnessMatchTest {
     @Test fun everyPublicHarnessFixtureMatchesWithBundledDictionaryResults() {
-        for (dictionary in TestDictionaries.both) everyFixtureMatches(dictionary)
+        val tape = GoldenTape.ofReference("nlp-harness")
+        for (dictionary in TestDictionaries.both) everyFixtureMatches(dictionary, tape)
+        tape.finish()
     }
 
-    private fun everyFixtureMatches(dictionary: File) {
+    private fun everyFixtureMatches(dictionary: File, tape: GoldenTape) {
         val personal = PersonalWordStore(emptyList(), IntArray(0), emptyList())
         val rows = requireNotNull(javaClass.getResourceAsStream("/nlp/harness.tsv")).bufferedReader().readLines()
         val names = mutableSetOf<String>()
         var checkpoints = 0
         requireNotNull(LatinSession.open(dictionary.readBytes())).use { decoder ->
-            NlpMatchTest.Pairing().use { p ->
+            NlpMatchTest.Pairing(tape).use { p ->
                 for (row in rows) {
                     val f = row.split('\t')
                     names += f[0]

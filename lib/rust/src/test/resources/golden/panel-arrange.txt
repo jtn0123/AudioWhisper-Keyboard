@@ -1,0 +1,16 @@
+# panel-arrange: the answers the frozen Kotlin reference gave (docs/phase6-kotlin-references.md).
+# Their count, the digest after the last, and after each power of two (at N).
+count 4064
+digest d117ddfdc1c2134d
+at 1 8e516fafa25fcf15
+at 2 daac18914aa55454
+at 4 459dc401579e9fc3
+at 8 5902bc5e0b5045d6
+at 16 fbdc00a23abf18cb
+at 32 ab5405afaf8ed359
+at 64 839ba0fc85b3b4d2
+at 128 3a054ccaa4398b12
+at 256 d0d4a1711dfa7c97
+at 512 aebd667e8cfa4629
+at 1024 fc2960109f27e1b0
+at 2048 a1545111127a258b

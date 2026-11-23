@@ -1,0 +1,16 @@
+# clipboard-mimes: the answers the frozen Kotlin reference gave (docs/phase6-kotlin-references.md).
+# Their count, the digest after the last, and after each power of two (at N).
+count 2940
+digest 64cce6a14206852e
+at 1 22694d995a624109
+at 2 9d8fb9c74a3a57c9
+at 4 2106baf013aa3c50
+at 8 0a96e85e49521750
+at 16 0dee0ca9715019c0
+at 32 002e572d5558908d
+at 64 d23f5fb161e0a0c4
+at 128 fd04e719345c4092
+at 256 365fb5164a913ce4
+at 512 f481bf7a6ca2b78b
+at 1024 2532e54e1fe8224e
+at 2048 a62b3bc70d34b877

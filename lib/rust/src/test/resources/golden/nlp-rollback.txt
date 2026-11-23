@@ -1,0 +1,10 @@
+# nlp-rollback: the answers the frozen Kotlin reference gave (docs/phase6-kotlin-references.md).
+# Their count, the digest after the last, and after each power of two (at N).
+count 48
+digest b415d6c07350676b
+at 1 3de72868bb16a5ca
+at 2 065f5827a4c73542
+at 4 4c20e1e51c294e0f
+at 8 cfb5d72c25ca2515
+at 16 4652691da905d31b
+at 32 21e9a8eced89f0b9

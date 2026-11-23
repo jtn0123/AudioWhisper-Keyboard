@@ -1,0 +1,13 @@
+# media-animations: the answers the frozen Kotlin reference gave (docs/phase6-kotlin-references.md).
+# Their count, the digest after the last, and after each power of two (at N).
+count 400
+digest ebbadb6fec6e7fcd
+at 1 eacbfa681f6de75d
+at 2 6962a01ed98bc693
+at 4 1d3fd7300e054411
+at 8 b60e29d4980d374e
+at 16 d2bdfd9b2d343034
+at 32 9dbcbcb6a82b200d
+at 64 27ce1fa5c95b77aa
+at 128 e668877ae6a368da
+at 256 d0667f73e0a9b5d4

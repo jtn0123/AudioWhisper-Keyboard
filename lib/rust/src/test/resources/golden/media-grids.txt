@@ -1,0 +1,16 @@
+# media-grids: the answers the frozen Kotlin reference gave (docs/phase6-kotlin-references.md).
+# Their count, the digest after the last, and after each power of two (at N).
+count 2400
+digest 66646e13c02b41b8
+at 1 bc09049148550aad
+at 2 19fbf25089ca2df6
+at 4 60fd14b048576d50
+at 8 2dc268ef2008a2ba
+at 16 9668c6cf10b69051
+at 32 25dfea2b12bee6ff
+at 64 64c8a3f60fa6f594
+at 128 8b804e7fc1f15952
+at 256 a635fec24987209c
+at 512 65d49762688ffa1e
+at 1024 d742e9b03e7e59a9
+at 2048 dbac54fa94d4881c

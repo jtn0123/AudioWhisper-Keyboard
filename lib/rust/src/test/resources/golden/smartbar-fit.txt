@@ -1,0 +1,19 @@
+# smartbar-fit: the answers the frozen Kotlin reference gave (docs/phase6-kotlin-references.md).
+# Their count, the digest after the last, and after each power of two (at N).
+count 20000
+digest 87a9c83b97f07e6c
+at 1 2d5cbb094cdd7601
+at 2 b8c4b5f9a2d9fb7d
+at 4 641904912c0e93f1
+at 8 1362827c1570aec4
+at 16 19f8d8fbaa44d7ac
+at 32 c0ffd7d3d71d89e6
+at 64 11d7c980f03cd924
+at 128 9f1ec6d4f2c062ff
+at 256 76d1d647aac7d59b
+at 512 eb8ce69dc017b49a
+at 1024 9fbc7a067a380c66
+at 2048 60e9cb6f9a8b6626
+at 4096 56ee76c8aca15b6d
+at 8192 8f3fdf1a727bb1e8
+at 16384 7ba9b6f3efe3256a

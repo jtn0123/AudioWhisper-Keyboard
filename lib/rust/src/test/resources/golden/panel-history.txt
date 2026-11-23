@@ -1,0 +1,21 @@
+# panel-history: the answers the frozen Kotlin reference gave (docs/phase6-kotlin-references.md).
+# Their count, the digest after the last, and after each power of two (at N).
+count 76800
+digest ee5dbc126b629562
+at 1 1ba9592af12d0223
+at 2 d3f0b3466ab9ff71
+at 4 14ef23f41b4bb2dd
+at 8 719b949b53db2306
+at 16 9d7d30c092f001ce
+at 32 f1f875df1cfd6365
+at 64 da0581e2de248ac4
+at 128 2127d5988c706cf2
+at 256 042da1f02befeeb5
+at 512 ce5ae3b9a2a7d6ce
+at 1024 be6c66edcb149121
+at 2048 08bbe8e8177a5879
+at 4096 ba7d13693cc7eba7
+at 8192 2cbe4a782e71fc09
+at 16384 53746edd13eac159
+at 32768 5a13906ee3058237
+at 65536 eb7c768c4b9d9947

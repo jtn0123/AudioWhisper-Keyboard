@@ -1,0 +1,22 @@
+# nlp-sessions: the answers the frozen Kotlin reference gave (docs/phase6-kotlin-references.md).
+# Their count, the digest after the last, and after each power of two (at N).
+count 239250
+digest 89cde9909eb5b16d
+at 1 6152ace891f581de
+at 2 09d275df547ed056
+at 4 3051a5b1e0f7f2a2
+at 8 b7e32f6e20eba84e
+at 16 047b4c54157fdb8d
+at 32 90efc022737fff2f
+at 64 7729610fdd3fcdd4
+at 128 392e88fe19a483c4
+at 256 55f69f7b140dc4d8
+at 512 e751d8491c2d3aa8
+at 1024 9a881b42b49a90d2
+at 2048 0285f5c34723fb17
+at 4096 6f90bc421883e955
+at 8192 e362e22209cd9b09
+at 16384 2b1ee9e4a1536466
+at 32768 f73edb6ca0ef38de
+at 65536 0b30d28973af578a
+at 131072 2f195867f385a489

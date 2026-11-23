@@ -1,0 +1,16 @@
+# glide-trails: the answers the frozen Kotlin reference gave (docs/phase6-kotlin-references.md).
+# Their count, the digest after the last, and after each power of two (at N).
+count 2400
+digest 84d5e607ede784c4
+at 1 0c8631cdc1c64779
+at 2 f2a583a4b804dd8d
+at 4 2c7cc74f57b2f3c9
+at 8 9e649004a030938e
+at 16 e9dffe730d94db89
+at 32 ab07d5a07cdf10c2
+at 64 0a8ba6ac911f7393
+at 128 453068e280ef713b
+at 256 b7e598105469e874
+at 512 133052fc7cf356c1
+at 1024 399b3958f591a853
+at 2048 52dd8e24ae116c52

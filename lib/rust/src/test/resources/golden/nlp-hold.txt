@@ -1,0 +1,11 @@
+# nlp-hold: the answers the frozen Kotlin reference gave (docs/phase6-kotlin-references.md).
+# Their count, the digest after the last, and after each power of two (at N).
+count 87
+digest c68772bc0337a900
+at 1 6152ace891f581de
+at 2 09d275df547ed056
+at 4 7f1186a63bca10f3
+at 8 9b2c1c10ef85e26f
+at 16 63d40167e5514314
+at 32 1acbe9a756559124
+at 64 ecc4360419dd49f2

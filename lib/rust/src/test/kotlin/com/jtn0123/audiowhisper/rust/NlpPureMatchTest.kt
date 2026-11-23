@@ -1,5 +1,6 @@
 package com.jtn0123.audiowhisper.rust
 
+import com.jtn0123.audiowhisper.golden.GoldenTape
 import java.io.File
 import java.util.Locale
 import kotlin.random.Random
@@ -11,6 +12,8 @@ import kotlin.test.assertFailsWith
 class NlpPureMatchTest {
     @Test fun composingRangesMatchTheOriginalProviderForIcuBoundaryMetadata() {
         val random = Random(16)
+        // The reference's answers also go on a golden tape (docs/phase6-kotlin-references.md).
+        val tape = GoldenTape.ofReference("nlp-composing")
         NlpSession().use { nlp ->
             repeat(50_000) {
                 val text = listOf(":smile", "word", "x:smile", "", "😀word", "\uD800:word").random(random)
@@ -18,9 +21,11 @@ class NlpPureMatchTest {
                 val end = text.length
                 val status = listOf(0, 100, 200, 300).random(random)
                 val expected = ReferenceNlpComposing.range(status, start, end, text)
+                tape.answer("range", expected)
                 assertEquals(expected, nlp.call(NlpOp.COMPOSING, status.toString(), start.toString(), end.toString(), text).toList())
             }
         }
+        tape.finish()
     }
     @Test fun namesAndUnknownSwipeWordsMatchOverNativeDictionaryAndPersonalStore() {
         val entries = listOf("Zorblax", "glorp")

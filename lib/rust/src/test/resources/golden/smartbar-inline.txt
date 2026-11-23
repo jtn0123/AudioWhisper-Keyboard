@@ -1,0 +1,18 @@
+# smartbar-inline: the answers the frozen Kotlin reference gave (docs/phase6-kotlin-references.md).
+# Their count, the digest after the last, and after each power of two (at N).
+count 9216
+digest 08bb8e374235dcf1
+at 1 7e1f6af5541fca3d
+at 2 e8fc0f62224c3955
+at 4 db87f475ccdb9985
+at 8 6330e0c22427e165
+at 16 ceb8333c7c77dda5
+at 32 bbb38428764cb825
+at 64 43d5baabbfcb4d25
+at 128 24e09ef598c47725
+at 256 39a6ad3b22a6cb25
+at 512 8f4cdfb3962b7325
+at 1024 33a53589fc34c325
+at 2048 f35c6e4cc4476325
+at 4096 c13b602a446ca325
+at 8192 29cd7c67b7068aa3

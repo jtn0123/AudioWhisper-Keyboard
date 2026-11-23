@@ -1,0 +1,20 @@
+# nlp-raw-flags: the answers the frozen Kotlin reference gave (docs/phase6-kotlin-references.md).
+# Their count, the digest after the last, and after each power of two (at N).
+count 60000
+digest 7537f61536582127
+at 1 df94cc70beaadab2
+at 2 213319359ef67906
+at 4 23be0e3619b61026
+at 8 c5d174558a0c19d8
+at 16 bdb0b9950cd40d6e
+at 32 178eacaccf53309e
+at 64 5ac3f386d591619b
+at 128 0fe45a30c0787cea
+at 256 dd8d6ea1bf631422
+at 512 09f66222e6b24e97
+at 1024 8d36f6b70ddcdeaf
+at 2048 d780bcd665f30648
+at 4096 7877c5dc14b55dae
+at 8192 e368e46e997fd83f
+at 16384 ee7346363b9ff39e
+at 32768 7d4477e3d82cd608

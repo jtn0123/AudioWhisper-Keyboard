@@ -1,0 +1,9 @@
+# nlp-candidate-order: the answers the frozen Kotlin reference gave (docs/phase6-kotlin-references.md).
+# Their count, the digest after the last, and after each power of two (at N).
+count 30
+digest 351750635f3bd9f0
+at 1 6152ace891f581de
+at 2 09d275df547ed056
+at 4 ce386e6ce8b52dc7
+at 8 6c00dce79ac46a73
+at 16 5ca7339b91094f23
