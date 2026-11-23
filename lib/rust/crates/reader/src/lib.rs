@@ -6,7 +6,8 @@
 //! what is in it and how to bring a web page's piece into view ([`screen`]); and whether a press
 //! of the speaker key was a tap or a hold ([`speaker_key`]); which of the phone's voices may
 //! read, never one that needs the network ([`voices`]); a reading's steps, from the stop button
-//! to the end of the page ([`reading`]); and which window is the app's ([`window`]).
+//! to the end of the page ([`reading`]); which window is the app's ([`window`]); and how long the
+//! neural voice stays loaded and a reading waits for the service ([`lifetime`]).
 //!
 //! Text is UTF-16 units (`&[u16]`), as a Kotlin `String` is, judged by Kotlin's character rules
 //! (the `chars` crate).
@@ -14,6 +15,7 @@
 #![forbid(unsafe_code)]
 
 pub mod follow_along;
+pub mod lifetime;
 pub mod page_text;
 pub mod reading;
 pub mod screen;

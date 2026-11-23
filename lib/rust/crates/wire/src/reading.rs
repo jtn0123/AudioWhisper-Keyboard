@@ -100,10 +100,44 @@ pub mod fact {
     }
 }
 
+/// What `VoiceHold.take` and `checked` tell Kotlin to do for the neural voice.
+pub mod hold {
+    crate::declare! {
+        /// What to do for a reading that takes the neural voice.
+        pub const HOLDS: object VoiceHoldStep(i32) {
+            /// Use the voice already loaded.
+            USE = 0,
+            /// Read without it, with the phone's voice.
+            NONE = 1,
+            /// Check whether its files are there, and tell `checked`.
+            CHECK = 2,
+            /// Load it, then tell `loaded` whether that gave a voice.
+            LOAD = 3,
+        }
+    }
+}
+
+/// What `ReadingRules.route` says to do with a reading asked for.
+pub mod route {
+    crate::declare! {
+        /// Where a reading asked for goes.
+        pub const ROUTES: object ReadRoute(i32) {
+            /// The service is up: read.
+            READ = 0,
+            /// The service is off: ask the user to turn it on.
+            ASK = 1,
+            /// The service is on but not up yet: wait for it.
+            WAIT = 2,
+        }
+    }
+}
+
 /// The groups the generator writes as Kotlin.
 pub const GROUPS: &[&crate::Group] = &[
     &effect::EFFECTS,
     &from::FROM,
     &message::MESSAGES,
     &fact::FACTS,
+    &hold::HOLDS,
+    &route::ROUTES,
 ];
