@@ -63,6 +63,19 @@ class ApplyTest(CaseTest):
     def test_an_empty_search_text_does_not_apply(self):
         self.assertEqual(self.found(self.edit(old='')), [f'c: {self.file}: its search text is empty'])
 
+    def test_an_empty_search_text_makes_a_file_that_does_not_exist(self):
+        made = Path(self.folder.name) / 'made.rs'
+        self.assertEqual(self.found(self.edit(path=made, old='', new='let m = 1;\n')), [])
+
+    def test_a_made_file_is_edited_in_turn(self):
+        made = Path(self.folder.name) / 'made.rs'
+        self.assertEqual(self.found(self.edit(path=made, old='', new='let m = 1;\n'),
+                                    self.edit(path=made, old='let m = 1;', new='let m = 2;')), [])
+
+    def test_a_missing_file_with_nothing_to_make_is_named(self):
+        missing = Path(self.folder.name) / 'gone.rs'
+        self.assertEqual(self.found(self.edit(path=missing, old='', new='')), [f'c: {missing} does not exist'])
+
     def test_a_path_relative_to_the_checkout_is_read_from_it(self):
         path = Path('scripts/mutation_cases.py')
         self.assertEqual(self.found(self.edit(path=path, old='class Edit(NamedTuple):', new='class E:')), [])

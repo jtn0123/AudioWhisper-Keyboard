@@ -5,7 +5,8 @@
     python3 -I scripts/typing-plan-mutations.py --check      # one script's cases
 
 A case applies when every file it edits exists and each search text occurs exactly as often as the
-case expects: once, unless it says otherwise. A case's edits to one file are found in turn, each in
+case expects: once, unless it says otherwise. An edit with no search text makes its file, so it
+applies while that file does not exist. A case's edits to one file are found in turn, each in
 the text the ones before it left, as the scripts apply them. A case whose line has moved stops a full
 run of its script at that case, hours in; this finds every such case in seconds, so the gate can.
 
@@ -26,9 +27,10 @@ SCRIPTS = ROOT / 'scripts'
 
 
 class Edit(NamedTuple):
-    """One change a case makes: `old` replaced by `new`, where `old` must occur `count` times. A
-    script whose cases are functions of the source gives `change` instead, which raises
-    AssertionError or ValueError when its text is not there."""
+    """One change a case makes: `old` replaced by `new`, where `old` must occur `count` times, or a
+    file made with `new` as its text when `old` is empty and the file does not exist. A script whose
+    cases are functions of the source gives `change` instead, which raises AssertionError or
+    ValueError when its text is not there."""
     case: str
     path: Union[Path, str]
     old: str = ''
@@ -97,6 +99,9 @@ def problems(edits, stale=None):
             path = _file(edit.path)
             if path not in texts:
                 texts[path] = path.read_text(encoding='utf-8') if path.is_file() else None
+            if texts[path] is None and not edit.old and edit.new and edit.change is None:
+                texts[path] = edit.new  # The edit makes the file.
+                continue
             if texts[path] is None:
                 wrong.append(f'{_shown(path)} does not exist')
                 continue
