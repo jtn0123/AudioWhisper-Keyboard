@@ -4,8 +4,9 @@ import com.jtn0123.audiowhisper.golden.GoldenTape
 import kotlin.random.Random
 
 /**
- * Runs the frozen regex against Android's actual ICU rules. Reports counts, never inputs. Its
- * answers are recorded on the golden tape [TAPE], read from the test APK's assets on a device.
+ * Runs ExtensionMaintainer under Android's actual ICU rules, recording its answers on the golden
+ * tape [TAPE], read from the test APK's assets on a device and written there by the frozen regex it
+ * replaced (docs/phase6-kotlin-references.md). Reports counts, never inputs.
  */
 object ExtensionDeviceReplay {
     const val TAPE = "extension-maintainer-device"
@@ -23,17 +24,12 @@ object ExtensionDeviceReplay {
     }
 
     fun run(goldens: GoldenTape.Store): Long {
-        val tape = GoldenTape.ofReference(TAPE, goldens)
+        val tape = GoldenTape(TAPE, goldens)
         var checks = 0L
         fun compare(value: String) {
-            val expected = outcome { ReferenceExtensionMaintainer.from(value)?.let { listOf(it.name, it.email, it.url) } }
-            val actual = outcome { ExtensionMaintainer.from(value)?.let { listOf(it.name, it.email, it.url) } }
-            check(expected == actual) { "Extension maintainer parse mismatch" }
-            record(tape, "from", expected)
+            record(tape, "from", outcome { ExtensionMaintainer.from(value)?.let { listOf(it.name, it.email, it.url) } })
             checks++
-            val raw = outcome { ReferenceExtensionMaintainer.fromOrTakeRaw(value).toString() }
-            check(raw == outcome { ExtensionMaintainer.fromOrTakeRaw(value).toString() }) { "Extension maintainer format mismatch" }
-            record(tape, "fromOrTakeRaw", raw)
+            record(tape, "fromOrTakeRaw", outcome { ExtensionMaintainer.fromOrTakeRaw(value).toString() })
             checks++
         }
         for (unit in Char.MIN_VALUE..Char.MAX_VALUE) {
