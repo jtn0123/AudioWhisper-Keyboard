@@ -1,0 +1,14 @@
+{
+  "uniqueId": "skia",
+  "name": "Skia (path flattening in the icon port)",
+  "developers": [
+    {
+      "name": "Google LLC",
+      "organisationUrl": "https://skia.org"
+    }
+  ],
+  "website": "https://skia.googlesource.com/skia",
+  "licenses": [
+    "BSD-3-Clause"
+  ]
+}
