@@ -1,0 +1,20 @@
+# layout-snapshots-seeded: the answers the frozen Kotlin reference gave (docs/phase6-kotlin-references.md).
+# Their count, the digest after the last, and after each power of two (at N).
+count 57034
+digest ab5291ddcf2c6fb1
+at 1 1eaa10ef781fb42a
+at 2 8ffb4cd3be3b00e9
+at 4 b48f516c9db95a32
+at 8 06908992927bd843
+at 16 0f882865161ceea4
+at 32 5fc64439864ea5b3
+at 64 fd9b51feaf708faa
+at 128 b1be188796a9afb4
+at 256 d5dcc9a766a2f97f
+at 512 a34521655ae9c63d
+at 1024 b907908e54918e9d
+at 2048 b7b61f32b3e30de4
+at 4096 834cc344484376a8
+at 8192 06c0ae6efdd4840b
+at 16384 9675c4ecf2e67208
+at 32768 d75f65382acc4f84

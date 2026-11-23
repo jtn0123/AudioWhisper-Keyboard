@@ -23,24 +23,28 @@ class LayoutAssemblyMatchTest {
         assertEquals(46, fixtures.presets.size)
         assertEquals(fixtures.bundledFiles, fixtures.indexedFiles)
         assertTrue(fixtures.layouts.size >= 93)
+        // The reference's evaluated keyboards also go on a golden tape (docs/phase6-kotlin-references.md).
+        val tape = GoldenTape.ofReference("layout-snapshots-bundled")
         fixtures.presets.forEach { preset ->
             val prepared = LayoutFixtures.Prepared(preset.locale)
             for (layout in fixtures.layouts) for (mode in KeyboardMode.entries) for (numberRow in listOf(false, true)) {
-                compare(preset, prepared, mode, numberRow, true, layout, preset.layouts, random)
+                compare(tape, preset, prepared, mode, numberRow, true, layout, preset.layouts, random)
             }
         }
+        tape.finish()
         println("Layout assembly: ${fixtures.bundledFiles.size} bundled files, ${fixtures.layouts.size} indexed layouts, ${fixtures.presets.size} presets, $cases complete keyboards, $evaluatedKeys evaluated keys")
     }
 
     @Test fun seededMissingReferencesEmptyRowsSelectorsAndHintSettingsMatch() {
         val random = Random(2098)
+        val tape = GoldenTape.ofReference("layout-snapshots-seeded")
         repeat(4_000) {
             val preset = fixtures.presets.random(random)
             val prepared = LayoutFixtures.Prepared(preset.locale)
             val type = LayoutType.entries.random(random)
             val missing = ExtensionComponentName("missing-extension", if (it % 2 == 0) "" else "missing-layout")
             val map = preset.layouts.copy(type, missing) ?: preset.layouts
-            compare(preset, prepared, KeyboardMode.entries.random(random), random.nextBoolean(), random.nextBoolean(),
+            compare(tape, preset, prepared, KeyboardMode.entries.random(random), random.nextBoolean(), random.nextBoolean(),
                 null, map, random)
             fun rows(): LayoutArrangement? = if (random.nextInt(5) == 0) null else List(random.nextInt(6)) {
                 List(random.nextInt(12)) {
@@ -60,10 +64,11 @@ class LayoutAssemblyMatchTest {
             assertEquals(ReferenceLayoutAssembly.hints(KeyboardMode.CHARACTERS, true, expected, symbols, defaultEvaluator),
                 LayoutAssembly.hints(KeyboardMode.CHARACTERS, true, actual, symbols, defaultEvaluator))
         }
+        tape.finish()
         println("Layout assembly random: $cases complete keyboards, $evaluatedKeys evaluated keys, 4000 malformed/empty arrangement sets")
     }
 
-    private fun compare(preset: LayoutFixtures.Preset, prepared: LayoutFixtures.Prepared, mode: KeyboardMode,
+    private fun compare(tape: GoldenTape, preset: LayoutFixtures.Preset, prepared: LayoutFixtures.Prepared, mode: KeyboardMode,
                         numberRow: Boolean, numberHints: Boolean, candidate: LayoutFixtures.Layout?, map: SubtypeLayoutMap, random: Random) {
         val getLayout = { type: LayoutType -> if (candidate?.type == type && map[type] != null) candidate.name else map[type] }
         fun assemble(mode: KeyboardMode, reference: Boolean): LayoutArrangement {
@@ -95,6 +100,7 @@ class LayoutAssemblyMatchTest {
         val height = random.nextInt(250, 1000).toFloat()
         val a = LayoutSnapshot.evaluate(expected, hintsExpected, mode, evaluator, mappings, prepared, preset.locale, config, true, width, height)
         val b = LayoutSnapshot.evaluate(actual, hintsActual, mode, evaluator, mappings, prepared, preset.locale, config, false, width, height)
+        for (key in a) tape.answer("key", key)
         assertEquals(a, b, "evaluated keyboard case $cases")
         evaluatedKeys += a.size; cases++
     }
