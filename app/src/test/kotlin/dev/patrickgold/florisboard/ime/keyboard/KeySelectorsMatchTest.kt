@@ -1,6 +1,7 @@
 package dev.patrickgold.florisboard.ime.keyboard
 
 import com.jtn0123.audiowhisper.golden.GoldenTape
+import com.jtn0123.audiowhisper.rust.KeyModels
 import dev.patrickgold.florisboard.ime.text.keyboard.AutoTextKeyData
 import dev.patrickgold.florisboard.ime.text.keyboard.MultiTextKeyData
 import dev.patrickgold.florisboard.ime.text.keyboard.TextKeyData
@@ -104,10 +105,10 @@ class KeySelectorsMatchTest {
         return Proxy.newProxyInstance(ComputingEvaluator::class.java.classLoader, arrayOf(ComputingEvaluator::class.java)) { _, method, args ->
             when (method.name) {
                 "getState" -> state
-                "isSlot" -> ReferenceKeyRules.currency((args!![0] as KeyData).code)
+                "isSlot" -> KeyModels.isCurrency((args!![0] as KeyData).code)
                 "slotData" -> {
-                    val slot = ReferenceKeyRules.currencySlot((args!![0] as KeyData).code)
-                    ReferenceKeyRules.currencyDefaults.getOrNull(slot)?.takeIf { raw and 1L == 0L }
+                    val slot = KeyModels.currencySlot((args!![0] as KeyData).code)
+                    KeyModels.currencyDefaults().getOrNull(slot)?.takeIf { raw and 1L == 0L }
                         ?.let { TextKeyData(code = it, label = "slot$slot") }
                 }
                 else -> error("Unexpected evaluator access: ${method.name}")

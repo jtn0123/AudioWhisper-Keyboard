@@ -8,30 +8,25 @@ import dev.patrickgold.florisboard.lib.FlorisRect
 import kotlin.random.Random
 
 /**
- * Puts the text keyboard's geometry in Rust ([TextKeyboard], [TextKey.applyFlex]) up against the
- * Kotlin it replaced, [ReferenceTextKeyboard], wherever this runs: the JVM's tests and, copied in for
- * a check, the phone. It records each difference and how often each outcome was seen, so a caller
- * can tell the runs reached them all. Floats must match to the bit (any NaN matching any NaN).
- * The reference's answers also go on [tape], floats as their bits (docs/phase6-kotlin-references.md).
+ * Records the text keyboard's geometry in Rust ([TextKeyboard], [TextKey.applyFlex]) on [tape], to
+ * be checked against the answers the Kotlin it replaced (`ReferenceTextKeyboard`) gave
+ * (docs/phase6-kotlin-references.md). Floats go on it as their bits, any NaN as Java's one NaN. It
+ * counts how often each outcome was seen, so a caller can tell the runs reached them all.
  */
 class TextKeyboardComparison(private val tape: GoldenTape) {
-    val differences = mutableListOf<String>()
     val seen = mutableMapOf<String, Int>()
-
-    private fun difference(what: String, input: String, kotlin: Any?, rust: Any?) {
-        if (differences.size < MAX_DIFFERENCES) differences += "$what($input): kotlin $kotlin, rust $rust"
-    }
 
     private fun see(what: String) {
         seen[what] = (seen[what] ?: 0) + 1
     }
 
-    private fun same(a: Float, b: Float) = java.lang.Float.floatToIntBits(a) == java.lang.Float.floatToIntBits(b)
-
     private fun bits(rect: FlorisRect) = listOf(rect.left, rect.top, rect.right, rect.bottom).map(java.lang.Float::floatToIntBits)
 
-    private fun same(a: FlorisRect, b: FlorisRect) =
-        same(a.left, b.left) && same(a.top, b.top) && same(a.right, b.right) && same(a.bottom, b.bottom)
+    private fun factors(mode: KeyboardMode, code: Int, type: KeyType): Triple<Float, Float, Float> {
+        val key = TextKey(TextKeyData.UNSPECIFIED)
+        key.applyFlex(mode, code, type)
+        return Triple(key.flayShrink, key.flayGrow, key.flayWidthFactor)
+    }
 
     /** Every mode with key codes near each the table names, and others, of every type. */
     fun flex(random: Random, runs: Int) = repeat(runs) {
@@ -42,15 +37,9 @@ class TextKeyboardComparison(private val tape: GoldenTape) {
             else -> CODES.random(random) + random.nextInt(-1, 2) * random.nextInt(2)
         }
         val type = if (random.nextInt(4) == 0) KeyType.NUMERIC else KeyType.entries.random(random)
-        val kotlin = ReferenceTextKeyboard.flex(mode, code, type)
-        val key = TextKey(TextKeyData.UNSPECIFIED)
-        key.applyFlex(mode, code, type)
-        val rust = Triple(key.flayShrink, key.flayGrow, key.flayWidthFactor)
-        tape.answer("flex", kotlin.toList().map(java.lang.Float::floatToIntBits))
-        if (!same(kotlin.first, rust.first) || !same(kotlin.second, rust.second) || !same(kotlin.third, rust.third)) {
-            difference("flex", "$mode, $code, $type", kotlin, rust)
-        }
-        see("flex ${kotlin.first} ${kotlin.second} ${kotlin.third}")
+        val rust = factors(mode, code, type)
+        tape.answer("flex", rust.toList().map(java.lang.Float::floatToIntBits))
+        see("flex ${rust.first} ${rust.second} ${rust.third}")
     }
 
     /** The desired key for every mode, at sizes from realistic to zero, huge and NaN. */
@@ -63,17 +52,10 @@ class TextKeyboardComparison(private val tape: GoldenTape) {
         val base = if (realistic) 20f + random.nextFloat() * 200f else odd(random)
         val marginH = if (realistic) random.nextFloat() * 12f else odd(random)
         val marginV = if (realistic) random.nextFloat() * 12f else odd(random)
-        val kotlin = ReferenceTextKeyboard.desiredKey(mode, rowCount, width, height, base, marginH, marginV)
         val keyboard = TextKeyboard(Array(rowCount) { emptyArray() }, mode, null, null)
         val rust = TextKey(TextKeyData.UNSPECIFIED)
         keyboard.sizeDesiredKey(rust, width, height, base, marginH, marginV)
-        tape.answer("desired", bits(kotlin.touchBounds) + bits(kotlin.visibleBounds))
-        if (!same(kotlin.touchBounds, rust.touchBounds) || !same(kotlin.visibleBounds, rust.visibleBounds)) {
-            difference(
-                "desiredKey", "$mode, $rowCount, $width, $height, $base, $marginH, $marginV",
-                "${kotlin.touchBounds} ${kotlin.visibleBounds}", "${rust.touchBounds} ${rust.visibleBounds}",
-            )
-        }
+        tape.answer("desired", bits(rust.touchBounds) + bits(rust.visibleBounds))
         val rowHeight = height / rowCount
         see(
             when {
@@ -85,7 +67,7 @@ class TextKeyboardComparison(private val tape: GoldenTape) {
     }
 
     /**
-     * Random keyboards laid out a few times each at random sizes and desired keys, comparing every
+     * Random keyboards laid out a few times each at random sizes and desired keys, recording every
      * key's bounds after each layout, then random touches near and on the keys' edges.
      */
     fun keyboards(random: Random, runs: Int, touches: Int) = repeat(runs) {
@@ -93,9 +75,7 @@ class TextKeyboardComparison(private val tape: GoldenTape) {
             if (random.nextInt(12) == 0) 0 else random.nextInt(1, 16)
         }
         val mode = KeyboardMode.entries.random(random)
-        val kotlinKeys = Array(sizes.size) { r -> Array(sizes[r]) { TextKey(TextKeyData.UNSPECIFIED) } }
         val rustKeys = Array(sizes.size) { r -> Array(sizes[r]) { TextKey(TextKeyData.UNSPECIFIED) } }
-        val kotlin = ReferenceTextKeyboard(kotlinKeys)
         val rust = TextKeyboard(rustKeys, mode, null, null)
         repeat(random.nextInt(1, 4)) { layout ->
             // A whole number of desired keys wide, with whole factors: rows that fit exactly.
@@ -106,26 +86,18 @@ class TextKeyboardComparison(private val tape: GoldenTape) {
                 } else {
                     flexOf(random, mode)
                 }
-                for (key in listOf(kotlinKeys[r][k], rustKeys[r][k])) {
-                    key.flayShrink = shrink
-                    key.flayGrow = grow
-                    key.flayWidthFactor = width
+                rustKeys[r][k].apply {
+                    flayShrink = shrink
+                    flayGrow = grow
+                    flayWidthFactor = width
                 }
             }
-            layOut(random, kotlin, rust, mode, sizes, fit, "layout $layout of ${sizes.toList()}")
-            repeat(touches) { touch(random, kotlin, rust, sizes) }
+            layOut(random, rust, sizes, fit)
+            repeat(touches) { touch(random, rust) }
         }
     }
 
-    private fun layOut(
-        random: Random,
-        kotlin: ReferenceTextKeyboard,
-        rust: TextKeyboard,
-        mode: KeyboardMode,
-        sizes: IntArray,
-        fit: Boolean,
-        what: String,
-    ) {
+    private fun layOut(random: Random, rust: TextKeyboard, sizes: IntArray, fit: Boolean) {
         val realistic = random.nextInt(4) != 0
         val keyWidth = FIT_WIDTHS.random(random)
         val width = when {
@@ -140,12 +112,12 @@ class TextKeyboardComparison(private val tape: GoldenTape) {
                 key.visibleBounds.apply { top = 3f; right = keyWidth; bottom = 57f }
             }
         } else if (random.nextInt(6) != 0) {
-            ReferenceTextKeyboard.desiredKey(
-                mode, sizes.size, width * (0.9f + random.nextFloat() * 0.2f), height,
-                if (realistic) 20f + random.nextFloat() * 200f else odd(random),
-                if (random.nextInt(8) == 0) odd(random) else random.nextFloat() * 12f,
-                if (random.nextInt(8) == 0) odd(random) else random.nextFloat() * 12f,
-            )
+            // Drawn in the order the reference's arguments were.
+            val desiredWidth = width * (0.9f + random.nextFloat() * 0.2f)
+            val base = if (realistic) 20f + random.nextFloat() * 200f else odd(random)
+            val marginH = if (random.nextInt(8) == 0) odd(random) else random.nextFloat() * 12f
+            val marginV = if (random.nextInt(8) == 0) odd(random) else random.nextFloat() * 12f
+            TextKey(TextKeyData.UNSPECIFIED).also { rust.sizeDesiredKey(it, desiredWidth, height, base, marginH, marginV) }
         } else {
             TextKey(TextKeyData.UNSPECIFIED).also { key ->
                 for (rect in listOf(key.touchBounds, key.visibleBounds)) {
@@ -159,23 +131,14 @@ class TextKeyboardComparison(private val tape: GoldenTape) {
         val extend = random.nextBoolean()
         val skipped = sizes.isEmpty() || desired.touchBounds.isEmpty() || desired.visibleBounds.isEmpty() ||
             width.isNaN() || height.isNaN()
-        kotlin.layout(width, height, desired, extend)
         rust.layout(width, height, desired, extend)
         see(if (skipped) "layout: skipped" else "layout: laid out")
         if (!skipped) {
-            for (row in kotlin.arrangement) see(rowOutcome(row, width, desired))
+            for (row in rust.arrangement) see(rowOutcome(row, width, desired))
         }
-        val input = "$what at $width x $height, ${desired.touchBounds} ${desired.visibleBounds}, $extend"
         for (r in sizes.indices) for (k in 0 until sizes[r]) {
-            val a = kotlin.arrangement[r][k]
-            val b = rust.arrangement[r][k]
-            tape.answer("layout", bits(a.touchBounds) + bits(a.visibleBounds))
-            if (!same(a.touchBounds, b.touchBounds) || !same(a.visibleBounds, b.visibleBounds)) {
-                difference(
-                    "layout", "$input, key $r/$k",
-                    "${a.touchBounds} ${a.visibleBounds}", "${b.touchBounds} ${b.visibleBounds}",
-                )
-            }
+            val key = rust.arrangement[r][k]
+            tape.answer("layout", bits(key.touchBounds) + bits(key.visibleBounds))
         }
     }
 
@@ -194,8 +157,8 @@ class TextKeyboardComparison(private val tape: GoldenTape) {
         }
     }
 
-    private fun touch(random: Random, kotlin: ReferenceTextKeyboard, rust: TextKeyboard, sizes: IntArray) {
-        val all = kotlin.arrangement.flatten()
+    private fun touch(random: Random, rust: TextKeyboard) {
+        val all = rust.arrangement.flatten()
         val (x, y) = if (all.isNotEmpty() && random.nextInt(4) != 0) {
             val bounds = all.random(random).touchBounds
             near(random, bounds.left, bounds.right) to near(random, bounds.top, bounds.bottom)
@@ -208,16 +171,13 @@ class TextKeyboardComparison(private val tape: GoldenTape) {
                 else -> (random.nextFloat() * 1.2f - 0.1f) * w to (random.nextFloat() * 1.2f - 0.1f) * h
             }
         }
-        val expected = kotlin.getKeyForPos(x, y)
         val actual = rust.getKeyForPos(x, y)
-        val kotlinIndex = expected?.let { key -> all.indexOfFirst { it === key } } ?: -1
-        val rustIndex = actual?.let { key -> rust.arrangement.flatten().indexOfFirst { it === key } } ?: -1
-        tape.answer("touch", kotlinIndex)
-        if (kotlinIndex != rustIndex) difference("getKeyForPos", "$x, $y on ${sizes.toList()}", kotlinIndex, rustIndex)
+        val index = actual?.let { key -> all.indexOfFirst { it === key } } ?: -1
+        tape.answer("touch", index)
         val inSome = all.any { it.touchBounds.contains(x, y) }
         see(
             when {
-                kotlinIndex >= 0 -> "touch: a key"
+                index >= 0 -> "touch: a key"
                 inSome -> "touch: a key past a row without keys"
                 else -> "touch: no key"
             },
@@ -237,7 +197,7 @@ class TextKeyboardComparison(private val tape: GoldenTape) {
 
     /** A key's flex factors: the table's for a random key mostly, else odd ones. */
     private fun flexOf(random: Random, mode: KeyboardMode): Triple<Float, Float, Float> = when (random.nextInt(10)) {
-        in 0..5 -> ReferenceTextKeyboard.flex(mode, CODES.random(random), KeyType.entries.random(random))
+        in 0..5 -> factors(mode, CODES.random(random), KeyType.entries.random(random))
         in 6..7 -> Triple(NICE.random(random), NICE.random(random), NICE.random(random))
         else -> Triple(edge(random), edge(random), edge(random))
     }
@@ -258,7 +218,6 @@ class TextKeyboardComparison(private val tape: GoldenTape) {
     }
 
     private companion object {
-        const val MAX_DIFFERENCES = 20
         val CHARACTER_MODES = setOf(
             KeyboardMode.CHARACTERS, KeyboardMode.NUMERIC_ADVANCED, KeyboardMode.SYMBOLS, KeyboardMode.SYMBOLS2,
         )

@@ -1,5 +1,6 @@
 package dev.patrickgold.florisboard.ime.keyboard
 
+import com.jtn0123.audiowhisper.rust.KeyModels
 import dev.patrickgold.florisboard.ime.core.SubtypeLayoutMap
 import dev.patrickgold.florisboard.ime.popup.PopupMapping
 import dev.patrickgold.florisboard.ime.popup.PopupSet
@@ -83,8 +84,8 @@ internal class LayoutFixtures {
         return Proxy.newProxyInstance(ComputingEvaluator::class.java.classLoader, arrayOf(ComputingEvaluator::class.java)) { _, method, args ->
             when (method.name) {
                 "getState" -> state
-                "isSlot" -> currency != null && ReferenceKeyRules.currency((args!![0] as KeyData).code)
-                "slotData" -> currencySets[currency]?.getOrNull(ReferenceKeyRules.currencySlot((args!![0] as KeyData).code))
+                "isSlot" -> currency != null && KeyModels.isCurrency((args!![0] as KeyData).code)
+                "slotData" -> currencySets[currency]?.getOrNull(KeyModels.currencySlot((args!![0] as KeyData).code))
                 else -> error("Unexpected evaluator access: ${method.name}")
             }
         } as ComputingEvaluator

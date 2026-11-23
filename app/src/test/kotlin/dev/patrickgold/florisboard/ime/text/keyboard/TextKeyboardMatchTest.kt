@@ -3,27 +3,26 @@ package dev.patrickgold.florisboard.ime.text.keyboard
 import com.jtn0123.audiowhisper.golden.GoldenTape
 import kotlin.random.Random
 import kotlin.test.Test
-import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
  * The text keyboard's geometry in Rust ([TextKeyboard] and [TextKey.applyFlex], which call
- * lib/rust/crates/keys) gives exactly what the Kotlin it replaced did ([ReferenceTextKeyboard]):
- * every key's touch and visible bounds to the bit, over random keyboards, flex factors, sizes and
+ * lib/rust/crates/keys) gives exactly what the Kotlin it replaced did (`ReferenceTextKeyboard`),
+ * checked against golden digests of its answers: every key's touch and visible bounds to the bit, over random keyboards, flex factors, sizes and
  * desired keys from realistic to NaN, the key each touch on and around their edges lands on, the
  * flex table for every mode, and the desired key.
  */
 class TextKeyboardMatchTest {
     @Test
     fun geometryMatches() {
-        val tape = GoldenTape.ofReference("text-keyboard")
-        val comparison = TextKeyboardComparison(tape)
-        val random = Random(SEED)
-        comparison.flex(random, runs = 40_000)
-        comparison.desiredKeys(random, runs = 20_000)
-        comparison.keyboards(random, runs = 10_000, touches = 30)
-        tape.finish()
-        assertEquals(emptyList(), comparison.differences)
+        val comparison = GoldenTape.check("text-keyboard") { tape ->
+            TextKeyboardComparison(tape).apply {
+                val random = Random(SEED)
+                flex(random, runs = 40_000)
+                desiredKeys(random, runs = 20_000)
+                keyboards(random, runs = 10_000, touches = 30)
+            }
+        }
         for (outcome in OUTCOMES) {
             assertTrue((comparison.seen[outcome] ?: 0) >= MIN_SEEN, "$outcome only ${comparison.seen[outcome]} times")
         }
