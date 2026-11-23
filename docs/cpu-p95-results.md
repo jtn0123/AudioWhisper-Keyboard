@@ -582,7 +582,8 @@ at once outside full-screen), and E29's known cause is agent-device delivering t
 [The Compose-free render path](phase3-compose-free-path.md) changes what the renderer is sent:
 icon tokens instead of flattened paths, a palette made in Rust, StateFlows instead of Compose
 state, and a theme's fonts. These trials compare its build (51a7be022; e75a095eb after it adds
-only an instrumented test) with main (4d3b5d3ae), each built in a worktree of its own:
+only an instrumented test; 7b43ddf4c and 24b27a7a2 after the rebases) with main
+(4d3b5d3ae), each built in a worktree of its own:
 `cpu-trials.py --rust-only --trials 1`, alternating main and the branch three times each, on
 `aw_keyboard` (emulator-5558) with the Rust renderer, and with the settings the device had
 before this work restored. The folders are in `build/cpu-p95/compose-free/`.
@@ -678,8 +679,9 @@ the hold and withdraw the wake. A refill that never comes shows the empty row at
 and an empty row that is not due is drawn at once. `StripHoldTest` holds it to that, and each of
 `strip-hold-mutations.py`'s 8 faults fails it.
 
-**One press, one strip change.** Main, the fix (74bd23c34) and the fix with the hold bypassed
-("no hold", the same build otherwise). Rounds 1 and 2 alternated main and the fix under load;
+**One press, one strip change.** Main (13f6a7021, whose app is 0f0b22d28's), the fix (89e92c129,
+built as a805a76cb before the rebase) and the fix with the hold bypassed ("no hold", the same
+build otherwise). Rounds 1 and 2 alternated main and the fix under load;
 round 3 rotated no hold, the fix and main twice on a quieter host. Every kept trial typed the
 300 presses to `809d588b…` and the 8 popups to `c14d19d2…`.
 

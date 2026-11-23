@@ -21,31 +21,45 @@ gate keeps it that way (`:app:checkComposeFreeRender`):
 The Compose fallback still runs with the renderer off. It was changed only mechanically: it
 collects the StateFlows that replaced Compose state.
 
-Branch `all-rust/compose-free-path`, rebased onto main 4d3b5d3ae. Its commits:
+Branch `all-rust/compose-free-path`, rebased onto main 0f0b22d28. Its commits:
 
 | Commit | What |
 |---|---|
-| 4be1a6773 | Rust holds every icon the renderer draws, matching Android's flattening (`IconGoldenDump`, `IconVectors`) |
-| 2c81286d3 | Every key token draws the icon Android drew for it (`tests/fixtures/keys.tsv`) |
-| d8451dce2 | The settings screens draw their icons from Rust; `SettingsIcons.kt` deleted |
-| 7ce566591 | The keyboard sends icon tokens; `RendererIcons.kt`, `RustKeyPreview.kt` and `KeyPreviewMatchTest` deleted |
-| 04b532347 | `crates/palette`: Material You schemes, bit-exact with MaterialKolor |
-| 819fbf623 | The icons crate's `NOTICE` |
-| 89694809c | The keyboard's Material You palette comes from Rust; `SnyggPalette.kt` deleted |
-| 70cd6629c | The plain-View root reads no Compose state or types |
-| b941d8a55 | The renderer draws a theme's `@font` files first, then today's chain |
-| 2b0302015 | The theme's font files cross the generated boundary |
-| d5c33bdcf | Kotlin resolves the theme's `@font` files (`RendererThemeFonts.kt`) |
-| 53252e9b3 | The theme-fonts mutation runner (27 faults, all caught) |
-| fa093cb28 | Docs: a theme's own fonts in the renderer |
-| 1eaee84b6 | Ledger row for `RendererThemeFonts.kt` |
-| e0318b6a3 | The session font tests draw the extract view's action label |
-| c743ff2a3 | A key's centre from its sides, not `FlorisRect`'s Compose `Offset` |
-| 494c9548f | The service drops its unused Compose import |
-| 0a96e14bd | `:app:checkComposeFreeRender` |
-| 097203d19 | `compose-free-mutations.py`: ten ways to break the check |
-| 51a7be022 | The plain-View root allocates no `Size` on each layout |
-| e75a095eb | `PaletteArtDiff`: Rust's palette against materialkolor on ART |
+| c5898113c | `mutation_cases.py`: an edit with no search text makes its file |
+| 1ceb0a139 | Rust holds every icon the renderer draws, matching Android's flattening (`IconGoldenDump`, `IconVectors`) |
+| 8859a47df | Every key token draws the icon Android drew for it (`tests/fixtures/keys.tsv`) |
+| a044dac8e | The settings screens draw their icons from Rust; `SettingsIcons.kt` deleted |
+| 85add5810 | The keyboard sends icon tokens; `RendererIcons.kt`, `RustKeyPreview.kt` and `KeyPreviewMatchTest` deleted |
+| fd025f39b | `crates/palette`: Material You schemes, bit-exact with MaterialKolor; `sin` and `cos` ported from bionic's fdlibm |
+| 40f10672a | The icons crate's `NOTICE` |
+| dc9637739 | The keyboard's Material You palette comes from Rust; `SnyggPalette.kt` deleted |
+| cd58c585c | The plain-View root reads no Compose state or types |
+| acde14b12 | The renderer draws a theme's `@font` files first, then today's chain |
+| e49d9c5fd | The theme's font files cross the generated boundary |
+| 8c2bd56c0 | Kotlin resolves the theme's `@font` files (`RendererThemeFonts.kt`) |
+| 1899f8be6 | The theme-fonts mutation runner (27 faults, all caught) |
+| b1fe69971 | Docs: a theme's own fonts in the renderer |
+| 75e0abd66 | Ledger row for `RendererThemeFonts.kt` |
+| 3036760fb | The session font tests draw the extract view's action label |
+| 63108dc5c | A key's centre from its sides, not `FlorisRect`'s Compose `Offset` |
+| c3afe2d11 | The service drops its unused Compose import |
+| 80f0b9351 | `:app:checkComposeFreeRender` |
+| bdd0e62e9 | `compose-free-mutations.py`: ten ways to break the check |
+| 7b43ddf4c | The plain-View root allocates no `Size` on each layout |
+| 24b27a7a2 | `PaletteArtDiff`: Rust's palette against materialkolor on ART |
+| 2d7960cc2 | `compose-free-device.py`: the render path's device checks |
+| 448521911 | Docs: this record, the trials and the owed checks |
+| 828a13e2f | 16 `sin` and `cos` faults, each caught, and the three golden rows they needed |
+| 41555b85e | The androidTest APK carries kotlin-test, which `GoldenTape` calls |
+| e4b8b792b | The gate builds the androidTest APK, R8 included, instead of compiling its sources |
+| 89e92c129 | The strip keeps its words while their refill is due (E56) |
+| 7507b413a | Docs: how `sin` and `cos` were checked against bionic's C |
+| 079a22a96 | The stale typing-plan cases point at the Rust that holds them |
+| 771ca5eff | Docs: E56 closed |
+| e5762249d | Docs: the mutation cases this branch's lines moved |
+
+The trials and probes below name the builds they ran on, before the rebases: 51a7be022 is now
+7b43ddf4c, and e75a095eb is 24b27a7a2. Main's build in them is 4d3b5d3ae.
 
 ## Part 1: icons Rust holds
 
@@ -176,9 +190,9 @@ The Snygg references main kept for this branch (`ReferenceSnyggTheme`,
 * **On ART** (`scripts/palette-art.sh`, `PaletteArtDiff` on emulator-5558, `aw_keyboard`,
   Android 16, arm64): 1,000 seeded accents × 72 flag sets × light and dark, 144,000 schemes,
   every one exact. No role differs between Rust's answer and materialkolor's on the device's
-  ART, where main's keyboard made its palette. It ran on the bionic port (b5e20acb0, the same
-  palette code as 694618a30), with the androidTest dependency d40599604 adds, without which R8
-  stops the test APK. The phone's own libm is still to be compared (P36).
+  ART, where main's keyboard made its palette. It ran on the bionic port, with the androidTest
+  dependency 41555b85e adds, without which R8 stops the test APK. The phone's own libm is still
+  to be compared (P36).
 * **`sin` and `cos` against bionic's C:** the five msun files built with `-ffp-contract=off`,
   276,000,041 arguments, no result differs: 200 million uniform in [-9, 9], 24 million on
   either side of every branch boundary, 12 million within 200,000 ulps of each multiple of π/4
@@ -311,21 +325,28 @@ commit of the branch the check passes; at its head, 32 scripts and every case.
 
 ## Proof on the whole
 
-**The gate**, on e75a095eb's tree (`--stacktrace test :app:lintDebug :lib:rust:check
-:app:checkNativeDeclarations :app:checkJvmLedger :app:checkComposeFreeRender assembleDebug` and
-the instrumented test compiles): green in 11 m 51 s.
+**The gate**, on e5762249d's tree (`--stacktrace test :app:lintDebug :lib:rust:check
+:app:checkNativeDeclarations :app:checkJvmLedger :app:checkMutationCases
+:app:checkComposeFreeRender assembleDebug :app:assembleDebugAndroidTest`, every task rerun):
+green in 15 m 48 s, at a load average of 3.7 at its start and 7.8 at its end. The commit after
+it changes only Markdown.
 
-* JVM: 1,046 tests in 260 result files, 0 failures, 0 errors, 0 skipped (main 1,044 in 258).
-* Cargo: 1,648 passed, 0 failed, 0 ignored (main 1,609).
+* JVM: 1,059 tests in 262 result files, 0 failures, 0 errors, 0 skipped (main 1,052 in 259).
+* Cargo: 1,650 passed, 0 failed, 0 ignored (main 1,609).
 * Natives: 464, none hand-written and none mismatched (main 466; `keyPreview` and `previewSize`
   went with the key preview).
 * Ledger: 405 files, 405 rows (main 408).
-* Lint: only the allowed IDs (AndroidGradlePluginVersion ×4, NewerVersionAvailable ×4,
-  ChromeOsAbiSupport ×1, GradleDependency ×1). Its first run found one more, DrawAllocation:
-  the root made a new `android.util.Size` in `onLayout`, where Compose's `IntSize` had been a
-  value class. 51a7be022 makes one only when the size changed.
-* The check: 94 classes in the render package, 21 of them from `ImeRoot` files, none naming
+* Lint: only the allowed IDs (AndroidGradlePluginVersion ×4, NewerVersionAvailable ×3,
+  ChromeOsAbiSupport ×1, GradleDependency ×1). Its first run on this path found one more,
+  DrawAllocation: the root made a new `android.util.Size` in `onLayout`, where Compose's
+  `IntSize` had been a value class. 7b43ddf4c makes one only when the size changed.
+* Mutation cases: 32 scripts, every case applies; the check's own 32 unit tests pass.
+* The check: 96 classes in the render package, 23 of them from `ImeRoot` files, none naming
   Compose; no file excluded.
+* The androidTest APK: built and shrunk, `minifyDebugAndroidTestWithR8` included, so main's
+  `GoldenTape` in the test sources finds kotlin-test (41555b85e). On main's tree the same task
+  fails on the missing `kotlin.test.AssertionsKt`. The gate used to compile those sources
+  without building the APK, so it never noticed; e4b8b792b makes it build the APK.
 
 **Digests.** Every kept CPU trial, main's and the branch's, typed the 300 presses to
 `809d588b…` (300 units) and the 8 popups to `c14d19d2…` (308 units). Three trials typed a key as
