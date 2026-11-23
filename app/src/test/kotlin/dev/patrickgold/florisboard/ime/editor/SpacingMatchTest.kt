@@ -1,5 +1,6 @@
 package dev.patrickgold.florisboard.ime.editor
 
+import com.jtn0123.audiowhisper.golden.GoldenTape
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -14,10 +15,12 @@ import kotlin.test.assertTrue
 class SpacingMatchTest {
     @Test
     fun spacingMatches() {
-        val comparison = SpacingComparison()
+        val tape = GoldenTape.ofReference("spacing")
+        val comparison = SpacingComparison(tape)
         comparison.constants()
         comparison.everyUnit()
         comparison.runs(Random(SEED), runs = 4_000, steps = 50)
+        tape.finish()
         assertEquals(emptyList(), comparison.differences)
         for (outcome in OUTCOMES) {
             assertTrue((comparison.seen[outcome] ?: 0) >= MIN_SEEN, "$outcome only ${comparison.seen[outcome]} times")

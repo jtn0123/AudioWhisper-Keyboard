@@ -1,0 +1,18 @@
+# input-routing-gif: the answers the frozen Kotlin reference gave (docs/phase6-kotlin-references.md).
+# Their count, the digest after the last, and after each power of two (at N).
+count 9408
+digest d3e350da6fb8cad9
+at 1 2c1f2f507339c419
+at 2 c0d8d4120648f9b0
+at 4 04222c35f3a842c6
+at 8 e36d25d7799c9917
+at 16 efe621cccc9219a9
+at 32 07b5d6d75c55524b
+at 64 36a64510f598753f
+at 128 01266396cf30befa
+at 256 06bee4b2d4be8bd4
+at 512 d46e02948b56234a
+at 1024 538043a2bf24f837
+at 2048 ad120640cbaebf4e
+at 4096 8894556256bddc53
+at 8192 3bc3e75ffd184d28

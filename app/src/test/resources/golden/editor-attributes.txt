@@ -1,0 +1,21 @@
+# editor-attributes: the answers the frozen Kotlin reference gave (docs/phase6-kotlin-references.md).
+# Their count, the digest after the last, and after each power of two (at N).
+count 100000
+digest c7c3f163ae2e24e7
+at 1 ad2d85a39370f9f4
+at 2 4603568f47978baf
+at 4 e17bf516cbcfa419
+at 8 b36b110dd496fe4e
+at 16 b63108d925ecc4c9
+at 32 d1a02e5a84dff3c9
+at 64 337cd9d16ed60eb2
+at 128 65e5325967a5939e
+at 256 167fbe08662e7b45
+at 512 eb504c534c777014
+at 1024 a18b9e13f01d709f
+at 2048 3465948785ecee2f
+at 4096 7395c0eb66c1794f
+at 8192 51526bfe5996308f
+at 16384 91920905fa89b042
+at 32768 9212e6555b404dd3
+at 65536 cd7f4f6c4244fae5

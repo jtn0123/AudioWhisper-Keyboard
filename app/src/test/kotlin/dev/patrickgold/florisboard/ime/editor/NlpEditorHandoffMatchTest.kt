@@ -1,5 +1,6 @@
 package dev.patrickgold.florisboard.ime.editor
 
+import com.jtn0123.audiowhisper.golden.GoldenTape
 import com.jtn0123.audiowhisper.rust.*
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -13,7 +14,8 @@ class NlpEditorHandoffMatchTest {
         c.text, "en-fixture", "", "1", "1", "1", c.offset.toString(), "0")
 
     @Test fun currentPredictionRatherThanFlowNotificationStartsTheRequest() {
-        EditorPlanMatchTest.Pairing().use { editor ->
+        val tape=GoldenTape.ofReference("editor-nlp-handoff")
+        EditorPlanMatchTest.Pairing(tape).use { editor ->
             editor.start("prefix ")
             editor.char("a") // InputConnection succeeded; its selection acknowledgement is still delayed.
             val published = fields(EditorSnapshot(editor.new.session.call(EditorOp.PUBLISHED)).content)
@@ -28,5 +30,6 @@ class NlpEditorHandoffMatchTest {
             }
             editor.reconcile()
         }
+        tape.finish()
     }
 }

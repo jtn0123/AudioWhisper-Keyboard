@@ -1,5 +1,6 @@
 package dev.patrickgold.florisboard.ime.editor
 
+import com.jtn0123.audiowhisper.golden.GoldenTape
 import com.jtn0123.audiowhisper.rust.*
 import com.jtn0123.audiowhisper.rust.EditorSession
 import kotlin.test.Test
@@ -18,15 +19,17 @@ class EditorBoundaryTest {
         }
     }
     @Test fun `raw editors invalid updates and hardware modifier batches match`() {
-        EditorPlanMatchTest.Pairing().use { p ->
+        val tape=GoldenTape.ofReference("editor-boundary-raw")
+        EditorPlanMatchTest.Pairing(tape).use { p ->
             p.start(raw=true,input=0)
             p.commit("😀");p.char("é");p.delete(false,false);p.delete(true,true)
             for(meta in listOf(0,0x3000,0x12,0x41,0x3053)) {
-                assertEquals(p.old.sendDownUpKeyEvent(67,meta,2),p.new.run(EditorOp.KEYS,"67",meta.toString(),"2"))
+                p.result("keys",p.old.sendDownUpKeyEvent(67,meta,2),p.new.run(EditorOp.KEYS,"67",meta.toString(),"2"))
                 p.compare("hardware key events")
             }
             p.reconcile()
         }
+        tape.finish()
     }
     @Test fun `fake EditText replaces composing and selection in UTF16`() {
         val ic=FakeInputConnection()
@@ -41,7 +44,8 @@ class EditorBoundaryTest {
         assertEquals(listOf("אב",2,2,-1,-1,0),ic.state())
     }
     @Test fun `full and partial extracted reports invalidate stale same selection windows`() {
-        EditorPlanMatchTest.Pairing().use { p ->
+        val tape=GoldenTape.ofReference("editor-boundary-extracted")
+        EditorPlanMatchTest.Pairing(tape).use { p ->
             p.start("old",3);p.commit("!")
             p.oldIc.external("new!",4);p.newIc.external("new!",4)
             // The old package had no extracted-text callback: its canonical recovery is a fresh read.
@@ -54,9 +58,11 @@ class EditorBoundaryTest {
             p.new.run(EditorOp.EXTRACTED,"5","5","0","0","3","next","-1","-1")
             p.compare("partial extracted")
         }
+        tape.finish()
     }
     @Test fun `mass selection and arrow plans preserve modifier ordering`() {
-        EditorPlanMatchTest.Pairing().use { p ->
+        val tape=GoldenTape.ofReference("editor-boundary-mass")
+        EditorPlanMatchTest.Pairing(tape).use { p ->
             p.start("alpha beta",4)
             p.new.session.call(EditorOp.MASS_BEGIN)
             assertEquals("1",p.new.session.call(EditorOp.MASS_STATE)[0])
@@ -72,5 +78,6 @@ class EditorBoundaryTest {
                 p.compare("arrow")
             }
         }
+        tape.finish()
     }
 }

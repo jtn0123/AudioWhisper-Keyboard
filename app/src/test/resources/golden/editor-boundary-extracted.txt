@@ -1,0 +1,9 @@
+# editor-boundary-extracted: the answers the frozen Kotlin reference gave (docs/phase6-kotlin-references.md).
+# Their count, the digest after the last, and after each power of two (at N).
+count 25
+digest 5bb703f2a1499b58
+at 1 9373ad41ec14fa0f
+at 2 8ddf0bc41768c824
+at 4 15a69bed4a38b0c3
+at 8 c27b4f10319848a9
+at 16 196364ac5b214740

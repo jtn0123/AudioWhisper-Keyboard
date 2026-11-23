@@ -1,0 +1,26 @@
+# spacing: the answers the frozen Kotlin reference gave (docs/phase6-kotlin-references.md).
+# Their count, the digest after the last, and after each power of two (at N).
+count 2164102
+digest 2048906e8c9b02b6
+at 1 19625c74e6e16ad6
+at 2 b161b684a3e2304a
+at 4 0a101462fe2d15fa
+at 8 2818e18dde7a8fa6
+at 16 95e4fc9757f8ea26
+at 32 e337f6d4ed6a9026
+at 64 ff59e145e731dc26
+at 128 d31127d7b6507426
+at 256 76d859e7934720f3
+at 512 afda8005cd4eeb7f
+at 1024 bd4a29cd7edc9d5e
+at 2048 5c803a9e4203e656
+at 4096 3974542bdddb8814
+at 8192 140a75bdaa6af4cb
+at 16384 1410f8c26e5115be
+at 32768 8b59eb78acd9987e
+at 65536 8c2d9d7a04ce7611
+at 131072 5208590829c2c4b1
+at 262144 facf53c302447aea
+at 524288 280e5e31469d72e1
+at 1048576 8603d5af686c69db
+at 2097152 f91f74ce08ec1db8

@@ -1,0 +1,11 @@
+# editor-boundary-raw: the answers the frozen Kotlin reference gave (docs/phase6-kotlin-references.md).
+# Their count, the digest after the last, and after each power of two (at N).
+count 76
+digest 0318dff27d395b53
+at 1 c467de288fd44976
+at 2 95eb350bd1ffcaab
+at 4 c9c342b70cb67113
+at 8 afe8828e6fa45774
+at 16 c96c1b5053370c72
+at 32 3242624c9a010977
+at 64 33151c818abdb335

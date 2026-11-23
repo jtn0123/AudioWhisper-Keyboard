@@ -1,5 +1,6 @@
 package dev.patrickgold.florisboard.ime.editor
 
+import com.jtn0123.audiowhisper.golden.GoldenTape
 import dev.patrickgold.florisboard.ime.nlp.PunctuationRule
 import dev.patrickgold.florisboard.ime.nlp.SuggestionCandidate
 import dev.patrickgold.florisboard.ime.nlp.WordSuggestionCandidate
@@ -14,9 +15,10 @@ import kotlin.random.Random
  * wherever this runs: the JVM's tests and, copied in for a check, the phone, whose character rules
  * differ. Both sides see the same made-up editor, and must agree on every answer, every flag after
  * every step (to the bit), and which texts they looked up. It records each difference and how
- * often each outcome was seen, so a caller can tell the runs reached them all.
+ * often each outcome was seen, so a caller can tell the runs reached them all. The reference's
+ * answers also go on [tape] (docs/phase6-kotlin-references.md).
  */
-class SpacingComparison {
+class SpacingComparison(private val tape: GoldenTape) {
     val differences = mutableListOf<String>()
     val seen = mutableMapOf<String, Int>()
 
@@ -26,6 +28,7 @@ class SpacingComparison {
 
     private fun check(what: String, input: () -> String, kotlin: Any?, rust: Any?) {
         checks++
+        tape.answer(what, kotlin)
         if (kotlin != rust && differences.size < MAX_DIFFERENCES) differences += "$what(${input()}): kotlin $kotlin, rust $rust"
     }
 

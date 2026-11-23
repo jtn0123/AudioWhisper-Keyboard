@@ -1,0 +1,13 @@
+# editor-flow-public: the answers the frozen Kotlin reference gave (docs/phase6-kotlin-references.md).
+# Their count, the digest after the last, and after each power of two (at N).
+count 321
+digest 30139937a3df40b3
+at 1 c467de288fd44976
+at 2 5a48d8575d171e0a
+at 4 a7f27515e6175a3c
+at 8 191c30934902b2ef
+at 16 37625032d649ad58
+at 32 ef1c903260c5a2b9
+at 64 afa5763b75c40402
+at 128 5830ab9f64289720
+at 256 025bf917a93eb0a1

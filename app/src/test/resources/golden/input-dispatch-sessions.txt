@@ -1,0 +1,23 @@
+# input-dispatch-sessions: the answers the frozen Kotlin reference gave (docs/phase6-kotlin-references.md).
+# Their count, the digest after the last, and after each power of two (at N).
+count 499711
+digest d7dfc6fa619b0eb9
+at 1 c467de288fd44976
+at 2 5a48d8575d171e0a
+at 4 a7f27515e6175a3c
+at 8 51445e7caed5af86
+at 16 4ce48f03a95d91cf
+at 32 e0487a0841a451d5
+at 64 6fb874e24d30341e
+at 128 002f5847b0024f0a
+at 256 727d40f0ec442c06
+at 512 a7430b3d1199f505
+at 1024 2b52ebbe1b824472
+at 2048 0d547bfa9e320ef1
+at 4096 c91da0d616a5004c
+at 8192 bf297bdc3d187545
+at 16384 f198b1b9044e7204
+at 32768 3f2fa73013664f04
+at 65536 22bc0986ad957765
+at 131072 bb1bdd6186796734
+at 262144 793713d88848893d

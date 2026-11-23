@@ -1,0 +1,11 @@
+# editor-plan-margins: the answers the frozen Kotlin reference gave (docs/phase6-kotlin-references.md).
+# Their count, the digest after the last, and after each power of two (at N).
+count 121
+digest 6f12c50b0b96f016
+at 1 71fb2b3fb9cce026
+at 2 117422d2d4205732
+at 4 50dc8f8edb8608e5
+at 8 34d522a6121889f4
+at 16 80bed571a71839cd
+at 32 2e4e3279dd6ea9e1
+at 64 6e6f3b4acf603d68

@@ -1,0 +1,11 @@
+# editor-boundary-mass: the answers the frozen Kotlin reference gave (docs/phase6-kotlin-references.md).
+# Their count, the digest after the last, and after each power of two (at N).
+count 108
+digest 051a903f310d7f94
+at 1 a289c6b96fee6c34
+at 2 705b85a3990b283d
+at 4 5b7380275bfa872b
+at 8 b11b112bdb53e1c2
+at 16 7070a35da75433ec
+at 32 de708761d4a1b820
+at 64 3ae910efd3f315f2

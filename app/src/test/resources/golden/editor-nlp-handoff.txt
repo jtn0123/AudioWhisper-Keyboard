@@ -1,0 +1,9 @@
+# editor-nlp-handoff: the answers the frozen Kotlin reference gave (docs/phase6-kotlin-references.md).
+# Their count, the digest after the last, and after each power of two (at N).
+count 20
+digest ba30fdad600247a7
+at 1 79096f1a950a894a
+at 2 380ee9183dcb0a3e
+at 4 3576654cdad5a658
+at 8 ca8f9c504cadabf6
+at 16 a170f7dde5af20ad

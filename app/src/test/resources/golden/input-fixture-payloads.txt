@@ -1,0 +1,16 @@
+# input-fixture-payloads: the answers the frozen Kotlin reference gave (docs/phase6-kotlin-references.md).
+# Their count, the digest after the last, and after each power of two (at N).
+count 3122
+digest f11e43f0ca668e71
+at 1 c467de288fd44976
+at 2 5a48d8575d171e0a
+at 4 a7f27515e6175a3c
+at 8 d53d76bd68604229
+at 16 4ebbd558a091eef4
+at 32 f5c108c76a98e2b9
+at 64 575d6bc8db41f7be
+at 128 654c7195cf02740d
+at 256 1b4f6a685e200963
+at 512 c4b8a91ab2f673ae
+at 1024 579605d81c2b40db
+at 2048 59ae7c1e066dc4d7

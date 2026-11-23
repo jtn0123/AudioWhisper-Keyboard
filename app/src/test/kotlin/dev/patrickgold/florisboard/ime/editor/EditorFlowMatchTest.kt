@@ -1,13 +1,15 @@
 package dev.patrickgold.florisboard.ime.editor
 
+import com.jtn0123.audiowhisper.golden.GoldenTape
 import com.jtn0123.audiowhisper.rust.*
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
+/** The reference's side of each pairing also goes on a golden tape (docs/phase6-kotlin-references.md). */
 class EditorFlowMatchTest {
-    internal class FlowPair : AutoCloseable {
-        val pair=EditorPlanMatchTest.Pairing()
+    internal class FlowPair(tape: GoldenTape) : AutoCloseable {
+        val pair=EditorPlanMatchTest.Pairing(tape)
         val flow=ReferenceEditorFlow(pair.old)
         init{pair.start()}
         fun context() {
@@ -22,9 +24,9 @@ class EditorFlowMatchTest {
             context()
             val a=flow.run(op.code,*args)
             val b=pair.new.run(op,*args)
-            assertEquals(a,b,"event result $op")
+            pair.result("event result $op",a,b)
             pair.compare(op.code)
-            assertEquals(listOf(flow.spacing.autoSpace.raw,flow.spacing.phantomSpace.raw),pair.new.session.call(EditorOp.SPACES).let{s->listOf(EditorSpaces.AUTO_SPACE,EditorSpaces.PHANTOM_SPACE).map{s[it].toInt()}},"spacing $op")
+            pair.result("spacing $op",listOf(flow.spacing.autoSpace.raw,flow.spacing.phantomSpace.raw),pair.new.session.call(EditorOp.SPACES).let{s->listOf(EditorSpaces.AUTO_SPACE,EditorSpaces.PHANTOM_SPACE).map{s[it].toInt()}})
         }
         fun update() {
             flow.update();pair.new.phantom=flow.spacing.phantomSpace.isActive;pair.new.determine=pair.old.determine
@@ -33,7 +35,8 @@ class EditorFlowMatchTest {
         override fun close()=pair.close()
     }
     @Test fun `autocorrect suggestion phantom word delete and dictation traces match`() {
-        FlowPair().use { p ->
+        val tape=GoldenTape.ofReference("editor-flow-public")
+        FlowPair(tape).use { p ->
             for(c in "teh") {p.run(EditorOp.TYPE_CHAR,c.toString());p.update()}
             p.run(EditorOp.COMPLETION,"the");p.update();p.run(EditorOp.TYPE_TEXT," ");p.update()
             p.run(EditorOp.REVERT,"4","teh","1");p.update();p.run(EditorOp.TYPE_CHAR,"y");p.update()
@@ -48,13 +51,15 @@ class EditorFlowMatchTest {
             p.flow.autoSpacePunctuation=true
             p.run(EditorOp.TYPE_CHAR,".");p.update();p.run(EditorOp.TYPE_CHAR,",");p.update()
         }
+        tape.finish()
     }
     @Test fun `25000 seeded editor events match final text state and ordered operations`() {
         val values=listOf("a","e"," ",".","\n","\u0301","😀","👨‍👩‍👧‍👦","אבג","hello")
         var count=0
         var operations=0
         var checkpoints=0
-        for(seed in 100 until 200) FlowPair().use { p ->
+        val tape=GoldenTape.ofReference("editor-flow-seeded")
+        for(seed in 100 until 200) FlowPair(tape).use { p ->
             val r=Random(20261113+seed)
             p.flow.autoSpacePunctuation=r.nextBoolean()
             repeat(250) {
@@ -80,6 +85,7 @@ class EditorFlowMatchTest {
             }
             operations+=p.pair.operationCount;checkpoints+=p.pair.calls
         }
+        tape.finish()
         println("editor flows: seeds=100 events=$count checkpoints=$checkpoints InputConnection_ops=$operations differences=0")
         assertEquals(25000,count)
     }

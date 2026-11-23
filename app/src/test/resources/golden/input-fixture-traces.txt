@@ -1,0 +1,18 @@
+# input-fixture-traces: the answers the frozen Kotlin reference gave (docs/phase6-kotlin-references.md).
+# Their count, the digest after the last, and after each power of two (at N).
+count 12288
+digest 5fed43c179c650d6
+at 1 c467de288fd44976
+at 2 5a48d8575d171e0a
+at 4 a7f27515e6175a3c
+at 8 71b8aeb4ff89fde6
+at 16 9d78c52d10681b9b
+at 32 221528930f6dc650
+at 64 a556067b51de7f1d
+at 128 a7a3eba37e9264c2
+at 256 46573f8424a0bdbd
+at 512 8c49fd7c1cb3a130
+at 1024 f8e155e5e392b263
+at 2048 65c2492600f1c9f5
+at 4096 30d0a252677c6e2d
+at 8192 faefd98cd02e7b3d
