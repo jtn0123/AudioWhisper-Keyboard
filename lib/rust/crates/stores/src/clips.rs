@@ -1,10 +1,10 @@
 //! The clipboard history and its media files' records, and every change made to them.
 //!
 //! The history is kept as Room kept it: rows in the order of their ids, which only grow, and
-//! shown newest first by [`clipboard_policy::order`]. Each change applies the history's size
-//! limit after it, as the keyboard did each time Room reported a change. A change that removes
-//! the user's media clips reports the media no clip refers to any more, for the keyboard to
-//! delete; the limit and expiry remove rows only, as before, since the system clipboard may
+//! shown newest first by [`crate::clipboard_policy::order`]. Each change applies the history's
+//! size limit after it, as the keyboard did each time Room reported a change. A change that
+//! removes the user's media clips reports the media no clip refers to any more, for the keyboard
+//! to delete; the limit and expiry remove rows only, as before, since the system clipboard may
 //! still hold one of theirs.
 
 use crate::clipboard_policy as policy;
