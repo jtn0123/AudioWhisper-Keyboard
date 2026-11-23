@@ -104,6 +104,6 @@ object PageText {
     }
 
     /** Each block's top, then its bottom. */
-    private fun edges(blocks: List<TextBlock>): IntArray =
+    fun edges(blocks: List<TextBlock>): IntArray =
         IntArray(2 * blocks.size) { if (it % 2 == 0) blocks[it / 2].top else blocks[it / 2].bottom }
 }

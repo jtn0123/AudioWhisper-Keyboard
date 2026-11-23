@@ -27,6 +27,7 @@ mod packets;
 mod popup;
 mod reader;
 mod reader_runtime;
+mod reading;
 mod render;
 mod rules;
 mod screen;
@@ -86,6 +87,7 @@ pub const CLASSES: &[Class] = &[
     reader::READER_NATIVE,
     reader_runtime::READER_WALK,
     reader_runtime::PLAYBACK_NATIVE,
+    reading::READING_NATIVE,
     input::INPUT_RULES,
     input::INPUT_NATIVE,
     glide::GLIDE_NATIVE,
@@ -137,6 +139,8 @@ pub const APIS: &[Api] = &[
     reader::SPEAKER_KEY_STATE,
     reader_runtime::READER_TIMING,
     reader_runtime::PLAYBACK_QUEUE,
+    reading::READING_PLAN,
+    reading::READING_RULES,
     input::INPUT_DISPATCH,
     glide::GLIDE_WORDS,
     glide::GLIDE_INDEX,
@@ -250,6 +254,11 @@ pub const WIRE: &[Wire] = &[
         module: Module::Rust,
         internal: false,
         groups: wire::playback::GROUPS,
+    },
+    Wire {
+        module: Module::Rust,
+        internal: false,
+        groups: wire::reading::GROUPS,
     },
     Wire {
         module: Module::Rust,

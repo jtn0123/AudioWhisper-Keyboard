@@ -7,20 +7,15 @@ import android.os.SystemClock
 import android.util.Log
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
-import android.view.accessibility.AccessibilityNodeInfo.AccessibilityAction
 import android.view.accessibility.AccessibilityWindowInfo
 import android.widget.Toast
-import androidx.annotation.StringRes
-import dev.patrickgold.florisboard.R
+import com.jtn0123.audiowhisper.rust.ReadingRules
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.cancelAndJoin
-import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -46,6 +41,9 @@ class ReadAloudService : AccessibilityService() {
 
     /** The voice reading now; only touched on the main thread. */
     private var speaking: Voice? = null
+
+    /** The neural voice the reading took, if any. */
+    private var engine: VoiceEngine? = null
 
     override fun onServiceConnected() {
         setCacheEnabled(false)
@@ -74,42 +72,12 @@ class ReadAloudService : AccessibilityService() {
         val previous = reading
         reading = scope.launch {
             previous?.cancelAndJoin()
-            session(from)
+            Reading(host).run(from)
         }
     }
 
     fun stopReading() {
         reading?.cancel()
-    }
-
-    private suspend fun session(from: ReadAloud.From) {
-        ReadAloud.reading(true)
-        setCacheEnabled(true)
-        try {
-            withContext(Dispatchers.Main) { stopButton.show() }
-            val engine = voices.take()
-            if (voices.failedJustNow()) tell(R.string.read_aloud__voice_failed)
-            // Kept inside the block: a cancelled withContext throws as it returns, which would lose it.
-            val voice = withContext(Dispatchers.Main) {
-                (engine?.let { NeuralVoice(this@ReadAloudService, it, onFocusLost = ::stopReading) }
-                    ?: Speaker(this@ReadAloudService, onFocusLost = ::stopReading)).also { speaking = it }
-            }
-            val unavailable = voice.unavailable()
-            when {
-                unavailable != null -> tell(unavailable, long = true)
-                voice.begin() -> readFrom(from, voice)
-            }
-        } finally {
-            // Before the switch to Main: a cancelled coroutine throws as that returns, even out of
-            // NonCancellable, so nothing after it would run on a stop.
-            setCacheEnabled(false)
-            ReadAloud.reading(false)
-            withContext(NonCancellable + Dispatchers.Main) {
-                stopSpeaking()
-                stopButton.hide()
-                voices.idle()
-            }
-        }
     }
 
     /** Main thread only: ends the reading's voice for good, once. */
@@ -118,113 +86,45 @@ class ReadAloudService : AccessibilityService() {
         speaking = null
     }
 
-    private suspend fun readFrom(from: ReadAloud.From, speaker: Voice) {
-        var screen = look(waitForApp = from is ReadAloud.From.Selection) ?: return tell(R.string.read_aloud__nothing)
-        val start = when (from) {
-            ReadAloud.From.Screen -> PageText.firstOnScreen(screen.blocks, screen.visibleTop, screen.visibleBottom) ?: Start(0)
-            ReadAloud.From.Top -> {
-                screen = toTop(screen)
-                Start(0)
+    /** What a reading does here; its steps are [Reading]'s. */
+    private val host = object : ReadingHost {
+        override fun status(reading: Boolean) = ReadAloud.reading(reading)
+
+        override fun cache(on: Boolean) {
+            setCacheEnabled(on)
+        }
+
+        override suspend fun <T> onMain(block: suspend () -> T): T = withContext(Dispatchers.Main) { block() }
+
+        override fun showButton() = stopButton.show()
+
+        override fun hideButton() = stopButton.hide()
+
+        override suspend fun takeVoice(): Boolean = voices.take().also { engine = it } != null
+
+        override suspend fun voiceFailedJustNow() = voices.failedJustNow()
+
+        override fun makeVoice(neural: Boolean): Voice {
+            val service = this@ReadAloudService
+            val voice = if (neural) {
+                NeuralVoice(service, checkNotNull(engine), onFocusLost = ::stopReading)
+            } else {
+                Speaker(service, onFocusLost = ::stopReading)
             }
-            is ReadAloud.From.Selection -> PageText.find(screen.blocks, from.text, screen.visibleTop, screen.visibleBottom)
-                ?: return speakOnly(from.text, speaker)
+            return voice.also { speaking = it }
         }
-        readOn(speaker, screen, start)
-    }
 
-    /**
-     * Reads from [start] to the end of the page: a couple of blocks queued ahead, so there is no
-     * pause between them, and the list scrolled on once they run out. Each block is brought into
-     * sight as it starts; if two start while the page is still moving, only the later one is.
-     */
-    private suspend fun readOn(speaker: Voice, first: Screen, start: Start) = coroutineScope {
-        val inSight = Channel<TextBlock>(Channel.CONFLATED)
-        val follower = launch { for (block in inSight) block.reveal() }
-        val read = ArrayDeque<String>()
-        var screen = first
-        var blocks = first.blocks
-        var index = start.block
-        var offset = start.offset
-        while (true) {
-            while (index < blocks.size) {
-                val block = blocks[index++]
-                speaker.awaitBlocks(LOOKAHEAD - 1)
-                speaker.queue(block.text.substring(offset)) { inSight.trySend(block) }
-                offset = 0
-                if (block.scrolls) read.addLast(block.text)
-                if (read.size > PageText.RECENT) read.removeFirst()
-            }
-            speaker.awaitBlocks(1)
-            val next = scrolledOn(screen, read) ?: break
-            screen = next.screen
-            blocks = next.blocks
-            index = next.index
+        override fun stopSpeaking() = this@ReadAloudService.stopSpeaking()
+
+        override suspend fun idleVoice() = voices.idle()
+
+        override suspend fun tell(message: Int, long: Boolean) = withContext(Dispatchers.Main) {
+            Toast.makeText(this@ReadAloudService, message, if (long) Toast.LENGTH_LONG else Toast.LENGTH_SHORT).show()
         }
-        speaker.awaitBlocks(0)
-        follower.cancel()
-    }
 
-    private class Resume(val screen: Screen, val blocks: List<TextBlock>, val index: Int)
+        override fun walk(skipOwn: Boolean) = this@ReadAloudService.walk(skipOwn)
 
-    /** Scrolls the list on and finds where to carry on; null at the end of the page. */
-    private suspend fun scrolledOn(screen: Screen, read: List<String>): Resume? {
-        val scroller = screen.scroller ?: return null.also { Log.d(TAG, "Nothing scrolls") }
-        if (!scroller.performAction(AccessibilityAction.ACTION_SCROLL_FORWARD.id)) return null.also { Log.d(TAG, "At the end") }
-        repeat(TRIES_AFTER_SCROLL) {
-            delay(SETTLE_MS)
-            val next = look(waitForApp = false)?.takeIf { it.app == screen.app } ?: return null
-            val blocks = next.blocks.filter(TextBlock::scrolls)
-            val index = PageText.resumeAfter(blocks, read)
-            Log.d(TAG, "Scrolled on: carrying on at $index of ${blocks.size}")
-            if (index < blocks.size) return Resume(next, blocks, index)
-        }
-        return null
-    }
-
-    /** Back to the top of the page: one jump on a web page, which has all its text; a list scrolls back. */
-    private suspend fun toTop(screen: Screen): Screen {
-        screen.blocks.firstOrNull(TextBlock::scrolls)?.reveal?.invoke()
-        val scroller = screen.scroller ?: return screen
-        var scrolls = 0
-        while (!screen.web && scrolls < MAX_SCROLLS_BACK && scroller.performAction(AccessibilityAction.ACTION_SCROLL_BACKWARD.id)) {
-            scrolls++
-            delay(SCROLL_BACK_MS)
-        }
-        delay(SETTLE_MS)
-        return look(waitForApp = false) ?: screen
-    }
-
-    private suspend fun speakOnly(text: String, speaker: Voice) {
-        speaker.queue(text)
-        speaker.awaitBlocks(0)
-    }
-
-    /**
-     * The app's text. Tried a few times: a web page builds its tree the first time it is asked,
-     * and after "Read from here" the app takes a moment to be back in front.
-     */
-    private suspend fun look(waitForApp: Boolean): Screen? {
-        repeat(LOOK_TRIES) {
-            val screen = walk(skipOwn = waitForApp)
-            if (screen != null && screen.blocks.isNotEmpty()) {
-                return if (screen.web && screen.allShown) settled(screen, waitForApp) else screen
-            }
-            delay(LOOK_RETRY_MS)
-        }
-        return null
-    }
-
-    /**
-     * A web page whose text is all in sight may be a short page, or one whose tree is still filling
-     * in: Chrome hands over what is on screen first. It is walked again until it stops growing.
-     */
-    private suspend fun settled(first: Screen, skipOwn: Boolean): Screen {
-        var screen = first
-        repeat(SETTLE_TRIES) {
-            delay(LOOK_RETRY_MS)
-            screen = walk(skipOwn)?.takeIf { it.nodes > screen.nodes } ?: return screen
-        }
-        return screen
+        override suspend fun wait(ms: Long) = delay(ms)
     }
 
     private fun walk(skipOwn: Boolean): Screen? {
@@ -236,34 +136,25 @@ class ReadAloudService : AccessibilityService() {
         return screen
     }
 
-    /** The app the user is in and the part of the screen it shows above the keyboard. */
+    /** The app the user is in and the part of the screen it shows above the keyboard: [ReadingRules]' choice. */
     private fun appWindow(skipOwn: Boolean): Pair<AccessibilityNodeInfo, Rect>? {
         val all = windows
-        val apps = all.filter { it.type == AccessibilityWindowInfo.TYPE_APPLICATION }
-        val window = apps.firstOrNull { it.isActive } ?: apps.firstOrNull { it.isFocused } ?: apps.maxByOrNull { it.layer }
+        val (app, keyboard) = ReadingRules.window(
+            BooleanArray(all.size) { all[it].type == AccessibilityWindowInfo.TYPE_APPLICATION },
+            BooleanArray(all.size) { all[it].type == AccessibilityWindowInfo.TYPE_INPUT_METHOD },
+            BooleanArray(all.size) { all[it].isActive }, BooleanArray(all.size) { all[it].isFocused },
+            IntArray(all.size) { all[it].layer })
+        val window = all.getOrNull(app)
         val root = window?.root ?: return null
         if (skipOwn && root.packageName == packageName) return null
         val visible = Rect().also(window::getBoundsInScreen)
-        all.firstOrNull { it.type == AccessibilityWindowInfo.TYPE_INPUT_METHOD }?.let { ime ->
-            val keyboard = Rect().also(ime::getBoundsInScreen)
-            if (keyboard.top > visible.top && keyboard.top < visible.bottom) visible.bottom = keyboard.top
+        all.getOrNull(keyboard)?.let { ime ->
+            visible.bottom = ReadingRules.visibleBottom(visible.top, visible.bottom, Rect().also(ime::getBoundsInScreen).top)
         }
         return root to visible
     }
 
-    private suspend fun tell(@StringRes message: Int, long: Boolean = false) = withContext(Dispatchers.Main) {
-        Toast.makeText(this@ReadAloudService, message, if (long) Toast.LENGTH_LONG else Toast.LENGTH_SHORT).show()
-    }
-
     private companion object {
         const val TAG = "ReadAloud"
-        val LOOKAHEAD = com.jtn0123.audiowhisper.rust.ReaderTiming.lookahead
-        const val LOOK_TRIES = 8
-        const val LOOK_RETRY_MS = 250L
-        const val SETTLE_TRIES = 4
-        const val SETTLE_MS = 350L
-        const val TRIES_AFTER_SCROLL = 3
-        const val MAX_SCROLLS_BACK = 60
-        const val SCROLL_BACK_MS = 120L
     }
 }

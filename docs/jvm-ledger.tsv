@@ -31,9 +31,10 @@ app/src/main/kotlin/com/jtn0123/audiowhisper/reader/OfflineVoice.kt	M	25	TextToS
 app/src/main/kotlin/com/jtn0123/audiowhisper/reader/PageText.kt	M	52	Java BreakIterator sentence facts; consolidate portable block/reveal DTO orchestration |
 app/src/main/kotlin/com/jtn0123/audiowhisper/reader/PlayQueue.kt	A	20	ART JNI; native playback queue transport |
 app/src/main/kotlin/com/jtn0123/audiowhisper/reader/ReadAloud.kt	M	87	AccessibilityService / Intent / Toast; reading status and attachment orchestration |
-app/src/main/kotlin/com/jtn0123/audiowhisper/reader/ReadAloudService.kt	M	207	AccessibilityService; page/session/settle/resume choices and callbacks |
+app/src/main/kotlin/com/jtn0123/audiowhisper/reader/ReadAloudService.kt	A	110	AccessibilityService: windows, the node cache, toasts, the stop button and voices as a ReadingHost; the session's steps and the window choice are Rust's (reader::reading, reader::window, phase 5) |
+app/src/main/kotlin/com/jtn0123/audiowhisper/reader/Reading.kt	A	127	new (phase 5): runs reader::reading's effects on a ReadingHost and answers them, keeping the screens' nodes and the voice; the end of a reading stays here as it must run once cancelled |
 app/src/main/kotlin/com/jtn0123/audiowhisper/reader/ReadFromHereActivity.kt	A	12	Activity / Intent ACTION_PROCESS_TEXT; forwards platform selection |
-app/src/main/kotlin/com/jtn0123/audiowhisper/reader/ScreenWalk.kt	A	67	AccessibilityNodeInfo; node facts and native traversal callbacks |
+app/src/main/kotlin/com/jtn0123/audiowhisper/reader/ScreenWalk.kt	A	71	AccessibilityNodeInfo; node facts and native traversal callbacks; +4: the list's scroll actions behind the Scroller seam a reading uses (phase 5) |
 app/src/main/kotlin/com/jtn0123/audiowhisper/reader/Speaker.kt	M	77	TextToSpeech; pending utterance and completion/error lifecycle |
 app/src/main/kotlin/com/jtn0123/audiowhisper/reader/SpeakerKey.kt	A	14	SystemClock / ART JNI; native hold-state transport |
 app/src/main/kotlin/com/jtn0123/audiowhisper/reader/StopButton.kt	M	63	WindowManager TYPE_ACCESSIBILITY_OVERLAY; Rust must draw/layout the stop control |

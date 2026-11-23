@@ -13,7 +13,7 @@ import com.jtn0123.audiowhisper.rust.ScreenWalkRules
 internal class Screen(
     val app: String?,
     val blocks: List<TextBlock>,
-    val scroller: AccessibilityNodeInfo?,
+    val scroller: Scroller?,
     val visibleTop: Int,
     val visibleBottom: Int,
     val nodes: Int,
@@ -73,7 +73,11 @@ internal class ScreenWalk(private val visible: Rect) {
                 if (inList != 0) follow.show(tree.nodes[id])
             }
         }
-        return Screen(root.packageName?.toString(), PageText.blocks(pieces), list,
+        val scroller = list?.let { node ->
+            val (on, back) = AccessibilityAction.ACTION_SCROLL_FORWARD.id to AccessibilityAction.ACTION_SCROLL_BACKWARD.id
+            Scroller { forward -> node.performAction(if (forward) on else back) }
+        }
+        return Screen(root.packageName?.toString(), PageText.blocks(pieces), scroller,
             visible.top, visible.bottom, packet[1], packet[2] != 0)
     }
     private companion object {

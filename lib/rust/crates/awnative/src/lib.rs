@@ -31,6 +31,7 @@ mod layout_rules;
 mod panic;
 pub(crate) mod popup;
 pub(crate) mod reader;
+mod reading;
 mod render;
 mod render_accessibility;
 #[cfg(test)]

@@ -22,7 +22,7 @@ fn index(value: usize) -> i32 {
 }
 
 /// The edges in `edges`, each block's top then its bottom.
-fn read_edges(edges: &[i32]) -> Result<Vec<Edges>> {
+pub(crate) fn read_edges(edges: &[i32]) -> Result<Vec<Edges>> {
     let (pairs, rest) = edges.as_chunks::<2>();
     if !rest.is_empty() {
         return Err(illegal("a top without its bottom"));
