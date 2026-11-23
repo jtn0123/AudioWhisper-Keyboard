@@ -332,7 +332,7 @@ class RustKeyboardView(context: Context) : FrameLayout(context), SurfaceHolder.C
                     val v = key.visibleBounds
                     nlp.noteOrientation(resources.configuration.isOrientationLandscape())
                     nlp.tapTrail.pressed(data.code, TapOffset.of(event.getX(p), event.getY(p) - s.stripHeight,
-                        v.center.x, v.center.y, v.width, v.height))
+                        v.left + v.width / 2.0f, v.top + v.height / 2.0f, v.width, v.height))
                 }
                 dispatcher.sendDown(data, onLongPress = {
                     val choices = s.keyboard.popupKeys(index, prefs.keyboard.keyHintConfiguration()).toList()
