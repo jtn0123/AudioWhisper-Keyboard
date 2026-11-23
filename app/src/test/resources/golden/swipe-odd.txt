@@ -1,0 +1,12 @@
+# swipe-odd: the answers the frozen Kotlin reference gave (docs/phase6-kotlin-references.md).
+# Their count, the digest after the last, and after each power of two (at N).
+count 160
+digest 737c12d1f9a4a6a8
+at 1 1ffc203ee71e778e
+at 2 ceb39124c5565d7a
+at 4 b296013b9e5f2e37
+at 8 4b162515e8d50375
+at 16 4d6eec877ffdf713
+at 32 69673b9a5fde4294
+at 64 346bb48d7af4fc76
+at 128 2a91b55b46eb88b3

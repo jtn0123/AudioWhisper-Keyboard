@@ -1,0 +1,10 @@
+# swipe-strange: the answers the frozen Kotlin reference gave (docs/phase6-kotlin-references.md).
+# Their count, the digest after the last, and after each power of two (at N).
+count 62
+digest bff5e5b00a5e47a0
+at 1 3d66ae88e81d5950
+at 2 909dd3b5e7b2a4b6
+at 4 604cf0721f1e0a88
+at 8 9f34b2e2ecd32d0e
+at 16 2badad3ce45c8882
+at 32 365b36b8dbdd6689

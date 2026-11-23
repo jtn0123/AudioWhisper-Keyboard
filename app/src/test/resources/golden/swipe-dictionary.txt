@@ -1,0 +1,13 @@
+# swipe-dictionary: the answers the frozen Kotlin reference gave (docs/phase6-kotlin-references.md).
+# Their count, the digest after the last, and after each power of two (at N).
+count 300
+digest ff853b7c790084fa
+at 1 d7064ba8a6fef88d
+at 2 3e5b298c98582881
+at 4 01ec6059ecacc5b2
+at 8 b1d05048a21bc9ad
+at 16 9e45020698c2e07a
+at 32 24e351ce100272cf
+at 64 b54ed81b19fbbbf9
+at 128 aea0be67197e6cec
+at 256 b903d6b037b14997
