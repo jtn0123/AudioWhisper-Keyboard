@@ -1,0 +1,16 @@
+# settings-defaults: the answers the frozen Kotlin reference gave (docs/phase6-kotlin-references.md).
+# Their count, the digest after the last, and after each power of two (at N).
+count 2145
+digest f544e54ab3f1f8a3
+at 1 7bc6c0a7232a4cf5
+at 2 7bc4283cbf863e2e
+at 4 a45d967d7ac2028c
+at 8 a324b50bb9e23355
+at 16 52bdf05c3b11a8ae
+at 32 2ee2024cbd5c28c8
+at 64 15ff5b07b0a7c3df
+at 128 b95991938ede746a
+at 256 7d457877f4cbe5dd
+at 512 bedbf58c3fa9e357
+at 1024 0f50365efcf5926c
+at 2048 3702f7bc77fc3415

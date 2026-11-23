@@ -1,5 +1,6 @@
 package dev.patrickgold.florisboard.app.settings.advanced
 
+import com.jtn0123.audiowhisper.golden.GoldenTape
 import com.jtn0123.audiowhisper.rust.BackupPolicy
 import dev.patrickgold.florisboard.lib.io.ReferenceZipUtils
 import dev.patrickgold.florisboard.lib.io.ZipUtils
@@ -38,6 +39,8 @@ class BackupArchiveMatchTest {
             base + listOf("missing/parent/file" to "fixture"),
             base + listOf("x".repeat(256) to "skipped"),
             base.map { (n, c) -> n to if (n.endsWith("items.json")) "corrupt" else c })
+        // The reference policy's answers also go on a golden tape (docs/phase6-kotlin-references.md).
+        val tape = GoldenTape.ofReference("backup-archives")
         for ((index, entries) in fixtures.withIndex()) {
             val parent = File(root, "$index").apply { mkdirs() }
             val archive = File(parent, "generated.zip").apply { writeBytes(zip(entries)) }
@@ -55,6 +58,7 @@ class BackupArchiveMatchTest {
                     else ReferenceBackupPolicy.metadata(data.packageName, data.versionCode, 100)
                 status
             }
+            tape.answer("inspect $index", inspect(reference, false))
             assertEquals(inspect(reference, false), inspect(actual, true))
             for (path in ReferenceBackupPolicy.layout("jetpref/preferences.json").drop(3)) {
                 val left = File(reference, path)
@@ -65,9 +69,11 @@ class BackupArchiveMatchTest {
             val paths = ReferenceBackupPolicy.layout("jetpref/preferences.json")
             for (mask in 0..63) for (erase in listOf(false, true)) {
                 val present = paths.map { File(actual, it).exists() }
+                tape.answer("restore $index $mask $erase", ReferenceBackupPolicy.restore(mask, erase, paths[0], present))
                 assertEquals(ReferenceBackupPolicy.restore(mask, erase, paths[0], present), BackupPolicy.restore(mask, erase, paths[0], present))
             }
         }
+        tape.finish()
         for ((i, bytes) in listOf(byteArrayOf(1, 2, 3), zip(base).copyOf(25)).withIndex()) {
             val parent = File(root, "corrupt-$i").apply { mkdirs() }
             val archive = File(parent, "generated.zip").apply { writeBytes(bytes) }

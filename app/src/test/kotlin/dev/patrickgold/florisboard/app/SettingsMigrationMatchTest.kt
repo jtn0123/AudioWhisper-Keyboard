@@ -1,5 +1,6 @@
 package dev.patrickgold.florisboard.app
 
+import com.jtn0123.audiowhisper.golden.GoldenTape
 import dev.patrickgold.florisboard.ime.smartbar.quickaction.*
 import dev.patrickgold.florisboard.ime.text.keyboard.*
 import dev.patrickgold.florisboard.ime.popup.PopupSet
@@ -22,25 +23,31 @@ class SettingsMigrationMatchTest {
             "clipboard__clear_primary_clip_deletes_last_item"),
         listOf("devtools__enabled","devtools__unknown","future__key","suggestion__enabled","localization__subtypes"),
     )
-    private fun compare(type: String,key: String,raw: String) {
+    /** An outcome as the golden tapes record it: the migrated entry's four fields, or a refusal. */
+    private fun answer(outcome: Result<Array<String>>) = outcome.fold({ "migrated ${it.toList()}" }, { "refused" })
+    private fun compare(tape: GoldenTape,type: String,key: String,raw: String) {
         fun result(fn: (PreferenceMigrationEntry)->PreferenceMigrationEntry) = runCatching {
             SettingsStoreBridge.snapshot(fn(SettingsStoreBridge.entry(type,key,raw)))
         }
         val expected=result(::referenceMigrateAppPreference);val actual=result(::migrateAppPreference)
+        // The reference's answers also go on a golden tape (docs/phase6-kotlin-references.md).
+        tape.record(answer(expected))
         assertEquals(expected.isSuccess,actual.isSuccess,"migration admission for $key")
         if(expected.isSuccess) assertContentEquals(expected.getOrThrow(),actual.getOrThrow(),"migration output for $key")
     }
     @Test fun everyHistoricalKeyFamilyCorruptionAndUnknownEntriesMatch() {
         val random=Random(1710)
         var states=0
+        val tape=GoldenTape.ofReference("settings-migration-families")
         for(family in historicalFamilies) repeat(200) {
             // Each synthetic old stored state contains every key of that family and unknown data.
             for(key in family+listOf("future__unknown","devtools__future")) {
                 val raw=listOf("true","false","OFF","END","RGBA","HEX","",";","😀;é;","{broken",random.nextInt().toString(),"synthetic\ud800").random(random)
-                compare(listOf("b","s","i","l","f").random(random),key,raw)
+                compare(tape,listOf("b","s","i","l","f").random(random),key,raw)
             }
             states++
         }
+        tape.finish()
         assertEquals(1000,states)
     }
     @Test fun fullArrangementMigrationReplacementAdditionAndIdentityDedupMatch() {
@@ -49,10 +56,12 @@ class SettingsMigrationMatchTest {
             QuickAction.InsertKey(TextKeyData.FORWARD_DELETE),QuickAction.InsertKey(TextKeyData.IME_HIDE_UI),
             QuickAction.InsertKey(AutoTextKeyData(code=65)),QuickAction.InsertKey(MultiTextKeyData(codePoints=intArrayOf(65))),
             QuickAction.InsertKey(TextKeyData(code=65,popup=PopupSet(TextKeyData.SPACE))),QuickAction.InsertText("synthetic😀\ud800"))
+        val tape=GoldenTape.ofReference("settings-migration-arrangements")
         repeat(2000) {
             val arrangement=QuickActionArrangement(if(random.nextBoolean()) actions.random(random) else null,
                 List(random.nextInt(15)) {actions.random(random)},List(random.nextInt(15)) {actions.random(random)})
-            compare("s","smartbar__action_arrangement",ReferenceSettingsCodecs.arrangement(arrangement))
+            compare(tape,"s","smartbar__action_arrangement",ReferenceSettingsCodecs.arrangement(arrangement))
         }
+        tape.finish()
     }
 }

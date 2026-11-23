@@ -1,5 +1,6 @@
 package dev.patrickgold.florisboard.app
 
+import com.jtn0123.audiowhisper.golden.GoldenTape
 import com.jtn0123.audiowhisper.rust.SettingsRules
 import com.jtn0123.audiowhisper.settings.SettingsCodecs
 import com.jtn0123.audiowhisper.settings.SettingsSubtypes
@@ -40,6 +41,8 @@ private class ReferenceSubtypeSession {
 class SettingsSubtypeMatchTest {
     @Test fun twoHundredSeedsOfSubtypeEditsLocaleChangesAndSelectionMatch() {
         var operations=0
+        // The reference's answers also go on a golden tape (docs/phase6-kotlin-references.md).
+        val tape=GoldenTape.ofReference("settings-subtype-sessions")
         repeat(200) {seed ->
             val random=Random(seed+17000);val reference=ReferenceSubtypeSession()
             var actual=emptyList<Subtype>();var active=Subtype.DEFAULT
@@ -57,6 +60,10 @@ class SettingsSubtypeMatchTest {
                 val time=(seed*1000+step+1).toLong()
                 val plan=SettingsSubtypes.plan(op,actual,active.id,candidate,time,target,active,order)
                 val changed=reference.apply(op,candidate,time,target,order)
+                tape.answer("changed",changed)
+                tape.answer("list",ReferenceSettingsCodecs.subtypes(reference.list))
+                tape.answer("active",reference.active.id)
+                tape.answer("selected",reference.active)
                 assertEquals(changed,plan.changed,"seed=$seed step=$step op=$op changed")
                 assertEquals(reference.list,plan.list,"seed=$seed step=$step op=$op list")
                 assertEquals(reference.active.id,plan.active,"seed=$seed step=$step op=$op active")
@@ -69,6 +76,7 @@ class SettingsSubtypeMatchTest {
                 operations++
             }
         }
+        tape.finish()
         assertEquals(30000,operations)
     }
     @Test fun activeRemovalUsesFirstRemainingThenFixedEnglishFallback() {

@@ -1,0 +1,16 @@
+# settings-stored-files: the answers the frozen Kotlin reference gave (docs/phase6-kotlin-references.md).
+# Their count, the digest after the last, and after each power of two (at N).
+count 2960
+digest 3148ca1d9f0de979
+at 1 65af4b1686e54dc5
+at 2 e964bc0c6a92e530
+at 4 917ea50c7b60bd15
+at 8 68e78bb1884d0a2f
+at 16 cc73ca5a9807a448
+at 32 579c9c17b71a9a18
+at 64 828531ea0ac9846b
+at 128 66c3a4f01b12face
+at 256 f246fc22d1de8b1f
+at 512 9cc1d928e05fd587
+at 1024 ad2584e2dff0b163
+at 2048 8e715910092f6a73

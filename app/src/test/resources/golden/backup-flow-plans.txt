@@ -1,0 +1,8 @@
+# backup-flow-plans: the answers the frozen Kotlin reference gave (docs/phase6-kotlin-references.md).
+# Their count, the digest after the last, and after each power of two (at N).
+count 8
+digest 180cc0bfe84ddc0e
+at 1 221a061498c1d8df
+at 2 bb006c35ffa9c230
+at 4 ad2200c3da52f722
+at 8 180cc0bfe84ddc0e

@@ -3,6 +3,7 @@ package dev.patrickgold.florisboard.app.settings.advanced
 import com.jtn0123.audiowhisper.rust.BackupPolicy
 import com.jtn0123.audiowhisper.rust.SettingsUiDone
 import com.jtn0123.audiowhisper.rust.SettingsUiFiles
+import com.jtn0123.audiowhisper.golden.GoldenTape
 import com.jtn0123.audiowhisper.rust.SettingsUiJob
 import com.jtn0123.audiowhisper.rust.SettingsUiJobResult
 import dev.patrickgold.florisboard.lib.io.ReferenceZipUtils
@@ -75,6 +76,9 @@ class BackupFilesTest {
     /** Every selection Compose could back up reads back whole, unpacks to the tree Compose's
      * restore unpacked, and leads to the restore plan Compose ran for the groups the backup holds. */
     @Test fun everyComposeBackupReadsAsComposeReadItAndRestoresTheSame() {
+        // The reference's plans also go on a golden tape (docs/phase6-kotlin-references.md), less the
+        // erasing of groups the backup lacks, which can no longer be chosen.
+        val tape = GoldenTape.ofReference("backup-files-plans")
         for (mask in 1..63) {
             val archive = composeArchive(filled(dir("m$mask/in"), mask), dir("m$mask/out"), metadata)
             val report = inspect(archive, "m$mask/read")
@@ -94,11 +98,13 @@ class BackupFilesTest {
                 val ours = BackupPolicy.restore(selection and mask, erase, preferences, present)
                 // Erasing a group the backup lacks emptied it in Compose; now it cannot be chosen.
                 val lacking = (1..2).filter { (selection and (1 shl it)) != 0 && !present[it] }.map { paths[it] }
+                tape.answer("$mask $selection $erase", composePlan.filterNot { it[0] == "clear-directory" && it[1] in lacking })
                 assertEquals(composePlan.filterNot { it[0] == "clear-directory" && it[1] in lacking }, ours,
                     "mask $mask selection $selection erase $erase")
                 if ((selection and mask.inv()) == 0 || !erase) assertEquals(composePlan, ours)
             }
         }
+        tape.finish()
     }
 
     @Test fun filesThatAreNotUsableBackupsSayWhy() {

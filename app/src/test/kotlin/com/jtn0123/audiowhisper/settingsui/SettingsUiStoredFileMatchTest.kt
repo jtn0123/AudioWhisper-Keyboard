@@ -1,5 +1,6 @@
 package com.jtn0123.audiowhisper.settingsui
 
+import com.jtn0123.audiowhisper.golden.GoldenTape
 import com.jtn0123.audiowhisper.rust.KeyboardRenderer
 import com.jtn0123.audiowhisper.rust.SettingsUiOp
 import dev.patrickgold.florisboard.app.FlorisPreferenceModelImpl
@@ -20,6 +21,8 @@ class SettingsUiStoredFileMatchTest {
     private fun pref(model: PreferenceModel, key: String) = model.declaredPreferenceEntries.values.single { it.key == key }
     @Test fun nativeWidgetPlansProduceIdenticalRealJetprefExportBytes() = runBlocking {
         val directory = File("../build/stage4-settings/host-stored").apply { mkdirs() }
+        // The reference store's files also go on a golden tape (docs/phase6-kotlin-references.md).
+        val tape = GoldenTape.ofReference("settings-ui-stored-files")
         repeat(20) { seed ->
             val old = ReferenceSettingsModel(); val current = FlorisPreferenceModelImpl()
             val oldStore = SettingsStoreBridge.store(old); val newStore = SettingsStoreBridge.store(current)
@@ -54,8 +57,10 @@ class SettingsUiStoredFileMatchTest {
                 val expected=File(directory,"$seed-compose.jetpref");val actual=File(directory,"$seed-rust.jetpref")
                 oldStore.export(FileBasedStorage(expected.absolutePath)).getOrThrow()
                 newStore.export(FileBasedStorage(actual.absolutePath)).getOrThrow()
+                tape.answer("seed $seed", expected.readText())
                 assertContentEquals(expected.readBytes(),actual.readBytes(),"complete host stored bytes seed $seed")
             }
         }
+        tape.finish()
     }
 }

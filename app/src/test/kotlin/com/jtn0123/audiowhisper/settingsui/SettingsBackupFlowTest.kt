@@ -1,5 +1,6 @@
 package com.jtn0123.audiowhisper.settingsui
 
+import com.jtn0123.audiowhisper.golden.GoldenTape
 import com.jtn0123.audiowhisper.rust.*
 import dev.patrickgold.florisboard.app.settings.advanced.Backup
 import dev.patrickgold.florisboard.app.settings.advanced.BackupFiles
@@ -58,6 +59,8 @@ class SettingsBackupFlowTest {
     private fun work(e: List<List<String>>) = e.single { it[0] == SettingsUiFileEffect.WORK }
 
     @Test fun aComposeBackupIsRestoredThroughTheRustScreensAsComposeRestoredIt() {
+        // The reference's plans also go on a golden tape (docs/phase6-kotlin-references.md).
+        val tape = GoldenTape.ofReference("backup-flow-plans")
         for (mask in listOf(0b111111, 0b000111, 0b001111, 0b100001)) for (erase in listOf(false, true)) {
             val archive = composeBackup(mask)
             KeyboardRenderer(arrayOf(font)).use { n ->
@@ -90,6 +93,7 @@ class SettingsBackupFlowTest {
                 assertEquals(WireFlag.encode(erase), apply[SettingsUiWork.ERASE])
                 val present = paths.map { File(out, it).exists() }
                 val composeChoice = if (erase) mask else 0b000111
+                tape.answer("$mask $erase", ReferenceBackupPolicy.restore(composeChoice, erase, preferences, present))
                 assertEquals(ReferenceBackupPolicy.restore(composeChoice, erase, preferences, present),
                     BackupPolicy.restore(chosen, erase, preferences, present), "mask $mask erase $erase")
                 s = state(n, SettingsUiOp.FILES, *BackupFiles.done(SettingsUiJob.RESTORE_APPLY, SettingsUiJobResult.OK))
@@ -97,6 +101,7 @@ class SettingsBackupFlowTest {
                 assertEquals("settings/other", s.text("route"))
             }
         }
+        tape.finish()
     }
 
     @Test fun talkBackHearsTheChoicesThePartlyTickedClipboardAndTheNotes() {

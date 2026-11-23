@@ -1,0 +1,17 @@
+# settings-codec-subtypes: the answers the frozen Kotlin reference gave (docs/phase6-kotlin-references.md).
+# Their count, the digest after the last, and after each power of two (at N).
+count 6060
+digest b983644c17d611ab
+at 1 9d6294aa3b994542
+at 2 6295d3cf3170934c
+at 4 c91ba9301c32e8ba
+at 8 78c96c8904701aca
+at 16 12cc375a6c7bc537
+at 32 1d398676251895a6
+at 64 fc019a671f6a7fe3
+at 128 b02d291d88f1dfd8
+at 256 350133c1067b37f5
+at 512 0062c0822eead898
+at 1024 40dcea82d1d29917
+at 2048 96321e8cd407d967
+at 4096 1871dcc3be11acfc

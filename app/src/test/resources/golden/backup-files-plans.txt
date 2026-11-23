@@ -1,0 +1,17 @@
+# backup-files-plans: the answers the frozen Kotlin reference gave (docs/phase6-kotlin-references.md).
+# Their count, the digest after the last, and after each power of two (at N).
+count 8064
+digest 085cda5237240576
+at 1 ee30999b5f7bb6a2
+at 2 75b6a87bbc9fa514
+at 4 96e574ab5732edba
+at 8 bbf62dd8d3ff6cb0
+at 16 1fa9705887904a00
+at 32 7c1da71bad2f5043
+at 64 2116b54dc041ff4f
+at 128 7996df5296a8afde
+at 256 f47851aa98081add
+at 512 b88387507310536d
+at 1024 c12c217d129fe092
+at 2048 9649c453927f5c90
+at 4096 c7c364fdf954e0de

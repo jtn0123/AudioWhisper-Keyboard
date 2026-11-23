@@ -1,0 +1,21 @@
+# settings-subtype-sessions: the answers the frozen Kotlin reference gave (docs/phase6-kotlin-references.md).
+# Their count, the digest after the last, and after each power of two (at N).
+count 120000
+digest 8967fe579b62f7eb
+at 1 3dc96ff447c41edb
+at 2 bb00e591b4c8642e
+at 4 a8e15c83385833e8
+at 8 02f0e602c086a9e1
+at 16 d6cca5e4f80874bd
+at 32 3d3b79ff653bff21
+at 64 76899668015f1d81
+at 128 1c0fbd15e8c06fc9
+at 256 3c40376146118310
+at 512 c54836a5cab0728a
+at 1024 8be7bdf668fc2494
+at 2048 8dd224070f378b21
+at 4096 ea921c6392b6a729
+at 8192 293e92265b750637
+at 16384 795193fa6114af49
+at 32768 94d8a6e15fc7e116
+at 65536 a3ef59e37b18b267

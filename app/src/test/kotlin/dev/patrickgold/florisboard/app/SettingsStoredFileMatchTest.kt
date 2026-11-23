@@ -1,5 +1,6 @@
 package dev.patrickgold.florisboard.app
 
+import com.jtn0123.audiowhisper.golden.GoldenTape
 import com.jtn0123.audiowhisper.settings.SettingsCodecs
 import dev.patrickgold.florisboard.ime.core.Subtype
 import dev.patrickgold.florisboard.ime.media.emoji.Emoji
@@ -18,6 +19,8 @@ class SettingsStoredFileMatchTest {
     private fun <T : Any> encode(p: PreferenceData<T>) = p.serializer.serialize(p.get())
     @Test fun currentBuildDatastoreFilesRoundTripByteForByte() = runBlocking {
         val directory=File("../build/stage2-settings/stored-files").apply {mkdirs()}
+        // The reference's answers also go on a golden tape (docs/phase6-kotlin-references.md).
+        val tape=GoldenTape.ofReference("settings-stored-files")
         repeat(20) {seed ->
             val old=ReferenceSettingsModel()
             val baseline=SettingsStoreBridge.store(old)
@@ -32,6 +35,7 @@ class SettingsStoredFileMatchTest {
             old.smartbar.actionArrangement.set(QuickActionArrangement(QuickAction.InsertText("synthetic-$seed"),emptyList(),emptyList())).getOrThrow()
             val before=File(directory,"$seed-before.prefs")
             baseline.export(FileBasedStorage(before.absolutePath)).getOrThrow()
+            tape.answer("before $seed",before.readText())
             val model=FlorisPreferenceModelImpl()
             val upgraded=SettingsStoreBridge.store(model)
             upgraded.init(LoadStrategy.UseReader(FileBasedStorage(before.absolutePath)),PersistStrategy.Disabled).getOrThrow()
@@ -39,15 +43,18 @@ class SettingsStoredFileMatchTest {
             val sameBuild=ReferenceSettingsModel()
             val original=SettingsStoreBridge.store(sameBuild)
             original.init(LoadStrategy.UseReader(FileBasedStorage(before.absolutePath)),PersistStrategy.Disabled).getOrThrow()
-            for((key,pref) in sameBuild.declaredPreferenceEntries) {
+            for((key,pref) in sameBuild.declaredPreferenceEntries.entries.sortedBy { it.key.key }) {
+                tape.answer(key.key,encode(pref))
                 assertEquals(encode(pref),encode(model.declaredPreferenceEntries.getValue(key)),"stored field ${key.key}")
             }
             // Canonical stored subtype and history JSON remains byte-identical too.
             assertEquals(model.localization.subtypes.get(),SettingsCodecs.subtypes(SettingsCodecs.subtypes(model.localization.subtypes.get())))
+            tape.answer("history",ReferenceSettingsCodecs.history(model.emoji.historyData.get()))
             assertEquals(ReferenceSettingsCodecs.history(model.emoji.historyData.get()),SettingsCodecs.history(model.emoji.historyData.get()))
             val expected=File(directory,"$seed-reference.prefs");val actual=File(directory,"$seed-native.prefs")
             original.export(FileBasedStorage(expected.absolutePath)).getOrThrow()
             upgraded.export(FileBasedStorage(actual.absolutePath)).getOrThrow()
+            tape.answer("loaded $seed",expected.readText())
             assertContentEquals(expected.readBytes(),actual.readBytes(),"complete Jetpref stored file")
             val round=FlorisPreferenceModelImpl();val roundStore=SettingsStoreBridge.store(round)
             roundStore.init(LoadStrategy.UseReader(FileBasedStorage(actual.absolutePath)),PersistStrategy.Disabled).getOrThrow()
@@ -55,5 +62,6 @@ class SettingsStoredFileMatchTest {
             roundStore.export(FileBasedStorage(again.absolutePath)).getOrThrow()
             assertContentEquals(actual.readBytes(),again.readBytes(),"native reload and export")
         }
+        tape.finish()
     }
 }

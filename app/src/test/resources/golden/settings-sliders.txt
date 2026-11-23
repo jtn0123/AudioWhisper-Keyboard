@@ -1,0 +1,17 @@
+# settings-sliders: the answers the frozen Kotlin reference gave (docs/phase6-kotlin-references.md).
+# Their count, the digest after the last, and after each power of two (at N).
+count 5697
+digest 744271d35c2bf172
+at 1 91867a965798cc21
+at 2 767cb5da33050717
+at 4 a37bff41453cbccb
+at 8 e29d0d8ada414e5a
+at 16 48b7eae491e84dd5
+at 32 ac967ba4882c47bf
+at 64 8643ff60d8f30742
+at 128 be6cc6690273ba16
+at 256 7a80959dbfb7cd7b
+at 512 5d1a9a3586d0b477
+at 1024 5379e457c0fe2564
+at 2048 0e38a4702e6cb038
+at 4096 61511b8c96c63ec1

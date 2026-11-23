@@ -1,0 +1,15 @@
+# settings-migration-arrangements: the answers the frozen Kotlin reference gave (docs/phase6-kotlin-references.md).
+# Their count, the digest after the last, and after each power of two (at N).
+count 2000
+digest 160fe5897a3914bb
+at 1 9231d272a00068f9
+at 2 65bc205929160994
+at 4 8898dfe05b09eed6
+at 8 6049bd5b5add5608
+at 16 7b20027009273c80
+at 32 19b7e4c25861c6e4
+at 64 a18a4306795ec0cd
+at 128 4b4aa6b81e2cfe68
+at 256 a79dc1b6e4957bc9
+at 512 8deba6d60fca1729
+at 1024 0241a17c4f3267af

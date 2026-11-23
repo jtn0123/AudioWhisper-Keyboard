@@ -1,0 +1,15 @@
+# settings-codec-history: the answers the frozen Kotlin reference gave (docs/phase6-kotlin-references.md).
+# Their count, the digest after the last, and after each power of two (at N).
+count 1519
+digest 528567fe2da7d9fe
+at 1 47248b8185070eb7
+at 2 79ad63da607680e8
+at 4 8dde9cc4b57efa17
+at 8 499ea94d8bfd7db7
+at 16 c9a08209d7f70f2b
+at 32 b59881b583789f3e
+at 64 a11f57598b4b2ebc
+at 128 b4ae0a137a59f564
+at 256 29cbb92ad0c89347
+at 512 02b0f32105eafd78
+at 1024 a7f37787a4aa9b44

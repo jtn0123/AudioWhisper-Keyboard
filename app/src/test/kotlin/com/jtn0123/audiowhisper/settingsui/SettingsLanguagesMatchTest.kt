@@ -1,5 +1,6 @@
 package com.jtn0123.audiowhisper.settingsui
 
+import com.jtn0123.audiowhisper.golden.GoldenTape
 import com.jtn0123.audiowhisper.rust.*
 import com.jtn0123.audiowhisper.settings.SettingsCodecs
 import dev.patrickgold.florisboard.app.ReferenceSettingsCodecs
@@ -112,12 +113,17 @@ class SettingsLanguagesMatchTest {
 
     @Test fun movesDeletesEditsAndAddsWriteWhatSubtypeManagerWrote() {
         var list = listOf(english, german, french)
+        // The reference's writes also go on a golden tape (docs/phase6-kotlin-references.md).
+        val tape = GoldenTape.ofReference("languages-edits")
         KeyboardRenderer(arrayOf(font)).use { n ->
             prepare(n, ReferenceSettingsCodecs.subtypes(list))
             // reorderSubtypes([1, 0, 2]). Slots follow the subtype, so German stays slot 1.
             list = listOf(german, english, french)
+            tape.record(ReferenceSettingsCodecs.subtypes(list))
             assertEquals(ReferenceSettingsCodecs.subtypes(list), written(state(n, SettingsUiOp.ACTIVATE, item(1, 1))))
             // removeSubtype(english), then Undo puts it back where it stood.
+            tape.record(ReferenceSettingsCodecs.subtypes(list - english))
+            tape.record(ReferenceSettingsCodecs.subtypes(list))
             assertEquals(ReferenceSettingsCodecs.subtypes(list - english), written(state(n, SettingsUiOp.ACTIVATE, item(0, 3))))
             assertEquals(ReferenceSettingsCodecs.subtypes(list), written(state(n, SettingsUiOp.ACTIVATE, "7901")))
             // modifySubtypeWithSameId: French's characters layout set to QWERTY in its editor.
@@ -128,6 +134,7 @@ class SettingsLanguagesMatchTest {
             val qwerty = french.copy(layoutMap = french.layoutMap.copy(characters = component("layouts", "qwerty")))
             list = list.map { if (it.id == french.id) qwerty else it }
             s = state(n, SettingsUiOp.ACTIVATE, "1021")
+            tape.record(ReferenceSettingsCodecs.subtypes(list))
             assertEquals(ReferenceSettingsCodecs.subtypes(list), written(s))
             assertEquals(languageRoutes[0], s.text("route"))
             // addSubtype: a preset already in the list is refused with Compose's message, and writes nothing.
@@ -145,8 +152,11 @@ class SettingsLanguagesMatchTest {
             val raw = written(state(n, SettingsUiOp.ACTIVATE, "1021"))
             val added = ReferenceSettingsCodecs.subtypes(raw).last()
             assertTrue(added.id in before..System.currentTimeMillis())
+            // Recorded with the time it was stamped with as 0.
+            tape.record(ReferenceSettingsCodecs.subtypes(list + spanish.copy(id = added.id)).replace("\"id\":${added.id},", "\"id\":0,"))
             assertEquals(ReferenceSettingsCodecs.subtypes(list + spanish.copy(id = added.id)), raw)
         }
+        tape.finish()
     }
 
     /** Each item offers Move up, Move down and Delete to TalkBack, by the ids of the buttons they press. */
@@ -172,6 +182,7 @@ class SettingsLanguagesMatchTest {
             val random = Random(1712)
             val values = listOf("valid", "00:00", "00-00", "", "00", "synthetic:a", "😀")
             var accepted = 0
+            val tape = GoldenTape.ofReference("languages-editor")
             repeat(5000) {
                 val old = ReferenceSubtypeEditorState(Subtype.DEFAULT)
                 old.primaryLocale.value = FlorisLocale.fromTag(listOf("en-US", "fr-FR", "00-00", "00", "zz").random(random))
@@ -195,6 +206,8 @@ class SettingsLanguagesMatchTest {
                 assertEquals(languageRoutes[3], state(n, SettingsUiOp.RESTORE, *saved).text("route"))
                 val s = state(n, SettingsUiOp.ACTIVATE, "1021")
                 val expected = old.toSubtype()
+                // The subtype the editor accepts, with the id it was opened with, or its refusal.
+                tape.record(expected.fold({ "accepted $it" }, { "refused" }))
                 assertEquals(expected.isSuccess, writes(s).isNotEmpty(), "draft $it")
                 if (expected.isSuccess) {
                     accepted++
@@ -204,6 +217,7 @@ class SettingsLanguagesMatchTest {
                     node(s, strings.getValue("settings__localization__subtype_error_fields_no_value"))
                 }
             }
+            tape.finish()
             assertTrue(accepted in 1..4999, "both outcomes are checked: $accepted accepted")
         }
     }

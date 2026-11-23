@@ -1,0 +1,15 @@
+# backup-names: the answers the frozen Kotlin reference gave (docs/phase6-kotlin-references.md).
+# Their count, the digest after the last, and after each power of two (at N).
+count 1176
+digest 82f1edf652580b8a
+at 1 c1343949c3a6d129
+at 2 cfd9754bcca52256
+at 4 bf22884519b18dcd
+at 8 3bb12ff7861e130a
+at 16 369f52278852a3a2
+at 32 5e8636c318444057
+at 64 9e5fedbcfabaf160
+at 128 ba9aa1df257dfcaf
+at 256 aca795660084d01c
+at 512 496b6473f62ae0ed
+at 1024 c9aa245f6031f46e
