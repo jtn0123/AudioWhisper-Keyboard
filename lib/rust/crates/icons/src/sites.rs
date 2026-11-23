@@ -131,6 +131,24 @@ mod tests {
     use super::*;
 
     #[test]
+    fn a_key_draws_an_icon_exactly_when_the_key_graph_says_it_does() {
+        let own = [
+            ICON_UNFOLD_LESS,
+            ICON_UNFOLD_MORE,
+            ICON_STOP,
+            ICON_EMAIL,
+            ICON_LINK,
+            ICON_PHONE,
+            ICON_IMAGE,
+            ICON_VIDEO,
+        ];
+        for token in -10_000..2_000 {
+            let drawn = keygraph::compute::DRAWN.contains(&token) || own.contains(&token);
+            assert_eq!(for_key(token).is_some(), drawn, "{token}");
+        }
+    }
+
+    #[test]
     fn a_smartbar_action_draws_its_kinds_token() {
         assert_eq!(smartbar_token(icon::KEY, ICON_SEND), ICON_SEND);
         assert_eq!(smartbar_token(icon::NONE, ICON_SEND), 0);

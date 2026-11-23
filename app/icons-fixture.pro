@@ -5,3 +5,6 @@
 -keep class androidx.compose.ui.graphics.** { *; }
 -keep class androidx.compose.ui.res.** { *; }
 -keep class kotlin.** { *; }
+# And each key token's icon, as the evaluator picked it.
+-keep class dev.patrickgold.florisboard.ime.keyboard.ComputingEvaluatorKt { *; }
+-keep class dev.patrickgold.florisboard.lib.compose.ImageVectorKt { *; }

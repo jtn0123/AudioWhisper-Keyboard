@@ -9,6 +9,7 @@ import androidx.compose.ui.graphics.vector.VectorPath
 import androidx.compose.ui.res.vectorResource
 import androidx.test.platform.app.InstrumentationRegistry
 import dev.patrickgold.florisboard.R
+import dev.patrickgold.florisboard.ime.keyboard.keyIconVector
 import java.io.File
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -32,10 +33,12 @@ class IconGoldenDump {
         val file = instrumentation.context.assets.open("sources.tsv").bufferedReader().use { it.readText() }
         val golden = StringBuilder()
         val points = StringBuilder()
+        val held = mutableListOf<Pair<String, ImageVector>>()
         for (line in file.lines().filter { it.isNotEmpty() && !it.startsWith("#") }) {
             val fields = line.split('\t')
             val vector = vector(fields[0], target)
             assertHolds(fields, vector)
+            held.add(fields[0] to vector)
             val text = referenceIconPath(vector)
             val count = text.split(' ').count { it == "M" || it == "L" }
             golden.append("${fields[0]}\t$count\t${IconVectors.fnv(text)}\t$text\n")
@@ -44,6 +47,13 @@ class IconGoldenDump {
                     .joinToString(" ") { "%08x".format(it.toRawBits()) }
             }).append('\n')
         }
+        // Each key token keyIconVector drew, and the icons holding its vector's very nodes.
+        val keys = (-10_000 until 2_000).mapNotNull { token ->
+            val vector = keyIconVector(token, target) ?: return@mapNotNull null
+            val names = held.filter { (_, it) -> same(it, vector) }.map { it.first }
+            "$token\t${names.joinToString(",")}\n"
+        }
+        File(target.cacheDir, "icon-keys.tsv").writeText(keys.joinToString(""))
         File(target.cacheDir, "icon-golden.tsv").writeText(golden.toString())
         File(target.cacheDir, "icon-points.tsv").writeText(points.toString())
     }
@@ -54,6 +64,9 @@ class IconGoldenDump {
         if (drawable == name) return IconVectors.material(name)
         return ImageVector.vectorResource(null, context.resources, drawables.getValue(drawable))
     }
+
+    private fun same(a: ImageVector, b: ImageVector) = a.viewportWidth == b.viewportWidth &&
+        a.viewportHeight == b.viewportHeight && IconVectors.paths(a) == IconVectors.paths(b)
 
     /** The file's [fields] hold [vector]'s viewport and nodes, number for number. */
     private fun assertHolds(fields: List<String>, vector: ImageVector) {

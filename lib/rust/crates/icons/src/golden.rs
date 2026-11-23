@@ -59,3 +59,26 @@ fn every_icon_is_the_path_android_made() {
         text.len()
     );
 }
+
+/// Each key token Android drew an icon for, with the icons holding that vector's nodes
+/// (`tests/fixtures/keys.tsv`, from the same run).
+const KEYS: &str = include_str!("../tests/fixtures/keys.tsv");
+
+#[test]
+fn every_key_draws_the_icon_android_drew() {
+    let mut drawn = Vec::new();
+    for line in KEYS.lines().filter(|l| !l.starts_with('#')) {
+        let (token, names) = line.split_once('\t').expect(line);
+        let token: i32 = token.parse().expect(token);
+        let name = crate::for_key(token);
+        let held = name.is_some_and(|n| names.split(',').any(|m| m == n));
+        assert!(held, "{token} draws {name:?}, Android drew {names}");
+        drawn.push(token);
+    }
+    assert_eq!(drawn.len(), 38);
+    // No other token draws an icon but the Smartbar's and clipboard candidates' own.
+    let own = wire::input::ICON_UNFOLD_LESS..=wire::input::ICON_VIDEO;
+    for token in (-10_000..2_000).filter(|t| !drawn.contains(t) && !own.contains(t)) {
+        assert_eq!(crate::for_key(token), None, "{token}");
+    }
+}

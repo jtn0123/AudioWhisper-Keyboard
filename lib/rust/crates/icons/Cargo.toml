@@ -11,5 +11,9 @@ rust-version.workspace = true
 keys = { path = "../keys" }
 wire = { path = "../wire" }
 
+[dev-dependencies]
+# The tokens the key graph says draw an icon, which `for_key` must cover exactly.
+keygraph = { path = "../keygraph" }
+
 [lints]
 workspace = true
