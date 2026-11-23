@@ -31,6 +31,7 @@ import android.provider.MediaStore
 import android.provider.OpenableColumns
 import androidx.exifinterface.media.ExifInterface
 import com.jtn0123.audiowhisper.rust.ClipboardStore
+import com.jtn0123.audiowhisper.rust.NativeRuntime
 import com.jtn0123.audiowhisper.rust.StoredFile
 import dev.patrickgold.florisboard.BuildConfig
 import dev.patrickgold.florisboard.lib.devtools.LogTopic
@@ -85,7 +86,9 @@ class ClipboardMediaProvider : ContentProvider() {
 
     override fun onCreate(): Boolean {
         // Opens the store before anything asks, moving main's Room databases into it the first time.
-        ioScope.launch { store }
+        // Not without the library: providers start before the app, which then says why it cannot
+        // start, and the store failing on its own thread would end the process before that.
+        if (NativeRuntime.load()) ioScope.launch { store }
         return true
     }
 
