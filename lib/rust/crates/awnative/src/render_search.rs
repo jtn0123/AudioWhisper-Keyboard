@@ -34,7 +34,7 @@ pub fn search(native: i64, density: f32, labels: &[Vec<u16>], now: i64) -> Resul
             s.scene.search = None;
             return Ok(());
         }
-        if labels.len() != 6 || !density.is_finite() || density <= 0.0 {
+        if labels.len() != 4 || !density.is_finite() || density <= 0.0 {
             return Err(illegal("search strip"));
         }
         let search = Search {
@@ -42,8 +42,8 @@ pub fn search(native: i64, density: f32, labels: &[Vec<u16>], now: i64) -> Resul
             back: labels[1].clone(),
             prompt: labels[2].clone(),
             submit: labels[3].clone(),
-            back_icon: labels[4].clone(),
-            submit_icon: labels[5].clone(),
+            back_icon: icons::path(icons::SEARCH[0]).unwrap_or_default().to_owned(),
+            submit_icon: icons::path(icons::SEARCH[1]).unwrap_or_default().to_owned(),
             cursor: true,
             deadline: now + 530_000_000,
         };

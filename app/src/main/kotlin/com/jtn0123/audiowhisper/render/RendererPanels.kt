@@ -7,7 +7,6 @@ import com.jtn0123.audiowhisper.rust.KeyGraphOp
 import com.jtn0123.audiowhisper.rust.WireFlag
 import dev.patrickgold.florisboard.R
 import dev.patrickgold.florisboard.ime.keyboard.KeyData
-import dev.patrickgold.florisboard.ime.keyboard.keyIconVector
 import dev.patrickgold.florisboard.ime.smartbar.quickaction.*
 import dev.patrickgold.florisboard.ime.text.key.KeyCode
 import dev.patrickgold.florisboard.ime.text.keyboard.TextKeyData
@@ -30,11 +29,11 @@ internal fun rendererPanels(r: RootReads, kind: Int, emoji: RendererEmoji, clipb
         R.string.quick_actions_editor__subheader_sticky_action, R.string.quick_actions_editor__subheader_dynamic_actions,
         R.string.quick_actions_editor__subheader_hidden_actions).map { r.string(it) } + "Back"
     val labels = actions.flatMapIndexed { i, action ->
-        val icon = if (action is QuickAction.InsertKey) keyIconVector(keys.icon(i), r.service) else null
+        val icon = if (action is QuickAction.InsertKey) keys.icon(i) else 0
         listOf(r.name(action), when (action) {
-            is QuickAction.InsertKey -> if (icon == null) keys.label(i) ?: "" else ""
+            is QuickAction.InsertKey -> if (icon == 0) keys.label(i) ?: "" else ""
             is QuickAction.InsertText -> action.data.firstOrNull().toString().ifBlank { "?" }
-        }, icon?.let(::iconPath) ?: "")
+        }, if (icon == 0) "" else "$icon")
     }
     return RendererPanels(kind, actions, arrangement, data.toIntArray(), (titles + labels).toTypedArray(), emoji, clipboard, gif)
 }

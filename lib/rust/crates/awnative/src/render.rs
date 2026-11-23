@@ -127,7 +127,7 @@ pub fn update(
                 },
                 label: labels[i * 3].clone(),
                 hint: labels[i * 3 + 1].clone(),
-                icon: labels[i * 3 + 2].clone(),
+                icon: icon(&labels[i * 3 + 2]),
                 enabled: g[8] != 0.0,
                 styles: Default::default(),
                 hints: Default::default(),
@@ -223,6 +223,11 @@ impl Session {
             theme.bubble(&mut self.scene, &request, choices);
         }
     }
+}
+
+/// The drawn icon of a key token as Kotlin wrote it (`"-5"`), "" for none or for no number.
+pub(crate) fn icon(token: &str) -> String {
+    icons::key_path(token.parse().unwrap_or(0)).to_owned()
 }
 
 /// `texts` as Rust strings, invalid UTF-16 shown as replacement glyphs, as `strings` reads them.

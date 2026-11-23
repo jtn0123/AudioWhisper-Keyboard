@@ -12,7 +12,7 @@ class SubtypeRendererTest {
             for ((width,height) in listOf(400 to 300,600 to 200,320 to 480)) {
                 r.update(floatArrayOf(width.toFloat(),height.toFloat(),0f,1f,1f,0f),arrayOf("characters","unshifted"),intArrayOf(),floatArrayOf(),emptyArray(),emptyArray())
                 r.panels(floatArrayOf(7f,1f,48f,0f,50_000_000f,0f,500_000_000f),intArrayOf(-1,0,0),Array(6) {""})
-                r.subtypes(Long.MAX_VALUE,longArrayOf(-1,Long.MAX_VALUE),arrayOf("Select subtype","","","English (United States)","English (United Kingdom)"))
+                r.subtypes(Long.MAX_VALUE,longArrayOf(-1,Long.MAX_VALUE),arrayOf("Select subtype","English (United States)","English (United Kingdom)"))
                 val nodes=r.semanticSnapshot()
                 assertTrue(nodes.contains("\"popup\":true"))
                 assertTrue(nodes.contains("English (United Kingdom)"))

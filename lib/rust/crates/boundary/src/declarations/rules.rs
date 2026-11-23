@@ -191,13 +191,6 @@ pub const IME_CHROME_RULES: Class = Class {
             ..METHOD
         },
         Method {
-            name: "previewSize",
-            params: &[("config", Param::Array(Element::Float))],
-            returns: Return::Array(Element::Int),
-            instance: true,
-            ..METHOD
-        },
-        Method {
             name: "startEllipsis",
             params: &[
                 ("labels", Param::Strings),

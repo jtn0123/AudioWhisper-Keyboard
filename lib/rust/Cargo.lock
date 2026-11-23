@@ -103,6 +103,7 @@ dependencies = [
  "gestures",
  "gif",
  "glide",
+ "icons",
  "imesubtype",
  "imetheme",
  "input",

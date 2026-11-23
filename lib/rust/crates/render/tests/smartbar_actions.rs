@@ -313,12 +313,16 @@ fn the_packed_call_answers_a_row_for_each_action() {
     assert_eq!(answer[packed::TOGGLES_EXTENDED], units("1"));
     let row = |i: usize, field: usize| &answer[packed::SIZE + i * shown::SIZE + field];
     assert_eq!(row(0, shown::ICON), &units(&icon::UNFOLD_MORE.to_string()));
+    // The renderer draws the unfold icon's own token.
+    let unfold = wire::input::ICON_UNFOLD_MORE.to_string();
+    assert_eq!(row(0, shown::DRAWN), &units(&unfold));
     assert_eq!(row(1, shown::CODE), &units(&VOICE_INPUT.to_string()));
     // The config says dictation is running; the row, that it is listening.
     assert_eq!(flags(&answer, 1), BAR_ENABLED | BAR_DICTATING);
     // Its key draws no icon, so it shows its key's label.
     assert_eq!(row(1, shown::LABEL), &units("key"));
     assert_eq!(row(1, shown::KEY_ICON), &units("0"));
+    assert_eq!(row(1, shown::DRAWN), &units("0"));
     assert_eq!(row(2, shown::LABEL), &units("o"));
 }
 
@@ -349,6 +353,7 @@ fn a_key_that_draws_an_icon_names_it_and_shows_no_label() {
     let row = |i: usize, field: usize| &answer[packed::SIZE + i * shown::SIZE + field];
     assert_eq!(row(0, shown::ICON), &units(&icon::KEY.to_string()));
     assert_eq!(row(0, shown::KEY_ICON), &units("1003"));
+    assert_eq!(row(0, shown::DRAWN), &units("1003"));
     assert!(row(0, shown::LABEL).is_empty());
     // A text action never shows its key's icon.
     assert_eq!(row(1, shown::KEY_ICON), &units("0"));

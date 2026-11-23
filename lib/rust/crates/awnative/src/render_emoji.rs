@@ -24,7 +24,7 @@ pub fn emoji(
             || h.is_empty()
             || h[0] < 0
             || h.len() < 1 + h[0] as usize
-            || labels.len() != 29
+            || labels.len() != 15
         {
             return Err(illegal("emoji payload"));
         }
@@ -79,8 +79,7 @@ pub fn emoji(
             }
             e.pinned_strategy = c[3];
             e.recent_strategy = c[4];
-            e.labels = labels[..15].to_vec();
-            e.icons = labels[15..].to_vec();
+            e.labels = labels;
             if c[7] != 0 {
                 e.refresh();
             }
@@ -99,8 +98,8 @@ pub fn emoji(
                 recent_strategy: c[4],
                 category: if c[0] != 0 { 0 } else { 1 },
                 popup: None,
-                labels: labels[..15].to_vec(),
-                icons: labels[15..].to_vec(),
+                labels,
+                icons: icons::owned(&icons::EMOJI),
                 bottom: c[5] as f32,
                 gifs: c[6] != 0,
             };

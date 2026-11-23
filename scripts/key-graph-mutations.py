@@ -30,7 +30,7 @@ ASSEMBLE, PARSE, FACTS, CALLS = (GRAPH_SRC / name for name in ('assemble.rs', 'p
 ACTIONS = ROOT / 'lib/rust/crates/render/src/smartbar_actions.rs'
 BRIDGE = ROOT / 'lib/rust/crates/awnative/src/render_smartbar.rs'
 RENDER = ROOT / 'app/src/main/kotlin/com/jtn0123/audiowhisper/render'
-ROWS, KEYBOARD, SMARTBAR = RENDER / 'KeyGraphRows.kt', RENDER / 'RustKeyboard.kt', RENDER / 'RendererSmartbar.kt'
+ROWS, KEYBOARD = RENDER / 'KeyGraphRows.kt', RENDER / 'RustKeyboard.kt'
 PANELS = RENDER / 'RendererPanels.kt'
 # The targets: Rust test binaries, and JVM test classes run by one Gradle call.
 UNIT, BAR_TESTS = 'cargo:keygraph', 'cargo:smartbar_actions'
@@ -151,15 +151,15 @@ CASES = [
      'label = row[at + KeyGraphKey.SHOWN]', [TRACE]),
     ('one-round-of-answers', KEYBOARD, 'while (questions.isNotEmpty()) {', 'if (questions.isNotEmpty()) {', [TRACE]),
     # The smartbar's questions answered from the graph.
-    ('key-icon-on-every-action', ACTIONS, 'row[shown::KEY_ICON] = text(if action.icon == icon::KEY {',
-     'row[shown::KEY_ICON] = text(if true {', BAR),
+    ('key-icon-on-every-action', ACTIONS, 'let key_icon = if action.icon == icon::KEY {', 'let key_icon = if true {',
+     BAR),
     ('key-label-ignored', ACTIONS, 'row[shown::LABEL] = if action.key_label {', 'row[shown::LABEL] = if false {', BAR),
     ('empty-slot-asked', ACTIONS, 'let answer = if kind == kind::NONE {', 'let answer = if false {', BAR),
     ('key-icon-flag-ignored', ACTIONS, 'key_icon: kind == kind::KEY && answer.icon != 0,', 'key_icon: kind == kind::KEY,',
      BAR),
     ('bridge-enables-every-key', BRIDGE, 'enabled: action.enabled,', 'enabled: true,', [BAR_MATCH]),
-    ('key-icon-token-lost', SMARTBAR, 'fun keyIcon(i: Int): Int = field(i, SmartbarActionPlan.KEY_ICON).toInt()',
-     'fun keyIcon(i: Int): Int = field(i, SmartbarActionPlan.KEY_ICON).toInt() * 0', [BAR_MATCH]),
+    ('key-icon-token-lost', ACTIONS, 'text(icons::smartbar_token(action.icon, key_icon))',
+     'text(icons::smartbar_token(action.icon, 0))', BAR),
     # The overflow and editor panels' questions about each action's key.
     ('action-always-enabled', CALLS, 'answered[action_answer::ENABLED] = wire::flag::utf16(answer.enabled);',
      'answered[action_answer::ENABLED] = wire::flag::utf16(true);', [UNIT, BAR_MATCH]),

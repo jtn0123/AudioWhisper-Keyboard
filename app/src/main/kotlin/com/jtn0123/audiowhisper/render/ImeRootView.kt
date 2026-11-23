@@ -11,10 +11,6 @@ import android.view.ViewGroup
 import android.view.WindowInsets
 import android.view.WindowManager
 import android.widget.FrameLayout
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.ZoomOutMap
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.core.graphics.Insets
@@ -49,10 +45,6 @@ internal class ImeRootView(context: Context) : FrameLayout(context) {
     private val backdrop = ImeBackdrop(service)
     private val sides = listOf(OneHandedMode.START, OneHandedMode.END)
     private val panels = sides.map { side -> RustChromeView(service).also { it.action = { op -> oneHanded(side, op) } } }
-    private val icons by lazy {
-        sides.map { arrayOf(iconPath(Icons.Default.ZoomOutMap), iconPath(if (it == OneHandedMode.START)
-            Icons.AutoMirrored.Filled.KeyboardArrowLeft else Icons.AutoMirrored.Filled.KeyboardArrowRight)) }
-    }
     private val chips = ImeInlineChips(service)
     private var keyboard: RustKeyboardView? = null
     private val windowState = InputViewVisibility(::dispatchWindowVisibilityChanged)
@@ -178,7 +170,7 @@ internal class ImeRootView(context: Context) : FrameLayout(context) {
             val shown = next[if (i == 0) P.START_WIDTH else P.END_WIDTH] > 0
             if (shown != (panel.parent != null)) if (shown) addView(panel) else removeView(panel)
             panel.update(chrome, 0, arrayOf(reads.string(R.string.one_handed__close_btn_content_description), reads.string(
-                if (i == 0) R.string.one_handed__move_start_btn_content_description else R.string.one_handed__move_end_btn_content_description)), icons[i])
+                if (i == 0) R.string.one_handed__move_start_btn_content_description else R.string.one_handed__move_end_btn_content_description)), side = i)
         }
         val inline = next[P.INLINE_WIDTH] > 0
         if (inline != (chips.parent != null)) if (inline) addView(chips) else removeView(chips)

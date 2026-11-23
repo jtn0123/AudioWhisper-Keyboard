@@ -74,7 +74,6 @@ fn extraction_geometry_and_preview_graphemes_and_incognito_policy() {
         unicode_segmentation::UnicodeSegmentation::graphemes(s, true).count() as f32
     });
     assert_eq!(result, "… 👩🏽‍💻");
-    assert_eq!(render::key_preview::size(2.0, 100.0), [100, 72]);
 }
 
 #[test]

@@ -25,9 +25,11 @@ import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.ui.graphics.vector.ImageVector
+import com.jtn0123.audiowhisper.rust.InputProtocol
 import dev.patrickgold.florisboard.ime.clipboard.provider.ClipboardItem
 import dev.patrickgold.florisboard.ime.clipboard.provider.ItemType
 import dev.patrickgold.florisboard.ime.media.emoji.Emoji
+import dev.patrickgold.florisboard.ime.text.key.KeyCode
 import dev.patrickgold.florisboard.lib.util.NetworkUtils
 
 /**
@@ -136,15 +138,25 @@ data class ClipboardSuggestionCandidate(
 
     override val isEligibleForUserRemoval: Boolean = true
 
-    override val icon: ImageVector = when (clipboardItem.type) {
+    /** The icon the Rust renderer draws for it (`icons::for_key`): what its text holds, or its kind. */
+    val iconToken: Int = when (clipboardItem.type) {
         ItemType.TEXT -> when {
-            NetworkUtils.isEmailAddress(text) -> Icons.Default.Email
-            NetworkUtils.isUrl(text) -> Icons.Default.Link
-            NetworkUtils.isPhoneNumber(text) -> Icons.Default.Phone
-            else -> Icons.AutoMirrored.Outlined.Assignment
+            NetworkUtils.isEmailAddress(text) -> InputProtocol.ICON_EMAIL
+            NetworkUtils.isUrl(text) -> InputProtocol.ICON_LINK
+            NetworkUtils.isPhoneNumber(text) -> InputProtocol.ICON_PHONE
+            else -> KeyCode.IME_UI_MODE_CLIPBOARD
         }
-        ItemType.IMAGE -> Icons.Default.Image
-        ItemType.VIDEO -> Icons.Default.Videocam
+        ItemType.IMAGE -> InputProtocol.ICON_IMAGE
+        ItemType.VIDEO -> InputProtocol.ICON_VIDEO
+    }
+
+    override val icon: ImageVector = when (iconToken) {
+        InputProtocol.ICON_EMAIL -> Icons.Default.Email
+        InputProtocol.ICON_LINK -> Icons.Default.Link
+        InputProtocol.ICON_PHONE -> Icons.Default.Phone
+        InputProtocol.ICON_IMAGE -> Icons.Default.Image
+        InputProtocol.ICON_VIDEO -> Icons.Default.Videocam
+        else -> Icons.AutoMirrored.Outlined.Assignment
     }
 }
 

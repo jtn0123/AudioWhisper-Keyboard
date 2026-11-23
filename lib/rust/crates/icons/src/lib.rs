@@ -42,6 +42,15 @@ pub fn key_path(token: i32) -> &'static str {
     for_key(token).and_then(path).unwrap_or("")
 }
 
+/// Each of `names`' drawn paths, owned as the renderer's scenes hold them; "" for a name this
+/// crate does not hold.
+pub fn owned(names: &[&str]) -> Vec<String> {
+    names
+        .iter()
+        .map(|n| path(n).unwrap_or_default().to_owned())
+        .collect()
+}
+
 /// Every icon's name, in the order `data/sources.tsv` holds them.
 pub fn names() -> impl Iterator<Item = &'static str> {
     sources::all().iter().map(|s| s.name)

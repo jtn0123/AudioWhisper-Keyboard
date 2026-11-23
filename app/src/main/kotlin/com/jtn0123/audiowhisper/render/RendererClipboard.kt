@@ -1,12 +1,6 @@
 package com.jtn0123.audiowhisper.render
 
 import android.app.KeyguardManager
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.outlined.Backspace
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.outlined.PushPin
-import androidx.compose.material.icons.outlined.ContentPasteGo
 import com.jtn0123.audiowhisper.rust.KeyboardRenderer
 import dev.patrickgold.florisboard.R
 import dev.patrickgold.florisboard.ime.clipboard.provider.ClipboardItem
@@ -31,8 +25,6 @@ internal fun rendererClipboard(r: RootReads): RendererClipboard {
         R.string.clipboard__group_other, R.string.clip__pin_item, R.string.clip__unpin_item, R.string.clip__delete_item,
         R.string.clip__paste_item, R.string.clipboard__confirm_clear_unfiltered_history__message,
         R.string.clipboard__confirm_clear_filtered_history__message, R.string.action__no, R.string.action__yes).map { r.string(it) }
-    val icons = listOf(Icons.AutoMirrored.Filled.ArrowBack,Icons.Default.ToggleOn,Icons.Default.ToggleOff,
-        Icons.Default.DeleteSweep,Icons.Default.FilterList,Icons.Default.FilterListOff,Icons.AutoMirrored.Outlined.Backspace,Icons.Outlined.PushPin,Icons.Default.Delete,Icons.Outlined.ContentPasteGo).map(::iconPath)
     val descriptions=history.all.map { item ->
         val text=item.stringRepresentation()
         val network=dev.patrickgold.florisboard.lib.util.NetworkUtils
@@ -45,5 +37,5 @@ internal fun rendererClipboard(r: RootReads): RendererClipboard {
     }
     return RendererClipboard(history.all,longArrayOf(System.currentTimeMillis(),if(prefs.historyEnabled.get())1 else 0,
         if(keyguard.isDeviceLocked || keyguard.isKeyguardLocked)1 else 0,columns.toLong()),
-        (labels+icons+history.all.flatMapIndexed { index,it -> listOf(it.displayText(r.service),descriptions[index],formatter.format(Instant.ofEpochMilli(it.creationTimestampMs))) }).toTypedArray())
+        (labels+history.all.flatMapIndexed { index,it -> listOf(it.displayText(r.service),descriptions[index],formatter.format(Instant.ofEpochMilli(it.creationTimestampMs))) }).toTypedArray())
 }

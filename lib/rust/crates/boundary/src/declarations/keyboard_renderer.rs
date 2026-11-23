@@ -61,24 +61,23 @@ pub const KEYBOARD_RENDERER: Api = Api {
         member(
             "update",
             "The keyboard's keys and candidates: its [dimensions], [metadata], [candidateFlags], \
-             each key's [geometry] and [labels], and the [candidates].",
+             each key's [geometry] and [labels] (its label, hint and icon token), and the \
+             [candidates].",
         ),
         member(
             "decorations",
-            "The decorations' [labels] and [flags], [height] pixels tall.",
+            "The decorations' [labels] (the key preview's text) and [flags], [height] pixels \
+             tall. Rust draws the incognito watermark.",
         ),
         with(
             "chrome",
-            "A chrome view, sized by [config], with its [labels] and [icons], for the keyboard \
-             mode and shift state in [metadata].",
+            "A chrome view, sized by [config] (width, height, density, kind and, for the \
+             one-handed panel, its side: 0 start, 1 end), with its [labels], for the keyboard \
+             mode and shift state in [metadata]. Rust draws the panel's icons.",
             &[default(
                 "metadata",
                 "arrayOf(\"characters\", \"unshifted\")",
             )],
-        ),
-        member(
-            "keyPreview",
-            "A settings preview of the key [code] with its [labels], as ARGB pixels.",
         ),
         member(
             "chromeInfo",
@@ -126,7 +125,8 @@ pub const KEYBOARD_RENDERER: Api = Api {
         ),
         member(
             "smartbar",
-            "The smartbar: its [config], the actions' [codes] and their [labels].",
+            "The smartbar: its [config], the actions' [codes] and their [labels] (each icon token \
+             and label), then each candidate's icon token and secondary text.",
         ),
         member(
             "semanticConfig",

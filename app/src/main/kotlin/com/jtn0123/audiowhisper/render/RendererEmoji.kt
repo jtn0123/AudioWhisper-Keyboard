@@ -1,10 +1,5 @@
 package com.jtn0123.audiowhisper.render
 
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.PushPin
-import androidx.compose.material.icons.outlined.Delete
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import android.app.KeyguardManager
 import android.graphics.Paint
 import android.graphics.Typeface
@@ -69,9 +64,7 @@ internal class EmojiSource(private val r: RootReads, private val loaded: () -> U
             if (GifSearch.available) 1 else 0, 0) + emojis.map { it.skinTone.ordinal }
         val labels = EmojiCategory.entries.map { it.id.replace('_', ' ') } + listOf(R.string.emoji__history__phone_locked_message,
             R.string.emoji__history__empty_message, R.string.emoji__history__usage_tip, R.string.emoji__history__pinned,
-            R.string.emoji__history__recent).map { r.string(it) } +
-            EmojiCategory.entries.map { iconPath(it.icon()) } + listOf(Icons.Outlined.PushPin,
-                Icons.AutoMirrored.Filled.KeyboardArrowLeft, Icons.AutoMirrored.Filled.KeyboardArrowRight, Icons.Outlined.Delete).map(::iconPath)
+            R.string.emoji__history__recent).map { r.string(it) }
         return RendererEmoji(emojis, config.toIntArray(), groups.toIntArray(),
             (listOf(history.pinned.size) + history.pinned.map { emojis.indexOf(it) } + history.recent.map { emojis.indexOf(it) }).toIntArray(), labels.toTypedArray())
     }

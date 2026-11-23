@@ -16,7 +16,6 @@ import com.jtn0123.audiowhisper.rust.KeyboardRenderer
 import com.jtn0123.audiowhisper.suggest.TapOffset
 import dev.patrickgold.florisboard.app.FlorisPreferenceStore
 import dev.patrickgold.florisboard.ime.keyboard.KeyData
-import dev.patrickgold.florisboard.ime.keyboard.keyIconVector
 import dev.patrickgold.florisboard.FlorisImeService
 import dev.patrickgold.florisboard.ime.nlp.ClipboardSuggestionCandidate
 import dev.patrickgold.florisboard.ime.nlp.SuggestionCandidate
@@ -48,7 +47,7 @@ internal data class KeyboardSnapshot(
     val keyboard: RustKeyboard, val keys: List<RustKey>,
     val candidates: List<SuggestionCandidate>, val theme: RendererTheme, val shift: String,
     val keyboardHeight: Float, val stripHeight: Float, val rowHeight: Float, val marginH: Float, val marginV: Float, val smartbar: RendererSmartbar, val preview: Boolean,
-    val panels: RendererPanels, val editorOptions: IntArray, val search: RendererSearch, val watermark: Pair<String, IntArray>, val previewText: String,
+    val panels: RendererPanels, val editorOptions: IntArray, val search: RendererSearch, val watermark: IntArray, val previewText: String,
 )
 
 /** A fresh native worker owns each surface generation. Destruction joins it before releasing its window. */
@@ -68,7 +67,6 @@ class RustKeyboardView(context: Context) : FrameLayout(context), SurfaceHolder.C
         }
     private var popupChoices: List<KeyData> = emptyList()
     /** Each icon token's drawn path, which never changes for a token. */
-    private val iconPaths = HashMap<Int, String>()
     private var snapshot: KeyboardSnapshot? = null
     /** Rows the surface reaches above this view, which Rust keeps clear for a top-row key's popup. */
     private var headroom = 0
@@ -148,13 +146,14 @@ class RustKeyboardView(context: Context) : FrameLayout(context), SurfaceHolder.C
             metadata.add(key.computedData.type.toString())
             labels.add(key.label ?: "")
             labels.add(key.hintedLabel ?: "")
-            labels.add(iconPaths.getOrPut(key.icon) { keyIconVector(key.icon, context)?.let(::iconPath) ?: "" })
+            labels.add(key.icon.toString())
         }
         val candidates = s.candidates.map { it.text.toString() }.ifEmpty { if (s.preview) emptyList() else rendererEmojiSamples() }
         val flags = if (s.candidates.isEmpty()) IntArray(candidates.size) else s.candidates.map {
             (if (it.isEligibleForAutoCommit) CANDIDATE_AUTO_COMMIT else 0) or (if (it is ClipboardSuggestionCandidate) CANDIDATE_CLIPBOARD else 0)
         }.toIntArray()
-        native.smartbar(s.smartbar.config, s.smartbar.codes, s.smartbar.labels + s.candidates.flatMap { listOf(it.icon?.let(::iconPath) ?: "", it.secondaryText?.toString() ?: "") })
+        native.smartbar(s.smartbar.config, s.smartbar.codes, s.smartbar.labels + s.candidates.flatMap {
+            listOf((it as? ClipboardSuggestionCandidate)?.iconToken?.toString() ?: "", it.secondaryText?.toString() ?: "") })
         manager.smartbarVisibleDynamicActionsCount = s.smartbar.measure(width.toFloat())[2].toInt()
         native.update(floatArrayOf(width.toFloat(), height.toFloat(), s.stripHeight, numbers[0], numbers[1], s.keyboardHeight),
             metadata.toTypedArray(), flags, geometry, labels.toTypedArray(), candidates.toTypedArray())
@@ -168,7 +167,7 @@ class RustKeyboardView(context: Context) : FrameLayout(context), SurfaceHolder.C
         if (s.panels.kind == 4) s.panels.clipboard.bind(native)
         if (s.panels.kind == 1) { s.panels.emoji.bind(native, refreshEmojiHistory); refreshEmojiHistory = false }
         native.search(s.theme.density,s.search.labels,SystemClock.uptimeNanos())
-        native.decorations(arrayOf(s.watermark.first, s.previewText), s.keyboardHeight, s.watermark.second)
+        native.decorations(arrayOf(s.previewText), s.keyboardHeight, s.watermark)
         candidateBindings.bind(native, s.candidates)
         native.semanticConfig(accessibilityResources.first, accessibilityResources.second,
             s.smartbar.actions.map { (it as? QuickAction.InsertText)?.data ?: "" }.toTypedArray(),

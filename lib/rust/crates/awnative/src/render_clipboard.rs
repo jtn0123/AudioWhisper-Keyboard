@@ -9,7 +9,7 @@ pub fn clipboard(native: i64, config: &[i64], records: &[i64], labels: &[Vec<u16
         let c = config;
         let a = records;
         let labels = texts(labels);
-        if c.len() != 4 || !a.len().is_multiple_of(4) || labels.len() != 31 + a.len() / 4 * 3 {
+        if c.len() != 4 || !a.len().is_multiple_of(4) || labels.len() != 21 + a.len() / 4 * 3 {
             return Err(illegal("clipboard snapshot"));
         }
         let next = ClipboardPanel {
@@ -18,7 +18,7 @@ pub fn clipboard(native: i64, config: &[i64], records: &[i64], labels: &[Vec<u16
             locked: c[2] != 0,
             columns: c[3].max(0) as usize,
             labels: labels[..21].to_vec(),
-            icons: labels[21..31].to_vec(),
+            icons: icons::owned(&icons::CLIPBOARD),
             entries: a
                 .as_chunks::<4>()
                 .0
@@ -30,9 +30,9 @@ pub fn clipboard(native: i64, config: &[i64], records: &[i64], labels: &[Vec<u16
                     timestamp: e[1],
                     kind: e[2] as i32,
                     pinned: e[3] != 0,
-                    label: labels[31 + i * 3].clone(),
-                    description: labels[32 + i * 3].clone(),
-                    date: labels[33 + i * 3].clone(),
+                    label: labels[21 + i * 3].clone(),
+                    description: labels[22 + i * 3].clone(),
+                    date: labels[23 + i * 3].clone(),
                     aspect: 1.0,
                     height: 0.0,
                     date_height: 0.0,

@@ -1,14 +1,19 @@
 package com.jtn0123.audiowhisper.render
 
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.Stop
+import androidx.compose.material.icons.filled.UnfoldLess
+import androidx.compose.material.icons.filled.UnfoldMore
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import com.jtn0123.audiowhisper.dictation.Dictation
 import com.jtn0123.audiowhisper.reader.ReadAloud
+import com.jtn0123.audiowhisper.rust.InputProtocol
 import com.jtn0123.audiowhisper.rust.KeyGraph
 import com.jtn0123.audiowhisper.rust.RenderProtocol.*
-import com.jtn0123.audiowhisper.rust.SmartbarIcon
 import dev.patrickgold.florisboard.ime.core.Subtype
 import dev.patrickgold.florisboard.ime.keyboard.KeyData
 import dev.patrickgold.florisboard.ime.keyboard.KeyboardMode
@@ -28,7 +33,8 @@ import kotlin.test.assertTrue
 /**
  * Seeded smartbars, each shown by main's choices (frozen in [referenceSmartbarActions]) and by the
  * Rust plan through [SmartbarShown], must agree on every action's code, flags, icon and label and
- * on what the arrow toggles. What a key action's key says (enabled, icon, label) comes from a
+ * on what the arrow toggles; an icon is compared as the token Rust draws, main's vector mapped to
+ * the token the `icons` crate holds that vector under (its golden tests hold each token to it). What a key action's key says (enabled, icon, label) comes from a
  * computed Rust key graph on the branch, and from main's smartbar evaluator, frozen as
  * [ReferenceEvaluator], for the same facts. Two labels differ on purpose, each counted: an empty
  * text shows "?" where main showed "null", and a text starting with a surrogate pair shows the
@@ -55,7 +61,7 @@ class SmartbarActionsMatchTest {
         val random = Random(SEED)
         repeat(CASES) { case -> check(case, random) }
         println("Smartbar actions: $CASES seeded smartbars identical but for the two label fixes; $seen")
-        for (icon in ICON_NAMES.values) assertTrue((seen["icon $icon"] ?: 0) > 0, "never showed $icon")
+        for (icon in OWN.values.map { it.second } + "key") assertTrue((seen["icon $icon"] ?: 0) > 0, "never showed $icon")
         for (flag in FLAG_NAMES.values) assertTrue((seen["flag $flag"] ?: 0) > 0, "never set $flag")
         for (what in listOf("empty text", "surrogate pair", "blank text", "key label", "expanded", "toggles extended",
             "preview of shared actions", "panel disabled", "panel icon", "panel unlabeled")) {
@@ -82,16 +88,13 @@ class SmartbarActionsMatchTest {
         assertEquals(reference.togglesExtended, shown.togglesExtended, "case $case: the toggle's target differs")
         assertContentEquals(reference.codes, shown.codes, "case $case: codes or flags differ")
         for (i in actions.indices) {
-            val icon = if (shown.icons[i] == SmartbarIcon.KEY) {
-                tokenIcon(shown.keyIcon(i))
-            } else {
-                shown.icon(i, INCOGNITO, null)
-            }
-            assertEquals(reference.labels[i].first, icon, "case $case action $i: icon differs")
+            val (token, name) = drawn(reference.labels[i].first)
+            assertEquals("$token", shown.drawn(i), "case $case action $i: icon differs")
+            saw("icon $name")
             val label = intended(actions[i], reference.labels[i].second)
             assertEquals(label, shown.label(i), "case $case action $i: label differs")
         }
-        count(facts, shown, actions)
+        count(facts, shown, actions.size)
         panel(case, actions.filterNotNull(), main)
     }
 
@@ -108,6 +111,12 @@ class SmartbarActionsMatchTest {
             if (keys.icon(i) != 0) saw("panel icon")
             if (keys.label(i) == null) saw("panel unlabeled")
         }
+    }
+
+    /** The token Rust draws for main's icon [vector], and the icon's name here. */
+    private fun drawn(vector: ImageVector?): Pair<Int, String> = when (vector) {
+        null -> 0 to "none"
+        else -> OWN[vector] ?: (tokenIcons.entries.single { it.value === vector }.key to "key")
     }
 
     /** A stand-in for the icon an icon token draws, the same one each time. */
@@ -128,11 +137,10 @@ class SmartbarActionsMatchTest {
         return main
     }
 
-    private fun count(facts: SmartbarFacts, shown: SmartbarShown, actions: List<QuickAction?>) {
+    private fun count(facts: SmartbarFacts, shown: SmartbarShown, actions: Int) {
         if (shown.expanded) saw("expanded")
         if (shown.togglesExtended) saw("toggles extended")
-        for (i in actions.indices) {
-            saw("icon ${ICON_NAMES[shown.icons[i]] ?: "none"}")
+        for (i in 0 until actions) {
             val flags = shown.codes[i * BAR_ACTION_STRIDE + BAR_FLAGS_OFFSET]
             for ((flag, name) in FLAG_NAMES) if (flags and flag != 0) saw("flag $name")
         }
@@ -173,10 +181,12 @@ class SmartbarActionsMatchTest {
         val KEY_LABELS = listOf("a", "Ab", "?", "😀", "\u0301")
         val LEVELS = listOf(Float.NaN, -0.5f, -0f, 0f, 1e-5f, 0.25f, 0.5f, 0.999f, 1f, 1.5f,
             Float.POSITIVE_INFINITY, Float.NEGATIVE_INFINITY)
-        val ICON_NAMES = mapOf(SmartbarIcon.KEY to "key", SmartbarIcon.ARROW_LEFT to "arrow left",
-            SmartbarIcon.ARROW_RIGHT to "arrow right", SmartbarIcon.UNFOLD_LESS to "unfold less",
-            SmartbarIcon.UNFOLD_MORE to "unfold more", SmartbarIcon.INCOGNITO to "incognito",
-            SmartbarIcon.STOP to "stop")
+        /** Main's own icons, each with the token Rust draws it by and its name here. */
+        val OWN = mapOf(Icons.AutoMirrored.Default.KeyboardArrowLeft to (KeyCode.ARROW_LEFT to "arrow left"),
+            Icons.AutoMirrored.Default.KeyboardArrowRight to (KeyCode.ARROW_RIGHT to "arrow right"),
+            Icons.Default.UnfoldLess to (InputProtocol.ICON_UNFOLD_LESS to "unfold less"),
+            Icons.Default.UnfoldMore to (InputProtocol.ICON_UNFOLD_MORE to "unfold more"),
+            INCOGNITO to (KeyCode.TOGGLE_INCOGNITO_MODE to "incognito"), Icons.Default.Stop to (InputProtocol.ICON_STOP to "stop"))
         val FLAG_NAMES = mapOf(BAR_ENABLED to "enabled", BAR_DICTATING to "dictating", BAR_READING to "reading",
             BAR_WARMING to "warming", BAR_FINISHING to "finishing", (BAR_LEVEL_MASK shl BAR_LEVEL_SHIFT) to "level")
     }

@@ -26,6 +26,7 @@ ROOT = Path(__file__).resolve().parent.parent
 TYPING = ROOT / 'lib/rust/crates/nlp/src/typing.rs'
 COUNTERS = ROOT / 'lib/rust/crates/nlp/src/counters.rs'
 ACTIONS = ROOT / 'lib/rust/crates/render/src/smartbar_actions.rs'
+ICONS = ROOT / 'lib/rust/crates/icons/src/sites.rs'
 NLP = ROOT / 'app/src/main/kotlin/dev/patrickgold/florisboard/ime/nlp'
 EVENTS, STATE = NLP / 'TypingEvents.kt', NLP / 'NlpState.kt'
 SMARTBAR = ROOT / 'app/src/main/kotlin/com/jtn0123/audiowhisper/render/RendererSmartbar.kt'
@@ -95,9 +96,9 @@ CASES = [
     ('preview-turns-the-arrow', ACTIONS, 'shared: config[SHARED_SETTING] != 0.0,', 'shared: c.shared,', BAR),
     ('toggle-flips-shared-in-extended', ACTIONS, 'toggles_extended: bar.extended_layout(),',
      'toggles_extended: false,', BAR),
-    # The Kotlin that writes the smartbar's rows and draws each icon.
-    ('arrow-vector-swapped', SMARTBAR, 'SmartbarIcon.ARROW_LEFT -> Icons.AutoMirrored.Default.KeyboardArrowLeft',
-     'SmartbarIcon.ARROW_LEFT -> Icons.AutoMirrored.Default.KeyboardArrowRight', [BAR_MATCH]),
+    # The icon each action draws. This was Kotlin in RendererSmartbar.kt until the keyboard sent icon tokens.
+    ('arrow-vector-swapped', ICONS, 'icon::ARROW_LEFT => ARROW_LEFT,', 'icon::ARROW_LEFT => ARROW_RIGHT,', BAR),
+    # The Kotlin that writes the smartbar's rows.
     ('key-label-dropped', SMARTBAR, '} else (actions[i] as? QuickAction.InsertKey)?.let { keyLabel(it.data) } ?: ""',
      '} else ""', [BAR_MATCH]),
     ('listening-when-finishing', SMARTBAR, 'LISTENING to (dictation == Dictation.Status.LISTENING)',

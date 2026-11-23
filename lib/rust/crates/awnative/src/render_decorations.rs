@@ -9,7 +9,7 @@ pub fn decorations(native: i64, labels: &[Vec<u16>], height: f32, flags: &[i32])
         if flags.len() != 2 {
             return Err(illegal("decoration flags"));
         }
-        if labels.len() != 2 || !height.is_finite() || height <= 0.0 {
+        if labels.len() != 1 || !height.is_finite() || height <= 0.0 {
             return Err(illegal("decorations"));
         }
         let request = render::theme::Request {
@@ -29,11 +29,11 @@ pub fn decorations(native: i64, labels: &[Vec<u16>], height: f32, flags: &[i32])
                 text,
                 &request,
                 if render::ime_decorations::show_watermark(flags[0] != 0, flags[1] != 0) {
-                    &labels[0]
+                    icons::path(icons::WATERMARK).unwrap_or_default()
                 } else {
                     ""
                 },
-                &labels[1],
+                &labels[0],
                 height,
             );
         }

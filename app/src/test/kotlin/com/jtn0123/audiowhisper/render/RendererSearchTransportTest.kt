@@ -40,7 +40,7 @@ class RendererSearchTransportTest {
                 native.theme("""{"${'$'}schema":"https://schemas.florisboard.org/snygg/v2/stylesheet"}""",emptyArray(),intArrayOf(),floatArrayOf(1f,1f,1f))
                 native.smartbar(config,IntArray((5+dynamic)*2),Array((5+dynamic)*2){""})
                 native.update(floatArrayOf(400f,248f,48f,1f,1f),arrayOf("characters","unshifted"),intArrayOf(),floatArrayOf(),emptyArray(),emptyArray())
-                native.search(1f,arrayOf("","Back to GIFs","Search GIPHY","Search","",""),0)
+                native.search(1f,arrayOf("","Back to GIFs","Search GIPHY","Search"),0)
                 val snapshot=native.semanticSnapshot()
                 assertTrue(snapshot.contains("Search GIPHY"));assertTrue(snapshot.contains("Back to GIFs"))
                 native.search(1f,emptyArray(),0);assertEquals(-1,native.nextDeadline())

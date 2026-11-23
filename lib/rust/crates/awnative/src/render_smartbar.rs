@@ -43,7 +43,7 @@ pub fn smartbar(native: i64, config: &[f32], codes: &[i32], labels: &[Vec<u16>])
                     / 255.0,
                 warming: c[BAR_FLAGS_OFFSET as usize] & BAR_WARMING != 0,
                 finishing: c[BAR_FLAGS_OFFSET as usize] & BAR_FINISHING != 0,
-                icon: labels[i * 2].clone(),
+                icon: crate::render::icon(&labels[i * 2]),
                 label: labels[i * 2 + 1].clone(),
                 styles: Default::default(),
             })
@@ -53,7 +53,7 @@ pub fn smartbar(native: i64, config: &[f32], codes: &[i32], labels: &[Vec<u16>])
             .as_chunks::<2>()
             .0
             .iter()
-            .map(|a| (a[0].clone(), a[1].clone()))
+            .map(|a| (crate::render::icon(&a[0]), a[1].clone()))
             .collect();
         if let Some(old) = &s.scene.smartbar {
             bar.pressed = old.pressed.clone();

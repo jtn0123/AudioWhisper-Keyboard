@@ -318,11 +318,13 @@ fn encode(plan: &Plan, answers: &[KeyAnswer]) -> Vec<Vec<u16>> {
         row[shown::CODE] = text(action.code);
         row[shown::FLAGS] = text(action.flags);
         row[shown::ICON] = text(action.icon);
-        row[shown::KEY_ICON] = text(if action.icon == icon::KEY {
+        let key_icon = if action.icon == icon::KEY {
             answer.icon
         } else {
             0
-        });
+        };
+        row[shown::KEY_ICON] = text(key_icon);
+        row[shown::DRAWN] = text(icons::smartbar_token(action.icon, key_icon));
         row[shown::LABEL] = if action.key_label {
             answer.label.clone().unwrap_or_default()
         } else {

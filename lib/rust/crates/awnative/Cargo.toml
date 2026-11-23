@@ -42,6 +42,7 @@ input = { path = "../input" }
 keygraph = { path = "../keygraph" }
 imesubtype = { path = "../imesubtype" }
 imetheme = { path = "../imetheme" }
+icons = { path = "../icons" }
 keys = { path = "../keys" }
 latin = { path = "../latin" }
 ngram = { path = "../ngram" }

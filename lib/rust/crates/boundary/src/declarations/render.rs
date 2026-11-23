@@ -155,7 +155,6 @@ pub const RENDER_NATIVE: Class = Class {
                 HANDLE_PARAM,
                 ("config", FLOATS),
                 LABELS,
-                ("icons", STRINGS),
                 ("metadata", STRINGS),
             ],
             Return::Unit,
@@ -170,12 +169,6 @@ pub const RENDER_NATIVE: Class = Class {
             "pixels",
             "crate::render_chrome::pixels",
             &[HANDLE_PARAM],
-            Return::Array(Element::Int),
-        ),
-        method(
-            "keyPreview",
-            "crate::render_key_preview::key_preview",
-            &[HANDLE_PARAM, ("code", Param::Int), LABELS],
             Return::Array(Element::Int),
         ),
         // The panels.

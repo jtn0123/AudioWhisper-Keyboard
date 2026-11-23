@@ -7,7 +7,6 @@ pub fn chrome(
     native: i64,
     config: &[f32],
     labels: &[Vec<u16>],
-    icons: &[Vec<u16>],
     metadata: &[Vec<u16>],
 ) -> Result<()> {
     session(native, |s| {
@@ -18,7 +17,7 @@ pub fn chrome(
         }
         s.mode = metadata[0].clone();
         s.shift = metadata[1].clone();
-        if c.len() != 4
+        if c.len() != 5
             || c.iter().any(|v| !v.is_finite())
             || !(1.0..=8192.0).contains(&c[0])
             || !(1.0..=8192.0).contains(&c[1])
@@ -38,7 +37,11 @@ pub fn chrome(
             chrome: Some(render::ime_chrome::Chrome {
                 kind: c[3] as i32,
                 labels: texts(labels),
-                icons: texts(icons),
+                icons: if c[3] == 0.0 {
+                    icons::owned(&icons::ONE_HANDED[usize::from(c[4] != 0.0)])
+                } else {
+                    vec![]
+                },
                 ..Default::default()
             }),
             ..Default::default()
@@ -124,14 +127,6 @@ pub(crate) fn argb(pixels: &[u8]) -> Vec<i32> {
         .collect()
 }
 
-pub fn preview_size(c: &[f32]) -> Result<Vec<i32>> {
-    if c.len() != 2 || c.iter().any(|v| !v.is_finite() || *v < 0.0) {
-        return Err(illegal("preview config"));
-    }
-    Ok(render::key_preview::size(c[0], c[1])
-        .map(i32::from)
-        .to_vec())
-}
 pub fn start_ellipsis(labels: &[Vec<u16>], c: &[f32]) -> Result<Vec<Vec<u16>>> {
     let labels = texts(labels);
     if c.len() != 2 || c.iter().any(|v| !v.is_finite() || *v < 0.0) {

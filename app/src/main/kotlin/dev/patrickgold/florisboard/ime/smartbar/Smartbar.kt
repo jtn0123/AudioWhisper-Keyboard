@@ -52,11 +52,12 @@ import androidx.compose.ui.graphics.isUnspecified
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import com.jtn0123.audiowhisper.dictation.Dictation
-import com.jtn0123.audiowhisper.render.smartbarConfig
+import com.jtn0123.audiowhisper.reader.ReadAloud
 import com.jtn0123.audiowhisper.rust.SmartbarRules
 import dev.patrickgold.florisboard.R
 import dev.patrickgold.florisboard.app.FlorisPreferenceStore
@@ -480,4 +481,32 @@ private fun SmartbarSecondaryRow(modifier: Modifier = Modifier) {
                 .background(background),
         )
     }
+}
+
+/**
+ * The packed facts Rust places the Smartbar from (see `smartbar::Config`), as Compose reads them. The
+ * Rust renderer reads the same facts without Compose (`smartbarFacts`), so both ask Rust the same question.
+ */
+@Composable
+private fun smartbarConfig(preview: Boolean, inline: Boolean): FloatArray = with(LocalDensity.current) {
+    val prefs by FlorisPreferenceStore
+    val nlp by LocalContext.current.nlpManager()
+    val dictation by Dictation.status.collectAsState()
+    val reading by ReadAloud.status.collectAsState()
+    val words by nlp.activeCandidatesWordsFlow.collectAsState()
+    val enabled by prefs.smartbar.enabled.observeAsState()
+    val layout by prefs.smartbar.layout.observeAsState()
+    val flip by prefs.smartbar.flipToggles.observeAsState()
+    val shared by prefs.smartbar.sharedActionsExpanded.observeAsState()
+    val extended by prefs.smartbar.extendedActionsExpanded.observeAsState()
+    val placement by prefs.smartbar.extendedActionsPlacement.observeAsState()
+    val speaker by prefs.smartbar.showReadAloud.observeAsState()
+    val arrangement by prefs.smartbar.actionArrangement.observeAsState()
+    val display by prefs.suggestion.displayMode.observeAsState()
+    fun bit(value: Boolean) = if (value) 1f else 0f
+    floatArrayOf(bit(enabled), layout.ordinal.toFloat(), bit(flip), bit(shared), bit(extended),
+        placement.ordinal.toFloat(), bit(speaker), bit(arrangement.stickyAction != null),
+        arrangement.dynamicActions.size.toFloat(), display.ordinal.toFloat(), density,
+        FlorisImeSizing.smartbarHeight.toPx(), bit(inline), bit(preview), bit(words),
+        bit(dictation != Dictation.Status.IDLE), bit(reading == ReadAloud.Status.READING))
 }

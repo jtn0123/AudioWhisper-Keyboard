@@ -2,8 +2,6 @@ package com.jtn0123.audiowhisper.render
 
 import android.view.Choreographer
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.res.vectorResource
 import com.jtn0123.audiowhisper.dictation.Dictation
 import com.jtn0123.audiowhisper.gif.GifSearch
 import com.jtn0123.audiowhisper.reader.ReadAloud
@@ -55,7 +53,6 @@ internal class RootReads(val service: FlorisImeService) {
     var rowHeight = 0f
     val density get() = service.resources.displayMetrics.density
     val landscape get() = service.resources.configuration.isOrientationLandscape()
-    val incognito: ImageVector by lazy { ImageVector.vectorResource(service.theme, service.resources, R.drawable.ic_incognito) }
     private var palette: Pair<List<Any>, org.florisboard.lib.snygg.ui.SnyggPalette>? = null
     private var dates: Pair<Any, DateTimeFormatter>? = null
 

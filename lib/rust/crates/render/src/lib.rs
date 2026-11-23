@@ -75,7 +75,6 @@ pub mod clipboard_dialog;
 pub mod extract_chrome;
 pub mod ime_chrome;
 pub mod ime_decorations;
-pub mod key_preview;
 pub mod subtype_panel;
 
 pub mod settings_ui;

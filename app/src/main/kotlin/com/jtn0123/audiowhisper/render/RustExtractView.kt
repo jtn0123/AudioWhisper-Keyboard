@@ -23,7 +23,7 @@ internal class RustExtractView @JvmOverloads constructor(context: Context, priva
     }
     init { addView(chrome); addView(editor) }
     fun update(theme: RendererTheme, label: String, action: () -> Unit) {
-        chrome.action = { action() }; chrome.update(theme, 1, arrayOf(label), emptyArray())
+        chrome.action = { action() }; chrome.update(theme, 1, arrayOf(label))
     }
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
         val width = MeasureSpec.getSize(widthMeasureSpec); val height = MeasureSpec.getSize(heightMeasureSpec)

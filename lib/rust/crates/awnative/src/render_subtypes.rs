@@ -12,7 +12,7 @@ pub fn subtypes(
 ) -> Result<()> {
     session(native, |s| {
         let labels = texts(labels);
-        if labels.len() != ids.len() + 3 || !bottom_inset.is_finite() || bottom_inset < 0.0 {
+        if labels.len() != ids.len() + 1 || !bottom_inset.is_finite() || bottom_inset < 0.0 {
             return Err(illegal("subtype labels"));
         }
         let p = s
@@ -28,8 +28,8 @@ pub fn subtypes(
             selected,
             bottom_inset,
             header: labels[0].clone(),
-            icons: [labels[1].clone(), labels[2].clone()],
-            labels: labels[3..].to_vec(),
+            icons: icons::SUBTYPES.map(|n| icons::path(n).unwrap_or_default().to_owned()),
+            labels: labels[1..].to_vec(),
             ..Default::default()
         });
         s.prepare_panel();

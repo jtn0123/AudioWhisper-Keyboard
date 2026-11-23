@@ -88,7 +88,7 @@ pub fn panels(native: i64, config: &[f32], data: &[i32], labels: &[Vec<u16>]) ->
                 insert_text: v[2] & 2 != 0,
                 label: labels[6 + i * 3].clone(),
                 glyph: labels[7 + i * 3].clone(),
-                icon: labels[8 + i * 3].clone(),
+                icon: crate::render::icon(&labels[8 + i * 3]),
             })
             .collect();
         if let Some(p) = &mut s.scene.panel {

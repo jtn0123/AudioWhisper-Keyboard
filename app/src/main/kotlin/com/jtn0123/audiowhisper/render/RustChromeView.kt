@@ -20,7 +20,7 @@ internal class RustChromeView(context: Context) : View(context) {
     private var theme: RendererTheme? = null
     private var kind = 0
     private var labels = emptyArray<String>()
-    private var icons = emptyArray<String>()
+    private var side = 0
     private var subtypes: RendererSubtypes? = null
     private var subtypeBottomInset = 0f
     var subtypeAction: (Int?) -> Unit = {}
@@ -31,9 +31,10 @@ internal class RustChromeView(context: Context) : View(context) {
     }, { native?.semanticCancel(); redraw() })
 
     init { isClickable = true; importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_YES }
-    fun update(theme: RendererTheme, kind: Int, labels: Array<String>, icons: Array<String>) {
-        if (this.theme == theme && this.kind == kind && this.labels.contentEquals(labels) && this.icons.contentEquals(icons)) return
-        this.theme = theme; this.kind = kind; this.labels = labels; this.icons = icons
+    /** A chrome view of [kind] with its [labels]; the one-handed panel's [side] is 0 start, 1 end. */
+    fun update(theme: RendererTheme, kind: Int, labels: Array<String>, side: Int = 0) {
+        if (this.theme == theme && this.kind == kind && this.labels.contentEquals(labels) && this.side == side) return
+        this.theme = theme; this.kind = kind; this.labels = labels; this.side = side
         configure()
     }
     fun updateSubtypes(theme: RendererTheme, data: RendererSubtypes, bottomInset: Float) {
@@ -57,7 +58,7 @@ internal class RustChromeView(context: Context) : View(context) {
             floatArrayOf(theme.density, theme.fontScale, theme.fontMultiplier))
         val data = subtypes
         if (data == null) {
-            renderer.chrome(floatArrayOf(width.toFloat(), height.toFloat(), theme.density, kind.toFloat()), labels, icons, arrayOf(theme.mode, theme.shift))
+            renderer.chrome(floatArrayOf(width.toFloat(), height.toFloat(), theme.density, kind.toFloat(), side.toFloat()), labels, arrayOf(theme.mode, theme.shift))
             fieldLayout(renderer.chromeInfo())
         } else {
             renderer.update(floatArrayOf(width.toFloat(), height.toFloat(), 0f, 1f, 1f, 0f),

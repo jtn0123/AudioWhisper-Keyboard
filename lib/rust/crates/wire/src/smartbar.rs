@@ -5,7 +5,7 @@
 /// The icons an action shows.
 pub mod icon {
     crate::declare! {
-        /// The icon an action shows; Android draws each from its own vector.
+        /// The icon an action shows; `DRAWN` names the token the renderer draws for it.
         pub const ICONS: object SmartbarIcon(i32) {
             /// None: the action shows its label.
             NONE = 0,
@@ -107,6 +107,9 @@ pub mod shown {
             KEY_ICON,
             /// The label it shows: its own, or its key's.
             LABEL,
+            /// The icon token the renderer draws (`icons::for_key`): `KEY_ICON` for `KEY`, the
+            /// token each other icon stands for, 0 for none.
+            DRAWN,
         }
     }
 }
