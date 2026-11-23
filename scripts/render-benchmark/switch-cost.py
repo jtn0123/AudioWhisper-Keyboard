@@ -5,8 +5,10 @@ kind of switch:
 
 * cpu: the keyboard process's CPU time per switch, all threads and the main thread, from
   /proc through run-as, with the same read over 15 idle seconds first. It does not depend on how
-  late the emulator delivers a tap. simpleperf cannot be used instead: the emulator's kernel
-  cannot count user space alone, and SELinux denies the shell the kernel's events.
+  late the emulator delivers a tap. simpleperf's default events cannot count it: the emulator's
+  kernel cannot count user space alone, and SELinux denies the shell the kernel's events. Its
+  software clock can, without root, to show where the time goes: `simpleperf record --app
+  com.jtn0123.audiowhisper.keyboard -e cpu-clock -f 1000 --call-graph dwarf`.
 * split: per tap, from the renderer's frame log, input (the release's touch to its frame's
   choreographer callback, which includes work done before that frame), build (that frame's post
   to the rebuilt frame's callback) and draw (the rebuilt frame's callback to its post); medians.
