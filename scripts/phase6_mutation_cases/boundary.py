@@ -1,0 +1,131 @@
+"""The Rust boundary family's Match tests in lib/rust: clipboard policy, glide trail, media cache and
+GIF grid, emoji history and quick-action arrangement, Smartbar layout, fit and touch, and the NLP
+session. The crates' own tests cover the same code; these cases are the ones the frozen Kotlin
+references used to catch."""
+CRATES = 'lib/rust/crates/'
+CLIP = CRATES + 'stores/src/clipboard_policy.rs'
+TRAIL = CRATES + 'render/src/trail.rs'
+MEDIA, GIF = CRATES + 'render/src/media_cache.rs', CRATES + 'render/src/gif_panel.rs'
+HISTORY, ARRANGE = CRATES + 'emoji/src/history.rs', CRATES + 'render/src/arrangement.rs'
+SMARTBAR, FIT = CRATES + 'render/src/smartbar.rs', CRATES + 'render/src/smartbar_fit.rs'
+TOUCH = CRATES + 'render/src/smartbar_touch.rs'
+POLICY, SESSION = CRATES + 'nlp/src/policy.rs', CRATES + 'nlp/src/session.rs'
+PROTOCOL = CRATES + 'nlp/src/protocol.rs'
+MODULE = ':lib:rust'
+TARGETS = {
+    'clipboard': ['*ClipboardMatchTest'],
+    'glide': ['*GlideTrailMatchTest'],
+    'media': ['*MediaPresentationMatchTest'],
+    'panel': ['*PanelRulesMatchTest'],
+    'smartbar': ['*SmartbarMatchTest', '*RendererSmartbarTouchMatchTest'],
+    'touch': ['*RendererSmartbarTouchMatchTest'],
+    'nlp': ['*NlpMatchTest', '*NlpHarnessMatchTest', '*NlpPureMatchTest'],
+}
+CASES = [
+    # Clipboard history: order, groups, duplicates, the limit, expiry, MIME matching.
+    ('clip-order-ascending', CLIP, 'indices.sort_by_key(|&i| std::cmp::Reverse(clips[i].timestamp));',
+     'indices.sort_by_key(|&i| clips[i].timestamp);', 'clipboard'),
+    ('clip-recent-inclusive', CLIP, '} else if now.wrapping_sub(clip.timestamp) < 300_000 {',
+     '} else if now.wrapping_sub(clip.timestamp) <= 300_000 {', 'clipboard'),
+    ('clip-duplicate-any-kind', CLIP, '.find(|(_, c)| c.kind == 1 && c.text.as_deref() == text)',
+     '.find(|(_, c)| c.kind >= 1 && c.text.as_deref() == text)', 'clipboard'),
+    ('clip-duplicate-pin-narrowed', CLIP, '.map(|(i, c)| (i, c.pinned || new_pinned))',
+     '.map(|(i, c)| (i, c.pinned && new_pinned))', 'clipboard'),
+    ('clip-limit-keeps-newest', CLIP, '        .rev()\n        .take(count.max(0) as usize)',
+     '        .take(count.max(0) as usize)', 'clipboard'),
+    ('clip-expiry-minutes-as-seconds', CLIP, 'minutes.wrapping_mul(60).wrapping_mul(1000)', 'minutes.wrapping_mul(1000)',
+     'clipboard'),
+    ('clip-sensitive-counted-twice', CLIP, 'c.sensitive && c.timestamp < sensitive_time && !out.contains(&i)',
+     'c.sensitive && c.timestamp < sensitive_time', 'clipboard'),
+    ('mime-wildcard-without-slash', CLIP, 'concrete.starts_with(&desired[..slash + 1])',
+     'concrete.starts_with(&desired[..slash])', 'clipboard'),
+    ('mime-one-letter-type-refused', CLIP, 'Some(slash) if slash > 0 =>', 'Some(slash) if slash > 1 =>', 'clipboard'),
+    ('eligible-html-for-plain', CLIP, 'let plain: Vec<_> = "text/plain".encode_utf16().collect();',
+     'let plain: Vec<_> = "text/html".encode_utf16().collect();', 'clipboard'),
+    # The glide trail's circles and fade.
+    ('glide-radius-decay', TRAIL, 'radius *= 0.99;', 'radius *= 0.98;', 'glide'),
+    ('glide-spacing-four', TRAIL, '.sqrt() / 3.0) as i32;', '.sqrt() / 4.0) as i32;', 'glide'),
+    ('glide-age-inclusive', TRAIL, 'if now - points[i - 1].time > duration {',
+     'if now - points[i - 1].time >= duration {', 'glide'),
+    ('glide-fade-linear', TRAIL, '20.0 + fraction * fraction * -20.0,', '20.0 + fraction * -20.0,', 'glide'),
+    # Decoded frames: delays, LRU admission, repeats; the GIF grid's lanes.
+    ('media-min-delay-1ms', MEDIA, 'delay: delay.max(10_000_000),', 'delay: delay.max(1_000_000),', 'media'),
+    ('media-lru-evicts-visible', MEDIA, '.filter(|(k, _)| **k != id && !self.visible.contains(k))',
+     '.filter(|(k, _)| **k != id)', 'media'),
+    ('media-lru-newest-first', MEDIA, '.min_by_key(|(_, e)| e.touched)', '.max_by_key(|(_, e)| e.touched)', 'media'),
+    ('media-visible-not-touched', MEDIA, '                self.clock += 1;\n                e.touched = self.clock;\n',
+     '                self.clock += 1;\n', 'media'),
+    ('media-repeat-one-short', MEDIA, 'e.completed_plays > e.repeat_count as u32',
+     'e.completed_plays >= e.repeat_count as u32', 'media'),
+    ('media-tick-late', MEDIA, 'if e.deadline.is_some_and(|d| now >= d) {', 'if e.deadline.is_some_and(|d| now > d) {',
+     'media'),
+    ('media-item-sum-ignored', MEDIA, 'e.frames.iter().map(Frame::bytes).sum::<usize>() + size > self.per_item',
+     'e.frames.iter().map(Frame::bytes).sum::<usize>() > self.per_item', 'media'),
+    ('gif-lane-gap-halved', GIF, 'lanes[lane] += h + 4.0 * d;', 'lanes[lane] += h + 2.0 * d;', 'media'),
+    # Emoji history and the quick-action editor.
+    ('history-odd-prepends', HISTORY, 'let index = if strategy % 2 == 0 { 0 } else { list.len() };',
+     'let index = if strategy % 2 == 1 { 0 } else { list.len() };', 'panel'),
+    ('history-zero-limit-empties', HISTORY, 'if max == 0 || max as usize >= list.len() {',
+     'if max as usize >= list.len() {', 'panel'),
+    ('history-clear-recent-clears-pinned', HISTORY, '5 => self.recent.clear(),', '5 => self.pinned.clear(),', 'panel'),
+    ('history-move-saturates', HISTORY, '.wrapping_add(offset)', '.saturating_add(offset)', 'panel'),
+    ('arrange-sticky-duplicates-kept', ARRANGE, 'let mut seen = vec![self.sticky];', 'let mut seen = vec![EMPTY];',
+     'panel'),
+    ('arrange-sticky-target-dropped', ARRANGE, '                self.arrangement.dynamic.insert(0, target);\n', '',
+     'panel'),
+    # The Smartbar's rows, word fitting and ellipsis.
+    ('smartbar-roomy-while-dictating', SMARTBAR, '            && !self.dictating\n', '', 'smartbar'),
+    ('smartbar-reading-alone-not-roomy', SMARTBAR, '&& !(self.reading && self.speaker)', '&& !self.reading',
+     'smartbar'),
+    ('smartbar-toggle-floored', SMARTBAR, '(self.row * GBOARD_TOGGLE).round()', '(self.row * GBOARD_TOGGLE).floor()',
+     'smartbar'),
+    ('smartbar-edge-unrounded', SMARTBAR, 'let edge = (4.0 * c.density).round();', 'let edge = 4.0 * c.density;',
+     'smartbar'),
+    ('smartbar-inline-over-shared', SMARTBAR,
+     'self.enabled && self.inline && !self.preview && !(self.layout == 2 && self.shared)',
+     'self.enabled && self.inline && !self.preview', 'smartbar'),
+    ('smartbar-ellipsis-one-short', SMARTBAR, 'fit_prefix(advances.len(), available, |i| advances[i])',
+     'fit_prefix(advances.len().saturating_sub(1), available, |i| advances[i])', 'smartbar'),
+    ('fit-squeeze-floor-raised', FIT, 'pub const MIN_TEXT_SQUEEZE: f32 = 0.70;',
+     'pub const MIN_TEXT_SQUEEZE: f32 = 0.72;', 'smartbar'),
+    ('fit-squeeze-rounded', FIT, 'let squeeze = ((available.max(0.0) / measured * 100.0).floor() / 100.0)',
+     'let squeeze = ((available.max(0.0) / measured * 100.0).round() / 100.0)', 'smartbar'),
+    # Smartbar touch: holds, ups, the toggle and invalidation.
+    ('touch-hold-late', TOUCH, 'if p.deadline.is_some_and(|d| now >= d) {', 'if p.deadline.is_some_and(|d| now > d) {',
+     'touch'),
+    ('touch-held-up-swapped', TOUCH, '} else if valid && t.held {', '} else if valid && !t.held {', 'touch'),
+    ('touch-candidate-held-commits', TOUCH, '} else if valid && !t.held {', '} else if valid {', 'touch'),
+    ('touch-toggle-holds', TOUCH, 'deadline: ((!action || target != BAR_TOGGLE_INDEX as usize)',
+     'deadline: ((!action || target != usize::MAX)', 'touch'),
+    ('touch-hold-half-delay', TOUCH, '.saturating_add(delay)', '.saturating_add(delay / 2)', 'touch'),
+    ('touch-invalidates-candidates', TOUCH, '.filter(|(_, p)| p.action && slots.contains(&(p.id as i32)))',
+     '.filter(|(_, p)| slots.contains(&(p.id as i32)))', 'touch'),
+    # The NLP session: field policy, generations, filtering, the snapshot, inline views.
+    ('nlp-visible-password-allowed', POLICY, 'matches!(raw & 0xff0, 0x80 | 0x90 | 0xe0)', 'matches!(raw & 0xff0, 0x80 | 0x90)',
+     'nlp'),
+    ('nlp-uri-is-prose', POLICY, 'const NOT_PROSE: [i64; 4] = [0x10, 0x20, 0xb0, 0xd0];',
+     'const NOT_PROSE: [i64; 4] = [0x10, 0x20, 0xb0, 0xc0];', 'nlp'),
+    ('nlp-autocorrect-flag-moved', POLICY, 'const AUTO_CORRECT: i64 = 0x8000;', 'const AUTO_CORRECT: i64 = 0x4000;', 'nlp'),
+    ('nlp-typing-tab-after-word', POLICY, '            before.push(32);', '            before.push(9);', 'nlp'),
+    ('nlp-text-change-not-typing', SESSION, '    context::TEXT,\n', '    context::LANGUAGE,\n', 'nlp'),
+    ('nlp-ready-a-tick-late', SESSION, 'self.due = now.saturating_add(8);', 'self.due = now.saturating_add(9);', 'nlp'),
+    ('nlp-dedup-by-kind-only', SESSION, '.any(|v| v.kind == value.kind && v.text == value.text)',
+     '.any(|v| v.kind == value.kind)', 'nlp'),
+    ('nlp-auto-ignores-field', SESSION, 'value.auto &= self.context.autocorrect() && value.is(candidate::WORD);',
+     'value.auto &= value.is(candidate::WORD);', 'nlp'),
+    ('nlp-candidates-over-clipboard', SESSION, 'if !self.clipboard.is_empty() {', 'if self.candidates.is_empty() {', 'nlp'),
+    ('nlp-carry-expands', SESSION, '            || self.carry\n        {', '        {', 'nlp'),
+    ('nlp-inline-pinned-last', SESSION, 'std::cmp::Reverse(flag_at(*v, inline_view::PINNED))',
+     'flag_at(*v, inline_view::PINNED)', 'nlp'),
+    ('nlp-inline-timeout', SESSION, 'row[inline_begin::TIMEOUT] = number(2000);', 'row[inline_begin::TIMEOUT] = number(3000);',
+     'nlp'),
+    ('nlp-composing-semicolon', PROTOCOL, '== Some(&58);', '== Some(&59);', 'nlp'),
+    ('nlp-preview-inclusive', PROTOCOL, 'now.saturating_sub(self.preview_time) > int(f, 2)',
+     'now.saturating_sub(self.preview_time) >= int(f, 2)', 'nlp'),
+    ('nlp-glide-commit-second', PROTOCOL, 'number(if commit { 0 } else { -1 })', 'number(if commit { 1 } else { -1 })', 'nlp'),
+    ('nlp-clipboard-age-inclusive', PROTOCOL, '|| int(f, AGE) >= int(f, TIMEOUT)', '|| int(f, AGE) > int(f, TIMEOUT)', 'nlp'),
+    ('nlp-sensitive-clip-spans', PROTOCOL, '    if flag_at(f, SENSITIVE) {\n        return result;',
+     '    if !flag_at(f, SENSITIVE) {\n        return result;', 'nlp'),
+    ('nlp-picked-replacing-spaced', PROTOCOL, '(swiped || kind == learn::PICKED && !replaces)',
+     '(swiped || kind == learn::PICKED && replaces)', 'nlp'),
+]
