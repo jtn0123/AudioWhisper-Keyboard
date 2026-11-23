@@ -114,7 +114,7 @@ object EmojiInputs {
      * A query: usually part of a word of a random emoji's name or keywords, its case changed or not,
      * else random letters, nothing, something very long, or letters whose case maps oddly.
      */
-    fun query(random: Random, emojis: List<ReferenceEmoji>): String {
+    fun query(random: Random, emojis: List<Emoji>): String {
         val emoji = emojis.randomOrNull(random)
         val words = emoji?.let { letterRuns(it.name) + it.keywords.flatMap(::letterRuns) }.orEmpty()
         return when (random.nextInt(12)) {

@@ -9,45 +9,40 @@ import kotlinx.serialization.json.jsonPrimitive
 import kotlin.random.Random
 
 /**
- * Compares the retained Telex and generic rule composers through JNI. The reference's answers also
- * go on [tape] (docs/phase6-kotlin-references.md).
+ * Asks the Telex and generic rule composers, through JNI, what the Kotlin they replaced
+ * (`ReferenceWithRules`) was asked, and records each answer on [tape], whose golden file holds
+ * that reference's answers (docs/phase6-kotlin-references.md).
  */
 class ComposingComparison(private val sigmaExact: Boolean, composersJson: String, private val tape: GoldenTape) {
-    val differences = mutableListOf<String>()
     val seen = mutableMapOf<String, Int>()
 
-    /** How many comparisons ran. */
+    /** How many answers were recorded. */
     var checks = 0L
         private set
 
     private val telex: WithRules
-    private val telexReference: ReferenceWithRules
     private val vietnamese: List<String>
 
     init {
         val composers = JSON.parseToJsonElement(composersJson).jsonObject.getValue("composers").jsonArray
         val element = composers.single { it.jsonObject["id"]?.jsonPrimitive?.content == "telex" }
         telex = JSON.decodeFromJsonElement(WithRules.serializer(), element)
-        telexReference = ReferenceWithRules(telex.id, telex.label, telex.rules)
         // Every letter the rules type or read, with every tone mark, in both cases.
         val letters = telex.rules.flatMap { (key, value) -> (key + value).map { it.toString() } }.toSet()
         vietnamese = (letters + letters.map { it.uppercase() }).filter { sigmaExact || CAPITAL_SIGMA !in it }.toList()
         check(element is JsonObject && telex.rules.size > 100) { "the Telex rules weren't read" }
     }
 
-    private fun record(what: String, input: String, kotlin: Any?, rust: Any?) {
+    private fun record(what: String, rust: Any?) {
         checks++
-        tape.answer(what, kotlin)
-        if (kotlin != rust && differences.size < MAX_DIFFERENCES) {
-            differences += "$what(${hex(input)}): kotlin ${show(kotlin)}, rust ${show(rust)}"
-        }
+        tape.answer(what, rust)
     }
 
     private fun see(what: String) {
         seen[what] = (seen[what] ?: 0) + 1
     }
 
-    /** What [body] gives, or the exception it throws, so both sides must throw alike. */
+    /** What [body] gives, or the exception it throws, so it must throw as the reference did. */
     private inline fun outcome(body: () -> Any?): Any? = try {
         body()
     } catch (e: RuntimeException) {
@@ -56,12 +51,12 @@ class ComposingComparison(private val sigmaExact: Boolean, composersJson: String
 
     private fun clean(text: String) = if (sigmaExact) text else text.replace(CAPITAL_SIGMA, 'σ')
 
-    /** One keystroke on [kotlin] and [rust], compared and labelled; Kotlin's action. */
-    private fun compare(name: String, kotlin: Composer, rust: Composer, preceding: String, toInsert: String): Pair<Int, String> {
-        val expected = kotlin.getActions(preceding, toInsert)
-        record(name, "$preceding | $toInsert", expected, rust.getActions(preceding, toInsert))
-        see("$name: ${label(toInsert, expected)}")
-        return expected
+    /** One keystroke on [rust], recorded and labelled; its action. */
+    private fun compare(name: String, rust: Composer, preceding: String, toInsert: String): Pair<Int, String> {
+        val action = rust.getActions(preceding, toInsert)
+        record(name, action)
+        see("$name: ${label(toInsert, action)}")
+        return action
     }
 
     /** What the editor holds once [action] is applied: it deletes only a positive count. */
@@ -74,20 +69,20 @@ class ComposingComparison(private val sigmaExact: Boolean, composersJson: String
      * Runs of [steps] keystrokes typed into a growing text, each read as the keyboard reads it
      * (the last [Composer.toRead] characters) or whole.
      */
-    private fun typing(random: Random, name: String, kotlin: Composer, rust: Composer, steps: Int, key: Random.() -> String) {
+    private fun typing(random: Random, name: String, rust: Composer, steps: Int, key: Random.() -> String) {
         var text = ""
         repeat(steps) {
             val toInsert = random.key()
-            val read = if (random.nextInt(4) == 0) text else text.takeLast(kotlin.toRead.coerceAtLeast(random.nextInt(2)))
+            val read = if (random.nextInt(4) == 0) text else text.takeLast(rust.toRead.coerceAtLeast(random.nextInt(2)))
             val preceding = if (name == "telex" || name == "rules") clean(read) else read
-            text = apply(text, compare(name, kotlin, rust, preceding, toInsert)).takeLast(MAX_TEXT)
+            text = apply(text, compare(name, rust, preceding, toInsert)).takeLast(MAX_TEXT)
             if (random.nextInt(20) == 0) text = ""
         }
     }
 
     /** Vietnamese typed with the bundled Telex rules. */
     fun telex(random: Random, runs: Int, steps: Int) {
-        repeat(runs) { typing(random, "telex", telexReference, telex, steps) { clean(telexKey()) } }
+        repeat(runs) { typing(random, "telex", telex, steps) { clean(telexKey()) } }
     }
 
     /**
@@ -98,30 +93,26 @@ class ComposingComparison(private val sigmaExact: Boolean, composersJson: String
         // A few letters each, so endings overlap and match often.
         val letters = List(random.nextInt(2, 6)) { RULE_PIECES.random(random) }
         val rules = List(random.nextInt(9)) { random.rulesText(letters, 3) to random.rulesText(letters, 3) }.toMap()
-        val kotlin = outcome { ReferenceWithRules("random", "Random", rules) }
         val rust = outcome { WithRules("random", "Random", rules) }
-        if (kotlin !is Composer || rust !is Composer) {
-            record("rules", rules.toString(), kotlin, rust)
+        if (rust !is Composer) {
+            record("rules", rust)
             see("rules: no table")
             return@repeat
         }
-        record("toRead", rules.toString(), kotlin.toRead, rust.toRead)
-        typing(random, "rules", kotlin, rust, steps) { if (nextInt(10) == 0) piece() else rulesText(letters, 1) }
+        record("toRead", rust.toRead)
+        typing(random, "rules", rust, steps) { if (nextInt(10) == 0) piece() else rulesText(letters, 1) }
     }
 
     /** Every UTF-16 unit typed after odd texts, and after each composer's own characters. */
     fun everyUnit() {
-        val composers = listOf(
-            "telex" to (telexReference to telex),
-        )
-        for ((name, pair) in composers) {
-            val (kotlin, rust) = pair
+        val composers = listOf("telex" to telex)
+        for ((name, rust) in composers) {
             val before = EVERY_UNIT_BEFORE + if (name == "telex") vietnamese.take(20) else EVERY_UNIT_AFTER
             for (unit in 0..0xFFFF) {
                 val c = unit.toChar().toString()
                 if (name == "telex" && !sigmaExact && unit == CAPITAL_SIGMA.code) continue
-                compare(name, kotlin, rust, before[unit % before.size], c)
-                compare(name, kotlin, rust, "x$c", EVERY_UNIT_AFTER[unit % EVERY_UNIT_AFTER.size])
+                compare(name, rust, before[unit % before.size], c)
+                compare(name, rust, "x$c", EVERY_UNIT_AFTER[unit % EVERY_UNIT_AFTER.size])
             }
         }
     }
@@ -160,13 +151,7 @@ class ComposingComparison(private val sigmaExact: Boolean, composersJson: String
         }
     }
 
-    private fun hex(text: String) = text.map { "%04x".format(it.code) }.joinToString(" ")
-
-    private fun show(value: Any?): String =
-        if (value is Pair<*, *>) "(${value.first}, ${hex(value.second.toString())})" else value.toString()
-
     private companion object {
-        const val MAX_DIFFERENCES = 20
         const val MAX_TEXT = 12
         const val CAPITAL_SIGMA = 'Σ'
         val JSON = Json { ignoreUnknownKeys = true }

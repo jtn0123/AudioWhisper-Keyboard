@@ -9,15 +9,15 @@ import kotlin.test.assertTrue
 
 /**
  * Emoji data and suggestions in Rust (lib/rust/crates/emoji, through [EmojiData], [Emoji] and
- * [EmojiSuggestionProvider.suggestEmojis]) do exactly what the Kotlin they replaced did
- * ([ReferenceEmoji]): every bundled emoji file parsed and searched, damaged files, random queries
- * and composing texts, emoji values with tones, and locales choosing among files.
+ * [EmojiSuggestionProvider.suggestEmojis]) give the answers the Kotlin they replaced gave
+ * (`ReferenceEmoji`, retired for golden digests of them): every bundled emoji file parsed and
+ * searched, damaged files, random queries and composing texts, emoji values with tones, and
+ * locales choosing among files.
  */
 class EmojiMatchTest {
     private val files = File("src/main/assets/ime/media/emoji").listFiles()!!.filter { it.extension == "txt" }.sortedBy { it.name }
 
     private fun assertSeen(comparison: EmojiComparison, outcomes: List<String>) {
-        assertEquals(emptyList(), comparison.differences)
         for (outcome in outcomes) {
             assertTrue((comparison.seen[outcome] ?: 0) >= MIN_SEEN, "$outcome only ${comparison.seen[outcome]} times, seen ${comparison.seen}")
         }
@@ -26,33 +26,34 @@ class EmojiMatchTest {
     @Test
     fun bundledFilesMatch() {
         assertEquals(listOf("de", "en", "es", "fr", "it", "pt", "root"), files.map { it.nameWithoutExtension })
-        val tape = GoldenTape.ofReference("emoji-bundled")
-        val comparison = EmojiComparison(tape)
-        val random = Random(SEED)
-        for (file in files) comparison.file(file.name, file.readText(), random, queries = 600)
-        tape.finish()
+        val comparison = GoldenTape.check("emoji-bundled") { tape ->
+            EmojiComparison(tape).apply {
+                val random = Random(SEED)
+                for (bundled in files) file(bundled.readText(), random, queries = 600)
+            }
+        }
         assertEquals(files.size, comparison.seen["bundled file"])
         assertSeen(comparison, SUGGEST_OUTCOMES)
     }
 
     @Test
     fun damagedFilesMatch() {
-        val tape = GoldenTape.ofReference("emoji-damaged")
-        val comparison = EmojiComparison(tape)
-        comparison.damaged(Random(SEED), files.map { it.readText() }, runs = 2_000, queries = 8)
-        tape.finish()
+        val comparison = GoldenTape.check("emoji-damaged") { tape ->
+            EmojiComparison(tape).apply { damaged(Random(SEED), files.map { it.readText() }, runs = 2_000, queries = 8) }
+        }
         assertSeen(comparison, SUGGEST_OUTCOMES + PARSE_OUTCOMES)
     }
 
     @Test
     fun queriesTonesAndAssetsMatch() {
-        val tape = GoldenTape.ofReference("emoji-queries")
-        val comparison = EmojiComparison(tape)
-        val random = Random(SEED)
-        comparison.queries(random, runs = 20_000)
-        comparison.tones(random, runs = 20_000)
-        comparison.assets(random, runs = 20_000)
-        tape.finish()
+        val comparison = GoldenTape.check("emoji-queries") { tape ->
+            EmojiComparison(tape).apply {
+                val random = Random(SEED)
+                queries(random, runs = 20_000)
+                tones(random, runs = 20_000)
+                assets(random, runs = 20_000)
+            }
+        }
         val tones = EmojiSkinTone.entries.map { "skin $it" } + EmojiHairStyle.entries.map { "hair $it" }
         val assets = listOf("none", "language", "country", "variant").map { "asset: $it" }
         val noData = listOf("no data: none", "no data: threw")

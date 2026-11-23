@@ -4,15 +4,16 @@ import com.jtn0123.audiowhisper.golden.GoldenTape
 import java.io.File
 import kotlin.random.Random
 import kotlin.test.Test
-import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-/** Telex and generic rule composers match the original Kotlin implementation through JNI. */
+/**
+ * Telex and generic rule composers, through JNI, give the answers the Kotlin they replaced gave
+ * (`ReferenceWithRules`, retired for golden digests of them).
+ */
 class ComposingMatchTest {
     private fun comparison(tape: GoldenTape) = ComposingComparison(sigmaExact = false, File(COMPOSERS).readText(), tape)
 
     private fun assertMatch(comparison: ComposingComparison, outcomes: List<String>) {
-        assertEquals(emptyList(), comparison.differences)
         for (outcome in outcomes) {
             val seen = comparison.seen[outcome] ?: 0
             assertTrue(seen >= MIN_SEEN, "$outcome only $seen times, of ${comparison.seen}")
@@ -21,28 +22,19 @@ class ComposingMatchTest {
 
     @Test
     fun telexMatches() {
-        val tape = GoldenTape.ofReference("composing-telex")
-        val comparison = comparison(tape)
-        comparison.telex(Random(SEED), runs = 2_000, steps = 40)
-        tape.finish()
+        val comparison = GoldenTape.check("composing-telex") { tape -> comparison(tape).apply { telex(Random(SEED), runs = 2_000, steps = 40) } }
         assertMatch(comparison, TELEX_OUTCOMES.map { "telex: $it" })
     }
 
     @Test
     fun randomRulesMatch() {
-        val tape = GoldenTape.ofReference("composing-rules")
-        val comparison = comparison(tape)
-        comparison.randomRules(Random(SEED), tables = 4_000, steps = 20)
-        tape.finish()
+        val comparison = GoldenTape.check("composing-rules") { tape -> comparison(tape).apply { randomRules(Random(SEED), tables = 4_000, steps = 20) } }
         assertMatch(comparison, RULES_OUTCOMES.map { "rules: $it" })
     }
 
     @Test
     fun everyUnitMatches() {
-        val tape = GoldenTape.ofReference("composing-every-unit")
-        val comparison = comparison(tape)
-        comparison.everyUnit()
-        tape.finish()
+        val comparison = GoldenTape.check("composing-every-unit") { tape -> comparison(tape).apply { everyUnit() } }
         assertMatch(comparison, listOf("telex: keep"))
     }
 

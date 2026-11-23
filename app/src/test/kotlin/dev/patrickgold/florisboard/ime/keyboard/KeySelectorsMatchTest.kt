@@ -11,49 +11,45 @@ import java.lang.reflect.Proxy
 import java.util.Locale
 import kotlin.random.Random
 import kotlin.test.Test
-import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-/** The reference's answers also go on golden tapes (docs/phase6-kotlin-references.md). */
+/**
+ * Key selectors in Rust (through [AbstractKeyData.compute]) choose what the Kotlin they replaced
+ * (`ReferenceKeySelectors`) chose, checked against golden digests of its choices
+ * (docs/phase6-kotlin-references.md): every bundled key in every selector state, and seeded
+ * nested selectors with null fallbacks.
+ */
 class KeySelectorsMatchTest {
     @Test fun bundledLayoutsAndPopupsMatchInEverySelectorState() {
-        val tape = GoldenTape.ofReference("key-selectors-bundled")
         val root = File("src/main/assets/ime/keyboard")
         val files = root.walkTopDown().filter { it.isFile && it.extension == "json" }.sortedBy { it.path }.toList()
         assertTrue(files.isNotEmpty())
         var nodes = 0; var checks = 0; var layouts = 0
-        files.forEach { file ->
-            if ("/layouts/" in file.path) layouts++
-            keyNodes(DefaultJsonConfig.parseToJsonElement(file.readText())).forEach { node ->
-                val data = prepare(DefaultJsonConfig.decodeFromJsonElement<AbstractKeyData>(node))
-                val reference = reference(data)
-                nodes++
-                for (shift in 0..3) for (variation in 0..4) for (direction in 0..1) for (width in 0..1) {
-                    val raw = (shift.toLong() shl 8) or (variation.toLong() shl 4) or
-                        (direction.toLong() shl 27) or (width.toLong() shl 21)
-                    val evaluator = evaluator(raw)
-                    tape.answer("compute", content(reference.compute(evaluator)))
-                    assertEquals(signature(reference.compute(evaluator)), signature(data.compute(evaluator)),
-                        "bundled key $nodes state $raw")
-                    checks++
+        GoldenTape.check("key-selectors-bundled") { tape ->
+            files.forEach { file ->
+                if ("/layouts/" in file.path) layouts++
+                keyNodes(DefaultJsonConfig.parseToJsonElement(file.readText())).forEach { node ->
+                    val data = prepare(DefaultJsonConfig.decodeFromJsonElement<AbstractKeyData>(node))
+                    nodes++
+                    for (shift in 0..3) for (variation in 0..4) for (direction in 0..1) for (width in 0..1) {
+                        val raw = (shift.toLong() shl 8) or (variation.toLong() shl 4) or
+                            (direction.toLong() shl 27) or (width.toLong() shl 21)
+                        tape.answer("compute", content(data.compute(evaluator(raw))))
+                        checks++
+                    }
                 }
             }
         }
-        tape.finish()
         assertTrue(layouts > 50); assertTrue(nodes > 1_000)
         println("Key selectors: $layouts bundled layouts, ${files.size} JSON files, $nodes nodes, $checks state cases")
     }
 
-    @Test fun seededNestedSelectorsAndNullFallbacksMatch() {
-        val tape = GoldenTape.ofReference("key-selectors-seeded")
+    @Test fun seededNestedSelectorsAndNullFallbacksMatch() = GoldenTape.check("key-selectors-seeded") { tape ->
         val random = Random(20261112)
         repeat(40_000) {
             val data = randomNode(random, 3)
-            val evaluator = evaluator(random.nextLong())
-            tape.answer("compute", content(reference(data).compute(evaluator)))
-            assertEquals(signature(reference(data).compute(evaluator)), signature(data.compute(evaluator)))
+            tape.answer("compute", content(data.compute(evaluator(random.nextLong()))))
         }
-        tape.finish()
     }
 
     private fun keyNodes(value: JsonElement): Sequence<JsonObject> = sequence {
@@ -70,8 +66,9 @@ class KeySelectorsMatchTest {
         }
     }
 
-    // Android ICU casing/cache remains unchanged in Kotlin. Supply both evaluators the same
-    // casing snapshots on the JVM; emulator smoke checks the actual Android AutoTextKeyData path.
+    // Android ICU casing/cache remains unchanged in Kotlin. Supply the selectors the casing
+    // snapshots the reference was given on the JVM; emulator smoke checks the actual Android
+    // AutoTextKeyData path.
     private fun prepare(data: AbstractKeyData): AbstractKeyData = when (data) {
         is AutoTextKeyData -> CaseSelector(
             TextKeyData(data.type, data.code, data.label.lowercase(Locale.ROOT), data.groupId, data.popup),
@@ -83,23 +80,6 @@ class KeySelectorsMatchTest {
             data.uri?.let(::prepare), data.normal?.let(::prepare), data.password?.let(::prepare))
         is LayoutDirectionSelector -> LayoutDirectionSelector(prepare(data.ltr), prepare(data.rtl))
         is CharWidthSelector -> CharWidthSelector(data.full?.let(::prepare), data.half?.let(::prepare))
-        else -> data
-    }
-
-    private fun reference(data: AbstractKeyData): AbstractKeyData = when (data) {
-        is CaseSelector -> ReferenceCaseSelector(reference(data.lower), reference(data.upper))
-        is ShiftStateSelector -> ReferenceShiftStateSelector(data.unshifted?.let(::reference), data.shifted?.let(::reference),
-            data.shiftedManual?.let(::reference), data.shiftedAutomatic?.let(::reference), data.capsLock?.let(::reference), data.default?.let(::reference))
-        is VariationSelector -> ReferenceVariationSelector(data.default?.let(::reference), data.email?.let(::reference),
-            data.uri?.let(::reference), data.normal?.let(::reference), data.password?.let(::reference))
-        is LayoutDirectionSelector -> ReferenceLayoutDirectionSelector(reference(data.ltr), reference(data.rtl))
-        is CharWidthSelector -> ReferenceCharWidthSelector(data.full?.let(::reference), data.half?.let(::reference))
-        is TextKeyData -> object : AbstractKeyData {
-            override fun asString(isForDisplay: Boolean) = ""
-            override fun compute(evaluator: ComputingEvaluator): KeyData? = if (evaluator.isSlot(data)) {
-                evaluator.slotData(data)?.let { TextKeyData(data.type, it.code, it.label, data.groupId, data.popup) }
-            } else data
-        }
         else -> data
     }
 
@@ -135,11 +115,7 @@ class KeySelectorsMatchTest {
         } as ComputingEvaluator
     }
 
-    private fun signature(data: KeyData?): List<Any?>? = data?.let {
-        listOf(it.type, it.code, it.label, it.groupId, it.popup, (it as? MultiTextKeyData)?.codePoints?.toList())
-    }
-
-    /** [signature] with the popup's keys for the popup, which has no `toString` of its content. */
+    /** A key's type, code, label, group, popup keys and code points: PopupSet has no `toString` of its content. */
     private fun content(data: KeyData?): List<Any?>? = data?.let {
         listOf(it.type, it.code, it.label, it.groupId, it.popup?.let { popup -> listOf(popup.main, popup.relevant) },
             (it as? MultiTextKeyData)?.codePoints?.toList())

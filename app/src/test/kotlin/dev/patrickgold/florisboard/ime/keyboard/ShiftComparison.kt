@@ -7,14 +7,12 @@ import dev.patrickgold.florisboard.ime.input.InputShiftState
 import kotlin.random.Random
 
 /**
- * Puts the shift key in Rust ([ShiftLogic], and the double tap of `InputEventDispatcher`) up against
- * the Kotlin it replaced, [ReferenceShift], wherever this runs: the JVM's tests and, copied in for a
- * check, the phone. It records each difference and how often each outcome was seen, so a caller can
- * tell the runs reached them all. The reference's answers also go on [tape]
- * (docs/phase6-kotlin-references.md).
+ * Asks the shift key in Rust ([ShiftLogic], and the double tap of `InputEventDispatcher`) what the
+ * Kotlin it replaced, `ReferenceShift`, was asked, and records each answer on [tape], whose golden
+ * file holds that reference's answers (docs/phase6-kotlin-references.md). It also counts how often
+ * each outcome was seen, so a caller can tell the runs reached them all.
  */
 class ShiftComparison(private val tape: GoldenTape) {
-    val differences = mutableListOf<String>()
     val seen = mutableMapOf<String, Int>()
 
     enum class Event { REEVALUATE, SHIFT_DOWN, SHIFT_UP, CAPS_LOCK, SHIFT_CANCEL, KEY_TYPED }
@@ -31,28 +29,10 @@ class ShiftComparison(private val tape: GoldenTape) {
         val localeCapitalizes: Boolean,
     )
 
-    private fun check(what: String, input: String, kotlin: Any?, rust: Any?) {
-        tape.answer(what, kotlin)
-        if (kotlin != rust && differences.size < MAX_DIFFERENCES) differences += "$what($input): kotlin $kotlin, rust $rust"
-    }
+    private fun check(what: String, rust: Any?) = tape.answer(what, rust)
 
     private fun see(what: String) {
         seen[what] = (seen[what] ?: 0) + 1
-    }
-
-    private fun kotlin(state: InputShiftState, event: Event, facts: Facts): InputShiftState {
-        val reference = ReferenceShift(state)
-        when (event) {
-            Event.REEVALUATE -> reference.reevaluateInputShiftState(
-                facts.shiftPressed, facts.autoCapitalization, facts.localeCapitalizes, facts.capsMode,
-            )
-            Event.SHIFT_DOWN -> reference.handleShiftDown(facts.behavior, facts.consecutiveDown)
-            Event.SHIFT_UP -> reference.handleShiftUp(facts.anyPressed, facts.uninterrupted)
-            Event.CAPS_LOCK -> reference.handleCapsLock()
-            Event.SHIFT_CANCEL -> reference.handleShiftCancel()
-            Event.KEY_TYPED -> reference.afterKeyTyped(facts.shiftPressed)
-        }
-        return reference.inputShiftState
     }
 
     private fun rust(state: InputShiftState, event: Event, facts: Facts): InputShiftState = when (event) {
@@ -78,7 +58,7 @@ class ShiftComparison(private val tape: GoldenTape) {
                 for (bits in 0 until 64) {
                     val facts = facts(behavior, capsMode, bits)
                     val rust = rust(state, event, facts)
-                    check("$event", "$state, $facts", kotlin(state, event, facts), rust)
+                    check("$event", rust)
                     see("every $event ${state.name} -> ${rust.name}")
                 }
             }
@@ -86,20 +66,18 @@ class ShiftComparison(private val tape: GoldenTape) {
     }
 
     /**
-     * Random runs of shift presses, releases, cancels, caps locks, typed keys and cursor moves, each
-     * side carrying its own state from one event to the next, with random facts.
+     * Random runs of shift presses, releases, cancels, caps locks, typed keys and cursor moves, the
+     * state carried from one event to the next, with random facts.
      */
-    fun runs(random: Random, runs: Int, steps: Int) = repeat(runs) { run ->
-        var kotlin = InputShiftState.entries.random(random)
-        var rust = kotlin
+    fun runs(random: Random, runs: Int, steps: Int) = repeat(runs) {
+        var rust = InputShiftState.entries.random(random)
         val behavior = CapitalizationBehavior.entries.random(random)
-        repeat(steps) { step ->
+        repeat(steps) {
             val event = EVENT_MIX.random(random)
             val facts = facts(behavior, InputAttributes.CapsMode.entries.random(random), random.nextInt(64))
             val from = rust
-            kotlin = kotlin(kotlin, event, facts)
             rust = rust(rust, event, facts)
-            check("$event", "run $run step $step, $facts", kotlin, rust)
+            check("$event", rust)
             see("run $event ${from.name} -> ${rust.name}")
         }
     }
@@ -117,8 +95,7 @@ class ShiftComparison(private val tape: GoldenTape) {
         }
         val now = lastTime + gap
         val rust = ShiftLogic.isConsecutive(lastCode, lastTime, code, now, timeout)
-        check("isConsecutive", "$lastCode at $lastTime, $code at $now, timeout $timeout",
-            ReferenceShift.isConsecutive(lastCode, lastTime, code, now, timeout), rust)
+        check("isConsecutive", rust)
         see("consecutive: $rust")
     }
 
@@ -135,13 +112,11 @@ class ShiftComparison(private val tape: GoldenTape) {
 
     private fun spaces(text: String) {
         val rust = ShiftLogic.isDoubleSpacePeriod(text)
-        check("isDoubleSpacePeriod", text.map { it.code.toString(16) }.toString(), ReferenceShift.isDoubleSpacePeriod(text), rust)
+        check("isDoubleSpacePeriod", rust)
         see("double space ${text.length}: $rust")
     }
 
     private companion object {
-        const val MAX_DIFFERENCES = 20
-
         /** Shift's own events more often than the rest, so locks and toggles build up. */
         val EVENT_MIX = Event.entries + listOf(Event.SHIFT_DOWN, Event.SHIFT_DOWN, Event.SHIFT_UP, Event.REEVALUATE)
 

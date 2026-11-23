@@ -100,30 +100,29 @@ class LayoutAssemblyMatchTest {
     }
 
     @Test fun cacheOperationsAndHashCollisionsMatch() {
-        // The reference's answers also go on a golden tape (docs/phase6-kotlin-references.md).
-        val tape = GoldenTape.ofReference("layout-cache")
+        // The old cache policy, `ReferenceTextKeyboardCache`, is retired for golden digests of its
+        // answers (docs/phase6-kotlin-references.md).
         val random = Random(20261112)
         var checks = 0
-        repeat(200) {
-            val reference = ReferenceTextKeyboardCache<Int>()
-            val actual = LayoutCache<Int>()
-            val hashes = intArrayOf(Int.MIN_VALUE, Int.MAX_VALUE, -1, 0, 1, random.nextInt())
-            repeat(200) { value ->
-                val mode = KeyboardMode.entries.random(random); val hash = hashes.random(random)
-                when (random.nextInt(8)) {
-                    0 -> { reference.clear(); actual.clear() }
-                    1 -> { reference.clear(mode); actual.clearMode(mode.value) }
-                    2 -> { reference.clear(hash); actual.clearSubtype(hash) }
-                    3 -> { reference.clear(mode, hash); actual.clear(mode.value, hash) }
-                    else -> { reference.set(mode, hash, value); actual.set(mode.value, hash, value) }
-                }
-                for (m in KeyboardMode.entries) for (h in hashes) {
-                    tape.answer("get", reference.get(m, h))
-                    assertEquals(reference.get(m, h), actual.get(m.value, h)); checks++
+        GoldenTape.check("layout-cache") { tape ->
+            repeat(200) {
+                val actual = LayoutCache<Int>()
+                val hashes = intArrayOf(Int.MIN_VALUE, Int.MAX_VALUE, -1, 0, 1, random.nextInt())
+                repeat(200) { value ->
+                    val mode = KeyboardMode.entries.random(random); val hash = hashes.random(random)
+                    when (random.nextInt(8)) {
+                        0 -> actual.clear()
+                        1 -> actual.clearMode(mode.value)
+                        2 -> actual.clearSubtype(hash)
+                        3 -> actual.clear(mode.value, hash)
+                        else -> actual.set(mode.value, hash, value)
+                    }
+                    for (m in KeyboardMode.entries) for (h in hashes) {
+                        tape.answer("get", actual.get(m.value, h)); checks++
+                    }
                 }
             }
         }
-        tape.finish()
         println("Layout cache: 40000 operations, $checks lookups, including signed hashes and collisions")
     }
 }

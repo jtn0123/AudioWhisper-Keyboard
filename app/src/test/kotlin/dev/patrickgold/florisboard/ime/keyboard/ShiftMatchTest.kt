@@ -7,20 +7,21 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * The shift key in Rust ([ShiftLogic], which calls lib/rust/crates/shift) does exactly what the
- * Kotlin it replaced did ([ReferenceShift]): every event from every state under every behaviour,
- * caps mode and set of facts, random runs of them carrying the state along, double taps across a
- * wrapping clock, and every UTF-16 unit on either side of a second space.
+ * The shift key in Rust ([ShiftLogic], which calls lib/rust/crates/shift) gives the answers the
+ * Kotlin it replaced gave (`ReferenceShift`, retired for golden digests of them): every event from
+ * every state under every behaviour, caps mode and set of facts, random runs of them carrying the
+ * state along, double taps across a wrapping clock, and every UTF-16 unit on either side of a
+ * second space.
  */
 class ShiftMatchTest {
     @Test
     fun shiftStatesMatch() {
-        val tape = GoldenTape.ofReference("shift-states")
-        val comparison = ShiftComparison(tape)
-        comparison.everyCase()
-        comparison.runs(Random(SEED), runs = 5_000, steps = 40)
-        tape.finish()
-        assertEquals(emptyList(), comparison.differences)
+        val comparison = GoldenTape.check("shift-states") { tape ->
+            ShiftComparison(tape).apply {
+                everyCase()
+                runs(Random(SEED), runs = 5_000, steps = 40)
+            }
+        }
         // Every case is each case once, so it need only reach each transition; the runs, by chance, often.
         assertEquals(TRANSITIONS.flatMap { listOf("every $it", "run $it") }.toSet(), comparison.seen.keys)
         for (outcome in TRANSITIONS.map { "run $it" }) {
@@ -30,12 +31,12 @@ class ShiftMatchTest {
 
     @Test
     fun doubleTapsAndDoubleSpacesMatch() {
-        val tape = GoldenTape.ofReference("shift-double")
-        val comparison = ShiftComparison(tape)
-        comparison.doubleTaps(Random(SEED), count = 200_000)
-        comparison.doubleSpaces(Random(SEED), texts = 100_000)
-        tape.finish()
-        assertEquals(emptyList(), comparison.differences)
+        val comparison = GoldenTape.check("shift-double") { tape ->
+            ShiftComparison(tape).apply {
+                doubleTaps(Random(SEED), count = 200_000)
+                doubleSpaces(Random(SEED), texts = 100_000)
+            }
+        }
         val expected = listOf("consecutive: true", "consecutive: false", "double space 2: true", "double space 2: false") +
             (0..3).filter { it != 2 }.map { "double space $it: false" }
         assertEquals(expected.toSet(), comparison.seen.keys)
