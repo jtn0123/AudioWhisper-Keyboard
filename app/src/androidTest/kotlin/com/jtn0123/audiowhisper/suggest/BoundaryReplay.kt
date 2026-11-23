@@ -1,6 +1,7 @@
 package com.jtn0123.audiowhisper.suggest
 
 import android.content.Context
+import com.jtn0123.audiowhisper.golden.GoldenTape
 import com.jtn0123.audiowhisper.rust.Learner
 import com.jtn0123.audiowhisper.rust.ReaderRules
 import com.jtn0123.audiowhisper.rust.ReaderTree
@@ -13,19 +14,25 @@ import java.security.MessageDigest
 import org.json.JSONArray
 import org.json.JSONObject
 
-/** Synthetic in-memory stores only. No microphone, playback, user text or user dictionary. */
+/**
+ * Synthetic in-memory stores only. No microphone, playback, user text or user dictionary. The
+ * reader's answers are recorded on the golden tape [TAPE] (docs/phase6-kotlin-references.md).
+ */
 object BoundaryReplay {
-    @JvmStatic fun run(context: Context): String {
+    const val TAPE = "boundary-reader"
+
+    @JvmStatic fun run(context: Context, goldens: GoldenTape.Store): String {
         // App startup clears cacheDir asynchronously; use the same private-file boundary as A1Replay.
         val file = File(context.filesDir, "boundary-fixture.dict")
         context.assets.open("dicts/main_en-US.dict").use { input -> file.outputStream().use { input.copyTo(it) } }
         try {
             val engine = checkNotNull(LatinDictionaryEngine.open(file.path, 0, file.length(), "en_US"))
-            return engine.use { measure(it).toString() }
+            return engine.use { measure(it, goldens).toString() }
         } finally { check(file.delete()) { "boundary dictionary cleanup" } }
     }
 
-    private fun measure(engine: LatinDictionaryEngine): JSONObject {
+    private fun measure(engine: LatinDictionaryEngine, goldens: GoldenTape.Store): JSONObject {
+        val tape = GoldenTape.ofReference(TAPE, goldens)
         val random = kotlin.random.Random(20261114)
         repeat(2_000) {
             val pieces = List(random.nextInt(64)) { index ->
@@ -33,11 +40,18 @@ object BoundaryReplay {
                     index / 3 * 40, index / 3 * 40 + 20, random.nextBoolean(), {})
             }
             fun signature(blocks: List<TextBlock>) = blocks.map { listOf(it.text, it.top, it.bottom, it.scrolls) }
-            check(signature(ReferenceReader.PageText.blocks(pieces)) == signature(PageText.blocks(pieces))) { "reader blocks sample $it" }
-            check(ReferenceReader.PageText.find(pieces, "hello", 0, 640) == PageText.find(pieces, "hello", 0, 640)) { "reader find sample $it" }
+            val blocks = signature(ReferenceReader.PageText.blocks(pieces))
+            check(blocks == signature(PageText.blocks(pieces))) { "reader blocks sample $it" }
+            tape.record(listOf("blocks") + blocks.flatMap { block -> block.map { field -> field.toString() } })
+            val found = ReferenceReader.PageText.find(pieces, "hello", 0, 640)
+            check(found == PageText.find(pieces, "hello", 0, 640)) { "reader find sample $it" }
+            tape.answer("find", found)
             val read = pieces.take(random.nextInt(pieces.size + 1)).map { it.text }
-            check(ReferenceReader.PageText.resumeAfter(pieces, read) == PageText.resumeAfter(pieces, read)) { "reader resume sample $it" }
+            val resumed = ReferenceReader.PageText.resumeAfter(pieces, read)
+            check(resumed == PageText.resumeAfter(pieces, read)) { "reader resume sample $it" }
+            tape.answer("resumeAfter", resumed)
         }
+        tape.finish()
         val history = LearnedWords(null)
         val learner = Learner(history.store)
         val guesses = (0 until 32).map { GlideGuess(listOf("the", "hello", "world", "later")[it % 4], it / 10f) }

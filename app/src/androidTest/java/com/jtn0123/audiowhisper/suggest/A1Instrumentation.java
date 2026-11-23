@@ -32,7 +32,7 @@ public final class A1Instrumentation extends Instrumentation {
         Bundle result = new Bundle();
         try {
             if (boundaries) {
-                result.putString("boundaries", BoundaryReplay.run(instrumentation.getTargetContext()));
+                result.putString("boundaries", BoundaryReplay.run(instrumentation.getTargetContext(), goldens));
                 instrumentation.finish(Activity.RESULT_OK, result);
                 return;
             }

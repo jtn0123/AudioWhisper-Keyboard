@@ -1,0 +1,17 @@
+# boundary-reader: the answers the frozen Kotlin reference gave (docs/phase6-kotlin-references.md).
+# Their count, the digest after the last, and after each power of two (at N).
+count 6000
+digest 53f5f2f7df3f29b9
+at 1 5b80fc62bab486bc
+at 2 071a57b93889e531
+at 4 40b17ddcdf320db5
+at 8 36b8da32266c5355
+at 16 560f66d8f99c899b
+at 32 cdfa9a659da77533
+at 64 031ed60188255c33
+at 128 e065563e4cb2f038
+at 256 fd1304ce697728c7
+at 512 70dd33e72dc9ae60
+at 1024 e740e1faa2ca4d61
+at 2048 76e58aa6e54189b0
+at 4096 c302ab9fca2a94a6

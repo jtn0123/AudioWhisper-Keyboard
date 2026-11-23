@@ -110,7 +110,7 @@ public final class FixtureInstrumentation extends Instrumentation {
         if (boundaries) {
             Bundle result = new Bundle();
             try {
-                result.putString("boundaries", com.jtn0123.audiowhisper.suggest.BoundaryReplay.run(getTargetContext()));
+                result.putString("boundaries", com.jtn0123.audiowhisper.suggest.BoundaryReplay.run(getTargetContext(), new com.jtn0123.audiowhisper.golden.DeviceGoldens(this, arguments)));
                 finish(Activity.RESULT_OK, result);
             } catch (Throwable failure) {
                 result.putString("failure", failure.getClass().getName() + ": " + failure.getMessage());
