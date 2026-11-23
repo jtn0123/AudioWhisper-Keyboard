@@ -464,6 +464,48 @@ and reached 44 by the end of two thrown-out trials; the four kept ones ended at 
 
 **Still owed.** The CPU gate on a quiet host (E28), and on the phone (P4).
 
+## Subtype (2026-11-22)
+
+The subtype half of phase 3 item 3 ([phase3-theme-subtype.md](phase3-theme-subtype.md#the-subtype-half))
+moves the subtype list and the active subtype to Rust and pairs glide's keys with the subtype
+they were built for. It changes no drawing code. These trials compare the final build
+(4b32b51bb) with main (b1cf45f18), each built in a worktree of its own: `cpu-trials.py
+--rust-only --trials 1`, alternating main and the branch three times each, on `aw_keyboard`
+with the Rust renderer, and with the settings the device had before this work restored. The
+folders are in `build/cpu-p95/subtype/`.
+
+**The 2 ms wall-clock gate was not met, by main or by the branch.** This is not a pass.
+
+| Trial | Frames | p50 | p95 | p99 | Over 2 ms | CPU time p50 | CPU time p95 |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| main 1 (`main-1`) | 1,043 | 0.996 | 3.030 | 5.259 | 124 (11.9%) | 0.852 | 1.423 |
+| branch 1 (`branch-1-b`) | 1,108 | 0.986 | 3.395 | 6.343 | 162 (14.6%) | 0.849 | 1.610 |
+| main 2 (`main-2`) | 1,092 | 1.000 | 2.860 | 4.687 | 134 (12.3%) | 0.848 | 1.438 |
+| branch 2 (`branch-2`) | 1,046 | 0.986 | 3.135 | 5.331 | 113 (10.8%) | 0.837 | 1.388 |
+| main 3 (`main-3-b`) | 1,063 | 1.014 | 3.459 | 6.467 | 141 (13.3%) | 0.851 | 1.585 |
+| branch 3 (`branch-3`) | 1,113 | 0.910 | 3.293 | 7.553 | 125 (11.2%) | 0.799 | 1.457 |
+
+All six typed the expected text (`809d588b…`, 300 units, and `c14d19d2…`, 308 units, after the
+popups). Touch to post, p50 and p95 in ms: main 124.6 and 277.1, 121.4 and 255.6, 119.7 and
+264.5; the branch 124.2 and 275.4, 123.8 and 273.0, 129.7 and 284.8.
+
+* The branch is not slower beyond noise. Its p95, 3.135 to 3.395 ms, lies within main's 2.860
+  to 3.459, and so does its CPU time p95, 1.388 to 1.610 against 1.423 to 1.585.
+* Its p50 and its CPU time p50 are at or below main's in every trial.
+* Its share of frames over 2 ms, 10.8 to 14.6%, lies around main's 11.9 to 13.3%. Most of those
+  frames on both builds are frames that changed the strip's words (72 to 109 a trial).
+
+**Thrown out, folders kept.** Two trials typed 300 units with another digest (E29) and were run
+again: the branch's first (`branch-1`) and main's third (`main-3`). `explain-digest.py`
+explains main's from its digest alone, two `r`s typed as their hint `4`; it does not explain
+the branch's. The reruns came after the branch's second trial, so the order was main 1, the
+branch's thrown-out 1, main 2, branch 2, branch 1 again, main's thrown-out 3, branch 3, main 3
+again.
+
+The host's load averages at the trials' starts and ends ran from 2.5 to 8.0.
+
+**Still owed.** The CPU gate on a quiet host (E28), and on the phone (P4).
+
 ## Reproducing
 
 ```bash

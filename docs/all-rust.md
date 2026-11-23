@@ -190,13 +190,13 @@ Stage 5 packages 1–3, one event family at a time:
   * CPU trials: the branch is no slower than main beyond noise. Neither met the 2 ms gate on a
     loaded host, so it is not a pass.
   * Layout rebuilds: mode switches are faster than main's, subtype switches 17 to 57 ms
-    slower at p50 in both pairs of trials, which is owed a profile (E41).
+    slower at p50 in both pairs of trials, which was owed a profile (E41, closed at item 3).
 * **The size.** Production Kotlin is 305 counted lines larger: three new adapters, while the
   Kotlin graph stays for the Compose fallback. Its files are marked for deletion at step K.
-* **Owed.** P4 (the phone p95) stays owed, as do the new P25 and E38–E41.
+* **Owed.** P4 (the phone p95) stays owed, as do the new P25 and E38–E40. (E41 was closed at
+  item 3.)
 
-**Item 3: the theme done, the subtype written up (2026-11-22)**
-([phase 3: theme, then subtype](phase3-theme-subtype.md)).
+**Item 3 done (2026-11-22)** ([phase 3: theme, then subtype](phase3-theme-subtype.md)).
 
 * **The theme.** Rust chooses the active theme (day, night, follow the system or the clock, a
   preview), runs the theme session (what to load, keep or show again, and what a failed load
@@ -205,26 +205,39 @@ Stage 5 packages 1–3, one event family at a time:
   system's night mode, unpacks and reads the stylesheet Rust names, keeps the loaded themes in the
   slots Rust names, and builds Android's inline suggestion style bundle. The Rust renderer no
   longer reads the Compose root's palette or the Compose chip cache.
-* **The subtype is not moved.** Its rules and codec were Rust's already. What is left (the list
-  and active subtype as flows, the Jetpref writes, the data classes, the key graph's subtype
-  facts) touches the key graph's build row and E41's switch. The doc says exactly what moving it
-  would change.
+* **The subtype.** Rust holds the subtype list and the active subtype
+  (`lib/rust/crates/imesubtype`): it loads and repairs the stored list, picks the active subtype,
+  answers the language key's next and previous and a switch by id, says which settings writes to
+  make, and answers what each subtype names (its layouts per layout type, popup mapping, currency
+  set, composer, NLP providers) with a cache key for its keyboards. The key graph's build row
+  takes those facts from Rust instead of from the Kotlin `Subtype`. Kotlin names locale tags with
+  Android's `Locale`, reports the currency sets it loaded, makes the Jetpref writes Rust asks for
+  and publishes the flows the readers collect.
 * **The proof.**
   * Three seeded 50,000-state theme traces match main's frozen theme manager at every state,
     across extension index changes, every theme mode, the clock, previews, failed and cancelled
     loads and service recreation; what the renderer is handed is equal too.
   * Three seeded 50,000-state chip traces match main's Compose query over the bundled
     stylesheets, the base style and 400 synthetic ones.
+  * Three seeded 50,000-state subtype traces match main's frozen subtype manager and key-graph
+    build row at every state, across the settings screens' edits, the language key, switches by
+    id, duplicate ids, right-to-left locales, process death mid-flight and the keyboards' cache.
   * The digests are unchanged, "teh" and a space still type "the ", and the reshow and
     reading-order probes pass.
-  * 42 of 42 mutations are caught.
-  * CPU trials: the branch is no slower than main beyond noise. Neither met the 2 ms gate on a
+  * 42 of 42 theme mutations and 34 of 34 subtype mutations are caught.
+  * CPU trials: neither half is slower than main beyond noise. Neither met the 2 ms gate on a
     loaded host, so it is not a pass.
-  * Switch timings: theme and subtype switches are level; mode switches are 21 to 82 ms slower
-    at p50 in all three pairs while their CPU is level, which is owed (E44). E41 was measured
-    without simpleperf, which needs root on the emulator; its step-level profile stays owed.
-* **The size.** Production Kotlin is 330 counted lines smaller.
-* **Owed.** P4 (the phone p95) stays owed, as do the new P28 and E44, and E41.
+  * The subtype switch, profiled with simpleperf (which runs without root on its software
+    clock): the subtype's own work is under a millisecond a switch. Glide rebuilt its index on
+    5 to 11 of 20 subtype switches, on main too, because the renderer paired the last subtype's
+    keys with the new one; that is fixed, and a subtype switch now costs 48 to 62 ms less CPU
+    than on main. A system trace puts the release's wait in agent-device's tap injector, before
+    the event reaches system_server, and the frame after it waiting for the emulator's vsync.
+    Mode and subtype switches were level with main in the final timings. So E41 and E44 are
+    closed and the real timing goes to the phone (P30).
+* **The size.** Production Kotlin is 330 counted lines smaller after the theme, and 83 larger
+  after the subtype: the subtype's adapter and the glide fix.
+* **Owed.** P4 (the phone p95) stays owed, as do the new P28, P30 and E46–E48.
 
 ### 4. Settings (M–L, alongside 3)
 

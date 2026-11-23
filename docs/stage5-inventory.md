@@ -179,7 +179,7 @@ Path prefixes (each path below expands against the repository root):
 | `AW/reader/Voice.kt` | 45 | A | AudioManager.requestAudioFocus / abandonAudioFocusRequest |
 | `AW/reader/VoiceEngine.kt` | 134 | M | Context files / SystemClock; model idle/failure/cross-model eviction state |
 | `AW/render/AccessibilityRelease.kt` | 27 | P | hover/hold release target choice and hit testing |
-| `AW/render/KeyGraphRows.kt` | 110 | M | LayoutManager files / java.util.Locale casing; the key graph's build row from the files a mode needs, its facts row, and Android's casing answers (added at phase 3 item 2) |
+| `AW/render/KeyGraphRows.kt` | 123 | M | LayoutManager files / java.util.Locale casing; the key graph's build row from the files a mode needs, its facts row, and Android's casing answers (added at phase 3 item 2; since phase 3 item 3 it names the subtype's files from Rust's facts and keys keyboards by Rust's cache key) |
 | `AW/render/RenderTiming.kt` | 14 | M | ViewTreeObserver / Log; fallback-only timing scaffolding, remove with its callers |
 | `AW/render/RendererAccessibility.kt` | 285 | M | AccessibilityNodeProvider; focus recovery, hover/hit/hold/touch state still Kotlin |
 | `AW/render/RendererAccessibilityResources.kt` | 99 | A | Context.getString; localized semantic-label map |
@@ -189,7 +189,7 @@ Path prefixes (each path below expands against the repository root):
 | `AW/render/RendererClipboardActions.kt` | 34 | M | ClipboardManager / Room; conditional unpin/delete and feedback dispatch (the Rust clipboard store since phase 5) |
 | `AW/render/RendererDecorations.kt` | 18 | M | Resources; watermark visibility and icon selection |
 | `AW/render/RendererEmoji.kt` | 70 | M | Paint / Typeface / KeyguardManager; label/availability projection and bindings |
-| `AW/render/RendererGestureHost.kt` | 77 | M | MotionEvent / Resources; action-index mapping and gesture-plan execution |
+| `AW/render/RendererGestureHost.kt` | 87 | M | MotionEvent / Resources; action-index mapping and gesture-plan execution (phase 3 item 3: hands glide the keys with the subtype they were built for) |
 | `AW/render/RendererGif.kt` | 41 | M | network/resource adapter; loaded/error/empty state selection |
 | `AW/render/RendererGifActions.kt` | 42 | M | InputConnection / Toast; send-outcome transitions and panel return state |
 | `AW/render/RendererGifDecoder.kt` | 42 | M | Bitmap / ImageDecoder; frame/animation eligibility and upload lifecycle |
@@ -205,9 +205,9 @@ Path prefixes (each path below expands against the repository root):
 | `AW/render/RendererTheme.kt` | 78 | A | Resources.Configuration / DisplayMetrics / system accent; theme and density transport (phase 3 item 3: the palette is made from the primary Rust chooses, and the inline chips' colours are asked of Rust, crates/imetheme; nothing is read from the Compose root) |
 | `AW/render/RustChromeView.kt` | 98 | M | View / Bitmap / Canvas; native pixels stay at edge, move hardcoded subtype bootstrap dimensions/timing constants |
 | `AW/render/RustExtractView.kt` | 37 | A | ExtractEditText / ViewGroup; applies native extract bounds to platform editor |
-| `AW/render/RustKeyGraphs.kt` | 96 | M | Context / Resources / LayoutManager; the Rust renderer's key graphs per mode and subtype, their label resources and the question-and-answer loop (added at phase 3 item 2) |
+| `AW/render/RustKeyGraphs.kt` | 95 | M | Context / Resources / LayoutManager; the Rust renderer's key graphs per mode and subtype, their label resources and the question-and-answer loop (added at phase 3 item 2) |
 | `AW/render/RustKeyPreview.kt` | 34 | A | Bitmap / ART JNI; displays native preview pixels (replace Compose interop host) |
-| `AW/render/RustKeyboard.kt` | 130 | M | Keyboard / TextKey adapter; reads the Rust key graph's keys back for the input path and a key's platform effects (added at phase 3 item 2) |
+| `AW/render/RustKeyboard.kt` | 132 | M | Keyboard / TextKey adapter; reads the Rust key graph's keys back for the input path and a key's platform effects (added at phase 3 item 2; keeps the subtype it was built for since phase 3 item 3) |
 | `AW/render/RustKeyboardLayout.kt` | 92 | M | SurfaceView / WindowInsets / InlineContentView; Kotlin root sizing/state branches (phase 3 item 3: no longer fills the Compose chip-style cache) |
 | `AW/render/RustKeyboardView.kt` | 405 | M | SurfaceView / Choreographer / SystemFonts; snapshot assembly and dispatch/fallback policy |
 | `AW/render/RustOneHandedPanel.kt` | 37 | M | View/Jetpref; side-panel sizing/visibility and preference-effect binding |
@@ -269,10 +269,11 @@ Path prefixes (each path below expands against the repository root):
 | `FB/ime/clipboard/provider/ClipboardFileStorage.kt` | 77 | A | ContentResolver / java.io.File; URI-byte storage and file deletion |
 | `FB/ime/clipboard/provider/ClipboardMediaProvider.kt` | 178 | M | ContentProvider / ParcelFileDescriptor; MIME/query/update dispatch and metadata rules (phase 5: its records come from the Rust store; 147 counted lines) |
 | `FB/ime/core/DisplayLanguageNamesIn.kt` | 25 | P | portable DisplayLanguageNamesIn domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
-| `FB/ime/core/Subtype.kt` | 177 | P | portable Subtype domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs (not moved at phase 3 item 3; what remains is in phase3-theme-subtype.md) |
-| `FB/ime/core/SubtypeFallback.kt` | 6 | A | ART JNI; native model/geometry/plan projection only, no independent domain choice |
-| `FB/ime/core/SubtypeManager.kt` | 102 | M | Context / Jetpref; subtype lookup/resources and persistence orchestration (not moved at phase 3 item 3: its rules were Rust's already; what remains is in phase3-theme-subtype.md) |
+| `FB/ime/core/Subtype.kt` | 164 | P | portable Subtype domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs (phase 3 item 3: Rust holds the list and the active subtype; these are the data classes the readers and `extension.json` take) |
+| `FB/ime/core/SubtypeFallback.kt` | 6 | A | ART JNI; native model/geometry/plan projection only, no independent domain choice (deleted at phase 3 item 3: Rust's session answers the fallback) |
+| `FB/ime/core/SubtypeManager.kt` | 101 | A | Jetpref / Flow; the settings writes Rust's subtype session asks for and the flows the readers collect (phase 3 item 3: Rust holds the list and the active subtype) |
 | `FB/ime/core/SubtypeSelectionState.kt` | 4 | P | portable SubtypeSelectionState domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
+| `FB/ime/core/SubtypeSession.kt` | 101 | A | ART JNI / java.util.Locale; the subtype session's rows into `Subtype` and `SubtypeFacts`, Android's names for locale tags and its loaded currency sets reported to Rust (added at phase 3 item 3) |
 | `FB/ime/dictionary/DictionaryManager.kt` | 156 | M | Room / UserDictionary provider; dictionary readiness/query composition (phase 5: the Floris dictionary is the Rust word store; 79 counted lines) |
 | `FB/ime/dictionary/UserDictionary.kt` | 427 | M | Room / ContentResolver / Cursor; import/export/filter and locale rules (phase 5: the Room DAO and database left; 118 counted lines) |
 | `FB/ime/dictionary/UserDictionaryValidation.kt` | 57 | P | portable UserDictionaryValidation domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
@@ -302,7 +303,7 @@ Path prefixes (each path below expands against the repository root):
 | `FB/ime/keyboard/KeyboardEditing.kt` | 197 | M | KeyEvent / InputConnection; commit/delete/selection/autocorrect orchestration |
 | `FB/ime/keyboard/KeyboardExtension.kt` | 85 | P | portable KeyboardExtension domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
 | `FB/ime/keyboard/KeyboardKeyEvents.kt` | 116 | M | InputConnection / IME APIs; remaining CLEAR_CLIP preference branch and route fact selection |
-| `FB/ime/keyboard/KeyboardManager.kt` | 276 | M | Context / Toast; input/editor/NLP/state coordination (phase 3 item 2: with the Rust renderer on, its keyboards come from `RustKeyGraphs`; the Compose branch keeps `LayoutManager` and the keyboard cache) |
+| `FB/ime/keyboard/KeyboardManager.kt` | 286 | M | Context / Toast; input/editor/NLP/state coordination (phase 3 item 2: with the Rust renderer on, its keyboards come from `RustKeyGraphs`; the Compose branch keeps `LayoutManager` and the keyboard cache) |
 | `FB/ime/keyboard/KeyboardManagerResources.kt` | 98 | M | Context.assets / LiveData; extension lookup and resource publication |
 | `FB/ime/keyboard/KeyboardMode.kt` | 38 | P | portable KeyboardMode domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
 | `FB/ime/keyboard/KeyboardState.kt` | 207 | M | Android host Flow/Compose binding; mutation batches and model ownership |
@@ -353,7 +354,7 @@ Path prefixes (each path below expands against the repository root):
 | `FB/ime/text/composing/Composer.kt` | 69 | P | portable Composer domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
 | `FB/ime/text/gestures/GlideTypingClassifier.kt` | 50 | P | portable GlideTypingClassifier domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
 | `FB/ime/text/gestures/GlideTypingGesture.kt` | 143 | M | MotionEvent / Resources; detector lifecycle and pointer-to-domain projection |
-| `FB/ime/text/gestures/GlideTypingManager.kt` | 110 | M | SystemClock / resource IO; async generation and publication orchestration |
+| `FB/ime/text/gestures/GlideTypingManager.kt` | 114 | M | SystemClock / resource IO; async generation and publication orchestration (phase 3 item 3: takes the keys with the subtype they were built for) |
 | `FB/ime/text/gestures/StatisticalGlideTypingClassifier.kt` | 255 | M | Context / Android collections; index/cache/build/query ownership |
 | `FB/ime/text/gestures/SwipeAction.kt` | 97 | P | portable SwipeAction domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
 | `FB/ime/text/gestures/SwipeGesture.kt` | 183 | M | MotionEvent / VelocityTracker; event qualification and detector transport |
