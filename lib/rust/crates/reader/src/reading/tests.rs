@@ -224,11 +224,30 @@ fn a_list_is_scrolled_back_sixty_times_at_most() {
         .looked(Some(screen(&["one"], &[0], (0, 400))))
         .unwrap();
     assert_eq!(reading.done(), Ok([REVEAL, 0, 0]));
-    for _ in 0..MAX_SCROLLS_BACK {
+    // Main's number, not the constant, so a changed cap is a failed test.
+    for _ in 0..60 {
         assert_eq!(reading.done(), Ok([SCROLL_BACK, 0, 0]));
         assert_eq!(reading.answer(1), Ok([WAIT, SCROLL_BACK_MS, 0]));
     }
     assert_eq!(reading.done(), Ok([WAIT, SETTLE_MS, 0]));
+}
+
+/// Only the last fifty blocks are kept to find the place after a scroll, however long the list.
+#[test]
+fn a_long_list_remembers_its_last_fifty_blocks() {
+    let texts: Vec<String> = (0..120).map(|i| format!("block {i}")).collect();
+    let blocks: Vec<&str> = texts.iter().map(String::as_str).collect();
+    let list: Vec<usize> = (0..blocks.len()).collect();
+    let mut reading = begun(from::SCREEN, "");
+    reading
+        .looked(Some(screen(&blocks, &list, (0, 400))))
+        .unwrap();
+    assert_eq!(reading.done(), Ok([FOLLOW, 0, 0]));
+    for block in 0..blocks.len() as i32 {
+        dones(&mut reading, &[[AWAIT_BLOCKS, 1, 0], [QUEUE, block, 0]]);
+    }
+    assert_eq!(reading.read.len(), 50);
+    assert_eq!(reading.read.front(), Some(&utf16("block 70")));
 }
 
 #[test]
