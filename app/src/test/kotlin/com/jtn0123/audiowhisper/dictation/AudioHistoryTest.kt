@@ -5,37 +5,13 @@ import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
-import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 
+/**
+ * The debug replay's WAV reading. The audio history the listener keeps is Rust's, and tested there
+ * (lib/rust/crates/dictation/src/segmentation.rs).
+ */
 class AudioHistoryTest {
-    private fun floats(vararg values: Int) = FloatArray(values.size) { values[it].toFloat() }
-
-    @Test
-    fun `gives back the audio before a phrase`() {
-        val history = ReferenceAudioHistory(capacity = 10)
-        history.add(floats(0, 1, 2, 3))
-        history.add(floats(4, 5, 6))
-        assertEquals(7, history.end)
-        assertContentEquals(floats(2, 3, 4), history.slice(2, 5))
-    }
-
-    @Test
-    fun `a lead-in from before the start is cut to the start`() {
-        val history = ReferenceAudioHistory(capacity = 10)
-        history.add(floats(0, 1, 2))
-        assertContentEquals(floats(0, 1), history.slice(-3, 2))
-    }
-
-    @Test
-    fun `audio older than the capacity is gone, the rest wraps around`() {
-        val history = ReferenceAudioHistory(capacity = 4)
-        history.add(floats(0, 1, 2, 3, 4, 5))
-        assertContentEquals(floats(2, 3, 4, 5), history.slice(0, 6))
-        assertContentEquals(floats(4, 5), history.slice(4, 9))
-        assertContentEquals(FloatArray(0), history.slice(0, 2))
-    }
-
     @Test
     fun `reads a 16-bit WAV for the debug replay`() {
         val wav = wav(listOf("fmt " to ByteArray(16), "LIST" to ByteArray(3), "data" to pcm(0, 16384, -32768)))

@@ -70,3 +70,38 @@ impl Segmentation {
         Some(self.slice(from.max(now - PREVIEW_MAX), now))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn counting(from: usize, until: usize) -> Vec<f32> {
+        (from..until).map(|i| i as f32).collect()
+    }
+
+    #[test]
+    fn gives_back_the_audio_before_a_phrase() {
+        let mut history = Segmentation::default();
+        history.add(&counting(0, 4));
+        history.add(&counting(4, 7));
+        assert_eq!(history.end, 7);
+        assert_eq!(history.slice(2, 5), counting(2, 5));
+    }
+
+    #[test]
+    fn a_lead_in_from_before_the_start_is_cut_to_the_start() {
+        let mut history = Segmentation::default();
+        history.add(&counting(0, 3));
+        assert_eq!(history.slice(-3, 2), counting(0, 2));
+    }
+
+    #[test]
+    fn audio_older_than_the_history_is_gone_and_the_rest_wraps_around() {
+        let mut history = Segmentation::default();
+        history.add(&counting(0, HISTORY + 2));
+        let held = HISTORY as i64;
+        assert_eq!(history.slice(0, 4), counting(2, 4));
+        assert_eq!(history.slice(held, held + 5), counting(HISTORY, HISTORY + 2));
+        assert!(history.slice(0, 2).is_empty());
+    }
+}

@@ -1,14 +1,18 @@
 package com.jtn0123.audiowhisper.dictation
 
-import com.jtn0123.audiowhisper.dictation.Phrases.Typing
+import com.jtn0123.audiowhisper.rust.LegacyDictation
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
+/** Joining phrases transcribed separately, in Rust (lib/rust/crates/dictation/src/phrases.rs). */
 class PhrasesTest {
     private val names = setOf("John", "Paris")
 
+    /** What to delete before the cursor, then what to type. */
+    private data class Typing(val replacing: Int, val text: String)
+
     private fun join(before: String?, phrase: String, lastPhrase: String? = null) =
-        Phrases.join(before, lastPhrase, phrase) { it in names }
+        LegacyDictation.join(before.orEmpty(), lastPhrase, phrase) { it in names }.let { Typing(it.replacing, it.text) }
 
     @Test
     fun `a mid-sentence pause lowers the capital`() {

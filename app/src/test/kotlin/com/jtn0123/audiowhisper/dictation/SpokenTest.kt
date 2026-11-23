@@ -1,14 +1,33 @@
 package com.jtn0123.audiowhisper.dictation
 
-import com.jtn0123.audiowhisper.dictation.Phrases.Typing
-import com.jtn0123.audiowhisper.dictation.Spoken.Break
-import com.jtn0123.audiowhisper.dictation.Spoken.Mark
-import com.jtn0123.audiowhisper.dictation.Spoken.ScratchThat
-import com.jtn0123.audiowhisper.dictation.Spoken.Words
+import com.jtn0123.audiowhisper.rust.DictationRules
+import com.jtn0123.audiowhisper.rust.DictationRules.Kind
+import com.jtn0123.audiowhisper.rust.LegacyDictation
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
+/** Spoken commands and marks, in Rust (lib/rust/crates/dictation/src/spoken.rs and phrases.rs). */
 class SpokenTest {
+    /** What to delete before the cursor, then what to type. */
+    private data class Typing(val replacing: Int, val text: String)
+
+    private fun Words(text: String) = Kind.WORDS to text
+    private fun Mark(mark: Char) = Kind.MARK to mark.toString()
+    private fun Break(text: String) = Kind.BREAK to text
+    private val ScratchThat = Kind.SCRATCH_THAT to ""
+
+    private object Spoken {
+        fun parse(phrase: String) = DictationRules.parse(phrase).map { it.kind to it.text }
+    }
+
+    private object Phrases {
+        fun punctuate(before: String, lastPhrase: String?, mark: Char) =
+            DictationRules.punctuate(before, lastPhrase, mark).let { Typing(it.replacing, it.text) }
+
+        fun join(before: String, lastPhrase: String?, phrase: String, isName: (String) -> Boolean) =
+            LegacyDictation.join(before, lastPhrase, phrase) { isName(it) }.let { Typing(it.replacing, it.text) }
+    }
+
     @Test
     fun `a command said on its own, as the model writes it`() {
         // Parakeet's output for synthesized speech of each command after a pause.

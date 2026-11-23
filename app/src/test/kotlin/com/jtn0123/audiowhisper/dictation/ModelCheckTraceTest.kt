@@ -3,20 +3,21 @@ package com.jtn0123.audiowhisper.dictation
 import com.jtn0123.audiowhisper.golden.GoldenTape
 import java.io.File
 import java.nio.file.Files
+import java.security.MessageDigest
 import kotlin.random.Random
 import kotlin.test.Test
-import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
  * Seeded traces holding [ModelCheck], whose decisions are Rust's (dictation::model_check), to
- * main's ([ReferenceModelCheck]): a model's files are written whole, cut short, changed, deleted,
- * touched, made unreadable and remembered or forgotten, and after each event both check them,
- * quickly or in full, each with its own memory of the files that passed.
+ * main's, whose answers are golden digests (docs/phase6-kotlin-references.md, generated at
+ * e00807e9d): a model's files are written whole, cut short, changed, deleted, touched, made
+ * unreadable and remembered or forgotten, and after each event they are checked, quickly or in
+ * full, with a memory of the files that passed.
  *
- * Compared: the state, every key looked up, and every key remembered, in order. One intended
- * difference, counted: main remembered each file as it passed, this remembers them together once
- * the check is over, so a check cut short by process death hashes those files again next time.
+ * Compared: the state, every key looked up, every key remembered, in order, and the keys held. One
+ * intended difference, counted: main remembered each file as it passed, this remembers them
+ * together once the check is over, so a check cut short by process death hashes those files again.
  */
 class ModelCheckTraceTest {
     /** Remembered keys, and every lookup and addition, in order. */
@@ -33,8 +34,8 @@ class ModelCheckTraceTest {
         }
     }
 
-    /** The reference's answers (docs/phase6-kotlin-references.md): each check, and the keys kept. */
-    private val tape = GoldenTape.ofReference("model-check-traces")
+    /** Each check's answers, and the keys kept, against main's (docs/phase6-kotlin-references.md). */
+    private val tape = GoldenTape("model-check-traces")
 
     /** Times files are written at: one apart, so a rewrite is never mistaken for the file before it. */
     private var writtenAt = 1_500_000_000_000L
@@ -59,29 +60,26 @@ class ModelCheckTraceTest {
         val dir = Files.createTempDirectory("model-trace").toFile()
         val contents = List(FILES) { ByteArray(random.nextInt(1, 64)).also(random::nextBytes) }
         val expected = contents.mapIndexed { i, bytes ->
-            ExpectedFile("f$i.onnx", bytes.size.toLong(), ReferenceModelCheck.sha256(File(dir, "x").apply { writeBytes(bytes) }))
+            ExpectedFile("f$i.onnx", bytes.size.toLong(), sha256(bytes))
         }
-        File(dir, "x").delete()
-        val main = Memory()
         val new = Memory()
         val seen = HashMap<String, Int>()
         try {
             repeat(EVENTS) { event ->
-                val kind = step(random, dir, expected, contents, main, new)
+                val kind = step(random, dir, expected, contents, new)
                 seen[kind] = (seen[kind] ?: 0) + 1
-                assertEquals(main.keys, new.keys, "seed $seed event $event ($kind)")
-                tape.record(listOf("keys") + main.keys.map { dir.relative(it) }.sorted())
+                tape.record(listOf("keys") + new.keys.map { dir.relative(it) }.sorted())
             }
         } finally {
             dir.listFiles()?.forEach { it.setReadable(true) }
             dir.deleteRecursively()
         }
-        println("Model check trace seed $seed: $EVENTS events, 0 differ, seen $seen")
+        println("Model check trace seed $seed: $EVENTS events, seen $seen")
         for (kind in KINDS) assertTrue((seen[kind] ?: 0) >= MIN_SEEN, "seed $seed saw $kind ${seen[kind]} times")
     }
 
-    /** One event; checks compare both and say what they found. */
-    private fun step(random: Random, dir: File, expected: List<ExpectedFile>, contents: List<ByteArray>, main: Memory, new: Memory): String {
+    /** One event; checks record what they found. */
+    private fun step(random: Random, dir: File, expected: List<ExpectedFile>, contents: List<ByteArray>, new: Memory): String {
         val i = random.nextInt(FILES)
         val file = File(dir, expected[i].name)
         return when (random.nextInt(20)) {
@@ -92,28 +90,22 @@ class ModelCheckTraceTest {
             5 -> "touched".also { file.setLastModified(1_000_000_000_000L + random.nextLong(1_000_000) * 1000) }
             6 -> "unreadable".also { file.setReadable(false) }
             7 -> "readable".also { file.setReadable(true) }
-            8 -> "forgotten".also { main.keys.clear(); new.keys.clear() }
+            8 -> "forgotten".also { new.keys.clear() }
             9 -> "repaired".also { expected.indices.forEach { File(dir, expected[it].name).apply { setReadable(true); written(this, contents[it]) } } }
             in 10..13 -> {
                 val state = outcome { ModelCheck.quick(dir, expected) }
-                val reference = outcome { ReferenceModelCheck.quick(dir, expected) }
-                assertEquals(reference, state)
-                tape.record(listOf("quick", dir.relative(reference.toString())))
+                tape.record(listOf("quick", dir.relative(state.toString())))
                 "quick ${name(state)}"
             }
-            else -> full(dir, expected, main, new)
+            else -> full(dir, expected, new)
         }
     }
 
-    private fun full(dir: File, expected: List<ExpectedFile>, main: Memory, new: Memory): String {
-        main.asked.clear(); main.added.clear(); new.asked.clear(); new.added.clear()
+    private fun full(dir: File, expected: List<ExpectedFile>, new: Memory): String {
+        new.asked.clear(); new.added.clear()
         val state = outcome { ModelCheck.full(dir, expected, new) }
-        val reference = outcome { ReferenceModelCheck.full(dir, expected, main) }
-        assertEquals(reference, state)
-        assertEquals(main.asked, new.asked, "keys looked up")
-        assertEquals(main.added, new.added, "keys remembered")
-        tape.record(listOf("full", dir.relative(reference.toString()), "asked") + main.asked.map { dir.relative(it) } +
-            "added" + main.added.map { dir.relative(it) })
+        tape.record(listOf("full", dir.relative(state.toString()), "asked") + new.asked.map { dir.relative(it) } +
+            "added" + new.added.map { dir.relative(it) })
         // Main's order differs only if a file passed before the last one was looked up.
         val batched = new.added.any { it != new.asked.last() }
         return if (batched) "full ${name(state)}, remembered at the end" else "full ${name(state)}"
@@ -125,6 +117,9 @@ class ModelCheckTraceTest {
     } catch (e: RuntimeException) {
         "threw ${e::class.simpleName}"
     }
+
+    private fun sha256(bytes: ByteArray) =
+        MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { "%02x".format(it) }
 
     private fun name(state: Any) = when (state) {
         ModelState.Ready -> "ready"

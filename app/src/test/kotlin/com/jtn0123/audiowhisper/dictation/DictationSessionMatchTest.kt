@@ -6,39 +6,34 @@ import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
-/** The frozen pre-port owner and production owner see identical executor schedules. */
+/**
+ * The production owner sees, under seeded executor schedules, exactly what the frozen pre-port owner
+ * saw: its snapshots are golden digests (docs/phase6-kotlin-references.md, generated at e00807e9d).
+ */
 class DictationSessionMatchTest {
-    private class Side(reference: Boolean) {
+    private class Side {
         val platform = FakePlatform()
         val editor = FakeEditor()
         val flows = DictationFlows()
-        val oldFlows = ReferenceDictationFlows()
-        val native = if (!reference) DictationSession(editor, platform, flows) else null
-        val old = if (reference) ReferenceDictationSession(editor, platform, oldFlows) else null
-        fun press() { native?.pressMic() ?: old!!.pressMic() }
-        fun lift() { native?.releaseMic() ?: old!!.releaseMic() }
-        fun stop() { native?.stopListening() ?: old!!.stopListening() }
-        fun cancel() { native?.abandon() ?: old!!.abandon() }
-        fun visible(value: Boolean) { native?.keyboardVisible(value) ?: old!!.keyboardVisible(value) }
-        fun release() { native?.release() ?: old!!.release() }
-        fun free() { native?.freeIfIdle() ?: old!!.freeIfIdle() }
-        fun snapshot(): List<Any> {
-            val status = native?.let { flows.status.value } ?: oldFlows.status.value
-            val warming = native?.let { flows.warming.value } ?: oldFlows.warming.value
-            val level = native?.let { flows.level.value } ?: oldFlows.level.value
-            val preview = native?.let { flows.preview.value } ?: oldFlows.preview.value
-            return listOf(status, warming, level.toRawBits(), hash(preview), hash(editor.text.toString()),
-                editor.problems.toList(), editor.undone, editor.ticks, platform.appSettingsOpened,
-                platform.modelSettingsOpened, platform.model.loaded, platform.schedule(), platform.queued(),
-                platform.listening.map { listOf(it.stopped, it.kept) })
-        }
+        val native = DictationSession(editor, platform, flows)
+        fun press() = native.pressMic()
+        fun lift() = native.releaseMic()
+        fun stop() = native.stopListening()
+        fun cancel() = native.abandon()
+        fun visible(value: Boolean) = native.keyboardVisible(value)
+        fun release() = native.release()
+        fun free() = native.freeIfIdle()
+        fun snapshot(): List<String> = listOf(flows.status.value, flows.warming.value, flows.level.value.toRawBits(),
+            hash(flows.preview.value), hash(editor.text.toString()), editor.problems.toList(), editor.undone, editor.ticks,
+            platform.appSettingsOpened, platform.modelSettingsOpened, platform.model.loaded, platform.schedule(),
+            platform.queued(), platform.listening.map { listOf(it.stopped, it.kept) }).map { it.toString() }
     }
     @Test fun seededExecutorAndLateResultStreams() {
-        val tape = GoldenTape.ofReference("dictation-session-streams")
+        val tape = GoldenTape("dictation-session-streams")
         var compared = 0
         repeat(200) { seed ->
             val rng = Random(seed)
-            val sides = listOf(Side(true), Side(false))
+            val sides = listOf(Side())
             repeat(250) { step ->
                 val event = rng.nextInt(23)
                 val age = rng.nextInt(12)
@@ -76,25 +71,22 @@ class DictationSessionMatchTest {
                         20 -> { s.press(); p.now += elapsed; s.lift() }
                     }
                 }
-                assertEquals(sides[0].snapshot(), sides[1].snapshot(), "seed=$seed step=$step event=$event")
-                tape.record(sides[0].snapshot().map { it.toString() })
+                tape.record(sides[0].snapshot())
                 compared++
             }
             sides.forEach { it.release(); it.platform.runAll() }
-            assertEquals(sides[0].snapshot(), sides[1].snapshot(), "release seed=$seed")
-            tape.record(sides[0].snapshot().map { it.toString() })
+            tape.record(sides[0].snapshot())
         }
         assertEquals(50_000, compared)
         tape.finish()
     }
     @Test fun editorFiltersAreObservedBetweenSpokenOperations() {
-        val sides=listOf(Side(true),Side(false))
+        val sides=listOf(Side())
         for (s in sides) {
             s.editor.text.append("ab");s.editor.maxLength=6
             s.press();s.platform.listening.single().phrase("hello. Comma. And continue.");s.platform.runAll()
         }
-        assertEquals(sides[0].snapshot(),sides[1].snapshot(),"Filtered editor command sequence")
-        GoldenTape.ofReference("dictation-session-editor-filters").apply { record(sides[0].snapshot().map { it.toString() }) }.finish()
+        GoldenTape.check("dictation-session-editor-filters") { it.record(sides[0].snapshot()) }
     }
     @Test fun releasedOwnerCannotOverwriteANewOwnersUiOrSubmitLateWork() {
         val flows = DictationFlows()

@@ -1,14 +1,17 @@
 package com.jtn0123.audiowhisper.dictation
 
 import com.jtn0123.audiowhisper.golden.GoldenTape
+import com.jtn0123.audiowhisper.rust.DictationRules
+import com.jtn0123.audiowhisper.rust.DictationRules.Kind
+import com.jtn0123.audiowhisper.rust.LegacyDictation
 import kotlin.random.Random
 import kotlin.test.Test
-import kotlin.test.assertEquals
 
 /**
- * Dictation's text rules in Rust ([Spoken], [Phrases] and [DictationUndo], which call
- * lib/rust/crates/dictation) give exactly what the Kotlin they replaced gave ([ReferenceDictation]),
- * including which words they ask [Phrases.join]'s `isName` about.
+ * Dictation's text rules in Rust ([DictationRules] and [DictationUndo], which call
+ * lib/rust/crates/dictation) give exactly what the Kotlin they replaced gave, including which
+ * words they ask `isName` about: the frozen Kotlin's answers to these same questions are golden
+ * digests (docs/phase6-kotlin-references.md, generated at e00807e9d).
  *
  * The rules judge characters as Kotlin does (`isLetter`, `isWhitespace`, `uppercaseChar`, ...),
  * which the Rust answers from tables generated from Java (lib/rust/crates/chars). So every UTF-16
@@ -20,66 +23,24 @@ class DictationRulesMatchTest {
 
     private fun join(before: String?, last: String?, phrase: String): String {
         val asked = mutableListOf<String>()
-        val typing = Phrases.join(before, last, phrase) { asked += it; it in names }
-        return "${typing.replacing} [${typing.text}] asked $asked"
-    }
-
-    private fun referenceJoin(before: String?, last: String?, phrase: String): String {
-        val asked = mutableListOf<String>()
-        val typing = ReferenceDictation.Phrases.join(before, last, phrase) { asked += it; it in names }
+        val typing = LegacyDictation.join(before.orEmpty(), last, phrase) { asked += it; it in names }
         return "${typing.replacing} [${typing.text}] asked $asked"
     }
 
     private fun punctuate(before: String?, last: String?, mark: Char) =
-        Phrases.punctuate(before, last, mark).let { "${it.replacing} [${it.text}]" }
+        DictationRules.punctuate(before.orEmpty(), last, mark).let { "${it.replacing} [${it.text}]" }
 
-    private fun referencePunctuate(before: String?, last: String?, mark: Char) =
-        ReferenceDictation.Phrases.punctuate(before, last, mark).let { "${it.replacing} [${it.text}]" }
-
-    private fun parse(phrase: String) = Spoken.parse(phrase).map {
-        when (it) {
-            is Spoken.Words -> "words [${it.text}]"
-            is Spoken.Mark -> "mark ${it.mark}"
-            is Spoken.Break -> "break [${it.text}]"
-            Spoken.ScratchThat -> "scratch that"
-        }
-    }
-
-    private fun referenceParse(phrase: String) = ReferenceDictation.Spoken.parse(phrase).map {
-        when (it) {
-            is ReferenceDictation.Spoken.Words -> "words [${it.text}]"
-            is ReferenceDictation.Spoken.Mark -> "mark ${it.mark}"
-            is ReferenceDictation.Spoken.Break -> "break [${it.text}]"
-            ReferenceDictation.Spoken.ScratchThat -> "scratch that"
+    private fun parse(phrase: String) = DictationRules.parse(phrase).map {
+        when (it.kind) {
+            Kind.WORDS -> "words [${it.text}]"
+            Kind.MARK -> "mark ${it.text.single()}"
+            Kind.BREAK -> "break [${it.text}]"
+            Kind.SCRATCH_THAT -> "scratch that"
         }
     }
 
     private fun revert(typed: String, start: Int, cursor: Int, text: String) =
         DictationUndo(typed, start, ".").revertAt(cursor, text).toString()
-
-    private fun referenceRevert(typed: String, start: Int, cursor: Int, text: String) =
-        ReferenceDictation.DictationUndo(typed, start, ".").revertAt(cursor, text)
-            ?.let { DictationUndo.Revert(it.length, it.text) }.toString()
-
-    /**
-     * Collects what differs, so a failure shows the first few cases rather than only one, and
-     * records the reference's answers on [tape] (docs/phase6-kotlin-references.md).
-     */
-    private class Differences(private val tape: GoldenTape) {
-        var compared = 0
-        val found = mutableListOf<String>()
-
-        fun check(case: String, rust: Any, reference: Any) {
-            compared++
-            if (rust != reference) found += "$case: Rust gave $rust, Kotlin gave $reference"
-            if (reference is List<*>) tape.record(reference.map { it.toString() }) else tape.record(reference.toString())
-        }
-
-        fun assertNone() {
-            assertEquals(emptyList(), found.take(20), "${found.size} of $compared cases differ")
-            tape.finish()
-        }
-    }
 
     /**
      * Phrases that are a command when [c] reads as the letter it replaces or as a space, or is
@@ -94,8 +55,7 @@ class DictationRulesMatchTest {
     ).joinToString(". ")
 
     @Test
-    fun everyCharacterIsJudgedAsKotlinJudgesIt() {
-        val differences = Differences(GoldenTape.ofReference("dictation-rules-every-character"))
+    fun everyCharacterIsJudgedAsKotlinJudgesIt() = GoldenTape.check("dictation-rules-every-character") { tape ->
         for (code in 0..0xFFFF) {
             val c = code.toChar().toString()
             val joins = listOf(
@@ -113,16 +73,15 @@ class DictationRulesMatchTest {
                 Triple("a$c\n", "a$c\n", "ab"),
             )
             for ((before, last, phrase) in joins) {
-                differences.check("join($before, $last, $phrase)", join(before, last, phrase), referenceJoin(before, last, phrase))
+                tape.record(join(before, last, phrase))
             }
             for ((before, last, mark) in listOf(Triple("x$c", "x$c", '!'), Triple(c, c, '?'), Triple("y", "y", c[0]))) {
-                differences.check("punctuate($before, $last, $mark)", punctuate(before, last, mark), referencePunctuate(before, last, mark))
+                tape.record(punctuate(before, last, mark))
             }
             for (phrase in listOf(commandProbes(c), "${c}new line$c. Hi.${c}there.$c${c}Comma$c", c)) {
-                differences.check("parse($phrase)", parse(phrase), referenceParse(phrase))
+                tape.record(parse(phrase))
             }
         }
-        differences.assertNone()
     }
 
     /** Characters and words the rules treat specially, and some they should treat as any other. */
@@ -140,12 +99,11 @@ class DictationRulesMatchTest {
     private fun Random.text(maxPieces: Int) = buildString { repeat(nextInt(maxPieces + 1)) { append(pieces.random(this@text)) } }
 
     @Test
-    fun randomPhrasesGiveTheSame() {
+    fun randomPhrasesGiveTheSame() = GoldenTape.check("dictation-rules-random-phrases") { tape ->
         val random = Random(2026_11_08)
-        val differences = Differences(GoldenTape.ofReference("dictation-rules-random-phrases"))
         repeat(100_000) {
             val phrase = random.text(12)
-            differences.check("parse($phrase)", parse(phrase), referenceParse(phrase))
+            tape.record(parse(phrase))
 
             // Often the cursor is right after the last phrase, or right after part of it.
             val last = if (random.nextInt(4) == 0) null else random.text(6)
@@ -155,16 +113,15 @@ class DictationRulesMatchTest {
                 2 -> last.orEmpty().takeLast(random.nextInt(8))
                 else -> random.text(4) + last.orEmpty()
             }
-            differences.check("join($before, $last, $phrase)", join(before, last, phrase), referenceJoin(before, last, phrase))
+            tape.record(join(before, last, phrase))
             val mark = ".,;:!?x".random(random)
-            differences.check("punctuate($before, $last, $mark)", punctuate(before, last, mark), referencePunctuate(before, last, mark))
+            tape.record(punctuate(before, last, mark))
 
             val typed = random.text(3)
             val start = if (random.nextBoolean()) random.nextInt(0, 200) else Int.MAX_VALUE - random.nextInt(4)
             val cursor = start + typed.length + random.nextInt(-1, 2)
             val text = if (random.nextInt(3) == 0) random.text(4) else random.text(3) + typed
-            differences.check("revert($typed, $start, $cursor, $text)", revert(typed, start, cursor, text), referenceRevert(typed, start, cursor, text))
+            tape.record(revert(typed, start, cursor, text))
         }
-        differences.assertNone()
     }
 }

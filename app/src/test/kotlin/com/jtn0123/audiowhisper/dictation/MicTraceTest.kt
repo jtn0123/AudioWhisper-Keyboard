@@ -9,17 +9,17 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import kotlin.random.Random
 import kotlin.test.Test
-import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
  * Seeded traces holding the microphone's Rust rules ([MicRules], dictation::audio) to main's
- * Kotlin ([ReferenceMic], [ReferenceMicRecorder]): recordings read by both recorders, compared
- * effect by effect; WAV files of every shape parsed by both; and the buffer and read rules.
+ * Kotlin, whose answers are golden digests (docs/phase6-kotlin-references.md, generated at
+ * e00807e9d): recordings, effect by effect; WAV files of every shape; and the buffer and read rules.
  *
- * One intended difference: a WAV file main never finished reading (its walk came back to a chunk
- * it had read) or crashed on (a chunk before the file's start, a negative sample count) is
- * refused as holding no audio, the IllegalArgumentException main threw for other bad files.
+ * One intended difference, in the digest: a WAV file main never finished reading (its walk came
+ * back to a chunk it had read) or crashed on (a chunk before the file's start, a negative sample
+ * count) is refused as holding no audio, the IllegalArgumentException main threw for other bad
+ * files. At the generator, the 60,000 files reached each of those kinds at least 20 times.
  */
 class MicTraceTest {
     /** One read: what it returns, and the samples it leaves in the buffer. */
@@ -47,7 +47,7 @@ class MicTraceTest {
 
     @Test
     fun recordingsMatchMain() {
-        val tape = GoldenTape.ofReference("mic-recordings")
+        val tape = GoldenTape("mic-recordings")
         for (seed in SEEDS) {
             val random = Random(seed)
             val seen = HashMap<String, Int>()
@@ -57,11 +57,9 @@ class MicTraceTest {
                 val script = List(random.nextInt(1, 120)) { read(random, seen) }
                 val afterStop = read(random, seen, stopping = true)
                 reads += script.size + 1
-                val main = record(script, afterStop, reference = true)
-                val new = record(script, afterStop, reference = false)
-                assertEquals(main, new, "seed $seed after $reads reads")
-                tape.record(main)
-                effects += main.size
+                val new = record(script, afterStop)
+                tape.record(new)
+                effects += new.size
             }
             println("Mic trace seed $seed: $reads reads, $effects effects, 0 differ, seen $seen")
             for (kind in listOf("full", "partial", "nothing", "error", "error after stop", "after stop")) {
@@ -71,23 +69,16 @@ class MicTraceTest {
         tape.finish()
     }
 
-    private fun record(script: List<Read>, afterStop: Read, reference: Boolean): List<String> {
+    private fun record(script: List<Read>, afterStop: Read): List<String> {
         val effects = mutableListOf<String>()
         val audio = ScriptedAudio(script, afterStop, effects)
         val onLevel = { level: Float -> synchronized(effects) { effects += "level ${bits(level)}" } }
         val onError = { code: Int -> synchronized(effects) { effects += "error $code" } }
         val onAudio = { samples: FloatArray -> synchronized(effects) { effects += "audio ${samples.size} ${hash(samples)}" } }
-        val stop: () -> Unit = if (reference) {
-            val recorder = ReferenceMicRecorder(onLevel, onError, onAudio)
-            recorder.start { audio }
-            recorder::stop
-        } else {
-            val recorder = MicRecorder(onLevel, onError, onAudio)
-            recorder.start { audio }
-            recorder::stop
-        }
+        val recorder = MicRecorder(onLevel, onError, onAudio)
+        recorder.start { audio }
         assertTrue(audio.idle.await(10, TimeUnit.SECONDS), "the recording neither ended nor ran out of reads")
-        stop()
+        recorder.stop()
         return synchronized(effects) { effects.toList() }
     }
 
@@ -121,37 +112,27 @@ class MicTraceTest {
 
     @Test
     fun wavFilesMatchMain() {
-        val tape = GoldenTape.ofReference("mic-wav-files")
+        val tape = GoldenTape("mic-wav-files")
         for (seed in SEEDS) {
             val random = Random(seed)
             val seen = HashMap<String, Int>()
-            repeat(WAVS) { n ->
-                val wav = wav(random)
-                val kind = compare(wav)
+            repeat(WAVS) {
+                val answer = answer(runCatching { MicRules.pcm16(wav(random)) })
+                tape.record(answer)
+                val kind = when {
+                    answer.startsWith("audio") -> "audio"
+                    answer == "refused Not a WAV file" -> "not a wav"
+                    answer == "refused No audio in the WAV file" -> "no audio"
+                    else -> answer
+                }
                 seen[kind] = (seen[kind] ?: 0) + 1
-                assertTrue(kind != "differ", "seed $seed wav $n differs from main")
-                val expected = expected(wav)
-                assertEquals(expected, answer(runCatching { MicRules.pcm16(wav) }), "seed $seed wav $n")
-                tape.record(expected)
             }
-            println("WAV trace seed $seed: $WAVS files, 0 differ, seen $seen")
-            for (kind in listOf("audio", "not a wav", "no audio", "main never returned", "main threw IndexOutOfBoundsException",
-                "main threw NegativeArraySizeException")) {
+            println("WAV trace seed $seed: $WAVS files, seen $seen")
+            for (kind in listOf("audio", "not a wav", "no audio")) {
                 assertTrue((seen[kind] ?: 0) >= MIN_SEEN, "seed $seed saw $kind ${seen[kind]} times")
             }
         }
         tape.finish()
-    }
-
-    /**
-     * What [wav] must come to, from main's answer: its samples, or the IllegalArgumentException it
-     * threw, or, where main never returned or threw anything else, the refusal for no audio.
-     */
-    private fun expected(wav: ByteArray): String {
-        if (mainLoops(wav)) return "refused No audio in the WAV file"
-        val main = runCatching { ReferenceMic.pcm16(wav) }
-        val failure = main.exceptionOrNull()
-        return if (failure == null || failure is IllegalArgumentException) answer(main) else "refused No audio in the WAV file"
     }
 
     /** A parse's answer as text: every sample's bits, or the refusal and its message. */
@@ -159,43 +140,6 @@ class MicTraceTest {
         { samples -> "audio " + samples.joinToString(",") { bits(it) } },
         { if (it is IllegalArgumentException) "refused ${it.message}" else "threw ${it.javaClass.simpleName}" },
     )
-
-    /** How [wav] came out: the same as main, or one of the intended differences, or "differ". */
-    private fun compare(wav: ByteArray): String {
-        val new = runCatching { MicRules.pcm16(wav) }
-        if (mainLoops(wav)) return if (refusedAsSilent(new)) "main never returned" else "differ"
-        val main = runCatching { ReferenceMic.pcm16(wav) }
-        val failure = main.exceptionOrNull()
-        return when {
-            failure == null -> if (new.getOrNull()?.let { same(it, main.getOrThrow()) } == true) "audio" else "differ"
-            failure is IllegalArgumentException -> when {
-                new.exceptionOrNull()?.let { it is IllegalArgumentException && it.message == failure.message } != true -> "differ"
-                failure.message == "Not a WAV file" -> "not a wav"
-                else -> "no audio"
-            }
-            refusedAsSilent(new) -> "main threw ${failure.javaClass.simpleName}"
-            else -> "differ"
-        }
-    }
-
-    private fun refusedAsSilent(result: Result<FloatArray>) =
-        result.exceptionOrNull().let { it is IllegalArgumentException && it.message == "No audio in the WAV file" }
-
-    /** Whether main's walk of [wav] comes back to a chunk it read, and so never ends: its loop, in its arithmetic. */
-    private fun mainLoops(wav: ByteArray): Boolean {
-        if (wav.size <= 12 || String(wav, 0, 4) != "RIFF" || String(wav, 8, 4) != "WAVE") return false
-        val bytes = ByteBuffer.wrap(wav).order(ByteOrder.LITTLE_ENDIAN)
-        val visited = HashSet<Int>()
-        var offset = 12
-        while (offset + 8 <= wav.size) {
-            if (offset < 0 || offset + 4 > wav.size - 4) return false
-            if (!visited.add(offset)) return true
-            val size = bytes.getInt(offset + 4)
-            if (String(wav, offset, 4) == "data") return false
-            offset += 8 + size + (size and 1)
-        }
-        return false
-    }
 
     /** A WAV file: chunks of every kind, sizes true and false, cut short or whole. */
     private fun wav(random: Random): ByteArray {
@@ -231,16 +175,9 @@ class MicTraceTest {
     fun bufferAndReadRulesMatchMain() {
         val random = Random(SEEDS[0])
         val minimums = listOf(Int.MIN_VALUE, -2, -1, 0, 31_999, 32_000, 32_001, Int.MAX_VALUE) + List(10_000) { random.nextInt() }
-        val tape = GoldenTape.ofReference("mic-buffer-bytes")
-        for (minimum in minimums) {
-            assertEquals(ReferenceMic.bufferBytes(minimum), MicRules.bufferBytes(minimum), "minimum $minimum")
-            tape.record(ReferenceMic.bufferBytes(minimum).toString())
-        }
-        tape.finish()
-        println("Mic buffer trace: ${minimums.size} minimums, 0 differ")
+        GoldenTape.check("mic-buffer-bytes") { tape -> for (minimum in minimums) tape.record(MicRules.bufferBytes(minimum).toString()) }
+        println("Mic buffer trace: ${minimums.size} minimums")
     }
-
-    private fun same(a: FloatArray, b: FloatArray) = a.size == b.size && a.indices.all { bits(a[it]) == bits(b[it]) }
 
     private fun bits(value: Float) = if (value.isNaN()) "NaN" else value.toRawBits().toString()
 
