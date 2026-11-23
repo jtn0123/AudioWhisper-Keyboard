@@ -52,7 +52,7 @@ val giphyApiKey: String = rootProject.file("local.properties")
     ?: ""
 require(giphyApiKey.all { it.isLetterOrDigit() }) { "giphy.apiKey must be letters and digits only" }
 
-// The old JNI/Kotlin dependency is an oracle only in explicit dictation comparison builds.
+// The old JNI/Kotlin dependency makes the dictation fixture's WAVs, in its builds only.
 val sherpaOracle = providers.gradleProperty("dictationFixture").orNull == "true" &&
     providers.gradleProperty("jniFreeFixture").orNull != "true"
 

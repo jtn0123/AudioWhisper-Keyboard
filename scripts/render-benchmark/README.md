@@ -439,7 +439,7 @@ It verifies real muted neural playback, uses the floating Stop reading pill and 
 reading/stopped screenshot pairs on both renderers. Its metadata bridge uses Java I/O
 so historical unchanged APKs do not need unused Kotlin I/O facades retained.
 
-For the seven-fixture dictation comparison, build main/test with `-PdictationFixture=true`,
+For the seven-fixture dictation check, build main/test with `-PdictationFixture=true`,
 install both with the installer, and seal their copies under ignored `build/`. Then run:
 
 ```sh
@@ -447,11 +447,12 @@ ANDROID_SERIAL=<owned-runtime> python3 -I scripts/dictation-proof.py OUTPUT \
   --apk SEALED_MAIN_APK --test-apk SEALED_TEST_APK
 ```
 
-The runner retains a fresh hash-only oracle on-device. Rebuild with
+The runner makes the seeded fixture WAVs on-device and checks each fixture against its golden
+tape (`app/src/androidTest/assets/golden/dictation-fixture-N.txt`). Rebuild with
 `-PdictationFixture=true -PjniFreeFixture=true`, seal/install both APKs, then run with
-`--native-only --oracle PREVIOUS_OUTPUT/comparison.json` and the new APK paths.
-This uses the production `MicAudio.Replay` file producer and checks all seven fixtures
-against the fresh oracle. `apk-maps.py` validates installed APK hashes, guards ZIP entry
+`--jni-free` and the new APK paths. That run reuses the WAVs, so nothing loads the old JNI.
+Both use the production `MicAudio.Replay` file producer and check all seven fixtures
+against the goldens. `apk-maps.py` validates installed APK hashes, guards ZIP entry
 paths/types/sizes before payload inspection, and resolves uncompressed ELF mappings by
 APK offsets. A `.so` filename grep alone cannot establish absence of JNI libraries.
 
