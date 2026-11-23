@@ -113,6 +113,34 @@ fn one_handed_mode_puts_a_panel_on_the_free_side_in_portrait_only() {
 }
 
 #[test]
+fn a_panel_taller_than_the_keys_sets_the_rows_height() {
+    // A GIF search's bar is one row; the settings' extended actions keep the panel two rows tall,
+    // and the box follows the panel, as Compose's row did.
+    let mut a = with(&[
+        (f::ONE_HANDED, 1.0),
+        (f::ONE_HANDED_END, 1.0),
+        (f::SEARCH, 1.0),
+    ]);
+    a[f::SIZE + 1] = 3.0;
+    a[f::SIZE + 4] = 1.0;
+    let out = plan(&a);
+    assert!(out[p::START_HEIGHT] > out[p::KEYBOARD_HEIGHT]);
+    assert_eq!(out[p::BOX_HEIGHT], out[p::START_HEIGHT] + 63.0);
+}
+
+#[test]
+fn rows_are_never_shorter_than_the_base_height_or_fewer_than_four() {
+    // A base height above the screen's fractions wins: 2000 × 0.21.
+    let based = plan(&with(&[(f::BASE_HEIGHT, 2000.0)]));
+    assert!((based[p::ROW_HEIGHT] - 420.0).abs() < 0.01);
+    let four = plan(&facts());
+    let three = plan(&with(&[(f::ROWS, 3.0), (f::CHARACTER_ROWS, 3.0)]));
+    assert_eq!(three[p::KEYBOARD_PX], four[p::KEYBOARD_PX]);
+    let five = plan(&with(&[(f::ROWS, 5.0), (f::CHARACTER_ROWS, 5.0)]));
+    assert!(five[p::KEYBOARD_PX] > four[p::KEYBOARD_PX]);
+}
+
+#[test]
 fn the_bottom_offset_of_the_orientation_lifts_the_keyboard() {
     let out = plan(&facts());
     let lifted = plan(&with(&[

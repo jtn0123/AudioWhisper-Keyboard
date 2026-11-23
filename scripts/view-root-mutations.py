@@ -47,10 +47,8 @@ CASES = [
     ('offset-ignored', PLAN, 'let box_height = top + row + round(offset as f32 * d)', 'let box_height = top + row', [UNIT]),
     ('offset-of-the-other-orientation', PLAN, 'f::OFFSET_LANDSCAPE\n    } else {\n        f::OFFSET_PORTRAIT',
      'f::OFFSET_PORTRAIT\n    } else {\n        f::OFFSET_LANDSCAPE', [UNIT]),
-    ('panel-on-the-mode-side', PLAN, 'let start_panel = enabled && end && !landscape', 'let start_panel = enabled && !end && !landscape',
-     [UNIT]),
-    ('panel-in-landscape', PLAN, 'let end_panel = enabled && !end && !landscape && w[2] > 0.0;',
-     'let end_panel = enabled && !end && w[2] > 0.0;', [UNIT]),
+    ('panel-on-the-mode-side', PLAN, 'let (start_panel, end_panel) = (w[1] > 0.0, w[2] > 0.0);',
+     'let (start_panel, end_panel) = (w[2] > 0.0, w[1] > 0.0);', [UNIT]),
     ('panel-as-tall-as-keys', PLAN, '            row = row.max(panel_height);\n', '', [UNIT]),
     # The column under a full-screen extract view, and the surface's rise above the window.
     ('spacer-under-extract', PLAN, 'let spacer = !(a[f::FULLSCREEN] != 0.0 && a[f::EXTRACT_SHOWN] != 0.0);',
@@ -73,7 +71,7 @@ CASES = [
     ('crop-fits', WINDOW, '_ => (sx.max(sy), sx.max(sy)),', '_ => (fit, fit),', [THEMES]),
     ('inside-scales-up', WINDOW,
      '"inside" if image[0] <= canvas[0] && image[1] <= canvas[1] => (1.0, 1.0),\n', '', [THEMES]),
-    ('image-at-the-left', WINDOW, 'let left = canvas[0] / 2.0 - size[0] / 2.0;', 'let left = 0.0;', [THEMES]),
+    ('image-at-the-left', WINDOW, 'let left = canvas[0] / 2.0 - size[0] / 2.0;', 'let left = 0.0_f32;', [THEMES]),
     # The row that crosses from Android and back.
     ('image-size-swapped', CALLS, 'size(window::IMAGE_WIDTH, window::IMAGE_HEIGHT)?', 'size(window::IMAGE_HEIGHT, window::IMAGE_WIDTH)?',
      [THEMES]),

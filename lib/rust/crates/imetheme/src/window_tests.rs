@@ -28,6 +28,16 @@ fn a_theme_without_a_window_background_draws_black_with_light_buttons() {
 }
 
 #[test]
+fn a_window_that_inherits_takes_the_roots_background() {
+    let json = format!(
+        r##"{{{SCHEMA},"root":{{"background":"#eeeeee"}},"window":{{"background":"inherit"}}}}"##
+    );
+    let palette = Palette::default();
+    let inherited = window(&json, &text("characters"), &text("unshifted"), &palette);
+    assert_eq!(inherited.background, 0xFFEE_EEEE);
+}
+
+#[test]
 fn a_light_background_darkens_the_navigation_buttons() {
     let light = found(r##""background":"#eeeeee""##);
     assert_eq!(light.background, 0xFFEE_EEEE);
@@ -103,6 +113,9 @@ fn the_window_rule_answers_a_backdrop_row() {
         text(&(0xFFEE_EEEEu32 as i32).to_string())
     );
     assert_eq!(answer[out::IMAGE], text("bg.png"));
+    // Over an image: light buttons, and the bar's contrast kept.
+    assert_eq!(answer[out::LIGHT_BARS], text(wire::flag::encode(false)));
+    assert_eq!(answer[out::CONTRAST], text(wire::flag::encode(true)));
     assert_eq!(
         answer[out::LEFT..=out::BOTTOM],
         ["-150", "0", "450", "300"].map(text)

@@ -151,8 +151,8 @@ fn place(a: &[f32], s: &Sized, ime_dp: f32, out: &mut [f32]) -> Option<()> {
     let content = int(f::WIDTH) - left - int(f::SAFE_RIGHT);
     let (enabled, end) = (flag(f::ONE_HANDED), flag(f::ONE_HANDED_END));
     let w = one_handed(enabled, landscape, int(f::ONE_HANDED_SCALE), end);
-    let start_panel = enabled && end && !landscape && w[1] > 0.0;
-    let end_panel = enabled && !end && !landscape && w[2] > 0.0;
+    // A side's weight is its panel's: away from the keyboard, in portrait only.
+    let (start_panel, end_panel) = (w[1] > 0.0, w[2] > 0.0);
     let mut weights = vec![];
     if start_panel {
         weights.push(w[1]);
