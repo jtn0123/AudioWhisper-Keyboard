@@ -55,7 +55,7 @@ internal class RustChromeView(context: Context) : View(context) {
         if (width <= 0 || height <= 0) return
         val renderer = native ?: KeyboardRenderer(systemRendererFonts()).also { native = it }
         renderer.theme(theme.json, theme.paletteNames.toTypedArray(), theme.paletteColors.toIntArray(),
-            floatArrayOf(theme.density, theme.fontScale, theme.fontMultiplier))
+            floatArrayOf(theme.density, theme.fontScale, theme.fontMultiplier), theme.fonts.toTypedArray())
         val data = subtypes
         if (data == null) {
             renderer.chrome(floatArrayOf(width.toFloat(), height.toFloat(), theme.density, kind.toFloat(), side.toFloat()), labels, arrayOf(theme.mode, theme.shift))

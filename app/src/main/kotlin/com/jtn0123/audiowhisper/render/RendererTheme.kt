@@ -44,6 +44,9 @@ internal fun rendererTheme(
     mode: String = "characters", shift: String = "unshifted",
 ) = RendererTheme(info.stylesheetJson, palette.names, palette.colors, density, fontScale, multiplier, mode, shift)
 
-/** What the renderer draws in: a stylesheet, its palette, the display's scale and the keyboard's state. */
-data class RendererTheme(val json: String, val paletteNames: List<String>, val paletteColors: List<Int>,
-    val density: Float, val fontScale: Float, val fontMultiplier: Float, val mode: String = "characters", val shift: String = "unshifted")
+/**
+ * What the renderer draws in: a stylesheet, its palette, the display's scale and the keyboard's state, and the
+ * stylesheet's `@font` [fonts], each `src` URI then its absolute path ([themeFontFiles]).
+ */
+data class RendererTheme(val json: String, val paletteNames: List<String>, val paletteColors: List<Int>, val density: Float, val fontScale: Float,
+    val fontMultiplier: Float, val mode: String = "characters", val shift: String = "unshifted", val fonts: List<String> = emptyList())

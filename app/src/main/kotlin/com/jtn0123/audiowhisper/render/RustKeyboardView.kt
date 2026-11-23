@@ -121,7 +121,7 @@ class RustKeyboardView(context: Context) : FrameLayout(context), SurfaceHolder.C
         }
         if (snapshot?.theme != value.theme) {
             native.theme(value.theme.json, value.theme.paletteNames.toTypedArray(), value.theme.paletteColors.toIntArray(),
-                floatArrayOf(value.theme.density, value.theme.fontScale, value.theme.fontMultiplier))
+                floatArrayOf(value.theme.density, value.theme.fontScale, value.theme.fontMultiplier), value.theme.fonts.toTypedArray())
         }
         val changed = snapshot?.let { old ->
             old.smartbar.actions.indices.filter { i ->

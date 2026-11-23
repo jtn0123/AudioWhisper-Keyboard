@@ -96,8 +96,8 @@ internal class RootReads(val service: FlorisImeService) {
             ?: themePalette(accent, system, info.config.materialYouFlags).also { palette = key to it }
         val state = keyboard.activeState
         val scale = service.resources.configuration.fontScale
-        return if (stateful) rendererTheme(info, made, density, scale, fontMultiplier(), state.keyboardMode.toString(), state.inputShiftState.toString())
-        else rendererTheme(info, made, density, scale, fontMultiplier())
+        return (if (stateful) rendererTheme(info, made, density, scale, fontMultiplier(), state.keyboardMode.toString(), state.inputShiftState.toString())
+        else rendererTheme(info, made, density, scale, fontMultiplier())).copy(fonts = themeFontFiles(service, info))
     }
 
     /** Everything a rebuild reads that can change while the keyboard shows. */
