@@ -54,7 +54,7 @@ def device(name):
 
 cases = [
  ('timeout','lib/rust/crates/dictation/src/session.rs','KEEP_LOADED_MS: i64 = 300_000','KEEP_LOADED_MS: i64 = 300_001'),
- ('late-result','lib/rust/crates/dictation/src/session.rs','"final" if id == self.generation','"final" if id <= self.generation'),
+ ('late-result','lib/rust/crates/dictation/src/session.rs','events::FINAL if id == self.generation','events::FINAL if id <= self.generation'),
 ] if mode=='state' else [
  ('threshold','lib/rust/crates/dictation/src/segmentation.rs','VAD_THRESHOLD: f32 = 0.5','VAD_THRESHOLD: f32 = 0.99'),
  ('tail-flush','lib/rust/crates/sherpa-ffi/src/vad.rs','if keep {','if !keep {'),
