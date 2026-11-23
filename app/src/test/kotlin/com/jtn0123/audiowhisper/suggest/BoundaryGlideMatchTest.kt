@@ -1,5 +1,6 @@
 package com.jtn0123.audiowhisper.suggest
 
+import com.jtn0123.audiowhisper.golden.GoldenTape
 import java.io.File
 import java.util.Random
 import kotlin.test.Test
@@ -16,20 +17,27 @@ class BoundaryGlideMatchTest {
         val native = GlideRanker(history, engine)
         val guesses = listOf(GlideGuess("hello", 1f), GlideGuess("world", 2f))
         val previous = PreviousWords(listOf("hello"), false)
+        val tape = GoldenTape.ofReference("boundary-glide-closed")
         for ((words, context) in listOf(emptyList<GlideGuess>() to previous,
             guesses.take(1) to previous, guesses to PreviousWords.NONE)) {
-            assertEquals(old.rank(words, context), native.rank(words, context))
+            val ranked = old.rank(words, context)
+            tape.answer("rank", ranked)
+            assertEquals(ranked, native.rank(words, context))
         }
         val expected = assertFailsWith<IllegalArgumentException> { old.rank(guesses, previous) }
+        tape.answer("threw", expected.message)
         val actual = assertFailsWith<IllegalArgumentException> { native.rank(guesses, previous) }
         assertEquals(expected.message, actual.message)
+        tape.finish()
     }
 
     @Test fun nativeContextAndRankMatchFrozenPerGuessQueries() {
-        for (file in TestDictionaries.both) nativeContextAndRankMatch(file)
+        val tape = GoldenTape.ofReference("boundary-glide-ranks")
+        for (file in TestDictionaries.both) nativeContextAndRankMatch(file, tape)
+        tape.finish()
     }
 
-    private fun nativeContextAndRankMatch(file: File) {
+    private fun nativeContextAndRankMatch(file: File, tape: GoldenTape) {
         checkNotNull(LatinDictionaryEngine.open(file.path, 0, file.length(), "en_US")).use { engine ->
             val random = Random(20261114L)
             val history = LearnedWords(null)
@@ -46,8 +54,9 @@ class BoundaryGlideMatchTest {
                         else -> random.nextInt(10) / 4f
                     }) }
                 val lookup = engine.takeIf { random.nextBoolean() }
-                assertEquals(ReferenceBoundaryGlideRanker(history, lookup).rank(guesses, previous),
-                    GlideRanker(history, lookup).rank(guesses, previous))
+                val ranked = ReferenceBoundaryGlideRanker(history, lookup).rank(guesses, previous)
+                tape.answer("rank", ranked)
+                assertEquals(ranked, GlideRanker(history, lookup).rank(guesses, previous))
             }
         }
     }

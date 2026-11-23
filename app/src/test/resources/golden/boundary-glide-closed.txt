@@ -1,0 +1,7 @@
+# boundary-glide-closed: the answers the frozen Kotlin reference gave (docs/phase6-kotlin-references.md).
+# Their count, the digest after the last, and after each power of two (at N).
+count 4
+digest fe267e82a0a16bd9
+at 1 056039f307dd9630
+at 2 8b8bbf98db29c7f3
+at 4 fe267e82a0a16bd9

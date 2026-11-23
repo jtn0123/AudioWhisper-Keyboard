@@ -1,0 +1,7 @@
+# suggest-rules-constants: the answers the frozen Kotlin reference gave (docs/phase6-kotlin-references.md).
+# Their count, the digest after the last, and after each power of two (at N).
+count 7
+digest b2b9816076fe5fcb
+at 1 fe131bef759d9000
+at 2 658b8f08e4a6cdfa
+at 4 31f291994075bf1a

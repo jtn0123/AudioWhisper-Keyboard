@@ -1,0 +1,20 @@
+# nlp-learning: the answers the frozen Kotlin reference gave (docs/phase6-kotlin-references.md).
+# Their count, the digest after the last, and after each power of two (at N).
+count 50081
+digest 9f6b70dd9e2c2bba
+at 1 77b92e7b6f624c23
+at 2 6b2885a185c842d5
+at 4 dffee58a9244c685
+at 8 41d25e2cedda7ee5
+at 16 eca529d466a4a5a5
+at 32 e54e61925ef5b825
+at 64 a19c7443351d4d25
+at 128 d325ee944e9a47b3
+at 256 8d01daba62ba1bb3
+at 512 590344e172b9c3b3
+at 1024 02150a362d24fc3f
+at 2048 451e75a8b1fc0897
+at 4096 01d85c4882738b4f
+at 8192 2d9279a94cf5b39b
+at 16384 3544c82c3b0eaf72
+at 32768 fc878d316dee5f18

@@ -1,0 +1,22 @@
+# latin-rules-learners: the answers the frozen Kotlin reference gave (docs/phase6-kotlin-references.md).
+# Their count, the digest after the last, and after each power of two (at N).
+count 166648
+digest e4362443dc086c45
+at 1 e520c0140f095a15
+at 2 01b56dfda2ae4313
+at 4 2c03692ed4eba635
+at 8 6ddec7bc47d5de45
+at 16 fb1ebcfc1ef0c05d
+at 32 565acc430ce94425
+at 64 e03528f80c393616
+at 128 d4afd6332df50e47
+at 256 7afee821ca2d7301
+at 512 46729845e157e6dd
+at 1024 430fe78173dfa2a0
+at 2048 44da1c27c7fc9f34
+at 4096 cada3e662393cb2a
+at 8192 23f78fcd87aea01d
+at 16384 f0e755da936f15c6
+at 32768 ac92e19141f37ea5
+at 65536 753cf3da0cd23455
+at 131072 25d48090d36355c9

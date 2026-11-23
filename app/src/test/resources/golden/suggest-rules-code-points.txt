@@ -1,0 +1,27 @@
+# suggest-rules-code-points: the answers the frozen Kotlin reference gave (docs/phase6-kotlin-references.md).
+# Their count, the digest after the last, and after each power of two (at N).
+count 6684720
+digest 56add0cbc321c438
+at 1 d1f214dca396e3dc
+at 2 eebb0f958bbb2977
+at 4 f39327fdaadef53b
+at 8 23d21cb95ffcd0b9
+at 16 8db86e8cb64b27c8
+at 32 9e7941f316286529
+at 64 16fa35d5a9028ba8
+at 128 aff1ce91a0ad5d69
+at 256 9043a99edda9dd29
+at 512 808d2dc94985bde1
+at 1024 6c1c57bc1a5b1509
+at 2048 2ba76b944092b4ab
+at 4096 f54cd268c8a8b596
+at 8192 71c25a1681ed287b
+at 16384 03d6f411418dbed6
+at 32768 346ad29639f9583b
+at 65536 02bc264b8f2580f5
+at 131072 501aa4ca71adffcc
+at 262144 cc01388507d35795
+at 524288 d05282d07739f76c
+at 1048576 074cf2412afc442d
+at 2097152 2e3729df9d4faec4
+at 4194304 4e010a8c731c442d

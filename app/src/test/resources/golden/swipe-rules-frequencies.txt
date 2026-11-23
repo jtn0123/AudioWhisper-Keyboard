@@ -1,0 +1,15 @@
+# swipe-rules-frequencies: the answers the frozen Kotlin reference gave (docs/phase6-kotlin-references.md).
+# Their count, the digest after the last, and after each power of two (at N).
+count 2008
+digest f99599f2521fdc40
+at 1 8e988a7a1964cbac
+at 2 d0800bf72c290f45
+at 4 0e7b96a970c98465
+at 8 d59b3fed6cf7c9a5
+at 16 c7aac762078ba225
+at 32 13c9367043732125
+at 64 ff45cc26d4bc1f25
+at 128 c313c993ed361b25
+at 256 1647feea75ca1325
+at 512 be36436ce5720325
+at 1024 ecdda1bcb82ceaa2

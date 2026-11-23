@@ -1,0 +1,24 @@
+# suggest-rules-trails: the answers the frozen Kotlin reference gave (docs/phase6-kotlin-references.md).
+# Their count, the digest after the last, and after each power of two (at N).
+count 993438
+digest 175377d9ff5c6d80
+at 1 9d96c2a7065abea0
+at 2 d5e7a001172ca3ad
+at 4 659535f682d786f5
+at 8 0c5dd9278ab389c5
+at 16 df4430f5508f23e5
+at 32 4893bdc474b5581e
+at 64 5a89eacb6c4c201e
+at 128 4b4ac964206b5aa1
+at 256 a1ec5d3327d290a1
+at 512 b2c9defd0523186f
+at 1024 0fb30c04498738a8
+at 2048 228498ead10a0390
+at 4096 ab0ded2dd88f6212
+at 8192 fe223163a778944a
+at 16384 987c97651036403a
+at 32768 adc14a5e470ff511
+at 65536 e9371c12495c03c6
+at 131072 c0c64c4248d5152e
+at 262144 fc5f6a2dfb3bf6e1
+at 524288 8c531a40a66c4142

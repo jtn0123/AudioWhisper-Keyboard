@@ -1,5 +1,6 @@
 package com.jtn0123.audiowhisper.suggest
 
+import com.jtn0123.audiowhisper.golden.GoldenTape
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -12,19 +13,21 @@ import kotlin.test.assertTrue
  * judges some characters differently.
  */
 class LatinRulesMatchTest {
-    private fun assertNone(reached: List<String>, body: LatinComparison.() -> Unit) {
-        val comparison = LatinComparison(sigmaExact = false).apply(body)
+    private fun assertNone(name: String, reached: List<String>, body: LatinComparison.() -> Unit) {
+        val tape = GoldenTape.ofReference("latin-rules-$name")
+        val comparison = LatinComparison(sigmaExact = false, tape).apply(body)
         assertEquals(emptyList(), comparison.examples, "${comparison.failures} of ${comparison.checks} differ")
+        tape.finish()
         for (outcome in reached) {
             assertTrue((comparison.seen[outcome] ?: 0) >= MIN_SEEN, "$outcome only ${comparison.seen[outcome]} times")
         }
     }
 
     @Test
-    fun stripsAndSpellChecksMatch() = assertNone(STRIP_OUTCOMES) { suggester(Random(SEED), 40_000) }
+    fun stripsAndSpellChecksMatch() = assertNone("strips", STRIP_OUTCOMES) { suggester(Random(SEED), 40_000) }
 
     @Test
-    fun learnersStoreTheSame() = assertNone(LEARNER_OUTCOMES) { learner(Random(SEED), runs = 1_500, steps = 60) }
+    fun learnersStoreTheSame() = assertNone("learners", LEARNER_OUTCOMES) { learner(Random(SEED), runs = 1_500, steps = 60) }
 
     private companion object {
         const val SEED = 20261108L

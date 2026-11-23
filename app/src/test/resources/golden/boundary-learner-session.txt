@@ -1,0 +1,21 @@
+# boundary-learner-session: the answers the frozen Kotlin reference gave (docs/phase6-kotlin-references.md).
+# Their count, the digest after the last, and after each power of two (at N).
+count 95808
+digest bacfe0eecd9f1d45
+at 1 77b92e7b6f624c23
+at 2 25a59eb99d58184f
+at 4 b3be43dc0e22e849
+at 8 d0017fdcbe68307f
+at 16 dff221d4558feeaa
+at 32 34d2917e87aca45f
+at 64 b754b47a10775745
+at 128 6db1f318429cc847
+at 256 905a7c520e0a17b0
+at 512 a31f489c0fe8943e
+at 1024 92699011f1559901
+at 2048 70cfc294cb93558d
+at 4096 10a89b2a202bb1f9
+at 8192 a510d2e152946677
+at 16384 d071fde958003fc5
+at 32768 d49cea692e80c04c
+at 65536 4aa75c117701efaa

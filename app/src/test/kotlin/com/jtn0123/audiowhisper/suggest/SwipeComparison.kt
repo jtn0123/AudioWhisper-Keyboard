@@ -1,5 +1,6 @@
 package com.jtn0123.audiowhisper.suggest
 
+import com.jtn0123.audiowhisper.golden.GoldenTape
 import kotlin.math.abs
 import kotlin.random.Random
 
@@ -15,8 +16,11 @@ import kotlin.random.Random
  * Java's `Math.exp` and Rust's are both bionic's, so it must. On a computer the JVM has its own,
  * which can differ from the system's in the last bit; there a frequency may be one unit in the last
  * place off, as long as the Float the glide classifier takes of it is the same.
+ *
+ * Every answer the Kotlin gave goes on [tape], in order, so it can stand in for the Kotlin; a
+ * frequency goes on as that Float, since on this computer 35,333 of them are a unit apart.
  */
-class SwipeComparison(private val exactMath: Boolean) {
+class SwipeComparison(private val exactMath: Boolean, private val tape: GoldenTape) {
     /** How many comparisons failed, and the first few, described. */
     var failures = 0
         private set
@@ -26,11 +30,15 @@ class SwipeComparison(private val exactMath: Boolean) {
     var checks = 0L
         private set
 
-    private fun check(what: String, input: Any?, kotlin: Any?, rust: Any?) = record(what, input, kotlin == rust, kotlin, rust)
+    private fun check(what: String, input: Any?, kotlin: Any?, rust: Any?) {
+        tape.answer(what, kotlin)
+        record(what, input, kotlin == rust, kotlin, rust)
+    }
 
     /** A frequency: see [exactMath]. */
     private fun checkFrequency(what: String, input: Any?, kotlin: Double, rust: Double) {
         val (kotlinBits, rustBits) = kotlin.toRawBits() to rust.toRawBits()
+        tape.answer(what, kotlin.toFloat().toRawBits())
         val same = kotlinBits == rustBits || !exactMath && abs(kotlinBits - rustBits) == 1L &&
             kotlin.toFloat().toRawBits() == rust.toFloat().toRawBits()
         record(what, input, same, kotlin, rust)

@@ -1,0 +1,19 @@
+# boundary-glide-ranks: the answers the frozen Kotlin reference gave (docs/phase6-kotlin-references.md).
+# Their count, the digest after the last, and after each power of two (at N).
+count 20000
+digest 62619ebd451b749b
+at 1 c861055493b85e04
+at 2 752fca9644603728
+at 4 42b94a00c13d71b7
+at 8 5b9f47e7fdf1ed9e
+at 16 a7d5c4e798ff25c8
+at 32 59d57d61967905f5
+at 64 92758638e50af1db
+at 128 92d48fdc42164ba5
+at 256 22d95ac405ade315
+at 512 f35bfb082f0c6aad
+at 1024 1d5b3c92df8af5f4
+at 2048 7f2cd38a0e635fd3
+at 4096 fc1b949146c84f80
+at 8192 73279c41eb187dde
+at 16384 5ad97f26688243b6

@@ -1,5 +1,6 @@
 package com.jtn0123.audiowhisper.suggest
 
+import com.jtn0123.audiowhisper.golden.GoldenTape
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -11,28 +12,30 @@ import kotlin.test.assertEquals
  * trails. The same comparison runs on the emulator, whose Java judges some characters differently.
  */
 class SuggestRulesMatchTest {
-    private fun assertNone(body: SuggestComparison.() -> Unit) {
-        val comparison = SuggestComparison(sigmaExact = false).apply(body)
+    private fun assertNone(name: String, body: SuggestComparison.() -> Unit) {
+        val tape = GoldenTape.ofReference("suggest-rules-$name")
+        val comparison = SuggestComparison(sigmaExact = false, tape).apply(body)
         assertEquals(emptyList(), comparison.examples, "${comparison.failures} of ${comparison.checks} differ")
+        tape.finish()
     }
 
     @Test
-    fun theLayoutAndNumbersAreTheSame() = assertNone { constants() }
+    fun theLayoutAndNumbersAreTheSame() = assertNone("constants") { constants() }
 
     @Test
-    fun everyCodePointIsJudgedAsKotlinJudgedIt() = assertNone { everyCodePoint() }
+    fun everyCodePointIsJudgedAsKotlinJudgedIt() = assertNone("code-points") { everyCodePoint() }
 
     @Test
-    fun everyCharacterIsJudgedAsKotlinJudgedIt() = assertNone { everyUnit() }
+    fun everyCharacterIsJudgedAsKotlinJudgedIt() = assertNone("units") { everyUnit() }
 
     @Test
-    fun randomWordsContextsAndCorrectionsGiveTheSame() = assertNone { randomStrings(Random(SEED), 200_000) }
+    fun randomWordsContextsAndCorrectionsGiveTheSame() = assertNone("strings") { randomStrings(Random(SEED), 200_000) }
 
     @Test
-    fun randomTapsLandTheSame() = assertNone { taps(Random(SEED), 200_000) }
+    fun randomTapsLandTheSame() = assertNone("taps") { taps(Random(SEED), 200_000) }
 
     @Test
-    fun randomTapTrailsRememberTheSame() = assertNone { trails(Random(SEED), 20_000) }
+    fun randomTapTrailsRememberTheSame() = assertNone("trails") { trails(Random(SEED), 20_000) }
 
     private companion object {
         const val SEED = 20261108L

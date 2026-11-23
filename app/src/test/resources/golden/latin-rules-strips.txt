@@ -1,0 +1,21 @@
+# latin-rules-strips: the answers the frozen Kotlin reference gave (docs/phase6-kotlin-references.md).
+# Their count, the digest after the last, and after each power of two (at N).
+count 80000
+digest 1e2c0b2f15c3b9dd
+at 1 7f645675ca530859
+at 2 8019951d16f79661
+at 4 5c4ffdc2c896d0d3
+at 8 063f2f902565b19e
+at 16 51f6ce98f9490526
+at 32 f91ab692d02cba2f
+at 64 9f5c74515e8e96da
+at 128 944fce59ff670799
+at 256 55b50528ac424734
+at 512 e78fb1ac02dcd9b5
+at 1024 8e34770d78494a72
+at 2048 a2f2765110828f6a
+at 4096 7ec9a02f234bd5ef
+at 8192 cb72b5af9aff97d2
+at 16384 250a78863b295b6d
+at 32768 3a0fad0c039fde0c
+at 65536 41a255fc66f81847

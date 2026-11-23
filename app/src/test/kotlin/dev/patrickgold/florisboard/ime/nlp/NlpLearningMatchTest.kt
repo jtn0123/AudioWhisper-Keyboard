@@ -1,5 +1,6 @@
 package dev.patrickgold.florisboard.ime.nlp
 
+import com.jtn0123.audiowhisper.golden.GoldenTape
 import com.jtn0123.audiowhisper.rust.KeptWordStore
 import com.jtn0123.audiowhisper.rust.NlpLearnPlan
 import com.jtn0123.audiowhisper.rust.NlpOp
@@ -16,6 +17,7 @@ import kotlin.test.assertEquals
 class NlpLearningMatchTest {
     @Test fun finishedSwipedUndoAndPrivateBlockingHaveIdenticalStoreEffects() {
         var effects = 0
+        val tape = GoldenTape.ofReference("nlp-learning")
         repeat(200) { seed ->
             val random = Random(20261113L + seed)
             val oldStore = LearnedWords(null)
@@ -55,15 +57,19 @@ class NlpLearningMatchTest {
                             val a = if (action == 2) old.swiped(word, before) else old.finished(word, before, start)
                             val b = if (action == 2) actual.swiped(plan[NlpLearnPlan.WORD], plan[NlpLearnPlan.BEFORE])
                                 else actual.finished(plan[NlpLearnPlan.WORD], plan[NlpLearnPlan.BEFORE], plan[NlpLearnPlan.START].toInt())
+                            tape.answer("learned", a)
                             assertEquals(a, b)
                         }
                     } else if (action == 3 && mayLearn) {
-                        assertEquals(old.undo(2), actual.undo(2))
+                        val undone = old.undo(2)
+                        tape.answer("undo", undone)
+                        assertEquals(undone, actual.undo(2))
                     } else if (action == 4) { old.reset(); actual.reset(); nlp.call(NlpOp.FIELD) }
                     else if (action == 5) {
                         val remembered = WireFlag.decode(nlp.call(NlpOp.KEEP, word)[0])
                         assertEquals(keptOld.add(word, !incognito && prose), keptNew.add(word, remembered))
                     }
+                    tape.answer("saved", oldStore.store.savedText())
                     assertEquals(oldStore.store.savedText(), newStore.store.savedText(), "learned effects seed $seed")
                     assertEquals(keptOld.savedText(), keptNew.savedText(), "kept effects seed $seed")
                     effects++
@@ -71,6 +77,7 @@ class NlpLearningMatchTest {
             }
         }
         assertEquals(50_000, effects)
+        tape.finish()
         println("NLP learning: 50000 events, 200 seeds, identical learned and blocked stores")
     }
 }

@@ -1,0 +1,11 @@
+# word-stores-languages: the answers the frozen Kotlin reference gave (docs/phase6-kotlin-references.md).
+# Their count, the digest after the last, and after each power of two (at N).
+count 112
+digest d13136506a6541bd
+at 1 fdf581f506ed16b5
+at 2 413e1be6b4d8de05
+at 4 5d6bac746b563be5
+at 8 d51b5c835c3fe8a5
+at 16 707b10b0996f2c25
+at 32 dfd1b86800caab05
+at 64 bcf170bedd3c25bd

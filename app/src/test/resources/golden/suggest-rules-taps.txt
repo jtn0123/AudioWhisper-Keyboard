@@ -1,0 +1,23 @@
+# suggest-rules-taps: the answers the frozen Kotlin reference gave (docs/phase6-kotlin-references.md).
+# Their count, the digest after the last, and after each power of two (at N).
+count 400000
+digest f7198f1ac9ea351f
+at 1 f04fb251e4aa0a9d
+at 2 c3baa94fed1ae4b8
+at 4 561a9a1513857e73
+at 8 ee2633d4094f8567
+at 16 3e2801f1e15e19aa
+at 32 e243ebbac0d90103
+at 64 5a5aad4982610f0d
+at 128 957b8fa69efc9431
+at 256 e8802e5adf356d0d
+at 512 5dc885ab826c993d
+at 1024 bc37ad6c0ecdbc7c
+at 2048 23d3833c7d905c23
+at 4096 000fb4f7661467e7
+at 8192 23c16d6092dc8ebd
+at 16384 fa0a7642bc061cd6
+at 32768 2911d5680a431999
+at 65536 a7571e78e0a3f577
+at 131072 bcc2b4be033b1be3
+at 262144 50dfd565bb668827

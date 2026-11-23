@@ -1,5 +1,6 @@
 package com.jtn0123.audiowhisper.suggest
 
+import com.jtn0123.audiowhisper.golden.GoldenTape
 import java.io.File
 import java.nio.file.Files
 import kotlin.random.Random
@@ -21,22 +22,24 @@ class WordStoresMatchTest {
         dir.deleteRecursively()
     }
 
-    private fun assertNone(body: StoreComparison.() -> Unit) {
-        val comparison = StoreComparison(sigmaExact = false, dir).apply(body)
+    private fun assertNone(name: String, body: StoreComparison.() -> Unit) {
+        val tape = GoldenTape.ofReference("word-stores-$name")
+        val comparison = StoreComparison(sigmaExact = false, dir, tape).apply(body)
         assertEquals(emptyList(), comparison.examples, "${comparison.failures} of ${comparison.checks} differ")
+        tape.finish()
     }
 
     @Test
-    fun learnedWordsAnswerTheSame() = assertNone { learned(Random(SEED), runs = 2_000, steps = 60) }
+    fun learnedWordsAnswerTheSame() = assertNone("learned") { learned(Random(SEED), runs = 2_000, steps = 60) }
 
     @Test
-    fun keptWordsAnswerTheSame() = assertNone { kept(Random(SEED), runs = 2_000, steps = 40) }
+    fun keptWordsAnswerTheSame() = assertNone("kept") { kept(Random(SEED), runs = 2_000, steps = 40) }
 
     @Test
-    fun personalWordsAnswerTheSame() = assertNone { personal(Random(SEED), 100_000) }
+    fun personalWordsAnswerTheSame() = assertNone("personal") { personal(Random(SEED), 100_000) }
 
     @Test
-    fun everyTagAppliesAlike() = assertNone { languages() }
+    fun everyTagAppliesAlike() = assertNone("languages") { languages() }
 
     private companion object {
         const val SEED = 20261108L

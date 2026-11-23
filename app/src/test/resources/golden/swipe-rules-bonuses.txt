@@ -1,0 +1,25 @@
+# swipe-rules-bonuses: the answers the frozen Kotlin reference gave (docs/phase6-kotlin-references.md).
+# Their count, the digest after the last, and after each power of two (at N).
+count 1720952
+digest 4ee1022dce54154d
+at 1 ce683ac58576fb0a
+at 2 66aec9c6e58deb33
+at 4 5ab680b59ecb0a9f
+at 8 25ceb0877347bc35
+at 16 8e42f81d28cce8ee
+at 32 686038ca2fc6564e
+at 64 00e39e22af45940e
+at 128 a2a6484cca2d228e
+at 256 33bd8ef960ca5d8e
+at 512 481cc4cd0d14d38e
+at 1024 f705aed261e9bf8e
+at 2048 7c79dff4fc93978e
+at 4096 5946d399f5e7478e
+at 8192 aecbe862f88ea78e
+at 16384 044a07f13ddd678e
+at 32768 af501efec87ae78e
+at 65536 b753acddddb5e78e
+at 131072 1db847ac082be78e
+at 262144 b7f779885d17e78e
+at 524288 c24dce4106efe78e
+at 1048576 2271f7f7745e18c2

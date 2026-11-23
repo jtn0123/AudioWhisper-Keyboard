@@ -1,5 +1,6 @@
 package com.jtn0123.audiowhisper.suggest
 
+import com.jtn0123.audiowhisper.golden.GoldenTape
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -11,25 +12,27 @@ import kotlin.test.assertEquals
  * computer's JVM has an `exp` of its own (see [SwipeComparison]).
  */
 class SwipeRulesMatchTest {
-    private fun assertNone(body: SwipeComparison.() -> Unit) {
-        val comparison = SwipeComparison(exactMath = false).apply(body)
+    private fun assertNone(name: String, body: SwipeComparison.() -> Unit) {
+        val tape = GoldenTape.ofReference("swipe-rules-$name")
+        val comparison = SwipeComparison(exactMath = false, tape).apply(body)
         assertEquals(emptyList(), comparison.examples, "${comparison.failures} of ${comparison.checks} differ")
+        tape.finish()
     }
 
     @Test
-    fun everyBonusIsTheSame() = assertNone { bonuses(Random(SEED), maxCount = 1_000_000, span = 260, randomCount = 100_000) }
+    fun everyBonusIsTheSame() = assertNone("bonuses") { bonuses(Random(SEED), maxCount = 1_000_000, span = 260, randomCount = 100_000) }
 
     @Test
-    fun guessesRankTheSame() = assertNone { rankings(Random(SEED), 100_000) }
+    fun guessesRankTheSame() = assertNone("rankings") { rankings(Random(SEED), 100_000) }
 
     @Test
-    fun everyFrequencyIsTheSame() = assertNone { frequencies() }
+    fun everyFrequencyIsTheSame() = assertNone("frequencies") { frequencies() }
 
     @Test
-    fun theSameWordsCanBeSwiped() = assertNone { swipeable(Random(SEED), 100_000) }
+    fun theSameWordsCanBeSwiped() = assertNone("swipeable") { swipeable(Random(SEED), 100_000) }
 
     @Test
-    fun wordListsAreTheSame() = assertNone { wordLists(Random(SEED), 20_000) }
+    fun wordListsAreTheSame() = assertNone("word-lists") { wordLists(Random(SEED), 20_000) }
 
     private companion object {
         const val SEED = 20261108L

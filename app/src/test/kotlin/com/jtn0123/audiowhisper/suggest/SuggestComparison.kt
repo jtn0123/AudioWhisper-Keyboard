@@ -1,5 +1,6 @@
 package com.jtn0123.audiowhisper.suggest
 
+import com.jtn0123.audiowhisper.golden.GoldenTape
 import java.util.Locale
 import kotlin.random.Random
 
@@ -13,8 +14,10 @@ import kotlin.random.Random
  * [sigmaExact] says whether to compare how Σ lower-cases. Rust follows ICU's rule for whether a Σ
  * ends a word (ς) or not (σ), as Android does; the JVM uses its own, so off a phone ς and σ are
  * counted as one.
+ *
+ * Every answer the Kotlin gave goes on [tape], in order, so it can stand in for the Kotlin.
  */
-class SuggestComparison(private val sigmaExact: Boolean) {
+class SuggestComparison(private val sigmaExact: Boolean, private val tape: GoldenTape) {
     /** How many comparisons failed, and the first few, described. */
     var failures = 0
         private set
@@ -25,6 +28,7 @@ class SuggestComparison(private val sigmaExact: Boolean) {
         private set
 
     private fun check(what: String, input: String, kotlin: Any?, rust: Any?) {
+        tape.answer(what, kotlin)
         checks++
         if (kotlin == rust) return
         failures++
