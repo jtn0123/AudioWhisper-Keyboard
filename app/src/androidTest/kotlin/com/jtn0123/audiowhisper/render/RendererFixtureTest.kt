@@ -1,17 +1,21 @@
 package com.jtn0123.audiowhisper.render
 
-import androidx.test.platform.app.InstrumentationRegistry
+import android.app.Instrumentation
 import com.jtn0123.audiowhisper.gif.GifSearch
 import com.jtn0123.audiowhisper.gif.SearchText
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
-import org.junit.Test
 
-/** The long-lived external fixture controller is Java instrumentation; this is an ordinary test. */
-class RendererFixtureTest {
-    @Test fun searchStateWorksWithoutAKey() {
-        InstrumentationRegistry.getInstrumentation().runOnMainSync {
+/**
+ * GIF search typing with no GIPHY key, through the production [GifSearch]. FixtureInstrumentation
+ * runs it with `-e gifSearch true`, in a rendererFixture build: the debug build is shrunk, and only
+ * a fixture build keeps what a test APK calls, so no JUnit runner can run it there.
+ */
+object RendererFixtureTest {
+    @JvmStatic fun searchStateWorksWithoutAKey(instrumentation: Instrumentation) {
+        var failure: Throwable? = null
+        instrumentation.runOnMainSync {
             val original=GifSearch.source
             try {
                 GifSearch.source=null
@@ -23,7 +27,10 @@ class RendererFixtureTest {
                 assertEquals(SearchText.type(before,"aw-fixture"),GifSearch.query.value)
                 GifSearch.stopTyping()
                 assertFalse(GifSearch.typing.value)
-            }finally{GifSearch.reset();GifSearch.source=original}
+            } catch (thrown: Throwable) {
+                failure = thrown // Thrown on the main thread, it would end the process instead of failing the run.
+            } finally{GifSearch.reset();GifSearch.source=original}
         }
+        failure?.let { throw it }
     }
 }

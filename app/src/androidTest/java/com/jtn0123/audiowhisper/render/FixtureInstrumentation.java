@@ -80,14 +80,28 @@ public final class FixtureInstrumentation extends Instrumentation {
 
     private boolean boundaries;
     private boolean a1Replay;
+    private boolean gifSearch;
     @Override public void onCreate(Bundle arguments) {
         super.onCreate(arguments);
         boundaries = arguments != null && "true".equals(arguments.getString("boundaries"));
         a1Replay = arguments != null && "true".equals(arguments.getString("a1"));
+        gifSearch = arguments != null && "true".equals(arguments.getString("gifSearch"));
         start();
     }
     @Override public void onStart() {
         if (a1Replay) { com.jtn0123.audiowhisper.suggest.A1Instrumentation.replay(this, false); return; }
+        if (gifSearch) {
+            Bundle result = new Bundle();
+            try {
+                RendererFixtureTest.searchStateWorksWithoutAKey(this);
+                result.putBoolean("gif_search", true);
+                finish(Activity.RESULT_OK, result);
+            } catch (Throwable failure) {
+                result.putString("failure", failure.getClass().getName()); // An assertion's message holds the typed text.
+                finish(Activity.RESULT_CANCELED, result);
+            }
+            return;
+        }
         if (boundaries) {
             Bundle result = new Bundle();
             try {

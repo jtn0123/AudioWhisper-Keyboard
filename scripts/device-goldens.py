@@ -22,7 +22,7 @@ import re
 import shlex
 import subprocess
 import sys
-from typing import NamedTuple, Optional, Tuple
+from typing import NamedTuple, Tuple
 
 ROOT = Path(__file__).resolve().parent.parent
 PKG = 'com.jtn0123.audiowhisper.keyboard'
@@ -35,9 +35,10 @@ KEPT = ('files/learned-words.txt', 'files/kept-as-typed.txt', 'files/tap-aim.txt
 
 
 class Family(NamedTuple):
-    """How one family's device comparison runs: the Gradle property that builds its runner (None for
-    AndroidJUnitRunner), the runner, its arguments, and the line a passing run prints."""
-    fixture: Optional[str]
+    """How one family's device comparison runs: the Gradle property that builds its runner, the
+    runner, its arguments, and the line a passing run prints. (The debug build is shrunk; only a
+    fixture build keeps what a test APK calls.)"""
+    fixture: str
     runner: str
     arguments: Tuple[str, ...]
     passed: str
@@ -45,8 +46,8 @@ class Family(NamedTuple):
 
 A1 = 'com.jtn0123.audiowhisper.suggest.A1Instrumentation'
 FAMILIES = {
-    'gif': Family(None, 'androidx.test.runner.AndroidJUnitRunner',
-                  ('-e', 'class', 'com.jtn0123.audiowhisper.render.RendererFixtureTest'), 'OK (1 test)'),
+    'gif': Family('rendererFixture', 'com.jtn0123.audiowhisper.render.FixtureInstrumentation', ('-e', 'gifSearch', 'true'),
+                  'gif_search=true'),
     'extension': Family('suggestFixture', A1, ('-e', 'only', 'extension'), 'INSTRUMENTATION_CODE: -1'),
     'boundary': Family('suggestFixture', A1, ('-e', 'boundaries', 'true'), 'INSTRUMENTATION_CODE: -1'),
     'a1': Family('suggestFixture', A1, ('-e', 'only', 'a1'), 'INSTRUMENTATION_CODE: -1'),
@@ -98,9 +99,7 @@ def state():
 
 def build(output, family, name):
     """Builds the family's app and test APKs and installs them; asserts each step passed."""
-    command = ['./gradlew', '--stacktrace', ':app:assembleDebug', ':app:assembleDebugAndroidTest']
-    if family.fixture:
-        command.append('-P' + family.fixture + '=true')
+    command = ['./gradlew', '--stacktrace', ':app:assembleDebug', ':app:assembleDebugAndroidTest', '-P' + family.fixture + '=true']
     status, _ = logged(output, name + '-build', command)
     assert status == 0, name + ': the build failed; see ' + name + '-build.log'
     status, _ = logged(output, name + '-install', ['scripts/install-dev.sh', serial()])
@@ -120,7 +119,7 @@ def instrument(output, family, name, *extra):
     finally:
         adb('shell', 'ime', 'set', IME)
     assert state() == before, name + ': the run changed the app\'s stores or settings'
-    passed = family.passed in log and 'INSTRUMENTATION_FAILED' not in log and 'FAILURES!!!' not in log
+    passed = family.passed in log and 'INSTRUMENTATION_CODE: -1' in log
     return passed, log
 
 
