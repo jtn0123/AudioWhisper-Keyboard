@@ -61,6 +61,17 @@ class GoldenTapeTest {
     }
 
     @Test
+    fun anAnswerOfNullIsNotTheTextNull() {
+        GoldenTape.check("golden-tape-answers") {
+            it.answer("x", null)
+            it.answer("x", "null")
+            it.answer("n", 1)
+        }
+        val swapped = GoldenTape("golden-tape-answers")
+        assertFailsWith<AssertionFailedError> { swapped.answer("x", "null") }
+    }
+
+    @Test
     fun aFinishedTapeTakesNoMoreAnswers() {
         val tape = GoldenTape("golden-tape-self")
         tape.recordSelf()

@@ -63,6 +63,13 @@ class GoldenTape private constructor(
         }
     }
 
+    /**
+     * Records [value], what [what] answered, as the two parts [what] and the value's text, so
+     * null is told apart from any value that prints as "null". The value's `toString()` must be
+     * its content, as a number's, a string's, a list's or a data class's is.
+     */
+    fun answer(what: String, value: Any?) = record(listOf(what, if (value == null) "null" else "=$value"))
+
     /** Records each of [answers] in order, one answer each. */
     fun recordAll(answers: Iterable<String>) = answers.forEach { record(it) }
 

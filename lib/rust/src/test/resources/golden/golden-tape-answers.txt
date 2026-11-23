@@ -1,0 +1,6 @@
+# golden-tape-answers: GoldenTapeTest's tape of answer(), worked out apart from GoldenTape (FNV-1a in Python).
+# answer("x", null), answer("x", "null") and answer("n", 1): the parts ["x", "null"], ["x", "=null"], ["n", "=1"].
+count 3
+digest ac712c5595c3d6dd
+at 1 844bc583164ea285
+at 2 288cdeb049e07fa5
