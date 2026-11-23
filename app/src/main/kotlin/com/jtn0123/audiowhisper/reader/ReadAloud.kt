@@ -9,6 +9,8 @@ import android.os.SystemClock
 import android.provider.Settings
 import android.util.Log
 import android.widget.Toast
+import com.jtn0123.audiowhisper.rust.ReadRoute
+import com.jtn0123.audiowhisper.rust.ReadingRules
 import dev.patrickgold.florisboard.R
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -47,9 +49,12 @@ object ReadAloud {
     @Volatile
     private var waiting: Waiting? = null
 
+    /** Reads [from], or asks for the service to be turned on, or waits for it: Rust's choice. */
     fun read(context: Context, from: From) {
-        service?.let { return it.read(from) }
-        if (!isTurnedOn(context)) return askToTurnOn(context)
+        val up = service
+        val route = ReadingRules.route(serviceUp = up != null, turnedOn = up == null && isTurnedOn(context))
+        if (route == ReadRoute.READ) return checkNotNull(up).read(from)
+        if (route == ReadRoute.ASK) return askToTurnOn(context)
         waiting = Waiting(from, SystemClock.uptimeMillis())
         Toast.makeText(context, R.string.read_aloud__starting, Toast.LENGTH_SHORT).show()
     }
@@ -77,7 +82,7 @@ object ReadAloud {
 
     internal fun attach(service: ReadAloudService) {
         this.service = service
-        val asked = waiting?.takeIf { SystemClock.uptimeMillis() - it.at < WAIT_MS }
+        val asked = waiting?.takeIf { ReadingRules.stillAsked(it.at, SystemClock.uptimeMillis()) }
         waiting = null
         asked?.let { service.read(it.from) }
     }
@@ -123,8 +128,6 @@ object ReadAloud {
 
     private const val TAG = "ReadAloud"
 
-    /** How long a reading waits for the service to come up before it is dropped. */
-    private const val WAIT_MS = 5_000L
     private const val FRAGMENT_ARG_KEY = ":settings:fragment_args_key"
     private const val SHOW_FRAGMENT_ARGS = ":settings:show_fragment_args"
 }

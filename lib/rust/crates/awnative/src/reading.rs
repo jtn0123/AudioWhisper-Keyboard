@@ -1,8 +1,10 @@
-//! A reading's steps (`reader::reading`) and which window it reads (`reader::window`) for
-//! `ReadingNative`, whose generated entry points call these.
+//! A reading's steps (`reader::reading`), which window it reads (`reader::window`), and how long
+//! the neural voice stays loaded (`reader::lifetime`) for `ReadingNative`, whose generated entry
+//! points call these.
 
 use std::sync::{Mutex, MutexGuard};
 
+use reader::lifetime::{self, VoiceHold};
 use reader::page_text::Edges;
 use reader::reading::{Effect, Reading, Screen};
 use reader::window;
@@ -133,4 +135,67 @@ pub fn window(
 /// `window::visible_bottom`.
 pub fn visible_bottom(top: i32, bottom: i32, keyboard_top: i32) -> Result<i32> {
     Ok(window::visible_bottom(top, bottom, keyboard_top))
+}
+
+/// The neural voice's hold, not taken yet.
+pub fn hold_create() -> i64 {
+    into_handle(Mutex::new(VoiceHold::default()))
+}
+
+pub fn hold_free(handle: i64) -> Result<()> {
+    // SAFETY: the synchronized wrapper frees its handle once, then sets it to zero.
+    unsafe { free_handle::<Mutex<VoiceHold>>(handle) };
+    Ok(())
+}
+
+fn hold<'a>(handle: i64) -> Result<MutexGuard<'a, VoiceHold>> {
+    // SAFETY: Kotlin holds the hold while it calls, so it hasn't been freed.
+    unsafe { locked(handle, "voice hold") }
+}
+
+/// `VoiceHold::take`.
+pub fn hold_take(handle: i64, loaded: bool) -> Result<i32> {
+    Ok(hold(handle)?.take(loaded))
+}
+
+/// `VoiceHold::checked`.
+pub fn hold_checked(handle: i64, missing: bool) -> Result<i32> {
+    Ok(hold(handle)?.checked(missing))
+}
+
+/// `VoiceHold::loaded`.
+pub fn hold_loaded(handle: i64, ok: bool) -> Result<()> {
+    hold(handle)?.loaded(ok);
+    Ok(())
+}
+
+/// `VoiceHold::failed_just_now`.
+pub fn hold_failed_just_now(handle: i64) -> Result<bool> {
+    Ok(hold(handle)?.failed_just_now())
+}
+
+/// `VoiceHold::idle`.
+pub fn hold_idle(handle: i64) -> Result<()> {
+    hold(handle)?.idle();
+    Ok(())
+}
+
+/// `VoiceHold::may_free`.
+pub fn hold_may_free(handle: i64) -> Result<bool> {
+    Ok(hold(handle)?.may_free())
+}
+
+/// `lifetime::route`.
+pub fn route(service_up: bool, turned_on: bool) -> Result<i32> {
+    Ok(lifetime::route(service_up, turned_on))
+}
+
+/// `lifetime::still_asked`.
+pub fn still_asked(asked_at: i64, now: i64) -> Result<bool> {
+    Ok(lifetime::still_asked(asked_at, now))
+}
+
+/// The lifetimes Kotlin times: the neural voice's idle wait.
+pub fn lifetimes() -> Result<Vec<i64>> {
+    Ok(vec![lifetime::VOICE_IDLE_MS])
 }

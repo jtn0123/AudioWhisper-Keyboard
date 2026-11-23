@@ -141,6 +141,7 @@ pub const APIS: &[Api] = &[
     reader_runtime::PLAYBACK_QUEUE,
     reading::READING_PLAN,
     reading::READING_RULES,
+    reading::VOICE_HOLD,
     input::INPUT_DISPATCH,
     glide::GLIDE_WORDS,
     glide::GLIDE_INDEX,

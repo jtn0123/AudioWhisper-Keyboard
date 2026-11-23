@@ -34,7 +34,7 @@ import kotlinx.coroutines.withContext
 class ReadAloudService : AccessibilityService() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default.limitedParallelism(1))
     private val stopButton by lazy { StopButton(this, ::stopReading) }
-    private val voices by lazy { LoadedVoice(this, scope) }
+    private val voices by lazy { LoadedVoice(NeuralVoiceSource(this), scope) }
 
     @Volatile
     private var reading: Job? = null

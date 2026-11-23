@@ -3,8 +3,8 @@
 //! Kotlin over it.
 
 use crate::{
-    API, Api, CLASS, Class, Element, HANDLE, Handle, MEMBER, METHOD, Member, Method, Param, Return,
-    Shape,
+    API, Api, CLASS, Class, Element, HANDLE, Handle, Kind, MEMBER, METHOD, Member, Method, Out,
+    Param, Return, Shape,
 };
 
 const HANDLE_PARAM: (&str, Param) = ("handle", Param::Long);
@@ -88,6 +88,37 @@ pub const READING_NATIVE: Class = Class {
             ],
             Return::Int,
         ),
+        method("holdCreate", &[], Return::Long),
+        method("holdFree", &[HANDLE_PARAM], Return::Unit),
+        method(
+            "holdTake",
+            &[HANDLE_PARAM, ("loaded", Param::Boolean)],
+            Return::Int,
+        ),
+        method(
+            "holdChecked",
+            &[HANDLE_PARAM, ("missing", Param::Boolean)],
+            Return::Int,
+        ),
+        method(
+            "holdLoaded",
+            &[HANDLE_PARAM, ("ok", Param::Boolean)],
+            Return::Unit,
+        ),
+        method("holdFailedJustNow", &[HANDLE_PARAM], Return::Boolean),
+        method("holdIdle", &[HANDLE_PARAM], Return::Unit),
+        method("holdMayFree", &[HANDLE_PARAM], Return::Boolean),
+        method(
+            "route",
+            &[("serviceUp", Param::Boolean), ("turnedOn", Param::Boolean)],
+            Return::Int,
+        ),
+        method(
+            "stillAsked",
+            &[("askedAt", Param::Long), ("now", Param::Long)],
+            Return::Boolean,
+        ),
+        method("lifetimes", &[], Return::Array(Element::Long)),
     ],
     ..CLASS
 };
@@ -127,9 +158,61 @@ pub const READING_PLAN: Api = Api {
     ..API
 };
 
+/// A member of `VoiceHold`, calling `hold` + its name capitalised.
+const fn hold(name: &'static str, call: &'static str, doc: &'static str) -> Member {
+    Member {
+        name,
+        doc,
+        call,
+        ..MEMBER
+    }
+}
+
+pub const VOICE_HOLD: Api = Api {
+    name: "VoiceHold",
+    doc: "The neural voice's hold, in Rust (reader::lifetime): whether a reading has it and \
+          whether it wouldn't load. Kotlin keeps the voice and the timer. Closing it frees it, \
+          and a call after that throws.",
+    module: "reading",
+    native: "ReadingNative",
+    shape: Shape::Handle(Handle {
+        create: "holdCreate",
+        free: "holdFree",
+        close: true,
+        synchronized: true,
+        ..HANDLE
+    }),
+    members: &[
+        hold(
+            "take",
+            "holdTake",
+            "A reading takes the voice, [loaded] or not: a `VoiceHoldStep`.",
+        ),
+        hold(
+            "checked",
+            "holdChecked",
+            "After `CHECK`: `NONE` if the files are [missing], else `LOAD`.",
+        ),
+        hold("loaded", "holdLoaded", "The load is over, [ok] or not."),
+        hold(
+            "failedJustNow",
+            "holdFailedJustNow",
+            "Whether the last load failed; true once per failure.",
+        ),
+        hold("idle", "holdIdle", "A reading is over."),
+        hold(
+            "mayFree",
+            "holdMayFree",
+            "Whether the voice may be freed now: no reading has it.",
+        ),
+    ],
+    ..API
+};
+
 pub const READING_RULES: Api = Api {
     name: "ReadingRules",
-    doc: "Which window a reading reads, in Rust (reader::window).",
+    doc: "Which window a reading reads (reader::window), and where a reading asked for goes \
+          (reader::lifetime), in Rust.",
     module: "reading",
     native: "ReadingNative",
     members: &[
@@ -144,6 +227,24 @@ pub const READING_RULES: Api = Api {
             "The bottom of the part of the screen an app between [top] and [bottom] shows, cut \
              to the keyboard at [keyboardTop] if that starts inside it.",
         ),
+        member(
+            "route",
+            "Where a reading asked for goes, the service up if [serviceUp] and turned on if \
+             [turnedOn]: a `ReadRoute`.",
+        ),
+        member(
+            "stillAsked",
+            "Whether a reading asked for at [askedAt] is still wanted at [now], as the service \
+             comes up (uptime ms).",
+        ),
+        Member {
+            name: "voiceIdleMs",
+            doc: "The wait after a reading before the neural voice is freed, in ms.",
+            kind: Kind::Val,
+            call: "lifetimes",
+            result: Out::Then("Long", "[0]"),
+            ..MEMBER
+        },
     ],
     ..API
 };

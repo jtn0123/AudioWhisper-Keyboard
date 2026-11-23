@@ -8,13 +8,8 @@ import com.jtn0123.audiowhisper.dictation.LargeModels
 import com.jtn0123.audiowhisper.dictation.ModelCheck
 import com.jtn0123.audiowhisper.dictation.ModelFiles
 import com.jtn0123.audiowhisper.dictation.ModelState
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.nio.ByteBuffer
@@ -95,61 +90,17 @@ internal class VoiceEngine private constructor(private val tts: SherpaTts) : Aut
     }
 }
 
-/**
- * Keeps the neural voice loaded between readings, so only the first waits for it, and frees it
- * (a few hundred MB) once [IDLE_MS] pass without one.
- */
-internal class LoadedVoice(private val context: Context, private val scope: CoroutineScope) {
-    private val mutex = Mutex()
-    private var engine: VoiceEngine? = null
-    private var release: Job? = null
-    private var inUse = false
+/** The neural voice's files, load and timer, as [LoadedVoice] holds it. */
+internal class NeuralVoiceSource(private val context: Context) : VoiceSource<VoiceEngine> {
+    override fun missing() = VoiceEngine.quickState(context) is ModelState.Missing
 
-    /**
-     * The voice is installed but wouldn't load (damaged, or not enough memory). Remembered until
-     * the service restarts, so each reading doesn't retry a load of hundreds of MB first.
-     */
-    private var failed = false
-    private var justFailed = false
+    override fun loading() = LargeModels.loading(LargeModels.Kind.VOICE)
 
-    init {
-        LargeModels.register(LargeModels.Kind.VOICE) { scope.launch { mutex.withLock { if (!inUse) free() } } }
-    }
+    override suspend fun load() = withContext(Dispatchers.IO) { VoiceEngine.load(context) }
 
-    /** The voice, loading it if need be; null if it isn't installed or won't load. */
-    suspend fun take(): VoiceEngine? = mutex.withLock {
-        inUse = true
-        engine?.let { return@withLock it }
-        if (failed || VoiceEngine.quickState(context) is ModelState.Missing) return@withLock null
-        LargeModels.loading(LargeModels.Kind.VOICE)
-        withContext(Dispatchers.IO) { VoiceEngine.load(context) }
-            .also { engine = it; failed = it == null; justFailed = failed }
-    }
+    override fun register(evict: () -> Unit) = LargeModels.register(LargeModels.Kind.VOICE, evict)
 
-    /** Whether the last [take] found the voice won't load; true once per failure, to say so once. */
-    suspend fun failedJustNow(): Boolean = mutex.withLock { justFailed.also { justFailed = false } }
+    override fun unregister() = LargeModels.unregister(LargeModels.Kind.VOICE)
 
-    /** A reading is over: free the voice unless another starts soon. */
-    suspend fun idle() {
-        mutex.withLock { inUse = false }
-        release?.cancel()
-        release = scope.launch {
-            delay(IDLE_MS)
-            mutex.withLock { if (!inUse) free() }
-        }
-    }
-
-    suspend fun close() {
-        LargeModels.unregister(LargeModels.Kind.VOICE)
-        mutex.withLock { free() }
-    }
-
-    private fun free() {
-        engine?.close()
-        engine = null
-    }
-
-    private companion object {
-        const val IDLE_MS = 3 * 60_000L
-    }
+    override suspend fun wait(ms: Long) = delay(ms)
 }

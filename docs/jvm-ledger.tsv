@@ -28,9 +28,10 @@ app/src/main/kotlin/com/jtn0123/audiowhisper/reader/FollowAlong.kt	M	50	Accessib
 app/src/main/kotlin/com/jtn0123/audiowhisper/reader/LitSpeaker.kt	K	27	Compose keyboard (keyboard scope): deleted at compose-removal step K
 app/src/main/kotlin/com/jtn0123/audiowhisper/reader/NeuralVoice.kt	M	113	AudioTrack; queue/idle/error handling around native synthesis |
 app/src/main/kotlin/com/jtn0123/audiowhisper/reader/OfflineVoice.kt	M	25	TextToSpeech.Voice facts are platform; the rule is Rust (ReaderRules.offlineVoice), but the language and country fallback chosen before the call is Kotlin and moves to Rust
+app/src/main/kotlin/com/jtn0123/audiowhisper/reader/LoadedVoice.kt	A	63	new (phase 5): keeps the neural voice, its lock and its idle timer; when to load, use or free it is reader::lifetime's (VoiceHold) |
 app/src/main/kotlin/com/jtn0123/audiowhisper/reader/PageText.kt	M	52	Java BreakIterator sentence facts; consolidate portable block/reveal DTO orchestration |
 app/src/main/kotlin/com/jtn0123/audiowhisper/reader/PlayQueue.kt	A	20	ART JNI; native playback queue transport |
-app/src/main/kotlin/com/jtn0123/audiowhisper/reader/ReadAloud.kt	M	87	AccessibilityService / Intent / Toast; reading status and attachment orchestration |
+app/src/main/kotlin/com/jtn0123/audiowhisper/reader/ReadAloud.kt	A	90	AccessibilityService / Intent / Toast; +3 (phase 5): asks reader::lifetime where a reading goes and whether a waiting one is still wanted, keeping the service, the Settings read and the toast |
 app/src/main/kotlin/com/jtn0123/audiowhisper/reader/ReadAloudService.kt	A	110	AccessibilityService: windows, the node cache, toasts, the stop button and voices as a ReadingHost; the session's steps and the window choice are Rust's (reader::reading, reader::window, phase 5) |
 app/src/main/kotlin/com/jtn0123/audiowhisper/reader/Reading.kt	A	127	new (phase 5): runs reader::reading's effects on a ReadingHost and answers them, keeping the screens' nodes and the voice; the end of a reading stays here as it must run once cancelled |
 app/src/main/kotlin/com/jtn0123/audiowhisper/reader/ReadFromHereActivity.kt	A	12	Activity / Intent ACTION_PROCESS_TEXT; forwards platform selection |
@@ -39,7 +40,7 @@ app/src/main/kotlin/com/jtn0123/audiowhisper/reader/Speaker.kt	M	77	TextToSpeech
 app/src/main/kotlin/com/jtn0123/audiowhisper/reader/SpeakerKey.kt	A	14	SystemClock / ART JNI; native hold-state transport |
 app/src/main/kotlin/com/jtn0123/audiowhisper/reader/StopButton.kt	M	63	WindowManager TYPE_ACCESSIBILITY_OVERLAY; Rust must draw/layout the stop control |
 app/src/main/kotlin/com/jtn0123/audiowhisper/reader/Voice.kt	A	29	AudioManager.requestAudioFocus / abandonAudioFocusRequest |
-app/src/main/kotlin/com/jtn0123/audiowhisper/reader/VoiceEngine.kt	M	107	Context files / SystemClock; model idle/failure/cross-model eviction state |
+app/src/main/kotlin/com/jtn0123/audiowhisper/reader/VoiceEngine.kt	A	71	Context files / SystemClock / sherpa load; the hold's decisions moved to reader::lifetime (phase 5), and NeuralVoiceSource is the Android side of LoadedVoice |
 app/src/main/kotlin/com/jtn0123/audiowhisper/render/AccessibilityRelease.kt	P	25	hover/hold release target choice and hit testing |
 app/src/main/kotlin/com/jtn0123/audiowhisper/render/InputViewVisibility.kt	M	12	View window visibility; the told-visibility state is Kotlin, and the retell rule is Rust (ImeWindowRules.retellVisible)
 app/src/main/kotlin/com/jtn0123/audiowhisper/render/KeyGraphRows.kt	M	94	LayoutManager files / java.util.Locale casing; the key graph's build row from the asset and extension files a mode needs, its facts row from the evaluator, and Android's casing answers (phase 3 item 2) | raised 86 to 94 (phase 3 item 3): the build row takes the subtype's layouts, popup mapping and cache key from Rust's facts (subtypeFiles, subtypeKeyboard) in place of Subtype and hashCode(), one helper the seeded trace drives
