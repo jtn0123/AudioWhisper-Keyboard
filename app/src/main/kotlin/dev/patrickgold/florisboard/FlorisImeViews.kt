@@ -16,7 +16,6 @@
 
 package dev.patrickgold.florisboard
 
-import dev.patrickgold.jetpref.datastore.model.observeAsState
 
 import android.content.Context
 import android.inputmethodservice.ExtractEditText
@@ -112,8 +111,6 @@ internal class FlorisBottomSheetHostUiView(context: Context) : AbstractComposeVi
         val context = LocalContext.current
         val keyboardManager by context.keyboardManager()
         val state by keyboardManager.activeState.collectAsState()
-        val prefs by dev.patrickgold.florisboard.app.FlorisPreferenceStore
-        val rustPrototype by prefs.keyboard.rustRendererPrototype.observeAsState()
 
         ProvideLocalizedResources(
             service.resourcesContext,
@@ -121,12 +118,8 @@ internal class FlorisBottomSheetHostUiView(context: Context) : AbstractComposeVi
             forceLayoutDirection = LayoutDirection.Ltr,
         ) {
             FlorisImeTheme {
-                if (rustPrototype) {
-                    if (state.isSubtypeSelectionShowing()) com.jtn0123.audiowhisper.render.RustSubtypeSheet()
-                    return@FlorisImeTheme
-                }
                 BottomSheetHostUi(
-                    isShowing = !rustPrototype && (state.isBottomSheetShowing() || state.isSubtypeSelectionShowing()),
+                    isShowing = state.isBottomSheetShowing() || state.isSubtypeSelectionShowing(),
                     onHide = {
                         if (state.isBottomSheetShowing()) {
                             keyboardManager.activeState.isActionsEditorVisible = false
@@ -136,10 +129,10 @@ internal class FlorisBottomSheetHostUiView(context: Context) : AbstractComposeVi
                         }
                     },
                 ) {
-                    if (state.isBottomSheetShowing() && !rustPrototype) {
+                    if (state.isBottomSheetShowing()) {
                         QuickActionsEditorPanel()
                     }
-                    if (state.isSubtypeSelectionShowing() && !rustPrototype) {
+                    if (state.isSubtypeSelectionShowing()) {
                         SelectSubtypePanel()
                     }
                 }
@@ -180,12 +173,6 @@ internal class ComposeExtractedLandscapeInputView @JvmOverloads constructor(
     @Composable
     fun Content() {
         val service = service ?: return
-        val prefs by dev.patrickgold.florisboard.app.FlorisPreferenceStore
-        val rustPrototype by prefs.keyboard.rustRendererPrototype.observeAsState()
-        if (rustPrototype) {
-            NativeExtractContent(service, extractEditText)
-            return
-        }
         ProvideLocalizedResources(
             service.resourcesContext,
             appName = R.string.floris_app_name,

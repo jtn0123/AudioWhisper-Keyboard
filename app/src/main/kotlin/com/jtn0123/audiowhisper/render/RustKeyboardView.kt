@@ -72,6 +72,8 @@ class RustKeyboardView(context: Context) : FrameLayout(context), SurfaceHolder.C
     private var snapshot: KeyboardSnapshot? = null
     /** Rows the surface reaches above this view, which Rust keeps clear for a top-row key's popup. */
     private var headroom = 0
+    /** Whether the surface is above the window, see [rise]. */
+    private var risen = false
     private var liveSurface = false
     private var surfaceReady = false
     private var framePending = false
@@ -403,6 +405,18 @@ class RustKeyboardView(context: Context) : FrameLayout(context), SurfaceHolder.C
         if (Log.isLoggable(PROFILE_LOG_TAG, Log.DEBUG)) {
             Log.d(PROFILE_LOG_TAG, "view event=${event.code} id=${System.identityHashCode(this)} live=${if (liveSurface) 1 else 0} released=${if (released) 1 else 0}")
         }
+    }
+
+    /**
+     * Puts the surface above the window while [up], so a popup or press bubble above the keys
+     * shows over full-screen's extract view; and back under it, where the window's accessibility
+     * focus shows over the keys. Only the surface's layer moves: it is not recreated.
+     */
+    internal fun rise(up: Boolean) {
+        if (up == risen || released) return
+        risen = up
+        if (up) surface.setZOrderOnTop(true) else surface.setZOrderMediaOverlay(true)
+        surface.invalidate()
     }
 
     override fun onLayout(changed: Boolean, left: Int, top: Int, right: Int, bottom: Int) {

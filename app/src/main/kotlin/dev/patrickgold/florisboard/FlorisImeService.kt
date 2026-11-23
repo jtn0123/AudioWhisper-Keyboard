@@ -41,6 +41,9 @@ import androidx.lifecycle.lifecycleScope
 import com.jtn0123.audiowhisper.dictation.Dictation
 import com.jtn0123.audiowhisper.dictation.DictationFields
 import com.jtn0123.audiowhisper.gif.GifSearch
+import com.jtn0123.audiowhisper.render.ImeExtractView
+import com.jtn0123.audiowhisper.render.ImeRootView
+import com.jtn0123.audiowhisper.render.ImeSubtypeSheet
 import com.jtn0123.audiowhisper.rust.DictationRules
 import dev.patrickgold.florisboard.app.FlorisAppActivity
 import dev.patrickgold.florisboard.app.FlorisPreferenceModel
@@ -170,6 +173,8 @@ class FlorisImeService : LifecycleInputMethodService() {
 
     private val activeState get() = keyboardManager.activeState
     private var inputWindowView by mutableStateOf<View?>(null)
+    /** What covers the whole window for the subtype sheet, Compose's or the plain-View root's. */
+    private var sheetView: View? = null
     internal var inputViewSize by mutableStateOf(IntSize.Zero)
     internal val inputFeedbackController by lazy { InputFeedbackController.new(this) }
     private var isWindowShown: Boolean = false
@@ -202,6 +207,7 @@ class FlorisImeService : LifecycleInputMethodService() {
                 config.setLocale(subtype.primaryLocale.base)
             }
             resourcesContext = createConfigurationContext(config)
+            (inputWindowView as? ImeRootView)?.refresh()
         }
         prefs.localization.displayKeyboardLabelsInSubtypeLanguage.asFlow().collectIn(lifecycleScope) { shouldSync ->
             val config = Configuration(resources.configuration)
@@ -209,6 +215,13 @@ class FlorisImeService : LifecycleInputMethodService() {
                 config.setLocale(subtypeManager.activeSubtype.primaryLocale.base)
             }
             resourcesContext = createConfigurationContext(config)
+            (inputWindowView as? ImeRootView)?.refresh()
+        }
+        // AudioWhisper: the renderer setting picks the root; switching it swaps the root in place.
+        prefs.keyboard.rustRendererPrototype.asFlow().collectIn(lifecycleScope) { rust ->
+            if (inputWindowView == null || (inputWindowView is ImeRootView) == rust) return@collectIn
+            setInputView(onCreateInputView())
+            onCreateExtractTextView()?.let(::setExtractView)
         }
         prefs.physicalKeyboard.showOnScreenKeyboard.asFlow().collectIn(lifecycleScope) {
             updateInputViewShown()
@@ -218,13 +231,14 @@ class FlorisImeService : LifecycleInputMethodService() {
         if (!engine) return com.jtn0123.audiowhisper.settingsui.PlatformCrashScreen.inputView(this)
         val timingStart = com.jtn0123.audiowhisper.render.RendererHostTiming.start()
         super.installViewTreeOwners()
-        // Instantiate and install bottom sheet host UI view
-        val bottomSheetView = FlorisBottomSheetHostUiView(this)
-        window.window!!.findViewById<ViewGroup>(android.R.id.content).addView(bottomSheetView)
-        // Instantiate and return input view
-        val composeView = ComposeInputView(this)
-        inputWindowView = composeView
-        return com.jtn0123.audiowhisper.render.RendererHostTiming.created(composeView, timingStart, prefs.keyboard.rustRendererPrototype.get())
+        // AudioWhisper: with the Rust renderer on, plain Views and no composition.
+        val rust = prefs.keyboard.rustRendererPrototype.get()
+        val content = window.window!!.findViewById<ViewGroup>(android.R.id.content)
+        sheetView?.let(content::removeView)
+        sheetView = (if (rust) ImeSubtypeSheet(this) else FlorisBottomSheetHostUiView(this)).also(content::addView)
+        val view = if (rust) ImeRootView(this) else ComposeInputView(this)
+        inputWindowView = view
+        return com.jtn0123.audiowhisper.render.RendererHostTiming.created(view, timingStart, rust)
     }
     override fun onCreateCandidatesView(): View? {
         // Disable the default candidates view
@@ -234,14 +248,16 @@ class FlorisImeService : LifecycleInputMethodService() {
         if (!engine) return super.onCreateExtractTextView()
         super.installViewTreeOwners()
         val defaultExtractView = super.onCreateExtractTextView()
+        val rust = prefs.keyboard.rustRendererPrototype.get()
         if (defaultExtractView == null || defaultExtractView !is ViewGroup) {
-            return ComposeExtractedLandscapeInputView(this, null)
+            return if (rust) ImeExtractView(this, ExtractEditText(this)) else ComposeExtractedLandscapeInputView(this, null)
         }
         val extractEditText = defaultExtractView.findViewById<ExtractEditText>(android.R.id.inputExtractEditText)
         (extractEditText?.parent as? ViewGroup)?.removeView(extractEditText)
         defaultExtractView.apply {
             removeAllViews()
-            addView(ComposeExtractedLandscapeInputView(this@FlorisImeService, extractEditText))
+            addView(if (rust) ImeExtractView(this@FlorisImeService, extractEditText ?: ExtractEditText(context))
+                else ComposeExtractedLandscapeInputView(this@FlorisImeService, extractEditText))
         }
         return defaultExtractView
     }
@@ -336,6 +352,7 @@ class FlorisImeService : LifecycleInputMethodService() {
         // AudioWhisper: hiding told the input view its window was gone; showing again before
         // the window really hid tells it nothing, and the Rust keyboard drew no keys.
         (inputWindowView as? ComposeInputView)?.windowShown()
+        (inputWindowView as? ImeRootView)?.windowShown()
         if (isWindowShown) {
             flogWarning(LogTopic.IMS_EVENTS) { "Ignoring (is already shown)" }
             return
@@ -411,6 +428,7 @@ class FlorisImeService : LifecycleInputMethodService() {
         if (!engine) return
         isFullscreenUiMode = isFullscreenMode
         updateSoftInputWindowLayoutParameters()
+        (inputWindowView as? ImeRootView)?.refresh()
     }
     override fun onUpdateExtractingVisibility(info: EditorInfo?) {
         if (!engine) return super.onUpdateExtractingVisibility(info)
@@ -426,6 +444,7 @@ class FlorisImeService : LifecycleInputMethodService() {
     override fun setExtractViewShown(shown: Boolean) {
         super.setExtractViewShown(shown)
         isExtractUiShown = shown
+        (inputWindowView as? ImeRootView)?.refresh()
     }
     override fun onCreateInlineSuggestionsRequest(uiExtras: Bundle) = if (engine) createInlineSuggestionsRequest() else null
     override fun onInlineSuggestionsResponse(response: InlineSuggestionsResponse) = engine && receiveInlineSuggestions(response)

@@ -44,7 +44,6 @@ import dev.patrickgold.florisboard.ime.input.LocalInputFeedbackController
 import dev.patrickgold.florisboard.ime.keyboard.ProvideKeyboardRowBaseHeight
 import dev.patrickgold.florisboard.ime.media.MediaInputLayout
 import dev.patrickgold.florisboard.ime.onehanded.OneHandedMode
-import com.jtn0123.audiowhisper.render.RustOneHandedPanel
 import dev.patrickgold.florisboard.ime.onehanded.OneHandedPanel
 import dev.patrickgold.florisboard.ime.text.TextInputLayout
 import dev.patrickgold.florisboard.ime.theme.FlorisImeTheme
@@ -86,8 +85,6 @@ internal fun FlorisImeService.ImeUiWrapper() {
 @Composable
 private fun FlorisImeService.ImeUi() {
     val state by keyboardManager.activeState.collectAsState()
-    val evaluator by keyboardManager.activeEvaluator.collectAsState()
-    val rustPrototype by prefs.keyboard.rustRendererPrototype.observeAsState()
     val attributes = mapOf(
         FlorisImeUi.Attr.Mode to state.keyboardMode.toString(),
         FlorisImeUi.Attr.ShiftState to state.inputShiftState.toString(),
@@ -137,8 +134,7 @@ private fun FlorisImeService.ImeUi() {
                     oneHandedModeScaleFactor, if (oneHandedMode == OneHandedMode.END) 1 else 0))
                 val keyboardWeight = geometry[0]
                 if (oneHandedModeEnabled && oneHandedMode == OneHandedMode.END && configuration.isOrientationPortrait()) {
-                    if (rustPrototype) RustOneHandedPanel(OneHandedMode.START, geometry[1])
-                    else OneHandedPanel(panelSide = OneHandedMode.START, weight = geometry[1])
+                    OneHandedPanel(panelSide = OneHandedMode.START, weight = geometry[1])
                 }
                 CompositionLocalProvider(LocalLayoutDirection provides layoutDirection) {
                     Box(
@@ -146,9 +142,7 @@ private fun FlorisImeService.ImeUi() {
                             .weight(keyboardWeight)
                             .wrapContentHeight(),
                     ) {
-                        if (rustPrototype) {
-                            com.jtn0123.audiowhisper.render.RustKeyboardLayout(evaluator)
-                        } else when (state.imeUiMode) {
+                        when (state.imeUiMode) {
                             ImeUiMode.TEXT -> TextInputLayout()
                             ImeUiMode.MEDIA -> MediaInputLayout()
                             ImeUiMode.CLIPBOARD -> ClipboardInputLayout()
@@ -156,8 +150,7 @@ private fun FlorisImeService.ImeUi() {
                     }
                 }
                 if (oneHandedModeEnabled && oneHandedMode == OneHandedMode.START && configuration.isOrientationPortrait()) {
-                    if (rustPrototype) RustOneHandedPanel(OneHandedMode.END, geometry[2])
-                    else OneHandedPanel(panelSide = OneHandedMode.END, weight = geometry[2])
+                    OneHandedPanel(panelSide = OneHandedMode.END, weight = geometry[2])
                 }
             }
         }

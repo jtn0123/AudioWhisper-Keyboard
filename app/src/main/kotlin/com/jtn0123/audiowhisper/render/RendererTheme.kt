@@ -1,27 +1,16 @@
 package com.jtn0123.audiowhisper.render
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.isSpecified
 import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
 import com.jtn0123.audiowhisper.rust.ImeTheme
 import com.jtn0123.audiowhisper.rust.ImeThemeAccent
 import com.jtn0123.audiowhisper.rust.ImeThemeChip
 import com.jtn0123.audiowhisper.rust.ImeThemeInline
 import com.jtn0123.audiowhisper.rust.ImeThemeRule
 import com.jtn0123.audiowhisper.rust.WireFlag
-import dev.patrickgold.florisboard.app.FlorisPreferenceStore
 import dev.patrickgold.florisboard.ime.theme.ThemeManager
-import dev.patrickgold.florisboard.keyboardManager
-import dev.patrickgold.florisboard.themeManager
-import dev.patrickgold.jetpref.datastore.model.observeAsState
 import org.florisboard.lib.color.MaterialYouFlags
-import org.florisboard.lib.color.getSystemAccent
 import org.florisboard.lib.snygg.ui.SnyggPalette
 import org.florisboard.lib.snygg.ui.snyggPalette
 
@@ -57,29 +46,6 @@ internal fun rendererTheme(
     mode: String = "characters", shift: String = "unshifted",
 ) = RendererTheme(info.stylesheetJson, palette.names, palette.colors, density, fontScale, multiplier, mode, shift)
 
-/** The palette the active theme [info] is drawn in, made again only when the accent or the theme's flags change. */
-@Composable
-internal fun rememberThemePalette(info: ThemeManager.ThemeInfo): SnyggPalette {
-    val prefs by FlorisPreferenceStore
-    val accent by prefs.theme.accentColor.observeAsState()
-    val system = getSystemAccent()
-    val flags = info.config.materialYouFlags
-    return remember(accent, system, flags) { themePalette(accent, { system }, flags) }
-}
-
-@Composable
-internal fun rendererTheme(): RendererTheme {
-    val keyboard by LocalContext.current.keyboardManager()
-    val state by keyboard.activeState.collectAsState()
-    val mode = state.keyboardMode.toString()
-    val shift = state.inputShiftState.toString()
-    val manager by LocalContext.current.themeManager()
-    val active by manager.activeThemeInfo.collectAsState()
-    val palette = rememberThemePalette(active)
-    val density = LocalDensity.current
-    val prefs by FlorisPreferenceStore
-    val multiplier = prefs.keyboard.fontSizeMultiplier()
-    return remember(active, palette, density, multiplier, mode, shift) {
-        rendererTheme(active, palette, density.density, density.fontScale, multiplier, mode, shift)
-    }
-}
+/** What the renderer draws in: a stylesheet, its palette, the display's scale and the keyboard's state. */
+data class RendererTheme(val json: String, val paletteNames: List<String>, val paletteColors: List<Int>,
+    val density: Float, val fontScale: Float, val fontMultiplier: Float, val mode: String = "characters", val shift: String = "unshifted")

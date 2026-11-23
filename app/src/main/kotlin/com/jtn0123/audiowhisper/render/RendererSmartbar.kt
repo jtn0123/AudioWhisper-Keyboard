@@ -13,11 +13,9 @@ import androidx.compose.material.icons.filled.UnfoldMore
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.res.vectorResource
 import com.jtn0123.audiowhisper.rust.KeyGraph
 import com.jtn0123.audiowhisper.rust.SmartbarAction
 import com.jtn0123.audiowhisper.rust.SmartbarActionKind
@@ -28,16 +26,13 @@ import com.jtn0123.audiowhisper.rust.SmartbarPlan
 import com.jtn0123.audiowhisper.rust.SmartbarRules
 import com.jtn0123.audiowhisper.rust.WireFlag
 import com.jtn0123.audiowhisper.rust.RenderProtocol.*
-import dev.patrickgold.florisboard.R
 import dev.patrickgold.florisboard.app.FlorisPreferenceStore
 import dev.patrickgold.florisboard.ime.keyboard.FlorisImeSizing
 import dev.patrickgold.florisboard.ime.keyboard.keyIconVector
 import dev.patrickgold.florisboard.ime.smartbar.IncognitoDisplayMode
 import dev.patrickgold.florisboard.ime.smartbar.quickaction.QuickAction
 import dev.patrickgold.florisboard.ime.smartbar.quickaction.keyData
-import dev.patrickgold.florisboard.ime.smartbar.quickaction.computeTooltip
 import dev.patrickgold.florisboard.ime.text.keyboard.TextKeyData
-import dev.patrickgold.florisboard.keyboardManager
 import dev.patrickgold.florisboard.nlpManager
 import dev.patrickgold.jetpref.datastore.model.observeAsState
 import kotlinx.coroutines.launch
@@ -83,38 +78,40 @@ internal fun smartbarConfig(preview: Boolean, inline: Boolean): FloatArray = wit
         bit(dictation != Dictation.Status.IDLE), bit(reading == ReadAloud.Status.READING))
 }
 
-/** Platform settings, evaluated action icons and handlers; all placement decisions are native. */
-@Composable
-internal fun rendererSmartbar(preview: Boolean, inline: Boolean = false): RendererSmartbar {
-    val context = LocalContext.current
-    val prefs by FlorisPreferenceStore
-    val manager by context.keyboardManager()
-    val dictation by Dictation.status.collectAsState()
-    val level by Dictation.level.collectAsState()
-    val warming by Dictation.warming.collectAsState()
-    val evaluator by manager.activeSmartbarEvaluator.collectAsState()
-    val keyboard by manager.activeEvaluator.collectAsState()
-    val config = smartbarConfig(preview, inline)
-    val arrangement by prefs.smartbar.actionArrangement.observeAsState()
-    val incognitoMode by prefs.keyboard.incognitoDisplayMode.observeAsState()
-    val scope = rememberCoroutineScope()
+/** [smartbarConfig]'s facts read without Compose, the density and row height left for Rust's plan. */
+internal fun smartbarFacts(r: RootReads, preview: Boolean, inline: Boolean): FloatArray = with(r.prefs.smartbar) {
+    fun bit(value: Boolean) = if (value) 1f else 0f
+    val arrangement = actionArrangement.get()
+    floatArrayOf(bit(enabled.get()), layout.get().ordinal.toFloat(), bit(flipToggles.get()), bit(sharedActionsExpanded.get()),
+        bit(extendedActionsExpanded.get()), extendedActionsPlacement.get().ordinal.toFloat(), bit(showReadAloud.get()),
+        bit(arrangement.stickyAction != null), arrangement.dynamicActions.size.toFloat(),
+        r.prefs.suggestion.displayMode.get().ordinal.toFloat(), 0f, 0f, bit(inline), bit(preview),
+        bit(r.nlp.activeCandidatesWordsFlow.value), bit(Dictation.status.value != Dictation.Status.IDLE),
+        bit(ReadAloud.status.value == ReadAloud.Status.READING))
+}
+
+/** Platform settings, evaluated action icons and handlers for the Smartbar [config]; all placement decisions are native. */
+internal fun rendererSmartbar(r: RootReads, config: FloatArray): RendererSmartbar {
+    val manager = r.keyboard
+    val evaluator = manager.activeSmartbarEvaluator.value
+    val arrangement = r.prefs.smartbar.actionArrangement.get()
     // Slot 2 was the pinned emoji, now the bottom row's emoji key; Rust never places it.
     val actions = listOf(arrangement.stickyAction, QuickAction.InsertKey(TextKeyData.READ_ALOUD),
         null, QuickAction.InsertKey(TextKeyData.TOGGLE_ACTIONS_OVERFLOW), null) + arrangement.dynamicActions
-    val shown = SmartbarShown(config, smartbarBar(incognitoMode, evaluator.state.isIncognitoMode, dictation, level, warming),
-        actions, RustKeyboard.of(keyboard.keyboard).graph)
-    val incognito = if (SmartbarIcon.INCOGNITO in shown.icons) ImageVector.vectorResource(R.drawable.ic_incognito) else null
-    val tooltips = actions.map { it?.computeTooltip(evaluator) ?: "" }
+    val bar = smartbarBar(r.prefs.keyboard.incognitoDisplayMode.get(), evaluator.state.isIncognitoMode,
+        Dictation.status.value, Dictation.level.value, Dictation.warming.value)
+    val shown = SmartbarShown(config, bar, actions, RustKeyboard.of(manager.activeEvaluator.value.keyboard).graph)
+    val incognito = if (SmartbarIcon.INCOGNITO in shown.icons) r.incognito else null
     val labels = actions.indices.flatMap {
-        listOf(shown.icon(it, incognito, context)?.let(::iconPath) ?: "", shown.label(it))
+        listOf(shown.icon(it, incognito, r.service)?.let(::iconPath) ?: "", shown.label(it))
     }.toTypedArray()
-    return RendererSmartbar(config, actions, shown.codes, labels, tooltips, warming,
+    return RendererSmartbar(config, actions, shown.codes, labels, actions.map { it?.let(r::tooltip) ?: "" }, Dictation.warming.value,
         listOfNotNull(KeyCode.TOGGLE_INCOGNITO_MODE.takeIf { evaluator.state.isIncognitoMode },
-            KeyCode.TOGGLE_COMPACT_LAYOUT.takeIf { prefs.keyboard.oneHandedModeEnabled.get() }).toIntArray()) {
+            KeyCode.TOGGLE_COMPACT_LAYOUT.takeIf { r.prefs.keyboard.oneHandedModeEnabled.get() }).toIntArray()) {
         if (shown.expanded) manager.activeState.isActionsOverflowVisible = false
-        scope.launch {
-            if (shown.togglesExtended) prefs.smartbar.extendedActionsExpanded.set(!shown.expanded)
-            else prefs.smartbar.sharedActionsExpanded.set(!shown.expanded)
+        r.scope.launch {
+            if (shown.togglesExtended) r.prefs.smartbar.extendedActionsExpanded.set(!shown.expanded)
+            else r.prefs.smartbar.sharedActionsExpanded.set(!shown.expanded)
         }
     }
 }
