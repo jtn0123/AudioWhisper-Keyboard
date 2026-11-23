@@ -2,8 +2,9 @@ package com.jtn0123.audiowhisper.settingsui
 
 import com.jtn0123.audiowhisper.rust.KeyboardRenderer
 import com.jtn0123.audiowhisper.rust.SettingsUiOp
-import dev.patrickgold.florisboard.app.ReferenceSettingsModel
-import dev.patrickgold.florisboard.app.referenceSettingsBounds
+import com.jtn0123.audiowhisper.rust.SettingsRules
+import dev.patrickgold.florisboard.app.FlorisPreferenceModelImpl
+import dev.patrickgold.florisboard.app.sliderKeys
 import dev.patrickgold.jetpref.datastore.model.PreferenceData
 import kotlinx.serialization.json.*
 import kotlin.math.roundToInt
@@ -14,7 +15,10 @@ import kotlin.test.*
 class SettingsGroupOneMatchTest {
     private val ref = ReferenceGroupOneScreens
     private fun <T : Any> raw(p: PreferenceData<T>) = p.serializer.serialize(p.default).orEmpty()
-    private fun defaults() = ReferenceSettingsModel().declaredPreferenceEntries.values.associate { it.key to raw(it) }
+    private fun defaults() = FlorisPreferenceModelImpl().declaredPreferenceEntries.values.associate { it.key to raw(it) }
+    /** A slider's minimum, maximum and step, as the catalogue states them. */
+    private fun bounds(key: String) =
+        listOf(SettingsRules.minimum(key), SettingsRules.maximum(key), SettingsRules.step(key)).map { it.toFloat() }
     private fun state(n: KeyboardRenderer, op: SettingsUiOp = SettingsUiOp.SAVE, vararg input: String) = Json.parseToJsonElement(n.settings(op, arrayOf(*input))[0]).jsonObject
     private fun nodes(s: JsonObject) = s.getValue("nodes").jsonArray.map { it.jsonObject }
     private fun effects(s: JsonObject) = s.getValue("effects").jsonArray.map { a -> a.jsonArray.map { it.jsonPrimitive.content } }
@@ -35,7 +39,7 @@ class SettingsGroupOneMatchTest {
         for (screen in ref.screens) for (row in screen.rows) {
             if (row.kind in listOf("heading", "fixed", "confirm")) continue
             for (key in listOf(row.key, row.switch, row.second).filter { it.isNotEmpty() }) assertTrue(key in declared, key)
-            if (row.kind == "slider") assertTrue(row.key in referenceSettingsBounds, row.key)
+            if (row.kind == "slider") assertTrue(row.key in sliderKeys, row.key)
         }
     }
 
@@ -99,7 +103,7 @@ class SettingsGroupOneMatchTest {
             if (row.switch.isNotEmpty() && random.nextInt(3) == 0) { state(n, SettingsUiOp.ACTIVATE, "8"); switchValue = !switchValue }
         } else {
             for ((slot, key) in keys.withIndex()) {
-                val (min, max, step) = referenceSettingsBounds.getValue(key).map { it.toFloat() }
+                val (min, max, step) = bounds(key)
                 val input = min - 10f + random.nextFloat() * (max - min + 20f)
                 val value = (min + ((input.coerceIn(min, max) - min) / step).roundToInt() * step).coerceIn(min, max).toInt().toString()
                 val moved = effects(state(n, SettingsUiOp.SLIDER, (4000 + slot).toString(), input.toString()))
@@ -154,7 +158,7 @@ class SettingsGroupOneMatchTest {
         KeyboardRenderer(emptyArray()).use { n ->
             val requests = n.settings(SettingsUiOp.PLURALS)[2].split("\n").toSet()
             val expected = ref.plurals.map { (key, plural) ->
-                val (min, max) = referenceSettingsBounds.getValue(key).map { it.toInt() }
+                val (min, max) = bounds(key).map { it.toInt() }
                 "$plural|$min|$max"
             }.toSet()
             assertEquals(expected + ReferenceOtherThemeScreens.dialPlurals, requests)

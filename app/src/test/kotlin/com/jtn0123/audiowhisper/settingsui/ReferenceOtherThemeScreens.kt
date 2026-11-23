@@ -1,7 +1,7 @@
 package com.jtn0123.audiowhisper.settingsui
 
 import androidx.compose.ui.graphics.Color
-import dev.patrickgold.florisboard.app.ReferenceSettingsModel
+import dev.patrickgold.florisboard.app.FlorisPreferenceModelImpl
 import dev.patrickgold.jetpref.datastore.model.LocalTime
 import dev.patrickgold.jetpref.material.ui.ColorRepresentation
 import dev.patrickgold.jetpref.material.ui.JetPrefColorPickerState
@@ -111,7 +111,7 @@ internal object ReferenceOtherThemeScreens {
      */
     val dialPlurals = setOf("settings__time_picker__hour_24h_suffix|0|23", "settings__time_picker__minute_suffix|0|55")
 
-    private val model = ReferenceSettingsModel()
+    private val model = FlorisPreferenceModelImpl()
     /** The preference as Jetpref reads it: its serializer's value, or the default when that fails. */
     private fun read(key: String, f: Facts): Any {
         val pref = model.declaredPreferenceEntries.values.first { it.key == key }

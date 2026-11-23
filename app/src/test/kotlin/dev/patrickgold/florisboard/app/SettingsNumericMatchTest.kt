@@ -4,7 +4,6 @@ import com.jtn0123.audiowhisper.golden.GoldenTape
 import com.jtn0123.audiowhisper.settings.SettingsCodecs
 import kotlin.random.Random
 import kotlin.test.Test
-import kotlin.test.assertEquals
 
 class SettingsNumericMatchTest {
     @Test fun storedJsonIntegerAndExponentAdmissionMatchesTheOriginalLexer() {
@@ -14,16 +13,11 @@ class SettingsNumericMatchTest {
         val numbers=directed+List(10000) {
             buildString {repeat(random.nextInt(0,30)) {append("0123456789eE+-.$".random(random))}}
         }+List(10000) { "${random.nextLong()}e${random.nextInt(-330,310)}" }
-        // The reference's answers also go on a golden tape (docs/phase6-kotlin-references.md).
-        val tape=GoldenTape.ofReference("settings-codec-numbers")
+        val tape=GoldenTape("settings-codec-numbers")
         for(number in numbers) for(quoted in listOf(false,true)) {
             val token=if(quoted) "\"$number\"" else number
             val raw="[{\"id\":$token,\"primaryLocale\":\"en-US\",\"secondaryLocales\":[],\"composer\":\"a:b\",\"currencySet\":\"a:b\",\"popupMapping\":\"a:b\",\"layoutMap\":{}}]"
-            val expected=runCatching {ReferenceSettingsCodecs.subtypes(ReferenceSettingsCodecs.subtypes(raw))}
-            val actual=runCatching {SettingsCodecs.subtypes(SettingsCodecs.subtypes(raw))}
-            tape.record(expected.fold({ "ok $it" }, { "refused" }))
-            assertEquals(expected.isSuccess,actual.isSuccess,"synthetic numeric index ${numbers.indexOf(number)} quoted=$quoted")
-            if(expected.isSuccess) assertEquals(expected.getOrThrow(),actual.getOrThrow())
+            tape.record(runCatching {SettingsCodecs.subtypes(SettingsCodecs.subtypes(raw))}.fold({ "ok $it" }, { "refused" }))
         }
         tape.finish()
     }

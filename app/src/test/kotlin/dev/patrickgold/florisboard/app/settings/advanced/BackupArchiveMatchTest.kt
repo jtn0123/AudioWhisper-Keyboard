@@ -39,8 +39,7 @@ class BackupArchiveMatchTest {
             base + listOf("missing/parent/file" to "fixture"),
             base + listOf("x".repeat(256) to "skipped"),
             base.map { (n, c) -> n to if (n.endsWith("items.json")) "corrupt" else c })
-        // The reference policy's answers also go on a golden tape (docs/phase6-kotlin-references.md).
-        val tape = GoldenTape.ofReference("backup-archives")
+        val tape = GoldenTape("backup-archives")
         for ((index, entries) in fixtures.withIndex()) {
             val parent = File(root, "$index").apply { mkdirs() }
             val archive = File(parent, "generated.zip").apply { writeBytes(zip(entries)) }
@@ -50,27 +49,22 @@ class BackupArchiveMatchTest {
                 outcome { ZipUtils.unzip(archive, actual, BackupPolicy::archive) })
             assertEquals(tree(reference), tree(actual))
             assertFalse(File(parent, "escape").exists())
-            fun inspect(dir: File, native: Boolean): Any? = outcome {
-                val data = try { File(dir, "backup_metadata.json").readJson<Backup.Metadata>() }
-                catch (e: FileNotFoundException) { error(if (native) BackupPolicy.missingMetadata else
-                    "Invalid archive: either backup_metadata.json is missing or file is not a ZIP archive.") }
-                val status = if (native) BackupPolicy.metadata(data.packageName, data.versionCode, 100)
-                    else ReferenceBackupPolicy.metadata(data.packageName, data.versionCode, 100)
-                status
+            val inspected = outcome {
+                val data = try { File(actual, "backup_metadata.json").readJson<Backup.Metadata>() }
+                catch (e: FileNotFoundException) { error(BackupPolicy.missingMetadata) }
+                BackupPolicy.metadata(data.packageName, data.versionCode, 100)
             }
-            tape.answer("inspect $index", inspect(reference, false))
-            assertEquals(inspect(reference, false), inspect(actual, true))
-            for (path in ReferenceBackupPolicy.layout("jetpref/preferences.json").drop(3)) {
+            tape.answer("inspect $index", inspected)
+            for (path in BackupPolicy.layout("jetpref/preferences.json").drop(3)) {
                 val left = File(reference, path)
                 val right = File(actual, path)
                 if (left.exists()) assertEquals(outcome { left.readJson<List<ClipboardItem>>().size },
                     outcome { right.readJson<List<ClipboardItem>>().size })
             }
-            val paths = ReferenceBackupPolicy.layout("jetpref/preferences.json")
+            val paths = BackupPolicy.layout("jetpref/preferences.json")
             for (mask in 0..63) for (erase in listOf(false, true)) {
                 val present = paths.map { File(actual, it).exists() }
-                tape.answer("restore $index $mask $erase", ReferenceBackupPolicy.restore(mask, erase, paths[0], present))
-                assertEquals(ReferenceBackupPolicy.restore(mask, erase, paths[0], present), BackupPolicy.restore(mask, erase, paths[0], present))
+                tape.answer("restore $index $mask $erase", BackupPolicy.restore(mask, erase, paths[0], present))
             }
         }
         tape.finish()

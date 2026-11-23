@@ -3,8 +3,6 @@ package com.jtn0123.audiowhisper.settingsui
 import com.jtn0123.audiowhisper.golden.GoldenTape
 import com.jtn0123.audiowhisper.rust.*
 import com.jtn0123.audiowhisper.settings.SettingsCodecs
-import dev.patrickgold.florisboard.app.ReferenceSettingsCodecs
-import dev.patrickgold.florisboard.app.ReferenceSubtypeEditorState
 import dev.patrickgold.florisboard.ime.core.Subtype
 import dev.patrickgold.florisboard.ime.core.SubtypeNlpProviderMap
 import dev.patrickgold.florisboard.lib.FlorisLocale
@@ -101,7 +99,6 @@ class SettingsLanguagesMatchTest {
             """"numeric":"org.florisboard.layouts:western_arabic","numericAdvanced":"org.florisboard.layouts:western_arabic",""" +
             """"numericRow":"org.florisboard.layouts:western_arabic","phone":"org.florisboard.layouts:telpad","phone2":""" +
             """"org.florisboard.layouts:telpad"}}]"""
-        assertEquals(fixture, ReferenceSettingsCodecs.subtypes(listOf(english)))
         assertEquals(fixture, SettingsCodecs.subtypes(listOf(english)))
         // The report's rows: a locale's three names and the tags a preset is matched by.
         val row = languageRow(SettingsUiLanguageKind.LOCALE, FlorisLocale.fromTag("de-DE"))
@@ -112,30 +109,21 @@ class SettingsLanguagesMatchTest {
     }
 
     @Test fun movesDeletesEditsAndAddsWriteWhatSubtypeManagerWrote() {
-        var list = listOf(english, german, french)
-        // The reference's writes also go on a golden tape (docs/phase6-kotlin-references.md).
-        val tape = GoldenTape.ofReference("languages-edits")
+        val tape = GoldenTape("languages-edits")
         KeyboardRenderer(arrayOf(font)).use { n ->
-            prepare(n, ReferenceSettingsCodecs.subtypes(list))
+            prepare(n, SettingsCodecs.subtypes(listOf(english, german, french)))
             // reorderSubtypes([1, 0, 2]). Slots follow the subtype, so German stays slot 1.
-            list = listOf(german, english, french)
-            tape.record(ReferenceSettingsCodecs.subtypes(list))
-            assertEquals(ReferenceSettingsCodecs.subtypes(list), written(state(n, SettingsUiOp.ACTIVATE, item(1, 1))))
+            tape.record(written(state(n, SettingsUiOp.ACTIVATE, item(1, 1))))
             // removeSubtype(english), then Undo puts it back where it stood.
-            tape.record(ReferenceSettingsCodecs.subtypes(list - english))
-            tape.record(ReferenceSettingsCodecs.subtypes(list))
-            assertEquals(ReferenceSettingsCodecs.subtypes(list - english), written(state(n, SettingsUiOp.ACTIVATE, item(0, 3))))
-            assertEquals(ReferenceSettingsCodecs.subtypes(list), written(state(n, SettingsUiOp.ACTIVATE, "7901")))
+            tape.record(written(state(n, SettingsUiOp.ACTIVATE, item(0, 3))))
+            tape.record(written(state(n, SettingsUiOp.ACTIVATE, "7901")))
             // modifySubtypeWithSameId: French's characters layout set to QWERTY in its editor.
             var s = state(n, SettingsUiOp.ACTIVATE, item(2, 0))
             assertEquals("${languageRoutes[4]}/${french.id}", s.text("route"))
             s = state(n, SettingsUiOp.ACTIVATE, "1003")
             state(n, SettingsUiOp.ACTIVATE, choice(s, "QWERTY"))
-            val qwerty = french.copy(layoutMap = french.layoutMap.copy(characters = component("layouts", "qwerty")))
-            list = list.map { if (it.id == french.id) qwerty else it }
             s = state(n, SettingsUiOp.ACTIVATE, "1021")
-            tape.record(ReferenceSettingsCodecs.subtypes(list))
-            assertEquals(ReferenceSettingsCodecs.subtypes(list), written(s))
+            tape.record(written(s))
             assertEquals(languageRoutes[0], s.text("route"))
             // addSubtype: a preset already in the list is refused with Compose's message, and writes nothing.
             s = state(n, SettingsUiOp.ACTIVATE, "7900")
@@ -150,11 +138,10 @@ class SettingsLanguagesMatchTest {
             val before = System.currentTimeMillis()
             state(n, SettingsUiOp.ACTIVATE, choice(s, spanish.primaryLocale.displayName()))
             val raw = written(state(n, SettingsUiOp.ACTIVATE, "1021"))
-            val added = ReferenceSettingsCodecs.subtypes(raw).last()
+            val added = SettingsCodecs.subtypes(raw).last()
             assertTrue(added.id in before..System.currentTimeMillis())
             // Recorded with the time it was stamped with as 0.
-            tape.record(ReferenceSettingsCodecs.subtypes(list + spanish.copy(id = added.id)).replace("\"id\":${added.id},", "\"id\":0,"))
-            assertEquals(ReferenceSettingsCodecs.subtypes(list + spanish.copy(id = added.id)), raw)
+            tape.record(raw.replace("\"id\":${added.id},", "\"id\":0,"))
         }
         tape.finish()
     }
@@ -162,7 +149,7 @@ class SettingsLanguagesMatchTest {
     /** Each item offers Move up, Move down and Delete to TalkBack, by the ids of the buttons they press. */
     @Test fun anItemsCustomActionsAreItsButtons() {
         KeyboardRenderer(arrayOf(font)).use { n ->
-            prepare(n, ReferenceSettingsCodecs.subtypes(listOf(english, german)))
+            prepare(n, SettingsCodecs.subtypes(listOf(english, german)))
             val s = state(n, SettingsUiOp.SAVE)
             fun custom(slot: Int) = nodes(s).one("item $slot") { it.text("id") == item(slot, 0) }.getValue("custom").jsonArray
                 .map { a -> a.jsonArray.map { it.jsonPrimitive.content } }
@@ -182,22 +169,20 @@ class SettingsLanguagesMatchTest {
             val random = Random(1712)
             val values = listOf("valid", "00:00", "00-00", "", "00", "synthetic:a", "😀")
             var accepted = 0
-            val tape = GoldenTape.ofReference("languages-editor")
+            val tape = GoldenTape("languages-editor")
             repeat(5000) {
-                val old = ReferenceSubtypeEditorState(Subtype.DEFAULT)
-                old.primaryLocale.value = FlorisLocale.fromTag(listOf("en-US", "fr-FR", "00-00", "00", "zz").random(random))
-                old.nlpProviders.value = SubtypeNlpProviderMap(values.random(random), values.random(random))
+                val start = Subtype.DEFAULT.copy(primaryLocale = FlorisLocale.fromTag(listOf("en-US", "fr-FR", "00-00", "00", "zz").random(random)),
+                    nlpProviders = SubtypeNlpProviderMap(values.random(random), values.random(random)))
                 val component = ExtensionComponentName("00", if (random.nextBoolean()) "00" else "valid")
-                when (random.nextInt(7)) {
-                    0 -> old.composer.value = component
-                    1 -> old.currencySet.value = component
-                    2 -> old.punctuationRule.value = component
-                    3 -> old.popupMapping.value = component
-                    4 -> old.layoutMap.value = old.layoutMap.value.copy(characters = component)
-                    5 -> old.layoutMap.value = old.layoutMap.value.copy(phone2 = component)
+                val draft = when (random.nextInt(7)) {
+                    0 -> start.copy(composer = component)
+                    1 -> start.copy(currencySet = component)
+                    2 -> start.copy(punctuationRule = component)
+                    3 -> start.copy(popupMapping = component)
+                    4 -> start.copy(layoutMap = start.layoutMap.copy(characters = component))
+                    5 -> start.copy(layoutMap = start.layoutMap.copy(phone2 = component))
+                    else -> start
                 }
-                val draft = Subtype(old.id.value, old.primaryLocale.value, old.secondaryLocales.value, old.nlpProviders.value,
-                    old.composer.value, old.currencySet.value, old.punctuationRule.value, old.popupMapping.value, old.layoutMap.value)
                 saved[16] = buildJsonObject {
                     put("draft", buildJsonArray { add(SettingsCodecs.subtype(draft)); add(true); add(-1); add(false) })
                     put("search", ""); put("deleted", JsonNull); put("slots", buildJsonArray {})
@@ -205,15 +190,12 @@ class SettingsLanguagesMatchTest {
                 n.settings(SettingsUiOp.PREFERENCES, arrayOf(subtypesKey, "[]"))
                 assertEquals(languageRoutes[3], state(n, SettingsUiOp.RESTORE, *saved).text("route"))
                 val s = state(n, SettingsUiOp.ACTIVATE, "1021")
-                val expected = old.toSubtype()
                 // The subtype the editor accepts, with the id it was opened with, or its refusal.
-                tape.record(expected.fold({ "accepted $it" }, { "refused" }))
-                assertEquals(expected.isSuccess, writes(s).isNotEmpty(), "draft $it")
-                if (expected.isSuccess) {
+                if (writes(s).isNotEmpty()) {
                     accepted++
-                    val added = ReferenceSettingsCodecs.subtypes(written(s)).one("added subtype")
-                    assertEquals(expected.getOrThrow().copy(id = added.id), added)
+                    tape.record("accepted ${SettingsCodecs.subtypes(written(s)).one("added subtype").copy(id = draft.id)}")
                 } else {
+                    tape.record("refused")
                     node(s, strings.getValue("settings__localization__subtype_error_fields_no_value"))
                 }
             }

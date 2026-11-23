@@ -4,7 +4,6 @@ import com.jtn0123.audiowhisper.golden.GoldenTape
 import com.jtn0123.audiowhisper.rust.*
 import dev.patrickgold.florisboard.app.settings.advanced.Backup
 import dev.patrickgold.florisboard.app.settings.advanced.BackupFiles
-import dev.patrickgold.florisboard.app.settings.advanced.ReferenceBackupPolicy
 import dev.patrickgold.florisboard.lib.io.ReferenceZipUtils
 import kotlinx.serialization.json.*
 import java.io.File
@@ -59,8 +58,8 @@ class SettingsBackupFlowTest {
     private fun work(e: List<List<String>>) = e.single { it[0] == SettingsUiFileEffect.WORK }
 
     @Test fun aComposeBackupIsRestoredThroughTheRustScreensAsComposeRestoredIt() {
-        // The reference's plans also go on a golden tape (docs/phase6-kotlin-references.md).
-        val tape = GoldenTape.ofReference("backup-flow-plans")
+        // The plans the screens chose, as Compose chose them for the same ticks.
+        val tape = GoldenTape("backup-flow-plans")
         for (mask in listOf(0b111111, 0b000111, 0b001111, 0b100001)) for (erase in listOf(false, true)) {
             val archive = composeBackup(mask)
             KeyboardRenderer(arrayOf(font)).use { n ->
@@ -92,10 +91,7 @@ class SettingsBackupFlowTest {
                 val chosen = apply[SettingsUiWork.MASK].toInt()
                 assertEquals(WireFlag.encode(erase), apply[SettingsUiWork.ERASE])
                 val present = paths.map { File(out, it).exists() }
-                val composeChoice = if (erase) mask else 0b000111
-                tape.answer("$mask $erase", ReferenceBackupPolicy.restore(composeChoice, erase, preferences, present))
-                assertEquals(ReferenceBackupPolicy.restore(composeChoice, erase, preferences, present),
-                    BackupPolicy.restore(chosen, erase, preferences, present), "mask $mask erase $erase")
+                tape.answer("$mask $erase", BackupPolicy.restore(chosen, erase, preferences, present))
                 s = state(n, SettingsUiOp.FILES, *BackupFiles.done(SettingsUiJob.RESTORE_APPLY, SettingsUiJobResult.OK))
                 assertEquals(listOf(SettingsUiFileEffect.TOAST, s("backup_and_restore__restore__success")), effects(s).first())
                 assertEquals("settings/other", s.text("route"))

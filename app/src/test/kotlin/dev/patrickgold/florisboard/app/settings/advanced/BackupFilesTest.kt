@@ -76,9 +76,7 @@ class BackupFilesTest {
     /** Every selection Compose could back up reads back whole, unpacks to the tree Compose's
      * restore unpacked, and leads to the restore plan Compose ran for the groups the backup holds. */
     @Test fun everyComposeBackupReadsAsComposeReadItAndRestoresTheSame() {
-        // The reference's plans also go on a golden tape (docs/phase6-kotlin-references.md), less the
-        // erasing of groups the backup lacks, which can no longer be chosen.
-        val tape = GoldenTape.ofReference("backup-files-plans")
+        val tape = GoldenTape("backup-files-plans")
         for (mask in 1..63) {
             val archive = composeArchive(filled(dir("m$mask/in"), mask), dir("m$mask/out"), metadata)
             val report = inspect(archive, "m$mask/read")
@@ -93,16 +91,10 @@ class BackupFilesTest {
             val present = paths.map { File(compose, it).exists() }
             assertEquals((0 until 6).map { (mask and (1 shl it)) != 0 }, present)
             // The screen offers only the groups a backup holds, so its mask is the selection's part of them.
-            for (selection in 0..63) for (erase in listOf(false, true)) {
-                val composePlan = ReferenceBackupPolicy.restore(selection, erase, preferences, present)
-                val ours = BackupPolicy.restore(selection and mask, erase, preferences, present)
-                // Erasing a group the backup lacks emptied it in Compose; now it cannot be chosen.
-                val lacking = (1..2).filter { (selection and (1 shl it)) != 0 && !present[it] }.map { paths[it] }
-                tape.answer("$mask $selection $erase", composePlan.filterNot { it[0] == "clear-directory" && it[1] in lacking })
-                assertEquals(composePlan.filterNot { it[0] == "clear-directory" && it[1] in lacking }, ours,
-                    "mask $mask selection $selection erase $erase")
-                if ((selection and mask.inv()) == 0 || !erase) assertEquals(composePlan, ours)
-            }
+            // Compose's plan, less the erasing of groups the backup lacks, which emptied them in
+            // Compose and now cannot be chosen.
+            for (selection in 0..63) for (erase in listOf(false, true))
+                tape.answer("$mask $selection $erase", BackupPolicy.restore(selection and mask, erase, preferences, present))
         }
         tape.finish()
     }

@@ -42,7 +42,7 @@ class SubtypeSessionTest {
 
     @Test
     fun `saved JSON is restored before the subtype is used`() {
-        val savedJson = SubtypeJsonConfig.encodeToString(listOf(
+        val savedJson = SettingsCodecs.subtypes(listOf(
             saved.copy(layoutMap = saved.layoutMap.copy(characters = extCoreLayout("arabic"))),
         ))
         assertEquals(listOf(saved), SubtypeSession().load(savedJson).list.map { it.subtype })

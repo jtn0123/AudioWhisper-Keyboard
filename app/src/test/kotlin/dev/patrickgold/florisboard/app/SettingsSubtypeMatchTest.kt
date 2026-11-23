@@ -12,39 +12,12 @@ import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
-/** Pure extraction of the frozen manager's list and active-selection rules. */
-private class ReferenceSubtypeSession {
-    var list=emptyList<Subtype>();var active=Subtype.DEFAULT
-    fun apply(op: String,item: Subtype,time: Long,target: Long,order: List<Int>): Boolean {
-        var changed=false
-        when(op) {
-            "add" -> if(list.none {it.copy(id=0)==item.copy(id=0)}) {list=list+item.copy(id=time);changed=true}
-            "modify" -> list.indexOfFirst {it.id==item.id}.takeIf {it>=0}?.let { index ->list=list.mapIndexed {i,s->if(i==index)item else s};changed=true}
-            "remove" -> list.indexOf(item).takeIf {it>=0}?.let {index->list=list.filterIndexed {i,_->i!=index};changed=true}
-            // No reorder API existed; the stored-list order is the cycle/fallback order.
-            "reorder" -> if(order.sorted()==list.indices.toList()) {list=order.map {list[it]};changed=true}
-            "load" -> {val supported=list.map {it.referenceSupportedInput()};changed=supported!=list;list=supported}
-            "select" -> {list.find {it.id==target}?.let {active=it};return false}
-            "next","previous" -> {
-                var trigger=false;var chosen:Subtype?=null
-                val items=if(op=="previous") list.reversed() else list
-                for(s in items) {if(trigger) {trigger=false;chosen=s} else if(s==active) trigger=true}
-                if(trigger) chosen=items.first()
-                active=chosen ?: Subtype.DEFAULT;return false
-            }
-        }
-        active=list.find {it.id==active.id} ?: list.firstOrNull() ?: Subtype.DEFAULT
-        return changed
-    }
-}
-
 class SettingsSubtypeMatchTest {
     @Test fun twoHundredSeedsOfSubtypeEditsLocaleChangesAndSelectionMatch() {
         var operations=0
-        // The reference's answers also go on a golden tape (docs/phase6-kotlin-references.md).
-        val tape=GoldenTape.ofReference("settings-subtype-sessions")
+        val tape=GoldenTape("settings-subtype-sessions")
         repeat(200) {seed ->
-            val random=Random(seed+17000);val reference=ReferenceSubtypeSession()
+            val random=Random(seed+17000)
             var actual=emptyList<Subtype>();var active=Subtype.DEFAULT
             val locales=listOf("en-US","en-GB","fr-FR","de-DE","es-ES","vi-VN","pt-BR")
             val presets=locales.map {FlorisLocale.fromTag(it)}
@@ -59,18 +32,12 @@ class SettingsSubtypeMatchTest {
                 val target=if(actual.isNotEmpty() && random.nextBoolean()) actual.random(random).id else -500L
                 val time=(seed*1000+step+1).toLong()
                 val plan=SettingsSubtypes.plan(op,actual,active.id,candidate,time,target,active,order)
-                val changed=reference.apply(op,candidate,time,target,order)
-                tape.answer("changed",changed)
-                tape.answer("list",ReferenceSettingsCodecs.subtypes(reference.list))
-                tape.answer("active",reference.active.id)
-                tape.answer("selected",reference.active)
-                assertEquals(changed,plan.changed,"seed=$seed step=$step op=$op changed")
-                assertEquals(reference.list,plan.list,"seed=$seed step=$step op=$op list")
-                assertEquals(reference.active.id,plan.active,"seed=$seed step=$step op=$op active")
                 // Select of an unknown id has no active-state effect.
                 actual=plan.list;active=if(op=="select" && actual.none {it.id==target}) active else plan.selected
-                assertEquals(reference.active,active,"seed=$seed step=$step op=$op selected")
-                assertEquals(ReferenceSettingsCodecs.subtypes(reference.list),SettingsCodecs.subtypes(actual))
+                tape.answer("changed",plan.changed)
+                tape.answer("list",SettingsCodecs.subtypes(actual))
+                tape.answer("active",plan.active)
+                tape.answer("selected",active)
                 val expected=presets.indexOfFirst {it==locale}.takeIf {it>=0} ?: presets.indexOfFirst {it.language==locale.language}
                 assertEquals(expected,SettingsRules.preset(locale.languageTag(),locale.language,presets.map {it.languageTag() to it.language}))
                 operations++

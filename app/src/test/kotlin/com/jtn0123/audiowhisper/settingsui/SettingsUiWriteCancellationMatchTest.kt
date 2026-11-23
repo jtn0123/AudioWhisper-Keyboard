@@ -1,8 +1,8 @@
 package com.jtn0123.audiowhisper.settingsui
 
+import com.jtn0123.audiowhisper.rust.SettingsRules
 import com.jtn0123.audiowhisper.settings.SettingsPreference
 import dev.patrickgold.florisboard.app.FlorisPreferenceModelImpl
-import dev.patrickgold.florisboard.app.ReferenceSettingsModel
 import dev.patrickgold.florisboard.app.SettingsStoreBridge
 import dev.patrickgold.jetpref.datastore.model.PreferenceData
 import dev.patrickgold.jetpref.datastore.model.PreferenceModel
@@ -21,11 +21,20 @@ import kotlin.test.*
 
 /**
  * Jetpref's DataStore stops persisting for good when a write's caller is cancelled mid-write
- * ([SettingsPreference] says how). The raw reference model shows the defect is real in the
- * Jetpref build we ship; the production model must come through it with its store working. If a
- * Jetpref update fixes the defect, the reference half fails and [SettingsPreference] can go.
+ * ([SettingsPreference] says how). A plain Jetpref model shows the defect is real in the Jetpref
+ * build we ship; the production model must come through it with its store working. If a Jetpref
+ * update fixes the defect, the plain half fails and [SettingsPreference] can go.
  */
 class SettingsUiWriteCancellationMatchTest {
+    /** Two preferences declared as Jetpref declares them, with no production wrapper. */
+    private class PlainModel : PreferenceModel() {
+        val numberRow = boolean(key = "keyboard__number_row", default = false)
+        val historyEnabled = boolean(key = "clipboard__history_enabled", default = false)
+        override val declaredPreferenceEntries: Map<TypedKey, PreferenceData<*>> by lazy {
+            listOf(numberRow, historyEnabled).associateBy { it.typedKey }
+        }
+    }
+
     /** Holds the first write once armed, so its caller can be cancelled while it is in flight. */
     private class HeldWriter : DataStoreWriter {
         @Volatile var armed = false
@@ -64,10 +73,10 @@ class SettingsUiWriteCancellationMatchTest {
     }
 
     private fun check(write: suspend PreferenceData<Boolean>.() -> Result<Unit>) {
-        val reference = ReferenceSettingsModel()
-        val raw = cancelMidWrite(reference, reference.keyboard.numberRow, reference.clipboard.historyEnabled, write)
-        assertTrue(raw.callerLeftMidWrite, "the reference caller is cancelled while its write is in flight")
-        assertTrue(raw.later.isFailure, "the reference store no longer persists anything")
+        val plain = PlainModel()
+        val raw = cancelMidWrite(plain, plain.numberRow, plain.historyEnabled, write)
+        assertTrue(raw.callerLeftMidWrite, "the plain caller is cancelled while its write is in flight")
+        assertTrue(raw.later.isFailure, "the plain store no longer persists anything")
 
         val model = FlorisPreferenceModelImpl()
         val later = model.clipboard.historyEnabled
@@ -84,7 +93,7 @@ class SettingsUiWriteCancellationMatchTest {
     @Test fun everyDeclaredPreferenceFinishesItsWrites() {
         val entries = FlorisPreferenceModelImpl().declaredPreferenceEntries
         // A wrapper typed as itself is not declared at all: the store would drop it.
-        assertEquals(ReferenceSettingsModel().declaredPreferenceEntries.keys, entries.keys)
+        assertEquals(SettingsRules.catalogue.keys, entries.values.map { it.key }.toSet())
         assertEquals(emptyList(), entries.values.filterNot { it is SettingsPreference<*> }.map { it.key })
     }
 }

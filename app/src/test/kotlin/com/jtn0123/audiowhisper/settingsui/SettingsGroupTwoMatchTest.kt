@@ -5,7 +5,7 @@ import com.jtn0123.audiowhisper.rust.KeyboardRenderer
 import com.jtn0123.audiowhisper.rust.SettingsUiOp
 import com.jtn0123.audiowhisper.rust.SettingsUiTextEffect
 import com.jtn0123.audiowhisper.rust.SettingsUiWordEffect
-import dev.patrickgold.florisboard.app.ReferenceSettingsModel
+import dev.patrickgold.florisboard.app.FlorisPreferenceModelImpl
 import dev.patrickgold.jetpref.datastore.model.PreferenceData
 import kotlinx.serialization.json.*
 import java.io.File
@@ -22,7 +22,7 @@ class SettingsGroupTwoMatchTest {
     /** Rows nothing on them acts on. */
     private val inert = passive - "card"
     private fun <T : Any> raw(p: PreferenceData<T>) = p.serializer.serialize(p.default).orEmpty()
-    private fun defaults() = ReferenceSettingsModel().declaredPreferenceEntries.values.associate { it.key to raw(it) }
+    private fun defaults() = FlorisPreferenceModelImpl().declaredPreferenceEntries.values.associate { it.key to raw(it) }
     private fun state(n: KeyboardRenderer, op: SettingsUiOp = SettingsUiOp.SAVE, vararg input: String) = Json.parseToJsonElement(n.settings(op, arrayOf(*input))[0]).jsonObject
     private fun nodes(s: JsonObject) = s.getValue("nodes").jsonArray.map { it.jsonObject }
     private fun effects(s: JsonObject) = s.getValue("effects").jsonArray.map { a -> a.jsonArray.map { it.jsonPrimitive.content } }

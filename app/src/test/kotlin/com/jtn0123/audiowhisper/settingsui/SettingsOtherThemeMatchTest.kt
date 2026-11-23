@@ -5,7 +5,7 @@ import androidx.compose.ui.graphics.toArgb
 import com.jtn0123.audiowhisper.rust.KeyboardRenderer
 import com.jtn0123.audiowhisper.rust.SettingsUiOp
 import dev.patrickgold.florisboard.app.ReferenceColorSerializer
-import dev.patrickgold.florisboard.app.ReferenceSettingsModel
+import dev.patrickgold.florisboard.app.FlorisPreferenceModelImpl
 import dev.patrickgold.jetpref.datastore.model.LocalTime
 import dev.patrickgold.jetpref.datastore.model.PreferenceData
 import dev.patrickgold.jetpref.material.ui.ColorRepresentation
@@ -27,10 +27,10 @@ class SettingsOtherThemeMatchTest {
     private val accent = Color(0xff6750a4)
     private val presets = ref.presets
     /** Jetpref's LocalTime serializer, as the theme's time preferences hold it. */
-    private val times = ReferenceSettingsModel().theme.sunriseTime.serializer
-    private fun serialized(t: LocalTime) = times.serialize(t).orEmpty()
+    /** A time as Jetpref stores it: its serializer writes [LocalTime.toString]. */
+    private fun serialized(t: LocalTime) = t.toString()
     private fun <T : Any> raw(p: PreferenceData<T>) = p.serializer.serialize(p.default).orEmpty()
-    private fun defaults() = ReferenceSettingsModel().declaredPreferenceEntries.values.associate { it.key to raw(it) }
+    private fun defaults() = FlorisPreferenceModelImpl().declaredPreferenceEntries.values.associate { it.key to raw(it) }
     private fun state(n: KeyboardRenderer, op: SettingsUiOp = SettingsUiOp.SAVE, vararg input: String) = Json.parseToJsonElement(n.settings(op, arrayOf(*input))[0]).jsonObject
     private fun nodes(s: JsonObject) = s.getValue("nodes").jsonArray.map { it.jsonObject }
     private fun byId(s: JsonObject) = nodes(s).associateBy { it.int("id") }
