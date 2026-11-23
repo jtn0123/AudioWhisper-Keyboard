@@ -1,0 +1,13 @@
+[package]
+name = "palette"
+version = "0.1.0"
+description = "Material You colour schemes, bit-exact with MaterialKolor 5.0.1 on a JVM: material-color-utilities' HCT and scheme maths, ported"
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+
+[lints]
+workspace = true

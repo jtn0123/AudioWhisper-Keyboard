@@ -32,3 +32,7 @@ opt-level = 2
 # Every answer of the golden tests goes through its tape, millions of them.
 [profile.dev.package.latin-golden]
 opt-level = 2
+
+# The palette's fixture test computes 320,000 colour schemes; unoptimised it takes minutes.
+[profile.dev.package.palette]
+opt-level = 3
