@@ -1,6 +1,7 @@
 package com.jtn0123.audiowhisper.suggest
 
 import com.jtn0123.audiowhisper.golden.GoldenTape
+import com.jtn0123.audiowhisper.rust.SuggestRules
 import kotlin.random.Random
 
 /**
@@ -88,7 +89,7 @@ class LatinComparison(private val sigmaExact: Boolean, private val tape: GoldenT
         val personal = random.personal(vocabulary)
         val learned = random.learned(vocabulary, state.previousWords)
         val threshold = THRESHOLDS.random(random)
-        val rust = ReferenceLatinSuggester(decoder, threshold, { personal }, { learned })
+        val rust = FixtureSuggester(decoder, threshold, { personal }, { learned })
         val maxCount = random.maxCount()
         val block = random.nextBoolean()
         val strip = outcome { rust.suggest(state, maxCount, block) }
@@ -310,7 +311,7 @@ class LatinComparison(private val sigmaExact: Boolean, private val tape: GoldenT
         }
 
         val THRESHOLDS = listOf(
-            AutoCorrection.MODEST_THRESHOLD, AutoCorrection.MODEST_THRESHOLD, 0f, 0.067f, 0.185f, 1f, 2f, -1f,
+            SuggestRules.modestThreshold, SuggestRules.modestThreshold, 0f, 0.067f, 0.185f, 1f, 2f, -1f,
             Float.NaN, Float.POSITIVE_INFINITY,
         )
 

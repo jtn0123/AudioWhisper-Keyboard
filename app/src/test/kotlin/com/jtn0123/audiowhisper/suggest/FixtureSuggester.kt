@@ -2,18 +2,19 @@ package com.jtn0123.audiowhisper.suggest
 
 import com.jtn0123.audiowhisper.rust.LegacySuggester
 import com.jtn0123.audiowhisper.rust.SuggestDictionary
+import com.jtn0123.audiowhisper.rust.SuggestRules
 
 /**
- * Turns decoder output into the candidate strip and decides auto-correction, following AOSP
- * `Suggest.getSuggestedWordsForNonBatchInput` and `AutoCorrectionUtils`, plus three narrow rules
- * of our own. The rules are in Rust (lib/rust/crates/suggest/src/suggester.rs, which documents
- * them); this runs [decoder] for it, as the Rust asks.
+ * The Rust suggester (lib/rust/crates/suggest/src/suggester.rs, which documents its rules) over any
+ * [TypingDecoder], so tests can drive it with a fake one: it runs [decoder] for the Rust, as the
+ * Rust asks. [LatinSuggester] runs the same rules over the native session's decoder. Once named
+ * ReferenceLatinSuggester, though it copies no Kotlin (docs/phase6-kotlin-references.md).
  *
  * Case is matched and ignored as Locale.US does, the only locale the keyboard suggests in.
  */
-class ReferenceLatinSuggester(
+class FixtureSuggester(
     private val decoder: TypingDecoder,
-    private val threshold: Float = AutoCorrection.MODEST_THRESHOLD,
+    private val threshold: Float = SuggestRules.modestThreshold,
     /** The user's personal dictionaries as they stand now (read on every call, so it can be swapped). */
     private val personalWords: () -> PersonalWords = { PersonalWords.NONE },
     /** What the user has typed before ([LearnedWords]), or null if not learning. */

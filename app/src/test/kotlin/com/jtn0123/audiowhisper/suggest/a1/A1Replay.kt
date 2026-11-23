@@ -1,6 +1,5 @@
 package com.jtn0123.audiowhisper.suggest
 
-import com.android.inputmethod.latin.DicTraverseSession
 import com.jtn0123.audiowhisper.golden.GoldenTape
 import java.io.File
 import java.security.MessageDigest
@@ -45,17 +44,12 @@ object A1Replay {
         }
     }
 
-    fun capture(dictionary: File, output: File, reference: Boolean = false): Pair<String, String> {
+    fun capture(dictionary: File, output: File): Pair<String, String> {
         output.mkdirs()
-        val engine = if (reference) requireNotNull(ReferenceLatinDictionaryEngine.open(dictionary.path, 0, dictionary.length(), "en_US"))
-            else requireNotNull(LatinDictionaryEngine.open(dictionary.path, 0, dictionary.length(), "en_US"))
-        try {
-            val words = when (engine) {
-                is ReferenceLatinDictionaryEngine -> engine.words()
-                is LatinDictionaryEngine -> engine.words()
-                else -> error("Unknown fixture engine")
-            }
-            val decoder = engine as TypingDecoder
+        val engine = requireNotNull(LatinDictionaryEngine.open(dictionary.path, 0, dictionary.length(), "en_US"))
+        engine.use {
+            val words = engine.words()
+            val decoder: TypingDecoder = engine
             val decoderFile = File(output, "decoder.txt")
             decoderFile.bufferedWriter().use { out ->
                 questions(words, DECODER_COUNT, 20261113).forEach { q ->
@@ -70,26 +64,24 @@ object A1Replay {
             repeat(5) { learned.add("hello", "the"); learned.add("keyboard", LearnedWords.SENTENCE_START) }
             val pipelineFile = File(output, "pipeline.txt")
             pipelineFile.bufferedWriter().use { out ->
-                val native = (engine as? LatinDictionaryEngine)?.let { LatinSuggester(it, personalWords = { personal }, history = { learned }) }
-                val old = ReferenceLatinSuggester(decoder, personalWords = { personal }, history = { learned })
+                val suggester = LatinSuggester(engine, personalWords = { personal }, history = { learned })
                 questions(words, PIPELINE_COUNT, 20261114).forEach { q ->
-                    val strip = native?.suggest(q.state, q.limit, q.block) ?: old.suggest(q.state, q.limit, q.block)
+                    val strip = suggester.suggest(q.state, q.limit, q.block)
                     out.appendLine(strip.joinToString("|") { "${units(it.text)}:${it.isAutoCorrection}:${it.isTypedWord}" })
-                    val spell = native?.spell(q.state.typed, q.limit, q.block) ?: old.spell(q.state.typed, q.limit, q.block)
+                    val spell = suggester.spell(q.state.typed, q.limit, q.block)
                     out.appendLine("${spell.isValid}:${spell.isHighConfidence}|" + spell.suggestions.joinToString("|") { units(it) })
                 }
             }
             return digest(decoderFile) to digest(pipelineFile)
-        } finally {
-            (engine as java.io.Closeable).close()
         }
     }
 
     /**
      * Records each line [capture] wrote to [output] on the golden tapes `a1-decoder-[name]` and
      * `a1-pipeline-[name]`, made by [tape], one answer a line, and finishes them
-     * (docs/phase6-kotlin-references.md). The shipped dictionary's are written on the host, by the
-     * reference, and checked there and on a device: the reference's AOSP engine glue is host-only.
+     * (docs/phase6-kotlin-references.md). The goldens hold the answers of the AOSP engine glue the
+     * native session replaced, written on the host, where that glue ran; the shipped dictionary's
+     * are checked there and on a device.
      */
     fun record(output: File, name: String, tape: (String) -> GoldenTape) {
         for (part in listOf("decoder", "pipeline")) {
@@ -99,17 +91,11 @@ object A1Replay {
         }
     }
 
-    internal fun snapshot(engine: Any): IntArray {
-        val field = engine.javaClass.getDeclaredField("session").also { it.isAccessible = true }
-        val value = field.get(engine)
-        if (value !is DicTraverseSession) {
-            val handle = value.javaClass.getDeclaredField("handle").also { it.isAccessible = true }.getLong(value)
-            return A1Probe.snapshot(handle)
-        }
-        val session = value
-        return session.mOutputSuggestionCount + session.mOutputCodePoints + session.mOutputScores +
-            session.mSpaceIndices + session.mOutputTypes + session.mOutputAutoCommitFirstWordConfidence +
-            intArrayOf(session.mInputOutputWeightOfLangModelVsSpatialModel[0].toRawBits())
+    /** The native session's output buffers and weight, as the AOSP session laid its fields out. */
+    internal fun snapshot(engine: LatinDictionaryEngine): IntArray {
+        val session = engine.javaClass.getDeclaredField("session").also { it.isAccessible = true }.get(engine)
+        val handle = session.javaClass.getDeclaredField("handle").also { it.isAccessible = true }.getLong(session)
+        return A1Probe.snapshot(handle)
     }
 
     fun pack(results: List<RawSuggestion>) = results.joinToString("|") { "${units(it.word)}:${it.score}:${it.kindAndFlags}" }

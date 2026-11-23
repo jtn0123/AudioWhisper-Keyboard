@@ -1,14 +1,14 @@
 package com.jtn0123.audiowhisper.suggest
 
 import com.jtn0123.audiowhisper.golden.GoldenTape
+import com.jtn0123.audiowhisper.rust.SuggestRules
 import java.text.Normalizer
 import java.util.Locale
 import kotlin.random.Random
 
 /**
- * Asks the suggest package's rules in Rust (lib/rust/crates/suggest, behind [WordCharacters],
- * [WordCase], [PreviousWords], [AutoCorrection], [AutoCorrectionUndo], [TapOffset], [TapTrail] and
- * [QwertyGeometry]) the questions the Kotlin they replaced was asked, and puts every answer on
+ * Asks the suggest package's rules in Rust (lib/rust/crates/suggest, through [SuggestRules],
+ * [PreviousWords], [AutoCorrectionUndo], [TapOffset], [TapTrail] and [QwertyGeometry]) the questions the Kotlin they replaced was asked, and puts every answer on
  * [tape], whose golden files hold that Kotlin's answers (docs/phase6-kotlin-references.md).
  *
  * [sigmaExact] says whether to tell how Σ lower-cases. Rust follows ICU's rule for whether a Σ
@@ -29,10 +29,10 @@ class SuggestComparison(private val sigmaExact: Boolean, private val tape: Golde
 
     /** Everything about [text] as a typed word. */
     fun word(text: String) {
-        check("of", WordCase.of(text).name)
-        check("isMostlyCaps", WordCase.isMostlyCaps(text))
-        check("decoderInput", sigma(WordCase.decoderInput(text)))
-        for (case in WordCase.entries) check("apply ${case.name}", case.apply(text))
+        check("of", SuggestRules.case(text).name)
+        check("isMostlyCaps", SuggestRules.isMostlyCaps(text))
+        check("decoderInput", sigma(SuggestRules.decoderInput(text)))
+        for (case in SuggestRules.Case.entries) check("apply ${case.name}", SuggestRules.applyCase(case, text))
     }
 
     /** The context before a word typed after [text]. */
@@ -43,12 +43,11 @@ class SuggestComparison(private val sigmaExact: Boolean, private val tape: Golde
 
     /** The score for correcting [before] to [after], and whether that passes [threshold]. */
     fun score(before: String, after: String, score: Int, kindAndFlags: Int, threshold: Float) {
-        check("normalizedScore", AutoCorrection.normalizedScore(before, after, score))
-        val suggestion = RawSuggestion(after, score, kindAndFlags)
-        check("suggestionExceedsThreshold", AutoCorrection.suggestionExceedsThreshold(suggestion, before, threshold))
+        check("normalizedScore", SuggestRules.normalizedScore(before, after, score))
+        check("suggestionExceedsThreshold", SuggestRules.exceedsThreshold(after, score, kindAndFlags, before, threshold))
     }
 
-    fun distance(before: IntArray, after: IntArray) = check("editDistance", outcome { AutoCorrection.editDistance(before, after) })
+    fun distance(before: IntArray, after: IntArray) = check("editDistance", outcome { SuggestRules.editDistance(before, after) })
 
     /** Undoing the correction of [typed] to [corrected] at [start]. */
     fun revert(typed: String, corrected: String, start: Int, cursor: Int, text: String) =
@@ -66,7 +65,7 @@ class SuggestComparison(private val sigmaExact: Boolean, private val tape: Golde
         check("sizes", listOf(QwertyGeometry.KEY_WIDTH, QwertyGeometry.KEY_HEIGHT, QwertyGeometry.KEYBOARD_WIDTH, QwertyGeometry.KEYBOARD_HEIGHT))
         check("grid", listOf(QwertyGeometry.GRID_WIDTH, QwertyGeometry.GRID_HEIGHT, QwertyGeometry.MAX_PROXIMITY_CHARS))
         check("TapOffset.LIMIT", TapOffset.LIMIT)
-        check("MODEST_THRESHOLD", AutoCorrection.MODEST_THRESHOLD)
+        check("MODEST_THRESHOLD", SuggestRules.modestThreshold)
         check("MAX_COUNT", PreviousWords.MAX_COUNT)
     }
 
@@ -74,7 +73,7 @@ class SuggestComparison(private val sigmaExact: Boolean, private val tape: Golde
     fun everyCodePoint() {
         val offset = TapOffset(0.3f, -0.45f)
         for (codePoint in (-1..Character.MAX_CODE_POINT + 1) + EDGE_INTS) {
-            check("continuesWord", WordCharacters.continuesWord(codePoint))
+            check("continuesWord", SuggestRules.continuesWord(codePoint))
             check("keyCenter", QwertyGeometry.keyCenter(codePoint))
             touchPoint(codePoint, null)
             touchPoint(codePoint, offset)

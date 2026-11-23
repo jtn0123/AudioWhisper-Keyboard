@@ -47,10 +47,10 @@ public final class A1Instrumentation extends Instrumentation {
                 Files.copy(input, dictionary.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
             }
             File output = new File(instrumentation.getTargetContext().getFilesDir(), "a1-replay");
-            kotlin.Pair<String, String> hashes = A1Replay.INSTANCE.capture(dictionary, output, false);
+            kotlin.Pair<String, String> hashes = A1Replay.INSTANCE.capture(dictionary, output);
             result.putString("decoder_sha256", hashes.getFirst());
             result.putString("pipeline_sha256", hashes.getSecond());
-            // The host's reference wrote these goldens: its AOSP engine glue is not built for Android.
+            // The host wrote these goldens, from the AOSP engine glue, which is not built for Android.
             A1Replay.INSTANCE.record(output, "main_en-US", name -> GoldenTape.Companion.invoke(name, goldens));
             if (only == null) result.putLong("extension_maintainer_checks", dev.patrickgold.florisboard.lib.ext.ExtensionDeviceReplay.INSTANCE.run(goldens));
             dictionary.delete();
