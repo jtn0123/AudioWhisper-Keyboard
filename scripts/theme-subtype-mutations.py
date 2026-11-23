@@ -184,15 +184,16 @@ def mutate(output, cases, originals):
     return results
 
 
-def main():
-    parser = argparse.ArgumentParser(description=__doc__)
+def main(all_cases=CASES, description=__doc__):
+    """Runs [all_cases], or those named on the command line; subtype-mutations.py runs its own."""
+    parser = argparse.ArgumentParser(description=description)
     parser.add_argument('output', type=Path, nargs='?')
     parser.add_argument('cases', nargs='*', help='case names to run (default: all)')
     parser.add_argument('--check', action='store_true', help='only check every mutation location')
     args = parser.parse_args()
-    unknown = set(args.cases) - {case[0] for case in CASES}
+    unknown = set(args.cases) - {case[0] for case in all_cases}
     assert not unknown, f'unknown cases: {sorted(unknown)}'
-    cases = [case for case in CASES if not args.cases or case[0] in args.cases]
+    cases = [case for case in all_cases if not args.cases or case[0] in args.cases]
     originals = check(cases)
     if args.check:
         print(f'All {len(cases)} mutation locations found once', flush=True)
