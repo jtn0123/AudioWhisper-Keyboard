@@ -1,0 +1,25 @@
+# dictation-rules-every-character: the answers the frozen Kotlin reference gave (docs/phase6-kotlin-references.md).
+# Their count, the digest after the last, and after each power of two (at N).
+count 1179648
+digest dae7b53c4635ffba
+at 1 aa4deb6f931b1e67
+at 2 be05de76188728dd
+at 4 fbf2230f784b9eef
+at 8 c40e9683797f6128
+at 16 0c21906c9f4bed17
+at 32 11f2450e8d6c4294
+at 64 f98d623483aec843
+at 128 fb46f256e4da4cf2
+at 256 dd1d3423ea0786e4
+at 512 7a64d73f31ddfb22
+at 1024 263db61e6148692d
+at 2048 6302520bcef3f8e3
+at 4096 45f9d15837130e74
+at 8192 a2af6bf88fef5c09
+at 16384 22daa275155a539e
+at 32768 934118c67b17d0ef
+at 65536 fe27a2122a44f892
+at 131072 90d4c036606dab8e
+at 262144 05857213292104e5
+at 524288 0f8f491eea893e28
+at 1048576 2ae6dde40e306b68

@@ -1,0 +1,21 @@
+# mic-key-runs: the answers the frozen Kotlin reference gave (docs/phase6-kotlin-references.md).
+# Their count, the digest after the last, and after each power of two (at N).
+count 80001
+digest 40a6884c32a7d0e6
+at 1 c22b52b1c631542f
+at 2 fb73030745523897
+at 4 088c899ae0ea07d3
+at 8 8fe2a6b603d58c4f
+at 16 9886692785617437
+at 32 4234fe975123b84f
+at 64 50437adb93d8ad8b
+at 128 c30a18a0d5f618bb
+at 256 f647463fa2022a03
+at 512 865d83503de02734
+at 1024 c457dfa141794733
+at 2048 f33f77aa8374a44f
+at 4096 0ee2d44220ce39db
+at 8192 8a4239072cbb5930
+at 16384 7c2a7beba388ce4d
+at 32768 3a7b2dd708940f19
+at 65536 c65f0a3b56817df2

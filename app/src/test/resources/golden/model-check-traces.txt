@@ -1,0 +1,22 @@
+# model-check-traces: the answers the frozen Kotlin reference gave (docs/phase6-kotlin-references.md).
+# Their count, the digest after the last, and after each power of two (at N).
+count 224894
+digest a316d4bb95f95dc7
+at 1 aff6aafdb731ba86
+at 2 3f51edddb3841462
+at 4 8c03f13cea5976f2
+at 8 7f9ae83e65b403f7
+at 16 95ec072d841c9182
+at 32 330abf5e0d6e1782
+at 64 d159da5a05392639
+at 128 da816c2a414c5573
+at 256 8802cfab5e4ceb64
+at 512 bcb1cf94d7871e37
+at 1024 badb2cb5db96d54e
+at 2048 c70729b7791cf442
+at 4096 bf20922f8f6930da
+at 8192 73b0d1137638b3e4
+at 16384 ed9e55239e589cb2
+at 32768 89ec78a11ede3adb
+at 65536 33b3a677bc703418
+at 131072 495161270f92843f

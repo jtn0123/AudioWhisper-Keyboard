@@ -1,0 +1,18 @@
+# mic-buffer-bytes: the answers the frozen Kotlin reference gave (docs/phase6-kotlin-references.md).
+# Their count, the digest after the last, and after each power of two (at N).
+count 10008
+digest 8a087a2e3274d625
+at 1 d82c81402b529cc3
+at 2 888004b50d878a59
+at 4 00ea98804e5bec0d
+at 8 1c246f583fcbb93f
+at 16 b8d1b0107c665b71
+at 32 c99c44fc47947478
+at 64 327536978f1a6efe
+at 128 8f7e7c386823ce1a
+at 256 cafe79216d306f5a
+at 512 22c39087343077f8
+at 1024 43e7e529432af3bd
+at 2048 4f37795b114de30d
+at 4096 a1e5ba248de5b83e
+at 8192 4ccdccdd3ea2dfb2

@@ -1,5 +1,6 @@
 package com.jtn0123.audiowhisper.dictation
 
+import com.jtn0123.audiowhisper.golden.GoldenTape
 import java.security.MessageDigest
 import kotlin.random.Random
 import kotlin.test.Test
@@ -33,6 +34,7 @@ class DictationSessionMatchTest {
         }
     }
     @Test fun seededExecutorAndLateResultStreams() {
+        val tape = GoldenTape.ofReference("dictation-session-streams")
         var compared = 0
         repeat(200) { seed ->
             val rng = Random(seed)
@@ -75,12 +77,15 @@ class DictationSessionMatchTest {
                     }
                 }
                 assertEquals(sides[0].snapshot(), sides[1].snapshot(), "seed=$seed step=$step event=$event")
+                tape.record(sides[0].snapshot().map { it.toString() })
                 compared++
             }
             sides.forEach { it.release(); it.platform.runAll() }
             assertEquals(sides[0].snapshot(), sides[1].snapshot(), "release seed=$seed")
+            tape.record(sides[0].snapshot().map { it.toString() })
         }
         assertEquals(50_000, compared)
+        tape.finish()
     }
     @Test fun editorFiltersAreObservedBetweenSpokenOperations() {
         val sides=listOf(Side(true),Side(false))
@@ -89,6 +94,7 @@ class DictationSessionMatchTest {
             s.press();s.platform.listening.single().phrase("hello. Comma. And continue.");s.platform.runAll()
         }
         assertEquals(sides[0].snapshot(),sides[1].snapshot(),"Filtered editor command sequence")
+        GoldenTape.ofReference("dictation-session-editor-filters").apply { record(sides[0].snapshot().map { it.toString() }) }.finish()
     }
     @Test fun releasedOwnerCannotOverwriteANewOwnersUiOrSubmitLateWork() {
         val flows = DictationFlows()

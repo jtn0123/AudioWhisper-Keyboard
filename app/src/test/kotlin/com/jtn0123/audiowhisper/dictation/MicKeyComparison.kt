@@ -1,5 +1,6 @@
 package com.jtn0123.audiowhisper.dictation
 
+import com.jtn0123.audiowhisper.golden.GoldenTape
 import kotlin.random.Random
 
 /**
@@ -8,11 +9,14 @@ import kotlin.random.Random
  * difference and how often each outcome was seen, so a caller can tell the runs reached them all.
  */
 class MicKeyComparison {
+    /** The reference's answers, in order (docs/phase6-kotlin-references.md). */
+    val tape = GoldenTape.ofReference("mic-key-runs")
     val differences = mutableListOf<String>()
     val seen = mutableMapOf<String, Int>()
 
     private fun check(what: String, input: String, kotlin: Any?, rust: Any?) {
         if (kotlin != rust && differences.size < MAX_DIFFERENCES) differences += "$what($input): kotlin $kotlin, rust $rust"
+        tape.record("$what: $kotlin")
     }
 
     private fun see(what: String) {

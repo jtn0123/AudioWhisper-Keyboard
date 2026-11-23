@@ -1,5 +1,6 @@
 package com.jtn0123.audiowhisper.dictation
 
+import com.jtn0123.audiowhisper.golden.GoldenTape
 import java.io.File
 import java.nio.file.Files
 import kotlin.random.Random
@@ -32,9 +33,25 @@ class ModelCheckTraceTest {
         }
     }
 
+    /** The reference's answers (docs/phase6-kotlin-references.md): each check, and the keys kept. */
+    private val tape = GoldenTape.ofReference("model-check-traces")
+
+    /** Times files are written at: one apart, so a rewrite is never mistaken for the file before it. */
+    private var writtenAt = 1_500_000_000_000L
+
+    private fun written(file: File, bytes: ByteArray) {
+        file.writeBytes(bytes)
+        file.setLastModified(writtenAt)
+        writtenAt += 1_000
+    }
+
+    /** [text] with the trace's own folder, which differs each run, put as `<dir>`. */
+    private fun File.relative(text: String) = text.replace(path, "<dir>")
+
     @Test
     fun checksMatchMain() {
         for (seed in SEEDS) trace(seed)
+        tape.finish()
     }
 
     private fun trace(seed: Long) {
@@ -53,6 +70,7 @@ class ModelCheckTraceTest {
                 val kind = step(random, dir, expected, contents, main, new)
                 seen[kind] = (seen[kind] ?: 0) + 1
                 assertEquals(main.keys, new.keys, "seed $seed event $event ($kind)")
+                tape.record(listOf("keys") + main.keys.map { dir.relative(it) }.sorted())
             }
         } finally {
             dir.listFiles()?.forEach { it.setReadable(true) }
@@ -67,18 +85,20 @@ class ModelCheckTraceTest {
         val i = random.nextInt(FILES)
         val file = File(dir, expected[i].name)
         return when (random.nextInt(20)) {
-            0, 1 -> "written".also { file.setReadable(true); file.writeBytes(contents[i]) }
-            2 -> "changed".also { file.setReadable(true); file.writeBytes(contents[i].copyOf().also { it[0] = (it[0] + 1).toByte() }) }
-            3 -> "cut short".also { file.setReadable(true); file.writeBytes(contents[i].copyOf(contents[i].size - 1)) }
+            0, 1 -> "written".also { file.setReadable(true); written(file, contents[i]) }
+            2 -> "changed".also { file.setReadable(true); written(file, contents[i].copyOf().also { it[0] = (it[0] + 1).toByte() }) }
+            3 -> "cut short".also { file.setReadable(true); written(file, contents[i].copyOf(contents[i].size - 1)) }
             4 -> "deleted".also { file.setReadable(true); file.delete() }
             5 -> "touched".also { file.setLastModified(1_000_000_000_000L + random.nextLong(1_000_000) * 1000) }
             6 -> "unreadable".also { file.setReadable(false) }
             7 -> "readable".also { file.setReadable(true) }
             8 -> "forgotten".also { main.keys.clear(); new.keys.clear() }
-            9 -> "repaired".also { expected.indices.forEach { File(dir, expected[it].name).apply { setReadable(true); writeBytes(contents[it]) } } }
+            9 -> "repaired".also { expected.indices.forEach { File(dir, expected[it].name).apply { setReadable(true); written(this, contents[it]) } } }
             in 10..13 -> {
                 val state = outcome { ModelCheck.quick(dir, expected) }
-                assertEquals(outcome { ReferenceModelCheck.quick(dir, expected) }, state)
+                val reference = outcome { ReferenceModelCheck.quick(dir, expected) }
+                assertEquals(reference, state)
+                tape.record(listOf("quick", dir.relative(reference.toString())))
                 "quick ${name(state)}"
             }
             else -> full(dir, expected, main, new)
@@ -88,9 +108,12 @@ class ModelCheckTraceTest {
     private fun full(dir: File, expected: List<ExpectedFile>, main: Memory, new: Memory): String {
         main.asked.clear(); main.added.clear(); new.asked.clear(); new.added.clear()
         val state = outcome { ModelCheck.full(dir, expected, new) }
-        assertEquals(outcome { ReferenceModelCheck.full(dir, expected, main) }, state)
+        val reference = outcome { ReferenceModelCheck.full(dir, expected, main) }
+        assertEquals(reference, state)
         assertEquals(main.asked, new.asked, "keys looked up")
         assertEquals(main.added, new.added, "keys remembered")
+        tape.record(listOf("full", dir.relative(reference.toString()), "asked") + main.asked.map { dir.relative(it) } +
+            "added" + main.added.map { dir.relative(it) })
         // Main's order differs only if a file passed before the last one was looked up.
         val batched = new.added.any { it != new.asked.last() }
         return if (batched) "full ${name(state)}, remembered at the end" else "full ${name(state)}"

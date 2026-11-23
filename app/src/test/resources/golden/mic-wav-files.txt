@@ -1,0 +1,20 @@
+# mic-wav-files: the answers the frozen Kotlin reference gave (docs/phase6-kotlin-references.md).
+# Their count, the digest after the last, and after each power of two (at N).
+count 60000
+digest 5ffcf9589bbdc2e0
+at 1 f8284776805dd9e8
+at 2 f78b3a4674cb9ffc
+at 4 44671d0bed65bd12
+at 8 0ba3e3cc695ff26b
+at 16 bd80041ff57f6e83
+at 32 43a71da6b7e2f619
+at 64 2c15d26f187ef565
+at 128 631bb5c2e2a65c45
+at 256 3f07bf8589dda5a2
+at 512 1895a851e8fd3440
+at 1024 4f74e2ee21ab2a55
+at 2048 f7bfb0b402c23bc3
+at 4096 54bbed6645ec99ce
+at 8192 7b0ba28475b1bedd
+at 16384 c7c5ccb79978dd08
+at 32768 9267b3a4682cba14

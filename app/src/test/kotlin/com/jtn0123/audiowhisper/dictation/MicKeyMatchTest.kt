@@ -17,6 +17,7 @@ class MicKeyMatchTest {
         comparison.constants()
         comparison.keys(Random(SEED), runs = 2_000, steps = 40)
         assertEquals(emptyList(), comparison.differences)
+        comparison.tape.finish()
         for (outcome in OUTCOMES) {
             assertTrue((comparison.seen[outcome] ?: 0) >= MIN_SEEN, "$outcome only ${comparison.seen[outcome]} times")
         }

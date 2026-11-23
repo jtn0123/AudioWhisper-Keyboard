@@ -1,0 +1,20 @@
+# dictation-session-streams: the answers the frozen Kotlin reference gave (docs/phase6-kotlin-references.md).
+# Their count, the digest after the last, and after each power of two (at N).
+count 50200
+digest 32aa852e990e070d
+at 1 1be2ef00bd909698
+at 2 d63d40499d5f61b5
+at 4 b004e6dc16966502
+at 8 ad22e37296c1f14d
+at 16 6c7372365cbd1d20
+at 32 86b61af24652b777
+at 64 722b8c53c4608a3b
+at 128 0f5a6c494fdf8c01
+at 256 aee79426e1be5294
+at 512 73b88d22c182c769
+at 1024 2936a586853ee63b
+at 2048 b31ce6b587b37f7d
+at 4096 751fe697b8364fec
+at 8192 fbc0716c4a593596
+at 16384 7e13147295bdf536
+at 32768 ca9f8c37d21d76de

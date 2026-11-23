@@ -1,5 +1,6 @@
 package com.jtn0123.audiowhisper.dictation
 
+import com.jtn0123.audiowhisper.golden.GoldenTape
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -60,21 +61,24 @@ class DictationRulesMatchTest {
         ReferenceDictation.DictationUndo(typed, start, ".").revertAt(cursor, text)
             ?.let { DictationUndo.Revert(it.length, it.text) }.toString()
 
-    /** Collects what differs, so a failure shows the first few cases rather than only one. */
-    private class Differences {
+    /**
+     * Collects what differs, so a failure shows the first few cases rather than only one, and
+     * records the reference's answers on [tape] (docs/phase6-kotlin-references.md).
+     */
+    private class Differences(private val tape: GoldenTape) {
         var compared = 0
         val found = mutableListOf<String>()
 
         fun check(case: String, rust: Any, reference: Any) {
             compared++
             if (rust != reference) found += "$case: Rust gave $rust, Kotlin gave $reference"
+            if (reference is List<*>) tape.record(reference.map { it.toString() }) else tape.record(reference.toString())
         }
 
-        fun assertNone() = assertEquals(
-            emptyList(),
-            found.take(20),
-            "${found.size} of $compared cases differ",
-        )
+        fun assertNone() {
+            assertEquals(emptyList(), found.take(20), "${found.size} of $compared cases differ")
+            tape.finish()
+        }
     }
 
     /**
@@ -91,7 +95,7 @@ class DictationRulesMatchTest {
 
     @Test
     fun everyCharacterIsJudgedAsKotlinJudgesIt() {
-        val differences = Differences()
+        val differences = Differences(GoldenTape.ofReference("dictation-rules-every-character"))
         for (code in 0..0xFFFF) {
             val c = code.toChar().toString()
             val joins = listOf(
@@ -138,7 +142,7 @@ class DictationRulesMatchTest {
     @Test
     fun randomPhrasesGiveTheSame() {
         val random = Random(2026_11_08)
-        val differences = Differences()
+        val differences = Differences(GoldenTape.ofReference("dictation-rules-random-phrases"))
         repeat(100_000) {
             val phrase = random.text(12)
             differences.check("parse($phrase)", parse(phrase), referenceParse(phrase))

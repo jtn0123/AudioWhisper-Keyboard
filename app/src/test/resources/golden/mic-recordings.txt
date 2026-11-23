@@ -1,0 +1,16 @@
+# mic-recordings: the answers the frozen Kotlin reference gave (docs/phase6-kotlin-references.md).
+# Their count, the digest after the last, and after each power of two (at N).
+count 2447
+digest 6f7fa4ae51786498
+at 1 e3137a00f4d6d023
+at 2 a30ab092cf78ec84
+at 4 01650cffa6790ff3
+at 8 9d17199862e1fe64
+at 16 a6d402742f28556b
+at 32 c7e514faa250a1e3
+at 64 0d521648a6216e0e
+at 128 d542c609da384668
+at 256 8399fcb2f168486e
+at 512 c74b28b55524a359
+at 1024 ebe557c1492e24a7
+at 2048 b7e2a1ad3b223f14

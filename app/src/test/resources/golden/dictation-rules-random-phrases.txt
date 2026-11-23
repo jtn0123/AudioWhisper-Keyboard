@@ -1,0 +1,23 @@
+# dictation-rules-random-phrases: the answers the frozen Kotlin reference gave (docs/phase6-kotlin-references.md).
+# Their count, the digest after the last, and after each power of two (at N).
+count 400000
+digest ab035f422f989189
+at 1 3d20f2fe3dd68129
+at 2 cd0d488d862e7532
+at 4 25cbb959ab391047
+at 8 73bff98be535867c
+at 16 ec213951e35a78d4
+at 32 9e600e366ea8c002
+at 64 7ea7ac8036445eee
+at 128 e2b3ceb6db9227e5
+at 256 152a0433038f3cf0
+at 512 ccd2ac9975d14e64
+at 1024 9a875378feeb82a0
+at 2048 046985b63f10c43c
+at 4096 59f45a0865f2829b
+at 8192 082a43ee67117a4a
+at 16384 6179ce3d943ce55d
+at 32768 04df6607ac6d26a7
+at 65536 8e45a52c1a9a36c3
+at 131072 62061ac35adff630
+at 262144 552c3a4a097a730b

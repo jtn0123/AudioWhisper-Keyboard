@@ -1,5 +1,6 @@
 package com.jtn0123.audiowhisper.dictation
 
+import com.jtn0123.audiowhisper.golden.GoldenTape
 import com.jtn0123.audiowhisper.rust.DictationAudio
 import com.jtn0123.audiowhisper.rust.MicRules
 import java.nio.ByteBuffer
@@ -46,6 +47,7 @@ class MicTraceTest {
 
     @Test
     fun recordingsMatchMain() {
+        val tape = GoldenTape.ofReference("mic-recordings")
         for (seed in SEEDS) {
             val random = Random(seed)
             val seen = HashMap<String, Int>()
@@ -58,6 +60,7 @@ class MicTraceTest {
                 val main = record(script, afterStop, reference = true)
                 val new = record(script, afterStop, reference = false)
                 assertEquals(main, new, "seed $seed after $reads reads")
+                tape.record(main)
                 effects += main.size
             }
             println("Mic trace seed $seed: $reads reads, $effects effects, 0 differ, seen $seen")
@@ -65,6 +68,7 @@ class MicTraceTest {
                 assertTrue((seen[kind] ?: 0) >= MIN_SEEN, "seed $seed saw $kind ${seen[kind]} times")
             }
         }
+        tape.finish()
     }
 
     private fun record(script: List<Read>, afterStop: Read, reference: Boolean): List<String> {
@@ -117,6 +121,7 @@ class MicTraceTest {
 
     @Test
     fun wavFilesMatchMain() {
+        val tape = GoldenTape.ofReference("mic-wav-files")
         for (seed in SEEDS) {
             val random = Random(seed)
             val seen = HashMap<String, Int>()
@@ -125,6 +130,9 @@ class MicTraceTest {
                 val kind = compare(wav)
                 seen[kind] = (seen[kind] ?: 0) + 1
                 assertTrue(kind != "differ", "seed $seed wav $n differs from main")
+                val expected = expected(wav)
+                assertEquals(expected, answer(runCatching { MicRules.pcm16(wav) }), "seed $seed wav $n")
+                tape.record(expected)
             }
             println("WAV trace seed $seed: $WAVS files, 0 differ, seen $seen")
             for (kind in listOf("audio", "not a wav", "no audio", "main never returned", "main threw IndexOutOfBoundsException",
@@ -132,7 +140,25 @@ class MicTraceTest {
                 assertTrue((seen[kind] ?: 0) >= MIN_SEEN, "seed $seed saw $kind ${seen[kind]} times")
             }
         }
+        tape.finish()
     }
+
+    /**
+     * What [wav] must come to, from main's answer: its samples, or the IllegalArgumentException it
+     * threw, or, where main never returned or threw anything else, the refusal for no audio.
+     */
+    private fun expected(wav: ByteArray): String {
+        if (mainLoops(wav)) return "refused No audio in the WAV file"
+        val main = runCatching { ReferenceMic.pcm16(wav) }
+        val failure = main.exceptionOrNull()
+        return if (failure == null || failure is IllegalArgumentException) answer(main) else "refused No audio in the WAV file"
+    }
+
+    /** A parse's answer as text: every sample's bits, or the refusal and its message. */
+    private fun answer(result: Result<FloatArray>): String = result.fold(
+        { samples -> "audio " + samples.joinToString(",") { bits(it) } },
+        { if (it is IllegalArgumentException) "refused ${it.message}" else "threw ${it.javaClass.simpleName}" },
+    )
 
     /** How [wav] came out: the same as main, or one of the intended differences, or "differ". */
     private fun compare(wav: ByteArray): String {
@@ -205,7 +231,12 @@ class MicTraceTest {
     fun bufferAndReadRulesMatchMain() {
         val random = Random(SEEDS[0])
         val minimums = listOf(Int.MIN_VALUE, -2, -1, 0, 31_999, 32_000, 32_001, Int.MAX_VALUE) + List(10_000) { random.nextInt() }
-        for (minimum in minimums) assertEquals(ReferenceMic.bufferBytes(minimum), MicRules.bufferBytes(minimum), "minimum $minimum")
+        val tape = GoldenTape.ofReference("mic-buffer-bytes")
+        for (minimum in minimums) {
+            assertEquals(ReferenceMic.bufferBytes(minimum), MicRules.bufferBytes(minimum), "minimum $minimum")
+            tape.record(ReferenceMic.bufferBytes(minimum).toString())
+        }
+        tape.finish()
         println("Mic buffer trace: ${minimums.size} minimums, 0 differ")
     }
 
