@@ -1,0 +1,6 @@
+# reader-rules-constants: the answers the frozen Kotlin reference gave (docs/phase6-kotlin-references.md).
+# Their count, the digest after the last, and after each power of two (at N).
+count 3
+digest 82dfb038d1f3fc94
+at 1 e40420d504d3a4a7
+at 2 c5463bf68494c3f9

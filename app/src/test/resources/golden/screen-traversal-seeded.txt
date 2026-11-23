@@ -1,0 +1,18 @@
+# screen-traversal-seeded: the answers the frozen Kotlin reference gave (docs/phase6-kotlin-references.md).
+# Their count, the digest after the last, and after each power of two (at N).
+count 10000
+digest 506adc4455ac9e8b
+at 1 4d923d11f238a646
+at 2 1527cd108a56f8f3
+at 4 ac5fab29214484fa
+at 8 c1c13eba5ed4a7bb
+at 16 2d017382fce8d039
+at 32 1cbb139d61e18a75
+at 64 fcff5a27cb76828a
+at 128 0e79ac4708ca893a
+at 256 659ecca7b010418b
+at 512 26fec24f78481d63
+at 1024 ee18be7eceae2a6c
+at 2048 70ea5af30544b6a4
+at 4096 e9f109133298e676
+at 8192 596acb7b0f306e3c

@@ -1,0 +1,20 @@
+# read-aloud-routes: the answers the frozen Kotlin reference gave (docs/phase6-kotlin-references.md).
+# Their count, the digest after the last, and after each power of two (at N).
+count 60004
+digest a5ac15d3bccaa19f
+at 1 2cc4f909dffc1824
+at 2 f5752042eb252714
+at 4 ebfc22d47191be5f
+at 8 c9f1e86f10c4e96e
+at 16 0032a9478ecb905e
+at 32 7fde037a3e94d03b
+at 64 0ce306102f470693
+at 128 075a3dda00a0299f
+at 256 06b3bc3a2da9fb7b
+at 512 e03b8bdabd07dc7f
+at 1024 b8c0978cd2d92a3a
+at 2048 0ab92c5a7096b7ce
+at 4096 7e574d80c97004ea
+at 8192 5f85d6d27ff8bcd6
+at 16384 365c9d7afc7e4376
+at 32768 dfaedfab1a22618f

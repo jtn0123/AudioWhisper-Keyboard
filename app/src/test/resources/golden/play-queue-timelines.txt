@@ -1,0 +1,20 @@
+# play-queue-timelines: the answers the frozen Kotlin reference gave (docs/phase6-kotlin-references.md).
+# Their count, the digest after the last, and after each power of two (at N).
+count 50000
+digest b6a4cc4b1827ae3a
+at 1 0b85be4094b95de2
+at 2 273bf5a29e59db0e
+at 4 13f463f78866c82f
+at 8 72d92a8610d3edeb
+at 16 b5603eb79dc73e98
+at 32 bfe2fbcf10212f0b
+at 64 37823cdcc4065211
+at 128 a29da74f079b6242
+at 256 e7c78f6d54526c89
+at 512 ebfee8f25b92bf9b
+at 1024 fbc9251949943b06
+at 2048 c28481c55139bb33
+at 4096 d36a88d2c0f0f491
+at 8192 9a173f156632b619
+at 16384 cc795ab7c9ebb909
+at 32768 e6a3aa6350b6d417

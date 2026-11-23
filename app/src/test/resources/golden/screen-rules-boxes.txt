@@ -1,0 +1,22 @@
+# screen-rules-boxes: the answers the frozen Kotlin reference gave (docs/phase6-kotlin-references.md).
+# Their count, the digest after the last, and after each power of two (at N).
+count 200000
+digest f51a5400bee2220b
+at 1 d25c58b3223f6581
+at 2 ed2543aabbd48f99
+at 4 e6dbb3deb46ee54f
+at 8 76f92dc3409ee0c2
+at 16 fae6582602494a2a
+at 32 9f918dbdd9f07f27
+at 64 2221345915b23098
+at 128 da4ff1d0d9dc1526
+at 256 7aa21a0d69587ebb
+at 512 13409f4c9916c046
+at 1024 2505d4e3af3208d0
+at 2048 20a2fcdf63e6e453
+at 4096 54f310e4a35973ea
+at 8192 65e3968f317607de
+at 16384 5447d38c1be77390
+at 32768 9a40b6e5a04276ca
+at 65536 45be024b0ed029b4
+at 131072 0bd50e8df9764428

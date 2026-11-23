@@ -1,0 +1,6 @@
+# voice-hold-traces: the answers the frozen Kotlin reference gave (docs/phase6-kotlin-references.md).
+# Their count, the digest after the last, and after each power of two (at N).
+count 3
+digest 95f11905e5b6fa93
+at 1 369ead40d8d90720
+at 2 1ba4ea89591af1e8

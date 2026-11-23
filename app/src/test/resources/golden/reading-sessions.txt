@@ -1,0 +1,17 @@
+# reading-sessions: the answers the frozen Kotlin reference gave (docs/phase6-kotlin-references.md).
+# Their count, the digest after the last, and after each power of two (at N).
+count 4654
+digest e614dcc27a4a4ff6
+at 1 45745aab8bbffee8
+at 2 3dc0bdabf688045e
+at 4 bfd74be71594b59b
+at 8 28fdadfacb0edaff
+at 16 f03fd2cc01c52884
+at 32 65a09981502a1f61
+at 64 8781bd17bab2c405
+at 128 23a15bfd954fb41a
+at 256 a77637ea122979cf
+at 512 25a6213aee040acb
+at 1024 2915cd672c9d1931
+at 2048 a71c4ecda6efd4ff
+at 4096 c6c5cf064c98f457

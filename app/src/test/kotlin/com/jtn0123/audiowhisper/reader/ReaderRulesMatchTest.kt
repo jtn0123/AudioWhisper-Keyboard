@@ -1,5 +1,6 @@
 package com.jtn0123.audiowhisper.reader
 
+import com.jtn0123.audiowhisper.golden.GoldenTape
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -13,34 +14,36 @@ import kotlin.test.assertTrue
  * emulator, whose Java judges spaces, case and sentences differently.
  */
 class ReaderRulesMatchTest {
-    private fun assertNone(reached: List<String>, body: ReaderComparison.() -> Unit) {
-        val comparison = ReaderComparison(sigmaExact = false).apply(body)
+    private fun assertNone(name: String, reached: List<String>, body: ReaderComparison.() -> Unit) {
+        val tape = GoldenTape.ofReference("reader-rules-$name")
+        val comparison = ReaderComparison(sigmaExact = false, tape).apply(body)
         assertEquals(emptyList(), comparison.examples, "${comparison.failures} of ${comparison.checks} differ")
+        tape.finish()
         for (outcome in reached) {
             assertTrue((comparison.seen[outcome] ?: 0) >= MIN_SEEN, "$outcome only ${comparison.seen[outcome]} times")
         }
     }
 
     @Test
-    fun pagesMatch() = assertNone(PAGE_OUTCOMES) { pages(Random(SEED), 40_000) }
+    fun pagesMatch() = assertNone("pages", PAGE_OUTCOMES) { pages(Random(SEED), 40_000) }
 
     @Test
-    fun joinedBlocksMatch() = assertNone(JOIN_OUTCOMES) { joins(Random(SEED), 40_000) }
+    fun joinedBlocksMatch() = assertNone("joins", JOIN_OUTCOMES) { joins(Random(SEED), 40_000) }
 
     @Test
-    fun scrollsMatch() = assertNone(SCROLL_OUTCOMES) { scrolls(Random(SEED), 40_000) }
+    fun scrollsMatch() = assertNone("scrolls", SCROLL_OUTCOMES) { scrolls(Random(SEED), 40_000) }
 
     @Test
-    fun speechMatches() = assertNone(SPEECH_OUTCOMES) { speech(Random(SEED), 20_000) }
+    fun speechMatches() = assertNone("speech", SPEECH_OUTCOMES) { speech(Random(SEED), 20_000) }
 
     @Test
-    fun viewsMatch() = assertNone(VIEW_OUTCOMES) { views(Random(SEED), 100_000) }
+    fun viewsMatch() = assertNone("views", VIEW_OUTCOMES) { views(Random(SEED), 100_000) }
 
     @Test
-    fun speakerKeysMatch() = assertNone(KEY_OUTCOMES) { keys(Random(SEED), runs = 2_000, steps = 40) }
+    fun speakerKeysMatch() = assertNone("keys", KEY_OUTCOMES) { keys(Random(SEED), runs = 2_000, steps = 40) }
 
     @Test
-    fun constantsMatch() = assertNone(emptyList()) { constants() }
+    fun constantsMatch() = assertNone("constants", emptyList()) { constants() }
 
     @Test
     fun nothingIsCutIntoPiecesOfNoLength() {

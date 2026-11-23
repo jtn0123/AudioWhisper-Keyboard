@@ -1,0 +1,20 @@
+# reader-rules-scrolls: the answers the frozen Kotlin reference gave (docs/phase6-kotlin-references.md).
+# Their count, the digest after the last, and after each power of two (at N).
+count 40000
+digest e93cbbb1704be9d8
+at 1 96fb4613cdacff82
+at 2 e5fabcd2a2ac607b
+at 4 4b79bf97da533597
+at 8 8ba7bbb99fef166e
+at 16 88dc7cc3427e9a43
+at 32 4fbdcb55364f0241
+at 64 f860e129be5cee90
+at 128 cbd8f237d3f0d74f
+at 256 ff3ae85640607510
+at 512 961fefa1e927f54a
+at 1024 bed69852e24b2e0b
+at 2048 f556b3cdfd915cd7
+at 4096 4aa80efc3045800c
+at 8192 275ca1a28cac304a
+at 16384 a3f5fc32cfc41657
+at 32768 d0c7918208376b4b

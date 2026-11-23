@@ -1,5 +1,6 @@
 package com.jtn0123.audiowhisper.reader
 
+import com.jtn0123.audiowhisper.golden.GoldenTape
 import com.jtn0123.audiowhisper.rust.ReadRoute
 import com.jtn0123.audiowhisper.rust.ReadingRules
 import kotlinx.coroutines.CancellableContinuation
@@ -130,8 +131,10 @@ class LoadedVoiceTraceTest {
 
     @Test
     fun holdsMatchMain() {
+        val tape = GoldenTape.ofReference("voice-hold-traces")
         for (seed in SEEDS) {
             val main = trace(seed, reference = true)
+            tape.record(main)
             val new = trace(seed, reference = false)
             val first = main.indices.firstOrNull { it >= new.size || main[it] != new[it] }
             assertEquals(main.size, new.size, "seed $seed: lengths, first difference at $first")
@@ -140,6 +143,7 @@ class LoadedVoiceTraceTest {
             println("Voice hold trace seed $seed: $EVENTS events, ${main.size} effects, 0 differ, seen $seen")
             for ((kind, count) in seen) assertTrue(count >= MIN_SEEN, "seed $seed saw $kind $count times")
         }
+        tape.finish()
     }
 
     /** What the trace did, by the effects that mark each path. */
@@ -161,8 +165,10 @@ class LoadedVoiceTraceTest {
 
     @Test
     fun routesMatchMain() {
+        val tape = GoldenTape.ofReference("read-aloud-routes")
         for (up in listOf(false, true)) for (on in listOf(false, true)) {
             val main = ReferenceReadAloud.read(up) { on }
+            tape.record("service up $up, turned on $on: $main")
             val new = when (ReadingRules.route(up, on)) {
                 ReadRoute.READ -> ReferenceReadAloud.READ
                 ReadRoute.ASK -> ReferenceReadAloud.ASK
@@ -184,12 +190,14 @@ class LoadedVoiceTraceTest {
                     else -> at + random.nextLong(-1_000, 12_000)
                 }
                 val main = ReferenceReadAloud.stillAsked(at, now)
+                tape.record("$main")
                 assertEquals(main, ReadingRules.stillAsked(at, now), "seed $seed ask $it")
                 if (main) still++
             }
             println("Service wait trace seed $seed: 4 routes, $ASKS asks, $still still wanted, 0 differ")
             assertTrue(still >= MIN_SEEN && ASKS - still >= MIN_SEEN)
         }
+        tape.finish()
     }
 
     private companion object {

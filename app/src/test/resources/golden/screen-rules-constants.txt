@@ -1,0 +1,5 @@
+# screen-rules-constants: the answers the frozen Kotlin reference gave (docs/phase6-kotlin-references.md).
+# Their count, the digest after the last, and after each power of two (at N).
+count 1
+digest b64399ed47a69866
+at 1 b64399ed47a69866

@@ -1,0 +1,6 @@
+# screen-traversal-limits: the answers the frozen Kotlin reference gave (docs/phase6-kotlin-references.md).
+# Their count, the digest after the last, and after each power of two (at N).
+count 2
+digest ceafce96857666a4
+at 1 06236db1e7e9da17
+at 2 ceafce96857666a4

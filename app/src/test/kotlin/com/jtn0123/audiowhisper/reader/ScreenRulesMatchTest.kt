@@ -1,5 +1,6 @@
 package com.jtn0123.audiowhisper.reader
 
+import com.jtn0123.audiowhisper.golden.GoldenTape
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -11,28 +12,30 @@ import kotlin.test.assertTrue
  * scrollers and pieces to bring into view. The same comparison runs on the emulator.
  */
 class ScreenRulesMatchTest {
-    private fun assertNone(reached: List<String>, body: ScreenComparison.() -> Unit) {
-        val comparison = ScreenComparison().apply(body)
+    private fun assertNone(name: String, reached: List<String>, body: ScreenComparison.() -> Unit) {
+        val tape = GoldenTape.ofReference("screen-rules-$name")
+        val comparison = ScreenComparison(tape).apply(body)
         assertEquals(emptyList(), comparison.examples, "${comparison.failures} of ${comparison.checks} differ")
+        tape.finish()
         for (outcome in reached) {
             assertTrue((comparison.seen[outcome] ?: 0) >= MIN_SEEN, "$outcome only ${comparison.seen[outcome]} times")
         }
     }
 
     @Test
-    fun sidewaysMatches() = assertNone(SIDEWAYS_OUTCOMES) { sideways(Random(SEED), 40_000) }
+    fun sidewaysMatches() = assertNone("sideways", SIDEWAYS_OUTCOMES) { sideways(Random(SEED), 40_000) }
 
     @Test
-    fun boxesMatch() = assertNone(BOX_OUTCOMES) { boxes(Random(SEED), 100_000) }
+    fun boxesMatch() = assertNone("boxes", BOX_OUTCOMES) { boxes(Random(SEED), 100_000) }
 
     @Test
-    fun listsMatch() = assertNone(LIST_OUTCOMES) { lists(Random(SEED), 40_000) }
+    fun listsMatch() = assertNone("lists", LIST_OUTCOMES) { lists(Random(SEED), 40_000) }
 
     @Test
-    fun movesMatch() = assertNone(MOVE_OUTCOMES) { moves(Random(SEED), 100_000) }
+    fun movesMatch() = assertNone("moves", MOVE_OUTCOMES) { moves(Random(SEED), 100_000) }
 
     @Test
-    fun constantsMatch() = assertNone(emptyList()) { constants() }
+    fun constantsMatch() = assertNone("constants", emptyList()) { constants() }
 
     private companion object {
         const val SEED = 20261108L

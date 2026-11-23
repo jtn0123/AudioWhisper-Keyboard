@@ -1,0 +1,20 @@
+# screen-rules-sideways: the answers the frozen Kotlin reference gave (docs/phase6-kotlin-references.md).
+# Their count, the digest after the last, and after each power of two (at N).
+count 40000
+digest 406de7cb51fb65f9
+at 1 d1886e1badc70b82
+at 2 0df29667a5ff872d
+at 4 2da88220801fcbbd
+at 8 e9c8cf26b8bb9655
+at 16 ce2d154dc2a351c9
+at 32 6c98a07db37f8065
+at 64 58803353300e3e99
+at 128 aa5397608c782e31
+at 256 055b5440c81b9dfd
+at 512 110fb38a022a7bad
+at 1024 35bcd7294c89e621
+at 2048 e5d662084b6be3e1
+at 4096 210ac0ae8b3f89e5
+at 8192 b2c36753d384e3a1
+at 16384 489002411a312f81
+at 32768 5c6417df472699c1

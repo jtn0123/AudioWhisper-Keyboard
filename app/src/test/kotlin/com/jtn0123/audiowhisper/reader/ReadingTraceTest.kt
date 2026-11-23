@@ -1,5 +1,6 @@
 package com.jtn0123.audiowhisper.reader
 
+import com.jtn0123.audiowhisper.golden.GoldenTape
 import com.jtn0123.audiowhisper.rust.ReadingRules
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
@@ -56,7 +57,7 @@ class ReadingTraceTest {
         override fun makeVoice(neural: Boolean): Voice = FakeVoice(this, random).also { record("make $neural") }
         override fun stopSpeaking() = record("stop speaking")
         override suspend fun idleVoice() = record("idle").also { yield() }
-        override suspend fun tell(message: Int, long: Boolean) = record("tell $message $long").also { yield() }
+        override suspend fun tell(message: Int, long: Boolean) = record("tell ${said(message)} $long").also { yield() }
         override suspend fun wait(ms: Long) = record("wait $ms").also { yield() }
 
         override fun walk(skipOwn: Boolean): Screen? {
@@ -127,6 +128,7 @@ class ReadingTraceTest {
 
     @Test
     fun readingsMatchMain() {
+        val tape = GoldenTape.ofReference("reading-sessions")
         for (seed in SEEDS) {
             val random = Random(seed)
             val seen = HashMap<String, Int>()
@@ -136,6 +138,7 @@ class ReadingTraceTest {
                 val from = from(random)
                 val cancelAt = if (random.nextInt(3) == 0) random.nextInt(1, 80) else 0
                 val main = session(seed, session, from, cancelAt, reference = true)
+                tape.record(main)
                 val new = session(seed, session, from, cancelAt, reference = false)
                 assertEquals(main, new, "seed $seed session $session")
                 count(seen, main, cancelAt)
@@ -145,6 +148,7 @@ class ReadingTraceTest {
             println("Reading trace seed $seed: $session sessions, $effects effects, 0 differ, seen $seen")
             for (kind in KINDS) assertTrue((seen[kind] ?: 0) >= MIN_SEEN, "seed $seed saw $kind ${seen[kind]} times")
         }
+        tape.finish()
     }
 
     private fun session(seed: Long, session: Int, from: ReadAloud.From, cancelAt: Int, reference: Boolean): List<String> =
@@ -177,8 +181,8 @@ class ReadingTraceTest {
         }
         if (cancelAt in 1..effects.size) saw("cancelled")
         if (effects.any { it.startsWith("tell") && it.endsWith("true") }) saw("unavailable")
-        if (effects.contains("tell ${dev.patrickgold.florisboard.R.string.read_aloud__nothing} false")) saw("nothing")
-        if (effects.contains("tell ${dev.patrickgold.florisboard.R.string.read_aloud__voice_failed} false")) saw("voice failed")
+        if (effects.contains("tell nothing false")) saw("nothing")
+        if (effects.contains("tell voice failed false")) saw("voice failed")
         if (effects.any { it.startsWith("scroll true") }) saw("scrolled on")
         if (effects.any { it.startsWith("scroll false") }) saw("scrolled back")
         if (effects.any { it.startsWith("reveal") }) saw("revealed")
@@ -193,6 +197,7 @@ class ReadingTraceTest {
 
     @Test
     fun windowsMatchMain() {
+        val tape = GoldenTape.ofReference("reading-windows")
         for (seed in SEEDS) {
             val random = Random(seed)
             var chosen = 0
@@ -204,6 +209,7 @@ class ReadingTraceTest {
                         random.nextInt(0, 4), top, top + random.nextInt(0, 2400))
                 }
                 val main = ReferenceWindow.appWindow(all)
+                tape.record("$main")
                 val (app, keyboard) = ReadingRules.window(
                     BooleanArray(all.size) { all[it].type == android.view.accessibility.AccessibilityWindowInfo.TYPE_APPLICATION },
                     BooleanArray(all.size) { all[it].type == android.view.accessibility.AccessibilityWindowInfo.TYPE_INPUT_METHOD },
@@ -218,6 +224,7 @@ class ReadingTraceTest {
             println("Window trace seed $seed: $WINDOW_LISTS window lists, $chosen with an app, $cut cut to the keyboard, 0 differ")
             assertTrue(chosen >= MIN_SEEN && cut >= MIN_SEEN && WINDOW_LISTS - chosen >= MIN_SEEN)
         }
+        tape.finish()
     }
 
     private companion object {
@@ -227,6 +234,14 @@ class ReadingTraceTest {
         const val MIN_SEEN = 20
         const val LOOK_TRIES = 8
         const val UNAVAILABLE = 0x7f0f0001
+
+        /** A message by its name: a resource's id moves whenever a string is added, and goldens keep. */
+        fun said(message: Int) = when (message) {
+            UNAVAILABLE -> "unavailable"
+            dev.patrickgold.florisboard.R.string.read_aloud__nothing -> "nothing"
+            dev.patrickgold.florisboard.R.string.read_aloud__voice_failed -> "voice failed"
+            else -> "message $message"
+        }
         val TEXTS = listOf("alpha beta", "gamma", "delta epsilon", "zeta", "eta theta iota", "kappa", "lambda mu", "nu")
         val SELECTIONS = listOf("beta", "gamma", "epsilon", "theta iota", "omega", "kappa lambda")
         val KINDS = listOf(

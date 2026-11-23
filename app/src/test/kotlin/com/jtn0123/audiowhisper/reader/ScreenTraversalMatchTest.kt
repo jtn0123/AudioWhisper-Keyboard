@@ -1,5 +1,6 @@
 package com.jtn0123.audiowhisper.reader
 
+import com.jtn0123.audiowhisper.golden.GoldenTape
 import com.jtn0123.audiowhisper.rust.ReaderTree
 import com.jtn0123.audiowhisper.rust.ReaderWalk
 import kotlin.random.Random
@@ -15,6 +16,7 @@ class ScreenTraversalMatchTest {
     }
     @Test fun seededTreesMatchSelectionAndReadingOrder() {
         val visible = intArrayOf(0, 0, 1080, 1600)
+        val tape = GoldenTape.ofReference("screen-traversal-seeded")
         repeat(200) { seed ->
             val rng = Random(seed)
             repeat(50) {
@@ -28,16 +30,23 @@ class ScreenTraversalMatchTest {
                         rng.nextInt(2), rng.nextInt(2), rng.nextInt(4), rng.nextInt(4), rng.nextInt(2), rng.nextInt(2), children[i].size)
                 }, children, List(count) { listOf("", " ", "\u00a0", "A synthetic block.", "42 ✓")[rng.nextInt(5)] },
                     List(count) { listOf("android.webkit.WebView", "ViewPager", "TextView", "HorizontalScrollView")[rng.nextInt(4)] })
-                assertContentEquals(ReferenceScreenWalk.walk(tree, visible), ReaderWalk.walk(tree, visible))
+                val reference = ReferenceScreenWalk.walk(tree, visible)
+                tape.record(reference.joinToString(","))
+                assertContentEquals(reference, ReaderWalk.walk(tree, visible))
             }
         }
+        tape.finish()
     }
     @Test fun deepAndWideTreesPreserveTheOriginalLimits() {
+        val tape = GoldenTape.ofReference("screen-traversal-limits")
         for ((count, chain) in listOf(300 to true, 20_100 to false)) {
             val children = List(count) { i -> if (chain && i + 1 < count) listOf(i + 1) else if (!chain && i == 0) (1 until count).toList() else emptyList() }
             val tree = Tree(List(count) { i -> intArrayOf(0, 0, 1080, 1600, 0, 0, 1, 0, 0, 0, 0, 0, children[i].size) },
                 children, List(count) { "Synthetic block." }, List(count) { "TextView" })
-            assertContentEquals(ReferenceScreenWalk.walk(tree, intArrayOf(0, 0, 1080, 1600)), ReaderWalk.walk(tree, intArrayOf(0, 0, 1080, 1600)))
+            val reference = ReferenceScreenWalk.walk(tree, intArrayOf(0, 0, 1080, 1600))
+            tape.record(reference.joinToString(","))
+            assertContentEquals(reference, ReaderWalk.walk(tree, intArrayOf(0, 0, 1080, 1600)))
         }
+        tape.finish()
     }
 }

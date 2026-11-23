@@ -1,0 +1,9 @@
+# tts-chunk-sentences: the answers the frozen Kotlin reference gave (docs/phase6-kotlin-references.md).
+# Their count, the digest after the last, and after each power of two (at N).
+count 24
+digest 206fa7d9eff1a7c8
+at 1 13d5837e1282ec43
+at 2 0876ab236fc0c34c
+at 4 97dabbb83b6568f8
+at 8 461c7ba1db5aa0ec
+at 16 4884eef12f4743fe

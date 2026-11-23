@@ -1,5 +1,6 @@
 package com.jtn0123.audiowhisper.reader
 
+import com.jtn0123.audiowhisper.golden.GoldenTape
 import kotlin.random.Random
 
 /**
@@ -9,7 +10,7 @@ import kotlin.random.Random
  * trees of scrollers holding pieces of text, and pieces to bring into view. Self-contained, so a
  * device check can copy it into the app and run it on a phone.
  */
-class ScreenComparison {
+class ScreenComparison(private val tape: GoldenTape) {
     /** How many comparisons failed, and the first few, described. */
     var failures = 0
         private set
@@ -23,6 +24,7 @@ class ScreenComparison {
     val seen = sortedMapOf<String, Int>()
 
     private fun check(what: String, input: Any?, kotlin: Any?, rust: Any?) {
+        tape.record("$what: $kotlin")
         checks++
         if (kotlin == rust) return
         failures++
