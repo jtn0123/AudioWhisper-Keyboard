@@ -1,0 +1,7 @@
+# tts-pocket-loona: the answers the frozen Kotlin reference gave (docs/phase6-kotlin-references.md).
+# Their count, the digest after the last, and after each power of two (at N).
+count 5
+digest 7f859cd7909d78e4
+at 1 ae1e216dfa107543
+at 2 dbe39a36ca4af46a
+at 4 7df2b0cab2ff7e69

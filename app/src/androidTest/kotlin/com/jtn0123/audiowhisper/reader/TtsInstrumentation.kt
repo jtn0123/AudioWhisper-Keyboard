@@ -4,6 +4,8 @@ import android.app.Activity
 import android.app.Instrumentation
 import android.os.Bundle
 import android.os.Debug
+import com.jtn0123.audiowhisper.golden.DeviceGoldens
+import com.jtn0123.audiowhisper.golden.GoldenTape
 import com.jtn0123.audiowhisper.rust.SherpaTts
 import java.io.File
 import java.nio.ByteBuffer
@@ -12,8 +14,18 @@ import java.security.MessageDigest
 import org.json.JSONArray
 import org.json.JSONObject
 
-/** Files only: never constructs AudioTrack, TextToSpeech, AudioRecord or any playback voice. */
+/**
+ * Files only: never constructs AudioTrack, TextToSpeech, AudioRecord or any playback voice. The
+ * reference voice's audio, by its digests, is recorded on the golden tape [TAPE]
+ * (docs/phase6-kotlin-references.md). `-e timings false` skips the latency trials, `-e stress
+ * false` the cancel and respeak cycles. A failed comparison reports `failure_kind=parity`.
+ */
 class TtsInstrumentation : Instrumentation() {
+    companion object {
+        const val TAPE = "tts-pocket-loona"
+        private const val PARITY = "parity"
+    }
+
     private lateinit var options: Bundle
     override fun onCreate(arguments: Bundle?) { super.onCreate(arguments); options = arguments ?: Bundle(); start() }
     private fun hex(bytes: ByteArray) = bytes.joinToString("") { "%02x".format(it) }
@@ -117,27 +129,32 @@ class TtsInstrumentation : Instrumentation() {
             val report = JSONObject().put("identical", false)
             val reportFile = File(targetContext.filesDir, "tts-comparison.json")
             val expected = arrayListOf<JSONObject>()
+            val tape = GoldenTape.ofReference(TAPE, DeviceGoldens(this, options))
             for ((index, text) in sentences.withIndex()) {
                 val old = generate(text, index, true, directory)
                 val native = generate(text, index, false, directory)
                 val matches = identity(old) == identity(native)
                 records.put(JSONObject().put("fixture", index).put("identical", matches).put("reference", old).put("native", native))
                 report.put("fixtures", records); reportFile.writeText(report.toString(2))
-                check(matches)
+                check(matches) { PARITY }
+                tape.answer("fixture $index", identity(old))
                 expected += native
             }
-            val timings = JSONArray()
-            repeat(10) { trial ->
-                for (reference in if (trial % 2 == 0) listOf(true, false) else listOf(false, true)) {
-                    val record = generate(sentences[0], 10 + trial, reference, directory)
-                    check(identity(record) == identity(expected[0]))
-                    timings.put(JSONObject().put("trial", trial).put("reference", reference)
-                        .put("start_ns", record.getLong("start_ns")).put("first_audio_ns", record.getLong("first_audio_ns"))
-                        .put("end_ns", record.getLong("end_ns")))
+            tape.finish()
+            if (options.getString("timings") != "false") {
+                val timings = JSONArray()
+                repeat(10) { trial ->
+                    for (reference in if (trial % 2 == 0) listOf(true, false) else listOf(false, true)) {
+                        val record = generate(sentences[0], 10 + trial, reference, directory)
+                        check(identity(record) == identity(expected[0])) { PARITY }
+                        timings.put(JSONObject().put("trial", trial).put("reference", reference)
+                            .put("start_ns", record.getLong("start_ns")).put("first_audio_ns", record.getLong("first_audio_ns"))
+                            .put("end_ns", record.getLong("end_ns")))
+                    }
                 }
+                report.put("timings", timings)
+                reportFile.writeText(report.toString(2))
             }
-            report.put("timings", timings)
-            reportFile.writeText(report.toString(2))
             if (options.getString("stress") != "false") {
                 val stress = stress(sentences[1], expected[1])
                 report.put("stress", stress)
@@ -148,6 +165,10 @@ class TtsInstrumentation : Instrumentation() {
             result.putBoolean("tts_complete", true); finish(Activity.RESULT_OK, result)
         } catch (failure: Throwable) {
             result.putString("failure_type", failure.javaClass.name)
+            // A golden tape fails with an AssertionError naming it.
+            if (failure.message == PARITY || failure is AssertionError && failure.message.orEmpty().startsWith("$TAPE: ")) {
+                result.putString("failure_kind", "parity")
+            }
             result.putString("failure_frames", failure.stackTrace.take(6).joinToString(";") { "${it.className}.${it.methodName}:${it.lineNumber}" })
             finish(Activity.RESULT_CANCELED, result)
         }
