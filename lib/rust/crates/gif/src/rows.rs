@@ -64,7 +64,7 @@ impl<'a> Fields<'a> {
     /// The rest, GIFs of six fields each.
     pub fn gifs(&mut self) -> Result<Vec<Gif>, String> {
         let rest = self.fields.len() - self.next;
-        if rest % row::SIZE != 0 {
+        if !rest.is_multiple_of(row::SIZE) {
             return Err("GIF rows are cut short".into());
         }
         (0..rest / row::SIZE).map(|_| self.gif()).collect()
