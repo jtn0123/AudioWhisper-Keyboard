@@ -112,6 +112,36 @@ fn payloads_that_break_their_rules_are_refused() {
 }
 
 #[test]
+fn clip_ids_must_rise_and_stay_below_the_next_id() {
+    let clips = |next_id: i64, ids: &[i64]| {
+        framed::<Clips>(|w| {
+            w.i64(next_id);
+            w.count(0);
+            w.count(ids.len());
+            for &id in ids {
+                w.i64(id);
+                w.i32(1);
+                w.i64(0);
+                w.u8(0);
+                w.optional_text(None);
+                w.optional_text(None);
+                w.text(&[]);
+            }
+            w.count(0);
+        })
+    };
+    assert!(clips(9, &[3, 5]).is_ok());
+    for (next_id, ids) in [(9, [5, 3]), (9, [3, 3]), (5, [3, 5])] {
+        let refused = clips(next_id, &ids);
+        assert_eq!(
+            refused.err(),
+            Some(Error::Damaged("clip ids")),
+            "{ids:?} before {next_id}"
+        );
+    }
+}
+
+#[test]
 fn unknown_flags_and_tags_are_refused() {
     let flagged = framed::<Clips>(|w| {
         w.i64(2);

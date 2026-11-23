@@ -10,7 +10,7 @@ use crate::legacy::{self, ClipRows, Imported, WordRows};
 use crate::store::{self, Opened, Store};
 use crate::words::{Word, Words};
 
-use super::fault::{CRASHES, FaultDisk};
+use super::fault::{CRASHES, Crash, FaultDisk};
 use super::golden::{check, clip, units};
 
 const STORE: &str = "files/clipboard.store";
@@ -127,6 +127,9 @@ fn crash_everywhere(existing: Option<&Clips>, expected: &Clips) {
             assert!(second.is_ok(), "{crash:?} at {at}: the next run failed");
             let what = format!("{crash:?} at {at} ({first:?}, then {second:?})");
             assert_imported_once(&next, expected, &what);
+            // A run that returned has synced its removals: a power cut now brings no database back.
+            let cut = next.after(Crash::PowerCut);
+            assert_imported_once(&cut, expected, &format!("{what}, then a power cut"));
         }
     }
 }
@@ -171,7 +174,7 @@ fn rows_imported_before_a_crash_are_not_imported_again() {
     let mut store = open(&disk);
     disk.fail_at(4); // saved and read back; the first removal fails
     assert!(legacy::import(&mut store, rows_on(&disk), &legacy_paths()).is_err());
-    let next = disk.after(super::fault::Crash::Death);
+    let next = disk.after(Crash::Death);
     assert_eq!(run(&next).ok(), Some(Imported::Already));
     assert_eq!(open(&next).value().items.len(), 3);
 }
