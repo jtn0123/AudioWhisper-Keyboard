@@ -4,12 +4,14 @@ import com.jtn0123.audiowhisper.golden.GoldenTape
 import com.jtn0123.audiowhisper.rust.KeyboardRenderer
 import com.jtn0123.audiowhisper.rust.SettingsUiOp
 import kotlinx.serialization.json.*
-import kotlin.math.abs
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-/** Rust's settings drag and fling against Compose's tracker and decay (ReferenceSettingsDrag). */
+/**
+ * Rust's settings drag and fling, recorded on a golden tape written from the frozen Compose 1.12.1
+ * verticalScroll drag, tracker, decay and stretch overscroll (docs/phase6-kotlin-references.md).
+ */
 class SettingsDragMatchTest {
     private sealed interface Step
     private data class Down(val ms: Long, val y: Float) : Step
@@ -59,8 +61,7 @@ class SettingsDragMatchTest {
         KeyboardRenderer(emptyArray()).use { native ->
             fun state(reply: Array<String>) = Json.parseToJsonElement(reply[0]).jsonObject
             fun call(op: SettingsUiOp, vararg args: String) = state(native.settings(op, arrayOf(*args)))
-            val density = 2.625f
-            call(SettingsUiOp.CONFIG, "1080", "2340", "$density", "1", "4294967295", "4278190080", "4283782485", "4281558681", "4291611852", "4293848814", "true", "true")
+            call(SettingsUiOp.CONFIG, "1080", "2340", "2.625", "1", "4294967295", "4278190080", "4283782485", "4281558681", "4291611852", "4293848814", "true", "true")
             var now = call(SettingsUiOp.NAVIGATE, "settings/keyboard")
             val max = now.getValue("maxScroll").jsonPrimitive.float
             assertTrue(max > 2000f, "the keyboard screen scrolls: $max")
@@ -71,43 +72,33 @@ class SettingsDragMatchTest {
                 longArrayOf(ns(downMs)) + samples.map { ns(it.first) },
                 samples.flatMap { listOf(x, it.second) }.toFloatArray(),
             ))
-            val tape = GoldenTape.ofReference("settings-drag")
-            var flings = 0
+            val tape = GoldenTape("settings-drag")
             var moved = 0
             for ((name, steps) in gestures) {
-                // The scroller's viewport: the screen less the 64 dp app bar and 56 dp preview field.
-                val extent = 2340 - Math.round(64 * density) - Math.round(56 * density).toFloat()
-                val reference = ReferenceSettingsDrag(density, now.getValue("scroll").jsonPrimitive.float, max, extent)
                 val downMs = (steps.first() as Down).ms
                 var lastX = 20f
                 var lastY = 0f
                 for (step in steps) when (step) {
-                    is Down -> { reference.down(step.ms, 20f, step.y); lastX = 20f; lastY = step.y; now = touch(0, listOf(step.ms to step.y), downMs) }
+                    is Down -> { lastX = 20f; lastY = step.y; now = touch(0, listOf(step.ms to step.y), downMs) }
                     is Move -> {
-                        reference.move(step.samples, step.x); lastX = step.x; lastY = step.samples.last().second
+                        lastX = step.x; lastY = step.samples.last().second
                         now = touch(2, step.samples, downMs, step.x)
-                        assertEquals(reference.position, now.getValue("scroll").jsonPrimitive.float, "$name drag")
-                        tape.answer("$name drag", reference.position)
+                        tape.answer("$name drag", now.getValue("scroll").jsonPrimitive.float)
                     }
                     is Up -> {
-                        val before = reference.position
-                        val velocity = reference.up(step.ms)
-                        if (reference.position != before) moved++
-                        if (velocity != null && abs(velocity) > 1f) flings++
+                        val before = now.getValue("scroll").jsonPrimitive.float
                         touch(1, listOf(step.ms to lastY), downMs, lastX)
                         call(SettingsUiOp.FRAME, ns(step.ms + 1).toString())
                         now = call(SettingsUiOp.FRAME, ns(step.ms + 30_000).toString())
                         val rust = now.getValue("scroll").jsonPrimitive.float
-                        assertEquals(reference.position, rust, .01f, "$name fling at $velocity px/s")
-                        assertEquals(reference.value, Math.round(rust), "$name shown offset")
-                        tape.answer("$name fling", reference.position)
-                        tape.answer("$name shown", reference.value)
+                        if (rust != before) moved++
+                        tape.answer("$name fling", rust)
+                        tape.answer("$name shown", Math.round(rust))
                     }
                 }
             }
-            // The 60 ms rest, the 41 ms pause and the hold stop; every other gesture flings.
-            assertEquals(gestures.size - 3, flings)
-            // Six move the content: "batched history" and "up exactly 40 ms" fling forward from the end.
+            // The 60 ms rest, the 41 ms pause and the hold stop; "batched history" and "up exactly 40 ms"
+            // fling forward from the end. The other six ups move the content.
             assertEquals(6, moved)
             tape.finish()
         }
