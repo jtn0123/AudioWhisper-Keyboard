@@ -1,7 +1,7 @@
 """Platform-edge faults (phase 5, docs/phase5-edges.md): each must trip a fresh assertion in at least
 one of the test targets it names; source bytes are always restored. python3 -I.
 
-    python3 -I scripts/edges-mutations.py build/edges/mutations [--part gif|dictation|reading|voice] [case ...]
+    python3 -I scripts/edges-mutations.py build/edges/mutations [--part gif|dictation|reading|voice|crash] [case ...]
 
 Run with no other Cargo or Gradle operation in this checkout, and do not read the source as the
 truth while it runs: it is mutated then. A compilation failure never counts as caught: a Rust target
@@ -233,11 +233,52 @@ VOICE_CASES = [
     ('kt-release-ignores-hold', LOADED_KT, 'if (!closed && hold.mayFree()) free()', 'if (!closed) free()', [VOICE_TRACE]),
     ('kt-old-timer-kept', LOADED_KT, '        release?.cancel()\n', '', [VOICE_TRACE]),
 ]
-PARTS = {'gif': GIF_CASES, 'dictation': DICTATION_CASES, 'reading': READING_CASES, 'voice': VOICE_CASES}
-CARGO = {GIF_CRATE: ['-p', 'gif'], DICT_CRATE: ['-p', 'dictation'], READER_CRATE: ['-p', 'reader']}
+CRASH_RS = ROOT / 'lib/rust/crates/utilities/src/crash.rs'
+AFTER_KT = ROOT / 'app/src/main/kotlin/dev/patrickgold/florisboard/lib/crashutility/AfterCrash.kt'
+UTILITIES_CRATE, CRASH_TRACE = 'cargo:utilities', 'jvm:crash-trace'
+CRASHED = [UTILITIES_CRATE, CRASH_TRACE]
+CRASH_CASES = [
+    # What a crash leaves behind: the last report checked and dropped if repeated, and a loop.
+    ('first-crash-checked', CRASH_RS, 'if last > 0 {', 'if last >= 0 {', CRASHED),
+    ('loop-six-seconds', CRASH_RS, 'pub const LOOP_MS: i64 = 5_000;', 'pub const LOOP_MS: i64 = 6_000;', CRASHED),
+    ('loop-inclusive', CRASH_RS, 'now.wrapping_sub(last) < LOOP_MS', 'now.wrapping_sub(last) <= LOOP_MS', CRASHED),
+    ('clock-back-not-a-loop', CRASH_RS, 'now.wrapping_sub(last) < LOOP_MS', '(0..LOOP_MS).contains(&now.wrapping_sub(last))',
+     CRASHED),
+    ('every-repeat-kept', CRASH_RS, '    last == this\n', '    last == this && last.is_empty()\n', CRASHED),
+    # The report: the link, the version, each heading and section, and their order.
+    ('release-links-commit', CRASH_RS, 'if debug {\n        fact::COMMIT_URL\n    } else {\n        fact::CHANGELOG_URL',
+     'if debug {\n        fact::CHANGELOG_URL\n    } else {\n        fact::COMMIT_URL', CRASHED),
+    ('code-is-name', CRASH_RS, '.units(at(fact::VERSION_CODE))', '.units(at(fact::VERSION_NAME))', CRASHED),
+    ('device-unsaid', CRASH_RS, 'out.put("- Device: ").units(at(fact::DEVICE)).end();', 'out.put("- Device: ").end();',
+     CRASHED),
+    ('log-left-out', CRASH_RS, 'out.section(&header, at(fact::DEBUG_LOG));', 'out.section(&header, &[]);', CRASHED),
+    ('traces-left-out', CRASH_RS, 'for (name, detail) in names.iter().zip(details) {',
+     'for (name, detail) in names.iter().zip(details).take(1) {', CRASHED),
+    ('sections-run-on', CRASH_RS, '        out.section(name, detail);\n        out.end();\n',
+     '        out.section(name, detail);\n', CRASHED),
+    ('summary-unclosed', CRASH_RS, '.put("</summary>").end();', '.end();', CRASHED),
+    ('details-unended', CRASH_RS, '        self.units(details).end();\n', '        self.units(details);\n', CRASHED),
+    ('short-row-taken', CRASH_RS, 'if facts.len() != fact::SIZE as usize ||', 'if facts.len() < fact::SIZE as usize ||',
+     [UTILITIES_CRATE]),
+    # AfterCrash, which runs the steps, and its fallback without the library.
+    ('kt-loop-never', AFTER_KT, 'if (steps and CrashAfter.LOOP != 0) host.notifyLoop()',
+     'if (steps and CrashAfter.LOOP == -1) host.notifyLoop()', [CRASH_TRACE]),
+    ('kt-repeat-unchecked', AFTER_KT, 'steps and CrashAfter.CHECK_LAST != 0 && rules.same(host.report(last), stacktrace)',
+     'steps and CrashAfter.CHECK_LAST != 0 && host.report(last).isEmpty()', [CRASH_TRACE]),
+    ('kt-time-unkept', AFTER_KT, '    host.setLastCrash(timestamp)\n', '', [CRASH_TRACE]),
+    ('kt-fallback-loops', AFTER_KT, '    } catch (_: LinkageError) {\n        0\n',
+     '    } catch (_: LinkageError) {\n        CrashAfter.LOOP\n', [CRASH_TRACE]),
+    ('kt-fallback-checks', AFTER_KT, '    } catch (_: LinkageError) {\n        0\n',
+     '    } catch (_: LinkageError) {\n        CrashAfter.CHECK_LAST\n', [CRASH_TRACE]),
+]
+PARTS = {'gif': GIF_CASES, 'dictation': DICTATION_CASES, 'reading': READING_CASES, 'voice': VOICE_CASES,
+         'crash': CRASH_CASES}
+CARGO = {GIF_CRATE: ['-p', 'gif'], DICT_CRATE: ['-p', 'dictation'], READER_CRATE: ['-p', 'reader'],
+         UTILITIES_CRATE: ['-p', 'utilities']}
 JVM = {
     READING_TRACE: ['*ReadingTraceTest'],
     VOICE_TRACE: ['*LoadedVoiceTraceTest'],
+    CRASH_TRACE: ['*CrashTraceTest'],
     MIC_TRACE: ['*MicTraceTest'],
     MODEL_TRACE: ['*ModelCheckTraceTest'],
     DICT_UNITS: ['*ModelCheckTest', '*MicRecorderTest', '*AudioHistoryTest'],
