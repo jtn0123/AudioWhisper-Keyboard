@@ -32,7 +32,6 @@ import android.view.inputmethod.InlineSuggestionsResponse
 import android.view.inputmethod.InputConnection
 import android.view.inputmethod.InputMethodManager
 import android.widget.Toast
-import androidx.compose.foundation.layout.padding
 import androidx.core.view.WindowCompat
 import androidx.lifecycle.lifecycleScope
 import com.jtn0123.audiowhisper.dictation.Dictation
