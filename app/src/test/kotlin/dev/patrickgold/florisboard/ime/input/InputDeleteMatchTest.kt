@@ -3,14 +3,12 @@ package dev.patrickgold.florisboard.ime.input
 import com.jtn0123.audiowhisper.golden.GoldenTape
 import com.jtn0123.audiowhisper.rust.InputRules
 import com.jtn0123.audiowhisper.rust.InputProtocol.*
-import dev.patrickgold.florisboard.ime.input.reference.ReferenceInputDelete
 import kotlin.test.*
 
-/** The reference's answers also go on a golden tape (docs/phase6-kotlin-references.md). */
+/** Rust's effects are checked against a golden tape of the frozen reference's (docs/phase6-kotlin-references.md). */
 class InputDeleteMatchTest {
     @Test fun `delete continuation preserves ordered effects and short circuit undo behavior`() {
-        val tape=GoldenTape.ofReference("input-delete-effects")
-        for(bits in 0..31) {
+        GoldenTape.check("input-delete-effects") { tape -> for(bits in 0..31) {
             val words=bits and 1!=0;val forward=bits and 2!=0;val auto=bits and 4!=0
             val dictation=bits and 8!=0;val composing=bits and 16!=0
             val effects=mutableListOf<Long>()
@@ -25,10 +23,7 @@ class InputDeleteMatchTest {
                     DELETE_UNDO_DICTATION->reply=dictation
                 }
             }
-            val expected=ReferenceInputDelete.effects(words,forward,auto,dictation,composing)
-            tape.answer("effects",expected)
-            assertEquals(expected,effects)
-        }
-        tape.finish()
+            tape.answer("effects",effects)
+        } }
     }
 }
