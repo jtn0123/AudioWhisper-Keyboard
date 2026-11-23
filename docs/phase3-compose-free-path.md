@@ -176,8 +176,22 @@ The Snygg references main kept for this branch (`ReferenceSnyggTheme`,
 * **On ART** (`scripts/palette-art.sh`, `PaletteArtDiff` on emulator-5558, `aw_keyboard`,
   Android 16, arm64): 1,000 seeded accents × 72 flag sets × light and dark, 144,000 schemes,
   every one exact. No role differs between Rust's answer and materialkolor's on the device's
-  ART, where main's keyboard made its palette. The phone's own libm is still to be compared
-  (P36).
+  ART, where main's keyboard made its palette. It ran on the bionic port (b5e20acb0, the same
+  palette code as 694618a30), with the androidTest dependency d40599604 adds, without which R8
+  stops the test APK. The phone's own libm is still to be compared (P36).
+* **`sin` and `cos` against bionic's C:** the five msun files built with `-ffp-contract=off`,
+  276,000,041 arguments, no result differs: 200 million uniform in [-9, 9], 24 million on
+  either side of every branch boundary, 12 million within 200,000 ulps of each multiple of π/4
+  up to 15, 40 million random bit patterns from 2^-60 to the medium range's end (2^20·π/2), and
+  the specials. Built with `-ffp-contract=on` instead, 980,295 of 60,000,041 differ, so the
+  arithmetic must not be fused. `trig.rs` pins 30 arguments' answers from that C, and a hash of
+  200,001 more plus 3,096 within 64 ulps of multiples of π/4.
+* **Mutations** (`scripts/palette-mutations.py`): 16 of 16 faults in `sin` and `cos` fail
+  `cargo test -p palette`: fdlibm 5.3's polynomial order, a kernel fused, a reduction round or
+  cancellation guard dropped, the quadrants swapped, a constant one ulp off and the tiny cut-offs
+  moved. Three of them (a moved cut-off for sin, a last bit off pio2_1t, no third round) first
+  survived the sweep, and each gave a golden row. Fusing a step of the reduction is not a case:
+  it changed no answer in 550 million arguments.
 
 ## Part 3: a theme's own fonts
 
