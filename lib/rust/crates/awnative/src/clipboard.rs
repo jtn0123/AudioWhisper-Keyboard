@@ -1,7 +1,7 @@
 //! The clipboard history's policy for `ClipboardRules`, with lossless UTF-16 text equality. Its
-//! MIME rules are render::clipboard_policy's own, which the generated entry points call directly.
+//! MIME rules are stores::clipboard_policy's own, which the generated entry points call directly.
 
-use render::clipboard_policy::{self as policy, Clip};
+use stores::clipboard_policy::{self as policy, Clip};
 
 use crate::jni::{Result, illegal};
 

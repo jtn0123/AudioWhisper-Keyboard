@@ -1,0 +1,15 @@
+[package]
+name = "stores"
+version = "0.1.0"
+description = "The keyboard's stored data: the clipboard history and the user dictionary, on disk"
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+rust-version.workspace = true
+
+# Only the standard library: the old Room databases are read once on the Kotlin side, so no
+# SQLite (or any other C) dependency comes in.
+[dependencies]
+
+[lints]
+workspace = true

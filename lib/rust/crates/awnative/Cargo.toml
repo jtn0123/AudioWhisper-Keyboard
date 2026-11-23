@@ -51,6 +51,7 @@ render = { path = "../render" }
 shift = { path = "../shift" }
 spacing = { path = "../spacing" }
 snygg = { path = "../snygg" }
+stores = { path = "../stores" }
 suggest = { path = "../suggest" }
 wire = { path = "../wire" }
 # The Mac app's transcript rules (filler words, custom vocabulary), from AudioWhisper-Core, the

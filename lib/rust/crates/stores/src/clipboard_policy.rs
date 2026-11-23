@@ -1,4 +1,5 @@
-//! Frozen Floris clipboard policy. Android owns storage and executes these index plans.
+//! Frozen Floris clipboard policy: the history's order, groups, duplicate, limit, expiry and MIME
+//! rules. The clipboard store ([`crate::clips`]) applies them to the history it keeps.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Clip {
     pub timestamp: i64,

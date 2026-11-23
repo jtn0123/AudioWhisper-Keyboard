@@ -1,11 +1,11 @@
 //! `ClipboardRules`, the clipboard history's policy, answered by awnative's `clipboard` module and
-//! render::clipboard_policy.
+//! stores::clipboard_policy.
 
 use crate::{CLASS, Class, Element, METHOD, Method, Param, Return};
 
 pub const CLIPBOARD_RULES: Class = Class {
     name: "ClipboardRules",
-    doc: "The clipboard history's policy, in Rust (render::clipboard_policy). Texts compare as \
+    doc: "The clipboard history's policy, in Rust (stores::clipboard_policy). Texts compare as \
           lossless UTF-16.",
     module: "clipboard",
     public: true,
@@ -31,7 +31,7 @@ pub const CLIPBOARD_RULES: Class = Class {
             params: &[("concrete", Param::String), ("desired", Param::String)],
             returns: Return::Boolean,
             instance: true,
-            rust: "::render::clipboard_policy::mime_matches",
+            rust: "::stores::clipboard_policy::mime_matches",
             ..METHOD
         },
         Method {
@@ -40,7 +40,7 @@ pub const CLIPBOARD_RULES: Class = Class {
             params: &[("types", Param::Strings), ("editor", Param::Strings)],
             returns: Return::Boolean,
             instance: true,
-            rust: "::render::clipboard_policy::eligible",
+            rust: "::stores::clipboard_policy::eligible",
             ..METHOD
         },
     ],

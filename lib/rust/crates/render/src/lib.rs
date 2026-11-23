@@ -61,8 +61,6 @@ mod panel_commands;
 
 pub mod panel_geometry;
 
-pub mod clipboard_policy;
-
 mod clipboard_layout;
 pub mod clipboard_panel;
 
