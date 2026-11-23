@@ -1,0 +1,14 @@
+# settings-licence-rows: the answers the frozen Kotlin reference gave (docs/phase6-kotlin-references.md).
+# Their count, the digest after the last, and after each power of two (at N).
+count 732
+digest b48eb328ae5953f6
+at 1 37ea1f71d89440ef
+at 2 a0f19a7201253b14
+at 4 3ae9dd089073451b
+at 8 d29b1bf07b716cc2
+at 16 86210a288fffaa44
+at 32 7fda731b2c3bcaf1
+at 64 c7f31f5d6c8a9d4a
+at 128 5829007dd1cd73e7
+at 256 1fd8894b6141c986
+at 512 d90d414c6cbebeb6

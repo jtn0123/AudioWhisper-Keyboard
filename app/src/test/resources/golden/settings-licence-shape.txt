@@ -1,0 +1,6 @@
+# settings-licence-shape: the answers the frozen Kotlin reference gave (docs/phase6-kotlin-references.md).
+# Their count, the digest after the last, and after each power of two (at N).
+count 3
+digest c5b4f091668202b9
+at 1 7065b8c4e206eb1a
+at 2 ca63adc2cf03ea1a

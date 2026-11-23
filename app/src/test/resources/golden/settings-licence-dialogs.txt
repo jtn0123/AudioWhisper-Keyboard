@@ -1,0 +1,12 @@
+# settings-licence-dialogs: the answers the frozen Kotlin reference gave (docs/phase6-kotlin-references.md).
+# Their count, the digest after the last, and after each power of two (at N).
+count 246
+digest 8219ad5cdcc8756e
+at 1 89ebecb2dc157d3d
+at 2 2a3a17e49fc43596
+at 4 0f5f19070ef97d45
+at 8 24a0b687a6ddd909
+at 16 4eed1f69c108a55e
+at 32 42b9253c1d97ec1c
+at 64 00dd78d7db255c8f
+at 128 ee14bae345e352e1

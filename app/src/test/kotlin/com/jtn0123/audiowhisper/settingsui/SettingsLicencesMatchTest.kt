@@ -1,5 +1,6 @@
 package com.jtn0123.audiowhisper.settingsui
 
+import com.jtn0123.audiowhisper.golden.GoldenTape
 import com.jtn0123.audiowhisper.rust.KeyboardRenderer
 import com.jtn0123.audiowhisper.rust.SettingsUiOp
 import kotlinx.serialization.json.*
@@ -82,9 +83,12 @@ class SettingsLicencesMatchTest {
     }
 
     @Test fun everyRowsTextRoleEnabledStateAndBadgesMatchAboutLibraries() {
+        val tape = GoldenTape.ofReference("settings-licence-rows")
         for (seed in 0 until 12) KeyboardRenderer(arrayOf(font)).use { n ->
             val json = resource(seed, 60)
             val expected = ReferenceLicenceScreens.rows(json)
+            tape.answer("seed $seed rows", expected.size)
+            for (row in expected) tape.answer("row", listOf(row.name, listOfNotNull(row.version, row.author).plus(row.badges).joinToString(", ")))
             val rows = nodes(open(n, json)).filter { it.int("id") >= rowId }
             assertEquals(expected.indices.map { rowId + it }, rows.map { it.int("id") }, "seed $seed")
             for ((node, row) in rows.zip(expected)) {
@@ -95,14 +99,18 @@ class SettingsLicencesMatchTest {
                 assertEquals(listOf(1), node.getValue("actions").jsonArray.map { it.jsonPrimitive.int })
             }
         }
+        tape.finish()
     }
 
     @Test fun everyLicenseDialogShowsTheTextFromHtmlGivesAndAnOkButton() {
+        val tape = GoldenTape.ofReference("settings-licence-dialogs")
         for (seed in 0 until 6) KeyboardRenderer(arrayOf(font)).use { n ->
             val json = resource(100 + seed, 40)
             val expected = ReferenceLicenceScreens.rows(json)
             open(n, json)
+            tape.answer("seed $seed rows", expected.size)
             for ((j, row) in expected.withIndex()) {
+                tape.answer("dialog $j", listOfNotNull(row.dialog))
                 val dialog = state(n, SettingsUiOp.ACTIVATE, (rowId + j).toString())
                 assertTrue(dialog.getValue("popup").jsonPrimitive.boolean)
                 val shown = nodes(dialog)
@@ -118,6 +126,7 @@ class SettingsLicencesMatchTest {
                 assertEquals(route, closed.text("route"))
             }
         }
+        tape.finish()
     }
 
     @Test fun theRealResourcesShapeParsesTheSameWay() {
@@ -129,16 +138,20 @@ class SettingsLicencesMatchTest {
             "funding":[{"platform":"GitHub","url":"https://z"}]}],"licenses":{"Apache-2.0":{"name":"Apache License 2.0",
             "url":"https://a","content":"Apache License\nVersion 2.0, January 2004\n\n   TERMS"},"icu4c":{"name":"ICU4C License",
             "url":"https://b","content":"COPYRIGHT AND PERMISSION NOTICE (ICU 58 and later)\n\nCopyright © 2016"}}}"""
+        val tape = GoldenTape.ofReference("settings-licence-shape")
         KeyboardRenderer(arrayOf(font)).use { n ->
             val expected = ReferenceLicenceScreens.rows(json)
             val rows = nodes(open(n, json)).filter { it.int("id") >= rowId }
             assertEquals(expected.map { it.name }, rows.map { it.text("label") })
+            tape.answer("names", expected.map { it.name })
             assertEquals("Apache License\nVersion 2.0, January 2004\n\nTERMS", expected[0].dialog)
             for (j in expected.indices) {
                 assertEquals(expected[j].dialog, nodes(state(n, SettingsUiOp.ACTIVATE, (rowId + j).toString())).single { it.int("id") == 9 }.text("label"))
+                tape.answer("dialog $j", expected[j].dialog)
                 state(n, SettingsUiOp.ACTIVATE, "7")
             }
         }
+        tape.finish()
     }
 
     /** AndroidParser's catch-all logs through android.util.Log, which the JVM cannot run; its result is empty data. */
