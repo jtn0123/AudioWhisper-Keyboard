@@ -1,7 +1,9 @@
 //! The theme's calls as they cross from Android: `wire::ime_theme`'s rows read into facts and
 //! the index, and steps written back as rows.
 
-use wire::ime_theme::{accent, chip, component, extension, inline, kind, loaded, step, update};
+use wire::ime_theme::{
+    accent, backdrop, chip, component, extension, inline, kind, loaded, step, update, window,
+};
 
 use crate::Text;
 use crate::choose::{Facts, Mode, Name};
@@ -57,6 +59,7 @@ pub fn rule(rule: &[u16], fields: &[Text]) -> Result<Rows> {
             out[chip::FOREGROUND] = number_text(colors.1 as i32);
             Ok(out)
         }
+        wire::ime_theme::WINDOW => window_rule(fields),
         wire::ime_theme::PRIMARY => {
             let row = fields
                 .get(..accent::SIZE)
@@ -70,6 +73,48 @@ pub fn rule(rule: &[u16], fields: &[Text]) -> Result<Rows> {
         }
         _ => Err(Error("not a rule")),
     }
+}
+
+/// The `WINDOW` rule: the window's background, and where its image goes once both sizes are
+/// known.
+fn window_rule(fields: &[Text]) -> Result<Rows> {
+    let row = fields
+        .get(..window::SIZE)
+        .ok_or(Error("a window row is cut short"))?;
+    let json = String::from_utf16(&row[window::STYLESHEET])
+        .map_err(|_| Error("a stylesheet is not UTF-16"))?;
+    let palette = palette(&fields[window::SIZE..])?;
+    let found = crate::window::window(&json, &row[window::MODE], &row[window::SHIFT], &palette);
+    let size =
+        |w: usize, h: usize| -> Result<[f32; 2]> { Ok([number(&row[w])?, number(&row[h])?]) };
+    let image = size(window::IMAGE_WIDTH, window::IMAGE_HEIGHT)?;
+    let surface = size(window::SURFACE_WIDTH, window::SURFACE_HEIGHT)?;
+    let known = image
+        .iter()
+        .chain(&surface)
+        .all(|v| v.is_finite() && *v > 0.0);
+    let rect = if known {
+        crate::window::backdrop(found.scale, image, surface)
+    } else {
+        [0; 4]
+    };
+    let mut out = vec![Text::new(); backdrop::SIZE];
+    out[backdrop::BACKGROUND] = number_text(found.background as i32);
+    out[backdrop::IMAGE] = snygg::text(found.image.as_deref().unwrap_or(""));
+    out[backdrop::LIGHT_BARS] = snygg::text(wire::flag::encode(found.light_bars));
+    out[backdrop::CONTRAST] = snygg::text(wire::flag::encode(found.contrast));
+    for (at, value) in [
+        backdrop::LEFT,
+        backdrop::TOP,
+        backdrop::RIGHT,
+        backdrop::BOTTOM,
+    ]
+    .into_iter()
+    .zip(rect)
+    {
+        out[at] = number_text(value);
+    }
+    Ok(out)
 }
 
 fn facts(row: &[Text]) -> Result<Facts> {

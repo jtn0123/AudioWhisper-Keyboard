@@ -26,6 +26,9 @@ crate::declare! {
         INLINE = "inline",
         /// An [`accent`] row: the accent colour a theme's palette is made from.
         PRIMARY = "primary",
+        /// A [`window`] row, then a palette as `INLINE` takes it. Answered with a [`backdrop`]
+        /// row.
+        WINDOW = "window",
     }
 }
 
@@ -166,6 +169,44 @@ pub mod chip {
     }
 }
 
+/// What the keyboard window's background is styled and sized from.
+pub mod window {
+    crate::declare! {
+        /// The active theme, the keyboard's state, and the background image's and surface's
+        /// sizes in pixels (0 while unknown).
+        pub const FIELDS: fields ImeThemeWindow {
+            /// The active stylesheet's JSON.
+            STYLESHEET,
+            /// The keyboard's mode and shift state, as the theme's attributes name them.
+            MODE,
+            SHIFT,
+            IMAGE_WIDTH,
+            IMAGE_HEIGHT,
+            SURFACE_WIDTH,
+            SURFACE_HEIGHT,
+        }
+    }
+}
+
+/// The keyboard window's background.
+pub mod backdrop {
+    crate::declare! {
+        /// The background's colour (ARGB), its image's path in the theme's directory (empty if
+        /// none), flags for dark navigation bar buttons and for keeping the bar readable over
+        /// the image, and where the image is drawn on the surface.
+        pub const FIELDS: fields ImeThemeBackdrop {
+            BACKGROUND,
+            IMAGE,
+            LIGHT_BARS,
+            CONTRAST,
+            LEFT,
+            TOP,
+            RIGHT,
+            BOTTOM,
+        }
+    }
+}
+
 /// The accent a palette is made from.
 pub mod accent {
     crate::declare! {
@@ -192,5 +233,7 @@ pub const GROUPS: &[&crate::Group] = &[
     &loaded::FIELDS,
     &inline::FIELDS,
     &chip::FIELDS,
+    &window::FIELDS,
+    &backdrop::FIELDS,
     &accent::FIELDS,
 ];

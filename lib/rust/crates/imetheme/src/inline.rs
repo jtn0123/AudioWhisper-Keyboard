@@ -22,6 +22,33 @@ pub struct Palette {
 /// The chips' background and foreground in the stylesheet `json`, for the keyboard's `mode` and
 /// `shift` state, as ARGB. A stylesheet that doesn't compile styles nothing.
 pub fn chip(json: &str, mode: &[u16], shift: &[u16], palette: &Palette) -> (u32, u32) {
+    let style = styled(
+        json,
+        mode,
+        shift,
+        palette,
+        &["root", "window", "inline-autofill-chip"],
+    );
+    let argb = |name: &str, default| match get(&style, &text(name)) {
+        Some(Value::Color(c)) => argb(*c),
+        _ => default,
+    };
+    (
+        argb("background", BACKGROUND),
+        argb("foreground", FOREGROUND),
+    )
+}
+
+/// The style of the last of `elements`, each queried inside the one before as Compose nested
+/// them, in the stylesheet `json`: the root and window with the keyboard's `mode` and `shift`
+/// state, any other element with no attributes.
+pub fn styled(
+    json: &str,
+    mode: &[u16],
+    shift: &[u16],
+    palette: &Palette,
+    elements: &[&str],
+) -> Properties {
     let theme = CompiledTheme::from_json(json).unwrap_or_else(|_| CompiledTheme {
         style: vec![],
         fonts: vec![],
@@ -40,27 +67,17 @@ pub fn chip(json: &str, mode: &[u16], shift: &[u16], palette: &Palette) -> (u32,
     };
     let (light, dark) = (scheme(&palette.light), scheme(&palette.dark));
     let mut style = vec![(text("font-size"), Value::Dimension(Unit::Sp, 14.0))];
-    for (element, attributes) in [
-        ("root", &attributes[..]),
-        ("window", &attributes[..]),
-        ("inline-autofill-chip", &[][..]),
-    ] {
+    for element in elements {
+        let keyed = matches!(*element, "root" | "window");
         let element = text(element);
         let query = Query {
             element: &element,
-            attributes,
+            attributes: if keyed { &attributes[..] } else { &[][..] },
             selector: 0,
         };
         style = theme.resolve_with_palette(&query, &style, 1.0, &light, &dark);
     }
-    let argb = |name: &str, default| match get(&style, &text(name)) {
-        Some(Value::Color(c)) => argb(*c),
-        _ => default,
-    };
-    (
-        argb("background", BACKGROUND),
-        argb("foreground", FOREGROUND),
-    )
+    style
 }
 
 /// A colour's ARGB, from its quantized channel fractions.
