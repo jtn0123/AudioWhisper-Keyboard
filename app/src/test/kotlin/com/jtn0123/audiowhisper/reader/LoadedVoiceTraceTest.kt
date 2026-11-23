@@ -14,17 +14,17 @@ import kotlinx.coroutines.yield
 import kotlin.coroutines.resume
 import kotlin.random.Random
 import kotlin.test.Test
-import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * Seeded traces holding the neural voice's hold, now Rust's ([LoadedVoice] over reader::lifetime),
- * to main's ([ReferenceLoadedVoice]): the same random readings taking the voice, asking whether it
- * failed and going idle, the clock moving on, memory wanted, and the service made again (its scope
- * cancelled, the hold closed, a new one made), each launched so they contend for the hold's lock as
- * they would. Every call to Android is an effect, in order: the files checked, a load and whether
- * it gave a voice, each voice closed, each wait, and what each reading was told. Also read-aloud's
- * routing of a reading asked for, against main's.
+ * Seeded traces of the neural voice's hold, now Rust's ([LoadedVoice] over reader::lifetime),
+ * checked against main's Kotlin hold's (golden/voice-hold-traces.txt): random readings taking the
+ * voice, asking whether it failed and going idle, the clock moving on, memory wanted, and the
+ * service made again (its scope cancelled, the hold closed, a new one made), each launched so they
+ * contend for the hold's lock as they would. Every call to Android is an effect, in order: the
+ * files checked, a load and whether it gave a voice, each voice closed, each wait, and what each
+ * reading was told. Also read-aloud's routing of a reading asked for, against main's
+ * (golden/read-aloud-routes.txt).
  */
 class LoadedVoiceTraceTest {
     private class FakeEngine(private val effects: MutableList<String>, val id: Int) : AutoCloseable {
@@ -79,12 +79,12 @@ class LoadedVoiceTraceTest {
         }
     }
 
-    /** One seed's events, run on main's hold or Rust's: what Android saw. */
-    private fun trace(seed: Long, reference: Boolean): List<String> = runBlocking {
+    /** One seed's events, run on the hold: what Android saw. */
+    private fun trace(seed: Long): List<String> = runBlocking {
         val events = Random(seed)
         val source = FakeSource(Random(seed * 31 + 1))
         var scope = CoroutineScope(coroutineContext + Job(coroutineContext[Job]))
-        fun make(scope: CoroutineScope) = if (reference) ReferenceLoadedVoice(source, scope).let(::Reference) else New(LoadedVoice(source, scope))
+        fun make(scope: CoroutineScope) = LoadedVoice(source, scope)
         var voice = make(scope)
         repeat(EVENTS) {
             when (events.nextInt(20)) {
@@ -108,42 +108,15 @@ class LoadedVoiceTraceTest {
         source.effects
     }
 
-    private interface Hold {
-        suspend fun take(): FakeEngine?
-        suspend fun failedJustNow(): Boolean
-        suspend fun idle()
-        suspend fun close()
-    }
-
-    private class Reference(val hold: ReferenceLoadedVoice<FakeEngine>) : Hold {
-        override suspend fun take() = hold.take()
-        override suspend fun failedJustNow() = hold.failedJustNow()
-        override suspend fun idle() = hold.idle()
-        override suspend fun close() = hold.close()
-    }
-
-    private class New(val hold: LoadedVoice<FakeEngine>) : Hold {
-        override suspend fun take() = hold.take()
-        override suspend fun failedJustNow() = hold.failedJustNow()
-        override suspend fun idle() = hold.idle()
-        override suspend fun close() = hold.close()
-    }
-
     @Test
-    fun holdsMatchMain() {
-        val tape = GoldenTape.ofReference("voice-hold-traces")
+    fun holdsMatchMain() = GoldenTape.check("voice-hold-traces") { tape ->
         for (seed in SEEDS) {
-            val main = trace(seed, reference = true)
-            tape.record(main)
-            val new = trace(seed, reference = false)
-            val first = main.indices.firstOrNull { it >= new.size || main[it] != new[it] }
-            assertEquals(main.size, new.size, "seed $seed: lengths, first difference at $first")
-            assertEquals(null, first, "seed $seed: first difference")
-            val seen = seen(main)
-            println("Voice hold trace seed $seed: $EVENTS events, ${main.size} effects, 0 differ, seen $seen")
+            val effects = trace(seed)
+            tape.record(effects)
+            val seen = seen(effects)
+            println("Voice hold trace seed $seed: $EVENTS events, ${effects.size} effects, seen $seen")
             for ((kind, count) in seen) assertTrue(count >= MIN_SEEN, "seed $seed saw $kind $count times")
         }
-        tape.finish()
     }
 
     /** What the trace did, by the effects that mark each path. */
@@ -164,17 +137,15 @@ class LoadedVoiceTraceTest {
     }
 
     @Test
-    fun routesMatchMain() {
-        val tape = GoldenTape.ofReference("read-aloud-routes")
+    fun routesMatchMain() = GoldenTape.check("read-aloud-routes") { tape ->
         for (up in listOf(false, true)) for (on in listOf(false, true)) {
-            val main = ReferenceReadAloud.read(up) { on }
-            tape.record("service up $up, turned on $on: $main")
-            val new = when (ReadingRules.route(up, on)) {
-                ReadRoute.READ -> ReferenceReadAloud.READ
-                ReadRoute.ASK -> ReferenceReadAloud.ASK
-                else -> ReferenceReadAloud.WAIT
+            val route = when (val code = ReadingRules.route(up, on)) {
+                ReadRoute.READ -> "read"
+                ReadRoute.ASK -> "ask"
+                ReadRoute.WAIT -> "wait"
+                else -> "route $code"
             }
-            assertEquals(main, new, "service up $up, turned on $on")
+            tape.record("service up $up, turned on $on: $route")
         }
         for (seed in SEEDS) {
             val random = Random(seed)
@@ -189,15 +160,13 @@ class LoadedVoiceTraceTest {
                     1 -> at + 4_999 + random.nextLong(0, 3)
                     else -> at + random.nextLong(-1_000, 12_000)
                 }
-                val main = ReferenceReadAloud.stillAsked(at, now)
-                tape.record("$main")
-                assertEquals(main, ReadingRules.stillAsked(at, now), "seed $seed ask $it")
-                if (main) still++
+                val asked = ReadingRules.stillAsked(at, now)
+                tape.record("$asked")
+                if (asked) still++
             }
-            println("Service wait trace seed $seed: 4 routes, $ASKS asks, $still still wanted, 0 differ")
+            println("Service wait trace seed $seed: 4 routes, $ASKS asks, $still still wanted")
             assertTrue(still >= MIN_SEEN && ASKS - still >= MIN_SEEN)
         }
-        tape.finish()
     }
 
     private companion object {

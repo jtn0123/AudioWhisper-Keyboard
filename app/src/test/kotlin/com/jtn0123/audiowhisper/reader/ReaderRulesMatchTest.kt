@@ -3,22 +3,17 @@ package com.jtn0123.audiowhisper.reader
 import com.jtn0123.audiowhisper.golden.GoldenTape
 import kotlin.random.Random
 import kotlin.test.Test
-import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
 /**
- * Reading aloud's rules in Rust give exactly what the Kotlin they replaced gave
- * ([ReferenceReader]), through [ReaderComparison]: random pages, selections, scrolls, text to
- * speak, pieces to keep in view and presses of the speaker key. The same comparison runs on the
- * emulator, whose Java judges spaces, case and sentences differently.
+ * Reading aloud's rules in Rust give exactly what the Kotlin they replaced gave, through
+ * [ReaderComparison]: random pages, selections, scrolls, text to speak, pieces to keep in view and
+ * presses of the speaker key, checked against that Kotlin's answers in golden/reader-rules-*.txt.
  */
 class ReaderRulesMatchTest {
     private fun assertNone(name: String, reached: List<String>, body: ReaderComparison.() -> Unit) {
-        val tape = GoldenTape.ofReference("reader-rules-$name")
-        val comparison = ReaderComparison(sigmaExact = false, tape).apply(body)
-        assertEquals(emptyList(), comparison.examples, "${comparison.failures} of ${comparison.checks} differ")
-        tape.finish()
+        val comparison = GoldenTape.check("reader-rules-$name") { tape -> ReaderComparison(sigmaExact = false, tape).apply(body) }
         for (outcome in reached) {
             assertTrue((comparison.seen[outcome] ?: 0) >= MIN_SEEN, "$outcome only ${comparison.seen[outcome]} times")
         }

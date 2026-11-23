@@ -3,20 +3,16 @@ package com.jtn0123.audiowhisper.reader
 import com.jtn0123.audiowhisper.golden.GoldenTape
 import kotlin.random.Random
 import kotlin.test.Test
-import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * The screen walk's rules in Rust give exactly what the Kotlin they replaced gave
- * ([ReferenceScreen]), through [ScreenComparison]: random scrollable views, boxes, trees of
- * scrollers and pieces to bring into view. The same comparison runs on the emulator.
+ * The screen walk's rules in Rust give exactly what the Kotlin they replaced gave, through
+ * [ScreenComparison]: random scrollable views, boxes, trees of scrollers and pieces to bring into
+ * view, checked against that Kotlin's answers in golden/screen-rules-*.txt.
  */
 class ScreenRulesMatchTest {
     private fun assertNone(name: String, reached: List<String>, body: ScreenComparison.() -> Unit) {
-        val tape = GoldenTape.ofReference("screen-rules-$name")
-        val comparison = ScreenComparison(tape).apply(body)
-        assertEquals(emptyList(), comparison.examples, "${comparison.failures} of ${comparison.checks} differ")
-        tape.finish()
+        val comparison = GoldenTape.check("screen-rules-$name") { tape -> ScreenComparison(tape).apply(body) }
         for (outcome in reached) {
             assertTrue((comparison.seen[outcome] ?: 0) >= MIN_SEEN, "$outcome only ${comparison.seen[outcome]} times")
         }

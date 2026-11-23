@@ -1,43 +1,28 @@
 package com.jtn0123.audiowhisper.reader
 
 import com.jtn0123.audiowhisper.golden.GoldenTape
+import com.jtn0123.audiowhisper.rust.ReaderRules
 import kotlin.random.Random
 
 /**
- * Holds reading aloud's rules in Rust (lib/rust/crates/reader, behind [PageText], [FollowAlong]
- * and [SpeakerKey]) up against the Kotlin they replaced, [ReferenceReader], wherever this runs:
+ * Asks reading aloud's rules in Rust (lib/rust/crates/reader, behind [PageText], [ReaderRules]
+ * and [SpeakerKey]) the questions the Kotlin they replaced answered, and records the answers on
+ * [tape], whose golden file holds that Kotlin's answers (docs/phase6-kotlin-references.md):
  * random pages of blocks and pieces of text (bullets, links, odd spaces, emoji and half emoji, İ
  * and ß), selections taken from them and roughened, runs of blocks read before a scroll, text to
  * cut for the speech engine, pieces to keep in view, and presses of the speaker key.
- * Self-contained, so a device check can copy it into the app and run it on a phone, whose Java
- * judges spaces, case and sentences differently from a computer's.
  *
  * [sigmaExact] says whether text may hold Σ, which lower-cases to ς at the end of a word and to σ
  * elsewhere. Rust decides that by ICU's rule, as Android does; the JVM uses its own, so off a
  * phone Σ is left out.
  */
 class ReaderComparison(private val sigmaExact: Boolean, private val tape: GoldenTape) {
-    /** How many comparisons failed, and the first few, described. */
-    var failures = 0
-        private set
-    val examples = mutableListOf<String>()
-
-    /** How many comparisons ran. */
-    var checks = 0L
-        private set
-
     /** How often each outcome worth reaching was reached, so a run that tests nothing shows. */
     val seen = sortedMapOf<String, Int>()
 
     private val parts = if (sigmaExact) PARTS else PARTS.filter { CAPITAL_SIGMA !in it }
 
-    private fun check(what: String, input: Any?, kotlin: Any?, rust: Any?) {
-        tape.record("$what: ${show(kotlin)}")
-        checks++
-        if (kotlin == rust) return
-        failures++
-        if (examples.size < MAX_EXAMPLES) examples += "$what(${show(input)}): Kotlin ${show(kotlin)}, Rust ${show(rust)}"
-    }
+    private fun check(what: String, answer: Any?) = tape.record("$what: ${show(answer)}")
 
     private fun see(what: String, happened: Boolean = true) {
         if (happened) seen[what] = (seen[what] ?: 0) + 1
@@ -55,14 +40,14 @@ class ReaderComparison(private val sigmaExact: Boolean, private val tape: Golden
         val blocks = List(random.nextInt(MAX_BLOCKS + 1)) { TextBlock(text(random), 0, 0) }.map { place(random, it) }
         val (top, bottom) = visible(random)
         val first = PageText.firstOnScreen(blocks, top, bottom)
-        check("firstOnScreen", blocks, ReferenceReader.PageText.firstOnScreen(blocks, top, bottom), first)
+        check("firstOnScreen", first)
         see(if (first == null) "none on screen" else "one on screen")
         val all = Screen(null, blocks, null, top, bottom, nodes = 0, web = false).allShown
-        check("allShown", blocks, ReferenceReader.allShown(blocks, top, bottom), all)
+        check("allShown", all)
         see(if (all) "all shown" else "not all shown")
         val selected = selection(random, blocks)
         val found = PageText.find(blocks, selected, top, bottom)
-        check("find", listOf(selected, blocks), ReferenceReader.PageText.find(blocks, selected, top, bottom), found)
+        check("find", found)
         see("selection found on screen", found != null && blocks[found.block].isShownIn(top, bottom))
         see("selection found off screen", found != null && !blocks[found.block].isShownIn(top, bottom))
         see("selection found mid-block", found != null && found.offset > 0)
@@ -76,7 +61,7 @@ class ReaderComparison(private val sigmaExact: Boolean, private val tape: Golden
             place(random, TextBlock(piece(random), 0, 0, scrolls, Reveal(index)))
         }
         val joined = PageText.blocks(pieces)
-        check("blocks", pieces, ReferenceReader.PageText.blocks(pieces).map(::describe), joined.map(::describe))
+        check("blocks", joined.map(::describe))
         for (block in joined) {
             val first = pieces.getOrNull((block.reveal as? Reveal)?.piece ?: -1) ?: continue
             see("pieces joined", block.text.length > first.text.trim().length)
@@ -91,7 +76,7 @@ class ReaderComparison(private val sigmaExact: Boolean, private val tape: Golden
         val blocks = List(random.nextInt(MAX_BLOCKS + 1)) { TextBlock(vocabulary.random(random), 0, 100) }
         val read = List(if (random.nextInt(8) == 0) random.nextInt(MAX_READ) else random.nextInt(8)) { vocabulary.random(random) }
         val at = PageText.resumeAfter(blocks, read)
-        check("resumeAfter", "${blocks.map { it.text }} after $read", ReferenceReader.PageText.resumeAfter(blocks, read), at)
+        check("resumeAfter", at)
         see(
             when (at) {
                 0 -> "resumed at the start"
@@ -108,7 +93,7 @@ class ReaderComparison(private val sigmaExact: Boolean, private val tape: Golden
         val text = buildString { repeat(random.nextInt(MAX_SENTENCES + 1)) { append(sentence(random)) } }
         val max = MAXES.random(random).takeIf { it > 0 } ?: (1 + random.nextInt(MAX_RANDOM_MAX))
         val said = outcome { PageText.utterances(text, max) }
-        check("utterances", "$text, $max", outcome { ReferenceReader.PageText.utterances(text, max) }, said)
+        check("utterances", said)
         if (said !is List<*>) return@repeat see("utterances threw")
         see("sentences joined", said.size in 1..<text.count { it in ".!?" })
         see("a sentence cut", said.any { it.toString().length == max })
@@ -118,27 +103,27 @@ class ReaderComparison(private val sigmaExact: Boolean, private val tape: Golden
     /** Text about as long as the speech engine takes, cut at the app's own limit. */
     private fun longSpeech(random: Random) {
         val text = buildString {
-            while (length < ReferenceReader.PageText.MAX_UTTERANCE - LONG_SLACK) append(sentence(random))
+            while (length < PageText.MAX_UTTERANCE - LONG_SLACK) append(sentence(random))
             repeat(random.nextInt(2 * LONG_SLACK)) { append(if (random.nextInt(5) == 0) ' ' else 'x') }
         }
         val said = PageText.utterances(text)
-        check("utterances", "${text.length} long", ReferenceReader.PageText.utterances(text), said)
+        check("utterances", said)
         see("cut at the app's limit", said.size > 1)
         see("whole at the app's limit", said.size == 1)
     }
 
     /** The numbers the rules are built on. */
     fun constants() {
-        check("MAX_UTTERANCE", null, ReferenceReader.PageText.MAX_UTTERANCE, PageText.MAX_UTTERANCE)
-        check("RECENT", null, ReferenceReader.PageText.RECENT, PageText.RECENT)
-        check("HOLD_MS", null, ReferenceReader.SpeakerKey.HOLD_MS, SpeakerKey.HOLD_MS)
+        check("MAX_UTTERANCE", PageText.MAX_UTTERANCE)
+        check("RECENT", PageText.RECENT)
+        check("HOLD_MS", SpeakerKey.HOLD_MS)
     }
 
     /** Random pieces kept in view. */
     fun views(random: Random, count: Int) = repeat(count) {
         val (first, last, top, bottom) = List(4) { number(random) }
-        val fits = FollowAlong.fits(first..last, top, bottom)
-        check("fits", listOf(first, last, top, bottom), ReferenceReader.fits(first..last, top, bottom), fits)
+        val fits = ReaderRules.fits(first, last, top, bottom)
+        check("fits", fits)
         see(if (fits) "fits" else "doesn't fit")
         see("fits by its top half", fits && last > bottom)
     }
@@ -146,16 +131,15 @@ class ReaderComparison(private val sigmaExact: Boolean, private val tape: Golden
     /** Random presses, lifts and slides off a pair of speaker keys sharing a clock. */
     fun keys(random: Random, runs: Int, steps: Int) = repeat(runs) {
         var now = TIMES.random(random)
-        val kotlin = ReferenceReader.SpeakerKey { now }
-        val rust = SpeakerKey { now }
-        repeat(steps) { step ->
+        val key = SpeakerKey { now }
+        repeat(steps) {
             now += GAPS.random(random).takeIf { it != 0L } ?: random.nextLong()
-            val (what, before, after) = when (random.nextInt(5)) {
-                0, 1 -> random.nextBoolean().let { reading -> Triple("down($reading)", kotlin.down(reading), rust.down(reading)) }
-                2, 3 -> Triple("up", kotlin.up(), rust.up())
-                else -> Triple("cancel", kotlin.cancel(), rust.cancel())
+            val (what, after) = when (random.nextInt(5)) {
+                0, 1 -> random.nextBoolean().let { reading -> "down($reading)" to key.down(reading) }
+                2, 3 -> "up" to key.up()
+                else -> "cancel" to key.cancel()
             }
-            check(what, "step $step at $now", before?.toString(), after?.toString())
+            check(what, after?.toString())
             if (what != "cancel") see(after?.toString() ?: "no action")
         }
     }
@@ -219,13 +203,11 @@ class ReaderComparison(private val sigmaExact: Boolean, private val tape: Golden
 
     private fun show(value: Any?): String = when (value) {
         is String -> value.map { if (it.code in 0x21..0x7E) "$it" else "\\u%04X".format(it.code) }.joinToString("", "\"", "\"")
-        is TextBlock -> "${show(value.text)}@${value.top}..${value.bottom}${if (value.scrolls) " scrolls" else ""}"
         is List<*> -> value.joinToString(", ", "[", "]", transform = ::show)
         else -> value.toString()
     }
 
     private companion object {
-        const val MAX_EXAMPLES = 10
         const val MAX_BLOCKS = 10
         const val MAX_PIECES = 14
         const val MAX_PARTS = 7

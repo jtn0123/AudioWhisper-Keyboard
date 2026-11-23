@@ -9,18 +9,18 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.yield
 import kotlin.random.Random
 import kotlin.test.Test
-import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * Seeded traces holding a reading whose steps are Rust's ([Reading], reader::reading) to main's
- * ([ReferenceReading]): each session runs both against a fake Android of the same seed, whose
- * screens, scrolls, voices and refusals come from it, and compares every effect in order: the
- * status, the cache, the button, the voice taken and made, each walk, wait, scroll, reveal, block
- * queued and wait for blocks, what is said, the end, and anything thrown. A third of the sessions are cancelled at
- * a random effect (a stop, a new reading, or the service unbound); a session after one is a new
- * Reading on a new fake, as after the service is made again or the process died. Also the window a
- * reading reads, against main's choice over the same windows.
+ * Seeded traces of a reading whose steps are Rust's ([Reading], reader::reading), checked against
+ * main's Kotlin reading's (golden/reading-sessions.txt): each session runs against a fake Android
+ * of its seed, whose screens, scrolls, voices and refusals come from it, and records every effect
+ * in order: the status, the cache, the button, the voice taken and made, each walk, wait, scroll,
+ * reveal, block queued and wait for blocks, what is said, the end, and anything thrown. A third of
+ * the sessions are cancelled at a random effect (a stop, a new reading, or the service unbound); a
+ * session after one is a new Reading on a new fake, as after the service is made again or the
+ * process died. Also the window a reading reads, against main's choice over the same windows
+ * (golden/reading-windows.txt).
  */
 class ReadingTraceTest {
     private class FakeHost(private val random: Random, private val cancelAt: Int) : ReadingHost {
@@ -127,8 +127,7 @@ class ReadingTraceTest {
     }
 
     @Test
-    fun readingsMatchMain() {
-        val tape = GoldenTape.ofReference("reading-sessions")
+    fun readingsMatchMain() = GoldenTape.check("reading-sessions") { tape ->
         for (seed in SEEDS) {
             val random = Random(seed)
             val seen = HashMap<String, Int>()
@@ -137,26 +136,23 @@ class ReadingTraceTest {
             while (effects < EVENTS) {
                 val from = from(random)
                 val cancelAt = if (random.nextInt(3) == 0) random.nextInt(1, 80) else 0
-                val main = session(seed, session, from, cancelAt, reference = true)
-                tape.record(main)
-                val new = session(seed, session, from, cancelAt, reference = false)
-                assertEquals(main, new, "seed $seed session $session")
-                count(seen, main, cancelAt)
-                effects += main.size
+                val trace = session(seed, session, from, cancelAt)
+                tape.record(trace)
+                count(seen, trace, cancelAt)
+                effects += trace.size
                 session++
             }
-            println("Reading trace seed $seed: $session sessions, $effects effects, 0 differ, seen $seen")
+            println("Reading trace seed $seed: $session sessions, $effects effects, seen $seen")
             for (kind in KINDS) assertTrue((seen[kind] ?: 0) >= MIN_SEEN, "seed $seed saw $kind ${seen[kind]} times")
         }
-        tape.finish()
     }
 
-    private fun session(seed: Long, session: Int, from: ReadAloud.From, cancelAt: Int, reference: Boolean): List<String> =
+    private fun session(seed: Long, session: Int, from: ReadAloud.From, cancelAt: Int): List<String> =
         runBlocking {
             val host = FakeHost(Random(seed * 1_000_003 + session), cancelAt)
             val job = launch {
                 try {
-                    if (reference) ReferenceReading(host).session(from) else Reading(host).run(from)
+                    Reading(host).run(from)
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: RuntimeException) {
@@ -195,21 +191,21 @@ class ReadingTraceTest {
         if (effects.contains("status false")) saw("ended")
     }
 
+    /** What a reading reads of a window. */
+    private class Window(val type: Int, val isActive: Boolean, val isFocused: Boolean, val layer: Int, val top: Int, val bottom: Int)
+
     @Test
-    fun windowsMatchMain() {
-        val tape = GoldenTape.ofReference("reading-windows")
+    fun windowsMatchMain() = GoldenTape.check("reading-windows") { tape ->
         for (seed in SEEDS) {
             val random = Random(seed)
             var chosen = 0
             var cut = 0
-            repeat(WINDOW_LISTS) { n ->
+            repeat(WINDOW_LISTS) {
                 val all = List(random.nextInt(0, 7)) {
                     val top = random.nextInt(-50, 1500)
-                    ReferenceWindow.Window(random.nextInt(1, 6), random.nextInt(4) == 0, random.nextInt(4) == 0,
+                    Window(random.nextInt(1, 6), random.nextInt(4) == 0, random.nextInt(4) == 0,
                         random.nextInt(0, 4), top, top + random.nextInt(0, 2400))
                 }
-                val main = ReferenceWindow.appWindow(all)
-                tape.record("$main")
                 val (app, keyboard) = ReadingRules.window(
                     BooleanArray(all.size) { all[it].type == android.view.accessibility.AccessibilityWindowInfo.TYPE_APPLICATION },
                     BooleanArray(all.size) { all[it].type == android.view.accessibility.AccessibilityWindowInfo.TYPE_INPUT_METHOD },
@@ -217,14 +213,13 @@ class ReadingTraceTest {
                     IntArray(all.size) { all[it].layer })
                 val window = all.getOrNull(app)
                 val new = window?.let { w -> app to (all.getOrNull(keyboard)?.let { ReadingRules.visibleBottom(w.top, w.bottom, it.top) } ?: w.bottom) }
-                assertEquals(main, new, "seed $seed windows $n")
-                if (main != null) chosen++
-                if (main != null && main.second != all[main.first].bottom) cut++
+                tape.record("$new")
+                if (new != null) chosen++
+                if (new != null && new.second != all[new.first].bottom) cut++
             }
-            println("Window trace seed $seed: $WINDOW_LISTS window lists, $chosen with an app, $cut cut to the keyboard, 0 differ")
+            println("Window trace seed $seed: $WINDOW_LISTS window lists, $chosen with an app, $cut cut to the keyboard")
             assertTrue(chosen >= MIN_SEEN && cut >= MIN_SEEN && WINDOW_LISTS - chosen >= MIN_SEEN)
         }
-        tape.finish()
     }
 
     private companion object {

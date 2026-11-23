@@ -42,3 +42,32 @@ fn cancellation_then_immediate_respeak_uses_a_new_generation() {
     g.close();
     assert_eq!(freed.load(Ordering::Acquire), 1);
 }
+/// Ported from the JVM's ReleasedOnceTest, whose frozen Kotlin copy is retired
+/// (docs/phase6-kotlin-references.md): however often it is closed, the owner is freed once.
+#[test]
+fn close_frees_once_however_often_it_is_called() {
+    let freed = Arc::new(AtomicUsize::new(0));
+    let g = Generator::new(Owner(freed.clone()));
+    for _ in 0..3 {
+        g.close();
+    }
+    assert_eq!(freed.load(Ordering::Acquire), 1);
+    assert!(g.lease().is_err(), "a use after close does nothing");
+    drop(g);
+    assert_eq!(freed.load(Ordering::Acquire), 1, "dropping closes again");
+
+    let freed = Arc::new(AtomicUsize::new(0));
+    let g = Generator::new(Owner(freed.clone()));
+    let synthesis = g.lease().unwrap();
+    g.close();
+    g.close();
+    assert_eq!(
+        freed.load(Ordering::Acquire),
+        0,
+        "a use in progress keeps it"
+    );
+    drop(synthesis);
+    g.close();
+    drop(g);
+    assert_eq!(freed.load(Ordering::Acquire), 1);
+}
