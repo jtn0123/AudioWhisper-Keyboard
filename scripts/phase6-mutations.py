@@ -36,15 +36,17 @@ def env():
     return e
 
 
-def jvm(output, name, module, patterns):
-    """Runs the test classes matching patterns in module; returns the exit and fresh assertion failures."""
+def jvm(output, name, module, patterns, task='testDebugUnitTest'):
+    """Runs the test classes matching patterns in module's JVM test task (an Android module's
+    testDebugUnitTest unless the family names its own TASK, as a plain JVM module's `test`);
+    returns the exit and fresh assertion failures."""
     started = time.time()
-    command = ['./gradlew', '--stacktrace', module + ':testDebugUnitTest']
+    command = ['./gradlew', '--stacktrace', module + ':' + task]
     for pattern in patterns:
         command += ['--tests', pattern]
     with (output / (name + '.log')).open('wb') as log:
         result = subprocess.run(command, cwd=ROOT, stdout=log, stderr=subprocess.STDOUT, env=env())
-    reports = ROOT / module.strip(':').replace(':', '/') / 'build/test-results/testDebugUnitTest'
+    reports = ROOT / module.strip(':').replace(':', '/') / 'build/test-results' / task
     failures = 0
     for report in reports.glob('TEST-*.xml'):
         if report.stat().st_mtime >= started:
@@ -64,6 +66,7 @@ def main():
     unknown = set(args.cases) - {case[0] for case in every}
     assert not unknown, f'unknown cases: {sorted(unknown)}'
     cases = [case for case in every if not args.cases or case[0] in args.cases]
+    task = getattr(family, 'TASK', 'testDebugUnitTest')
     output = args.output.resolve()
     output.mkdir(parents=True, exist_ok=False)
     paths = {ROOT / relative for _, relative, _, _, _ in cases}
@@ -76,7 +79,7 @@ def main():
             path = ROOT / relative
             path.write_text(originals[path].decode().replace(old, new))
             try:
-                status, failures = jvm(output, name, family.MODULE, family.TARGETS[target])
+                status, failures = jvm(output, name, family.MODULE, family.TARGETS[target], task)
             finally:
                 path.write_bytes(originals[path])
             caught = status != 0 and failures > 0
@@ -88,7 +91,7 @@ def main():
         for path, original in originals.items():
             path.write_bytes(original)
     patterns = sorted({p for _, _, _, _, target in cases for p in family.TARGETS[target]})
-    status, failures = jvm(output, 'restored', family.MODULE, patterns)
+    status, failures = jvm(output, 'restored', family.MODULE, patterns, task)
     missed = [r['mutation'] for r in results if not r['caught']]
     report = {'mutations': results, 'missed': missed, 'restored': {'exit': status, 'assertion_failures': failures},
               'source_sha256': {str(p.relative_to(ROOT)): hashlib.sha256(p.read_bytes()).hexdigest() for p in paths}}
