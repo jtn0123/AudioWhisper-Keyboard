@@ -23,7 +23,7 @@ fn renderer() -> i64 {
     let json = r##"{"$schema":"https://schemas.florisboard.org/snygg/v2/stylesheet",
         "key-popup-box":{"background":"#ff0000","foreground":"#000000"},
         "key-popup-box[shiftstate=`caps_lock`]":{"foreground":"#00ff00"}}"##;
-    render::theme(native, &utf16(json), &[], &[], &[1.0, 1.0, 1.0]).unwrap();
+    render::theme(native, &utf16(json), &[], &[], &[1.0, 1.0, 1.0], &[]).unwrap();
     update(native, "unshifted");
     let values = [1., 32., 0., 0., 0., 0., 200., 32., 1900., 0., 0., 1.];
     gestures(native, &values, &all(&["NO_ACTION"; 9])).unwrap();

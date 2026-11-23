@@ -54,9 +54,12 @@ pub const KEYBOARD_RENDERER: Api = Api {
             "The settings picture [name], [width] by [height] ARGB [pixels] at its intrinsic \
              size; 0×0 removes it. Gives back the screens' reply.",
         ),
-        member(
+        with(
             "theme",
-            "The stylesheet [json], with the palette's [names] and [colors] and the [scale].",
+            "The stylesheet [json], with the palette's [names] and [colors], the [scale], and its \
+             `@font` files as [fonts]: each `src` URI followed by the absolute path the theme's \
+             asset resolver gave it.",
+            &[default("fonts", "emptyArray()")],
         ),
         member(
             "update",

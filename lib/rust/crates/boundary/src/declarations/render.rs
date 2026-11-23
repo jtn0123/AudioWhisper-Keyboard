@@ -79,6 +79,7 @@ pub const RENDER_NATIVE: Class = Class {
                 ("names", STRINGS),
                 ("colors", INTS),
                 ("scale", FLOATS),
+                ("fonts", STRINGS),
             ],
             Return::Unit,
         ),

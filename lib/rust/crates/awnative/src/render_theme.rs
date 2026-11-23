@@ -25,6 +25,20 @@ pub(crate) fn theme(json: &str, names: &[String], colors: &[i32], scale: &[f32])
     .map_err(|_| illegal("invalid renderer stylesheet or scale"))
 }
 
+/// The theme's `@font` files from Kotlin's flat array: each `src` URI followed by its absolute
+/// path. The paths are only read, by `render::theme_fonts`; neither is logged.
+pub(crate) fn font_files(flat: &[String]) -> Result<Vec<(String, String)>> {
+    if !flat.len().is_multiple_of(2) {
+        return Err(illegal("invalid theme font files"));
+    }
+    Ok(flat
+        .as_chunks::<2>()
+        .0
+        .iter()
+        .map(|[uri, path]| (uri.clone(), path.clone()))
+        .collect())
+}
+
 /// The JVM reference probe. Only lib/snygg/src/test declares it, so the phone's library leaves it
 /// out (scripts/native-declarations-check.py).
 #[cfg(not(target_os = "android"))]
@@ -96,5 +110,50 @@ mod probe {
                 env.make_strings(&output)
             })
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::font_files;
+    use crate::{render, render_key_preview::key_preview};
+    use std::path::PathBuf;
+
+    fn utf16(text: &str) -> Vec<u16> {
+        text.encode_utf16().collect()
+    }
+
+    /// The session draws the theme's `@font` files Kotlin passes, and a broken one as none.
+    #[test]
+    fn the_session_draws_a_key_in_the_font_files_it_is_given() {
+        let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../../..");
+        let roboto = root.join("fastlane/staging/fonts/Roboto-Light.ttf");
+        let script =
+            root.join("lib/rust/crates/render/tests/fixtures/fixture-script-regular-subset.ttf");
+        let native = render::create(&[utf16(&roboto.display().to_string())]).unwrap();
+        let json = r##"{"$schema":"https://schemas.florisboard.org/snygg/v2/stylesheet",
+            "@font `F`":[{"src":"uri(`flex:/f.ttf`)"}],
+            "key":{"background":"#ffffff","foreground":"#000000","font-family":"`F`","font-size":"24sp"}}"##;
+        let preview = |path: Option<&str>| {
+            let fonts: Vec<_> = path.map_or(vec![], |p| vec![utf16("flex:/f.ttf"), utf16(p)]);
+            render::theme(native, &utf16(json), &[], &[], &[2.0, 1.0, 1.0], &fonts).unwrap();
+            key_preview(native, 104, &["character", "Hello", ""].map(utf16)).unwrap()
+        };
+        let plain = preview(None);
+        let themed = preview(Some(&script.display().to_string()));
+        let differing = plain.iter().zip(&themed).filter(|(a, b)| a != b).count();
+        assert!(differing > 200, "the theme font changed {differing} pixels");
+        assert_eq!(preview(Some("/nonexistent/theme-font.ttf")), plain);
+        render::close(native).unwrap();
+    }
+
+    #[test]
+    fn font_files_pair_each_uri_with_its_path_and_refuse_a_lone_one() {
+        let flat = ["flex:/a.ttf", "/data/a.ttf", "flex:/b.ttf", "/data/b.ttf"].map(String::from);
+        let pairs = font_files(&flat).unwrap();
+        assert_eq!(pairs.len(), 2);
+        assert_eq!(pairs[1], ("flex:/b.ttf".into(), "/data/b.ttf".into()));
+        assert!(font_files(&flat[..3]).is_err());
+        assert!(font_files(&[]).unwrap().is_empty());
     }
 }

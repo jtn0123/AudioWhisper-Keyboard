@@ -74,11 +74,14 @@ pub fn theme(
     names: &[Vec<u16>],
     colors: &[i32],
     scale: &[f32],
+    fonts: &[Vec<u16>],
 ) -> Result<()> {
     session(native, |s| {
         let json = String::from_utf16(json).map_err(|_| illegal("invalid stylesheet UTF-16"))?;
         let names = texts(names);
-        s.theme = Some(crate::render_theme::theme(&json, &names, colors, scale)?);
+        let mut theme = crate::render_theme::theme(&json, &names, colors, scale)?;
+        theme.load_fonts(&crate::render_theme::font_files(&texts(fonts))?);
+        s.theme = Some(theme);
         Ok(())
     })
 }
