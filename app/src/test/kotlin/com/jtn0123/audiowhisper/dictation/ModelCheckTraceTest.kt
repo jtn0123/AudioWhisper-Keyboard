@@ -77,8 +77,8 @@ class ModelCheckTraceTest {
             8 -> "forgotten".also { main.keys.clear(); new.keys.clear() }
             9 -> "repaired".also { expected.indices.forEach { File(dir, expected[it].name).apply { setReadable(true); writeBytes(contents[it]) } } }
             in 10..13 -> {
-                val state = ModelCheck.quick(dir, expected)
-                assertEquals(ReferenceModelCheck.quick(dir, expected), state)
+                val state = outcome { ModelCheck.quick(dir, expected) }
+                assertEquals(outcome { ReferenceModelCheck.quick(dir, expected) }, state)
                 "quick ${name(state)}"
             }
             else -> full(dir, expected, main, new)
@@ -87,8 +87,8 @@ class ModelCheckTraceTest {
 
     private fun full(dir: File, expected: List<ExpectedFile>, main: Memory, new: Memory): String {
         main.asked.clear(); main.added.clear(); new.asked.clear(); new.added.clear()
-        val state = ModelCheck.full(dir, expected, new)
-        assertEquals(ReferenceModelCheck.full(dir, expected, main), state)
+        val state = outcome { ModelCheck.full(dir, expected, new) }
+        assertEquals(outcome { ReferenceModelCheck.full(dir, expected, main) }, state)
         assertEquals(main.asked, new.asked, "keys looked up")
         assertEquals(main.added, new.added, "keys remembered")
         // Main's order differs only if a file passed before the last one was looked up.
@@ -96,10 +96,18 @@ class ModelCheckTraceTest {
         return if (batched) "full ${name(state)}, remembered at the end" else "full ${name(state)}"
     }
 
-    private fun name(state: ModelState) = when (state) {
+    /** What a check came to: its state, or what it threw, so a throw is a difference like any other. */
+    private fun outcome(check: () -> ModelState): Any = try {
+        check()
+    } catch (e: RuntimeException) {
+        "threw ${e::class.simpleName}"
+    }
+
+    private fun name(state: Any) = when (state) {
         ModelState.Ready -> "ready"
         is ModelState.Missing -> "missing"
         is ModelState.Damaged -> "damaged"
+        else -> "threw"
     }
 
     private companion object {
