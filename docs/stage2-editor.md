@@ -55,6 +55,8 @@ models have independent `Reference*.kt` implementations too. Only Android/manage
 adapted. The capitalisation oracle is the unchanged AOSP Java method in `ReferenceCaps.java`.
 Existing spacing, composing, shift and correction-rule reference tests remain in the full gate.
 The now-unused production spacing JNI adapter also moved to test-only `ReferenceSpacingAdapter.kt`.
+Phase 6 swapped these copies for golden digests of their answers; `ReferenceCaps.java`, the
+platform stand-ins and the adapter (now `SpacingAdapter.kt`) stay ([record](phase6-kotlin-references.md)).
 
 `FakeInputConnection` models UTF-16 replacement, selection, composing spans, surrounding text,
 code-point deletion and batch nesting. It records ordered effects, including modifiers and

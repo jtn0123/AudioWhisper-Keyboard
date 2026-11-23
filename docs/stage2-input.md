@@ -37,7 +37,8 @@ The removed receiver is retained as `reference/ReferenceKeyboardKeyEvents.kt`; p
 become recorded effects. `ReferenceRoutingManager` supplies independent state/shift logic and
 platform facts. `ReferenceInputDispatcher`, `ReferenceInputFeedback`, `ReferenceInputPointer`,
 `ReferenceInputVisual`, `ReferenceInputControl` and `ReferenceInputDelete` retain the replaced
-policies without calling the new native decisions.
+policies without calling the new native decisions. Phase 6 swapped them all for golden digests
+of their answers ([record](phase6-kotlin-references.md)).
 
 `InputDispatchMatchTest` compares native lifecycle replies, exact ordered routing effects and
 final keyboard registers. Routed commits, deletion, selection and Enter run through the

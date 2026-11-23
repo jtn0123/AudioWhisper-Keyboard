@@ -691,8 +691,9 @@ children and popup sources by index, so JNI does not need to understand Kotlin o
 call back into an evaluator. Clipboard queries still stay behind the locked-device guard.
 Layout assembly/cache and Android labels/icons remain for their later work packages.
 
-The JVM differential tests retain the replaced Kotlin as `ReferenceKeySelectors`,
-`ReferenceKeyboardState`, `ReferenceKeyMetadata`, `ReferenceKeyCodes` and `ReferenceKeyRules`:
+The JVM differential tests retained the replaced Kotlin as `ReferenceKeySelectors`,
+`ReferenceKeyboardState`, `ReferenceKeyMetadata`, `ReferenceKeyCodes` and `ReferenceKeyRules`
+(phase 6 swapped them for golden digests of their answers ([record](phase6-kotlin-references.md))):
 
 - 93 bundled layouts across 132 JSON files, 5,840 key nodes in 80 shift/variation/direction/width
   combinations: 467,200 cases. Both sides receive the same casing snapshots on the JVM,
@@ -751,7 +752,8 @@ hash is an opaque input, preserving the old hash-collision behaviour until the s
 There are no JNI callbacks or native handles for keyboards, so no new lifetime/locking protocol.
 
 `LayoutAssemblyMatchTest` retains the replaced decisions and loops in test-only
-`ReferenceLayoutAssembly` and the old cache policy in `ReferenceTextKeyboardCache`. It checks:
+`ReferenceLayoutAssembly` and the old cache policy in `ReferenceTextKeyboardCache` (phase 6
+swapped the cache copy for a golden digest ([record](phase6-kotlin-references.md))). It checks:
 
 - All 93 bundled layout files (94 indexed entries), all 46 retained subtype presets and all
   12 keyboard modes, with the number row off and on: 103,776 complete keyboards and 1,581,429

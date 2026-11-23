@@ -369,8 +369,14 @@ Stage 5 packages 1–3, one event family at a time:
   test read are deleted too. 19 device comparisons stay (their goldens need a device run), as
   do the 8 render references and 2 Snygg palette references (in flight, the Compose-free render
   path) and the 5 the render references build on.
-* **Left, the Kotlin half:** suggest, settingsui, app, editor/input, keyboard, nlp, theme, lib,
-  rust boundary and snygg: 102 copies, each retired the same way.
+* **The Kotlin half, second branch (2026-11-23):** suggest, nlp, editor/input and keyboard are
+  retired: 38 copies became 73 more golden files (42 KB), and the goldens catch every mutation
+  the copies caught, and one more (`habit-weight-at-the-boundary`). Kept from these families:
+  `ReferenceKeyboardSubtypes`, whose trace drives a render reference, and the editor drivers'
+  platform stand-ins (`ReferencePlatform`, `ReferenceEditorRange`, `ReferenceCaps.java`).
+  The lead kept three more Snygg copies with the palette's two.
+* **Left, the Kotlin half:** app, lib, rust boundary, settingsui, theme and snygg: 58 copies,
+  each retired the same way.
 
 ## Risks
 

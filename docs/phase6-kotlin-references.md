@@ -24,10 +24,12 @@ it was copied from. "Tests that use it" leaves out other `Reference*.kt` files; 
 instrumented (device) test. Every copy mirrors code that is now Rust: where a production Kotlin
 class of the same name is left, it is a thin adapter over the Rust.
 
-The verdict column is the plan at `0500aa74f`, changed once on 2026-11-23: another branch took
-the render path off Compose, Snygg's palette with it, so its references are kept "in flight, the
-Compose-free render path". [What happened](#what-happened) says, family by family, which were
-retired and which were left.
+The verdict column is the plan at `0500aa74f`, changed twice on 2026-11-23. First, another branch
+took the render path off Compose, Snygg's palette with it, so its references are kept "in flight,
+the Compose-free render path". Then the second branch kept three more that the render path or
+the test drivers stand on, the lead kept three Snygg copies with the palette's two, and two small
+codecs moved to the app family that uses them. [What happened](#what-happened) says, family by
+family, which were retired and which were left.
 
 * **Unused (7 files).** No test reads them: nothing compares against them. They are deleted
   without goldens, since there is nothing to record.
@@ -126,11 +128,11 @@ retired and which were left.
 | editor/input | `fb/ime/editor/ReferenceAbstractEditorInstance.kt` | 290 | AbstractEditorInstance (c07983c8d) | `c07983c8d` | EditorPlanMatchTest | Retire |
 | editor/input | `fb/ime/editor/ReferenceEditorContent.kt` | 34 | EditorContent (c07983c8d) | `c07983c8d` | none | Retire |
 | editor/input | `fb/ime/editor/ReferenceEditorFlow.kt` | 118 | EditorInstance's replaced branches (c07983c8d) | `c07983c8d` | EditorFlowMatchTest | Retire |
-| editor/input | `fb/ime/editor/ReferenceEditorRange.kt` | 26 | EditorRange (c07983c8d) | `c07983c8d` | EditorBoundaryTest, EditorPlanMatchTest, FakeInputConnection | Retire |
+| editor/input | `fb/ime/editor/ReferenceEditorRange.kt` | 26 | EditorRange (c07983c8d) | `c07983c8d` | EditorBoundaryTest, EditorPlanMatchTest, FakeInputConnection | Keep: the fake field answers Rust with it |
 | editor/input | `fb/ime/editor/ReferenceEditorState.kt` | 280 | EditorInstance's state handling (c07983c8d) | `c07983c8d` | none | Retire |
 | editor/input | `fb/ime/editor/ReferenceImeOptions.kt` | 41 | ImeOptions (c07983c8d) | `c07983c8d` | EditorPlanMatchTest | Retire |
 | editor/input | `fb/ime/editor/ReferenceInputAttributes.kt` | 120 | InputAttributes (c07983c8d) | `c07983c8d` | EditorPlanMatchTest | Retire |
-| editor/input | `fb/ime/editor/ReferencePlatform.kt` | 54 | the platform facts both editor sides read | `c07983c8d` | EditorPlanMatchTest, KeyGraphTrace, NativeEditorDriver, NlpMatchTest, SettingsCodecMatchTest | Retire |
+| editor/input | `fb/ime/editor/ReferencePlatform.kt` | 54 | the platform facts both editor sides read | `c07983c8d` | EditorPlanMatchTest, KeyGraphTrace, NativeEditorDriver, NlpMatchTest, SettingsCodecMatchTest | Keep: the driver answers Rust with it; render builds on it |
 | editor/input | `fb/ime/editor/ReferenceSpacing.kt` | 153 | EditorInstance's auto-space and phantom-space rules (f44cef4d9) | `f44cef4d9` | SpacingComparison, SpacingMatchTest | Retire |
 | editor/input | `fb/ime/editor/ReferenceSpacingAdapter.kt` | 65 | Spacing (adapter over Rust's) | `c07983c8d` | SpacingComparison, SpacingMatchTest | Retire |
 | editor/input | `fb/ime/input/reference/ReferenceInputControl.kt` | 40 | KeyboardManager's control branches (c826ca10e) | `c826ca10e` | InputControlMatchTest | Retire |
@@ -141,8 +143,8 @@ retired and which were left.
 | editor/input | `fb/ime/input/reference/ReferenceInputVisual.kt` | 34 | ComputingEvaluator's labels and icons (c826ca10e) | `c826ca10e` | InputPolicyMatchTest | Retire |
 | editor/input | `fb/ime/input/reference/ReferenceKeyboardKeyEvents.kt` | 177 | KeyboardManager's key routing (c826ca10e) | `c826ca10e` | none | Retire |
 | editor/input | `fb/ime/input/reference/ReferenceRoutingManager.kt` | 103 | KeyboardManager's routing state (c826ca10e) | `c826ca10e` | InputDispatchMatchTest | Retire |
-| keyboard | `fb/ime/core/ReferenceKeyboardSubtypes.kt` | 95 | SubtypeManager (61f1513fb) | `0a9fbaaf4` | SubtypeMatchTest, SubtypeTrace, SubtypeTraceSides | Retire |
-| keyboard | `fb/ime/core/ReferenceSubtypeJson.kt` | 3 | the persisted subtype JSON codec | `586890ba1` | SettingsCodecMatchTest, SubtypeSessionTest | Retire |
+| keyboard | `fb/ime/core/ReferenceKeyboardSubtypes.kt` | 95 | SubtypeManager (61f1513fb) | `0a9fbaaf4` | SubtypeMatchTest, SubtypeTrace, SubtypeTraceSides | Keep: its trace drives the render reference `ReferenceSubtypeBuildRow` |
+| keyboard | `fb/ime/core/ReferenceSubtypeJson.kt` | 3 | the persisted subtype JSON codec | `586890ba1` | SettingsCodecMatchTest, SubtypeSessionTest | Retire, with the app family |
 | keyboard | `fb/ime/dictionary/ReferenceUserDictionary.kt` | 121 | UserDictionaryScreen and UserDictionary (f5a6fc180) | `52a7f1fe9` | SettingsWordsMatchTest, SettingsWordsTest | Retire |
 | keyboard | `fb/ime/keyboard/ReferenceKeyCodes.kt` | 98 | KeyCode and its helpers (82543cee2) | `82543cee2` | KeyModelsMatchTest | Retire |
 | keyboard | `fb/ime/keyboard/ReferenceKeyMetadata.kt` | 68 | key metadata rules (82543cee2) | `82543cee2` | KeyModelsMatchTest | Retire |
@@ -167,7 +169,7 @@ retired and which were left.
 | nlp | `fb/ime/nlp/ReferenceTypingFanOut.kt` | 174 | main's typing fan-out (phase 3 item 1) | `ae452c49b` | TypingTraceMatchTest, TypingTraceSides | Retire |
 | nlp | `fb/ime/nlp/latin/ReferenceLatinLanguageProvider.kt` | 336 | LatinLanguageProvider (b00f8c561) | `b00f8c561` | none | Retire |
 | nlp | `fb/ime/smartbar/ReferenceCandidatesRow.kt` | 213 | CandidatesRow (b00f8c561) | `b00f8c561` | none | Retire: unused, no test reads it |
-| nlp | `fb/ime/smartbar/quickaction/ReferenceQuickActionJson.kt` | 19 | QuickActionJsonConfig | `586890ba1` | none | Retire |
+| nlp | `fb/ime/smartbar/quickaction/ReferenceQuickActionJson.kt` | 19 | QuickActionJsonConfig | `586890ba1` | none | Retire, with the app family |
 | theme | `fb/ime/theme/ReferenceFlorisImeThemeBaseStyle.kt` | 333 | FlorisImeThemeBaseStyle (89019851f) | `89019851f` | ThemeMatchTest | Retire |
 | theme | `fb/ime/theme/ReferenceThemeManager.kt` | 103 | ThemeManager (phase 3 item 3) | `4b48cd624` | ThemeMatchTest, ThemeTrace | Retire |
 | lib | `fb/lib/crashutility/ReferenceCrash.kt` | 71 | CrashUtility's handler and report (b1cf45f18) | `7e54619a4` | CrashTraceTest | Retire |
@@ -190,13 +192,13 @@ retired and which were left.
 | rust boundary | `lib/rust/src/test/kotlin/aw/rust/ReferenceSmartbar.kt` | 138 | ? | `2acffcd62` | SmartbarMatchTest | Retire |
 | snygg | `lib/snygg: ReferenceSnyggAttributes.kt` | 180 | Snygg's SnyggAttributes | `938765749` | SnyggEditorMatchTest, SnyggGrammarMatchTest | Retire |
 | snygg | `lib/snygg: ReferenceSnyggPropertyCodec.kt` | 41 | Snygg's SnyggPropertyCodec | `9f917ec17` | SnyggValueCorpusTest | Retire |
-| snygg | `lib/snygg: ReferenceSnyggPropertySetEditor.kt` | 333 | Snygg's SnyggPropertySetEditor | `6b09d0ca9` | SnyggEditorMatchTest | Retire |
+| snygg | `lib/snygg: ReferenceSnyggPropertySetEditor.kt` | 333 | Snygg's SnyggPropertySetEditor | `6b09d0ca9` | SnyggEditorMatchTest | Keep: in flight, the Compose-free render path |
 | snygg | `lib/snygg: ReferenceSnyggRule.kt` | 137 | Snygg's SnyggRule | `938765749` | SnyggEditorMatchTest, SnyggGrammarMatchTest, SnyggMatchSupport | Retire |
-| snygg | `lib/snygg: ReferenceSnyggSpec.kt` | 149 | Snygg's SnyggSpec | `6b09d0ca9` | SnyggEditorMatchTest | Retire |
+| snygg | `lib/snygg: ReferenceSnyggSpec.kt` | 149 | Snygg's SnyggSpec | `6b09d0ca9` | SnyggEditorMatchTest | Keep: in flight, the Compose-free render path |
 | snygg | `lib/snygg: ReferenceSnyggStylesheet.kt` | 75 | Snygg's SnyggStylesheet | `938765749` | SnyggCompilationMatchTest, SnyggEditorMatchTest, SnyggGrammarMatchTest, SnyggMatchSupport | Retire |
 | snygg | `lib/snygg: ReferenceSnyggStylesheetEditor.kt` | 50 | Snygg's SnyggStylesheetEditor | `6b09d0ca9` | SnyggEditorMatchTest | Retire |
 | snygg | `lib/snygg: ReferenceSnyggTheme.kt` | 137 | Snygg's SnyggTheme | `6b09d0ca9` | InlineChipMatchTest, RenderThemeMatchTest, SnyggCompilationMatchTest, SnyggThemeTest | Keep: in flight, the Compose-free render path (palette) |
-| snygg | `lib/snygg: ReferenceSnyggValueBridge.kt` | 64 | Snygg's SnyggValueBridge | `9f917ec17` | SnyggCompilationMatchTest, SnyggGrammarMatchTest, SnyggMatchSupport, SnyggValueCorpusTest, SnyggValueEdgesMatchTest, SnyggValueMatchTest | Retire |
+| snygg | `lib/snygg: ReferenceSnyggValueBridge.kt` | 64 | Snygg's SnyggValueBridge | `9f917ec17` | SnyggCompilationMatchTest, SnyggGrammarMatchTest, SnyggMatchSupport, SnyggValueCorpusTest, SnyggValueEdgesMatchTest, SnyggValueMatchTest | Keep: in flight, the Compose-free render path |
 | snygg | `lib/snygg: reference/ReferenceSnyggAppearanceValue.kt` | 160 | Snygg's SnyggAppearanceValue | `9f917ec17` | SnyggValueEdgesMatchTest | Keep: in flight, the Compose-free render path (palette) |
 | snygg | `lib/snygg: reference/ReferenceSnyggFontValue.kt` | 90 | Snygg's SnyggFontValue | `9f917ec17` | SnyggValueEdgesMatchTest | Retire |
 | snygg | `lib/snygg: reference/ReferenceSnyggIdToValueMap.kt` | 26 | Snygg's SnyggIdToValueMap | `9f917ec17` | SnyggValueMatchTest | Retire |
@@ -221,15 +223,23 @@ retired and which were left.
 
 ## What happened
 
-Stopped at a green point after three families, on branch `all-rust/phase6-kotlin`:
+Two branches so far, each stopped at a green point between families. **68 references are
+retired.**
 
-* **Retired: 30 references.** These are the 23 `app/src/test` copies in dictation (10), reader
-  (9) and gif (4), and the **7 that no test read** (`368849831`), one of them under
-  `androidTest`. The 31st file deleted is `ReleasedOnceTest`, which tested only its copy.
-* **Kept:** the 19 device comparisons, the 8 render references and the 5 they build on, and
-  the 2 that guard Snygg's palette. [Kept, and why](#kept-and-why) lists them.
-* **Not reached:** suggest, settingsui, app, editor/input, keyboard, nlp, theme, lib, rust
-  boundary and snygg. They hold the other 102 copies marked "Retire", and their verdicts above
+* **`all-rust/phase6-kotlin`: dictation, reader and gif.** It retired 30: the 23 `app/src/test`
+  copies in dictation (10), reader (9) and gif (4), and the **7 that no test read**
+  (`368849831`), one of them under `androidTest`. The 31st file deleted is `ReleasedOnceTest`,
+  which tested only its copy.
+* **`all-rust/phase6-kotlin-2`: suggest, nlp, editor/input and keyboard.** It retired 38, in nine
+  deletion commits: suggest 7, nlp 3, editor/input 16 and keyboard 12. The keyboard went in four
+  parts (its pure models, the text keyboard, the glide classifier and the user dictionary),
+  each with its own generator, cases and deletion.
+* **Kept:** the 19 device comparisons, the 8 render references and the 5 they build on, Snygg's
+  5, and 3 more the second branch kept: `ReferenceKeyboardSubtypes`, `ReferencePlatform` and
+  `ReferenceEditorRange` (with `ReferenceCaps.java`, which the inventory did not count).
+  [Kept, and why](#kept-and-why) lists them.
+* **Not reached:** app, lib, rust boundary, settingsui, theme and snygg. They hold the other 58
+  copies marked "Retire", 2 of them the codecs moved to the app family, and their verdicts above
   are still the plan.
 
 ### The method, as built
@@ -247,24 +257,38 @@ Stopped at a green point after three families, on branch `all-rust/phase6-kotlin
   refuses to write, so a regression cannot be recorded as the reference.
 * **A deletion commit per family.** The tests record Rust's answers on `GoldenTape.check`, the
   same text in the same order, and the references go, with any helper they leave unused.
+* **`GoldenTape.answer`** (`c39145c5f`) records a value beside the question that gave it, for the
+  tests whose answers are not text already. The value's `toString()` must be its content, so a
+  data class or a list of them records, and `PopupSet`, which prints no content, is recorded by its
+  keys.
 * **Proof.** `scripts/phase6-mutations.py` runs a family's faults (`scripts/phase6_mutation_cases/`)
   against the JVM tests that compared with the copies. A case counts as caught only by an
   `AssertionFailedError` in a fresh report, so a mutant that does not compile is never caught,
   and the restored source must pass. The scripts that
   already covered the same code ran beside it. Every script ran at `0500aa74f`, with the case
-  modules copied in, and again at the family's deletion commit. The goldens must catch every case
-  the references caught.
+  modules copied in, and again at the family's deletion commit. The second branch ran each at
+  the family's cases commit, where the references still are, and at its deletion commit. The
+  goldens must catch every case the references caught. Each run is a batch that ends well inside
+  the two-hour limit on a background command, so no worktree is left with a fault in it.
 
 ### Goldens
 
-All 40 are under `app/src/test/resources/golden`: 22,298 bytes for 6,409,675 answers, the largest
-file 748 bytes.
+All 113 are under `app/src/test/resources/golden`: 64,762 bytes for 45,989,981 answers, the
+largest file 798 bytes. The first branch wrote 40 (22,298 bytes), the second 73 (42,464 bytes).
 
 | Family | Generator | Files | Bytes | Answers | Tests |
 |---|---|---:|---:|---:|---|
 | dictation | `c8dfa5719` | 9 | 5,191 | 2,007,199 | DictationRulesMatchTest, DictationSessionMatchTest, MicKeyMatchTest, MicTraceTest, ModelCheckTraceTest |
 | reader | `0fa825bff` | 20 | 10,405 | 1,204,691 | ReaderRulesMatchTest, ScreenRulesMatchTest, TtsChunkMatchTest, PlaybackQueueMatchTest, ScreenTraversalMatchTest, LoadedVoiceTraceTest, ReadingTraceTest |
 | gif | `527ff3242` | 11 | 6,702 | 3,197,785 | GifRulesMatchTest, GiphyRulesMatchTest, GifSearchTraceTest |
+| suggest | `a142c4cab` | 22 | 13,427 | 21,944,586 | SuggestRulesMatchTest, LatinRulesMatchTest, WordStoresMatchTest, SwipeRulesMatchTest, BoundaryGlideMatchTest, BoundaryLearnerMatchTest, NlpLearningMatchTest |
+| nlp | `e2dc488cf` | 3 | 2,037 | 1,200,000 | TypingTraceMatchTest |
+| input policy | `8f7677bf2` | 6 | 3,352 | 272,587 | InputControlMatchTest, InputDeleteMatchTest, InputPolicyMatchTest |
+| editor pair | `448e43677` | 16 | 8,298 | 3,495,571 | EditorPlanMatchTest, EditorFlowMatchTest, EditorBoundaryTest, NlpEditorHandoffMatchTest, SpacingMatchTest, InputDispatchMatchTest, InputFixtureMatchTest |
+| keyboard models | `ccf820d33` | 17 | 11,022 | 9,807,325 | ShiftMatchTest, ComposingMatchTest, EmojiMatchTest, KeyModelsMatchTest, KeySelectorsMatchTest, LayoutAssemblyMatchTest |
+| text keyboard | `a652f64cc` | 3 | 2,074 | 2,854,694 | TextKeyboardMatchTest, LayoutAssemblyMatchTest's two layout tests |
+| glide classifier | `2c76c1088` | 3 | 1,148 | 522 | SwipeIndexTest's three ranking tests |
+| user dictionary | `c050132b4` | 3 | 1,106 | 5,021 | SettingsWordsMatchTest, SettingsWordsTest |
 
 **To write a family's goldens again**, check out its generator commit, where the references
 still are, and run its tests with the variable set. Then run them twice without it, and copy the
@@ -278,7 +302,37 @@ REFERENCE_GOLDEN=write ./gradlew :app:testDebugUnitTest --rerun \
   --tests '*MicKeyMatchTest' --tests '*MicTraceTest' --tests '*ModelCheckTraceTest'
 ```
 
-Name only the family's tests: any other tape in the same run refuses the variable.
+Name only the family's tests: any other tape in the same run refuses the variable. The second
+branch's commands, each at its generator commit:
+
+```sh
+# a142c4cab, suggest
+--tests '*SuggestRulesMatchTest' --tests '*LatinRulesMatchTest' --tests '*WordStoresMatchTest' \
+  --tests '*SwipeRulesMatchTest' --tests '*BoundaryGlideMatchTest' --tests '*BoundaryLearnerMatchTest' \
+  --tests '*NlpLearningMatchTest'
+# e2dc488cf, nlp
+--tests '*TypingTraceMatchTest'
+# 8f7677bf2, input policy
+--tests '*InputControlMatchTest' --tests '*InputDeleteMatchTest' --tests '*InputPolicyMatchTest'
+# 448e43677, editor pair
+--tests '*EditorPlanMatchTest' --tests '*EditorFlowMatchTest' --tests '*EditorBoundaryTest' \
+  --tests '*NlpEditorHandoffMatchTest' --tests '*SpacingMatchTest' --tests '*InputDispatchMatchTest' \
+  --tests '*InputFixtureMatchTest'
+# ccf820d33, keyboard models
+--tests '*ShiftMatchTest' --tests '*ComposingMatchTest' --tests '*EmojiMatchTest' --tests '*KeyModelsMatchTest' \
+  --tests '*KeySelectorsMatchTest' --tests '*LayoutAssemblyMatchTest'
+# a652f64cc, text keyboard (the cache test is checked by then, so only the two layout tests)
+--tests '*TextKeyboardMatchTest' \
+  --tests '*LayoutAssemblyMatchTest.everyBundledLayoutModeAndRetainedPresetMatches' \
+  --tests '*LayoutAssemblyMatchTest.seededMissingReferencesEmptyRowsSelectorsAndHintSettingsMatch'
+# 2c76c1088, glide classifier
+--tests '*SwipeIndexTest.theDictionarysWordsRankAsBefore' --tests '*SwipeIndexTest.oddWordsRankAsBefore' \
+  --tests '*SwipeIndexTest.strangeSwipesRankAsBefore'
+# c050132b4, user dictionary
+--tests '*SettingsWordsMatchTest' --tests '*SettingsWordsTest'
+```
+
+Each follows `REFERENCE_GOLDEN=write ./gradlew :app:testDebugUnitTest --rerun`.
 
 Three tests needed repeatable inputs before a digest could hold them:
 
@@ -329,6 +383,52 @@ ends. Each stopped run's source was restored, and the cases it had not finished 
 name, at the same commit; the restored source passed after every part. The counts and targets
 above join the parts at each end.
 
+The second branch ran each family's cases at its cases commit, where the references still are,
+and at its deletion commit. Main had not moved when the branch was gated, so these are the commits
+that ship. Both ends of a row ran the same cases.
+
+| Family | Script | Before | After |
+|---|---|---|---|
+| suggest | `phase6-mutations.py --family suggest` (`d20a65e7a`, `255f3324b`) | 38 of 46 | 39 of 46 |
+| suggest | `consolidation-mutations.py learner glide` | 2 of 2 | 2 of 2 |
+| nlp | `phase6-mutations.py --family nlp` (`bd7b38e71`, `7a92198bf`) | 19 of 24 | the same 19 of 24 |
+| input policy | `phase6-mutations.py --family input` (`afdf35bfb`, `a210c3be7`) | 37 of 39 | the same 37 of 39 |
+| editor pair | `phase6-mutations.py --family editor` (`c2788a34a`, `23853d0ab`) | 36 of 41 | the same 36 of 41 |
+| editor pair | `editor-mutations.py` (`c2788a34a`, `23853d0ab`) | 5 of 5 | 5 of 5 |
+| editor pair | `input-mutations.py` (`c2788a34a`, `23853d0ab`) | 4 of 4 | 4 of 4 |
+| keyboard models | `phase6-mutations.py --family keyboard`, 43 cases (`9797094d9`, `790c40672`) | 41 of 43 | the same 41 of 43 |
+| text keyboard | the same, 16 cases (`0051bd697`, `6917e9829`) | 16 of 16 | 16 of 16 |
+| glide | the same, 11 cases (`f86bd326a`, `6917e9829`) | 11 of 11 | 11 of 11 |
+| user dictionary | the same, 21 cases (`19f318c40`, `7578ffdbe`) | 21 of 21 | 21 of 21 |
+
+`habit-weight-at-the-boundary` is the one case caught only after: the golden is stronger than
+its reference ([what was found](#what-moved-and-what-was-found)). `editor-mutations.py` had
+stopped at its first case since `5725d2fed`; `3f23e8d5a` points its five cases at where their
+lines are now, and it ran in that form at both ends. `input-mutations.py` faults the dispatcher's
+lifecycle, the routing and the pointer policy. It ran at the editor pair's two commits, which
+retired the dispatcher's and routing's copies; the pointer policy's copy had gone with the input
+policy, so `rolling-multi-pointer` met goldens at both ends. All four were caught at both.
+
+No case the references caught got past the goldens. 21 cases survive at both ends, so the
+goldens lose none; the references let them through too:
+
+* **input policy (2):** `done-shows-an-arrow` and `no-enter-action-ignored`. The test draws each
+  key's options with `r.nextInt()`, and ENTER gets only 110 draws (11 modes by 10 types). Option
+  6 with the flags clear comes up about once in 1,024 draws, and the no-enter difference about
+  once in 170, so neither is reached.
+* **keyboard (2):** `tld-shows-its-code` is an equivalent mutant: `URI_COMPONENT_TLD` is -255,
+  already below `SPACE`, so dropping its own test changes no answer. `digits-in-a-query` is a gap
+  in the seeded inputs: a query is drawn from an emoji's letter runs (`[A-Za-z]+`), random
+  letters or odd characters, none of them a digit, so a query with a digit is never asked.
+* **Not yet classified:** suggest's `zero-score-scored`, `trail-trusted-past-a-deletion`,
+  `acronym-ahead-of-itself`, `replaced-at-another-start-in-nlp`, `undone-at-another-start-in-nlp`,
+  `crlf-read-as-two-lines` and `ngram-step-at-the-boundary`; nlp's `arm-only-when-accepted`,
+  `undo-with-a-selection`, `second-save-lost`, `undo-not-published` and `second-timer-dropped`;
+  the editor pair's `select-in-a-raw-editor`, `backspace-word-without-immediate`,
+  `unchanged-refresh-refused`, `late-by-one-more` and `stale-hold-accepted`. Each is a gap in
+  the seeded inputs or an equivalent mutant, not yet told apart; telling them apart is owed
+  ([owed-checks](owed-checks.md#not-device-checks-but-still-owed)).
+
 ### Lines deleted
 
 | Commit | What | Files deleted | Counted lines |
@@ -337,10 +437,22 @@ above join the parts at each end.
 | `c2606ae7a` | dictation | 10 | −742, +14 |
 | `1dfaa30f7` | reader | 10 | −672, +2 |
 | `4c7db78a2` | gif | 4 | −616 |
+| `255f3324b` | suggest | 7 | −1,131, +6 |
+| `7a92198bf` | nlp: the typing fan-out | 1 | −254 |
+| `b484b7dcc` | nlp: the manager and Latin provider no test read | 2 | −669 |
+| `a210c3be7` | input policy | 5 | −161 |
+| `23853d0ab` | editor pair | 11 | −1,510, +65 |
+| `790c40672` | keyboard models | 7 | −669 |
+| `0e12ccfa7` | text keyboard | 3 | −436, +2 |
+| `6917e9829` | glide classifier | 1 | −403 |
+| `7578ffdbe` | user dictionary | 1 | −166, +25 |
 
-Across the branch the Kotlin is −2,639 and +206 counted lines (`GoldenTape` and its test are
-176 of the added). The mutation scripts and cases add 325 lines of Python, and cargo gains
-the four tests that moved.
+Across the first branch the Kotlin is −2,639 and +206 counted lines (`GoldenTape` and its test
+are 176 of the added). The mutation scripts and cases add 325 lines of Python, and cargo gains
+the four tests that moved. Across the second the Kotlin is −5,136 and +143 counted lines (net
+−4,993), the cases add 589 lines of Python, and cargo is unchanged. A deletion's added lines are
+helpers that outlive their reference: `SpacingAdapter` (renamed from `ReferenceSpacingAdapter`),
+`SwipeWordsFixtures` and `RecordingUserDictionaryDao`.
 
 ### What moved, and what was found
 
@@ -367,6 +479,42 @@ the four tests that moved.
 * **Not a reference file.** `lib/rust`'s `DictationSegmentationMatchTest.kt` holds a private
   `ReferenceSegmentation` class. It is not one of the 166 files and was left alone.
 
+The second branch:
+
+* **Two goldens are stronger than their references.** `ReferenceBoundaryGlideRanker` asked Rust's
+  `SwipeRules` for its bonuses and order, so a fault in `glide_ranker.rs` moved both sides alike;
+  the golden was written before any fault, and catches `habit-weight-at-the-boundary`, which the
+  reference let through. `LayoutAssemblyMatchTest`'s snapshots built both sides' popups with
+  production's `MutablePopupSet` (Rust's popup order) and the same `ReferenceKeyRules`, so only
+  the flex and the geometry were compared; the golden pins the popup order as well.
+* **A swipe frequency is recorded as the `Float` the glide classifier takes.** Off a phone the
+  JVM's `exp` and Rust's differ in the last place of 35,333 of the doubles (18 in frequencies,
+  35,315 in word lists), which the comparison already allowed as long as that `Float` agreed. A
+  case moves the swipe cost per step by 1e-7 to show the `Float` still tells such a change.
+* **A stale tap on the strip, in production since main.** The typing trace now takes a strip tap
+  from the row the keyboard shows. `NlpSessionState`'s row is a `StateFlow`, which keeps the old
+  objects when a list equal to them is published, and the session looks a tap up by identity. Over
+  the three seeds, 238 of 7,489 shows left the row holding old objects, and 11 of 494 taps hit one;
+  main's fan-out and the branch both refused all 11, so the word was not committed. It is owed
+  ([owed-checks](owed-checks.md#not-device-checks-but-still-owed)); the golden holds today's
+  refusal.
+* **Questions asked by name.** Key codes and predefined keys are asked in the order of their
+  sorted names, not the order reflection lists fields in, which the JVM does not fix.
+* **What stayed as helpers.** `ReferenceSwipeWordsFactory` was no copy of anything: it builds the
+  production `SwipeWords` from a word list, and is now `SwipeWordsFixtures`.
+  `ReferenceSpacingAdapter` is the spacing tests' way into Rust, now `SpacingAdapter`.
+  `RecordingUserDictionaryDao`, which shared the user dictionary reference's file, has its own.
+  The learner test's address check and the rules test's base letter stay as questions.
+* **The user dictionary's intended differences.** Its frozen export is a literal,
+  `frozenExport`, in Room's row order and the provider's. The drafts' outcome check counts refused,
+  trimmed and written drafts from the native calls; the reference split the 4,045 refused into
+  3,902 invalid and 143 its language had already. A file with a bad line wrote the lines before it
+  under Compose, then threw; the native import writes nothing, which is still checked.
+* **A third stale mutation script.** `editor-mutations.py` stopped at its first case,
+  `invalid-finalize-batch`, at both ends: `5725d2fed` had named the editor's operations from
+  `crates/wire`, and `32e62fb4a` had moved the reconciliation check into `Content::reported_by`.
+  `3f23e8d5a` points each of its five cases at the same change on today's lines.
+
 ### Kept, and why
 
 * **Device comparisons (19):** the 11 under `androidTest` (dictation's 8, reader's
@@ -377,11 +525,27 @@ the four tests that moved.
   `app/src/test/.../render`.
 * **What the render references build on (5):** `ReferenceLayoutAssembly`, `ReferencePopupSet`,
   `ReferencePopupGrid`, `ReferenceSwipeGesture` and `ReferenceGlideTypingGesture`.
-* **Snygg's palette (2): kept, in flight, the Compose-free render path.**
-  `ReferenceSnyggTheme` and `ReferenceSnyggAppearanceValue`.
-* **The families not reached (102 files marked "Retire"):** suggest, settingsui, app,
-  editor/input, keyboard, nlp, theme, lib, rust boundary and snygg. Each takes the same steps:
-  a generator commit, its cases, the before and after runs, then the deletion commit. Three
-  Snygg copies name colour values without the palette (`ReferenceSnyggPropertySetEditor`,
-  `ReferenceSnyggSpec`, `ReferenceSnyggValueBridge`): check them against the render path's
-  branch before retiring them.
+* **Snygg (5): kept, in flight, the Compose-free render path.** `ReferenceSnyggTheme` and
+  `ReferenceSnyggAppearanceValue` guard the palette; the lead kept `ReferenceSnyggPropertySetEditor`,
+  `ReferenceSnyggSpec` and `ReferenceSnyggValueBridge` with them, since the render path's branch
+  may touch `lib/snygg`'s palette and colour code.
+* **`ReferenceKeyboardSubtypes`: kept.** Its trace (`SubtypeTraceSides`' main side, which
+  `SubtypeMatchTest` runs) is what drives the render reference `ReferenceSubtypeBuildRow`, kept in
+  flight. Retire the two together.
+* **The editor drivers' platform: kept.** `ReferencePlatform` holds the ICU breaks and the
+  platform facts that `NativeEditorDriver` answers Rust's queries with, and the render path's
+  `ReferenceKeyGraph` and `KeyGraphTrace` build on it. `ReferenceEditorRange` is the range type of
+  the fake `InputConnection` and of `ReferencePlatform`. `ReferenceCaps.java`, Android's
+  `TextUtils.getCapsMode`, answers Rust's caps queries; the inventory counted only `.kt` files.
+  They stand in for the platform rather than copying code that moved, so there are no answers of
+  theirs to record.
+* **The families not reached (58 files marked "Retire"):** app (14), lib (8), rust boundary (8),
+  settingsui (10), theme (2) and snygg (16). Each takes the same steps: a generator commit, its
+  cases, the before and after runs, then the deletion commit. Two of app's are codecs the
+  inventory put elsewhere. `ReferenceQuickActionJson` declares the `QuickActionJsonConfig` that
+  only `ReferencePreferenceMigration` and `ReferenceSettingsCodecs` use. `ReferenceSubtypeJson`
+  declares `ime.core`'s `SubtypeJsonConfig`, which `SubtypeSessionTest` writes its old-format
+  input with. Whether production's codec agrees with it is `SettingsCodecMatchTest`'s question,
+  against `ReferenceSettingsCodecs` and `ReferenceSubtypeManager`. A settingsui or theme reference
+  that guards the Material You palette (`SettingsThemeEditorPaletteMatchTest` and its kin) stays
+  with the render path's branch.

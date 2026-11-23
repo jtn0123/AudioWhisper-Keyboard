@@ -473,6 +473,7 @@ null dictionaries, capacities, capitalization and invalid UTF-16. Existing learn
 50,000-event NLP learning comparisons also pass. Returning no probability for every
 native lookup causes one fresh assertion failure; restoring the backed-up bytes passes.
 Restored source SHA-256: `68f38c6b4293c89077cd8f3a4c1d44bf40be6ddb1c2f358bd5a80849c3b8fcbc`.
+Phase 6 swapped both copies for golden digests of their answers ([record](phase6-kotlin-references.md)).
 
 The test-only boundary instrumentation measures the same public operations on both
 APKs, with 100 warmups and 20 batches; samples include managed model conversion and

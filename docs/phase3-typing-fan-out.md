@@ -151,6 +151,7 @@ Each file has its ruling in `docs/stage5-inventory.md` and in `docs/jvm-ledger.t
 sides at once, each with its own native stores, dictionary and disk:
 
 * **Main's side:** main's Kotlin fan-out, frozen from f1fdf3f34 in `ReferenceTypingFanOut.kt`.
+  Phase 6 swapped it for golden digests of its three seeded traces ([record](phase6-kotlin-references.md)).
 * **The branch's side:** `TypingEvents` and the plan.
 
 The typing is drawn from a seed. It has:
