@@ -7,8 +7,8 @@ import dev.patrickgold.florisboard.ime.text.key.KeyType
 import kotlin.random.Random
 
 /**
- * Records what the GIF panel's rules in Rust (lib/rust/crates/gif, behind [SearchText], [GifRules]
- * and [GifSearchKeys]) answer, on a [GoldenTape] of the answers the Kotlin they replaced gave
+ * Records what the GIF panel's rules in Rust (lib/rust/crates/gif, behind [GifRules] and
+ * [GifSearchKeys]) answer, on a [GoldenTape] of the answers the Kotlin they replaced gave
  * (docs/phase6-kotlin-references.md): random queries and texts (emoji and half emoji, odd spaces,
  * apostrophes, İ and ß), typed words for the chips, every key code near FlorisBoard's with every
  * key type, delete-key swipes and failed calls. These are the functions the panel's session runs
@@ -26,7 +26,7 @@ class GifComparison(private val tape: GoldenTape) {
 
     /** The constants the panel shares with the Rust. */
     fun constants() {
-        check("MAX_LENGTH", SearchText.MAX_LENGTH)
+        check("MAX_LENGTH", GifRules.maxLength)
         check("categories", GifRules.categories)
         check("TRENDING", GifRules.trending)
         check("RECENTS", GifRules.recents)
@@ -37,20 +37,20 @@ class GifComparison(private val tape: GoldenTape) {
         val query = pieces(random, if (random.nextInt(6) == 0) 60 else 8)
         val typed = pieces(random, 3)
         val sum = query + typed
-        check("type", SearchText.type(query, typed))
-        see("cut at the limit", sum.length > SearchText.MAX_LENGTH)
-        check("typeWord", SearchText.typeWord(query, typed))
-        val one = SearchText.deleteLast(query)
+        check("type", GifRules.type(query, typed))
+        see("cut at the limit", sum.length > GifRules.maxLength)
+        check("typeWord", GifRules.typeWord(query, typed))
+        val one = GifRules.deleteLast(query, 1)
         check("deleteLast", one)
         see("an emoji deleted whole", query.length - one.length == 2)
         see("half an emoji deleted", query.lastOrNull()?.isSurrogate() == true && query.length - one.length == 1)
         val times = COUNTS.random(random)
-        check("deleteLast", SearchText.deleteLast(query, times))
-        val words = SearchText.deleteWords(query, times)
+        check("deleteLast", GifRules.deleteLast(query, times))
+        val words = GifRules.deleteWords(query, times)
         check("deleteWords", words)
         see("words deleted", words.isNotEmpty() && words.length < query.length)
         val before = if (random.nextInt(20) == 0) null else query
-        val word = SearchText.lastWord(before)
+        val word = GifRules.lastWord(before)
         check("lastWord", word)
         see(if (word == null) "no word offered" else "a word offered")
         see("a word with an apostrophe", word?.contains('\'') == true)

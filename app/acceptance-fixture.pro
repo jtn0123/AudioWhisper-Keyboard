@@ -12,7 +12,5 @@
 # Synthetic learned-store mutation uses this otherwise unused compatibility API.
 -keep class com.jtn0123.audiowhisper.suggest.LearnedWords { *; }
 
-# The GIF search check (RendererFixtureTest) sets the search source, which nothing in the app does,
-# and compares with Rust's own typing rule, which the app reaches only through the search session.
+# The GIF search check (RendererFixtureTest) sets the search source, which nothing in the app does.
 -keep class com.jtn0123.audiowhisper.gif.GifSearch { *; }
--keep class com.jtn0123.audiowhisper.rust.GifRules { *; }

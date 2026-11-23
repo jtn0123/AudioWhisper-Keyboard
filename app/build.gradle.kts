@@ -230,7 +230,6 @@ android {
         sourceSets.getByName("debug").manifest.srcFile("src/settingsFixture/AndroidManifest.xml")
     }
     sourceSets.getByName("androidTest").kotlin.directories.add("src/test/kotlin/com/jtn0123/audiowhisper/suggest/a1")
-    sourceSets.getByName("androidTest").kotlin.directories.add("src/test/kotlin/com/jtn0123/audiowhisper/gif/shared")
     sourceSets.getByName("androidTest").kotlin.directories.add("src/test/kotlin/dev/patrickgold/florisboard/lib/ext/replay")
     sourceSets.getByName("androidTest").kotlin.directories.add("src/test/kotlin/com/jtn0123/audiowhisper/stores/shared")
     sourceSets.getByName("androidTest").java.directories.add("src/test/java/com/android/inputmethod")
