@@ -63,6 +63,7 @@ pub mod input;
 pub mod key_graph;
 pub mod nlp;
 pub mod playback;
+pub mod reading;
 pub mod render;
 pub mod settings;
 pub mod settings_ui;

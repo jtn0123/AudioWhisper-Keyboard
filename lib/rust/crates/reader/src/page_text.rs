@@ -44,7 +44,7 @@ const CARRIAGE_RETURN: u16 = b'\r' as u16;
 /// Where a piece of text is on the screen, in pixels as the app reports them: a web page has its
 /// whole text there, and a piece scrolled out of sight is squashed to no height at the edge it
 /// went past.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct Edges {
     pub top: i32,
     pub bottom: i32,
