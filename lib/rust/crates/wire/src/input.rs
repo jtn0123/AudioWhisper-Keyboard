@@ -124,7 +124,8 @@ crate::declare! {
 }
 
 crate::declare! {
-    /// The icons the evaluator picks for a key.
+    /// The icons the evaluator picks for a key, beside the key codes that draw their own; the
+    /// renderer's `icons` crate draws every one.
     pub const ICONS: object InputProtocol(i32) {
         ICON_RETURN = 1000,
         ICON_DONE = 1001,
@@ -133,6 +134,18 @@ crate::declare! {
         ICON_SEND = 1004,
         ICON_INCOGNITO_OFF = 1005,
         ICON_CAPS = 1006,
+        /// The Smartbar's own, which no key draws: its toggle folding the actions away and out,
+        /// and reading aloud's stop.
+        ICON_UNFOLD_LESS = 1007,
+        ICON_UNFOLD_MORE = 1008,
+        ICON_STOP = 1009,
+        /// A clipboard candidate's: an address, a link or a phone number in its text, or the
+        /// image or video it holds. Plain text draws `IME_UI_MODE_CLIPBOARD`'s.
+        ICON_EMAIL = 1010,
+        ICON_LINK = 1011,
+        ICON_PHONE = 1012,
+        ICON_IMAGE = 1013,
+        ICON_VIDEO = 1014,
     }
 }
 

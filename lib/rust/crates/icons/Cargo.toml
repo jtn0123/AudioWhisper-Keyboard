@@ -1,0 +1,15 @@
+[package]
+name = "icons"
+version = "0.1.0"
+description = "The icons the Rust renderer draws: Material and Pictogrammers vector paths, flattened as Android's Path.approximate flattened them for Kotlin's iconPath"
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+keys = { path = "../keys" }
+wire = { path = "../wire" }
+
+[lints]
+workspace = true

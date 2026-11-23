@@ -154,6 +154,7 @@ android {
             if (providers.gradleProperty("rendererFixture").orNull == "true") proguardFile("acceptance-fixture.pro")
             if (providers.gradleProperty("settingsFixture").orNull == "true") proguardFile("settings-fixture.pro")
             if (providers.gradleProperty("storesFixture").orNull == "true") proguardFile("stores-fixture.pro")
+            if (providers.gradleProperty("iconsFixture").orNull == "true") proguardFile("icons-fixture.pro")
             isMinifyEnabled = true
             isShrinkResources = true
 
@@ -234,6 +235,9 @@ android {
     sourceSets.getByName("androidTest").java.directories.add("src/test/java/com/android/inputmethod")
     // The tracked Roboto-Light the Rust text tests use, so the device can record Android's layout of it.
     sourceSets.getByName("androidTest").assets.directories.add("../fastlane/staging/fonts")
+    // The icon vectors the Rust crate holds, so the device can record what Android flattened them to.
+    sourceSets.getByName("androidTest").kotlin.directories.add("src/test/kotlin/com/jtn0123/audiowhisper/icons/shared")
+    sourceSets.getByName("androidTest").assets.directories.add("../lib/rust/crates/icons/data")
 }
 
 tasks.withType<Test> {
