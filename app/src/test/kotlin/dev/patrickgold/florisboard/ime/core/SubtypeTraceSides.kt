@@ -5,6 +5,8 @@ import com.jtn0123.audiowhisper.render.LayoutName
 import com.jtn0123.audiowhisper.render.ReferenceSubtypeBuildRow
 import com.jtn0123.audiowhisper.render.keyGraphBuild
 import com.jtn0123.audiowhisper.render.subtypeFiles
+import com.jtn0123.audiowhisper.render.subtypeKeyboard
+import com.jtn0123.audiowhisper.rust.LayoutCache
 import dev.patrickgold.florisboard.ime.keyboard.CurrencySet
 import dev.patrickgold.florisboard.ime.keyboard.KeyboardMode
 import dev.patrickgold.florisboard.lib.ext.ExtensionComponentName
@@ -22,8 +24,8 @@ internal interface TracedSubtypes {
     fun select(id: Long)
     fun currencySet(subtype: Subtype): CurrencySet
 
-    /** The key graph's cache key for the active subtype. */
-    fun cacheKey(): Int
+    /** The keyboard [cache] keeps for the active subtype and [mode], [build] the first time it is asked for. */
+    fun <T : Any> cached(cache: LayoutCache<T>, mode: KeyboardMode, build: () -> T): T
 
     /** The active subtype's `KeyGraphBuild` row for [mode]. */
     fun row(mode: KeyboardMode, numberRow: Boolean, numberHints: Boolean): Array<String>
@@ -64,7 +66,10 @@ internal class MainSubtypes(store: SubtypeStore, sets: () -> Map<ExtensionCompon
     override fun previous() { manager.switchToPrevSubtype() }
     override fun select(id: Long) { manager.switchToSubtypeById(id) }
     override fun currencySet(subtype: Subtype) = manager.getCurrencySet(subtype)
-    override fun cacheKey() = ReferenceSubtypeBuildRow.cacheKey(manager.activeSubtype)
+    override fun <T : Any> cached(cache: LayoutCache<T>, mode: KeyboardMode, build: () -> T): T {
+        val key = ReferenceSubtypeBuildRow.cacheKey(manager.activeSubtype)
+        return cache.get(mode.value, key) ?: build().also { cache.set(mode.value, key, it) }
+    }
     override fun row(mode: KeyboardMode, numberRow: Boolean, numberHints: Boolean) = ReferenceSubtypeBuildRow.row(
         mode, numberRow, numberHints, manager.activeSubtype, namedModifier, layoutText, mappingText)
 }
@@ -79,7 +84,8 @@ internal class BranchSubtypes(store: SubtypeStore, sets: () -> Map<ExtensionComp
     override fun previous() { manager.switchToPrevSubtype() }
     override fun select(id: Long) { manager.switchToSubtypeById(id) }
     override fun currencySet(subtype: Subtype) = manager.getCurrencySet(subtype)
-    override fun cacheKey() = manager.active.facts.key
+    override fun <T : Any> cached(cache: LayoutCache<T>, mode: KeyboardMode, build: () -> T): T =
+        cache.subtypeKeyboard(mode, manager.active.facts, build)
     override fun row(mode: KeyboardMode, numberRow: Boolean, numberHints: Boolean) = keyGraphBuild(
         mode, numberRow, numberHints, subtypeFiles(manager.active.facts, namedModifier, layoutText, mappingText))
 }

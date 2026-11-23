@@ -4,6 +4,7 @@ import com.jtn0123.audiowhisper.rust.KeyGraphAsk
 import com.jtn0123.audiowhisper.rust.KeyGraphBuild
 import com.jtn0123.audiowhisper.rust.KeyGraphFacts
 import com.jtn0123.audiowhisper.rust.KeyGraphFile
+import com.jtn0123.audiowhisper.rust.LayoutCache
 import com.jtn0123.audiowhisper.rust.WireFlag
 import dev.patrickgold.florisboard.ime.core.SubtypeFacts
 import dev.patrickgold.florisboard.ime.keyboard.KEY_LABEL_RESOURCES
@@ -39,6 +40,10 @@ internal class KeyGraphFiles(
 internal fun subtypeFiles(facts: SubtypeFacts, namedModifier: (LayoutName) -> ExtensionComponentName?,
                           layout: (LayoutName) -> String?, mapping: (ExtensionComponentName) -> String?) =
     KeyGraphFiles(facts::layout, namedModifier, layout, mapping(facts.popupMapping), mapping(extCorePopupMapping("default")))
+
+/** The keyboard [this] keeps for [mode] and the subtype [facts] names, [build] the first time it is asked for. */
+internal fun <T : Any> LayoutCache<T>.subtypeKeyboard(mode: KeyboardMode, facts: SubtypeFacts, build: () -> T): T =
+    get(mode.value, facts.key) ?: build().also { set(mode.value, facts.key, it) }
 
 /**
  * A `KeyGraphBuild` row for [mode]: its layouts' files, its symbols' for a characters keyboard,

@@ -44,8 +44,8 @@ internal class RustKeyGraphs(private val context: Context, private val manager: 
     fun clear(mode: KeyboardMode) = cache.clearMode(mode.value)
 
     /** The keyboard for [mode] and the subtype Rust says names [facts], built the first time it is asked for. */
-    fun keyboard(mode: KeyboardMode, facts: SubtypeFacts): RustKeyboard = cache.get(mode.value, facts.key)
-        ?: RustKeyboard(KeyGraph.build(*build(mode, facts))).also { cache.set(mode.value, facts.key, it) }
+    fun keyboard(mode: KeyboardMode, facts: SubtypeFacts): RustKeyboard =
+        cache.subtypeKeyboard(mode, facts) { RustKeyboard(KeyGraph.build(*build(mode, facts))) }
 
     /** Computes [keyboard]'s keys for [evaluator]: its state, editor and subtype, and the facts around them. */
     fun compute(keyboard: RustKeyboard, evaluator: ComputingEvaluator) {

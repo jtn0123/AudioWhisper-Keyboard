@@ -66,10 +66,13 @@ internal class SubtypeTraceGraphs(private val random: Random, private val saw: (
 
     private fun serve(cache: LayoutCache<Served>, mode: KeyboardMode, numberRow: Boolean, numberHints: Boolean,
                       side: TracedSubtypes): Pair<Boolean, Served> {
-        val key = side.cacheKey()
-        cache.get(mode.value, key)?.let { return true to it }
-        val row = side.row(mode, numberRow, numberHints)
-        return false to Served(row, RustKeyboard(KeyGraph.build(*row))).also { cache.set(mode.value, key, it) }
+        var built = false
+        val served = side.cached(cache, mode) {
+            built = true
+            val row = side.row(mode, numberRow, numberHints)
+            Served(row, RustKeyboard(KeyGraph.build(*row)))
+        }
+        return !built to served
     }
 
     private fun keys(keyboard: RustKeyboard, base: KeyGraphFactsInput, side: TracedSubtypes) = runCatching {

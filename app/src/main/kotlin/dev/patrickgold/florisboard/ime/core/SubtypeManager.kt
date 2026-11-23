@@ -93,14 +93,14 @@ class SubtypeManager internal constructor(
 
     private fun switchSubtype(direction: () -> SubtypeSession.Switched) = scope.launch {
         val switched = direction()
-        store.setActiveId(switched.active.subtype.id)
+        if (switched.write) store.setActiveId(switched.active.subtype.id)
         active = switched.active
     }
 
     fun switchToSubtypeById(id: Long) = scope.launch {
         val switched = session.select(id) ?: return@launch
         active = switched.active
-        store.setActiveId(id)
+        if (switched.write) store.setActiveId(id)
     }
 }
 
