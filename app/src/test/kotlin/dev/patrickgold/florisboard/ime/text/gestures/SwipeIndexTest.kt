@@ -18,6 +18,7 @@ import java.io.File
 import java.text.Normalizer
 import kotlin.math.ceil
 import kotlin.math.hypot
+import kotlin.math.sqrt
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -25,7 +26,8 @@ import kotlin.test.assertNotEquals
 import kotlin.test.assertTrue
 
 /**
- * Holds the Rust scorer behind [SwipeIndex] to the Kotlin one it replaced ([ReferenceGlideClassifier]):
+ * Holds the Rust scorer behind [SwipeIndex] to the Kotlin one it replaced (`ReferenceGlideClassifier`),
+ * checked against golden digests of its rankings (docs/phase6-kotlin-references.md):
  * the same words, in the same order, at the same costs, for the dictionary's words and the odd
  * ones (capitals, accents, apostrophes, doubled letters), swiped cleanly, sloppily and strangely
  * on two keyboards.
@@ -67,15 +69,8 @@ class SwipeIndexTest {
     private inner class Board(keyWidth: Float, keyHeight: Float, withApostrophe: Boolean) {
         val keys: List<TextKey> = qwerty(keyWidth, keyHeight, withApostrophe)
         val keysByCharacter = SparseArrayCompat<TextKey>().apply { keys.forEach { put(it.code, it) } }
-        val reference = ReferenceGlideClassifier(words, keysByCharacter)
         val index = SwipeIndex.build(words, keysByCharacter)
         private val centres = keys.map { it.visibleBounds.center }
-
-        fun reference(points: List<Pair<Float, Float>>, max: Int): List<GlideGuess> {
-            val swipe = ReferenceGlideClassifier.Gesture()
-            points.forEach { (x, y) -> swipe.addPoint(x, y) }
-            return reference.suggestions(swipe, keys, keysByCharacter, max, ::frequency)
-        }
 
         fun rust(points: List<Pair<Float, Float>>, max: Int): List<GlideGuess> {
             val swipe = StatisticalGlideTypingClassifier.Gesture()
@@ -93,8 +88,8 @@ class SwipeIndexTest {
 
         /** Whether two of the three keys nearest (x, y) are equally near: see the class doc. */
         fun tied(x: Float, y: Float): Boolean {
-            val nearest = centres.map { ReferenceGlideClassifier.Gesture.distance(it.x, it.y, x, y) }
-                .sorted().take(3)
+            // As the retired classifier measured: the ties it broke by hash order.
+            val nearest = centres.map { sqrt((it.x - x) * (it.x - x) + (it.y - y) * (it.y - y)) }.sorted().take(3)
             return nearest.zipWithNext().any { (a, b) -> a == b }
         }
 
@@ -147,52 +142,45 @@ class SwipeIndexTest {
         return board.untied(points)
     }
 
-    private fun assertSame(tape: GoldenTape, board: Board, points: List<Pair<Float, Float>>, max: Int, what: String) {
-        val expected = board.reference(points, max)
-        tape.answer("guesses", expected)
-        assertEquals(expected, board.rust(points, max), what)
-    }
+    private fun record(tape: GoldenTape, board: Board, points: List<Pair<Float, Float>>, max: Int) =
+        board.rust(points, max).also { tape.answer("guesses", it) }
 
     @Test
     fun theDictionarysWordsRankAsBefore() {
         val random = Random(20261108)
         val common = probabilities.keys.filter(SwipeWords::isSwipeable).take(400)
         var nonEmpty = 0
-        // The reference's guesses also go on a golden tape (docs/phase6-kotlin-references.md).
-        val tape = GoldenTape.ofReference("swipe-dictionary")
-        for ((name, board) in listOf("portrait" to portrait, "landscape" to landscape)) {
-            for (i in 0 until 150) {
-                val word = common[random.nextInt(common.size)]
-                val points = swipe(board, word, random, wobble = 6f + i % 5 * 6f, missBy = i % 4 * 12f)
-                val max = listOf(1, 3, 8, 20)[i % 4]
-                if (board.reference(points, max).isNotEmpty()) nonEmpty++
-                assertSame(tape, board, points, max, "$name: swipe $i for \"$word\", top $max")
+        GoldenTape.check("swipe-dictionary") { tape ->
+            for (board in listOf(portrait, landscape)) {
+                for (i in 0 until 150) {
+                    val word = common[random.nextInt(common.size)]
+                    val points = swipe(board, word, random, wobble = 6f + i % 5 * 6f, missBy = i % 4 * 12f)
+                    if (record(tape, board, points, listOf(1, 3, 8, 20)[i % 4]).isNotEmpty()) nonEmpty++
+                }
             }
         }
-        tape.finish()
         assertTrue(nonEmpty > 280, "only $nonEmpty of 300 swipes found any words")
     }
 
     @Test
     fun oddWordsRankAsBefore() {
         val random = Random(8)
-        val tape = GoldenTape.ofReference("swipe-odd")
-        for ((name, board) in listOf("portrait" to portrait, "landscape" to landscape)) {
-            for (word in oddWords) {
-                for (wobble in listOf(0f, 15f)) {
-                    val points = swipe(board, word, random, wobble = wobble)
-                    if (points.isEmpty()) continue
-                    assertSame(tape, board, points, 8, "$name: \"$word\" wobbling $wobble px")
+        GoldenTape.check("swipe-odd") { tape ->
+            for (board in listOf(portrait, landscape)) {
+                for (word in oddWords) {
+                    for (wobble in listOf(0f, 15f)) {
+                        val points = swipe(board, word, random, wobble = wobble)
+                        if (points.isEmpty()) continue
+                        record(tape, board, points, 8)
+                    }
                 }
             }
         }
-        tape.finish()
     }
 
     @Test
     fun strangeSwipesRankAsBefore() {
         val random = Random(500)
-        val tape = GoldenTape.ofReference("swipe-strange")
         val zigzag = List(700) { i -> (40f + i * 13f % 1000f) to (if (i % 2 == 0) 80f else 400f) }
         val swipes = mapOf(
             "one point" to listOf(310f to 215f),
@@ -206,16 +194,15 @@ class SwipeIndexTest {
             "back on itself" to listOf(100f to 100f, 500f to 100f, 100f to 100f, 500f to 100f),
             "slow, with points 1 px apart" to List(300) { i -> (200f + i) to (230f + i / 3f) },
         )
-        for ((name, board) in listOf("portrait" to portrait, "landscape" to landscape)) {
-            for ((what, points) in swipes) {
-                for (max in listOf(1, 8, 30)) {
-                    assertSame(tape, board, board.untied(points), max, "$name: $what, top $max")
+        GoldenTape.check("swipe-strange") { tape ->
+            for (board in listOf(portrait, landscape)) {
+                for (points in swipes.values) {
+                    for (max in listOf(1, 8, 30)) record(tape, board, board.untied(points), max)
                 }
+                // A very sloppy "keyboard".
+                record(tape, board, swipe(board, "keyboard", random, step = 40f, wobble = 60f, missBy = 50f), 8)
             }
-            val sloppy = swipe(board, "keyboard", random, step = 40f, wobble = 60f, missBy = 50f)
-            assertSame(tape, board, sloppy, 8, "$name: a very sloppy \"keyboard\"")
         }
-        tape.finish()
     }
 
     @Test
