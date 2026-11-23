@@ -6,7 +6,10 @@
 #     settings.prev.tar). Each device has its own copy, named by its hardware serial
 #     (which stays the same when a wireless port changes), so installing on an emulator
 #     never replaces the phone's copy, nor puts the phone's settings on the emulator.
-#     The older shared copies at the top of .device-backup/ are no longer read.
+#     Every emulator reports the same serial, so an emulator's copy is named by its AVD
+#     instead (avd-<name>), and one emulator's settings never land on another.
+#     The older shared copies at the top of .device-backup/, and the one every emulator
+#     shared under that serial, are no longer read.
 #  2. Installs as an update (adb install -r), which keeps the app's data. It never
 #     uninstalls: that is what erases settings and the speech model.
 #  3. If the settings are missing afterwards (a fresh install, or data cleared), puts
@@ -44,6 +47,8 @@ PREFS=jetpref_datastore/florisboard-app-prefs.jetpref
 MODEL=files/models/sherpa-onnx-nemo-parakeet-tdt-0.6b-v2-int8/encoder.int8.onnx
 DEVICE=$(adb shell getprop ro.serialno 2>/dev/null | tr -cd 'A-Za-z0-9._-' || true)
 [ -n "$DEVICE" ] || { echo "No device answered (adb shell getprop ro.serialno)." >&2; exit 1; }
+AVD=$(adb shell getprop ro.boot.qemu.avd_name 2>/dev/null | tr -cd 'A-Za-z0-9._-' || true)
+[ -z "$AVD" ] || DEVICE="avd-$AVD"
 BACKUP_DIR=.device-backup/$DEVICE
 SNAPSHOT="$BACKUP_DIR/settings.tar"
 
