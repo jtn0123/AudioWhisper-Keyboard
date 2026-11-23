@@ -161,7 +161,8 @@ class CrashTraceTest {
                 override fun after(last: Long, now: Long): Int = throw failure
                 override fun same(last: String, current: String): Boolean = throw failure
             }
-            afterCrash(host, "same\n", 2_000, unavailable)
+            val thrown = runCatching { afterCrash(host, "same\n", 2_000, unavailable) }.exceptionOrNull()
+            assertEquals(null, thrown, "${failure::class.simpleName} reached the handler")
             assertEquals(listOf("last", "set 2000", "once"), host.effects, failure::class.simpleName)
             assertEquals(setOf(1_000L, 2_000L), host.files.keys)
         }
