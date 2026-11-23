@@ -362,8 +362,15 @@ Stage 5 packages 1–3, one event family at a time:
   `suggest` crates, checked by the everyday `cargo test`; they kill every mutation of
   `scripts/latin-mutations.py` the oracle killed; `lib/latinime`, `latin-oracle` and
   `oracleCheck` are deleted ([record](phase6-oracle-goldens.md)).
-* **Left, the Kotlin half:** the `Reference*.kt` copies, each once the wrapper it guards is
-  gone.
+* **The Kotlin half, begun (2026-11-23):** the inventory of all 166 `Reference*.kt` files, with a
+  verdict for each, is in [phase6-kotlin-references](phase6-kotlin-references.md). Dictation,
+  reader and gif are retired: 23 copies became 40 golden files (22 KB) checked by the JVM tests
+  that compared against them, and they catch every mutation the copies caught. The 7 copies no
+  test read are deleted too. 19 device comparisons stay (their goldens need a device run), as
+  do the 8 render references and 2 Snygg palette references (in flight, the Compose-free render
+  path) and the 5 the render references build on.
+* **Left, the Kotlin half:** suggest, settingsui, app, editor/input, keyboard, nlp, theme, lib,
+  rust boundary and snygg: 102 copies, each retired the same way.
 
 ## Risks
 

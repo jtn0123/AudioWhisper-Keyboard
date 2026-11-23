@@ -957,3 +957,30 @@ new version number, not a database. **Known limit:** Android's Auto Backup now c
 main an empty keyboard dictionary, because main can't read the store; the words come back when
 this build is installed again. The other way works: main's backup holds the Room database,
 which this build imports.
+
+## The Kotlin references' answers are kept as digests, and their adapters' tests call the Rust (2026-11-23)
+
+The Kotlin half of phase 6 of [all-rust.md](all-rust.md) follows the C++ half: each frozen
+`Reference*.kt` copy's answers become a golden file, the test checks the Rust against that file,
+and the copy is deleted ([record](phase6-kotlin-references.md)). **A golden file holds no answer
+in full**, only the count, a chained FNV-1a 64 digest and the digest at each power of two. The
+C++ goldens keep a few answers in full; these do not, because the answers are made of the tests'
+fixture text, which must stay out of files and logs. A failure still names the first range of
+answers that differs, and the test can be run at the generator commit to see them.
+
+`GoldenTape` fails as kotlin.test does, with JUnit's `AssertionFailedError`, because that is what
+the mutation scripts count as caught. kotlin-test is compile-only in the test fixtures, so the
+instrumented APK, which never loads the tape, gains no JUnit 5.
+
+**An adapter's tests call the binding the adapter wrapped.** Tests such as `SpokenTest`,
+`MicKeyTest` and `ScreenRulesTest` ran their cases through copies of a Kotlin adapter that is
+now a thin call into Rust (in `ReferenceSpoken.kt`, `ReferenceMicKeyAdapter.kt` and
+`ReferenceScreenRulesFacade.kt`, under the adapters' own names). They keep every case and call the bindings (`DictationRules`,
+`MicKeyState`, `ScreenWalkRules` and the rest) directly, so an adapter's copy needs no golden of
+its own.
+
+**Device comparisons keep their copies.** A copy under `androidTest`, or compiled into it, is
+compared on a device, and its golden would have to be written on one. **Would change if** a
+device run writes those goldens: then those copies retire the same way. Also if a Rust answer
+is meant to change: its golden is then written from the Rust itself, after review, and the
+record says so.

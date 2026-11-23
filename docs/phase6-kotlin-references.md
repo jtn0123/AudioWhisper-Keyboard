@@ -24,13 +24,16 @@ it was copied from. "Tests that use it" leaves out other `Reference*.kt` files; 
 instrumented (device) test. Every copy mirrors code that is now Rust: where a production Kotlin
 class of the same name is left, it is a thin adapter over the Rust.
 
-The verdict column is the plan at `0500aa74f`. [What happened](#what-happened) says, family by
-family, which were retired and which were left.
+The verdict column is the plan at `0500aa74f`, changed once on 2026-11-23: another branch took
+the render path off Compose, Snygg's palette with it, so its references are kept "in flight, the
+Compose-free render path". [What happened](#what-happened) says, family by family, which were
+retired and which were left.
 
 * **Unused (7 files).** No test reads them: nothing compares against them. They are deleted
   without goldens, since there is nothing to record.
-* **Render (8 files): kept, in flight, phase 3 item 4.** Another branch is replacing the
-  Compose root with a plain View, and owns `app/src/test/.../render`.
+* **Render (8 files): kept, in flight, the Compose-free render path.** Another branch is taking
+  the render path off Compose (icons, Compose types, the Material You palette maths, theme fonts),
+  and owns `app/src/test/.../render`.
 * **The render references build on 5 more:** `ReferenceLayoutAssembly`, `ReferencePopupSet`,
   `ReferencePopupGrid`, `ReferenceSwipeGesture` and `ReferenceGlideTypingGesture`. They stay
   until the render references go.
@@ -40,7 +43,11 @@ family, which were retired and which were left.
   compare on a device (`DictationInstrumentation`, `TtsInstrumentation`, `A1Instrumentation`,
   `RendererFixtureTest`, `ExtensionDeviceReplay`). Golden files for them would need a device run,
   and this work had no device.
-* **The rest (127 files): retire.**
+* **Snygg's palette (2 files): kept, in flight, the Compose-free render path.**
+  `ReferenceSnyggTheme` resolves dynamic colours through Material 3's colour schemes, and
+  `ReferenceSnyggAppearanceValue` holds the colour values named by `ColorPalette`. The palette
+  code they guard is that branch's.
+* **The rest (125 files): retire.**
 
 | Family | File | Lines | Copy of | Frozen at | Tests that use it | Verdict |
 |---|---|---:|---|---|---|---|
@@ -188,9 +195,9 @@ family, which were retired and which were left.
 | snygg | `lib/snygg: ReferenceSnyggSpec.kt` | 149 | Snygg's SnyggSpec | `6b09d0ca9` | SnyggEditorMatchTest | Retire |
 | snygg | `lib/snygg: ReferenceSnyggStylesheet.kt` | 75 | Snygg's SnyggStylesheet | `938765749` | SnyggCompilationMatchTest, SnyggEditorMatchTest, SnyggGrammarMatchTest, SnyggMatchSupport | Retire |
 | snygg | `lib/snygg: ReferenceSnyggStylesheetEditor.kt` | 50 | Snygg's SnyggStylesheetEditor | `6b09d0ca9` | SnyggEditorMatchTest | Retire |
-| snygg | `lib/snygg: ReferenceSnyggTheme.kt` | 137 | Snygg's SnyggTheme | `6b09d0ca9` | InlineChipMatchTest, RenderThemeMatchTest, SnyggCompilationMatchTest, SnyggThemeTest | Retire |
+| snygg | `lib/snygg: ReferenceSnyggTheme.kt` | 137 | Snygg's SnyggTheme | `6b09d0ca9` | InlineChipMatchTest, RenderThemeMatchTest, SnyggCompilationMatchTest, SnyggThemeTest | Keep: in flight, the Compose-free render path (palette) |
 | snygg | `lib/snygg: ReferenceSnyggValueBridge.kt` | 64 | Snygg's SnyggValueBridge | `9f917ec17` | SnyggCompilationMatchTest, SnyggGrammarMatchTest, SnyggMatchSupport, SnyggValueCorpusTest, SnyggValueEdgesMatchTest, SnyggValueMatchTest | Retire |
-| snygg | `lib/snygg: reference/ReferenceSnyggAppearanceValue.kt` | 160 | Snygg's SnyggAppearanceValue | `9f917ec17` | SnyggValueEdgesMatchTest | Retire |
+| snygg | `lib/snygg: reference/ReferenceSnyggAppearanceValue.kt` | 160 | Snygg's SnyggAppearanceValue | `9f917ec17` | SnyggValueEdgesMatchTest | Keep: in flight, the Compose-free render path (palette) |
 | snygg | `lib/snygg: reference/ReferenceSnyggFontValue.kt` | 90 | Snygg's SnyggFontValue | `9f917ec17` | SnyggValueEdgesMatchTest | Retire |
 | snygg | `lib/snygg: reference/ReferenceSnyggIdToValueMap.kt` | 26 | Snygg's SnyggIdToValueMap | `9f917ec17` | SnyggValueMatchTest | Retire |
 | snygg | `lib/snygg: reference/ReferenceSnyggPaddingValue.kt` | 78 | Snygg's SnyggPaddingValue | `9f917ec17` | SnyggValueEdgesMatchTest | Retire |
@@ -202,16 +209,179 @@ family, which were retired and which were left.
 | snygg | `lib/snygg: reference/ReferenceSnyggValueEncoder.kt` | 37 | Snygg's SnyggValueEncoder | `9f917ec17` | none | Retire |
 | snygg | `lib/snygg: reference/ReferenceSnyggValueSpec.kt` | 243 | Snygg's SnyggValueSpec | `9f917ec17` | SnyggValueMatchTest | Retire |
 | snygg | `lib/snygg: reference/ReferenceSnyggVarValue.kt` | 27 | Snygg's SnyggVarValue | `9f917ec17` | SnyggValueEdgesMatchTest | Retire |
-| render | `aw/render/ReferenceAccessibilityLabels.kt` | 49 | Compose QuickAction display names and LatinIME key descriptions | `7922905bb` | RendererAccessibilityMatchTest | Keep: in flight, phase 3 item 4 |
-| render | `aw/render/ReferenceKeyGraph.kt` | 287 | main's key evaluator and key graph (phase 3 item 2) | `9ac3d23ea` | KeyGraphTrace, KeyGraphTraceInputs, NativeEditorDriver, SmartbarActionsMatchTest, SubtypeTraceGraphs | Keep: in flight, phase 3 item 4 |
-| render | `aw/render/ReferenceRendererModels.kt` | 63 | TextKeyboardLayoutController's models (7c0b8183) | `2dddd25d7` | none | Keep: in flight, phase 3 item 4 |
-| render | `aw/render/ReferenceRendererSwipe.kt` | 225 | TextKeyboardLayoutController's swipe handling (7c0b8183) | `2dddd25d7` | none | Keep: in flight, phase 3 item 4 |
-| render | `aw/render/ReferenceRendererTouch.kt` | 142 | TextKeyboardLayoutController (7c0b8183) | `2dddd25d7` | RendererTouchMatchTest | Keep: in flight, phase 3 item 4 |
-| render | `aw/render/ReferenceRendererVelocity.kt` | 50 | Android 16's VelocityTracker LSQ2 | `2dddd25d7` | none | Keep: in flight, phase 3 item 4 |
-| render | `aw/render/ReferenceSmartbarActions.kt` | 64 | main's smartbar action choices (phase 3 item 1) | `fa8d43c7c` | SmartbarActionsMatchTest | Keep: in flight, phase 3 item 4 |
-| render | `aw/render/ReferenceSubtypeBuildRow.kt` | 31 | RustKeyGraphs.build (61f1513fb) | `0a9fbaaf4` | SubtypeMatchTest, SubtypeTraceSides | Keep: in flight, phase 3 item 4 |
+| render | `aw/render/ReferenceAccessibilityLabels.kt` | 49 | Compose QuickAction display names and LatinIME key descriptions | `7922905bb` | RendererAccessibilityMatchTest | Keep: in flight, the Compose-free render path |
+| render | `aw/render/ReferenceKeyGraph.kt` | 287 | main's key evaluator and key graph (phase 3 item 2) | `9ac3d23ea` | KeyGraphTrace, KeyGraphTraceInputs, NativeEditorDriver, SmartbarActionsMatchTest, SubtypeTraceGraphs | Keep: in flight, the Compose-free render path |
+| render | `aw/render/ReferenceRendererModels.kt` | 63 | TextKeyboardLayoutController's models (7c0b8183) | `2dddd25d7` | none | Keep: in flight, the Compose-free render path |
+| render | `aw/render/ReferenceRendererSwipe.kt` | 225 | TextKeyboardLayoutController's swipe handling (7c0b8183) | `2dddd25d7` | none | Keep: in flight, the Compose-free render path |
+| render | `aw/render/ReferenceRendererTouch.kt` | 142 | TextKeyboardLayoutController (7c0b8183) | `2dddd25d7` | RendererTouchMatchTest | Keep: in flight, the Compose-free render path |
+| render | `aw/render/ReferenceRendererVelocity.kt` | 50 | Android 16's VelocityTracker LSQ2 | `2dddd25d7` | none | Keep: in flight, the Compose-free render path |
+| render | `aw/render/ReferenceSmartbarActions.kt` | 64 | main's smartbar action choices (phase 3 item 1) | `fa8d43c7c` | SmartbarActionsMatchTest | Keep: in flight, the Compose-free render path |
+| render | `aw/render/ReferenceSubtypeBuildRow.kt` | 31 | RustKeyGraphs.build (61f1513fb) | `0a9fbaaf4` | SubtypeMatchTest, SubtypeTraceSides | Keep: in flight, the Compose-free render path |
 
 
 ## What happened
 
-Filled in family by family as each is retired or left.
+Stopped at a green point after three families, on branch `all-rust/phase6-kotlin`:
+
+* **Retired: 30 references.** These are the 23 `app/src/test` copies in dictation (10), reader
+  (9) and gif (4), and the **7 that no test read** (`368849831`), one of them under
+  `androidTest`. The 31st file deleted is `ReleasedOnceTest`, which tested only its copy.
+* **Kept:** the 19 device comparisons, the 8 render references and the 5 they build on, and
+  the 2 that guard Snygg's palette. [Kept, and why](#kept-and-why) lists them.
+* **Not reached:** suggest, settingsui, app, editor/input, keyboard, nlp, theme, lib, rust
+  boundary and snygg. They hold the other 102 copies marked "Retire", and their verdicts above
+  are still the plan.
+
+### The method, as built
+
+* **`GoldenTape`** (`lib/rust/src/testFixtures`, `074e00b53`) records the answers a differential
+  test compared, as the text it compared. It chains them into an FNV-1a 64 digest, with
+  checkpoints at each power of two, and checks them against `golden/<name>.txt` on the test
+  classpath. A golden file holds the count, the final digest and the checkpoints, never an
+  answer, so no fixture text reaches a file or a log. A failure names the first range of answers
+  that differs. It is kotlin.test's `AssertionFailedError`, which the mutation scripts count as
+  caught. `GoldenTapeTest` checks the digest against one worked out apart, in Python.
+* **A generator commit per family.** Each test still asserts Rust == reference, and also records
+  the reference's answers on `GoldenTape.ofReference`. The goldens are written there with
+  `REFERENCE_GOLDEN=write` and the run checked twice without it. A tape of the code under test
+  refuses to write, so a regression cannot be recorded as the reference.
+* **A deletion commit per family.** The tests record Rust's answers on `GoldenTape.check`, the
+  same text in the same order, and the references go, with any helper they leave unused.
+* **Proof.** `scripts/phase6-mutations.py` runs a family's faults (`scripts/phase6_mutation_cases/`)
+  against the JVM tests that compared with the copies. A case counts as caught only by an
+  `AssertionFailedError` in a fresh report, so a mutant that does not compile is never caught,
+  and the restored source must pass. The scripts that
+  already covered the same code ran beside it. Every script ran at `0500aa74f`, with the case
+  modules copied in, and again at the family's deletion commit. The goldens must catch every case
+  the references caught.
+
+### Goldens
+
+All 40 are under `app/src/test/resources/golden`: 22,298 bytes for 6,409,675 answers, the largest
+file 748 bytes.
+
+| Family | Generator | Files | Bytes | Answers | Tests |
+|---|---|---:|---:|---:|---|
+| dictation | `c8dfa5719` | 9 | 5,191 | 2,007,199 | DictationRulesMatchTest, DictationSessionMatchTest, MicKeyMatchTest, MicTraceTest, ModelCheckTraceTest |
+| reader | `0fa825bff` | 20 | 10,405 | 1,204,691 | ReaderRulesMatchTest, ScreenRulesMatchTest, TtsChunkMatchTest, PlaybackQueueMatchTest, ScreenTraversalMatchTest, LoadedVoiceTraceTest, ReadingTraceTest |
+| gif | `527ff3242` | 11 | 6,702 | 3,197,785 | GifRulesMatchTest, GiphyRulesMatchTest, GifSearchTraceTest |
+
+**To write a family's goldens again**, check out its generator commit, where the references
+still are, and run its tests with the variable set. Then run them twice without it, and copy the
+files to the branch:
+
+```sh
+git switch --detach c8dfa5719     # or 0fa825bff, 527ff3242
+export ANDROID_HOME=$(sed -n 's/^sdk.dir=//p' local.properties)
+REFERENCE_GOLDEN=write ./gradlew :app:testDebugUnitTest --rerun \
+  --tests '*DictationRulesMatchTest' --tests '*DictationSessionMatchTest' \
+  --tests '*MicKeyMatchTest' --tests '*MicTraceTest' --tests '*ModelCheckTraceTest'
+```
+
+Name only the family's tests: any other tape in the same run refuses the variable.
+
+Three tests needed repeatable inputs before a digest could hold them:
+
+* `ModelCheckTraceTest` sets each written file's time from a counter, not the clock. It records
+  keys with its temporary folder written as `<dir>`.
+* `ReadingTraceTest`'s fake tells a message by its name, not its resource id, which moves
+  whenever a string is added.
+* `GifSearchTraceTest` already set every file it writes to the trace's own clock.
+
+`MicTraceTest` holds Rust to main's answer, except for the WAV files main looped on or crashed
+over. For those it holds Rust to the intended refusal, and the golden records that refusal.
+
+### Proof
+
+Each script ran at `0500aa74f` (the references) and at the family's deletion commit (the goldens),
+before the branch was rebased onto `29cb06dcd`. That rebase brought the plain-View root, which
+changes no dictation, reader or gif code or test and no file a case edits.
+"Caught" is the script's own verdict.
+
+| Family | Script | Before | After |
+|---|---|---|---|
+| dictation | `phase6-mutations.py --family dictation` | 16 of 16 | 16 of 16 |
+| dictation | `dictation-mutations.py state` | 2 of 2 | 2 of 2 |
+| dictation | `edges-mutations.py --part dictation` | 21 of 21 | 21 of 21, by the same targets |
+| dictation, reader | `wire-mutation.py renumbered-followed` | builds and passes | builds and passes |
+| reader | `phase6-mutations.py --family reader` | 29 of 33 | the same 29 of 33 |
+| reader | `tts-mutations.py tts` | 3 of 3 | 3 of 3 |
+| reader | `edges-mutations.py --part reading` | 33 of 33 | 33 of 33, by the same targets |
+| reader | `edges-mutations.py --part voice` | 16 of 16 | 16 of 16, by the same targets |
+| gif | `phase6-mutations.py --family gif` | 50 of 50 | 50 of 50 |
+| gif | `edges-mutations.py --part gif` | 34 of 34 | 34 of 34, by the same targets |
+
+The wire case is a renumbering that both sides follow, so it must pass at both ends: that shows
+the goldens hold answers, not wire codes.
+
+Four reader cases survive at both ends, so the goldens lose none:
+
+* `cut-at-a-leading-space` and `area-saturates` are equivalent mutants. `split_long` trims what
+  is left of a sentence before it looks for a space, so the space is never at index 0. A visible
+  area is the product of two `i32` differences, which always fits in an `i64`, so wrapping and
+  saturating multiplication agree.
+* `middle-dot-kept` and `start-moves` are gaps in the seeded inputs, which the reference had too
+  ([owed](owed-checks.md#not-device-checks-but-still-owed)). No seeded page has a `·`, and
+  `PlaybackQueueMatchTest` never ends a block ahead of the head.
+
+`edges-mutations.py --part gif` ran into the two-hour limit on a background command at both
+ends. Each stopped run's source was restored, and the cases it had not finished ran again by
+name, at the same commit; the restored source passed after every part. The counts and targets
+above join the parts at each end.
+
+### Lines deleted
+
+| Commit | What | Files deleted | Counted lines |
+|---|---|---:|---:|
+| `368849831` | the seven no test read | 7 | −713 |
+| `c2606ae7a` | dictation | 10 | −742, +14 |
+| `1dfaa30f7` | reader | 10 | −672, +2 |
+| `4c7db78a2` | gif | 4 | −616 |
+
+Across the branch the Kotlin is −2,639 and +206 counted lines (`GoldenTape` and its test are
+176 of the added). The mutation scripts and cases add 325 lines of Python, and cargo gains
+the four tests that moved.
+
+### What moved, and what was found
+
+* **Into cargo.** `AudioHistoryTest`'s three tests of its copy alone became tests of the Rust
+  history they stood for (`dictation::segmentation`). `ReleasedOnceTest` tested only its copy, since
+  production's `ReleasedOnce` went in `a4e630fd6`. Its repeated-close case is now
+  `reader::generator`'s `close_frees_once_however_often_it_is_called`; use after close and use in
+  progress were already covered there. Several adapter tests (`PhrasesTest`, `SpokenTest`,
+  `MicKeyTest`, `FollowAlongTest`, `ScreenRulesTest`) keep every case and call the bindings
+  (`DictationRules`, `LegacyDictation`, `MicKeyState`, `ReaderRules`, `ScreenWalkRules`), where
+  they called the copies of the Kotlin adapters over them.
+* **What went with the references:** `FakeNet` and `FakeConnection` in `GifHarness.kt`, which
+  only the reference's fetches used. `GiphyFormatException`, `ReferenceReadAloud` and
+  `ReferenceWindow` were declared in the reference files, and the tests that called them for the
+  reference's side now record only the Rust's answers. Also the JDK 22 `URLEncoder` workaround, which only the reference's URLs
+  needed. The goldens hold the URLs the Rust
+  builds, which are Android's and JDK 21's.
+* **A stale mutation case.** `dictation-mutations.py`'s `late-result` had matched nothing since
+  `9a269ccb2`, when the session started matching `events::FINAL` rather than the string
+  `"final"`. State mode stopped at that case before running it, at both ends. `7c7dff12f` points
+  it at the match arm, and the table's state counts are from that version, at both ends. It is
+  the second such case: the owed `--check` mode in
+  [owed-checks](owed-checks.md#not-device-checks-but-still-owed) would have caught it.
+* **Not a reference file.** `lib/rust`'s `DictationSegmentationMatchTest.kt` holds a private
+  `ReferenceSegmentation` class. It is not one of the 166 files and was left alone.
+
+### Kept, and why
+
+* **Device comparisons (19):** the 11 under `androidTest` (dictation's 8, reader's
+  `ReferenceReader`, `ReferenceReleasedOnce` and `ReferenceVoiceEngine`), and the 8 compiled into
+  the instrumented tests from `app/src/test` (`gif/shared`, `suggest/a1`, `lib/ext/replay`). Their
+  goldens need a device run ([owed-checks E54](owed-checks.md#emulator-checks-the-docs-owe)).
+* **Render (8): kept, in flight, the Compose-free render path.** That branch owns
+  `app/src/test/.../render`.
+* **What the render references build on (5):** `ReferenceLayoutAssembly`, `ReferencePopupSet`,
+  `ReferencePopupGrid`, `ReferenceSwipeGesture` and `ReferenceGlideTypingGesture`.
+* **Snygg's palette (2): kept, in flight, the Compose-free render path.**
+  `ReferenceSnyggTheme` and `ReferenceSnyggAppearanceValue`.
+* **The families not reached (102 files marked "Retire"):** suggest, settingsui, app,
+  editor/input, keyboard, nlp, theme, lib, rust boundary and snygg. Each takes the same steps:
+  a generator commit, its cases, the before and after runs, then the deletion commit. Three
+  Snygg copies name colour values without the palette (`ReferenceSnyggPropertySetEditor`,
+  `ReferenceSnyggSpec`, `ReferenceSnyggValueBridge`): check them against the render path's
+  branch before retiring them.
