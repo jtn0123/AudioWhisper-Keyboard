@@ -19,7 +19,6 @@ import hashlib
 import os
 from pathlib import Path
 import re
-import shlex
 import subprocess
 import sys
 from typing import NamedTuple, Tuple
@@ -124,9 +123,11 @@ def instrument(output, family, name, *extra):
 
 
 def written():
-    """The golden files the references' tapes wrote on the device, by name."""
-    names = adb('exec-out', 'run-as', PKG, 'sh', '-c', shlex.quote('ls files/golden 2>/dev/null || true')).decode()
-    return [name for name in names.split() if re.fullmatch(r'[A-Za-z0-9._-]+\.txt', name)]
+    """The golden files the references' tapes wrote on the device, by name. (No `sh -c`: adb quotes
+    each argument itself, so a quoted command would arrive as one word.)"""
+    found = subprocess.run(['adb', '-s', serial(), 'exec-out', 'run-as', PKG, 'ls', 'files/golden'],
+                           capture_output=True, timeout=120)
+    return [name for name in found.stdout.decode().split() if re.fullmatch(r'[A-Za-z0-9._-]+\.txt', name)]
 
 
 def summary(text):

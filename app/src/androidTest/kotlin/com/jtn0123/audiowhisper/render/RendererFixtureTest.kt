@@ -3,6 +3,7 @@ package com.jtn0123.audiowhisper.render
 import android.app.Instrumentation
 import com.jtn0123.audiowhisper.gif.GifSearch
 import com.jtn0123.audiowhisper.gif.SearchText
+import com.jtn0123.audiowhisper.golden.GoldenTape
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -11,9 +12,15 @@ import org.junit.Assert.assertTrue
  * GIF search typing with no GIPHY key, through the production [GifSearch]. FixtureInstrumentation
  * runs it with `-e gifSearch true`, in a rendererFixture build: the debug build is shrunk, and only
  * a fixture build keeps what a test APK calls, so no JUnit runner can run it there.
+ *
+ * The query it types is compared with the [SearchText] reference's, which records its answers on
+ * the golden tape [TAPE] (docs/phase6-kotlin-references.md).
  */
 object RendererFixtureTest {
-    @JvmStatic fun searchStateWorksWithoutAKey(instrumentation: Instrumentation) {
+    const val TAPE = "gif-search-typing"
+
+    @JvmStatic fun searchStateWorksWithoutAKey(instrumentation: Instrumentation, goldens: GoldenTape.Store) {
+        val tape = GoldenTape.ofReference(TAPE, goldens)
         var failure: Throwable? = null
         instrumentation.runOnMainSync {
             val original=GifSearch.source
@@ -24,7 +31,10 @@ object RendererFixtureTest {
                 assertTrue(GifSearch.typing.value)
                 val before=GifSearch.query.value
                 GifSearch.type("aw-fixture")
-                assertEquals(SearchText.type(before,"aw-fixture"),GifSearch.query.value)
+                val typed = SearchText.type(before,"aw-fixture")
+                assertEquals(typed,GifSearch.query.value)
+                tape.answer("before", before)
+                tape.answer("typed", typed)
                 GifSearch.stopTyping()
                 assertFalse(GifSearch.typing.value)
             } catch (thrown: Throwable) {
@@ -32,5 +42,6 @@ object RendererFixtureTest {
             } finally{GifSearch.reset();GifSearch.source=original}
         }
         failure?.let { throw it }
+        tape.finish()
     }
 }

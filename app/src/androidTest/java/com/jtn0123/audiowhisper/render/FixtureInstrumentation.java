@@ -81,8 +81,10 @@ public final class FixtureInstrumentation extends Instrumentation {
     private boolean boundaries;
     private boolean a1Replay;
     private boolean gifSearch;
+    private Bundle arguments;
     @Override public void onCreate(Bundle arguments) {
         super.onCreate(arguments);
+        this.arguments = arguments;
         boundaries = arguments != null && "true".equals(arguments.getString("boundaries"));
         a1Replay = arguments != null && "true".equals(arguments.getString("a1"));
         gifSearch = arguments != null && "true".equals(arguments.getString("gifSearch"));
@@ -93,11 +95,14 @@ public final class FixtureInstrumentation extends Instrumentation {
         if (gifSearch) {
             Bundle result = new Bundle();
             try {
-                RendererFixtureTest.searchStateWorksWithoutAKey(this);
+                RendererFixtureTest.searchStateWorksWithoutAKey(this, new com.jtn0123.audiowhisper.golden.DeviceGoldens(this, arguments));
                 result.putBoolean("gif_search", true);
                 finish(Activity.RESULT_OK, result);
             } catch (Throwable failure) {
-                result.putString("failure", failure.getClass().getName()); // An assertion's message holds the typed text.
+                // An assertion's message holds the typed text; the golden tape's holds only hashes.
+                String message = failure.getMessage();
+                boolean tape = message != null && message.startsWith(RendererFixtureTest.TAPE + ":");
+                result.putString("failure", failure.getClass().getName() + (tape ? ": " + message : ""));
                 finish(Activity.RESULT_CANCELED, result);
             }
             return;
