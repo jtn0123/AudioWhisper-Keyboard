@@ -5,6 +5,7 @@ import dev.patrickgold.florisboard.ime.text.gestures.SwipeAction
 import dev.patrickgold.florisboard.ime.text.key.KeyType
 import java.io.IOException
 import java.net.SocketTimeoutException
+import com.jtn0123.audiowhisper.golden.GoldenTape
 import kotlin.random.Random
 
 /**
@@ -17,7 +18,7 @@ import kotlin.random.Random
  * can copy it into the app and run it on a phone, whose Java judges spaces, letters and case
  * differently.
  */
-class GifComparison {
+class GifComparison(private val tape: GoldenTape) {
     /** How many comparisons failed, and the first few, described. */
     var failures = 0
         private set
@@ -31,6 +32,7 @@ class GifComparison {
     val seen = sortedMapOf<String, Int>()
 
     private fun check(what: String, input: Any?, kotlin: Any?, rust: Any?) {
+        tape.record("$what: ${show(kotlin)}")
         checks++
         if (kotlin == rust) return
         failures++

@@ -1,0 +1,24 @@
+# gif-search-trace-7: the answers the frozen Kotlin reference gave (docs/phase6-kotlin-references.md).
+# Their count, the digest after the last, and after each power of two (at N).
+count 644669
+digest 1191807ed7a9d020
+at 1 7323b81d9343d6ef
+at 2 fa802f7b94c8dfcb
+at 4 005d3c4f51da95f9
+at 8 dd427880807d4706
+at 16 83b07a0af2f63b07
+at 32 c1ee676b42755f86
+at 64 497f19fadbc362bc
+at 128 8a9fbcfe637e6587
+at 256 096264eedc7623dd
+at 512 22f2ef9c44502b9e
+at 1024 64df88f45153815b
+at 2048 ac1e66badb258938
+at 4096 2c7bdcf777e0b22f
+at 8192 5c93e1abb2a79bc9
+at 16384 641419491aead7ef
+at 32768 a862b3577e137e4a
+at 65536 899fb12b15d21256
+at 131072 bac8013ad8ab0c17
+at 262144 8728a7394401f06d
+at 524288 91e82f890b02e821

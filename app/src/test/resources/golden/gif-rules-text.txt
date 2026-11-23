@@ -1,0 +1,24 @@
+# gif-rules-text: the answers the frozen Kotlin reference gave (docs/phase6-kotlin-references.md).
+# Their count, the digest after the last, and after each power of two (at N).
+count 600000
+digest ccc7814a8a85df9a
+at 1 658a5d4d4cd3006d
+at 2 d52e0bdb1b2519d5
+at 4 40dfb61c0065cc19
+at 8 462a630bc05d5fc0
+at 16 0c08ab1d2551a20e
+at 32 380a4136694614fa
+at 64 6fb1e03dde823499
+at 128 7413bccd4b6be869
+at 256 ed191ffd26ddc5fc
+at 512 fa753ed52de7aa30
+at 1024 c43efd3766ad3008
+at 2048 f7d661f272f6ee57
+at 4096 a3581d6eaefef688
+at 8192 4cfe0240744af143
+at 16384 d5e8b104ae0da996
+at 32768 025f2f845818ad45
+at 65536 9ae10dc012fe17d8
+at 131072 ccb07af78151d220
+at 262144 52dc1ae01f5a7b4c
+at 524288 2dffff4313ac2156

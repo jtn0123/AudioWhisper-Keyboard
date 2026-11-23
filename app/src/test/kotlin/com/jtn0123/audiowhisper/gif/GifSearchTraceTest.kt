@@ -1,5 +1,6 @@
 package com.jtn0123.audiowhisper.gif
 
+import com.jtn0123.audiowhisper.golden.GoldenTape
 import com.jtn0123.audiowhisper.rust.GifRules
 import com.jtn0123.audiowhisper.rust.GifSessionPlan
 import kotlinx.coroutines.launch
@@ -30,11 +31,13 @@ class GifSearchTraceTest {
     @Test fun thirdSeed() = run(SEEDS[2])
 
     private fun run(seed: Long) {
-        val trace = GifTrace(Random(seed), Files.createTempDirectory("gif-trace").toFile())
+        val tape = GoldenTape.ofReference("gif-search-trace-$seed")
+        val trace = GifTrace(Random(seed), Files.createTempDirectory("gif-trace").toFile(), tape)
         try {
             repeat(EVENTS) { trace.step(it) }
             println("GIF trace seed $seed: $EVENTS events, ${trace.checks} checks, ${trace.failures} differ, seen ${trace.seen}")
             assertEquals(emptyList(), trace.examples, "${trace.failures} of ${trace.checks} checks differ")
+            tape.finish()
             for (outcome in OUTCOMES) assertTrue((trace.seen[outcome] ?: 0) >= MIN_SEEN, "$outcome only ${trace.seen[outcome]}: ${trace.seen}")
         } finally {
             trace.root.deleteRecursively()
@@ -56,7 +59,7 @@ class GifSearchTraceTest {
 }
 
 /** Both sides of one trace, in their own folders. */
-private class GifTrace(private val random: Random, val root: File) {
+private class GifTrace(private val random: Random, val root: File, private val tape: GoldenTape) {
     var failures = 0
     var checks = 0L
     val examples = mutableListOf<String>()
@@ -376,6 +379,7 @@ private class GifTrace(private val random: Random, val root: File) {
         dir.listFiles().orEmpty().sortedBy { it.name }.map { listOf(it.name, it.length(), it.lastModified()) }
 
     private fun check(what: String, old: Any?, new: Any?) {
+        tape.record("$what: $old")
         checks++
         if (old == new) return
         failures++

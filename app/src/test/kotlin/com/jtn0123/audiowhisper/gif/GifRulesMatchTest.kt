@@ -1,5 +1,6 @@
 package com.jtn0123.audiowhisper.gif
 
+import com.jtn0123.audiowhisper.golden.GoldenTape
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -13,28 +14,30 @@ import kotlin.test.assertTrue
  * emulator, whose Java judges text differently.
  */
 class GifRulesMatchTest {
-    private fun assertNone(reached: List<String>, body: GifComparison.() -> Unit) {
-        val comparison = GifComparison().apply(body)
+    private fun assertNone(name: String, reached: List<String>, body: GifComparison.() -> Unit) {
+        val tape = GoldenTape.ofReference("gif-rules-$name")
+        val comparison = GifComparison(tape).apply(body)
         assertEquals(emptyList(), comparison.examples, "${comparison.failures} of ${comparison.checks} differ")
+        tape.finish()
         for (outcome in reached) {
             assertTrue((comparison.seen[outcome] ?: 0) >= MIN_SEEN, "$outcome only ${comparison.seen[outcome]} times")
         }
     }
 
     @Test
-    fun textMatches() = assertNone(TEXT_OUTCOMES) { text(Random(SEED), 100_000) }
+    fun textMatches() = assertNone("text", TEXT_OUTCOMES) { text(Random(SEED), 100_000) }
 
     @Test
-    fun chipsMatch() = assertNone(CHIP_OUTCOMES) { chips(Random(SEED), 40_000) }
+    fun chipsMatch() = assertNone("chips", CHIP_OUTCOMES) { chips(Random(SEED), 40_000) }
 
     @Test
-    fun keysMatch() = assertNone(KEY_OUTCOMES) { keys(Random(SEED), swipes = 40_000) }
+    fun keysMatch() = assertNone("keys", KEY_OUTCOMES) { keys(Random(SEED), swipes = 40_000) }
 
     @Test
-    fun problemsMatch() = assertNone(emptyList()) { problems() }
+    fun problemsMatch() = assertNone("problems", emptyList()) { problems() }
 
     @Test
-    fun constantsMatch() = assertNone(emptyList()) { constants() }
+    fun constantsMatch() = assertNone("constants", emptyList()) { constants() }
 
     private companion object {
         const val SEED = 20261108L

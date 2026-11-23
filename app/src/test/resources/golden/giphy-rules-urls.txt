@@ -1,0 +1,21 @@
+# giphy-rules-urls: the answers the frozen Kotlin reference gave (docs/phase6-kotlin-references.md).
+# Their count, the digest after the last, and after each power of two (at N).
+count 90000
+digest abc5af4db00f61b6
+at 1 e3dcae4b6c8a7807
+at 2 df0c49ba58264b9b
+at 4 aa6340da2bddb128
+at 8 aaa4c739604b9ee1
+at 16 229366bcad74ab1e
+at 32 e62a24afa0c2aa3e
+at 64 0d27fd9bc9539434
+at 128 75e40c330631a879
+at 256 e77baae8a86f003e
+at 512 3f9708959d67846d
+at 1024 097b084780a45e7d
+at 2048 058bf733b2ada969
+at 4096 355d2f644790e2e0
+at 8192 cf310078b0884db3
+at 16384 73f72e2c4d300377
+at 32768 d550e313bb2b9e65
+at 65536 0db1e488383abf1f

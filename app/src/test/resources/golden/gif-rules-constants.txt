@@ -1,0 +1,7 @@
+# gif-rules-constants: the answers the frozen Kotlin reference gave (docs/phase6-kotlin-references.md).
+# Their count, the digest after the last, and after each power of two (at N).
+count 4
+digest 47e26651b49b29be
+at 1 38072cb3a9a0030c
+at 2 c10266e82bd55f69
+at 4 47e26651b49b29be

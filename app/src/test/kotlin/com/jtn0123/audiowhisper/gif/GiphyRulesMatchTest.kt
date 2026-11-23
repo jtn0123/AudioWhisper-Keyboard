@@ -1,5 +1,6 @@
 package com.jtn0123.audiowhisper.gif
 
+import com.jtn0123.audiowhisper.golden.GoldenTape
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -12,22 +13,24 @@ import kotlin.test.assertTrue
  * numbers and encodes URLs itself.
  */
 class GiphyRulesMatchTest {
-    private fun assertNone(reached: List<String>, body: GiphyComparison.() -> Unit) {
-        val comparison = GiphyComparison().apply(body)
+    private fun assertNone(name: String, reached: List<String>, body: GiphyComparison.() -> Unit) {
+        val tape = GoldenTape.ofReference("giphy-rules-$name")
+        val comparison = GiphyComparison(tape).apply(body)
         assertEquals(emptyList(), comparison.examples, "${comparison.failures} of ${comparison.checks} differ")
+        tape.finish()
         for (outcome in reached) {
             assertTrue((comparison.seen[outcome] ?: 0) >= MIN_SEEN, "$outcome only ${comparison.seen[outcome]} times: ${comparison.seen}")
         }
     }
 
     @Test
-    fun answersMatch() = assertNone(BODY_OUTCOMES) { bodies(Random(SEED), 60_000) }
+    fun answersMatch() = assertNone("answers", BODY_OUTCOMES) { bodies(Random(SEED), 60_000) }
 
     @Test
-    fun sizesMatch() = assertNone(SIZE_OUTCOMES) { sizes(Random(SEED), 100_000) }
+    fun sizesMatch() = assertNone("sizes", SIZE_OUTCOMES) { sizes(Random(SEED), 100_000) }
 
     @Test
-    fun urlsMatch() = assertNone(URL_OUTCOMES) { urls(Random(SEED), 30_000) }
+    fun urlsMatch() = assertNone("urls", URL_OUTCOMES) { urls(Random(SEED), 30_000) }
 
     private companion object {
         const val SEED = 20_261_108
