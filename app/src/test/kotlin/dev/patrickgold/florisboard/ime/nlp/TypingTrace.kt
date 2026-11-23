@@ -5,9 +5,7 @@ import com.jtn0123.audiowhisper.golden.GoldenTape
 import com.jtn0123.audiowhisper.suggest.LatinDictionaryEngine
 import dev.patrickgold.florisboard.ime.editor.EditorContent
 import dev.patrickgold.florisboard.ime.editor.EditorRange
-import java.security.MessageDigest
 import java.util.Random
-import kotlin.test.fail
 
 /**
  * A plain editor for the trace: its text and selection, and the word at the cursor composing once
@@ -103,26 +101,20 @@ private class OtherCandidate(override val text: CharSequence) : SuggestionCandid
 }
 
 /**
- * A seeded run of synthetic typing through both sides at once: words typed letter by letter with
+ * A seeded run of synthetic typing through the keyboard's side: words typed letter by letter with
  * typos, spaces and punctuation that auto-correct, strip picks and removals, swipes, backspaces
  * that undo corrections, the undo key, new fields, setting changes, save timers that fire or die
- * with the process, and service recreation. After each event the sides' records must be equal,
- * and the reference's go on [tape].
+ * with the process, and service recreation. After each event the side's record goes on [tape],
+ * checked against the one main's fan-out left (docs/phase6-kotlin-references.md).
  */
-internal class TypingTrace(
-    private val seed: Long,
-    private val engines: Pair<LatinDictionaryEngine, LatinDictionaryEngine>,
-    private val tape: GoldenTape,
-) {
+internal class TypingTrace(seed: Long, private val engine: LatinDictionaryEngine, private val tape: GoldenTape) {
     private val random = Random(seed)
     private var clock = 1_000_000L
     private val now = { clock }
     private val environment = TraceEnvironment()
     private val editor = TraceEditor()
-    private val disks = TraceDisk() to TraceDisk()
-    private var reference: TypingSide = ReferenceSide(disks.first, environment, engines.first, now)
-    private var branch: TypingSide = BranchSide(disks.second, environment, engines.second, now)
-    private val sides get() = listOf(reference, branch)
+    private val disk = TraceDisk()
+    private var side = TypingSide(disk, environment, engine, now)
     private var landscape = false
     private var target = ""
     private var typed = 0
@@ -130,32 +122,28 @@ internal class TypingTrace(
     /** The last event auto-corrected a word, which a backspace often follows. */
     private var corrected = false
     private var last = emptyList<Pair<String, String>>()
-    private val digest = MessageDigest.getInstance("SHA-256")
     /** How often each event and each effect came up. */
     val kinds = sortedMapOf<String, Int>()
     val effects = sortedMapOf<String, Int>()
     /** How many events changed each part of the record. */
     val changes = sortedMapOf<String, Int>()
 
-    /** Runs [events] events, failing at the first that differs; the digest of every record. */
-    fun run(events: Int): String {
-        repeat(events) { step(it) }
-        return digest.digest().joinToString("") { "%02x".format(it) }
-    }
+    /** Runs [events] events, recording each one's record on the tape. */
+    fun run(events: Int) = repeat(events) { step() }
 
-    private fun step(index: Int) {
+    private fun step() {
         clock += 15 + random.nextInt(400)
-        sides.forEach { it.effects.log.clear() }
+        side.effects.log.clear()
         fireDue()
         val kind = choose()
         corrected = false
         kinds.merge(kind, 1, Int::plus)
         act(kind)
-        sides.forEach { it.flushKept() }
-        compare(index, kind)
+        side.flushKept()
+        record()
     }
 
-    private fun fireDue() = sides.forEach { side ->
+    private fun fireDue() {
         val due = side.effects.timers.filter { it <= clock }.sorted()
         side.effects.timers.removeAll(due.toSet())
         for (at in due) { side.effects.log += "fired"; side.fire(at) }
@@ -174,17 +162,17 @@ internal class TypingTrace(
             "letter" -> letter()
             "space" -> finish(null, " ")
             "punctuation" -> finish(".,!?"[random.nextInt(4)].code, null)
-            "enter" -> each { clearUndo(); enter(editor.content()) }.also { editor.separator("\n"); endWord() }
+            "enter" -> side.run { clearUndo(); enter(editor.content()) }.also { editor.separator("\n"); endWord() }
             "backspace" -> backspace()
             "pick" -> pick(remove = false)
             "remove" -> pick(remove = true)
             "show" -> show()
             "swipe" -> swipe()
-            "undo" -> each { clearUndo(); undoKey() }
-            "clear" -> { val fields = environment.fields(editor.content()); each { configure(fields); clear() } }
+            "undo" -> side.run { clearUndo(); undoKey() }
+            "clear" -> { val fields = environment.fields(editor.content()); side.run { configure(fields); clear() } }
             "cursor" -> { editor.moveTo(random.nextInt(editor.length + 1)); endWord(); suggestPass() }
             "select" -> { editor.select(random); endWord(); suggestPass() }
-            "orientation" -> { landscape = !landscape; each { landscape(landscape) } }
+            "orientation" -> { landscape = !landscape; side.run { landscape(landscape) } }
             "setting" -> setting()
             "field" -> newField(recreated = false)
             "recreate" -> newField(recreated = true)
@@ -193,15 +181,13 @@ internal class TypingTrace(
         }
     }
 
-    private inline fun each(action: TypingSide.() -> Unit) = sides.forEach(action)
-
-    private fun log(text: String) = each { effects.log += text }
+    private fun log(text: String) { side.effects.log += text }
 
     private fun endWord() { target = ""; typed = 0 }
 
     /** Production configures on each editor change as it starts a suggestion pass; the trace does most times. */
     private fun suggestPass() {
-        if (random.nextInt(10) < 7) environment.fields(editor.content()).let { fields -> each { configure(fields) } }
+        if (random.nextInt(10) < 7) environment.fields(editor.content()).let { fields -> side.run { configure(fields) } }
     }
 
     private fun letter() {
@@ -210,7 +196,7 @@ internal class TypingTrace(
         val bias = (c.lowercase()[0].code * 37 % 21 - 10) / 50f
         val dx = bias + (random.nextFloat() - 0.5f) / 10f
         val dy = -bias / 2 + (random.nextFloat() - 0.5f) / 10f
-        each { pressed(c.codePointAt(0), dx, dy); clearUndo(); tapTyped(c) }
+        side.run { pressed(c.codePointAt(0), dx, dy); clearUndo(); tapTyped(c) }
         editor.letter(c)
         suggestPass()
     }
@@ -219,14 +205,14 @@ internal class TypingTrace(
     private fun finish(trigger: Int?, separator: String?) {
         val content = editor.content()
         val requested = environment.fields(content)
-        each { clearUndo(); if (trigger == null) noteKey() }
+        side.run { clearUndo(); if (trigger == null) noteKey() }
         val offered = offer(content.composingText)
-        val chosen = sides.map { it.autoCommit(requested, trigger, editor.phantom, offered, environment.fields(content)) }
-        val committed = sides.indices.map { sides[it].autoCorrect(content, trigger, chosen[it]) }
-        sides.indices.forEach { sides[it].effects.log += "auto ${chosen[it]?.text} ${committed[it]}" }
-        if (chosen[0] != null && committed[0]) editor.commit(chosen[0]!!.text.toString())
-        corrected = committed[0] && chosen[0]!!.text.toString() != content.composingText
-        if (trigger != null) each { tapTyped(String(Character.toChars(trigger))) }
+        val chosen = side.autoCommit(requested, trigger, editor.phantom, offered, environment.fields(content))
+        val committed = side.autoCorrect(content, trigger, chosen)
+        log("auto ${chosen?.text} $committed")
+        if (chosen != null && committed) editor.commit(chosen.text.toString())
+        corrected = chosen != null && committed && chosen.text.toString() != content.composingText
+        if (trigger != null) side.run { tapTyped(String(Character.toChars(trigger))) }
         editor.separator(separator ?: String(Character.toChars(trigger!!)))
         endWord()
         suggestPass()
@@ -234,16 +220,16 @@ internal class TypingTrace(
 
     private fun backspace() {
         val content = editor.content()
-        each { backspace(content.selection) }
-        val reverts = sides.map { it.undoCorrection(content) }
-        sides.indices.forEach { sides[it].effects.log += "revert ${reverts[it]}" }
-        val undone = reverts[0] != null && random.nextInt(30) != 0 && editor.revert(reverts[0]!!)
+        side.backspace(content.selection)
+        val revert = side.undoCorrection(content)
+        log("revert $revert")
+        val undone = revert != null && random.nextInt(30) != 0 && editor.revert(revert)
         if (undone) {
             log("undone")
-            each { correctionUndone() }
+            side.run { correctionUndone() }
             endWord()
         } else {
-            if (editor.composingText.isNotEmpty()) each { tapDeleted() }
+            if (editor.composingText.isNotEmpty()) side.run { tapDeleted() }
             editor.backspace()
             typed = maxOf(0, typed - 1)
         }
@@ -251,22 +237,21 @@ internal class TypingTrace(
     }
 
     /**
-     * A tap on the strip as the keyboard shows it, the branch's row, or on a word shown before. The
-     * row is a StateFlow, which keeps the old objects when a list equal to them is published, so a
-     * tap can be on an object the session no longer holds; main's was a StateFlow too, but
-     * [ReferenceNlpState]'s is not, so the tap is never taken from it.
+     * A tap on the strip as the keyboard shows it, or on a word shown before. The row is a
+     * StateFlow, which keeps the old objects when a list equal to them is published, so a tap can
+     * be on an object the session no longer holds, which it refuses, as main's did.
      */
     private fun pick(remove: Boolean) {
-        val current = branch.candidates
+        val current = side.candidates
         val candidate = when {
             current.isNotEmpty() && random.nextInt(100) < 85 -> current[random.nextInt(current.size)]
             shown.isNotEmpty() -> shown[random.nextInt(shown.size)]
             else -> return log("nothing to pick")
         }
         val content = editor.content()
-        val went = sides.map { if (remove) it.remove(candidate, content) else it.commit(candidate, content) }
-        sides.indices.forEach { sides[it].effects.log += "picked ${went[it]}" }
-        if (!remove && went[0]) { editor.commit(candidate.text.toString()); endWord(); suggestPass() }
+        val went = if (remove) side.remove(candidate, content) else side.commit(candidate, content)
+        log("picked $went")
+        if (!remove && went) { editor.commit(candidate.text.toString()); endWord(); suggestPass() }
     }
 
     private fun show() {
@@ -276,13 +261,13 @@ internal class TypingTrace(
         val values: List<SuggestionCandidate> = words.map { WordSuggestionCandidate(it, isEligibleForAutoCommit = it == TYPOS[prefix]) } +
             if (random.nextInt(12) == 0) listOf(OtherCandidate("#${WORDS[random.nextInt(WORDS.size)]}")) else emptyList()
         values.forEach { shown.addLast(it); if (shown.size > 30) shown.removeFirst() }
-        each { show(values) }
+        side.run { show(values) }
     }
 
     private fun swipe() {
         val word = cased(WORDS[random.nextInt(WORDS.size)])
         val content = editor.content()
-        each { swipe(word, content) }
+        side.run { swipe(word, content) }
         editor.commit(word)
         endWord()
         suggestPass()
@@ -296,7 +281,7 @@ internal class TypingTrace(
             2 -> environment.aim = random.nextInt(5) != 0
             else -> environment.loaded = random.nextInt(8) != 0
         }
-        environment.fields(editor.content()).let { fields -> each { configure(fields) } }
+        environment.fields(editor.content()).let { fields -> side.run { configure(fields) } }
     }
 
     /** A new field, or the same after the service was recreated: the session and its armed undo stay. */
@@ -305,15 +290,14 @@ internal class TypingTrace(
         editor.windowed = random.nextInt(4) == 0
         editor.newField(if (random.nextBoolean()) "" else List(random.nextInt(8) + 1) { WORDS[random.nextInt(WORDS.size)] }.joinToString(" ", postfix = " "))
         endWord()
-        if (recreated) each { landscape(landscape) }
-        each { field() }
-        environment.fields(editor.content()).let { fields -> each { configure(fields) } }
+        if (recreated) side.run { landscape(landscape) }
+        side.run { field() }
+        environment.fields(editor.content()).let { fields -> side.run { configure(fields) } }
     }
 
     /** The process dies: saves still waiting are lost, and a new one starts from what was written. */
     private fun death() {
-        reference = ReferenceSide(disks.first, environment, engines.first, now)
-        branch = BranchSide(disks.second, environment, engines.second, now)
+        side = TypingSide(disk, environment, engine, now)
         log("restarted")
         newField(recreated = true)
     }
@@ -338,16 +322,12 @@ internal class TypingTrace(
         return WordSuggestionCandidate(text, confidence = 0.9, isEligibleForAutoCommit = true)
     }
 
-    private fun compare(index: Int, kind: String) {
-        val expected = reference.observe()
-        val actual = branch.observe()
-        for ((want, got) in expected.zip(actual)) {
-            if (want.second != got.second) fail("seed $seed event $index ($kind): ${want.first} differs from main's fan-out")
-        }
-        expected.forEach { (name, value) -> digest.update("$name=$value\n".toByteArray()); tape.answer(name, value) }
-        expected.zip(last).forEach { (now, before) -> if (now != before) changes.merge(now.first, 1, Int::plus) }
-        last = expected
-        reference.effects.log.forEach { effects.merge(it.substringBefore(' '), 1, Int::plus) }
+    private fun record() {
+        val record = side.observe()
+        record.forEach { (name, value) -> tape.answer(name, value) }
+        record.zip(last).forEach { (now, before) -> if (now != before) changes.merge(now.first, 1, Int::plus) }
+        last = record
+        side.effects.log.forEach { effects.merge(it.substringBefore(' '), 1, Int::plus) }
     }
 
     private companion object {

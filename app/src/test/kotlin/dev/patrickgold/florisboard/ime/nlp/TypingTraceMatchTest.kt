@@ -7,27 +7,24 @@ import kotlin.test.Test
 import kotlin.test.assertTrue
 
 /**
- * Seeded 50,000-event traces of synthetic typing, run through main's fan-out (frozen in
- * [ReferenceTypingFanOut]) and the branch's one call per event ([TypingEvents]) side by side,
- * each over its own native stores and dictionary. After every event the two must agree on what
- * Android was asked to do (kept-word writes and save timers, in order), what went into the editor,
- * the Smartbar's row, every store, and what was written to disk, across save timers that fire,
- * saves lost when the process dies, and service recreation. See docs/phase3-typing-fan-out.md.
- * The reference's records go on a golden tape per seed (docs/phase6-kotlin-references.md).
+ * Seeded 50,000-event traces of synthetic typing through the keyboard's one call per event
+ * ([TypingEvents]), over native stores and the shipped dictionary. After every event, what Android
+ * was asked to do (kept-word writes and save timers, in order), what went into the editor, the
+ * Smartbar's row, every store, and what was written to disk go on a golden tape per seed, across
+ * save timers that fire, saves lost when the process dies, and service recreation. The goldens
+ * hold the records main's fan-out left on the same traces (docs/phase3-typing-fan-out.md,
+ * docs/phase6-kotlin-references.md).
  */
 class TypingTraceMatchTest {
     private fun engine(): LatinDictionaryEngine = TestDictionaries.shipped.let {
         requireNotNull(LatinDictionaryEngine.open(it.path, 0, it.length(), "en_US"))
     }
 
-    @Test fun mainsFanOutAndTheEventPlanLeaveTheSameTrace() {
+    @Test fun theEventPlanLeavesMainsTrace() {
         for (seed in SEEDS) {
-            engine().use { first -> engine().use { second ->
-                val tape = GoldenTape.ofReference("typing-trace-$seed")
-                val trace = TypingTrace(seed, first to second, tape)
-                val digest = trace.run(EVENTS)
-                tape.finish()
-                println("Typing trace seed $seed: $EVENTS events identical, digest $digest")
+            engine().use { engine ->
+                val trace = GoldenTape.check("typing-trace-$seed") { TypingTrace(seed, engine, it).apply { run(EVENTS) } }
+                println("Typing trace seed $seed: $EVENTS events as main's")
                 println("  events ${trace.kinds}")
                 println("  effects ${trace.effects}")
                 println("  changed ${trace.changes}")
@@ -40,7 +37,7 @@ class TypingTraceMatchTest {
                 for (part in listOf("candidates", "smartbar", "learned", "kept", "aim", "counters", "disk")) {
                     assertTrue((trace.changes[part] ?: 0) > 0, "seed $seed never changed $part")
                 }
-            } }
+            }
         }
     }
 

@@ -51,38 +51,52 @@ internal class TraceEffects(private val now: () -> Long) {
 internal data class TraceDisk(var learned: String = "", var aim: String = "", var tally: String = "", var kept: String = "")
 
 /**
- * One side of the trace: the calls the keyboard makes into NLP, as NlpManager and KeyboardManager
- * make them, over native stores loaded from [disk].
+ * The keyboard's side of the trace: the calls it makes into NLP, as NlpManager and KeyboardManager
+ * make them, through the production [TypingEvents] and [NlpSessionState], sending each event as one
+ * call, over native stores loaded from [disk]. Each event's send does what
+ * LatinLanguageProvider.typingEvent does, lending the dictionary while it is open.
  */
-internal abstract class TypingSide(protected val disk: TraceDisk, now: () -> Long) {
+internal class TypingSide(private val disk: TraceDisk, environment: TraceEnvironment, engine: LatinDictionaryEngine, now: () -> Long) {
     val effects = TraceEffects(now)
-    protected val learnedWords = LearnedWords(null).apply { store.merge(disk.learned) }
-    protected val positions = TapPositions(SuggestRules.tapTrailCapacity).apply { loadAim(disk.aim) }
-    protected val kept = KeptWordStore().apply { merge(disk.kept) }
+    private val learnedWords = LearnedWords(null).apply { store.merge(disk.learned) }
+    private val positions = TapPositions(SuggestRules.tapTrailCapacity).apply { loadAim(disk.aim) }
+    private val kept = KeptWordStore().apply { merge(disk.kept) }
+    private val state = NlpSessionState().apply { call(NlpOp.TALLY_LOAD, disk.tally) }
+    private val stores = TypingStores(Learner(learnedWords.store), learnedWords.store, positions, kept)
+    private val typing = TypingEvents(
+        send = { event, context, candidate, lends ->
+            state.event(stores, if (lends && environment.loaded) engine.session else null, event, context, candidate)
+        },
+        context = { environment.fields(it) },
+        now = now,
+        saveAfter = { if (it >= 0) effects.save(it) },
+        saveKept = effects::kept,
+    )
+    private val aim = { environment.aim }
 
-    abstract fun call(op: NlpOp, vararg fields: String): Array<String>
-    abstract fun configure(fields: Array<String>)
-    abstract fun show(values: List<SuggestionCandidate>)
-    abstract fun clear()
-    abstract fun autoCandidate(candidate: SuggestionCandidate, requested: Array<String>, current: Array<String>): Boolean
-    abstract val candidates: List<SuggestionCandidate>
-    abstract val wordsShown: Boolean
-    abstract val expanded: Int
+    private fun call(op: NlpOp, vararg fields: String) = state.call(op, *fields)
+    fun configure(fields: Array<String>) = state.configure(fields)
+    fun show(values: List<SuggestionCandidate>) = state.directly(values)
+    fun clear() = state.clear()
+    val candidates get() = state.candidates.value
 
-    abstract fun clearUndo()
-    abstract fun tapTyped(text: String)
-    abstract fun noteKey()
-    abstract fun autoCorrect(content: EditorContent, trigger: Int?, candidate: SuggestionCandidate?): Boolean
-    abstract fun commit(candidate: SuggestionCandidate, content: EditorContent): Boolean
-    abstract fun remove(candidate: SuggestionCandidate, content: EditorContent): Boolean
-    abstract fun enter(content: EditorContent)
-    abstract fun swipe(word: String, content: EditorContent)
-    abstract fun backspace(selection: EditorRange)
-    abstract fun undoCorrection(content: EditorContent): TypingEvents.Revert?
-    abstract fun correctionUndone()
-    abstract fun tapDeleted()
-    abstract fun undoKey()
-    abstract fun field()
+    fun clearUndo() = typing.disarm()
+    fun tapTyped(text: String) = typing.typed(text)
+    fun noteKey() = typing.key()
+    fun autoCorrect(content: EditorContent, trigger: Int?, candidate: SuggestionCandidate?): Boolean {
+        if (candidate == null) { typing.finished(content, trigger, aim()); return false }
+        return typing.picked(candidate, content, commit = true, corrects = true)
+    }
+    fun commit(candidate: SuggestionCandidate, content: EditorContent) = typing.picked(candidate, content, commit = true, corrects = false)
+    fun remove(candidate: SuggestionCandidate, content: EditorContent) = typing.picked(candidate, content, commit = false, corrects = false)
+    fun enter(content: EditorContent) { typing.key(); typing.finished(content, null, aim()) }
+    fun swipe(word: String, content: EditorContent) = typing.swiped(word, content)
+    fun backspace(selection: EditorRange) = typing.backspace(selection.start, selection.end)
+    fun undoCorrection(content: EditorContent) = typing.undoCorrection(content)
+    fun correctionUndone() = typing.correctionUndone()
+    fun tapDeleted() = typing.tapDeleted()
+    fun undoKey() = typing.undo()
+    fun field() = typing.field()
 
     fun pressed(codePoint: Int, dx: Float, dy: Float) = positions.pressed(codePoint, true, dx, dy)
     fun landscape(landscape: Boolean) = positions.landscape(landscape)
@@ -92,7 +106,7 @@ internal abstract class TypingSide(protected val disk: TraceDisk, now: () -> Lon
                    current: Array<String>): SuggestionCandidate? {
         configure(requested)
         if (!WireFlag.decode(call(NlpOp.AUTO, "${trigger ?: -1}", WireFlag.encode(phantom))[0])) return null
-        return offered?.takeIf { autoCandidate(it, requested, current) }
+        return offered?.takeIf { state.autoCandidate(it, requested, current) }
     }
 
     /** A save timer fired at [at]: the learned words, the tap aim and the counters are written. */
@@ -108,93 +122,11 @@ internal abstract class TypingSide(protected val disk: TraceDisk, now: () -> Lon
     fun observe(): List<Pair<String, String>> = listOf(
         "effects" to effects.log.joinToString(","),
         "candidates" to candidates.joinToString("|") { it.text },
-        "smartbar" to "$wordsShown $expanded",
+        "smartbar" to "${state.wordsShown.value} ${state.expanded.value}",
         "learned" to learnedWords.store.savedText(),
         "kept" to kept.savedText(),
         "aim" to positions.aimText(),
         "counters" to call(NlpOp.TALLY_TEXT)[0],
         "disk" to disk.toString(),
     )
-}
-
-/** Main's fan-out, frozen in [ReferenceTypingFanOut]. */
-internal class ReferenceSide(disk: TraceDisk, environment: TraceEnvironment, engine: LatinDictionaryEngine, now: () -> Long) :
-    TypingSide(disk, now) {
-    private val state = ReferenceNlpState().apply { call(NlpOp.TALLY_LOAD, disk.tally) }
-    private val fanOut = ReferenceTypingFanOut(state, learnedWords, positions, kept, environment, engine, now, effects)
-
-    override fun call(op: NlpOp, vararg fields: String) = state.call(op, *fields)
-    override fun configure(fields: Array<String>) = state.configure(fields)
-    override fun show(values: List<SuggestionCandidate>) = state.directly(values)
-    override fun clear() = state.clear()
-    override fun autoCandidate(candidate: SuggestionCandidate, requested: Array<String>, current: Array<String>) =
-        state.autoCandidate(candidate, requested, current)
-    override val candidates get() = state.candidates
-    override val wordsShown get() = state.wordsShown
-    override val expanded get() = state.expanded
-
-    override fun clearUndo() = fanOut.clearUndo()
-    override fun tapTyped(text: String) = fanOut.tapTyped(text)
-    override fun noteKey() = fanOut.noteKey()
-    override fun autoCorrect(content: EditorContent, trigger: Int?, candidate: SuggestionCandidate?) =
-        fanOut.autoCorrect(content, trigger, candidate)
-    override fun commit(candidate: SuggestionCandidate, content: EditorContent) = fanOut.commitCandidate(candidate, content)
-    override fun remove(candidate: SuggestionCandidate, content: EditorContent) = fanOut.canCommit(candidate, content)
-    override fun enter(content: EditorContent) { fanOut.noteKey(); fanOut.learnTypedWord(content) }
-    override fun swipe(word: String, content: EditorContent) = fanOut.learnSwipedWord(word, content)
-    override fun backspace(selection: EditorRange) = fanOut.dropSwipedWord(selection)
-    override fun undoCorrection(content: EditorContent) =
-        fanOut.undoAutoCorrection(content)?.let { TypingEvents.Revert(it.length, it.text, it.phantomSpace) }
-    override fun correctionUndone() = fanOut.noteCorrectionUndone()
-    override fun tapDeleted() = fanOut.tapDeleted()
-    override fun undoKey() = fanOut.noteUndo()
-    override fun field() = fanOut.resetLearning()
-}
-
-/**
- * The branch: the production [TypingEvents] and [NlpSessionState], sending each event as one call;
- * [send] does what LatinLanguageProvider.typingEvent does, lending the dictionary while it is open.
- */
-internal class BranchSide(disk: TraceDisk, environment: TraceEnvironment, engine: LatinDictionaryEngine, now: () -> Long) :
-    TypingSide(disk, now) {
-    private val state = NlpSessionState().apply { call(NlpOp.TALLY_LOAD, disk.tally) }
-    private val stores = TypingStores(Learner(learnedWords.store), learnedWords.store, positions, kept)
-    private val typing = TypingEvents(
-        send = { event, context, candidate, lends ->
-            state.event(stores, if (lends && environment.loaded) engine.session else null, event, context, candidate)
-        },
-        context = { environment.fields(it) },
-        now = now,
-        saveAfter = { if (it >= 0) effects.save(it) },
-        saveKept = effects::kept,
-    )
-    private val aim = { environment.aim }
-
-    override fun call(op: NlpOp, vararg fields: String) = state.call(op, *fields)
-    override fun configure(fields: Array<String>) = state.configure(fields)
-    override fun show(values: List<SuggestionCandidate>) = state.directly(values)
-    override fun clear() = state.clear()
-    override fun autoCandidate(candidate: SuggestionCandidate, requested: Array<String>, current: Array<String>) =
-        state.autoCandidate(candidate, requested, current)
-    override val candidates get() = state.candidates.value
-    override val wordsShown get() = state.wordsShown.value
-    override val expanded get() = state.expanded.value
-
-    override fun clearUndo() = typing.disarm()
-    override fun tapTyped(text: String) = typing.typed(text)
-    override fun noteKey() = typing.key()
-    override fun autoCorrect(content: EditorContent, trigger: Int?, candidate: SuggestionCandidate?): Boolean {
-        if (candidate == null) { typing.finished(content, trigger, aim()); return false }
-        return typing.picked(candidate, content, commit = true, corrects = true)
-    }
-    override fun commit(candidate: SuggestionCandidate, content: EditorContent) = typing.picked(candidate, content, commit = true, corrects = false)
-    override fun remove(candidate: SuggestionCandidate, content: EditorContent) = typing.picked(candidate, content, commit = false, corrects = false)
-    override fun enter(content: EditorContent) { typing.key(); typing.finished(content, null, aim()) }
-    override fun swipe(word: String, content: EditorContent) = typing.swiped(word, content)
-    override fun backspace(selection: EditorRange) = typing.backspace(selection.start, selection.end)
-    override fun undoCorrection(content: EditorContent) = typing.undoCorrection(content)
-    override fun correctionUndone() = typing.correctionUndone()
-    override fun tapDeleted() = typing.tapDeleted()
-    override fun undoKey() = typing.undo()
-    override fun field() = typing.field()
 }
