@@ -55,6 +55,7 @@ pub mod dictation;
 pub mod editor;
 pub mod extensions;
 pub mod flag;
+pub mod gif;
 pub mod ime_subtype;
 pub mod ime_theme;
 pub mod input;
