@@ -332,6 +332,9 @@ dependencies {
     implementation(projects.lib.rust)
     testImplementation(testFixtures(projects.lib.rust))
     androidTestImplementation(testFixtures(projects.lib.rust))
+    // The fixtures' GoldenTape calls kotlin.test, which they only compile against; without it
+    // R8 stops the androidTest APK (scripts/palette-art.sh) on the missing AssertionsKt.
+    androidTestImplementation(kotlin("test"))
     implementation(projects.lib.snygg)
 
     testImplementation(libs.kotlin.test.junit5)
