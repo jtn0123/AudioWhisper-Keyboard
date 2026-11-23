@@ -3,25 +3,25 @@ package dev.patrickgold.florisboard.ime.editor
 import com.jtn0123.audiowhisper.golden.GoldenTape
 import kotlin.random.Random
 import kotlin.test.Test
-import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
  * The keyboard's own spaces in Rust ([Spacing], which calls lib/rust/crates/spacing, and the
- * flags' wrappers in [EditorInstance]) do exactly what the Kotlin they replaced did
- * ([ReferenceSpacing]): every UTF-16 unit in each place the rules look, and random runs of
- * characters, words, flags and selection updates in random editors, settings and rules.
+ * flags' wrappers in [EditorInstance]) do exactly what the Kotlin they replaced did, as its golden
+ * tape recorded (docs/phase6-kotlin-references.md): every UTF-16 unit in each place the rules
+ * look, and random runs of characters, words, flags and selection updates in random editors,
+ * settings and rules.
  */
 class SpacingMatchTest {
     @Test
     fun spacingMatches() {
-        val tape = GoldenTape.ofReference("spacing")
-        val comparison = SpacingComparison(tape)
-        comparison.constants()
-        comparison.everyUnit()
-        comparison.runs(Random(SEED), runs = 4_000, steps = 50)
-        tape.finish()
-        assertEquals(emptyList(), comparison.differences)
+        val comparison = GoldenTape.check("spacing") { tape ->
+            SpacingComparison(tape).apply {
+                constants()
+                everyUnit()
+                runs(Random(SEED), runs = 4_000, steps = 50)
+            }
+        }
         for (outcome in OUTCOMES) {
             assertTrue((comparison.seen[outcome] ?: 0) >= MIN_SEEN, "$outcome only ${comparison.seen[outcome]} times")
         }

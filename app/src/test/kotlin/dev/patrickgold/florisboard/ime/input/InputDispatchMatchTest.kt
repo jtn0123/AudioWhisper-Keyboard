@@ -3,15 +3,12 @@ package dev.patrickgold.florisboard.ime.input
 import com.jtn0123.audiowhisper.golden.GoldenTape
 import com.jtn0123.audiowhisper.rust.*
 import com.jtn0123.audiowhisper.rust.InputProtocol.*
-import dev.patrickgold.florisboard.ime.input.reference.*
 import dev.patrickgold.florisboard.ime.editor.EditorFlowMatchTest
 import dev.patrickgold.florisboard.ime.text.key.KeyCode
-import dev.patrickgold.florisboard.ime.text.key.KeyType
-import dev.patrickgold.florisboard.ime.text.keyboard.TextKeyData
 import kotlin.random.Random
 import kotlin.test.*
 
-/** The references' answers also go on golden tapes (docs/phase6-kotlin-references.md). */
+/** Rust's routing and dispatch answers are checked against golden tapes of the frozen references' (docs/phase6-kotlin-references.md). */
 class InputDispatchMatchTest {
     private val repeatable=intArrayOf(KeyCode.ARROW_DOWN,KeyCode.ARROW_LEFT,KeyCode.ARROW_RIGHT,KeyCode.ARROW_UP,
         KeyCode.DELETE,KeyCode.FORWARD_DELETE,KeyCode.UNDO,KeyCode.REDO)
@@ -20,12 +17,8 @@ class InputDispatchMatchTest {
 
     internal fun route(tape:GoldenTape,input:LongArray,editor:EditorFlowMatchTest.FlowPair?=null):Long {
         val v=if(input.size==12)input+longArrayOf((input[3] ushr 15) and 1,(input[3] ushr 16) and 1,(input[3] ushr 17) and 1) else input
-        val data=TextKeyData(type=KeyType.entries[v[2].toInt()],code=v[1].toInt(),label="x")
-        val reference=ReferenceRoutingManager(v)
-        val expected=reference.run(data)
         val actual=InputRules.route(v)
-        tape.answer("route",expected.toList())
-        assertTrue(expected.contentEquals(actual),"Routing action sequence differs: phase=${v[0]} code=${v[1]} state=${v[3]}")
+        tape.answer("route",actual.toList())
         var state=v[3]
         for(offset in actual.indices.step(3)) {
             val action=actual[offset].toInt();val arg=actual[offset+1]
@@ -39,44 +32,34 @@ class InputDispatchMatchTest {
                 SELECT_ALL->editor?.run(EditorOp.SELECT_ALL)
             }
         }
-        val final=reference.activeState.reference.rawValue.toLong()
-        tape.answer("state",final)
-        assertEquals(final,state,"Final keyboard state differs")
+        tape.answer("state",state)
         editor?.update()
         return state
     }
 
     @Test fun `all routing codes and real key types match the frozen receiver`() {
-        val tape=GoldenTape.ofReference("input-routing-codes")
-        for(code in codes) for(phase in 0..3) for(mode in 0..10) for(kind in listOf(0,2,7)) {
+        GoldenTape.check("input-routing-codes") { tape -> for(code in codes) for(phase in 0..3) for(mode in 0..10) for(kind in listOf(0,2,7)) {
             route(tape,longArrayOf(phase.toLong(),code.toLong(),kind.toLong(),mode.toLong(),0,0,0,1,0,3,-1,bit(code in 65..122)))
-        }
-        tape.finish()
+        } }
     }
 
     @Test fun `GIF search owns editing keys without reaching the app editor`() {
-        val tape=GoldenTape.ofReference("input-routing-gif")
-        for(code in codes) for(phase in 0..3) for(gif in 0L..2L) for(shift in 0L..3L) {
+        GoldenTape.check("input-routing-gif") { tape -> for(code in codes) for(phase in 0..3) for(gif in 0L..2L) for(shift in 0L..3L) {
             route(tape,longArrayOf(phase.toLong(),code.toLong(),if(code>0)0 else 2,shift shl 8,0,0,0,1,0,3,gif,0))
-        }
-        tape.finish()
+        } }
     }
 
     @Test fun `50000 session events over 200 seeds compare lifecycle routing editor effects and state`() {
         var events=0
         var editorOperations=0
-        val tape=GoldenTape.ofReference("input-dispatch-sessions")
-        for(seed in 0 until 200) InputDispatch().use { native ->
-            val reference=ReferenceInputDispatcher(repeatable)
+        GoldenTape.check("input-dispatch-sessions") { tape -> for(seed in 0 until 200) InputDispatch().use { native ->
             val r=Random(20261113+seed)
             native.call(INIT,*repeatable.map(Int::toLong).toLongArray())
             var now=0L
             var state=0L
             fun call(op:Int,vararg args:Long):LongArray {
                 val actual=native.call(op,*args)
-                val expected=reference.call(op,*args)
-                tape.answer("call $op",expected.toList())
-                assertTrue(expected.contentEquals(actual),"Lifecycle differs at seed=$seed event=$events op=$op")
+                tape.answer("call $op",actual.toList())
                 return actual
             }
             EditorFlowMatchTest.FlowPair(tape).use { editor ->
@@ -112,8 +95,7 @@ class InputDispatchMatchTest {
                 }
                 editorOperations+=editor.pair.operationCount
             }
-        }
-        tape.finish()
+        } }
         assertEquals(50000,events)
         println("input: events=$events seeds=200 editor_operations=$editorOperations differences=0")
     }

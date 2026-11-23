@@ -4,26 +4,23 @@ import com.jtn0123.audiowhisper.golden.GoldenTape
 import com.jtn0123.audiowhisper.rust.*
 import com.jtn0123.audiowhisper.rust.InputProtocol.*
 import dev.patrickgold.florisboard.ime.editor.EditorFlowMatchTest
-import dev.patrickgold.florisboard.ime.input.reference.ReferenceInputDispatcher
 import dev.patrickgold.florisboard.ime.text.key.KeyCode
 import kotlin.test.*
 
 /** Logical keys from the public harness traces, between the separately matched touch/decoder
- * and editor engines. Provider replies are fixed synthetic fixtures, as in EditorFlowMatchTest. The
- * references' answers also go on golden tapes (docs/phase6-kotlin-references.md). */
+ * and editor engines. Provider replies are fixed synthetic fixtures, as in EditorFlowMatchTest. Rust's
+ * answers are checked against golden tapes of the frozen references' (docs/phase6-kotlin-references.md). */
 class InputFixtureMatchTest {
     private class Trace(val tape: GoldenTape) : AutoCloseable {
         val editor=EditorFlowMatchTest.FlowPair(tape)
         val native=InputDispatch()
-        val reference=ReferenceInputDispatcher(intArrayOf(KeyCode.DELETE))
         val compare=InputDispatchMatchTest()
         var time=1000L
         var state=0L
         init {native.call(INIT,KeyCode.DELETE.toLong())}
         fun call(op:Int,vararg args:Long):LongArray {
-            val expected=reference.call(op,*args);val actual=native.call(op,*args)
-            tape.answer("call $op",expected.toList())
-            assertTrue(expected.contentEquals(actual),"Fixture lifecycle differs")
+            val actual=native.call(op,*args)
+            tape.answer("call $op",actual.toList())
             return actual
         }
         fun deliver(phase:Int,code:Int) {
@@ -45,17 +42,14 @@ class InputFixtureMatchTest {
         // Public fixed fixtures in regression, suggestions, editor, modes, panels, clipboard/GIF and chrome.
         val payloads=listOf("teh","helo","Hi. A","hello","XaYl","cat","abcdabcd","aw-test-2",
             "😀😃😄😁👋🏻","12@#~3e","~`|4πe","123450","12+34e","123*#0","()*#1+","ca1#t")
-        val tape=GoldenTape.ofReference("input-fixture-payloads")
-        for(value in payloads) Trace(tape).use { t ->
+        GoldenTape.check("input-fixture-payloads") { tape -> for(value in payloads) Trace(tape).use { t ->
             t.type(value)
             assertTrue(t.editor.pair.newIc.text==value,"Harness fixture text differs")
             assertEquals(value.length,t.editor.pair.newIc.start)
-        }
-        tape.finish()
+        } }
     }
     @Test fun `public regression popup repeat caps rolling mode and IME action traces match`() {
-        val tape=GoldenTape.ofReference("input-fixture-traces")
-        Trace(tape).use { t ->
+        GoldenTape.check("input-fixture-traces") { tape -> Trace(tape).use { t ->
             for(c in "qwerasdfzxcv") repeat(25){t.press(c.code)}
             repeat(8) {
                 t.down('e'.code)
@@ -94,12 +88,10 @@ class InputFixtureMatchTest {
             t.up(KeyCode.DELETE)
             assertEquals(0,t.editor.pair.newIc.text.length)
             t.press(KeyCode.ENTER)
-            t.editor.pair.oldIc.performEditorAction(3)
             t.editor.pair.new.run(EditorOp.ACTION,"3")
             t.editor.pair.compare("search action")
             assertEquals(3,EditorAttributes.enterAction(1,3,false))
             assertEquals(-1,EditorAttributes.enterAction(0x20001,0x40000003,false))
-        }
-        tape.finish()
+        } }
     }
 }

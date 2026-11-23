@@ -1,4 +1,4 @@
-// Former JNI adapter retained solely for the existing spacing differential suites.
+// The former production JNI adapter over lib/rust/crates/spacing, kept as the spacing tests' way in.
 package dev.patrickgold.florisboard.ime.editor
 
 import com.jtn0123.audiowhisper.rust.SpacingRules

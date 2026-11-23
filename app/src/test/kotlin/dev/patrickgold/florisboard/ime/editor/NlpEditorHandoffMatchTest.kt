@@ -6,7 +6,10 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 
-/** Real editor prediction/published divergence must not discard the current request. */
+/**
+ * Real editor prediction/published divergence must not discard the current request. The editor's
+ * answers are checked against a golden tape of the frozen reference editor's (docs/phase6-kotlin-references.md).
+ */
 class NlpEditorHandoffMatchTest {
     private fun fields(c: EditorContent): Array<String> = arrayOf("1", "0", "org.florisboard.nlp.providers.latin", "en",
         "1", "1", "1", "0", "1", if (c.localSelection.isValid) "1" else "0",
@@ -14,8 +17,7 @@ class NlpEditorHandoffMatchTest {
         c.text, "en-fixture", "", "1", "1", "1", c.offset.toString(), "0")
 
     @Test fun currentPredictionRatherThanFlowNotificationStartsTheRequest() {
-        val tape=GoldenTape.ofReference("editor-nlp-handoff")
-        EditorPlanMatchTest.Pairing(tape).use { editor ->
+        GoldenTape.check("editor-nlp-handoff") { tape -> EditorPlanMatchTest.Pairing(tape).use { editor ->
             editor.start("prefix ")
             editor.char("a") // InputConnection succeeded; its selection acknowledgement is still delayed.
             val published = fields(EditorSnapshot(editor.new.session.call(EditorOp.PUBLISHED)).content)
@@ -29,7 +31,6 @@ class NlpEditorHandoffMatchTest {
                 assertEquals("current", nlp.call(NlpOp.SNAPSHOT)[NlpSnapshot.SIZE])
             }
             editor.reconcile()
-        }
-        tape.finish()
+        } }
     }
 }

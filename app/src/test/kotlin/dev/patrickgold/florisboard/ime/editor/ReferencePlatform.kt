@@ -3,12 +3,10 @@ package dev.patrickgold.florisboard.ime.editor
 import com.ibm.icu.text.BreakIterator
 import java.util.Locale
 
-/** ICU's entire boundary result is platform data; both implementations receive the same data. */
+/** ICU's boundary results are platform data, which [NativeEditorDriver] answers Rust's queries with. */
 class ReferenceBreaks {
     suspend fun measureUChars(text: String, n: Int, locale: Locale = Locale.ENGLISH): Int = measure(text,n,locale,false,false)
     suspend fun measureLastUChars(text: String, n: Int, locale: Locale = Locale.ENGLISH): Int = measure(text,n,locale,true,false)
-    suspend fun measureUWords(text: String, n: Int, locale: Locale = Locale.ENGLISH): Int = measure(text,n,locale,false,true)
-    suspend fun measureLastUWords(text: String, n: Int, locale: Locale = Locale.ENGLISH): Int = measure(text,n,locale,true,true)
     fun measure(text: String, count: Int, locale: Locale, backwards: Boolean, words: Boolean): Int {
         val iterator = if (words) BreakIterator.getWordInstance(locale) else BreakIterator.getCharacterInstance(locale)
         iterator.setText(text)
@@ -34,25 +32,4 @@ object ReferencePlatform {
         if (text.getOrNull(start-1) == ':') start--
         return ReferenceEditorRange(start,end)
     }
-}
-class ReferenceComposer {
-    val toRead = 1
-    fun getActions(previous: String, char: String): Pair<Int,String> =
-        if (previous.endsWith("a") && char == "\u0301") 1 to "á" else 0 to char
-}
-class ReferenceFlorisEditorInfo(
-    val inputAttributes: ReferenceInputAttributes = ReferenceInputAttributes.wrap(0x4001),
-    val initialSelection: ReferenceEditorRange = ReferenceEditorRange.cursor(0),
-    val isRawInputEditor: Boolean = false,
-) {
-    val isRichInputEditor get() = !isRawInputEditor
-    val initialCapsMode get() = inputAttributes.capsMode
-    companion object { val Unspecified = ReferenceFlorisEditorInfo(isRawInputEditor = true) }
-}
-
-class ReferenceKeyboardManager { fun reevaluateInputShiftState() {} }
-class ReferenceSubtypeManager { val activeSubtype = ReferenceSubtype() }
-class ReferenceSubtype { val primaryLocale: Locale = Locale.ENGLISH; val composer = Unit }
-class ReferenceNlpManager {
-    suspend fun determineLocalComposing(text: CharSequence, breaks: ReferenceBreaks, last: Int): ReferenceEditorRange = ReferencePlatform.word(text.toString())
 }

@@ -2,41 +2,56 @@ package dev.patrickgold.florisboard.ime.editor
 
 import com.jtn0123.audiowhisper.golden.GoldenTape
 import com.jtn0123.audiowhisper.rust.*
+import dev.patrickgold.florisboard.ime.nlp.PunctuationRule
+import dev.patrickgold.florisboard.ime.text.key.KeyVariation
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
-/** The reference's side of each pairing also goes on a golden tape (docs/phase6-kotlin-references.md). */
+/**
+ * Rust's editor events, checked against golden tapes of the frozen reference flow's answers to the
+ * same events (docs/phase6-kotlin-references.md).
+ */
 class EditorFlowMatchTest {
+    /**
+     * The native editor driven as EditorInstance drives it: it keeps the spacing flags Rust hands
+     * back after each event, clears them on each selection update, and gives them back with the
+     * settings as the next event's context.
+     */
     internal class FlowPair(tape: GoldenTape) : AutoCloseable {
         val pair=EditorPlanMatchTest.Pairing(tape)
-        val flow=ReferenceEditorFlow(pair.old)
+        val autoSpace=EditorInstance.AutoSpaceState()
+        val phantomSpace=EditorInstance.PhantomSpaceState()
+        var autoSpacePunctuation=false
+        var immediateWord=true
         init{pair.start()}
+        /** EditorInstance.shouldDetermineComposingRegion, for this field. */
+        private fun determine()=!pair.new.raw&&!InputAttributes.wrap(pair.new.input).flagTextNoSuggestions&&
+            (phantomSpace.isInactive||phantomSpace.showComposingRegion)
+        private fun configure() {pair.new.phantom=phantomSpace.isActive;pair.new.determine=determine()}
         fun context() {
-            val s=flow.spacing
-            val rule=flow.punctuationRule
-            pair.new.phantom=s.phantomSpace.isActive
-            pair.new.determine=pair.old.determine
-            pair.new.session.call(EditorOp.CONTEXT,s.autoSpace.raw.toString(),s.phantomSpace.raw.toString(),flow.keyVariation.value.toString(),if(flow.autoSpacePunctuation)"1"else"0",
-                "en",rule.symbolsPrecedingAutoSpace,rule.symbolsFollowingAutoSpace,rule.symbolsPrecedingPhantomSpace,rule.symbolsFollowingPhantomSpace,if(flow.immediateWord)"1"else"0")
+            val rule=PunctuationRule.Fallback
+            configure()
+            pair.new.session.call(EditorOp.CONTEXT,autoSpace.bits.toString(),phantomSpace.bits.toString(),KeyVariation.NORMAL.value.toString(),if(autoSpacePunctuation)"1"else"0",
+                "en",rule.symbolsPrecedingAutoSpace,rule.symbolsFollowingAutoSpace,rule.symbolsPrecedingPhantomSpace,rule.symbolsFollowingPhantomSpace,if(immediateWord)"1"else"0")
         }
         fun run(op:EditorOp,vararg args:String) {
             context()
-            val a=flow.run(op.code,*args)
-            val b=pair.new.run(op,*args)
-            pair.result("event result $op",a,b)
+            pair.tape.answer("event result $op",pair.new.run(op,*args))
             pair.compare(op.code)
-            pair.result("spacing $op",listOf(flow.spacing.autoSpace.raw,flow.spacing.phantomSpace.raw),pair.new.session.call(EditorOp.SPACES).let{s->listOf(EditorSpaces.AUTO_SPACE,EditorSpaces.PHANTOM_SPACE).map{s[it].toInt()}})
+            val spaces=pair.new.session.call(EditorOp.SPACES).let{s->listOf(EditorSpaces.AUTO_SPACE,EditorSpaces.PHANTOM_SPACE).map{s[it].toInt()}}
+            pair.tape.answer("spacing $op",spaces)
+            autoSpace.bits=spaces[0];phantomSpace.bits=spaces[1]
         }
-        fun update() {
-            flow.update();pair.new.phantom=flow.spacing.phantomSpace.isActive;pair.new.determine=pair.old.determine
-            pair.reconcile()
-        }
+        private fun settle() {autoSpace.setInactiveFromUpdate();phantomSpace.setInactiveFromUpdate();configure()}
+        /** The selection update the field sends after an event. */
+        fun update() {settle();pair.reconcile()}
+        /** An edit from outside the keyboard, and its selection update. */
+        fun external(text:String,cursor:Int) {settle();pair.external(text,cursor)}
         override fun close()=pair.close()
     }
     @Test fun `autocorrect suggestion phantom word delete and dictation traces match`() {
-        val tape=GoldenTape.ofReference("editor-flow-public")
-        FlowPair(tape).use { p ->
+        GoldenTape.check("editor-flow-public") { tape -> FlowPair(tape).use { p ->
             for(c in "teh") {p.run(EditorOp.TYPE_CHAR,c.toString());p.update()}
             p.run(EditorOp.COMPLETION,"the");p.update();p.run(EditorOp.TYPE_TEXT," ");p.update()
             p.run(EditorOp.REVERT,"4","teh","1");p.update();p.run(EditorOp.TYPE_CHAR,"y");p.update()
@@ -48,20 +63,18 @@ class EditorFlowMatchTest {
             p.run(EditorOp.SELECT_AROUND,"2","0","0");p.update()
             p.run(EditorOp.SELECT_AROUND,"1","1","1");p.update()
             p.run(EditorOp.SELECT_AROUND,"0","0","0");p.update()
-            p.flow.autoSpacePunctuation=true
+            p.autoSpacePunctuation=true
             p.run(EditorOp.TYPE_CHAR,".");p.update();p.run(EditorOp.TYPE_CHAR,",");p.update()
-        }
-        tape.finish()
+        } }
     }
     @Test fun `25000 seeded editor events match final text state and ordered operations`() {
         val values=listOf("a","e"," ",".","\n","\u0301","😀","👨‍👩‍👧‍👦","אבג","hello")
         var count=0
         var operations=0
         var checkpoints=0
-        val tape=GoldenTape.ofReference("editor-flow-seeded")
-        for(seed in 100 until 200) FlowPair(tape).use { p ->
+        GoldenTape.check("editor-flow-seeded") { tape -> for(seed in 100 until 200) FlowPair(tape).use { p ->
             val r=Random(20261113+seed)
-            p.flow.autoSpacePunctuation=r.nextBoolean()
+            p.autoSpacePunctuation=r.nextBoolean()
             repeat(250) {
                 val value=values[r.nextInt(values.size)]
                 when(r.nextInt(12)) {
@@ -76,16 +89,13 @@ class EditorFlowMatchTest {
                     10 -> p.run(EditorOp.ENTER)
                     11 -> {
                         val text=values.shuffled(r).take(4).joinToString("")
-                        val pos=r.nextInt(text.length+1)
-                        p.flow.update();p.pair.new.phantom=p.flow.spacing.phantomSpace.isActive;p.pair.new.determine=p.pair.old.determine
-                        p.pair.external(text,pos)
+                        p.external(text,r.nextInt(text.length+1))
                     }
                 }
                 p.update();count++
             }
             operations+=p.pair.operationCount;checkpoints+=p.pair.calls
-        }
-        tape.finish()
+        } }
         println("editor flows: seeds=100 events=$count checkpoints=$checkpoints InputConnection_ops=$operations differences=0")
         assertEquals(25000,count)
     }
