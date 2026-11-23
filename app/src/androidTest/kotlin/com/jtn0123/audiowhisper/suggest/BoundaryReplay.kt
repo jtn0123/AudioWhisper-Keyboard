@@ -7,7 +7,6 @@ import com.jtn0123.audiowhisper.rust.ReaderRules
 import com.jtn0123.audiowhisper.rust.ReaderTree
 import com.jtn0123.audiowhisper.rust.ReaderWalk
 import com.jtn0123.audiowhisper.reader.PageText
-import com.jtn0123.audiowhisper.reader.ReferenceReader
 import com.jtn0123.audiowhisper.reader.TextBlock
 import java.io.File
 import java.security.MessageDigest
@@ -16,7 +15,8 @@ import org.json.JSONObject
 
 /**
  * Synthetic in-memory stores only. No microphone, playback, user text or user dictionary. The
- * reader's answers are recorded on the golden tape [TAPE] (docs/phase6-kotlin-references.md).
+ * reader's answers are recorded on the golden tape [TAPE], checked against the answers of the
+ * frozen ReferenceReader it replaced (docs/phase6-kotlin-references.md).
  */
 object BoundaryReplay {
     const val TAPE = "boundary-reader"
@@ -32,7 +32,7 @@ object BoundaryReplay {
     }
 
     private fun measure(engine: LatinDictionaryEngine, goldens: GoldenTape.Store): JSONObject {
-        val tape = GoldenTape.ofReference(TAPE, goldens)
+        val tape = GoldenTape(TAPE, goldens)
         val random = kotlin.random.Random(20261114)
         repeat(2_000) {
             val pieces = List(random.nextInt(64)) { index ->
@@ -40,16 +40,11 @@ object BoundaryReplay {
                     index / 3 * 40, index / 3 * 40 + 20, random.nextBoolean(), {})
             }
             fun signature(blocks: List<TextBlock>) = blocks.map { listOf(it.text, it.top, it.bottom, it.scrolls) }
-            val blocks = signature(ReferenceReader.PageText.blocks(pieces))
-            check(blocks == signature(PageText.blocks(pieces))) { "reader blocks sample $it" }
+            val blocks = signature(PageText.blocks(pieces))
             tape.record(listOf("blocks") + blocks.flatMap { block -> block.map { field -> field.toString() } })
-            val found = ReferenceReader.PageText.find(pieces, "hello", 0, 640)
-            check(found == PageText.find(pieces, "hello", 0, 640)) { "reader find sample $it" }
-            tape.answer("find", found)
+            tape.answer("find", PageText.find(pieces, "hello", 0, 640))
             val read = pieces.take(random.nextInt(pieces.size + 1)).map { it.text }
-            val resumed = ReferenceReader.PageText.resumeAfter(pieces, read)
-            check(resumed == PageText.resumeAfter(pieces, read)) { "reader resume sample $it" }
-            tape.answer("resumeAfter", resumed)
+            tape.answer("resumeAfter", PageText.resumeAfter(pieces, read))
         }
         tape.finish()
         val history = LearnedWords(null)
@@ -68,7 +63,7 @@ object BoundaryReplay {
             override fun child(id: Int, index: Int) = index + 1
         }
         val result = JSONObject()
-        result.put("reader_reference_comparisons", 6_000)
+        result.put("reader_golden_answers", 6_000)
         val units = List(65_536) { "x${it.toChar()}z" }
         val unitEdges = IntArray(units.size * 2) { it * 4 }
         val roundTrip = ReaderRules.join(units, unitEdges, BooleanArray(units.size))
