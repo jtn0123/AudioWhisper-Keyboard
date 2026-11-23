@@ -17,9 +17,7 @@ class ExtensionMetadataMatchTest {
     private fun outcome(body: () -> Any?): Any? = try { body() } catch (e: Exception) { e.javaClass.name to e.message }
     private fun encoded(extension: Extension) = ExtensionJsonConfig.encodeToString(Extension.serializer(), extension)
     private fun compare(text: String, tape: GoldenTape) {
-        val reference = outcome { encoded(ReferenceExtensionPolicy.decode(text)) }
-        tape.answer("decoded", reference)
-        assertEquals(reference, outcome { encoded(ExtensionCodec.decode(text)) })
+        tape.answer("decoded", outcome { encoded(ExtensionCodec.decode(text)) })
     }
 
     /** [result]'s text with each string resource by name: the ids change whenever a string is added. */
@@ -30,9 +28,9 @@ class ExtensionMetadataMatchTest {
     @Test fun everyBundledExtensionAndGeneratedManifestMatches() {
         val bundled = File("src/main/assets/ime").walkTopDown().filter { it.name == "extension.json" }.sortedBy { it.path }.toList()
         assertEquals(7, bundled.size)
-        // The reference's answers also go on a golden tape (docs/phase6-kotlin-references.md). The
-        // bundled extensions are on it, in path order, so a change to one means writing it again.
-        val tape = GoldenTape.ofReference("extension-manifests")
+        // Checked against golden digests of the reference's answers (docs/phase6-kotlin-references.md).
+        // The bundled extensions are on it, in path order, so a change to one means writing it again.
+        val tape = GoldenTape("extension-manifests")
         for (file in bundled) {
             compare(file.readText(), tape)
             val meta = ExtensionCodec.decode(file.readText()).meta
@@ -85,27 +83,18 @@ class ExtensionMetadataMatchTest {
         assertEquals(2, duplicate.components().size)
     }
 
-    private val rules: List<Pair<ValidationRule<String>, ValidationRule<String>>> get() = listOf(
-        ReferenceExtensionValidation.MetaId to ExtensionValidation.MetaId,
-        ReferenceExtensionValidation.MetaVersion to ExtensionValidation.MetaVersion,
-        ReferenceExtensionValidation.MetaTitle to ExtensionValidation.MetaTitle,
-        ReferenceExtensionValidation.MetaMaintainers to ExtensionValidation.MetaMaintainers,
-        ReferenceExtensionValidation.MetaLicense to ExtensionValidation.MetaLicense,
-        ReferenceExtensionValidation.ComponentId to ExtensionValidation.ComponentId,
-        ReferenceExtensionValidation.ComponentLabel to ExtensionValidation.ComponentLabel,
-        ReferenceExtensionValidation.ComponentAuthors to ExtensionValidation.ComponentAuthors,
-        ReferenceExtensionValidation.ThemeComponentStylesheetPath to ExtensionValidation.ThemeComponentStylesheetPath,
+    private val rules: List<ValidationRule<String>> get() = listOf(
+        ExtensionValidation.MetaId, ExtensionValidation.MetaVersion, ExtensionValidation.MetaTitle,
+        ExtensionValidation.MetaMaintainers, ExtensionValidation.MetaLicense, ExtensionValidation.ComponentId,
+        ExtensionValidation.ComponentLabel, ExtensionValidation.ComponentAuthors, ExtensionValidation.ThemeComponentStylesheetPath,
     )
-    private fun validations(tape: GoldenTape, value: String, selected: List<Pair<ValidationRule<String>, ValidationRule<String>>> = rules) {
-        for ((reference, actual) in selected) {
-            // Resource IDs, status/error class and substituted regex text determine Compose's exact message.
-            tape.record(named(validate(reference, value)))
-            assertEquals(validate(reference, value).toString(), validate(actual, value).toString())
-        }
+    private fun validations(tape: GoldenTape, value: String, selected: List<ValidationRule<String>> = rules) {
+        // Resource names, status/error class and substituted regex text determine Compose's exact message.
+        for (rule in selected) tape.record(named(validate(rule, value)))
     }
 
     @Test fun allUtf16AndSeededMetadataErrorsMatchComposeRules() {
-        val tape = GoldenTape.ofReference("extension-validations")
+        val tape = GoldenTape("extension-validations")
         for (unit in Char.MIN_VALUE..Char.MAX_VALUE) validations(tape, unit.toString(), listOf(rules[0], rules[5], rules[6]))
         val random = Random(20261113)
         val pieces = listOf("a", "Z", "0", "_", ".", "..", "é", "١", "\uD800", "😀", " ", "\n", "\t", "\u00a0", "\u001c", "/", "'", ":", "<", "*", "x".repeat(31))
@@ -115,10 +104,7 @@ class ExtensionMetadataMatchTest {
         assertTrue(ExtensionPolicy.metadataValid(fields[0], fields[1], fields[2], fields[3], fields[4]))
         repeat(5) { missing ->
             val values = fields.mapIndexed { i, v -> if (i == missing) " " else v }
-            val reference = listOf(rules[0].first, rules[1].first, rules[2].first, rules[3].first, rules[4].first)
-                .zip(values).all { (rule, value) -> validate(rule, value).isValid() }
-            tape.answer("valid without $missing", reference)
-            assertEquals(reference, ExtensionPolicy.metadataValid(values[0], values[1], values[2], values[3], values[4]))
+            tape.answer("valid without $missing", ExtensionPolicy.metadataValid(values[0], values[1], values[2], values[3], values[4]))
         }
         tape.finish()
     }
@@ -126,24 +112,19 @@ class ExtensionMetadataMatchTest {
     @Test fun componentNamesEditorPlansAndTypeDecisionsMatch() {
         val random = Random(20261114)
         val parts = listOf("", "a", ":", "a:b", "a:b:c", "\uD800", " ", "\n", "é", "local.theme")
-        val tape = GoldenTape.ofReference("extension-components")
+        val tape = GoldenTape("extension-components")
         repeat(5_000) {
             val value = List(random.nextInt(5)) { parts.random(random) }.joinToString("")
-            tape.answer("name", outcome { ReferenceExtensionPolicy.componentName(value) })
-            assertEquals(outcome { ReferenceExtensionPolicy.componentName(value) }, outcome { ExtensionComponentName.from(value) })
+            tape.answer("name", outcome { ExtensionComponentName.from(value) })
             val label = parts.random(random)
             val authors = List(random.nextInt(4)) { parts.random(random) }
             val path = parts.random(random)
-            tape.answer("theme", outcome { ReferenceExtensionPolicy.themeComponent(value, label, authors, path) })
-            tape.answer("stylesheet", ReferenceExtensionPolicy.stylesheet(value, path))
-            assertEquals(outcome { ReferenceExtensionPolicy.themeComponent(value, label, authors, path) },
-                outcome { ThemeExtensionComponentEditor(id = value, label = label, authors = authors, stylesheetPath = path).build() })
-            assertEquals(ReferenceExtensionPolicy.stylesheet(value, path), ExtensionPolicy.stylesheet(value, path))
+            tape.answer("theme", outcome { ThemeExtensionComponentEditor(id = value, label = label, authors = authors, stylesheetPath = path).build() })
+            tape.answer("stylesheet", ExtensionPolicy.stylesheet(value, path))
         }
         val serials = listOf("ime.extension.keyboard", "ime.extension.theme", "ime.extension.languagepack", "unknown", "")
         for (serial in serials) {
-            tape.answer("group $serial", outcome { ReferenceExtensionPolicy.group(serial) })
-            assertEquals(outcome { ReferenceExtensionPolicy.group(serial) }, outcome { ExtensionPolicy.group(serial) })
+            tape.answer("group $serial", outcome { ExtensionPolicy.group(serial) })
         }
         tape.finish()
         assertEquals("appender", ExtensionPolicy.composerType("unknown"))

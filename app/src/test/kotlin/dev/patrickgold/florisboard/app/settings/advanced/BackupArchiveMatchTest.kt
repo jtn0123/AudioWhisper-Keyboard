@@ -2,7 +2,6 @@ package dev.patrickgold.florisboard.app.settings.advanced
 
 import com.jtn0123.audiowhisper.golden.GoldenTape
 import com.jtn0123.audiowhisper.rust.BackupPolicy
-import dev.patrickgold.florisboard.lib.io.ReferenceZipUtils
 import dev.patrickgold.florisboard.lib.io.ZipUtils
 import dev.patrickgold.florisboard.ime.clipboard.provider.ClipboardItem
 import java.io.ByteArrayOutputStream
@@ -12,12 +11,11 @@ import java.security.MessageDigest
 import java.util.zip.CRC32
 import org.florisboard.lib.kotlin.io.readJson
 import kotlin.test.Test
-import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 
 class BackupArchiveMatchTest {
     private fun outcome(block: () -> Any?): Any? = try { block() } catch (e: Exception) {
-        e.javaClass.name to e.message?.replace("/reference/", "/destination/")?.replace("/actual/", "/destination/")
+        e.javaClass.name to e.message?.replace("/actual/", "/destination/")
     }
     private fun tree(root: File) = root.walkTopDown().filter { it.isFile }.associate {
         it.relativeTo(root).path to MessageDigest.getInstance("SHA-256").digest(it.readBytes()).toList()
@@ -48,11 +46,9 @@ class BackupArchiveMatchTest {
         for ((index, entries) in fixtures.withIndex()) {
             val parent = File(root, "$index").apply { mkdirs() }
             val archive = File(parent, "generated.zip").apply { writeBytes(zip(entries)) }
-            val reference = File(parent, "reference").apply { mkdirs() }
             val actual = File(parent, "actual").apply { mkdirs() }
-            assertEquals(outcome { ReferenceZipUtils.unzip(archive, reference) },
-                outcome { ZipUtils.unzip(archive, actual, BackupPolicy::archive) })
-            assertEquals(tree(reference), tree(actual))
+            // What the extraction leaves is checked in everyArchiveExtractsAsTheLegacyExtractionDid.
+            outcome { ZipUtils.unzip(archive, actual, BackupPolicy::archive) }
             assertFalse(File(parent, "escape").exists())
             val inspected = outcome {
                 val data = try { File(actual, "backup_metadata.json").readJson<Backup.Metadata>() }
@@ -60,12 +56,6 @@ class BackupArchiveMatchTest {
                 BackupPolicy.metadata(data.packageName, data.versionCode, 100)
             }
             tape.answer("inspect $index", inspected)
-            for (path in BackupPolicy.layout("jetpref/preferences.json").drop(3)) {
-                val left = File(reference, path)
-                val right = File(actual, path)
-                if (left.exists()) assertEquals(outcome { left.readJson<List<ClipboardItem>>().size },
-                    outcome { right.readJson<List<ClipboardItem>>().size })
-            }
             val paths = BackupPolicy.layout("jetpref/preferences.json")
             for (mask in 0..63) for (erase in listOf(false, true)) {
                 val present = paths.map { File(actual, it).exists() }
@@ -73,26 +63,20 @@ class BackupArchiveMatchTest {
             }
         }
         tape.finish()
-        for ((i, bytes) in corrupt.withIndex()) {
-            val parent = File(root, "corrupt-$i").apply { mkdirs() }
-            val archive = File(parent, "generated.zip").apply { writeBytes(bytes) }
-            assertEquals(outcome { ReferenceZipUtils.unzip(archive, File(parent, "reference")) },
-                outcome { ZipUtils.unzip(archive, File(parent, "actual"), BackupPolicy::archive) })
-        }
     }
     /**
-     * The legacy extraction of every archive, on a golden tape (docs/phase6-kotlin-references.md):
-     * each tree in path order, each message without the checkout's path, and each clipboard file's
-     * size or failure, whose bytes the tree already holds.
+     * The extraction of every archive, checked against golden digests of the legacy extraction's
+     * (docs/phase6-kotlin-references.md): each tree in path order, each message without the
+     * checkout's path, and each clipboard file's size or failure, whose bytes the tree already holds.
      */
     @Test fun everyArchiveExtractsAsTheLegacyExtractionDid() {
         val root = File("build/stage2-backup-utils/extractions").apply { deleteRecursively(); mkdirs() }
-        val tape = GoldenTape.ofReference("backup-unzips")
+        val tape = GoldenTape("backup-unzips")
         for ((index, entries) in fixtures.withIndex()) {
             val parent = File(root, "$index").apply { mkdirs() }
             val archive = File(parent, "generated.zip").apply { writeBytes(zip(entries)) }
             val into = File(parent, "into").apply { mkdirs() }
-            tape.answer("unzip $index", stable(outcome { ReferenceZipUtils.unzip(archive, into) }, root))
+            tape.answer("unzip $index", stable(outcome { ZipUtils.unzip(archive, into, BackupPolicy::archive) }, root))
             tape.answer("tree $index", tree(into).toSortedMap())
             for (path in BackupPolicy.layout("jetpref/preferences.json").drop(3)) {
                 val file = File(into, path)
@@ -105,7 +89,7 @@ class BackupArchiveMatchTest {
         for ((i, bytes) in corrupt.withIndex()) {
             val parent = File(root, "corrupt-$i").apply { mkdirs() }
             val archive = File(parent, "generated.zip").apply { writeBytes(bytes) }
-            tape.answer("corrupt $i", stable(outcome { ReferenceZipUtils.unzip(archive, File(parent, "into")) }, root))
+            tape.answer("corrupt $i", stable(outcome { ZipUtils.unzip(archive, File(parent, "into"), BackupPolicy::archive) }, root))
         }
         tape.finish()
     }

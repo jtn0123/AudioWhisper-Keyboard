@@ -9,8 +9,8 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * Seeded traces holding what a crash leaves behind, now Rust's ([afterCrash] over
- * utilities::crash), to main's ([ReferenceCrash]): crashes at moving times (a few a second, some
+ * Seeded traces holding what a crash leaves behind, Rust's ([afterCrash] over utilities::crash),
+ * checked against the golden digests of main's answers (docs/phase6-kotlin-references.md): crashes at moving times (a few a second, some
  * minutes apart, the clock set back now and then), the crash screen reading and deleting the
  * reports between them, and the app's data cleared, every crash a process that died. Every call to
  * Android is an effect, in order. Also the crash screen's report, against main's, and the handler
@@ -55,7 +55,19 @@ class CrashTraceTest {
         }
     }
 
-    private fun trace(seed: Long, reference: Boolean): List<String> {
+    /** A crash screen's facts, a CrashFact row's fields. */
+    private class Facts(
+        val versionName: String,
+        val versionCode: Int,
+        val debug: Boolean,
+        val commitUrl: String,
+        val changelogUrl: String,
+        val device: String,
+        val android: String,
+        val debugLog: String,
+    )
+
+    private fun trace(seed: Long): List<String> {
         val random = Random(seed)
         val host = FakeHost()
         var now = 1_700_000_000_000L
@@ -71,7 +83,7 @@ class CrashTraceTest {
                     // The handler writes the report first, as uncaughtException does.
                     host.files[now] = stacktrace
                     host.effects += "crash"
-                    if (reference) ReferenceCrash.afterCrash(host, stacktrace, now) else afterCrash(host, stacktrace, now)
+                    afterCrash(host, stacktrace, now)
                 }
                 in 14..17 -> host.effects += "screen read ${host.files.size}".also { host.files.clear() }
                 18 -> if (random.nextInt(10) == 0) {
@@ -87,15 +99,10 @@ class CrashTraceTest {
 
     @Test
     fun crashesMatchMain() {
-        // The reference's effects also go on a golden tape (docs/phase6-kotlin-references.md).
-        val tape = GoldenTape.ofReference("crash-traces")
+        val tape = GoldenTape("crash-traces")
         for (seed in SEEDS) {
-            val main = trace(seed, reference = true)
+            val main = trace(seed)
             main.forEach(tape::record)
-            val new = trace(seed, reference = false)
-            val first = main.indices.firstOrNull { it >= new.size || main[it] != new[it] }
-            assertEquals(null, first, "seed $seed: first difference")
-            assertEquals(main.size, new.size, "seed $seed: lengths")
             val seen = mapOf(
                 "crashes" to main.count { it == "crash" },
                 "last checked" to main.count { it.startsWith("read ") },
@@ -107,7 +114,7 @@ class CrashTraceTest {
                     .zipWithNext().count { (a, b) -> b < a },
                 "data cleared" to main.count { it == "data cleared" },
             )
-            println("Crash trace seed $seed: $EVENTS events, ${main.size} effects, 0 differ, seen $seen")
+            println("Crash trace seed $seed: $EVENTS events, ${main.size} effects, seen $seen")
             for ((kind, count) in seen) assertTrue(count >= MIN_SEEN, "seed $seed saw $kind $count times")
         }
         tape.finish()
@@ -115,27 +122,23 @@ class CrashTraceTest {
 
     @Test
     fun reportsMatchMain() {
-        val tape = GoldenTape.ofReference("crash-reports")
+        val tape = GoldenTape("crash-reports")
         for (seed in SEEDS) {
             val random = Random(seed)
             var debug = 0
             var traces = 0
-            repeat(REPORTS) { n ->
-                val facts = ReferenceCrash.Facts(
+            repeat(REPORTS) {
+                val facts = Facts(
                     text(random), random.nextInt(), random.nextBoolean(), text(random), text(random),
                     text(random), text(random), text(random),
                 )
                 val stacktraces = List(random.nextInt(0, 4)) { CrashUtility.Stacktrace(text(random), text(random)) }
-                val main = ReferenceCrash.report(facts, stacktraces)
-                tape.record(main)
-                val new = CrashRules.report(row(facts), facts.debug, stacktraces.map { it.name }.toTypedArray(),
-                    stacktraces.map { it.details }.toTypedArray())
-                assertEquals(main.length, new.length, "seed $seed report $n: lengths")
-                assertTrue(main == new, "seed $seed report $n: same text")
+                tape.record(CrashRules.report(row(facts), facts.debug, stacktraces.map { it.name }.toTypedArray(),
+                    stacktraces.map { it.details }.toTypedArray()))
                 if (facts.debug) debug++
                 traces += stacktraces.size
             }
-            println("Crash report trace seed $seed: $REPORTS reports, $debug debug, $traces stack traces, 0 differ")
+            println("Crash report trace seed $seed: $REPORTS reports, $debug debug, $traces stack traces")
             assertTrue(debug >= MIN_SEEN && REPORTS - debug >= MIN_SEEN && traces >= MIN_SEEN)
         }
         tape.finish()
@@ -144,7 +147,7 @@ class CrashTraceTest {
     /** A report carries its inputs and fixed headings, nothing else: no text of the user's can join it. */
     @Test
     fun aReportAddsNothingButItsHeadings() {
-        val facts = ReferenceCrash.Facts("V", 1, false, "C", "L", "D", "A", "G")
+        val facts = Facts("V", 1, false, "C", "L", "D", "A", "G")
         val empty = CrashRules.report(row(facts), false, emptyArray(), emptyArray())
         val withTrace = CrashRules.report(row(facts), false, arrayOf("N"), arrayOf("T"))
         val skeleton = "#### Environment information\n- FlorisBoard [V](L) (1)\n- Device: D\n- Android: A\n\n" +
@@ -176,7 +179,7 @@ class CrashTraceTest {
         }
     }
 
-    private fun row(facts: ReferenceCrash.Facts): Array<String> {
+    private fun row(facts: Facts): Array<String> {
         val row = Array(CrashFact.SIZE) { "" }
         row[CrashFact.VERSION_NAME] = facts.versionName
         row[CrashFact.VERSION_CODE] = facts.versionCode.toString()

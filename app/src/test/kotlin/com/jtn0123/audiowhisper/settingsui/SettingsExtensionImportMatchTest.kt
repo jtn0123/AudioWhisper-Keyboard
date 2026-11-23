@@ -8,7 +8,6 @@ import dev.patrickgold.florisboard.ime.theme.ThemeExtension
 import dev.patrickgold.florisboard.lib.cache.CacheManager
 import dev.patrickgold.florisboard.lib.ext.ExtensionMaintainer
 import dev.patrickgold.florisboard.lib.ext.ExtensionMeta
-import dev.patrickgold.florisboard.lib.ext.ReferenceExtensionPolicy
 import dev.patrickgold.florisboard.lib.io.FileRegistry
 import kotlinx.serialization.json.*
 import java.io.File
@@ -16,8 +15,9 @@ import kotlin.random.Random
 import kotlin.test.*
 
 /**
- * The importer through the real native settings, its report built by ExtensionFileWork's own [importRows], against what
- * the frozen ExtensionImportScreen decided for the same files: which it skipped and why, and which Import imported.
+ * The importer through the real native settings, its report built by ExtensionFileWork's own [importRows], against golden
+ * digests of what the frozen ExtensionImportScreen decided for the same files (docs/phase6-kotlin-references.md): which
+ * it skipped and why, and which Import imported.
  * One change is named: a file of a type the importer does not take is shown skipped, and Import stays off when nothing
  * else can be imported, where Compose listed it as importable, left it out and still said the import worked.
  * Every name and id is made up.
@@ -32,9 +32,7 @@ class SettingsExtensionImportMatchTest {
     private fun node(s: JsonObject, id: Int) = nodes(s).singleOrNull { it.text("id") == id.toString() }
 
     private val random = Random(2020)
-    private val reasons = mapOf("unsupported" to "R:unsupported", "corrupted" to "R:corrupted", "core" to "R:core")
-    private val types = listOf("EXT_ANY" to "ext-any", "EXT_KEYBOARD" to "ext-keyboard", "EXT_THEME" to "ext-theme",
-        "EXT_LANGUAGEPACK" to "ext-languagepack")
+    private val types = listOf("EXT_ANY", "EXT_KEYBOARD", "EXT_THEME", "EXT_LANGUAGEPACK")
     private val core = setOf("core.ext")
 
     private fun meta(id: String) = ExtensionMeta(id = id, version = "1.${random.nextInt(9)}", title = "Title $id",
@@ -65,39 +63,30 @@ class SettingsExtensionImportMatchTest {
         assertEquals(listOf(listOf(SettingsUiExtensionEffect.FILES, "w1")), effects(state(n, SettingsUiOp.NAVIGATE, route)))
         return state(n, SettingsUiOp.EXTENSION_FILES, *importRows("w1", files, { "$it B" }) { it in core })
     }
-    /** What ExtensionImportScreen's getSkipReason said of [info]: an ExtensionSkipReason, or empty. */
-    private fun composeSkip(info: CacheManager.FileInfo) = ReferenceExtensionPolicy.skip(
-        FileRegistry.matchesFileFilter(info, listOf(FileRegistry.FlexExtension)), info.ext != null, info.ext?.meta?.id in core)
     private fun boxLabels(s: JsonObject, f: Int) =
         nodes(s).filter { it.text("id").toInt() in 321_000 + 1000 * f until 322_000 + 1000 * f }.map { it.text("label") }
 
     @Test fun eachFileShowsWhatComposeShowedAndImportImportsWhatComposeImported() {
-        // What Compose showed and imported also goes on a golden tape (docs/phase6-kotlin-references.md).
-        val tape = GoldenTape.ofReference("extension-import")
+        val tape = GoldenTape("extension-import")
         repeat(40) {
             val files = List(1 + random.nextInt(5)) { file(it) }
-            for ((type, id) in types) KeyboardRenderer(arrayOf(font)).use { n ->
+            for (type in types) KeyboardRenderer(arrayOf(font)).use { n ->
                 val s = open(n, type, files)
-                val takes = files.map { f -> f.ext?.let { ReferenceExtensionPolicy.accepts(id, it.serialType()) } == true }
                 for ((f, info) in files.withIndex()) {
                     val labels = boxLabels(s, f)
                     assertEquals(listOf(info.file.name, info.mediaType ?: "application/unknown"), labels.take(2))
                     val head = listOfNotNull("${info.size} B", info.ext?.meta?.id, info.ext?.meta?.version).joinToString(" • ")
                     assertEquals(head, labels[2])
-                    val compose = composeSkip(info)
-                    val shown = reasons[compose] ?: "R:other".takeIf { !takes[f] }
-                    tape.answer("shown $type $f", shown)
-                    assertEquals(shown, labels.last().takeIf { it.startsWith("R:") }, "$type $f")
+                    tape.answer("shown $type $f", labels.last().takeIf { it.startsWith("R:") })
                 }
-                val imported = files.indices.filter { composeSkip(files[it]).isEmpty() && takes[it] }
-                tape.answer("imported $type", imported.joinToString(","))
-                val import = node(s, 1002)!!
-                assertEquals(imported.isNotEmpty().toString(), import.text("enabled"), type)
-                if (imported.isEmpty()) return@use
-                val work = effects(state(n, SettingsUiOp.ACTIVATE, "1002")).single()
-                assertEquals(SettingsUiJob.EXT_IMPORT, work[SettingsUiWork.JOB])
-                assertEquals("w1", work[SettingsUiWork.EXTENSION])
-                assertEquals(imported.joinToString(","), work[SettingsUiWork.TEXT])
+                val enabled = node(s, 1002)!!.text("enabled") == "true"
+                val imported = if (!enabled) "" else {
+                    val work = effects(state(n, SettingsUiOp.ACTIVATE, "1002")).single()
+                    assertEquals(SettingsUiJob.EXT_IMPORT, work[SettingsUiWork.JOB])
+                    assertEquals("w1", work[SettingsUiWork.EXTENSION])
+                    work[SettingsUiWork.TEXT].also { assertTrue(it.isNotEmpty(), "$type: Import on with nothing to import") }
+                }
+                tape.answer("imported $type", imported)
             }
         }
         tape.finish()
@@ -106,7 +95,6 @@ class SettingsExtensionImportMatchTest {
     /** Compose's Import was on whenever one file passed getSkipReason, even when its type was not the importer's. */
     @Test fun aFileOfAnotherTypeIsShownSkippedAndLeavesImportOff() {
         val theme = CacheManager.FileInfo(File("/nowhere/a.flex"), FileRegistry.FlexExtension.mediaType, 9, ThemeExtension(meta("t.ext"), themes = emptyList()))
-        assertEquals("", composeSkip(theme))
         KeyboardRenderer(arrayOf(font)).use { n ->
             val s = open(n, "EXT_KEYBOARD", listOf(theme))
             assertEquals("R:other", boxLabels(s, 0).last())

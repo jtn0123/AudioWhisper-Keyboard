@@ -4,7 +4,6 @@ import com.jtn0123.audiowhisper.golden.GoldenTape
 import com.jtn0123.audiowhisper.rust.*
 import dev.patrickgold.florisboard.app.settings.advanced.Backup
 import dev.patrickgold.florisboard.app.settings.advanced.BackupFiles
-import dev.patrickgold.florisboard.lib.io.ReferenceZipUtils
 import kotlinx.serialization.json.*
 import java.io.File
 import org.florisboard.lib.kotlin.io.writeJson
@@ -48,12 +47,22 @@ class SettingsBackupFlowTest {
         val input = File(root, "in$mask").apply { mkdirs() }
         for ((group, path) in paths.withIndex()) if ((mask and (1 shl group)) != 0) {
             val file = if (group in 1..2) File(input, "$path/x/extension.json") else File(input, path)
-            file.parentFile.mkdirs()
+            checkNotNull(file.parentFile).mkdirs()
             file.writeText(if (group >= 3) "[]" else "{}")
         }
         val metadata = Backup.Metadata(PACKAGE, 120, "1.2", 1_763_719_200_000)
         File(input, BackupPolicy.metadataName).writeJson(metadata)
-        return File(root, "backup$mask.zip").also { ReferenceZipUtils.zip(input, it) }
+        return File(root, "backup$mask.zip").also { zip ->
+            // Written as ZipUtils.zip wrote a folder: each folder's entry, then what it holds.
+            java.util.zip.ZipOutputStream(zip.outputStream()).use { out ->
+                input.walkTopDown().filter { it != input }.forEach { file ->
+                    val path = file.relativeTo(input).invariantSeparatorsPath
+                    out.putNextEntry(java.util.zip.ZipEntry(if (file.isDirectory) "$path/" else path))
+                    if (file.isFile) file.inputStream().use { it.copyTo(out) }
+                    out.closeEntry()
+                }
+            }
+        }
     }
     private fun work(e: List<List<String>>) = e.single { it[0] == SettingsUiFileEffect.WORK }
 

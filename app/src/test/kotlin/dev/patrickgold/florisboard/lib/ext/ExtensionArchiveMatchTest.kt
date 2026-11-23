@@ -2,7 +2,6 @@ package dev.patrickgold.florisboard.lib.ext
 
 import com.jtn0123.audiowhisper.golden.GoldenTape
 import com.jtn0123.audiowhisper.rust.ExtensionPolicy
-import dev.patrickgold.florisboard.lib.io.ReferenceZipUtils
 import dev.patrickgold.florisboard.lib.io.ZipUtils
 import java.io.ByteArrayOutputStream
 import java.io.File
@@ -17,7 +16,7 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class ExtensionArchiveMatchTest {
-    private fun outcome(body: () -> Unit): Any = try { body(); "ok" } catch (e: Exception) { e.javaClass.name to e.message?.replace("/reference/", "/destination/")?.replace("/actual/", "/destination/") }
+    private fun outcome(body: () -> Unit): Any = try { body(); "ok" } catch (e: Exception) { e.javaClass.name to e.message?.replace("/actual/", "/destination/") }
     private fun tree(root: File) = root.walkTopDown().filter { it.isFile }.associate {
         it.relativeTo(root).path to MessageDigest.getInstance("SHA-256").digest(it.readBytes()).toList()
     }
@@ -25,14 +24,10 @@ class ExtensionArchiveMatchTest {
     private fun stable(value: Any?, root: File) = value.toString().replace(root.canonicalPath, "<root>")
         .replace(root.absolutePath, "<root>").replace(root.path, "<root>")
     private fun encoded(extension: Extension) = ExtensionJsonConfig.encodeToString(Extension.serializer(), extension)
-    private fun compare(zip: File, parent: File, root: File, tape: GoldenTape) {
-        val reference = File(parent, "reference").apply { mkdirs() }
+    private fun extract(zip: File, parent: File, root: File, tape: GoldenTape) {
         val actual = File(parent, "actual").apply { mkdirs() }
-        val unzipped = outcome { ReferenceZipUtils.unzip(zip, reference) }
-        tape.answer("unzip", stable(unzipped, root))
-        tape.answer("tree", tree(reference).toSortedMap())
-        assertEquals(unzipped, outcome { ZipUtils.unzip(zip, actual) })
-        assertEquals(tree(reference), tree(actual))
+        tape.answer("unzip", stable(outcome { ZipUtils.unzip(zip, actual) }, root))
+        tape.answer("tree", tree(actual).toSortedMap())
         assertFalse(File(parent, "escape.txt").exists())
     }
 
@@ -51,19 +46,19 @@ class ExtensionArchiveMatchTest {
             listOf("extension.json" to metadata, "extension.json" to metadata.replace("local.fixture", "local.last")),
             listOf("directory/" to "", "directory/../inside.txt" to "Inside", "literal\\..\\name.txt" to "Backslash"),
         )
-        // The reference's extraction also goes on a golden tape (docs/phase6-kotlin-references.md):
-        // each tree in path order, each message without the checkout's path, each manifest as encoded.
-        val tape = GoldenTape.ofReference("extension-unzips")
+        // The extraction is checked against golden digests of the reference's
+        // (docs/phase6-kotlin-references.md): each tree in path order, each message without the
+        // checkout's path, each manifest as encoded.
+        val tape = GoldenTape("extension-unzips")
         for ((i, entries) in cohorts.withIndex()) {
             val parent = File(root, i.toString()).apply { mkdirs() }
             val zip = File(parent, "fixture.flex")
             zip.writeBytes(zip(entries))
-            compare(zip, parent, root, tape)
+            extract(zip, parent, root, tape)
             val manifest = File(parent, "actual/extension.json")
             if (manifest.exists()) {
-                val decoded = runCatching { encoded(ReferenceExtensionPolicy.decode(manifest.readText())) }
+                val decoded = runCatching { encoded(ExtensionCodec.decode(manifest.readText())) }
                 tape.answer("manifest $i", stable(decoded.getOrElse { it.javaClass.name to it.message }, root))
-                assertEquals(outcome { ReferenceExtensionPolicy.decode(manifest.readText()) }, outcome { ExtensionCodec.decode(manifest.readText()) })
             }
         }
         // The real ZIP reader reports this generated expanded size, without keeping a 100 MB byte array.
@@ -76,7 +71,7 @@ class ExtensionArchiveMatchTest {
             out.closeEntry()
         }
         val largeDir = File(root, "large").apply { mkdirs() }
-        compare(large, largeDir, root, tape)
+        extract(large, largeDir, root, tape)
         tape.finish()
         assertTrue(File(largeDir, "actual/large.bin").exists())
         assertEquals(0L, File(largeDir, "actual/large.bin").length())

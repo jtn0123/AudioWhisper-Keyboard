@@ -6,10 +6,11 @@ import com.jtn0123.audiowhisper.rust.SettingsUiFiles
 import com.jtn0123.audiowhisper.golden.GoldenTape
 import com.jtn0123.audiowhisper.rust.SettingsUiJob
 import com.jtn0123.audiowhisper.rust.SettingsUiJobResult
-import dev.patrickgold.florisboard.lib.io.ReferenceZipUtils
 import java.io.File
 import java.security.MessageDigest
+import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
+import java.util.zip.ZipOutputStream
 import org.florisboard.lib.kotlin.io.writeJson
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -17,8 +18,10 @@ import kotlin.test.assertTrue
 
 /**
  * The archives Rust's Back up and Restore ask for, against what Compose's BackupScreen wrote and
- * RestoreScreen read. Compose's steps are copied below as [composeArchive]; the zip they used is
- * [ReferenceZipUtils], FlorisBoard's own, so no code under test makes the fixtures.
+ * RestoreScreen read. Compose's steps are copied below as [composeArchive]; the zip they used,
+ * FlorisBoard's own ZipUtils, is written as it wrote it by [zipped], so no code under test makes the
+ * fixtures. What Compose's archives held and unpacked to are golden digests
+ * (docs/phase6-kotlin-references.md).
  */
 class BackupFilesTest {
     private val root = File("build/backup-files-test").apply { deleteRecursively(); mkdirs() }
@@ -34,10 +37,10 @@ class BackupFilesTest {
             if ((mask and (1 shl group)) == 0) continue
             val file = File(input, path)
             when (group) {
-                0 -> file.apply { parentFile.mkdirs() }.writeText("""{"type":"jetpref-datastore","entries":["b;keyboard__x;true"]}""")
-                1, 2 -> File(file, "org.example.$group/extension.json").apply { parentFile.mkdirs() }.writeText("{\"id\":$group}")
-                3 -> file.apply { parentFile.mkdirs() }.writeText(textClip)
-                else -> file.apply { parentFile.mkdirs() }.writeText("[]")
+                0 -> file.apply { checkNotNull(parentFile).mkdirs() }.writeText("""{"type":"jetpref-datastore","entries":["b;keyboard__x;true"]}""")
+                1, 2 -> File(file, "org.example.$group/extension.json").apply { checkNotNull(parentFile).mkdirs() }.writeText("{\"id\":$group}")
+                3 -> file.apply { checkNotNull(parentFile).mkdirs() }.writeText(textClip)
+                else -> file.apply { checkNotNull(parentFile).mkdirs() }.writeText("[]")
             }
         }
         return input
@@ -46,8 +49,17 @@ class BackupFilesTest {
     private fun composeArchive(input: File, output: File, metadata: Backup.Metadata): File {
         File(input, BackupPolicy.metadataName).writeJson(metadata)
         val zip = File(output, BackupPolicy.fileName(metadata.packageName, metadata.versionCode, metadata.timestamp))
-        ReferenceZipUtils.zip(input, zip)
+        zipped(input, zip)
         return zip
+    }
+    /** [input] zipped as ZipUtils.zip wrote a folder: each folder's entry, then what it holds. */
+    private fun zipped(input: File, zip: File) = ZipOutputStream(zip.outputStream()).use { out ->
+        input.walkTopDown().filter { it != input }.forEach { file ->
+            val path = file.relativeTo(input).invariantSeparatorsPath
+            out.putNextEntry(ZipEntry(if (file.isDirectory) "$path/" else path))
+            if (file.isFile) file.inputStream().use { it.copyTo(out) }
+            out.closeEntry()
+        }
     }
     private fun sha(bytes: ByteArray) = MessageDigest.getInstance("SHA-256").digest(bytes).toList()
     private fun entries(zip: File): Map<String, List<Byte>> = ZipInputStream(zip.inputStream()).use { input ->
@@ -65,27 +77,26 @@ class BackupFilesTest {
     }
 
     @Test fun aBackupIsTheArchiveComposeMadeUnderTheNameItGave() {
-        // The reference's archives also go on a golden tape, entries in name order
-        // (docs/phase6-kotlin-references.md).
-        val tape = GoldenTape.ofReference("backup-packs")
+        // Entries in name order.
+        val tape = GoldenTape("backup-packs")
         for (mask in listOf(0b111111, 0b000111, 0b000001, 0b000110, 0b111000)) {
             val compose = composeArchive(filled(dir("c$mask/in"), mask), dir("c$mask/out"), metadata)
-            tape.answer("name $mask", compose.name)
-            tape.answer("entries $mask", entries(compose).toSortedMap())
             val ours = BackupFiles.pack(filled(dir("o$mask/in"), mask), dir("o$mask/out"), metadata)
+            tape.answer("name $mask", ours.name)
+            tape.answer("entries $mask", entries(ours).toSortedMap())
             assertEquals(compose.name, ours.name)
             assertEquals(entries(compose), entries(ours), "mask $mask")
         }
         tape.finish()
     }
 
-    /** The tree Compose's restore unpacked from every backup, on a golden tape in path order. */
+    /** Every backup unpacks to the tree Compose's restore unpacked, in path order. */
     @Test fun everyComposeBackupUnpacksToTheTreeComposeUnpacked() {
-        val tape = GoldenTape.ofReference("backup-files-trees")
+        val tape = GoldenTape("backup-files-trees")
         for (mask in 1..63) {
             val archive = composeArchive(filled(dir("t$mask/in"), mask), dir("t$mask/out"), metadata)
-            val compose = dir("t$mask/compose").also { ReferenceZipUtils.unzip(archive, it) }
-            tape.answer("tree $mask", tree(compose).toSortedMap())
+            inspect(archive, "t$mask/read")
+            tape.answer("tree $mask", tree(File(root, "t$mask/read")).toSortedMap())
         }
         tape.finish()
     }
@@ -103,9 +114,8 @@ class BackupFilesTest {
             assertEquals(listOf(metadata.packageName, "120", "1.2", "made ${metadata.timestamp}", "$mask", "0"),
                 listOf(SettingsUiDone.PACKAGE, SettingsUiDone.VERSION_CODE, SettingsUiDone.VERSION_NAME,
                     SettingsUiDone.DATE, SettingsUiDone.PRESENT, SettingsUiDone.DAMAGED).map { report[it] })
-            val compose = dir("m$mask/compose").also { ReferenceZipUtils.unzip(archive, it) }
-            assertEquals(tree(compose), tree(File(root, "m$mask/read")))
-            val present = paths.map { File(compose, it).exists() }
+            // The tree it unpacks to is checked in everyComposeBackupUnpacksToTheTreeComposeUnpacked.
+            val present = paths.map { File(File(root, "m$mask/read"), it).exists() }
             assertEquals((0 until 6).map { (mask and (1 shl it)) != 0 }, present)
             // The screen offers only the groups a backup holds, so its mask is the selection's part of them.
             // Compose's plan, less the erasing of groups the backup lacks, which emptied them in
