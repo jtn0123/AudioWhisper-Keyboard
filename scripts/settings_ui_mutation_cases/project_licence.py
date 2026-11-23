@@ -17,7 +17,7 @@ CASES = [
     ('licence-every-line-drawn', PL / 'paint.rs',
      'if y + line.height <= clip.top || y >= clip.bottom || shown.is_empty() {', 'if shown.is_empty() {'),
     ('licence-not-monospace', PL / 'paint.rs',
-     'style.mono = true;', 'style.mono = false;'),
+     'style.font = crate::text::Font::Mono;', 'style.font = crate::text::Font::Sans;'),
     ('licence-handles-out-of-view', PL / 'paint.rs',
      'if x < v.left || x > v.right || bottom < v.top || bottom > v.bottom {', 'if false {'),
     ('long-press-from-finger', PL / 'selection.rs',

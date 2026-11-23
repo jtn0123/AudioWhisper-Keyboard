@@ -54,18 +54,18 @@ impl Panel {
             - message.padding[2];
         for (i, height) in m.messages.iter_mut().enumerate() {
             let mut layout =
-                text.layout_weight(&c.label(17 + i), message.size, message.mono, message.weight);
+                text.layout_weight(&c.label(17 + i), message.size, message.font, message.weight);
             layout.break_all_lines(Some(w.max(1.0)));
             *height = layout.height() + message.padding[1] + message.padding[3];
         }
         let button = theme.style(&r.element("clipboard-clear-all-dialog-button", 0));
         for (i, size) in m.buttons.iter_mut().enumerate() {
             *size = [
-                text.measure(&c.label(19 + i), button.size, button.mono, button.weight)
+                text.measure(&c.label(19 + i), button.size, button.font, button.weight)
                     + 48.0 * self.density
                     + button.padding[0]
                     + button.padding[2],
-                text.height(&c.label(19 + i), button.size, button.mono, button.weight)
+                text.height(&c.label(19 + i), button.size, button.font, button.weight)
                     + 16.0 * self.density
                     + button.padding[1]
                     + button.padding[3],

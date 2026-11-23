@@ -27,14 +27,14 @@ impl Panel {
             let style = theme.style(&request.element("clipboard-filter-chip", 0));
             let body = theme.style(&request.element("media", 0));
             let size = 16.0 * self.density * theme.font_scale();
-            let mut message = text.layout_weight(&g.label(2), size, body.mono, body.weight);
+            let mut message = text.layout_weight(&g.label(2), size, body.font, body.weight);
             message.break_all_lines(Some((width - 56.0 * self.density).max(1.0)));
             g.message_height = message.height().max(size);
             g.chip_widths = g
                 .chips
                 .iter()
                 .map(|label| {
-                    text.measure(label, style.size, style.mono, style.weight)
+                    text.measure(label, style.size, style.font, style.weight)
                         + style.padding[0]
                         + style.padding[2]
                         + style.margin[0]
@@ -45,28 +45,28 @@ impl Panel {
         let style = theme.style(&request.element("smartbar-actions-editor-subheader", 0));
         for g in 0..3 {
             self.subheaders[g] =
-                text.height(&self.title(g + 2), style.size, style.mono, style.weight)
+                text.height(&self.title(g + 2), style.size, style.font, style.weight)
                     + style.padding[1]
                     + style.padding[3]
                     + style.margin[1]
                     + style.margin[3];
         }
         let header = theme.style(&request.element("media-emoji-subheader", 0));
-        self.emoji_header = text.height("Recent", header.size, header.mono, header.weight)
+        self.emoji_header = text.height("Recent", header.size, header.font, header.weight)
             + header.margin[1]
             + header.margin[3];
         if let Some(e) = &self.emoji {
             let body = theme.style(&request.element("media", 0));
             for (n, index) in [11, 12].iter().enumerate() {
                 let mut layout =
-                    text.layout_weight(&e.label(*index), body.size, body.mono, body.weight);
+                    text.layout_weight(&e.label(*index), body.size, body.font, body.weight);
                 layout.break_all_lines(Some((width - 16.0 * self.density).max(1.0)));
                 self.message_heights[n] = layout.height();
             }
         }
         let bottom = theme.style(&request.element("media-bottom-row-button", 0));
         self.bottom_sizes = [
-            text.measure("ABC", bottom.size, bottom.mono, 700)
+            text.measure("ABC", bottom.size, bottom.font, 700)
                 + bottom.padding[0]
                 + bottom.padding[2],
             24.0 * self.density + bottom.padding[0] + bottom.padding[2],
@@ -77,7 +77,7 @@ impl Panel {
             text.measure(
                 &self.title(0),
                 customize.size,
-                customize.mono,
+                customize.font,
                 customize.weight,
             ) + 48.0 * self.density
                 + customize.margin[0]
@@ -85,7 +85,7 @@ impl Panel {
             text.height(
                 &self.title(0),
                 customize.size,
-                customize.mono,
+                customize.font,
                 customize.weight,
             ) + 16.0 * self.density
                 + customize.margin[1]

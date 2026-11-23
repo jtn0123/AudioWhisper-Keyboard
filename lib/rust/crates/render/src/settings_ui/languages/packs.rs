@@ -153,7 +153,7 @@ impl App {
             .last_mut()
             .expect("paint_text pushed an item")
             .text
-            .mono = true;
+            .font = crate::text::Font::Mono;
         let mut c = plain(control, id_box, id.into(), "button");
         c.action = action;
         self.push_control(c, clip);

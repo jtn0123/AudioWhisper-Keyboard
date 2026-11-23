@@ -37,6 +37,8 @@ pub struct Theme {
     font_scale: f32,
     multiplier: f32,
     cache: HashMap<Request, (Properties, Style)>,
+    /// The `@font` rules that loaded ([`Theme::load_fonts`]), by name.
+    fonts: Vec<(snygg::Text, crate::text::Font)>,
 }
 impl Theme {
     pub fn new(
@@ -61,7 +63,19 @@ impl Theme {
             font_scale,
             multiplier,
             cache: HashMap::new(),
+            fonts: Vec::new(),
         })
+    }
+    /// Loads the files the stylesheet's `@font` rules name, `files` giving each `src` URI's
+    /// absolute path as Kotlin's asset resolver resolved it; see [`crate::theme_fonts::load`].
+    /// Elements whose `font-family` names a rule that loaded draw in it from then on.
+    pub fn load_fonts(&mut self, files: &[(String, String)]) {
+        self.fonts = crate::theme_fonts::load(&self.compiled.fonts, files);
+        self.cache.clear();
+    }
+    /// The `@font` rules that loaded, by name.
+    pub fn fonts(&self) -> &[(snygg::Text, crate::text::Font)] {
+        &self.fonts
     }
     pub fn properties(&mut self, r: &Request) -> Properties {
         self.resolve(r).0
@@ -212,7 +226,11 @@ impl Theme {
             &self.light,
             &self.dark,
         );
-        let style = Style::from_properties(&properties, self.density, self.font_scale);
+        let mut style = Style::from_properties(&properties, self.density, self.font_scale);
+        if let Some(Value::Font(name)) = snygg::resolve::get(&properties, &text("font-family")) {
+            let font = self.fonts.iter().find(|(n, _)| n == name);
+            style.font = font.map_or(style.font, |(_, font)| *font);
+        }
         self.cache
             .insert(r.clone(), (properties.clone(), style.clone()));
         (properties, style)

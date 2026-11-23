@@ -153,7 +153,7 @@ impl Raster {
                 style.text.size,
                 style.text.foreground,
                 r,
-                style.text.mono,
+                style.text.font,
                 style.text.weight,
             )?;
             self.context.pop_clip();
@@ -168,8 +168,8 @@ impl Raster {
             return r;
         };
         let metrics = [
-            self.text.measure(text, s.size, s.mono, s.weight),
-            self.text.height(text, s.size, s.mono, s.weight),
+            self.text.measure(text, s.size, s.font, s.weight),
+            self.text.height(text, s.size, s.font, s.weight),
         ];
         crate::key_content::phone_label(r, metrics, hint)
     }

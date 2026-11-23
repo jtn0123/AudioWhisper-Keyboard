@@ -132,6 +132,6 @@ impl App {
         style.line_height = line;
         style.letter_spacing = tracking;
         style.weight = s.weight;
-        style.mono = s.mono;
+        style.font = s.mono.into();
     }
 }

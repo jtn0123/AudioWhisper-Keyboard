@@ -124,10 +124,10 @@ impl Smartbar {
             .enumerate()
             .map(|(i, s)| {
                 let style = &scene.candidate_styles[i][0];
-                let primary = text.measure(s, style.text.size, style.text.mono, style.text.weight);
+                let primary = text.measure(s, style.text.size, style.text.font, style.text.weight);
                 let secondary = &bar.secondary[i];
                 let second = bar.aux.get(i).map_or(0.0, |a| {
-                    text.measure(&a.1, secondary.size, secondary.mono, secondary.weight)
+                    text.measure(&a.1, secondary.size, secondary.font, secondary.weight)
                 });
                 let icon = if bar.aux.get(i).is_some_and(|a| !a.0.is_empty()) {
                     bar.icons[i].size.round() + bar.icons[i].margin[0] + bar.icons[i].margin[2]

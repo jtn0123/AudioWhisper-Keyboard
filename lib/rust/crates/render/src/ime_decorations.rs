@@ -76,7 +76,7 @@ pub fn prepare(
     );
     let style = theme.style(&r.element("smartbar-candidate-word-text", 0));
     item.glyph = start_ellipsis(preview, bounds.width(), |s| {
-        text.measure(s, style.size, style.mono, style.weight)
+        text.measure(s, style.size, style.font, style.weight)
     });
     item.styles = [style.clone(), style];
     scene.preview = Some(Panel {

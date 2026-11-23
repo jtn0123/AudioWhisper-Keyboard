@@ -120,7 +120,7 @@ pub fn fit(text: &mut Text, label: &str, style: &Style, room: [f32; 2]) -> Fitte
 /// Where the theme says nothing: one line, squeezed to the width, then shrunk to the width and
 /// the height, then ellipsised, as a suggestion fits its slot.
 fn squeezed(text: &mut Text, label: &str, style: &Style, [width, height]: [f32; 2]) -> Fitted {
-    let (mono, weight) = (style.mono, style.weight);
+    let (mono, weight) = (style.font, style.weight);
     let mut fit = smartbar_fit::fit_text(width, |scale| {
         text.measure(label, style.size * scale, mono, weight)
     });
@@ -156,7 +156,7 @@ fn squeezed(text: &mut Text, label: &str, style: &Style, [width, height]: [f32; 
 /// ends in an ellipsis. The paragraph is as wide as the label or the box, whichever is narrower,
 /// and `text-align` places each line in it, `start` by the label's direction.
 fn wrapped(text: &mut Text, label: &str, style: &Style, [width, height]: [f32; 2]) -> Fitted {
-    let (size, mono, weight, rules) = (style.size, style.mono, style.weight, style.rules);
+    let (size, mono, weight, rules) = (style.size, style.font, style.weight, style.rules);
     let (ranges, rtl) = text.wrap(label, size, mono, weight, width);
     let tall = |text: &mut Text, s: &str| text.height(s, size, mono, weight);
     let max = usize::try_from(rules.max_lines.unwrap_or(i32::MAX)).unwrap_or(1);
@@ -245,7 +245,7 @@ impl Place {
     }
 }
 
-type Key = (String, [u32; 3], bool, i32, TextRules);
+type Key = (String, [u32; 3], crate::text::Font, i32, TextRules);
 
 /// The fits made, kept by label, font, box and rules, and how many were ever made.
 #[derive(Default)]
@@ -270,7 +270,7 @@ impl Raster {
         room: Rect,
         place: Place,
     ) -> Result<(), String> {
-        let font = (style.size, style.mono, style.weight);
+        let font = (style.size, style.font, style.weight);
         let lines = style.rules.max_lines.map_or(usize::MAX, |n| n as usize);
         if self.label_within(label, font, 1.0, style.foreground, at, Some((room, lines)))? {
             return Ok(());
@@ -290,7 +290,7 @@ impl Raster {
             };
         let bounds = if fitted.spills { place.outer } else { room };
         self.context.push_clip_rect(&crate::raster::clip(bounds));
-        let font = (fitted.size, style.mono, style.weight);
+        let font = (fitted.size, style.font, style.weight);
         for line in &fitted.lines {
             let r = Rect {
                 left: left + line.left * squeeze,
@@ -309,7 +309,7 @@ impl Raster {
         let key = (
             label.to_owned(),
             bits,
-            style.mono,
+            style.font,
             style.weight,
             style.rules,
         );

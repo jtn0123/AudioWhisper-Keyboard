@@ -33,7 +33,7 @@ impl Panel {
             .into();
             let s = theme.style(&q);
             let inner = (cell - s.margin[0] - s.margin[2] - s.padding[0] - s.padding[2]).max(1.0);
-            let mut l = text.layout_weight(&e.label, s.size, s.mono, s.weight);
+            let mut l = text.layout_weight(&e.label, s.size, s.font, s.weight);
             l.break_all_lines(Some(inner));
             let body = if e.kind == 1 {
                 l.height().min(s.size * 12.0)
@@ -53,27 +53,27 @@ impl Panel {
                     0.0
                 };
             let date = theme.style(&r.element("clipboard-item-timestamp", 0));
-            let mut l = text.layout_weight(&e.date, date.size, date.mono, date.weight);
+            let mut l = text.layout_weight(&e.date, date.size, date.font, date.weight);
             l.break_all_lines(Some(width / 2.0 - date.padding[0] - date.padding[2]));
             e.date_height = l.height() + date.padding[1] + date.padding[3];
         }
         let s = theme.style(&r.element("clipboard-subheader", 0));
-        c.group_height = text.height("RECENT", s.size, s.mono, s.weight)
+        c.group_height = text.height("RECENT", s.size, s.font, s.weight)
             + s.margin[1]
             + s.margin[3]
             + s.padding[1]
             + s.padding[3];
         let action = theme.style(&r.element("clipboard-item-action", 0));
-        c.action_height = text.height(&c.label(13), action.size, action.mono, action.weight)
+        c.action_height = text.height(&c.label(13), action.size, action.font, action.weight)
             + action.padding[1]
             + action.padding[3];
         c.action_margin = theme.style(&r.element("clipboard-item-actions", 0)).margin;
         c.filter_height = 36.0 * self.density;
         let button = theme.style(&r.element("clipboard-history-disabled-button", 0));
         c.enable_size = [
-            text.measure(&c.label(7), button.size, button.mono, button.weight)
+            text.measure(&c.label(7), button.size, button.font, button.weight)
                 + 32.0 * self.density,
-            text.height(&c.label(7), button.size, button.mono, button.weight) + 16.0 * self.density,
+            text.height(&c.label(7), button.size, button.font, button.weight) + 16.0 * self.density,
         ];
         c.message_heights = (0..c.labels.len())
             .map(|i| {
@@ -87,7 +87,7 @@ impl Panel {
                     },
                     0,
                 ));
-                let mut l = text.layout_weight(&c.label(i), s.size, s.mono, s.weight);
+                let mut l = text.layout_weight(&c.label(i), s.size, s.font, s.weight);
                 l.break_all_lines(Some((width - s.padding[0] - s.padding[2]).max(1.0)));
                 l.height() + s.padding[1] + s.padding[3]
             })

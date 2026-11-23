@@ -43,13 +43,13 @@ impl Panel {
         let item = theme.style(&r.element("subtype-panel-list-item", 0));
         let icon = theme.style(&r.element("subtype-panel-list-item-icon-leading", 0));
         let label = theme.style(&r.element("subtype-panel-list-item-text", 0));
-        s.header_height = text.height(&s.header, header.size, header.mono, header.weight)
+        s.header_height = text.height(&s.header, header.size, header.font, header.weight)
             + header.padding[1]
             + header.padding[3];
         s.row_height = s
             .labels
             .iter()
-            .map(|v| text.height(v, label.size, label.mono, label.weight))
+            .map(|v| text.height(v, label.size, label.font, label.weight))
             .fold(icon.size, f32::max)
             + item.padding[1]
             + item.padding[3];

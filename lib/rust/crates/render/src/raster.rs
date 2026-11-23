@@ -14,7 +14,7 @@ use vello_cpu::{
 
 pub struct Raster {
     pub(crate) text: Text,
-    layouts: HashMap<(String, u32, bool, i32), Layout<()>>,
+    layouts: HashMap<(String, u32, crate::text::Font, i32), Layout<()>>,
     pub(crate) context: crate::backend::Backend,
     pub(crate) pixmap: Pixmap,
     /// The damaged rectangle's pixels while it renders, when it is not whole rows.
@@ -259,17 +259,17 @@ impl Raster {
         size: f32,
         argb: u32,
         r: Rect,
-        mono: bool,
+        font: crate::text::Font,
         weight: i32,
     ) -> Result<(), String> {
-        self.squeezed_label(text, (size, mono, weight), 1.0, argb, r)
+        self.squeezed_label(text, (size, font, weight), 1.0, argb, r)
     }
     /// A label centred in `r` whose glyphs are `squeeze` as wide at the same height, as Android's
-    /// text scale X draws them. `font` is (size, mono, weight).
+    /// text scale X draws them. `font` is (size, family, weight).
     pub(crate) fn squeezed_label(
         &mut self,
         text: &str,
-        font: (f32, bool, i32),
+        font: (f32, crate::text::Font, i32),
         squeeze: f32,
         argb: u32,
         r: Rect,
@@ -282,13 +282,13 @@ impl Raster {
     pub(crate) fn label_within(
         &mut self,
         text: &str,
-        font: (f32, bool, i32),
+        font: (f32, crate::text::Font, i32),
         squeeze: f32,
         argb: u32,
         r: Rect,
         limit: Option<(Rect, usize)>,
     ) -> Result<bool, String> {
-        let (size, mono, weight) = font;
+        let (size, family, weight) = font;
         if text.is_empty() {
             return Ok(true);
         }
@@ -297,14 +297,14 @@ impl Raster {
             self.layouts.clear();
         }
         let allocation = self.profiling.then(Instant::now);
-        let key = (text.to_owned(), size.to_bits(), mono, weight);
+        let key = (text.to_owned(), size.to_bits(), family, weight);
         self.profile.alloc_ns += elapsed(allocation);
         self.profile.alloc_sites += u32::from(self.profiling);
         let shape = self.profiling.then(Instant::now);
         let mut missed = false;
         let layout = self.layouts.entry(key).or_insert_with(|| {
             missed = true;
-            self.text.layout_weight(text, size, mono, weight)
+            self.text.layout_weight(text, size, family, weight)
         });
         self.profile.shape_ns += elapsed(shape);
         self.profile.layout_misses += u32::from(missed && self.profiling);

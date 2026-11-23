@@ -55,7 +55,7 @@ impl Raster {
                         - self.text.height(
                             &item.label,
                             item.text.size,
-                            item.text.mono,
+                            item.text.font,
                             item.text.weight,
                         ))
                         / 2.0;
@@ -125,7 +125,7 @@ impl Raster {
                         - self.text.height(
                             &item.label,
                             item.text.size,
-                            item.text.mono,
+                            item.text.font,
                             item.text.weight,
                         ))
                         / 2.0;
@@ -145,7 +145,7 @@ impl Raster {
                         - self.text.height(
                             &item.label,
                             item.text.size,
-                            item.text.mono,
+                            item.text.font,
                             item.text.weight,
                         ))
                         / 2.0;
@@ -155,7 +155,7 @@ impl Raster {
                         - self.text.height(
                             &item.label,
                             item.text.size,
-                            item.text.mono,
+                            item.text.font,
                             item.text.weight,
                         ))
                         / 2.0;
@@ -169,7 +169,7 @@ impl Raster {
                         let h = self.text.height(
                             &item.secondary,
                             item.secondary_style.size,
-                            item.secondary_style.mono,
+                            item.secondary_style.font,
                             item.secondary_style.weight,
                         );
                         self.panel_text(
@@ -197,7 +197,10 @@ impl Raster {
                     continue;
                 }
                 if item.element.ends_with("subheader") || item.id == -36 || item.id == -42 {
-                    if panel.kind == 9 && !item.text.mono && !item.text.italic {
+                    if panel.kind == 9
+                        && item.text.font == crate::text::Font::Sans
+                        && !item.text.italic
+                    {
                         self.android_text(&item.label, &item.text, r)?;
                     } else {
                         self.panel_text(&item.label, &item.text, r, false)?;
@@ -217,7 +220,7 @@ impl Raster {
                         style.size,
                         style.foreground,
                         r,
-                        style.mono,
+                        style.font,
                         style.weight,
                     )?;
                 }
@@ -363,7 +366,7 @@ impl Raster {
         let mut layout = self.text.layout_typography(
             text,
             style.size,
-            style.mono,
+            style.font,
             style.weight,
             style.italic,
             [style.line_height, style.letter_spacing],
@@ -377,7 +380,7 @@ impl Raster {
                 layout = self.text.layout_font(
                     &candidate,
                     style.size,
-                    style.mono,
+                    style.font,
                     style.weight,
                     style.italic,
                 );

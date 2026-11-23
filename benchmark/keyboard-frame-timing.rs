@@ -57,7 +57,7 @@ fn key(code: i32, r: Rect, label: &str, hint: &str, icon: &str) -> Key {
         hints: std::array::from_fn(|_| Style {
             foreground: 0xff5f5f5f,
             size: 12.0 * DENSITY,
-            mono: true,
+            font: render::text::Font::Mono,
             ..Style::default()
         }),
         enabled: true,

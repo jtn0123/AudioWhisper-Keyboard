@@ -23,13 +23,13 @@ impl Panel {
         let style = theme.style(&r.element("extracted-landscape-input-action", 0));
         let label = c.labels.first().cloned().unwrap_or_default();
         c.button = [
-            text.measure(&label, style.size, style.mono, style.weight)
+            text.measure(&label, style.size, style.font, style.weight)
                 + 48.0 * self.density
                 + style.padding[0]
                 + style.padding[2]
                 + style.margin[0]
                 + style.margin[2],
-            text.height(&label, style.size, style.mono, style.weight)
+            text.height(&label, style.size, style.font, style.weight)
                 + 16.0 * self.density
                 + style.padding[1]
                 + style.padding[3]

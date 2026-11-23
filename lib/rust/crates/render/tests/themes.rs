@@ -163,24 +163,26 @@ fn extension_source_replacement_and_stateful_geometry_use_resolved_styles() {
 
 #[test]
 fn unsupported_families_fall_back_but_weights_select_real_faces() {
+    use render::text::Font;
     use snygg::value::Encoder;
     let mono = (
         text("font-family"),
         Value::Enum(Encoder::GenericFont, text("monospace")),
     );
-    assert!(Style::from_properties(&vec![mono.clone()], 1.0, 1.0).mono);
+    let style = |p: &_| Style::from_properties(p, 1.0, 1.0).font;
+    assert_eq!(style(&vec![mono.clone()]), Font::Mono);
     for family in [
         Value::Font(text("Extension font")),
         Value::Enum(Encoder::GenericFont, text("serif")),
     ] {
-        assert!(!Style::from_properties(&vec![(text("font-family"), family)], 1.0, 1.0).mono);
+        assert_eq!(style(&vec![(text("font-family"), family)]), Font::Sans);
     }
     let bold = Style::from_properties(
         &vec![mono, (text("font-weight"), Value::FontWeight(700))],
         1.0,
         1.0,
     );
-    assert!(bold.mono);
+    assert_eq!(bold.font, Font::Mono);
     assert_eq!(bold.weight, 700);
 }
 

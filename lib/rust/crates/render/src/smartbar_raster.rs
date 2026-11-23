@@ -29,7 +29,7 @@ impl Raster {
                     style.size,
                     style.foreground,
                     r,
-                    style.mono,
+                    style.font,
                     style.weight,
                 )?;
             } else {
@@ -89,15 +89,15 @@ impl Raster {
             let text = &scene.candidates[i];
             let t = &style.text;
             let fit = crate::smartbar_fit::fit_text(r.width(), |scale| {
-                self.text.measure(text, t.size * scale, t.mono, t.weight)
+                self.text.measure(text, t.size * scale, t.font, t.weight)
             });
             let size = t.size * fit.scale;
             if !second.is_empty() {
                 let secondary = &bar.secondary[i];
-                let primary_height = self.text.height(text, size, t.mono, t.weight);
+                let primary_height = self.text.height(text, size, t.font, t.weight);
                 let second_height =
                     self.text
-                        .height(second, secondary.size, secondary.mono, secondary.weight);
+                        .height(second, secondary.size, secondary.font, secondary.weight);
                 let total =
                     primary_height + second_height + secondary.margin[1] + secondary.margin[3];
                 let top = r.top + (r.height() - total) / 2.0;
@@ -194,17 +194,17 @@ impl Raster {
         r: Rect,
     ) -> Result<(), String> {
         let (size, squeeze) = fit;
-        let font = (size, style.mono, style.weight);
-        let measured = self.text.measure(text, size, style.mono, style.weight) * squeeze;
+        let font = (size, style.font, style.weight);
+        let measured = self.text.measure(text, size, style.font, style.weight) * squeeze;
         if measured <= r.width() {
             return self.squeezed_label(text, font, squeeze, style.foreground, r);
         }
         let label = crate::smartbar_fit::ellipsised(text, r.width(), |label| {
-            self.text.measure(label, size, style.mono, style.weight) * squeeze
+            self.text.measure(label, size, style.font, style.weight) * squeeze
         });
         // Compose's overflowing Text occupies the constrained column and draws from its start.
         // Center only text which fit intrinsically (the early return above).
-        let fitted = self.text.measure(&label, size, style.mono, style.weight) * squeeze;
+        let fitted = self.text.measure(&label, size, style.font, style.weight) * squeeze;
         let r = Rect {
             right: r.left + fitted,
             ..r

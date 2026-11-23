@@ -74,9 +74,9 @@ CASES = [
     ('hint-kept-to-its-corner', KEYS, 'self.contained_label(&key.hint, hint, at, r, place)',
      'self.contained_label(&key.hint, hint, at, at, place)', [KEY]),
     ('choice-unfitted', POPUP, 'self.contained_label(label, style, r, r, Place::centred(r))?;',
-     'self.label(label, style.size, style.foreground, r, style.mono, style.weight)?;', [KEY]),
+     'self.label(label, style.size, style.foreground, r, style.font, style.weight)?;', [KEY]),
     ('bubble-unfitted', POPUP, 'self.contained_label(&key.label, style, label, label, Place::centred(r))?;',
-     'self.squeezed_label(&key.label, (style.size, style.mono, style.weight), 1.0, style.foreground, label)?;',
+     'self.squeezed_label(&key.label, (style.size, style.font, style.weight), 1.0, style.foreground, label)?;',
      [SCRIPTS]),
 ]
 

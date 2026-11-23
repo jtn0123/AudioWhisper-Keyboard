@@ -122,9 +122,9 @@ fn main() {
         let (c, t) = (&style.container, &style.text);
         let room = slot.bounds.width() - c.margin[0] - c.margin[2] - c.padding[0] - c.padding[2];
         let word = &scene.candidates[slot.id];
-        let full = text.measure(word, t.size, t.mono, t.weight);
-        let fit = fit_text(room, |s| text.measure(word, t.size * s, t.mono, t.weight));
-        let drawn = text.measure(word, t.size * fit.scale, t.mono, t.weight) * fit.squeeze;
+        let full = text.measure(word, t.size, t.font, t.weight);
+        let fit = fit_text(room, |s| text.measure(word, t.size * s, t.font, t.weight));
+        let drawn = text.measure(word, t.size * fit.scale, t.font, t.weight) * fit.squeeze;
         println!(
             "  {word:>13}: slot {:.0}px={:.1}dp, text room {:.0}px, natural {:.0}px, squeeze {} scale {} -> {:.0}px, {}",
             slot.bounds.width(),

@@ -123,12 +123,12 @@ impl Panel {
                 }
                 let width = i.bounds.width() - 4.0 * d;
                 let mut display = i.label.clone();
-                if text.measure(&display, i.text.size, i.text.mono, i.text.weight) > width {
+                if text.measure(&display, i.text.size, i.text.font, i.text.weight) > width {
                     while !display.is_empty()
                         && text.measure(
                             &format!("{display}…"),
                             i.text.size,
-                            i.text.mono,
+                            i.text.font,
                             i.text.weight,
                         ) > width
                     {
@@ -139,10 +139,10 @@ impl Panel {
                 cursor_x += if s.query.is_empty() {
                     0.0
                 } else {
-                    text.measure(&display, i.text.size, i.text.mono, i.text.weight)
+                    text.measure(&display, i.text.size, i.text.font, i.text.weight)
                 };
-                let measured = text.measure(&display, i.text.size, i.text.mono, i.text.weight);
-                let height = text.height("Ag", i.text.size, i.text.mono, i.text.weight);
+                let measured = text.measure(&display, i.text.size, i.text.font, i.text.weight);
+                let height = text.height("Ag", i.text.size, i.text.font, i.text.weight);
                 i.glyph = display;
                 i.bounds.top += (i.bounds.height() - height) / 2.0;
                 i.bounds.bottom = i.bounds.top + height;

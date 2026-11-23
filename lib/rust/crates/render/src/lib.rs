@@ -38,6 +38,7 @@ mod smartbar_touch;
 pub mod style;
 pub mod text;
 pub mod theme;
+pub mod theme_fonts;
 mod theme_scene;
 pub mod touch;
 pub mod trail;

@@ -16,7 +16,9 @@ pub struct Style {
     pub shape: ShapeKind,
     pub corners: [f32; 4],
     pub percent: bool,
-    pub mono: bool,
+    /// `font-family`: monospace, sans-serif for every other generic, or a theme's `@font`, which
+    /// only [`crate::theme::Theme`] knows and sets.
+    pub font: crate::text::Font,
     pub weight: i32,
     pub italic: bool,
     pub margin: [f32; 4],
@@ -37,7 +39,7 @@ impl Default for Style {
             shape: ShapeKind::Rectangle,
             corners: [0.0; 4],
             percent: false,
-            mono: false,
+            font: crate::text::Font::Sans,
             weight: 400,
             italic: false,
             margin: [0.0; 4],
@@ -65,7 +67,7 @@ impl Style {
                 _ => 0.0,
             },
             // Fontique selects real system faces or variable-font weight instances.
-            mono: matches!(value("font-family"), Some(Value::Enum(Encoder::GenericFont, n)) if *n == text("monospace")),
+            font: matches!(value("font-family"), Some(Value::Enum(Encoder::GenericFont, n)) if *n == text("monospace")).into(),
             italic: matches!(value("font-style"),Some(Value::Enum(Encoder::FontStyle,n)) if *n==text("italic")),
             weight: match value("font-weight") {
                 Some(Value::FontWeight(w)) => *w,

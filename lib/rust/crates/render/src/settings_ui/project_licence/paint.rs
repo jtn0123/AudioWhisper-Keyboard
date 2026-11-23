@@ -63,7 +63,7 @@ impl App {
             let at = rect(ox, y, line.width + size, line.height);
             self.paint_text(p, shown, at, size, self.colors[15], clip);
             let style = &mut p.items.last_mut().expect("paint_text pushed an item").text;
-            style.mono = true;
+            style.font = crate::text::Font::Mono;
             style.line_height = 0.0;
             style.letter_spacing = 0.0;
             style.weight = 400;

@@ -115,7 +115,11 @@ fn the_screen_asks_kotlin_for_the_asset_once_and_draws_only_lines_on_screen() {
     let node = a.controls.iter().find(|c| c.id == TEXT_ID).unwrap();
     assert_eq!(node.label, LICENCE);
     assert_eq!(node.role, "selectable");
-    let drawn: Vec<_> = panel.items.iter().filter(|i| i.text.mono).collect();
+    let drawn: Vec<_> = panel
+        .items
+        .iter()
+        .filter(|i| i.text.font == render::text::Font::Mono)
+        .collect();
     let lines = LICENCE.lines().count();
     assert!(
         !drawn.is_empty() && drawn.len() < lines / 3,
