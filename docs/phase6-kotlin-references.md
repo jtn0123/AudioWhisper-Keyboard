@@ -273,8 +273,10 @@ retired.**
 
 ### Goldens
 
-All 113 are under `app/src/test/resources/golden`: 64,762 bytes for 45,989,981 answers, the
+All 113 are under `app/src/test/resources/golden`: 64,818 bytes for 45,989,981 answers, the
 largest file 798 bytes. The first branch wrote 40 (22,298 bytes), the second 73 (42,464 bytes).
+The strip-tap fix (`fe49b7f86`) rewrote two of the nlp family's from the Rust after review, 56
+bytes longer in all, with the same counts.
 
 | Family | Generator | Files | Bytes | Answers | Tests |
 |---|---|---:|---:|---:|---|
@@ -282,7 +284,7 @@ largest file 798 bytes. The first branch wrote 40 (22,298 bytes), the second 73 
 | reader | `0fa825bff` | 20 | 10,405 | 1,204,691 | ReaderRulesMatchTest, ScreenRulesMatchTest, TtsChunkMatchTest, PlaybackQueueMatchTest, ScreenTraversalMatchTest, LoadedVoiceTraceTest, ReadingTraceTest |
 | gif | `527ff3242` | 11 | 6,702 | 3,197,785 | GifRulesMatchTest, GiphyRulesMatchTest, GifSearchTraceTest |
 | suggest | `a142c4cab` | 22 | 13,427 | 21,944,586 | SuggestRulesMatchTest, LatinRulesMatchTest, WordStoresMatchTest, SwipeRulesMatchTest, BoundaryGlideMatchTest, BoundaryLearnerMatchTest, NlpLearningMatchTest |
-| nlp | `e2dc488cf` | 3 | 2,037 | 1,200,000 | TypingTraceMatchTest |
+| nlp | `e2dc488cf`, `fe49b7f86` | 3 | 2,093 | 1,200,000 | TypingTraceMatchTest |
 | input policy | `8f7677bf2` | 6 | 3,352 | 272,587 | InputControlMatchTest, InputDeleteMatchTest, InputPolicyMatchTest |
 | editor pair | `448e43677` | 16 | 8,298 | 3,495,571 | EditorPlanMatchTest, EditorFlowMatchTest, EditorBoundaryTest, NlpEditorHandoffMatchTest, SpacingMatchTest, InputDispatchMatchTest, InputFixtureMatchTest |
 | keyboard models | `ccf820d33` | 17 | 11,022 | 9,807,325 | ShiftMatchTest, ComposingMatchTest, EmojiMatchTest, KeyModelsMatchTest, KeySelectorsMatchTest, LayoutAssemblyMatchTest |
@@ -310,7 +312,7 @@ branch's commands, each at its generator commit:
 --tests '*SuggestRulesMatchTest' --tests '*LatinRulesMatchTest' --tests '*WordStoresMatchTest' \
   --tests '*SwipeRulesMatchTest' --tests '*BoundaryGlideMatchTest' --tests '*BoundaryLearnerMatchTest' \
   --tests '*NlpLearningMatchTest'
-# e2dc488cf, nlp
+# e2dc488cf, nlp: main's answers, two of which fe49b7f86 replaced (below)
 --tests '*TypingTraceMatchTest'
 # 8f7677bf2, input policy
 --tests '*InputControlMatchTest' --tests '*InputDeleteMatchTest' --tests '*InputPolicyMatchTest'
@@ -333,6 +335,13 @@ branch's commands, each at its generator commit:
 ```
 
 Each follows `REFERENCE_GOLDEN=write ./gradlew :app:testDebugUnitTest --rerun`.
+
+The nlp family's goldens are no longer all main's answers. `fe49b7f86` fixed the stale strip tap
+(below), which changes two of the three traces, and no reference is left to write them from.
+They were written from the Rust at that commit after review: for one run with the variable set,
+`TypingTraceMatchTest` made its tape with `GoldenTape.ofReference("typing-trace-$seed")` and
+finished it after the trace, in place of `GoldenTape.check`, and was then put back. Write them
+again the same way.
 
 Three tests needed repeatable inputs before a digest could hold them:
 
@@ -408,6 +417,12 @@ lines are now, and it ran in that form at both ends. `input-mutations.py` faults
 lifecycle, the routing and the pointer policy. It ran at the editor pair's two commits, which
 retired the dispatcher's and routing's copies; the pointer policy's copy had gone with the input
 policy, so `rolling-multi-pointer` met goldens at both ends. All four were caught at both.
+
+The strip-tap fix added two nlp cases, run by name at `fe49b7f86` with the rewritten goldens:
+`stale-tap-refused` is caught by three of `StripTapTest`'s tests and the trace, and
+`stale-tap-by-value` by `StripTapTest`'s replaced-row test and the trace. `14cc68f54` moved
+`aim-setting-ignored` and `undone-always-counted` with the code they name, in this family and in
+`typing-plan-mutations.py`; run by name there, both are caught in both scripts.
 
 No case the references caught got past the goldens. 21 cases survive at both ends, so the
 goldens lose none; the references let them through too:
@@ -491,13 +506,48 @@ The second branch:
   JVM's `exp` and Rust's differ in the last place of 35,333 of the doubles (18 in frequencies,
   35,315 in word lists), which the comparison already allowed as long as that `Float` agreed. A
   case moves the swipe cost per step by 1e-7 to show the `Float` still tells such a change.
-* **A stale tap on the strip, in production since main.** The typing trace now takes a strip tap
-  from the row the keyboard shows. `NlpSessionState`'s row is a `StateFlow`, which keeps the old
-  objects when a list equal to them is published, and the session looks a tap up by identity. Over
-  the three seeds, 238 of 7,489 shows left the row holding old objects, and 11 of 494 taps hit one;
-  main's fan-out and the branch both refused all 11, so the word was not committed. It is owed
-  ([owed-checks](owed-checks.md#not-device-checks-but-still-owed)); the golden holds today's
-  refusal.
+* **A stale tap on the strip, in production since main, now fixed.** The typing trace takes a
+  strip tap from the row the keyboard shows. `NlpSessionState`'s row is a `StateFlow`, which keeps
+  the old objects when a list equal to them is published, and the session looked a tap up by
+  identity among the objects it held, so a tap on a kept row carried no id and Rust refused it.
+  Over the three seeds, 238 of 7,489 shows left the row holding old objects, and 11 of the 494 taps
+  on the row hit one (8 picks and 3 removals); main's fan-out and the branch both refused all 11.
+  * **The fix.** `fe49b7f86` takes a tap's id from its place in the row last published; the row is
+    kept only when it equals that list, so the places line up. An object not in the row, as the
+    auto-correction, is found by identity as before. Of the 11, 5 now go in (4 picks and 1
+    removal). The other 6 stay refused, as is every tap whose own event empties the row: the trace
+    configures the session on 7 in 10 editor changes, where production does on each, so a tap's
+    event can carry a context the session has not had, and configuring it empties the row first.
+    On main's path, 196 of 196 such taps with a found id were refused, and 287 of 287 with a found
+    id that did not empty the row went in.
+  * **The goldens.** Seed 7's only stale tap is one of the 6, so its golden is unchanged. Seed
+    20261122's first tap now taken is event 42,653 and seed 424242's is event 7,931; every event's
+    record from there to the end differs (7,347 and 42,069 of 50,000), because the two paths part
+    there, and no earlier one does. Those two goldens were rewritten from the Rust after review.
+  * **Why by place.** A lookup by value would find the same place on a kept row, since Rust never
+    shows two candidates of one kind and text (`Session::filter`). It differs on a tap on an
+    object of a row since replaced, when the new row shows the same word: main refused it, and a
+    lookup by value would take it. Over the fix's three traces that is 1 of 9,096 taps and none of
+    the 1,216 auto-corrections, so the place lookup changes the kept-row taps and nothing else.
+    A new list on every publish would have to break `List`'s equality, and the row would be drawn
+    again at every publish. Every tap and removal reaches the session through `event()`, so the
+    frozen Compose strip and the Rust root, which only show the row, are unchanged.
+  * **Proof.** `StripTapTest` fails 3 of its 5 tests on main. Two nlp mutation cases bring the
+    refusal back (`stale-tap-refused`) and the lookup by value (`stale-tap-by-value`); both are
+    caught (see [proof](#proof)).
+  * **On the emulator.** On emulator-5556 the keyboard typed short made-up prefixes into the
+    probe's field and tapped the strip, compared by hashes only. On the fix's build, 68 taps
+    over six paths all went in: a fresh row; the last letter deleted and typed again, once and
+    twice; the field tapped again; the cursor moved into the word; and Delete with the last
+    letter as one two-finger tap. Each put the tapped word in and ended the composing region,
+    except after the cursor move, where the word before the cursor was replaced. A build with
+    main's lookup did the same on 50 of those taps, so none of these paths reached a kept row:
+    in each, a different list came between two equal ones, or no equal list followed. A row is
+    kept only when a second suggestion pass for the same word completes while the first list is
+    still shown. The kept row is shown on the host, by `StripTapTest` and the trace; on a device
+    it is owed ([owed-checks](owed-checks.md#emulator-checks-the-docs-owe), E55). Settings and
+    learned words went back byte for byte; of the 13 files backed up, only `profileInstalled`
+    differs, which Android's profile installer rewrites at each install.
 * **Questions asked by name.** Key codes and predefined keys are asked in the order of their
   sorted names, not the order reflection lists fields in, which the JVM does not fix.
 * **What stayed as helpers.** `ReferenceSwipeWordsFactory` was no copy of anything: it builds the
@@ -510,6 +560,14 @@ The second branch:
   trimmed and written drafts from the native calls; the reference split the 4,045 refused into
   3,902 invalid and 143 its language had already. A file with a bad line wrote the lines before it
   under Compose, then threw; the native import writes nothing, which is still checked.
+* **The per-step operations nothing called.** `14cc68f54` retired the NLP operations `AIM`,
+  `TALLY` and `TALLY_CHANGED` from `crates/wire`, the generated boundary (three `NlpOp` entries and
+  the `NlpAim`, `NlpTally` and `NlpTallyEvent` objects) and the session. They travel through
+  `NlpNative.call`, so no native went: 466 stay, none hand-written. The typing plan's aim check now
+  reads its own event row, and an undone correction's count is a session method the plan calls.
+  Moving two of `typing-plan-mutations.py`'s cases with that code showed two others there, on the
+  render path's `RendererSmartbar.kt`, have matched nothing since `c66e98a04`
+  ([owed-checks](owed-checks.md#not-device-checks-but-still-owed)).
 * **A third stale mutation script.** `editor-mutations.py` stopped at its first case,
   `invalid-finalize-batch`, at both ends: `5725d2fed` had named the editor's operations from
   `crates/wire`, and `32e62fb4a` had moved the reconciliation check into `Content::reported_by`.

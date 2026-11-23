@@ -152,6 +152,8 @@ sides at once, each with its own native stores, dictionary and disk:
 
 * **Main's side:** main's Kotlin fan-out, frozen from f1fdf3f34 in `ReferenceTypingFanOut.kt`.
   Phase 6 swapped it for golden digests of its three seeded traces ([record](phase6-kotlin-references.md)).
+  Since the strip-tap fix (`fe49b7f86`), two of them hold the session's own answers, rewritten
+  after review.
 * **The branch's side:** `TypingEvents` and the plan.
 
 The typing is drawn from a seed. It has:
@@ -431,11 +433,12 @@ Device checks are numbered after those on main (P21 and E33):
 
 Not device checks, still owed:
 
-* **Retire the per-step NLP operations.** These are `PICK`, `LEARN`, `AIM`, `KEEP`, `TALLY`,
-  `TALLY_CHANGED` and the `FIELD` op, the learner's and tap trail's per-step natives, and
-  `WordLearner` and `AutoCorrectionUndo` in the test sources. They remain because the frozen
-  reference still calls them. Once the trace has served its purpose, they and the references go
-  together.
+* **Retire the per-step NLP operations.** These are `PICK`, `LEARN`, `KEEP` and the `FIELD` op,
+  the learner's and tap trail's per-step natives, and `WordLearner` and `AutoCorrectionUndo` in the
+  test sources. Phase 6 retired the frozen reference that called them (`7a92198bf`), and
+  `14cc68f54` retired `AIM`, `TALLY` and `TALLY_CHANGED`, which then had no caller. The rest are
+  still called by `NlpMatchTest`, `NlpLearningMatchTest` and the NLP binding and harness tests
+  ([owed-checks](owed-checks.md#not-device-checks-but-still-owed)).
 
 ## What remains for items 2–4
 
