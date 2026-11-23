@@ -2,6 +2,7 @@
 //! the Gradle module each of crates/wire's groups is generated in.
 
 mod clipboard;
+mod clipboard_store;
 mod composing;
 mod dictation;
 mod dictation_session;
@@ -34,6 +35,7 @@ mod suggest;
 mod swipe;
 mod text;
 mod tts;
+mod user_words;
 mod word_stores;
 
 use crate::{Api, Class, Module, Type, Wire};
@@ -58,6 +60,8 @@ pub const CLASSES: &[Class] = &[
     layout::LAYOUT_RULES,
     layout::PANEL_RULES,
     clipboard::CLIPBOARD_RULES,
+    clipboard_store::CLIPBOARD_STORE_NATIVE,
+    user_words::USER_WORDS_NATIVE,
     screen::SCREEN_NATIVE,
     dictation::DICTATION_NATIVE,
     gif::GIF_NATIVE,
@@ -110,6 +114,8 @@ pub const APIS: &[Api] = &[
     word_stores::LEARNED_WORD_STORE,
     word_stores::KEPT_WORD_STORE,
     word_stores::PERSONAL_WORD_STORE,
+    clipboard_store::CLIPBOARD_STORE,
+    user_words::USER_WORD_STORE,
     latin::LATIN_SESSION,
     latin::NLP_SESSION,
     latin::NLP_NAMES,
@@ -158,6 +164,9 @@ pub const TYPES: &[(&str, Module, Type)] = &[
     popup::POPUP_RECT,
     smartbar::TEXT_FIT,
     tts::TTS_AUDIO,
+    clipboard_store::STORED_CLIP,
+    clipboard_store::STORED_FILE,
+    user_words::STORED_WORD,
 ];
 
 /// Every group crates/wire declares, and the Kotlin module that calls with it.
@@ -206,6 +215,11 @@ pub const WIRE: &[Wire] = &[
         module: Module::Rust,
         internal: false,
         groups: wire::typing::GROUPS,
+    },
+    Wire {
+        module: Module::Rust,
+        internal: false,
+        groups: wire::stores::GROUPS,
     },
     Wire {
         module: Module::Rust,

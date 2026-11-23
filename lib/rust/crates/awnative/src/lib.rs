@@ -72,6 +72,10 @@ mod panel_oracle;
 
 mod clipboard;
 
+mod clipboard_store;
+
+mod user_words;
+
 mod render_clipboard;
 
 mod render_media;

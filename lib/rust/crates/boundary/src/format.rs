@@ -99,8 +99,8 @@ pub fn rust_signature(head: &str, params: &[String], returns: &str) -> String {
 /// callee(args).result() })`, as rustfmt lays it out. `result` takes the function's value, or its
 /// `jni::Result`; a function that returns nothing returns a `jni::Result<()>`, called as it is,
 /// since clippy refuses a method call on `()`. With nothing to read first and a closure narrow
-/// enough to be a call's argument on one line, it is all one line; otherwise the closure is a
-/// block.
+/// enough to be a call's argument on one line, it is all one line, or the call is one line in
+/// the block if only that fits; otherwise the closure is a block.
 pub fn rust_body(
     returns: &str,
     lets: &[(String, String)],
@@ -113,8 +113,14 @@ pub fn rust_body(
     let result = if returns == "()" { "" } else { RESULT };
     let one = format!("env, |{close}| {callee}({}){result}", args.join(", "));
     let line = format!("    unsafe {{ {call}({one}) }}");
-    if lets.is_empty() && one.len() <= RUST_CALL_ARGS && line.len() <= RUST_WIDTH {
-        return line + "\n";
+    if lets.is_empty() && one.len() <= RUST_CALL_ARGS {
+        if line.len() <= RUST_WIDTH {
+            return line + "\n";
+        }
+        let inner = format!("        {call}({one})");
+        if inner.len() <= RUST_WIDTH {
+            return format!("    unsafe {{\n{inner}\n    }}\n");
+        }
     }
     let mut body = format!("    unsafe {{\n        {call}(env, |{close}| {{\n");
     for (name, value) in lets {

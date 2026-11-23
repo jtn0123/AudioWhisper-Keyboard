@@ -18,6 +18,8 @@ pub enum Error {
     /// `check` threw one.
     IllegalState(String),
     NullPointer(&'static str),
+    /// A `java.io.IOException`, for a file a store could not read or write.
+    Io(String),
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
@@ -441,6 +443,7 @@ impl Env {
             Error::Pending => return,
             Error::IllegalArgument(message) => (c"java/lang/IllegalArgumentException", message),
             Error::IllegalState(message) => (c"java/lang/IllegalStateException", message),
+            Error::Io(message) => (c"java/io/IOException", message),
             Error::NullPointer(name) => {
                 (c"java/lang/NullPointerException", format!("{name} is null"))
             }
