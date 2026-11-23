@@ -1,0 +1,23 @@
+# extension-maintainer-device: the answers the frozen Kotlin reference gave (docs/phase6-kotlin-references.md).
+# Their count, the digest after the last, and after each power of two (at N).
+count 302152
+digest a489693d8a422824
+at 1 4f0bc78f368426c6
+at 2 2403c1b58de77ad2
+at 4 bd02909160a428f0
+at 8 3b359159cf851866
+at 16 3300f3080c642c86
+at 32 32f5f8172e7bdde8
+at 64 743b84fdab308e8f
+at 128 f9a097a3ae00d693
+at 256 56b405fde84a9039
+at 512 ab1af7e11f44c86c
+at 1024 dc1707fede8a8bf6
+at 2048 8984aa35226cbc04
+at 4096 cecb7dd854380de2
+at 8192 84ebc08731777d48
+at 16384 b92430d7ad28dd20
+at 32768 d6715898e56d67c4
+at 65536 eaba7d66a60823b1
+at 131072 076a7551cc74db32
+at 262144 39bb6b2c24114b1b

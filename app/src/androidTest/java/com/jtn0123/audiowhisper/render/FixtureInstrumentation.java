@@ -91,7 +91,7 @@ public final class FixtureInstrumentation extends Instrumentation {
         start();
     }
     @Override public void onStart() {
-        if (a1Replay) { com.jtn0123.audiowhisper.suggest.A1Instrumentation.replay(this, false); return; }
+        if (a1Replay) { com.jtn0123.audiowhisper.suggest.A1Instrumentation.replay(this, false, null, new com.jtn0123.audiowhisper.golden.DeviceGoldens(this, arguments)); return; }
         if (gifSearch) {
             Bundle result = new Bundle();
             try {

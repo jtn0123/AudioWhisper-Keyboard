@@ -1,16 +1,22 @@
 package dev.patrickgold.florisboard.lib.ext
 
+import com.jtn0123.audiowhisper.golden.GoldenTape
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
+/** The reference's answers are recorded on the golden tape extension-maintainer (docs/phase6-kotlin-references.md). */
 class ExtensionMaintainerMatchTest {
+    private val tape = GoldenTape.ofReference("extension-maintainer")
+
     private fun outcome(body: () -> Any?): Any? = try { body() } catch (e: Exception) { e.javaClass.name to e.message }
     private fun check(value: String) {
-        assertEquals(outcome { ReferenceExtensionMaintainer.from(value)?.let { listOf(it.name, it.email, it.url) } },
-            outcome { ExtensionMaintainer.from(value)?.let { listOf(it.name, it.email, it.url) } })
-        assertEquals(outcome { ReferenceExtensionMaintainer.fromOrTakeRaw(value).toString() },
-            outcome { ExtensionMaintainer.fromOrTakeRaw(value).toString() })
+        val parsed = outcome { ReferenceExtensionMaintainer.from(value)?.let { listOf(it.name, it.email, it.url) } }
+        assertEquals(parsed, outcome { ExtensionMaintainer.from(value)?.let { listOf(it.name, it.email, it.url) } })
+        ExtensionDeviceReplay.record(tape, "from", parsed)
+        val raw = outcome { ReferenceExtensionMaintainer.fromOrTakeRaw(value).toString() }
+        assertEquals(raw, outcome { ExtensionMaintainer.fromOrTakeRaw(value).toString() })
+        ExtensionDeviceReplay.record(tape, "fromOrTakeRaw", raw)
     }
 
     @Test fun unicodeAndSeededMaintainersMatchTheFrozenRegexAndSubstringLogic() {
@@ -26,7 +32,10 @@ class ExtensionMaintainerMatchTest {
             val name = pieces.random(random)
             val email = if (random.nextBoolean()) null else pieces.random(random)
             val url = if (random.nextBoolean()) null else pieces.random(random)
-            assertEquals(ReferenceExtensionMaintainer(name, email, url).toString(), ExtensionMaintainer(name, email, url).toString())
+            val formatted = ReferenceExtensionMaintainer(name, email, url).toString()
+            assertEquals(formatted, ExtensionMaintainer(name, email, url).toString())
+            tape.answer("toString", formatted)
         }
+        tape.finish()
     }
 }
