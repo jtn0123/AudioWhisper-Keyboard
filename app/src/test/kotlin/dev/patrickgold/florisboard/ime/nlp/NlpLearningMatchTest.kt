@@ -7,22 +7,23 @@ import com.jtn0123.audiowhisper.rust.NlpOp
 import com.jtn0123.audiowhisper.rust.NlpSession
 import com.jtn0123.audiowhisper.rust.WireFlag
 import com.jtn0123.audiowhisper.suggest.LearnedWords
-import com.jtn0123.audiowhisper.suggest.ReferenceLatin
 import com.jtn0123.audiowhisper.suggest.WordLearner
 import java.util.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
-/** Frozen manager/provider decisions plus the pre-port learner, over real native stores. */
+/**
+ * The NLP session's learn plans against the frozen manager's and provider's decisions, and the
+ * learner's effects on real native stores against the pre-port learner's (golden files,
+ * docs/phase6-kotlin-references.md).
+ */
 class NlpLearningMatchTest {
     @Test fun finishedSwipedUndoAndPrivateBlockingHaveIdenticalStoreEffects() {
         var effects = 0
-        val tape = GoldenTape.ofReference("nlp-learning")
+        val tape = GoldenTape("nlp-learning")
         repeat(200) { seed ->
             val random = Random(20261113L + seed)
-            val oldStore = LearnedWords(null)
             val newStore = LearnedWords(null)
-            val old = ReferenceLatin.WordLearner(oldStore, { null })
             val actual = WordLearner(newStore) { null }
             val keptOld = KeptWordStore(); val keptNew = KeptWordStore()
             NlpSession().use { nlp ->
@@ -47,30 +48,24 @@ class NlpLearningMatchTest {
                     val action = random.nextInt(6)
                     val trigger = if (random.nextBoolean()) -1 else 39
                     if (action <= 2) {
-                        if (action == 1) { old.dropSwiped(); actual.dropSwiped() }
+                        if (action == 1) actual.dropSwiped()
                         val expected = if (!mayLearn || action == 0 && (trigger == 39 || word.isEmpty() || !valid)) emptyList()
                         else listOf(action.toString(), word, if (action == 2 || action == 1 && !valid) "a zorb " else "a ", if (valid) "2" else "8")
                         val plan = nlp.call(NlpOp.LEARN, action.toString(), trigger.toString(), word, "a ", "2", WireFlag.encode(valid), "a zorb").toList()
                         assertEquals(expected, plan, "learn plan seed $seed")
                         if (expected.isNotEmpty()) {
-                            val before = expected[2]; val start = expected[3].toInt()
-                            val a = if (action == 2) old.swiped(word, before) else old.finished(word, before, start)
                             val b = if (action == 2) actual.swiped(plan[NlpLearnPlan.WORD], plan[NlpLearnPlan.BEFORE])
                                 else actual.finished(plan[NlpLearnPlan.WORD], plan[NlpLearnPlan.BEFORE], plan[NlpLearnPlan.START].toInt())
-                            tape.answer("learned", a)
-                            assertEquals(a, b)
+                            tape.answer("learned", b)
                         }
                     } else if (action == 3 && mayLearn) {
-                        val undone = old.undo(2)
-                        tape.answer("undo", undone)
-                        assertEquals(undone, actual.undo(2))
-                    } else if (action == 4) { old.reset(); actual.reset(); nlp.call(NlpOp.FIELD) }
+                        tape.answer("undo", actual.undo(2))
+                    } else if (action == 4) { actual.reset(); nlp.call(NlpOp.FIELD) }
                     else if (action == 5) {
                         val remembered = WireFlag.decode(nlp.call(NlpOp.KEEP, word)[0])
                         assertEquals(keptOld.add(word, !incognito && prose), keptNew.add(word, remembered))
                     }
-                    tape.answer("saved", oldStore.store.savedText())
-                    assertEquals(oldStore.store.savedText(), newStore.store.savedText(), "learned effects seed $seed")
+                    tape.answer("saved", newStore.store.savedText())
                     assertEquals(keptOld.savedText(), keptNew.savedText(), "kept effects seed $seed")
                     effects++
                 }

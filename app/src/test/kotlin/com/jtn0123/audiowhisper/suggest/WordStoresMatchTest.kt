@@ -6,13 +6,11 @@ import java.nio.file.Files
 import kotlin.random.Random
 import kotlin.test.AfterTest
 import kotlin.test.Test
-import kotlin.test.assertEquals
 
 /**
- * The word stores in Rust give exactly what the Kotlin they replaced gave ([ReferenceStores]),
- * through [StoreComparison]: random runs of learning, keeping, saving and loading damaged files,
- * and random personal dictionaries. The same comparison runs on the emulator, whose Java judges
- * some characters differently.
+ * The word stores in Rust give exactly what the Kotlin they replaced gave (its answers are golden
+ * files, docs/phase6-kotlin-references.md), through [StoreComparison]: random runs of learning,
+ * keeping, saving and loading damaged files, and random personal dictionaries.
  */
 class WordStoresMatchTest {
     private val dir: File = Files.createTempDirectory("word-stores").toFile()
@@ -22,24 +20,21 @@ class WordStoresMatchTest {
         dir.deleteRecursively()
     }
 
-    private fun assertNone(name: String, body: StoreComparison.() -> Unit) {
-        val tape = GoldenTape.ofReference("word-stores-$name")
-        val comparison = StoreComparison(sigmaExact = false, dir, tape).apply(body)
-        assertEquals(emptyList(), comparison.examples, "${comparison.failures} of ${comparison.checks} differ")
-        tape.finish()
+    private fun assertGolden(name: String, body: StoreComparison.() -> Unit) {
+        GoldenTape.check("word-stores-$name") { StoreComparison(sigmaExact = false, dir, it).apply(body) }
     }
 
     @Test
-    fun learnedWordsAnswerTheSame() = assertNone("learned") { learned(Random(SEED), runs = 2_000, steps = 60) }
+    fun learnedWordsAnswerTheSame() = assertGolden("learned") { learned(Random(SEED), runs = 2_000, steps = 60) }
 
     @Test
-    fun keptWordsAnswerTheSame() = assertNone("kept") { kept(Random(SEED), runs = 2_000, steps = 40) }
+    fun keptWordsAnswerTheSame() = assertGolden("kept") { kept(Random(SEED), runs = 2_000, steps = 40) }
 
     @Test
-    fun personalWordsAnswerTheSame() = assertNone("personal") { personal(Random(SEED), 100_000) }
+    fun personalWordsAnswerTheSame() = assertGolden("personal") { personal(Random(SEED), 100_000) }
 
     @Test
-    fun everyTagAppliesAlike() = assertNone("languages") { languages() }
+    fun everyTagAppliesAlike() = assertGolden("languages") { languages() }
 
     private companion object {
         const val SEED = 20261108L

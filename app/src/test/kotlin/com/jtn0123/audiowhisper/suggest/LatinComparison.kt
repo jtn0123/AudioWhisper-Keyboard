@@ -1,54 +1,35 @@
 package com.jtn0123.audiowhisper.suggest
 
 import com.jtn0123.audiowhisper.golden.GoldenTape
-import java.util.Locale
 import kotlin.random.Random
 
 /**
- * Holds the suggester and the word learner in Rust (lib/rust/crates/suggest, behind
- * [LatinSuggester] and [WordLearner]) up against the Kotlin they replaced, [ReferenceLatin],
- * wherever this runs. Both ask the same made-up dictionary ([Fake]), whose every answer is a pure
- * function of the question, so how often and in what order each asks doesn't matter, only what
- * they make of the answers: random strips and spell checks over random personal and learned
- * words, and random runs of finished, swiped and undone words on a pair of learners, comparing
- * what each stored. Self-contained, so a device check can copy it into the app and run it on a
- * phone, whose Java judges some characters differently from a computer's.
+ * Asks the suggester and the word learner in Rust (lib/rust/crates/suggest, behind
+ * [LatinSuggester] and [WordLearner]) the questions the Kotlin they replaced was asked, and puts
+ * every answer on [tape], whose golden files hold that Kotlin's answers
+ * (docs/phase6-kotlin-references.md). They ask a made-up dictionary ([Fake]), whose every answer
+ * is a pure function of the question, so how often and in what order they ask doesn't matter, only
+ * what they make of the answers: random strips and spell checks over random personal and learned
+ * words, and random runs of finished, swiped and undone words on a learner, with what it stored.
  *
  * [sigmaExact] says whether words may hold Σ, which lower-cases to ς at the end of a word and to σ
- * elsewhere. Rust decides that by ICU's rule, as Android does; the JVM uses its own, so off a
- * phone Σ is left out.
- *
- * Every answer the Kotlin gave goes on [tape], in order, so it can stand in for the Kotlin.
+ * elsewhere. Rust decides that by ICU's rule, as Android does; the JVM the goldens came from used
+ * its own, so off a phone Σ is left out.
  */
 class LatinComparison(private val sigmaExact: Boolean, private val tape: GoldenTape) {
-    /** How many comparisons failed, and the first few, described. */
-    var failures = 0
-        private set
-    val examples = mutableListOf<String>()
-
-    /** How many comparisons ran. */
-    var checks = 0L
-        private set
-
     /** How often each outcome worth reaching was reached, so a run that tests nothing shows. */
     val seen = sortedMapOf<String, Int>()
 
     private val pieces = if (sigmaExact) PIECES else PIECES - "$CAPITAL_SIGMA"
     private val letters = if (sigmaExact) LETTERS else LETTERS - "$CAPITAL_SIGMA"
 
-    private fun check(what: String, input: String, kotlin: Any?, rust: Any?) {
-        tape.answer(what, kotlin)
-        checks++
-        if (kotlin == rust) return
-        failures++
-        if (examples.size < MAX_EXAMPLES) examples += "$what($input): Kotlin ${show(kotlin)}, Rust ${show(rust)}"
-    }
+    private fun check(what: String, answer: Any?) = tape.answer(what, answer)
 
     private fun see(what: String, happened: Boolean = true) {
         if (happened) seen[what] = (seen[what] ?: 0) + 1
     }
 
-    /** What [body] gives, or the exception it throws, so both sides must throw alike. */
+    /** What [body] gives, or the exception it throws, so a throw is an answer too. */
     private inline fun outcome(body: () -> Any?): Any? = try {
         body()
     } catch (e: IllegalArgumentException) {
@@ -99,7 +80,7 @@ class LatinComparison(private val sigmaExact: Boolean, private val tape: GoldenT
         }
     }
 
-    /** [count] random requests for a strip and a spell check, made of each suggester. */
+    /** [count] random requests for a strip and a spell check. */
     fun suggester(random: Random, count: Int) = repeat(count) {
         val vocabulary = random.vocabulary()
         val decoder = Fake(random.nextLong(), vocabulary, random.nextInt(2, 6))
@@ -107,19 +88,15 @@ class LatinComparison(private val sigmaExact: Boolean, private val tape: GoldenT
         val personal = random.personal(vocabulary)
         val learned = random.learned(vocabulary, state.previousWords)
         val threshold = THRESHOLDS.random(random)
-        val reference = ReferenceLatin.LatinSuggester(
-            decoder, Locale.US, threshold, { personal }, { learned ?: TypingHistory.NONE },
-        )
         val rust = ReferenceLatinSuggester(decoder, threshold, { personal }, { learned })
         val maxCount = random.maxCount()
         val block = random.nextBoolean()
-        val input = describe(state, maxCount, threshold, learned != null)
-        val strip = outcome { reference.suggest(state, maxCount, block) }
-        check("suggest", input, strip, outcome { rust.suggest(state, maxCount, block) })
+        val strip = outcome { rust.suggest(state, maxCount, block) }
+        check("suggest", strip)
         noteStrip(state, strip)
         val word = if (random.nextInt(8) == 0) random.text(3) else state.typed
-        val spelled = outcome { reference.spell(word, maxCount, block) }
-        check("spell ${hex(word)}", input, spelled, outcome { rust.spell(word, maxCount, block) })
+        val spelled = outcome { rust.spell(word, maxCount, block) }
+        check("spell ${hex(word)}", spelled)
         noteSpell(spelled)
     }
 
@@ -138,62 +115,59 @@ class LatinComparison(private val sigmaExact: Boolean, private val tape: GoldenT
         see("confident", check.isHighConfidence)
     }
 
-    /** [runs] runs of [steps] random steps each on two learners, each with its own store. */
+    /** [runs] runs of [steps] random steps each on a learner. */
     fun learner(random: Random, runs: Int, steps: Int) = repeat(runs) {
         val vocabulary = random.vocabulary()
         val decoder = Fake(random.nextLong(), vocabulary, random.nextInt(2, 6))
         val (words, pairs) = CAPACITIES.random(random) to CAPACITIES.random(random)
-        val stores = LearnedWords(null, words, pairs) to LearnedWords(null, words, pairs)
+        val store = LearnedWords(null, words, pairs)
         var lookup: WordLookup? = decoder
-        val learners = ReferenceLatin.WordLearner(stores.first, { lookup }) to FixtureWordLearner(stores.second, { lookup })
+        val learner = FixtureWordLearner(store, { lookup })
         repeat(steps) {
             // The dictionary closes and opens.
             if (random.nextInt(10) == 0) lookup = if (lookup == null) decoder else null
-            learnerStep(random, learners, vocabulary)
-            check("saved", "", stores.first.store.savedText(), stores.second.store.savedText())
+            learnerStep(random, learner, vocabulary)
+            check("saved", store.store.savedText())
         }
     }
 
-    private fun learnerStep(random: Random, learners: Pair<ReferenceLatin.WordLearner, FixtureWordLearner>, vocabulary: List<String>) {
-        val (reference, rust) = learners
+    private fun learnerStep(random: Random, rust: FixtureWordLearner, vocabulary: List<String>) {
         val word = random.learnable(vocabulary)
         val textBefore = random.textBefore(vocabulary)
         val start = STARTS.random(random)
-        val input = "${hex(word)}|${hex(textBefore)}|$start"
         when (random.nextInt(20)) {
             in 0..9 -> {
-                val changed = reference.finished(word, textBefore, start)
-                check("finished", input, changed, rust.finished(word, textBefore, start))
+                val changed = rust.finished(word, textBefore, start)
+                check("finished", changed)
                 see("finished", changed)
-                val address = ReferenceLatin.WordLearner.isInsideAddress(textBefore, word)
+                val address = isInsideAddress(textBefore, word)
                 see("an address piece", address)
                 see("an address piece took one back", address && changed)
             }
             in 10..13 -> {
-                val changed = reference.swiped(word, textBefore)
-                check("swiped", input, changed, rust.swiped(word, textBefore))
+                val changed = rust.swiped(word, textBefore)
+                check("swiped", changed)
                 see("swiped kept the last", changed)
             }
-            14 -> {
-                reference.dropSwiped()
-                rust.dropSwiped()
-            }
+            14 -> rust.dropSwiped()
             in 15..17 -> {
-                val changed = reference.undo(start)
-                check("undo", "$start", changed, rust.undo(start))
+                val changed = rust.undo(start)
+                check("undo", changed)
                 see("undone", changed)
             }
-            else -> if (random.nextInt(3) == 0) {
-                reference.reset()
-                rust.reset()
-            }
+            else -> if (random.nextInt(3) == 0) rust.reset()
         }
     }
 
-    private fun describe(state: TypingState, maxCount: Int, threshold: Float, learning: Boolean): String {
-        val previous = state.previousWords.words.joinToString(",") { hex(it) }
-        return "${hex(state.typed)}|[$previous]/${state.previousWords.isBeginningOfSentence}|" +
-            "mid ${state.isCursorMidWord}|taps ${state.taps.size}|max $maxCount|threshold $threshold|learning $learning"
+    /**
+     * Whether [word] after [textBefore] is a piece of an address ('@', '/' or ':' glued to it, or a
+     * '.' between letters or digits), only to count how often a run reached one: whether the
+     * learner took it back is the answer.
+     */
+    private fun isInsideAddress(textBefore: String, word: String): Boolean {
+        val glued = textBefore.substring(textBefore.indexOfLast { it.isWhitespace() } + 1)
+        if (glued.any { it in "@/:" }) return true
+        return (glued + word.take(1)).windowed(3).any { it[1] == '.' && it[0].isLetterOrDigit() && it[2].isLetterOrDigit() }
     }
 
     /** Σ, which [sigmaExact] may leave out, made σ; upper-casing σ or ς makes one. */
@@ -303,7 +277,6 @@ class LatinComparison(private val sigmaExact: Boolean, private val tape: GoldenT
         List(nextInt(4)) { word(vocabulary) + SEPARATORS.random(this) }.joinToString("")
 
     private companion object {
-        const val MAX_EXAMPLES = 20
         const val CAPITAL_SIGMA = 'Σ'
         const val FNV_OFFSET = -0x340d631b7bdddcdbL
         const val FNV_PRIME = 0x100000001b3L
@@ -325,7 +298,7 @@ class LatinComparison(private val sigmaExact: Boolean, private val tape: GoldenT
         val SEPARATORS = listOf(" ", " ", ". ", ", ", "! ", "\n", "", "'", " - ", "? ", "@", "/", ":", ".")
 
         /**
-         * On the 0-255 log scale, many exactly [ReferenceLatin.LatinSuggester.RARER_BY] apart, and
+         * On the 0-255 log scale, many exactly the suggester's 50 (`RARER_BY`) apart, and
          * some beyond it, so subtracting them overflows.
          */
         val PROBABILITIES = listOf(0, 1, 50, 51, 100, 101, 150, 200, 205, 255, -5, 1000, Int.MAX_VALUE, Int.MIN_VALUE)
@@ -350,13 +323,5 @@ class LatinComparison(private val sigmaExact: Boolean, private val tape: GoldenT
         val STARTS = listOf(-1, 0, 0, 3, 3, 7, 12)
 
         private fun hex(text: String) = text.map { "%04X".format(it.code) }.joinToString(" ")
-
-        private fun show(value: Any?): String = when (value) {
-            is String -> "\"${hex(value)}\""
-            is List<*> -> value.joinToString(prefix = "[", postfix = "]") { show(it) }
-            is ArrangedWord -> "${show(value.text)}${if (value.isAutoCorrection) "*" else ""}${if (value.isTypedWord) "^" else ""}"
-            is SpellCheck -> "valid ${value.isValid} ${show(value.suggestions)} confident ${value.isHighConfidence}"
-            else -> value.toString()
-        }
     }
 }

@@ -1,55 +1,25 @@
 package com.jtn0123.audiowhisper.suggest
 
 import com.jtn0123.audiowhisper.golden.GoldenTape
-import kotlin.math.abs
 import kotlin.random.Random
 
 /**
- * Holds swipe typing's ranking and word list in Rust (lib/rust/crates/suggest, behind
- * [GlideRanker] and [SwipeWords]) up against the Kotlin they replaced, [ReferenceSwipe], wherever
- * this runs: every bonus a context can give over wide ranges of counts and probabilities, random
- * guesses ranked in random contexts, and random dictionaries with the user's words. Floats are
- * compared by their bits. Self-contained, so a device check can copy it into the app and run it on
- * a phone, whose Java judges some characters differently from a computer's.
+ * Asks swipe typing's ranking and word list in Rust (lib/rust/crates/suggest, behind [GlideRanker]
+ * and [SwipeWords]) the questions the Kotlin they replaced was asked, and puts every answer on
+ * [tape], whose golden files hold that Kotlin's answers (docs/phase6-kotlin-references.md): every
+ * bonus a context can give over wide ranges of counts and probabilities, random guesses ranked in
+ * random contexts, and random dictionaries with the user's words. Floats are recorded by their
+ * bits.
  *
- * [exactMath] says whether a frequency, which comes from `exp`, must match to the bit. On a phone
- * Java's `Math.exp` and Rust's are both bionic's, so it must. On a computer the JVM has its own,
- * which can differ from the system's in the last bit; there a frequency may be one unit in the last
- * place off, as long as the Float the glide classifier takes of it is the same.
- *
- * Every answer the Kotlin gave goes on [tape], in order, so it can stand in for the Kotlin; a
- * frequency goes on as that Float, since on this computer 35,333 of them are a unit apart.
+ * A frequency, which comes from `exp`, is recorded as the Float the glide classifier takes of it.
+ * The JVM the goldens came from has an `exp` of its own, which differs from the system's in the
+ * last place of 35,333 of the doubles here; the Float is the same.
  */
-class SwipeComparison(private val exactMath: Boolean, private val tape: GoldenTape) {
-    /** How many comparisons failed, and the first few, described. */
-    var failures = 0
-        private set
-    val examples = mutableListOf<String>()
+class SwipeComparison(private val tape: GoldenTape) {
+    private fun check(what: String, answer: Any?) = tape.answer(what, answer)
 
-    /** How many comparisons ran. */
-    var checks = 0L
-        private set
-
-    private fun check(what: String, input: Any?, kotlin: Any?, rust: Any?) {
-        tape.answer(what, kotlin)
-        record(what, input, kotlin == rust, kotlin, rust)
-    }
-
-    /** A frequency: see [exactMath]. */
-    private fun checkFrequency(what: String, input: Any?, kotlin: Double, rust: Double) {
-        val (kotlinBits, rustBits) = kotlin.toRawBits() to rust.toRawBits()
-        tape.answer(what, kotlin.toFloat().toRawBits())
-        val same = kotlinBits == rustBits || !exactMath && abs(kotlinBits - rustBits) == 1L &&
-            kotlin.toFloat().toRawBits() == rust.toFloat().toRawBits()
-        record(what, input, same, kotlin, rust)
-    }
-
-    private fun record(what: String, input: Any?, same: Boolean, kotlin: Any?, rust: Any?) {
-        checks++
-        if (same) return
-        failures++
-        if (examples.size < MAX_EXAMPLES) examples += "$what($input): Kotlin $kotlin, Rust $rust"
-    }
+    /** A frequency, as the Float the glide classifier takes of it. */
+    private fun checkFrequency(what: String, frequency: Double) = check(what, frequency.toFloat().toRawBits())
 
     /** A history that knows one count for every pair, and a dictionary one n-gram for every word. */
     private class Fixed : TypingHistory, WordLookup {
@@ -86,15 +56,9 @@ class SwipeComparison(private val exactMath: Boolean, private val tape: GoldenTa
      */
     fun bonuses(random: Random, maxCount: Int, span: Int, randomCount: Int) {
         val fixed = Fixed()
-        val reference = ReferenceSwipe.GlideRanker(fixed, fixed)
         val rust = GlideRanker(fixed, fixed)
         val previous = PreviousWords.from("me ")
-        fun compare() = check(
-            "bonus",
-            "${fixed.pairCount}, ${fixed.ngram}, ${fixed.probability}",
-            reference.bonus("word", previous).toRawBits(),
-            rust.bonus("word", previous).toRawBits(),
-        )
+        fun compare() = check("bonus", rust.bonus("word", previous).toRawBits())
         for (count in (0..maxCount) + EXTREMES) {
             fixed.pairCount = count
             compare()
@@ -132,12 +96,7 @@ class SwipeComparison(private val exactMath: Boolean, private val tape: GoldenTa
         val lookup = if (random.nextInt(4) == 0) null else known
         val history = if (random.nextInt(4) == 0) TypingHistory.NONE else known
         val previous = PreviousWords.from(CONTEXTS.random(random))
-        check(
-            "rank",
-            guesses.joinToString { "${it.word} ${it.cost}" } + " after ${previous.words}",
-            ReferenceSwipe.GlideRanker(history, lookup).rank(guesses, previous),
-            GlideRanker(history, lookup).rank(guesses, previous),
-        )
+        check("rank", GlideRanker(history, lookup).rank(guesses, previous))
     }
 
     /** A guess's cost: usually a clean swipe's, sometimes a tie or an odd float. */
@@ -149,24 +108,12 @@ class SwipeComparison(private val exactMath: Boolean, private val tape: GoldenTa
 
     /** Every frequency a probability can give, and the Int extremes. */
     fun frequencies() {
-        for (probability in (-1000..1000) + EXTREMES) {
-            checkFrequency(
-                "frequencyOf",
-                probability,
-                ReferenceSwipe.SwipeWords.frequencyOf(probability),
-                SwipeWords.frequencyOf(probability),
-            )
-        }
+        for (probability in (-1000..1000) + EXTREMES) checkFrequency("frequencyOf", SwipeWords.frequencyOf(probability))
     }
 
     /** Every UTF-16 unit alone and beside a letter or a connector, and [count] random strings. */
     fun swipeable(random: Random, count: Int) {
-        fun compare(word: String) = check(
-            "isSwipeable",
-            hex(word),
-            ReferenceSwipe.SwipeWords.isSwipeable(word),
-            SwipeWords.isSwipeable(word),
-        )
+        fun compare(word: String) = check("isSwipeable", SwipeWords.isSwipeable(word))
         for (unit in 0..0xFFFF) {
             val char = unit.toChar().toString()
             for (word in listOf(char, "a$char", "${char}b", "'$char", "$char-")) compare(word)
@@ -187,19 +134,15 @@ class SwipeComparison(private val exactMath: Boolean, private val tape: GoldenTa
         val learned = List(random.nextInt(0, 6)) { userWord(random, dictionary) }
         val learnedCollection: Collection<String> = if (random.nextBoolean()) learned else learned.toCollection(LinkedHashSet())
         val lookup = { word: String -> probabilities[word] ?: NOT_A_PROBABILITY }
-        val input = "${dictionary.size} words, personal $personal, learned $learned"
-        val referenceUser = ReferenceSwipe.SwipeWords.userWords(personal, learnedCollection)
         val rustUser = SwipeWords.userWords(personal, learnedCollection)
-        check("userWords", input, referenceUser.toList(), rustUser.toList())
-        val referenceWords = ReferenceSwipe.SwipeWords.fromDictionary(dictionary, lookup)
+        check("userWords", rustUser.toList())
         val rustWords = SwipeWords.fromDictionary(dictionary, lookup)
-        check("fromDictionary", input, referenceWords.words, rustWords.words)
-        val referenceAll = referenceWords.withUserWords(referenceUser)
+        check("fromDictionary", rustWords.words)
         val rustAll = rustWords.withUserWords(rustUser)
-        check("words", input, referenceAll.words, rustAll.words)
-        check("same", input, referenceAll.withUserWords(referenceUser) === referenceAll, rustAll.withUserWords(rustUser) === rustAll)
+        check("words", rustAll.words)
+        check("same", rustAll.withUserWords(rustUser) === rustAll)
         for (word in dictionary + WORDS + learned + personal.map { it.word } + "unknown") {
-            checkFrequency("frequency", "$word in $input", referenceAll.frequency(word), rustAll.frequency(word))
+            checkFrequency("frequency", rustAll.frequency(word))
         }
     }
 
@@ -221,11 +164,7 @@ class SwipeComparison(private val exactMath: Boolean, private val tape: GoldenTa
         repeat(random.nextInt(0, 6)) { append(PIECES.random(random)) }
     }
 
-    private fun hex(text: String) = text.map { "%04X".format(it.code) }.joinToString(" ")
-
     private companion object {
-        const val MAX_EXAMPLES = 20
-
         val EXTREMES = listOf(Int.MIN_VALUE, Int.MIN_VALUE + 1, -1, 16_777_216, 16_777_217, Int.MAX_VALUE - 1, Int.MAX_VALUE)
         val WORDS = listOf("to", "too", "top", "of", "off", "odd", "you", "thou", "Tupi", "an", "am", "Sam", "don't", "e-mail")
         val CONTEXTS = listOf("", "me ", "I ", "turn ", "thank ", "Hello. ", "going ", "Hi, ")

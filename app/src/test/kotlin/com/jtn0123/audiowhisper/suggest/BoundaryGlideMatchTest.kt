@@ -4,7 +4,6 @@ import com.jtn0123.audiowhisper.golden.GoldenTape
 import java.io.File
 import java.util.Random
 import kotlin.test.Test
-import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 
 class BoundaryGlideMatchTest {
@@ -13,28 +12,23 @@ class BoundaryGlideMatchTest {
         val engine = checkNotNull(LatinDictionaryEngine.open(file.path, 0, file.length(), "en_US"))
         engine.close()
         val history = LearnedWords(null)
-        val old = ReferenceBoundaryGlideRanker(history, engine)
         val native = GlideRanker(history, engine)
         val guesses = listOf(GlideGuess("hello", 1f), GlideGuess("world", 2f))
         val previous = PreviousWords(listOf("hello"), false)
-        val tape = GoldenTape.ofReference("boundary-glide-closed")
-        for ((words, context) in listOf(emptyList<GlideGuess>() to previous,
-            guesses.take(1) to previous, guesses to PreviousWords.NONE)) {
-            val ranked = old.rank(words, context)
-            tape.answer("rank", ranked)
-            assertEquals(ranked, native.rank(words, context))
+        GoldenTape.check("boundary-glide-closed") { tape ->
+            for ((words, context) in listOf(emptyList<GlideGuess>() to previous,
+                guesses.take(1) to previous, guesses to PreviousWords.NONE)) {
+                tape.answer("rank", native.rank(words, context))
+            }
+            val actual = assertFailsWith<IllegalArgumentException> { native.rank(guesses, previous) }
+            tape.answer("threw", actual.message)
         }
-        val expected = assertFailsWith<IllegalArgumentException> { old.rank(guesses, previous) }
-        tape.answer("threw", expected.message)
-        val actual = assertFailsWith<IllegalArgumentException> { native.rank(guesses, previous) }
-        assertEquals(expected.message, actual.message)
-        tape.finish()
     }
 
     @Test fun nativeContextAndRankMatchFrozenPerGuessQueries() {
-        val tape = GoldenTape.ofReference("boundary-glide-ranks")
-        for (file in TestDictionaries.both) nativeContextAndRankMatch(file, tape)
-        tape.finish()
+        GoldenTape.check("boundary-glide-ranks") { tape ->
+            for (file in TestDictionaries.both) nativeContextAndRankMatch(file, tape)
+        }
     }
 
     private fun nativeContextAndRankMatch(file: File, tape: GoldenTape) {
@@ -54,9 +48,7 @@ class BoundaryGlideMatchTest {
                         else -> random.nextInt(10) / 4f
                     }) }
                 val lookup = engine.takeIf { random.nextBoolean() }
-                val ranked = ReferenceBoundaryGlideRanker(history, lookup).rank(guesses, previous)
-                tape.answer("rank", ranked)
-                assertEquals(ranked, GlideRanker(history, lookup).rank(guesses, previous))
+                tape.answer("rank", GlideRanker(history, lookup).rank(guesses, previous))
             }
         }
     }

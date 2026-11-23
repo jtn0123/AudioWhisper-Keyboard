@@ -5,67 +5,36 @@ import java.io.File
 import kotlin.random.Random
 
 /**
- * Holds the word stores in Rust (lib/rust/crates/suggest, behind [LearnedWords], [KeptWords] and
- * [PersonalWords]) up against the Kotlin they replaced, [ReferenceStores], wherever this runs:
- * random runs of learning, keeping, saving and loading on a pair of stores, the same steps on
- * each, asking both the same questions after every step. Self-contained, so a device check can
- * copy it into the app and run it on a phone, whose Java judges some characters differently from
- * a computer's. The stores save to files in [dir].
+ * Asks the word stores in Rust (lib/rust/crates/suggest, behind [LearnedWords], [KeptWords] and
+ * [PersonalWords]) the questions the Kotlin they replaced was asked, and puts every answer on
+ * [tape], whose golden files hold that Kotlin's answers (docs/phase6-kotlin-references.md): random
+ * runs of learning, keeping, saving and loading, asking the same questions after every step. The
+ * stores save to files in [dir].
  *
  * [sigmaExact] says whether words may hold Σ, which lower-cases to ς at the end of a word and to σ
- * elsewhere. Rust decides that by ICU's rule, as Android does; the JVM uses its own, so off a
- * phone Σ is left out.
- *
- * Every answer the Kotlin gave goes on [tape], in order, so it can stand in for the Kotlin.
+ * elsewhere. Rust decides that by ICU's rule, as Android does; the JVM the goldens came from used
+ * its own, so off a phone Σ is left out.
  */
 class StoreComparison(private val sigmaExact: Boolean, private val dir: File, private val tape: GoldenTape) {
-    /** How many comparisons failed, and the first few, described. */
-    var failures = 0
-        private set
-    val examples = mutableListOf<String>()
-
-    /** How many comparisons ran. */
-    var checks = 0L
-        private set
-
     private val pieces = if (sigmaExact) PIECES else PIECES - "$CAPITAL_SIGMA"
 
-    private fun check(what: String, input: String, kotlin: Any?, rust: Any?) {
-        tape.answer(what, kotlin)
-        checks++
-        if (kotlin == rust) return
-        failures++
-        if (examples.size < MAX_EXAMPLES) examples += "$what(${hex(input)}): Kotlin ${show(kotlin)}, Rust ${show(rust)}"
-    }
+    private fun check(what: String, answer: Any?) = tape.answer(what, answer)
 
-    /** What [body] gives, or the exception it throws, so both sides must throw alike. */
+    /** What [body] gives, or the exception it throws, so a throw is an answer too. */
     private inline fun outcome(body: () -> Any?): Any? = try {
         body()
     } catch (e: IllegalArgumentException) {
         "threw ${e.javaClass.name}: ${e.message}"
     }
 
-    /** Two stores of learned words given the same steps, each saving to its own file. */
-    private class Learned(
-        val reference: ReferenceStores.LearnedWords,
-        val rust: LearnedWords,
-        val referenceFile: File,
-        val rustFile: File,
-        val vocabulary: List<String>,
-    )
+    /** A store of learned words, the file it saves to, and the words a run uses. */
+    private class Learned(val rust: LearnedWords, val rustFile: File, val vocabulary: List<String>)
 
-    /** [runs] runs of [steps] random steps each on two stores of learned words. */
+    /** [runs] runs of [steps] random steps each on a store of learned words. */
     fun learned(random: Random, runs: Int, steps: Int) = repeat(runs) {
         val (words, pairs) = CAPACITIES.random(random) to CAPACITIES.random(random)
-        val referenceFile = File(dir, "reference-learned.txt").apply { delete() }
         val rustFile = File(dir, "rust-learned.txt").apply { delete() }
-        val stores = Learned(
-            ReferenceStores.LearnedWords(referenceFile, words, pairs),
-            LearnedWords(rustFile, words, pairs),
-            referenceFile,
-            rustFile,
-            random.vocabulary(),
-        )
+        val stores = Learned(LearnedWords(rustFile, words, pairs), rustFile, random.vocabulary())
         repeat(steps) {
             learnedStep(random, stores)
             askLearned(random, stores)
@@ -76,80 +45,43 @@ class StoreComparison(private val sigmaExact: Boolean, private val dir: File, pr
         val word = random.word(stores.vocabulary)
         val previous = random.previous(stores.vocabulary)
         when (random.nextInt(20)) {
-            in 0..9 -> {
-                val keepSpelling = random.nextBoolean()
-                stores.reference.add(word, previous, keepSpelling)
-                stores.rust.add(word, previous, keepSpelling)
-            }
-            in 10..12 -> {
-                stores.reference.remove(word, previous)
-                stores.rust.remove(word, previous)
-            }
-            13 -> if (random.nextInt(8) == 0) {
-                stores.reference.clear()
-                stores.rust.clear()
-            }
-            14 -> compareSaved("learned", stores.reference.save(), stores.rust.save(), stores.referenceFile, stores.rustFile)
+            in 0..9 -> stores.rust.add(word, previous, keepSpelling = random.nextBoolean())
+            in 10..12 -> stores.rust.remove(word, previous)
+            13 -> if (random.nextInt(8) == 0) stores.rust.clear()
+            14 -> checkSaved("learned", stores.rust.save(), stores.rustFile)
             15 -> {
-                loadBoth(random, stores.referenceFile, stores.rustFile) { random.learnedText(stores.vocabulary) }
-                stores.reference.load()
+                load(random, stores.rustFile) { random.learnedText(stores.vocabulary) }
                 stores.rust.load()
             }
         }
     }
 
     private fun askLearned(random: Random, stores: Learned) {
-        val (reference, rust) = stores.reference to stores.rust
-        check("knownSpellings", "", reference.knownSpellings(), rust.knownSpellings())
+        val rust = stores.rust
+        check("knownSpellings", rust.knownSpellings())
         val word = random.word(stores.vocabulary)
-        check("spellingOf", word, reference.spellingOf(word), rust.spellingOf(word))
+        check("spellingOf", rust.spellingOf(word))
         val typed = random.typed(stores.vocabulary)
         val maxCount = random.nextInt(-1, 5)
         val accept = ACCEPTS.random(random)
-        check(
-            "completions $maxCount",
-            typed,
-            reference.completions(typed, maxCount, accept),
-            rust.completions(typed, maxCount, accept),
-        )
+        check("completions $maxCount", rust.completions(typed, maxCount, accept))
         val previous = random.previousWords(stores.vocabulary)
         val (minCount, mostCount) = random.nextInt(-1, 4) to random.nextInt(-2, 5)
-        val input = "${previous.words.firstOrNull()}|${previous.isBeginningOfSentence}|$minCount|$mostCount"
-        check(
-            "followers",
-            input,
-            outcome { reference.followers(previous, minCount, mostCount) },
-            outcome { rust.followers(previous, minCount, mostCount) },
-        )
-        check("pairCount", "$input|$word", reference.pairCount(previous, word), rust.pairCount(previous, word))
+        check("followers", outcome { rust.followers(previous, minCount, mostCount) })
+        check("pairCount", rust.pairCount(previous, word))
     }
 
-    /** Two stores of kept words given the same steps, each saving to its own file. */
-    private class Kept(
-        val reference: ReferenceStores.KeptWords,
-        val rust: KeptWords,
-        val referenceFile: File,
-        val rustFile: File,
-        val vocabulary: List<String>,
-    )
+    /** A store of kept words, the file it saves to, and the words a run uses. */
+    private class Kept(val rust: KeptWords, val rustFile: File, val vocabulary: List<String>)
 
-    /** [runs] runs of [steps] random steps each on two stores of kept words. */
+    /** [runs] runs of [steps] random steps each on a store of kept words. */
     fun kept(random: Random, runs: Int, steps: Int) = repeat(runs) {
         val capacity = CAPACITIES.random(random)
-        val referenceFile = File(dir, "reference-kept.txt").apply { delete() }
         val rustFile = File(dir, "rust-kept.txt").apply { delete() }
-        val stores = Kept(
-            ReferenceStores.KeptWords(referenceFile, capacity),
-            KeptWords(rustFile, capacity),
-            referenceFile,
-            rustFile,
-            random.vocabulary(),
-        )
+        val stores = Kept(KeptWords(rustFile, capacity), rustFile, random.vocabulary())
         repeat(steps) {
             keptStep(random, stores)
-            for (word in stores.vocabulary + random.word(stores.vocabulary)) {
-                check("contains", word, word in stores.reference, word in stores.rust)
-            }
+            for (word in stores.vocabulary + random.word(stores.vocabulary)) check("contains", word in stores.rust)
         }
     }
 
@@ -158,37 +90,33 @@ class StoreComparison(private val sigmaExact: Boolean, private val dir: File, pr
         when (random.nextInt(10)) {
             in 0..6 -> {
                 val remember = random.nextInt(4) != 0
-                check("add $remember", word, stores.reference.add(word, remember), stores.rust.store.add(word, remember))
+                check("add $remember", stores.rust.store.add(word, remember))
             }
-            7 -> compareSaved("kept", stores.reference.save(), stores.rust.save(), stores.referenceFile, stores.rustFile)
+            7 -> checkSaved("kept", stores.rust.save(), stores.rustFile)
             8 -> {
-                loadBoth(random, stores.referenceFile, stores.rustFile) { random.keptText(stores.vocabulary) }
-                stores.reference.load()
+                load(random, stores.rustFile) { random.keptText(stores.vocabulary) }
                 stores.rust.load()
             }
         }
     }
 
-    /** Both saved alike, and wrote the same bytes. */
-    private fun compareSaved(what: String, reference: Boolean, rust: Boolean, referenceFile: File, rustFile: File) {
-        check("$what save", "", reference, rust)
-        val written = listOf(referenceFile, rustFile).map { if (it.isFile) it.readText() else null }
-        check("$what saved file", "", written[0], written[1])
+    /** Whether it saved, and what it wrote. */
+    private fun checkSaved(what: String, saved: Boolean, file: File) {
+        check("$what save", saved)
+        check("$what saved file", if (file.isFile) file.readText() else null)
     }
 
-    /** Writes the same file for both to load: [text], damaged now and then, or none at all. */
-    private fun loadBoth(random: Random, referenceFile: File, rustFile: File, text: () -> String) {
+    /** Writes the file to load: [text], damaged now and then, or none at all. */
+    private fun load(random: Random, file: File, text: () -> String) {
         if (random.nextInt(10) == 0) {
-            referenceFile.delete()
-            rustFile.delete()
+            file.delete()
             return
         }
         val bytes = text().toByteArray(Charsets.UTF_8)
         if (random.nextInt(4) == 0 && bytes.isNotEmpty()) {
             repeat(random.nextInt(1, 4)) { bytes[random.nextInt(bytes.size)] = BAD_BYTES.random(random) }
         }
-        referenceFile.writeBytes(bytes)
-        rustFile.writeBytes(bytes)
+        file.writeBytes(bytes)
     }
 
     /** [count] random personal dictionaries, asked the same questions. */
@@ -199,28 +127,23 @@ class StoreComparison(private val sigmaExact: Boolean, private val dir: File, pr
             val shortcut = if (random.nextInt(3) == 0) random.word(vocabulary) else null
             PersonalWords.Entry(word, FREQUENCIES.random(random), shortcut)
         }
-        val reference = ReferenceStores.PersonalWords(entries.map { ReferenceStores.PersonalWords.Entry(it.word, it.frequency, it.shortcut) })
         val rust = PersonalWords(entries)
-        val input = entries.joinToString("|") { "${it.word}/${it.frequency}/${it.shortcut}" }
-        check("entries", input, reference.entries.map { listOf(it.word, it.frequency, it.shortcut) }, rust.entries.map { listOf(it.word, it.frequency, it.shortcut) })
-        check("isEmpty", input, reference.isEmpty, rust.isEmpty)
+        check("entries", rust.entries.map { listOf(it.word, it.frequency, it.shortcut) })
+        check("isEmpty", rust.isEmpty)
         repeat(4) {
-            val word = random.word(vocabulary)
-            check("spellingOf", "$input|$word", reference.spellingOf(word), rust.spellingOf(word))
+            check("spellingOf", rust.spellingOf(random.word(vocabulary)))
             val typed = random.typed(vocabulary)
             val maxCount = random.nextInt(-1, 6)
-            check("completions $maxCount", "$input|$typed", reference.completions(typed, maxCount), rust.completions(typed, maxCount))
+            check("completions $maxCount", rust.completions(typed, maxCount))
         }
         val (tag, language) = TAGS.random(random) to LANGUAGES.random(random)
-        check("appliesTo", "$tag|$language", ReferenceStores.PersonalWords.appliesTo(tag, language), PersonalWords.appliesTo(tag, language))
+        check("appliesTo", PersonalWords.appliesTo(tag, language))
     }
 
     /** Every tag against every language. */
     fun languages() {
         for (tag in TAGS) {
-            for (language in LANGUAGES) {
-                check("appliesTo", "$tag|$language", ReferenceStores.PersonalWords.appliesTo(tag, language), PersonalWords.appliesTo(tag, language))
-            }
+            for (language in LANGUAGES) check("appliesTo", PersonalWords.appliesTo(tag, language))
         }
     }
 
@@ -252,7 +175,7 @@ class StoreComparison(private val sigmaExact: Boolean, private val dir: File, pr
     /** What a word was typed after: unknown, a sentence start, or a word. */
     private fun Random.previous(vocabulary: List<String>): String? = when (nextInt(4)) {
         0 -> null
-        1 -> ReferenceStores.LearnedWords.SENTENCE_START
+        1 -> LearnedWords.SENTENCE_START
         else -> word(vocabulary)
     }
 
@@ -292,7 +215,6 @@ class StoreComparison(private val sigmaExact: Boolean, private val dir: File, pr
     }
 
     private companion object {
-        const val MAX_EXAMPLES = 20
         const val CAPITAL_SIGMA = 'Σ'
 
         /** Small, so the oldest go, and none, and the keyboard's own. */
@@ -328,9 +250,5 @@ class StoreComparison(private val sigmaExact: Boolean, private val dir: File, pr
         val TAGS = listOf(null, "", "en", "EN", "En", "en_US", "en-GB", "en_", "de_DE", "_en", "-en", "e", "eN-us_x", "K", "ı", "İn")
 
         val LANGUAGES = listOf("en", "EN", "", "de", "k", "in", "i̇n")
-
-        private fun hex(text: String) = text.map { "%04X".format(it.code) }.joinToString(" ")
-
-        private fun show(value: Any?) = if (value is String) "\"${hex(value)}\"" else value.toString()
     }
 }

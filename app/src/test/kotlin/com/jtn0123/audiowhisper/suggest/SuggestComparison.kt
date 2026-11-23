@@ -1,41 +1,24 @@
 package com.jtn0123.audiowhisper.suggest
 
 import com.jtn0123.audiowhisper.golden.GoldenTape
+import java.text.Normalizer
 import java.util.Locale
 import kotlin.random.Random
 
 /**
- * Holds the suggest package's rules in Rust (lib/rust/crates/suggest, behind [WordCharacters],
+ * Asks the suggest package's rules in Rust (lib/rust/crates/suggest, behind [WordCharacters],
  * [WordCase], [PreviousWords], [AutoCorrection], [AutoCorrectionUndo], [TapOffset], [TapTrail] and
- * [QwertyGeometry]) up against the Kotlin they replaced, [ReferenceSuggest], wherever this runs.
- * Self-contained, so a device check can copy it into the app and run the same comparison on a
- * phone, whose Java judges some characters differently from a computer's.
+ * [QwertyGeometry]) the questions the Kotlin they replaced was asked, and puts every answer on
+ * [tape], whose golden files hold that Kotlin's answers (docs/phase6-kotlin-references.md).
  *
- * [sigmaExact] says whether to compare how Σ lower-cases. Rust follows ICU's rule for whether a Σ
- * ends a word (ς) or not (σ), as Android does; the JVM uses its own, so off a phone ς and σ are
- * counted as one.
- *
- * Every answer the Kotlin gave goes on [tape], in order, so it can stand in for the Kotlin.
+ * [sigmaExact] says whether to tell how Σ lower-cases. Rust follows ICU's rule for whether a Σ
+ * ends a word (ς) or not (σ), as Android does; the JVM the goldens came from used its own, so off a
+ * phone ς and σ are counted as one.
  */
 class SuggestComparison(private val sigmaExact: Boolean, private val tape: GoldenTape) {
-    /** How many comparisons failed, and the first few, described. */
-    var failures = 0
-        private set
-    val examples = mutableListOf<String>()
+    private fun check(what: String, answer: Any?) = tape.answer(what, answer)
 
-    /** How many comparisons ran. */
-    var checks = 0L
-        private set
-
-    private fun check(what: String, input: String, kotlin: Any?, rust: Any?) {
-        tape.answer(what, kotlin)
-        checks++
-        if (kotlin == rust) return
-        failures++
-        if (examples.size < MAX_EXAMPLES) examples += "$what(${hex(input)}): Kotlin ${show(kotlin)}, Rust ${show(rust)}"
-    }
-
-    /** What [body] gives, or the exception it throws, so both sides must throw alike. */
+    /** What [body] gives, or the exception it throws, so a throw is an answer too. */
     private inline fun outcome(body: () -> Any?): Any? = try {
         body()
     } catch (e: IllegalArgumentException) {
@@ -46,119 +29,69 @@ class SuggestComparison(private val sigmaExact: Boolean, private val tape: Golde
 
     /** Everything about [text] as a typed word. */
     fun word(text: String) {
-        check("of", text, ReferenceSuggest.WordCase.of(text).name, WordCase.of(text).name)
-        check("isMostlyCaps", text, ReferenceSuggest.WordCase.isMostlyCaps(text), WordCase.isMostlyCaps(text))
-        check(
-            "decoderInput",
-            text,
-            sigma(ReferenceSuggest.WordCase.decoderInput(text, Locale.US)),
-            sigma(WordCase.decoderInput(text)),
-        )
-        for (case in WordCase.entries) {
-            val reference = ReferenceSuggest.WordCase.valueOf(case.name)
-            check("apply ${case.name}", text, reference.apply(text, Locale.US), case.apply(text))
-        }
+        check("of", WordCase.of(text).name)
+        check("isMostlyCaps", WordCase.isMostlyCaps(text))
+        check("decoderInput", sigma(WordCase.decoderInput(text)))
+        for (case in WordCase.entries) check("apply ${case.name}", case.apply(text))
     }
 
     /** The context before a word typed after [text]. */
     fun context(text: String) {
-        val reference = ReferenceSuggest.PreviousWords.from(text)
         val rust = PreviousWords.from(text)
-        check(
-            "PreviousWords.from",
-            text,
-            describe(reference.words, reference.isBeginningOfSentence, reference.slotCount),
-            describe(rust.words, rust.isBeginningOfSentence, rust.slotCount),
-        )
+        check("PreviousWords.from", "${rust.words.joinToString("|")} ${rust.isBeginningOfSentence} ${rust.slotCount}")
     }
-
-    private fun describe(words: List<String>, sentence: Boolean, slots: Int) = "${words.joinToString("|")} $sentence $slots"
 
     /** The score for correcting [before] to [after], and whether that passes [threshold]. */
     fun score(before: String, after: String, score: Int, kindAndFlags: Int, threshold: Float) {
-        val input = "$before|$after|$score|$kindAndFlags|$threshold"
-        check(
-            "normalizedScore",
-            input,
-            ReferenceSuggest.AutoCorrection.normalizedScore(before, after, score),
-            AutoCorrection.normalizedScore(before, after, score),
-        )
+        check("normalizedScore", AutoCorrection.normalizedScore(before, after, score))
         val suggestion = RawSuggestion(after, score, kindAndFlags)
-        check(
-            "suggestionExceedsThreshold",
-            input,
-            ReferenceSuggest.AutoCorrection.suggestionExceedsThreshold(suggestion, before, threshold),
-            AutoCorrection.suggestionExceedsThreshold(suggestion, before, threshold),
-        )
+        check("suggestionExceedsThreshold", AutoCorrection.suggestionExceedsThreshold(suggestion, before, threshold))
     }
 
-    fun distance(before: IntArray, after: IntArray) = check(
-        "editDistance",
-        "${before.joinToString(",")}|${after.joinToString(",")}",
-        outcome { ReferenceSuggest.AutoCorrection.editDistance(before, after) },
-        outcome { AutoCorrection.editDistance(before, after) },
-    )
+    fun distance(before: IntArray, after: IntArray) = check("editDistance", outcome { AutoCorrection.editDistance(before, after) })
 
     /** Undoing the correction of [typed] to [corrected] at [start]. */
-    fun revert(typed: String, corrected: String, start: Int, cursor: Int, text: String) {
-        val reference = ReferenceSuggest.AutoCorrectionUndo(typed, corrected, start).revertAt(cursor, text)
-        check(
-            "revertAt",
-            "$typed|$corrected|$start|$cursor|$text",
-            reference?.let { AutoCorrectionUndo.Revert(it.length, it.text, it.phantomSpace) },
-            AutoCorrectionUndo(typed, corrected, start).revertAt(cursor, text),
-        )
-    }
+    fun revert(typed: String, corrected: String, start: Int, cursor: Int, text: String) =
+        check("revertAt", AutoCorrectionUndo(typed, corrected, start).revertAt(cursor, text))
 
-    fun tapOffset(x: Float, y: Float, centerX: Float, centerY: Float, width: Float, height: Float) = check(
-        "TapOffset.of",
-        "$x,$y,$centerX,$centerY,$width,$height",
-        ReferenceSuggest.TapOffset.of(x, y, centerX, centerY, width, height)?.let { TapOffset(it.dx, it.dy) },
-        TapOffset.of(x, y, centerX, centerY, width, height),
-    )
+    fun tapOffset(x: Float, y: Float, centerX: Float, centerY: Float, width: Float, height: Float) =
+        check("TapOffset.of", TapOffset.of(x, y, centerX, centerY, width, height))
 
-    fun touchPoint(codePoint: Int, offset: TapOffset?) = check(
-        "touchPoint",
-        "$codePoint,$offset",
-        outcome { ReferenceSuggest.QwertyGeometry.touchPoint(codePoint, offset?.let { ReferenceSuggest.TapOffset(it.dx, it.dy) }) },
-        outcome { QwertyGeometry.touchPoint(codePoint, offset) },
-    )
+    fun touchPoint(codePoint: Int, offset: TapOffset?) = check("touchPoint", outcome { QwertyGeometry.touchPoint(codePoint, offset) })
 
     /** The layout, its grid and the rules' numbers, which don't depend on any input. */
     fun constants() {
-        val reference = ReferenceSuggest.QwertyGeometry
-        check("keys", "", reference.keys.map { "${it.codePoint},${it.x},${it.y}" }, QwertyGeometry.keys.map { "${it.codePoint},${it.x},${it.y}" })
-        check("proximityGrid", "", reference.proximityGrid().toList(), QwertyGeometry.proximityGrid().toList())
-        check(
-            "sizes",
-            "",
-            listOf(reference.KEY_WIDTH, reference.KEY_HEIGHT, reference.KEYBOARD_WIDTH, reference.KEYBOARD_HEIGHT),
-            listOf(QwertyGeometry.KEY_WIDTH, QwertyGeometry.KEY_HEIGHT, QwertyGeometry.KEYBOARD_WIDTH, QwertyGeometry.KEYBOARD_HEIGHT),
-        )
-        check(
-            "grid",
-            "",
-            listOf(reference.GRID_WIDTH, reference.GRID_HEIGHT, reference.MAX_PROXIMITY_CHARS),
-            listOf(QwertyGeometry.GRID_WIDTH, QwertyGeometry.GRID_HEIGHT, QwertyGeometry.MAX_PROXIMITY_CHARS),
-        )
-        check("TapOffset.LIMIT", "", ReferenceSuggest.TapOffset.LIMIT, TapOffset.LIMIT)
-        check("MODEST_THRESHOLD", "", ReferenceSuggest.AutoCorrection.MODEST_THRESHOLD, AutoCorrection.MODEST_THRESHOLD)
-        check("MAX_COUNT", "", ReferenceSuggest.PreviousWords.MAX_COUNT, PreviousWords.MAX_COUNT)
+        check("keys", QwertyGeometry.keys.map { "${it.codePoint},${it.x},${it.y}" })
+        check("proximityGrid", QwertyGeometry.proximityGrid().toList())
+        check("sizes", listOf(QwertyGeometry.KEY_WIDTH, QwertyGeometry.KEY_HEIGHT, QwertyGeometry.KEYBOARD_WIDTH, QwertyGeometry.KEYBOARD_HEIGHT))
+        check("grid", listOf(QwertyGeometry.GRID_WIDTH, QwertyGeometry.GRID_HEIGHT, QwertyGeometry.MAX_PROXIMITY_CHARS))
+        check("TapOffset.LIMIT", TapOffset.LIMIT)
+        check("MODEST_THRESHOLD", AutoCorrection.MODEST_THRESHOLD)
+        check("MAX_COUNT", PreviousWords.MAX_COUNT)
     }
 
     /** Every code point, and values that are none, through each rule that takes one. */
     fun everyCodePoint() {
         val offset = TapOffset(0.3f, -0.45f)
         for (codePoint in (-1..Character.MAX_CODE_POINT + 1) + EDGE_INTS) {
-            val text = "U+${Integer.toHexString(codePoint)}"
-            check("continuesWord", text, ReferenceSuggest.WordCharacters.continuesWord(codePoint), WordCharacters.continuesWord(codePoint))
-            check("keyCenter", text, ReferenceSuggest.QwertyGeometry.keyCenter(codePoint), QwertyGeometry.keyCenter(codePoint))
+            check("continuesWord", WordCharacters.continuesWord(codePoint))
+            check("keyCenter", QwertyGeometry.keyCenter(codePoint))
             touchPoint(codePoint, null)
             touchPoint(codePoint, offset)
-            val base = if (codePoint < 0) 'a'.code else ReferenceSuggest.AutoCorrection.baseLowerCase(codePoint)
+            val base = if (codePoint < 0) 'a'.code else baseLowerCase(codePoint)
             distance(intArrayOf(codePoint), intArrayOf(base))
             distance(intArrayOf(codePoint, 'e'.code), intArrayOf('e'.code, codePoint))
         }
+    }
+
+    /**
+     * The letter to ask [codePoint]'s edit distance to: its accent stripped (below U+0500, as
+     * LatinIME's `CharUtils::toBaseLowerCase` does) and lower-cased, by the JDK's NFD and lower
+     * case. Only a question: the distance is the answer.
+     */
+    private fun baseLowerCase(codePoint: Int): Int {
+        val base = if (codePoint < 0x500) Normalizer.normalize(String(Character.toChars(codePoint)), Normalizer.Form.NFD).codePointAt(0) else codePoint
+        return Character.toLowerCase(base)
     }
 
     /** Every UTF-16 unit in words, contexts, separators and scores where it matters. */
@@ -218,46 +151,35 @@ class SuggestComparison(private val sigmaExact: Boolean, private val tape: Golde
         }
     }
 
-    /** The same random presses, typing, deletes and clears on a Kotlin trail and a Rust one. */
+    /** Random presses, typing, deletes and clears on a trail, asking it for offsets after each. */
     fun trails(random: Random, count: Int) {
         repeat(count) {
             val capacity = if (random.nextBoolean()) random.nextInt(0, 6) else null
-            val reference = capacity?.let { ReferenceSuggest.TapTrail(it) } ?: ReferenceSuggest.TapTrail()
             val rust = capacity?.let { TapTrail(it) } ?: TapTrail()
             val typed = StringBuilder()
             repeat(random.nextInt(1, 100)) {
-                trailStep(random, reference, rust, typed)
-                val word = query(random, typed)
-                check(
-                    "offsetsFor",
-                    "${capacity ?: "default"}|$typed|$word",
-                    reference.offsetsFor(word).map { offset -> offset?.let { TapOffset(it.dx, it.dy) } },
-                    rust.offsetsFor(word),
-                )
+                trailStep(random, rust, typed)
+                check("offsetsFor", rust.offsetsFor(query(random, typed)))
             }
         }
     }
 
-    private fun trailStep(random: Random, reference: ReferenceSuggest.TapTrail, rust: TapTrail, typed: StringBuilder) {
+    private fun trailStep(random: Random, rust: TapTrail, typed: StringBuilder) {
         when (random.nextInt(12)) {
             0, 1 -> {
-                reference.deleted()
                 rust.positions.deleted()
                 if (typed.isNotEmpty()) typed.setLength(typed.offsetByCodePoints(typed.length, -1))
             }
             2 -> {
-                reference.clear()
                 rust.positions.clear()
                 typed.setLength(0)
             }
             else -> {
                 val codePoint = TAP_CODE_POINTS.random(random)
                 val offset = if (random.nextInt(4) == 0) null else TapOffset(random.coordinate(), random.coordinate())
-                reference.pressed(codePoint, offset?.let { ReferenceSuggest.TapOffset(it.dx, it.dy) })
                 rust.pressed(codePoint, offset)
                 if (random.nextInt(6) != 0) {
                     val text = List(random.nextInt(1, 3)) { TAP_TEXT.random(random) }.joinToString("")
-                    reference.typed(text)
                     rust.positions.typed(text)
                     typed.append(text)
                 }
@@ -299,7 +221,6 @@ class SuggestComparison(private val sigmaExact: Boolean, private val tape: Golde
     private fun Random.size() = if (nextBoolean()) SIZES.random(this) else nextFloat() * 200f
 
     companion object {
-        private const val MAX_EXAMPLES = 20
         private const val SMALL_SIGMA = "σ"
         private const val FINAL_SIGMA = "ς"
         private const val MODEST = 0.185f
@@ -352,9 +273,5 @@ class SuggestComparison(private val sigmaExact: Boolean, private val tape: Golde
             "a", "A", "t", "T", "h", "e", "E", "k", "K", "K", "i", "I", "İ", "ı", "Σ", "σ", "ς", "𐐀", "𐐨", "0", "'",
             " ", "the", "😀", "\uDC00", "\u0000",
         )
-
-        private fun hex(text: String) = text.map { "%04X".format(it.code) }.joinToString(" ")
-
-        private fun show(value: Any?) = if (value is String) "\"${hex(value)}\"" else value.toString()
     }
 }

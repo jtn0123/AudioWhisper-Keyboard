@@ -3,31 +3,26 @@ package com.jtn0123.audiowhisper.suggest
 import com.jtn0123.audiowhisper.golden.GoldenTape
 import kotlin.random.Random
 import kotlin.test.Test
-import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * The suggester and the word learner in Rust give exactly what the Kotlin they replaced gave
- * ([ReferenceLatin]), through [LatinComparison]: random strips and spell checks, and random runs
- * of finished, swiped and undone words. The same comparison runs on the emulator, whose Java
- * judges some characters differently.
+ * The suggester and the word learner in Rust give exactly what the Kotlin they replaced gave (its
+ * answers are golden files, docs/phase6-kotlin-references.md), through [LatinComparison]: random
+ * strips and spell checks, and random runs of finished, swiped and undone words.
  */
 class LatinRulesMatchTest {
-    private fun assertNone(name: String, reached: List<String>, body: LatinComparison.() -> Unit) {
-        val tape = GoldenTape.ofReference("latin-rules-$name")
-        val comparison = LatinComparison(sigmaExact = false, tape).apply(body)
-        assertEquals(emptyList(), comparison.examples, "${comparison.failures} of ${comparison.checks} differ")
-        tape.finish()
+    private fun assertGolden(name: String, reached: List<String>, body: LatinComparison.() -> Unit) {
+        val comparison = GoldenTape.check("latin-rules-$name") { LatinComparison(sigmaExact = false, it).apply(body) }
         for (outcome in reached) {
             assertTrue((comparison.seen[outcome] ?: 0) >= MIN_SEEN, "$outcome only ${comparison.seen[outcome]} times")
         }
     }
 
     @Test
-    fun stripsAndSpellChecksMatch() = assertNone("strips", STRIP_OUTCOMES) { suggester(Random(SEED), 40_000) }
+    fun stripsAndSpellChecksMatch() = assertGolden("strips", STRIP_OUTCOMES) { suggester(Random(SEED), 40_000) }
 
     @Test
-    fun learnersStoreTheSame() = assertNone("learners", LEARNER_OUTCOMES) { learner(Random(SEED), runs = 1_500, steps = 60) }
+    fun learnersStoreTheSame() = assertGolden("learners", LEARNER_OUTCOMES) { learner(Random(SEED), runs = 1_500, steps = 60) }
 
     private companion object {
         const val SEED = 20261108L
