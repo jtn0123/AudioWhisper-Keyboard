@@ -1,7 +1,8 @@
 """The keyboard's pure models: the shift key (ShiftMatchTest), rule composing (ComposingMatchTest), emoji
 data and suggestions (EmojiMatchTest), key state, codes, rules and availability (KeyModelsMatchTest),
-selector choices (KeySelectorsMatchTest) and the layout cache (LayoutAssemblyMatchTest's cache test).
-input.py's double-space case breaks the shift crate too."""
+selector choices (KeySelectorsMatchTest), the layout cache (LayoutAssemblyMatchTest's cache test), the text
+keyboard's geometry (TextKeyboardMatchTest) and every evaluated keyboard's keys and bounds (LayoutAssemblyMatchTest's
+layout tests). input.py's double-space case breaks the shift crate too."""
 SHIFT = 'lib/rust/crates/shift/src/lib.rs'
 COMPOSING = 'lib/rust/crates/composing/src/rules.rs'
 EMOJI = 'lib/rust/crates/emoji/src/'
@@ -14,6 +15,9 @@ TARGETS = {
     'models': ['*KeyModelsMatchTest'],
     'selectors': ['*KeySelectorsMatchTest'],
     'cache': ['*LayoutAssemblyMatchTest.cacheOperationsAndHashCollisionsMatch'],
+    'geometry': ['*TextKeyboardMatchTest'],
+    'snapshots': ['*LayoutAssemblyMatchTest.everyBundledLayoutModeAndRetainedPresetMatches',
+                  '*LayoutAssemblyMatchTest.seededMissingReferencesEmptyRowsSelectorsAndHintSettingsMatch'],
 }
 CASES = [
     # The shift key: what each event does to each state, the double tap's clock and the double space.
@@ -99,4 +103,35 @@ CASES = [
      '((mode as i64) << 32) | (subtype_hash as i64)', 'cache'),
     ('clear-mode-clears-the-others', KEYS + 'assembly.rs', 'mode.is_none_or(|mode| (key >> 32) as i32 == mode)',
      'mode.is_none_or(|mode| (key >> 32) as i32 != mode)', 'cache'),
+    # Geometry: the desired key, how a row's keys grow and shrink, their bounds, and the key a touch lands on.
+    ('row-height-cap-lower', KEYS + 'desired.rs', 'const ROW_HEIGHT_CAP: f32 = 1.12;', 'const ROW_HEIGHT_CAP: f32 = 1.1;',
+     'geometry'),
+    ('symbols2-uncapped', KEYS + 'desired.rs', 'mode::CHARACTERS | mode::NUMERIC_ADVANCED | mode::SYMBOLS | mode::SYMBOLS2 => {',
+     'mode::CHARACTERS | mode::NUMERIC_ADVANCED | mode::SYMBOLS => {', 'geometry'),
+    ('margins-swapped', KEYS + 'desired.rs', 'let (dx, dy) = (-key_margin_h, -key_margin_v);',
+     'let (dx, dy) = (-key_margin_v, -key_margin_h);', 'geometry'),
+    ('empty-visible-laid-out', KEYS + 'layout.rs', 'if desired_touch.is_empty() || desired_visible.is_empty() {',
+     'if desired_touch.is_empty() {', 'geometry'),
+    ('row-margin-of-one-row', KEYS + 'layout.rs', '/ (row_count - 1).max(1) as f32;', '/ row_count.max(1) as f32;', 'geometry'),
+    ('shrink-by-grow', KEYS + 'layout.rs', 'key.width_factor - clipping_width * (key.shrink / shrink_sum)',
+     'key.width_factor - clipping_width * (key.grow / shrink_sum)', 'geometry'),
+    ('end-extra-added', KEYS + 'layout.rs', 'visible.right -= extra;', 'visible.right += extra;', 'geometry'),
+    ('extend-every-row', KEYS + 'layout.rs', 'if self.extend_down && last {', 'if self.extend_down {', 'geometry'),
+    ('insets-from-the-right', KEYS + 'layout.rs', 'left: (desired_touch.left - desired_visible.left).abs(),',
+     'left: (desired_touch.right - desired_visible.right).abs(),', 'geometry'),
+    ('touch-past-an-empty-row', KEYS + 'layout.rs', '            return None;\n        }\n        for touch in *keys {',
+     '            continue;\n        }\n        for touch in *keys {', 'geometry'),
+    ('touch-right-edge-inside', KEYS + 'lib.rs', 'x >= self.left && x < self.right && y >= self.top',
+     'x >= self.left && x <= self.right && y >= self.top', 'geometry'),
+    # Evaluated keyboards: each bundled key's flex factors and the row it fills.
+    ('shift-shrinks-like-a-key', KEYS + 'flex.rs', 'code::SHIFT | code::DELETE => 1.5,', 'code::SHIFT | code::DELETE => 1.0,',
+     'snapshots'),
+    ('enter-shrinks', KEYS + 'flex.rs',
+     'code::VIEW_CHARACTERS | code::VIEW_SYMBOLS | code::VIEW_SYMBOLS2 | code::ENTER => 0.0,',
+     'code::VIEW_CHARACTERS | code::VIEW_SYMBOLS | code::VIEW_SYMBOLS2 => 0.0,', 'snapshots'),
+    ('space-fixed', KEYS + 'flex.rs', 'code::SPACE | code::CJK_SPACE => 1.0,', 'code::CJK_SPACE => 1.0,', 'snapshots'),
+    ('phone-width', KEYS + 'flex.rs', 'mode::NUMERIC | mode::PHONE | mode::PHONE2 => 2.68,',
+     'mode::NUMERIC | mode::PHONE | mode::PHONE2 => 2.65,', 'snapshots'),
+    ('ends-grow-by-all', KEYS + 'layout.rs', 'key.width_factor + additional_width / 2.0',
+     'key.width_factor + additional_width', 'snapshots'),
 ]
