@@ -8,13 +8,19 @@ import com.jtn0123.audiowhisper.rust.ClipboardStore
 import com.jtn0123.audiowhisper.rust.StoreImport
 import com.jtn0123.audiowhisper.rust.StoreOpened
 import com.jtn0123.audiowhisper.rust.UserWordStore
+import dev.patrickgold.florisboard.ime.clipboard.provider.ClipboardItem
+import dev.patrickgold.florisboard.ime.clipboard.provider.ItemType
+import dev.patrickgold.florisboard.ime.clipboard.provider.addItem
 import java.io.File
+import java.io.IOException
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.util.zip.CRC32
 import org.json.JSONObject
 import org.junit.After
+import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertThrows
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -126,13 +132,14 @@ class StoresMigrationDeviceTest {
         checkHistory(clips(), "history-v4")
     }
 
-    /** Died while saving the store: its temporary file is left beside it, and the import runs again from the start. */
+    /** Died while saving the store: its temporary file is left beside it, opening removes it before any save, and
+     * the import runs again from the start. */
     @Test fun aCrashMidSaveImportsOnTheNextStart() {
         placeClipboard()
-        val store = File(dir, "clipboard.store")
-        File(store.path + ".tmp").writeBytes(ByteArray(64) { it.toByte() })
-        assertEquals(StoreImport.ROWS, LegacyRoom.importClipboard(app, clips()))
-        assertEquals(false, File(store.path + ".tmp").exists())
+        val tmp = File(dir, "clipboard.store.tmp").apply { writeBytes(ByteArray(64) { it.toByte() }) }
+        val store = clips()
+        assertEquals(false, tmp.exists())
+        assertEquals(StoreImport.ROWS, LegacyRoom.importClipboard(app, store))
         checkHistory(clips(), "history-v4")
     }
 
@@ -157,7 +164,13 @@ class StoresMigrationDeviceTest {
         assertEquals(StoreImport.KEPT, LegacyRoom.importClipboard(app, store))
         assertEquals(StoreImport.KEPT, LegacyRoom.importDictionary(app, words()))
         assertEquals(placed, left())
+        val file = File(dir, "clipboard.store")
+        val bytes = file.readBytes()
+        assertThrows(IOException::class.java) { store.addItem(synthetic, 0, false, 0) }
+        assertArrayEquals(bytes, file.readBytes())
     }
+
+    private val synthetic = ClipboardItem(0, ItemType.TEXT, "synthetic", null, 1, false, listOf("text/plain"))
 
     private fun clips() = ClipboardStore(File(dir, "clipboard.store").path)
     private fun words() = UserWordStore(File(dir, "words.store").path)
