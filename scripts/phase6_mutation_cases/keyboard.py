@@ -2,11 +2,13 @@
 data and suggestions (EmojiMatchTest), key state, codes, rules and availability (KeyModelsMatchTest),
 selector choices (KeySelectorsMatchTest), the layout cache (LayoutAssemblyMatchTest's cache test), the text
 keyboard's geometry (TextKeyboardMatchTest) and every evaluated keyboard's keys and bounds (LayoutAssemblyMatchTest's
-layout tests). input.py's double-space case breaks the shift crate too."""
+layout tests), and the glide scorer behind SwipeIndex (SwipeIndexTest). input.py's double-space case breaks the
+shift crate too; glide-mutations.py keeps the cases for the tuned scorer."""
 SHIFT = 'lib/rust/crates/shift/src/lib.rs'
 COMPOSING = 'lib/rust/crates/composing/src/rules.rs'
 EMOJI = 'lib/rust/crates/emoji/src/'
 KEYS = 'lib/rust/crates/keys/src/'
+GLIDE = 'lib/rust/crates/glide/src/'
 MODULE = ':app'
 TARGETS = {
     'shift': ['*ShiftMatchTest'],
@@ -18,6 +20,7 @@ TARGETS = {
     'geometry': ['*TextKeyboardMatchTest'],
     'snapshots': ['*LayoutAssemblyMatchTest.everyBundledLayoutModeAndRetainedPresetMatches',
                   '*LayoutAssemblyMatchTest.seededMissingReferencesEmptyRowsSelectorsAndHintSettingsMatch'],
+    'swipe': ['*SwipeIndexTest'],
 }
 CASES = [
     # The shift key: what each event does to each state, the double tap's clock and the double space.
@@ -134,4 +137,23 @@ CASES = [
      'mode::NUMERIC | mode::PHONE | mode::PHONE2 => 2.65,', 'snapshots'),
     ('ends-grow-by-all', KEYS + 'layout.rs', 'key.width_factor + additional_width / 2.0',
      'key.width_factor + additional_width', 'snapshots'),
+    # The glide scorer: which words are scored, how a swipe is resampled, and how a word is weighed.
+    ('length-threshold-tighter', GLIDE + 'score.rs', 'const LENGTH_THRESHOLD: f64 = 8.42;',
+     'const LENGTH_THRESHOLD: f64 = 8.0;', 'swipe'),
+    ('first-key-only', GLIDE + 'score.rs', 'for &first in &firsts {', 'for &first in &firsts[..1] {', 'swipe'),
+    ('shape-std-wider', GLIDE + 'score.rs', 'const SHAPE_STD: f32 = 22.08;', 'const SHAPE_STD: f32 = 22.5;', 'swipe'),
+    ('location-std-wider', GLIDE + 'score.rs', 'const LOCATION_STD: f32 = 0.5109;', 'const LOCATION_STD: f32 = 0.52;',
+     'swipe'),
+    ('location-without-y', GLIDE + 'score.rs', 'total += (a.x(i) - b.x(i)).abs() + (a.y(i) - b.y(i)).abs();',
+     'total += (a.x(i) - b.x(i)).abs();', 'swipe'),
+    ('frequency-ignored', GLIDE + 'score.rs', 'let frequency = 255.0f32 * frequency;', 'let frequency = 255.0f32;',
+     'swipe'),
+    ('loops-never-scored', GLIDE + 'score.rs', 'for ideal in &ideals[..if has_loops { 2 } else { 1 }] {',
+     'for ideal in &ideals[..1] {', 'swipe'),
+    ('gaussian-flatter', GLIDE + 'score.rs', '(factor * (-1.0 / 2.0 * (z * z)).exp()) as f32',
+     '(factor * (-1.0 / 3.0 * (z * z)).exp()) as f32', 'swipe'),
+    ('fewer-samples', GLIDE + 'gesture.rs', 'pub const SAMPLES: usize = 200;', 'pub const SAMPLES: usize = 100;', 'swipe'),
+    ('fewer-points-kept', GLIDE + 'gesture.rs', 'pub const MAX_POINTS: usize = 500;', 'pub const MAX_POINTS: usize = 400;',
+     'swipe'),
+    ('rounding-error-dropped', GLIDE + 'gesture.rs', 'cumulative_error += steps - (steps as i32) as f32;', '', 'swipe'),
 ]
