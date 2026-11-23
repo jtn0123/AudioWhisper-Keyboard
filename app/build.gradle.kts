@@ -155,6 +155,7 @@ android {
             if (providers.gradleProperty("settingsFixture").orNull == "true") proguardFile("settings-fixture.pro")
             if (providers.gradleProperty("storesFixture").orNull == "true") proguardFile("stores-fixture.pro")
             if (providers.gradleProperty("iconsFixture").orNull == "true") proguardFile("icons-fixture.pro")
+            if (providers.gradleProperty("paletteFixture").orNull == "true") proguardFile("palette-fixture.pro")
             isMinifyEnabled = true
             isShrinkResources = true
 
