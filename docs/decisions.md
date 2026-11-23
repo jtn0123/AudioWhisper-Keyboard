@@ -100,16 +100,25 @@ then it needs a real release key, and the models need installing without a debug
 (grade report item E5).
 
 
-## Retain the Compose root while removing keyboard drawing surfaces
+## A plain-View root for the Rust renderer; the Compose root only as the fallback (2026-11-23)
 
-Package 8 keeps the root and bottom-sheet Compose hosts because they still provide the
-live theme, preference/resource bindings, background images, sizing/insets and Android
-inline-suggestion interop. A plain View factory alone would still load Compose through
-those dependencies; removing them together is a separate host rewrite. The current paths
-have timestamp-only cold/warm creation measurements in [the package 8 report](stage3b-package8.md).
-**Would change if** those remaining adapters can be hosted cleanly with Android lifecycle/
-Flow bindings and a measured plain-View trial is neutral or better. This does not block the
-35-file fallback keyboard deletion after S24 acceptance, whose dry-run compile already passes.
+This replaces "Retain the Compose root while removing keyboard drawing surfaces" (package 8),
+which kept the Compose root because the live theme, preference and resource bindings,
+background images, sizing and insets, and Android's inline suggestions all reached it. It said
+it would change if those could be hosted with Android lifecycle and Flow bindings and a measured
+plain-View trial was neutral or better. Phase 3 item 4 did both
+([the plain-View root](phase3-view-root.md)). With the Rust renderer on, the input view is plain
+Views and holds no composition: Rust plans the window (`render::ime_root`) and answers its
+background (`imetheme::window`), and the views take their flows for the view's lifetime.
+The measured trial was better, not only neutral: alternating three CPU trials each on the
+emulator, the plain root's frame p95 was 1.992 to 2.374 ms against main's 2.959 to 3.522, its
+share of frames over 2 ms about half of main's, and touch to post 13 to 30 ms lower at p50
+([cpu-p95-results](cpu-p95-results.md#the-plain-view-root-2026-11-23)). Neither build meets the
+2 ms gate on a loaded host; the branch met it in one trial of five, main in none of three.
+The Compose root stays only as the renderer switch's fallback, frozen, and goes with the
+`keyboard` scope at [step K](compose-removal.md#k-the-compose-keyboard).
+**Would change if** the phone (P35) shows the plain root wrong where the Compose root was right:
+insets, the cutout, the Samsung font, a background-image theme or live inline autofill.
 
 ## sherpa-onnx 2.0.1 C API for dictation and Pocket TTS
 

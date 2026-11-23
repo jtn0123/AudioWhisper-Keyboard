@@ -100,6 +100,9 @@ no deletion or endpoint is claimed here. Recount actual accepted source after ea
    Move accessibility focus recovery, hover/hit/hold policy and semantic traversal to Rust;
    retain SurfaceView, fonts/resources, Choreographer, AccessibilityNodeProvider and
    InlineContentView transport. Requires real TalkBack and phone/120 Hz acceptance.
+   (phase 3 item 4: with the Rust renderer on, the root is plain Views, and Rust plans the
+   window, `render::ime_root`, and answers its background and image, `imetheme::window`; the
+   Compose root stays as the fallback until step K.)
 3. **Editor/input/NLP integration.** Move remaining admission/publication/repeat/feedback
    branches and provider/cache lifetime choices; retain InputConnection, EditorInfo, Android
    ICU boundary facts, haptics and real spell-checker/inline APIs. Differential traces must
@@ -200,6 +203,12 @@ Path prefixes (each path below expands against the repository root):
 | `AW/reader/Voice.kt` | 45 | A | AudioManager.requestAudioFocus / abandonAudioFocusRequest |
 | `AW/reader/VoiceEngine.kt` | 134 | A | Context files / SystemClock; model idle/failure/cross-model eviction state (since phase 5 how long the voice stays loaded is Rust's (`VoiceHold`), run by `LoadedVoice.kt` (new, A, 63 counted lines); 71 counted lines) |
 | `AW/render/AccessibilityRelease.kt` | 27 | P | hover/hold release target choice and hit testing |
+| `AW/render/ImeRootBackdrop.kt` | 155 | A | SurfaceView / ImageDecoder; the window's background and image on a surface of their own, at the rectangle Rust answers (added at phase 3 item 4) |
+| `AW/render/ImeRootExtract.kt` | 49 | A | ExtractEditText; the full-screen editor inside the Rust chrome view (added at phase 3 item 4, in place of `NativeExtractContent.kt`) |
+| `AW/render/ImeRootInline.kt` | 49 | A | InlineContentView / HorizontalScrollView; Android's inline autofill chips in a scrolling row (added at phase 3 item 4) |
+| `AW/render/ImeRootReads.kt` | 131 | A | Context / Resources / Jetpref Flow; what the adapters read where Compose read its locals, and the flows that rebuild the snapshot (added at phase 3 item 4) |
+| `AW/render/ImeRootSheet.kt` | 61 | A | FrameLayout / WindowInsets; the subtype sheet over the window, and the safe drawing insets (added at phase 3 item 4, in place of `RustSubtypeSheet.kt`) |
+| `AW/render/ImeRootView.kt` | 221 | A | FrameLayout / WindowInsets / WindowManager; the plain-View input view: measures the facts Rust's window plan takes, places the views at its rectangles, rebuilds the snapshot (added at phase 3 item 4, in place of `RustKeyboardLayout.kt`, `RustOneHandedPanel.kt` and the Compose root) |
 | `AW/render/KeyGraphRows.kt` | 123 | M | LayoutManager files / java.util.Locale casing; the key graph's build row from the files a mode needs, its facts row, and Android's casing answers (added at phase 3 item 2; since phase 3 item 3 it names the subtype's files from Rust's facts and keys keyboards by Rust's cache key) |
 | `AW/render/RenderTiming.kt` | 14 | M | ViewTreeObserver / Log; fallback-only timing scaffolding, remove with its callers |
 | `AW/render/RendererAccessibility.kt` | 285 | M | AccessibilityNodeProvider; focus recovery, hover/hit/hold/touch state still Kotlin |
@@ -223,16 +232,16 @@ Path prefixes (each path below expands against the repository root):
 | `AW/render/RendererSmartbar.kt` | 110 | M | Resources / Paint; item choice, measurement and action binding (each action's icon, arrow, flags, label and what the toggle flips moved to Rust's `smartbar_actions` at phase 3 item 1; this file keeps the evaluator's facts and the icon vectors; phase 3 item 2: each action's enabled state, icon and label are answered from the Rust key graph, so this file no longer writes them) |
 | `AW/render/RendererSmartbarTouch.kt` | 47 | M | InputConnection / PopupWindow; enabled/removal/tooltip action gating |
 | `AW/render/RendererSubtypes.kt` | 21 | A | Resources / Jetpref Flow; localized subtype snapshot transport |
-| `AW/render/RendererTheme.kt` | 78 | A | Resources.Configuration / DisplayMetrics / system accent; theme and density transport (phase 3 item 3: the palette is made from the primary Rust chooses, and the inline chips' colours are asked of Rust, crates/imetheme; nothing is read from the Compose root) |
+| `AW/render/RendererTheme.kt` | 78 | A | Resources.Configuration / DisplayMetrics / system accent; theme and density transport (phase 3 item 3: the palette is made from the primary Rust chooses, and the inline chips' colours are asked of Rust, crates/imetheme; nothing is read from the Compose root; phase 3 item 4: the composable readers are deleted, the root builds the theme from `ImeRootReads`; 40 counted lines) |
 | `AW/render/RustChromeView.kt` | 98 | M | View / Bitmap / Canvas; native pixels stay at edge, move hardcoded subtype bootstrap dimensions/timing constants |
 | `AW/render/RustExtractView.kt` | 37 | A | ExtractEditText / ViewGroup; applies native extract bounds to platform editor |
 | `AW/render/RustKeyGraphs.kt` | 95 | M | Context / Resources / LayoutManager; the Rust renderer's key graphs per mode and subtype, their label resources and the question-and-answer loop (added at phase 3 item 2) |
 | `AW/render/RustKeyPreview.kt` | 34 | A | Bitmap / ART JNI; displays native preview pixels (replace Compose interop host) |
 | `AW/render/RustKeyboard.kt` | 132 | M | Keyboard / TextKey adapter; reads the Rust key graph's keys back for the input path and a key's platform effects (added at phase 3 item 2; keeps the subtype it was built for since phase 3 item 3) |
-| `AW/render/RustKeyboardLayout.kt` | 92 | M | SurfaceView / WindowInsets / InlineContentView; Kotlin root sizing/state branches (phase 3 item 3: no longer fills the Compose chip-style cache) |
-| `AW/render/RustKeyboardView.kt` | 405 | M | SurfaceView / Choreographer / SystemFonts; snapshot assembly and dispatch/fallback policy |
-| `AW/render/RustOneHandedPanel.kt` | 37 | M | View/Jetpref; side-panel sizing/visibility and preference-effect binding |
-| `AW/render/RustSubtypeSheet.kt` | 31 | A | WindowInsets / AndroidView; native sheet surface interop only |
+| `AW/render/RustKeyboardLayout.kt` | 92 | M | SurfaceView / WindowInsets / InlineContentView; Kotlin root sizing/state branches (phase 3 item 3: no longer fills the Compose chip-style cache; phase 3 item 4: deleted, the window plan is Rust's `render::ime_root` and `ImeRootView.kt` hosts the surface) |
+| `AW/render/RustKeyboardView.kt` | 405 | M | SurfaceView / Choreographer / SystemFonts; snapshot assembly and dispatch/fallback policy (phase 3 item 4: raises its surface above the window while Rust's plan says `RISE`; 411 counted lines) |
+| `AW/render/RustOneHandedPanel.kt` | 37 | M | View/Jetpref; side-panel sizing/visibility and preference-effect binding (phase 3 item 4: deleted, the panels' sides and sizes are in Rust's window plan, and `ImeRootView.kt` places them) |
+| `AW/render/RustSubtypeSheet.kt` | 31 | A | WindowInsets / AndroidView; native sheet surface interop only (phase 3 item 4: deleted, replaced by `ImeRootSheet.kt`, a plain View) |
 | `AW/settings/SettingsCodecs.kt` | 67 | A | Jetpref typed serializers / ART JNI; Android DTO construction only |
 | `AW/settings/SettingsComponentSerializer.kt` | 12 | A | Jetpref typed serializer / ART JNI; component codec transport |
 | `AW/settings/SettingsDefaults.kt` | 37 | A | Jetpref PreferenceModel / ART JNI; reads native defaults |
@@ -260,12 +269,12 @@ Path prefixes (each path below expands against the repository root):
 | `AW/suggest/TypingHistory.kt` | 26 | A | Room/file-store / ART JNI; combines Android store handles (no Room since phase 5) |
 | `AW/suggest/WordLearner.kt` | 37 | A | ART JNI; native learning operation transport (moved to test sources at phase 3 item 1: the NLP session learns each typing event itself; kept for the frozen reference fan-out) |
 | `FB/FlorisApplication.kt` | 142 | M | Application / BroadcastReceiver; manager startup and initialization sequencing |
-| `FB/FlorisImeService.kt` | 448 | M | InputMethodService; input/extract/keyboard-switch/lifecycle branches |
-| `FB/FlorisImeUi.kt` | 161 | M | WindowInsets / Compose host; root sizing/placement/background drawing |
-| `FB/FlorisImeViews.kt` | 229 | M | ExtractEditText / ComposeView; input/sheet/extract branch/layout ownership |
+| `FB/FlorisImeService.kt` | 448 | M | InputMethodService; input/extract/keyboard-switch/lifecycle branches (phase 3 item 4: picks the plain-View or Compose root, sheet and extract view by the renderer setting and swaps them when it changes; 434 counted lines) |
+| `FB/FlorisImeUi.kt` | 161 | M | WindowInsets / Compose host; root sizing/placement/background drawing (phase 3 item 4: the Compose root's Rust branches are deleted; it now runs only as the fallback, so it goes whole at step K) |
+| `FB/FlorisImeViews.kt` | 229 | M | ExtractEditText / ComposeView; input/sheet/extract branch/layout ownership (phase 3 item 4: the Rust branches are deleted; the Compose input, sheet and extract views serve only the fallback, so they go at step K) |
 | `FB/FlorisInlineSuggestions.kt` | 53 | A | InputMethodService.onCreateInlineSuggestionsRequest / InlineSuggestionsResponse (phase 3 item 3: the style bundle comes from the theme manager at request time, from Rust's chip colours) |
 | `FB/FlorisSpellCheckerService.kt` | 105 | M | SpellCheckerService; language/session/result assembly around native spell |
-| `FB/NativeExtractContent.kt` | 25 | A | ExtractEditText / AndroidView; native chrome with platform text editor |
+| `FB/NativeExtractContent.kt` | 25 | A | ExtractEditText / AndroidView; native chrome with platform text editor (phase 3 item 4: deleted, replaced by `ImeRootExtract.kt`, with no `AndroidView`) |
 | `FB/app/AppPreferenceMigration.kt` | 27 | A | Jetpref migration callback / ART JNI; applies native migration result |
 | `FB/app/AppPrefs.kt` | 301 | M | Jetpref PreferenceModel; Android stores stay, derived UI/sizing values must move |
 | `FB/app/ComposeSettingsFallbackActivity.kt` | 5 | A | ComponentActivity; retained fallback Activity identity (deleted at compose-removal step 12) |

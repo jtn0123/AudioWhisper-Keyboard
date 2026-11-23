@@ -506,6 +506,77 @@ The host's load averages at the trials' starts and ends ran from 2.5 to 8.0.
 
 **Still owed.** The CPU gate on a quiet host (E28), and on the phone (P4).
 
+## The plain-View root (2026-11-23)
+
+Phase 3 item 4 ([phase3-view-root.md](phase3-view-root.md)) hosts the Rust renderer in a plain
+`FrameLayout` instead of the Compose root. A hosting change, so these trials compare the final
+build (fe8dad380) with main (0500aa74f), each built in a worktree of its own:
+`cpu-trials.py --rust-only --trials 1`, alternating main and the branch three times each, on
+`aw_keyboard` (emulator-5558) with the Rust renderer, and with the settings the device had
+before this work restored. The folders are in `build/cpu-p95/view-root/`.
+
+**The 2 ms wall-clock gate was not met by main, and the branch met it in one trial of three (and in
+neither of the two after the insets fix, below).**
+This is not a pass: the branch's other two trials are 2.374 and 2.157 ms, on a loaded host.
+
+| Trial | Frames | p50 | p95 | p99 | Over 2 ms | CPU time p50 | CPU time p95 |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| main 1 (`main-1-b`) | 1,062 | 0.980 | 2.959 | 5.430 | 135 (12.7%) | 0.854 | 1.504 |
+| branch 1 (`branch-1`) | 943 | 0.977 | 2.374 | 3.808 | 73 (7.7%) | 0.878 | 1.378 |
+| main 2 (`main-2`) | 1,018 | 0.907 | 3.522 | 5.833 | 125 (12.3%) | 0.780 | 1.467 |
+| branch 2 (`branch-2-b`) | 944 | 1.009 | 2.157 | 3.738 | 66 (7.0%) | 0.883 | 1.333 |
+| main 3 (`main-3-b`) | 1,071 | 1.053 | 3.231 | 5.609 | 148 (13.8%) | 0.904 | 1.541 |
+| branch 3 (`branch-3-b`) | 945 | 0.992 | 1.992 | 3.440 | 48 (5.1%) | 0.887 | 1.316 |
+
+All six typed the expected text (`809d588b…`, 300 units, and `c14d19d2…`, 308 units, after the
+popups). Touch to post, p50 and p95 in ms: main 121.6 and 265.4, 125.6 and 265.2, 127.3 and
+266.4; the branch 101.6 and 241.9, 108.5 and 253.8, 97.6 and 227.6.
+
+* **The branch is faster beyond noise.** Its p95, 1.992 to 2.374 ms, is below all of main's,
+  2.959 to 3.522; its p99, 3.440 to 3.808, below all of main's, 5.430 to 5.833; its share of
+  frames over 2 ms, 5.1 to 7.7%, about half of main's 12.3 to 13.8%; and its CPU time p95, 1.316
+  to 1.378, below all of main's, 1.467 to 1.541. Its p50s lie within main's.
+* **It draws fewer frames for the same typing.** Counted from the frames' own flags in
+  `rust-timing.log`: the branch drew 308 press and 308 release frames in each trial and 319 to
+  321 that only changed the strip's words; main drew 294 to 307 of each and 422 to 449 strip
+  frames. Strip frames are full-width, so they are most of main's frames over 2 ms (80 to 101 a
+  trial, the branch 10 to 25). The root rebuilds at most once a frame from every flow it
+  watches (`RootWatch`, on the Choreographer); where main's extra strip frames come from was not
+  traced further.
+* **It is not only fewer frames.** The press and release frames alone have a p95 of 2.145 to
+  2.492 ms on the branch and 2.807 to 3.231 on main; the strip frames alone, 1.814 to 2.397
+  against 3.333 to 4.239.
+* Touch to post is 13 to 30 ms lower at p50 on the branch, and its p95 lies below main's.
+
+**Thrown out, folders kept.** Four trials typed 300 units with another digest (E29), each a key
+typed as its long-press hint, and were run again at once: `main-1` (one key), `branch-2` (two),
+`main-3` (one) and `branch-3` (one).
+`explain-digest.py` explains each typing digest; their popup digests follow from the same wrong
+text. The order was main 1 (thrown out, then again), branch 1, main 2, branch 2 (thrown out,
+then again), main 3 (thrown out, then again), branch 3 (thrown out, then again).
+
+The host was loaded by other jobs. The kept trials' load averages ran from 4.3 to 7.2 at their
+starts and 4.1 to 11.7 at their ends; the thrown-out `branch-2` started at 12.7.
+
+**After the insets fix.** A later fix (a root swapped in at runtime now asks for the window's
+insets; see [phase3-view-root](phase3-view-root.md#insets-and-the-full-screen-editor)) adds one
+insets dispatch per attach and nothing per frame. One trial of its build and one of the final
+build, after main's and the branch's above:
+
+| Trial | Frames | p50 | p95 | p99 | Over 2 ms | CPU time p50 | CPU time p95 |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| insets fix (`fix-1-b`, `af2e1e34`) | 942 | 0.996 | 2.330 | 3.629 | 71 (7.5%) | 0.870 | 1.343 |
+| final (`final-1-c`, `abc67621`) | 942 | 0.941 | 2.124 | 3.494 | 58 (6.2%) | 0.855 | 1.389 |
+
+Both typed the expected text (`809d588b…`, 300 units; `c14d19d2…`, 308), and both lie within the
+branch's spread above. Touch to post, p50 and p95: 110.4 and 233.5 ms, 103.6 and 245.9. Three
+attempts were thrown out first, each one key typed as its long-press hint (E29): `fix-1`,
+`final-1` and `final-1-b`. Across this section the first attempt hit E29 in 2 of main's 5 runs
+and 5 of the branch's 9; the root does nothing per touch beyond its own dispatch (`rise` returns
+at once outside full-screen), and E29's known cause is agent-device delivering the up late.
+
+**Still owed.** The CPU gate on a quiet host (E28), and on the phone (P4).
+
 ## Reproducing
 
 ```bash

@@ -419,6 +419,19 @@ its phone checks pass.
      the phone measurement that settles it is in [decisions](decisions.md#the-keyboards-cpu-gate-stays-2-ms-settled-on-the-phone-at-120-hz-2026-11-17).
 * **The fallback loses, meanwhile:** every keyboard feature added after 2026-11-16, under
   the freeze above.
+* **Since phase 3 item 4** ([the plain-View root](phase3-view-root.md)), the Rust renderer's input
+  view is plain Views and holds no composition. The Compose root (`FlorisImeUi`,
+  `FlorisImeViews`, `TextInputLayout` and the Compose sheet and extract views) serves only the
+  fallback now, so it goes whole with the `keyboard` scope, and `FlorisImeService` loses its
+  choice between the roots and the swap when the setting changes. Before Compose can leave the
+  build, the Rust path still has to drop these, none of which makes a composition:
+  * Material icons taken as `ImageVector`s and flattened by Compose's `PathParser`
+    (`RendererIcons.iconPath`, for the panels, the one-handed panel, the subtype sheet, the
+    search bar and the Smartbar), and the incognito drawable loaded by `vectorResource`: map the
+    icon tokens to drawables, or hold the paths in Rust;
+  * `IntSize` and `LayoutDirection` in `ImeRootView`, `mutableStateOf` in `FlorisImeService`,
+    `Color` and `toArgb` in `RendererTheme` and `ImeRootReads`;
+  * the palette, `SnyggPalette` from materialkolor (stage 5 package 2).
 
 After 12 and K, Compose itself can leave the build, except the Snygg host files the
 inventory keeps (`SnyggBox`, `SnyggSurfaceView`, `SnyggUi`, `SnyggPalette`), which stage 5

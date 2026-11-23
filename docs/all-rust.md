@@ -239,6 +239,41 @@ Stage 5 packages 1–3, one event family at a time:
   after the subtype: the subtype's adapter and the glide fix.
 * **Owed.** P4 (the phone p95) stays owed, as do the new P28, P30 and E46–E48.
 
+**Item 4 done (2026-11-23)** ([phase 3: a plain-View root](phase3-view-root.md)).
+
+* **The root.** With the Rust renderer on, the input view is `ImeRootView`, a `FrameLayout`, and
+  the input method window holds no composition. Plain Views host the keyboard's surface, the
+  window's background and image, the one-handed panels, the subtype sheet, the full-screen
+  editor and the inline autofill chips. The theme, the settings and the managers' flows are
+  collected for the view's lifetime. Switching the setting swaps the root in the same process.
+  The frozen Compose root is the fallback until step K.
+* **Rust decides.** Rust plans the window (`render::ime_root`): the input view's height, the
+  panel showing, the safe insets, the bottom offset, the one-handed panels, full-screen's column
+  and the surface's headroom. It also answers the window's background, image and navigation-bar
+  flags (`imetheme::window`). Kotlin measures, decodes the image Rust names, and places views
+  where the plan says.
+* **Full-screen landscape.** A top-row key's popup and press bubble are no longer cut at the
+  keyboard's top: the surface rises above the extract view while a finger is down or a popup is
+  open.
+* **The proof.** All 34 mutations of the plan and background are caught. A seeded differential over
+  18 poses matched main's Compose root to the pixel in 14 to 15 of 18 per run; the two
+  full-screen 3-button landscape poses differ as intended, and the rest is a 1 to 2 px flake on
+  both builds (E53). The 300-press and 8-popup digests are unchanged, "teh" and a space types
+  "the " on both renderers, reshow is 16 of 16 and the reading order passes. The proof found one
+  real bug: a root swapped in at runtime got no insets and sat a navigation bar low. It is
+  fixed, and the swap check now asserts the swapped-in root sits where a fresh one does.
+  Creating the view takes 157 to 197 ms cold against 436 to 501 and 2 to 5 ms warm against 59
+  to 61, the first frame comes about half a second sooner and PSS is about 4 MiB lower. The
+  CPU trials' p95 is 1.992 to 2.374 ms against 2.959 to 3.522, but neither build meets 2 ms on
+  this loaded host (the branch in one trial of five). See
+  [phase 3, item 4](phase3-view-root.md).
+* **The size.** Production Kotlin is 375 counted lines larger while both roots are in the build.
+  That is well over the end state's 600 for the IME service, root, surface, touch and insets: the
+  root's six files alone are 666.
+* **Not done.** Icons are still Compose `ImageVector`s, flattened to paths; theme fonts are not
+  drawn, as on main; live inline autofill was not seen on a device. Step K needs the first.
+* **Owed.** P35, E52 and E53.
+
 ### 4. Settings (M–L, alongside 3)
 
 [compose-removal.md](compose-removal.md) steps 5–12, in its order:
