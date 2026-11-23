@@ -2,13 +2,17 @@
 data and suggestions (EmojiMatchTest), key state, codes, rules and availability (KeyModelsMatchTest),
 selector choices (KeySelectorsMatchTest), the layout cache (LayoutAssemblyMatchTest's cache test), the text
 keyboard's geometry (TextKeyboardMatchTest) and every evaluated keyboard's keys and bounds (LayoutAssemblyMatchTest's
-layout tests), and the glide scorer behind SwipeIndex (SwipeIndexTest). input.py's double-space case breaks the
-shift crate too; glide-mutations.py keeps the cases for the tuned scorer."""
+layout tests), the glide scorer behind SwipeIndex (SwipeIndexTest), and the user dictionary's editor, import and
+export (SettingsWordsMatchTest and SettingsWordsTest). input.py's double-space case breaks the shift crate too;
+glide-mutations.py keeps the cases for the tuned scorer, and settings_ui_mutation_cases/words.py the screens'."""
 SHIFT = 'lib/rust/crates/shift/src/lib.rs'
 COMPOSING = 'lib/rust/crates/composing/src/rules.rs'
 EMOJI = 'lib/rust/crates/emoji/src/'
 KEYS = 'lib/rust/crates/keys/src/'
 GLIDE = 'lib/rust/crates/glide/src/'
+RULES = 'lib/rust/crates/utilities/src/validation.rs'
+WORDS = 'lib/rust/crates/render/src/settings_ui/words/'
+WORDS_KT = 'app/src/main/kotlin/com/jtn0123/audiowhisper/settingsui/SettingsWords.kt'
 MODULE = ':app'
 TARGETS = {
     'shift': ['*ShiftMatchTest'],
@@ -21,6 +25,7 @@ TARGETS = {
     'snapshots': ['*LayoutAssemblyMatchTest.everyBundledLayoutModeAndRetainedPresetMatches',
                   '*LayoutAssemblyMatchTest.seededMissingReferencesEmptyRowsSelectorsAndHintSettingsMatch'],
     'swipe': ['*SwipeIndexTest'],
+    'words': ['*SettingsWordsMatchTest', '*SettingsWordsTest'],
 }
 CASES = [
     # The shift key: what each event does to each state, the double tap's clock and the double space.
@@ -156,4 +161,47 @@ CASES = [
     ('fewer-points-kept', GLIDE + 'gesture.rs', 'pub const MAX_POINTS: usize = 500;', 'pub const MAX_POINTS: usize = 400;',
      'swipe'),
     ('rounding-error-dropped', GLIDE + 'gesture.rs', 'cumulative_error += steps - (steps as i32) as f32;', '', 'swipe'),
+    # The user dictionary: the editor's checks and entry, the import's lines and upsert, and the export's format.
+    ('frequency-max-refused', RULES, 'Some(n) if n < min || n > max => INVALID,',
+     'Some(n) if n < min || n >= max => INVALID,', 'words'),
+    ('word-comma-allowed', RULES, '.any(|&u| chars::is_regex_space(u) || u == 59 || u == 44)',
+     '.any(|&u| chars::is_regex_space(u) || u == 59)', 'words'),
+    ('word-space-allowed', RULES, '.any(|&u| chars::is_regex_space(u) || u == 59 || u == 44)',
+     '.any(|&u| u == 59 || u == 44)', 'words'),
+    ('entry-word-untrimmed', WORDS + 'editor.rs', 'word: trimmed(&self.fields[0]),',
+     'word: self.fields[0].clone(),', 'words'),
+    ('entry-shortcut-untrimmed', WORDS + 'editor.rs', 'let optional = |k: usize| Some(trimmed(&self.fields[k])).filter(|s| !s.is_empty());',
+     'let optional = |k: usize| Some(self.fields[k].clone()).filter(|s| !s.trim().is_empty());', 'words'),
+    ('entry-loses-its-id', WORDS + 'editor.rs', 'id: self.stored.as_ref().map_or(0, |w| w.id),',
+     'id: 0,', 'words'),
+    ('entry-frequency-untrimmed', WORDS + 'editor.rs', 'let freq = chars::text::to_int_or_null(chars::trim(&settings::text(&self.fields[1])))?;',
+     'let freq = chars::text::to_int_or_null(&settings::text(&self.fields[1]))?;', 'words'),
+    ('duplicate-word-allowed', WORDS + 'editor.rs', 'None if k == 0 && self.word_exists(d) =>',
+     'None if k == 0 && self.word_exists(d) && d.fields[0].is_empty() =>', 'words'),
+    ('locale-stored-as-typed', WORDS_KT, 'entry.copy(locale = entry.locale?.let { FlorisLocale.fromTag(it).localeTag() })',
+     'entry', 'words'),
+    ('import-header-read', WORDS + 'transfer.rs', '        .skip(1)\n',
+     '        .skip(0)\n', 'words'),
+    ('import-crlf-as-two-lines', WORDS + 'transfer.rs', "            if bytes[i] == b'\\r' && bytes.get(i + 1) == Some(&b'\\n') {\n                i += 1;\n            }\n",
+     '', 'words'),
+    ('import-keys-untrimmed', WORDS + 'transfer.rs', 'let is = |name: &str| chars::lower_equals_ascii(chars::trim(&units), name);',
+     'let is = |name: &str| chars::lower_equals_ascii(&units, name);', 'words'),
+    ('import-long-word-key-ignored', WORDS + 'transfer.rs', 'if is("w") || is("word") {',
+     'if is("w") {', 'words'),
+    ('import-frequency-unbounded', WORDS + 'transfer.rs', 'freq = Some(n).filter(|n| (min..=max).contains(n));',
+     'freq = Some(n);', 'words'),
+    ('import-all-kept', WORDS + 'transfer.rs', 'locale = some().filter(|v| v != "all" && v != "null");',
+     'locale = some().filter(|v| v != "null");', 'words'),
+    ('import-null-kept', WORDS + 'transfer.rs', 'locale = some().filter(|v| v != "all" && v != "null");',
+     'locale = some().filter(|v| v != "all");', 'words'),
+    ('import-not-upserted', WORDS_KT, 'if (existing.isNotEmpty()) dao.update(entry.copy(id = existing[0].id)) else dao.insert(entry.copy(id = 0))',
+     'dao.insert(entry.copy(id = 0))', 'words'),
+    ('import-locale-not-read', WORDS_KT, 'val existing = dao.queryExact(entry.word, entry.locale?.let { FlorisLocale.fromTag(it) })',
+     'val existing = dao.queryExact(entry.word, null)', 'words'),
+    ('export-null-locale-empty', WORDS + 'transfer.rs', 'w.locale.as_deref().unwrap_or("null")',
+     'w.locale.as_deref().unwrap_or("")', 'words'),
+    ('export-shortcut-key-long', WORDS + 'transfer.rs', '            out.push_str(";s=");\n',
+     '            out.push_str(";shortcut=");\n', 'words'),
+    ('export-version-two', WORDS + 'transfer.rs', 'pub const VERSION: &str = "1";',
+     'pub const VERSION: &str = "2";', 'words'),
 ]
