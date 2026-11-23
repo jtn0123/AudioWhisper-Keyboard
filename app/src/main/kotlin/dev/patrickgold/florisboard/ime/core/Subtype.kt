@@ -127,20 +127,6 @@ data class SubtypeLayoutMap(
         }
     }
 
-    fun copy(layoutType: LayoutType, componentName: ExtensionComponentName): SubtypeLayoutMap? {
-        return when (layoutType) {
-            LayoutType.CHARACTERS -> copy(characters = componentName)
-            LayoutType.SYMBOLS -> copy(symbols = componentName)
-            LayoutType.SYMBOLS2 -> copy(symbols2 = componentName)
-            LayoutType.NUMERIC -> copy(numeric = componentName)
-            LayoutType.NUMERIC_ADVANCED -> copy(numericAdvanced = componentName)
-            LayoutType.NUMERIC_ROW -> copy(numericRow = componentName)
-            LayoutType.PHONE -> copy(phone = componentName)
-            LayoutType.PHONE2 -> copy(phone2 = componentName)
-            else -> null
-        }
-    }
-
     override fun toString(): String = com.jtn0123.audiowhisper.rust.SettingsRules.call(com.jtn0123.audiowhisper.rust.SettingsOp.LAYOUT_MAP,
         *with(com.jtn0123.audiowhisper.rust.SettingsLayouts) { row(CHARACTERS to "$characters", SYMBOLS to "$symbols", SYMBOLS2 to "$symbols2",
         NUMERIC to "$numeric", NUMERIC_ADVANCED to "$numericAdvanced", NUMERIC_ROW to "$numericRow", PHONE to "$phone", PHONE2 to "$phone2") })[0]

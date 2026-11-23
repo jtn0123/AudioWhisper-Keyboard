@@ -162,14 +162,15 @@ class KeyboardManager(context: Context) : InputKeyEventReceiver {
             action()
             val editorInfo = editorInstance.activeInfo
             val state = activeState.snapshot()
-            val subtype = subtypeManager.activeSubtype
+            val active = subtypeManager.active
+            val subtype = active.subtype
             val mode = state.keyboardMode
             // We need to reset the snapshot input shift state for non-character layouts, because the shift mechanic
             // only makes sense for the character layouts.
             state.rawValue = com.jtn0123.audiowhisper.rust.InputRules.control(longArrayOf(
                 com.jtn0123.audiowhisper.rust.InputProtocol.CONTROL_EVALUATOR.toLong(), state.rawValue.toLong()))[0].toULong()
             val computedKeyboard = if (prefs.keyboard.rustRendererPrototype.get()) {
-                rustKeyGraphs.keyboard(mode, subtype)
+                rustKeyGraphs.keyboard(mode, active.facts)
             } else keyboardCache.getOrElseAsync(mode, subtype) {
                 layoutManager.computeKeyboardAsync(
                     keyboardMode = mode,

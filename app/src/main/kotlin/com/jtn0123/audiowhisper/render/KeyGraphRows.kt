@@ -5,10 +5,12 @@ import com.jtn0123.audiowhisper.rust.KeyGraphBuild
 import com.jtn0123.audiowhisper.rust.KeyGraphFacts
 import com.jtn0123.audiowhisper.rust.KeyGraphFile
 import com.jtn0123.audiowhisper.rust.WireFlag
+import dev.patrickgold.florisboard.ime.core.SubtypeFacts
 import dev.patrickgold.florisboard.ime.keyboard.KEY_LABEL_RESOURCES
 import dev.patrickgold.florisboard.ime.keyboard.KeyboardMode
 import dev.patrickgold.florisboard.ime.keyboard.LayoutAssembly
 import dev.patrickgold.florisboard.ime.keyboard.LayoutType
+import dev.patrickgold.florisboard.ime.keyboard.extCorePopupMapping
 import dev.patrickgold.florisboard.ime.text.key.KeyHintConfiguration
 import dev.patrickgold.florisboard.ime.text.keyboard.TextKeyData
 import dev.patrickgold.florisboard.lib.ext.ExtensionComponentName
@@ -29,6 +31,14 @@ internal class KeyGraphFiles(
     val mapping: String?,
     val fallback: String?,
 )
+
+/**
+ * The files of the subtype Rust says names [facts]: its layouts and popup mapping, the modifier a
+ * layout's index entry names, each layout file's text, and each popup mapping's ([mapping]).
+ */
+internal fun subtypeFiles(facts: SubtypeFacts, namedModifier: (LayoutName) -> ExtensionComponentName?,
+                          layout: (LayoutName) -> String?, mapping: (ExtensionComponentName) -> String?) =
+    KeyGraphFiles(facts::layout, namedModifier, layout, mapping(facts.popupMapping), mapping(extCorePopupMapping("default")))
 
 /**
  * A `KeyGraphBuild` row for [mode]: its layouts' files, its symbols' for a characters keyboard,

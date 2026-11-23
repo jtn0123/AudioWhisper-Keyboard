@@ -17,66 +17,98 @@
 package dev.patrickgold.florisboard.ime.core
 
 import android.content.Context
-import com.jtn0123.audiowhisper.rust.*
-import com.jtn0123.audiowhisper.settings.SettingsCodecs
-import com.jtn0123.audiowhisper.settings.SettingsSubtypes
 import dev.patrickgold.florisboard.app.FlorisPreferenceStore
 import dev.patrickgold.florisboard.ime.keyboard.CurrencySet
 import dev.patrickgold.florisboard.keyboardManager
+import dev.patrickgold.florisboard.lib.ext.ExtensionComponentName
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import org.florisboard.lib.kotlin.collectLatestIn
 
-class SubtypeManager(context: Context) {
-    private val prefs by FlorisPreferenceStore
-    private val keyboardManager by context.keyboardManager()
-    private val scope = CoroutineScope(Dispatchers.Default)
+/** Where the subtype settings live: the stored list as it changes, and the active subtype's id. */
+internal interface SubtypeStore {
+    val lists: StateFlow<String>
+    fun activeId(): Long
+    suspend fun setActiveId(id: Long)
+    suspend fun setList(raw: String)
+}
+
+/**
+ * The keyboard's subtypes. Rust ([SubtypeSession], crates/imesubtype) holds the list and the
+ * active subtype and decides every change; this class reads the settings it decides from, writes
+ * the ones it asks for, and publishes the result to the flows the Compose keyboard and the other
+ * managers collect.
+ */
+class SubtypeManager internal constructor(
+    private val store: SubtypeStore,
+    private val currencySets: () -> Map<ExtensionComponentName, CurrencySet>?,
+    private val scope: CoroutineScope,
+    private val session: SubtypeSession = SubtypeSession(),
+) {
+    constructor(context: Context) : this(PreferenceSubtypeStore(), context.keyboardManager().let { manager ->
+        { manager.value.resources.currencySets.value }
+    }, CoroutineScope(Dispatchers.Default))
+
     private val _subtypesFlow = MutableStateFlow(listOf<Subtype>())
     val subtypesFlow = _subtypesFlow.asStateFlow()
     inline var subtypes
         get() = subtypesFlow.value
         private set(v) { _subtypesFlow.value = v }
-    private val _activeSubtypeFlow = MutableStateFlow(Subtype.DEFAULT)
+
+    /** The active subtype and what Rust says it names, set together. */
+    @Volatile
+    internal var active: SubtypeEntry = session.active()
+        private set(value) {
+            field = value
+            _activeSubtypeFlow.value = value.subtype
+        }
+    private val _activeSubtypeFlow = MutableStateFlow(active.subtype)
     val activeSubtypeFlow = _activeSubtypeFlow.asStateFlow()
-    inline var activeSubtype
-        get() = activeSubtypeFlow.value
-        private set(v) { _activeSubtypeFlow.value = v }
+    val activeSubtype get() = activeSubtypeFlow.value
 
     init {
-        prefs.localization.subtypes.asFlow().collectLatestIn(scope) { raw ->
-            val list = SettingsCodecs.subtypes(raw)
-            val plan = SettingsSubtypes.plan("load", list, prefs.localization.activeSubtypeId.get())
-            subtypes = plan.list
-            evaluateActiveSubtype(plan.list)
-            if (plan.changed) persistNewSubtypeList(plan.list)
+        store.lists.collectLatestIn(scope) { raw ->
+            val loaded = session.load(raw)
+            subtypes = loaded.list.map { it.subtype }
+            evaluateActiveSubtype()
+            loaded.repaired?.let { scope.launch { store.setList(it) } }
         }
     }
-    private fun persistNewSubtypeList(list: List<Subtype>) = scope.launch {
-        prefs.localization.subtypes.set(SettingsCodecs.subtypes(list))
+
+    private fun evaluateActiveSubtype() = scope.launch {
+        val switched = session.evaluate(store.activeId())
+        if (switched.write) store.setActiveId(switched.active.subtype.id)
+        active = switched.active
     }
-    private fun evaluateActiveSubtype(list: List<Subtype>) = scope.launch {
-        val plan = SettingsSubtypes.plan("evaluate", list, prefs.localization.activeSubtypeId.get())
-        if (plan.writeActive) prefs.localization.activeSubtypeId.set(plan.active)
-        activeSubtype = plan.selected
-    }
+
     fun getCurrencySet(subtypeToSearch: Subtype): CurrencySet =
-        keyboardManager.resources.currencySets.value?.get(subtypeToSearch.currencySet) ?: CurrencySet.Fallback
-    fun getSubtypeById(id: Long): Subtype? {
-        val list = subtypes
-        return list.getOrNull(SettingsRules.call(SettingsOp.SUBTYPE_INDEX, id.toString(), *list.map { it.id.toString() }.toTypedArray())[0].toInt())
+        session.currencySet(currencySets(), subtypeToSearch.currencySet) ?: CurrencySet.Fallback
+
+    fun switchToPrevSubtype() = switchSubtype(session::previous)
+    fun switchToNextSubtype() = switchSubtype(session::next)
+
+    private fun switchSubtype(direction: () -> SubtypeSession.Switched) = scope.launch {
+        val switched = direction()
+        store.setActiveId(switched.active.subtype.id)
+        active = switched.active
     }
-    fun switchToPrevSubtype() = switchSubtype("previous")
-    fun switchToNextSubtype() = switchSubtype("next")
-    private fun switchSubtype(direction: String) = scope.launch {
-        val plan = SettingsSubtypes.plan(direction,subtypes,activeSubtype.id,selected = activeSubtype)
-        prefs.localization.activeSubtypeId.set(plan.active)
-        activeSubtype = plan.selected
-    }
+
     fun switchToSubtypeById(id: Long) = scope.launch {
-        val selected = getSubtypeById(id)
-        if (selected != null) { activeSubtype = selected; prefs.localization.activeSubtypeId.set(id) }
+        val switched = session.select(id) ?: return@launch
+        active = switched.active
+        store.setActiveId(id)
     }
+}
+
+/** The subtype settings in Jetpref's store. */
+private class PreferenceSubtypeStore : SubtypeStore {
+    private val prefs by FlorisPreferenceStore
+    override val lists get() = prefs.localization.subtypes.asFlow()
+    override fun activeId() = prefs.localization.activeSubtypeId.get()
+    override suspend fun setActiveId(id: Long) { prefs.localization.activeSubtypeId.set(id) }
+    override suspend fun setList(raw: String) { prefs.localization.subtypes.set(raw) }
 }

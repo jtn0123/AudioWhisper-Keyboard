@@ -106,6 +106,10 @@ fn the_removed_settings_switch_is_dropped_whatever_it_stored() {
 }
 #[test]
 fn a_blank_subtype_list_is_empty_and_anything_else_must_parse() {
+    assert_eq!(
+        codec::decode("subtypes", &text("[]"), false).unwrap(),
+        Value::List(vec![])
+    );
     for blank in ["", " \t\n", "\u{a0}\u{2007}\u{202f}"] {
         assert_eq!(
             subtype::decode_list(&text(blank)).unwrap(),

@@ -2,7 +2,7 @@
 use crate::{Result, Text, text};
 use wire::settings::{ARRAY, NULL, NUMBER, OBJECT, TEXT};
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Value {
     Null,
     String(Text),

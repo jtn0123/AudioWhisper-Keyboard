@@ -54,6 +54,10 @@ pub fn call(session: &mut Session, operation: &[u16], fields: &[Text]) -> Result
             let switch = session.cycle(true)?;
             switched_rows(session, Some(switch))
         }
+        wire::ime_subtype::ACTIVE => {
+            let id = session.active().get("id")?.number()?;
+            switched_rows(session, Some(Switch { write: false, id }))
+        }
         wire::ime_subtype::SELECT => {
             let switch = session.select(number(field(fields, select::ID)?)?)?;
             switched_rows(session, switch)

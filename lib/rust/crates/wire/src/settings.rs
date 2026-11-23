@@ -25,8 +25,6 @@ crate::declare! {
         PRESET = 22,
         /// A colour as sixteen hex digits.
         COLOR = 24,
-        /// A subtype's place among the ids, or -1.
-        SUBTYPE_INDEX = 25,
         /// A stored time as a [`time`] row, or nothing.
         TIME_DECODE = 26,
         /// A [`time`] row as a stored time.

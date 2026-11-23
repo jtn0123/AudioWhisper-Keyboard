@@ -157,12 +157,6 @@ pub fn call(op: i32, input: &[Text]) -> Result<Vec<Text>> {
             out[key_hint_modes::SYMBOLS] = mode(key_hints::SYMBOLS_ENABLED, key_hints::SYMBOLS);
             Ok(out)
         }
-        (ops::SUBTYPE_INDEX, [id, ids @ ..]) => Ok(vec![text(
-            &ids.iter()
-                .position(|v| v == id)
-                .map_or(-1, |i| i as i64)
-                .to_string(),
-        )]),
         _ => Err("invalid settings packet"),
     }
 }

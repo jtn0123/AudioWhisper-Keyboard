@@ -22,6 +22,8 @@ crate::declare! {
         NEXT = "next",
         /// Nothing: the language key's previous subtype, answered as `NEXT` is.
         PREVIOUS = "previous",
+        /// Nothing: the active subtype, answered as `NEXT` is but never `WRITE`.
+        ACTIVE = "active",
         /// A [`select`] row: the subtype with that id, answered as `NEXT` is, or a [`switched`]
         /// row alone, not `WRITE`, when the list has no such subtype.
         SELECT = "select",

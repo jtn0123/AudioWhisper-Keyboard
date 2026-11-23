@@ -122,3 +122,17 @@ class LayoutAssemblyMatchTest {
         println("Layout cache: 40000 operations, $checks lookups, including signed hashes and collisions")
     }
 }
+
+/** [this] with [componentName] for [layoutType], or null for a type a subtype doesn't name. */
+private fun SubtypeLayoutMap.copy(layoutType: LayoutType, componentName: ExtensionComponentName): SubtypeLayoutMap? =
+    when (layoutType) {
+        LayoutType.CHARACTERS -> copy(characters = componentName)
+        LayoutType.SYMBOLS -> copy(symbols = componentName)
+        LayoutType.SYMBOLS2 -> copy(symbols2 = componentName)
+        LayoutType.NUMERIC -> copy(numeric = componentName)
+        LayoutType.NUMERIC_ADVANCED -> copy(numericAdvanced = componentName)
+        LayoutType.NUMERIC_ROW -> copy(numericRow = componentName)
+        LayoutType.PHONE -> copy(phone = componentName)
+        LayoutType.PHONE2 -> copy(phone2 = componentName)
+        else -> null
+    }

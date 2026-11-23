@@ -24,8 +24,8 @@ pub struct Session {
     asked: Vec<Text>,
     /// The names of the currency sets Android last reported loading.
     sets: Vec<Text>,
-    /// Every distinct subtype seen, by its cache key.
-    keys: Vec<Value>,
+    /// Every distinct subtype seen, and its cache key.
+    keys: HashMap<Value, usize>,
 }
 
 /// What a load needs or did.
@@ -59,7 +59,7 @@ impl Session {
             names: HashMap::new(),
             asked: vec![],
             sets: vec![],
-            keys: vec![],
+            keys: HashMap::new(),
         }
     }
 
@@ -154,11 +154,8 @@ impl Session {
     /// The key graph cache key of `value`: the same number for equal subtypes, and a new one for
     /// each subtype not seen before.
     pub fn key(&mut self, value: &Value) -> usize {
-        if let Some(key) = self.keys.iter().position(|v| v == value) {
-            return key;
-        }
-        self.keys.push(value.clone());
-        self.keys.len() - 1
+        let next = self.keys.len();
+        *self.keys.entry(value.clone()).or_insert(next)
     }
 
     /// Android loaded the currency sets named `sets`.

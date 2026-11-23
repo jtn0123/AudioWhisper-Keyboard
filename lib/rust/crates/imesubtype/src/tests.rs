@@ -212,6 +212,10 @@ fn rows_name_the_layouts_by_layout_type_and_the_secondary_locales_after() {
     assert_eq!(next[switched::WRITE], text(wire::flag::encode(true)));
     assert_eq!(next[switched::ID], text("1"));
     assert_eq!(next[switched::SIZE + subtype::KEY], text("0"));
+    let active = call(&mut session, &text(ops::ACTIVE), &[]).unwrap();
+    assert_eq!(active[switched::WRITE], text(wire::flag::encode(false)));
+    assert_eq!(active[switched::ID], text("1"));
+    assert_eq!(active[switched::SIZE..], next[switched::SIZE..]);
     let missing = call(&mut session, &text(ops::SELECT), &[text("8")]).unwrap();
     assert_eq!(missing.len(), switched::SIZE);
     assert_eq!(missing[switched::ACTIVE], text(wire::flag::encode(false)));

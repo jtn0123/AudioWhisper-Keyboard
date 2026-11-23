@@ -11,15 +11,14 @@ import dev.patrickgold.florisboard.clipboardManager
 import dev.patrickgold.florisboard.extensionManager
 import dev.patrickgold.florisboard.ime.core.DisplayLanguageNamesIn
 import dev.patrickgold.florisboard.ime.core.Subtype
+import dev.patrickgold.florisboard.ime.core.SubtypeFacts
 import dev.patrickgold.florisboard.ime.keyboard.ComputingEvaluator
 import dev.patrickgold.florisboard.ime.keyboard.KEY_LABEL_RESOURCES
 import dev.patrickgold.florisboard.ime.keyboard.KeyboardManager
 import dev.patrickgold.florisboard.ime.keyboard.KeyboardMode
 import dev.patrickgold.florisboard.ime.keyboard.computeLanguageDisplayName
-import dev.patrickgold.florisboard.ime.keyboard.extCorePopupMapping
 import dev.patrickgold.florisboard.ime.keyboard.keyLabelResource
 import dev.patrickgold.florisboard.lib.Unicode
-import dev.patrickgold.florisboard.lib.ext.ExtensionComponentName
 import dev.patrickgold.florisboard.lib.io.ZipUtils
 import dev.patrickgold.florisboard.subtypeManager
 import org.florisboard.lib.android.AndroidKeyguardManager
@@ -44,10 +43,9 @@ internal class RustKeyGraphs(private val context: Context, private val manager: 
     fun clear() = cache.clear()
     fun clear(mode: KeyboardMode) = cache.clearMode(mode.value)
 
-    /** The keyboard for [mode] and [subtype], built the first time it is asked for. */
-    fun keyboard(mode: KeyboardMode, subtype: Subtype): RustKeyboard = cache.get(mode.value, subtype.hashCode())
-        ?: RustKeyboard(KeyGraph.build(*build(mode, subtype)))
-            .also { cache.set(mode.value, subtype.hashCode(), it) }
+    /** The keyboard for [mode] and the subtype Rust says names [facts], built the first time it is asked for. */
+    fun keyboard(mode: KeyboardMode, facts: SubtypeFacts): RustKeyboard = cache.get(mode.value, facts.key)
+        ?: RustKeyboard(KeyGraph.build(*build(mode, facts))).also { cache.set(mode.value, facts.key, it) }
 
     /** Computes [keyboard]'s keys for [evaluator]: its state, editor and subtype, and the facts around them. */
     fun compute(keyboard: RustKeyboard, evaluator: ComputingEvaluator) {
@@ -79,16 +77,14 @@ internal class RustKeyGraphs(private val context: Context, private val manager: 
             .let { if (names == DisplayLanguageNamesIn.NATIVE_LOCALE) it.displayName(it) else it.displayName() }
             .also { defaultLanguage = names to it }
 
-    private fun build(mode: KeyboardMode, subtype: Subtype): Array<String> {
+    private fun build(mode: KeyboardMode, facts: SubtypeFacts): Array<String> {
         val layouts = manager.resources.layouts.value
         val mappings = manager.resources.popupMappings.value
-        fun mapping(name: ExtensionComponentName) =
-            mappings?.get(name)?.let { read(name.extensionId, it.mappingFile()) }
-        val files = KeyGraphFiles(
-            subtype.layoutMap::get,
+        val files = subtypeFiles(
+            facts,
             { (type, name) -> layouts?.get(type)?.get(name)?.modifier },
             { (type, name) -> layouts?.get(type)?.get(name)?.let { read(name.extensionId, it.arrangementFile(type)) } },
-            mapping(subtype.popupMapping), mapping(extCorePopupMapping("default")),
+            { name -> mappings?.get(name)?.let { read(name.extensionId, it.mappingFile()) } },
         )
         return keyGraphBuild(mode, prefs.keyboard.numberRow.get(), prefs.keyboard.hintedNumberRowEnabled.get(), files)
     }
