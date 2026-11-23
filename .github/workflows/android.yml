@@ -1,13 +1,14 @@
 name: AudioWhisper Keyboard CI
 
 # Runs the same checks as a local `./gradlew test :app:lintDebug :lib:rust:check
-# :app:checkNativeDeclarations :app:checkJvmLedger :app:checkMutationCases assembleDebug :app:compileDebugAndroidTestKotlin :app:compileDebugAndroidTestJavaWithJavac`: every JVM test
+# :app:checkNativeDeclarations :app:checkJvmLedger :app:checkMutationCases :app:checkComposeFreeRender assembleDebug :app:compileDebugAndroidTestKotlin :app:compileDebugAndroidTestJavaWithJavac`: every JVM test
 # (including those that go through the Rust JNI under LatinIME's class names), Android lint, every
 # Rust crate's tests (the LatinIME port's against golden files of the C++'s answers), clippy with
 # warnings as errors (on the host and for Android, with and without the off-by-default GPU
 # renderer), rustfmt and rustdoc with warnings as errors, that every Kotlin native declaration and JNI export in the debug APK
-# match, that every hand-written JVM file is within its budget in docs/jvm-ledger.tsv, then a
-# debug build, and that the on-device tests still compile, their Kotlin and their Java.
+# match, that every hand-written JVM file is within its budget in docs/jvm-ledger.tsv, that no
+# compiled class of the plain-View render path names androidx.compose, then a debug build, and
+# that the on-device tests still compile, their Kotlin and their Java.
 # Before that, `cargo audit` checks the locked Rust crates against RustSec's advisories.
 #
 # It needs nothing from a developer's machine: jetpref comes from third_party/m2, the sherpa-onnx
@@ -87,7 +88,7 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
 
       - name: Test, lint and build
-        run: ./gradlew --stacktrace test :app:lintDebug :lib:rust:check :app:checkNativeDeclarations :app:checkJvmLedger :app:checkMutationCases assembleDebug :app:compileDebugAndroidTestKotlin :app:compileDebugAndroidTestJavaWithJavac
+        run: ./gradlew --stacktrace test :app:lintDebug :lib:rust:check :app:checkNativeDeclarations :app:checkJvmLedger :app:checkMutationCases :app:checkComposeFreeRender assembleDebug :app:compileDebugAndroidTestKotlin :app:compileDebugAndroidTestJavaWithJavac
 
       - name: Upload lint and test reports
         if: failure()

@@ -458,3 +458,16 @@ val checkMutationCases = tasks.register<Exec>("checkMutationCases") {
     commandLine("python3", "-I", "-B", "scripts/mutation_cases.py")
 }
 tasks.named("check") { dependsOn(checkMutationCases) }
+
+// The plain-View render path names no Compose class (docs/phase3-compose-free-path.md): every compiled class in
+// com.jtn0123.audiowhisper.render, ImeRoot* included, read from the debug compilers' output.
+val checkComposeFreeRender = tasks.register<Exec>("checkComposeFreeRender") {
+    group = "verification"
+    description = "Rejects a compiled class in com.jtn0123.audiowhisper.render that references androidx.compose."
+    dependsOn("compileDebugKotlin", "compileDebugJavaWithJavac")
+    workingDir(rootDir)
+    commandLine("python3", "-I", "-B", "scripts/compose-free-check.py",
+        "app/build/intermediates/built_in_kotlinc/debug/compileDebugKotlin/classes",
+        "app/build/intermediates/javac/debug/compileDebugJavaWithJavac/classes")
+}
+tasks.named("check") { dependsOn(checkComposeFreeRender) }
