@@ -195,6 +195,37 @@ Stage 5 packages 1–3, one event family at a time:
   Kotlin graph stays for the Compose fallback. Its files are marked for deletion at step K.
 * **Owed.** P4 (the phone p95) stays owed, as do the new P25 and E38–E41.
 
+**Item 3: the theme done, the subtype written up (2026-11-22)**
+([phase 3: theme, then subtype](phase3-theme-subtype.md)).
+
+* **The theme.** Rust chooses the active theme (day, night, follow the system or the clock, a
+  preview), runs the theme session (what to load, keep or show again, and what a failed load
+  shows), holds the base style as JSON, resolves the inline autofill chips' colours, and picks
+  the palette's primary colour (`lib/rust/crates/imetheme`). Kotlin reads the settings and the
+  system's night mode, unpacks and reads the stylesheet Rust names, keeps the loaded themes in the
+  slots Rust names, and builds Android's inline suggestion style bundle. The Rust renderer no
+  longer reads the Compose root's palette or the Compose chip cache.
+* **The subtype is not moved.** Its rules and codec were Rust's already. What is left (the list
+  and active subtype as flows, the Jetpref writes, the data classes, the key graph's subtype
+  facts) touches the key graph's build row and E41's switch. The doc says exactly what moving it
+  would change.
+* **The proof.**
+  * Three seeded 50,000-state theme traces match main's frozen theme manager at every state,
+    across extension index changes, every theme mode, the clock, previews, failed and cancelled
+    loads and service recreation; what the renderer is handed is equal too.
+  * Three seeded 50,000-state chip traces match main's Compose query over the bundled
+    stylesheets, the base style and 400 synthetic ones.
+  * The digests are unchanged, "teh" and a space still type "the ", and the reshow and
+    reading-order probes pass.
+  * 42 of 42 mutations are caught.
+  * CPU trials: the branch is no slower than main beyond noise. Neither met the 2 ms gate on a
+    loaded host, so it is not a pass.
+  * Switch timings: theme and subtype switches are level; mode switches are 21 to 82 ms slower
+    at p50 in all three pairs while their CPU is level, which is owed (E44). E41 was measured
+    without simpleperf, which needs root on the emulator; its step-level profile stays owed.
+* **The size.** Production Kotlin is 330 counted lines smaller.
+* **Owed.** P4 (the phone p95) stays owed, as do the new P28 and E44, and E41.
+
 ### 4. Settings (M–L, alongside 3)
 
 [compose-removal.md](compose-removal.md) steps 5–12, in its order:

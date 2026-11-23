@@ -419,6 +419,51 @@ main 1 started and fell to 2.9 by branch 2's start, ending at 4.9.
 
 **Still owed.** The CPU gate on a quiet host (E28), and on the phone (P4).
 
+## Theme and subtype (2026-11-22)
+
+Phase 3 item 3 ([phase3-theme-subtype.md](phase3-theme-subtype.md)) moves the keyboard's theme
+choice, the theme session, the base style and the inline chips' colours to Rust. These trials
+compare the branch before its last rebase (0ca6c1ced, built on f4aa9fc30) with that main
+(f4aa9fc30, built in a worktree of its own). The rebase onto 48b2e0018 brought only settings
+changes (compose-removal steps 10 and 12) and touches neither path. They were run as the trials
+above: `cpu-trials.py --rust-only --trials 1`, main, the branch, main, the branch, on
+`aw_keyboard` with the Rust renderer, and with the settings the device had before this work
+restored. The folders are in `build/cpu-p95/theme-subtype/`.
+
+**The 2 ms wall-clock gate was not met, by main or by the branch.** This is not a pass.
+
+| Trial | Frames | p50 | p95 | p99 | Over 2 ms | CPU time p50 | CPU time p95 |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| main 1 (`main-1-b`) | 1,061 | 1.054 | 3.010 | 5.411 | 131 (12.3%) | 0.898 | 1.476 |
+| branch 1 (`branch-1-d`) | 1,075 | 1.031 | 2.741 | 5.049 | 119 (11.1%) | 0.885 | 1.513 |
+| main 2 (`main-2-c`) | 1,067 | 0.996 | 3.031 | 6.684 | 120 (11.2%) | 0.876 | 1.576 |
+| branch 2 (`branch-2`) | 1,080 | 0.892 | 2.789 | 5.645 | 112 (10.4%) | 0.765 | 1.493 |
+
+All four typed the expected text (`809d588b…`, 300 units, and `c14d19d2…`, 308 units, after the
+popups). Touch to post, p50 and p95 in ms: main 116.6 and 246.9, 125.4 and 269.9; the branch
+127.5 and 264.9, 128.2 and 258.7.
+
+* The branch is not slower beyond noise. Its p95, 2.741 and 2.789 ms, is below both of main's,
+  3.010 and 3.031, and so is its share of frames over 2 ms.
+* Its CPU time p95, 1.513 and 1.493 ms, lies between main's 1.476 and 1.576.
+* The branch drew 8 to 19 more frames per trial. Each trial has 300 press and 300 release
+  frames and no recreate or full frame; the difference is all frames that brought only new
+  words to the strip (440 and 448 on the branch, 426 and 431 on main). Trials of unchanged
+  builds in earlier items ranged from 409 to 534 such frames, so this is read as the strip's
+  timing, not the theme.
+* Touch to post is 2 to 11 ms higher at p50 on the branch, and its p95 lies within main's.
+
+**Thrown out, folders kept.** Six trials did not finish with the expected text and were run
+again: `main-1`, `branch-1-b`, `branch-1-c`, `main-2` and `main-2-b` typed 300 units with
+another digest (E29), and `branch-1` was stopped by agent-device's parse error at a load
+average of 43 (E30). `explain-digest.py` explains four of the five from the digest alone: each
+typed one key as its long-press hint. `main-2-b` is not explained.
+
+The host was loaded by other jobs. Load averages at the trials' starts ran from 7.9 to 31.7,
+and reached 44 by the end of two thrown-out trials; the four kept ones ended at 8.3 to 11.1.
+
+**Still owed.** The CPU gate on a quiet host (E28), and on the phone (P4).
+
 ## Reproducing
 
 ```bash

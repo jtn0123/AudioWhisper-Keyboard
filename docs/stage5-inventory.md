@@ -195,13 +195,13 @@ Path prefixes (each path below expands against the repository root):
 | `AW/render/RendererSmartbar.kt` | 110 | M | Resources / Paint; item choice, measurement and action binding (each action's icon, arrow, flags, label and what the toggle flips moved to Rust's `smartbar_actions` at phase 3 item 1; this file keeps the evaluator's facts and the icon vectors; phase 3 item 2: each action's enabled state, icon and label are answered from the Rust key graph, so this file no longer writes them) |
 | `AW/render/RendererSmartbarTouch.kt` | 47 | M | InputConnection / PopupWindow; enabled/removal/tooltip action gating |
 | `AW/render/RendererSubtypes.kt` | 21 | A | Resources / Jetpref Flow; localized subtype snapshot transport |
-| `AW/render/RendererTheme.kt` | 27 | A | Resources.Configuration / DisplayMetrics; theme and density transport |
+| `AW/render/RendererTheme.kt` | 78 | A | Resources.Configuration / DisplayMetrics / system accent; theme and density transport (phase 3 item 3: the palette is made from the primary Rust chooses, and the inline chips' colours are asked of Rust, crates/imetheme; nothing is read from the Compose root) |
 | `AW/render/RustChromeView.kt` | 98 | M | View / Bitmap / Canvas; native pixels stay at edge, move hardcoded subtype bootstrap dimensions/timing constants |
 | `AW/render/RustExtractView.kt` | 37 | A | ExtractEditText / ViewGroup; applies native extract bounds to platform editor |
 | `AW/render/RustKeyGraphs.kt` | 96 | M | Context / Resources / LayoutManager; the Rust renderer's key graphs per mode and subtype, their label resources and the question-and-answer loop (added at phase 3 item 2) |
 | `AW/render/RustKeyPreview.kt` | 34 | A | Bitmap / ART JNI; displays native preview pixels (replace Compose interop host) |
 | `AW/render/RustKeyboard.kt` | 130 | M | Keyboard / TextKey adapter; reads the Rust key graph's keys back for the input path and a key's platform effects (added at phase 3 item 2) |
-| `AW/render/RustKeyboardLayout.kt` | 95 | M | SurfaceView / WindowInsets / InlineContentView; Kotlin root sizing/state branches |
+| `AW/render/RustKeyboardLayout.kt` | 92 | M | SurfaceView / WindowInsets / InlineContentView; Kotlin root sizing/state branches (phase 3 item 3: no longer fills the Compose chip-style cache) |
 | `AW/render/RustKeyboardView.kt` | 405 | M | SurfaceView / Choreographer / SystemFonts; snapshot assembly and dispatch/fallback policy |
 | `AW/render/RustOneHandedPanel.kt` | 37 | M | View/Jetpref; side-panel sizing/visibility and preference-effect binding |
 | `AW/render/RustSubtypeSheet.kt` | 31 | A | WindowInsets / AndroidView; native sheet surface interop only |
@@ -235,7 +235,7 @@ Path prefixes (each path below expands against the repository root):
 | `FB/FlorisImeService.kt` | 448 | M | InputMethodService; input/extract/keyboard-switch/lifecycle branches |
 | `FB/FlorisImeUi.kt` | 161 | M | WindowInsets / Compose host; root sizing/placement/background drawing |
 | `FB/FlorisImeViews.kt` | 229 | M | ExtractEditText / ComposeView; input/sheet/extract branch/layout ownership |
-| `FB/FlorisInlineSuggestions.kt` | 58 | A | InputMethodService.onCreateInlineSuggestionsRequest / InlineSuggestionsResponse |
+| `FB/FlorisInlineSuggestions.kt` | 53 | A | InputMethodService.onCreateInlineSuggestionsRequest / InlineSuggestionsResponse (phase 3 item 3: the style bundle comes from the theme manager at request time, from Rust's chip colours) |
 | `FB/FlorisSpellCheckerService.kt` | 105 | M | SpellCheckerService; language/session/result assembly around native spell |
 | `FB/NativeExtractContent.kt` | 25 | A | ExtractEditText / AndroidView; native chrome with platform text editor |
 | `FB/app/AppPreferenceMigration.kt` | 27 | A | Jetpref migration callback / ART JNI; applies native migration result |
@@ -262,9 +262,9 @@ Path prefixes (each path below expands against the repository root):
 | `FB/ime/clipboard/provider/ClipboardFileStorage.kt` | 77 | A | ContentResolver / java.io.File; URI-byte storage and file deletion |
 | `FB/ime/clipboard/provider/ClipboardMediaProvider.kt` | 178 | M | ContentProvider / ParcelFileDescriptor; MIME/query/update dispatch and metadata rules |
 | `FB/ime/core/DisplayLanguageNamesIn.kt` | 25 | P | portable DisplayLanguageNamesIn domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
-| `FB/ime/core/Subtype.kt` | 177 | P | portable Subtype domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
+| `FB/ime/core/Subtype.kt` | 177 | P | portable Subtype domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs (not moved at phase 3 item 3; what remains is in phase3-theme-subtype.md) |
 | `FB/ime/core/SubtypeFallback.kt` | 6 | A | ART JNI; native model/geometry/plan projection only, no independent domain choice |
-| `FB/ime/core/SubtypeManager.kt` | 102 | M | Context / Jetpref; subtype lookup/resources and persistence orchestration |
+| `FB/ime/core/SubtypeManager.kt` | 102 | M | Context / Jetpref; subtype lookup/resources and persistence orchestration (not moved at phase 3 item 3: its rules were Rust's already; what remains is in phase3-theme-subtype.md) |
 | `FB/ime/core/SubtypeSelectionState.kt` | 4 | P | portable SubtypeSelectionState domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
 | `FB/ime/dictionary/DictionaryManager.kt` | 156 | M | Room / UserDictionary provider; dictionary readiness/query composition |
 | `FB/ime/dictionary/UserDictionary.kt` | 427 | M | Room / ContentResolver / Cursor; import/export/filter and locale rules |
@@ -339,7 +339,7 @@ Path prefixes (each path below expands against the repository root):
 | `FB/ime/smartbar/CandidatesDisplayMode.kt` | 24 | P | portable CandidatesDisplayMode domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
 | `FB/ime/smartbar/ExtendedActionsPlacement.kt` | 24 | P | portable ExtendedActionsPlacement domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
 | `FB/ime/smartbar/IncognitoDisplayMode.kt` | 20 | P | portable IncognitoDisplayMode domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
-| `FB/ime/smartbar/InlineSuggestionsUi.kt` | 91 | M | InlineContentView; replace Compose layout with Rust bounds and Android interop |
+| `FB/ime/smartbar/InlineSuggestionsUi.kt` | 79 | M | InlineContentView; replace Compose layout with Rust bounds and Android interop (phase 3 item 3: the Compose chip-style cache is deleted) |
 | `FB/ime/smartbar/SmartbarLayout.kt` | 22 | P | portable SmartbarLayout domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
 | `FB/ime/smartbar/quickaction/QuickAction.kt` | 134 | M | InputConnection / Resources; pointer dispatch and dynamic display labels |
 | `FB/ime/smartbar/quickaction/QuickActionArrangement.kt` | 48 | P | portable QuickActionArrangement domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
@@ -362,14 +362,15 @@ Path prefixes (each path below expands against the repository root):
 | `FB/ime/text/keyboard/TextKeyboard.kt` | 131 | P | portable TextKeyboard domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs (serves only the Compose fallback since phase 3 item 2: the Rust renderer's keys come from Rust's key graph (`keygraph`); deleted at compose-removal step K) |
 | `FB/ime/text/keyboard/TextKeyboardCache.kt` | 36 | P | portable TextKeyboardCache domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs (serves only the Compose fallback since phase 3 item 2: the Rust renderer's keys come from Rust's key graph (`keygraph`); deleted at compose-removal step K) |
 | `FB/ime/theme/FlorisAssetResolver.kt` | 44 | A | Context.filesDir / assets; native-selected asset path resolution |
-| `FB/ime/theme/FlorisImeTheme.kt` | 77 | M | Resources / composition locals; base-style/layout-default choice and theme hosting |
-| `FB/ime/theme/FlorisImeThemeBaseStyle.kt` | 348 | P | portable FlorisImeThemeBaseStyle domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
-| `FB/ime/theme/FlorisImeUi.kt` | 373 | P | portable Snygg element/attribute schema; move schema ownership to Rust |
-| `FB/ime/theme/FlorisImeUiSpec.kt` | 303 | P | portable FlorisImeUiSpec domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
-| `FB/ime/theme/ThemeExtension.kt` | 52 | P | portable ThemeExtension domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
-| `FB/ime/theme/ThemeExtensionComponent.kt` | 89 | P | portable ThemeExtensionComponent domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
-| `FB/ime/theme/ThemeManager.kt` | 345 | M | Resources / InlineSuggestionUi; active-theme/day-night choice and inline styles |
-| `FB/ime/theme/ThemeMode.kt` | 27 | P | portable ThemeMode domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
+| `FB/ime/theme/FlorisImeTheme.kt` | 77 | M | Resources / composition locals; base-style/layout-default choice and theme hosting (phase 3 item 3: no choice left in it; the base style is Rust's and the active theme Rust's choice; it hosts the Compose root, which goes at item 4) |
+| `FB/ime/theme/FlorisImeThemeBaseStyle.kt` | 348 | P | portable FlorisImeThemeBaseStyle domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs (moved to test sources at phase 3 item 3 as `ReferenceFlorisImeThemeBaseStyle.kt`: Rust holds the base style, crates/imetheme `base-style.json`) |
+| `FB/ime/theme/FlorisImeUi.kt` | 373 | P | portable Snygg element/attribute schema; move schema ownership to Rust (phase 3 item 3: serves only the Compose views, which still include the root and panels the Rust renderer's keyboard shows; goes with the Compose root at item 4) |
+| `FB/ime/theme/FlorisImeUiSpec.kt` | 303 | P | portable FlorisImeUiSpec domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs (deleted at phase 3 item 3: all of it had been commented out since Snygg v2) |
+| `FB/ime/theme/ThemeExtension.kt` | 52 | P | portable ThemeExtension domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs (phase 3 item 3: no theme decision reads it in Kotlin; Rust's theme session takes its fields as rows; it moves with the extension manager, `lib/ext`, which still reads `extension.json` in Kotlin after compose-removal step 10) |
+| `FB/ime/theme/ThemeExtensionComponent.kt` | 89 | P | portable ThemeExtensionComponent domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs (phase 3 item 3: no theme decision reads it in Kotlin; Rust's theme session takes its id and stylesheet path as rows; it moves with the extension manager, `lib/ext`, which still reads `extension.json` in Kotlin after compose-removal step 10) |
+| `FB/ime/theme/ThemeManager.kt` | 240 | A | Resources / InlineSuggestionUi / ZipUtils; settings and night-mode reads, unzip and stylesheet reads, flows, the inline suggestion bundle (phase 3 item 3: the active-theme and day-night choice, the load decisions, the base style and the chips' colours are Rust's, crates/imetheme) |
+| `FB/ime/theme/ThemeUpdates.kt` | 108 | A | ART JNI; rows to and from Rust's theme session (`ImeTheme`), and the loaded themes Android holds in the slot Rust names (added at phase 3 item 3) |
+| `FB/ime/theme/ThemeMode.kt` | 27 | P | portable ThemeMode domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs (phase 3 item 3: the type of a Jetpref setting; Rust's `choose` decides from it) |
 | `FB/lib/FlorisLocale.kt` | 290 | M | Android Locale/ICU locale names; tag/selection/cache behavior needs explicit native ownership |
 | `FB/lib/FlorisRect.kt` | 200 | P | rectangle geometry/intersection/containment |
 | `FB/lib/Native.kt` | 71 | A | ART JNI / ByteBuffer; native string and pointer wrapper ownership |
@@ -511,9 +512,9 @@ Path prefixes (each path below expands against the repository root):
 | `SNYGG/SnyggSpecDecl.kt` | 196 | P | schema declaration and builder state |
 | `SNYGG/SnyggStylesheet.kt` | 106 | P | portable SnyggStylesheet domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
 | `SNYGG/SnyggStylesheetEditor.kt` | 92 | P | portable SnyggStylesheetEditor domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
-| `SNYGG/SnyggTheme.kt` | 87 | M | Android font files / ColorScheme; loading and default materialization around native compiler |
+| `SNYGG/SnyggTheme.kt` | 87 | M | Android font files / ColorScheme; loading and default materialization around native compiler (phase 3 item 3: serves only the Compose views; the Rust renderer is handed the stylesheet's JSON and compiles it itself) |
 | `SNYGG/ui/SnyggBox.kt` | 105 | M | Android background surface; remaining Compose box/layout/drawing |
-| `SNYGG/ui/SnyggPalette.kt` | 17 | A | Resources / ART JNI; native palette projection |
+| `SNYGG/ui/SnyggPalette.kt` | 23 | A | Resources / ART JNI; native palette projection (phase 3 item 3: `rememberSnyggPalette` deleted; the palette is made from the primary Rust chooses) |
 | `SNYGG/ui/SnyggSurfaceView.kt` | 209 | M | SurfaceView / Drawable / Canvas; background scale/alignment/drawing must move to Rust |
 | `SNYGG/ui/SnyggUi.kt` | 361 | M | Resources fonts/density; modifier/layout/style/default conversion and Compose drawing |
 | `SNYGG/value/NativeSnyggValues.kt` | 85 | P | portable NativeSnyggValues domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
@@ -615,7 +616,7 @@ primitives serve both. Actual deletion remains behind the original acceptance ga
 | `FB/ime/smartbar/quickaction/QuickActionsEditorPanel.kt` | 339 | keyboard |
 | `FB/ime/smartbar/quickaction/QuickActionsOverflowPanel.kt` | 89 | keyboard |
 | `FB/ime/smartbar/quickaction/QuickActionsRow.kt` | 94 | keyboard |
-| `FB/ime/text/TextInputLayout.kt` | 94 | keyboard |
+| `FB/ime/text/TextInputLayout.kt` | 92 | keyboard |
 | `FB/ime/text/keyboard/TextKeyboardLayout.kt` | 323 | keyboard |
 | `FB/ime/text/keyboard/TextKeyboardLayoutController.kt` | 401 | keyboard |
 | `FB/ime/text/keyboard/TextKeyboardSwipe.kt` | 253 | keyboard |
