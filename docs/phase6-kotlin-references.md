@@ -676,8 +676,9 @@ The second branch:
   `NlpNative.call`, so no native went: 466 stay, none hand-written. The typing plan's aim check now
   reads its own event row, and an undone correction's count is a session method the plan calls.
   Moving two of `typing-plan-mutations.py`'s cases with that code showed two others there, on the
-  render path's `RendererSmartbar.kt`, have matched nothing since `c66e98a04`
-  ([owed-checks](owed-checks.md#not-device-checks-but-still-owed)).
+  render path's `RendererSmartbar.kt`, have matched nothing since `c66e98a04`. The Compose-free
+  render path points them at the Rust that holds that logic now, and both are caught
+  ([phase3-compose-free-path](phase3-compose-free-path.md#the-check-no-compose-in-the-render-package)).
 * **A third stale mutation script.** `editor-mutations.py` stopped at its first case,
   `invalid-finalize-batch`, at both ends: `5725d2fed` had named the editor's operations from
   `crates/wire`, and `32e62fb4a` had moved the reconciliation check into `Content::reported_by`.

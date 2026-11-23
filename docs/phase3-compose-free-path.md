@@ -279,6 +279,16 @@ task itself (a compilation failure never counts) with a problem naming the class
 The run of 2026-11-23 caught 10 of 10, and the restored source passed again
 (`build/compose-free/mutations/result.json`).
 
+**The smartbar's typing-plan cases.** Three of `typing-plan-mutations.py`'s cases named Kotlin
+lines of `RendererSmartbar.kt` that are gone: `key-label-dropped` and `disabled-keys-enabled`
+since `c66e98a04`, and `arrow-vector-swapped` since this item drew icons from tokens. They now
+mutate the Rust that holds that logic: a key action's label dropped in `smartbar_actions.rs`'s
+`encode`, its key's enabled flag ignored in `decode_action`, and the left arrow drawn as the
+right one in `icons::smartbar_token`. Run by name with `listening-when-finishing`, the one
+Kotlin case left there, all 4 were caught (`SmartbarActionsMatchTest` caught each, the Rust
+smartbar tests caught the dropped label), and the restored source passed. All 41 cases match
+their source once, so a full run no longer stops at the first stale one.
+
 ## Proof on the whole
 
 **The gate**, on e75a095eb's tree (`--stacktrace test :app:lintDebug :lib:rust:check

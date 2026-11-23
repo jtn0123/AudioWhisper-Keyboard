@@ -139,7 +139,6 @@ These need no device. They are listed so they are not lost.
 * A Merge restore cannot bring back a setting left at its default, because the backup does not hold it. ([stage4-backup-restore, owed](stage4-backup-restore.md#owed))
 * A ZIP missing its folder entries reads as unreadable, in Restore and extension import. ([stage4-backup-restore, owed](stage4-backup-restore.md#owed))
 * Restore runs on the main thread, as Compose's did. ([stage4-backup-restore, owed](stage4-backup-restore.md#owed))
-* `typing-plan-mutations.py` stops at `key-label-dropped`, and `disabled-keys-enabled` after it matches nothing either: both name lines of `RendererSmartbar.kt` that `c66e98a04` replaced when the renderer's keys came from the Rust key graph. They are the render path's to point at today's lines. Until then they are named in the script's `STALE`, which `:app:checkMutationCases` fails on once either applies again, so the fix must take them out. Found while moving two of its cases for `14cc68f54`, whose own cases were run by name. ([phase6-kotlin-references, what was found](phase6-kotlin-references.md#what-moved-and-what-was-found))
 * The project licence's horizontal scroll clamps at its ends, where Compose's `horizontalScroll` stretches. ([stage4-licences, where it differs from Compose](stage4-licences.md#where-it-differs-from-compose))
 * A project licence recreated twice before its text has been read saves the held horizontal scroll as zero, so the text reopens at its left edge. The wait is a few milliseconds. ([stage4-licences, the project licence screen](stage4-licences.md#the-project-licence-screen))
 * A hardware keyboard's Ctrl+C and Ctrl+A do nothing on the project licence's selection. ([stage4-licences, where it differs from Compose](stage4-licences.md#where-it-differs-from-compose))
@@ -164,9 +163,10 @@ These need no device. They are listed so they are not lost.
 * The mutation scripts' missing check that each case still matches its source is closed.
   `:app:checkMutationCases` (`scripts/mutation_cases.py`, in the gate and CI) checks every case of
   every script, and each script takes `--check`. Its first run found 18 stale cases in 10 scripts;
-  16 now point at today's lines and were each caught in a real run, and typing-plan's two wait in
-  its `STALE` list for the render path ([rust.md, checks](rust.md#checks)).
-* Three not-device items are closed by the Compose-free render path ([phase3-compose-free-path](phase3-compose-free-path.md)): the Material You palette is made in Rust (`crates/palette`, bit-exact with materialkolor on ART and on the desktop JVM); no class of the render package names Compose, which `:app:checkComposeFreeRender` now gates; and a theme's `@font` files are drawn.
+  16 now point at today's lines and were each caught in a real run, and the render path points
+  typing-plan's two at the Rust that holds them now, so its `STALE` list is gone
+  ([rust.md, checks](rust.md#checks)).
+* Four not-device items are closed by the Compose-free render path ([phase3-compose-free-path](phase3-compose-free-path.md)): the Material You palette is made in Rust (`crates/palette`, bit-exact with materialkolor on ART and on the desktop JVM); no class of the render package names Compose, which `:app:checkComposeFreeRender` now gates; a theme's `@font` files are drawn; and `typing-plan-mutations.py`'s `key-label-dropped` and `disabled-keys-enabled` match again, pointed at the Rust that holds their logic, and are caught ([the smartbar's cases](phase3-compose-free-path.md#the-check-no-compose-in-the-render-package)).
 * The full-screen landscape clipping of a top-row key's popup and press bubble is closed. The
   plain-View root raises the keyboard's surface above the window's extract view while a finger
   is down or a popup is open, and the device check on emulator-5558 showed both whole

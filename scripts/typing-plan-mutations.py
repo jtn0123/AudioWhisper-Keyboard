@@ -98,22 +98,14 @@ CASES = [
      'toggles_extended: false,', BAR),
     # The icon each action draws. This was Kotlin in RendererSmartbar.kt until the keyboard sent icon tokens.
     ('arrow-vector-swapped', ICONS, 'icon::ARROW_LEFT => ARROW_LEFT,', 'icon::ARROW_LEFT => ARROW_RIGHT,', BAR),
-    # The Kotlin that writes the smartbar's rows.
-    ('key-label-dropped', SMARTBAR, '} else (actions[i] as? QuickAction.InsertKey)?.let { keyLabel(it.data) } ?: ""',
-     '} else ""', [BAR_MATCH]),
+    # What the rows carry from each key. This was Kotlin in RendererSmartbar.kt until its keys came from the key graph.
+    ('key-label-dropped', ACTIONS, 'answer.label.clone().unwrap_or_default()', 'Vec::new()', BAR),
+    ('disabled-keys-enabled', ACTIONS, 'enabled: answer.enabled,', 'enabled: true,', BAR),
+    # The Kotlin that tells the smartbar what dictation is doing.
     ('listening-when-finishing', SMARTBAR, 'LISTENING to (dictation == Dictation.Status.LISTENING)',
      'LISTENING to (dictation != Dictation.Status.IDLE)', [BAR_MATCH]),
-    ('disabled-keys-enabled', SMARTBAR, 'row[ENABLED] = WireFlag.encode(action != null && enabled(action.keyData()))',
-     'row[ENABLED] = WireFlag.encode(action != null)', [BAR_MATCH]),
 ]
 JVM = {TRACE: ['*TypingTraceMatchTest', '*TypingEventsTest'], BAR_MATCH: ['*SmartbarActionsMatchTest']}
-# Known stale (scripts/mutation_cases.py): --check and checkMutationCases fail once either applies again.
-STALE = {
-    'key-label-dropped': 'c66e98a04 replaced its line in RendererSmartbar.kt when the renderer took its keys from '
-                         'the Rust key graph; the render-path agent is repointing it on its branch',
-    'disabled-keys-enabled': 'c66e98a04 replaced its line in RendererSmartbar.kt when the renderer took its keys '
-                             'from the Rust key graph; the render-path agent is repointing it on its branch',
-}
 REPORTS = ROOT / 'app/build/test-results/testDebugUnitTest'
 
 
