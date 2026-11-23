@@ -137,7 +137,7 @@ def window(device):
     dump = device.adb('shell', 'dumpsys', 'window', 'InputMethod')
     region = re.search(r'touchable region=SkRegion\(((?:\(\d+,\d+,\d+,\d+\))*)\)', dump)
     insets = re.search(r'mGivenContentInsets=\[(\d+),(\d+)\]\[(\d+),(\d+)\] mGivenVisibleInsets=\[(\d+),(\d+)\]', dump)
-    frame = re.search(r'mFrame=\[(-?\d+),(-?\d+)\]\[(-?\d+),(-?\d+)\]', dump)
+    frame = re.search(r'(?<![A-Za-z])frame=\[(-?\d+),(-?\d+)\]\[(-?\d+),(-?\d+)\]', dump)
     return {'touchable': [list(map(int, r)) for r in re.findall(r'\((\d+),(\d+),(\d+),(\d+)\)', region.group(1))] if region else None,
             'content_top': int(insets.group(2)) if insets else None, 'visible_top': int(insets.group(6)) if insets else None,
             'frame': list(map(int, frame.groups())) if frame else None}
@@ -226,7 +226,9 @@ def capture(args):
 
 def swap(args):
     """The renderer setting switched while the service lives: the Rust root, the Compose fallback,
-    then the Rust root again, each checked for a composition and screenshot into [out]."""
+    then the Rust root again, each checked for a composition and screenshot into [out]. A root
+    swapped in must also sit where a fresh process puts it: its window, surface and keys as in
+    the first step's (a root that missed the window's insets sat a navigation bar too low)."""
     check = runpy.run_path(str(HERE / 'view-root-composition.py'))['check']
     device = Device(args.out)
     out = Path(args.out)
@@ -236,6 +238,7 @@ def swap(args):
         device.mute()
         pose(device, {k: v[0] for k, v in DIMENSIONS.items()}, raw)
         pid = device.adb('shell', 'pidof', PKG).strip()
+        first = None
         for step, (renderer, expect) in enumerate((('rust', 'views'), ('compose', 'compose'), ('rust', 'views'))):
             device.renderer(renderer)
             show(device)
@@ -244,9 +247,15 @@ def swap(args):
             with open(out / f'{step}-{renderer}.png', 'wb') as shot:
                 subprocess.run(['adb', '-s', device.serial, 'exec-out', 'screencap', '-p'], stdout=shot, check=True)
             alive = device.adb('shell', 'pidof', PKG).strip() == pid
-            failed |= not (ok and alive)
+            # Compose's keys are not virtual nodes of their own; its step compares the window only.
+            data = device.capture(f'{step}-{renderer}-nodes', lambda ns: renderer == 'compose' or any(n['class'].endswith('Key') for n in ns))
+            ime = geometry(data['nodes'])
+            placed = {'window': window(device), 'surface': ime['surface'], 'keys': ime['keys'], 'key_union': ime['key_union']}
+            first = first or placed
+            fresh = placed == first if renderer == 'rust' else placed['window'] == first['window']
+            failed |= not (ok and alive and fresh)
             print(step, renderer, json.dumps(counts, sort_keys=True), 'expect', expect, 'pass' if ok else 'FAIL',
-                  '; same process:', alive, flush=True)
+                  '; same process:', alive, '; placed as fresh:', fresh, json.dumps(placed['key_union']), flush=True)
     finally:
         restore(device, raw, state['system'], state['access'])
         for private in ('private-state.json', 'private-prefs.bin'):
