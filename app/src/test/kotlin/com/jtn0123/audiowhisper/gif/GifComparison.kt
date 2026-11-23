@@ -1,25 +1,23 @@
 package com.jtn0123.audiowhisper.gif
 
+import com.jtn0123.audiowhisper.rust.GifRules
 import dev.patrickgold.florisboard.ime.text.gestures.SwipeAction
 import dev.patrickgold.florisboard.ime.text.key.KeyType
-import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.Json
-import java.io.File
 import java.io.IOException
 import java.net.SocketTimeoutException
-import java.util.Locale
 import kotlin.random.Random
 
 /**
- * Holds the GIF panel's rules in Rust (lib/rust/crates/gif, behind [SearchText], [GifSearch],
- * [GifSearchKeys], [GifResultCache] and [GifRecents]) up against the Kotlin they replaced,
- * [ReferenceGif], wherever this runs: random queries and texts (emoji and half emoji, odd spaces,
- * apostrophes, İ and ß), typed words for the chips, every key code near FlorisBoard's with every
- * key type, delete-key swipes, failed calls, and random runs of a result cache and of recents,
- * saved and loaded. Self-contained, so a device check can copy it into the app and run it on a
- * phone, whose Java judges spaces, letters and case differently. [dir] holds recents' files.
+ * Holds the GIF panel's rules in Rust (lib/rust/crates/gif, behind [SearchText], [GifRules] and
+ * [GifSearchKeys]) up against the Kotlin they replaced, [ReferenceGif], wherever this runs: random
+ * queries and texts (emoji and half emoji, odd spaces, apostrophes, İ and ß), typed words for the
+ * chips, every key code near FlorisBoard's with every key type, delete-key swipes and failed
+ * calls. These are the functions the panel's session runs in Rust; GifSearchTraceTest holds the
+ * session itself, with its result cache and recents, to main's. Self-contained, so a device check
+ * can copy it into the app and run it on a phone, whose Java judges spaces, letters and case
+ * differently.
  */
-class GifComparison(private val dir: File) {
+class GifComparison {
     /** How many comparisons failed, and the first few, described. */
     var failures = 0
         private set
@@ -46,12 +44,9 @@ class GifComparison(private val dir: File) {
     /** The constants the panel shares with the Rust. */
     fun constants() {
         check("MAX_LENGTH", null, ReferenceGif.SearchText.MAX_LENGTH, SearchText.MAX_LENGTH)
-        check("categories", null, ReferenceGif.categories, GifSearch.categories)
-        check("TRENDING", null, ReferenceGif.TRENDING, GifSearch.TRENDING)
-        check("RECENTS", null, ReferenceGif.RECENTS, GifSearch.RECENTS)
-        check("TTL_MS", null, ReferenceGif.GifResultCache.TTL_MS, GifResultCache.TTL_MS)
-        check("cache CAPACITY", null, ReferenceGif.GifResultCache.CAPACITY, GifResultCache.CAPACITY)
-        check("recents CAPACITY", null, ReferenceGif.GifRecents.CAPACITY, GifRecents.CAPACITY)
+        check("categories", null, ReferenceGif.categories, GifRules.categories)
+        check("TRENDING", null, ReferenceGif.TRENDING, GifRules.trending)
+        check("RECENTS", null, ReferenceGif.RECENTS, GifRules.recents)
     }
 
     /** Random queries edited, and texts whose last word is offered. */
@@ -83,13 +78,13 @@ class GifComparison(private val dir: File) {
     fun chips(random: Random, count: Int) = repeat(count) {
         val typed = when (random.nextInt(4)) {
             0 -> null
-            1 -> recase(random, (GifSearch.categories + GifSearch.RECENTS).random(random))
+            1 -> recase(random, (GifRules.categories + GifRules.recents).random(random))
             else -> pieces(random, 3)
         }
         val hasRecents = random.nextBoolean()
-        val chips = GifSearch.chips(typed, hasRecents)
+        val chips = GifRules.chips(typed, hasRecents)
         check("chips", listOf(typed, hasRecents), ReferenceGif.chips(typed, hasRecents), chips)
-        val moved = typed != null && chips.size == GifSearch.categories.size + (if (hasRecents) 1 else 0)
+        val moved = typed != null && chips.size == GifRules.categories.size + (if (hasRecents) 1 else 0)
         see(if (typed == null) "no word" else if (moved) "a chip moved first" else "a word put first")
     }
 
@@ -119,82 +114,18 @@ class GifComparison(private val dir: File) {
             listOf(Int.MIN_VALUE, Int.MAX_VALUE).map { GiphyException(it) } +
             listOf(GiphyFormatException(IllegalStateException()), IOException(), SocketTimeoutException())
         for (e in failures) {
-            val problem = GifSearch.problem(e)
+            val problem = problem(e)
             check("problem", e.message, ReferenceGif.problem(e), problem)
             see("problem $problem")
         }
     }
 
-    /** Random runs of a result cache: searches stored and asked for as time passes. */
-    fun caches(random: Random, runs: Int, steps: Int) = repeat(runs) {
-        var now = TIMES.random(random)
-        val ttl = TTLS.random(random)
-        val capacity = random.nextInt(5)
-        val old = ReferenceGif.GifResultCache({ now }, ttl, capacity)
-        val new = GifResultCache({ now }, ttl, capacity)
-        val stored = HashMap<String, Long>()
-        repeat(steps) { step ->
-            now += GAPS.random(random)
-            val search = recase(random, SEARCHES.random(random)) + SPACES.random(random)
-            val key = search.trim().lowercase(Locale.ROOT)
-            if (random.nextInt(3) == 0) {
-                val gifs = listOf(gif("$step", "run $it step $step"))
-                old.put(search, gifs)
-                new.put(search, gifs)
-                stored[key] = now
-            } else {
-                val found = new.get(search)
-                check("cache get", listOf(search, now, ttl, capacity), old.get(search), found)
-                val at = stored.remove(key)
-                if (found != null) stored[key] = at ?: now
-                see(
-                    when {
-                        found != null -> "found"
-                        at == null -> "never stored"
-                        now - at >= ttl -> "expired"
-                        else -> "dropped when full"
-                    },
-                )
-            }
-            // A search dropped from the keys must take its GIFs with it, not leave them held.
-            check("cache size", listOf(search, now, ttl, capacity), old.size, new.size)
-        }
+    /** What main's GifSearch said about [e], each failure named in Rust. */
+    private fun problem(e: IOException): String = when (e) {
+        is GiphyFormatException -> GifRules.problem(GifRules.Failure.UNREADABLE)
+        is GiphyException -> GifRules.problem(GifRules.Failure.STATUS, e.status)
+        else -> GifRules.problem(GifRules.Failure.UNREACHABLE)
     }
-
-    /** Random runs of recents: GIFs sent, some again, then saved ones loaded with more sent meanwhile. */
-    fun recents(random: Random, runs: Int, steps: Int) = repeat(runs) { run ->
-        val capacity = if (random.nextInt(4) == 0) GifRecents.CAPACITY else random.nextInt(6)
-        val old = ReferenceGif.GifRecents(file = null, capacity)
-        val new = GifRecents(file = null, capacity)
-        repeat(steps) { step ->
-            val gif = gif(IDS.random(random), "run $run step $step")
-            val again = new.all().any { it.id == gif.id }
-            old.add(gif)
-            new.add(gif)
-            check("add", listOf(gif.id, capacity), old.all(), new.all())
-            see("sent again", again)
-            see("the oldest dropped", !again && new.all().size == capacity && capacity > 0)
-        }
-        val file = File(dir, "gif-recents-$run.json")
-        val saved = List(random.nextInt(8)) { gif(IDS.random(random), "saved $it") }
-        file.writeText(json.encodeToString(saved))
-        val oldLoaded = ReferenceGif.GifRecents(file, capacity)
-        val newLoaded = GifRecents(file, capacity)
-        repeat(random.nextInt(4)) {
-            val gif = gif(IDS.random(random), "meanwhile $it")
-            oldLoaded.add(gif)
-            newLoaded.add(gif)
-        }
-        val meanwhile = newLoaded.all().isNotEmpty()
-        oldLoaded.load()
-        newLoaded.load()
-        check("load", listOf(saved.map { it.id }, capacity), oldLoaded.all(), newLoaded.all())
-        see("loaded with some sent meanwhile", meanwhile && saved.isNotEmpty())
-        see("a saved duplicate kept", newLoaded.all().map { it.id }.let { it.size != it.toSet().size })
-        file.delete()
-    }
-
-    private fun gif(id: String, title: String) = Gif(id, title, "p/$id", 1.5f, "s/$id", "u/$id")
 
     /** Up to [parts] random pieces of text. */
     private fun pieces(random: Random, parts: Int): String = buildString {
@@ -215,7 +146,6 @@ class GifComparison(private val dir: File) {
 
     private companion object {
         const val MAX_EXAMPLES = 10
-        private val json = Json { ignoreUnknownKeys = true }
 
         val PARTS = listOf(
             "cat", "Congrats", "happy", "dance", "a", "I", "OK", "x", "7", "42", "don't", "'", "''", "’", "İ",
@@ -226,11 +156,5 @@ class GifComparison(private val dir: File) {
         )
         val COUNTS = listOf(-2, -1, 0, 1, 1, 2, 3, 5, 9, 60, Int.MAX_VALUE / 1_000_000, Int.MIN_VALUE)
         val EDGES = listOf(Int.MIN_VALUE, Int.MAX_VALUE, Int.MIN_VALUE + 1, -1_000_000, 1_000_000)
-        val SEARCHES = listOf("cats", "Thank you", "Trending", "haha", "İstanbul", "STRASSE", "ΣΟΦΊΑ", "")
-        val SPACES = listOf("", "", "", " ", "\t", " ", "\n ")
-        val IDS = listOf("a", "b", "c", "d", "e", "f", "g", "abc", "A")
-        val TIMES = listOf(0L, 1_000L, Long.MAX_VALUE - 5_000, Long.MIN_VALUE)
-        val TTLS = listOf(0L, 1L, 1_000L, 600_000L, Long.MAX_VALUE, -1L)
-        val GAPS = listOf(0L, 0L, 1L, 10L, 500L, 999L, 1_000L, 1_001L, 600_000L, -1L)
     }
 }

@@ -13,16 +13,16 @@ app/src/main/kotlin/com/jtn0123/audiowhisper/dictation/ModelFiles.kt	A	21	Contex
 app/src/main/kotlin/com/jtn0123/audiowhisper/dictation/ModelHolder.kt	A	24	ART JNI; executes native model lifetime plans |
 app/src/main/kotlin/com/jtn0123/audiowhisper/dictation/PhraseListener.kt	M	45	AudioRecord / ByteBuffer; VAD result delivery/flush boundaries |
 app/src/main/kotlin/com/jtn0123/audiowhisper/dictation/Transcriber.kt	A	19	ART JNI / ByteBuffer; sherpa recognizer handle and cancellation |
-app/src/main/kotlin/com/jtn0123/audiowhisper/gif/GifDataSource.kt	A	6	HttpURLConnection / ImageDecoder adapter interface; asynchronous network/preview effects only |
+app/src/main/kotlin/com/jtn0123/audiowhisper/gif/GifDataSource.kt	A	8	network/preview source interface a fixture or test replaces; +2 (2026-11-22) save and preview, so search, previews and sends fetch through one source |
 app/src/main/kotlin/com/jtn0123/audiowhisper/gif/GifFrames.kt	P	58	GIF container block/frame parsing |
-app/src/main/kotlin/com/jtn0123/audiowhisper/gif/GifImages.kt	M	50	ImageDecoder / HttpURLConnection / LruCache; preview budget/cache ownership |
+app/src/main/kotlin/com/jtn0123/audiowhisper/gif/GifImages.kt	A	49	ImageDecoder / preview fetches; which previews are kept is Rust's (GifPreviewKeys, crates/gif previews) since 2026-11-22 |
 app/src/main/kotlin/com/jtn0123/audiowhisper/gif/GifPanel.kt	K	309	Compose keyboard (keyboard scope): deleted at compose-removal step K
-app/src/main/kotlin/com/jtn0123/audiowhisper/gif/GifRecents.kt	M	49	Context files / File; startup merge and persistence sequencing |
-app/src/main/kotlin/com/jtn0123/audiowhisper/gif/GifResultCache.kt	M	26	native key cache plus Kotlin payload-map lifetime |
-app/src/main/kotlin/com/jtn0123/audiowhisper/gif/GifSearch.kt	M	150	SystemClock / network IO; request jobs, generations, loading/publication state |
+app/src/main/kotlin/com/jtn0123/audiowhisper/gif/GifRecents.kt	M	25	File IO and the kotlinx JSON codec of gif-recents.json; order, merge and when it is read and written moved to crates/gif 2026-11-22; the codec could follow |
+app/src/main/kotlin/com/jtn0123/audiowhisper/gif/GifSearch.kt	A	25	the process-wide session: SystemClock, Dispatchers, BuildConfig key, Log; request lifetime, cache and recents sequencing moved to crates/gif 2026-11-22 |
 app/src/main/kotlin/com/jtn0123/audiowhisper/gif/GifSearchKeys.kt	P	23	key/search routing facade; consolidate native protocol, retain only boundary tags |
-app/src/main/kotlin/com/jtn0123/audiowhisper/gif/GifSender.kt	M	60	InputConnection.commitContent / FileProvider; fallback-link and pruning choices |
-app/src/main/kotlin/com/jtn0123/audiowhisper/gif/Giphy.kt	M	54	HttpURLConnection; response/error dispatch and domain result mapping |
+app/src/main/kotlin/com/jtn0123/audiowhisper/gif/GifSearchSession.kt	A	162	new 2026-11-22: runs GifSessionPlan's effects (fetch jobs and their cancellation, recents file IO on the IO thread, the StateFlows the panel draws); every decision is crates/gif's session |
+app/src/main/kotlin/com/jtn0123/audiowhisper/gif/GifSender.kt	A	94	InputConnection.commitContent / FileProvider; +34 (2026-11-22) runs the send steps crates/gif decides (file names, pruning ages, fallback order moved to Rust) through a GifTarget seam the trace drives without an editor |
+app/src/main/kotlin/com/jtn0123/audiowhisper/gif/Giphy.kt	A	39	HttpURLConnection; makes each request as its GifRequest row says; URLs, caps and reply policy are crates/gif's since 2026-11-22 |
 app/src/main/kotlin/com/jtn0123/audiowhisper/gif/LimitedRead.kt	P	19	bounded stream-copy byte/overflow rules (leave Java stream IO adapter) |
 app/src/main/kotlin/com/jtn0123/audiowhisper/reader/FollowAlong.kt	M	50	AccessibilityNodeInfo.performAction; reveal/scroll/selection sequencing |
 app/src/main/kotlin/com/jtn0123/audiowhisper/reader/LitSpeaker.kt	K	27	Compose keyboard (keyboard scope): deleted at compose-removal step K
@@ -354,7 +354,6 @@ lib/kotlin/src/main/kotlin/org/florisboard/lib/kotlin/io/FsFile.kt	P	23	portable
 lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/BackupPolicy.kt	A	21	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
 lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/EditorSession.kt	A	50	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport | raised 50 to 57 (A6): typed EditorOp and EditorAttributeOp calls; the cursor and keyboard request packets built by field name
 lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/ExtensionPolicy.kt	A	27	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport | raised 31 to 34 (A6): a typed ExtensionOp call and the archive entry packet built by field name, which BackupPolicy shares
-lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/Gif.kt	M	3	ART JNI; residual signed-order decoding helpers and cache payload lifetime |
 lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/Giphy.kt	A	5	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
 lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/LayoutCache.kt	A	13	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
 lib/rust/src/main/kotlin/com/jtn0123/audiowhisper/rust/LayoutRules.kt	A	13	ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |

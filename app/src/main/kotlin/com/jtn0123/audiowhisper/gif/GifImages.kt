@@ -2,65 +2,71 @@ package com.jtn0123.audiowhisper.gif
 
 import android.graphics.ImageDecoder
 import android.graphics.drawable.Drawable
-import android.util.LruCache
+import com.jtn0123.audiowhisper.rust.GifMedia
+import com.jtn0123.audiowhisper.rust.GifPreviewKeys
+import com.jtn0123.audiowhisper.rust.GifSessionPlan
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import java.io.File
 import java.io.IOException
-import java.io.InputStream
-import java.net.HttpURLConnection
-import java.net.URL
 import java.nio.ByteBuffer
+import kotlin.coroutines.CoroutineContext
 
 /**
- * Downloads GIF media. Previews are kept in memory while the panel is open, so scrolling back
- * doesn't fetch them again, and dropped when it closes: nothing is written to disk except the
- * one GIF being sent, which the receiving app reads from [GifSender]'s cache folder.
+ * The previews held in memory while the panel is open, so scrolling back doesn't fetch them
+ * again, and dropped when it closes. Which are kept is decided in Rust ([GifPreviewKeys]); the
+ * bytes stay here. Any thread.
+ */
+internal class GifPreviews(private val io: CoroutineContext, private val source: () -> GifDataSource?) {
+    private val keys = GifPreviewKeys()
+    private val previews = HashMap<String, ByteArray>()
+
+    /** The preview at [url], fetched unless it is held. */
+    suspend fun bytes(url: String): ByteArray = withContext(io) {
+        held(url) ?: download(url).also { keep(url, it) }
+    }
+
+    fun forget() = synchronized(previews) {
+        keys.clear()
+        previews.clear()
+    }
+
+    private fun held(url: String): ByteArray? = synchronized(previews) { if (keys.get(url)) previews[url] else null }
+
+    private fun keep(url: String, bytes: ByteArray) = synchronized(previews) {
+        previews[url] = bytes
+        for (dropped in keys.put(url, bytes.size)) previews.remove(dropped)
+    }
+
+    private suspend fun download(url: String): ByteArray {
+        val source = source() ?: throw IOException("No GIF source")
+        val answer = source.get(url, REQUEST)
+        return answer.body ?: throw GiphyException(answer.status)
+    }
+
+    private companion object {
+        val REQUEST: IntArray = GifSessionPlan.request(GifMedia.PREVIEW)
+    }
+}
+
+/**
+ * Downloads GIF media for the panel. Nothing is written to disk except the one GIF being sent,
+ * which the receiving app reads from [GifSender]'s cache folder.
  */
 object GifImages {
-    private const val PREVIEW_CACHE_BYTES = 24 * 1024 * 1024
-    private const val MAX_PREVIEW_BYTES = 4 * 1024 * 1024
-    private const val TIMEOUT_MS = 15_000
-
-    private val previews = object : LruCache<String, ByteArray>(PREVIEW_CACHE_BYTES) {
-        override fun sizeOf(key: String, value: ByteArray) = value.size
-    }
+    private val previews = GifPreviews(Dispatchers.IO) { GifSearch.source }
 
     /** The animated preview at [url], or null if it could not be fetched or decoded. */
     suspend fun preview(url: String): Drawable? = withContext(Dispatchers.IO) {
         try {
-            val bytes = previews.get(url) ?: download(url, MAX_PREVIEW_BYTES).also { previews.put(url, it) }
-            decode(bytes)
-        } catch (e: IOException) {
+            decode(previews.bytes(url))
+        } catch (_: IOException) {
             null
         }
     }
 
-    internal suspend fun previewBytes(url: String): ByteArray = withContext(Dispatchers.IO) {
-        previews.get(url) ?: download(url,MAX_PREVIEW_BYTES).also { previews.put(url,it) }
-    }
+    internal suspend fun previewBytes(url: String): ByteArray = previews.bytes(url)
 
-    fun forgetPreviews() = previews.evictAll()
-
-    /** Saves [url] to [file], refusing anything larger than [maxBytes]. */
-    suspend fun save(url: String, file: File, maxBytes: Int) = withContext(Dispatchers.IO) {
-        open(url) { input -> file.outputStream().use { copyLimited(input, it, maxBytes) } }
-    }
-
-    private fun download(url: String, maxBytes: Int): ByteArray = open(url) { readLimited(it, maxBytes) }
-
-    private fun <T> open(url: String, read: (InputStream) -> T): T {
-        val connection = URL(url).openConnection() as HttpURLConnection
-        connection.connectTimeout = TIMEOUT_MS
-        connection.readTimeout = TIMEOUT_MS
-        try {
-            val status = connection.responseCode
-            if (status != HttpURLConnection.HTTP_OK) throw GiphyException(status)
-            return connection.inputStream.use(read)
-        } finally {
-            connection.disconnect()
-        }
-    }
+    fun forgetPreviews() = previews.forget()
 
     /** Decodes [bytes] to a drawable, animated when the GIF is. */
     private fun decode(bytes: ByteArray): Drawable =

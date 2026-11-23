@@ -10,6 +10,7 @@ mod editor;
 mod emoji;
 mod gestures;
 mod gif;
+mod gif_session;
 mod giphy;
 mod glide;
 mod ime_subtype;
@@ -66,6 +67,7 @@ pub const CLASSES: &[Class] = &[
     screen::SCREEN_NATIVE,
     dictation::DICTATION_NATIVE,
     gif::GIF_NATIVE,
+    gif_session::GIF_SESSION_NATIVE,
     composing::COMPOSING_NATIVE,
     giphy::GIPHY_NATIVE,
     emoji::EMOJI_NATIVE,
@@ -106,7 +108,8 @@ pub const APIS: &[Api] = &[
     dictation::DICTATION_RULES,
     dictation::MIC_KEY_STATE,
     gif::GIF_RULES,
-    gif::GIF_RESULT_KEYS,
+    gif_session::GIF_SESSION_PLAN,
+    gif_session::GIF_PREVIEW_KEYS,
     composing::COMPOSING_RULES,
     giphy::GIPHY_RULES,
     emoji::EMOJI_TABLE,
@@ -228,6 +231,11 @@ pub const WIRE: &[Wire] = &[
         module: Module::Rust,
         internal: false,
         groups: wire::dictation::GROUPS,
+    },
+    Wire {
+        module: Module::Rust,
+        internal: false,
+        groups: wire::gif::GROUPS,
     },
     Wire {
         module: Module::Rust,

@@ -3,6 +3,7 @@ package com.jtn0123.audiowhisper.gif
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import java.io.IOException
 import java.net.URLEncoder
 
 /**
@@ -67,3 +68,6 @@ object ReferenceGiphy {
         val height: String? = null,
     )
 }
+
+/** Main's: GIPHY's answer couldn't be read, or was too long to. */
+class GiphyFormatException(cause: Throwable) : IOException("GIPHY sent an unreadable response", cause)

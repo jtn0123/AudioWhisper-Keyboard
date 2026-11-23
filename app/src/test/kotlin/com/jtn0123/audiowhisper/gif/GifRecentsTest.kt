@@ -1,65 +1,83 @@
 package com.jtn0123.audiowhisper.gif
 
+import com.jtn0123.audiowhisper.rust.GifRules
 import java.io.File
 import java.nio.file.Files
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
+/** Recents: their order decided in the session (crates/gif), their file read and written here. */
 class GifRecentsTest {
     private fun gif(id: String) = Gif(id, "title $id", "p/$id", 1.5f, "s/$id", "u/$id")
 
-    private fun ids(recents: GifRecents) = recents.all().map { it.id }
+    private val dir: File = Files.createTempDirectory("gifs").toFile()
+    private val file = File(dir, GifSearchSession.RECENTS_FILE)
 
-    private fun tempFile(): File = Files.createTempDirectory("gifs").toFile().resolve("gif-recents.json")
+    private fun SessionRig.recents(): List<String> {
+        session.load(GifRules.recents)
+        return (session.results.value as GifSearch.Results.Loaded).gifs.map { it.id }
+    }
+
+    private fun SessionRig.send(vararg ids: String) = ids.forEach { session.sent(gif(it), incognito = false) }
 
     @Test
     fun theLastSentComesFirstAndOnlyOnce() {
-        val recents = GifRecents(file = null)
-        recents.add(gif("a"))
-        recents.add(gif("b"))
-        recents.add(gif("a"))
-        assertEquals(listOf("a", "b"), ids(recents))
+        val rig = SessionRig()
+        rig.send("a", "b", "a")
+        assertEquals(listOf("a", "b"), rig.recents())
     }
 
     @Test
     fun theOldestGoWhenFull() {
-        val recents = GifRecents(file = null, capacity = 2)
-        listOf("a", "b", "c").forEach { recents.add(gif(it)) }
-        assertEquals(listOf("c", "b"), ids(recents))
+        val rig = SessionRig()
+        val ids = (0..40).map { "g$it" }
+        rig.send(*ids.toTypedArray())
+        val kept = rig.recents()
+        assertEquals(ids.reversed().take(kept.size), kept)
+        assertTrue(kept.size < ids.size)
     }
 
     @Test
-    fun savesAndLoadsEverything() {
-        val file = tempFile()
-        val recents = GifRecents(file)
-        recents.add(gif("a"))
-        recents.add(gif("b"))
-        assertTrue(recents.save())
-        assertFalse(File(file.parentFile, "${file.name}.part").exists())
-        val reloaded = GifRecents(file).apply { load() }
-        assertEquals(listOf(gif("b"), gif("a")), reloaded.all())
+    fun savesAndReadsEverything() {
+        assertTrue(GifRecents.write(file, listOf(gif("b"), gif("a"))))
+        assertFalse(File(dir, "${file.name}.part").exists())
+        assertEquals(listOf(gif("b"), gif("a")), GifRecents.read(file))
     }
 
     @Test
-    fun loadKeepsWhatWasSentBeforeItFinished() {
-        val file = tempFile()
-        GifRecents(file).apply { add(gif("old")); add(gif("both")); save() }
-        val recents = GifRecents(file)
-        recents.add(gif("new"))
-        recents.add(gif("both"))
-        recents.load()
-        assertEquals(listOf("both", "new", "old"), ids(recents))
+    fun whatIsSentIsSavedForNextTime() {
+        val rig = SessionRig().apply { session.attach(dir) }
+        rig.threads.drain()
+        rig.send("a", "b")
+        rig.threads.drain()
+        assertEquals(listOf("b", "a"), GifRecents.read(file)?.map { it.id })
+        val next = SessionRig().apply { session.attach(dir) }
+        next.threads.drain()
+        assertEquals(listOf("b", "a"), next.recents())
+    }
+
+    @Test
+    fun readingKeepsWhatWasSentBeforeItFinished() {
+        GifRecents.write(file, listOf(gif("both"), gif("old")))
+        val rig = SessionRig().apply { session.attach(dir) }
+        rig.threads.main.runAll()
+        rig.send("new", "both")
+        rig.threads.drain()
+        assertEquals(listOf("both", "new", "old"), rig.recents())
+        assertEquals(listOf("both", "new", "old"), GifRecents.read(file)?.map { it.id }, "and saved so")
     }
 
     @Test
     fun aMissingOrDamagedFileIsNoGifs() {
-        val file = tempFile()
-        GifRecents(file).load()
+        assertNull(GifRecents.read(file))
         file.writeText("[{\"id\": 3")
-        val recents = GifRecents(file).apply { load() }
-        assertEquals(emptyList(), recents.all())
-        assertFalse(GifRecents(file = null).save())
+        assertNull(GifRecents.read(file))
+        val rig = SessionRig().apply { session.attach(dir) }
+        rig.threads.drain()
+        assertEquals(emptyList(), rig.recents())
+        assertFalse(GifRecents.write(File(dir, "missing/folder.json"), emptyList()))
     }
 }

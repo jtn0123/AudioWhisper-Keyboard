@@ -14,6 +14,7 @@ mod emoji;
 mod files;
 pub(crate) mod gestures;
 mod gif;
+mod gif_session;
 mod giphy;
 pub(crate) mod glide;
 mod handle;

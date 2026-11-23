@@ -1,6 +1,5 @@
 package com.jtn0123.audiowhisper.gif
 
-import java.nio.file.Files
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -9,12 +8,13 @@ import kotlin.test.assertTrue
 /**
  * The GIF panel's rules in Rust give exactly what the Kotlin they replaced gave
  * ([ReferenceGif]), through [GifComparison]: random queries and texts, typed words for the chips,
- * every key code near FlorisBoard's, swipes, failed calls, and runs of the result cache and of
- * recents. The same comparison runs on the emulator, whose Java judges text differently.
+ * every key code near FlorisBoard's, swipes and failed calls. The result cache and recents are
+ * held to main's inside the session, by GifSearchTraceTest. The same comparison runs on the
+ * emulator, whose Java judges text differently.
  */
 class GifRulesMatchTest {
     private fun assertNone(reached: List<String>, body: GifComparison.() -> Unit) {
-        val comparison = GifComparison(Files.createTempDirectory("gif-comparison").toFile()).apply(body)
+        val comparison = GifComparison().apply(body)
         assertEquals(emptyList(), comparison.examples, "${comparison.failures} of ${comparison.checks} differ")
         for (outcome in reached) {
             assertTrue((comparison.seen[outcome] ?: 0) >= MIN_SEEN, "$outcome only ${comparison.seen[outcome]} times")
@@ -34,12 +34,6 @@ class GifRulesMatchTest {
     fun problemsMatch() = assertNone(emptyList()) { problems() }
 
     @Test
-    fun cachesMatch() = assertNone(CACHE_OUTCOMES) { caches(Random(SEED), runs = 2_000, steps = 40) }
-
-    @Test
-    fun recentsMatch() = assertNone(RECENT_OUTCOMES) { recents(Random(SEED), runs = 2_000, steps = 20) }
-
-    @Test
     fun constantsMatch() = assertNone(emptyList()) { constants() }
 
     private companion object {
@@ -56,7 +50,5 @@ class GifRulesMatchTest {
         val KEY_OUTCOMES = listOf(
             "route SEARCH", "route KEYBOARD", "route IGNORE", "no swipe delete", "a swipe deletes", "a swipe deletes nothing",
         )
-        val CACHE_OUTCOMES = listOf("found", "never stored", "expired", "dropped when full")
-        val RECENT_OUTCOMES = listOf("sent again", "the oldest dropped", "loaded with some sent meanwhile", "a saved duplicate kept")
     }
 }

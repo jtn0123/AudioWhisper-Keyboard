@@ -13,16 +13,16 @@ import kotlin.test.assertTrue
 
 /** Entirely local source: generated GIFs exercise native layout, pixels, selection and idle. */
 class FixtureGifSourceTest {
-    private class Source: GifDataSource {
+    private class Source {
         val gifs=(0..2).map { Gif("fixture$it","Fixture $it","fixture:$it",(it+1)/2f,"fixture:$it","https://example.invalid/fixture$it") }
         private val bytes=gifs.mapIndexed { i,gif ->
             val image=BufferedImage(4+i,4,BufferedImage.TYPE_INT_RGB)
             for(y in 0 until 4)for(x in 0 until 4+i)image.setRGB(x,y,0x112233*(i+1))
             gif.previewUrl to ByteArrayOutputStream().also {ImageIO.write(image,"gif",it)}.toByteArray()
         }.toMap()
-        override suspend fun trending()=gifs
-        override suspend fun search(query: String)=if(query=="empty") emptyList() else gifs.reversed()
-        override suspend fun preview(url: String)=bytes.getValue(url)
+        suspend fun trending()=gifs
+        suspend fun search(query: String)=if(query=="empty") emptyList() else gifs.reversed()
+        suspend fun preview(url: String)=bytes.getValue(url)
     }
     @Test fun generatedTrendingSearchEmptyAndDecodedPreviews()=runBlocking {
         val source=Source()

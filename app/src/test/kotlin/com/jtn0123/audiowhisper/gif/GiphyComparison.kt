@@ -1,12 +1,15 @@
 package com.jtn0123.audiowhisper.gif
 
+import com.jtn0123.audiowhisper.rust.GiphyRules
+import com.jtn0123.audiowhisper.rust.parse
 import java.math.BigDecimal
 import java.net.URLEncoder
 import kotlin.random.Random
 
 /**
  * Holds the reading of GIPHY's answers and the building of its URLs, in Rust
- * (lib/rust/crates/gif/src/giphy.rs, behind [Giphy]), up against the Kotlin they replaced,
+ * (lib/rust/crates/gif/src/giphy.rs, behind [GiphyRules]; the panel's session runs the same
+ * functions), up against the Kotlin they replaced,
  * [ReferenceGiphy]: random GIPHY-like answers, broken in the ways kotlinx.serialization is
  * particular about (commas, whitespace, escapes, nulls, unknown values, repeats, truncation);
  * random sizes for `toFloatOrNull` (decimals, hexadecimals, names, halfway cases, far exponents,
@@ -46,9 +49,16 @@ class GiphyComparison {
         "threw ${e.javaClass.name}"
     }
 
+    /** Main's Giphy.parse: the Rust's reading, a body it can't read being unreadable. */
+    private fun parse(body: String): List<Gif> = try {
+        GiphyRules.parse(body, ::Gif)
+    } catch (e: IllegalArgumentException) {
+        throw GiphyFormatException(e)
+    }
+
     private fun compare(what: String, body: String): Any {
         val old = outcome(body, ReferenceGiphy::parse)
-        check(what, body, old, outcome(body, Giphy::parse))
+        check(what, body, old, outcome(body, ::parse))
         return old
     }
 
@@ -92,15 +102,15 @@ class GiphyComparison {
         val key = text(random, 3)
         val query = text(random, if (random.nextBoolean()) 4 else 40)
         val cut = query.take(ReferenceGiphy.MAX_QUERY_LENGTH)
-        checkUrl("searchUrl", listOf(key, query), listOf(key, cut), Giphy(key).searchUrl(query)) {
+        checkUrl("searchUrl", listOf(key, query), listOf(key, cut), GiphyRules.searchUrl(key, query)) {
             ReferenceGiphy.searchUrl(it[0], it[1])
         }
-        checkUrl("trendingUrl", key, listOf(key), Giphy(key).trendingUrl()) { ReferenceGiphy.trendingUrl(it[0]) }
+        checkUrl("trendingUrl", key, listOf(key), GiphyRules.trendingUrl(key)) { ReferenceGiphy.trendingUrl(it[0]) }
         val params = linkedMapOf<String, String>()
         repeat(random.nextInt(5)) { params[NAMES.random(random)] = text(random, 3) }
         val endpoint = listOf("search", "trending", "random", text(random, 1)).random(random)
         val names = params.keys.toList()
-        checkUrl("url", listOf(endpoint, params), listOf(key) + params.values, Giphy(key).url(endpoint, params)) {
+        checkUrl("url", listOf(endpoint, params), listOf(key) + params.values, GiphyRules.url(key, endpoint, params)) {
             ReferenceGiphy.url(it[0], endpoint, names.zip(it.drop(1)).toMap(LinkedHashMap()))
         }
         see("a search cut", query.length > ReferenceGiphy.MAX_QUERY_LENGTH)

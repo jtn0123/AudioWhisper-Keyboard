@@ -1,17 +1,13 @@
 package com.jtn0123.audiowhisper.rust
 
 import kotlin.test.Test
-import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
-import kotlin.test.assertFailsWith
-import kotlin.test.assertFalse
 import kotlin.test.assertNull
-import kotlin.test.assertTrue
 
 /**
- * The GIF panel's rules through JNI, as the keyboard calls them: text in and out, recents' order
- * as indexes, the cache behind a handle, and bad input thrown. The rules themselves are tested in
- * Rust and, against the Kotlin they replace, in the app.
+ * The GIF panel's rules through JNI, as the keyboard calls them: text in and out, and bad input
+ * thrown. The rules themselves are tested in Rust and, against the Kotlin they replace, in the
+ * app; the session that runs them is GifSessionPlanTest's.
  */
 class GifRulesTest {
     @Test
@@ -20,9 +16,6 @@ class GifRulesTest {
         assertEquals("Trending", GifRules.trending)
         assertEquals("Recents", GifRules.recents)
         assertEquals(14, GifRules.categories.size)
-        assertEquals(30, GifRules.recentsCapacity)
-        assertEquals(600_000L, GifResultKeys.TTL_MS)
-        assertEquals(20, GifResultKeys.CAPACITY)
     }
 
     @Test
@@ -58,28 +51,5 @@ class GifRulesTest {
     fun failuresAreExplained() {
         assertEquals("GIPHY didn't accept the API key.", GifRules.problem(GifRules.Failure.STATUS, 403))
         assertEquals("Couldn't reach GIPHY. Check your connection.", GifRules.problem(GifRules.Failure.UNREACHABLE))
-    }
-
-    @Test
-    fun recentsAreOrdered() {
-        val order = GifRules.recentsAdd(listOf("a", "b", "c"), "b", 30)
-        assertContentEquals(intArrayOf(-1, 0, 2), order)
-        assertTrue(GifRules.isSent(order[0]))
-        assertEquals(2, GifRules.index(order[2]))
-        assertContentEquals(intArrayOf(-1, -2, 0, 2), GifRules.recentsLoad(listOf("x", "a", "y"), listOf("a", "b"), 30))
-        assertEquals(1, GifRules.index(-2))
-        assertFailsWith<IllegalArgumentException> { GifRules.recentsAdd(listOf("a"), "b", -1) }
-    }
-
-    @Test
-    fun theCacheKeepsRecentSearches() {
-        val keys = GifResultKeys(ttlMs = 100, capacity = 1)
-        assertEquals("cats", GifResultKeys.key(" Cats "))
-        assertEquals(emptyList(), keys.put("cats", 0))
-        assertTrue(keys.get("cats", 99))
-        assertFalse(keys.get("cats", 100))
-        keys.put("dogs", 0)
-        assertEquals(listOf("dogs"), keys.put("owls", 0))
-        assertFailsWith<IllegalArgumentException> { GifResultKeys(capacity = -1) }
     }
 }
