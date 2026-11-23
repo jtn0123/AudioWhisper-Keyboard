@@ -6,3 +6,6 @@
 
 # The extension replay compares Android ICU with the same test-only Kotlin parser.
 -keep class dev.patrickgold.florisboard.lib.ext.** { *; }
+
+# The boundary replay compares the reader's page text, whose find and Start the app no longer calls.
+-keep class com.jtn0123.audiowhisper.reader.** { *; }
