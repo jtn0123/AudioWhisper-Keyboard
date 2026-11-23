@@ -1,5 +1,6 @@
 package com.jtn0123.audiowhisper.dictation
 
+import com.jtn0123.audiowhisper.rust.MicRules
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import kotlin.test.Test
@@ -38,9 +39,9 @@ class AudioHistoryTest {
     @Test
     fun `reads a 16-bit WAV for the debug replay`() {
         val wav = wav(listOf("fmt " to ByteArray(16), "LIST" to ByteArray(3), "data" to pcm(0, 16384, -32768)))
-        assertContentEquals(floatArrayOf(0f, 0.5f, -1f), MicAudio.Replay.pcm16(wav))
-        assertFailsWith<IllegalArgumentException> { MicAudio.Replay.pcm16("not a wav file".toByteArray()) }
-        assertFailsWith<IllegalArgumentException> { MicAudio.Replay.pcm16(wav(listOf("fmt " to ByteArray(16)))) }
+        assertContentEquals(floatArrayOf(0f, 0.5f, -1f), MicRules.pcm16(wav))
+        assertFailsWith<IllegalArgumentException> { MicRules.pcm16("not a wav file".toByteArray()) }
+        assertFailsWith<IllegalArgumentException> { MicRules.pcm16(wav(listOf("fmt " to ByteArray(16)))) }
     }
 
     private fun pcm(vararg samples: Int): ByteArray =

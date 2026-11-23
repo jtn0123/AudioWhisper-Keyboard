@@ -6,9 +6,9 @@ app/src/main/kotlin/com/jtn0123/audiowhisper/dictation/DictationSession.kt	M	196
 app/src/main/kotlin/com/jtn0123/audiowhisper/dictation/DictationUndo.kt	A	7	ART JNI; native undo-result DTO |
 app/src/main/kotlin/com/jtn0123/audiowhisper/dictation/LargeModels.kt	P	15	cross-model idle eviction registration and choice |
 app/src/main/kotlin/com/jtn0123/audiowhisper/dictation/LitMic.kt	K	93	Compose keyboard (keyboard scope): deleted at compose-removal step K
-app/src/main/kotlin/com/jtn0123/audiowhisper/dictation/MicAudio.kt	M	84	AudioRecord; PCM16 conversion/replay admission and audio buffer policy |
-app/src/main/kotlin/com/jtn0123/audiowhisper/dictation/MicRecorder.kt	M	50	AudioRecord via MicAudio; RMS/level math and pump error decisions |
-app/src/main/kotlin/com/jtn0123/audiowhisper/dictation/ModelCheck.kt	M	59	Context files / SharedPreferences; file verification cache and readiness decisions |
+app/src/main/kotlin/com/jtn0123/audiowhisper/dictation/MicAudio.kt	A	68	AudioRecord and the replayed file's bytes; the WAV walk and buffer size are Rust's (dictation::audio, phase 5) |
+app/src/main/kotlin/com/jtn0123/audiowhisper/dictation/MicRecorder.kt	A	47	the recording thread over MicAudio; what a read means and its level are Rust's (dictation::audio, phase 5) |
+app/src/main/kotlin/com/jtn0123/audiowhisper/dictation/ModelCheck.kt	A	63	file looks, SHA-256 and SharedPreferences; +4: the arrays crossing to dictation::model_check, which now decides missing/damaged, what to hash and what to remember (phase 5) |
 app/src/main/kotlin/com/jtn0123/audiowhisper/dictation/ModelFiles.kt	A	21	Context.filesDir / java.io.File; model-path and native-config transport |
 app/src/main/kotlin/com/jtn0123/audiowhisper/dictation/ModelHolder.kt	A	24	ART JNI; executes native model lifetime plans |
 app/src/main/kotlin/com/jtn0123/audiowhisper/dictation/PhraseListener.kt	M	45	AudioRecord / ByteBuffer; VAD result delivery/flush boundaries |

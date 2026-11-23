@@ -96,6 +96,7 @@ pub(crate) mod input;
 
 mod nlp;
 
+mod dictation_edges;
 mod dictation_session;
 
 mod sherpa;

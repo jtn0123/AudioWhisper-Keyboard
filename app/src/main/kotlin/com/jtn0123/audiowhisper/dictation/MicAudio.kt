@@ -6,10 +6,9 @@ import android.media.AudioFormat
 import android.media.AudioRecord
 import android.media.MediaRecorder
 import androidx.annotation.RequiresPermission
+import com.jtn0123.audiowhisper.rust.MicRules
 import dev.patrickgold.florisboard.BuildConfig
 import java.io.File
-import java.nio.ByteBuffer
-import java.nio.ByteOrder
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 
@@ -59,9 +58,8 @@ interface MicAudio : AutoCloseable {
                 return Mic(record)
             }
 
-            private fun bufferBytes(): Int = maxOf(
+            private fun bufferBytes(): Int = MicRules.bufferBytes(
                 AudioRecord.getMinBufferSize(Transcriber.SAMPLE_RATE, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_FLOAT),
-                Transcriber.SAMPLE_RATE * Float.SIZE_BYTES / 2,
             )
         }
     }
@@ -94,23 +92,8 @@ interface MicAudio : AutoCloseable {
             fun file(context: Context): File? =
                 File(context.filesDir, FILE_NAME).takeIf { BuildConfig.DEBUG && it.isFile }
 
-            /** Reads a 16 kHz mono 16-bit PCM WAV file. */
-            fun open(file: File): Replay = Replay(pcm16(file.readBytes()))
-
-            internal fun pcm16(wav: ByteArray): FloatArray {
-                val bytes = ByteBuffer.wrap(wav).order(ByteOrder.LITTLE_ENDIAN)
-                require(wav.size > 12 && String(wav, 0, 4) == "RIFF" && String(wav, 8, 4) == "WAVE") { "Not a WAV file" }
-                var offset = 12
-                while (offset + 8 <= wav.size) {
-                    val size = bytes.getInt(offset + 4)
-                    if (String(wav, offset, 4) == "data") {
-                        val count = minOf(size, wav.size - offset - 8) / 2
-                        return FloatArray(count) { bytes.getShort(offset + 8 + it * 2) / 32768f }
-                    }
-                    offset += 8 + size + (size and 1)
-                }
-                throw IllegalArgumentException("No audio in the WAV file")
-            }
+            /** Reads a 16 kHz mono 16-bit PCM WAV file; IllegalArgumentException if it holds no audio. */
+            fun open(file: File): Replay = Replay(MicRules.pcm16(file.readBytes()))
         }
     }
 }

@@ -1,12 +1,14 @@
 package com.jtn0123.audiowhisper.dictation
 
+import com.jtn0123.audiowhisper.rust.DictationAudio
+import com.jtn0123.audiowhisper.rust.MicRead
+import com.jtn0123.audiowhisper.rust.MicRules
 import kotlin.concurrent.thread
-import kotlin.math.sqrt
 
 /**
  * Records 16 kHz mono speech on its own thread until [stop], handing each
  * 100 ms of audio to [onAudio] and its 0..1 loudness to [onLevel], both on
- * that thread. Keeps nothing itself, so a dictation can run as long as the
+ * that thread. What a read means and how loud it is are Rust's ([MicRules]). Keeps nothing itself, so a dictation can run as long as the
  * user likes. Single use.
  *
  * If the microphone fails while recording (another app takes it, or the
@@ -47,17 +49,17 @@ class MicRecorder(
     }
 
     private fun pump(audio: MicAudio) {
-        val buffer = FloatArray(com.jtn0123.audiowhisper.rust.DictationAudio.chunkSamples)
+        val buffer = FloatArray(DictationAudio.chunkSamples)
         try {
             while (running) {
                 val n = audio.read(buffer)
-                if (n < 0) {
-                    if (running) onError(n)
-                    break
+                when (MicRules.read(n, running)) {
+                    MicRead.REPORT -> return onError(n)
+                    MicRead.END -> return
+                    MicRead.SKIP -> continue
                 }
-                if (n == 0) continue
                 onAudio(buffer.copyOf(n))
-                onLevel(level(buffer, n))
+                onLevel(MicRules.level(buffer, n))
             }
         } finally {
             synchronized(audioLock) {
@@ -65,12 +67,5 @@ class MicRecorder(
                 audio.close()
             }
         }
-    }
-
-    /** RMS scaled so ordinary speech fills most of the meter. */
-    private fun level(buffer: FloatArray, n: Int): Float {
-        var sum = 0.0
-        for (i in 0 until n) sum += buffer[i] * buffer[i]
-        return (sqrt(sum / n) * 8).toFloat().coerceIn(0f, 1f)
     }
 }

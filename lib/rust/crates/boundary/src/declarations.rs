@@ -5,6 +5,7 @@ mod clipboard;
 mod clipboard_store;
 mod composing;
 mod dictation;
+mod dictation_edges;
 mod dictation_session;
 mod editor;
 mod emoji;
@@ -67,6 +68,7 @@ pub const CLASSES: &[Class] = &[
     screen::SCREEN_NATIVE,
     dictation::DICTATION_NATIVE,
     gif::GIF_NATIVE,
+    dictation_edges::DICTATION_EDGES_NATIVE,
     gif_session::GIF_SESSION_NATIVE,
     composing::COMPOSING_NATIVE,
     giphy::GIPHY_NATIVE,
@@ -108,6 +110,8 @@ pub const APIS: &[Api] = &[
     dictation::DICTATION_RULES,
     dictation::MIC_KEY_STATE,
     gif::GIF_RULES,
+    dictation_edges::MIC_RULES,
+    dictation_edges::MODEL_CHECK_RULES,
     gif_session::GIF_SESSION_PLAN,
     gif_session::GIF_PREVIEW_KEYS,
     composing::COMPOSING_RULES,
@@ -231,6 +235,11 @@ pub const WIRE: &[Wire] = &[
         module: Module::Rust,
         internal: false,
         groups: wire::dictation::GROUPS,
+    },
+    Wire {
+        module: Module::Rust,
+        internal: false,
+        groups: wire::dictation_edges::GROUPS,
     },
     Wire {
         module: Module::Rust,
