@@ -167,11 +167,13 @@ Gboard's Personal dictionary was the reference for behaviour, not for looks.
 
 ## Data safety
 
-**Rows are written exactly as before.** The JVM tests compare the DAO calls with a frozen copy
-of the old code. `ReferenceUserDictionary` is UserDictionary's `importCombinedList` and
+**Rows are written exactly as before.** The JVM tests compared the DAO calls with a frozen copy
+of the old code. `ReferenceUserDictionary` was UserDictionary's `importCombinedList` and
 `exportCombinedList` and the dialog's checks and entry, as they were at `f5a6fc180`. Only the
 document, the package name and the clock became parameters. Same calls on the same DAO means
-the same Room rows and the same provider values. `RecordingUserDictionaryDao` records the calls
+the same Room rows and the same provider values. Phase 6 retired that copy: its answers are
+golden digests now (`words-drafts`, `words-import` and `words-locales`), and its export a
+literal, `frozenExport` (`docs/phase6-kotlin-references.md`). `RecordingUserDictionaryDao` records the calls
 and behaves like Room (it keeps an inserted id and orders by id) or, for the System
 dictionary, like the provider (it ignores the id and orders by frequency).
 
@@ -180,7 +182,8 @@ dictionary, like the provider (it ignores the id and orders by frequency).
   dialog made, with the entry its `onConfirm` built, or none when the dialog refused it. The two
   intended differences are checked as such: a frequency with spaces is stored trimmed where the
   dialog threw, and a duplicate is refused where the dialog stored it. Every outcome is reached
-  at least 50 times.
+  at least 50 times: of the 5,000 drafts, 3,902 were invalid, 143 duplicates, 242 had a
+  frequency with spaces, and 713 were written.
 * `deleteRemovesTheStoredRowAsTheDialogDidAndUndoStoresItAgain`: the same `delete` as the
   dialog. Undo stores the row again: with its id in Room, and as a new row in the provider.
 * `anImportMakesTheCallsImportCombinedListMadeAndAnOldExportImports`: an old export file, into
@@ -191,8 +194,9 @@ dictionary, like the provider (it ignores the id and orders by frequency).
   difference.
 * `anExportIsByteForByteWhatExportCombinedListWrote`, over the native screens and the picker.
 
-**Stored formats are frozen as literals.** `SettingsWordsTest` freezes the export file of the
-five sample words, the locale the dialog stored for each typed tag, and a report row. The cargo
+**Stored formats are frozen as literals.** `frozenExport` freezes the export file of the five
+sample words in both row orders; `SettingsWordsTest` freezes the locale the dialog stored for
+each typed tag (the rarer tags as a golden digest), and a report row. The cargo
 tests freeze an old export file and check that it imports and that a new export is the same
 bytes.
 

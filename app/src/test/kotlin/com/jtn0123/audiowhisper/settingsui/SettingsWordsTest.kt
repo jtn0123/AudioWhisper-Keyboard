@@ -3,11 +3,9 @@ package com.jtn0123.audiowhisper.settingsui
 import com.jtn0123.audiowhisper.golden.GoldenTape
 import com.jtn0123.audiowhisper.rust.*
 import dev.patrickgold.florisboard.ime.dictionary.RecordingUserDictionaryDao
-import dev.patrickgold.florisboard.ime.dictionary.ReferenceUserDictionary as Reference
 import dev.patrickgold.florisboard.ime.dictionary.UserDictionaryEntry
 import dev.patrickgold.florisboard.lib.FlorisLocale
 import java.io.StringReader
-import java.io.StringWriter
 import kotlin.test.*
 
 /** SettingsWords' adapter on its own: the report's rows, the stored formats frozen as literals, the locale the dialog
@@ -15,38 +13,25 @@ import kotlin.test.*
 class SettingsWordsTest {
     private fun fields(rows: Array<String>, at: Int) = rows.toList().subList(at * SettingsUiWord.SIZE, (at + 1) * SettingsUiWord.SIZE)
 
-    /** The export format, frozen: what exportCombinedList wrote for the sample, in Room's row order. */
-    @Test fun theExportFormatIsFrozen() {
-        val written = StringWriter().also {
-            Reference.exportCombinedList(RecordingUserDictionaryDao(sampleWords()), it, "document:12", "com.jtn0123.audiowhisper.keyboard", 1_800_000_000_000)
-        }.toString()
-        assertEquals("dictionary=document:12;date=1800000000000;generated-by=com.jtn0123.audiowhisper.keyboard;version=1\n" +
-            " w=zorblat;f=200;l=en_US\n w=Quexor;f=120;l=en-us;s=qx\n w=blivet;f=255;l=null\n w=frobnic;f=90;l=de_DE;s=fb\n" +
-            " w=snarf;f=10;l=all\n", written)
-        assertEquals(frozenExport(system = false), written)
-        val system = StringWriter().also {
-            Reference.exportCombinedList(RecordingUserDictionaryDao(sampleWords(), system = true), it, "document:12",
-                "com.jtn0123.audiowhisper.keyboard", 1_800_000_000_000)
-        }.toString()
-        assertEquals(frozenExport(system = true), system)
-        // Kotlin writes the segment, `null` when the document has none, as StringBuilder.append(null) did.
+    /** The export format is frozen in [frozenExport], which SettingsWordsMatchTest holds the native export to. Kotlin
+     * writes the document's segment in front, `null` when it has none, as StringBuilder.append(null) did. */
+    @Test fun anExportNamesTheDocumentOrNull() {
         assertEquals("dictionary=null;date=1", exportText(null, ";date=1"))
+        assertEquals(frozenExport(system = false).substringBefore(";date="), exportText("document:12", ""))
     }
 
-    /** The locale the dialog stored, frozen, and the adapter's normalisation matching the frozen FlorisLocale's. */
+    /** The adapter stores the locale the dialog stored: frozen as literals, and as a golden digest of the dialog's. */
     @Test fun addingAndChangingStoreTheLocaleTheDialogStored() {
         val stored = mapOf("en-us" to "en_US", "EN_us" to "en_US", "de-DE" to "de_DE", "fr" to "fr", "pt_BR" to "pt_BR")
         for ((typed, tag) in stored) {
-            assertEquals(tag, Reference.entry(0, "w", "1", "", " $typed ").locale)
             assertEquals(tag, normalized(UserDictionaryEntry(0, "w", 1, typed, null)).locale)
         }
-        // The reference's locales also go on a golden tape (docs/phase6-kotlin-references.md).
-        val tape = GoldenTape.ofReference("words-locales")
-        for (typed in listOf("iw", "in_ID", "zz_ZZ", "x", "all", "null", "en_US_POSIX", "sr-Latn-RS", "de_DE_1996")) {
-            tape.answer("locale", Reference.entry(0, "w", "1", "", typed).locale)
-            assertEquals(Reference.entry(0, "w", "1", "", typed).locale, normalized(UserDictionaryEntry(0, "w", 1, typed, null)).locale, typed)
+        // The rest against a golden digest of the dialog's locales (docs/phase6-kotlin-references.md).
+        GoldenTape.check("words-locales") { tape ->
+            for (typed in listOf("iw", "in_ID", "zz_ZZ", "x", "all", "null", "en_US_POSIX", "sr-Latn-RS", "de_DE_1996")) {
+                tape.answer("locale", normalized(UserDictionaryEntry(0, "w", 1, typed, null)).locale)
+            }
         }
-        tape.finish()
         val dao = RecordingUserDictionaryDao()
         applyWordEffect(dao, SettingsUiWordEffect.ADD, listOf(UserDictionaryEntry(0, "w", 1, "en-us", "s")))
         applyWordEffect(dao, SettingsUiWordEffect.CHANGE, listOf(UserDictionaryEntry(1, "w", 2, null, null)))
@@ -98,11 +83,9 @@ class SettingsWordsTest {
         val report = wordAnswer(p, dao) { block -> transactions++; block() }
         assertEquals(1, transactions)
         assertEquals(SettingsUiWordOutcome.IMPORTED, report[SettingsUiWord.LABEL])
-        val before = RecordingUserDictionaryDao(sampleWords())
-        Reference.importCombinedList(before, StringReader("h\n w=novel;f=3\n w=zorblat;f=9;l=en-us\n"))
-        assertEquals(before.calls, dao.calls)
+        // What importCombinedList made of "h\n w=novel;f=3\n w=zorblat;f=9;l=en-us\n".
         assertEquals(listOf("insert" to UserDictionaryEntry(0, "novel", 3, null, null),
-            "update" to UserDictionaryEntry(1, "zorblat", 9, "en-us", null)), before.calls)
+            "update" to UserDictionaryEntry(1, "zorblat", 9, "en-us", null)), dao.calls)
         // A transaction that throws, as Room's rolls back, is reported failed.
         val failed = wordAnswer(p, RecordingUserDictionaryDao(sampleWords())) { error("rolled back") }
         assertEquals(SettingsUiWordOutcome.FAILED, failed[SettingsUiWord.LABEL])
