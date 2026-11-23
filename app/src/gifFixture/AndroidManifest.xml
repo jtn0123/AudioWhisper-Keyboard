@@ -1,0 +1,8 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application>
+        <receiver android:name="com.jtn0123.audiowhisper.gif.GifFixtureReceiver"
+            android:exported="true" android:permission="android.permission.DUMP">
+            <intent-filter><action android:name="com.jtn0123.audiowhisper.GIF_FIXTURE" /></intent-filter>
+        </receiver>
+    </application>
+</manifest>

@@ -260,6 +260,15 @@ val fixtureAnnotations = tasks.register<Jar>("fixtureAnnotations") {
     destinationDirectory.set(layout.buildDirectory.dir("fixture-annotations"))
 }
 
+// A source set absent from normal APKs: local GIFs, switched in from the shell, for a build
+// with no GIPHY key (docs/phase5-edges.md).
+if (providers.gradleProperty("gifFixture").orNull == "true") {
+    android.sourceSets.getByName("debug") {
+        kotlin.directories.add("src/gifFixture/kotlin")
+        manifest.srcFile("src/gifFixture/AndroidManifest.xml")
+    }
+}
+
 // A source set absent from normal APKs. Its shell receiver changes only controlled UI facts.
 if (providers.gradleProperty("dictationFixture").orNull == "true") {
     android.sourceSets.getByName("debug") {
