@@ -69,8 +69,6 @@ crate::declare! {
         GLIDE_PLAN = "glidePlan",
         /// A [`learn`] row: a [`learn_plan`] row, or nothing.
         LEARN = "learn",
-        /// An [`aim`] row: a flag of whether the word may teach where the user taps.
-        AIM = "aim",
         /// The requested and current [`context`] rows, then a [`candidate`] row: a flag of whether
         /// it is the auto-correction.
         AUTO_CANDIDATE = "autoCandidate",
@@ -95,14 +93,10 @@ crate::declare! {
         /// A [`clipboard_plan`] row, then a [`clipboard_span`] row for each match: nothing, or -1
         /// for the item itself followed by the place of each match worth suggesting.
         CLIPBOARD_PLAN = "clipboardPlan",
-        /// A [`tally`] row.
-        TALLY = "tally",
         /// The saved counters' text.
         TALLY_LOAD = "tallyLoad",
         /// The counters as text.
         TALLY_TEXT = "tallyText",
-        /// A flag of whether a counter changed since the last time this was asked.
-        TALLY_CHANGED = "tallyChanged",
         /// Every counter back to zero.
         TALLY_RESET = "tallyReset",
     }
@@ -306,22 +300,6 @@ pub mod learn_plan {
     }
 }
 
-/// A kept word that may teach where the user taps.
-pub mod aim {
-    crate::declare! {
-        /// A kept word that may teach where the user taps.
-        pub const FIELDS: fields NlpAim {
-            /// A flag: the setting is on.
-            SETTING,
-            /// The code point that ended it, or -1.
-            TRIGGER,
-            WORD,
-            /// A flag: the composing region is valid.
-            COMPOSING_VALID,
-        }
-    }
-}
-
 /// The last word before the cursor, as a word break iterator found it.
 pub mod composing {
     crate::declare! {
@@ -410,34 +388,6 @@ pub mod clipboard_span {
     }
 }
 
-/// A typing event for the counters.
-pub mod tally {
-    crate::declare! {
-        /// A typing event for the counters: the selection's start and end matter only when
-        /// something was deleted.
-        pub const FIELDS: fields NlpTally {
-            /// An [`NlpTallyEvent`](EVENTS).
-            EVENT,
-            START,
-            END,
-        }
-    }
-
-    crate::declare! {
-        /// The typing events Kotlin passes to the counters.
-        pub const EVENTS: enum NlpTallyEvent(str) {
-            /// A key that types went down.
-            KEY = "key",
-            /// A backspace.
-            DELETED = "deleted",
-            /// A backspace undid the auto-correction.
-            UNDONE = "undone",
-            /// The undo key.
-            UNDO = "undo",
-        }
-    }
-}
-
 /// The groups the generator writes as Kotlin.
 pub const GROUPS: &[&crate::Group] = &[
     &OPS,
@@ -452,13 +402,10 @@ pub const GROUPS: &[&crate::Group] = &[
     &learn::FIELDS,
     &learn::KINDS,
     &learn_plan::FIELDS,
-    &aim::FIELDS,
     &composing::FIELDS,
     &composing_range::FIELDS,
     &inline_begin::FIELDS,
     &inline_view::FIELDS,
     &clipboard_plan::FIELDS,
     &clipboard_span::FIELDS,
-    &tally::FIELDS,
-    &tally::EVENTS,
 ];

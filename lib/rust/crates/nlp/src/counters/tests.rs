@@ -64,11 +64,11 @@ fn a_word_kept_as_typed_counts_once() {
     call(&mut s, ops::LEARN, &["0", "-1", "hello", "", "0", "0", ""]);
     assert_eq!(count(&s, "words"), 1);
     // Its space deleted and typed again, or a letter fixed, it is still the same word.
-    call(&mut s, ops::TALLY, &[tally::DELETED, "6", "6"]);
-    call(&mut s, ops::TALLY, &[tally::KEY, "0", "0"]);
+    s.counters.deleted(6, 6);
+    s.counters.key();
     keep(&mut s, "hello", 0);
-    call(&mut s, ops::TALLY, &[tally::DELETED, "5", "5"]);
-    call(&mut s, ops::TALLY, &[tally::KEY, "0", "0"]);
+    s.counters.deleted(5, 5);
+    s.counters.key();
     keep(&mut s, "help", 0);
     assert_eq!((count(&s, "words"), count(&s, "kept_as_typed")), (1, 1));
     // A word somewhere else is a new one, and so is one in another field.
@@ -99,7 +99,7 @@ fn nothing_counts_incognito_or_in_a_password() {
         keep(&mut s, "hello", 0);
         s.automatic = Some(word("x", 0));
         call(&mut s, ops::PICK, &["x"]);
-        call(&mut s, ops::TALLY, &[tally::UNDONE, "0", "0"]);
+        s.correction_undone();
         assert_eq!(s.counters, Counters::default(), "field {at}");
     }
 }
@@ -114,8 +114,8 @@ fn an_auto_correction_and_its_undo() {
     assert_eq!(call(&mut s, ops::PICK, &["a"]), [number(1)]);
     assert_eq!(count(&s, "autocorrected"), 1);
     // The backspace after it: the selection is past the space; then the undo itself.
-    call(&mut s, ops::TALLY, &[tally::DELETED, "4", "4"]);
-    call(&mut s, ops::TALLY, &[tally::UNDONE, "0", "0"]);
+    s.counters.deleted(4, 4);
+    s.correction_undone();
     assert_eq!(count(&s, "autocorrect_undone"), 1);
     assert_eq!(count(&s, "typos_left"), 0);
     // The undo key straight after a correction takes it back; after a keystroke it does not.
@@ -124,15 +124,15 @@ fn an_auto_correction_and_its_undo() {
         ..word("b", 0)
     });
     call(&mut s, ops::PICK, &["b"]);
-    call(&mut s, ops::TALLY, &[tally::UNDO, "0", "0"]);
+    s.counters.undo();
     assert_eq!(count(&s, "autocorrect_undone"), 2);
     s.automatic = Some(Candidate {
         text: text("the"),
         ..word("c", 0)
     });
     call(&mut s, ops::PICK, &["c"]);
-    call(&mut s, ops::TALLY, &[tally::KEY, "0", "0"]);
-    call(&mut s, ops::TALLY, &[tally::UNDO, "0", "0"]);
+    s.counters.key();
+    s.counters.undo();
     assert_eq!(
         (count(&s, "autocorrected"), count(&s, "autocorrect_undone")),
         (3, 2)
@@ -189,19 +189,19 @@ fn a_swipe_replaced_by_a_suggestion_or_a_backspace() {
     assert_eq!(count(&s, "swipe_replaced"), 1);
     // Deleted straight after.
     call(&mut s, ops::LEARN, &["2", "-1", "hello", "", "0", "1", ""]);
-    call(&mut s, ops::TALLY, &[tally::DELETED, "6", "6"]);
+    s.counters.deleted(6, 6);
     assert_eq!(count(&s, "swipe_replaced"), 2);
     // Typing on keeps it; so does the next word, and a prediction after it.
     call(&mut s, ops::LEARN, &["2", "-1", "hello", "", "0", "1", ""]);
-    call(&mut s, ops::TALLY, &[tally::KEY, "0", "0"]);
-    call(&mut s, ops::TALLY, &[tally::DELETED, "8", "8"]);
+    s.counters.key();
+    s.counters.deleted(8, 8);
     call(&mut s, ops::LEARN, &["2", "-1", "hello", "", "0", "1", ""]);
     keep(&mut s, "there", 6);
-    call(&mut s, ops::TALLY, &[tally::DELETED, "20", "20"]);
+    s.counters.deleted(20, 20);
     assert_eq!(count(&s, "swipe_replaced"), 2);
     // The undo key straight after a swipe takes it back.
     call(&mut s, ops::LEARN, &["2", "-1", "hello", "", "0", "1", ""]);
-    call(&mut s, ops::TALLY, &[tally::UNDO, "0", "0"]);
+    s.counters.undo();
     assert_eq!((count(&s, "swiped"), count(&s, "swipe_replaced")), (5, 3));
 }
 
@@ -216,7 +216,7 @@ fn a_word_put_back_or_taken_back_counts_once() {
     });
     call(&mut s, ops::PICK, &["a"]);
     call(&mut s, ops::LEARN, &["1", "-1", "the", "", "0", "1", ""]);
-    call(&mut s, ops::TALLY, &[tally::UNDONE, "0", "0"]);
+    s.correction_undone();
     assert_eq!(count(&s, "words"), 1);
     keep(&mut s, "teh", 0);
     assert_eq!((count(&s, "words"), count(&s, "kept_as_typed")), (1, 0));
@@ -227,7 +227,7 @@ fn a_word_put_back_or_taken_back_counts_once() {
     });
     call(&mut s, ops::PICK, &["b"]);
     call(&mut s, ops::LEARN, &["1", "-1", "the", "", "0", "1", ""]);
-    call(&mut s, ops::TALLY, &[tally::UNDO, "0", "0"]);
+    s.counters.undo();
     keep(&mut s, "teh", 0);
     assert_eq!(count(&s, "words"), 1);
     // A swipe replaced by a suggestion, deleted, or undone: what replaces it counts instead.
@@ -237,9 +237,9 @@ fn a_word_put_back_or_taken_back_counts_once() {
     call(&mut s, ops::LEARN, &["1", "-1", "hallo", "", "4", "1", ""]);
     assert_eq!(count(&s, "words"), 2);
     call(&mut s, ops::LEARN, &["2", "-1", "hello", "", "10", "1", ""]);
-    call(&mut s, ops::TALLY, &[tally::DELETED, "16", "16"]);
+    s.counters.deleted(16, 16);
     call(&mut s, ops::LEARN, &["2", "-1", "hello", "", "10", "1", ""]);
-    call(&mut s, ops::TALLY, &[tally::UNDO, "0", "0"]);
+    s.counters.undo();
     assert_eq!(count(&s, "words"), 2);
     keep(&mut s, "there", 10);
     assert_eq!(count(&s, "words"), 3);
@@ -250,29 +250,29 @@ fn a_typo_left_is_a_word_deleted_into_soon_after() {
     let mut s = session("hello", 5, (0, 5));
     keep(&mut s, "hello", 0);
     // "hello |": the space goes first, then the o.
-    call(&mut s, ops::TALLY, &[tally::DELETED, "6", "6"]);
+    s.counters.deleted(6, 6);
     assert_eq!(count(&s, "typos_left"), 0);
-    call(&mut s, ops::TALLY, &[tally::DELETED, "5", "5"]);
+    s.counters.deleted(5, 5);
     assert_eq!(count(&s, "typos_left"), 1);
-    call(&mut s, ops::TALLY, &[tally::DELETED, "4", "4"]);
+    s.counters.deleted(4, 4);
     assert_eq!(count(&s, "typos_left"), 1, "once per word");
     // A selection over part of the word.
     keep(&mut s, "hello", 0);
-    call(&mut s, ops::TALLY, &[tally::KEY, "0", "0"]);
-    call(&mut s, ops::TALLY, &[tally::DELETED, "3", "9"]);
+    s.counters.key();
+    s.counters.deleted(3, 9);
     assert_eq!(count(&s, "typos_left"), 2);
     // Too many keystrokes later it is an edit, not a typo left.
-    call(&mut s, ops::TALLY, &[tally::KEY, "0", "0"]);
+    s.counters.key();
     keep(&mut s, "hello", 0);
     for _ in 0..TYPO_KEYSTROKES {
-        call(&mut s, ops::TALLY, &[tally::KEY, "0", "0"]);
+        s.counters.key();
     }
-    call(&mut s, ops::TALLY, &[tally::DELETED, "5", "5"]);
+    s.counters.deleted(5, 5);
     // Nor once the field changed.
-    call(&mut s, ops::TALLY, &[tally::KEY, "0", "0"]);
+    s.counters.key();
     keep(&mut s, "hello", 0);
     call(&mut s, ops::FIELD, &[]);
-    call(&mut s, ops::TALLY, &[tally::DELETED, "5", "5"]);
+    s.counters.deleted(5, 5);
     assert_eq!(count(&s, "typos_left"), 2);
 }
 
@@ -281,7 +281,7 @@ fn a_suggestion_tapped_is_a_word_its_typo_can_be_left_in() {
     let mut s = session("helo", 4, (0, 4));
     call(&mut s, ops::LEARN, &["1", "-1", "hello", "", "0", "1", ""]);
     assert_eq!((count(&s, "words"), count(&s, "kept_as_typed")), (1, 0));
-    call(&mut s, ops::TALLY, &[tally::DELETED, "5", "5"]);
+    s.counters.deleted(5, 5);
     assert_eq!(count(&s, "typos_left"), 1);
 }
 
@@ -310,14 +310,14 @@ fn saved_text_is_counts_only() {
 fn loads_saves_and_resets() {
     let mut s = session("hello", 5, (0, 5));
     keep(&mut s, "hello", 0);
-    assert_eq!(call(&mut s, ops::TALLY_CHANGED, &[]), [number(1)]);
-    assert_eq!(call(&mut s, ops::TALLY_CHANGED, &[]), [number(0)]);
+    assert!(s.counters.take_changed());
+    assert!(!s.counters.take_changed());
     let saved = s.counters.text();
     call(&mut s, ops::TALLY_RESET, &[]);
     assert_eq!(count(&s, "words"), 0);
     call(&mut s, ops::TALLY_LOAD, &[&saved]);
     assert_eq!(s.counters.text(), saved);
-    assert_eq!(call(&mut s, ops::TALLY_CHANGED, &[]), [number(0)]);
+    assert!(!s.counters.take_changed());
     // Unknown lines and bad values are skipped; another version's file is ignored.
     call(
         &mut s,
@@ -332,8 +332,14 @@ fn loads_saves_and_resets() {
 #[test]
 fn rejects_malformed_calls() {
     let mut s = Session::default();
-    assert!(s.checked_call(ops::TALLY, &[text("key")]).is_err());
     assert!(s.checked_call(ops::TALLY_TEXT, &[text("x")]).is_err());
-    let fields = [text("jump"), text("0"), text("0")];
-    assert!(s.checked_call(ops::TALLY, &fields).is_err());
+    assert!(s.checked_call(ops::TALLY_LOAD, &[]).is_err());
+    // The per-step operations the typing plan replaced are gone.
+    for op in ["aim", "tally", "tallyChanged"] {
+        assert_eq!(
+            s.checked_call(op, &[]),
+            Err("unknown NLP operation"),
+            "{op}"
+        );
+    }
 }

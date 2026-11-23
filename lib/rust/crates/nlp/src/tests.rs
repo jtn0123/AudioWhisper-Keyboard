@@ -1,8 +1,9 @@
-//! The "aim" operation: which kept words may teach where this user taps; and what each kind of
-//! field allows: suggestions, auto-correction, learning and remembering a word kept as typed.
+//! Which kept words may teach where this user taps; and what each kind of field allows:
+//! suggestions, auto-correction, learning and remembering a word kept as typed.
 
 use crate::{Context, Field, Session, number, text};
 use wire::nlp::{self as ops, context};
+use wire::typing::row;
 
 fn session(change: impl FnOnce(&mut Vec<Field>)) -> Session {
     let mut c = vec![number(0); context::SIZE];
@@ -17,27 +18,33 @@ fn session(change: impl FnOnce(&mut Vec<Field>)) -> Session {
     session
 }
 
-fn aim(session: &mut Session, fields: [&str; 4]) -> bool {
-    let fields: Vec<Field> = fields.iter().map(|f| text(f)).collect();
-    session.checked_call(ops::AIM, &fields).unwrap() == [number(1)]
+/// Whether a word finished as typed may teach the aim: the setting, the trigger, the word and
+/// whether the composing region is valid, in an event row as the typing plan reads them.
+fn aim(session: &Session, [setting, trigger, word, composing_valid]: [&str; 4]) -> bool {
+    let mut f: Vec<Field> = vec![vec![]; row::SIZE];
+    f[row::AIM] = text(setting);
+    f[row::TRIGGER] = text(trigger);
+    f[row::WORD] = text(word);
+    f[row::COMPOSING_VALID] = text(composing_valid);
+    session.aim(&f)
 }
 
 #[test]
 fn a_kept_word_teaches_the_aim_only_when_allowed() {
-    let mut plain = session(|_| {});
-    assert!(aim(&mut plain, ["1", "-1", "pop", "1"]));
+    let plain = session(|_| {});
+    assert!(aim(&plain, ["1", "-1", "pop", "1"]));
     assert!(
-        aim(&mut plain, ["1", "46", "pop", "1"]),
+        aim(&plain, ["1", "46", "pop", "1"]),
         "a full stop ends the word"
     );
     // The setting is off; the word goes on; nothing was typed; no composing region.
-    assert!(!aim(&mut plain, ["0", "-1", "pop", "1"]));
-    assert!(!aim(&mut plain, ["1", "39", "pop", "1"]));
-    assert!(!aim(&mut plain, ["1", "-1", "", "1"]));
-    assert!(!aim(&mut plain, ["1", "-1", "pop", "0"]));
+    assert!(!aim(&plain, ["0", "-1", "pop", "1"]));
+    assert!(!aim(&plain, ["1", "39", "pop", "1"]));
+    assert!(!aim(&plain, ["1", "-1", "", "1"]));
+    assert!(!aim(&plain, ["1", "-1", "pop", "0"]));
     // It needs no "learn from typing": that is about words, this about taps.
-    let mut learning_off = session(|c| c[context::LEARN] = number(0));
-    assert!(aim(&mut learning_off, ["1", "-1", "pop", "1"]));
+    let learning_off = session(|c| c[context::LEARN] = number(0));
+    assert!(aim(&learning_off, ["1", "-1", "pop", "1"]));
     // Incognito, a raw editor, a password, an e-mail address (even one asking for corrections),
     // or no suggestions.
     for change in [
@@ -48,11 +55,9 @@ fn a_kept_word_teaches_the_aim_only_when_allowed() {
         (context::INPUT_TYPE, 0x8021),
         (context::SUGGESTIONS, 0),
     ] {
-        let mut s = session(|c| c[change.0] = number(change.1));
-        assert!(!aim(&mut s, ["1", "-1", "pop", "1"]), "{change:?}");
+        let s = session(|c| c[change.0] = number(change.1));
+        assert!(!aim(&s, ["1", "-1", "pop", "1"]), "{change:?}");
     }
-    let mut s = Session::default();
-    assert!(s.checked_call(ops::AIM, &[text("1")]).is_err());
 }
 
 /// (on, words, emoji, auto-correct, learn) and whether a kept word is remembered.

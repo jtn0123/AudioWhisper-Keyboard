@@ -9,8 +9,7 @@
 //! files; docs/rust.md says how to read them.
 
 use crate::{Field, Session, flag_at, int, text};
-use wire::flag;
-use wire::nlp::{self as ops, candidate, context, learn, tally};
+use wire::nlp::{self as ops, candidate, context, learn};
 
 /// Keystrokes after a word is finished within which deleting back into it counts as a typo the
 /// user left and then fixed.
@@ -341,22 +340,19 @@ impl Session {
         f: &[Field],
     ) -> Option<Result<Vec<Field>, &'static str>> {
         let count = match op {
-            ops::TALLY => tally::SIZE,
             ops::TALLY_LOAD => 1,
-            ops::TALLY_TEXT | ops::TALLY_CHANGED | ops::TALLY_RESET => 0,
+            ops::TALLY_TEXT | ops::TALLY_RESET => 0,
             _ => return None,
         };
         if f.len() != count {
             return Some(Err("wrong NLP field count"));
         }
         Some(Ok(match op {
-            ops::TALLY => return Some(self.tally(f)),
             ops::TALLY_LOAD => {
                 self.counters.load(&String::from_utf16_lossy(&f[0]));
                 vec![]
             }
             ops::TALLY_TEXT => vec![text(&self.counters.text())],
-            ops::TALLY_CHANGED => vec![flag::utf16(self.counters.take_changed())],
             _ => {
                 self.counters.reset();
                 vec![]
@@ -364,20 +360,14 @@ impl Session {
         }))
     }
 
-    /// A [`tally`] row: an event Kotlin passes through.
-    fn tally(&mut self, f: &[Field]) -> Result<Vec<Field>, &'static str> {
-        let event = String::from_utf16_lossy(&f[tally::EVENT]);
-        match event.as_str() {
-            tally::KEY => self.counters.key(),
-            tally::DELETED => self
-                .counters
-                .deleted(int(f, tally::START), int(f, tally::END)),
-            tally::UNDONE if self.counting() => self.counters.undone(),
-            tally::UNDONE => self.counters.field(),
-            tally::UNDO => self.counters.undo(),
-            _ => return Err("unknown tally event"),
+    /// A backspace undid the auto-correction: counted as undone where counting happens, else as
+    /// a field change.
+    pub(crate) fn correction_undone(&mut self) {
+        if self.counting() {
+            self.counters.undone();
+        } else {
+            self.counters.field();
         }
-        Ok(vec![])
     }
 }
 

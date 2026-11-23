@@ -3,7 +3,7 @@ use crate::{Context, Field, Session, flag_at, int, number};
 use suggest::word_characters::continues_word;
 use wire::flag;
 use wire::nlp::{
-    self as ops, aim, begin, candidate, clipboard_plan, clipboard_span, composing, composing_range,
+    self as ops, begin, candidate, clipboard_plan, clipboard_span, composing, composing_range,
     context, glide_plan, inline_view, learn, learn_plan, typing,
 };
 
@@ -44,7 +44,6 @@ impl Session {
             ops::TYPING => Some(typing::SIZE),
             ops::PREVIEW | ops::GLIDE_PLAN => Some(3),
             ops::LEARN => Some(learn::SIZE),
-            ops::AIM => Some(aim::SIZE),
             ops::AUTO_CANDIDATE => Some(TWO_CONTEXTS + candidate::SIZE),
             ops::COMPOSING => Some(composing::SIZE),
             ops::KEEP | ops::PICK | ops::EXTERNAL_VALID => Some(1),
@@ -234,7 +233,6 @@ impl Session {
             ops::KEEP => boolean(self.context.remember_kept()),
             ops::PICK => boolean(self.pick(&f[0])),
             ops::LEARN => self.learn(f),
-            ops::AIM => boolean(self.aim(f)),
             ops::SAVE => vec![number(self.save_timing(int(f, 0)))],
             ops::INLINE_BEGIN => self.inline_begin(int(f, 0)),
             ops::INLINE_CANCEL => {
@@ -322,20 +320,6 @@ impl Session {
             c[context::SELECTION_START].clone()
         };
         plan
-    }
-
-    /// Whether the word an [`aim`] row's trigger finished, kept as typed, may teach where this
-    /// user taps (`suggest::tap_learning`): the setting is on, the field takes corrected prose,
-    /// nothing is incognito, and the word ended with a valid composing region, as "learn" asks of
-    /// a kept word.
-    pub(crate) fn aim(&self, f: &[Field]) -> bool {
-        flag_at(f, aim::SETTING)
-            && self.context.prose()
-            && !self.context.flag(context::INCOGNITO)
-            && !self.context.flag(context::RAW_EDITOR)
-            && !continues_word(int(f, aim::TRIGGER) as i32)
-            && !f[aim::WORD].is_empty()
-            && flag_at(f, aim::COMPOSING_VALID)
     }
 }
 /// A [`glide_plan`] row for `count` suggestions, at most `max` shown, the first committed if

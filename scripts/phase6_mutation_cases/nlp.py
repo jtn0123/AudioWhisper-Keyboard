@@ -3,6 +3,7 @@ for the typing plan and the Kotlin that carries each event, run against the trac
 also runs them against the nlp crate's own tests, and its smartbar cases guard a render reference,
 which stays."""
 TYPING = 'lib/rust/crates/nlp/src/typing.rs'
+COUNTERS = 'lib/rust/crates/nlp/src/counters.rs'
 NLP = 'app/src/main/kotlin/dev/patrickgold/florisboard/ime/nlp/'
 EVENTS, STATE = NLP + 'TypingEvents.kt', NLP + 'NlpState.kt'
 MODULE = ':app'
@@ -25,8 +26,8 @@ CASES = [
     ('picked-for-the-wrong-word', TYPING, 's.taps.picked(!f[row::TYPED].is_empty());',
      's.taps.picked(f[row::TYPED].is_empty());', 'trace'),
     ('second-save-lost', TYPING, 'number(self.saves.get(1).copied().unwrap_or(-1))', 'number(-1)', 'trace'),
-    ('undone-always-counted', TYPING, 'if self.counting() {\n                    self.counters.undone();',
-     'if true {\n                    self.counters.undone();', 'trace'),
+    ('undone-always-counted', COUNTERS, 'if self.counting() {\n            self.counters.undone();',
+     'if true {\n            self.counters.undone();', 'trace'),
     ('field-keeps-the-trail', TYPING, '                s.learner.reset();\n                s.taps.clear();\n',
      '                s.learner.reset();\n', 'trace'),
     ('learned-without-the-dictionary', TYPING, 'if row.is_empty() || !self.learns(lookup.is_some()) {',
@@ -34,7 +35,7 @@ CASES = [
     ('pick-not-published', TYPING, 'publish: with_context(kind) && kind != event::UNDO_CORRECTION,',
      'publish: with_context(kind) && kind != event::UNDO_CORRECTION && kind != event::PICKED,', 'trace'),
     ('undo-not-published', TYPING, '        plan.publish = true;\n        plan.kept =', '        plan.kept =', 'trace'),
-    ('aim-setting-ignored', TYPING, 'if self.aim(&aim_row(f)) {', 'if { self.aim(&aim_row(f)); true } {', 'trace'),
+    ('aim-setting-ignored', TYPING, 'if self.aim(f) {', 'if { self.aim(f); true } {', 'trace'),
     ('typed-not-taught', TYPING, '                s.taps.typed(&f[row::WORD]);\n', '', 'trace'),
     ('key-not-counted', TYPING, 'event::KEY => self.counters.key(),', 'event::KEY => {}', 'trace'),
     ('pick-never-saves', TYPING,

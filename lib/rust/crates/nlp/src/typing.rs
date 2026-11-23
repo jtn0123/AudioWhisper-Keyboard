@@ -11,9 +11,10 @@ use suggest::kept_words::KeptWords;
 use suggest::learned_words::LearnedWords;
 use suggest::tap_learning::Taps;
 use suggest::undo::{self, Revert};
+use suggest::word_characters::continues_word;
 use suggest::word_learner::WordLearner;
 use wire::flag;
-use wire::nlp::{aim, context, learn, learn_plan};
+use wire::nlp::{context, learn, learn_plan};
 use wire::typing::{event, plan, row};
 
 use crate::{Context, Field, Session, flag_at, int, number};
@@ -84,16 +85,6 @@ fn learn_row(kind: i32, f: &[Field]) -> Vec<Field> {
     row[learn::COMPOSING_START] = f[row::COMPOSING_START].clone();
     row[learn::COMPOSING_VALID] = f[row::COMPOSING_VALID].clone();
     row[learn::TEXT_BEFORE_SELECTION] = f[row::TEXT_BEFORE_SELECTION].clone();
-    row
-}
-
-/// The [`aim`] row of the word an event row `f` finished as typed.
-fn aim_row(f: &[Field]) -> Vec<Field> {
-    let mut row = vec![vec![]; aim::SIZE];
-    row[aim::SETTING] = f[row::AIM].clone();
-    row[aim::TRIGGER] = f[row::TRIGGER].clone();
-    row[aim::WORD] = f[row::WORD].clone();
-    row[aim::COMPOSING_VALID] = f[row::COMPOSING_VALID].clone();
     row
 }
 
@@ -182,11 +173,7 @@ impl Session {
             event::DISARM => self.armed = None,
             event::UNDO_CORRECTION => self.undo_correction(f, s, plan),
             event::CORRECTION_UNDONE => {
-                if self.counting() {
-                    self.counters.undone();
-                } else {
-                    self.counters.field();
-                }
+                self.correction_undone();
                 self.check(s.taps, now, plan);
             }
             event::FIELD => {
@@ -210,11 +197,25 @@ impl Session {
     ) -> Result<(), EventError<L::Error>> {
         let lookup = s.lookup;
         self.learning(learn::TYPED, f, s.learner, s.history, lookup, plan)?;
-        if self.aim(&aim_row(f)) {
+        if self.aim(f) {
             s.taps.kept(&f[row::WORD]);
         }
         self.check(s.taps, int(f, row::NOW), plan);
         Ok(())
+    }
+
+    /// Whether the word an event row `f` finished, kept as typed, may teach where this user taps
+    /// (`suggest::tap_learning`): the setting is on, the field takes corrected prose, nothing is
+    /// incognito, and the word ended with a valid composing region, as "learn" asks of a kept
+    /// word.
+    pub(crate) fn aim(&self, f: &[Field]) -> bool {
+        flag_at(f, row::AIM)
+            && self.context.prose()
+            && !self.context.flag(context::INCOGNITO)
+            && !self.context.flag(context::RAW_EDITOR)
+            && !continues_word(int(f, row::TRIGGER) as i32)
+            && !f[row::WORD].is_empty()
+            && flag_at(f, row::COMPOSING_VALID)
     }
 
     /// A suggestion was tapped: count it, then, if it goes in, learn it and arm the undo of an

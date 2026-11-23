@@ -19,6 +19,7 @@ import xml.etree.ElementTree as ET
 
 ROOT = Path(__file__).resolve().parent.parent
 TYPING = ROOT / 'lib/rust/crates/nlp/src/typing.rs'
+COUNTERS = ROOT / 'lib/rust/crates/nlp/src/counters.rs'
 ACTIONS = ROOT / 'lib/rust/crates/render/src/smartbar_actions.rs'
 NLP = ROOT / 'app/src/main/kotlin/dev/patrickgold/florisboard/ime/nlp'
 EVENTS, STATE = NLP / 'TypingEvents.kt', NLP / 'NlpState.kt'
@@ -42,8 +43,8 @@ CASES = [
     ('picked-for-the-wrong-word', TYPING, 's.taps.picked(!f[row::TYPED].is_empty());',
      's.taps.picked(f[row::TYPED].is_empty());', PLAN),
     ('second-save-lost', TYPING, 'number(self.saves.get(1).copied().unwrap_or(-1))', 'number(-1)', PLAN),
-    ('undone-always-counted', TYPING, 'if self.counting() {\n                    self.counters.undone();',
-     'if true {\n                    self.counters.undone();', PLAN),
+    ('undone-always-counted', COUNTERS, 'if self.counting() {\n            self.counters.undone();',
+     'if true {\n            self.counters.undone();', PLAN),
     ('field-keeps-the-trail', TYPING, '                s.learner.reset();\n                s.taps.clear();\n',
      '                s.learner.reset();\n', PLAN),
     ('learned-without-the-dictionary', TYPING, 'if row.is_empty() || !self.learns(lookup.is_some()) {',
@@ -51,7 +52,7 @@ CASES = [
     ('pick-not-published', TYPING, 'publish: with_context(kind) && kind != event::UNDO_CORRECTION,',
      'publish: with_context(kind) && kind != event::UNDO_CORRECTION && kind != event::PICKED,', PLAN),
     ('undo-not-published', TYPING, '        plan.publish = true;\n        plan.kept =', '        plan.kept =', PLAN),
-    ('aim-setting-ignored', TYPING, 'if self.aim(&aim_row(f)) {', 'if { self.aim(&aim_row(f)); true } {', PLAN),
+    ('aim-setting-ignored', TYPING, 'if self.aim(f) {', 'if { self.aim(f); true } {', PLAN),
     ('typed-not-taught', TYPING, '                s.taps.typed(&f[row::WORD]);\n', '', PLAN),
     ('key-not-counted', TYPING, 'event::KEY => self.counters.key(),', 'event::KEY => {}', PLAN),
     ('pick-never-saves', TYPING,
