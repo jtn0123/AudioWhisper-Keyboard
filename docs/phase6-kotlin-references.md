@@ -223,7 +223,7 @@ family, which were retired and which were left.
 
 ## What happened
 
-Two branches so far, each stopped at a green point between families. **68 references are
+Three branches so far, each stopped at a green point between families. **100 references are
 retired.**
 
 * **`all-rust/phase6-kotlin`: dictation, reader and gif.** It retired 30: the 23 `app/src/test`
@@ -234,13 +234,19 @@ retired.**
   deletion commits: suggest 7, nlp 3, editor/input 16 and keyboard 12. The keyboard went in four
   parts (its pure models, the text keyboard, the glide classifier and the user dictionary),
   each with its own generator, cases and deletion.
+* **`all-rust/phase6-kotlin-3`: app, lib, rust boundary and three settings copies.** It retired
+  32, in five deletion commits: app 13 (with `SettingsSubtypeMatchTest`'s inline session copy), lib
+  8, rust boundary 8, settingsui's drag and scrollbar copies, and its licence screen copy: the three
+  of that family with nothing to do with colour, palette, Snygg values or the theme editor. Its 32
+  are the inventory's 58 "Retire" verdicts in those families less the 26 below.
 * **Kept:** the 19 device comparisons, the 8 render references and the 5 they build on, Snygg's
   5, and 3 more the second branch kept: `ReferenceKeyboardSubtypes`, `ReferencePlatform` and
   `ReferenceEditorRange` (with `ReferenceCaps.java`, which the inventory did not count).
   [Kept, and why](#kept-and-why) lists them.
-* **Not reached:** app, lib, rust boundary, settingsui, theme and snygg. They hold the other 58
-  copies marked "Retire", 2 of them the codecs moved to the app family, and their verdicts above
-  are still the plan.
+* **Held for the render path (26):** settingsui's other 7, theme's 2, snygg's 16 and app's
+  `ReferenceColorSerializer`. The render-path branch moves the palette maths and touches Snygg and
+  the theme editor, so they wait for it to land. Their verdicts above are still the plan;
+  [Kept, and why](#kept-and-why) says why each waits.
 
 ### The method, as built
 
@@ -266,15 +272,16 @@ retired.**
   `AssertionFailedError` in a fresh report, so a mutant that does not compile is never caught,
   and the restored source must pass. The scripts that
   already covered the same code ran beside it. Every script ran at `0500aa74f`, with the case
-  modules copied in, and again at the family's deletion commit. The second branch ran each at
-  the family's cases commit, where the references still are, and at its deletion commit. The
+  modules copied in, and again at the family's deletion commit. The second and third branches ran
+  each at the family's cases commit, where the references still are, and at its deletion commit. The
   goldens must catch every case the references caught. Each run is a batch that ends well inside
   the two-hour limit on a background command, so no worktree is left with a fault in it.
 
 ### Goldens
 
-All 113 are under `app/src/test/resources/golden`: 64,818 bytes for 45,989,981 answers, the
-largest file 798 bytes. The first branch wrote 40 (22,298 bytes), the second 73 (42,464 bytes).
+There are 178: 150 under `app/src/test/resources/golden`, 27 under `lib/rust`'s and 1 under
+`lib/kotlin`'s. They hold 95,512 bytes for 48,336,545 answers, the largest file 798 bytes. The first
+branch wrote 40 (22,298 bytes), the second 73 (42,464 bytes), the third 65 (30,694 bytes).
 The strip-tap fix (`fe49b7f86`) rewrote two of the nlp family's from the Rust after review, 56
 bytes longer in all, with the same counts.
 
@@ -291,6 +298,11 @@ bytes longer in all, with the same counts.
 | text keyboard | `a652f64cc` | 3 | 2,074 | 2,854,694 | TextKeyboardMatchTest, LayoutAssemblyMatchTest's two layout tests |
 | glide classifier | `2c76c1088` | 3 | 1,148 | 522 | SwipeIndexTest's three ranking tests |
 | user dictionary | `c050132b4` | 3 | 1,106 | 5,021 | SettingsWordsMatchTest, SettingsWordsTest |
+| app | `153d569da` | 18 | 8,726 | 227,362 | SettingsMigrationMatchTest, SettingsCodecMatchTest, SettingsNumericMatchTest, SettingsDefaultsMatchTest, SettingsStoredFileMatchTest, SettingsUiStoredFileMatchTest, SettingsSubtypeMatchTest, SettingsLanguagesMatchTest, BackupPlanMatchTest, BackupArchiveMatchTest, BackupFilesTest, SettingsBackupFlowTest |
+| lib | `e34b159e2` | 15 | 7,676 | 1,408,237 | UtilityRulesMatchTest, CrashTraceTest, ExtensionMetadataMatchTest, ExtensionArchiveMatchTest, SettingsExtensionImportMatchTest, BackupArchiveMatchTest, BackupFilesTest; lib/kotlin's MimePolicyMatchTest |
+| rust boundary | `c9e59485d` | 27 | 12,371 | 709,341 | lib/rust's ClipboardMatchTest, GlideTrailMatchTest, MediaPresentationMatchTest, NlpPureMatchTest, PanelRulesMatchTest, RendererSmartbarTouchMatchTest, SmartbarMatchTest, NlpMatchTest, NlpHarnessMatchTest |
+| settingsui: drag, scrollbar | `428ce96d1` | 2 | 811 | 643 | SettingsDragMatchTest, SettingsScrollbarMatchTest |
+| settingsui: licences | `5876fe9f7` | 3 | 1,110 | 981 | SettingsLicencesMatchTest |
 
 **To write a family's goldens again**, check out its generator commit, where the references
 still are, and run its tests with the variable set. Then run them twice without it, and copy the
@@ -335,6 +347,37 @@ branch's commands, each at its generator commit:
 ```
 
 Each follows `REFERENCE_GOLDEN=write ./gradlew :app:testDebugUnitTest --rerun`.
+
+The third branch's are whole commands, as two of them run other modules' tests. The lib family
+names three of the backup tests alone: their other tests hold Rust's tapes, which refuse the
+variable.
+
+```sh
+# 153d569da, app
+REFERENCE_GOLDEN=write ./gradlew :app:testDebugUnitTest --rerun \
+  --tests '*SettingsMigrationMatchTest' --tests '*SettingsCodecMatchTest' --tests '*SettingsNumericMatchTest' \
+  --tests '*SettingsDefaultsMatchTest' --tests '*SettingsStoredFileMatchTest' --tests '*SettingsSubtypeMatchTest' \
+  --tests '*BackupPlanMatchTest' --tests '*BackupArchiveMatchTest' --tests '*BackupFilesTest' \
+  --tests '*SettingsBackupFlowTest' --tests '*SettingsLanguagesMatchTest' --tests '*SettingsUiStoredFileMatchTest'
+# e34b159e2, lib
+REFERENCE_GOLDEN=write ./gradlew :app:testDebugUnitTest --rerun \
+  --tests '*UtilityRulesMatchTest' --tests '*CrashTraceTest' --tests '*ExtensionArchiveMatchTest' \
+  --tests '*ExtensionMetadataMatchTest' --tests '*SettingsExtensionImportMatchTest' \
+  --tests '*BackupArchiveMatchTest.everyArchiveExtractsAsTheLegacyExtractionDid' \
+  --tests '*BackupFilesTest.aBackupIsTheArchiveComposeMadeUnderTheNameItGave' \
+  --tests '*BackupFilesTest.everyComposeBackupUnpacksToTheTreeComposeUnpacked' \
+  :lib:kotlin:test --rerun --tests '*MimePolicyMatchTest'
+# c9e59485d, rust boundary
+REFERENCE_GOLDEN=write ./gradlew :lib:rust:testDebugUnitTest --rerun \
+  --tests '*ClipboardMatchTest' --tests '*GlideTrailMatchTest' --tests '*MediaPresentationMatchTest' \
+  --tests '*NlpPureMatchTest' --tests '*PanelRulesMatchTest' --tests '*RendererSmartbarTouchMatchTest' \
+  --tests '*SmartbarMatchTest' --tests '*NlpMatchTest' --tests '*NlpHarnessMatchTest'
+# 428ce96d1, settingsui's drag and scrollbar
+REFERENCE_GOLDEN=write ./gradlew :app:testDebugUnitTest --rerun \
+  --tests '*SettingsScrollbarMatchTest' --tests '*SettingsDragMatchTest'
+# 5876fe9f7, settingsui's licence screen
+REFERENCE_GOLDEN=write ./gradlew :app:testDebugUnitTest --rerun --tests '*SettingsLicencesMatchTest'
+```
 
 The nlp family's goldens are no longer all main's answers. `fe49b7f86` fixed the stale strip tap
 (below), which changes two of the three traces, and no reference is left to write them from.
@@ -444,6 +487,57 @@ goldens lose none; the references let them through too:
   the seeded inputs or an equivalent mutant, not yet told apart; telling them apart is owed
   ([owed-checks](owed-checks.md#not-device-checks-but-still-owed)).
 
+The third branch ran each family's cases the same way, at its cases commit and at its deletion
+commit; main had not moved when the branch was gated. Every case caught at both ends was caught by
+the same targets (the script's named groups of test classes).
+
+| Family | Script | Before | After |
+|---|---|---|---|
+| app | `phase6-mutations.py --family app` (`0ec0bd2f6`, `69b187850`) | 34 of 37 | the same 34 of 37 |
+| lib | `phase6-mutations.py --family lib` (`0326b73ee`, `e80392ff8`) | 44 of 47 | the same 44 of 47 |
+| lib: MIME filters | `phase6-mutations.py --family lib_mime` (`0326b73ee`, `e80392ff8`) | 6 of 6 | 6 of 6 |
+| rust boundary | `phase6-mutations.py --family boundary` (`02b20a875`, `dc2825ad3`) | 56 of 60 | the same 56 of 60 |
+| settingsui: drag, scrollbar | `phase6-mutations.py --family settings` (`001ca7d89`, `73511210c`) | 17 of 21 | the same 17 of 21 |
+| settingsui: licences | `phase6-mutations.py --family settings_licences` (`56ceaa541`, `088772046`) | 20 of 20 | 20 of 20 |
+
+`int-range-unchecked` first came out uncaught before: the Gradle daemon went away during its run,
+and its report held no assertion failure at all. Run again by name at `0ec0bd2f6`, it is caught by
+`SettingsCodecMatchTest`, as it is after.
+
+No case the references caught got past the goldens. 14 cases are not counted at either end:
+
+* **Caught, but not by an assertion (1):** app's `time-dot-refused`. Refusing a stored time whose
+  ninth character is a dot stops `FlorisPreferenceModelImpl` from being built, so
+  `SettingsDefaultsMatchTest` fails in its constructor, with an `IllegalStateException`, at both
+  ends. The script counts only assertion failures.
+* **Gaps in the seeded inputs (13)**, which the references had too
+  ([owed](owed-checks.md#not-device-checks-but-still-owed)):
+  * **app (2).** `history-unknown-field-allowed`: the only seeded history with an unknown field is
+    `{"pinned":[],"recent":[],"unknown":1}`, whose empty lists read as the same empty history the
+    refusal gives. `vendor-prefix-shortened`: no package offered starts with `dev.patrickgold`
+    without starting with `dev.patrickgold.florisboard` (the six are empty, a space, a no-break
+    space, the two FlorisBoard ids and the app's own).
+  * **lib (3).** `theme-label-untrimmed`: a seeded label is one part, so it is all whitespace
+    (refused as blank) or has nothing to trim. `relative-path-keeps-slash`: of the 10,040 values
+    the reference-facts loop draws its paths from, only `//a/b` starts with a slash, and its
+    10,000 draws do not take it. `extra-value-ignored`: both sides of a seeded comparison share
+    one extra value, so comparing the extras gives 0 whenever both have one, as the mutant does.
+  * **rust boundary (4).** `mime-wildcard-without-slash`: no concrete type starts with a
+    wildcard's top-level type and goes on without a slash, as `textual/plain` would for
+    `text/*`. `nlp-uri-is-prose`, which despite its name moves the web e-mail variation (0xd0) to
+    the phonetic one (0xc0): the NLP test's eleven input types (1, 0x81, 0x91, 0xe1, 0x12, 0x21,
+    0x11, 0x80001, 0x8021, 0x8011 and 0x80b1) have neither. `media-min-delay-1ms` and
+    `media-visible-not-touched`: an upload is accepted only at an entry's next frame index, which
+    the random traces draw from 0 to 65, so a run of 200 operations keeps about one first frame
+    and rarely a second, and the scripted tail uses one id and delays of 100 and 200 ms. Neither
+    change moves an answer: the trace reports each step's frame, earliest deadline, bytes and
+    entry count, not which entry an eviction took.
+  * **settingsui (4).** `history-only-last-sample`, `ring-of-nineteen`, `up-at-40-ms-stops` and
+    `maximum-halved`: the gestures that would show them start or end at the bottom edge.
+    "Batched history" and "up exactly 40 ms" start there, and the long drag and "samples sharing
+    a millisecond" end there. The halved maximum, 10,500 px/s, would cap only a fling from the
+    end, or the reversal, which reaches the top either way.
+
 ### Lines deleted
 
 | Commit | What | Files deleted | Counted lines |
@@ -461,6 +555,11 @@ goldens lose none; the references let them through too:
 | `0e12ccfa7` | text keyboard | 3 | −436, +2 |
 | `6917e9829` | glide classifier | 1 | −403 |
 | `7578ffdbe` | user dictionary | 1 | −166, +25 |
+| `69b187850` | app | 13 | −1,341, +10 |
+| `e80392ff8` | lib | 8 | −845, +17 |
+| `dc2825ad3` | rust boundary | 8 | −663 |
+| `73511210c` | settingsui: drag and scrollbar | 2 | −100 |
+| `088772046` | settingsui: licences | 1 | −74 |
 
 Across the first branch the Kotlin is −2,639 and +206 counted lines (`GoldenTape` and its test
 are 176 of the added). The mutation scripts and cases add 325 lines of Python, and cargo gains
@@ -468,6 +567,12 @@ the four tests that moved. Across the second the Kotlin is −5,136 and +143 cou
 −4,993), the cases add 589 lines of Python, and cargo is unchanged. A deletion's added lines are
 helpers that outlive their reference: `SpacingAdapter` (renamed from `ReferenceSpacingAdapter`),
 `SwipeWordsFixtures` and `RecordingUserDictionaryDao`.
+
+Across the third branch the Kotlin is −2,769 and +138 counted lines (net −2,631); the deleted
+files alone are 2,720 of them (app 1,208, lib 757, boundary 603, settingsui 152). The cases add 432
+lines of Python, and `phase6-mutations.py` takes a family's `TASK`, for the plain JVM module
+`lib/kotlin`, whose tests run as `test` (+9, −6). The build loses org.json and TagSoup: four lines
+of `app/build.gradle.kts` and four of the version catalogue. Cargo is unchanged.
 
 ### What moved, and what was found
 
@@ -573,6 +678,44 @@ The second branch:
   `crates/wire`, and `32e62fb4a` had moved the reconciliation check into `Content::reported_by`.
   `3f23e8d5a` points each of its five cases at the same change on today's lines.
 
+The third branch:
+
+* **Exact where the comparisons allowed slack, with one rounded tape.** `SmartbarMatchTest`'s
+  first test compared layouts within 0.002, and `SettingsDragMatchTest` flings within .01; Rust
+  matched the references bit for bit on all 463,968 Smartbar fields and all 11 flings, so both
+  tapes are exact. Floats are recorded with `Float.toString`, which round-trips. The scrollbar's
+  alpha is the exception: Rust's cubic solve and Compose's `CubicBezierEasing` agree to 6.6e-7
+  but differ in the last place on 48 of 522 frames. Its tape records alpha in ten-thousandths,
+  where all 522 agree (at hundred-thousandths 2 would not), 30 times finer than the .003 the
+  comparison allowed.
+* **What took the reference's place in a check.** The drag test counted flings by the
+  reference's velocity, which Rust does not report; it now counts the ups that move the content
+  (six of eleven: the 60 ms rest, the 41 ms pause and the hold stop, and "batched history" and
+  "up exactly 40 ms" fling forward from the end). The licence test still checks the Apache
+  dialog's literal text, now of Rust's row.
+* **Kept out of the goldens**, as what would change them without a change to the code under test
+  (the lib family): the URLs in `src/main`'s sources, which `UtilityRulesMatchTest` walked for
+  reference shapes (26 made-up shapes take their place); the app's MIME literals, which
+  `MimePolicyMatchTest` read from `app/src/main` (the 13 it found are listed); the JDK's installed
+  locales and their names (28 fixed real tags are recorded without names); Android string
+  resource ids (messages record the name); and file listing order (manifests and trees are
+  recorded in path order).
+* **Tests that only borrowed a reference change mechanically** (the app family). The settings
+  screens' defaults, and the held `ReferenceOtherThemeScreens`' theme and time reads, come from
+  `FlorisPreferenceModelImpl`; `SettingsGroupOneMatchTest` reads slider bounds from
+  `SettingsRules`; `SettingsOtherThemeMatchTest` writes a time as Jetpref's serializer did,
+  `LocalTime.toString`; the write-cancellation test shows Jetpref's defect on a two-preference
+  plain model; `SubtypeSessionTest` writes its saved JSON with `SettingsCodecs`. The backup tests'
+  fixtures, which Compose's `ZipUtils.zip` wrote, are written by a few lines of `java.util.zip`.
+* **The NLP pairing became a recording session.** `NlpMatchTest`'s `Pairing` put every call to the
+  reference and to Rust side by side; it now records Rust's answer, snapshot and Smartbar words
+  after each call, and the context row it was given moves to the test's companion.
+  `PanelRulesMatchTest` feeds each history step the state Rust gave the step before.
+* **What went with the references.** org.json and TagSoup were test dependencies only for the
+  licence copy, so they leave the app's test classpath and the version catalogue.
+* **Mutation runner.** `phase6-mutations.py` takes a family's `TASK`, for `lib/kotlin`'s plain JVM
+  `test` task; every other family runs `testDebugUnitTest` as before.
+
 ### Kept, and why
 
 * **Device comparisons (19):** the 11 under `androidTest` (dictation's 8, reader's
@@ -597,13 +740,28 @@ The second branch:
   `TextUtils.getCapsMode`, answers Rust's caps queries; the inventory counted only `.kt` files.
   They stand in for the platform rather than copying code that moved, so there are no answers of
   theirs to record.
-* **The families not reached (58 files marked "Retire"):** app (14), lib (8), rust boundary (8),
-  settingsui (10), theme (2) and snygg (16). Each takes the same steps: a generator commit, its
-  cases, the before and after runs, then the deletion commit. Two of app's are codecs the
-  inventory put elsewhere. `ReferenceQuickActionJson` declares the `QuickActionJsonConfig` that
-  only `ReferencePreferenceMigration` and `ReferenceSettingsCodecs` use. `ReferenceSubtypeJson`
-  declares `ime.core`'s `SubtypeJsonConfig`, which `SubtypeSessionTest` writes its old-format
-  input with. Whether production's codec agrees with it is `SettingsCodecMatchTest`'s question,
-  against `ReferenceSettingsCodecs` and `ReferenceSubtypeManager`. A settingsui or theme reference
-  that guards the Material You palette (`SettingsThemeEditorPaletteMatchTest` and its kin) stays
-  with the render path's branch.
+* **Held for the render path (26 files marked "Retire").** The render-path branch moves the palette
+  maths and touches Snygg and the theme editor; the third branch took only copies with nothing to
+  do with colour, palette, Snygg values or the theme editor, and these wait for it:
+  * **settingsui (7).** `ReferenceThemeEditor` is the theme editor's. `ReferenceOtherThemeScreens`
+    holds ThemeScreen's colour and theme-mode rows; the app family changed only where it reads its
+    defaults. `ReferenceGroupOneScreens` and `ReferenceGroupTwoScreens` share their tests with it
+    (the dial plurals and ThemeScreen's routes are asked in the same tests), so they go together.
+    `ReferenceExtensionEditor` and `ReferenceExtensionScreens` decide what the theme extension
+    editor saves and lists (`ThemeExtensionEditor`, the theme editor's model), and that branch
+    changes both screens' Rust test fixtures.
+    `ReferenceSettingsScreens` (KeyboardScreen and HomeScreen) has no colour in it, but its
+    transaction test is driven by the copy's row model (each row's kind, choices and slider
+    bounds); retiring it means a new driver that reads those from Rust's nodes, so it waits for the
+    family's turn rather than being rushed in here.
+  * **theme (2).** The render-path branch changes `ThemeManager.kt`, `ThemeMatchTest` and
+    `ThemeTrace`, which `ReferenceThemeManager` and `ReferenceFlorisImeThemeBaseStyle` are compared
+    in.
+  * **snygg (16).** Snygg's values, held by rule; the render-path branch changes `SnyggPalette`
+    and `SnyggUi`.
+  * **app's `ReferenceColorSerializer`.** Jetpref's colour serializer, read by the colour tests
+    (`SettingsDerivationMatchTest`, `SettingsOtherThemeMatchTest`).
+
+  Each takes the same steps: a generator commit, its cases, the before and after runs, then the
+  deletion commit. A settingsui or theme reference that guards the Material You palette
+  (`SettingsThemeEditorPaletteMatchTest` and its kin) stays with the render path's branch.
