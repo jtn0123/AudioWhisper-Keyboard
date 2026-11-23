@@ -906,3 +906,45 @@ pins both files' fingerprints and says which goldens to write again. **Would cha
 shipped dictionary is rebuilt on purpose: its goldens then come from the generator commit's
 oracle on the new file (the record says how), or, once the decoder is meant to differ from
 LatinIME, from the Rust itself after review.
+
+## The keyboard's stored data is a Rust file format, and Room leaves the build (2026-11-22)
+
+Phase 5 of [all-rust.md](all-rust.md) moved the clipboard history, its media files' records and
+the keyboard's own user dictionary out of Room into `crates/stores`
+([record](phase5-stores.md)). Each store is one file in a format of this project's own: a
+header naming the store's kind and its version, the payload, and a CRC-32. Every change
+rewrites the whole file through a temporary file, a sync, a rename and a directory sync. Text
+is kept as UTF-16 units, so a lone surrogate survives as it did in Room.
+
+**Not SQLite.** A Rust SQLite crate means a C dependency, which this project does not take. The
+data is small: the history keeps 20 clips by default and at most 100 while its size limit is on,
+and a user dictionary is words a person added by hand. Rewriting the file on each change costs
+little at that size, and it makes the crash story short: the old file or the new one, never a
+mix. `crates/stores` has a test for a
+crash at every step of a save and of the import. It also departs from "files stay in Kotlin"
+([rust.md](rust.md)): Rust does its own store I/O, so that the steps a crash can come between
+are all on one side of JNI and all tested.
+
+**A newer or unreadable file is never overwritten.** The store reads as empty and refuses every
+change. So a downgrade, or a file this build can't read, loses nothing: the next build that can
+read it finds it as it was. A damaged file (wrong checksum, cut short) is replaced by the first
+change, as Room would have reset a corrupt database.
+
+**Main's Room databases are imported once, then deleted.** Kotlin reads them with Android's own
+SQLite, read-only and by column name, so every schema main shipped reads. Rust takes the rows
+under a fingerprint, reads its file back, and only then deletes the databases, so no crash loses
+a row or imports one twice. Fixtures for every schema come from main's own build. Main dropped
+version 1 of the media records on upgrade; the import keeps them (orientation 0), since nothing
+in them is wrong.
+
+**Room and its KSP processor leave the build.** KSP itself stays for Jetpref's `@Preferences`
+processor, which generates `FlorisPreferenceModelImpl`; it goes when Rust owns the preferences
+file (phase 4).
+
+**Would change if** a store outgrows whole-file rewrites (a history limit in the thousands, or
+a dictionary imported from a large word list): then the format gains an append log, behind a
+new version number, not a database. **Known limit:** Android's Auto Backup now carries
+`files/user-dictionary.store`. A backup made by this build and restored onto main's build gives
+main an empty keyboard dictionary, because main can't read the store; the words come back when
+this build is installed again. The other way works: main's backup holds the Room database,
+which this build imports.

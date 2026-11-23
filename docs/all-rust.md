@@ -246,7 +246,8 @@ Stage 5 packages 1–3, one event family at a time:
   editor, and UserDictionaryScreen is gone (542 lines deleted, 210 added). The words stay in
   Room and Android's provider, written with the same calls as before, proven against a frozen
   copy of the old code; old export files import, and a new export is byte-compatible
-  ([stage 4: User dictionaries](stage4-user-dictionaries.md)).
+  ([stage 4: User dictionaries](stage4-user-dictionaries.md)). Since 2026-11-22 the Floris
+  dictionary's words are in a Rust store, not Room ([phase 5: the stores](phase5-stores.md)).
 * **The project licence.**
   **Done (2026-11-21):** Rust draws it, with read-only text selection on the editor's handles
   and floating toolbar, and ProjectLicenseScreen is gone (81 lines deleted, 123 added). Kotlin
@@ -262,6 +263,11 @@ Stage 5 packages 1–3, one event family at a time:
   ([stage 4: the theme manager and theme editor](stage4-theme-editor.md)).
 * **Rust owns the preferences file** (`crates/settings` already has byte parity). Then Jetpref,
   then Room and KSP, leave the build.
+  **Room left (2026-11-22)**, ahead of the preferences file: once phase 5 moved the clipboard
+  history and the user dictionary to Rust, nothing used it. Its runtime, compiler, KSP options
+  and schema files are gone. **KSP stays** for Jetpref's `@Preferences` processor, which
+  generates `FlorisPreferenceModelImpl`, until Jetpref goes
+  ([phase 5: the stores](phase5-stores.md#room-and-ksp-leave-the-build)).
 * **Exit for each step:** as compose-removal.md says, plus real TalkBack on settings before
   step 12.
 * **The Compose settings host.**
@@ -277,6 +283,13 @@ Stage 5 packages 1–3, one event family at a time:
 ### 5. Platform edges (M)
 
 * **The clipboard store moves from Room to Rust.**
+  **Done (2026-11-22)**, with the keyboard's own user dictionary. `crates/stores` owns the format,
+  the files and every change: one checksummed, versioned file per store, saved crash-safely.
+  Kotlin keeps the system clipboard listener, the media files' bytes and the content provider,
+  which asks Rust for each record. Main's Room databases are imported once, at every schema main
+  shipped, and deleted, safe against a crash at any step. Proven against main's Room by 1,800
+  replayed steps, on every schema by fixtures main's build wrote, and on the emulator from main's
+  build with data to this one ([phase 5: the stores](phase5-stores.md)).
 * **Decisions move to Rust:** the GIF request lifetime, the sequencing and fallback decisions
   of dictation and read-aloud, crash handling, and locale. These are stage 5 packages 4–6.
 * **Exit:** stored-data migration fixtures and emulator flows.

@@ -17,8 +17,9 @@ The Compose specifications read for this package are:
 
 Clipboard ordering, stable ties, recent/other groups, nullable text duplicates, old/new pin
 preservation, expiry, unpinned limits and exact/wildcard MIME eligibility now run in
-`render::clipboard_policy`. The Compose storage path calls the same Rust policy. The JNI
-transport preserves Java UTF-16 and integer overflow behavior. Kotlin retains Room and
+`stores::clipboard_policy` (`render::clipboard_policy` until [phase 5](phase5-stores.md) moved
+it beside the store). The Compose storage path calls the same Rust policy. The JNI transport
+preserves Java UTF-16 and integer overflow behavior. Kotlin retains Room and
 system clipboard operations; native commands call the existing paste/pin/unpin/delete and
 clear-exact handlers, including Compose's different content-file cleanup paths.
 

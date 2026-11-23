@@ -103,6 +103,13 @@ no deletion or endpoint is claimed here. Recount actual accepted source after ea
 4. **Clipboard, dictionary and media.** Native state owns clipboard/share/import/error UI,
    GIF request/loading/fallback/cache state, frame parsing and data-provider choices. Android
    retains Room schemas/migrations, ContentResolver, URI grants, ImageDecoder and network IO.
+   *Since [all-rust.md](all-rust.md) phase 5 (2026-11-22) Room is gone:* the clipboard history,
+   its media files' records and the keyboard's own user dictionary are Rust stores
+   (`crates/stores`), which do their own file I/O; Kotlin reads main's Room databases once with
+   Android's SQLite (`AW/stores/LegacyRoom.kt`, new) and keeps the system clipboard listener,
+   the media byte copies and the content provider's transport
+   ([phase5-stores.md](phase5-stores.md)). `FB/ime/clipboard/provider/ClipboardStoreFile.kt` and
+   `FB/ime/dictionary/FlorisUserDictionaryDatabase.kt` are new ART JNI adapters over the stores.
    Use local GIF fixtures while no GIPHY key is available; do not claim live API acceptance.
 5. **Dictation and read-aloud edges.** Port RMS/PCM math, verification/eviction/readiness
    choices and remaining playback/reader orchestration. Keep AudioRecord/AudioTrack/TTS,
@@ -178,8 +185,8 @@ Path prefixes (each path below expands against the repository root):
 | `AW/render/RendererAccessibilityResources.kt` | 99 | A | Context.getString; localized semantic-label map |
 | `AW/render/RendererActionTooltip.kt` | 42 | M | PopupWindow / View; tooltip selection and lifetime around native text |
 | `AW/render/RendererCandidateBindings.kt` | 23 | A | ART JNI; object identity handles for native candidates |
-| `AW/render/RendererClipboard.kt` | 59 | M | Room / KeyguardManager; item projections and eligible preview/resource choices |
-| `AW/render/RendererClipboardActions.kt` | 34 | M | ClipboardManager / Room; conditional unpin/delete and feedback dispatch |
+| `AW/render/RendererClipboard.kt` | 59 | M | Room / KeyguardManager; item projections and eligible preview/resource choices (the items come from the Rust clipboard store since phase 5) |
+| `AW/render/RendererClipboardActions.kt` | 34 | M | ClipboardManager / Room; conditional unpin/delete and feedback dispatch (the Rust clipboard store since phase 5) |
 | `AW/render/RendererDecorations.kt` | 18 | M | Resources; watermark visibility and icon selection |
 | `AW/render/RendererEmoji.kt` | 70 | M | Paint / Typeface / KeyguardManager; label/availability projection and bindings |
 | `AW/render/RendererGestureHost.kt` | 77 | M | MotionEvent / Resources; action-index mapping and gesture-plan execution |
@@ -224,12 +231,12 @@ Path prefixes (each path below expands against the repository root):
 | `AW/suggest/LatinDictionaryEngine.kt` | 35 | A | RandomAccessFile / ART JNI; dictionary bytes and native decoder handle |
 | `AW/suggest/LatinSuggester.kt` | 63 | A | ART JNI; native suggest/spell result projection |
 | `AW/suggest/LearnedWords.kt` | 78 | A | Context files / java.io.File; native store effects and serialized bytes |
-| `AW/suggest/PersonalWords.kt` | 33 | A | Room snapshot / ART JNI; native personal-store transport and returned order |
+| `AW/suggest/PersonalWords.kt` | 33 | A | Room snapshot / ART JNI; native personal-store transport and returned order (a snapshot of the Rust word store since phase 5) |
 | `AW/suggest/PreviousWords.kt` | 27 | A | ART JNI; native previous-word context DTO |
 | `AW/suggest/RawSuggestion.kt` | 52 | P | decoder flag classification and portable result models |
 | `AW/suggest/SwipeWords.kt` | 58 | P | portable SwipeWords domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
 | `AW/suggest/TapTrail.kt` | 56 | P | portable TapTrail domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs (phase 3 item 1: its typing events moved into the NLP session's plan; presses, orientation, aim and retarget remain) |
-| `AW/suggest/TypingHistory.kt` | 26 | A | Room/file-store / ART JNI; combines Android store handles |
+| `AW/suggest/TypingHistory.kt` | 26 | A | Room/file-store / ART JNI; combines Android store handles (no Room since phase 5) |
 | `AW/suggest/WordLearner.kt` | 37 | A | ART JNI; native learning operation transport (moved to test sources at phase 3 item 1: the NLP session learns each typing event itself; kept for the frozen reference fan-out) |
 | `FB/FlorisApplication.kt` | 142 | M | Application / BroadcastReceiver; manager startup and initialization sequencing |
 | `FB/FlorisImeService.kt` | 448 | M | InputMethodService; input/extract/keyboard-switch/lifecycle branches |
@@ -248,26 +255,26 @@ Path prefixes (each path below expands against the repository root):
 | `FB/app/apptheme/Shape.kt` | 24 | P | portable Shape domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs (deleted at compose-removal step 12) |
 | `FB/app/apptheme/Theme.kt` | 81 | M | Resources / WindowInsetsController; preference-to-theme choice still in Kotlin (after compose-removal step 12 only `FlorisCopyToClipboardActivity`, the image share target, draws with it; it goes with that activity) |
 | `FB/app/apptheme/Type.kt` | 41 | P | portable Type domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs (`Theme.kt`'s typography, and the tokens `SettingsTypographyTokensTest` checks Rust against) |
-| `FB/app/settings/advanced/BackupIO.kt` | 81 | M | ContentResolver / Room / File; backup traversal, selected records and restore effects |
+| `FB/app/settings/advanced/BackupIO.kt` | 81 | M | ContentResolver / Room / File; backup traversal, selected records and restore effects (the clipboard group reads and writes the Rust store since phase 5, byte-compatible with main's backups) |
 | `FB/app/setup/NotificationPermissionState.kt` | 26 | P | setup permission-progress state |
 | `FB/app/setup/SetupScreen.kt` | 240 | M | ActivityResultContracts / InputMethodManager; setup steps/navigation and Compose drawing |
 | `FB/ime/ImeUiMode.kt` | 25 | P | portable ImeUiMode domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
 | `FB/ime/clipboard/ClipboardGridConstants.kt` | 3 | P | portable ClipboardGridConstants domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
 | `FB/ime/clipboard/ClipboardHistory.kt` | 27 | P | portable ClipboardHistory domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
-| `FB/ime/clipboard/ClipboardManager.kt` | 324 | M | android.content.ClipboardManager / Room; lifecycle, collection and effect sequencing |
+| `FB/ime/clipboard/ClipboardManager.kt` | 324 | M | android.content.ClipboardManager / Room; lifecycle, collection and effect sequencing (phase 5: every change goes to the Rust store on one queue; 216 counted lines) |
 | `FB/ime/clipboard/ClipboardPolicy.kt` | 15 | A | ART JNI; native model/geometry/plan projection only, no independent domain choice |
 | `FB/ime/clipboard/ClipboardSyncBehavior.kt` | 22 | P | portable ClipboardSyncBehavior domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
 | `FB/ime/clipboard/FlorisCopyToClipboardActivity.kt` | 176 | M | Intent ACTION_SEND / ClipData; share-target drawing and error UI |
-| `FB/ime/clipboard/provider/ClipboardDatabase.kt` | 338 | M | Room / ClipData / ContentResolver; entities remain, equality/display/serialization policy moves |
+| `FB/ime/clipboard/provider/ClipboardDatabase.kt` | 338 | M | Room / ClipData / ContentResolver; entities remain, equality/display/serialization policy moves (phase 5: renamed `ClipboardItem.kt`, the DAOs and Room databases deleted; 137 counted lines) |
 | `FB/ime/clipboard/provider/ClipboardFileStorage.kt` | 77 | A | ContentResolver / java.io.File; URI-byte storage and file deletion |
-| `FB/ime/clipboard/provider/ClipboardMediaProvider.kt` | 178 | M | ContentProvider / ParcelFileDescriptor; MIME/query/update dispatch and metadata rules |
+| `FB/ime/clipboard/provider/ClipboardMediaProvider.kt` | 178 | M | ContentProvider / ParcelFileDescriptor; MIME/query/update dispatch and metadata rules (phase 5: its records come from the Rust store; 147 counted lines) |
 | `FB/ime/core/DisplayLanguageNamesIn.kt` | 25 | P | portable DisplayLanguageNamesIn domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
 | `FB/ime/core/Subtype.kt` | 177 | P | portable Subtype domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs (not moved at phase 3 item 3; what remains is in phase3-theme-subtype.md) |
 | `FB/ime/core/SubtypeFallback.kt` | 6 | A | ART JNI; native model/geometry/plan projection only, no independent domain choice |
 | `FB/ime/core/SubtypeManager.kt` | 102 | M | Context / Jetpref; subtype lookup/resources and persistence orchestration (not moved at phase 3 item 3: its rules were Rust's already; what remains is in phase3-theme-subtype.md) |
 | `FB/ime/core/SubtypeSelectionState.kt` | 4 | P | portable SubtypeSelectionState domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
-| `FB/ime/dictionary/DictionaryManager.kt` | 156 | M | Room / UserDictionary provider; dictionary readiness/query composition |
-| `FB/ime/dictionary/UserDictionary.kt` | 427 | M | Room / ContentResolver / Cursor; import/export/filter and locale rules |
+| `FB/ime/dictionary/DictionaryManager.kt` | 156 | M | Room / UserDictionary provider; dictionary readiness/query composition (phase 5: the Floris dictionary is the Rust word store; 79 counted lines) |
+| `FB/ime/dictionary/UserDictionary.kt` | 427 | M | Room / ContentResolver / Cursor; import/export/filter and locale rules (phase 5: the Room DAO and database left; 118 counted lines) |
 | `FB/ime/dictionary/UserDictionaryValidation.kt` | 57 | P | portable UserDictionaryValidation domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
 | `FB/ime/editor/AbstractEditorInstance.kt` | 151 | M | InputConnection; composing setup, reconciliation and content publication guards |
 | `FB/ime/editor/EditorContent.kt` | 98 | P | portable EditorContent domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
@@ -329,7 +336,7 @@ Path prefixes (each path below expands against the repository root):
 | `FB/ime/nlp/SpellingLanguageMode.kt` | 23 | P | portable SpellingLanguageMode domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
 | `FB/ime/nlp/SpellingResult.kt` | 106 | M | SuggestionsInfo; remaining result flag/result-list mapping |
 | `FB/ime/nlp/SuggestionCandidate.kt` | 154 | M | Resources / ClipData / ImageVector; display/icon/removal decisions |
-| `FB/ime/nlp/latin/LatinLanguageProvider.kt` | 384 | M | Room / File / SystemClock; dictionary/provider selection, caches and load/error state |
+| `FB/ime/nlp/latin/LatinLanguageProvider.kt` | 384 | M | Room / File / SystemClock; dictionary/provider selection, caches and load/error state (no Room since phase 5) |
 | `FB/ime/onehanded/OneHandedMode.kt` | 23 | P | portable OneHandedMode domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
 | `FB/ime/popup/ExtendedPopup.kt` | 47 | A | ART JNI; native model/geometry/plan projection only, no independent domain choice |
 | `FB/ime/popup/PopupMapping.kt` | 34 | P | portable PopupMapping domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
