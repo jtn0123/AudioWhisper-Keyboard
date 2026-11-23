@@ -1,6 +1,7 @@
 package dev.patrickgold.florisboard.app
 
 import com.jtn0123.audiowhisper.rust.SettingsUiExtensionLink
+import com.jtn0123.audiowhisper.rust.SettingsUiOp
 
 /**
  * The settings link an intent carries, or the extension file it hands over. Rust draws settings,
@@ -29,4 +30,12 @@ internal object SettingsEntry {
         }
         return linkRoute(action, data) ?: document?.let { SettingsUiExtensionLink.SHARED + keep(it) }
     }
+
+    /**
+     * What an intent's [link] asks of Rust. A fresh activity starts on the screen Rust picks for it; a
+     * later intent opens its link, and one with none (the keyboard's settings button, setup coming
+     * back) leaves the screen as it is.
+     */
+    fun request(fresh: Boolean, link: String?): Pair<SettingsUiOp, Array<String>>? =
+        if (fresh) SettingsUiOp.START to listOfNotNull(link).toTypedArray() else link?.let { SettingsUiOp.NAVIGATE to arrayOf(it) }
 }

@@ -118,9 +118,6 @@ internal class RustSettingsView(context: Context) : FrameLayout(context), Surfac
         }
     }
     private fun preferencesPersisted() { if (!released) { receive(native.settings(SettingsUiOp.PREFERENCES, platform.snapshot())); configure() } }
-    fun navigate(route: String) = send(SettingsUiOp.NAVIGATE, route)
-    /** The activity opened fresh, perhaps for a settings link; native code picks the first screen. */
-    fun start(link: String?) = send(SettingsUiOp.START, *listOfNotNull(link).toTypedArray())
     fun save(): Array<String> = if (released) emptyArray() else native.settings(SettingsUiOp.SAVE).drop(SettingsUiReply.SIZE).toTypedArray()
     /** [phase] is a [SettingsUiBack]. */
     fun back(phase: Int, progress: Float = 0f) = send(SettingsUiOp.BACK, phase.toString(), progress.toString())

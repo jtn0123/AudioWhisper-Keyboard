@@ -96,11 +96,11 @@ open class FlorisAppActivity : ComponentActivity() {
         rustSettings?.let { host -> route(host, intent, fresh = false) }
     }
 
-    /** A fresh activity starts on the screen Rust picks for [intent]; a later link or file opens its screen. */
+    /** Hands [intent]'s settings link or extension file to Rust ([SettingsEntry.request]). */
     private fun route(host: RustSettingsView, intent: Intent, fresh: Boolean) {
         val shared = intent.clipData?.takeIf { it.itemCount > 0 }?.getItemAt(0)?.uri
         val link = SettingsEntry.route(intent.action, intent.dataString, intent.data, shared, settingsFileWork::keep)
-        if (fresh) host.start(link) else if (link != null) host.navigate(link)
+        SettingsEntry.request(fresh, link)?.let { (operation, input) -> host.send(operation, *input) }
     }
 
     private fun installRustSettings(): RustSettingsView {
