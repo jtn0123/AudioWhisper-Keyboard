@@ -48,6 +48,9 @@ fn a_report_without_traces_ends_after_the_log() {
 #[test]
 fn rows_of_the_wrong_length_are_refused() {
     assert_eq!(report(&facts()[1..], false, &[], &[]), None);
+    let mut long = facts();
+    long.push(utf16("extra"));
+    assert_eq!(report(&long, false, &[], &[]), None);
     assert_eq!(report(&facts(), false, &[utf16("a")], &[]), None);
     assert_eq!(fact::SIZE as usize, facts().len());
 }
