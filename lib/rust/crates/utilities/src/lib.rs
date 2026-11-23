@@ -1,5 +1,7 @@
-//! Utility decisions independent of Android. Text packets preserve UTF-16 exactly.
+//! Utility decisions independent of Android, the crash screen's among them ([`crash`]). Text
+//! packets preserve UTF-16 exactly.
 #![forbid(unsafe_code)]
+pub mod crash;
 pub mod locale;
 pub mod mime;
 pub mod reference;

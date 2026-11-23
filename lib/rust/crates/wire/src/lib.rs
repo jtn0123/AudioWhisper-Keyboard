@@ -51,6 +51,7 @@
 #![forbid(unsafe_code)]
 
 pub mod backup;
+pub mod crash;
 pub mod dictation;
 pub mod dictation_edges;
 pub mod editor;
