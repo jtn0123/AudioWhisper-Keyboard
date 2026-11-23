@@ -323,11 +323,30 @@ its long-press hint (E29) and were run again; `explain-digest.py` explains each.
 
 **CPU.** Six alternating trials against main's build, on a loaded host (load averages 7.8 to
 12.5): neither met the 2 ms gate, and the pairs' p95s (main 6.043, 3.157, 2.116; the branch
-6.147, 2.665, 2.269 ms) track the host, not the build. This is not a pass. The branch draws 36
-to 38 more strip-only frames for the same typing: the strip's intermediate suggestion list gets
-a frame of its own after about 50 presses of 308, against about 13 on main. The lists are the
-same; why it is shown more often is owed (E56). See
+6.147, 2.665, 2.269 ms) track the host, not the build. This is not a pass. See
 [cpu-p95-results](cpu-p95-results.md#the-compose-free-render-path-2026-11-23).
+
+**The strip's emptied row (E56).** Those trials also showed the branch drawing 36 to 38 more
+strip-only frames for the same typing: after about 50 presses of 308 the strip's words changed
+twice, against about 13 on main. After a press whose words must be found again, the NLP session
+publishes an empty list, while the refill is due, and then the new one. The branch's rebuild
+reads the candidates sooner (10.7 to 12.6 ms from its start at the median, against main's 19.3
+to 25.4), so it drew the emptied row more often; padded by 8.2 ms, it changed the strip twice
+after 14 to 29 presses, against main's 11 to 18. The fix is `StripHold` in `ImeRootReads.kt`:
+while Rust's row is empty and its refill is due, the strip keeps the words it drew, for at most
+200 ms, with a rebuild asked for at that deadline; the suggestion pipeline is unchanged.
+
+* **One press, one strip change.** Every whole trial of the fix drew 308 strip-only frames for
+  308 presses, against main's 318 to 335 and 354 to 361 with the hold bypassed. The final words
+  came no later: a median of 84 to 119 ms after the press, against main's 89 to 135.
+* **CPU,** in a quieter rotation of main, the fix and the fix without its hold: the fix's p95s
+  (2.607, 2.407 ms) are within main's (2.593, 2.675), with 81 and 77 frames over 2 ms against
+  main's 90 and 118. Still not the 2 ms gate, and not a quiet host.
+* **Tests:** `StripHoldTest`, and `strip-hold-mutations.py`'s 8 faults, each caught.
+* **Probes** on the fix's build: suggestions matched on both renderers, reshow 16 of 16, and the
+  same reading order with no issue.
+
+See [the strip's emptied row](cpu-p95-results.md#the-strips-emptied-row-e56-2026-11-23).
 
 **On the emulator.** `scripts/render-benchmark/compose-free-device.py` ran on emulator-5558 with
 main's build (4d3b5d3ae) and the branch's (e75a095eb, with the GIF fixture). It checks each pose
@@ -367,16 +386,17 @@ between the two runs. Screenshots and dumps are under the ignored
 ## Kotlin
 
 Production Kotlin, as `scripts/jvm-ledger.py` counts it (non-blank, non-comment lines), against
-main 4d3b5d3ae: **405 files and 31,783 lines, from 408 and 31,965**, 182 lines fewer.
+main 0f0b22d28: **405 files and 31,810 lines, from 408 and 31,970**, 160 lines fewer.
 
 * **Deleted:** `SettingsIcons.kt` (73), `RustKeyPreview.kt` (33), `RendererIcons.kt` (29) and
   lib/snygg's `SnyggPalette.kt` (19).
 * **Added:** `RendererThemeFonts.kt` (19), which resolves a theme's `@font` sources.
-* **Smaller:** `RendererSmartbar` 145 to 89, `ImeRootView` 221 to 216, `RendererClipboard` 45 to
-  37, `RendererEmoji` 65 to 58, `RendererTheme` 40 to 35, `ImeRootReads` 131 to 128,
-  `RendererSubtypes` 12 to 8, `RendererSearch` 12 to 9, `FlorisImeService` 434 to 432,
-  `RendererPanels` 47 to 46, `RustKeyboardView` 411 to 410.
+* **Smaller:** `RendererSmartbar` 145 to 89, `RendererClipboard` 45 to 37, `RendererEmoji` 65 to
+  58, `RendererTheme` 40 to 35, `RendererSubtypes` 12 to 8, `RendererSearch` 12 to 9,
+  `FlorisImeService` 434 to 432, `RendererPanels` 47 to 46, `RustKeyboardView` 411 to 410.
 * **Larger, each raised in the ledger with its reason:**
+  * `ImeRootReads` 131 to 145: `StripHold`, which keeps the strip's words while their refill is
+    due (E56). `ImeRootView` is at main's 221: 5 lines fewer, then 5 to ask the hold;
   * the Compose `Smartbar.kt` (step K) 419 to 443: `smartbarConfig`, moved in unchanged from
     `RendererSmartbar`, its one caller now;
   * `SuggestionCandidate` 66 to 76: a clipboard candidate's icon token, which Rust draws, with
@@ -401,8 +421,6 @@ The JVM tests gain `PaletteMatchTest`, `ReferenceSnyggPalette` (main's palette, 
   * **P36:** the whole path on the S24 Ultra against main's build. That covers every panel with
     an icon by day and night, Material You on the phone's own accent and two set ones, and a font
     theme with a good file and a broken one.
-  * **E56:** why the branch gives the strip's intermediate suggestion list a frame of its own
-    after about 50 presses of 308, against about 13 on main.
   * **E28 and P4:** the 2 ms p95, on a quiet host and on the phone. These trials ran on a loaded
     host and are not a pass.
   * **E53:** this item hit it twice: a keyboard top 1 px off for 30 poses in one run, and the

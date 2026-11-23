@@ -119,7 +119,6 @@ row says so.
 | E53 | A 1 to 2 px flake in the keyboard's top, on main and on the plain-View root alike, across runs of the seeded differential: at font scale 2.0 with 3-button navigation (portrait, height 80, bottom offset 12) it lands at 1682 or 1684 px, and in the baseline pose (portrait, gesture navigation) at 1561 or 1562; with a display cutout (portrait, font scale 1.3, height 125, one-handed start) the window's frame starts at 126 or 132 px and the keys at 1589 or 1590, main giving each once or more. Both roots measure the screen and its bars while SystemUI is still resizing them after the previous configuration's change; waiting for the bars' frames to hold still did not remove it. Find which height is right and make both roots measure after SystemUI's last resize. **2026-11-23, Compose-free path.** In one branch run of `compose-free-device.py`, the keyboard's top was at 1429 instead of 1430 for 30 poses in a row. In the view dump, `ImeBackdrop` was 839 px instead of 838 and `RustKeyboardView` 713 instead of 712. Every later pose, on both builds, gave 1430. The font check now compares only windows with the same frame and top. In a later run, gif-night stopped on "System bars did not settle": the bars' frames had not held still for two seconds within 20. | [phase3-view-root, seeded differential](phase3-view-root.md#seeded-differential-against-main) |
 | E54 | The 19 device comparisons that phase 6 kept, because a golden file of their answers has to be written on a device: the 11 copies under `androidTest` and the 8 compiled into it from `app/src/test` (`gif/shared`, `suggest/a1`, `lib/ext/replay`). Run each instrumented comparison (`DictationInstrumentation`, `TtsInstrumentation`, `A1Instrumentation`, `RendererFixtureTest`, `ExtensionDeviceReplay`) with its answers recorded on a `GoldenTape`, write the goldens there, then retire the copies as the JVM families were. | [phase6-kotlin-references, kept](phase6-kotlin-references.md#kept-and-why) |
 | E55 | A strip tap on a kept row, on a device. The fix (`fe49b7f86`) takes a tap on the objects of an earlier, equal list by its place, and the host proves it, but none of the six paths tried on emulator-5556 kept the row: a build with main's lookup committed every tap too. The row is kept only when a second suggestion pass for the same word completes while the first list is still shown; `KeyboardManager` starts a pass at every editor change. Find an editor change that keeps the word and its list (the trace reaches one in 3% of its shows), tap the strip after it on main's build (refused) and this one (goes in), compared by hashes. | [phase6-kotlin-references, what was found](phase6-kotlin-references.md#what-moved-and-what-was-found) |
-| E56 | Why the Compose-free render path shows the strip's intermediate suggestion list more often. In the CPU trials of 2026-11-23 the branch drew 357 to 359 strip-only frames against main's 320 to 321, with the same presses, releases, popups and layout-cache misses: after 49 to 51 of 308 presses the strip's words changed twice (a shorter list, then the final one), against 12 to 14 on main, and two branch trials shared only 11 of those presses. The suggestion pipeline is unchanged. A likely cause is the cheaper rebuild (main flattened each Smartbar icon through Compose on every rebuild; the branch sends tokens), but the timings overlap too much to prove it. Trace the main thread from the two lists' emission to the rebuild that reads them (a system trace, as `switch-trace.py` does), and decide whether the intermediate list should be drawn at all. | [cpu-p95-results, the Compose-free render path](cpu-p95-results.md#the-compose-free-render-path-2026-11-23) |
 
 ## Not device checks, but still owed
 
@@ -159,7 +158,7 @@ These need no device. They are listed so they are not lost.
 
 ## Notes
 
-* This list has 4 confirm-on-the-phone items, 35 phone checks and 53 emulator checks.
+* This list has 4 confirm-on-the-phone items, 35 phone checks and 52 emulator checks.
 * The mutation scripts' missing check that each case still matches its source is closed.
   `:app:checkMutationCases` (`scripts/mutation_cases.py`, in the gate and CI) checks every case of
   every script, and each script takes `--check`. Its first run found 18 stale cases in 10 scripts;
@@ -183,6 +182,13 @@ These need no device. They are listed so they are not lost.
   were level in the final runs
   ([phase3-theme-subtype](phase3-theme-subtype.md#switch-timings-the-profile-e41-and-e44)). P30
   carries the phone's timing.
+* E56, the strip's extra frames on the Compose-free render path, is closed. After a press whose
+  words must be found again, Rust's row empties before it refills, and the path's cheaper
+  rebuild drew the emptied row more often; padding that rebuild by 8.2 ms brought it back to
+  main's count. The strip now keeps its words while their refill is due, for at most 200 ms, and
+  one press gives one strip change: 308 strip-only frames for 308 presses, against main's 318 to
+  335 and 354 to 361 with the hold bypassed, with the final words no later
+  ([cpu-p95-results](cpu-p95-results.md#the-strips-emptied-row-e56-2026-11-23)).
 * P20, the theme manager's *Create* and *Edit* handing the extension editor to Compose, is
   closed: compose-removal step 10 deleted that hand-off, and Rust draws the editor. P26 carries
   its phone check.

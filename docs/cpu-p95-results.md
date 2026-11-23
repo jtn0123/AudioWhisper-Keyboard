@@ -616,15 +616,13 @@ popups). Touch to post, p50 and p95 in ms: main 107.3 and 263.3, 102.8 and 247.6
   strip-only frames number 357, 357 and 359, against main's 321, 321 and 320.
   * The extra frames are intermediate lists. After most presses the strip's words change once.
     After 49, 49 and 51 of the branch's presses they change twice, against 13, 14 and 12 of
-    main's: first a list drawn with fewer labels (a median of 20), then the final list (21 or
-    22), 28 to 44 ms apart at the median in both builds. Two branch trials shared only 11 of their 49 such presses, so it is timing,
+    main's: first the emptied row, drawn with fewer labels (a median of 20), then the final list
+    (21 or 22), 28 to 44 ms apart at the median in both builds. Two branch trials shared only 11 of their 49 such presses, so it is timing,
     not particular words.
   * The branch does not touch the suggestion pipeline, so the lists are the same; the branch
-    shows the first one in a frame of its own more often. A likely cause, not traced: main's
-    snapshot flattened every Smartbar icon through Compose's `PathParser` on each rebuild, and
-    the branch sends tokens, so its main thread is freer to reach a frame between the two
-    lists. The first change comes 56 to 75 ms after the press on the branch at the median,
-    76.5 to 127 on main, which fits but overlaps too little to prove it (E56).
+    shows the emptied row in a frame of its own more often, because its rebuild reaches the
+    candidates sooner. [The strip's emptied row](#the-strips-emptied-row-e56-2026-11-23) proves
+    it and fixes it (E56).
   * Each strip frame paints the full-width strip, 99,666 pixels. The extra frames did not move
     the branch's p95 beyond its pair's.
 * **Layout and shaping did not change:** the same 85 layout-cache misses in the same 42 frames.
@@ -641,8 +639,114 @@ presses, branch 2 after 51 and branch 2-b after 75.
 The host was loaded by other jobs. The kept trials' load averages ran from 8.3 to 12.5 at their
 starts and 7.8 to 12.5 at their ends.
 
-**Still owed.** The CPU gate on a quiet host (E28), and on the phone (P4); why the branch shows
-the intermediate strip list more often (E56).
+**Still owed.** The CPU gate on a quiet host (E28), and on the phone (P4).
+
+## The strip's emptied row (E56, 2026-11-23)
+
+The Compose-free render path drew 36 to 38 more strip-only frames than main for the same typing,
+each from a press after which the strip's words changed twice. This finds why, and fixes it in
+the render path; the suggestion pipeline is unchanged. Every trial is `cpu-trials.py --rust-only
+--trials 1` on `aw_keyboard` (emulator-5558), each build installed from a worktree of its own;
+the folders are in `build/cpu-p95/e55/`.
+
+**The cause: Rust's row empties before it refills.** After a press whose words must be found
+again, the NLP session publishes twice. `NlpSessionState.begin` publishes an empty list while
+the words are still to be shown, because a refill is due, and `complete` publishes the new list.
+Each wakes a rebuild. A rebuild that reads the candidates between the two draws the strip
+without its words for a frame, and the next draws the new words. Main's rebuild flattened every
+Smartbar icon through Compose before it reached the candidates. The branch sends tokens, so its
+rebuild reads them sooner and falls between the two publications more often.
+
+**The proof.** Scratch builds of main and the branch logged each rebuild's time from its start
+to its read of the candidates, and the branch's could pad that time from a file on the device.
+Padded by 8.2 ms, so that it reads the candidates when main does, the branch changed the strip
+twice after about as many presses as main:
+
+| Build | Trials | Rebuild to the candidates, p50 | Presses with two changes |
+|---|---|---:|---:|
+| main | `main-t1`, `main-t2`, `-b`, `-c` | 19.3 to 25.4 ms | 11 to 18 |
+| the branch | `branch-t1-b`, `-c`, `branchpad-t2`, `-b` | 10.7 to 12.6 ms | 53 to 68 |
+| the branch, padded 8.2 ms | `branchpad-t3`, `branchpad-t4`, `-b`, `-c` | 18.3 to 19.8 ms | 14 to 29 |
+
+Seven of the twelve typed one or two keys as their long-press hints (E29), and logcat lost the
+start of four, but each press's own count of strip changes stands, so all are counted.
+
+**The fix: the strip keeps its words while their refill is due.** `StripHold`, in
+`ImeRootReads.kt`, keeps the words drawn last while Rust's row is empty and its refill is due,
+for at most `STRIP_HOLD_MS`, 200 ms, and asks for a rebuild at that deadline. The new words end
+the hold and withdraw the wake. A refill that never comes shows the empty row at the deadline,
+and an empty row that is not due is drawn at once. `StripHoldTest` holds it to that, and each of
+`strip-hold-mutations.py`'s 8 faults fails it.
+
+**One press, one strip change.** Main, the fix (74bd23c34) and the fix with the hold bypassed
+("no hold", the same build otherwise). Rounds 1 and 2 alternated main and the fix under load;
+round 3 rotated no hold, the fix and main twice on a quieter host. Every kept trial typed the
+300 presses to `809d588b…` and the 8 popups to `c14d19d2…`.
+
+| Trial | Build | Load | Presses | Strip-only frames | Presses with two changes | Last change after the press, p50 |
+|---|---|---:|---:|---:|---:|---:|
+| `e56m2` | main | 22.6 | 306 | 335 | 28 | 135 ms |
+| `e56m3-c` | main | 11.0 | 308 | 329 | 21 | 89 ms |
+| `e56m5` | main | 2.5 | 308 | 319 | 11 | 106 ms |
+| `e56f1-b` | fix | 13.5 | 308 | 308 | 0 | 119 ms |
+| `e56f3` | fix | 4.7 | 305 | 308 | 3 | 96 ms |
+| `e56f4-b` | fix | 11.9 | 279 | 282 | 3 | 87 ms |
+| `e56f5-b` | fix | 2.6 | 307 | 308 | 1 | 97 ms |
+| `e56n1` | no hold | 5.4 | 307 | 361 | 54 | 86 ms |
+| `e56g1-b` | fix | 3.2 | 308 | 308 | 0 | 84 ms |
+| `e56k1` | main | 3.8 | 308 | 318 | 10 | 98 ms |
+| `e56n2-b` | no hold | 5.5 | 308 | 354 | 46 | 85 ms |
+| `e56g2-b` | fix | 4.5 | 308 | 308 | 0 | 85 ms |
+| `e56k2` | main | 2.9 | 308 | 318 | 10 | 97 ms |
+
+Load is the one-minute load average at the trial's start. `e56m2`'s 28 include one press with
+three changes.
+
+* **The fix draws one strip change per press.** Every whole log has 308 strip-only frames for
+  308 presses. The fix's 7 two-change presses are logcat's: each pair of changes is about a
+  second apart (835 to 958 ms at the median, against 44 to 78 ms for main's), a press whose own
+  press line was lost, so its change counts under the press before. `e56f4-b` lost the start of
+  its log, 29 presses.
+* **No hold shows the cause on today's code:** 46 and 54 two-change presses, against main's 10
+  in the same rotation.
+* **The final words come no later.** The press's last strip change comes at a median of 84 to
+  119 ms with the fix, 89 to 135 on main and 85 or 86 with no hold. The fix withholds only the
+  emptied row.
+
+**CPU: within main's spread, not a pass.** No build met the 2 ms gate.
+
+| Trial | Build | Frames | p50 | p95 | p99 | Over 2 ms | CPU time p95 | Touch to post, p50 and p95 |
+|---|---|---:|---:|---:|---:|---:|---:|---|
+| `e56n1` | no hold | 983 | 0.967 | 2.436 | 4.058 | 79 (8.0%) | 1.372 | 112.7, 252.0 |
+| `e56g1-b` | fix | 932 | 1.033 | 2.607 | 4.087 | 81 (8.7%) | 1.429 | 106.9, 246.0 |
+| `e56k1` | main | 942 | 1.013 | 2.593 | 4.754 | 90 (9.6%) | 1.440 | 119.6, 262.2 |
+| `e56n2-b` | no hold | 978 | 0.997 | 2.592 | 4.914 | 88 (9.0%) | 1.404 | 120.4, 274.7 |
+| `e56g2-b` | fix | 932 | 1.005 | 2.407 | 4.825 | 77 (8.3%) | 1.408 | 105.7, 243.8 |
+| `e56k2` | main | 942 | 1.130 | 2.675 | 4.260 | 118 (12.5%) | 1.625 | 130.2, 262.4 |
+
+* **Round 3,** above, had all six trials typing the same text with the same 85 layout-cache
+  misses in 42 frames. The fix's p95s (2.607, 2.407) are within main's (2.593, 2.675) and no
+  hold's (2.436, 2.592), with 81 and 77 frames over 2 ms against main's 90 and 118. Its draw
+  time per press, all frames counted, was 3.66 and 3.53 ms, against main's 3.68 and 4.09 and no
+  hold's 3.58 and 3.78.
+* **Rounds 1 and 2** ran under load: p95 main 8.027, 2.527 and 2.670 ms, the fix 7.503, 3.154,
+  2.954 and 3.135. At like loads the fix's frames took the same CPU time as main's: 0.874 and
+  1.063 ms a frame on average, against main's 0.895 and 1.066. Where its tail was longer, the
+  difference was time off the CPU, and the percentile's base: the fix draws 11 to 27 fewer
+  strip frames than main, cheap ones, which raises the p95 without making a frame slower. The
+  counts of slow frames overlap.
+
+**Thrown out, folders kept.** 17 trials failed and were run again: 14 typed another digest
+(E29), two typed fewer units (296 and 294), and one stopped when agent-device's output could not
+be read (E30). Their strip counts fit the rest: main's 322 to 341 strip-only frames, and the
+fix's one per press. In two of them, `e56f2-b` (the fix) and `e56m3` (main), a key typed
+as its hint left Rust's row empty for the rest of the run, so the last presses changed nothing,
+on main as with the fix: the typed text, not the hold.
+
+**Probes** on the fix's build: `suggestions.py` matched the autocorrect and candidate-pick
+digests on both renderers, with the learned-state files put back byte for byte; `reshow.py` 16 of
+16; `a11y-order.py` the same five node counts (57, 63, 57, 59, 69), and `compare-a11y.py --order`
+no issue.
 
 ## Reproducing
 

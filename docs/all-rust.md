@@ -304,12 +304,14 @@ Stage 5 packages 1–3, one event family at a time:
     space commit "the "; reshow 16 of 16; the reading order unchanged. Main's build and the
     branch's draw every panel with an icon identically on emulator-5558, by day and by night,
     apart from live GIF results and caret blink.
-  * **CPU:** no change visible on a loaded host. The branch draws 36 to 38 more strip-only
-    frames for the same typing (E56).
-* **The size.** Production Kotlin 405 files and 31,783 counted lines, from main's 408 and
-  31,965: four files deleted, one added.
-* **Owed.** The whole path on the phone (P36); why the strip's intermediate list gets more frames
-  (E56); the 2 ms p95 on a quiet host (E28) and on the phone (P4). Step K
+  * **CPU:** no change visible on a loaded host.
+  * **The strip:** one strip change per press. The path's cheaper rebuild had drawn Rust's
+    emptied row between a press's two lists more often; the strip now keeps its words while
+    their refill is due, for at most 200 ms (E56, closed).
+* **The size.** Production Kotlin 405 files and 31,810 counted lines, from main's 408 and
+  31,970: four files deleted, one added.
+* **Owed.** The whole path on the phone (P36); the 2 ms p95 on a quiet host (E28) and on the
+  phone (P4). Step K
   still has to take the Compose keyboard, Smartbar and root out of the app
   ([phase3-compose-free-path](phase3-compose-free-path.md#what-remains)).
 
