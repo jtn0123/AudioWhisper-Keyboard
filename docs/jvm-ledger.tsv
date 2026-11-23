@@ -109,6 +109,7 @@ app/src/main/kotlin/com/jtn0123/audiowhisper/settingsui/SettingsThemeStringIds.k
 app/src/main/kotlin/com/jtn0123/audiowhisper/settingsui/SettingsThemes.kt	A	36	Activity / ExtensionManager / ThemeManager; the theme manager's report (the theme extension index, titles, whether each can be deleted) and the keyboard's preview theme only |
 app/src/main/kotlin/com/jtn0123/audiowhisper/settingsui/SettingsWordStringIds.kt	A	34	explicit R.string ids for the native user dictionary screens; a resource-only map split from SettingsStringIds for the file limit |
 app/src/main/kotlin/com/jtn0123/audiowhisper/settingsui/SettingsWords.kt	A	115	Activity / DictionaryManager / Room / UserDictionary provider; the user dictionary report, each word change made as the dialog made it, and the import and export file work only |
+app/src/main/kotlin/com/jtn0123/audiowhisper/stores/LegacyRoom.kt	A	129	android.database.sqlite; reads main's Room databases once, by column name, and hands the rows to Rust (crates/stores legacy), which imports and deletes them; delete once no install predates all-rust phase 5 |
 app/src/main/kotlin/com/jtn0123/audiowhisper/suggest/AutoCorrectStrength.kt	P	7	portable strength enum; its order and thresholds are Rust (suggest::auto_correction::Strength)
 app/src/main/kotlin/com/jtn0123/audiowhisper/suggest/GlideRanker.kt	A	31	ART JNI; copies scores/context into native ranking |
 app/src/main/kotlin/com/jtn0123/audiowhisper/suggest/KeptWords.kt	A	33	Context files / java.io.File; native word-store persistence |
@@ -137,7 +138,7 @@ app/src/main/kotlin/dev/patrickgold/florisboard/app/ThemeEditorActivity.kt	A	12	
 app/src/main/kotlin/dev/patrickgold/florisboard/app/ThemeEditorPrefs.kt	M	24	Jetpref preference types (colour serializer, two enums) the preference model still names, and the stylesheet pretty-print config the extension editor and the native theme editor's glue write with; moved unchanged from the deleted Compose theme editor package (compose-removal step 9)
 app/src/main/kotlin/dev/patrickgold/florisboard/app/apptheme/Theme.kt	M	62	Resources / WindowInsetsController; preference-to-theme choice still in Kotlin |
 app/src/main/kotlin/dev/patrickgold/florisboard/app/apptheme/Type.kt	P	13	portable Type domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
-app/src/main/kotlin/dev/patrickgold/florisboard/app/settings/advanced/BackupIO.kt	M	81	ContentResolver / Room / File; backup traversal, selected records and restore effects | raised 80 to 81 (compose-removal step 5): a callback after each restore step, so a restore that stops part-way can say what came back
+app/src/main/kotlin/dev/patrickgold/florisboard/app/settings/advanced/BackupIO.kt	M	81	ContentResolver / clipboard store / File; backup traversal, selected records and restore effects | raised 80 to 81 (compose-removal step 5): a callback after each restore step, so a restore that stops part-way can say what came back
 app/src/main/kotlin/dev/patrickgold/florisboard/app/settings/advanced/BackupWork.kt	A	183	CacheManager workspaces / ContentResolver / FileProvider / share Intent: Back up's and Restore's archive and file work, as Rust asks for it; zip and copy run on the IO dispatcher
 app/src/main/kotlin/dev/patrickgold/florisboard/ime/ImeUiMode.kt	P	10	portable ImeUiMode domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
 app/src/main/kotlin/dev/patrickgold/florisboard/ime/clipboard/ClipboardComponents.kt	K	99	Compose keyboard (keyboard scope): deleted at compose-removal step K
@@ -146,21 +147,23 @@ app/src/main/kotlin/dev/patrickgold/florisboard/ime/clipboard/ClipboardHeader.kt
 app/src/main/kotlin/dev/patrickgold/florisboard/ime/clipboard/ClipboardHistory.kt	P	12	portable ClipboardHistory domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
 app/src/main/kotlin/dev/patrickgold/florisboard/ime/clipboard/ClipboardInputLayout.kt	K	425	Compose keyboard (keyboard scope): deleted at compose-removal step K
 app/src/main/kotlin/dev/patrickgold/florisboard/ime/clipboard/ClipboardItemView.kt	K	150	Compose keyboard (keyboard scope): deleted at compose-removal step K
-app/src/main/kotlin/dev/patrickgold/florisboard/ime/clipboard/ClipboardManager.kt	M	258	android.content.ClipboardManager / Room; lifecycle, collection and effect sequencing |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/clipboard/ClipboardManager.kt	M	216	android.content.ClipboardManager / Rust clipboard store (Room until all-rust phase 5); lifecycle, collection and effect sequencing |
 app/src/main/kotlin/dev/patrickgold/florisboard/ime/clipboard/ClipboardPolicy.kt	A	14	ART JNI; native model/geometry/plan projection only, no independent domain choice |
 app/src/main/kotlin/dev/patrickgold/florisboard/ime/clipboard/ClipboardSyncBehavior.kt	P	7	portable ClipboardSyncBehavior domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
 app/src/main/kotlin/dev/patrickgold/florisboard/ime/clipboard/FlorisCopyToClipboardActivity.kt	M	159	Intent ACTION_SEND / ClipData; share-target drawing and error UI |
-app/src/main/kotlin/dev/patrickgold/florisboard/ime/clipboard/provider/ClipboardDatabase.kt	M	298	Room / ClipData / ContentResolver; entities remain, equality/display/serialization policy moves |
 app/src/main/kotlin/dev/patrickgold/florisboard/ime/clipboard/provider/ClipboardFileStorage.kt	A	38	ContentResolver / java.io.File; URI-byte storage and file deletion |
-app/src/main/kotlin/dev/patrickgold/florisboard/ime/clipboard/provider/ClipboardMediaProvider.kt	M	154	ContentProvider / ParcelFileDescriptor; MIME/query/update dispatch and metadata rules |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/clipboard/provider/ClipboardItem.kt	M	137	ClipData / ContentResolver / kotlinx.serialization; the clip model and its backup JSON (renamed from ClipboardDatabase.kt in all-rust phase 5, when its Room DAOs and databases left); equality/display/serialization policy moves |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/clipboard/provider/ClipboardMediaProvider.kt	M	147	ContentProvider / ParcelFileDescriptor; MIME/query/update dispatch and metadata rules |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/clipboard/provider/ClipboardStoreFile.kt	A	34	java.io.File / ART JNI; opens the Rust clipboard store once per process (no_backup/clipboard.store) and maps ClipboardItem to its records (all-rust phase 5) |
 app/src/main/kotlin/dev/patrickgold/florisboard/ime/core/DisplayLanguageNamesIn.kt	P	5	portable DisplayLanguageNamesIn domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
 app/src/main/kotlin/dev/patrickgold/florisboard/ime/core/SelectSubtypePanel.kt	K	75	Compose keyboard (keyboard scope): deleted at compose-removal step K
 app/src/main/kotlin/dev/patrickgold/florisboard/ime/core/Subtype.kt	P	131	portable Subtype domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
 app/src/main/kotlin/dev/patrickgold/florisboard/ime/core/SubtypeFallback.kt	A	6	ART JNI; native model/geometry/plan projection only, no independent domain choice |
 app/src/main/kotlin/dev/patrickgold/florisboard/ime/core/SubtypeManager.kt	M	63	Context / Jetpref; subtype lookup/resources and persistence orchestration |
 app/src/main/kotlin/dev/patrickgold/florisboard/ime/core/SubtypeSelectionState.kt	P	3	portable SubtypeSelectionState domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
-app/src/main/kotlin/dev/patrickgold/florisboard/ime/dictionary/DictionaryManager.kt	M	138	Room / UserDictionary provider; dictionary readiness/query composition |
-app/src/main/kotlin/dev/patrickgold/florisboard/ime/dictionary/UserDictionary.kt	M	320	Room / ContentResolver / Cursor; filter and locale rules | import and export moved to the native user dictionary screens (compose-removal step 7)
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/dictionary/DictionaryManager.kt	M	79	Rust word store / UserDictionary provider; dictionary readiness/query composition |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/dictionary/FlorisUserDictionaryDatabase.kt	A	51	ART JNI / ReentrantLock; the Room-shaped DAO over the Rust word store (files/user-dictionary.store), one per process, so UserDictionary's callers are unchanged (all-rust phase 5) |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/dictionary/UserDictionary.kt	M	118	Rust word store / ContentResolver / Cursor; filter and locale rules | import and export moved to the native user dictionary screens (compose-removal step 7)
 app/src/main/kotlin/dev/patrickgold/florisboard/ime/editor/AbstractEditorInstance.kt	M	153	InputConnection; composing setup, reconciliation and content publication guards | raised 151 to 153 (A6): config, char and extracted packets built by field name; state read by name
 app/src/main/kotlin/dev/patrickgold/florisboard/ime/editor/EditorContent.kt	P	34	portable EditorContent domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
 app/src/main/kotlin/dev/patrickgold/florisboard/ime/editor/EditorInstance.kt	M	313	InputConnection / ClipboardManager; rich-content and editor operation orchestration |
@@ -224,7 +227,7 @@ app/src/main/kotlin/dev/patrickgold/florisboard/ime/nlp/SpellingResult.kt	M	32	S
 app/src/main/kotlin/dev/patrickgold/florisboard/ime/nlp/SuggestionCandidate.kt	M	66	Resources / ClipData / ImageVector; display/icon/removal decisions |
 app/src/main/kotlin/dev/patrickgold/florisboard/ime/nlp/TypingCounters.kt	A	22	private counter file IO; the counts and the events that change them are Rust (phase 3 item 1: the typing plan) |
 app/src/main/kotlin/dev/patrickgold/florisboard/ime/nlp/TypingEvents.kt	A	67	EditorContent / save timers; one NlpSession.event row per typing event, then the plan's Android effects: the save timers and the kept-word write (phase 3 item 1) |
-app/src/main/kotlin/dev/patrickgold/florisboard/ime/nlp/latin/LatinLanguageProvider.kt	M	326	Room / File / SystemClock; dictionary/provider selection, caches and load/error state |
+app/src/main/kotlin/dev/patrickgold/florisboard/ime/nlp/latin/LatinLanguageProvider.kt	M	326	user dictionary / File / SystemClock; dictionary/provider selection, caches and load/error state |
 app/src/main/kotlin/dev/patrickgold/florisboard/ime/onehanded/OneHandedMode.kt	P	5	portable OneHandedMode domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
 app/src/main/kotlin/dev/patrickgold/florisboard/ime/onehanded/OneHandedPanel.kt	K	89	Compose keyboard (keyboard scope): deleted at compose-removal step K
 app/src/main/kotlin/dev/patrickgold/florisboard/ime/popup/ExtendedPopup.kt	A	34	ART JNI; native model/geometry/plan projection only, no independent domain choice |
