@@ -3,6 +3,8 @@ package com.jtn0123.audiowhisper.dictation
 import android.app.Activity
 import android.app.Instrumentation
 import android.os.Bundle
+import com.jtn0123.audiowhisper.golden.DeviceGoldens
+import com.jtn0123.audiowhisper.golden.GoldenTape
 import com.jtn0123.audiowhisper.rust.MicRules
 import com.jtn0123.audiowhisper.rust.SherpaAsr
 import com.jtn0123.audiowhisper.rust.SherpaVad
@@ -15,8 +17,16 @@ import java.security.MessageDigest
 import org.json.JSONArray
 import org.json.JSONObject
 
-/** Test APK only. The report contains hashes/counts/sample positions and monotonic timestamps. */
+/**
+ * Test APK only. The report contains hashes/counts/sample positions and monotonic timestamps. Each
+ * fixture's WAV and the reference's answers for it, by their digests, are recorded on the golden
+ * tape [TAPE]-N (docs/phase6-kotlin-references.md).
+ */
 class DictationInstrumentation : Instrumentation() {
+    companion object {
+        const val TAPE = "dictation-fixture"
+    }
+
     private lateinit var options: Bundle
     override fun onCreate(arguments: Bundle?) { super.onCreate(arguments); options = arguments ?: Bundle(); start() }
     private fun hash(text: String) = hash(text.toByteArray(Charsets.UTF_8))
@@ -102,6 +112,7 @@ class DictationInstrumentation : Instrumentation() {
             val files = if (options.getString("reuse") == "true") scratch.listFiles()!!.sortedBy { it.name }
                 else DictationAudioFixtures.create(targetContext, scratch)
             val records = JSONArray()
+            val goldens = DeviceGoldens(this, options)
             for ((index, file) in files.withIndex()) {
                 sendStatus(0, Bundle().apply { putInt("fixture", index); putLong("start_ns", System.nanoTime()) })
                 val samples = if (nativeOnly) {
@@ -122,7 +133,11 @@ class DictationInstrumentation : Instrumentation() {
                     check(old.first.getJSONArray("segments").length() > 0 && old.first.getJSONArray("previews").length() > 0) { "Speech fixture did not exercise segmentation and preview" }
                 }
                 if (index == 5) check(old.first.getJSONArray("flush").length() > 0) { "Clipped fixture did not exercise final flush" }
-                records.put(JSONObject().put("fixture", index).put("wav_sha256", hash(Files.readAllBytes(file.toPath())))
+                val wav = hash(Files.readAllBytes(file.toPath()))
+                GoldenTape.ofReference("$TAPE-$index", goldens).apply {
+                    answer("wav", wav); answer("samples", samples.size); answer("parity", old.first); finish()
+                }
+                records.put(JSONObject().put("fixture", index).put("wav_sha256", wav)
                     .put("samples", samples.size).put("parity", native.first))
             }
             val production = ProductionListenerComparison.run(targetContext, files.first(), records.getJSONObject(0).getJSONObject("parity"))

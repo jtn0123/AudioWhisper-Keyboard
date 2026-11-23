@@ -12,7 +12,10 @@ import java.io.File
 import kotlin.math.min
 import kotlin.random.Random
 
-/** Never opens AudioRecord or AudioTrack. Pocket output goes straight to private scratch WAVs. */
+/**
+ * Never opens AudioRecord or AudioTrack. Pocket output goes straight to private scratch WAVs,
+ * seeded so that every run makes the same ones (the goldens record their digests).
+ */
 internal object DictationAudioFixtures {
     fun create(context: Context, directory: File): List<File> {
         directory.mkdirs()
@@ -24,7 +27,8 @@ internal object DictationAudioFixtures {
         val tts = OfflineTts(config = OfflineTtsConfig(model = OfflineTtsModelConfig(pocket = pocket, numThreads = 4)))
         val generated = try {
             val reference = WaveReader.readWave(path("loona.wav"))
-            val config = GenerationConfig(referenceAudio = reference.samples, referenceSampleRate = reference.sampleRate)
+            val config = GenerationConfig(referenceAudio = reference.samples, referenceSampleRate = reference.sampleRate,
+                extra = mapOf("seed" to "42"))
             tts.generateWithConfig("A quiet river winds past the garden. The blue boat waits beside the bridge.", config)
         } finally { tts.release() }
         // Fixed linear resampling is fixture preparation; both ASR paths read the same saved WAV.

@@ -53,7 +53,7 @@ FAMILIES = {
     'tts': Family('ttsFixture', 'com.jtn0123.audiowhisper.reader.TtsInstrumentation',
                   ('-e', 'stress', 'false', '-e', 'timings', 'false'), 'tts_complete=true'),
     'dictation': Family('dictationFixture', 'com.jtn0123.audiowhisper.dictation.DictationInstrumentation',
-                        ('-e', 'reuse', 'true', '-e', 'timings', 'false'), 'dictation_complete=true'),
+                        ('-e', 'timings', 'false'), 'dictation_complete=true'),
 }
 
 

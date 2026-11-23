@@ -1,0 +1,6 @@
+# dictation-fixture-1: the answers the frozen Kotlin reference gave (docs/phase6-kotlin-references.md).
+# Their count, the digest after the last, and after each power of two (at N).
+count 3
+digest e3472a3f5c7bf858
+at 1 2632e99ed2f3d6c4
+at 2 d9d9e0c8c6748364
