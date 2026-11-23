@@ -1,0 +1,6 @@
+# a1-rejected-tap: the answers the frozen Kotlin reference gave (docs/phase6-kotlin-references.md).
+# Their count, the digest after the last, and after each power of two (at N).
+count 2
+digest 90befa6edb588fa6
+at 1 e11f66ec0b35eea7
+at 2 90befa6edb588fa6

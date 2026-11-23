@@ -46,8 +46,10 @@ CASES = {
          'blocks.windows(length).rposition(|it| it == anchor)', 'blocks.windows(length).position(|it| it == anchor)'),
     ],
     'a1': [
-        ('modest-threshold-raised', 'lib/rust/crates/suggest/src/auto_correction.rs',
-         'pub const MODEST_THRESHOLD: f32 = 0.185;', 'pub const MODEST_THRESHOLD: f32 = 0.5;'),
+        # The native session's own (latin-mutations.py has it too): the reference engine, the AOSP
+        # glue, never runs it, so the reference comparison on the JVM can see it as well.
+        ('session-weight-given-not-chosen', 'lib/rust/crates/suggest/src/session.rs',
+         'self.output.weight = -1.0;\n        let options', 'self.output.weight = 0.5;\n        let options'),
     ],
     'tts': [
         ('fewer-flow-steps', 'lib/rust/crates/sherpa-ffi/src/tts.rs', 'num_steps: 5,', 'num_steps: 4,'),
@@ -63,6 +65,7 @@ ACCEPTED = {
 # JVM tests comparing the same reference, by family (app's unit tests).
 JVM_TESTS = {
     'extension': ('dev.patrickgold.florisboard.lib.ext.ExtensionMaintainerMatchTest',),
+    'a1': ('com.jtn0123.audiowhisper.suggest.A1SessionMatchTest',),
 }
 JVM_RESULTS = ROOT / 'app/build/test-results/testDebugUnitTest'
 

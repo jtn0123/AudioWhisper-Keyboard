@@ -50,6 +50,8 @@ public final class A1Instrumentation extends Instrumentation {
             kotlin.Pair<String, String> hashes = A1Replay.INSTANCE.capture(dictionary, output, false);
             result.putString("decoder_sha256", hashes.getFirst());
             result.putString("pipeline_sha256", hashes.getSecond());
+            // The host's reference wrote these goldens: its AOSP engine glue is not built for Android.
+            A1Replay.INSTANCE.record(output, "main_en-US", name -> GoldenTape.Companion.invoke(name, goldens));
             if (only == null) result.putLong("extension_maintainer_checks", dev.patrickgold.florisboard.lib.ext.ExtensionDeviceReplay.INSTANCE.run(goldens));
             dictionary.delete();
             instrumentation.finish(Activity.RESULT_OK, result);

@@ -230,6 +230,10 @@ android {
         sourceSets.getByName("debug").manifest.srcFile("src/settingsFixture/AndroidManifest.xml")
     }
     sourceSets.getByName("androidTest").kotlin.directories.add("src/test/kotlin/com/jtn0123/audiowhisper/suggest/a1")
+    // The shipped dictionary's A1 goldens, which the host's A1SessionMatchTest and the device's
+    // A1Instrumentation both check. The reference that wrote them runs on the host only.
+    sourceSets.getByName("test").resources.directories.add("src/test/a1-goldens")
+    sourceSets.getByName("androidTest").assets.directories.add("src/test/a1-goldens")
     sourceSets.getByName("androidTest").kotlin.directories.add("src/test/kotlin/dev/patrickgold/florisboard/lib/ext/replay")
     sourceSets.getByName("androidTest").kotlin.directories.add("src/test/kotlin/com/jtn0123/audiowhisper/stores/shared")
     sourceSets.getByName("androidTest").java.directories.add("src/test/java/com/android/inputmethod")

@@ -1,0 +1,18 @@
+# a1-decoder-main_en-US: the answers the frozen Kotlin reference gave (docs/phase6-kotlin-references.md).
+# Their count, the digest after the last, and after each power of two (at N).
+count 12000
+digest c2c78ed78126a929
+at 1 b74abd92ea7732af
+at 2 cee41c9b155ba59d
+at 4 f71309fc72a263a4
+at 8 dffa69ee8908238e
+at 16 1d74c49a5d52de18
+at 32 7777161d44dadd87
+at 64 ff4c621b96a01b51
+at 128 50d4d865ed6768a2
+at 256 73be3e8ae127a83b
+at 512 4a06d4e50885070f
+at 1024 e8c35b18dc70830f
+at 2048 0582b4d4b94bdc45
+at 4096 9590f5086fb127fa
+at 8192 81ad2ed9823f95b6

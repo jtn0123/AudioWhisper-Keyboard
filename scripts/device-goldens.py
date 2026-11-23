@@ -57,6 +57,15 @@ FAMILIES = {
 }
 
 
+# Families whose reference cannot run on a device, so their goldens are written on the host and the
+# device only checks them; how to write them.
+HOST_WRITTEN = {
+    'a1': "the reference's AOSP engine glue is host-only. Write them with REFERENCE_GOLDEN=write ./gradlew "
+          ":app:testDebugUnitTest --rerun --tests '*A1SessionMatchTest' at the a1 generator commit, then move "
+          "a1-*-main_en-US.txt from app/src/test/resources/golden to app/src/test/a1-goldens/golden",
+}
+
+
 def serial():
     value = os.environ.get('ANDROID_SERIAL', '')
     assert value and value != 'emulator-5554', 'set ANDROID_SERIAL to an emulator of your own, never emulator-5554'
@@ -138,6 +147,7 @@ def summary(text):
 
 
 def write(output, family_name):
+    assert family_name not in HOST_WRITTEN, f'{family_name} goldens are written on the host: {HOST_WRITTEN[family_name]}'
     family = FAMILIES[family_name]
     build(output, family, 'write')
     adb('exec-out', 'run-as', PKG, 'rm', '-rf', 'files/golden')

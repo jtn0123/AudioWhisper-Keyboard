@@ -1,6 +1,7 @@
 package com.jtn0123.audiowhisper.suggest
 
 import com.android.inputmethod.latin.DicTraverseSession
+import com.jtn0123.audiowhisper.golden.GoldenTape
 import java.io.File
 import java.security.MessageDigest
 import kotlin.random.Random
@@ -81,6 +82,20 @@ object A1Replay {
             return digest(decoderFile) to digest(pipelineFile)
         } finally {
             (engine as java.io.Closeable).close()
+        }
+    }
+
+    /**
+     * Records each line [capture] wrote to [output] on the golden tapes `a1-decoder-[name]` and
+     * `a1-pipeline-[name]`, made by [tape], one answer a line, and finishes them
+     * (docs/phase6-kotlin-references.md). The shipped dictionary's are written on the host, by the
+     * reference, and checked there and on a device: the reference's AOSP engine glue is host-only.
+     */
+    fun record(output: File, name: String, tape: (String) -> GoldenTape) {
+        for (part in listOf("decoder", "pipeline")) {
+            val answers = tape("a1-$part-$name")
+            File(output, "$part.txt").useLines { lines -> lines.forEach { answers.record(it) } }
+            answers.finish()
         }
     }
 
