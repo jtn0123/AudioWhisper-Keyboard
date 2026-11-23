@@ -1659,6 +1659,7 @@ see lib/rust, so groups it calls with are generated there, with its own internal
                             # rustfmt --check, and rustdoc with warnings as errors
 ./gradlew test              # every JVM test, including those that go through JNI
 ./gradlew :app:checkNativeDeclarations   # the debug APK's JNI exports and types against the Kotlin
+./gradlew :app:checkMutationCases        # every mutation script's cases still apply
 ```
 
 `:app:checkNativeDeclarations` (`scripts/native-declarations-check.py`, also run by
@@ -1688,6 +1689,19 @@ awnative's release build script doesn't). The last five spell one JNI type diffe
 generated Rust only, which still compiles, since every JNI reference type is an alias of
 `jobject`. `cargo test -p boundary` checks that the generator writes the same files every time,
 laid out as rustfmt would.
+
+`:app:checkMutationCases` (`scripts/mutation_cases.py`) checks, in well under a second and
+without building or changing anything, that every case of every `scripts/*-mutation*.py` still
+applies, the cases under `phase6_mutation_cases/` and `settings_ui_mutation_cases/` included: each
+file a case edits exists, and each search text occurs as often as the case expects (once, unless it
+says otherwise), found in turn as the script applies them. A case whose line has moved would
+otherwise stop its script's full run at that case. Each script builds its cases as `Edit`s in
+`check_edits()`, from the tables its run reads, and calls `mutation_cases.check_flag()` first, so
+`python3 -I scripts/X-mutations.py --check` checks one script. A new mutation script does the same,
+or the check fails it. A case known to be stale goes in the script's `STALE`, with why and who is
+fixing it; the check fails on a `STALE` case that applies again and on a `STALE` name that is no
+case, so the list can neither hide a new failure nor outlive the fix. The check says only that a
+case can be applied; whether the tests catch it takes a run of the script.
 
 Or, from `lib/rust`, plain `cargo test --workspace`, `cargo clippy --workspace --all-targets --
 -D warnings`, `cargo fmt` and `RUSTDOCFLAGS='-D warnings' cargo doc --workspace --no-deps`. CI also runs `cargo audit` there, against RustSec's advisories.

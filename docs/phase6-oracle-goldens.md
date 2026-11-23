@@ -360,6 +360,6 @@ The rest of the gate, before (the baseline gate, at the generator commit) and af
   [above](#the-generator-commit), because the C++ is gone. Once the decoder is meant to differ
   from LatinIME, they come from the Rust itself after review
   ([decision](decisions.md#latinimes-c-answers-are-kept-as-digests-on-both-dictionaries-2026-11-21)).
-* `scripts/latin-mutations.py`, like the other mutation scripts, has no `--check` mode to catch
-  a case whose line has been renamed. The
-  [existing item](owed-checks.md#not-device-checks-but-still-owed) covers it.
+* `scripts/latin-mutations.py`, like the other mutation scripts, had no `--check` mode to catch
+  a case whose line has been renamed. It has one now, and `:app:checkMutationCases` runs it in
+  the gate ([rust.md, checks](rust.md#checks)).

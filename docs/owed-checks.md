@@ -137,8 +137,7 @@ These need no device. They are listed so they are not lost.
 * A Merge restore cannot bring back a setting left at its default, because the backup does not hold it. ([stage4-backup-restore, owed](stage4-backup-restore.md#owed))
 * A ZIP missing its folder entries reads as unreadable, in Restore and extension import. ([stage4-backup-restore, owed](stage4-backup-restore.md#owed))
 * Restore runs on the main thread, as Compose's did. ([stage4-backup-restore, owed](stage4-backup-restore.md#owed))
-* `typing-plan-mutations.py` stops at `key-label-dropped`, and `disabled-keys-enabled` after it matches nothing either: both name lines of `RendererSmartbar.kt` that `c66e98a04` replaced when the renderer's keys came from the Rust key graph. They are the render path's to point at today's lines. Found while moving two of its cases for `14cc68f54`, whose own cases were run by name. ([phase6-kotlin-references, what was found](phase6-kotlin-references.md#what-moved-and-what-was-found))
-* The mutation scripts have no check that each case still matches its source. A renamed line makes a case match nothing, which stops a full run (`predictive-cancel-commits` did, from b57a98bf0 until it was fixed; `dictation-mutations.py`'s `late-result` did from 9a269ccb2 until phase 6 found it; and `editor-mutations.py`'s first case did from 5725d2fed until phase 6's second branch found it). A `--check` mode in each script, run by the gate, would catch it at once.
+* `typing-plan-mutations.py` stops at `key-label-dropped`, and `disabled-keys-enabled` after it matches nothing either: both name lines of `RendererSmartbar.kt` that `c66e98a04` replaced when the renderer's keys came from the Rust key graph. They are the render path's to point at today's lines. Until then they are named in the script's `STALE`, which `:app:checkMutationCases` fails on once either applies again, so the fix must take them out. Found while moving two of its cases for `14cc68f54`, whose own cases were run by name. ([phase6-kotlin-references, what was found](phase6-kotlin-references.md#what-moved-and-what-was-found))
 * The project licence's horizontal scroll clamps at its ends, where Compose's `horizontalScroll` stretches. ([stage4-licences, where it differs from Compose](stage4-licences.md#where-it-differs-from-compose))
 * A project licence recreated twice before its text has been read saves the held horizontal scroll as zero, so the text reopens at its left edge. The wait is a few milliseconds. ([stage4-licences, the project licence screen](stage4-licences.md#the-project-licence-screen))
 * A hardware keyboard's Ctrl+C and Ctrl+A do nothing on the project licence's selection. ([stage4-licences, where it differs from Compose](stage4-licences.md#where-it-differs-from-compose))
@@ -163,6 +162,11 @@ These need no device. They are listed so they are not lost.
 ## Notes
 
 * This list has 4 confirm-on-the-phone items, 34 phone checks and 52 emulator checks.
+* The mutation scripts' missing check that each case still matches its source is closed.
+  `:app:checkMutationCases` (`scripts/mutation_cases.py`, in the gate and CI) checks every case of
+  every script, and each script takes `--check`. Its first run found 18 stale cases in 10 scripts;
+  16 now point at today's lines and were each caught in a real run, and typing-plan's two wait in
+  its `STALE` list for the render path ([rust.md, checks](rust.md#checks)).
 * The full-screen landscape clipping of a top-row key's popup and press bubble is closed. The
   plain-View root raises the keyboard's surface above the window's extract view while a finger
   is down or a popup is open, and the device check on emulator-5558 showed both whole
