@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.res.Configuration
 import android.content.res.Resources
 import android.graphics.Rect
+import android.os.SystemClock
 import android.util.Log
 import android.util.Size
 import android.view.MotionEvent
@@ -39,6 +40,8 @@ internal class ImeRootView(context: Context) : FrameLayout(context) {
     private val service = context as FlorisImeService
     private val reads = RootReads(service)
     private val watch = RootWatch(::rebuild)
+    private val holdEnd = Runnable { watch.request() }
+    private val hold = StripHold({ removeCallbacks(holdEnd); postDelayed(holdEnd, it) }, { removeCallbacks(holdEnd) })
     private val emoji = EmojiSource(reads, watch::request)
     private val gif = GifSource(reads)
     private val backdrop = ImeBackdrop(service)
@@ -202,7 +205,9 @@ internal class ImeRootView(context: Context) : FrameLayout(context) {
             if (search.active) it.copy(config = plan.copyOfRange(P.SIZE, plan.size), animating = false) else it
         }
         val panels = rendererPanels(reads, plan[P.PANEL].toInt(), emoji.read(), rendererClipboard(reads), gif.read())
-        val candidates = if (preview.isEmpty() && !search.active) reads.nlp.activeCandidatesFlow.value else emptyList()
+        val words = preview.isEmpty() && !search.active
+        val candidates = hold.words(if (words) reads.nlp.activeCandidatesFlow.value else emptyList(),
+            words && reads.nlp.activeCandidatesWordsFlow.value, SystemClock.uptimeMillis())
         val spacing = reads.prefs.keyboard
         return KeyboardSnapshot(keyboard, keyboard.keys, candidates, reads.theme(stateful = false), evaluator.state.inputShiftState.toString(),
             plan[P.KEYBOARD_PX], plan[P.STRIP_PX], plan[P.ROW_HEIGHT], spacing.keySpacingHorizontal.get() * reads.density,

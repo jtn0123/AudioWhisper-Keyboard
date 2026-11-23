@@ -12,6 +12,7 @@ import dev.patrickgold.florisboard.clipboardManager
 import dev.patrickgold.florisboard.editorInstance
 import dev.patrickgold.florisboard.ime.media.emoji.FlorisEmojiCompat
 import dev.patrickgold.florisboard.ime.nlp.NlpInlineAutofill
+import dev.patrickgold.florisboard.ime.nlp.SuggestionCandidate
 import dev.patrickgold.florisboard.ime.smartbar.quickaction.QuickAction
 import dev.patrickgold.florisboard.ime.smartbar.quickaction.displayNameRes
 import dev.patrickgold.florisboard.ime.smartbar.quickaction.tooltipRes
@@ -154,5 +155,38 @@ internal class RootWatch(private val rebuild: () -> Unit) : Choreographer.FrameC
         scope = null
         pending = false
         Choreographer.getInstance().removeFrameCallback(this)
+    }
+}
+
+/**
+ * How long the strip keeps drawing its words while their refill is due. In the CPU trials of
+ * 2026-11-23, on a loaded host, the strip stayed empty for at most 129 ms before the new words came.
+ */
+internal const val STRIP_HOLD_MS = 200L
+
+/**
+ * The words the strip draws across a refill. A key empties the row and Rust holds its place
+ * (`wordsShown`) until the new words come, milliseconds later. A frame drawn in between shows the
+ * row empty and then full: two changes for one key. While the refill is due the strip keeps the
+ * words it drew, for at most [STRIP_HOLD_MS], so a key changes it once. A tap on a kept word is
+ * refused, as on a frame drawn before the refill: the session dropped those words when the key
+ * emptied the row. [wake] asks for a rebuild in so many milliseconds, replacing any asked before;
+ * [cancel] withdraws it.
+ */
+internal class StripHold(private val wake: (Long) -> Unit, private val cancel: () -> Unit) {
+    private var drawn = emptyList<SuggestionCandidate>()
+    private var since = -1L
+
+    /** What the strip draws at [now] (ms) for Rust's [candidates], with [due] whether their refill is. */
+    fun words(candidates: List<SuggestionCandidate>, due: Boolean, now: Long): List<SuggestionCandidate> {
+        if (candidates.isEmpty() && due && drawn.isNotEmpty()) {
+            if (since < 0) since = now
+            val left = since + STRIP_HOLD_MS - now
+            if (left > 0) return drawn.also { wake(left) }
+        }
+        if (since >= 0) cancel()
+        since = -1
+        drawn = candidates
+        return candidates
     }
 }
