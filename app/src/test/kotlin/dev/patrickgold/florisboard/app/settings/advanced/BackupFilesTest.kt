@@ -65,12 +65,29 @@ class BackupFilesTest {
     }
 
     @Test fun aBackupIsTheArchiveComposeMadeUnderTheNameItGave() {
+        // The reference's archives also go on a golden tape, entries in name order
+        // (docs/phase6-kotlin-references.md).
+        val tape = GoldenTape.ofReference("backup-packs")
         for (mask in listOf(0b111111, 0b000111, 0b000001, 0b000110, 0b111000)) {
             val compose = composeArchive(filled(dir("c$mask/in"), mask), dir("c$mask/out"), metadata)
+            tape.answer("name $mask", compose.name)
+            tape.answer("entries $mask", entries(compose).toSortedMap())
             val ours = BackupFiles.pack(filled(dir("o$mask/in"), mask), dir("o$mask/out"), metadata)
             assertEquals(compose.name, ours.name)
             assertEquals(entries(compose), entries(ours), "mask $mask")
         }
+        tape.finish()
+    }
+
+    /** The tree Compose's restore unpacked from every backup, on a golden tape in path order. */
+    @Test fun everyComposeBackupUnpacksToTheTreeComposeUnpacked() {
+        val tape = GoldenTape.ofReference("backup-files-trees")
+        for (mask in 1..63) {
+            val archive = composeArchive(filled(dir("t$mask/in"), mask), dir("t$mask/out"), metadata)
+            val compose = dir("t$mask/compose").also { ReferenceZipUtils.unzip(archive, it) }
+            tape.answer("tree $mask", tree(compose).toSortedMap())
+        }
+        tape.finish()
     }
 
     /** Every selection Compose could back up reads back whole, unpacks to the tree Compose's

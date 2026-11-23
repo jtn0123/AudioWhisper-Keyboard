@@ -1,0 +1,24 @@
+# crash-traces: the answers the frozen Kotlin reference gave (docs/phase6-kotlin-references.md).
+# Their count, the digest after the last, and after each power of two (at N).
+count 575466
+digest 6e56521888e38eac
+at 1 48963d42f6e2f8d8
+at 2 a2bfaa61522cf55d
+at 4 502598b482e0d16f
+at 8 86c13092df19a993
+at 16 16b48e40b19d4bac
+at 32 5689bd565d594504
+at 64 aaa140cf8ebf5f7c
+at 128 69094521a0cf186f
+at 256 951b2e18a4544995
+at 512 19be2b220a8e139d
+at 1024 af331b9e14a99643
+at 2048 9de984d7fd98ea6c
+at 4096 751ec1a95c21ef21
+at 8192 afb8d2bc5c8c7442
+at 16384 ce087296733dad02
+at 32768 ea91d18e9faff6fb
+at 65536 b557def39f38abf1
+at 131072 c53849544276cb58
+at 262144 ad0cbf0a46b015fd
+at 524288 59c7b2f7685f28a1

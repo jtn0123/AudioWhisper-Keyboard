@@ -1,5 +1,6 @@
 package com.jtn0123.audiowhisper.settingsui
 
+import com.jtn0123.audiowhisper.golden.GoldenTape
 import com.jtn0123.audiowhisper.rust.*
 import dev.patrickgold.florisboard.ime.keyboard.KeyboardExtension
 import dev.patrickgold.florisboard.ime.nlp.LanguagePackExtension
@@ -71,6 +72,8 @@ class SettingsExtensionImportMatchTest {
         nodes(s).filter { it.text("id").toInt() in 321_000 + 1000 * f until 322_000 + 1000 * f }.map { it.text("label") }
 
     @Test fun eachFileShowsWhatComposeShowedAndImportImportsWhatComposeImported() {
+        // What Compose showed and imported also goes on a golden tape (docs/phase6-kotlin-references.md).
+        val tape = GoldenTape.ofReference("extension-import")
         repeat(40) {
             val files = List(1 + random.nextInt(5)) { file(it) }
             for ((type, id) in types) KeyboardRenderer(arrayOf(font)).use { n ->
@@ -83,9 +86,11 @@ class SettingsExtensionImportMatchTest {
                     assertEquals(head, labels[2])
                     val compose = composeSkip(info)
                     val shown = reasons[compose] ?: "R:other".takeIf { !takes[f] }
+                    tape.answer("shown $type $f", shown)
                     assertEquals(shown, labels.last().takeIf { it.startsWith("R:") }, "$type $f")
                 }
                 val imported = files.indices.filter { composeSkip(files[it]).isEmpty() && takes[it] }
+                tape.answer("imported $type", imported.joinToString(","))
                 val import = node(s, 1002)!!
                 assertEquals(imported.isNotEmpty().toString(), import.text("enabled"), type)
                 if (imported.isEmpty()) return@use
@@ -95,6 +100,7 @@ class SettingsExtensionImportMatchTest {
                 assertEquals(imported.joinToString(","), work[SettingsUiWork.TEXT])
             }
         }
+        tape.finish()
     }
 
     /** Compose's Import was on whenever one file passed getSkipReason, even when its type was not the importer's. */

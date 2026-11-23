@@ -1,0 +1,23 @@
+# extension-validations: the answers the frozen Kotlin reference gave (docs/phase6-kotlin-references.md).
+# Their count, the digest after the last, and after each power of two (at N).
+count 376658
+digest c7a871b6caa42d68
+at 1 e5bdaecd52b2cae3
+at 2 ff2c0d1dc2f07d5d
+at 4 6fd1433d743306f4
+at 8 78e955e3e811eb19
+at 16 0615a05205d97d4c
+at 32 de7e4467f20b9049
+at 64 2d4f02b131b70ab1
+at 128 8397669383dac101
+at 256 d9fac248f56b0da4
+at 512 106b870db46310d0
+at 1024 3cf5389167a6e281
+at 2048 30c3d0ca69e77cd0
+at 4096 14b754a619afba81
+at 8192 7ea8e260e9f92cd0
+at 16384 7b5a958789d31a81
+at 32768 bb8559f3aa827848
+at 65536 22af3f883527941c
+at 131072 04869f3de6fb48f9
+at 262144 08c4643eeb0e085b

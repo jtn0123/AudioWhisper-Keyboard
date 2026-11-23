@@ -1,0 +1,12 @@
+# extension-manifests: the answers the frozen Kotlin reference gave (docs/phase6-kotlin-references.md).
+# Their count, the digest after the last, and after each power of two (at N).
+count 155
+digest 4f734c5033b8e392
+at 1 86e296780d261823
+at 2 83dc8d57e3687768
+at 4 99a4405142a2f8a7
+at 8 0679da2ac93eacf4
+at 16 927688414cb2b36b
+at 32 156243efb5a16bb8
+at 64 a608f1e79725581f
+at 128 5f30ff868cfb6312

@@ -43,6 +43,13 @@ sourceSets.named("main") {
     )
 }
 
+// GoldenTape (docs/phase6-kotlin-references.md), compiled into these tests from its one file:
+// it is lib/rust's test fixture, and that is an Android library's, which this JVM module cannot
+// depend on.
+sourceSets.named("test") {
+    java.srcDir("../rust/src/testFixtures/test/kotlin/com/jtn0123/audiowhisper/golden")
+}
+
 tasks {
     compileKotlin {
         compilerOptions.jvmTarget = JvmTarget.JVM_11

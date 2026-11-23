@@ -1,0 +1,9 @@
+# extension-unzips: the answers the frozen Kotlin reference gave (docs/phase6-kotlin-references.md).
+# Their count, the digest after the last, and after each power of two (at N).
+count 29
+digest 1e12e705cbf35a3b
+at 1 bc80e0bcdf662a1c
+at 2 c106fcaeba794643
+at 4 4c4d1a4b06eedab8
+at 8 07fe22aa66e58fb5
+at 16 5f96ec5348d3ae6b

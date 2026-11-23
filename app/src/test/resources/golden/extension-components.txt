@@ -1,0 +1,18 @@
+# extension-components: the answers the frozen Kotlin reference gave (docs/phase6-kotlin-references.md).
+# Their count, the digest after the last, and after each power of two (at N).
+count 15005
+digest 94d377327b470b49
+at 1 0a2023f0f3c5dd85
+at 2 f2a12432946e8a4d
+at 4 13c7398be08bee3e
+at 8 9b8a850fe874ffd3
+at 16 652f6c25763c5c63
+at 32 466d73bfa544b425
+at 64 949051fef6f16018
+at 128 f66541e2e7e0abdc
+at 256 f207dcec38917fc5
+at 512 ce7ec23d27ffac0e
+at 1024 5bd8512e996a8003
+at 2048 accb42eaa228ad89
+at 4096 38e71f1335c6c884
+at 8192 1e6fd8d5a6d947f2

@@ -1,0 +1,18 @@
+# mime-filters: the answers the frozen Kotlin reference gave (docs/phase6-kotlin-references.md).
+# Their count, the digest after the last, and after each power of two (at N).
+count 13626
+digest ea4a3ff4e3a563cb
+at 1 bdb4aa3d7603ad9a
+at 2 7c0716a799711876
+at 4 bbe92e76f526be96
+at 8 9a273f3a69364876
+at 16 68cc516592e206b6
+at 32 a298d527651aa7f9
+at 64 2d44b547b63aca71
+at 128 ce5779a1c069bc4f
+at 256 09a0ff31ce5da14b
+at 512 3351f3d503773e4e
+at 1024 8275a486ec29bc9a
+at 2048 73ac304b3b069782
+at 4096 28fc7be95990bf73
+at 8192 47d0d0beab98578b

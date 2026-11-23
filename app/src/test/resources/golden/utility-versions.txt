@@ -1,0 +1,21 @@
+# utility-versions: the answers the frozen Kotlin reference gave (docs/phase6-kotlin-references.md).
+# Their count, the digest after the last, and after each power of two (at N).
+count 70024
+digest 33798225122440e6
+at 1 30b786f6bea6bdcc
+at 2 e265f181c9a491e0
+at 4 53cb5d5321927b71
+at 8 7401ee14a6ce9bf9
+at 16 4c13e11de74340ad
+at 32 330ede6d85193ad7
+at 64 149005d9eefb528f
+at 128 848d038ff60ba2eb
+at 256 a81858622b14f44c
+at 512 2b50118d9a98931c
+at 1024 8aa028f759df50ca
+at 2048 416dd1cccaca9bec
+at 4096 637e2f4d5fb49a96
+at 8192 746c6836cc2318c4
+at 16384 7f5a023e4e776baf
+at 32768 a0ff4cb28cd48e05
+at 65536 9ba7da53337e3e5e

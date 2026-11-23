@@ -1,0 +1,14 @@
+# extension-import: the answers the frozen Kotlin reference gave (docs/phase6-kotlin-references.md).
+# Their count, the digest after the last, and after each power of two (at N).
+count 648
+digest 3198a76becad6d31
+at 1 029809afc696e889
+at 2 e37ae574fd809059
+at 4 eaaa830edd48ebf3
+at 8 8e82103c8497be42
+at 16 9ef3a9f786978ed1
+at 32 26642ba477e6792f
+at 64 2a221e796b8adb56
+at 128 bad5b391af85cfa2
+at 256 9cdc9170f4e9bb42
+at 512 41f1293d61a165d7

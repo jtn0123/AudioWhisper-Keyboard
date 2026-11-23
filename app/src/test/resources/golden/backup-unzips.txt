@@ -1,0 +1,11 @@
+# backup-unzips: the answers the frozen Kotlin reference gave (docs/phase6-kotlin-references.md).
+# Their count, the digest after the last, and after each power of two (at N).
+count 67
+digest aee0b3280892338f
+at 1 fbb07874b2d5a8bc
+at 2 9f1ba795cdfead7b
+at 4 ea8ac0ca61b28dfe
+at 8 732acb9f63971c35
+at 16 5e15704d1152c33c
+at 32 082342d1b4935886
+at 64 1dede5b383365c67

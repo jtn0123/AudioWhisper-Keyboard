@@ -1,5 +1,6 @@
 package dev.patrickgold.florisboard.lib.crashutility
 
+import com.jtn0123.audiowhisper.golden.GoldenTape
 import com.jtn0123.audiowhisper.rust.CrashFact
 import com.jtn0123.audiowhisper.rust.CrashRules
 import kotlin.random.Random
@@ -86,8 +87,11 @@ class CrashTraceTest {
 
     @Test
     fun crashesMatchMain() {
+        // The reference's effects also go on a golden tape (docs/phase6-kotlin-references.md).
+        val tape = GoldenTape.ofReference("crash-traces")
         for (seed in SEEDS) {
             val main = trace(seed, reference = true)
+            main.forEach(tape::record)
             val new = trace(seed, reference = false)
             val first = main.indices.firstOrNull { it >= new.size || main[it] != new[it] }
             assertEquals(null, first, "seed $seed: first difference")
@@ -106,10 +110,12 @@ class CrashTraceTest {
             println("Crash trace seed $seed: $EVENTS events, ${main.size} effects, 0 differ, seen $seen")
             for ((kind, count) in seen) assertTrue(count >= MIN_SEEN, "seed $seed saw $kind $count times")
         }
+        tape.finish()
     }
 
     @Test
     fun reportsMatchMain() {
+        val tape = GoldenTape.ofReference("crash-reports")
         for (seed in SEEDS) {
             val random = Random(seed)
             var debug = 0
@@ -121,6 +127,7 @@ class CrashTraceTest {
                 )
                 val stacktraces = List(random.nextInt(0, 4)) { CrashUtility.Stacktrace(text(random), text(random)) }
                 val main = ReferenceCrash.report(facts, stacktraces)
+                tape.record(main)
                 val new = CrashRules.report(row(facts), facts.debug, stacktraces.map { it.name }.toTypedArray(),
                     stacktraces.map { it.details }.toTypedArray())
                 assertEquals(main.length, new.length, "seed $seed report $n: lengths")
@@ -131,6 +138,7 @@ class CrashTraceTest {
             println("Crash report trace seed $seed: $REPORTS reports, $debug debug, $traces stack traces, 0 differ")
             assertTrue(debug >= MIN_SEEN && REPORTS - debug >= MIN_SEEN && traces >= MIN_SEEN)
         }
+        tape.finish()
     }
 
     /** A report carries its inputs and fixed headings, nothing else: no text of the user's can join it. */

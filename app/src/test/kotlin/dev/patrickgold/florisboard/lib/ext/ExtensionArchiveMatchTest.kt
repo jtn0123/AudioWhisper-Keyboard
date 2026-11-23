@@ -1,5 +1,6 @@
 package dev.patrickgold.florisboard.lib.ext
 
+import com.jtn0123.audiowhisper.golden.GoldenTape
 import com.jtn0123.audiowhisper.rust.ExtensionPolicy
 import dev.patrickgold.florisboard.lib.io.ReferenceZipUtils
 import dev.patrickgold.florisboard.lib.io.ZipUtils
@@ -20,10 +21,17 @@ class ExtensionArchiveMatchTest {
     private fun tree(root: File) = root.walkTopDown().filter { it.isFile }.associate {
         it.relativeTo(root).path to MessageDigest.getInstance("SHA-256").digest(it.readBytes()).toList()
     }
-    private fun compare(zip: File, parent: File) {
+    /** [value] without the checkout's path, which a golden must not hold. */
+    private fun stable(value: Any?, root: File) = value.toString().replace(root.canonicalPath, "<root>")
+        .replace(root.absolutePath, "<root>").replace(root.path, "<root>")
+    private fun encoded(extension: Extension) = ExtensionJsonConfig.encodeToString(Extension.serializer(), extension)
+    private fun compare(zip: File, parent: File, root: File, tape: GoldenTape) {
         val reference = File(parent, "reference").apply { mkdirs() }
         val actual = File(parent, "actual").apply { mkdirs() }
-        assertEquals(outcome { ReferenceZipUtils.unzip(zip, reference) }, outcome { ZipUtils.unzip(zip, actual) })
+        val unzipped = outcome { ReferenceZipUtils.unzip(zip, reference) }
+        tape.answer("unzip", stable(unzipped, root))
+        tape.answer("tree", tree(reference).toSortedMap())
+        assertEquals(unzipped, outcome { ZipUtils.unzip(zip, actual) })
         assertEquals(tree(reference), tree(actual))
         assertFalse(File(parent, "escape.txt").exists())
     }
@@ -43,13 +51,18 @@ class ExtensionArchiveMatchTest {
             listOf("extension.json" to metadata, "extension.json" to metadata.replace("local.fixture", "local.last")),
             listOf("directory/" to "", "directory/../inside.txt" to "Inside", "literal\\..\\name.txt" to "Backslash"),
         )
+        // The reference's extraction also goes on a golden tape (docs/phase6-kotlin-references.md):
+        // each tree in path order, each message without the checkout's path, each manifest as encoded.
+        val tape = GoldenTape.ofReference("extension-unzips")
         for ((i, entries) in cohorts.withIndex()) {
             val parent = File(root, i.toString()).apply { mkdirs() }
             val zip = File(parent, "fixture.flex")
             zip.writeBytes(zip(entries))
-            compare(zip, parent)
+            compare(zip, parent, root, tape)
             val manifest = File(parent, "actual/extension.json")
             if (manifest.exists()) {
+                val decoded = runCatching { encoded(ReferenceExtensionPolicy.decode(manifest.readText())) }
+                tape.answer("manifest $i", stable(decoded.getOrElse { it.javaClass.name to it.message }, root))
                 assertEquals(outcome { ReferenceExtensionPolicy.decode(manifest.readText()) }, outcome { ExtensionCodec.decode(manifest.readText()) })
             }
         }
@@ -63,7 +76,8 @@ class ExtensionArchiveMatchTest {
             out.closeEntry()
         }
         val largeDir = File(root, "large").apply { mkdirs() }
-        compare(large, largeDir)
+        compare(large, largeDir, root, tape)
+        tape.finish()
         assertTrue(File(largeDir, "actual/large.bin").exists())
         assertEquals(0L, File(largeDir, "actual/large.bin").length())
     }
