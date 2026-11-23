@@ -286,8 +286,28 @@ mutate the Rust that holds that logic: a key action's label dropped in `smartbar
 `encode`, its key's enabled flag ignored in `decode_action`, and the left arrow drawn as the
 right one in `icons::smartbar_token`. Run by name with `listening-when-finishing`, the one
 Kotlin case left there, all 4 were caught (`SmartbarActionsMatchTest` caught each, the Rust
-smartbar tests caught the dropped label), and the restored source passed. All 41 cases match
-their source once, so a full run no longer stops at the first stale one.
+smartbar tests caught the dropped label), and the restored source passed, before the rebase
+onto 0f0b22d28 and again after it. All 41 cases apply, and the two that waited in the script's
+`STALE` list for this branch left it in the commit that repoints them.
+
+**The cases this branch's lines moved.** Main's `:app:checkMutationCases` found five more, and
+each now follows its line in the commit that moved it. Run by name, each was caught and each
+restored source passed (`build/repointed-0f0b/`):
+
+* `key-graph-mutations.py`'s `key-icon-on-every-action` and `key-icon-token-lost`: the key
+  icon token and the drawn token Rust picks from it in `smartbar_actions.rs`, where Kotlin's
+  `keyIcon` read it before. The Rust smartbar tests caught both, `SmartbarActionsMatchTest` the
+  lost token.
+* `settings-ui-mutations.py`'s `licence-not-monospace` (the project licence asks for
+  `Font::Mono` now) and `theme-code-described-icon-unspecified` (the key recorder sends a token
+  as text): `settings_ui_project_licence` and `SettingsThemeCodeMatchTest`.
+* `theme-subtype-mutations.py`'s `accent-not-sent`: the accent Rust is given, caught by the
+  theme traces.
+
+The four scripts this branch adds give `check_edits()` and take `--check`. Compose-free's
+`new-file-leaks` makes a file, so `mutation_cases.py` now reads an edit with no search text as
+making its file, which applies while the file does not exist (three unit tests). At every
+commit of the branch the check passes; at its head, 32 scripts and every case.
 
 ## Proof on the whole
 
