@@ -1,5 +1,6 @@
 package com.jtn0123.audiowhisper.settingsui
 
+import com.jtn0123.audiowhisper.golden.GoldenTape
 import com.jtn0123.audiowhisper.rust.*
 import dev.patrickgold.florisboard.app.settings.advanced.BackupFiles
 import dev.patrickgold.florisboard.ime.dictionary.RecordingUserDictionaryDao
@@ -19,6 +20,17 @@ internal fun sampleWords() = listOf(
     UserDictionaryEntry(1, "zorblat", 200, "en_US", null), UserDictionaryEntry(2, "Quexor", 120, "en-us", "qx"),
     UserDictionaryEntry(3, "blivet", 255, null, null), UserDictionaryEntry(4, "frobnic", 90, "de_DE", "fb"),
     UserDictionaryEntry(5, "snarf", 10, "all", null))
+
+/** What exportCombinedList wrote for [sampleWords] into document `document:12` at [now], frozen: in Room's row order,
+ * or with [system] in the provider's, by frequency. */
+internal fun frozenExport(system: Boolean, now: Long = 1_800_000_000_000) =
+    "dictionary=document:12;date=$now;generated-by=com.jtn0123.audiowhisper.keyboard;version=1\n" + if (system) {
+        " w=blivet;f=255;l=null\n w=zorblat;f=200;l=en_US\n w=Quexor;f=120;l=en-us;s=qx\n w=frobnic;f=90;l=de_DE;s=fb\n" +
+            " w=snarf;f=10;l=all\n"
+    } else {
+        " w=zorblat;f=200;l=en_US\n w=Quexor;f=120;l=en-us;s=qx\n w=blivet;f=255;l=null\n w=frobnic;f=90;l=de_DE;s=fb\n" +
+            " w=snarf;f=10;l=all\n"
+    }
 
 /** The user dictionary routes Rust draws, in the order it lists them: each dictionary's first screen, its words, and
  * its editor for a new word and for a stored one. */
@@ -91,6 +103,8 @@ class SettingsWordsMatchTest {
         val locales = listOf("", " ", "en_US", "en-us", " de-DE ", "all", "null", "iw", "zz_ZZ", "x", "de", "EN_us")
         val random = Random(1729)
         val counts = mutableMapOf<String, Int>()
+        // The reference's calls also go on a golden tape (docs/phase6-kotlin-references.md).
+        val tape = GoldenTape.ofReference("words-drafts")
         for (type in listOf(SettingsUiDictionary.FLORIS, SettingsUiDictionary.SYSTEM)) KeyboardRenderer(arrayOf(font)).use { n ->
             prepare(n, type, dao(type), "/word/add")
             val add = n.settings(SettingsUiOp.SAVE).drop(3).toTypedArray()
@@ -117,11 +131,14 @@ class SettingsWordsMatchTest {
                     stored == null -> listOf("insert" to entry)
                     else -> listOf("update" to entry)
                 }
+                tape.answer("calls", expected)
                 assertEquals(expected, dao.calls, "$type draft $it")
                 val outcome = listOf(invalid to "invalid", twice to "twice", threw to "threw").firstOrNull { o -> o.first }?.second ?: "written"
                 counts[outcome] = (counts[outcome] ?: 0) + 1
             }
         }
+        tape.finish()
+        println("User dictionary drafts: $counts")
         for (outcome in listOf("invalid", "twice", "threw", "written")) assertTrue((counts[outcome] ?: 0) >= 50, "$outcome: $counts")
     }
 
@@ -155,9 +172,12 @@ class SettingsWordsMatchTest {
         val old = StringWriter().also { Reference.exportCombinedList(dao(SettingsUiDictionary.FLORIS), it, "document:12", pkg, 1_800_000_000_000) }.toString()
         val varied = "header line, ignored\r\n W = zorblat ; F = 3 ; L = en-us\r\n word=novel;freq=9;locale=all;extra=x\n" +
             "w=novel;f=10;l=null;s=nv\n w=Quexor;f=255;l=en_US;shortcut=q2\n w=frobnic;f=1;l=de-DE"
+        assertEquals(frozenExport(system = false), old)
+        val tape = GoldenTape.ofReference("words-import")
         for (type in listOf(SettingsUiDictionary.FLORIS, SettingsUiDictionary.SYSTEM)) {
             for ((file, rows) in listOf(old to sampleWords(), old to emptyList(), varied to sampleWords())) {
                 val before = dao(type, rows).also { Reference.importCombinedList(it, StringReader(file)) }
+                tape.answer("calls", before.calls); tape.answer("rows", before.rows)
                 val after = dao(type, rows)
                 val s = import(type, after, file)
                 assertEquals(before.calls, after.calls, type)
@@ -166,6 +186,7 @@ class SettingsWordsMatchTest {
                     effects(s).filter { it[0] == SettingsUiFileEffect.TOAST }.map { it[1] })
             }
         }
+        tape.finish()
     }
 
     @Test fun anImportWithABadLineWritesNothingWhereComposeWroteTheLinesBeforeIt() {
@@ -195,6 +216,7 @@ class SettingsWordsMatchTest {
             val now = assertNotNull(Regex(";date=(\\d+);").find(written), "date").groupValues[1].toLong()
             assertTrue(now in before..System.currentTimeMillis())
             val expected = StringWriter().also { Reference.exportCombinedList(dao, it, "document:12", pkg, now) }.toString()
+            assertEquals(frozenExport(type == SettingsUiDictionary.SYSTEM, now), expected, type)
             assertEquals(expected, written, type)
             assertEquals(SettingsUiFileEffect.TOAST, effects(state(n, SettingsUiOp.FILES,
                 *BackupFiles.done(SettingsUiJob.WORDS_WRITE, SettingsUiJobResult.OK))).one("toast")[0])

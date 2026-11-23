@@ -1,0 +1,17 @@
+# words-drafts: the answers the frozen Kotlin reference gave (docs/phase6-kotlin-references.md).
+# Their count, the digest after the last, and after each power of two (at N).
+count 5000
+digest 7460a3c9ab32f6bf
+at 1 7d1ada27ad720d87
+at 2 5968a655f77fcb83
+at 4 c76a96bcafbd508b
+at 8 9be336c50ad5fb6e
+at 16 d329f2bee20871c2
+at 32 bce064b9c1840d2a
+at 64 d37f2e66da81e7d3
+at 128 e293b4c23592a0e5
+at 256 52ece1ab718b45d0
+at 512 100dc85391792c0b
+at 1024 f40a8c6a9152d228
+at 2048 5e72f49253024afc
+at 4096 123dc7bf4a4191e6

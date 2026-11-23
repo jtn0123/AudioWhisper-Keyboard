@@ -1,5 +1,6 @@
 package com.jtn0123.audiowhisper.settingsui
 
+import com.jtn0123.audiowhisper.golden.GoldenTape
 import com.jtn0123.audiowhisper.rust.*
 import dev.patrickgold.florisboard.ime.dictionary.RecordingUserDictionaryDao
 import dev.patrickgold.florisboard.ime.dictionary.ReferenceUserDictionary as Reference
@@ -22,6 +23,12 @@ class SettingsWordsTest {
         assertEquals("dictionary=document:12;date=1800000000000;generated-by=com.jtn0123.audiowhisper.keyboard;version=1\n" +
             " w=zorblat;f=200;l=en_US\n w=Quexor;f=120;l=en-us;s=qx\n w=blivet;f=255;l=null\n w=frobnic;f=90;l=de_DE;s=fb\n" +
             " w=snarf;f=10;l=all\n", written)
+        assertEquals(frozenExport(system = false), written)
+        val system = StringWriter().also {
+            Reference.exportCombinedList(RecordingUserDictionaryDao(sampleWords(), system = true), it, "document:12",
+                "com.jtn0123.audiowhisper.keyboard", 1_800_000_000_000)
+        }.toString()
+        assertEquals(frozenExport(system = true), system)
         // Kotlin writes the segment, `null` when the document has none, as StringBuilder.append(null) did.
         assertEquals("dictionary=null;date=1", exportText(null, ";date=1"))
     }
@@ -33,9 +40,13 @@ class SettingsWordsTest {
             assertEquals(tag, Reference.entry(0, "w", "1", "", " $typed ").locale)
             assertEquals(tag, normalized(UserDictionaryEntry(0, "w", 1, typed, null)).locale)
         }
+        // The reference's locales also go on a golden tape (docs/phase6-kotlin-references.md).
+        val tape = GoldenTape.ofReference("words-locales")
         for (typed in listOf("iw", "in_ID", "zz_ZZ", "x", "all", "null", "en_US_POSIX", "sr-Latn-RS", "de_DE_1996")) {
+            tape.answer("locale", Reference.entry(0, "w", "1", "", typed).locale)
             assertEquals(Reference.entry(0, "w", "1", "", typed).locale, normalized(UserDictionaryEntry(0, "w", 1, typed, null)).locale, typed)
         }
+        tape.finish()
         val dao = RecordingUserDictionaryDao()
         applyWordEffect(dao, SettingsUiWordEffect.ADD, listOf(UserDictionaryEntry(0, "w", 1, "en-us", "s")))
         applyWordEffect(dao, SettingsUiWordEffect.CHANGE, listOf(UserDictionaryEntry(1, "w", 2, null, null)))
@@ -90,6 +101,8 @@ class SettingsWordsTest {
         val before = RecordingUserDictionaryDao(sampleWords())
         Reference.importCombinedList(before, StringReader("h\n w=novel;f=3\n w=zorblat;f=9;l=en-us\n"))
         assertEquals(before.calls, dao.calls)
+        assertEquals(listOf("insert" to UserDictionaryEntry(0, "novel", 3, null, null),
+            "update" to UserDictionaryEntry(1, "zorblat", 9, "en-us", null)), before.calls)
         // A transaction that throws, as Room's rolls back, is reported failed.
         val failed = wordAnswer(p, RecordingUserDictionaryDao(sampleWords())) { error("rolled back") }
         assertEquals(SettingsUiWordOutcome.FAILED, failed[SettingsUiWord.LABEL])

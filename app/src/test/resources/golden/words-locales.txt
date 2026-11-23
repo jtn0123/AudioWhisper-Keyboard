@@ -1,0 +1,8 @@
+# words-locales: the answers the frozen Kotlin reference gave (docs/phase6-kotlin-references.md).
+# Their count, the digest after the last, and after each power of two (at N).
+count 9
+digest 2772d70f78c4e9b7
+at 1 b0b3d901f1d5cc29
+at 2 58849ac6fedca6fd
+at 4 319decaa784e4069
+at 8 7e7f88927e376623

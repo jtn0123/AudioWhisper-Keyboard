@@ -1,0 +1,8 @@
+# words-import: the answers the frozen Kotlin reference gave (docs/phase6-kotlin-references.md).
+# Their count, the digest after the last, and after each power of two (at N).
+count 12
+digest 90f4b8486bbc8965
+at 1 3f8903ed2fe0b16a
+at 2 3580734d67b16d47
+at 4 e590938a100f413f
+at 8 377266862d3b90e7
