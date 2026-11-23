@@ -1,5 +1,6 @@
 package com.jtn0123.audiowhisper.render
 
+import android.content.Context
 import android.view.WindowInsets
 import android.widget.FrameLayout
 import androidx.core.graphics.Insets
@@ -15,7 +16,8 @@ internal fun safeDrawing(insets: WindowInsets, view: android.view.View): Insets 
  * The subtype sheet over the whole input method window while the Rust renderer is on: a Rust
  * chrome view, there only while the keyboard's state shows the sheet, inside the safe area.
  */
-internal class ImeSubtypeSheet(private val service: FlorisImeService) : FrameLayout(service) {
+internal class ImeSubtypeSheet(context: Context) : FrameLayout(context) {
+    private val service = context as FlorisImeService
     private val reads = RootReads(service)
     private val watch = RootWatch(::rebuild)
     private var sheet: RustChromeView? = null

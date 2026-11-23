@@ -11,6 +11,7 @@ import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
 import android.view.SurfaceHolder
 import android.view.SurfaceView
+import androidx.core.graphics.createBitmap
 import com.jtn0123.audiowhisper.rust.ImeTheme
 import com.jtn0123.audiowhisper.rust.ImeThemeBackdrop as B
 import com.jtn0123.audiowhisper.rust.ImeThemeRule
@@ -150,7 +151,7 @@ internal class ImeBackdrop(context: Context) : SurfaceView(context), SurfaceHold
             if (w <= 0 || h <= 0) {
                 null
             } else {
-                val made = frame?.takeIf { it.width == w && it.height == h } ?: Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+                val made = frame?.takeIf { it.width == w && it.height == h } ?: createBitmap(w, h)
                 frame = made
                 made.eraseColor(0)
                 image.setBounds(0, 0, w, h)

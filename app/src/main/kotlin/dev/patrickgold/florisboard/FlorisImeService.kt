@@ -250,7 +250,7 @@ class FlorisImeService : LifecycleInputMethodService() {
         val defaultExtractView = super.onCreateExtractTextView()
         val rust = prefs.keyboard.rustRendererPrototype.get()
         if (defaultExtractView == null || defaultExtractView !is ViewGroup) {
-            return if (rust) ImeExtractView(this, ExtractEditText(this)) else ComposeExtractedLandscapeInputView(this, null)
+            return if (rust) ImeExtractView(this) else ComposeExtractedLandscapeInputView(this, null)
         }
         val extractEditText = defaultExtractView.findViewById<ExtractEditText>(android.R.id.inputExtractEditText)
         (extractEditText?.parent as? ViewGroup)?.removeView(extractEditText)

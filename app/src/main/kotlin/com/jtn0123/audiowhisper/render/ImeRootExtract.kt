@@ -1,5 +1,6 @@
 package com.jtn0123.audiowhisper.render
 
+import android.content.Context
 import android.inputmethodservice.ExtractEditText
 import android.view.Gravity
 import android.widget.FrameLayout
@@ -10,7 +11,9 @@ import dev.patrickgold.florisboard.FlorisImeService
  * The full-screen editor while the Rust renderer is on: Android's own [ExtractEditText], which
  * the input method protocol and accessibility need, inside a Rust chrome view with its action.
  */
-internal class ImeExtractView(private val service: FlorisImeService, editor: ExtractEditText) : FrameLayout(service) {
+internal class ImeExtractView @JvmOverloads constructor(context: Context, editor: ExtractEditText = ExtractEditText(context)) :
+    FrameLayout(context) {
+    private val service = context as FlorisImeService
     private val reads = RootReads(service)
     private val watch = RootWatch(::rebuild)
     private val view: RustExtractView

@@ -1,5 +1,6 @@
 package com.jtn0123.audiowhisper.render
 
+import android.content.Context
 import android.content.res.Configuration
 import android.content.res.Resources
 import android.graphics.Rect
@@ -39,7 +40,8 @@ private const val TRACE_TAG = "aw-profile"
  * the window and reads the settings; Rust plans where the background, the one-handed panels, the
  * keyboard and the inline autofill chips go (`ImeWindowRules.layout`), as Compose's root put them.
  */
-internal class ImeRootView(private val service: FlorisImeService) : FrameLayout(service) {
+internal class ImeRootView(context: Context) : FrameLayout(context) {
+    private val service = context as FlorisImeService
     private val reads = RootReads(service)
     private val watch = RootWatch(::rebuild)
     private val emoji = EmojiSource(reads, watch::request)
