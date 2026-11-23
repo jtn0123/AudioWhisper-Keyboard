@@ -80,6 +80,10 @@ internal class ImeRootView(context: Context) : FrameLayout(context) {
         service.updateSoftInputWindowLayoutParameters()
         // The keyboard's surface reaches above this view for popups; nothing above may clip it.
         generateSequence(parent as? ViewGroup) { it.parent as? ViewGroup }.forEach { it.clipChildren = false }
+        // Insets reach a view at the window's first traversal or when they change. A root swapped
+        // in on a window that already exists gets neither, so it reads them and asks again.
+        rootWindowInsets?.let { safe = safeDrawing(it, this) }
+        requestApplyInsets()
         // The first frame draws keys, as Compose's did: a snapshot before the first layout.
         rebuild()
     }

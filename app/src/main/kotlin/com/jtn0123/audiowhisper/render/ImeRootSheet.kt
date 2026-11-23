@@ -35,6 +35,9 @@ internal class ImeSubtypeSheet(context: Context) : FrameLayout(context) {
             reads.subtypes.subtypesFlow, reads.subtypes.activeSubtypeFlow) + listOf(reads.prefs.theme.accentColor,
             prefs.fontSizeMultiplierPortrait, prefs.fontSizeMultiplierLandscape, prefs.oneHandedModeEnabled,
             prefs.oneHandedModeScaleFactor).map { it.asFlow() })
+        // As the root's: a sheet swapped in on an existing window gets no insets unless it asks.
+        // It is never shown on its first frame, so the dispatch this asks for is soon enough.
+        requestApplyInsets()
         watch.request()
     }
 
