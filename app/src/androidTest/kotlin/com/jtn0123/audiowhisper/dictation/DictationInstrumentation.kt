@@ -3,6 +3,7 @@ package com.jtn0123.audiowhisper.dictation
 import android.app.Activity
 import android.app.Instrumentation
 import android.os.Bundle
+import com.jtn0123.audiowhisper.rust.MicRules
 import com.jtn0123.audiowhisper.rust.SherpaAsr
 import com.jtn0123.audiowhisper.rust.SherpaVad
 import com.k2fsa.sherpa.onnx.WaveReader
@@ -105,7 +106,7 @@ class DictationInstrumentation : Instrumentation() {
                 sendStatus(0, Bundle().apply { putInt("fixture", index); putLong("start_ns", System.nanoTime()) })
                 val samples = if (nativeOnly) {
                     check(hash(file.readBytes()) == oracle!!.getJSONArray("fixtures").getJSONObject(index).getString("wav_sha256"))
-                    MicAudio.Replay.pcm16(file.readBytes())
+                    MicRules.pcm16(file.readBytes())
                 } else WaveReader.readWave(file.path).also { check(it.sampleRate == 16_000) }.samples
                 val old = if (nativeOnly) oracle!!.getJSONArray("fixtures").getJSONObject(index)
                     .getJSONObject("parity") to JSONObject() else run(samples, true)
@@ -126,7 +127,7 @@ class DictationInstrumentation : Instrumentation() {
             }
             val production = ProductionListenerComparison.run(targetContext, files.first(), records.getJSONObject(0).getJSONObject("parity"))
             val timing = JSONArray()
-            val timed = if (nativeOnly) MicAudio.Replay.pcm16(files.first().readBytes())
+            val timed = if (nativeOnly) MicRules.pcm16(files.first().readBytes())
                 else WaveReader.readWave(files.first().path).samples
             repeat(if (options.getString("timings") == "false") 0 else 10) { trial ->
                 sendStatus(0, Bundle().apply { putInt("trial", trial); putLong("start_ns", System.nanoTime()) })

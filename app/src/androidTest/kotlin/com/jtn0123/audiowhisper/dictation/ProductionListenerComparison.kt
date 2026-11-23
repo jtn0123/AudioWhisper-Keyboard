@@ -1,6 +1,7 @@
 package com.jtn0123.audiowhisper.dictation
 
 import android.content.Context
+import com.jtn0123.audiowhisper.rust.MicRules
 import java.io.File
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
@@ -14,7 +15,7 @@ import org.json.JSONObject
 /** Exercises the real recorder executor and production VAD adapter with file replay only. */
 internal object ProductionListenerComparison {
     fun run(context: Context, wav: File, expected: JSONObject): JSONObject {
-        val samples = MicAudio.Replay.pcm16(wav.readBytes()).size
+        val samples = MicRules.pcm16(wav.readBytes()).size
         val chunks = CountDownLatch((samples+1599)/1600)
         val errors = AtomicInteger()
         val phrases = JSONArray(); val previews = JSONArray()
