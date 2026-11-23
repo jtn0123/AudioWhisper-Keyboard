@@ -68,6 +68,11 @@ android {
 dependencies {
     implementation(libs.kotlinx.coroutines)
     testImplementation(libs.kotlin.test.junit5)
+    // GoldenTape fails as kotlin.test does, with JUnit's AssertionFailedError, which the mutation
+    // scripts count as caught (docs/phase6-kotlin-references.md). Compile-only: every JVM test
+    // classpath has it already, and the androidTest APK, which never loads GoldenTape, stays
+    // without JUnit 5.
+    testFixturesCompileOnly(libs.kotlin.test.junit5)
 }
 
 /** Runs `cargo [args]` in the Rust workspace. */

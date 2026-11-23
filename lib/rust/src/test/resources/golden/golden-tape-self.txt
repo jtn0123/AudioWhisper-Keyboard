@@ -1,0 +1,7 @@
+# golden-tape-self: GoldenTapeTest's own tape, worked out apart from GoldenTape (FNV-1a in Python).
+# Answers "a0" to "a4", then the two parts "ab" and "c".
+count 6
+digest d01bb78e7199ba31
+at 1 5ef278416d19b06e
+at 2 ad9b79f7bcee43f0
+at 4 2f09124bd31c7d3d

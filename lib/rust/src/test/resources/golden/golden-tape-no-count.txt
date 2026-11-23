@@ -1,0 +1,2 @@
+# golden-tape-no-count: a golden file that lost its count line.
+digest d01bb78e7199ba31
