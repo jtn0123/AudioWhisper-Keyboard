@@ -8,7 +8,8 @@ UP stamped HOLD_MS later. For each kind of switch and each action, medians in ms
   which is where an injected event arrives;
 * injected to published: to InputDispatcher's publishMotionEvent on the keyboard's channel;
 * published to dispatched: to the keyboard's main thread dispatching it;
-* and, for the UP, dispatched to the keyboard's next Choreographer#doFrame.
+* and, for the UP, dispatched to the app vsync its frame ran on (SurfaceFlinger's VSYNC-app tick
+  at or before the keyboard's next Choreographer#doFrame), and that tick to the doFrame.
 
 The stamps are the touch times in the renderer's frame log (the first of each tap is its DOWN's);
 atrace's clock is the same on an emulator that has not slept. Needs ANDROID_SERIAL, AGENT_DEVICE,
@@ -32,6 +33,7 @@ KINDS, TAPS = ("mode", "subtype"), 10
 DEVICE_TRACE = "/data/local/tmp/aw-switch.atrace"
 # A slice's start: the task's thread id, the time in seconds, and the slice's name.
 SLICE = re.compile(r"^\s*.+?-(\d+)\s+(?:\(\s*[\d-]+\)\s+)?\[\d+\]\s+\S+\s+(\d+\.\d+): tracing_mark_write: B\|\d+\|(.*)$")
+VSYNC = re.compile(r"\s(\d+\.\d+): tracing_mark_write: C\|\d+\|VSYNC-app\|")
 TOUCH = re.compile(r"frame draw_ns=\d+ post_ns=\d+ touch_ns=(\d+)")
 # How far before a DOWN's stamp its events are looked for.
 EARLY_NS = 20_000_000
@@ -85,9 +87,12 @@ def mark(keyboard, name):
 
 def marks(path, pid):
     """The start times, in ns, of each kind of slice measured."""
-    found = {"injected": [], "frame": []}
+    found = {"injected": [], "frame": [], "vsync": []}
     with open(path, errors="replace") as trace:
         for line in trace:
+            tick = VSYNC.search(line)
+            if tick:
+                found["vsync"].append(round(float(tick.group(1)) * 1e9))
             match = SLICE.match(line)
             key = match and mark(int(match.group(1)) == pid, match.group(3))
             if key:
@@ -119,8 +124,10 @@ def waits(found, taps):
                                ("published to dispatched", published, dispatched)):
                 out.setdefault(f"{action} {name}", []).append((b - a) / 1e6)
             frame = after(found["frame"], dispatched) if action == "UP" else None
-            if frame:
-                out.setdefault("UP dispatched to the next doFrame", []).append((frame - dispatched) / 1e6)
+            vsync = frame and before(found["vsync"], frame)
+            if vsync and vsync >= dispatched:
+                out.setdefault("UP dispatched to its frame's vsync", []).append((vsync - dispatched) / 1e6)
+                out.setdefault("vsync to the doFrame", []).append((frame - vsync) / 1e6)
     return out
 
 
