@@ -427,19 +427,14 @@ renderer drew the window's background and image itself.
 
 ## What remains
 
-* **Icons are still Compose's.** The panels, the one-handed panel, the subtype sheet, the search
-  bar and the Smartbar take Material icons as `ImageVector`s and flatten them with Compose's
-  `PathParser` (`RendererIcons.iconPath`); the incognito watermark loads its drawable through
-  `vectorResource`. No composition is made, but `androidx.compose.ui` and
-  `material-icons` are still needed. The brief asked for icon tokens mapped to drawables; that was
-  not done here. Step K needs it.
-* **Other Compose types in the Rust path, none of them a composition:** `IntSize` and
-  `LayoutDirection` (`ImeRootView`), `mutableStateOf` (`FlorisImeService`), `Color` and `toArgb`
-  (`RendererTheme`, `ImeRootReads`), and the palette (`SnyggPalette`, made by materialkolor).
-* **Theme fonts.** A theme's own `font-family`, unpacked from its extension, is not drawn by the
-  Rust renderer, here or on main. Font scale and the size multiplier are.
+Since [the Compose-free render path](phase3-compose-free-path.md) (2026-11-23), the first three
+items this list held are done, and `RustKeyPreview.kt` is deleted: Rust holds every icon it
+draws and Kotlin sends a token or nothing; the root, the theme and the palette name no Compose
+type (Rust makes the Material You palette); and the renderer draws a theme's own `@font` files.
+`:app:checkComposeFreeRender` fails the gate if a class in `com.jtn0123.audiowhisper.render`
+names `androidx.compose` again. Left:
+
 * **Live inline autofill** is hosted (`ImeInlineChips` takes Android's views into the row Rust
   plans) but was not seen with a real autofill service: the emulator has none offering inline
   suggestions (E52 and P35).
-* `RustKeyPreview.kt` has no caller, here or on main.
 * What step K now needs is in [compose-removal step K](compose-removal.md#k-the-compose-keyboard).

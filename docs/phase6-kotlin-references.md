@@ -49,6 +49,11 @@ family, which were retired and which were left.
   `ReferenceSnyggTheme` resolves dynamic colours through Material 3's colour schemes, and
   `ReferenceSnyggAppearanceValue` holds the colour values named by `ColorPalette`. The palette
   code they guard is that branch's.
+* **After that branch** ([phase3-compose-free-path](phase3-compose-free-path.md)): it kept the
+  8 render and 2 palette references green without changing them, and added one more,
+  `aw/render/ReferenceSnyggPalette.kt` (18 lines): main's `snyggPalette`, verbatim, which
+  `PaletteMatchTest` holds Rust's palette to. Their hold ends with that branch; each can then be
+  retired the same way as the rest.
 * **The rest (125 files): retire.**
 
 | Family | File | Lines | Copy of | Frozen at | Tests that use it | Verdict |

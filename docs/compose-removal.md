@@ -423,16 +423,28 @@ its phone checks pass.
   view is plain Views and holds no composition. The Compose root (`FlorisImeUi`,
   `FlorisImeViews`, `TextInputLayout` and the Compose sheet and extract views) serves only the
   fallback now, so it goes whole with the `keyboard` scope, and `FlorisImeService` loses its
-  choice between the roots and the swap when the setting changes. Before Compose can leave the
-  build, the Rust path still has to drop these, none of which makes a composition:
-  * Material icons taken as `ImageVector`s and flattened by Compose's `PathParser`
-    (`RendererIcons.iconPath`, for the panels, the one-handed panel, the subtype sheet, the
-    search bar and the Smartbar), and the incognito drawable loaded by `vectorResource`: map the
-    icon tokens to drawables, or hold the paths in Rust;
-  * `IntSize` and `LayoutDirection` in `ImeRootView`, `mutableStateOf` in `FlorisImeService`,
-    `Color` and `toArgb` in `RendererTheme` and `ImeRootReads`;
-  * the palette, `SnyggPalette` from materialkolor (stage 5 package 2).
+  choice between the roots and the swap when the setting changes.
+* **Since [the Compose-free render path](phase3-compose-free-path.md)** (2026-11-23), no class in
+  `com.jtn0123.audiowhisper.render` names Compose, and `:app:checkComposeFreeRender` keeps it so
+  in the gate. Rust holds every icon the renderer draws and Kotlin sends a token or nothing; Rust
+  makes the Material You palette (`crates/palette`, bit-exact with materialkolor), so
+  `SnyggPalette` is deleted; the root reads StateFlows and `android.util.Size`, not Compose state
+  and units; and the renderer draws a theme's own fonts. Outside that package, the Rust path
+  still compiles against Compose, though none of it makes a composition:
+  * `KeyboardState.layoutDirection` (Compose's `LayoutDirection`, beside the root's `isRtl`) and
+    its `collectAsState` helpers, which the fallback reads;
+  * `SuggestionCandidate`'s `ImageVector` icons, beside the icon token Rust draws;
+  * `ThemeManager.preferredAccent`, which reads the accent setting, a Compose `Color`;
+  * the keyboard model the fallback shares: `FlorisRect` (its `center` is an `Offset`) and `Key`
+    (Compose state and an `ImageVector`);
+  * the Snygg value types the stylesheet is read into (`Dp`, shapes, `Color`);
+  * the Compose compiler plugin, which stamps every class of the app module with
+    `@StabilityInferred`, the one Compose name the check allows.
 
-After 12 and K, Compose itself can leave the build, except the Snygg host files the
-inventory keeps (`SnyggBox`, `SnyggSurfaceView`, `SnyggUi`, `SnyggPalette`), which stage 5
-package 2 replaces.
+  Deleting the `keyboard` scope takes away their fallback callers, not the Compose types.
+
+After 12 and K, Compose can leave the build once those types are replaced and the Snygg host
+files the inventory keeps (`SnyggBox`, `SnyggSurfaceView`, `SnyggUi`) are gone, which stage 5
+package 2 does. materialkolor goes with them: `SnyggUi`'s `materialYouScheme`, the app theme's
+colour scheme (`lib/color`'s `ColorMappings`) and the `MaterialYouFlags` enums the theme config
+stores are its last users.

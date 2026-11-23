@@ -984,3 +984,46 @@ compared on a device, and its golden would have to be written on one. **Would ch
 device run writes those goldens: then those copies retire the same way. Also if a Rust answer
 is meant to change: its golden is then written from the Rust itself, after review, and the
 record says so.
+
+## The keyboard's Material You palette is Rust's, matched to materialkolor on ART (2026-11-23)
+
+The Compose-free render path ([record](phase3-compose-free-path.md)) moved the keyboard's Material
+You palette from materialkolor, in Kotlin, to `crates/palette`. A scheme is floating-point
+arithmetic: the HCT solver, the tone curves and the contrast levels. Before "the same palette"
+means anything, the reference runtime has to be named.
+
+**The target is MaterialKolor 5.0.1 as main's keyboard ran it, on ART, to the bit.** Rust's own
+`powf`, `exp`, `cbrt`, `hypot`, `atan2`, `sin` and `cos` round differently from Java's in the
+last bit, often enough to move a tone. So the crate carries ports:
+
+* **`sin` and `cos`** are where Java runtimes part. ART's `Math` calls Android's libm (bionic),
+  whose `sin` and `cos` are fdlibm 5.3 as FreeBSD's msun revised it. `trig.rs` ports those C
+  files and evaluates them as Android builds them, with `-ffp-contract=off`, so nothing is
+  fused. Against the same files compiled that way, 276 million arguments gave no differing
+  result.
+* **`pow`, `exp`, `cbrt`, `hypot` and `atan2`** are fdlibm 5.3 ports, Java's `StrictMath`. On
+  ART they come from bionic too: Arm's optimized routines for `pow` and `exp`, FreeBSD's
+  revisions for the rest. Those can round a last bit differently from fdlibm, so they match by
+  measurement, not by construction.
+
+**Measured on both runtimes, every scheme exact:**
+
+* **ART:** `PaletteArtDiff` on emulator-5558 (Android 16, arm64), 1,000 seeded accents × 72 flag
+  sets × light and dark: 144,000 of 144,000 schemes exact.
+* **The desktop JVM** the gate runs (HotSpot, AArch64, JDK 24), whose `Math.sin` and `Math.cos`
+  are HotSpot's own intrinsic, not bionic's: `PaletteMatchTest`, 28,800 schemes on every gate
+  run, and 7,200,000 of 7,200,000 at 50,000 seeds.
+
+A last-bit difference reaches a colour only when it moves a rounded channel or the solver's
+choice of tone. None did in either run. The phone's own libm is still to be compared (P36).
+
+**Why ART:** main's keyboard made its palette there, on the phone. The gate can check the
+desktop JVM on every run, over any number of seeds, so the JVM stays the everyday check. It
+agrees with ART on every scheme measured.
+
+**Would change if** a difference on a device were visible (a channel off by more than one), or
+if a theme author reported a colour that changed from main. The function behind it would then
+be ported from bionic too, as `sin` and `cos` are.
+
+**Provenance.** `trig.rs` is a port of the FreeBSD msun C that bionic carries, under Sun's fdlibm
+notice, which the file and `crates/palette/NOTICE` keep.

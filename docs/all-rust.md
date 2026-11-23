@@ -270,9 +270,48 @@ Stage 5 packages 1–3, one event family at a time:
 * **The size.** Production Kotlin is 375 counted lines larger while both roots are in the build.
   That is well over the end state's 600 for the IME service, root, surface, touch and insets: the
   root's six files alone are 666.
-* **Not done.** Icons are still Compose `ImageVector`s, flattened to paths; theme fonts are not
-  drawn, as on main; live inline autofill was not seen on a device. Step K needs the first.
+* **Not done.** Icons were still Compose `ImageVector`s, flattened to paths, and theme fonts were
+  not drawn, as on main; the Compose-free render path, below, did both. Live inline autofill was
+  not seen on a device.
 * **Owed.** P35, E52 and E53.
+
+**After item 4: the Compose-free render path (2026-11-23)**
+([phase 3: the Compose-free render path](phase3-compose-free-path.md)).
+
+* **Icons.** Rust holds the 130 icons the renderer draws (`crates/icons`). It flattens them with
+  ports of Compose's `toPath`, Skia's path, hwui's `approximate(0.25)` and Kotlin's float
+  formatting. Kotlin sends a token or nothing. `RendererIcons`, `SettingsIcons` and
+  `RustKeyPreview` are deleted.
+* **The palette.** Rust makes the Material You scheme (`crates/palette`, a port of
+  material-color-utilities by way of MaterialKolor) for every style, contrast and spec, light and
+  dark, and `SnyggPalette` is deleted.
+* **No Compose state or type.** The root reads StateFlows, `android.util.Size` and
+  `KeyboardState.isRtl`.
+* **Theme fonts.** The renderer draws a theme's `@font` files through parley, then today's chain.
+* **The check.** `:app:checkComposeFreeRender` reads every compiled class in
+  `com.jtn0123.audiowhisper.render` and fails on any that names `androidx.compose`. It runs in the
+  gate, CI and the README's line.
+* **The proof.**
+  * **Icons:** all 130 icons (4,445 points) match what an Android device made through the old
+    `iconPath`, bit for bit; so do the 38 key tokens.
+  * **Palette:** 7,200,000 of 7,200,000 schemes match materialkolor on the JVM (50,000 accents ×
+    72 flag sets × light and dark). On the emulator's ART, 144,000 of 144,000
+    (1,000 accents).
+  * **Fonts:** a fixture font theme draws in its font, a theme without fonts is byte-identical,
+    and nine broken files fall back without a crash.
+  * **Mutations:** 27 of 27 font mutations and 10 of 10 check mutations are caught.
+  * **Probes:** the 300 presses and 8 popups type the same digests as main's build; "teh" and a
+    space commit "the "; reshow 16 of 16; the reading order unchanged. Main's build and the
+    branch's draw every panel with an icon identically on emulator-5558, by day and by night,
+    apart from live GIF results and caret blink.
+  * **CPU:** no change visible on a loaded host. The branch draws 36 to 38 more strip-only
+    frames for the same typing (E56).
+* **The size.** Production Kotlin 405 files and 31,783 counted lines, from main's 408 and
+  31,965: four files deleted, one added.
+* **Owed.** The whole path on the phone (P36); why the strip's intermediate list gets more frames
+  (E56); the 2 ms p95 on a quiet host (E28) and on the phone (P4). Step K
+  still has to take the Compose keyboard, Smartbar and root out of the app
+  ([phase3-compose-free-path](phase3-compose-free-path.md#what-remains)).
 
 ### 4. Settings (M–L, alongside 3)
 

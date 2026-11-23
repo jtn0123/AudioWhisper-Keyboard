@@ -577,6 +577,73 @@ at once outside full-screen), and E29's known cause is agent-device delivering t
 
 **Still owed.** The CPU gate on a quiet host (E28), and on the phone (P4).
 
+## The Compose-free render path (2026-11-23)
+
+[The Compose-free render path](phase3-compose-free-path.md) changes what the renderer is sent:
+icon tokens instead of flattened paths, a palette made in Rust, StateFlows instead of Compose
+state, and a theme's fonts. These trials compare its build (51a7be022; e75a095eb after it adds
+only an instrumented test) with main (4d3b5d3ae), each built in a worktree of its own:
+`cpu-trials.py --rust-only --trials 1`, alternating main and the branch three times each, on
+`aw_keyboard` (emulator-5558) with the Rust renderer, and with the settings the device had
+before this work restored. The folders are in `build/cpu-p95/compose-free/`.
+
+**Neither build met the 2 ms gate, and the branch is neither faster nor slower beyond noise.**
+This is not a pass: the host was loaded throughout.
+
+| Trial | Frames | p50 | p95 | p99 | Over 2 ms | CPU time p50 | CPU time p95 |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| main 1 (`main-1-b`) | 945 | 0.982 | 6.043 | 11.369 | 166 (17.6%) | 0.885 | 4.441 |
+| branch 1 (`branch-1`) | 981 | 0.986 | 6.147 | 11.650 | 177 (18.0%) | 0.880 | 4.974 |
+| main 2 (`main-2`) | 943 | 0.947 | 3.157 | 6.372 | 109 (11.6%) | 0.823 | 2.069 |
+| branch 2 (`branch-2-c`) | 981 | 0.949 | 2.665 | 5.468 | 77 (7.8%) | 0.847 | 1.582 |
+| main 3 (`main-3`) | 944 | 0.916 | 2.116 | 3.931 | 59 (6.2%) | 0.833 | 1.355 |
+| branch 3 (`branch-3`) | 983 | 0.927 | 2.269 | 3.731 | 67 (6.8%) | 0.831 | 1.326 |
+
+All six typed the expected text (`809d588b…`, 300 units, and `c14d19d2…`, 308 units, after the
+popups). Touch to post, p50 and p95 in ms: main 107.3 and 263.3, 102.8 and 247.6, 108.9 and
+260.8; the branch 100.3 and 269.7, 108.7 and 261.7, 103.0 and 248.1.
+
+* **The pairs track the host, not the build.** Each pair's p95s are close (6.043 and 6.147,
+  3.157 and 2.665, 2.116 and 2.269) and fall together as the load fell. The p50s are within
+  0.011 ms of each other in each pair. Touch to post is the same within its spread.
+* **By kind of frame,** counted from the frames' own flags in `rust-timing.log`, neither build
+  leads. The press and release frames' p95: main 5.754, 3.167 and 2.116 ms; the branch 7.000,
+  2.577 and 2.269. The strip-only frames' p95: main 6.121, 3.155 and 2.107; the branch 4.558,
+  2.670 and 2.287.
+* **The branch draws 36 to 38 more frames, all of them strip-only.** Its presses, releases,
+  popups and layout-cache misses match main's exactly: 308 press frames, 300 release frames,
+  16 popup frames, and 42 frames with 85 misses in every trial (main 2: 307 and 299). Its
+  strip-only frames number 357, 357 and 359, against main's 321, 321 and 320.
+  * The extra frames are intermediate lists. After most presses the strip's words change once.
+    After 49, 49 and 51 of the branch's presses they change twice, against 13, 14 and 12 of
+    main's: first a list drawn with fewer labels (a median of 20), then the final list (21 or
+    22), 28 to 44 ms apart at the median in both builds. Two branch trials shared only 11 of their 49 such presses, so it is timing,
+    not particular words.
+  * The branch does not touch the suggestion pipeline, so the lists are the same; the branch
+    shows the first one in a frame of its own more often. A likely cause, not traced: main's
+    snapshot flattened every Smartbar icon through Compose's `PathParser` on each rebuild, and
+    the branch sends tokens, so its main thread is freer to reach a frame between the two
+    lists. The first change comes 56 to 75 ms after the press on the branch at the median,
+    76.5 to 127 on main, which fits but overlaps too little to prove it (E56).
+  * Each strip frame paints the full-width strip, 99,666 pixels. The extra frames did not move
+    the branch's p95 beyond its pair's.
+* **Layout and shaping did not change:** the same 85 layout-cache misses in the same 42 frames.
+  The over-2 ms profile counted 12 shape-cache-miss frames on `branch-1` against 3 on
+  `main-1-b`, but that is only which of those same 42 frames crossed 2 ms.
+
+**Thrown out, folders kept.** Three trials typed 300 units with another digest (E29), each one or
+two keys typed as their long-press hints, and were run again at once: `main-1` (two keys),
+`branch-2` (one) and `branch-2-b` (two). `explain-digest.py` explains each typing digest. The
+order was main 1 (thrown out, then again), branch 1, main 2, branch 2 (thrown out twice, then
+again), main 3, branch 3. Their strip changes fit the rest: main 1 changed twice after 17
+presses, branch 2 after 51 and branch 2-b after 75.
+
+The host was loaded by other jobs. The kept trials' load averages ran from 8.3 to 12.5 at their
+starts and 7.8 to 12.5 at their ends.
+
+**Still owed.** The CPU gate on a quiet host (E28), and on the phone (P4); why the branch shows
+the intermediate strip list more often (E56).
+
 ## Reproducing
 
 ```bash
