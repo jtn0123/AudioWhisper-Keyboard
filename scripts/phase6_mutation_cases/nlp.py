@@ -8,6 +8,7 @@ EVENTS, STATE = NLP + 'TypingEvents.kt', NLP + 'NlpState.kt'
 MODULE = ':app'
 TARGETS = {
     'trace': ['*TypingTraceMatchTest'],
+    'tap': ['*StripTapTest', '*TypingTraceMatchTest'],
 }
 CASES = [
     # The typing plan: what each event counts, learns and teaches, and what it asks of Android.
@@ -50,4 +51,10 @@ CASES = [
      'if (false) event[NlpEvent.CANDIDATE] =', 'trace'),
     ('plan-not-published', STATE, 'if (WireFlag.decode(plan[NlpEventPlan.PUBLISH])) publish(',
      'if (false) publish(', 'trace'),
+    # A tap on a row the StateFlow kept from an equal list: refused again, or found by value, which
+    # takes the first of two equal words for the one tapped.
+    ('stale-tap-refused', STATE, 'shownIds.getOrNull(candidatesMutable.value.indexOfFirst { it === candidate })',
+     'shownIds.getOrNull(-1)', 'tap'),
+    ('stale-tap-by-value', STATE, 'candidatesMutable.value.indexOfFirst { it === candidate }',
+     'candidatesMutable.value.indexOfFirst { it == candidate }', 'tap'),
 ]

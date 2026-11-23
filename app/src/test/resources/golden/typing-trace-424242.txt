@@ -1,7 +1,7 @@
-# typing-trace-424242: the answers the frozen Kotlin reference gave (docs/phase6-kotlin-references.md).
+# typing-trace-424242: the answers with the strip-tap fix, rewritten from the Rust after review (docs/phase6-kotlin-references.md).
 # Their count, the digest after the last, and after each power of two (at N).
 count 400000
-digest 4f8e704f6179c7cb
+digest eb0af1c176574093
 at 1 ac91f0527f93e256
 at 2 b5ba59f1363e13a4
 at 4 ab4cf60914b73e40
@@ -18,6 +18,6 @@ at 4096 8c6db52ef65fa511
 at 8192 49f92a2d486bbbd6
 at 16384 2edde27774c837ad
 at 32768 d1c95be706e0803e
-at 65536 7e7627c9090ed120
-at 131072 90d5759eb18bb368
-at 262144 5667b216e8e158e5
+at 65536 4053195ec59de19b
+at 131072 b3047f32a175c21a
+at 262144 fce6139428214f3c

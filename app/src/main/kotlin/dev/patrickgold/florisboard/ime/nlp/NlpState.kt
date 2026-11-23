@@ -51,6 +51,8 @@ internal open class NlpSessionState {
     private var clips = emptyMap<String, SuggestionCandidate>()
     private var views = emptyMap<String, NlpInlineAutofillSuggestion>()
     private val candidatesMutable = MutableStateFlow<List<SuggestionCandidate>>(emptyList())
+    /** The ids of the row last published, in its order. */
+    private var shownIds = emptyList<String>()
     val candidates = candidatesMutable.asStateFlow()
     private val inlineMutable = MutableStateFlow<List<NlpInlineAutofillSuggestion>>(emptyList())
     val inline = inlineMutable.asStateFlow()
@@ -117,22 +119,32 @@ internal open class NlpSessionState {
      */
     @Synchronized fun event(stores: TypingStores, dictionary: LatinSession?, event: Array<String>, context: Array<String>,
                             candidate: SuggestionCandidate?): Array<String> {
-        if (candidate != null) event[NlpEvent.CANDIDATE] = (words + clips + automatic).entries.firstOrNull { it.value === candidate }?.key.orEmpty()
+        if (candidate != null) event[NlpEvent.CANDIDATE] = idOf(candidate)
         val plan = native.event(stores.learner, stores.store, stores.taps, stores.kept, dictionary, *event, *context)
         if (WireFlag.decode(plan[NlpEventPlan.PUBLISH])) publish(plan.copyOfRange(NlpEventPlan.SIZE, plan.size))
         return plan
     }
+    /**
+     * [candidate]'s id: the one at its place in the row the keyboard shows, else the id of the
+     * object itself, as an auto-correction is. The row is a StateFlow, which keeps its objects when an
+     * equal list is published; a tap on objects it has since replaced is refused, as on main, even
+     * when the new row shows the same word.
+     */
+    private fun idOf(candidate: SuggestionCandidate): String =
+        shownIds.getOrNull(candidatesMutable.value.indexOfFirst { it === candidate })
+            ?: (words + clips + automatic).entries.firstOrNull { it.value === candidate }?.key.orEmpty()
     /** An [NlpSnapshot] row, then the ids it counts. */
     private fun publish(snapshot: Array<String> = native.call(NlpOp.SNAPSHOT)) {
         val count = snapshot[NlpSnapshot.COUNT].toInt()
         var at = NlpSnapshot.SIZE
-        candidatesMutable.value = List(count) { (words + clips).getValue(snapshot[at++]) }
+        shownIds = List(count) { snapshot[at++] }
+        candidatesMutable.value = shownIds.map((words + clips)::getValue)
         val inlineCount = snapshot[at++].toInt()
         inlineMutable.value = List(inlineCount) { views.getValue(snapshot[at++]) }
         expanded.value = snapshot[NlpSnapshot.EXPANDED].toInt()
         wordsShownMutable.value = WireFlag.decode(native.call(NlpOp.WORDS)[0])
         // Bound retained Java objects after invalidation; in-flight results retain their own lists.
-        val visibleIds = snapshot.slice(NlpSnapshot.SIZE until NlpSnapshot.SIZE + count).toSet()
+        val visibleIds = shownIds.toSet()
         if (count == 0) words = emptyMap()
         clips = clips.filterKeys { it in visibleIds }
         if (inlineCount == 0) views = emptyMap()

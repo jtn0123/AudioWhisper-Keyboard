@@ -239,7 +239,8 @@ internal class TypingTrace(seed: Long, private val engine: LatinDictionaryEngine
     /**
      * A tap on the strip as the keyboard shows it, or on a word shown before. The row is a
      * StateFlow, which keeps the old objects when a list equal to them is published, so a tap can
-     * be on an object the session no longer holds, which it refuses, as main's did.
+     * be on an object the session no longer holds; it goes in by its place in the row, as a tap on
+     * a fresh row does (StripTapTest).
      */
     private fun pick(remove: Boolean) {
         val current = side.candidates

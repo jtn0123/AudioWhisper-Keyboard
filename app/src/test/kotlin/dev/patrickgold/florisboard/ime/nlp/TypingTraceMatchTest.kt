@@ -12,19 +12,20 @@ import kotlin.test.assertTrue
  * was asked to do (kept-word writes and save timers, in order), what went into the editor, the
  * Smartbar's row, every store, and what was written to disk go on a golden tape per seed, across
  * save timers that fire, saves lost when the process dies, and service recreation. The goldens
- * hold the records main's fan-out left on the same traces (docs/phase3-typing-fan-out.md,
- * docs/phase6-kotlin-references.md).
+ * held the records main's fan-out left on the same traces until the stale strip tap was fixed;
+ * they now hold the session's records with that fix, rewritten after review
+ * (docs/phase3-typing-fan-out.md, docs/phase6-kotlin-references.md).
  */
 class TypingTraceMatchTest {
     private fun engine(): LatinDictionaryEngine = TestDictionaries.shipped.let {
         requireNotNull(LatinDictionaryEngine.open(it.path, 0, it.length(), "en_US"))
     }
 
-    @Test fun theEventPlanLeavesMainsTrace() {
+    @Test fun theEventPlanLeavesTheReviewedTrace() {
         for (seed in SEEDS) {
             engine().use { engine ->
                 val trace = GoldenTape.check("typing-trace-$seed") { TypingTrace(seed, engine, it).apply { run(EVENTS) } }
-                println("Typing trace seed $seed: $EVENTS events as main's")
+                println("Typing trace seed $seed: $EVENTS events as reviewed")
                 println("  events ${trace.kinds}")
                 println("  effects ${trace.effects}")
                 println("  changed ${trace.changes}")
