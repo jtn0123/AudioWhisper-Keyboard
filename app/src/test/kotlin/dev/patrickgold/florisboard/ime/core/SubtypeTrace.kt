@@ -4,6 +4,7 @@ import dev.patrickgold.florisboard.ime.keyboard.CurrencySet
 import dev.patrickgold.florisboard.ime.keyboard.KeyboardMode
 import dev.patrickgold.florisboard.lib.ext.ExtensionComponentName
 import kotlin.random.Random
+import kotlin.test.assertEquals
 
 /**
  * A seeded trace of main's subtypes (frozen in ReferenceKeyboardSubtypes.kt) and the branch's
@@ -92,7 +93,7 @@ internal class SubtypeTrace(private val seed: Long) {
     /** Runs up to [tasks] tasks on each keyboard; the same number must have run on both. */
     private fun runTasks(tasks: Int): Int {
         val ran = main.dispatcher.run(tasks)
-        check(branch.dispatcher.run(tasks) == ran) { "seed $seed: the keyboards ran different numbers of tasks" }
+        assertEquals(ran, branch.dispatcher.run(tasks), "seed $seed: the keyboards ran different numbers of tasks")
         return ran
     }
 
