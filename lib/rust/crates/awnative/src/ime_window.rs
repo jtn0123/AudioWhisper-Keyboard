@@ -1,4 +1,5 @@
-//! What the keyboard's views must be told when Android shows the input method window again.
+//! What the keyboard's views must be told when Android shows the input method window again, and
+//! where the plain-View root puts them.
 //!
 //! Android's InputMethodService hides the keyboard in two steps. First (hideWindow) it tells the
 //! input view, not the window, that the window is gone: every SurfaceView inside gives up its
@@ -12,8 +13,15 @@
 //! visible, is told visible again. A window that really was hidden is not visible yet when it is
 //! shown; Android tells its views itself once it is, and they are left alone.
 
+use crate::jni::{Result, illegal};
+
 /// Android's View.VISIBLE.
 const VISIBLE: i32 = 0;
+
+/// Where the plain-View root puts everything for `facts` (`render::ime_root::layout`).
+pub fn layout(facts: &[f32]) -> Result<Vec<f32>> {
+    render::ime_root::layout(facts).ok_or_else(|| illegal("ime window facts"))
+}
 
 /// When the input method window is shown: whether the input view must be told again that its
 /// window is visible. `told` is the window visibility the view was last given (View.VISIBLE,

@@ -60,6 +60,7 @@ pub mod flag;
 pub mod gif;
 pub mod ime_subtype;
 pub mod ime_theme;
+pub mod ime_window;
 pub mod input;
 pub mod key_graph;
 pub mod nlp;
