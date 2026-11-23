@@ -198,15 +198,19 @@ mod tests {
     use super::{cos, sin};
 
     /// (x, sin x, cos x) as bits, from bionic's s_sin.c, s_cos.c, k_sin.c, k_cos.c and
-    /// e_rem_pio2.c compiled with `-ffp-contract=off`, one argument or more per branch.
-    const BIONIC: [(u64, u64, u64); 27] = [
+    /// e_rem_pio2.c compiled with `-ffp-contract=off`: one argument or more per branch, and
+    /// three the sweep below misses, which a moved cut-off for sin, a last bit off pio2_1t or
+    /// a skipped third reduction round would change.
+    const BIONIC: [(u64, u64, u64); 30] = [
         (0x3E112E0BE826D695, 0x3E112E0BE826D695, 0x3FF0000000000000), // 1e-9: below both tiny cut-offs
         (0x3E50000000000000, 0x3E50000000000000, 0x3FEFFFFFFFFFFFFF), // 2^-26: sin's cut-off, the kernel
+        (0x3E57137450D8F7C0, 0x3E57137450D8F7BF, 0x3FEFFFFFFFFFFFFE), // 2.1e-8: sin's kernel, not x
         (0x3E46A09E00000000, 0x3E46A09E00000000, 0x3FF0000000000000), // cos's cut-off, the kernel
         (0x3FE0000000000000, 0x3FDEAEE8744B05F0, 0x3FEC1528065B7D50), // 0.5: kernels only
         (0xBFE6666666666666, 0xBFE49D6E694619B8, 0x3FE87996529F9D93), // -0.7: kernels only
         (0x3FF0000000000000, 0x3FEAED548F090CEE, 0x3FE14A280FB5068C), // 1.0: x - pi/2
         (0xBFF3333333333333, 0xBFEDD343A21A55C4, 0x3FD730DE943B79D4), // -1.2: x + pi/2
+        (0x3FF921FAB0047BDD, 0x3FEFFFFFFFFFF96A, 0x3EA487F62768D1AB), // pi/2 - 6e-7: pio2_1t's last bit
         (0x4004000000000000, 0x3FE326AF0DCFCAB0, 0xBFE9A2F7EF858B7D), // 2.5: x - 2(pi/2)
         (0xC008000000000000, 0xBFC210386DB6D55B, 0xBFEFAE04BE85E5D2), // -3.0: x + 2(pi/2)
         (0x4012000000000000, 0xBFEF47ED3DC74080, 0xBFCAFB5B54583D6A), // 4.5: x - 3(pi/2)
@@ -222,6 +226,7 @@ mod tests {
         (0x4021333333333333, 0x3FE7802E57B4B12D, 0xBFE5B8131ACC20FB), // 8.6: medium, n = 5
         (0x401F6A7A2955385E, 0x3FF0000000000000, 0x3CB60FAFBFD97309), // 5pi/2: medium, second round
         (0x4059000000000000, 0xBFE03425B78C4DB8, 0x3FEB981DBF665FDF), // 100: medium
+        (0x40AB9328A0144CFA, 0xBFF0000000000000, 0xBCF3A565295ECF02), // 2247(pi/2): the third round
         (0x40F86A0000000000, 0x3FA24DAA9C527E96, 0xBFEFFAC3841B3DA7), // 1e5: medium
         (0x4136E36000000000, 0x3FE05A19F9BF8B6C, 0xBFEB81B10301DAB6), // 1.5e6: medium, near its end
         (0x0000000000000000, 0x0000000000000000, 0x3FF0000000000000), // +0
