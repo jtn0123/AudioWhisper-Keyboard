@@ -435,3 +435,20 @@ val checkJvmLedger = tasks.register<Exec>("checkJvmLedger") {
     commandLine("python3", "-I", "-B", "scripts/jvm-ledger.py", "--check")
 }
 tasks.named("check") { dependsOn(checkJvmLedger) }
+
+// Every mutation script's cases still apply at this commit: each file a case edits exists and each
+// search text is where the case expects it (scripts/mutation_cases.py). It reads the source only.
+val testMutationCases = tasks.register<Exec>("testMutationCases") {
+    group = "verification"
+    description = "Runs the mutation case check's own unit tests."
+    workingDir(rootDir)
+    commandLine("python3", "-I", "-B", "-m", "unittest", "discover", "-s", "scripts", "-p", "test_mutation_cases.py")
+}
+val checkMutationCases = tasks.register<Exec>("checkMutationCases") {
+    group = "verification"
+    description = "Rejects mutation cases whose lines have moved, and STALE entries that apply again."
+    dependsOn(testMutationCases)
+    workingDir(rootDir)
+    commandLine("python3", "-I", "-B", "scripts/mutation_cases.py")
+}
+tasks.named("check") { dependsOn(checkMutationCases) }

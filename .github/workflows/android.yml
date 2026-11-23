@@ -1,7 +1,7 @@
 name: AudioWhisper Keyboard CI
 
 # Runs the same checks as a local `./gradlew test :app:lintDebug :lib:rust:check
-# :app:checkNativeDeclarations :app:checkJvmLedger assembleDebug :app:compileDebugAndroidTestKotlin :app:compileDebugAndroidTestJavaWithJavac`: every JVM test
+# :app:checkNativeDeclarations :app:checkJvmLedger :app:checkMutationCases assembleDebug :app:compileDebugAndroidTestKotlin :app:compileDebugAndroidTestJavaWithJavac`: every JVM test
 # (including those that go through the Rust JNI under LatinIME's class names), Android lint, every
 # Rust crate's tests (the LatinIME port's against golden files of the C++'s answers), clippy with
 # warnings as errors (on the host and for Android, with and without the off-by-default GPU
@@ -87,7 +87,7 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
 
       - name: Test, lint and build
-        run: ./gradlew --stacktrace test :app:lintDebug :lib:rust:check :app:checkNativeDeclarations :app:checkJvmLedger assembleDebug :app:compileDebugAndroidTestKotlin :app:compileDebugAndroidTestJavaWithJavac
+        run: ./gradlew --stacktrace test :app:lintDebug :lib:rust:check :app:checkNativeDeclarations :app:checkJvmLedger :app:checkMutationCases assembleDebug :app:compileDebugAndroidTestKotlin :app:compileDebugAndroidTestJavaWithJavac
 
       - name: Upload lint and test reports
         if: failure()
