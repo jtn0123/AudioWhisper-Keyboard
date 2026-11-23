@@ -23,12 +23,17 @@ import android.content.ContentValues
 import android.content.Intent
 import android.content.UriMatcher
 import android.database.Cursor
+import android.database.MatrixCursor
 import android.net.Uri
 import android.os.ParcelFileDescriptor
+import android.provider.BaseColumns
 import android.provider.MediaStore
 import android.provider.OpenableColumns
 import androidx.exifinterface.media.ExifInterface
+import com.jtn0123.audiowhisper.rust.ClipboardStore
+import com.jtn0123.audiowhisper.rust.StoredFile
 import dev.patrickgold.florisboard.BuildConfig
+import dev.patrickgold.florisboard.lib.devtools.LogTopic
 import dev.patrickgold.florisboard.lib.devtools.flogError
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -36,17 +41,17 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import org.florisboard.lib.kotlin.tryOrNull
 import androidx.core.net.toUri
+import java.io.IOException
 
 /**
  * Allows apps to access images and videos on the clipboard.
  *
- * This is sometimes called by the UI thread, so all functions are non blocking.
- * Database accesses are performed async.
+ * The media files' records (name, size, orientation, MIME types) are kept by Rust in the clipboard's store
+ * ([ClipboardStoreFile]), which this asks for them; the files themselves are copied, opened and deleted here.
  */
 class ClipboardMediaProvider : ContentProvider() {
-    private var clipboardFilesDao: ClipboardFilesDao? = null
-    private val cachedFileInfos: HashMap<Long, ClipboardFileInfo> = hashMapOf()
     private val ioScope: CoroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    private val store: ClipboardStore get() = ClipboardStoreFile.get(context!!)
 
     companion object {
         const val AUTHORITY = "${BuildConfig.APPLICATION_ID}.provider.clipboard"
@@ -57,6 +62,10 @@ class ClipboardMediaProvider : ContentProvider() {
         private const val IMAGE_CLIPS_TABLE = 1
         private const val VIDEO_CLIP_ITEM = 2
         private const val VIDEO_CLIPS_TABLE = 3
+
+        /** A record's columns, as the Room table had them. */
+        private val FILE_COLUMNS = arrayOf(BaseColumns._ID, OpenableColumns.DISPLAY_NAME, OpenableColumns.SIZE,
+            MediaStore.Images.Media.ORIENTATION, "mimeTypes")
 
         private val Matcher = UriMatcher(UriMatcher.NO_MATCH).apply {
             addURI(AUTHORITY, "clips/images/#", IMAGE_CLIP_ITEM)
@@ -71,18 +80,12 @@ class ClipboardMediaProvider : ContentProvider() {
         const val MimeTypes = "mime_types"
     }
 
-    fun init() {
-        clipboardFilesDao = ClipboardFilesDatabase.new(context!!).clipboardFilesDao()
-
-        for (clipboardFileInfo in clipboardFilesDao?.getAll() ?: emptyList()) {
-            cachedFileInfos[clipboardFileInfo.id] = clipboardFileInfo
-        }
-    }
+    /** The record of the file [id], if the store has one. */
+    private fun record(id: Long): StoredFile? = store.fileRecords(id).firstOrNull()
 
     override fun onCreate(): Boolean {
-        ioScope.launch {
-            init()
-        }
+        // Opens the store before anything asks, moving main's Room databases into it the first time.
+        ioScope.launch { store }
         return true
     }
 
@@ -94,21 +97,17 @@ class ClipboardMediaProvider : ContentProvider() {
         sortOrder: String?
     ): Cursor? {
         val id = tryOrNull { ContentUris.parseId(uri) } ?: return null
-        if (projection != null) {
-            if (projection.contains(MediaStore.Images.Media.ORIENTATION)) {
-                clipboardFilesDao?.getCurserByIdWithColums(id, MediaStore.Images.Media.ORIENTATION)
-            } else {
-                //Return null if the projection query is invalid
-                return null
-            }
+        //Return null if the projection query is invalid
+        if (projection != null && !projection.contains(MediaStore.Images.Media.ORIENTATION)) return null
+        return MatrixCursor(FILE_COLUMNS).apply {
+            record(id)?.let { addRow(arrayOf<Any>(it.id, it.name, it.size, it.orientation, it.mimeTypes)) }
         }
-        return clipboardFilesDao?.getCursorById(id)
     }
 
     override fun getType(uri: Uri): String? {
         return when (Matcher.match(uri)) {
             IMAGE_CLIP_ITEM, VIDEO_CLIP_ITEM -> {
-                cachedFileInfos.getOrDefault(ContentUris.parseId(uri), null)?.mimeTypes?.getOrNull(0)
+                record(ContentUris.parseId(uri))?.mimeTypes?.split(",")?.getOrNull(0)
             }
             IMAGE_CLIPS_TABLE -> "${ContentResolver.CURSOR_DIR_BASE_TYPE}/vnd.florisboard.image_clip_table"
             VIDEO_CLIPS_TABLE -> "${ContentResolver.CURSOR_DIR_BASE_TYPE}/vnd.florisboard.video_clip_table"
@@ -119,7 +118,7 @@ class ClipboardMediaProvider : ContentProvider() {
     override fun getStreamTypes(uri: Uri, mimeTypeFilter: String): Array<String>? {
         return when (Matcher.match(uri)) {
             IMAGE_CLIP_ITEM, VIDEO_CLIP_ITEM -> {
-                cachedFileInfos.getOrDefault(ContentUris.parseId(uri), null)?.mimeTypes?.toTypedArray()
+                record(ContentUris.parseId(uri))?.mimeTypes?.split(",")?.toTypedArray()
             }
             else -> null
         }
@@ -155,11 +154,7 @@ class ClipboardMediaProvider : ContentProvider() {
                     val size = ClipboardFileStorage.getFileForId(context!!, id).length()
                     val mimeTypes = values.getAsString(Columns.MimeTypes).split(",")
                     val displayName = values.getAsString(OpenableColumns.DISPLAY_NAME)
-                    val fileInfo = ClipboardFileInfo(id, displayName, size, rotation, mimeTypes)
-                    cachedFileInfos[id] = fileInfo
-                    ioScope.launch {
-                        clipboardFilesDao?.insert(fileInfo)
-                    }
+                    store.addFile(id, displayName, size, rotation, mimeTypes.joinToString(","))
                     if (m == IMAGE_CLIPS_TABLE) {
                         ContentUris.withAppendedId(IMAGE_CLIPS_URI, id)
                     } else {
@@ -179,11 +174,12 @@ class ClipboardMediaProvider : ContentProvider() {
             IMAGE_CLIP_ITEM, VIDEO_CLIP_ITEM -> {
                 val id = ContentUris.parseId(uri)
                 ClipboardFileStorage.deleteById(context!!, id)
-                cachedFileInfos.remove(id)
-                context?.revokeUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                ioScope.launch {
-                    clipboardFilesDao?.delete(id)
+                try {
+                    store.removeFile(id)
+                } catch (e: IOException) {
+                    flogError(LogTopic.CLIPBOARD) { "Media record not removed: ${e.javaClass.simpleName}" }
                 }
+                context?.revokeUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
                 return 1
             }
             else -> error("Unable to identify type of $uri")

@@ -118,7 +118,6 @@ def main():
     args = parser.parse_args()
     os.environ['AGENT_DEVICE']
     os.environ['DEVICE_BASELINE']
-    os.environ['HASH_ONLY_CLIPBOARD'] = '1'
     args.output.mkdir(parents=True, exist_ok=False)
     for renderer in ('compose', 'rust'):
         with stores['fixture_session'](args.output / ('panels-' + renderer + '-stores')):

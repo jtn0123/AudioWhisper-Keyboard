@@ -2,44 +2,28 @@
 import argparse
 import hashlib
 import json
-import os
 from pathlib import Path
 import runpy
-import sqlite3
 import subprocess
 import time
 
 panels=runpy.run_path(str(Path(__file__).with_name('panels.py')))
 visuals=runpy.run_path(str(Path(__file__).with_name('visuals.py')))
 Device=panels['Device'];SERVICE=panels['SERVICE'];PKG=panels['PKG'];PROBE=panels['PROBE']
-FIXTURES={f'aw-test-{n}' for n in range(1,5)}
 
 
 def history(device):
-    """Copy Room files privately; publish only digests and fixed fixture metadata."""
-    if os.environ.get('HASH_ONLY_CLIPBOARD') == '1':
-        device.shell('run-as', PKG, 'rm', '-f', 'files/clipboard-probe.json')
-        device.shell('am', 'broadcast', '-a', 'com.jtn0123.audiowhisper.RENDER_FIXTURE',
-                     '-p', PKG, '--es', 'op', 'clipboard-snapshot')
-        def response():
-            result = subprocess.run(['adb', '-s', device.serial, 'exec-out', 'run-as', PKG,
-                                     'cat', 'files/clipboard-probe.json'], capture_output=True, text=True)
-            if result.returncode == 0:
-                return {'rows': json.loads(result.stdout)}
-            return None
-        return device.wait(response, 'Hash-only clipboard probe absent')['rows']
-    folder=device.output/'private-room';folder.mkdir(exist_ok=True)
-    for suffix in ('','-wal','-shm'):
-        path='databases/clipboard_history'+suffix
-        result=subprocess.run(['adb','-s',device.serial,'exec-out','run-as',PKG,'cat',path],capture_output=True)
-        file=folder/('clipboard_history'+suffix)
-        if result.returncode==0:file.write_bytes(result.stdout)
-        elif file.exists():file.unlink()
-    db=sqlite3.connect('file:'+str((folder/'clipboard_history').resolve())+'?mode=ro',uri=True)
-    try:rows=db.execute('SELECT text,type,isPinned,mimeTypes FROM clipboard_history ORDER BY creationTimestampMs DESC,_id DESC').fetchall()
-    finally:db.close()
-    if any(row[0] not in FIXTURES for row in rows):raise RuntimeError('History contains non-fixture items; no content was logged')
-    return [{'sha256':hashlib.sha256(text.encode()).hexdigest(),'type':kind,'pinned':bool(pin),'mime':mime} for text,kind,pin,mime in rows]
+    """The history as the test APK's probe reports it from the clipboard store: digests and fixed fixture metadata."""
+    device.shell('run-as', PKG, 'rm', '-f', 'files/clipboard-probe.json')
+    device.shell('am', 'broadcast', '-a', 'com.jtn0123.audiowhisper.RENDER_FIXTURE',
+                 '-p', PKG, '--es', 'op', 'clipboard-snapshot')
+    def response():
+        result = subprocess.run(['adb', '-s', device.serial, 'exec-out', 'run-as', PKG,
+                                 'cat', 'files/clipboard-probe.json'], capture_output=True, text=True)
+        if result.returncode == 0:
+            return {'rows': json.loads(result.stdout)}
+        return None
+    return device.wait(response, 'Hash-only clipboard probe absent')['rows']
 
 
 def clip(device,n=None):

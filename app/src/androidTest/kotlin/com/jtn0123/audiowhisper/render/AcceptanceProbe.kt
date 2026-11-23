@@ -1,8 +1,11 @@
 package com.jtn0123.audiowhisper.render
 
 import android.content.Context
+import com.jtn0123.audiowhisper.rust.ClipFlag
+import com.jtn0123.audiowhisper.rust.StoredClip
 import dev.patrickgold.florisboard.FlorisApplication
 import dev.patrickgold.florisboard.app.FlorisPreferenceStore
+import dev.patrickgold.florisboard.ime.clipboard.provider.ClipboardStoreFile
 import dev.patrickgold.florisboard.lib.FlorisLocale
 import dev.patrickgold.florisboard.lib.io.FlorisRef
 import dev.patrickgold.jetpref.datastore.model.PreferenceData
@@ -45,19 +48,13 @@ object AcceptanceProbe {
 
     @JvmStatic fun clipboard(context: Context) {
         val rows = JSONArray()
-        val path = context.getDatabasePath("clipboard_history")
-        if (path.exists()) android.database.sqlite.SQLiteDatabase.openDatabase(path.path, null,
-            android.database.sqlite.SQLiteDatabase.OPEN_READONLY).use { db ->
-            db.rawQuery("SELECT text,type,isPinned,mimeTypes FROM clipboard_history ORDER BY creationTimestampMs DESC,_id DESC", null).use { cursor ->
-                while (cursor.moveToNext()) {
-                    val text = cursor.getString(0)
-                    check(text in (1..4).map { "aw-test-$it" })
-                    val type: Any = if (cursor.getType(1) == android.database.Cursor.FIELD_TYPE_INTEGER)
-                        cursor.getInt(1) else cursor.getString(1)
-                    rows.put(JSONObject().put("sha256", hash(text)).put("type", type)
-                        .put("pinned", cursor.getInt(2) != 0).put("mime", cursor.getString(3)))
-                }
-            }
+        // The order the Room query gave: newest first, equal times newest row first.
+        val clips = ClipboardStoreFile.get(context).items().sortedWith(compareByDescending<StoredClip> { it.created }
+            .thenByDescending { it.id })
+        for (clip in clips) {
+            check(clip.text in (1..4).map { "aw-test-$it" })
+            rows.put(JSONObject().put("sha256", hash(clip.text)).put("type", clip.kind)
+                .put("pinned", clip.flags and ClipFlag.PINNED.code != 0).put("mime", clip.mimeTypes))
         }
         val pending = File(context.filesDir, "clipboard-probe.json.tmp")
         pending.writeText(rows.toString())

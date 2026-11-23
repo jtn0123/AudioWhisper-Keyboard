@@ -21,22 +21,30 @@ import android.content.Context
 import dev.patrickgold.florisboard.app.FlorisPreferenceStore
 import dev.patrickgold.florisboard.appContext
 import dev.patrickgold.florisboard.editorInstance
-import dev.patrickgold.florisboard.ime.clipboard.provider.ClipboardHistoryDao
-import dev.patrickgold.florisboard.ime.clipboard.provider.ClipboardHistoryDatabase
+import androidx.core.net.toUri
 import dev.patrickgold.florisboard.ime.clipboard.provider.ClipboardItem
+import dev.patrickgold.florisboard.ime.clipboard.provider.ClipboardStoreFile
+import dev.patrickgold.florisboard.ime.clipboard.provider.addItem
+import dev.patrickgold.florisboard.ime.clipboard.provider.restoreItems
+import dev.patrickgold.florisboard.ime.clipboard.provider.toItem
+import dev.patrickgold.florisboard.lib.devtools.LogTopic
+import dev.patrickgold.florisboard.lib.devtools.flogError
 import com.jtn0123.audiowhisper.rust.ClipboardRules
+import com.jtn0123.audiowhisper.rust.ClipboardStore
+import kotlinx.coroutines.CompletableJob
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import kotlinx.coroutines.withContext
 import org.florisboard.lib.android.AndroidClipboardManager
 import org.florisboard.lib.android.AndroidClipboardManager_OnPrimaryClipChangedListener
 import org.florisboard.lib.android.setOrClearPrimaryClip
@@ -44,6 +52,7 @@ import org.florisboard.lib.android.showShortToast
 import org.florisboard.lib.android.systemService
 import org.florisboard.lib.kotlin.tryOrNull
 import java.io.Closeable
+import java.io.IOException
 
 /**
  * [ClipboardManager] manages the clipboard and clipboard history.
@@ -51,7 +60,9 @@ import java.io.Closeable
  * Also just going to document how all the classes here work.
  *
  * [ClipboardManager] handles storage and retrieval of clipboard items. All manipulation of the
- * clipboard goes through here.
+ * clipboard goes through here. The history itself is kept by Rust ([ClipboardStoreFile]), which applies
+ * every rule of it (duplicates, pins, the size limit, expiry); each change runs in order on one thread,
+ * then the history the store holds is shown.
  */
 class ClipboardManager(
     context: Context,
@@ -79,9 +90,12 @@ class ClipboardManager(
     private val systemClipboardManager = context.systemService(AndroidClipboardManager::class)
 
     private val ioScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    /**
+     * The history's changes, made one at a time in the order asked, once the settings are loaded: each applies
+     * the size limit, which must not be the default one while the user's is still loading.
+     */
+    private val changes = Channel<Pair<(ClipboardStore) -> Unit, CompletableJob>>(Channel.UNLIMITED)
     private var cleanUpJob: Job
-    private var clipHistoryDb: ClipboardHistoryDatabase? = null
-    private val clipHistoryDao: ClipboardHistoryDao? get() = clipHistoryDb?.clipboardItemDao()
 
     private val _historyFlow = MutableStateFlow(ClipboardHistory.EMPTY)
     val historyFlow = _historyFlow.asStateFlow()
@@ -100,32 +114,58 @@ class ClipboardManager(
 
     init {
         systemClipboardManager.addPrimaryClipChangedListener(this)
+        ioScope.launch {
+            appContext.preferenceStoreLoaded.first { it }
+            for ((step, done) in changes) {
+                try {
+                    change(step)
+                } finally {
+                    done.complete()
+                }
+            }
+        }
         cleanUpJob = ioScope.launch {
             while (isActive) {
                 delay(INTERVAL)
-                enforceExpiryDate(currentHistory)
-            }
-        }
-    }
-
-    fun initializeForContext(context: Context) {
-        ioScope.launch {
-            if (clipHistoryDb == null) {
-                clipHistoryDb = ClipboardHistoryDatabase.new(context.applicationContext)
-                withContext(Dispatchers.Main) {
-                    clipHistoryDao?.getAllLive()?.observeForever { items ->
-                        updateHistory(items)
-                    }
+                later { store ->
+                    store.expire(now(), prefs.clipboard.historyAutoCleanOldEnabled.get(),
+                        prefs.clipboard.historyAutoCleanOldAfter.get(),
+                        prefs.clipboard.historyAutoCleanSensitiveEnabled.get(),
+                        prefs.clipboard.historyAutoCleanSensitiveAfter.get(), limitEnabled(), limit())
                 }
             }
         }
     }
 
-    private fun updateHistory(items: List<ClipboardItem>) {
-        val itemsSorted = clipboardPlan(items)[0].map(items::get)
-        val clipHistory = ClipboardHistory(itemsSorted)
-        enforceHistoryLimit(clipHistory)
-        _historyFlow.value = clipHistory
+    /** Opens the store (moving main's Room history into it the first time) and shows its history. */
+    fun initialize() {
+        later { store -> store.enforce(now(), limitEnabled(), limit()) }
+    }
+
+    private fun now() = System.currentTimeMillis()
+    private fun limitEnabled() = prefs.clipboard.historySizeLimitEnabled.get()
+    private fun limit() = prefs.clipboard.historySizeLimit.get()
+
+    /**
+     * Makes [change] to the store, then shows the history it holds. A store that couldn't be saved, or is kept
+     * read-only, is left as it was: the failure is logged, never a clip.
+     */
+    private fun change(change: (ClipboardStore) -> Unit) {
+        val store = ClipboardStoreFile.get(appContext)
+        try {
+            change(store)
+        } catch (e: IOException) {
+            flogError(LogTopic.CLIPBOARD) { "Clipboard history not saved: ${e.javaClass.simpleName}" }
+        }
+        _historyFlow.value = ClipboardHistory(store.items().mapNotNull { it.toItem() })
+    }
+
+    /** [change], after every change asked before it; the job is done once it is. */
+    private fun later(change: (ClipboardStore) -> Unit): Job = Job().also { changes.trySend(change to it) }
+
+    /** Deletes the media files no clip refers to any more, as their clips' removal left them. */
+    private fun deleteMedia(uris: List<String>) {
+        for (uri in uris) tryOrNull { appContext.contentResolver.delete(uri.toUri(), null, null) }
     }
 
     /**
@@ -214,79 +254,31 @@ class ClipboardManager(
     }
 
     /**
-     * Adds a new item to the clipboard history (if enabled).
+     * Adds a new item to the clipboard history (if enabled): a text the history has already moves to the top
+     * instead, pinned if either was.
      */
     private fun insertOrMoveBeginning(newItem: ClipboardItem) {
         if (!prefs.clipboard.historyEnabled.get()) return
-        val cohort = currentHistory.all
-        val plan = clipboardPlan(cohort, newItem = newItem)[6]
-        val previous = cohort.getOrNull(plan[0])
-        if (previous == null) insertClip(newItem)
-        else moveToTheBeginning(previous, newItem.copy(isPinned = plan[1] != 0))
-    }
-
-    private fun enforceHistoryLimit(clipHistory: ClipboardHistory) {
-        val indices = clipboardPlan(clipHistory.all,
-            limitEnabled = prefs.clipboard.historySizeLimitEnabled.get(),
-            limit = prefs.clipboard.historySizeLimit.get())[4]
-        if (indices.isNotEmpty()) ioScope.launch { clipHistoryDao?.delete(indices.map(clipHistory.all::get)) }
-    }
-
-    private fun enforceExpiryDate(clipHistory: ClipboardHistory) {
-        val indices = clipboardPlan(clipHistory.all,
-            old = prefs.clipboard.historyAutoCleanOldEnabled.get(),
-            minutes = prefs.clipboard.historyAutoCleanOldAfter.get(),
-            sensitive = prefs.clipboard.historyAutoCleanSensitiveEnabled.get(),
-            seconds = prefs.clipboard.historyAutoCleanSensitiveAfter.get())[5]
-        if (indices.isNotEmpty()) ioScope.launch { clipHistoryDao?.delete(indices.map(clipHistory.all::get)) }
-    }
-
-    private fun moveToTheBeginning(oldItem: ClipboardItem, newItem: ClipboardItem) {
-        ioScope.launch {
-            clipHistoryDao?.delete(oldItem.id)
-            clipHistoryDao?.insert(newItem)
-        }
-    }
-
-    fun insertClip(item: ClipboardItem) {
-        ioScope.launch {
-            val id = clipHistoryDao?.insert(item)
-            item.id = id ?: 0
+        later { store ->
+            newItem.id = store.addItem(newItem, now(), limitEnabled(), limit())
         }
     }
 
     fun clearExactHistory(items: List<ClipboardItem>) {
-        ioScope.launch {
-            for (item in items) {
-                item.close(appContext)
-            }
-            clipHistoryDao?.delete(items)
-        }
+        later { store -> deleteMedia(store.delete(items.map { it.id }.toLongArray(), false, now(), limitEnabled(), limit())) }
     }
 
     /**
      * Clears all unpinned items from the clipboard history
      */
     fun clearHistory() {
-        ioScope.launch {
-            for (item in currentHistory.all) {
-                item.close(appContext)
-            }
-            clipHistoryDao?.deleteAllUnpinned()
-        }
+        later { store -> deleteMedia(store.clear(true, now(), limitEnabled(), limit())) }
     }
 
     /**
-     * Clears the full clipboard history
+     * Clears the full clipboard history; the job is done once the history and its media files are gone.
      */
-    fun clearFullHistory() {
-        ioScope.launch {
-            for (item in currentHistory.all) {
-                item.close(appContext)
-            }
-            clipHistoryDao?.deleteAll()
-        }
-    }
+    fun clearFullHistory(): Job = later { store -> deleteMedia(store.clear(false, now(), limitEnabled(), limit())) }
 
 
     /**
@@ -294,41 +286,20 @@ class ClipboardManager(
      *
      * @param items the [ClipboardItem] list with the new items
      */
-    fun restoreHistory(items: List<ClipboardItem>) {
-        ioScope.launch {
-            val currentHistory = currentHistory.all
-            val existing = currentHistory.map { it.copy(id = 0) }.toSet()
-            val indices = com.jtn0123.audiowhisper.rust.BackupPolicy.incoming(items.map { it.copy(id = 0) in existing })
-            for (index in indices) insertClip(items[index].copy(id = 0))
-        }
+    fun restoreHistory(items: List<ClipboardItem>): Job = later { store ->
+        store.restoreItems(items, now(), limitEnabled(), limit())
     }
 
     fun deleteClip(item: ClipboardItem, onlyIfUnpinned: Boolean) {
-        ioScope.launch {
-            if (onlyIfUnpinned) {
-                clipHistoryDao?.deleteIfUnpinned(item.id)
-            } else {
-                clipHistoryDao?.delete(item.id)
-            }
-            tryOrNull {
-                val uri = item.uri
-                if (uri != null) {
-                    appContext.contentResolver.delete(uri, null, null)
-                }
-            }
-        }
+        later { store -> deleteMedia(store.delete(longArrayOf(item.id), onlyIfUnpinned, now(), limitEnabled(), limit())) }
     }
 
     fun pinClip(item: ClipboardItem) {
-        ioScope.launch {
-            clipHistoryDao?.update(item.copy(isPinned = true))
-        }
+        later { store -> store.pin(item.id, true, now(), limitEnabled(), limit()) }
     }
 
     fun unpinClip(item: ClipboardItem) {
-        ioScope.launch {
-            clipHistoryDao?.update(item.copy(isPinned = false))
-        }
+        later { store -> store.pin(item.id, false, now(), limitEnabled(), limit()) }
     }
 
     fun pasteItem(item: ClipboardItem) {

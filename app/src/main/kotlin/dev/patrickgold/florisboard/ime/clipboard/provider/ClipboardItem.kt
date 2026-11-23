@@ -21,31 +21,11 @@ import android.content.ClipDescription.EXTRA_IS_REMOTE_DEVICE
 import android.content.ClipDescription.EXTRA_IS_SENSITIVE
 import android.content.ContentValues
 import android.content.Context
-import android.database.Cursor
 import android.net.Uri
-import android.provider.BaseColumns
-import android.provider.MediaStore.Images.Media
 import android.provider.OpenableColumns
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.database.getStringOrNull
-import androidx.lifecycle.LiveData
-import androidx.room.AutoMigration
-import androidx.room.ColumnInfo
-import androidx.room.Dao
-import androidx.room.Database
-import androidx.room.Delete
-import androidx.room.Entity
-import androidx.room.Insert
-import androidx.room.PrimaryKey
-import androidx.room.Query
-import androidx.room.RenameColumn
-import androidx.room.Room
-import androidx.room.RoomDatabase
-import androidx.room.TypeConverter
-import androidx.room.TypeConverters
-import androidx.room.Update
-import androidx.room.migration.AutoMigrationSpec
 import dev.patrickgold.florisboard.R
 import kotlinx.serialization.EncodeDefault
 import kotlinx.serialization.ExperimentalSerializationApi
@@ -54,21 +34,11 @@ import org.florisboard.lib.android.UriSerializer
 import org.florisboard.lib.android.query
 import org.florisboard.lib.android.stringRes
 import org.florisboard.lib.kotlin.tryOrNull
-import androidx.core.net.toUri
-
-private const val CLIPBOARD_HISTORY_TABLE = "clipboard_history"
-private const val CLIPBOARD_FILES_TABLE = "clipboard_files"
 
 enum class ItemType(val value: Int) {
     TEXT(1),
     IMAGE(2),
     VIDEO(3);
-
-    companion object {
-        fun fromInt(value : Int) : ItemType {
-            return entries.first { it.value == value }
-        }
-    }
 }
 
 /**
@@ -79,10 +49,7 @@ enum class ItemType(val value: Int) {
  */
 @OptIn(ExperimentalSerializationApi::class)
 @Serializable
-@Entity(tableName = CLIPBOARD_HISTORY_TABLE)
 data class ClipboardItem(
-    @PrimaryKey(autoGenerate = true)
-    @ColumnInfo(name = BaseColumns._ID, index = true)
     var id: Long = 0,
     val type: ItemType,
     val text: String?,
@@ -92,10 +59,8 @@ data class ClipboardItem(
     val isPinned: Boolean,
     val mimeTypes: List<String>,
     @EncodeDefault
-    @ColumnInfo(name = "is_sensitive", defaultValue = "0")
     val isSensitive: Boolean = false,
     @EncodeDefault
-    @ColumnInfo(name= "is_remote_device", defaultValue = "0")
     val isRemoteDevice: Boolean = false,
 ) {
     companion object {
@@ -211,176 +176,11 @@ data class ClipboardItem(
         }
     }
 
-    /**
-     * Instructs the content provider to delete this URI. If not an image, is a noop
-     */
-    fun close(context: Context) {
-        if (type == ItemType.IMAGE) {
-            tryOrNull { context.contentResolver.delete(this.uri!!, null, null) }
-        }
-    }
-
     fun stringRepresentation(): String {
         return when {
             text != null -> text
             uri != null -> "(Image) $uri"
             else -> "#ERROR"
-        }
-    }
-}
-
-class Converters {
-    @TypeConverter
-    fun uriFromString(value: String?): Uri? {
-        return value?.toUri()
-    }
-
-    @TypeConverter
-    fun stringFromUri(value: Uri?): String? {
-        return value?.toString()
-    }
-
-    @TypeConverter
-    fun itemTypeToInt(value: ItemType?): Int? {
-        return value?.value
-    }
-
-    @TypeConverter
-    fun intToItemType(value: Int?): ItemType? {
-        return value?.let { ItemType.fromInt(it) }
-    }
-
-    /**
-     * Only works because the string array is a mimetype.
-     * DOES NOT USE A GENERALIZED FORMAT.
-     */
-    @TypeConverter
-    fun mimeTypesToString(mimeTypes: List<String>): String {
-        return mimeTypes.joinToString(",")
-    }
-
-    @TypeConverter
-    fun stringToMimeTypes(value: String): List<String> {
-        return value.split(",")
-    }
-}
-
-@Dao
-interface ClipboardHistoryDao {
-    @Query("SELECT * FROM $CLIPBOARD_HISTORY_TABLE")
-    fun getAll(): List<ClipboardItem>
-
-    @Query("SELECT * FROM $CLIPBOARD_HISTORY_TABLE")
-    fun getAllLive(): LiveData<List<ClipboardItem>>
-
-    @Insert
-    fun insert(item: ClipboardItem): Long
-
-    @Update
-    fun update(item: ClipboardItem)
-
-    @Update
-    fun update(items: List<ClipboardItem>)
-
-    @Query("DELETE FROM $CLIPBOARD_HISTORY_TABLE WHERE ${BaseColumns._ID} = :id")
-    fun delete(id: Long)
-
-    @Query("DELETE FROM $CLIPBOARD_HISTORY_TABLE WHERE ${BaseColumns._ID} = :id AND not isPinned ")
-    fun deleteIfUnpinned(id: Long)
-
-    @Delete
-    fun delete(items: List<ClipboardItem>)
-
-    @Query("DELETE FROM $CLIPBOARD_HISTORY_TABLE")
-    fun deleteAll()
-
-    @Query("DELETE FROM $CLIPBOARD_HISTORY_TABLE WHERE type = :type")
-    fun deleteAllFromType(type: ItemType)
-
-    @Query("DELETE FROM $CLIPBOARD_HISTORY_TABLE WHERE NOT isPinned")
-    fun deleteAllUnpinned()
-}
-
-@Database(
-    entities = [ClipboardItem::class],
-    version = 4,
-    autoMigrations = [
-        AutoMigration(from = 2, to = 4),
-        AutoMigration(from = 3, to = 4, spec = ClipboardHistoryDatabase.MIGRATE_3_TO_4::class),
-    ],
-)
-@TypeConverters(Converters::class)
-abstract class ClipboardHistoryDatabase : RoomDatabase() {
-    abstract fun clipboardItemDao(): ClipboardHistoryDao
-
-    @RenameColumn(
-        tableName = CLIPBOARD_HISTORY_TABLE,
-        fromColumnName = "isSensitive",
-        toColumnName = "is_sensitive",
-    )
-    @RenameColumn(
-        tableName = CLIPBOARD_HISTORY_TABLE,
-        fromColumnName = "isRemoteDevice",
-        toColumnName = "is_remote_device",
-    )
-    class MIGRATE_3_TO_4 : AutoMigrationSpec
-
-    companion object {
-        fun new(context: Context): ClipboardHistoryDatabase {
-            return Room
-                .databaseBuilder(
-                    context, ClipboardHistoryDatabase::class.java, CLIPBOARD_HISTORY_TABLE,
-                )
-                .fallbackToDestructiveMigration(dropAllTables = false)
-                .build()
-        }
-    }
-}
-
-@Serializable
-@Entity(tableName = CLIPBOARD_FILES_TABLE)
-data class ClipboardFileInfo(
-    @PrimaryKey @ColumnInfo(name=BaseColumns._ID, index=true) val id: Long,
-    @ColumnInfo(name=OpenableColumns.DISPLAY_NAME) val displayName: String,
-    @ColumnInfo(name=OpenableColumns.SIZE) val size: Long,
-    @ColumnInfo(name=Media.ORIENTATION) val orientation: Int,
-    val mimeTypes: List<String>,
-)
-
-@Dao
-interface ClipboardFilesDao {
-    @Query("SELECT * FROM $CLIPBOARD_FILES_TABLE WHERE ${BaseColumns._ID} == (:uid)")
-    fun getById(uid: Long) : ClipboardFileInfo
-
-    @Query("SELECT * FROM $CLIPBOARD_FILES_TABLE WHERE ${BaseColumns._ID} == (:uid)")
-    fun getCursorById(uid: Long) : Cursor
-
-    @Query("SELECT (:projection) FROM $CLIPBOARD_FILES_TABLE WHERE ${BaseColumns._ID} == (:uid)")
-    fun getCurserByIdWithColums(uid: Long, projection: String) : Cursor
-
-    @Query("DELETE FROM $CLIPBOARD_FILES_TABLE WHERE ${BaseColumns._ID} == (:id)")
-    fun delete(id: Long)
-
-    @Insert
-    fun insert(vararg clipboardFileInfos: ClipboardFileInfo)
-
-    @Query("SELECT * FROM $CLIPBOARD_FILES_TABLE")
-    fun getAll(): List<ClipboardFileInfo>
-}
-
-@Database(entities = [ClipboardFileInfo::class], version = 2)
-@TypeConverters(Converters::class)
-abstract class ClipboardFilesDatabase : RoomDatabase() {
-    abstract fun clipboardFilesDao() : ClipboardFilesDao
-
-    companion object {
-        fun new(context: Context): ClipboardFilesDatabase {
-            return Room
-                .databaseBuilder(
-                    context, ClipboardFilesDatabase::class.java, CLIPBOARD_FILES_TABLE,
-                )
-                .fallbackToDestructiveMigration(dropAllTables = false)
-                .build()
         }
     }
 }

@@ -64,7 +64,8 @@ internal object BackupIO {
                 BackupEffect.CLEAR_DIRECTORY -> File(context.filesDir, path.removePrefix("files/")).deleteContentsRecursively()
                 BackupEffect.COPY_DIRECTORY -> source.copyRecursively(File(context.filesDir, path.removePrefix("files/")), overwrite = true)
                 BackupEffect.CLEAR_CLIPBOARD -> {
-                    clipboard.clearFullHistory()
+                    // Waits, so the media files the clear deletes can't be ones the restore copies back.
+                    clipboard.clearFullHistory().join()
                     ClipboardFileStorage.resetClipboardFileStorage(context)
                 }
                 BackupEffect.RESTORE_TEXT, BackupEffect.RESTORE_IMAGES, BackupEffect.RESTORE_VIDEO -> {
