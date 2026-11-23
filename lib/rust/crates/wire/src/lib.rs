@@ -52,6 +52,7 @@
 
 pub mod backup;
 pub mod dictation;
+pub mod dictation_edges;
 pub mod editor;
 pub mod extensions;
 pub mod flag;

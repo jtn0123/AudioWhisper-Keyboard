@@ -9,7 +9,9 @@
 
 #![forbid(unsafe_code)]
 
+pub mod audio;
 pub mod mic_key;
+pub mod model_check;
 mod phrases;
 mod spoken;
 mod undo;
