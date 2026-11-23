@@ -1,7 +1,8 @@
 #!/bin/bash
 # Installs the debug or personal build on the phone without losing anything set up on it.
 #
-#  1. Copies the phone's settings, themes and personal dictionary to the Mac first
+#  1. Copies the phone's settings, themes and personal dictionary (files/user-dictionary.store,
+#     or the Room database builds before it kept) to the Mac first
 #     (.device-backup/<device serial>/, gitignored; the copy before that is kept as
 #     settings.prev.tar). Each device has its own copy, named by its hardware serial
 #     (which stays the same when a wireless port changes), so installing on an emulator
@@ -68,7 +69,7 @@ snapshot() {
         return
     fi
     local paths
-    paths=$(on_phone "sh -c 'ls -d jetpref_datastore files/ime databases/floris_user_dictionary* 2>/dev/null; true'" | tr '\n' ' ')
+    paths=$(on_phone "sh -c 'ls -d jetpref_datastore files/ime files/user-dictionary.store databases/floris_user_dictionary* 2>/dev/null; true'" | tr '\n' ' ')
     mkdir -p "$BACKUP_DIR"
     adb exec-out "run-as $PKG tar -cf - $paths" > "$SNAPSHOT.new"
     local listing

@@ -10,6 +10,9 @@
         <include
             domain="database"
             path="floris_user_dictionary"/>
+        <include
+            domain="file"
+            path="user-dictionary.store"/>
     </cloud-backup>
     <device-transfer>
         <include
@@ -21,5 +24,8 @@
         <include
             domain="database"
             path="floris_user_dictionary"/>
+        <include
+            domain="file"
+            path="user-dictionary.store"/>
     </device-transfer>
 </data-extraction-rules>

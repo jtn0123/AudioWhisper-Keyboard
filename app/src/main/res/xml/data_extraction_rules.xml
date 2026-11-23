@@ -4,7 +4,9 @@
     backup_rules.xml can't serve here: Android 12+ only accepts this format and, given the old
     one, aborts the app's backup without saving anything.
 
-    Saved: settings, installed themes and layouts, and the personal dictionary. Left out: the
+    Saved: settings, installed themes and layouts, and the personal dictionary (files/
+    user-dictionary.store; databases/floris_user_dictionary is the Room database builds before
+    it kept, which a backup made then restores and the keyboard imports). Left out: the
     650 MB speech model (files/models, over Google backup's 25 MB limit; it is copied in over
     adb), clipboard history (private, and only useful on the phone it was copied on), and what
     the keyboard learned from typing (files/learned-words.txt, files/kept-as-typed.txt and
@@ -21,10 +23,12 @@
         <include domain="root" path="jetpref_datastore/"/>
         <include domain="file" path="ime/"/>
         <include domain="database" path="floris_user_dictionary"/>
+        <include domain="file" path="user-dictionary.store"/>
     </cloud-backup>
     <device-transfer>
         <include domain="root" path="jetpref_datastore/"/>
         <include domain="file" path="ime/"/>
         <include domain="database" path="floris_user_dictionary"/>
+        <include domain="file" path="user-dictionary.store"/>
     </device-transfer>
 </data-extraction-rules>

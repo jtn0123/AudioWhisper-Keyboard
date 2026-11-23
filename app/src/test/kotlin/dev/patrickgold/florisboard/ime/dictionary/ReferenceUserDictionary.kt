@@ -123,7 +123,6 @@ class RecordingUserDictionaryDao(rows: List<UserDictionaryEntry> = emptyList(), 
     val calls = mutableListOf<Pair<String, UserDictionaryEntry>>()
     private var nextId = (rows.maxOfOrNull { it.id } ?: 0) + 1
     private fun tag(locale: FlorisLocale?) = locale?.localeTag()
-    private fun unsupported(): Nothing = throw UnsupportedOperationException()
 
     override fun queryAll() = if (system) rows.sortedByDescending { it.freq } else rows.sortedBy { it.id }
     override fun queryExact(word: String, locale: FlorisLocale?) = queryAll().filter { it.word == word && it.locale == tag(locale) }
@@ -142,13 +141,4 @@ class RecordingUserDictionaryDao(rows: List<UserDictionaryEntry> = emptyList(), 
         calls += "delete" to entry
         rows.removeAll { it.id == entry.id }
     }
-    override fun query(word: String) = unsupported()
-    override fun query(word: String, locale: FlorisLocale?) = unsupported()
-    override fun queryShortcut(shortcut: String) = unsupported()
-    override fun queryShortcut(shortcut: String, locale: FlorisLocale?) = unsupported()
-    override fun queryAll(locale: FlorisLocale?) = unsupported()
-    override fun queryExact(word: String) = unsupported()
-    override fun queryExactFuzzyLocale(word: String, locale: FlorisLocale?) = unsupported()
-    override fun queryLanguageList() = unsupported()
-    override fun deleteAll() = unsupported()
 }
