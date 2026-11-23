@@ -1,5 +1,5 @@
 """The extension screens (stage4-extensions.md, parts 1 and 2): each case must fail the test its comment names."""
-from .paths import APP, EXT, SETTINGS_UI, UI
+from .paths import APP, EXT, ICONS, SETTINGS_UI, UI
 
 # Each must fail SettingsExtensionsMatchTest or SettingsResourcesTest.
 JVM = [
@@ -23,7 +23,7 @@ JVM = [
     ('ext-kotlin-deletable-ignored', SETTINGS_UI / 'SettingsExtensions.kt', 'meta.license, deletable))', 'meta.license, true))'),
     ('ext-kotlin-email-as-url', SETTINGS_UI / 'SettingsExtensions.kt', 'SettingsUiExtensionKind.EMAIL, id, text = it',
      'SettingsUiExtensionKind.URL, id, text = it'),
-    ('ext-icon-unmapped', SETTINGS_UI / 'SettingsIcons.kt', '"@icon:mail" to Icons.Outlined.Mail', '"@icon:mails" to Icons.Outlined.Mail'),
+    ('ext-icon-unmapped', ICONS / 'settings.rs', '("mail", "Outlined.Mail"),', '("mails", "Outlined.Mail"),'),
     ('ext-string-id-dropped', SETTINGS_UI / 'SettingsExtensionStringIds.kt',
      '    "ext__meta__website" to R.string.ext__meta__website,\n', ''),
 ]

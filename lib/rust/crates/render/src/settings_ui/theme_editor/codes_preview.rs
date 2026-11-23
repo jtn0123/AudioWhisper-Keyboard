@@ -51,7 +51,8 @@ pub struct KeyData {
 }
 
 /// What Kotlin said of a code: its Unicode name, whether it is a non-spacing mark, and the
-/// keyboard's icon for it as path data. Empty until Kotlin answers.
+/// keyboard's icon for it as path data, drawn from the token Kotlin named. Empty until Kotlin
+/// answers.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Described {
     pub code: i32,

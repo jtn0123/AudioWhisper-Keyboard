@@ -5,7 +5,6 @@ import android.icu.lang.UCharacter
 import androidx.activity.ComponentActivity
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
-import com.jtn0123.audiowhisper.render.iconPath
 import com.jtn0123.audiowhisper.rust.*
 import dev.patrickgold.florisboard.ime.input.InputKeyEventReceiver
 import dev.patrickgold.florisboard.ime.keyboard.ComputingEvaluator
@@ -14,7 +13,6 @@ import dev.patrickgold.florisboard.ime.keyboard.Key
 import dev.patrickgold.florisboard.ime.keyboard.KeyData
 import dev.patrickgold.florisboard.ime.keyboard.Keyboard
 import dev.patrickgold.florisboard.ime.keyboard.KeyboardMode
-import dev.patrickgold.florisboard.ime.keyboard.computeImageVector
 import dev.patrickgold.florisboard.ime.text.keyboard.TextKeyData
 import dev.patrickgold.florisboard.keyboardManager
 import dev.patrickgold.florisboard.lib.Unicode
@@ -52,17 +50,21 @@ internal fun themeCodeRow(kind: String, code: String = "") = SettingsUiThemeCode
     SettingsUiThemeCode.ICON to "")
 
 /** The `THEME_CODE` described report for [code], as TextKeyDataPreviewBox worked it out: for a character its Unicode
- * [name] and whether it is a [nonSpacing] mark, and the keyboard's [icon] for the key the code names as path data, empty
- * for none. */
-internal fun describedCode(code: Int, name: (Int) -> String?, nonSpacing: (Int) -> Boolean, icon: (KeyData) -> String):
+ * [name] and whether it is a [nonSpacing] mark, and the keyboard's [icon] token for the key the code names, which Rust
+ * draws; 0 for none. */
+internal fun describedCode(code: Int, name: (Int) -> String?, nonSpacing: (Int) -> Boolean, icon: (KeyData) -> Int):
     Array<String> {
     val data = TextKeyData.getCodeInfoAsTextKeyData(code) ?: TextKeyData.UNSPECIFIED
     val character = data.code > 0
     return SettingsUiThemeCode.row(SettingsUiThemeCode.KIND to SettingsUiThemeCodeReport.DESCRIBED,
         SettingsUiThemeCode.CODE to code.toString(), SettingsUiThemeCode.NAME to (if (character) name(code) else null).orEmpty(),
         SettingsUiThemeCode.NON_SPACING to WireFlag.encode(character && nonSpacing(code)),
-        SettingsUiThemeCode.ICON to icon(data))
+        SettingsUiThemeCode.ICON to icon(data).toString())
 }
+
+/** The icon token the keyboard draws for [data] (`InputRules.visual`), as `computeImageVector` picks its vector. */
+private fun ComputingEvaluator.iconToken(data: KeyData): Int = InputRules.visual(longArrayOf(data.code.toLong(),
+    state.rawValue.toLong(), editorInfo.inputAttributes.raw.toLong(), editorInfo.imeOptions.raw.toLong(), keyboard.mode.toInt().toLong()))
 
 /** TextKeyDataPreviewBox's evaluator: the keyboard's defaults in the numeric advanced mode, with [context] for the icons
  * it takes from resources. */
@@ -102,7 +104,7 @@ internal class SettingsKeyRecorder(private val activity: ComponentActivity, priv
             SettingsUiThemeCodeEffect.STOP -> recording.stop()
             SettingsUiThemeCodeEffect.DESCRIBE -> p.getOrNull(1)?.toIntOrNull()?.let { code ->
                 report(describedCode(code, { UCharacter.getName(it) ?: UCharacter.getExtendedName(it) }, Unicode::isNonSpacingMark) {
-                    evaluator.computeImageVector(it)?.let(::iconPath).orEmpty()
+                    evaluator.iconToken(it)
                 })
             }
         }

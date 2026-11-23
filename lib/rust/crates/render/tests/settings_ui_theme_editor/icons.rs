@@ -34,16 +34,22 @@ const KINDS: &str = r##"{"$schema":"https://schemas.florisboard.org/snygg/v2/sty
         "background-image":"uri(`flex:/images/sky.png`)","margin":"inherit"},
     "smartbar":{"shape":"cut-corner(25%, 25%, 10%, 0%)"}}"##;
 
-/// The path `SettingsIcons.kt` would hand over for icon `name`.
+/// The path Rust draws for settings icon `name`.
 fn path(name: &str) -> String {
-    format!("M0 0 {name}")
+    icons::settings(name)
+        .and_then(icons::path)
+        .unwrap()
+        .to_owned()
 }
-/// The editor on [`KINDS`] with every value icon mapped.
+#[test]
+fn every_value_icon_is_one_rust_holds() {
+    for name in VALUE_ICONS {
+        assert!(path(name).starts_with("M "), "{name}");
+    }
+}
+/// The editor on [`KINDS`].
 fn kinds() -> (App, Text) {
     let (mut a, mut text) = app(KINDS);
-    for name in VALUE_ICONS {
-        a.strings.insert(format!("@icon:{name}"), path(name));
-    }
     a.scene(&mut text);
     (a, text)
 }
@@ -339,7 +345,6 @@ fn a_variable_naming_a_variable_shows_two_links_and_a_loop_ends() {
         "@defines":{"--loop":"var(--loop)"},"key":{"background":"var(--loop)"}}"#;
     let (mut a, mut text) = app(sheet);
     assert_eq!(a.rule_properties(1)[0].raw, "background");
-    a.strings.insert("@icon:link".into(), path("link"));
     let panel = a.scene(&mut text).panel.unwrap();
     assert!(panel.items.iter().any(|i| i.icon == path("link")));
 }

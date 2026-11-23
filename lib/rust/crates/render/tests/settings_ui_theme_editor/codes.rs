@@ -333,8 +333,8 @@ fn the_preview_of_internal_codes_with_an_icon_a_label_or_neither() {
     assert!(tap(&mut a, &mut text, CODE_ADD_ID));
     type_into(&mut a, &mut text, Part::Code(CodeRow::Field), "-7");
     assert!(has(&a, &[effect::DESCRIBE, "-7"]));
-    a.theme_code(&described("-7", "", false, "M0 0h24v24H0z"))
-        .unwrap();
+    // Kotlin answers with the key's icon token; Rust draws the icon it names.
+    a.theme_code(&described("-7", "", false, "-7")).unwrap();
     a.scene(&mut text);
     let preview = control(&a, PREVIEW_ID).unwrap();
     assert_eq!(
@@ -343,7 +343,7 @@ fn the_preview_of_internal_codes_with_an_icon_a_label_or_neither() {
     );
     let panel = a.scene(&mut text).panel.unwrap();
     assert!(
-        panel.items.iter().any(|i| i.icon == "M0 0h24v24H0z"),
+        panel.items.iter().any(|i| i.icon == icons::key_path(-7)),
         "the key's icon is drawn"
     );
     // A code no key has is the unspecified key, and Kotlin is not asked about it; what it said
@@ -357,7 +357,7 @@ fn the_preview_of_internal_codes_with_an_icon_a_label_or_neither() {
         ("unspecified", "unspecified")
     );
     let panel = a.scene(&mut text).panel.unwrap();
-    assert!(!panel.items.iter().any(|i| i.icon == "M0 0h24v24H0z"));
+    assert!(!panel.items.iter().any(|i| i.icon == icons::key_path(-7)));
     // A view key's label is the keyboard's resource.
     type_into(&mut a, &mut text, Part::Code(CodeRow::Field), "-202");
     a.theme_code(&described("-202", "", false, "")).unwrap();
@@ -368,8 +368,7 @@ fn the_preview_of_internal_codes_with_an_icon_a_label_or_neither() {
         ("?123, view_symbols", "system_gui")
     );
     // An icon, when the keyboard has one for the key, takes its label's place.
-    a.theme_code(&described("-202", "", false, "M0 0h24v24H0z"))
-        .unwrap();
+    a.theme_code(&described("-202", "", false, "-7")).unwrap();
     a.scene(&mut text);
     assert_eq!(control(&a, PREVIEW_ID).unwrap().label, "view_symbols");
 }

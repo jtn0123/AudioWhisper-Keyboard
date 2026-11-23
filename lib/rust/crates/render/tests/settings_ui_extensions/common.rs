@@ -204,21 +204,6 @@ pub fn strings(a: &mut App) {
     ] {
         a.strings.insert(k.into(), v.into());
     }
-    for icon in [
-        "shop",
-        "input",
-        "file_download",
-        "add",
-        "info",
-        "edit",
-        "delete",
-        "share",
-        "mail",
-        "link",
-    ] {
-        a.strings
-            .insert(format!("@icon:{icon}"), "M0 0h24v24H0z".into());
-    }
 }
 /// A phone-sized app.
 pub fn fresh() -> (App, Text) {

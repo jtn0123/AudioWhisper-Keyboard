@@ -54,7 +54,7 @@ internal class RustSettingsView(context: Context) : FrameLayout(context), Surfac
     private val choreographer = Choreographer.getInstance()
     private val imm = context.getSystemService(InputMethodManager::class.java)
     private var state = Json.parseToJsonElement(native.settings(SettingsUiOp.RESOURCES,
-        settingsResources(context, native.settings(SettingsUiOp.PLURALS)[SettingsUiReply.QUERY].split("\n")) + settingsIcons(context.resources))[SettingsUiReply.STATE]).jsonObject
+        settingsResources(context, native.settings(SettingsUiOp.PLURALS)[SettingsUiReply.QUERY].split("\n")))[SettingsUiReply.STATE]).jsonObject
     private var live = false
     private var pending = false
     private var released = false

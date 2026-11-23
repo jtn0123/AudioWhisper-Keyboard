@@ -359,9 +359,6 @@ fn content_sits_at_the_rounded_scroll_like_compose_scroll_state() {
 #[test]
 fn top_bar_and_preview_field_icons_use_their_material_roles() {
     let (mut a, mut text) = app();
-    for name in ["@icon:back", "@icon:picker"] {
-        a.strings.insert(name.into(), "M0 0h24v24H0z".into());
-    }
     let panel = a.scene(&mut text).panel.unwrap();
     let icons: Vec<_> = panel
         .items

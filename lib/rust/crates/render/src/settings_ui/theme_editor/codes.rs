@@ -216,7 +216,7 @@ impl App {
                     code: code()?,
                     name: p[report::NAME].clone(),
                     non_spacing: p[report::NON_SPACING] == wire::flag::TRUE,
-                    icon: p[report::ICON].clone(),
+                    icon: icons::key_path(p[report::ICON].parse().unwrap_or(0)).to_owned(),
                 };
                 let f = self.theme_editor.code.as_mut();
                 if let Some(f) = f.filter(|f| f.said.as_ref().is_some_and(|s| s.code == said.code))

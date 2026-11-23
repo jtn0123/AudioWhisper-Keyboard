@@ -1658,6 +1658,7 @@ dependencies = [
  "extensions",
  "gestures",
  "glifo 0.3.0",
+ "icons",
  "icu_segmenter",
  "input",
  "keys",

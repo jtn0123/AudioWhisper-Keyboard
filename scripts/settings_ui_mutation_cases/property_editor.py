@@ -1,5 +1,5 @@
 """The property editor (stage4-theme-editor.md, part 3): each case must fail the test its comment names."""
-from .paths import BASE, SETTINGS_UI, TE, SNYGG
+from .paths import BASE, ICONS, SETTINGS_UI, TE, SNYGG
 
 CASES = [
     # The property editor (compose-removal step 9, part 3): Rust cases fail settings_ui_theme_editor; the last two
@@ -87,7 +87,7 @@ CASES = [
      '.also { it.stylesheetPathOnLoad = theme.stylesheetPathOnLoad }', ''),
     ('theme-editor-string-id-dropped', SETTINGS_UI / 'SettingsThemeEditorStringIds.kt',
      '    "settings__theme_editor__duplicate_rule" to R.string.settings__theme_editor__duplicate_rule,\n', ''),
-    ('theme-editor-icon-unmapped', SETTINGS_UI / 'SettingsIcons.kt', '"@icon:content_copy" to Icons.Default.ContentCopy, ', ''),
+    ('theme-editor-icon-unmapped', ICONS / 'settings.rs', '    ("content_copy", "Filled.ContentCopy"),\n', ''),
 ]
 # The Rust test binary that must panic for each Rust-only case.
 RUST = dict.fromkeys([

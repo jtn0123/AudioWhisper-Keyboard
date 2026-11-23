@@ -1,5 +1,5 @@
 //! SnyggValueIcon for the values that are not colours: the Material icon it drew for each kind,
-//! by the `@icon:` names `SettingsIcons.kt` maps, and a shape's outline, which Rust draws:
+//! by the names `icons::settings` maps, and a shape's outline, which Rust draws:
 //! `alwaysPercentShape` (a dp corner three times its whole dp as a percentage, at most 100)
 //! bordered in onBackground, 22 dp with a 1 dp line, or 16 dp with a hairline in the small form,
 //! centred where the icon goes.
@@ -8,7 +8,7 @@ use crate::settings_ui::{App, color};
 use keys::Rect;
 use snygg::value::{Corners, Encoder, ShapeKind, Unit, Value};
 
-/// The Material icons SnyggValueIcon drew, by their `@icon:` names, in `icon_name`'s order,
+/// The Material icons SnyggValueIcon drew, by their `icons::settings` names, in `icon_name`'s order,
 /// then a variable's link.
 pub const VALUE_ICONS: [&str; 18] = [
     "font_download",

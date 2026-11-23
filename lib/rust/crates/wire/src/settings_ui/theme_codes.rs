@@ -52,7 +52,8 @@ pub mod report {
             /// A [`WireFlag`](crate::flag::FLAG): whether the character is a non-spacing mark,
             /// which the keyboard's label shows on a dotted circle.
             NON_SPACING,
-            /// The keyboard's icon for the code as path data, empty when it draws none.
+            /// The keyboard's icon token for the code (`InputRules.visual`), which the renderer's
+            /// `icons` crate draws; 0 when it draws none.
             ICON,
         }
     }

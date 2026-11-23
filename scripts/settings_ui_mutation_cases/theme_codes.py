@@ -1,5 +1,5 @@
 """The code editor (part 3): each case must fail the test its comment names."""
-from .paths import SETTINGS_UI, TE
+from .paths import ICONS, SETTINGS_UI, TE
 
 CASES = [
     # The code editor (EditCodeValueDialog, TextKeyDataPreviewBox): each must fail a Rust test, or
@@ -61,7 +61,7 @@ CASES = [
      '        error,\n        ..CodeForm::default()', '        error,\n        recording: true,\n        ..CodeForm::default()'),
     ('theme-code-string-id-dropped', SETTINGS_UI / 'SettingsThemeEditorStringIds.kt',
      '    "settings__theme_editor__code_record" to R.string.settings__theme_editor__code_record,\n', ''),
-    ('theme-code-icon-unmapped', SETTINGS_UI / 'SettingsIcons.kt', '        "@icon:pageview" to Icons.Default.Pageview,\n', ''),
+    ('theme-code-icon-unmapped', ICONS / 'settings.rs', '    ("pageview", "Filled.Pageview"),\n', ''),
     ('theme-code-recorder-keeps-slot', SETTINGS_UI / 'SettingsKeyRecorder.kt', 'if (was) slot.set(previous)', 'if (was) slot.set(this)'),
     ('theme-code-recorder-overwrites-later', SETTINGS_UI / 'SettingsKeyRecorder.kt',
      'if (was) slot.set(previous)', 'if (was || previous != null) slot.set(previous)'),
@@ -73,7 +73,8 @@ CASES = [
     ('theme-code-described-name-dropped', SETTINGS_UI / 'SettingsKeyRecorder.kt',
      '(if (character) name(code) else null).orEmpty()', '(if (character) name(code)?.take(0) else null).orEmpty()'),
     ('theme-code-described-icon-unspecified', SETTINGS_UI / 'SettingsKeyRecorder.kt',
-     'SettingsUiThemeCode.ICON to icon(data))', 'SettingsUiThemeCode.ICON to icon(TextKeyData.UNSPECIFIED))'),
+     'SettingsUiThemeCode.ICON to icon(data).toString())',
+     'SettingsUiThemeCode.ICON to icon(TextKeyData.UNSPECIFIED).toString())'),
 ]
 # The Rust test binary that must panic for each Rust-only case.
 RUST = dict.fromkeys([

@@ -13,6 +13,8 @@ backup = { path = "../backup" }
 settings = { path = "../settings" }
 input = { path = "../input" }
 keys = { path = "../keys" }
+# The icons the Smartbar and the settings screens draw.
+icons = { path = "../icons" }
 gestures = { path = "../gestures" }
 popup = { path = "../popup" }
 snygg = { path = "../snygg" }

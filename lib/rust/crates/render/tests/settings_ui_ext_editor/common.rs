@@ -216,21 +216,6 @@ pub fn strings(a: &mut App) {
     ] {
         a.strings.insert(k.into(), v.into());
     }
-    for icon in [
-        "add",
-        "edit",
-        "delete",
-        "code",
-        "library_books",
-        "file_blank",
-        "text_fields",
-        "photo",
-        "info",
-        "arrow_back",
-    ] {
-        a.strings
-            .insert(format!("@icon:{icon}"), "M0 0h24v24H0z".into());
-    }
 }
 /// A phone-sized app.
 pub fn fresh() -> (App, Text) {

@@ -91,21 +91,20 @@ class SettingsThemeCodeMatchTest {
                 val data = TextKeyData.getCodeInfoAsTextKeyData(code) ?: TextKeyData.UNSPECIFIED
                 // Kotlin is asked about the key the code names, once, and never about the unspecified key.
                 assertEquals(if (data.code == 0) emptyList() else listOf(listOf(SettingsUiThemeCodeEffect.DESCRIBE, "${data.code}")), asked, "$code")
-                if (asked.isNotEmpty()) s = n.report(describedCode(data.code, name, mark) { "" })
+                if (asked.isNotEmpty()) s = n.report(describedCode(data.code, name, mark) { 0 })
                 val preview = node(s, PREVIEW_ID)
                 assertEquals(composePreview(code), preview.text("label") to preview.text("state"), "$code")
             }
         }
     }
 
-    @Test fun anIconCrossesAsPathDataAndTakesTheLabelsPlace() {
-        val path = "M0,0h24v24h-24z"
-        val row = describedCode(KeyCode.VIEW_SYMBOLS, name, mark) { if (it.code == KeyCode.VIEW_SYMBOLS) path else "" }
-        assertEquals(path, row[SettingsUiThemeCode.ICON])
+    @Test fun anIconCrossesAsItsTokenAndTakesTheLabelsPlace() {
+        val row = describedCode(KeyCode.VIEW_SYMBOLS, name, mark) { if (it.code == KeyCode.VIEW_SYMBOLS) KeyCode.DELETE else 0 }
+        assertEquals("${KeyCode.DELETE}", row[SettingsUiThemeCode.ICON])
         assertEquals(listOf(SettingsUiThemeCodeReport.DESCRIBED, "${KeyCode.VIEW_SYMBOLS}", "", WireFlag.encode(false)),
             row.take(4))
-        val acute = describedCode(0x301, name, mark) { "" }
-        assertEquals(listOf("COMBINING ACUTE ACCENT", WireFlag.encode(true), ""), acute.drop(2))
+        val acute = describedCode(0x301, name, mark) { 0 }
+        assertEquals(listOf("COMBINING ACUTE ACCENT", WireFlag.encode(true), "0"), acute.drop(2))
         KeyboardRenderer(arrayOf(ThemeEditorNatives.font)).use { n ->
             n.addCode()
             assertEquals("key__view_symbols, view_symbols", node(n.type("${KeyCode.VIEW_SYMBOLS}"), PREVIEW_ID).text("label"))

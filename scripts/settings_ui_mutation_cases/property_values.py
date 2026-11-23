@@ -1,5 +1,5 @@
 """The property editor's colours, swatches, value icons and contrast note (part 3): each case must fail the test its comment names."""
-from .paths import ROOT, SETTINGS_UI, UI, TE
+from .paths import ICONS, ROOT, SETTINGS_UI, UI, TE
 
 CASES = [
     # The property editor's static colour through the colour picker (step 9, part 3): Rust-only cases.
@@ -78,7 +78,7 @@ CASES = [
     ('value-row-variable-unlinked', TE / 'value_icons.rs',
      'v if f.encoder == Some(Encoder::Variable) => v.unwrap_or(Value::Variable(vec![])),',
      'Some(v) if f.encoder == Some(Encoder::Variable) => v,'),
-    ('icon-unmapped-in-kotlin', SETTINGS_UI / 'SettingsIcons.kt', '"@icon:open_in_full" to Icons.Default.OpenInFull, ', ''),
+    ('icon-unmapped-in-kotlin', ICONS / 'settings.rs', '    ("open_in_full", "Filled.OpenInFull"),\n', ''),
     # The low contrast note (theme editor part 3): the Rust cases fail settings_ui_theme_editor, the Kotlin one
     # SettingsResourcesTest.
     ('contrast-always-low', TE / 'contrast.rs',

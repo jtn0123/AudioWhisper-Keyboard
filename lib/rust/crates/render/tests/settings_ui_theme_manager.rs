@@ -59,8 +59,6 @@ fn app(route: &str) -> (App, Text) {
         ("action__edit", "Edit"),
         ("pref__theme__day", "Day theme"),
         ("pref__theme__night", "Night theme"),
-        ("@icon:light_mode", "M0 0h24v24H0z"),
-        ("@icon:dark_mode", "M0 0h24v24H0z"),
     ] {
         a.strings.insert(k.into(), v.into());
     }

@@ -253,8 +253,9 @@ impl App {
         c.bounds = crate::panel_layout::intersection(c.bounds, clip);
         self.controls.push(c);
     }
+    /// Settings icon `name` (`icons::settings`), drawn at `b` in `color`.
     pub(super) fn paint_icon(&self, p: &mut Panel, name: &str, b: Rect, color: u32, clip: Rect) {
-        if let Some(icon) = self.strings.get(&format!("@icon:{name}")) {
+        if let Some(icon) = icons::settings(name).and_then(icons::path) {
             self.paint_path(p, icon, b, color, clip);
         }
     }
