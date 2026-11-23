@@ -79,12 +79,6 @@ android {
         targetCompatibility = JavaVersion.VERSION_11
     }
 
-    ksp {
-        arg("room.schemaLocation", "$projectDir/schemas")
-        arg("room.incremental", "true")
-        arg("room.expandProjection", "true")
-    }
-
     defaultConfig {
         // AudioWhisper Keyboard: a personal fork, installed next to stock FlorisBoard.
         applicationId = "com.jtn0123.audiowhisper.keyboard"
@@ -299,8 +293,6 @@ dependencies {
     implementation(libs.androidx.emoji2)
     implementation(libs.androidx.exifinterface)
     implementation(libs.androidx.profileinstaller)
-    ksp(libs.androidx.room.compiler)
-    implementation(libs.androidx.room.runtime)
     implementation(libs.cache4k)
     implementation(libs.kotlin.reflect)
     implementation(libs.kotlinx.coroutines)
