@@ -6,12 +6,12 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 /**
- * Real dictionary answers over public fixture prefix/editor snapshots; never a user's text. The
- * reference's answers also go on a golden tape (docs/phase6-kotlin-references.md).
+ * Real dictionary answers over public fixture prefix/editor snapshots; never a user's text. What the
+ * frozen NLP decisions answered is a golden digest (docs/phase6-kotlin-references.md).
  */
 class NlpHarnessMatchTest {
     @Test fun everyPublicHarnessFixtureMatchesWithBundledDictionaryResults() {
-        val tape = GoldenTape.ofReference("nlp-harness")
+        val tape = GoldenTape("nlp-harness")
         for (dictionary in TestDictionaries.both) everyFixtureMatches(dictionary, tape)
         tape.finish()
     }
@@ -31,7 +31,7 @@ class NlpHarnessMatchTest {
                     // Prefixes exercise every request while typing; final cursor checkpoints cover moves.
                     for (end in 0..content.length) {
                         val text = content.take(end)
-                        val context = ReferenceNlp.context(text, f[1].toInt()).toMutableList().also {
+                        val context = NlpMatchTest.context(text, f[1].toInt()).toMutableList().also {
                             it[4] = f[3]; it[5] = f[3]; it[7] = "1"
                             if (end == content.length) { it[10] = f[2]; it[11] = f.getOrNull(5) ?: f[2] }
                         }
@@ -58,6 +58,6 @@ class NlpHarnessMatchTest {
         }
         assertEquals(54, names.size)
         assertEquals(2056, checkpoints)
-        println("NLP public fixture replay on ${dictionary.name}: ${names.size} traces, $checkpoints prefix/cursor checkpoints, zero differences")
+        println("NLP public fixture replay on ${dictionary.name}: ${names.size} traces, $checkpoints prefix/cursor checkpoints")
     }
 }

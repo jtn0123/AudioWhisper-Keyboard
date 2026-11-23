@@ -8,21 +8,19 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 
-/** Remaining pre-A1 provider/store decisions as independent Kotlin references. */
+/** Remaining pre-A1 provider/store decisions: the composing range as a golden digest of the frozen
+ * provider rule's answers (docs/phase6-kotlin-references.md), names and unknown words inline. */
 class NlpPureMatchTest {
     @Test fun composingRangesMatchTheOriginalProviderForIcuBoundaryMetadata() {
         val random = Random(16)
-        // The reference's answers also go on a golden tape (docs/phase6-kotlin-references.md).
-        val tape = GoldenTape.ofReference("nlp-composing")
+        val tape = GoldenTape("nlp-composing")
         NlpSession().use { nlp ->
             repeat(50_000) {
                 val text = listOf(":smile", "word", "x:smile", "", "😀word", "\uD800:word").random(random)
                 val start = random.nextInt(-1, text.length + 1)
                 val end = text.length
                 val status = listOf(0, 100, 200, 300).random(random)
-                val expected = ReferenceNlpComposing.range(status, start, end, text)
-                tape.answer("range", expected)
-                assertEquals(expected, nlp.call(NlpOp.COMPOSING, status.toString(), start.toString(), end.toString(), text).toList())
+                tape.answer("range", nlp.call(NlpOp.COMPOSING, status.toString(), start.toString(), end.toString(), text).toList())
             }
         }
         tape.finish()

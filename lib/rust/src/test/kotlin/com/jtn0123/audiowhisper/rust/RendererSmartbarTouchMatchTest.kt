@@ -3,14 +3,19 @@ package com.jtn0123.audiowhisper.rust
 import com.jtn0123.audiowhisper.golden.GoldenTape
 import kotlin.random.Random
 import kotlin.test.Test
-import kotlin.test.assertContentEquals
-import kotlin.test.assertEquals
 
+/**
+ * Pointer schedules on the Smartbar as BarTouch and RendererSmartbarTouch answered them (7c0b8183):
+ * the actions each event, tick and invalidation gives and the deadline after it, a golden digest of
+ * their frozen copy's answers (docs/phase6-kotlin-references.md).
+ */
 class RendererSmartbarTouchMatchTest {
-    @Test fun recordedAndSeededPointerSchedulesMatchFrozenHostReference() {
+    /** A slot of the layout packet: an action's or a word's, its index and its horizontal span. */
+    private data class Slot(val index: Int, val left: Float, val right: Float)
+
+    @Test fun recordedAndSeededPointerSchedules() {
         val random = Random(0x3b0301)
-        // The reference's answers also go on a golden tape (docs/phase6-kotlin-references.md).
-        val tape = GoldenTape.ofReference("smartbar-touch")
+        val tape = GoldenTape("smartbar-touch")
         for (layout in listOf(0,1,2,3)) KeyboardRenderer(emptyArray()).use { renderer ->
             val config = floatArrayOf(1f,layout.toFloat(),0f,1f,1f,0f,0f,0f,5f,0f,1f,40f)
             renderer.theme("""{"${'$'}schema":"https://schemas.florisboard.org/snygg/v2/stylesheet"}""",
@@ -21,33 +26,26 @@ class RendererSmartbarTouchMatchTest {
             // Use the independently matched layout packets for the stationary/leave schedules.
             val packet = SmartbarRules.layout(config,400f,floatArrayOf(10f,10f,10f))
             val slots = (8 until packet.size step 6).filter { packet[it+3] == 0f }.map {
-                ReferenceRendererSmartbarTouch.Slot(packet[it] == 1f,packet[it+1].toInt(),packet[it+2],packet[it+4])
+                Slot(packet[it+1].toInt(),packet[it+2],packet[it+4])
             }
             for (run in 0 until 800) {
                 renderer.touch(intArrayOf(3,0),longArrayOf(),floatArrayOf())
                 val delay = listOf(100L,300L,750L)[run%3]*1_000_000
                 renderer.barSettings(delay,intArrayOf())
-                val reference = ReferenceRendererSmartbarTouch(slots,delay)
                 var time = 1_000_000_000L
                 val ids = intArrayOf(0,7)
                 val xy = FloatArray(4)
                 val first = slots[random.nextInt(slots.size)]
                 xy[0]=(first.left+first.right)/2; xy[1]=20f
                 fun event(action: Int, index: Int = 0, count: Int = 1) {
-                    val expected = reference.event(action,index,ids.copyOf(count),xy.copyOf(count*2),time)
-                    tape.answer("event $action", expected.toList())
-                    tape.answer("deadline", reference.deadline())
                     val actual = renderer.touch(intArrayOf(action,index)+ids.copyOf(count),longArrayOf(0,time),xy.copyOf(count*2))
-                    assertContentEquals(expected,actual,"layout=$layout run=$run action=$action")
-                    assertEquals(reference.deadline(),renderer.nextDeadline())
+                    tape.answer("event $action", actual.toList())
+                    tape.answer("deadline", renderer.nextDeadline())
                 }
                 fun tick(delta: Long) {
                     time += delta
-                    val expected = reference.tick(time)
-                    tape.answer("tick", expected.toList())
-                    tape.answer("deadline", reference.deadline())
-                    assertContentEquals(expected,renderer.tick(time),"tick layout=$layout run=$run")
-                    assertEquals(reference.deadline(),renderer.nextDeadline())
+                    tape.answer("tick", renderer.tick(time).toList())
+                    tape.answer("deadline", renderer.nextDeadline())
                 }
                 event(0)
                 if (run%4 == 0) {
@@ -59,9 +57,7 @@ class RendererSmartbarTouchMatchTest {
                 }
                 if (run%5 == 0) {
                     val changed = intArrayOf(first.index)
-                    val expected = reference.invalidated(changed)
-                    tape.answer("invalidated", expected.toList())
-                    assertContentEquals(expected,renderer.barSettings(delay,changed))
+                    tape.answer("invalidated", renderer.barSettings(delay,changed).toList())
                 }
                 if (run%3 == 0) { xy[0]=-1f; event(2) }
                 event(if (run%7 == 0) 3 else 1)
