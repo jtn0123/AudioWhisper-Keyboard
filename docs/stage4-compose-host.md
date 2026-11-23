@@ -275,10 +275,10 @@ Driving notes:
 * **E43.** No instrumented test sends the settings intents to `FlorisAppActivity` on a device.
   `SettingsEntryTest` drives the renderer through the same two calls on the JVM, and checks the
   manifest, but `onNewIntent` and `onCreate` are checked only by the hand-run check above.
-* `scripts/install-dev.sh` names each device's backup after `ro.serialno`, and every emulator
-  reports `EMULATOR36X5X11X0`, so emulators share one backup. When an install finds the
-  settings missing, it can put another emulator's settings onto this one. The backup should be
-  named by the adb serial for emulators.
+* ~~`scripts/install-dev.sh` names each device's backup after `ro.serialno`, so emulators share
+  one backup.~~ Fixed in 48b2e0018: an emulator's backup is named by its AVD
+  (`.device-backup/avd-<name>`), since the adb serial changes with the port; phones keep their
+  serial.
 * Retiring `SettingsUiOp.ROUTES`, which only JVM tests read now. Its tests would read the route
   list some other way first.
 
