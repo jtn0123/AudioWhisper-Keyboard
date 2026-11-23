@@ -114,7 +114,23 @@ def put_system(device, state):
     put('system', 'font_scale', state['font_scale'])
     device.adb('shell', 'cmd', 'overlay', 'enable-exclusive', '--category', NAV[state['nav']])
     device.adb('shell', 'cmd', 'overlay', 'enable' if state['cutout'] else 'disable', CUTOUT)
-    time.sleep(2)
+    settle(device)
+
+
+def settle(device, timeout=20):
+    """Waits until the system bars' frames hold still for two seconds. SystemUI resizes them a
+    while after a rotation or an overlay change, later on a loaded host than a fixed wait allowed,
+    and either root that reads them first keeps the old height."""
+    bars = re.compile(r'InsetsSource[^\n]*type=(?:statusBars|navigationBars) frame=\[[-\d,\]\[]+')
+    read = lambda: sorted(set(bars.findall(device.adb('shell', 'dumpsys', 'window'))))
+    last, deadline = read(), time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        time.sleep(2)
+        now = read()
+        if now == last:
+            return
+        last = now
+    raise RuntimeError('System bars did not settle')
 
 
 def window(device):
