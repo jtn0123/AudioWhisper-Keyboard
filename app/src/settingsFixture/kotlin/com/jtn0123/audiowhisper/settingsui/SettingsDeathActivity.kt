@@ -3,6 +3,7 @@ package com.jtn0123.audiowhisper.settingsui
 import android.os.Bundle
 import android.view.View
 import android.view.ViewGroup
+import com.jtn0123.audiowhisper.rust.SettingsUiEdit
 import dev.patrickgold.florisboard.app.FlorisAppActivity
 import org.json.JSONObject
 import java.io.File
@@ -48,8 +49,8 @@ class SettingsDeathActivity : FlorisAppActivity() {
                 File(filesDir, "settings-death-result.json").writeText(JSONObject().put("passed", passed)
                     .put("old_pid", original.getInt("pid")).put("new_pid", android.os.Process.myPid()).put("restored_bundle", true).toString())
                 // Clear the synthetic draft immediately. No screenshot/tree may capture it.
-                host?.edit("set", "")
-                host?.edit("blur")
+                host?.edit(SettingsUiEdit.SET, "")
+                host?.edit(SettingsUiEdit.BLUR)
                 window.decorView.visibility = View.VISIBLE
             }
         }
@@ -69,7 +70,7 @@ class SettingsDeathActivity : FlorisAppActivity() {
                 if (host == null && attempts++ < 200) { handler.postDelayed(this, 30); return }
                 checkNotNull(host)
                 window.decorView.visibility = View.INVISIBLE
-                host.edit("focus")
+                host.edit(SettingsUiEdit.FOCUS)
                 val endpoint = (0 until host.childCount).map(host::getChildAt).filterIsInstance<SettingsInputView>().single()
                 val connection = checkNotNull(endpoint.onCreateInputConnection(android.view.inputmethod.EditorInfo()))
                 check(connection.setComposingText("ab\uD83D\uDE80cdef", 1))
