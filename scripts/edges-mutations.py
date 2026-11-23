@@ -1,7 +1,7 @@
 """Platform-edge faults (phase 5, docs/phase5-edges.md): each must trip a fresh assertion in at least
 one of the test targets it names; source bytes are always restored. python3 -I.
 
-    python3 -I scripts/edges-mutations.py build/edges/mutations [--part gif] [case ...]
+    python3 -I scripts/edges-mutations.py build/edges/mutations [--part gif|dictation] [case ...]
 
 Run with no other Cargo or Gradle operation in this checkout, and do not read the source as the
 truth while it runs: it is mutated then. A compilation failure never counts as caught: a Rust target
@@ -98,9 +98,50 @@ GIF_CASES = [
     ('refusal-reported-as-ok', GIPHY, 'if (status != request[GifRequest.OK_STATUS]) return read(status, null)',
      'if (status != request[GifRequest.OK_STATUS]) return read(request[GifRequest.OK_STATUS], null)', [GIF_UNITS]),
 ]
-PARTS = {'gif': GIF_CASES}
-CARGO = {GIF_CRATE: ['-p', 'gif']}
+DICT_RS = ROOT / 'lib/rust/crates/dictation/src'
+AUDIO, MODEL = DICT_RS / 'audio.rs', DICT_RS / 'model_check.rs'
+DICT_KT = ROOT / 'app/src/main/kotlin/com/jtn0123/audiowhisper/dictation'
+MIC_KT, MODEL_KT = DICT_KT / 'MicRecorder.kt', DICT_KT / 'ModelCheck.kt'
+DICT_CRATE, MIC_TRACE, MODEL_TRACE = 'cargo:dictation', 'jvm:mic-trace', 'jvm:model-trace'
+MIC, MODELS = [DICT_CRATE, MIC_TRACE], [DICT_CRATE, MODEL_TRACE]
+DICT_UNITS = 'jvm:dictation-units'
+DICTATION_CASES = [
+    # The microphone: how loud a chunk is, what a read means, the buffer, and a WAV file's samples.
+    ('level-factor-seven', AUDIO, '.sqrt() * 8.0;', '.sqrt() * 7.0;', MIC),
+    ('level-uncapped', AUDIO, '(rms as f32).clamp(0.0, 1.0)', 'rms as f32', MIC),
+    ('error-ends-quietly', AUDIO, '..0 if running => read::REPORT,', '..0 if running => read::END,', MIC),
+    ('error-after-stop-reported', AUDIO, '..0 => read::END,', '..0 => read::REPORT,', MIC),
+    ('nothing-delivered', AUDIO, '0 => read::SKIP,', '0 => read::DELIVER,', MIC),
+    ('buffer-quarter-second', AUDIO, 'size_of::<f32>() / 2) as i32', 'size_of::<f32>() / 4) as i32', MIC),
+    ('scale-32767', AUDIO, 'i16::from_le_bytes(pair)) / 32768.0', 'i16::from_le_bytes(pair)) / 32767.0', MIC),
+    ('twelve-bytes-a-wav', AUDIO, 'wav.len() <= 12 ||', 'wav.len() < 12 ||', MIC),
+    ('odd-chunks-unpadded', AUDIO, '8i32.wrapping_add(size).wrapping_add(size & 1)', '8i32.wrapping_add(size)', MIC),
+    ('bytes-read-as-samples', AUDIO, 'size.min(available) / 2)', 'size.min(available) / 4)', MIC),
+    ('walk-stops-early', AUDIO, 'for _ in 0..=wav.len() {', 'for _ in 0..2 {', MIC),
+    ('kt-error-ends-quietly', MIC_KT, 'MicRead.REPORT -> return onError(n)', 'MicRead.REPORT -> return',
+     [MIC_TRACE, DICT_UNITS]),
+    ('kt-level-of-whole-buffer', MIC_KT, 'MicRules.level(buffer, n)', 'MicRules.level(buffer, buffer.size)',
+     [MIC_TRACE, DICT_UNITS]),
+    # A model's files: which are missing or damaged, which are hashed, and which are remembered.
+    ('damaged-wins', MODEL, 'if !missing.is_empty() {', 'if false {', MODELS),
+    ('key-without-time', MODEL, 'format!(":{length}:{modified}")', 'format!(":{length}")', MODELS),
+    ('known-files-hashed', MODEL, '.filter(|&i| !known[i]).collect()', '.filter(|&i| known[i]).collect()', MODELS),
+    ('known-files-judged', MODEL, '        if known[i] {\n            continue;\n        }\n', '', MODELS),
+    ('sums-unchecked', MODEL, 'Some(sum) if *sum == expected[i] => passed.push(i),', 'Some(_) => passed.push(i),',
+     MODELS),
+    ('failures-remembered', MODEL, '_ => damaged.push(i),', '_ => {\n                damaged.push(i);\n'
+     '                passed.push(i);\n            }', MODELS),
+    ('kt-state-row-remembered', MODEL_KT, 'for (at in 2 + verdict[1] until verdict.size)',
+     'for (at in 2 until verdict.size)', [MODEL_TRACE, DICT_UNITS]),
+    ('kt-names-shifted', MODEL_KT, 'val names = (2 until 2 + answer[1])', 'val names = (1 until 1 + answer[1])',
+     [MODEL_TRACE, DICT_UNITS]),
+]
+PARTS = {'gif': GIF_CASES, 'dictation': DICTATION_CASES}
+CARGO = {GIF_CRATE: ['-p', 'gif'], DICT_CRATE: ['-p', 'dictation']}
 JVM = {
+    MIC_TRACE: ['*MicTraceTest'],
+    MODEL_TRACE: ['*ModelCheckTraceTest'],
+    DICT_UNITS: ['*ModelCheckTest', '*MicRecorderTest', '*AudioHistoryTest'],
     GIF_TRACE: ['*GifSearchTraceTest'],
     GIF_UNITS: ['*GifRecentsTest', '*GifChipsTest', '*GiphyTest', '*GifSenderFilesTest', '*GiphyTransportTest'],
 }
