@@ -4,6 +4,7 @@
 mod clipboard;
 mod clipboard_store;
 mod composing;
+mod crash;
 mod dictation;
 mod dictation_edges;
 mod dictation_session;
@@ -88,6 +89,7 @@ pub const CLASSES: &[Class] = &[
     reader_runtime::READER_WALK,
     reader_runtime::PLAYBACK_NATIVE,
     reading::READING_NATIVE,
+    crash::CRASH_NATIVE,
     input::INPUT_RULES,
     input::INPUT_NATIVE,
     glide::GLIDE_NATIVE,
@@ -142,6 +144,7 @@ pub const APIS: &[Api] = &[
     reading::READING_PLAN,
     reading::READING_RULES,
     reading::VOICE_HOLD,
+    crash::CRASH_RULES,
     input::INPUT_DISPATCH,
     glide::GLIDE_WORDS,
     glide::GLIDE_INDEX,
@@ -260,6 +263,11 @@ pub const WIRE: &[Wire] = &[
         module: Module::Rust,
         internal: false,
         groups: wire::reading::GROUPS,
+    },
+    Wire {
+        module: Module::Rust,
+        internal: false,
+        groups: wire::crash::GROUPS,
     },
     Wire {
         module: Module::Rust,

@@ -28,6 +28,9 @@ import android.widget.Toast
 import android.widget.Toolbar
 import androidx.activity.ComponentActivity
 import androidx.core.net.toUri
+import com.jtn0123.audiowhisper.rust.CrashFact
+import com.jtn0123.audiowhisper.rust.CrashRules
+import com.jtn0123.audiowhisper.settingsui.PlatformCrashScreen
 import dev.patrickgold.florisboard.BuildConfig
 import dev.patrickgold.florisboard.R
 import dev.patrickgold.florisboard.app.FlorisPreferenceModel
@@ -53,7 +56,7 @@ private class SafePreferenceInstanceWrapper : ReadOnlyProperty<Any?, FlorisPrefe
 
 class CrashDialogActivity : ComponentActivity() {
     private var stacktraces: List<CrashUtility.Stacktrace> = listOf()
-    private var errorReport: StringBuilder = StringBuilder()
+    private var errorReport = ""
     private val prefs by SafePreferenceInstanceWrapper()
 
     private val stacktrace by lazy { findViewById<TextView>(R.id.stacktrace) }
@@ -65,6 +68,9 @@ class CrashDialogActivity : ComponentActivity() {
     @SuppressLint("InflateParams")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Without the library the report can't be made: the platform's crash screen says so, and
+        // the reports stay on disk for when it loads.
+        if (PlatformCrashScreen.showIfUnavailable(this)) return
         val layout = layoutInflater.inflate(R.layout.crash_dialog, null)
         setContentView(layout)
 
@@ -72,40 +78,9 @@ class CrashDialogActivity : ComponentActivity() {
         setActionBar(toolbar)
 
         stacktraces = CrashUtility.getUnhandledStacktraces(this)
-        val versionName = buildString {
-            append("[")
-            append(BuildConfig.VERSION_NAME)
-            append("](")
-            if (BuildConfig.DEBUG) {
-                append(stringRes(R.string.florisboard__commit_by_hash_url, "hash" to BuildConfig.BUILD_COMMIT_HASH))
-            } else {
-                append(stringRes(R.string.florisboard__changelog_url, "version" to BuildConfig.VERSION_NAME))
-            }
-            append(")")
-        }
-        errorReport.apply {
-            appendLine("#### Environment information")
-            appendLine("- FlorisBoard $versionName (${BuildConfig.VERSION_CODE})")
-            appendLine("- Device: ${Devtools.getDeviceName()}")
-            appendLine("- Android: ${Devtools.getAndroidVersion()}")
-            appendLine()
-            appendLine("#### Attached logs and stacktrace files")
-            appendCollapsibleSection(
-                summary = "Detailed info (Debug log header)",
-                details = Devtools.generateDebugLog(this@CrashDialogActivity, prefs),
-            )
-            appendLine()
-            if (stacktraces.isNotEmpty()) {
-                stacktraces.forEach {
-                    appendCollapsibleSection(it.name, it.details)
-                    appendLine()
-                }
-            } else {
-                flogWarning(LogTopic.CRASH_UTILITY) {
-                    "Stacktrace file list is empty."
-                }
-            }
-        }
+        if (stacktraces.isEmpty()) flogWarning(LogTopic.CRASH_UTILITY) { "Stacktrace file list is empty." }
+        errorReport = CrashRules.report(facts(), BuildConfig.DEBUG, stacktraces.map { it.name }.toTypedArray(),
+            stacktraces.map { it.details }.toTypedArray())
         stacktrace.text = errorReport
 
         reportInstructions.text =
@@ -137,17 +112,16 @@ class CrashDialogActivity : ComponentActivity() {
         }
     }
 
-    /**
-     * Rules for collapsible markdown on GitHub:
-     *  https://gist.github.com/pierrejoubert73/902cc94d79424356a8d20be2b382e1ab
-     */
-    private fun StringBuilder.appendCollapsibleSection(summary: String, details: String) {
-        this.appendLine("<details>")
-        this.append("<summary>").append(summary).appendLine("</summary>")
-        this.appendLine()
-        this.appendLine("```")
-        this.appendLine(details)
-        this.appendLine("```")
-        this.appendLine("</details>")
+    /** What the report is made of, a `CrashFact` row: the build, the phone and the debug log. */
+    private fun facts(): Array<String> {
+        val facts = Array(CrashFact.SIZE) { "" }
+        facts[CrashFact.VERSION_NAME] = BuildConfig.VERSION_NAME
+        facts[CrashFact.VERSION_CODE] = BuildConfig.VERSION_CODE.toString()
+        facts[CrashFact.COMMIT_URL] = stringRes(R.string.florisboard__commit_by_hash_url, "hash" to BuildConfig.BUILD_COMMIT_HASH)
+        facts[CrashFact.CHANGELOG_URL] = stringRes(R.string.florisboard__changelog_url, "version" to BuildConfig.VERSION_NAME)
+        facts[CrashFact.DEVICE] = Devtools.getDeviceName()
+        facts[CrashFact.ANDROID] = Devtools.getAndroidVersion()
+        facts[CrashFact.DEBUG_LOG] = Devtools.generateDebugLog(this, prefs)
+        return facts
     }
 }

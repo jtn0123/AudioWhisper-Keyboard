@@ -60,6 +60,7 @@ class SettingsInstrumentation : Instrumentation() {
                     report.put("native_load_failure", true).put("non_compose", true)
                     SettingsCrashThemeDevice(h).run(report)
                     SettingsImeFallbackDevice(h).run(report)
+                    crashDialogWithoutLibrary(h, report)
                 }
                 "metrics" -> {
                     SettingsTypographyDevice(h).run(report)
@@ -254,6 +255,31 @@ class SettingsInstrumentation : Instrumentation() {
         stage = "ui"
     }
     /** Every audit item's violations, summed. */
+    /**
+     * The crash screen with the library unavailable: the platform's screen, not the report Rust
+     * would make, and the report files are left for when the library loads.
+     */
+    private fun crashDialogWithoutLibrary(h: SettingsHarness, report: JSONObject) {
+        val dir = File(targetContext.noBackupFilesDir, "unhandled_stacktraces")
+        val before = dir.list().orEmpty().size
+        val dialog = startActivitySync(android.content.Intent(targetContext, dev.patrickgold.florisboard.lib.crashutility.CrashDialogActivity::class.java)
+            .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK))
+        h.main {
+            fun texts(view: android.view.View): List<String> = when (view) {
+                is android.view.ViewGroup -> (0 until view.childCount).flatMap { texts(view.getChildAt(it)) }
+                is android.widget.TextView -> listOf(view.text.toString())
+                else -> emptyList()
+            }
+            val shown = texts(dialog.window.decorView)
+            check(dialog.findViewById<android.view.View>(dev.patrickgold.florisboard.R.id.stacktrace) == null)
+            check(shown.any { it.contains("could not load its keyboard engine") })
+            check(shown.none { it.contains("Environment information") })
+            dialog.finish()
+        }
+        check(dir.list().orEmpty().size == before)
+        report.put("crash_dialog_without_library", true).put("crash_reports_kept", before)
+    }
+
     private fun violations(screens: JSONArray): Int = (0 until screens.length()).sumOf { i ->
         val items = screens.getJSONObject(i).getJSONArray("items")
         (0 until items.length()).sumOf { items.getJSONObject(it).getJSONArray("violations").length() }

@@ -8,6 +8,7 @@ use jni_sys::{JNI_VERSION_1_6, JavaVM, jint};
 
 mod boundary;
 mod composing;
+mod crash;
 mod dictation;
 mod editor;
 mod emoji;

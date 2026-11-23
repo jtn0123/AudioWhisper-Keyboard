@@ -349,6 +349,22 @@ abstract class CrashUtility private constructor() {
         }
     }
 
+    /** The app's crash files and notifications, for [afterCrash]. */
+    private class AppCrashHost(private val application: Application) : CrashHost {
+        override fun lastCrash() = getLastCrashTimestamp(application)
+        override fun setLastCrash(timestamp: Long) = setLastCrashTimestamp(application, timestamp)
+        override fun report(timestamp: Long) = readFile(application.getUstFile(timestamp))
+        override fun forget(timestamp: Long) {
+            application.getUstFile(timestamp).delete()
+        }
+
+        override fun notifyOnce() = pushCrashOnceNotification(application)
+        override fun notifyLoop() {
+            pushCrashMultipleNotification(application)
+            FlorisImeService.switchToPrevInputMethod() || FlorisImeService.switchToNextInputMethod()
+        }
+    }
+
     /**
      * A simple stacktrace data class capable of holding a [name] and the [details] of a stacktrace.
      */
@@ -374,25 +390,7 @@ abstract class CrashUtility private constructor() {
             val stacktrace = Log.getStackTraceString(throwable)
             val ustFile = ustDir.subFile("$timestamp.$UNHANDLED_STACKTRACE_FILE_EXT")
             writeToFile(ustFile, stacktrace)
-            val application = application.get()
-            if (application != null) {
-                val lastTimestamp = getLastCrashTimestamp(application)
-                if (lastTimestamp > 0) {
-                    val lastFile = application.getUstFile(lastTimestamp)
-                    val lastStacktrace = readFile(lastFile)
-                    if (lastStacktrace == stacktrace) {
-                        // Delete last stacktrace if it matches previous unhandled one
-                        lastFile.delete()
-                    }
-                }
-                setLastCrashTimestamp(application, timestamp)
-                if (timestamp - lastTimestamp < 5000) {
-                    pushCrashMultipleNotification(application)
-                    FlorisImeService.switchToPrevInputMethod() || FlorisImeService.switchToNextInputMethod()
-                } else {
-                    pushCrashOnceNotification(application)
-                }
-            }
+            application.get()?.let { afterCrash(AppCrashHost(it), stacktrace, timestamp) }
             val lastActivity = lastActivityCreated.get()
             if (lastActivity != null) {
                 //oldHandler.get()?.uncaughtException(thread, throwable)
