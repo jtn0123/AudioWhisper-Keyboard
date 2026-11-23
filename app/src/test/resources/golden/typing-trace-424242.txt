@@ -1,0 +1,23 @@
+# typing-trace-424242: the answers the frozen Kotlin reference gave (docs/phase6-kotlin-references.md).
+# Their count, the digest after the last, and after each power of two (at N).
+count 400000
+digest 4f8e704f6179c7cb
+at 1 ac91f0527f93e256
+at 2 b5ba59f1363e13a4
+at 4 ab4cf60914b73e40
+at 8 55d07eb07912338f
+at 16 41b0c5ae1d2bb8f5
+at 32 3af3325df60d61e3
+at 64 0552b433310207a9
+at 128 b628558ebeffd5a4
+at 256 bd8c5cad0ee0797c
+at 512 f668ff355fdbe1d0
+at 1024 2ca3dfc219f82937
+at 2048 fb34278dc3e3a5c0
+at 4096 8c6db52ef65fa511
+at 8192 49f92a2d486bbbd6
+at 16384 2edde27774c837ad
+at 32768 d1c95be706e0803e
+at 65536 7e7627c9090ed120
+at 131072 90d5759eb18bb368
+at 262144 5667b216e8e158e5

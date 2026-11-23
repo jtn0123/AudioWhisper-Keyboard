@@ -1,6 +1,7 @@
 package dev.patrickgold.florisboard.ime.nlp
 
 import androidx.compose.ui.graphics.vector.ImageVector
+import com.jtn0123.audiowhisper.golden.GoldenTape
 import com.jtn0123.audiowhisper.suggest.LatinDictionaryEngine
 import dev.patrickgold.florisboard.ime.editor.EditorContent
 import dev.patrickgold.florisboard.ime.editor.EditorRange
@@ -105,9 +106,14 @@ private class OtherCandidate(override val text: CharSequence) : SuggestionCandid
  * A seeded run of synthetic typing through both sides at once: words typed letter by letter with
  * typos, spaces and punctuation that auto-correct, strip picks and removals, swipes, backspaces
  * that undo corrections, the undo key, new fields, setting changes, save timers that fire or die
- * with the process, and service recreation. After each event the sides' records must be equal.
+ * with the process, and service recreation. After each event the sides' records must be equal,
+ * and the reference's go on [tape].
  */
-internal class TypingTrace(private val seed: Long, private val engines: Pair<LatinDictionaryEngine, LatinDictionaryEngine>) {
+internal class TypingTrace(
+    private val seed: Long,
+    private val engines: Pair<LatinDictionaryEngine, LatinDictionaryEngine>,
+    private val tape: GoldenTape,
+) {
     private val random = Random(seed)
     private var clock = 1_000_000L
     private val now = { clock }
@@ -244,8 +250,14 @@ internal class TypingTrace(private val seed: Long, private val engines: Pair<Lat
         suggestPass()
     }
 
+    /**
+     * A tap on the strip as the keyboard shows it, the branch's row, or on a word shown before. The
+     * row is a StateFlow, which keeps the old objects when a list equal to them is published, so a
+     * tap can be on an object the session no longer holds; main's was a StateFlow too, but
+     * [ReferenceNlpState]'s is not, so the tap is never taken from it.
+     */
     private fun pick(remove: Boolean) {
-        val current = reference.candidates
+        val current = branch.candidates
         val candidate = when {
             current.isNotEmpty() && random.nextInt(100) < 85 -> current[random.nextInt(current.size)]
             shown.isNotEmpty() -> shown[random.nextInt(shown.size)]
@@ -332,7 +344,7 @@ internal class TypingTrace(private val seed: Long, private val engines: Pair<Lat
         for ((want, got) in expected.zip(actual)) {
             if (want.second != got.second) fail("seed $seed event $index ($kind): ${want.first} differs from main's fan-out")
         }
-        expected.forEach { (name, value) -> digest.update("$name=$value\n".toByteArray()) }
+        expected.forEach { (name, value) -> digest.update("$name=$value\n".toByteArray()); tape.answer(name, value) }
         expected.zip(last).forEach { (now, before) -> if (now != before) changes.merge(now.first, 1, Int::plus) }
         last = expected
         reference.effects.log.forEach { effects.merge(it.substringBefore(' '), 1, Int::plus) }

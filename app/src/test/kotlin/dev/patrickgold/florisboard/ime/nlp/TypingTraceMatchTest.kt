@@ -1,5 +1,6 @@
 package dev.patrickgold.florisboard.ime.nlp
 
+import com.jtn0123.audiowhisper.golden.GoldenTape
 import com.jtn0123.audiowhisper.suggest.LatinDictionaryEngine
 import com.jtn0123.audiowhisper.suggest.TestDictionaries
 import kotlin.test.Test
@@ -12,6 +13,7 @@ import kotlin.test.assertTrue
  * Android was asked to do (kept-word writes and save timers, in order), what went into the editor,
  * the Smartbar's row, every store, and what was written to disk, across save timers that fire,
  * saves lost when the process dies, and service recreation. See docs/phase3-typing-fan-out.md.
+ * The reference's records go on a golden tape per seed (docs/phase6-kotlin-references.md).
  */
 class TypingTraceMatchTest {
     private fun engine(): LatinDictionaryEngine = TestDictionaries.shipped.let {
@@ -21,8 +23,10 @@ class TypingTraceMatchTest {
     @Test fun mainsFanOutAndTheEventPlanLeaveTheSameTrace() {
         for (seed in SEEDS) {
             engine().use { first -> engine().use { second ->
-                val trace = TypingTrace(seed, first to second)
+                val tape = GoldenTape.ofReference("typing-trace-$seed")
+                val trace = TypingTrace(seed, first to second, tape)
                 val digest = trace.run(EVENTS)
+                tape.finish()
                 println("Typing trace seed $seed: $EVENTS events identical, digest $digest")
                 println("  events ${trace.kinds}")
                 println("  effects ${trace.effects}")
