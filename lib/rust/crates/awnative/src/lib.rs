@@ -17,6 +17,7 @@ mod gif;
 mod giphy;
 pub(crate) mod glide;
 mod handle;
+mod ime_subtype;
 mod ime_theme;
 mod ime_window;
 mod jni;

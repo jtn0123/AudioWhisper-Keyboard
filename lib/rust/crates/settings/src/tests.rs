@@ -104,3 +104,19 @@ fn the_removed_settings_switch_is_dropped_whatever_it_stored() {
     .unwrap();
     assert_ne!(kept[0], text("reset"));
 }
+#[test]
+fn a_blank_subtype_list_is_empty_and_anything_else_must_parse() {
+    for blank in ["", " \t\n", "\u{a0}\u{2007}\u{202f}"] {
+        assert_eq!(
+            subtype::decode_list(&text(blank)).unwrap(),
+            Value::List(vec![])
+        );
+    }
+    assert!(subtype::decode_list(&text("\u{2060}")).is_err());
+    assert!(subtype::decode_list(&text("[{")).is_err());
+    let one = codec::encode("subtypes", &Value::List(vec![codec::default_subtype()])).unwrap();
+    assert_eq!(
+        subtype::decode_list(&one).unwrap(),
+        Value::List(vec![codec::default_subtype()])
+    );
+}

@@ -40,6 +40,7 @@ gif = { path = "../gif" }
 glide = { path = "../glide" }
 input = { path = "../input" }
 keygraph = { path = "../keygraph" }
+imesubtype = { path = "../imesubtype" }
 imetheme = { path = "../imetheme" }
 keys = { path = "../keys" }
 latin = { path = "../latin" }

@@ -1,5 +1,16 @@
 //! Subtype edit plans; the caller supplies time, normalized Locale facts and resource snapshots.
 use crate::{Result, Value, codec, text, value::object};
+/// The stored subtype list, as `SubtypeManager` read it: blank text (Java's whitespace and the
+/// three no-break spaces) is an empty list.
+pub fn decode_list(raw: &[u16]) -> Result<Value> {
+    if raw
+        .iter()
+        .all(|&u| chars::is_whitespace(u) || matches!(u, 0xa0 | 0x2007 | 0x202f))
+    {
+        return Ok(Value::List(vec![]));
+    }
+    codec::decode("subtypes", raw, false)
+}
 pub fn active(ids: &[i64], current: i64, fallback: i64) -> (i64, bool) {
     let index = ids
         .iter()

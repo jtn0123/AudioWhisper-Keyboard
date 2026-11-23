@@ -1,0 +1,15 @@
+[package]
+name = "imesubtype"
+version = "0.1.0"
+description = "The keyboard's subtypes: the stored list decoded and repaired, the active subtype, the language key's next and previous, what each subtype names and the key graph's cache key, ported from FlorisBoard's SubtypeManager"
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+settings = { path = "../settings" }
+wire = { path = "../wire" }
+
+[lints]
+workspace = true

@@ -41,19 +41,12 @@ pub fn call(op: i32, input: &[Text]) -> Result<Vec<Text>> {
         (ops::CLAMP, [key, value]) => Ok(vec![catalogue::clamp(key, value)?]),
         (ops::SCALAR, [key, raw]) => scalar::decode(key, raw),
         (ops::DECODE, [kind, json]) => {
-            let empty_subtypes;
-            let json = if kind == &text("subtypes")
-                && json
-                    .iter()
-                    .all(|&u| chars::is_whitespace(u) || matches!(u, 0xa0 | 0x2007 | 0x202f))
-            {
-                empty_subtypes = text("[]");
-                &empty_subtypes
-            } else {
-                json
-            };
             let kind = String::from_utf16_lossy(kind);
-            let decoded = codec::decode(&kind, json, false);
+            let decoded = if kind == "subtypes" {
+                subtype::decode_list(json)
+            } else {
+                codec::decode(&kind, json, false)
+            };
             let value = if kind == "history" {
                 decoded.unwrap_or_else(|_| {
                     value::object([

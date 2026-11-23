@@ -12,6 +12,7 @@ mod gestures;
 mod gif;
 mod giphy;
 mod glide;
+mod ime_subtype;
 mod ime_theme;
 mod input;
 mod key_graph;
@@ -90,6 +91,7 @@ pub const CLASSES: &[Class] = &[
     smartbar::SMARTBAR_NATIVE,
     key_graph::KEY_GRAPH_NATIVE,
     ime_theme::IME_THEME_NATIVE,
+    ime_subtype::IME_SUBTYPES_NATIVE,
     render::RENDER_NATIVE,
     dictation_session::DICTATION_SESSION_NATIVE,
     editor::EDITOR_NATIVE,
@@ -142,6 +144,7 @@ pub const APIS: &[Api] = &[
     smartbar::SMARTBAR_RULES,
     key_graph::KEY_GRAPH,
     ime_theme::IME_THEME,
+    ime_subtype::IME_SUBTYPES,
     keyboard_renderer::KEYBOARD_RENDERER,
     dictation_session::DICTATION_SESSION_PLAN,
     sherpa::DICTATION_AUDIO,
@@ -250,6 +253,11 @@ pub const WIRE: &[Wire] = &[
         module: Module::Rust,
         internal: false,
         groups: wire::ime_theme::GROUPS,
+    },
+    Wire {
+        module: Module::Rust,
+        internal: false,
+        groups: wire::ime_subtype::GROUPS,
     },
     // lib/kotlin can't see lib/rust, so it has its own copy for its own calls.
     Wire {
