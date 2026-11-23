@@ -1,7 +1,7 @@
 """Platform-edge faults (phase 5, docs/phase5-edges.md): each must trip a fresh assertion in at least
 one of the test targets it names; source bytes are always restored. python3 -I.
 
-    python3 -I scripts/edges-mutations.py build/edges/mutations [--part gif|dictation] [case ...]
+    python3 -I scripts/edges-mutations.py build/edges/mutations [--part gif|dictation|reading] [case ...]
 
 Run with no other Cargo or Gradle operation in this checkout, and do not read the source as the
 truth while it runs: it is mutated then. A compilation failure never counts as caught: a Rust target
@@ -136,9 +136,75 @@ DICTATION_CASES = [
     ('kt-names-shifted', MODEL_KT, 'val names = (2 until 2 + answer[1])', 'val names = (1 until 1 + answer[1])',
      [MODEL_TRACE, DICT_UNITS]),
 ]
-PARTS = {'gif': GIF_CASES, 'dictation': DICTATION_CASES}
-CARGO = {GIF_CRATE: ['-p', 'gif'], DICT_CRATE: ['-p', 'dictation']}
+READER_RS = ROOT / 'lib/rust/crates/reader/src'
+PLAN, LOOK, WINDOW = READER_RS / 'reading.rs', READER_RS / 'reading/look.rs', READER_RS / 'window.rs'
+READING_NATIVE = ROOT / 'lib/rust/crates/awnative/src/reading.rs'
+READING_KT = ROOT / 'app/src/main/kotlin/com/jtn0123/audiowhisper/reader/Reading.kt'
+READER_CRATE, READING_TRACE = 'cargo:reader', 'jvm:reading-trace'
+READ = [READER_CRATE, READING_TRACE]
+READING_CASES = [
+    # Looking: the walks, their retries, and a web page settling.
+    ('look-tries-seven', PLAN, 'pub const LOOK_TRIES: u32 = 8;', 'pub const LOOK_TRIES: u32 = 7;', READ),
+    ('retry-wait-shorter', PLAN, 'pub const LOOK_RETRY_MS: i32 = 250;', 'pub const LOOK_RETRY_MS: i32 = 200;', READ),
+    ('settle-tries-five', PLAN, 'pub const SETTLE_TRIES: u32 = 4;', 'pub const SETTLE_TRIES: u32 = 5;', READ),
+    ('empty-screen-kept', LOOK, 'screen.filter(|it| !it.texts.is_empty())', 'screen.filter(|_| true)', READ),
+    ('every-page-settled', LOOK, 'let settle = screen.web && screen.all_shown();',
+     'let settle = screen.all_shown();', READ),
+    ('settled-on-equal-nodes', LOOK, 'screen.filter(|it| it.nodes > nodes)', 'screen.filter(|it| it.nodes >= nodes)',
+     READ),
+    ('selection-reads-own-window', PLAN, 'At::Begun if yes => self.look(self.from == from::SELECTION, Then::Start),',
+     'At::Begun if yes => self.look(false, Then::Start),', READ),
+    # The voice: a failure said, one that can't speak told long, one that won't begin.
+    ('failed-voice-unsaid', PLAN, 'At::Took if value & 2 != 0 => {', 'At::Took if value & 4 != 0 => {', READ),
+    ('unavailable-told-short', PLAN, 'effect::TELL, message::UNAVAILABLE, 1)', 'effect::TELL, message::UNAVAILABLE, 0)',
+     READ),
+    ('unbegun-read-anyway', PLAN, 'At::Begun if yes =>', 'At::Begun if yes || value == 0 =>', READ),
+    # Where reading starts: in sight, at the top, at the selection.
+    ('screen-from-first-block', PLAN, 'block: first.unwrap_or(0),', 'block: first.map_or(0, |_| 0),', READ),
+    ('top-not-revealed', PLAN, 'Some(block) => self.emit(At::Revealed, effect::REVEAL, block as i32, 0),',
+     'Some(_) => self.after_reveal(),', READ),
+    ('web-scrolled-back', PLAN, 'if !self.screen.web && scrolls < MAX_SCROLLS_BACK {',
+     'if scrolls < MAX_SCROLLS_BACK {', READ),
+    ('scroll-back-cap', PLAN, 'pub const MAX_SCROLLS_BACK: u32 = 60;', 'pub const MAX_SCROLLS_BACK: u32 = 61;', READ),
+    # Reading on: two blocks ahead, the offset once, what is remembered, the scroll on.
+    ('lookahead-three', PLAN, 'LOOKAHEAD as i32 - 1,', 'LOOKAHEAD as i32,', READ),
+    ('offset-kept', PLAN, 'let offset = std::mem::take(&mut self.offset);', 'let offset = self.offset;', READ),
+    ('page-remembered', PLAN, 'if self.screen.scrolls[block] {', 'if block < usize::MAX {', READ),
+    ('recent-uncapped', PLAN, 'if self.read.len() > RECENT {', 'if self.read.len() > RECENT * 100 {', READ),
+    ('other-app-carried-on', PLAN, 'if self.screen.app != self.app {', 'if self.app.is_some() && self.app.is_none() {',
+     READ),
+    ('scroll-tries-four', PLAN, '} else if tries < TRIES_AFTER_SCROLL {', '} else if tries <= TRIES_AFTER_SCROLL {',
+     READ),
+    ('scroll-settle-shorter', PLAN, 'pub const SETTLE_MS: i32 = 350;', 'pub const SETTLE_MS: i32 = 300;', READ),
+    # The window a reading reads.
+    ('window-last-top-layer', WINDOW, 'top.filter(|&t| layers[t] >= layers[i])', 'top.filter(|&t| layers[t] > layers[i])',
+     READ),
+    ('window-focused-first', WINDOW, 'let app = (apps().find(|&i| active[i]))', 'let app = (apps().find(|&i| focused[i]))',
+     READ),
+    ('keyboard-above-cuts', WINDOW, 'if keyboard_top > top && keyboard_top < bottom {', 'if keyboard_top < bottom {',
+     READ),
+    # The natives and the Kotlin runner.
+    ('native-visible-swapped', READING_NATIVE, 'fact::VISIBLE_TOP,\n        fact::VISIBLE_BOTTOM,',
+     'fact::VISIBLE_BOTTOM,\n        fact::VISIBLE_TOP,', [READING_TRACE]),
+    ('native-web-dropped', READING_NATIVE, 'web: web != 0,', 'web: web > 1,', [READING_TRACE]),
+    ('kt-voice-bits-swapped', READING_KT, 'bit(host.takeVoice()) or 2 * bit(host.voiceFailedJustNow())',
+     '2 * bit(host.takeVoice()) or bit(host.voiceFailedJustNow())', [READING_TRACE]),
+    ('kt-skip-own-flipped', READING_KT, 'look(plan, skipOwn = effect[1] == 1)', 'look(plan, skipOwn = effect[1] == 0)',
+     [READING_TRACE]),
+    ('kt-scroll-backwards', READING_KT, 'scroll(forward = effect[0] == ReadingEffect.SCROLL_FORWARD)',
+     'scroll(forward = effect[0] == ReadingEffect.SCROLL_BACK)', [READING_TRACE]),
+    ('kt-keep-ignored', READING_KT, 'ReadingEffect.KEEP -> screen = walked', 'ReadingEffect.KEEP -> Unit',
+     [READING_TRACE]),
+    ('kt-whole-block-queued', READING_KT, 'voice().queue(block.text.substring(effect[2]))', 'voice().queue(block.text)',
+     [READING_TRACE]),
+    ('kt-web-fact-dropped', READING_KT, 'facts[ReadingFact.WEB] = bit(found.web)', 'facts[ReadingFact.WEB] = 0',
+     [READING_TRACE]),
+    ('kt-end-keeps-voice', READING_KT, '                    host.idleVoice()\n', '', [READING_TRACE]),
+]
+PARTS = {'gif': GIF_CASES, 'dictation': DICTATION_CASES, 'reading': READING_CASES}
+CARGO = {GIF_CRATE: ['-p', 'gif'], DICT_CRATE: ['-p', 'dictation'], READER_CRATE: ['-p', 'reader']}
 JVM = {
+    READING_TRACE: ['*ReadingTraceTest'],
     MIC_TRACE: ['*MicTraceTest'],
     MODEL_TRACE: ['*ModelCheckTraceTest'],
     DICT_UNITS: ['*ModelCheckTest', '*MicRecorderTest', '*AudioHistoryTest'],

@@ -218,6 +218,20 @@ fn the_top_is_brought_into_sight_and_the_list_scrolled_back() {
 }
 
 #[test]
+fn a_list_is_scrolled_back_sixty_times_at_most() {
+    let mut reading = begun(from::TOP, "");
+    reading
+        .looked(Some(screen(&["one"], &[0], (0, 400))))
+        .unwrap();
+    assert_eq!(reading.done(), Ok([REVEAL, 0, 0]));
+    for _ in 0..MAX_SCROLLS_BACK {
+        assert_eq!(reading.done(), Ok([SCROLL_BACK, 0, 0]));
+        assert_eq!(reading.answer(1), Ok([WAIT, SCROLL_BACK_MS, 0]));
+    }
+    assert_eq!(reading.done(), Ok([WAIT, SETTLE_MS, 0]));
+}
+
+#[test]
 fn a_selection_is_found_or_spoken_by_itself() {
     let mut reading = begun(from::SELECTION, "two");
     reading

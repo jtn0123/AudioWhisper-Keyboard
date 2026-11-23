@@ -1,6 +1,7 @@
 package com.jtn0123.audiowhisper.reader
 
 import com.jtn0123.audiowhisper.rust.ReadingRules
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -15,7 +16,7 @@ import kotlin.test.assertTrue
  * ([ReferenceReading]): each session runs both against a fake Android of the same seed, whose
  * screens, scrolls, voices and refusals come from it, and compares every effect in order: the
  * status, the cache, the button, the voice taken and made, each walk, wait, scroll, reveal, block
- * queued and wait for blocks, what is said, and the end. A third of the sessions are cancelled at
+ * queued and wait for blocks, what is said, the end, and anything thrown. A third of the sessions are cancelled at
  * a random effect (a stop, a new reading, or the service unbound); a session after one is a new
  * Reading on a new fake, as after the service is made again or the process died. Also the window a
  * reading reads, against main's choice over the same windows.
@@ -150,7 +151,13 @@ class ReadingTraceTest {
         runBlocking {
             val host = FakeHost(Random(seed * 1_000_003 + session), cancelAt)
             val job = launch {
-                if (reference) ReferenceReading(host).session(from) else Reading(host).run(from)
+                try {
+                    if (reference) ReferenceReading(host).session(from) else Reading(host).run(from)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: RuntimeException) {
+                    host.record("threw ${e::class.simpleName}")
+                }
             }
             host.job = job
             job.join()
