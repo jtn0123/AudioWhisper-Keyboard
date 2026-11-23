@@ -416,6 +416,11 @@ Stage 5 packages 1–3, one event family at a time:
   `ReferenceKeyboardSubtypes`, whose trace drives a render reference, and the editor drivers'
   platform stand-ins (`ReferencePlatform`, `ReferenceEditorRange`, `ReferenceCaps.java`).
   The lead kept three more Snygg copies with the palette's two.
+* **The Kotlin half, the device comparisons (2026-11-23):** the 19 copies the instrumented tests
+  compared against are retired. Their answers are 17 golden files (6.6 KB): 11 written on an
+  emulator into the test APK's assets, and a1's and the extension maintainer's on the host. Each
+  family's device fault is caught before and after; whether a phone gives the emulator's speech
+  goldens is owed ([owed-checks P37](owed-checks.md#phone-checks-the-docs-owe)).
 * **Left, the Kotlin half:** app, lib, rust boundary, settingsui, theme and snygg: 58 copies,
   each retired the same way.
 

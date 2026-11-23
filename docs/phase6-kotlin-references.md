@@ -44,7 +44,8 @@ family, which were retired and which were left.
   compiles into the instrumented tests too (`suggest/a1`, `gif/shared`, `lib/ext/replay`). They
   compare on a device (`DictationInstrumentation`, `TtsInstrumentation`, `A1Instrumentation`,
   `RendererFixtureTest`, `ExtensionDeviceReplay`). Golden files for them would need a device run,
-  and this work had no device.
+  and this work had no device. The fourth branch wrote them on an emulator and retired all 19
+  ([what happened](#what-happened)).
 * **Snygg's palette (2 files): kept, in flight, the Compose-free render path.**
   `ReferenceSnyggTheme` resolves dynamic colours through Material 3's colour schemes, and
   `ReferenceSnyggAppearanceValue` holds the colour values named by `ColorPalette`. The palette
@@ -228,7 +229,7 @@ family, which were retired and which were left.
 
 ## What happened
 
-Three branches so far, each stopped at a green point between families. **100 references are
+Four branches so far, each stopped at a green point between families. **119 references are
 retired.**
 
 * **`all-rust/phase6-kotlin`: dictation, reader and gif.** It retired 30: the 23 `app/src/test`
@@ -244,9 +245,17 @@ retired.**
   8, rust boundary 8, settingsui's drag and scrollbar copies, and its licence screen copy: the three
   of that family with nothing to do with colour, palette, Snygg values or the theme editor. Its 32
   are the inventory's 58 "Retire" verdicts in those families less the 26 below.
-* **Kept:** the 19 device comparisons, the 8 render references and the 5 they build on, Snygg's
-  5, and 3 more the second branch kept: `ReferenceKeyboardSubtypes`, `ReferencePlatform` and
-  `ReferenceEditorRange` (with `ReferenceCaps.java`, which the inventory did not count).
+* **`all-rust/phase6-device-goldens`: the 19 device comparisons** (owed-checks E54, now closed).
+  It retired all 19, in six deletion commits: gif's `ReferenceSearchTextFacade`, lib's
+  `ReferenceExtensionMaintainer`, the reader's three under `androidTest` (`ReferenceReader`, which
+  the boundary replay compared with, and `ReferenceVoiceEngine` with its `ReferenceReleasedOnce`),
+  suggest's six in `a1/`, and dictation's eight under `androidTest`. 18 are deleted;
+  `ReferenceLatinSuggester` copied no Kotlin, and stays as `FixtureSuggester`. Five families'
+  device goldens were written on emulator-5556, and a1's on the host, the only place its
+  reference ran.
+* **Kept:** the 8 render references and the 5 they build on, Snygg's 5, and 3 more the second
+  branch kept: `ReferenceKeyboardSubtypes`, `ReferencePlatform` and `ReferenceEditorRange` (with
+  `ReferenceCaps.java`, which the inventory did not count).
   [Kept, and why](#kept-and-why) lists them.
 * **Held for the render path (26):** settingsui's other 7, theme's 2, snygg's 16 and app's
   `ReferenceColorSerializer`. The render-path branch moves the palette maths and touches Snygg and
@@ -281,6 +290,16 @@ retired.**
   each at the family's cases commit, where the references still are, and at its deletion commit. The
   goldens must catch every case the references caught. Each run is a batch that ends well inside
   the two-hour limit on a background command, so no worktree is left with a fault in it.
+* **On a device** (`41e522831`). `GoldenTape` keeps its files in a `Store`: `Classpath` is the
+  JVM's, and androidTest's `DeviceGoldens` reads the test APK's assets
+  (`app/src/androidTest/assets/golden`) and, given `-e referenceGolden write`, has the
+  references' tapes write to the app's `files/golden`. `scripts/device-goldens.py` builds a
+  family's fixture APKs (the debug build is shrunk, and only a fixture build keeps what a test APK
+  calls), installs them with `install-dev.sh` and its `--probe`, runs the instrumentation with
+  `am instrument`, and pulls what the tapes wrote or checks them. It asserts the app's stores and
+  settings unchanged after every run. `scripts/device-mutations.py` runs each family's device
+  cases through the same steps (dictation's are `dictation-mutations.py device`); a case whose
+  reference a JVM test compared too must fail that test as well.
 
 ### Goldens
 
@@ -401,6 +420,38 @@ Three tests needed repeatable inputs before a digest could hold them:
 
 `MicTraceTest` holds Rust to main's answer, except for the WAV files main looped on or crashed
 over. For those it holds Rust to the intended refusal, and the golden records that refusal.
+
+**The device comparisons' goldens.** The fourth branch wrote 17 more, 6,585 bytes for 652,340
+answers: 11 on emulator-5556 into `app/src/androidTest/assets/golden`, a1's 5 on the host (the
+shipped dictionary's two in `app/src/test/a1-goldens/golden`, which the test APK packs as assets
+too, and three in `app/src/test/resources/golden`), and the extension maintainer's JVM golden
+beside those three.
+
+| Family | Generator | Files | Bytes | Answers | Written on | Tests |
+|---|---|---:|---:|---:|---|---|
+| gif | `edbf3a46d` | 1 | 256 | 2 | emulator | `RendererFixtureTest`'s GIF search check, run by `FixtureInstrumentation` |
+| extension | `667dfaf3f` | 2 | 1,369 | 614,310 | emulator, host | `ExtensionDeviceReplay`; `ExtensionMaintainerMatchTest` |
+| boundary (reader) | `82ce8e4c8` | 1 | 517 | 6,000 | emulator | `BoundaryReplay` |
+| a1 | `77fad0eed` | 5 | 2,360 | 32,002 | host | `A1SessionMatchTest`; `A1Instrumentation` checks the shipped dictionary's two |
+| tts | `5a6fd6530` | 1 | 277 | 5 | emulator | `TtsInstrumentation` |
+| dictation | `eac842e6a` | 7 | 1,806 | 21 | emulator | `DictationInstrumentation` |
+
+To write a device family's goldens again, check out its generator commit and run
+`device-goldens.py` on an emulator of your own, then copy the files to the branch:
+
+```sh
+git switch --detach eac842e6a     # dictation; gif edbf3a46d, extension 667dfaf3f, boundary 82ce8e4c8, tts 5a6fd6530
+export ANDROID_HOME=$(sed -n 's/^sdk.dir=//p' local.properties) ANDROID_SERIAL=<your emulator>
+python3 -I scripts/device-goldens.py OUTPUT write dictation
+python3 -I scripts/device-goldens.py OUTPUT check dictation --runs 2
+```
+
+The extension maintainer's JVM golden is written as the JVM families' are, with
+`REFERENCE_GOLDEN=write` and `--tests '*ExtensionMaintainerMatchTest'` at `667dfaf3f`. a1's are
+written on the host at `77fad0eed` with `--tests '*A1SessionMatchTest'`; `device-goldens.py write
+a1` refuses and says how, including moving the shipped dictionary's two to
+`app/src/test/a1-goldens/golden`. The tts and dictation goldens hold the speech models'
+floating-point output on that emulator, which a phone may not match (owed-checks P37).
 
 ### Proof
 
@@ -543,6 +594,28 @@ No case the references caught got past the goldens. 14 cases are not counted at 
     a millisecond" end there. The halved maximum, 10,500 px/s, would cap only a fling from the
     end, or the reversal, which reaches the top either way.
 
+The fourth branch ran each family's device cases on emulator-5556, at the family's generator
+commit and at its deletion commit, before the branch was rebased onto `f2904bea0`; that rebase
+adds files no case edits and no test these runs use. Before, a mutant must fail the reference's
+own check on the device; after, the golden tape. A family whose reference a JVM test compared
+too must fail that test by assertion at both ends. Every restored source passed, on the device
+and the JVM.
+
+| Family | Case (commits) | Before | After |
+|---|---|---|---|
+| gif | `typing-ignored` (`7fcf20f85`, `1444a7a00`) | caught: the reference's `ComparisonFailure` | caught: `gif-search-typing` |
+| extension | `maintainer-email-and-url-swapped` (`8837f2a98`, `55d93ac3e`) | caught: the reference's parse check; on the JVM, caught | caught: `extension-maintainer-device`; on the JVM, caught |
+| boundary | `resume-at-the-first-anchor` (`82ce8e4c8`, `5f931de4e`) | caught: the reference's resume check | caught: `boundary-reader` |
+| a1 | `session-weight-given-not-chosen` (`77fad0eed`, `3618ddada`) | caught: `a1-decoder-main_en-US`; on the JVM, caught | the same |
+| tts | `fewer-flow-steps` (`5a6fd6530`, `eab92b894`) | caught: the reference's parity check | caught: `tts-pocket-loona` |
+| dictation | `threshold`, `tail-flush` (`eac842e6a`, `82e77004c`) | 2 of 2: parity with the references, at fixtures 0 and 5 | 2 of 2: the goldens of fixtures 0 and 5 |
+
+Gif and extension ran at the scripts commit just after their generator, which changes no test or
+production code. a1's reference never ran on a device, so the device checked the host's goldens at
+both ends, while `A1SessionMatchTest` still compared with the reference at the generator. After
+the dictation deletion, `dictation-proof.py` passed on all 7 fixtures twice: from freshly made
+WAVs with 10 timings, and `--jni-free`, with `libsherpa-onnx-jni.so` mapped at none of the 7.
+
 ### Lines deleted
 
 | Commit | What | Files deleted | Counted lines |
@@ -565,6 +638,12 @@ No case the references caught got past the goldens. 14 cases are not counted at 
 | `dc2825ad3` | rust boundary | 8 | −663 |
 | `73511210c` | settingsui: drag and scrollbar | 2 | −100 |
 | `088772046` | settingsui: licences | 1 | −74 |
+| `1444a7a00` | gif: the SearchText facade (device) | 1 | −52, +38 |
+| `55d93ac3e` | lib: the extension maintainer (device) | 1 | −77, +7 |
+| `5f931de4e` | reader: the device reader | 1 | −160, +5 |
+| `3618ddada` | suggest: the A1 references, with `SplitWordsTest` | 6 | −287, +81 |
+| `eab92b894` | reader: the voice | 2 | −144, +21 |
+| `82e77004c` | dictation: the device session | 8 | −549, +40 |
 
 Across the first branch the Kotlin is −2,639 and +206 counted lines (`GoldenTape` and its test
 are 176 of the added). The mutation scripts and cases add 325 lines of Python, and cargo gains
@@ -578,6 +657,11 @@ files alone are 2,720 of them (app 1,208, lib 757, boundary 603, settingsui 152)
 lines of Python, and `phase6-mutations.py` takes a family's `TASK`, for the plain JVM module
 `lib/kotlin`, whose tests run as `test` (+9, −6). The build loses org.json and TagSoup: four lines
 of `app/build.gradle.kts` and four of the version catalogue. Cargo is unchanged.
+
+Across the fourth branch the Kotlin and Java are −1,329 and +428 counted lines (net −901); the
+deleted files alone are 997 of them (dictation 487, reader 254, suggest 187 with `SplitWordsTest`,
+lib 58, gif 11). Its Python is +531 and −89 lines, most of it the two new scripts,
+`device-goldens.py` and `device-mutations.py`. Cargo is unchanged.
 
 ### What moved, and what was found
 
@@ -722,12 +806,47 @@ The third branch:
 * **Mutation runner.** `phase6-mutations.py` takes a family's `TASK`, for `lib/kotlin`'s plain JVM
   `test` task; every other family runs `testDebugUnitTest` as before.
 
+The fourth branch:
+
+* **`RendererFixtureTest` had never passed on a device** (`eaeb92d75`). It ran under
+  AndroidJUnitRunner against the debug build, which R8 has shrunk since `eb5938459`, so its first
+  call into the app died on a missing `kotlin.LazyKt`; and its assertions ran on the main thread,
+  where a failure ends the process instead of failing the run. `FixtureInstrumentation` runs it
+  now, with `-e gifSearch true` in a rendererFixture build.
+* **The device boundary replay had crashed since `645281bf8`** (`3e2689d93`). The app stopped
+  calling `PageText.find`, so R8 removed it and `Start` from the shrunk build, and `BoundaryReplay`
+  died on the missing class before comparing anything. `suggest-fixture.pro` keeps the reader
+  package, as `tts-fixture.pro` does.
+* **a1's reference could not run on a device.** `awnative` builds the AOSP engine glue for the host
+  only, so the device replay always compared its answers with the host's, by two accepted digests.
+  Its goldens are written on the host. Its device case moved to the native session's weight: the
+  old threshold case moved the reference too, so the reference comparison could never see it.
+* **`ReferenceLatinSuggester` was no copy.** It runs the Rust suggester over any decoder, for the
+  fake-decoder tests, so it is `FixtureSuggester` now, outside `a1/`. `SplitWordsTest` tested
+  only the reference's splitter and went with it. The AutoCorrection, WordCase and WordCharacters
+  adapters' tests call `SuggestRules`, as the JVM families' did. Nothing on a device runs the AOSP
+  Java glue any more, so androidTest stops compiling it.
+* **The TTS fixture no longer packs the old JNI** (`eab92b894`). A `ttsFixture` build packages
+  the C API as a normal build does. Only `dictationFixture` builds carry `libsherpa-onnx-jni.so`,
+  and only to make the fixture WAVs; `dictation-proof.py --jni-free` replaces its
+  `--native-only --oracle`, since the goldens are the oracle now.
+* **The dictation fixture WAVs were unseeded** (`eac842e6a`): Pocket speech that changed with every
+  run, so no golden could hold them. They are seeded now, as the TTS comparison is, and every
+  golden run makes them afresh; each check made the writing run's WAVs and answers.
+* **The goldens are an emulator's.** The tts and dictation goldens hold the speech models'
+  floating-point output on emulator-5556 (arm64-v8a, on Apple Silicon). The references used to run
+  beside Rust on the same device, so no phone had to match an emulator before; whether the S24
+  Ultra does is owed ([owed-checks P37](owed-checks.md#phone-checks-the-docs-owe)).
+* **Whole-second file times** (`3a5075512`, `1f611c009`). On `/Volumes/2TB`'s HFS+, where the
+  mutation worktrees live, a mutant or a restore written in the second a build ran looked no newer
+  than that build: cargo reused the binary from before the write, and Gradle a same-length file's
+  hash. `mutation_cases.write` stamps each write two whole seconds past the later of now and the
+  file's old time. Three rounds of `correction-mutations.py`'s three fast cargo cases were wrong
+  in all 9 runs without it and right in all 9 with it. All 72 mutate and restore writes in 29
+  scripts use it, and `test_mutation_cases.py` fails any other.
+
 ### Kept, and why
 
-* **Device comparisons (19):** the 11 under `androidTest` (dictation's 8, reader's
-  `ReferenceReader`, `ReferenceReleasedOnce` and `ReferenceVoiceEngine`), and the 8 compiled into
-  the instrumented tests from `app/src/test` (`gif/shared`, `suggest/a1`, `lib/ext/replay`). Their
-  goldens need a device run ([owed-checks E54](owed-checks.md#emulator-checks-the-docs-owe)).
 * **Render (8): kept, in flight, the Compose-free render path.** That branch owns
   `app/src/test/.../render`.
 * **What the render references build on (5):** `ReferenceLayoutAssembly`, `ReferencePopupSet`,

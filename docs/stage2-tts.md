@@ -145,6 +145,10 @@ and file open/close excluded. First-audio is timestamped at callback entry befor
 The elapsed synthesis interval includes callback hashing/file writes. RTF derives from that
 interval / generated duration; no timed run overlaps a build.
 
+Since phase 6 (2026-11-23) the reference voice is retired: the five sentences' audio is checked
+against the golden tape `tts-pocket-loona`, which it wrote on an emulator, and the ten timed runs
+are the Rust voice's alone ([phase6-kotlin-references](phase6-kotlin-references.md#what-happened)).
+
 It also covers cancellation mid-sentence, 200 real-model cancel/immediate-respeak cycles after
 20 warmups, and close from inside a callback. Native heap samples are retained every ten cycles;
 the maximum of the final five samples must not exceed that of the initial five warmed samples.
