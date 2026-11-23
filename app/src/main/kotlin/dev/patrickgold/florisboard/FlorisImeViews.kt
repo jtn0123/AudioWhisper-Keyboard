@@ -113,7 +113,7 @@ internal class FlorisBottomSheetHostUiView(context: Context) : AbstractComposeVi
         val state by keyboardManager.activeState.collectAsState()
 
         ProvideLocalizedResources(
-            service.resourcesContext,
+            service.localizedContext.collectAsState().value,
             appName = R.string.floris_app_name,
             forceLayoutDirection = LayoutDirection.Ltr,
         ) {
@@ -174,7 +174,7 @@ internal class ComposeExtractedLandscapeInputView @JvmOverloads constructor(
     fun Content() {
         val service = service ?: return
         ProvideLocalizedResources(
-            service.resourcesContext,
+            service.localizedContext.collectAsState().value,
             appName = R.string.floris_app_name,
             forceLayoutDirection = LayoutDirection.Ltr,
         ) {

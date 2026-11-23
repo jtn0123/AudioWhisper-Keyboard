@@ -118,6 +118,11 @@ open class KeyboardState protected constructor(open var rawValue: ULong) {
         get() = if ((read(4) != 0)) LayoutDirection.Rtl else LayoutDirection.Ltr
         set(v) { write(4, v.ordinal) }
 
+    /** [layoutDirection] as a flag, for the plain-View root. */
+    var isRtl: Boolean
+        get() = read(4) != 0
+        set(v) { write(4, if (v) 1 else 0) }
+
     val isLowercase: Boolean
         get() = inputShiftState == InputShiftState.UNSHIFTED
 

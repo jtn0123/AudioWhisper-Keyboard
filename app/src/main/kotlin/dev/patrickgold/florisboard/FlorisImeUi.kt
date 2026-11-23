@@ -16,6 +16,7 @@
 
 package dev.patrickgold.florisboard
 
+import android.util.Size
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.Column
@@ -60,7 +61,7 @@ import org.florisboard.lib.snygg.ui.SnyggSurfaceView
 @Composable
 internal fun FlorisImeService.ImeUiWrapper() {
     ProvideLocalizedResources(
-        resourcesContext,
+        localizedContext.collectAsState().value,
         appName = R.string.floris_app_name,
     ) {
         ProvideKeyboardRowBaseHeight {
@@ -68,6 +69,8 @@ internal fun FlorisImeService.ImeUiWrapper() {
                 FlorisImeTheme {
                     // Do not apply system bar padding here yet, we want to draw it ourselves
                     Column(modifier = Modifier.fillMaxWidth()) {
+                        val isFullscreenUiMode by fullscreenUiMode.collectAsState()
+                        val isExtractUiShown by extractUiShown.collectAsState()
                         // The transparent area lets the keyboard stay anchored at the bottom.
                         if (!(isFullscreenUiMode && isExtractUiShown)) {
                             Spacer(Modifier.fillMaxWidth().weight(1f))
@@ -100,7 +103,7 @@ private fun FlorisImeService.ImeUi() {
             modifier = Modifier
                 .fillMaxWidth()
                 .wrapContentHeight()
-                .onGloballyPositioned { coords -> inputViewSize = coords.size },
+                .onGloballyPositioned { coords -> inputViewSize = Size(coords.size.width, coords.size.height) },
             clickAndSemanticsModifier = Modifier
                 // Do not remove below line or touch input may get stuck
                 .pointerInteropFilter { false },

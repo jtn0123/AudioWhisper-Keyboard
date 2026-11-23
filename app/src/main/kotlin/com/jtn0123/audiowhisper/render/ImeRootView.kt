@@ -5,14 +5,13 @@ import android.content.res.Configuration
 import android.content.res.Resources
 import android.graphics.Rect
 import android.util.Log
+import android.util.Size
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.view.WindowInsets
 import android.view.WindowManager
 import android.widget.FrameLayout
-import androidx.compose.ui.unit.IntSize
-import androidx.compose.ui.unit.LayoutDirection
 import androidx.core.graphics.Insets
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
@@ -141,7 +140,7 @@ internal class ImeRootView(context: Context) : FrameLayout(context) {
         val values = mapOf<Int, Number>(F.DENSITY to metrics.density, F.SYSTEM_DENSITY to Resources.getSystem().displayMetrics.density,
             F.WIDTH to (MeasureSpec.getSize(widthSpec).takeIf { it > 0 } ?: metrics.widthPixels), F.HEIGHT to MeasureSpec.getSize(heightSpec),
             F.HEIGHT_MODE to when (MeasureSpec.getMode(heightSpec)) { MeasureSpec.EXACTLY -> 2; MeasureSpec.AT_MOST -> 1; else -> 0 },
-            F.FULLSCREEN to bit(service.isFullscreenUiMode), F.EXTRACT_SHOWN to bit(service.isExtractUiShown),
+            F.FULLSCREEN to bit(service.fullscreenUiMode.value), F.EXTRACT_SHOWN to bit(service.extractUiShown.value),
             F.SAFE_LEFT to safe.left, F.SAFE_TOP to safe.top, F.SAFE_RIGHT to safe.right, F.SAFE_BOTTOM to safe.bottom,
             F.LANDSCAPE to bit(reads.landscape), F.OFFSET_PORTRAIT to k.bottomOffsetPortrait.get(), F.OFFSET_LANDSCAPE to k.bottomOffsetLandscape.get(),
             F.ONE_HANDED to bit(k.oneHandedModeEnabled.get()), F.ONE_HANDED_END to bit(k.oneHandedMode.get() == OneHandedMode.END),
@@ -162,8 +161,8 @@ internal class ImeRootView(context: Context) : FrameLayout(context) {
         FlorisImeSizing.Static.keyboardRowBaseHeightPx = next[P.ROW_PIXELS].toInt()
         FlorisImeSizing.Static.smartbarHeightPx = next[P.SMARTBAR_PIXELS].toInt()
         reads.rowHeight = next[P.ROW_HEIGHT]
-        val direction = if (service.resourcesContext.resources.configuration.layoutDirection == View.LAYOUT_DIRECTION_RTL) LayoutDirection.Rtl else LayoutDirection.Ltr
-        if (reads.keyboard.activeState.layoutDirection != direction) reads.keyboard.activeState.layoutDirection = direction
+        val rtl = service.resourcesContext.resources.configuration.layoutDirection == View.LAYOUT_DIRECTION_RTL
+        if (reads.keyboard.activeState.isRtl != rtl) reads.keyboard.activeState.isRtl = rtl
         keyboard?.update(snapshot(next))
         val chrome = reads.theme(stateful = true)
         for ((i, panel) in panels.withIndex()) {
@@ -237,7 +236,7 @@ internal class ImeRootView(context: Context) : FrameLayout(context) {
 
     override fun onLayout(changed: Boolean, left: Int, top: Int, right: Int, bottom: Int) {
         for ((child, rect) in placements()) child.layout(rect.left, rect.top, rect.right, rect.bottom)
-        if (plan.isNotEmpty()) service.inputViewSize = IntSize(right - left, plan[P.BOX_HEIGHT].toInt())
+        if (plan.isNotEmpty()) service.inputViewSize = Size(right - left, plan[P.BOX_HEIGHT].toInt())
     }
 
     /** Each child's rectangle in this view, from the plan. */

@@ -23,6 +23,7 @@ import android.inputmethodservice.ExtractEditText
 import android.os.Bundle
 import android.view.Gravity
 import android.view.KeyEvent
+import android.util.Size
 import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
@@ -32,10 +33,6 @@ import android.view.inputmethod.InputConnection
 import android.view.inputmethod.InputMethodManager
 import android.widget.Toast
 import androidx.compose.foundation.layout.padding
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.unit.IntSize
 import androidx.core.view.WindowCompat
 import androidx.lifecycle.lifecycleScope
 import com.jtn0123.audiowhisper.dictation.Dictation
@@ -68,6 +65,7 @@ import dev.patrickgold.florisboard.lib.devtools.flogWarning
 import dev.patrickgold.florisboard.lib.util.ViewUtils
 import dev.patrickgold.florisboard.lib.util.launchActivity
 import java.lang.ref.WeakReference
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import org.florisboard.lib.android.AndroidInternalR
 import org.florisboard.lib.android.systemServiceOrNull
@@ -172,15 +170,17 @@ class FlorisImeService : LifecycleInputMethodService() {
     internal val themeManager by themeManager()
 
     private val activeState get() = keyboardManager.activeState
-    private var inputWindowView by mutableStateOf<View?>(null)
+    private var inputWindowView: View? = null
     /** What covers the whole window for the subtype sheet, Compose's or the plain-View root's. */
     private var sheetView: View? = null
-    internal var inputViewSize by mutableStateOf(IntSize.Zero)
+    internal var inputViewSize = Size(0, 0)
     internal val inputFeedbackController by lazy { InputFeedbackController.new(this) }
     private var isWindowShown: Boolean = false
-    internal var isFullscreenUiMode by mutableStateOf(false)
-    internal var isExtractUiShown by mutableStateOf(false)
-    internal var resourcesContext by mutableStateOf(this as Context)
+    // The Compose root collects these three; the plain-View root reads them when refreshed.
+    internal val fullscreenUiMode = MutableStateFlow(false)
+    internal val extractUiShown = MutableStateFlow(false)
+    internal val localizedContext = MutableStateFlow<Context>(this)
+    internal val resourcesContext: Context get() = localizedContext.value
 
     private var dictation: Dictation? = null
 
@@ -206,7 +206,7 @@ class FlorisImeService : LifecycleInputMethodService() {
             if (prefs.localization.displayKeyboardLabelsInSubtypeLanguage.get()) {
                 config.setLocale(subtype.primaryLocale.base)
             }
-            resourcesContext = createConfigurationContext(config)
+            localizedContext.value = createConfigurationContext(config)
             (inputWindowView as? ImeRootView)?.refresh()
         }
         prefs.localization.displayKeyboardLabelsInSubtypeLanguage.asFlow().collectIn(lifecycleScope) { shouldSync ->
@@ -214,7 +214,7 @@ class FlorisImeService : LifecycleInputMethodService() {
             if (shouldSync) {
                 config.setLocale(subtypeManager.activeSubtype.primaryLocale.base)
             }
-            resourcesContext = createConfigurationContext(config)
+            localizedContext.value = createConfigurationContext(config)
             (inputWindowView as? ImeRootView)?.refresh()
         }
         // AudioWhisper: the renderer setting picks the root; switching it swaps the root in place.
@@ -426,7 +426,7 @@ class FlorisImeService : LifecycleInputMethodService() {
     override fun updateFullscreenMode() {
         super.updateFullscreenMode()
         if (!engine) return
-        isFullscreenUiMode = isFullscreenMode
+        fullscreenUiMode.value = isFullscreenMode
         updateSoftInputWindowLayoutParameters()
         (inputWindowView as? ImeRootView)?.refresh()
     }
@@ -443,7 +443,7 @@ class FlorisImeService : LifecycleInputMethodService() {
     }
     override fun setExtractViewShown(shown: Boolean) {
         super.setExtractViewShown(shown)
-        isExtractUiShown = shown
+        extractUiShown.value = shown
         (inputWindowView as? ImeRootView)?.refresh()
     }
     override fun onCreateInlineSuggestionsRequest(uiExtras: Bundle) = if (engine) createInlineSuggestionsRequest() else null
@@ -487,7 +487,7 @@ class FlorisImeService : LifecycleInputMethodService() {
         // TODO: Verify that this doesn't give us a padding problem
         WindowCompat.setDecorFitsSystemWindows(w, false)
         ViewUtils.updateLayoutHeightOf(w, WindowManager.LayoutParams.MATCH_PARENT)
-        val layoutHeight = if (isFullscreenUiMode) {
+        val layoutHeight = if (fullscreenUiMode.value) {
             WindowManager.LayoutParams.WRAP_CONTENT
         } else {
             WindowManager.LayoutParams.MATCH_PARENT
