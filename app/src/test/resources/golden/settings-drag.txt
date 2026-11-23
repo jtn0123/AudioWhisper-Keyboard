@@ -1,0 +1,11 @@
+# settings-drag: the answers the frozen Kotlin reference gave (docs/phase6-kotlin-references.md).
+# Their count, the digest after the last, and after each power of two (at N).
+count 121
+digest fe42aa6fb3c72f63
+at 1 1e1319c065a59f9c
+at 2 955cbdfefc8e2c1b
+at 4 1d0a47d76dca05c6
+at 8 2b4ff1f64303c085
+at 16 6507f70790cdde11
+at 32 791de7dffbd8f6f9
+at 64 9edcc2fd14a8c525

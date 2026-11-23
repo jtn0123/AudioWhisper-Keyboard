@@ -1,5 +1,6 @@
 package com.jtn0123.audiowhisper.settingsui
 
+import com.jtn0123.audiowhisper.golden.GoldenTape
 import com.jtn0123.audiowhisper.rust.KeyboardRenderer
 import com.jtn0123.audiowhisper.rust.SettingsUiOp
 import kotlinx.serialization.json.*
@@ -70,7 +71,9 @@ class SettingsDragMatchTest {
                 longArrayOf(ns(downMs)) + samples.map { ns(it.first) },
                 samples.flatMap { listOf(x, it.second) }.toFloatArray(),
             ))
+            val tape = GoldenTape.ofReference("settings-drag")
             var flings = 0
+            var moved = 0
             for ((name, steps) in gestures) {
                 // The scroller's viewport: the screen less the 64 dp app bar and 56 dp preview field.
                 val extent = 2340 - Math.round(64 * density) - Math.round(56 * density).toFloat()
@@ -84,9 +87,12 @@ class SettingsDragMatchTest {
                         reference.move(step.samples, step.x); lastX = step.x; lastY = step.samples.last().second
                         now = touch(2, step.samples, downMs, step.x)
                         assertEquals(reference.position, now.getValue("scroll").jsonPrimitive.float, "$name drag")
+                        tape.answer("$name drag", reference.position)
                     }
                     is Up -> {
+                        val before = reference.position
                         val velocity = reference.up(step.ms)
+                        if (reference.position != before) moved++
                         if (velocity != null && abs(velocity) > 1f) flings++
                         touch(1, listOf(step.ms to lastY), downMs, lastX)
                         call(SettingsUiOp.FRAME, ns(step.ms + 1).toString())
@@ -94,11 +100,16 @@ class SettingsDragMatchTest {
                         val rust = now.getValue("scroll").jsonPrimitive.float
                         assertEquals(reference.position, rust, .01f, "$name fling at $velocity px/s")
                         assertEquals(reference.value, Math.round(rust), "$name shown offset")
+                        tape.answer("$name fling", reference.position)
+                        tape.answer("$name shown", reference.value)
                     }
                 }
             }
             // The 60 ms rest, the 41 ms pause and the hold stop; every other gesture flings.
             assertEquals(gestures.size - 3, flings)
+            // Six move the content: "batched history" and "up exactly 40 ms" fling forward from the end.
+            assertEquals(6, moved)
+            tape.finish()
         }
     }
 }

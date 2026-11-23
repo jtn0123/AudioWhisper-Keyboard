@@ -1,0 +1,14 @@
+# settings-scrollbar: the answers the frozen Kotlin reference gave (docs/phase6-kotlin-references.md).
+# Their count, the digest after the last, and after each power of two (at N).
+count 522
+digest 167b58b22abafddb
+at 1 a4264d4cef33d26f
+at 2 336be61f72da40a4
+at 4 3d0bc52fd836de29
+at 8 1d27822dbdf9e78a
+at 16 fa31ade2e21fe446
+at 32 0bdd23dcb0438de5
+at 64 3259a2410061dbdc
+at 128 3ecf9ae8c9dfe3da
+at 256 72c88b15927e768f
+at 512 4f251fc4dbddb14a
