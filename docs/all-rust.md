@@ -305,6 +305,14 @@ Stage 5 packages 1–3, one event family at a time:
   build with data to this one ([phase 5: the stores](phase5-stores.md)).
 * **Decisions move to Rust:** the GIF request lifetime, the sequencing and fallback decisions
   of dictation and read-aloud, crash handling, and locale. These are stage 5 packages 4–6.
+  **Done (2026-11-22) for GIF, dictation, read-aloud and crash; locale is separate.** Rust runs
+  the GIF panel's session, the microphone's reads and the model check, every step of a reading
+  and the neural voice's lifetime, and what a crash leaves behind and the report it shows.
+  Kotlin keeps the network, ImageDecoder, URI grants, AudioRecord, AudioTrack, the voices, audio
+  focus, the AccessibilityService and the crash files. Proven by seeded traces against main's
+  code (50,000 events a seed), 123 mutations and checks on the emulator. With the native library
+  failing to load, the crash path now reaches the platform crash screen; on main it ended the
+  process ([phase 5: the edges](phase5-edges.md)).
 * **Exit:** stored-data migration fixtures and emulator flows.
 
 ### 6. Retire the references (M, C++ half done)

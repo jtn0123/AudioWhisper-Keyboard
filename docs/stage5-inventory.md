@@ -59,6 +59,10 @@ and `tools/voice-bench/Bench.java` (76): **321 tooling Java lines**, not product
 The benchmark probe Java files are excluded by its `benchmark/` rule. This distinction is
 retained in share calculations instead of silently changing the denominator.
 
+*Since phase 5 (2026-11-22)* twelve rows below are A rather than M, the platform edges' files
+whose decisions moved to Rust (1,649 of the snapshot's nonblank lines), and `AW/gif/GifResultCache.kt`
+(M, 34) and `JNI/Gif.kt` (M, 75) are deleted. The totals above stay the snapshot's.
+
 ## Current share and projection
 
 Current follow-up: **53,675 Rust / 53,105 Kotlin / 321 Java = 50.1162% Rust** using the
@@ -111,15 +115,32 @@ no deletion or endpoint is claimed here. Recount actual accepted source after ea
    ([phase5-stores.md](phase5-stores.md)). `FB/ime/clipboard/provider/ClipboardStoreFile.kt` and
    `FB/ime/dictionary/FlorisUserDictionaryDatabase.kt` are new ART JNI adapters over the stores.
    Use local GIF fixtures while no GIPHY key is available; do not claim live API acceptance.
+   *Since phase 5 (2026-11-22) the GIF request lifetime is Rust's* (`crates/gif`): searches,
+   their generations and 10-minute cache, chips, recents, the previews kept and each send's
+   steps. Kotlin keeps the network, ImageDecoder, URI grants and `commitContent`; `GifResultCache.kt`
+   and `JNI/Gif.kt` are deleted. Proven on local fixtures only, never against GIPHY
+   ([phase5-edges.md](phase5-edges.md#gif)).
 5. **Dictation and read-aloud edges.** Port RMS/PCM math, verification/eviction/readiness
    choices and remaining playback/reader orchestration. Keep AudioRecord/AudioTrack/TTS,
    audio focus, platform scheduler and AccessibilityService node/action transport. No audio
    or microphone use is authorized by this inventory itself.
+   *Since phase 5 (2026-11-22) these decisions are Rust's* (`crates/dictation`, `crates/reader`):
+   the microphone's level, read and WAV rules and its buffer, the model check, every step of a
+   reading, the window it reads, where a reading asked for goes and how long the neural voice
+   stays loaded. Kotlin keeps AudioRecord, AudioTrack, the TTS engine, audio focus, the timers
+   and the accessibility tree ([phase5-edges: dictation](phase5-edges.md#dictation),
+   [read-aloud](phase5-edges.md#read-aloud)).
 6. **Extension/file/setup/crash and utilities.** Port archive/path/workspace rules, resource-
    independent schema/value models, locale/tag choice, setup navigation and crash/report
    presentation. Keep SAF/intents/permissions, file/network IO and Android locale facts.
    Preserve the crash-report path when native loading itself fails; resolve the bootstrap
    contract before replacing the existing emergency screen.
+   *Since phase 5 (2026-11-22) crash handling is Rust's* (`crates/utilities`' `crash`): whether a
+   crash repeats the last, whether crashes come in a loop, and the report the crash screen shows
+   and copies. Android writes the report files, posts the notification and draws both crash
+   screens. Without the native library every report is kept, one crash is said, and the platform
+   screen is shown; that was forced on the emulator before the app or its providers started
+   ([phase5-edges.md](phase5-edges.md#crash)).
 7. **Acceptance and removal.** Delete proven dead code, then accepted Compose fallbacks and
    unused facades/resources after their own phone gates. Verify no Kotlin drawing or domain
    decisions remain, exact stored data and effects, full gate, privacy, lifecycle, memory and
@@ -148,36 +169,36 @@ Path prefixes (each path below expands against the repository root):
 | `AW/dictation/DictationSession.kt` | 220 | M | Handler/worker adapter; released-event and callback forwarding guards around native plan |
 | `AW/dictation/DictationUndo.kt` | 19 | A | ART JNI; native undo-result DTO |
 | `AW/dictation/LargeModels.kt` | 23 | P | cross-model idle eviction registration and choice |
-| `AW/dictation/MicAudio.kt` | 100 | M | AudioRecord; PCM16 conversion/replay admission and audio buffer policy |
-| `AW/dictation/MicRecorder.kt` | 68 | M | AudioRecord via MicAudio; RMS/level math and pump error decisions |
-| `AW/dictation/ModelCheck.kt` | 71 | M | Context files / SharedPreferences; file verification cache and readiness decisions |
+| `AW/dictation/MicAudio.kt` | 100 | A | AudioRecord; PCM16 conversion/replay admission and audio buffer policy (since phase 5 the PCM, WAV and buffer rules are Rust's (`MicRules`); 68 counted lines) |
+| `AW/dictation/MicRecorder.kt` | 68 | A | AudioRecord via MicAudio; RMS/level math and pump error decisions (since phase 5 what a read means and how loud it is are Rust's (`MicRules`); 47 counted lines) |
+| `AW/dictation/ModelCheck.kt` | 71 | A | Context files / SharedPreferences; file verification cache and readiness decisions (since phase 5 which files to hash, what passes and what to remember are Rust's (`ModelCheckRules`); 63 counted lines) |
 | `AW/dictation/ModelFiles.kt` | 33 | A | Context.filesDir / java.io.File; model-path and native-config transport |
 | `AW/dictation/ModelHolder.kt` | 25 | A | ART JNI; executes native model lifetime plans |
 | `AW/dictation/PhraseListener.kt` | 48 | M | AudioRecord / ByteBuffer; VAD result delivery/flush boundaries |
 | `AW/dictation/Transcriber.kt` | 20 | A | ART JNI / ByteBuffer; sherpa recognizer handle and cancellation |
-| `AW/gif/GifDataSource.kt` | 7 | A | HttpURLConnection / ImageDecoder adapter interface; asynchronous network/preview effects only |
+| `AW/gif/GifDataSource.kt` | 7 | A | HttpURLConnection / ImageDecoder adapter interface; asynchronous network/preview effects only (requests made as Rust's `GifRequest` row says since phase 5; 8 counted lines) |
 | `AW/gif/GifFrames.kt` | 59 | P | GIF container block/frame parsing |
-| `AW/gif/GifImages.kt` | 58 | M | ImageDecoder / HttpURLConnection / LruCache; preview budget/cache ownership |
-| `AW/gif/GifRecents.kt` | 58 | M | Context files / File; startup merge and persistence sequencing |
-| `AW/gif/GifResultCache.kt` | 34 | M | native key cache plus Kotlin payload-map lifetime |
-| `AW/gif/GifSearch.kt` | 194 | M | SystemClock / network IO; request jobs, generations, loading/publication state |
+| `AW/gif/GifImages.kt` | 58 | A | ImageDecoder / HttpURLConnection / LruCache; preview budget/cache ownership (since phase 5 Rust keeps which previews stay (`GifPreviewKeys`), the bytes stay here; 49 counted lines) |
+| `AW/gif/GifRecents.kt` | 58 | M | Context files / File; startup merge and persistence sequencing (since phase 5 the order, and when the file is read and saved, are Rust's; the JSON stays; 25 counted lines) |
+| `AW/gif/GifResultCache.kt` | 34 | M | native key cache plus Kotlin payload-map lifetime (deleted since phase 5: Rust's GIF session keeps the results) |
+| `AW/gif/GifSearch.kt` | 194 | A | SystemClock / network IO; request jobs, generations, loading/publication state (since phase 5 a holder of `GifSearchSession.kt` (new, A, 162 counted lines), which runs the effects of Rust's `GifSessionPlan`; 25 counted lines) |
 | `AW/gif/GifSearchKeys.kt` | 42 | P | key/search routing facade; consolidate native protocol, retain only boundary tags |
-| `AW/gif/GifSender.kt` | 73 | M | InputConnection.commitContent / FileProvider; fallback-link and pruning choices |
-| `AW/gif/Giphy.kt` | 75 | M | HttpURLConnection; response/error dispatch and domain result mapping |
+| `AW/gif/GifSender.kt` | 73 | A | InputConnection.commitContent / FileProvider; fallback-link and pruning choices (since phase 5 each send's steps are Rust's (`GifSendStep`); 94 counted lines) |
+| `AW/gif/Giphy.kt` | 75 | A | HttpURLConnection; response/error dispatch and domain result mapping (since phase 5 the request limits and the answer's reading are Rust's; 39 counted lines) |
 | `AW/gif/LimitedRead.kt` | 22 | P | bounded stream-copy byte/overflow rules (leave Java stream IO adapter) |
 | `AW/reader/FollowAlong.kt` | 62 | M | AccessibilityNodeInfo.performAction; reveal/scroll/selection sequencing |
 | `AW/reader/NeuralVoice.kt` | 127 | M | AudioTrack; queue/idle/error handling around native synthesis |
 | `AW/reader/PageText.kt` | 96 | M | Java BreakIterator sentence facts; consolidate portable block/reveal DTO orchestration |
 | `AW/reader/PlayQueue.kt` | 21 | A | ART JNI; native playback queue transport |
-| `AW/reader/ReadAloud.kt` | 109 | M | AccessibilityService / Intent / Toast; reading status and attachment orchestration |
-| `AW/reader/ReadAloudService.kt` | 244 | M | AccessibilityService; page/session/settle/resume choices and callbacks |
+| `AW/reader/ReadAloud.kt` | 109 | A | AccessibilityService / Intent / Toast; reading status and attachment orchestration (since phase 5 where a reading asked for goes is Rust's (`ReadingRules`); 90 counted lines) |
+| `AW/reader/ReadAloudService.kt` | 244 | A | AccessibilityService; page/session/settle/resume choices and callbacks (since phase 5 every step of a reading and the window read are Rust's, run by `Reading.kt` (new, A, 127 counted lines); 110 counted lines) |
 | `AW/reader/ReadFromHereActivity.kt` | 17 | A | Activity / Intent ACTION_PROCESS_TEXT; forwards platform selection |
 | `AW/reader/ScreenWalk.kt` | 82 | A | AccessibilityNodeInfo; node facts and native traversal callbacks |
 | `AW/reader/Speaker.kt` | 79 | M | TextToSpeech; pending utterance and completion/error lifecycle |
 | `AW/reader/SpeakerKey.kt` | 21 | A | SystemClock / ART JNI; native hold-state transport |
 | `AW/reader/StopButton.kt` | 67 | M | WindowManager TYPE_ACCESSIBILITY_OVERLAY; Rust must draw/layout the stop control |
 | `AW/reader/Voice.kt` | 45 | A | AudioManager.requestAudioFocus / abandonAudioFocusRequest |
-| `AW/reader/VoiceEngine.kt` | 134 | M | Context files / SystemClock; model idle/failure/cross-model eviction state |
+| `AW/reader/VoiceEngine.kt` | 134 | A | Context files / SystemClock; model idle/failure/cross-model eviction state (since phase 5 how long the voice stays loaded is Rust's (`VoiceHold`), run by `LoadedVoice.kt` (new, A, 63 counted lines); 71 counted lines) |
 | `AW/render/AccessibilityRelease.kt` | 27 | P | hover/hold release target choice and hit testing |
 | `AW/render/KeyGraphRows.kt` | 123 | M | LayoutManager files / java.util.Locale casing; the key graph's build row from the files a mode needs, its facts row, and Android's casing answers (added at phase 3 item 2; since phase 3 item 3 it names the subtype's files from Rust's facts and keys keyboards by Rust's cache key) |
 | `AW/render/RenderTiming.kt` | 14 | M | ViewTreeObserver / Log; fallback-only timing scaffolding, remove with its callers |
@@ -267,7 +288,7 @@ Path prefixes (each path below expands against the repository root):
 | `FB/ime/clipboard/FlorisCopyToClipboardActivity.kt` | 176 | M | Intent ACTION_SEND / ClipData; share-target drawing and error UI |
 | `FB/ime/clipboard/provider/ClipboardDatabase.kt` | 338 | M | Room / ClipData / ContentResolver; entities remain, equality/display/serialization policy moves (phase 5: renamed `ClipboardItem.kt`, the DAOs and Room databases deleted; 137 counted lines) |
 | `FB/ime/clipboard/provider/ClipboardFileStorage.kt` | 77 | A | ContentResolver / java.io.File; URI-byte storage and file deletion |
-| `FB/ime/clipboard/provider/ClipboardMediaProvider.kt` | 178 | M | ContentProvider / ParcelFileDescriptor; MIME/query/update dispatch and metadata rules (phase 5: its records come from the Rust store; 147 counted lines) |
+| `FB/ime/clipboard/provider/ClipboardMediaProvider.kt` | 178 | M | ContentProvider / ParcelFileDescriptor; MIME/query/update dispatch and metadata rules (phase 5: its records come from the Rust store, and since the edges its eager store open waits for the native library; 148 counted lines) |
 | `FB/ime/core/DisplayLanguageNamesIn.kt` | 25 | P | portable DisplayLanguageNamesIn domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
 | `FB/ime/core/Subtype.kt` | 164 | P | portable Subtype domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs (phase 3 item 3: Rust holds the list and the active subtype; these are the data classes the readers and `extension.json` take) |
 | `FB/ime/core/SubtypeFallback.kt` | 6 | A | ART JNI; native model/geometry/plan projection only, no independent domain choice (deleted at phase 3 item 3: Rust's session answers the fallback) |
@@ -388,8 +409,8 @@ Path prefixes (each path below expands against the repository root):
 | `FB/lib/Validation.kt` | 124 | M | Resources; validation-result/model and message-choice ownership |
 | `FB/lib/cache/CacheManager.kt` | 202 | M | Context.cacheDir / ContentResolver; workspace/import lifetime and selection |
 | `FB/lib/compose/SystemUi.kt` | 54 | M | WindowInsetsController; Kotlin luminance/icon-mode selection |
-| `FB/lib/crashutility/CrashDialogActivity.kt` | 139 | M | Activity / Intent / ClipboardManager; crash screen drawing and report composition |
-| `FB/lib/crashutility/CrashUtility.kt` | 384 | M | Application.ActivityLifecycleCallbacks / NotificationManager; crash retention/routing policy |
+| `FB/lib/crashutility/CrashDialogActivity.kt` | 139 | A | Activity / Intent / ClipboardManager; crash screen drawing and report composition (since phase 5 the report is Rust's (`CrashRules`); without the native library it shows the platform screen and keeps every report; 95 counted lines) |
+| `FB/lib/crashutility/CrashUtility.kt` | 384 | A | Application.ActivityLifecycleCallbacks / NotificationManager; crash retention/routing policy (since phase 5 what a crash leaves behind is Rust's (`CrashRules`), through `AfterCrash.kt` (new, A, 30 counted lines); 271 counted lines) |
 | `FB/lib/devtools/Devtools.kt` | 141 | M | Build / Resources; still called by crash dialog; report composition is portable |
 | `FB/lib/devtools/Flog.kt` | 304 | M | android.util.Log; topic gate, tag/message and redaction/formatting policy |
 | `FB/lib/devtools/LogTopic.kt` | 45 | P | portable LogTopic domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
@@ -457,7 +478,7 @@ Path prefixes (each path below expands against the repository root):
 | `JNI/ExtensionPolicy.kt` | 35 | A | ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
 | `JNI/Gestures.kt` | 135 | A | ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
 | `JNI/GesturesNative.kt` | 51 | A | ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
-| `JNI/Gif.kt` | 75 | M | ART JNI; residual signed-order decoding helpers and cache payload lifetime |
+| `JNI/Gif.kt` | 75 | M | ART JNI; residual signed-order decoding helpers and cache payload lifetime (deleted since phase 5: nothing used it once the GIF session moved) |
 | `JNI/GifNative.kt` | 32 | A | ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
 | `JNI/Giphy.kt` | 39 | A | ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
 | `JNI/GiphyNative.kt` | 14 | A | ART JNI (System.loadLibrary / external methods / Cleaner); native results and handle/packet transport |
