@@ -15,11 +15,14 @@ check fails on a STALE case that applies again, and on a STALE name that is no c
 neither hide a new failure nor outlive the fix.
 
 Each script builds its cases as Edits in `check_edits()`, from the same tables its run reads, and
-calls `check_flag()` first in its main block.
+calls `check_flag()` first in its main block. Each writes a mutant, and the bytes it restores,
+with `write()`, so no build reads the wrong one.
 """
 import importlib.util
+import os
 from pathlib import Path
 import sys
+import time
 from typing import Callable, NamedTuple, Optional, Union
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -55,6 +58,28 @@ def replace_once(old, new):
         assert source.count(old) == 1, 'expected exactly one ' + repr(old)
         return source.replace(old, new)
     return change
+
+
+def write(path, content):
+    """Writes a mutant or a restore, `content` (bytes, or text as UTF-8), to `path`, then stamps its
+    mtime two whole seconds past the later of now and its old mtime.
+
+    Build tools see a change by its mtime. Cargo rebuilds a crate when a source's mtime is later
+    than the dep-info its last build stamped, at most the time that build ran. Gradle reuses a
+    file's hash while its length and mtime are what it last saw. On a filesystem with whole-second
+    times, as HFS+ (/Volumes/2TB, where the mutation worktrees live), a write in the second a build
+    ran is no later than that build, and a same-length write in the second of the write before it
+    looks unchanged: the next run builds, or hashes, the source before the write, and tests the
+    wrong binary. Every build so far stamped at most now, and every earlier write of this file at
+    most its old mtime, so the stamp, at least one whole second past both, is strictly later than
+    either after truncation. The stamp can run a few seconds ahead of the clock, and cargo may
+    rebuild once more meanwhile, which costs time but no correctness.
+    """
+    path = Path(path)
+    old = path.stat().st_mtime if path.exists() else 0.0
+    path.write_bytes(content if isinstance(content, bytes) else content.encode('utf-8'))
+    now = time.time()
+    os.utime(path, (now, int(max(now, old)) + 2))
 
 
 def _file(path):

@@ -80,7 +80,7 @@ def main():
         path=ROOT/relative; original=path.read_bytes();source=original.decode()
         assert source.count(before)==1,(name,source.count(before))
         try:
-            path.write_text(source.replace(before,after))
+            mutation_cases.write(path, source.replace(before,after))
             if mode=='state':
                 status,failures=jvm(out,name)
                 assert status!=0 and failures>0, 'Mutation was not caught by JVM assertions'
@@ -90,7 +90,7 @@ def main():
                 assert report.get('identical') is False and report.get('failure_kind')=='parity','Mutation was not caught by audio parity'
                 results.append({'mutation':name,'parity_failure':True,'fixture':report['fixture']})
         finally:
-            path.write_bytes(original)
+            mutation_cases.write(path, original)
         assert path.read_bytes()==original
     if mode=='state':
         status,failures=jvm(out,'restored');assert status==0 and failures==0

@@ -49,7 +49,7 @@ def main():
         source = original.decode()
         assert source.count(old) == 1, 'Mutation location changed: ' + label
         try:
-            path.write_text(source.replace(old, new))
+            mutation_cases.write(path, source.replace(old, new))
             started = time.time()
             with (output / (label + '.log')).open('wb') as log:
                 run = subprocess.run(['./gradlew', '--stacktrace', ':app:testDebugUnitTest',
@@ -69,7 +69,7 @@ def main():
             print(label + ': ' + ('caught' if caught else 'NOT CAUGHT'), flush=True)
             assert caught, 'Mutation did not fail a differential assertion: ' + label
         finally:
-            path.write_bytes(original)
+            mutation_cases.write(path, original)
     with (output / 'restored.log').open('wb') as log:
         run = subprocess.run(['./gradlew', '--stacktrace', ':app:testDebugUnitTest',
                               '--tests', '*Editor*Test'], cwd=ROOT, stdout=log, stderr=subprocess.STDOUT)

@@ -90,11 +90,11 @@ def main():
     try:
         for name, relative, old, new, target in cases:
             path = ROOT / relative
-            path.write_text(originals[path].decode().replace(old, new))
+            mutation_cases.write(path, originals[path].decode().replace(old, new))
             try:
                 status, failures = jvm(output, name, family.MODULE, family.TARGETS[target], task)
             finally:
-                path.write_bytes(originals[path])
+                mutation_cases.write(path, originals[path])
             caught = status != 0 and failures > 0
             results.append({'mutation': name, 'file': relative, 'target': target, 'exit': status,
                             'assertion_failures': failures, 'caught': caught})
@@ -102,7 +102,7 @@ def main():
             print(name + (': caught by ' + target if caught else ': NOT CAUGHT'), flush=True)
     finally:
         for path, original in originals.items():
-            path.write_bytes(original)
+            mutation_cases.write(path, original)
     patterns = sorted({p for _, _, _, _, target in cases for p in family.TARGETS[target]})
     status, failures = jvm(output, 'restored', family.MODULE, patterns, task)
     missed = [r['mutation'] for r in results if not r['caught']]

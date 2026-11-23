@@ -60,13 +60,13 @@ def main():
         original = path.read_bytes()
         assert original.decode().count(old) == 1, 'Mutation location changed: ' + label
         try:
-            path.write_text(original.decode().replace(old, new))
+            mutation_cases.write(path, original.decode().replace(old, new))
             result = run(output, label, pattern)
             result.update(mutation=label, restored=False)
             results.append(result)
             assert result['gradle_exit'] != 0 and result['assertion_failures'] > 0, 'Not caught by assertions'
         finally:
-            path.write_bytes(original)
+            mutation_cases.write(path, original)
             if results and results[-1]['mutation'] == label:
                 results[-1]['restored'] = path.read_bytes() == original
                 (output / 'mutations.json').write_text(json.dumps(results, indent=2) + '\n')

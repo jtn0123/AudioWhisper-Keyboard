@@ -191,7 +191,7 @@ def main():
         for name, path, old, new, checkers in cases:
             source = originals[path].decode()
             assert source.count(old) == 1, 'mutation location changed: ' + name
-            path.write_text(source.replace(old, new))
+            mutation_cases.write(path, source.replace(old, new))
             try:
                 caught = {}
                 for checker in checkers:
@@ -200,11 +200,11 @@ def main():
                     caught[checker] = failures
                 results.append({'mutation': name, 'caught': caught})
             finally:
-                path.write_bytes(originals[path])
+                mutation_cases.write(path, originals[path])
             print(name + ': caught by ' + ', '.join(f'{c} ({n})' for c, n in caught.items()), flush=True)
     finally:
         for path, original in originals.items():
-            path.write_bytes(original)
+            mutation_cases.write(path, original)
     restored = {}
     for checker in sorted({c for case in cases for c in case[4]}):
         status, failures = check(output, 'restored', checker)

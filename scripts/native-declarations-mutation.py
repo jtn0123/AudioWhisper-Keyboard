@@ -142,7 +142,7 @@ def mutate(output, name):
             source = originals[relative].decode()
             mutated = change(source)
             assert mutated != source, name + ': the mutation must change ' + relative
-            (ROOT / relative).write_text(mutated)
+            mutation_cases.write(ROOT / relative, mutated)
         mutant = run(output, name)
         log = (output / (name + '.log')).read_text()
         assert mutant != 0, name + ': the gate must fail'
@@ -151,7 +151,7 @@ def mutate(output, name):
             assert line in log, name + ': missing ' + line
     finally:
         for relative, original in originals.items():
-            (ROOT / relative).write_bytes(original)
+            mutation_cases.write(ROOT / relative, original)
     for relative, original in originals.items():
         assert (ROOT / relative).read_bytes() == original, name + ': byte restoration failed for ' + relative
     restored = run(output, name + '-restored')

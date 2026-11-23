@@ -46,7 +46,7 @@ def main():
         expected=COUNTS.get(label,1)
         assert source.count(old)==expected,'Mutation location changed: '+label
         try:
-            path.write_text(source.replace(old,new,1))
+            mutation_cases.write(path, source.replace(old,new,1))
             started=time.time()
             with (output/(label+'.log')).open('wb') as log:
                 run=subprocess.run(['./gradlew','--stacktrace',':app:testDebugUnitTest','--tests','*Input*MatchTest','--tests','*RendererTouchMatchTest'],
@@ -63,7 +63,7 @@ def main():
             (output/'mutations.json').write_text(json.dumps(results,indent=2)+'\n')
             print(label+': '+('caught' if caught else 'NOT CAUGHT'),flush=True)
             assert caught,'Mutation did not fail a reference assertion: '+label
-        finally:path.write_bytes(original)
+        finally:mutation_cases.write(path, original)
     with (output/'restored.log').open('wb') as log:
         run=subprocess.run(['./gradlew','--stacktrace',':app:testDebugUnitTest','--tests','*Input*MatchTest',
             '--tests','*RendererTouchMatchTest','--tests','*Editor*Test'],cwd=ROOT,stdout=log,stderr=subprocess.STDOUT)

@@ -58,7 +58,7 @@ def main():
     try:
         if reports.exists():
             shutil.rmtree(reports)
-        path.write_text(text.replace(before, after))
+        mutation_cases.write(path, text.replace(before, after))
         status = run(args.output, 'mutant', tests)
         assertions = sum('AssertionFailedError' in failure.get('type', '')
                          or 'AssertionError' in failure.get('type', '')
@@ -68,7 +68,7 @@ def main():
             raise RuntimeError('Mutation did not produce a fresh assertion failure')
         record = {'item': args.item, 'mutant_exit': status, 'assertions': assertions}
     finally:
-        path.write_bytes(original)
+        mutation_cases.write(path, original)
         if path.read_bytes() != original:
             raise RuntimeError('Byte restoration failed')
     record['restored_sha256'] = hashlib.sha256(path.read_bytes()).hexdigest()

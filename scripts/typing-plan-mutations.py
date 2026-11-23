@@ -165,14 +165,14 @@ def main():
     results = []
     try:
         for name, path, old, new, targets in cases:
-            path.write_text(originals[path].decode().replace(old, new))
+            mutation_cases.write(path, originals[path].decode().replace(old, new))
             try:
                 outcome = {}
                 for target in targets:
                     status, failures = run(output, name, target)
                     outcome[target] = {'exit': status, 'assertion_failures': failures}
             finally:
-                path.write_bytes(originals[path])
+                mutation_cases.write(path, originals[path])
             caught = [t for t, o in outcome.items() if o['exit'] != 0 and o['assertion_failures'] > 0]
             results.append({'mutation': name, 'file': str(path.relative_to(ROOT)), 'targets': outcome,
                             'caught_by': caught})
@@ -180,7 +180,7 @@ def main():
             print(name + ': ' + ('caught by ' + ', '.join(caught) if caught else 'NOT CAUGHT'), flush=True)
     finally:
         for path, original in originals.items():
-            path.write_bytes(original)
+            mutation_cases.write(path, original)
     restored = {}
     for target in sorted({t for case in cases for t in case[4]}):
         status, failures = run(output, 'restored', target)

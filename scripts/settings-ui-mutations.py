@@ -79,17 +79,17 @@ def main():
         for name, path, old, new in cases:
             source = path.read_text()
             assert source.count(old) == 1, name
-            path.write_text(source.replace(old, new))
+            mutation_cases.write(path, source.replace(old, new))
             try:
                 status, failures = run(args.output, name)
                 assert status != 0 and failures, name + ' must fail fresh differential assertions'
                 results.append({'mutation': name, 'exit': status, 'fresh_assertions': len(failures)})
             finally:
-                path.write_bytes(originals[path])
+                mutation_cases.write(path, originals[path])
             print(name + ': caught', flush=True)
     finally:
         for path, original in originals.items():
-            path.write_bytes(original)
+            mutation_cases.write(path, original)
     restored, failures = run(args.output, 'restored')
     assert restored == 0 and not failures
     for target in sorted({RUST[name] for name, _, _, _ in cases if name in RUST}):

@@ -49,7 +49,7 @@ def main():
         original = path.read_bytes()
         assert original.decode().count(old) == 1, 'Mutation location changed: ' + label
         try:
-            path.write_text(original.decode().replace(old, new))
+            mutation_cases.write(path, original.decode().replace(old, new))
             started = time.time()
             with (output / (label + '.log')).open('wb') as log:
                 run = subprocess.run(['./gradlew', '--stacktrace', ':lib:rust:testDebugUnitTest', '--tests', '*NlpMatchTest'],
@@ -65,7 +65,7 @@ def main():
             print(label + ': ' + ('caught' if caught else 'NOT CAUGHT'), flush=True)
             assert caught, 'Mutation failed to trip an actual match assertion: ' + label
         finally:
-            path.write_bytes(original)
+            mutation_cases.write(path, original)
     with (output / 'restored.log').open('wb') as log:
         run = subprocess.run(['./gradlew', '--stacktrace', ':lib:rust:testDebugUnitTest', '--tests', '*NlpMatchTest',
             ':app:testDebugUnitTest', '--tests', '*Nlp*MatchTest'], cwd=ROOT, stdout=log, stderr=subprocess.STDOUT)

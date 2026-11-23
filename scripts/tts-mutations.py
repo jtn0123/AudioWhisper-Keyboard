@@ -77,13 +77,13 @@ def main():
         original = path.read_bytes(); source = original.decode()
         assert source.count(before) == 1, name
         try:
-            path.write_text(source.replace(before, after))
+            mutation_cases.write(path, source.replace(before, after))
             status, failures = check(out, name, suite)
             assert status != 0 and failures > 0, name + ': mutation must fail by assertion, not compilation'
             results.append({'mutation': name, 'exit': status, 'assertion_failures': failures,
                             'restored_sha256': hashlib.sha256(original).hexdigest()})
         finally:
-            path.write_bytes(original)
+            mutation_cases.write(path, original)
         assert path.read_bytes() == original
         status, failures = check(out, name + '-restored', suite)
         assert status == 0 and failures == 0, name + ': restored code must pass'

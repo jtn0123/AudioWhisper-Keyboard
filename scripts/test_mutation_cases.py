@@ -1,14 +1,18 @@
 """Unit tests for scripts/mutation_cases.py: when a case applies, how the STALE list is held to
-account, and the --check hook and full run built on them.
+account, the --check hook and full run built on them, and the write every mutant and restore goes
+through.
 
 Run with: python3 -I -B -m unittest discover -s scripts -p test_mutation_cases.py
 """
 import contextlib
 import io
+import os
 from pathlib import Path
+import re
 import subprocess
 import sys
 import tempfile
+import time
 import types
 import unittest
 
@@ -219,6 +223,52 @@ class CommandTest(CaseTest):
             status = mc.main()
         self.assertEqual((status, output.getvalue().splitlines()[-1]),
                          (0, '1 mutation scripts checked: every case applies'))
+
+
+class WriteTest(CaseTest):
+    """mutation_cases.write: the bytes, and an mtime later than anything stamped before it."""
+
+    def test_text_is_written_as_utf8_and_bytes_as_they_are(self):
+        mc.write(self.file, 'é\n')
+        self.assertEqual(self.file.read_bytes(), 'é\n'.encode('utf-8'))
+        mc.write(self.file, b'\xff\x00')
+        self.assertEqual(self.file.read_bytes(), b'\xff\x00')
+
+    def test_the_stamp_is_two_whole_seconds_past_the_second_it_was_written_in(self):
+        os.utime(self.file, (0, 1000))
+        before = int(time.time())
+        mc.write(self.file, 'let a = 0;\n')
+        mtime = self.file.stat().st_mtime
+        self.assertEqual(mtime, int(mtime))
+        self.assertGreaterEqual(mtime, before + 2)
+        self.assertLessEqual(mtime, int(time.time()) + 2)
+
+    def test_a_write_in_the_second_of_the_one_before_is_stamped_later_still(self):
+        mc.write(self.file, 'let a = 0;\n')
+        first = self.file.stat().st_mtime
+        mc.write(self.file, 'let a = 1;\n')
+        self.assertGreaterEqual(self.file.stat().st_mtime, first + 2)
+
+    def test_a_file_stamped_ahead_of_the_clock_is_stamped_past_its_own_mtime(self):
+        ahead = int(time.time()) + 100
+        os.utime(self.file, (ahead, ahead))
+        mc.write(self.file, 'let a = 0;\n')
+        self.assertEqual(self.file.stat().st_mtime, ahead + 2)
+
+    def test_a_new_file_is_written_and_stamped(self):
+        new = Path(self.folder.name) / 'new.rs'
+        before = int(time.time())
+        mc.write(new, 'x')
+        self.assertEqual((new.read_text(), new.stat().st_mtime >= before + 2), ('x', True))
+
+    def test_every_mutation_script_writes_its_sources_through_write(self):
+        """Any other write must go to the run's output folder."""
+        stray = [f'{path.name}:{number}: {line.strip()}'
+                 for path in sorted(SCRIPTS.glob('*-mutation*.py'))
+                 for number, line in enumerate(path.read_text().splitlines(), 1)
+                 if re.search(r'\.write_(text|bytes)\(', line)
+                 and not re.search(r'\((out|output|args\.output)\b', line)]
+        self.assertEqual(stray, [])
 
 
 if __name__ == '__main__':

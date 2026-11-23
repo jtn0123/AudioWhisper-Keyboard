@@ -276,11 +276,11 @@ def mutate(output, suite, name):
     source = original.decode()
     assert source.count(before) == 1, name + ': the mutation target must be unique'
     try:
-        path.write_text(source.replace(before, after))
+        mutation_cases.write(path, source.replace(before, after))
         status, compiled, failed, assertions = check(output, name, COMMANDS[(suite, area)])
         assert compiled, name + ': the mutation must compile'
     finally:
-        path.write_bytes(original)
+        mutation_cases.write(path, original)
     assert path.read_bytes() == original, name + ': byte restoration failed'
     return {'mutation': name, 'area': area, 'killed': status != 0, 'exit': status, 'failed_tests': failed,
             'assertion_panics': assertions, 'sha256': hashlib.sha256(original).hexdigest()}

@@ -1749,7 +1749,10 @@ says otherwise), found in turn as the script applies them. A case whose line has
 otherwise stop its script's full run at that case. Each script builds its cases as `Edit`s in
 `check_edits()`, from the tables its run reads, and calls `mutation_cases.check_flag()` first, so
 `python3 -I scripts/X-mutations.py --check` checks one script. A new mutation script does the same,
-or the check fails it. A case known to be stale goes in the script's `STALE`, with why and who is
+or the check fails it, and writes each mutant and restore with `mutation_cases.write()`, which
+stamps the file past any build before it: on a filesystem with whole-second times, as the HFS+ of
+`/Volumes/2TB`, a plain write in the second a build ran is not rebuilt, and the run tests the
+wrong binary. A case known to be stale goes in the script's `STALE`, with why and who is
 fixing it; the check fails on a `STALE` case that applies again and on a `STALE` name that is no
 case, so the list can neither hide a new failure nor outlive the fix. The check says only that a
 case can be applied; whether the tests catch it takes a run of the script.

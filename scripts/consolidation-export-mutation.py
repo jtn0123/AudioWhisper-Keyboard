@@ -49,13 +49,13 @@ def main():
     try:
         text = original.decode()
         assert text.count(FEATURES) == 1
-        MANIFEST.write_text(text.replace(FEATURES, LEGACY_DEFAULT))
+        mutation_cases.write(MANIFEST, text.replace(FEATURES, LEGACY_DEFAULT))
         build(args.output, 'mutant')
         mutant = check(args.output, 'mutant')
         assert mutant != 0
         assert 'legacy callback exports' in (args.output / 'mutant-check.log').read_text()
     finally:
-        MANIFEST.write_bytes(original)
+        mutation_cases.write(MANIFEST, original)
         assert MANIFEST.read_bytes() == original
     build(args.output, 'restored')
     restored = check(args.output, 'restored')

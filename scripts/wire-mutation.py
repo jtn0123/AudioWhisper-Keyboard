@@ -77,7 +77,7 @@ def mutate(output, name):
             source = (ROOT / relative).read_text()
             mutated = change(source)
             assert mutated != source, name + ': the mutation must change ' + relative
-            (ROOT / relative).write_text(mutated)
+            mutation_cases.write(ROOT / relative, mutated)
         mutant = run(output, name, command)
         log = (output / (name + '.log')).read_text()
         assert (mutant == 0) == passes, name + (': the build must pass' if passes else ': the build must fail')
@@ -87,7 +87,7 @@ def mutate(output, name):
             assert text in (ROOT / GENERATED / file).read_text(), name + ': ' + file + ' lacks ' + text
     finally:
         for relative, original in originals.items():
-            (ROOT / relative).write_bytes(original)
+            mutation_cases.write(ROOT / relative, original)
     for relative, original in originals.items():
         assert (ROOT / relative).read_bytes() == original, name + ': byte restoration failed for ' + relative
     restored = run(output, name + '-restored', command)

@@ -131,11 +131,11 @@ def main():
         source = original.decode()
         assert source.count(before) == 1, name + ': the mutation target must be unique'
         try:
-            path.write_text(source.replace(before, after))
+            mutation_cases.write(path, source.replace(before, after))
             status, assertions = check(output, name, test)
             assert status != 0 and assertions > 0, name + ': the mutation must fail by assertion, not compilation'
         finally:
-            path.write_bytes(original)
+            mutation_cases.write(path, original)
         assert path.read_bytes() == original, name + ': byte restoration failed'
         restored, failures = check(output, name + '-restored', test)
         assert restored == 0 and failures == 0, name + ': the restored source must pass'
