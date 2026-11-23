@@ -11,6 +11,9 @@ restored byte for byte after each case, and the restored build must pass. Run it
 generator commit and at its deletion commit: the goldens must catch every case the references did.
 Dictation's device cases are scripts/dictation-mutations.py's `device` mode.
 
+A family whose reference a JVM test compares too names that test in JVM_TESTS: each case must
+also fail it by assertion, and the restored source pass it.
+
 Run with no other Cargo or Gradle operation in this checkout: the source is mutated while it runs.
 """
 import argparse
@@ -18,6 +21,7 @@ import json
 from pathlib import Path
 import re
 import sys
+import xml.etree.ElementTree as ET
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.dont_write_bytecode = True  # importing mutation_cases would otherwise leave a __pycache__ in scripts/
@@ -55,6 +59,12 @@ ACCEPTED = {
     'decoder_sha256': 'a1c7aaa3bc37af33523b7e33be258c68b7ff1f7786e0a27a4b0b1cd79a887fd3',
     'pipeline_sha256': '26b57744452561b2309b2d24185e63a58222ea5f46acdacd53e29bd1d7d8ce51',
 }
+
+# JVM tests comparing the same reference, by family (app's unit tests).
+JVM_TESTS = {
+    'extension': ('dev.patrickgold.florisboard.lib.ext.ExtensionMaintainerMatchTest',),
+}
+JVM_RESULTS = ROOT / 'app/build/test-results/testDebugUnitTest'
 
 # A failure at the comparison, by family: the reference's check, or the golden tape (named by its prefix).
 FAILED_AT_COMPARISON = {
@@ -95,6 +105,31 @@ def run(output, family_name, name):
     return True, passed, log
 
 
+def assertion_failures(test):
+    """How many of a JVM test class's cases failed by assertion in its last run (none without a report)."""
+    report = JVM_RESULTS / f'TEST-{test}.xml'
+    if not report.exists():
+        return 0
+    return sum(1 for failure in ET.parse(report).getroot().iter('failure') if 'Assertion' in failure.get('type', ''))
+
+
+def jvm(output, family_name, name):
+    """Runs the family's JVM tests: 'passed', 'caught' (an assertion failed in them), 'failed
+    elsewhere', or None when the family has none."""
+    tests = JVM_TESTS.get(family_name)
+    if not tests:
+        return None
+    for test in tests:
+        (JVM_RESULTS / f'TEST-{test}.xml').unlink(missing_ok=True)
+    command = ['./gradlew', '--stacktrace', ':app:testDebugUnitTest', '--rerun']
+    for test in tests:
+        command += ['--tests', test]
+    status, _ = DEVICE.logged(output, name + '-jvm', command)
+    if status == 0:
+        return 'passed'
+    return 'caught' if any(assertion_failures(test) for test in tests) else 'failed elsewhere'
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument('output', type=Path)
@@ -118,18 +153,21 @@ def main():
             mutation_cases.write(path, source.replace(before, after))
             mutant_built, passed, log = run(output, args.family, name)
             caught = verdict(args.family, passed, log) if mutant_built else None
+            on_jvm = jvm(output, args.family, name)
         finally:
             mutation_cases.write(path, original)
         assert path.read_bytes() == original, name + ': not restored'
         built, passed, log = run(output, args.family, name + '-restored')
         restored = built and passed and (args.family != 'a1' or accepted(log))
         assert restored, name + ': the restored source must build and pass'
-        results.append({'case': name, 'mutant_built': mutant_built, 'caught': caught})
-        print(f'{args.family} {name}: ' + (f'caught at the {caught}' if caught else 'NOT caught') + '; restored passes',
+        assert jvm(output, args.family, name + '-restored') in (None, 'passed'), name + ': the restored JVM tests must pass'
+        results.append({'case': name, 'mutant_built': mutant_built, 'caught': caught, 'jvm': on_jvm})
+        shown = '' if on_jvm is None else f'; on the JVM, {on_jvm}'
+        print(f'{args.family} {name}: ' + (f'caught at the {caught}' if caught else 'NOT caught') + shown + '; restored passes',
               flush=True)
     (output / 'mutations.json').write_text(json.dumps(results, indent=2) + '\n')
-    caught = sum(1 for result in results if result['caught'])
-    print(f'{args.family}: {caught} of {len(results)} caught')
+    caught = sum(1 for result in results if result['caught'] and result['jvm'] in (None, 'caught'))
+    print(f'{args.family}: {caught} of {len(results)} caught' + (', on the device and the JVM' if args.family in JVM_TESTS else ''))
 
 
 if __name__ == '__main__':
