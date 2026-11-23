@@ -101,10 +101,10 @@ def apply(edits, originals):
         source = originals[path].decode() if originals[path] is not None else ''
         if old:
             assert source.count(old) == 1, f'mutation location changed: {path.name}: {old!r}'
-            path.write_text(source.replace(old, new))
+            mutation_cases.write(path, source.replace(old, new))
         else:
             assert originals[path] is None, f'{path.name} exists'
-            path.write_text(new)
+            mutation_cases.write(path, new)
 
 
 def restore(originals):
@@ -112,7 +112,7 @@ def restore(originals):
         if original is None:
             path.unlink(missing_ok=True)
         else:
-            path.write_bytes(original)
+            mutation_cases.write(path, original)
 
 
 def main():

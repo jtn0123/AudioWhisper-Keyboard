@@ -81,17 +81,17 @@ def main():
             for old, new in edits:
                 assert source.count(old) == 1, f'mutation location changed: {name}: {old!r}'
                 source = source.replace(old, new)
-            SOURCE.write_text(source)
+            mutation_cases.write(SOURCE, source)
             try:
                 ran, failed = gradle(output / (name + '.log'))
             finally:
-                SOURCE.write_bytes(original)
+                mutation_cases.write(SOURCE, original)
             assert ran, f'{name} did not compile or run; that never counts as caught'
             assert failed, f'{name} survived: StripHoldTest passed'
             results.append({'mutation': name, 'fault': why, 'failed_tests': failed})
             print(f'{name}: caught by {failed} test(s)', flush=True)
     finally:
-        SOURCE.write_bytes(original)
+        mutation_cases.write(SOURCE, original)
     ran, failed = gradle(output / 'restored.log')
     assert ran and not failed, 'restored source fails'
     report = {'mutations': results, 'restored_failures': failed,

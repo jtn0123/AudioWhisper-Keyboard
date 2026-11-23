@@ -111,17 +111,17 @@ def main():
             for old, new in edits:
                 assert source.count(old) == 1, f'mutation location changed: {name}: {old!r}'
                 source = source.replace(old, new)
-            TRIG.write_text(source)
+            mutation_cases.write(TRIG, source)
             try:
                 status, built, failed = test(output / (name + '.log'))
             finally:
-                TRIG.write_bytes(original)
+                mutation_cases.write(TRIG, original)
             assert built, f'{name} did not compile; that never counts as caught'
             assert status != 0 and failed, f'{name} survived: every palette test passed'
             results.append({'mutation': name, 'fault': why, 'failed_tests': failed})
             print(f'{name}: caught by {len(failed)} test(s): {", ".join(failed)}', flush=True)
     finally:
-        TRIG.write_bytes(original)
+        mutation_cases.write(TRIG, original)
     status, built, failed = test(output / 'restored.log')
     assert status == 0 and built and not failed, 'restored source fails'
     report = {'mutations': results, 'restored_exit': status,
