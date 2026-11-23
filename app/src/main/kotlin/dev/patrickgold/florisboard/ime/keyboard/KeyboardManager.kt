@@ -170,7 +170,7 @@ class KeyboardManager(context: Context) : InputKeyEventReceiver {
             state.rawValue = com.jtn0123.audiowhisper.rust.InputRules.control(longArrayOf(
                 com.jtn0123.audiowhisper.rust.InputProtocol.CONTROL_EVALUATOR.toLong(), state.rawValue.toLong()))[0].toULong()
             val computedKeyboard = if (prefs.keyboard.rustRendererPrototype.get()) {
-                rustKeyGraphs.keyboard(mode, active.facts)
+                rustKeyGraphs.keyboard(mode, active)
             } else keyboardCache.getOrElseAsync(mode, subtype) {
                 layoutManager.computeKeyboardAsync(
                     keyboardMode = mode,

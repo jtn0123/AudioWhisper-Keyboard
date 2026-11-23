@@ -50,7 +50,10 @@ internal class RendererGestureHost(private val context: Context, private val nat
     }
     fun layout(snapshot: KeyboardSnapshot) {
         configure(snapshot)
-        if (glideEnabled && snapshot.keyboard.mode == KeyboardMode.CHARACTERS) glide.setLayout(snapshot.keys)
+        if (glideEnabled && snapshot.keyboard.mode == KeyboardMode.CHARACTERS) {
+            // The keys' own subtype: a scene can still show the last one's keys after a switch.
+            glide.setLayout(snapshot.keys, snapshot.keyboard.subtype)
+        }
     }
     /** The time of the glide point that comes next: the renderer sends it just before the point. */
     private var glideTime = 0

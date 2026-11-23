@@ -8,6 +8,7 @@ import com.jtn0123.audiowhisper.rust.KeyGraphKey
 import com.jtn0123.audiowhisper.rust.KeyGraphOp
 import com.jtn0123.audiowhisper.rust.KeyGraphQuestion
 import com.jtn0123.audiowhisper.rust.WireFlag
+import dev.patrickgold.florisboard.ime.core.Subtype
 import dev.patrickgold.florisboard.ime.keyboard.AbstractKeyData
 import dev.patrickgold.florisboard.ime.keyboard.Key
 import dev.patrickgold.florisboard.ime.keyboard.KeyData
@@ -22,10 +23,11 @@ import dev.patrickgold.florisboard.ime.text.keyboard.TextKeyData
 import dev.patrickgold.florisboard.lib.FlorisRect
 
 /**
- * A keyboard whose keys Rust builds and computes ([KeyGraph]). Kotlin keeps one [RustKey] for each
- * listed key, the same object across computations, and reads back what Rust decided.
+ * A keyboard whose keys Rust builds and computes ([KeyGraph]) for [subtype]. Kotlin keeps one
+ * [RustKey] for each listed key, the same object across computations, and reads back what Rust
+ * decided.
  */
-class RustKeyboard(val graph: KeyGraph) : Keyboard() {
+class RustKeyboard(val graph: KeyGraph, val subtype: Subtype) : Keyboard() {
     private val info = graph.call(KeyGraphOp.INFO)
     override val mode = KeyboardMode.fromInt(info[KeyGraphInfo.MODE].toInt())
     override val rowCount = info[KeyGraphInfo.ROWS].toInt()
@@ -104,7 +106,7 @@ class RustKeyboard(val graph: KeyGraph) : Keyboard() {
 
     companion object {
         /** The keyboard shown before any is built. */
-        val Placeholder by lazy { RustKeyboard(KeyGraph.placeholder()) }
+        val Placeholder by lazy { RustKeyboard(KeyGraph.placeholder(), Subtype.DEFAULT) }
 
         /** [keyboard] if Rust built it, else [Placeholder]. */
         fun of(keyboard: Keyboard) = keyboard as? RustKeyboard ?: Placeholder

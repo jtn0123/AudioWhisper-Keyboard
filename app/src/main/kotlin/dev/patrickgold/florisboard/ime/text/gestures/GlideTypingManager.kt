@@ -20,6 +20,7 @@ import android.content.Context
 import android.os.SystemClock
 import dev.patrickgold.florisboard.app.FlorisPreferenceStore
 import dev.patrickgold.florisboard.editorInstance
+import dev.patrickgold.florisboard.ime.core.Subtype
 import dev.patrickgold.florisboard.ime.nlp.WordSuggestionCandidate
 import dev.patrickgold.florisboard.ime.keyboard.Key
 import dev.patrickgold.florisboard.keyboardManager
@@ -84,11 +85,14 @@ class GlideTypingManager(context: Context) : GlideTypingGesture.Listener {
     }
 
     /**
-     * Change the layout of the internal gesture classifier
+     * Change the layout of the internal gesture classifier to [keys], built for [subtype]. Paired
+     * with the active subtype instead, the last subtype's keys drawn once more after a switch read
+     * as a new layout for the new one, and the classifier dropped its cached index and built it
+     * again. The Compose keyboard passes no subtype and gets the active one, as before.
      */
-    fun setLayout(keys: List<Key>) {
+    fun setLayout(keys: List<Key>, subtype: Subtype = subtypeManager.activeSubtype) {
         if (keys.isNotEmpty()) {
-            glideTypingClassifier.setLayout(keys, subtypeManager.activeSubtype)
+            glideTypingClassifier.setLayout(keys, subtype)
         }
     }
 

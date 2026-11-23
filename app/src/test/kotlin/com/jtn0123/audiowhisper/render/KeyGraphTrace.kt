@@ -247,7 +247,7 @@ internal class KeyGraphTrace(private val seed: Long) {
     /** A new build's pair, or null if main crashed building it, as the branch then must computing it. */
     private fun pair(build: TraceBuild, facts: KeyGraphFactsInput): TracePair? {
         val fields = keyGraphBuild(build.mode, build.numberRow, build.numberHints, build.files())
-        val branch = RustKeyboard(KeyGraph.build(*fields))
+        val branch = RustKeyboard(KeyGraph.build(*fields), Subtype.DEFAULT)
         val main = runCatching { builder.keyboard(build) }.getOrElse { error ->
             val failure = runCatching { branch.compute(facts.row(), traceAnswer(build.locale)) }.exceptionOrNull()
                 ?: throw AssertionError("seed $seed: main crashed building $build ($error), the branch didn't", error)

@@ -11,6 +11,7 @@ import dev.patrickgold.florisboard.clipboardManager
 import dev.patrickgold.florisboard.extensionManager
 import dev.patrickgold.florisboard.ime.core.DisplayLanguageNamesIn
 import dev.patrickgold.florisboard.ime.core.Subtype
+import dev.patrickgold.florisboard.ime.core.SubtypeEntry
 import dev.patrickgold.florisboard.ime.core.SubtypeFacts
 import dev.patrickgold.florisboard.ime.keyboard.ComputingEvaluator
 import dev.patrickgold.florisboard.ime.keyboard.KEY_LABEL_RESOURCES
@@ -43,9 +44,11 @@ internal class RustKeyGraphs(private val context: Context, private val manager: 
     fun clear() = cache.clear()
     fun clear(mode: KeyboardMode) = cache.clearMode(mode.value)
 
-    /** The keyboard for [mode] and the subtype Rust says names [facts], built the first time it is asked for. */
-    fun keyboard(mode: KeyboardMode, facts: SubtypeFacts): RustKeyboard =
-        cache.subtypeKeyboard(mode, facts) { RustKeyboard(KeyGraph.build(*build(mode, facts))) }
+    /** The keyboard for [mode] and [entry]'s subtype, built the first time it is asked for. */
+    fun keyboard(mode: KeyboardMode, entry: SubtypeEntry): RustKeyboard =
+        cache.subtypeKeyboard(mode, entry.facts) {
+            RustKeyboard(KeyGraph.build(*build(mode, entry.facts)), entry.subtype)
+        }
 
     /** Computes [keyboard]'s keys for [evaluator]: its state, editor and subtype, and the facts around them. */
     fun compute(keyboard: RustKeyboard, evaluator: ComputingEvaluator) {

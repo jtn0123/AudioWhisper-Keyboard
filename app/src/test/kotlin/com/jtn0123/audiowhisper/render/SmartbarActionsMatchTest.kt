@@ -9,6 +9,7 @@ import com.jtn0123.audiowhisper.reader.ReadAloud
 import com.jtn0123.audiowhisper.rust.KeyGraph
 import com.jtn0123.audiowhisper.rust.RenderProtocol.*
 import com.jtn0123.audiowhisper.rust.SmartbarIcon
+import dev.patrickgold.florisboard.ime.core.Subtype
 import dev.patrickgold.florisboard.ime.keyboard.KeyData
 import dev.patrickgold.florisboard.ime.keyboard.KeyboardMode
 import dev.patrickgold.florisboard.ime.smartbar.IncognitoDisplayMode
@@ -46,7 +47,8 @@ class SmartbarActionsMatchTest {
         )
     }
     private val keyboard =
-        RustKeyboard(KeyGraph.build(*keyGraphBuild(build.mode, build.numberRow, build.numberHints, build.files())))
+        RustKeyboard(KeyGraph.build(*keyGraphBuild(build.mode, build.numberRow, build.numberHints, build.files())),
+            Subtype.DEFAULT)
     private fun saw(what: String) { seen[what] = (seen[what] ?: 0) + 1 }
 
     @Test fun mainsChoicesAndTheRustPlanShowTheSameSmartbar() {
