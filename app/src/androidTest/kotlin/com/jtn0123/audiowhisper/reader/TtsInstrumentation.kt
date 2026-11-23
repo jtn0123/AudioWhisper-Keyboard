@@ -8,61 +8,49 @@ import com.jtn0123.audiowhisper.golden.DeviceGoldens
 import com.jtn0123.audiowhisper.golden.GoldenTape
 import com.jtn0123.audiowhisper.rust.SherpaTts
 import java.io.File
-import java.nio.ByteBuffer
-import java.nio.ByteOrder
 import java.security.MessageDigest
 import org.json.JSONArray
 import org.json.JSONObject
 
 /**
  * Files only: never constructs AudioTrack, TextToSpeech, AudioRecord or any playback voice. The
- * reference voice's audio, by its digests, is recorded on the golden tape [TAPE]
- * (docs/phase6-kotlin-references.md). `-e timings false` skips the latency trials, `-e stress
- * false` the cancel and respeak cycles. A failed comparison reports `failure_kind=parity`.
+ * voice's audio, by its digests, is checked against the golden tape [TAPE], written by the
+ * reference voice it replaced (docs/phase6-kotlin-references.md). `-e timings false` skips the
+ * latency trials, `-e stress false` the cancel and respeak cycles. A failed comparison reports
+ * `failure_kind=parity`.
  */
 class TtsInstrumentation : Instrumentation() {
     companion object {
         const val TAPE = "tts-pocket-loona"
-        private const val PARITY = "parity"
     }
 
     private lateinit var options: Bundle
     override fun onCreate(arguments: Bundle?) { super.onCreate(arguments); options = arguments ?: Bundle(); start() }
     private fun hex(bytes: ByteArray) = bytes.joinToString("") { "%02x".format(it) }
-    private fun bytes(samples: FloatArray): ByteArray = ByteBuffer.allocate(samples.size * 4)
-        .order(ByteOrder.LITTLE_ENDIAN).also { it.asFloatBuffer().put(samples) }.array()
-    private fun generate(text: String, index: Int, reference: Boolean, directory: File, deterministic: Boolean = true): JSONObject {
+    private fun generate(text: String, index: Int, directory: File, deterministic: Boolean = true): JSONObject {
         val hash = MessageDigest.getInstance("SHA-256")
         val chunks = JSONArray()
         val chunkHashes = JSONArray()
         var first = -1L
         var count = 0
-        val old = if (reference) checkNotNull(ReferenceVoiceEngine.load(targetContext, if (deterministic) 42 else null)) else null
-        val native = if (!reference) SherpaTts(VoiceEngine.dir(targetContext).path) else null
-        val nativeGenerate = native?.let { if (deterministic) TtsComparison.bind(it) else it::speak }
-        val rate = old?.sampleRate ?: checkNotNull(native).sampleRate
+        val native = SherpaTts(VoiceEngine.dir(targetContext).path)
+        val nativeGenerate = if (deterministic) TtsComparison.bind(native) else native::speak
         try {
-            return File(directory, "$index-${if (reference) 1 else 0}.pcm").outputStream().use { output ->
-                fun audio(pcm: ByteArray): Boolean {
+            return File(directory, "$index.pcm").outputStream().use { output ->
+                val start = System.nanoTime()
+                nativeGenerate(text) { buffer ->
+                    if (first < 0) first = System.nanoTime()
+                    val pcm = ByteArray(buffer.remaining()); buffer.get(pcm)
                     hash.update(pcm); output.write(pcm); count += pcm.size / 4; chunks.put(pcm.size / 4)
                     chunkHashes.put(hex(MessageDigest.getInstance("SHA-256").digest(pcm)))
-                    return true
-                }
-                val start = System.nanoTime()
-                if (reference) old!!.speak(text) {
-                    if (first < 0) first = System.nanoTime()
-                    audio(bytes(it))
-                }
-                else nativeGenerate!!(text) { buffer ->
-                    if (first < 0) first = System.nanoTime()
-                    val pcm = ByteArray(buffer.remaining()); buffer.get(pcm); audio(pcm)
+                    true
                 }
                 val end = System.nanoTime()
                 check(count > 0 && first >= start)
-                JSONObject().put("sha256", hex(hash.digest())).put("samples", count).put("sample_rate", rate)
+                JSONObject().put("sha256", hex(hash.digest())).put("samples", count).put("sample_rate", native.sampleRate)
                     .put("chunks", chunks).put("chunk_sha256", chunkHashes).put("start_ns", start).put("first_audio_ns", first).put("end_ns", end)
             }
-        } finally { old?.close(); native?.close() }
+        } finally { native.close() }
     }
     private fun identity(record: JSONObject) = JSONObject().put("sha256", record.getString("sha256"))
         .put("samples", record.getInt("samples")).put("sample_rate", record.getInt("sample_rate"))
@@ -118,8 +106,8 @@ class TtsInstrumentation : Instrumentation() {
             check(sentences.size == 5)
             if (options.getString("randomnessControl") == "true") {
                 val control = JSONArray()
-                for (index in 0..3) control.put(JSONObject().put("reference", index < 2)
-                    .put("identity", JSONObject(identity(generate(sentences[0], 90 + index, index < 2, directory, deterministic = false)))))
+                for (index in 0..3) control.put(JSONObject()
+                    .put("identity", JSONObject(identity(generate(sentences[0], 90 + index, directory, deterministic = false)))))
                 File(targetContext.filesDir, "tts-randomness-control.json").writeText(control.toString(2))
                 result.putBoolean("tts_randomness_control", true)
                 finish(Activity.RESULT_OK, result)
@@ -129,28 +117,23 @@ class TtsInstrumentation : Instrumentation() {
             val report = JSONObject().put("identical", false)
             val reportFile = File(targetContext.filesDir, "tts-comparison.json")
             val expected = arrayListOf<JSONObject>()
-            val tape = GoldenTape.ofReference(TAPE, DeviceGoldens(this, options))
+            val tape = GoldenTape(TAPE, DeviceGoldens(this, options))
             for ((index, text) in sentences.withIndex()) {
-                val old = generate(text, index, true, directory)
-                val native = generate(text, index, false, directory)
-                val matches = identity(old) == identity(native)
-                records.put(JSONObject().put("fixture", index).put("identical", matches).put("reference", old).put("native", native))
+                val native = generate(text, index, directory)
+                records.put(JSONObject().put("fixture", index).put("native", native))
                 report.put("fixtures", records); reportFile.writeText(report.toString(2))
-                check(matches) { PARITY }
-                tape.answer("fixture $index", identity(old))
+                tape.answer("fixture $index", identity(native))
                 expected += native
             }
             tape.finish()
             if (options.getString("timings") != "false") {
                 val timings = JSONArray()
                 repeat(10) { trial ->
-                    for (reference in if (trial % 2 == 0) listOf(true, false) else listOf(false, true)) {
-                        val record = generate(sentences[0], 10 + trial, reference, directory)
-                        check(identity(record) == identity(expected[0])) { PARITY }
-                        timings.put(JSONObject().put("trial", trial).put("reference", reference)
-                            .put("start_ns", record.getLong("start_ns")).put("first_audio_ns", record.getLong("first_audio_ns"))
-                            .put("end_ns", record.getLong("end_ns")))
-                    }
+                    val record = generate(sentences[0], 10 + trial, directory)
+                    check(identity(record) == identity(expected[0])) { "A timing run changed the audio" }
+                    timings.put(JSONObject().put("trial", trial)
+                        .put("start_ns", record.getLong("start_ns")).put("first_audio_ns", record.getLong("first_audio_ns"))
+                        .put("end_ns", record.getLong("end_ns")))
                 }
                 report.put("timings", timings)
                 reportFile.writeText(report.toString(2))
@@ -166,7 +149,7 @@ class TtsInstrumentation : Instrumentation() {
         } catch (failure: Throwable) {
             result.putString("failure_type", failure.javaClass.name)
             // A golden tape fails with an AssertionError naming it.
-            if (failure.message == PARITY || failure is AssertionError && failure.message.orEmpty().startsWith("$TAPE: ")) {
+            if (failure is AssertionError && failure.message.orEmpty().startsWith("$TAPE: ")) {
                 result.putString("failure_kind", "parity")
             }
             result.putString("failure_frames", failure.stackTrace.take(6).joinToString(";") { "${it.className}.${it.methodName}:${it.lineNumber}" })

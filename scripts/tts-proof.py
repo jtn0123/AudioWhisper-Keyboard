@@ -1,4 +1,4 @@
-"""File-only TTS comparison runner. Requires -PttsFixture=true comparison APKs, owned serial.
+"""File-only TTS check against its golden. Requires -PttsFixture=true fixture APKs, owned serial.
 
 python3 -I scripts/tts-proof.py OUTPUT
 Install only with scripts/install-dev.sh and its --probe option, before running this script.
@@ -29,9 +29,9 @@ with run['fixture_session'](out / 'stores'):
     assert 'tts_complete=true' in (out / 'instrumentation.log').read_text(), 'TTS instrumentation incomplete'
     raw = subprocess.check_output(base + ['exec-out', 'run-as', pkg, 'cat', 'files/tts-comparison.json'])
     report = json.loads(raw)
-    assert report['identical'] and len(report['fixtures']) == 5 and len(report['timings']) == 20
+    assert report['identical'] and len(report['fixtures']) == 5 and len(report['timings']) == 10
     assert report['stress']['cycles'] == report['stress']['immediate_respeaks'] == 200
     assert report['stress']['heap_plateau']
     (out / 'comparison.json').write_bytes(raw)
-    print('TTS: five exact PCM/chunk comparisons, 20 timing trials, 200 cancel/respeak cycles, bounded heap plateau')
+    print('TTS: five PCM/chunk golden checks, 10 timing trials, 200 cancel/respeak cycles, bounded heap plateau')
 # Keep artifacts until the whole proof is recorded. Cleanup is an explicit verified final step.
