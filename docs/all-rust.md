@@ -233,6 +233,15 @@ Stage 5 packages 1–3, one event family at a time:
   then Room and KSP, leave the build.
 * **Exit for each step:** as compose-removal.md says, plus real TalkBack on settings before
   step 12.
+* **The Compose settings host.**
+  **Done (2026-11-22):** `FlorisAppActivity` is a thin Rust settings host, and a link to a page
+  Rust does not draw opens Rust's own not-found page instead of a blank Compose activity. The
+  fallback activity, the navigation graph, the settings-only Compose primitives and
+  `navigation-compose` are gone (18 files, 1,603 lines). Every way into settings is tested from
+  the intent to the Rust screen it opens ([stage 4: the Compose settings host](stage4-compose-host.md)).
+  Step 12 went ahead before the TalkBack exit above, which is phone check P6: since step 10 the
+  fallback drew no screen, so nothing it deleted was a screen TalkBack could fall back to. P6
+  stays owed.
 
 ### 5. Platform edges (M)
 

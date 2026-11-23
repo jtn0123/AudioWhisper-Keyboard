@@ -240,14 +240,14 @@ Path prefixes (each path below expands against the repository root):
 | `FB/NativeExtractContent.kt` | 25 | A | ExtractEditText / AndroidView; native chrome with platform text editor |
 | `FB/app/AppPreferenceMigration.kt` | 27 | A | Jetpref migration callback / ART JNI; applies native migration result |
 | `FB/app/AppPrefs.kt` | 301 | M | Jetpref PreferenceModel; Android stores stay, derived UI/sizing values must move |
-| `FB/app/ComposeSettingsFallbackActivity.kt` | 5 | A | ComponentActivity; retained fallback Activity identity |
-| `FB/app/EnumDisplayEntries.kt` | 737 | A | Resources.getString; enum resource IDs/descriptions (split existing oversized map) |
-| `FB/app/FlorisAppActivity.kt` | 267 | M | ComponentActivity / ActivityResultRegistry; retained routing/import/default-selection branches |
-| `FB/app/Routes.kt` | 295 | P | portable Routes domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
+| `FB/app/ComposeSettingsFallbackActivity.kt` | 5 | A | ComponentActivity; retained fallback Activity identity (deleted at compose-removal step 12) |
+| `FB/app/EnumDisplayEntries.kt` | 737 | A | Resources.getString; enum resource IDs/descriptions (split existing oversized map) (deleted at compose-removal step 12) |
+| `FB/app/FlorisAppActivity.kt` | 267 | M | ComponentActivity / ActivityResultRegistry; retained routing/import/default-selection branches (a thin Rust settings host since compose-removal step 12: splash, insets, Back, saved state and intents, 104 counted lines; the START or NAVIGATE choice is `SettingsEntry.request`) |
+| `FB/app/Routes.kt` | 295 | P | portable Routes domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs (deleted at compose-removal step 12) |
 | `FB/app/apptheme/Color.kt` | 95 | P | portable Color domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
-| `FB/app/apptheme/Shape.kt` | 24 | P | portable Shape domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
-| `FB/app/apptheme/Theme.kt` | 81 | M | Resources / WindowInsetsController; preference-to-theme choice still in Kotlin |
-| `FB/app/apptheme/Type.kt` | 41 | P | portable Type domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs |
+| `FB/app/apptheme/Shape.kt` | 24 | P | portable Shape domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs (deleted at compose-removal step 12) |
+| `FB/app/apptheme/Theme.kt` | 81 | M | Resources / WindowInsetsController; preference-to-theme choice still in Kotlin (after compose-removal step 12 only `FlorisCopyToClipboardActivity`, the image share target, draws with it; it goes with that activity) |
+| `FB/app/apptheme/Type.kt` | 41 | P | portable Type domain model/codec/state; consolidate Rust ownership, retain only necessary boundary DTOs (`Theme.kt`'s typography, and the tokens `SettingsTypographyTokensTest` checks Rust against) |
 | `FB/app/settings/advanced/BackupIO.kt` | 81 | M | ContentResolver / Room / File; backup traversal, selected records and restore effects |
 | `FB/app/setup/NotificationPermissionState.kt` | 26 | P | setup permission-progress state |
 | `FB/app/setup/SetupScreen.kt` | 240 | M | ActivityResultContracts / InputMethodManager; setup steps/navigation and Compose drawing |
@@ -619,28 +619,28 @@ primitives serve both. Actual deletion remains behind the original acceptance ga
 | `FB/ime/text/keyboard/TextKeyboardLayout.kt` | 323 | keyboard |
 | `FB/ime/text/keyboard/TextKeyboardLayoutController.kt` | 401 | keyboard |
 | `FB/ime/text/keyboard/TextKeyboardSwipe.kt` | 253 | keyboard |
-| `FB/lib/compose/FlorisDialogs.kt` | 61 | stage4 |
-| `FB/lib/compose/FlorisHyperlinkText.kt` | 45 | stage4 |
-| `FB/lib/compose/FlorisScreen.kt` | 135 | stage4 |
-| `FB/lib/compose/ImageVector.kt` | 28 | stage4 |
-| `FB/lib/compose/PreviewKeyboardField.kt` | 138 | stage4 |
-| `FB/lib/compose/Validation.kt` | 42 | stage4 |
-| `COMPOSE/ClickableModifiers.kt` | 38 | stage4 |
-| `COMPOSE/DpSpSizeFuns.kt` | 35 | stage4 |
-| `COMPOSE/FlorisAnimation.kt` | 50 | stage4 |
-| `COMPOSE/FlorisAppBar.kt` | 46 | stage4 |
-| `COMPOSE/FlorisBulletSpacer.kt` | 41 | stage4 |
-| `COMPOSE/FlorisButtonBar.kt` | 119 | stage4 |
-| `COMPOSE/FlorisButtons.kt` | 156 | stage4 |
-| `COMPOSE/FlorisCanvasIcon.kt` | 62 | stage4 |
-| `COMPOSE/FlorisCards.kt` | 294 | stage4 |
-| `COMPOSE/FlorisChip.kt` | 81 | stage4 |
+| `FB/lib/compose/FlorisDialogs.kt` | 61 | stage4 (deleted at compose-removal step 12) |
+| `FB/lib/compose/FlorisHyperlinkText.kt` | 45 | stage4 (deleted at compose-removal step 12) |
+| `FB/lib/compose/FlorisScreen.kt` | 135 | stage4 (deleted at compose-removal step 12) |
+| `FB/lib/compose/ImageVector.kt` | 28 | keyboard (stage4 until compose-removal step 12; only the Compose keyboard uses it since) |
+| `FB/lib/compose/PreviewKeyboardField.kt` | 138 | stage4 (deleted at compose-removal step 12) |
+| `FB/lib/compose/Validation.kt` | 42 | stage4 (deleted at compose-removal step 12) |
+| `COMPOSE/ClickableModifiers.kt` | 38 | keyboard (stage4 until compose-removal step 12; only the Compose keyboard uses it since) |
+| `COMPOSE/DpSpSizeFuns.kt` | 35 | stage4 (deleted at compose-removal step 12) |
+| `COMPOSE/FlorisAnimation.kt` | 50 | keyboard (stage4 until compose-removal step 12; only the Compose keyboard uses it since) |
+| `COMPOSE/FlorisAppBar.kt` | 46 | stage4 (deleted at compose-removal step 12) |
+| `COMPOSE/FlorisBulletSpacer.kt` | 41 | stage4 (deleted at compose-removal step 12) |
+| `COMPOSE/FlorisButtonBar.kt` | 119 | stage4 (deleted at compose-removal step 12) |
+| `COMPOSE/FlorisButtons.kt` | 156 | stage4 (deleted at compose-removal step 12) |
+| `COMPOSE/FlorisCanvasIcon.kt` | 62 | stage4 (deleted at compose-removal step 12) |
+| `COMPOSE/FlorisCards.kt` | 294 | stage4 (deleted at compose-removal step 12) |
+| `COMPOSE/FlorisChip.kt` | 81 | stage4 (deleted at compose-removal step 12) |
 | `COMPOSE/FlorisDropdownLikeButton.kt` | 68 | stage4 |
 | `COMPOSE/FlorisStepLayout.kt` | 283 | stage4 |
-| `COMPOSE/LazyGrid.kt` | 26 | stage4 |
-| `COMPOSE/RtlModifiers.kt` | 28 | stage4 |
-| `COMPOSE/ScrollableModifiers.kt` | 257 | stage4 |
-| `COMPOSE/icons/KeyboardForwardDelete.kt` | 61 | stage4 |
+| `COMPOSE/LazyGrid.kt` | 26 | keyboard (stage4 until compose-removal step 12; only the Compose keyboard uses it since) |
+| `COMPOSE/RtlModifiers.kt` | 28 | keyboard (stage4 until compose-removal step 12; only the Compose keyboard uses it since) |
+| `COMPOSE/ScrollableModifiers.kt` | 257 | keyboard (stage4 until compose-removal step 12; only the Compose keyboard uses it since) |
+| `COMPOSE/icons/KeyboardForwardDelete.kt` | 61 | keyboard (stage4 until compose-removal step 12; only the Compose keyboard uses it since) |
 | `SNYGG/ui/SnyggButton.kt` | 86 | keyboard/settings |
 | `SNYGG/ui/SnyggChip.kt` | 139 | keyboard/settings |
 | `SNYGG/ui/SnyggColumn.kt` | 91 | keyboard/settings |

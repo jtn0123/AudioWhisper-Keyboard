@@ -364,19 +364,39 @@ its phone checks pass.
   `SettingsSetup` (71), its string ids (30), 7 lines in `RustSettingsView` (1 removed) and one
   in `SettingsStringIds` (1 removed). Step 11 is done: 590 lines deleted, 133 added.
 
-### 12. The Compose settings host
+### 12. The Compose settings host (done)
 
 * **Deletes:** `Routes.kt` (270 after step 6), the Compose branch of `FlorisAppActivity`,
   `ComposeSettingsFallbackActivity`, `FB/app/apptheme` (3 files, 142 after step 3), the
   settings-only parts of `FB/lib/compose` (6 files, 416 after step 6), `EnumDisplayEntries` (158
   after step 6), and the Jetpref UI dependency.
-* **Blocked by:** nothing in settings: steps 4–11 are done, and since step 10 the fallback
-  draws no screen. Every route left in `Routes.kt` is an empty entry that hands back to Rust,
-  and Rust's `compose` effect (`settings_ui/mod.rs`, for a route Rust does not draw) opens a
-  blank fallback; it goes with the fallback, and an unknown route should then be said in Rust.
-  `ThemeEditorActivity` stays: it is the theme editor's own activity over the extension
-  editor, not a Compose host. Shared primitives in `lib/compose` (20 files, 1,832 after step 3)
-  are also used by the Compose keyboard (17 keyboard files import them) and wait for step K.
+* **What changed:** `FlorisAppActivity` is a thin Rust settings host: the splash screen,
+  insets, Back, the saved state and the intents. Rust's `compose` effect is gone; a link to a
+  route Rust does not draw opens Rust's own not-found page, which says the page does not exist
+  and offers the settings home, never repeats the link, and survives recreation. Every entry
+  point (the launcher, Android's keyboard and spell-checker settings, the keyboard's settings
+  key, setup's return, settings links, the theme editor, a `.flex` opened or shared, recreation)
+  has a JVM test from the intent to the Rust screens it opens, and 12 mutation cases. See
+  [stage 4: the Compose settings host](stage4-compose-host.md).
+* **What stayed:** `ThemeEditorActivity`, the theme editor's own activity, drawn by Rust.
+  `jetpref-datastore-ui`, because besides its now-unused preference screens it holds
+  `observeAsState`, which 24 keyboard files read preferences with; it goes with step K. Of
+  `FB/app/apptheme`, `Theme.kt` and `Type.kt` (the image share target draws with
+  `FlorisAppTheme`); `Color.kt` was already gone. Of `FB/lib/compose`, `ImageVector` and
+  `SystemUi`, which the keyboard uses. The `lib/compose` module's keyboard primitives
+  (`ClickableModifiers`, `FlorisAnimation`, `LazyGrid`, `RtlModifiers`, `ScrollableModifiers`,
+  the forward-delete icon) wait for step K; its eight settings-only files are deleted.
+* **Progress** (non-blank lines deleted): 18 files, 1,603 lines (1,335 counted): `Routes.kt`
+  (219), `ComposeSettingsFallbackActivity` (5), `UserDictionaryType` (20), `EnumDisplayEntries`
+  (156), `apptheme/Shape` (24), five `FB/lib/compose` files (427) and eight `lib/compose`
+  module files (752). `FlorisAppActivity` goes from 213 counted lines to 104 and
+  `RustSettingsView` from 281 to 275; `SettingsEntry` gains 3 and the string ids 3.
+  `navigation-compose` and 495 baseline-profile lines go. The ledger is 402 files and 32,039
+  counted lines (main had 420 and 33,483). The shipped (`personal`) APK is 558,015 bytes smaller,
+  its dex 9.5%; settings' cold start was 42 ms faster at the median on the emulator, within the
+  runs' spread. Step 12 is done, with every entry point checked on `emulator-5556`. Its phone
+  checks are still owed: P6's TalkBack session and P27; so is E43, an instrumented test of the
+  activity's intents ([owed checks](owed-checks.md)).
 
 ### K. The Compose keyboard
 

@@ -788,7 +788,10 @@ and 2 and the licences, the accessibility node comparison, the Compose vocabular
 (`SettingsComposeEditorDevice`, deleted with the `compose-text` stage), Compose's side of the
 timing and picture pairs. Their receipts stay in the stage 4 documents. **Would change if** a phone
 shows a settings screen that Rust cannot draw at all; then that screen's Compose version is
-restored from history behind the fallback Activity, not behind a switch.
+restored from history behind the fallback Activity, not behind a switch. (2026-11-22:
+compose-removal step 12 deleted the fallback Activity, so such a screen would come back with
+it; a route Rust does not draw now opens Rust's not-found page,
+[stage4-compose-host](stage4-compose-host.md).)
 
 ## The keyboard's CPU gate stays 2 ms, settled on the phone at 120 Hz (2026-11-17)
 
