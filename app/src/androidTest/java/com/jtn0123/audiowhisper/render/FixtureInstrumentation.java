@@ -130,7 +130,9 @@ public final class FixtureInstrumentation extends Instrumentation {
                         if (!pending.renameTo(new File(context.getFilesDir(), "editor-state-fixture.json"))) throw new IllegalStateException("Editor fixture publish failed");
                     } catch (Exception failure) { throw new IllegalStateException("Editor state fixture failed", failure); }
                 } else if ("nlp-unlearn".equals(op)) {
-                    app.getNlpManager().getValue().unlearnAutoCorrection(0);
+                    // NlpManager.unlearnAutoCorrection left in ae452c49b (the NLP session undoes a correction
+                    // itself now), so this op has nothing to call: fail loudly rather than pass unlearned.
+                    throw new UnsupportedOperationException("nlp-unlearn: no NlpManager call since ae452c49b");
                 } else if ("nlp-state".equals(op)) {
                     try {
                         dev.patrickgold.florisboard.ime.nlp.NlpManager manager = app.getNlpManager().getValue();
