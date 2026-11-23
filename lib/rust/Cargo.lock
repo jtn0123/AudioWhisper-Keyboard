@@ -867,6 +867,7 @@ name = "imetheme"
 version = "0.1.0"
 dependencies = [
  "extensions",
+ "palette",
  "snygg",
  "wire",
 ]

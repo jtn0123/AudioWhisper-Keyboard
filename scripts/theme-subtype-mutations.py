@@ -95,8 +95,8 @@ CASES = [
     ('failure-without-cause', UPDATES, 'loadFailure = ThemeManager.LoadFailure(source.meta, config, checkNotNull(result.exceptionOrNull())),',
      'loadFailure = ThemeManager.LoadFailure(source.meta, config, IllegalStateException()),', [TRACE]),
     # The accent, the renderer's theme and the chips' palette.
-    ('accent-not-sent', RENDERER, 'ImeThemeAccent.PREFERRED to (if (specified) accent.toArgb() else 0).toString(),',
-     'ImeThemeAccent.PREFERRED to "0",', [TRACE]),
+    ('accent-not-sent', RENDERER, 'ImeThemeAccent.PREFERRED to "${accent ?: 0}",', 'ImeThemeAccent.PREFERRED to "0",',
+     [TRACE]),
     ('renderer-without-palette', RENDERER, 'RendererTheme(info.stylesheetJson, palette.names, palette.colors,',
      'RendererTheme(info.stylesheetJson, palette.names, palette.colors.map { 0 },', [TRACE]),
     ('chips-without-palette', RENDERER, '*palette.colors.map { it.toString() }.toTypedArray())',

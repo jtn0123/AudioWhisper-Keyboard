@@ -44,6 +44,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.takeOrElse
+import com.materialkolor.dynamicColorScheme
 import kotlinx.coroutines.runBlocking
 import org.florisboard.lib.color.MaterialYouFlags
 import org.florisboard.lib.color.systemAccentOrDefault
@@ -372,3 +373,12 @@ fun SnyggValue.uriOrNull(): String? {
         else -> null
     }
 }
+
+/**
+ * The Material You scheme ProvideSnyggTheme gives a theme with [flags] for accent [primary]. The Rust renderer, the
+ * inline chips and the theme editor's swatches get theirs from Rust (crates/palette), which matches this.
+ */
+fun materialYouScheme(primary: Color, isDark: Boolean, flags: MaterialYouFlags): ColorScheme = dynamicColorScheme(
+    primary = primary, isDark = isDark, style = flags.paletteStyle, contrastLevel = flags.contrastLevel.value,
+    specVersion = flags.specVersion,
+)

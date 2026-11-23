@@ -26,7 +26,8 @@ import androidx.autofill.inline.common.ImageViewStyle
 import androidx.autofill.inline.common.TextViewStyle
 import androidx.autofill.inline.common.ViewStyle
 import androidx.autofill.inline.v1.InlineSuggestionUi
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.isSpecified
+import androidx.compose.ui.graphics.toArgb
 import androidx.core.graphics.ColorUtils
 import com.jtn0123.audiowhisper.render.inlineChipColors
 import com.jtn0123.audiowhisper.render.themePalette
@@ -163,7 +164,7 @@ class ThemeManager(context: Context) {
     fun createInlineSuggestionUiStyleBundle(context: Context): Bundle {
         val info = activeThemeInfo.value
         val state = keyboardManager.activeState
-        val palette = themePalette(prefs.theme.accentColor.get(), { systemAccent(context) }, info.config.materialYouFlags)
+        val palette = themePalette(preferredAccent(), systemAccent(context), info.config.materialYouFlags)
         val (bgColor, fgColor) = inlineChipColors(info, state.keyboardMode.toString(), state.inputShiftState.toString(), palette)
 
         val bgDrawableId = R.drawable.inline_suggestion_chip_background
@@ -221,8 +222,11 @@ class ThemeManager(context: Context) {
         }
     }
 
+    /** The accent the settings name for Material You themes, as an ARGB colour; null when they name none. */
+    fun preferredAccent(): Int? = prefs.theme.accentColor.get().takeIf { it.isSpecified }?.toArgb()
+
     /** The system's accent colour, which a theme's palette is made from unless the settings name one. */
-    private fun systemAccent(context: Context) = Color(context.resources.getColor(android.R.color.system_accent1_500, context.theme))
+    private fun systemAccent(context: Context) = context.resources.getColor(android.R.color.system_accent1_500, context.theme)
 
     data class ThemeInfo(
         val name: ExtensionComponentName,

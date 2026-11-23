@@ -3,9 +3,12 @@ package dev.patrickgold.florisboard.ime.theme
 import android.content.res.Configuration
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.isUnspecified
+import androidx.compose.ui.graphics.toArgb
 import com.jtn0123.audiowhisper.render.RendererTheme
+import com.jtn0123.audiowhisper.render.ThemePalette
+import com.jtn0123.audiowhisper.render.referenceSnyggPalette
 import com.jtn0123.audiowhisper.render.rendererTheme
-import com.jtn0123.audiowhisper.render.themePrimary
+import com.jtn0123.audiowhisper.render.themePalette
 import com.materialkolor.Contrast
 import com.materialkolor.PaletteStyle
 import com.materialkolor.dynamiccolor.ColorSpec
@@ -21,8 +24,6 @@ import kotlinx.serialization.json.Json
 import org.florisboard.lib.color.MaterialYouFlags
 import org.florisboard.lib.kotlin.io.FsDir
 import org.florisboard.lib.snygg.SnyggStylesheet
-import org.florisboard.lib.snygg.ui.SnyggPalette
-import org.florisboard.lib.snygg.ui.snyggPalette
 
 /**
  * One seeded trace of theme updates, run by main's frozen theme manager ([ReferenceThemeManager])
@@ -62,7 +63,7 @@ internal class ThemeTrace(seed: Long) {
     private var reference = ReferenceThemeManager(platform())
     private var updates = ThemeUpdates()
     private var active = ThemeManager.ThemeInfo.DEFAULT
-    private val palettes = mutableMapOf<Pair<Color, MaterialYouFlags>, SnyggPalette>()
+    private val palettes = mutableMapOf<Pair<Color, MaterialYouFlags>, ThemePalette>()
 
     init {
         for (extension in BUNDLED) for (component in extension.themes) {
@@ -228,14 +229,14 @@ internal class ThemeTrace(seed: Long) {
         // settings' accent, or the system's when unspecified, and the theme's Material You flags.
         val palette = palette(if (accent.isUnspecified) system else accent, expected.config.materialYouFlags)
         val main = RendererTheme(expected.stylesheetJson, palette.names, palette.colors, density, fontScale, multiplier, mode, shift)
-        val branch = rendererTheme(active, palette(themePrimary(accent) { system }, active.config.materialYouFlags),
-            density, fontScale, multiplier, mode, shift)
+        val made = themePalette(if (accent.isUnspecified) null else accent.toArgb(), system.toArgb(), active.config.materialYouFlags)
+        val branch = rendererTheme(active, made, density, fontScale, multiplier, mode, shift)
         assertEquals(main, branch)
         if (accent.isUnspecified) see("system accent") else see("settings accent")
     }
 
-    private fun palette(primary: Color, flags: MaterialYouFlags): SnyggPalette =
-        palettes.getOrPut(primary to flags) { snyggPalette(primary, flags) }
+    private fun palette(primary: Color, flags: MaterialYouFlags): ThemePalette =
+        palettes.getOrPut(primary to flags) { referenceSnyggPalette(primary, flags) }
 
     private fun kind(info: ThemeManager.ThemeInfo) = when {
         info === previewInfo -> "showing preview"

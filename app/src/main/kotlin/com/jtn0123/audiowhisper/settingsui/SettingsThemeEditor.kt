@@ -3,6 +3,8 @@ package com.jtn0123.audiowhisper.settingsui
 import androidx.activity.ComponentActivity
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.isUnspecified
+import androidx.compose.ui.graphics.toArgb
+import com.jtn0123.audiowhisper.render.themePalette
 import com.jtn0123.audiowhisper.rust.*
 import com.materialkolor.Contrast
 import com.materialkolor.PaletteStyle
@@ -20,7 +22,6 @@ import org.florisboard.lib.color.MaterialYouFlags
 import org.florisboard.lib.kotlin.io.subDir
 import org.florisboard.lib.kotlin.io.subFile
 import org.florisboard.lib.snygg.SnyggStylesheet
-import org.florisboard.lib.snygg.ui.snyggPalette
 import java.io.File
 
 /** What the native theme editor needs from the extension editor's workspace, which lives in the app's CacheManager
@@ -104,7 +105,7 @@ internal fun themeEditorReport(extDir: File, extension: String, theme: ThemeExte
     val names = { dir: String -> extDir.subDir(dir).listFiles()?.map { it.name }?.sorted().orEmpty().joinToString("/") }
     val flags = theme.materialYouFlags
     val all = { entries: List<Enum<*>> -> entries.joinToString("/") { it.name } }
-    val palette = snyggPalette(primary, flags)
+    val palette = themePalette(primary.toArgb(), 0, flags)
     val colors = { part: List<Int> -> part.joinToString("/") { it.toUInt().toString() } }
     return themeEditorRow(SettingsUiThemeEditorOutcome.LOADED, uuid, index,
         SettingsUiThemeEditor.STYLESHEET to stylesheet, SettingsUiThemeEditor.EXTENSION to extension,

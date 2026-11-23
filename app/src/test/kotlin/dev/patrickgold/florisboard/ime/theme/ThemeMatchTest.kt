@@ -3,6 +3,7 @@ package dev.patrickgold.florisboard.ime.theme
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import com.jtn0123.audiowhisper.render.inlineChipColors
+import com.jtn0123.audiowhisper.render.themePalette
 import com.jtn0123.audiowhisper.rust.ImeTheme
 import com.jtn0123.audiowhisper.rust.ImeThemeRule
 import kotlin.test.Test
@@ -10,7 +11,6 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 import org.florisboard.lib.color.MaterialYouFlags
 import org.florisboard.lib.snygg.SnyggStylesheet
-import org.florisboard.lib.snygg.ui.snyggPalette
 
 /**
  * Seeded traces of theme updates, each run by main's theme manager (frozen in
@@ -39,7 +39,7 @@ class ThemeMatchTest {
 
     /** The chips' adapter sends the stylesheet, the keyboard's state and the palette as Rust reads them. */
     @Test fun theChipsAreStyledFromTheWholePaletteInTheKeyboardsState() {
-        val palette = snyggPalette(Color(0xFF6750A4), MaterialYouFlags())
+        val palette = themePalette(0xFF6750A4.toInt(), 0, MaterialYouFlags())
         val names = palette.names
         val sheet = """{"${'$'}schema":"${SnyggStylesheet.SCHEMA_V2}",
             "window":{"foreground":"dynamic-dark-color(secondary)"},

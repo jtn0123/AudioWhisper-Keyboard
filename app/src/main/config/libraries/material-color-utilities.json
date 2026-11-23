@@ -1,0 +1,14 @@
+{
+  "uniqueId": "material-color-utilities",
+  "name": "Material Color Utilities (Material You colour schemes, ported to Rust)",
+  "developers": [
+    {
+      "name": "Google LLC",
+      "organisationUrl": "https://github.com/material-foundation"
+    }
+  ],
+  "website": "https://github.com/material-foundation/material-color-utilities",
+  "licenses": [
+    "Apache-2.0"
+  ]
+}

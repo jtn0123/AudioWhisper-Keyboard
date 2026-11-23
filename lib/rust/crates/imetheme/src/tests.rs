@@ -5,7 +5,7 @@ use crate::choose::{Facts, Mode, Name};
 use crate::inline::{BACKGROUND, FOREGROUND, Palette, chip};
 use crate::session::{Component, Extension, Index, Session, Step};
 use snygg::text;
-use wire::ime_theme::{accent, inline, kind, step, update};
+use wire::ime_theme::{accent, inline, kind, material_you, step, update};
 
 fn name(extension: &str, component: &str) -> Name {
     Name {
@@ -262,23 +262,70 @@ fn dynamic_chip_colours_take_the_palette() {
         rule(&text("inline"), &fields).unwrap(),
         vec![text("-15658735"), text("-12303292")]
     );
-    let accent = |specified| {
-        row(
+    // The settings' accent (-16742021 is 0xFF00897B) when they name one, else the system's
+    // (0xFF6750A4), under the theme's flags; light colours, then dark.
+    let fields = |specified, style: &str, contrast: &str, spec: &str| {
+        let mut fields = row(
             &[
                 (accent::SPECIFIED, specified),
-                (accent::PREFERRED, "5"),
-                (accent::SYSTEM, "7"),
+                (accent::PREFERRED, "-16742021"),
+                (accent::SYSTEM, "-10006364"),
             ],
             accent::SIZE,
-        )
+        );
+        fields.extend(row(
+            &[
+                (material_you::STYLE, style),
+                (material_you::CONTRAST, contrast),
+                (material_you::SPEC, spec),
+            ],
+            material_you::SIZE,
+        ));
+        fields
     };
+    let made = |seed: u32, style, contrast, spec| {
+        let mut out: Vec<_> = palette::NAMES.map(text).to_vec();
+        for dark in [false, true] {
+            let scheme = palette::scheme(seed, dark, false, style, contrast, spec);
+            out.extend(palette::roles(&scheme).map(|c| text(&(c as i32).to_string())));
+        }
+        out
+    };
+    let (vibrant, neutral) = (palette::Style::Vibrant, palette::Style::Neutral);
     assert_eq!(
-        rule(&text("primary"), &accent("1")).unwrap(),
-        vec![text("5")]
+        rule(
+            &text("palette"),
+            &fields("1", "Vibrant", "High", "SPEC_2025")
+        )
+        .unwrap(),
+        made(0xFF00_897B, vibrant, 1.0, palette::Spec::Spec2025)
     );
     assert_eq!(
-        rule(&text("primary"), &accent("0")).unwrap(),
-        vec![text("7")]
+        rule(
+            &text("palette"),
+            &fields("0", "Neutral", "Default", "SPEC_2021")
+        )
+        .unwrap(),
+        made(0xFF67_50A4, neutral, 0.0, palette::Spec::Spec2021)
+    );
+    let refused =
+        |style, contrast, spec| rule(&text("palette"), &fields("1", style, contrast, spec));
+    assert_eq!(
+        refused("Pastel", "High", "SPEC_2021"),
+        Err(Error("not a palette style"))
+    );
+    assert_eq!(
+        refused("Vibrant", "Low", "SPEC_2021"),
+        Err(Error("not a contrast level"))
+    );
+    assert_eq!(
+        refused("Vibrant", "High", "2021"),
+        Err(Error("not a spec version"))
+    );
+    let cut = &fields("1", "Vibrant", "High", "SPEC_2021")[..accent::SIZE + 2];
+    assert_eq!(
+        rule(&text("palette"), cut),
+        Err(Error("a Material You row is cut short"))
     );
     assert_eq!(rule(&text("other"), &[]), Err(Error("not a rule")));
 }

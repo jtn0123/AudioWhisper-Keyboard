@@ -24,8 +24,12 @@ crate::declare! {
         /// An [`inline`] row, then a palette: its names, then each name's light colour, then
         /// each name's dark colour. Answered with a [`chip`] row.
         INLINE = "inline",
-        /// An [`accent`] row: the accent colour a theme's palette is made from.
-        PRIMARY = "primary",
+        /// An [`accent`] row, then a [`material_you`] row: the palette a theme is drawn in, made
+        /// by the `palette` crate from the accent the settings name (else the system's) under the
+        /// theme's Material You flags, as MaterialKolor made it for Compose. Answered with a
+        /// palette as `INLINE` takes it: its names, then each name's light colour, then each
+        /// name's dark colour, as signed ARGB numbers.
+        PALETTE = "palette",
         /// A [`window`] row, then a palette as `INLINE` takes it. Answered with a [`backdrop`]
         /// row.
         WINDOW = "window",
@@ -221,6 +225,22 @@ pub mod accent {
     }
 }
 
+/// A theme's Material You flags.
+pub mod material_you {
+    crate::declare! {
+        /// `MaterialYouFlags`, each as its MaterialKolor enum entry's name.
+        pub const FIELDS: fields ImeThemeMaterialYou {
+            /// `PaletteStyle`: `TonalSpot`, `Neutral`, `Vibrant`, `Expressive`, `Rainbow`,
+            /// `FruitSalad`, `Monochrome`, `Fidelity` or `Content`.
+            STYLE,
+            /// `Contrast`: `Default`, `Medium`, `High` or `Reduced`.
+            CONTRAST,
+            /// `ColorSpec.SpecVersion`: `SPEC_2021` or `SPEC_2025`.
+            SPEC,
+        }
+    }
+}
+
 /// The groups the generator writes as Kotlin.
 pub const GROUPS: &[&crate::Group] = &[
     &OPS,
@@ -236,4 +256,5 @@ pub const GROUPS: &[&crate::Group] = &[
     &window::FIELDS,
     &backdrop::FIELDS,
     &accent::FIELDS,
+    &material_you::FIELDS,
 ];

@@ -2,7 +2,8 @@
 //! the index, and steps written back as rows.
 
 use wire::ime_theme::{
-    accent, backdrop, chip, component, extension, inline, kind, loaded, step, update, window,
+    accent, backdrop, chip, component, extension, inline, kind, loaded, material_you, step, update,
+    window,
 };
 
 use crate::Text;
@@ -60,19 +61,39 @@ pub fn rule(rule: &[u16], fields: &[Text]) -> Result<Rows> {
             Ok(out)
         }
         wire::ime_theme::WINDOW => window_rule(fields),
-        wire::ime_theme::PRIMARY => {
-            let row = fields
-                .get(..accent::SIZE)
-                .ok_or(Error("an accent row is cut short"))?;
-            let chosen = if wire::flag::decode(&row[accent::SPECIFIED]) {
-                accent::PREFERRED
-            } else {
-                accent::SYSTEM
-            };
-            Ok(vec![number_text(number::<i32>(&row[chosen])?)])
-        }
+        wire::ime_theme::PALETTE => palette_rule(fields),
         _ => Err(Error("not a rule")),
     }
+}
+
+/// The `PALETTE` rule: the settings' accent, else the system's, made into a light and a dark
+/// Material You scheme under the theme's flags, written as `INLINE` takes a palette.
+fn palette_rule(fields: &[Text]) -> Result<Rows> {
+    let row = fields
+        .get(..accent::SIZE)
+        .ok_or(Error("an accent row is cut short"))?;
+    let chosen = if wire::flag::decode(&row[accent::SPECIFIED]) {
+        accent::PREFERRED
+    } else {
+        accent::SYSTEM
+    };
+    let seed = number::<i32>(&row[chosen])? as u32;
+    let flags = fields
+        .get(accent::SIZE..accent::SIZE + material_you::SIZE)
+        .ok_or(Error("a Material You row is cut short"))?;
+    let name = |at: usize| utf8(&flags[at]);
+    let style = palette::Style::from_name(&name(material_you::STYLE)?)
+        .ok_or(Error("not a palette style"))?;
+    let contrast = palette::contrast_level(&name(material_you::CONTRAST)?)
+        .ok_or(Error("not a contrast level"))?;
+    let spec =
+        palette::Spec::from_name(&name(material_you::SPEC)?).ok_or(Error("not a spec version"))?;
+    let mut out: Rows = palette::NAMES.iter().map(|n| snygg::text(n)).collect();
+    for dark in [false, true] {
+        let scheme = palette::scheme(seed, dark, false, style, contrast, spec);
+        out.extend(palette::roles(&scheme).map(|c| number_text(c as i32)));
+    }
+    Ok(out)
 }
 
 /// The `WINDOW` rule: the window's background, and where its image goes once both sizes are

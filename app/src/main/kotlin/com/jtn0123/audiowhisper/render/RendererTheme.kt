@@ -1,36 +1,34 @@
 package com.jtn0123.audiowhisper.render
 
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.isSpecified
-import androidx.compose.ui.graphics.toArgb
 import com.jtn0123.audiowhisper.rust.ImeTheme
 import com.jtn0123.audiowhisper.rust.ImeThemeAccent
-import com.jtn0123.audiowhisper.rust.ImeThemeChip
 import com.jtn0123.audiowhisper.rust.ImeThemeInline
+import com.jtn0123.audiowhisper.rust.ImeThemeChip
+import com.jtn0123.audiowhisper.rust.ImeThemeMaterialYou
 import com.jtn0123.audiowhisper.rust.ImeThemeRule
 import com.jtn0123.audiowhisper.rust.WireFlag
 import dev.patrickgold.florisboard.ime.theme.ThemeManager
 import org.florisboard.lib.color.MaterialYouFlags
-import org.florisboard.lib.snygg.ui.SnyggPalette
-import org.florisboard.lib.snygg.ui.snyggPalette
 
-/** The accent a palette is made from, as Rust chooses it: the settings' [accent] if they name one, else [system]'s. */
-internal fun themePrimary(accent: Color, system: () -> Color): Color {
-    val specified = accent.isSpecified
-    val row = ImeThemeAccent.row(
-        ImeThemeAccent.SPECIFIED to WireFlag.encode(specified),
-        ImeThemeAccent.PREFERRED to (if (specified) accent.toArgb() else 0).toString(),
-        ImeThemeAccent.SYSTEM to (if (specified) 0 else system().toArgb()).toString(),
-    )
-    return Color(ImeTheme.rules(ImeThemeRule.PRIMARY, *row).single().toInt())
+/** A theme's palette as Rust makes it: the colour names, then each name's light colour, then each name's dark one. */
+internal class ThemePalette(val names: List<String>, val colors: List<Int>)
+
+/**
+ * The palette a theme with Material You [flags] is drawn in, made in Rust (crates/palette) for the settings' [accent]
+ * (ARGB, null when they name none) or else the [system]'s.
+ */
+internal fun themePalette(accent: Int?, system: Int, flags: MaterialYouFlags): ThemePalette {
+    val answer = ImeTheme.rules(ImeThemeRule.PALETTE,
+        *ImeThemeAccent.row(ImeThemeAccent.SPECIFIED to WireFlag.encode(accent != null),
+            ImeThemeAccent.PREFERRED to "${accent ?: 0}", ImeThemeAccent.SYSTEM to "$system"),
+        *ImeThemeMaterialYou.row(ImeThemeMaterialYou.STYLE to flags.paletteStyle.name,
+            ImeThemeMaterialYou.CONTRAST to flags.contrastLevel.name, ImeThemeMaterialYou.SPEC to flags.specVersion.name))
+    val names = answer.size / 3
+    return ThemePalette(answer.take(names), answer.drop(names).map(String::toInt))
 }
 
-/** The palette a theme with Material You [flags] is drawn in, for the settings' [accent] or else the [system]'s. */
-internal fun themePalette(accent: Color, system: () -> Color, flags: MaterialYouFlags): SnyggPalette =
-    snyggPalette(themePrimary(accent, system), flags)
-
 /** The inline autofill chips' background and foreground in [info] for the keyboard's [mode] and [shift], as Rust resolves them. */
-internal fun inlineChipColors(info: ThemeManager.ThemeInfo, mode: String, shift: String, palette: SnyggPalette): Pair<Int, Int> {
+internal fun inlineChipColors(info: ThemeManager.ThemeInfo, mode: String, shift: String, palette: ThemePalette): Pair<Int, Int> {
     val row = ImeThemeInline.row(
         ImeThemeInline.STYLESHEET to info.stylesheetJson,
         ImeThemeInline.MODE to mode,
@@ -42,7 +40,7 @@ internal fun inlineChipColors(info: ThemeManager.ThemeInfo, mode: String, shift:
 
 /** What the renderer draws [info] in: its stylesheet, the [palette], the display's scale and the keyboard's state. */
 internal fun rendererTheme(
-    info: ThemeManager.ThemeInfo, palette: SnyggPalette, density: Float, fontScale: Float, multiplier: Float,
+    info: ThemeManager.ThemeInfo, palette: ThemePalette, density: Float, fontScale: Float, multiplier: Float,
     mode: String = "characters", shift: String = "unshifted",
 ) = RendererTheme(info.stylesheetJson, palette.names, palette.colors, density, fontScale, multiplier, mode, shift)
 

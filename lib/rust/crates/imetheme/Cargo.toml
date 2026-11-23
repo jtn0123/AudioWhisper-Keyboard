@@ -9,6 +9,8 @@ rust-version.workspace = true
 
 [dependencies]
 extensions = { path = "../extensions" }
+# The Material You palette a theme is drawn in.
+palette = { path = "../palette" }
 snygg = { path = "../snygg" }
 wire = { path = "../wire" }
 

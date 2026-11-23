@@ -1,0 +1,14 @@
+{
+  "uniqueId": "fdlibm",
+  "name": "fdlibm (maths functions in the colour scheme port)",
+  "developers": [
+    {
+      "name": "Sun Microsystems, Inc.",
+      "organisationUrl": "https://www.netlib.org/fdlibm/"
+    }
+  ],
+  "website": "https://www.netlib.org/fdlibm/",
+  "licenses": [
+    "fdlibm"
+  ]
+}

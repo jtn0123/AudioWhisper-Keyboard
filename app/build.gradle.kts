@@ -249,6 +249,8 @@ tasks.withType<Test> {
     inputs.dir(rustHost).withPropertyName("rustHostLibrary").withPathSensitivity(PathSensitivity.RELATIVE)
     systemProperty("java.library.path", rustHost.path)
     jvmArgs("--enable-native-access=ALL-UNNAMED")
+    // PaletteMatchTest's accent count: -PpaletteSeeds=50000 for the full differential.
+    providers.gradleProperty("paletteSeeds").orNull?.let { systemProperty("palette.seeds", it) }
 }
 
 // AndroidX Test needs two runtime annotations. The full Error Prone compiler-annotation

@@ -1,7 +1,6 @@
 package com.jtn0123.audiowhisper.render
 
 import android.view.Choreographer
-import androidx.compose.ui.graphics.Color
 import com.jtn0123.audiowhisper.dictation.Dictation
 import com.jtn0123.audiowhisper.gif.GifSearch
 import com.jtn0123.audiowhisper.reader.ReadAloud
@@ -53,7 +52,7 @@ internal class RootReads(val service: FlorisImeService) {
     var rowHeight = 0f
     val density get() = service.resources.displayMetrics.density
     val landscape get() = service.resources.configuration.isOrientationLandscape()
-    private var palette: Pair<List<Any>, org.florisboard.lib.snygg.ui.SnyggPalette>? = null
+    private var palette: Pair<List<Any?>, ThemePalette>? = null
     private var dates: Pair<Any, DateTimeFormatter>? = null
 
     /** String [id] in the keyboard's language, as Compose's `stringRes` gave it. */
@@ -90,10 +89,11 @@ internal class RootReads(val service: FlorisImeService) {
     /** What the renderer draws in; [stateful] for the chrome, which reads the keyboard's mode and shift. */
     fun theme(stateful: Boolean): RendererTheme {
         val info = themes.activeThemeInfo.value
-        val system = Color(service.resources.getColor(android.R.color.system_accent1_500, service.theme))
-        val key = listOf(prefs.theme.accentColor.get(), system, info.config.materialYouFlags)
+        val system = service.resources.getColor(android.R.color.system_accent1_500, service.theme)
+        val accent = themes.preferredAccent()
+        val key = listOf(accent, system, info.config.materialYouFlags)
         val made = palette?.takeIf { it.first == key }?.second
-            ?: themePalette(prefs.theme.accentColor.get(), { system }, info.config.materialYouFlags).also { palette = key to it }
+            ?: themePalette(accent, system, info.config.materialYouFlags).also { palette = key to it }
         val state = keyboard.activeState
         val scale = service.resources.configuration.fontScale
         return if (stateful) rendererTheme(info, made, density, scale, fontMultiplier(), state.keyboardMode.toString(), state.inputShiftState.toString())
